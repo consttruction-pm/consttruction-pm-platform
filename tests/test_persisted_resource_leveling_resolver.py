@@ -8,7 +8,10 @@ import sqlite3
 import pytest
 
 from construction_pm.application.authorization import AuthorizationContext, default_project_policy
+from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectLifecycleService, ProjectSummary
+from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.calendar_exception_repository import SQLiteCalendarExceptionRepository
 from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
@@ -26,6 +29,14 @@ from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentRepository,
 )
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.schedule_calculation_context_repository import (
+    SQLiteCalculationContextRepository,
+    build_persisted_context,
+)
+from construction_pm.schedule_input_snapshot_repository import (
+    SQLiteScheduleInputSnapshotRepository,
+    build_snapshot,
+)
 from construction_pm.p6_resource_spread_repository import (
     P6ResourceSpreadApplicationService,
     SQLiteP6ResourceSpreadRepository,
@@ -38,6 +49,28 @@ from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeReso
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.schedule_options import ScheduleOptions
+
+
+class Sessions:
+    def __init__(self, session: AuthenticatedSession) -> None:
+        self.session = session
+
+    def get(self, session_id: str):
+        return self.session if session_id == self.session.session_id else None
+
+
+class Projects:
+    def list_for_user(self, tenant_id: str, user_id: str):
+        return (ProjectSummary("P-1", tenant_id, "Persisted Leveling Project", 7),)
+
+    def get_for_user(self, tenant_id: str, project_id: str, user_id: str):
+        if project_id != "P-1":
+            return None
+        return ProjectSummary("P-1", tenant_id, "Persisted Leveling Project", 7)
+
+    def create_for_user(self, tenant_id: str, user_id: str, project_id: str, name: str):
+        return ProjectSummary(project_id, tenant_id, name, 0)
+
 
 
 class TransactionManager:
@@ -219,6 +252,87 @@ def test_resolver_feeds_shared_scheduler_and_resolves_real_resource_overload():
         assert len(result.calculation_run_identity) == 64
     finally:
         fixture["connection"].close()
+
+
+def test_production_query_uses_real_persisted_resource_and_calendar_repositories():
+    fixture = make_fixture()
+    connection = fixture["connection"]
+    now = datetime(2026, 10, 25, tzinfo=timezone.utc)
+    snapshots = SQLiteScheduleInputSnapshotRepository(connection)
+    contexts = SQLiteCalculationContextRepository(connection)
+    snapshot = fixture["snapshot"]
+    context = fixture["context"]
+    snapshots.save(snapshot)
+    contexts.save(build_persisted_context(fixture["scope"], context))
+    # Explicit commit, then the production resolver reads the persisted rows
+    # again through the authorized read API while executing the HTTP query.
+    connection.commit()
+
+    session = AuthenticatedSession(
+        "s1", "leveler", "T-1", frozenset({"project_admin"}),
+        now + timedelta(hours=1),
+    )
+    lifecycle = ProjectLifecycleAPI(
+        ProjectLifecycleService(Sessions(session), Projects(), default_project_policy())
+    )
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=lifecycle,
+        snapshot_repository=snapshots,
+        calendar_registry_factory=lambda: fixture["registry"],
+        calculation_context_repository=contexts,
+        authorization_policy=default_project_policy(),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        resource_read_api=fixture["read_api"],
+        resource_calendar_master_repository=fixture["calendar_masters"],
+        resource_calendar_snapshot_repository=fixture["calendar_snapshots"],
+        resource_calendar_exception_repository=fixture["calendar_exceptions"],
+        resource_calendar_work_hours_repository=fixture["calendar_work_hours"],
+    )
+    from io import BytesIO
+    import json
+
+    request = {
+        "contract_version": "schedule-query.v1",
+        "query_id": "Q-REAL-PERSISTED-LEVELING",
+        "scope": {
+            "tenant_id": "T-1",
+            "project_id": "P-1",
+            "project_revision": 7,
+        },
+        "requested_by": "leveler",
+        "query_text": "level the persisted resource assignments",
+        "kind": "fact",
+        "language": "en",
+        "constraints": {"snapshot_id": snapshot.snapshot_id},
+    }
+    body = json.dumps(request).encode("utf-8")
+    status_line: list[str] = []
+    chunks: list[bytes] = []
+    environ = {
+        "REQUEST_METHOD": "POST",
+        "PATH_INFO": "/api/v1/schedule/query",
+        "HTTP_COOKIE": "cp_session=s1",
+        "CONTENT_LENGTH": str(len(body)),
+        "wsgi.input": BytesIO(body),
+    }
+
+    def start_response(status, headers):
+        status_line.append(status)
+
+    try:
+        chunks.extend(app(environ, start_response))
+        payload = json.loads(b"".join(chunks))
+        assert status_line == ["200 OK"]
+        assert payload["contract_version"] == "schedule-query-result.v1"
+        assert payload["data"]["project_finish"] == "2026-10-20"
+        starts = {
+            activity["start"]
+            for activity in payload["data"]["activities"].values()
+        }
+        assert starts == {"2026-10-19", "2026-10-20"}
+        assert payload["data"]["calculation_run_identity"]
+    finally:
+        connection.close()
 
 
 def test_resolver_fails_closed_when_assignment_calendar_version_is_missing():
