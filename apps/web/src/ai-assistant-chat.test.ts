@@ -40,3 +40,21 @@ test("assistant chat accepts a language only when every required label has a tra
   });
   assert.equal(isAIAssistantChatLocaleSupported("de-DE"), true);
 });
+
+
+import { boundedAIAssistantHistory } from "./ai-assistant-chat.js";
+
+test("assistant history skips oversized messages and stays within server bounds", () => {
+  const messages = [
+    { role: "user" as const, content: "older" },
+    { role: "user" as const, content: "x".repeat(4001) },
+    { role: "assistant" as const, content: "a".repeat(4000) },
+    { role: "user" as const, content: "b".repeat(4000) },
+    { role: "assistant" as const, content: "c".repeat(4000) },
+  ];
+  const history = boundedAIAssistantHistory(messages);
+  assert.deepEqual(history.map((entry) => entry.content[0]), ["a", "b", "c"]);
+  assert.ok(history.length <= 12);
+  assert.ok(history.every((entry) => entry.content.length <= 4000));
+  assert.ok(history.reduce((total, entry) => total + entry.content.length, 0) <= 12000);
+});
