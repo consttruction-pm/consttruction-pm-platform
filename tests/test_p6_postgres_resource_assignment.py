@@ -39,7 +39,15 @@ def _scope() -> BackendScope:
     return BackendScope(f"tenant-{suffix}", f"project-{suffix}", 7)
 
 
-def _assignment(scope: BackendScope, calendar_version: str = "calendar-v3") -> P6ResourceAssignment:
+def _assignment(
+    scope: BackendScope,
+    calendar_version: str = "calendar-v3",
+    *,
+    is_driving: bool | None = None,
+    units_per_time: Decimal | None = None,
+    units_per_time_period: str | None = None,
+    hours_per_units_time_period: Decimal | None = None,
+) -> P6ResourceAssignment:
     return P6ResourceAssignment(
         scope=scope,
         assignment_id="assignment-1",
@@ -48,6 +56,10 @@ def _assignment(scope: BackendScope, calendar_version: str = "calendar-v3") -> P
         units=Decimal("8.50"),
         calendar_id="calendar-1",
         calendar_version=calendar_version,
+        is_driving=is_driving,
+        units_per_time=units_per_time,
+        units_per_time_period=units_per_time_period,
+        hours_per_units_time_period=hours_per_units_time_period,
     )
 
 
@@ -66,6 +78,7 @@ def test_postgres_resource_assignment_round_trips_exact_calendar_version(connect
     assert stored.calendar_id == "calendar-1"
     assert stored.calendar_version == "calendar-v3"
     assert repository.list(scope) == (item,)
+
 
 
 def test_postgres_legacy_assignment_table_migrates_without_guessing_version(connection):
@@ -109,11 +122,38 @@ def test_postgres_legacy_assignment_table_migrates_without_guessing_version(conn
     assert legacy.calendar_id == "calendar-1"
     # Migration preserves unknown provenance as NULL; it never guesses a version.
     assert legacy.calendar_version is None
+    assert legacy.is_driving is None
+    assert legacy.units_per_time is None
+    assert legacy.units_per_time_period is None
+    assert legacy.hours_per_units_time_period is None
 
     versioned = _assignment(scope, "calendar-v9")
     assert repository.upsert(versioned) == versioned
     assert repository.get(scope, versioned.assignment_id) == versioned
 
+
+
+def test_postgres_resource_assignment_driving_rate_fields_round_trip(connection):
+    repository = PostgresP6ResourceAssignmentRepository(connection)
+    repository.initialize()
+    scope = _scope()
+    item = _assignment(
+        scope,
+        is_driving=True,
+        units_per_time=Decimal("2.5"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+
+    with connection.transaction():
+        repository.upsert(item)
+
+    stored = repository.get(scope, item.assignment_id)
+    assert stored == item
+    assert stored.is_driving is True
+    assert stored.units_per_time == Decimal("2.5")
+    assert stored.units_per_time_period == "day"
+    assert stored.hours_per_units_time_period == Decimal("8")
 
 def test_postgres_resource_assignment_calendar_version_is_immutable(connection):
     repository = PostgresP6ResourceAssignmentRepository(connection)

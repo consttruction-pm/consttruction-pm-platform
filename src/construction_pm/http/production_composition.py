@@ -18,6 +18,7 @@ from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_persisted_resource_leveling_resolver import build_persisted_resource_leveling_input_resolver
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
@@ -58,6 +59,7 @@ def build_project_lifecycle_wsgi_app(
     ai_assistant_provider: AIChatProvider | None = None,
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
+    resource_write_api: P6ResourceWriteAPI | None = None,
     resource_calendar_master_repository: CalendarMasterRepository | None = None,
     resource_calendar_snapshot_repository: CalendarSnapshotRepository | None = None,
     resource_calendar_exception_repository: CalendarExceptionRepository | None = None,
@@ -160,6 +162,8 @@ def build_project_lifecycle_wsgi_app(
         p6_activity_master_api=activity_master_api,
         p6_relationship_api=relationship_api,
         p6_schedule_snapshot_api=schedule_snapshot_publication_api,
+        p6_resource_read_api=resource_read_api,
+        p6_resource_write_api=resource_write_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
         ai_action_runtime=ai_action_runtime,
