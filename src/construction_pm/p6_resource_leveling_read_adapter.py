@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date
+import hashlib
+import json
 from typing import Mapping, Sequence
 
 from .application.authorization import AuthorizationContext
@@ -22,6 +24,15 @@ from .scheduling.resource_leveling import (
 
 class P6ResourceLevelingReadAdapterError(ValueError):
     """Raised when authoritative P6 resource data cannot form scheduler input."""
+
+
+def _canonical_hash(value: object) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _stable_sort_key(value: object) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
 
 
 def _scope_dict(scope: BackendScope) -> dict[str, object]:
@@ -65,6 +76,9 @@ def build_scheduler_leveling_input(
     periods: Sequence[date],
     options: ResourceLevelingOptions,
     require_calendar_versions: bool = False,
+    source_snapshot_id: str | None = None,
+    source_snapshot_hash: str | None = None,
+    source_calculation_identity: str | None = None,
 ) -> SchedulerLevelingInput:
     """Adapt authoritative resource read data into the existing Shared Core boundary.
 
@@ -75,6 +89,11 @@ def build_scheduler_leveling_input(
     calculation is performed here.
     """
     scope.validate()
+    source_binding = (source_snapshot_id, source_snapshot_hash, source_calculation_identity)
+    if any(value is not None for value in source_binding) and not all(
+        isinstance(value, str) and value.strip() for value in source_binding
+    ):
+        raise P6ResourceLevelingReadAdapterError("INCOMPLETE_LEVELING_SOURCE_BINDING")
     assignments_dto = read_api.list_assignments(scope, auth_context=auth_context)
     periods_dto = read_api.list_assignment_periods(scope, auth_context=auth_context)
 
@@ -173,11 +192,39 @@ def build_scheduler_leveling_input(
         for item in capacity_slices
     )
 
+    resource_facts_hash = None
+    calendar_manifest_hash = None
+    if all(isinstance(value, str) and value.strip() for value in source_binding):
+        resource_facts_hash = _canonical_hash({
+            "scope": _scope_dict(scope),
+            "assignments": sorted(assignments_dto, key=_stable_sort_key),
+            "periods": sorted(periods_dto, key=_stable_sort_key),
+        })
+        calendar_manifest_hash = _canonical_hash({
+            "scope": _scope_dict(scope),
+            "capacities": [
+                {
+                    "resource_id": item.resource_id,
+                    "period": item.period.isoformat(),
+                    "units": str(item.units),
+                    "calendar_id": item.calendar_id,
+                    "calendar_version": item.calendar_version,
+                    "calendar_snapshot_hash": item.calendar_snapshot_hash,
+                }
+                for item in sorted(capacities, key=lambda item: (item.resource_id, item.period))
+            ],
+        })
+
     return SchedulerLevelingInput(
         forward_activities=forward,
         backward_activities=backward,
         capacities=capacities,
         options=options,
+        source_snapshot_id=source_snapshot_id,
+        source_snapshot_hash=source_snapshot_hash,
+        source_calculation_identity=source_calculation_identity,
+        resource_facts_hash=resource_facts_hash,
+        calendar_manifest_hash=calendar_manifest_hash,
     )
 
 
