@@ -648,6 +648,12 @@ def _materialize_payload(
     if not isinstance(raw_resource_facts, list):
         raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACTS")
     resource_facts: list[ResourceDependentDriverFact] = []
+    resource_fact_ids: set[str] = set()
+    known_activity_ids = {
+        activity.get("id")
+        for activity in _required(payload, "activities")
+        if isinstance(activity, dict)
+    }
     for item in raw_resource_facts:
         if not isinstance(item, dict):
             raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
@@ -655,18 +661,27 @@ def _materialize_payload(
         if driving is not None and not isinstance(driving, bool):
             raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG")
         for field_name in ("assignment_id", "activity_id", "resource_id"):
-            _required_string(item, field_name, "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
+            identifier = _required_string(
+                item, field_name, "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+            )
+            if identifier != identifier.strip():
+                raise SnapshotMaterializationError(
+                    "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+                )
+        assignment_id = item["assignment_id"]
+        if assignment_id in resource_fact_ids:
+            raise SnapshotMaterializationError(
+                "DUPLICATE_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+            )
+        resource_fact_ids.add(assignment_id)
         for field_name in (
             "calendar_id", "calendar_version", "unit_of_measure", "units_per_time_period"
         ):
             field_value = item.get(field_name)
-            if field_value is not None and not isinstance(field_value, str):
+            if field_value is not None and (
+                not isinstance(field_value, str) or field_value != field_value.strip()
+            ):
                 raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
-        known_activity_ids = {
-            activity.get("id")
-            for activity in _required(payload, "activities")
-            if isinstance(activity, dict)
-        }
         if item["activity_id"] not in known_activity_ids:
             raise SnapshotMaterializationError(
                 "resource dependent assignment fact references unknown activity"
