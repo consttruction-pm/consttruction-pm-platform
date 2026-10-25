@@ -413,6 +413,11 @@ def schedule_with_resource_leveling(
             backward_activities=leveling_input.backward_activities,
             capacities=leveling_input.capacities,
             options=selected_options,
+            source_snapshot_id=leveling_input.source_snapshot_id,
+            source_snapshot_hash=leveling_input.source_snapshot_hash,
+            source_calculation_identity=leveling_input.source_calculation_identity,
+            resource_facts_hash=leveling_input.resource_facts_hash,
+            calendar_manifest_hash=leveling_input.calendar_manifest_hash,
         )
 
     if selected_options.resource_list is not None:
@@ -444,6 +449,11 @@ def schedule_with_resource_leveling(
         backward_activities=leveling_input.backward_activities,
         capacities=leveling_input.capacities,
         options=leveling_input.options,
+        source_snapshot_id=leveling_input.source_snapshot_id,
+        source_snapshot_hash=leveling_input.source_snapshot_hash,
+        source_calculation_identity=leveling_input.source_calculation_identity,
+        resource_facts_hash=leveling_input.resource_facts_hash,
+        calendar_manifest_hash=leveling_input.calendar_manifest_hash,
     )
     forward_shifts = propose_forward_leveling(
         forward_activities,
