@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
+import json
 from typing import Callable, Mapping
 
 from construction_pm.backend_p0.schedule_query import ScheduleQueryApplicationService
@@ -90,12 +91,16 @@ class AuthoritativeScheduleQueryProvider:
         try:
             calendar_registry = self.calendar_registry_factory()
             leveling_input = None
-            if self.leveling_input_resolver is not None:
+            if (
+                self.leveling_input_resolver is not None
+                and _snapshot_requests_resource_leveling(snapshot)
+            ):
                 leveling_input = self.leveling_input_resolver(
                     snapshot, calculation_context, calendar_registry
                 )
-                if leveling_input is not None:
-                    _validate_leveling_input_binding(snapshot, calculation_context, leveling_input)
+                if leveling_input is None:
+                    raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
+                _validate_leveling_input_binding(snapshot, calculation_context, leveling_input)
             result = evaluate_schedule_snapshot(
                 snapshot,
                 calculation_context,
@@ -128,6 +133,31 @@ class AuthoritativeScheduleQueryProvider:
             data=data,
             source_refs=(source,),
         )
+
+
+def _snapshot_requests_resource_leveling(snapshot: ScheduleInputSnapshot) -> bool:
+    try:
+        payload = json.loads(snapshot.canonical_payload)
+        options = payload["schedule_options"]
+        mode = payload["mode"]
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT") from exc
+    if not isinstance(options, dict):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    if mode != "DATE_BASED":
+        return False
+    return any(
+        bool(options.get(name))
+        for name in (
+            "level_all_resources",
+            "level_within_float",
+            "min_float_to_preserve",
+            "over_allocation_percentage",
+            "resource_list",
+            "priority_list",
+            "preserve_scheduled_early_and_late_dates",
+        )
+    )
 
 
 def _validate_leveling_input_binding(
