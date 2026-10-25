@@ -15,11 +15,38 @@ test("workspace navigation exposes every V1 main menu surface", () => {
   );
 });
 
-test("schedule is the implemented Activity/WBS surface and exposes its review screens", () => {
+test("schedule navigation exposes run controls and every reference section", () => {
   const item = getWorkspaceNavigation("schedule");
 
   assert.equal(item.status, "implemented");
-  assert.deepEqual(item.submenus.map((submenu) => submenu.en), ["Activity Grid", "Gantt Chart", "Schedule Options", "Run Schedule", "Code Reference"]);
+  assert.deepEqual(item.submenus.map((submenu) => submenu.en), [
+    "Activity Grid",
+    "Gantt Chart",
+    "Relationships & lag",
+    "Calendars & work time",
+    "Schedule options & Data Date",
+    "Resources & leveling",
+    "Progress & baselines",
+    "Run Schedule",
+    "Code Reference",
+    "Option catalogue",
+    "Formula contracts",
+    "Documentation review",
+  ]);
+  assert.deepEqual(item.submenus.map((submenu) => submenu.fa), [
+    "جدول فعالیت‌ها",
+    "گانت",
+    "روابط و وقفه",
+    "تقویم‌ها و ساعات کاری",
+    "تنظیمات زمان‌بندی و تاریخ داده",
+    "منابع و تسطیح",
+    "پیشرفت و مبناها",
+    "اجرای زمان‌بندی",
+    "مرجع کد",
+    "فهرست گزینه‌ها",
+    "قراردادهای محاسباتی",
+    "بازبینی مستندات",
+  ]);
 });
 
 test("unsupported V1 surfaces are explicitly marked preview instead of being presented as implemented", () => {
