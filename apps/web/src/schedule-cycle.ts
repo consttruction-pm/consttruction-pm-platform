@@ -373,7 +373,7 @@ function mountReferencePanel(
   render();
 }
 
-function renderSettingControl(schema: ScheduleOptionSchema, value: unknown): string {
+function renderSettingControl(schema: ScheduleOptionSchema, value: unknown, locale: "fa" | "en"): string {
   const label = settingFieldLabel(schema.name, locale);
   const id = `cp-schedule-option-${schema.name}`;
   if (schema.kind === "boolean") return `<label class="cp-schedule-option" for="${safe(id)}"><span>${safe(label)}</span><input id="${safe(id)}" type="checkbox" data-option="${safe(schema.name)}" ${value === true ? "checked" : ""} /></label>`;
@@ -490,7 +490,9 @@ async function mountSettingsPanel(
           return null;
         }
         if (mode === "DATE_BASED") return raw;
-        const date = new Date(raw);\n        if (Number.isNaN(date.getTime())) throw new Error("INVALID_" + name.toUpperCase());\n        return date.toISOString();
+        const date = new Date(raw);
+        if (Number.isNaN(date.getTime())) throw new Error("INVALID_" + name.toUpperCase());
+        return date.toISOString();
       };
       const scheduleOptions: Record<string, unknown> = {};
       for (const schema of catalog?.schedule_options_schema ?? []) {
