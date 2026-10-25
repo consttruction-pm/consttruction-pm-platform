@@ -45,7 +45,9 @@ def test_resource_dependent_assignment_facts_are_bound_to_snapshot_hash():
     from decimal import Decimal
 
     base = make_input()
-    def build(is_driving: bool) -> AuthoritativeScheduleInput:
+    from construction_pm.scheduling.activity import ActivityType
+
+    def build(is_driving: bool, *, resource_dependent: bool = True) -> AuthoritativeScheduleInput:
         fact = ResourceDependentDriverFact(
             assignment_id="AS-1", activity_id="A", resource_id="R-1",
             calendar_id="CAL-1", calendar_version="7", unit_of_measure="h",
@@ -53,10 +55,15 @@ def test_resource_dependent_assignment_facts_are_bound_to_snapshot_hash():
             units_per_time=Decimal("8"), units_per_time_period="day",
             hours_per_units_time_period=Decimal("8"),
         )
+        activities = (
+            Activity("A", 2, activity_type=ActivityType.RESOURCE_DEPENDENT)
+            if resource_dependent else base.activities[0],
+            base.activities[1],
+        )
         return AuthoritativeScheduleInput(
             snapshot_id=base.snapshot_id, tenant_id=base.tenant_id, project_id=base.project_id,
             project_revision=base.project_revision, mode=base.mode, project_calendar=base.project_calendar,
-            activities=base.activities, relationships=base.relationships,
+            activities=activities, relationships=base.relationships,
             activity_calendar_assignments=base.activity_calendar_assignments,
             schedule_options=base.schedule_options, project_start=base.project_start,
             resource_dependent_assignment_facts=(fact,),
@@ -67,6 +74,28 @@ def test_resource_dependent_assignment_facts_are_bound_to_snapshot_hash():
     assert driving.canonical_payload()["resource_dependent_assignment_facts"][0]["is_driving"] is True
     assert nondriving.canonical_payload()["resource_dependent_assignment_facts"][0]["is_driving"] is False
     assert driving.snapshot_hash != nondriving.snapshot_hash
+
+
+def test_resource_dependent_facts_reject_task_dependent_activity_type():
+    from decimal import Decimal
+
+    base = make_input()
+    fact = ResourceDependentDriverFact(
+        assignment_id="AS-1", activity_id="A", resource_id="R-1",
+        calendar_id="CAL-1", calendar_version="7", unit_of_measure="h",
+        planned_units=Decimal("16"), is_driving=True,
+        units_per_time=Decimal("8"), units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+    with pytest.raises(ValueError, match="require Resource Dependent activity type"):
+        AuthoritativeScheduleInput(
+            snapshot_id=base.snapshot_id, tenant_id=base.tenant_id, project_id=base.project_id,
+            project_revision=base.project_revision, mode=base.mode, project_calendar=base.project_calendar,
+            activities=base.activities, relationships=base.relationships,
+            activity_calendar_assignments=base.activity_calendar_assignments,
+            schedule_options=base.schedule_options, project_start=base.project_start,
+            resource_dependent_assignment_facts=(fact,),
+        )
 
 
 def test_snapshot_rejects_cross_scope_activity_references():
