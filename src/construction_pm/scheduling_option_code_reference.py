@@ -927,7 +927,7 @@ P6_OPTION_REFERENCE: Final[tuple[P6OptionReference, ...]] = (
         selectable_values=("Report profile", "Selected fields", "Group/sort/filter", "Baseline", "Project revision/Data Date", "Locale/page layout", "Output format"),
         behavior="A report definition is configuration; a produced report is an artifact bound to exact source data. Missing/unsupported fields must be reported, not silently dropped, and output calculations must consume the shared calculation result.",
         inputs=("Project revision", "Baseline ID", "Data Date", "Field IDs", "Filter/group/sort configuration", "Locale and format"),
-        outputs_or_effects=("Reproducible report artifact and provenance metadata"),
+        outputs_or_effects=("Reproducible report artifact and provenance metadata",),
         official_sources=(ORACLE_SOURCES["help_toc"], ORACLE_SOURCES["pro_user_guide_portal"]),
         cubi_code_paths=("src/construction_pm/p6_report_profile_repository.py", "docs/architecture/P6_REPORT_PROFILE_MAPPING_PERSISTENCE_V1.md"),
         regression_tests=(),
@@ -953,6 +953,19 @@ def validate_option_registry(
             errors.append(f"UNKNOWN_REQUIREMENT_ID:{item.id}:{item.requirement_id}")
         if item.coverage not in allowed:
             errors.append(f"INVALID_OPTION_COVERAGE:{item.id}:{item.coverage}")
+        for field_name in (
+            "selectable_values",
+            "inputs",
+            "outputs_or_effects",
+            "official_sources",
+            "cubi_code_paths",
+            "regression_tests",
+        ):
+            value = getattr(item, field_name)
+            if not isinstance(value, tuple) or any(not isinstance(entry, str) for entry in value):
+                errors.append(f"INVALID_OPTION_TUPLE_FIELD:{item.id}:{field_name}")
+        if not isinstance(item.known_gap, str):
+            errors.append(f"INVALID_OPTION_GAP_FIELD:{item.id}")
         if not item.official_sources:
             errors.append(f"MISSING_OPTION_SOURCE:{item.id}")
         if not item.cubi_code_paths:
