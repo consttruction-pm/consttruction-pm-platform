@@ -48,7 +48,7 @@ from construction_pm.scheduling.authoritative_schedule import AuthoritativeSched
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
-from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.schedule_options import PriorityListItem, PrioritySortOrder, ScheduleOptions
 
 
 class Sessions:
@@ -82,7 +82,7 @@ class TransactionManager:
         yield
 
 
-def make_fixture(*, calendar_version: str = "v1", add_resources: bool = True):
+def make_fixture(*, calendar_version: str = "v1", add_resources: bool = True, schedule_options: ScheduleOptions | None = None):
     connection = sqlite3.connect(":memory:")
     scope = BackendScope("T-1", "P-1", 7)
     transaction_manager = TransactionManager(connection)
@@ -123,7 +123,7 @@ def make_fixture(*, calendar_version: str = "v1", add_resources: bool = True):
         Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH),
         Activity("B", 1, leveling_priority=ActivityLevelingPriority.NORMAL),
     )
-    schedule_options = ScheduleOptions(level_all_resources=True)
+    schedule_options = schedule_options or ScheduleOptions(level_all_resources=True)
     source = AuthoritativeScheduleInput(
         snapshot_id="S-LEVEL-PERSISTED",
         tenant_id=scope.tenant_id,
@@ -232,6 +232,34 @@ def test_resolver_reads_persisted_assignments_and_exact_calendar_version():
     finally:
         fixture["connection"].close()
 
+
+
+def test_resolver_preserves_persisted_resource_leveling_options():
+    configured = ScheduleOptions(
+        level_all_resources=True,
+        level_within_float=True,
+        min_float_to_preserve=2,
+        over_allocation_percentage=10.0,
+        resource_list=("R-1",),
+        priority_list=(PriorityListItem("total_float", PrioritySortOrder.DESCENDING),),
+        preserve_scheduled_early_and_late_dates=True,
+    )
+    fixture = make_fixture(schedule_options=configured)
+    try:
+        leveling = fixture["resolver"](
+            fixture["snapshot"], fixture["context"], fixture["registry"], auth()
+        )
+        assert leveling.options.level_all_resources is True
+        assert leveling.options.level_within_float is True
+        assert leveling.options.min_float_to_preserve == Decimal("2")
+        assert leveling.options.over_allocation_percentage == Decimal("10.0")
+        assert leveling.options.resource_ids == ("R-1",)
+        assert leveling.options.preserve_scheduled_early_and_late_dates is True
+        assert len(leveling.options.priorities) == 1
+        assert leveling.options.priorities[0].field_name == "total_float"
+        assert leveling.options.priorities[0].sort_order.value == "DESCENDING"
+    finally:
+        fixture["connection"].close()
 
 def test_resolver_feeds_shared_scheduler_and_resolves_real_resource_overload():
     fixture = make_fixture()

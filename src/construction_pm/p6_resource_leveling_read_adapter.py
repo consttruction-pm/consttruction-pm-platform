@@ -12,7 +12,8 @@ from .p6_resource_assignment_repository import P6ResourceAssignment
 from .p6_resource_capacity_contract import build_resource_capacity_slices
 from .p6_resource_read_api import P6ResourceReadAPI
 from .resources.calendar import ResourceCalendar
-from .scheduling.leveling_boundary import SchedulerLevelingInput
+from .scheduling.leveling_boundary import SchedulerLevelingInput, scheduler_leveling_input_from_options
+from .scheduling.schedule_options import ScheduleOptions
 from .scheduling.resource_leveling import (
     BackwardLevelingActivity,
     LevelingActivity,
@@ -74,7 +75,7 @@ def build_scheduler_leveling_input(
     backward_activities: tuple[BackwardLevelingActivity, ...],
     calendars: Mapping[object, ResourceCalendar],
     periods: Sequence[date],
-    options: ResourceLevelingOptions,
+    options: ResourceLevelingOptions | ScheduleOptions,
     require_calendar_versions: bool = False,
     source_snapshot_id: str | None = None,
     source_snapshot_hash: str | None = None,
@@ -219,6 +220,18 @@ def build_scheduler_leveling_input(
             ],
         })
 
+    if isinstance(options, ScheduleOptions):
+        return scheduler_leveling_input_from_options(
+            forward_activities=forward,
+            backward_activities=backward,
+            capacities=capacities,
+            options=options,
+            source_snapshot_id=source_snapshot_id,
+            source_snapshot_hash=source_snapshot_hash,
+            source_calculation_identity=source_calculation_identity,
+            resource_facts_hash=resource_facts_hash,
+            calendar_manifest_hash=calendar_manifest_hash,
+        )
     return SchedulerLevelingInput(
         forward_activities=forward,
         backward_activities=backward,
