@@ -94,6 +94,7 @@ export function mountAIAssistantChatPanel(
   transport: ApiTransport,
   context: ProjectContext,
   locale: string,
+  onProposalCreated: () => void = () => {},
 ): void {
   const previous = appShell.querySelector<HTMLDetailsElement>("#cp-ai-assistant-chat");
   const wasOpen = previous?.open ?? true;
@@ -207,7 +208,7 @@ export function mountAIAssistantChatPanel(
     if (session!.messages.length > 40) session!.messages.splice(0, session!.messages.length - 40);
     if (result.data.proposal) {
       session!.lastProposalId = result.data.proposal.proposal_id;
-      window.dispatchEvent(new Event("cp-ai-action-proposals-changed"));
+      onProposalCreated();
       status.textContent = t.proposalNotice;
       status.dataset.kind = "success";
     } else {
