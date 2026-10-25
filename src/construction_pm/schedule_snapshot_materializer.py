@@ -669,7 +669,7 @@ def _materialize_payload(
         }
         if item["activity_id"] not in known_activity_ids:
             raise SnapshotMaterializationError(
-                "RESOURCE_DEPENDENT_ASSIGNMENT_FACT_REFERENCES_UNKNOWN_ACTIVITY"
+                "resource dependent assignment fact references unknown activity"
             )
         resource_facts.append(
             ResourceDependentDriverFact(
