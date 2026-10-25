@@ -1713,7 +1713,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-TOC-V26",
       "title": "reference scheduler Professional Help Version 26 — full topic tree",
       "scope": "reference scheduler Professional desktop Help",
-      "status": "DOC_TOPIC_MAP_PARTIAL",
+      "status": "TOPIC_MAP_PARTIAL",
       "reviewed": "Topic tree scanned to establish feature families; leaf pages are not all reviewed line by line yet.",
       "remaining": "Enumerate every menu, submenu, dialog, tab, option, field and linked help topic from the entire TOC; assign a stable requirement ID and exact page URL to each.",
       "requirements": [
@@ -1729,7 +1729,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-USER-GUIDE-V26",
       "title": "reference scheduler Professional User Guide Version 26",
       "scope": "reference scheduler Professional desktop workflows and UI behavior",
-      "status": "DOC_INDEXED_NOT_LINE_REVIEWED",
+      "status": "INDEXED_NOT_LINE_REVIEWED",
       "reviewed": "Official current guide entry point identified; chapter-by-chapter and figure/table-level behavior review remains open.",
       "remaining": "Review every chapter and each linked detailed topic, including project/WBS setup, activities, layouts, tracking, import/export and multi-project workflows.",
       "requirements": []
@@ -1738,7 +1738,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-SCHEDULING-V26",
       "title": "Scheduling Projects and Schedule Options",
       "scope": "reference scheduler Professional scheduling calculation and settings",
-      "status": "DOC_CORE_RULES_EXTRACTED",
+      "status": "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN",
       "reviewed": "Core CPM flow, Data Date, criticality modes, multiple float paths, constraints, progressed activities and scheduling entry points summarized into the register.",
       "remaining": "Extract every General and Advanced tab option including enabled/disabled conditions, default values, interactions, precision/calendar rules and test vectors; prove behavior against reference scheduler reference fixtures.",
       "requirements": [
@@ -1762,7 +1762,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-ACTIVITY-V26",
       "title": "Activity Details, Activity Types, Duration Types and Status",
       "scope": "reference scheduler Professional activity editor and activity scheduling semantics",
-      "status": "DOC_CORE_RULES_EXTRACTED",
+      "status": "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN",
       "reviewed": "Activity type/calendar differences and core duration/percent-complete concepts entered in the code reference.",
       "remaining": "Enumerate every activity field across every tab, status-specific editability, duration type recomputation triggers, remaining units/duration and zero-denominator rules.",
       "requirements": [
@@ -1777,7 +1777,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-RELATIONSHIPS-V26",
       "title": "Relationships, Lag and Relationship Lag Calendar",
       "scope": "reference scheduler Professional activity dependencies and scheduling",
-      "status": "DOC_CORE_RULES_EXTRACTED",
+      "status": "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN",
       "reviewed": "FS/SS/FF/SF, signed lag and calendar choice are in the rule register.",
       "remaining": "Audit each relationship field, predecessor/successor UI operation, external relationship behavior, circular logic rejection and all calendar/actual-progress edge cases.",
       "requirements": [
@@ -1789,7 +1789,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-CALENDAR-V26",
       "title": "Calendars, Work Time, Exceptions and Conversion Factors",
       "scope": "reference scheduler Professional global/project/resource calendar pools",
-      "status": "DOC_CORE_RULES_EXTRACTED",
+      "status": "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN",
       "reviewed": "Calendar pools, assignment differences, exceptions and default work-time conversion recorded at a high level.",
       "remaining": "Line-review calendar editing dialogs, inheritance/linked calendars, holidays, work intervals, default hours per period, DST/time-zone assumptions and date round-trips.",
       "requirements": [
@@ -1802,7 +1802,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-CONSTRAINTS-V26",
       "title": "Activity Constraints",
       "scope": "reference scheduler Professional forward/backward calculation rules",
-      "status": "DOC_CORE_RULES_EXTRACTED",
+      "status": "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN",
       "reviewed": "Hard versus soft constraints and the named constraint families are inventoried.",
       "remaining": "Verify exact boundary handling, secondary constraints, ALAP context, conflicting constraints, negative float and each constraint/calendar combination.",
       "requirements": [
@@ -1813,7 +1813,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-RESOURCE-DRIVING-V26",
       "title": "Driving and Nondriving Resource Assignments",
       "scope": "reference scheduler Professional Resource Dependent activities and assignment placement",
-      "status": "DOC_CORE_RULES_EXTRACTED",
+      "status": "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN",
       "reviewed": "Driving resources determine duration from quantity/rate; multiple drivers and nondriving assignments are identified as separate algorithms.",
       "remaining": "Build and pass multiple-driving-resource, calendar-specific duration, unit/time conversion, nondriving placement, out-of-sequence and backward-pass fixtures. The existing Draft PR blocker remains open.",
       "requirements": [
@@ -1829,7 +1829,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-PROGRESS-EVM-V26",
       "title": "Update Progress, Earned Value, Resource Curves and Future Period Buckets",
       "scope": "reference scheduler Professional progress update and native earned-value options",
-      "status": "DOC_TOPIC_MAP_PARTIAL",
+      "status": "TOPIC_MAP_PARTIAL",
       "reviewed": "Core Data Date/progress and selected WBS Earned Value options are summarized; this is not yet a line-by-line formula catalog.",
       "remaining": "For every EV method and ETC/performance-factor selector, record baseline basis, numerator/denominator, period, currency/unit, defaults, overrides, null/zero handling and a numeric reference fixture.",
       "requirements": [
@@ -1843,7 +1843,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-BASELINE-V26",
       "title": "Maintain, Assign, Update and Compare Baselines",
       "scope": "reference scheduler Professional baseline and variance workflows",
-      "status": "DOC_TOPIC_MAP_PARTIAL",
+      "status": "TOPIC_MAP_PARTIAL",
       "reviewed": "Baseline creation/assignment/update scope has requirement entries; every field and calculation has not been enumerated.",
       "remaining": "Trace primary/secondary/tertiary baseline roles, assignment scope, selective update, variance formulas and baseline selection per project/user.",
       "requirements": [
@@ -1855,7 +1855,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-RESOURCE-CALCULATIONS-V26",
       "title": "Resource/Roles Units, Rates and Cost Calculations",
       "scope": "reference scheduler Professional resource assignment and cost calculation",
-      "status": "DOC_TOPIC_MAP_PARTIAL",
+      "status": "TOPIC_MAP_PARTIAL",
       "reviewed": "Assignment Units/Time is explicitly distinguished from resource Max Units/Time; multi-rate cost and resource curves remain incomplete.",
       "remaining": "Audit all resource/role fields, price/unit type precedence, effective dates, assignment calculation preferences, resource curve shapes and cost roll-up precision.",
       "requirements": [
@@ -1870,7 +1870,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-REPORTING-ADMIN-V26",
       "title": "Reporting Guide, Administration Guide and Admin Categories",
       "scope": "reference scheduler Professional reports and configuration dictionaries",
-      "status": "DOC_INDEXED_NOT_LINE_REVIEWED",
+      "status": "INDEXED_NOT_LINE_REVIEWED",
       "reviewed": "Official all-guides landing page identified; individual guides and details have not all been read line by line.",
       "remaining": "Open each applicable guide and all its chapters; enumerate Reports, Admin Preferences, calendars/time periods, currencies, categories, UDFs, security, project publishing and summary services.",
       "requirements": []
@@ -1879,7 +1879,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-PRO-VISUALIZER-V26",
       "title": "reference scheduler Visualizer Help",
       "scope": "Standalone charts, Gantt and Timescaled Logic Diagrams",
-      "status": "DOC_INDEXED_NOT_LINE_REVIEWED",
+      "status": "INDEXED_NOT_LINE_REVIEWED",
       "reviewed": "Visualizer identified as a separate guide family; its own chart/report options have not been exhaustively inventoried.",
       "remaining": "Trace visualizer data sources, time scales, chart series, logic diagrams, export/print options and which configuration is distinct from the reference scheduler Activities Gantt.",
       "requirements": []
@@ -1888,7 +1888,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-EPPM-API-V26",
       "title": "reference scheduler EPPM REST API and Integration Guides",
       "scope": "reference scheduler EPPM APIs/integration; not automatically equivalent to reference scheduler Professional UI",
-      "status": "DOC_PRODUCT_SCOPE_PENDING",
+      "status": "PRODUCT_SCOPE_AND_DETAIL_REVIEW_PENDING",
       "reviewed": "Version-26 API entry point found and kept separate from the desktop UI specification.",
       "remaining": "Map each API resource/property/enum/version and import/export contract only where CUBI needs interoperability; do not infer an undocumented desktop calculation rule from an API schema.",
       "requirements": []
@@ -1897,7 +1897,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-EPPM-IMPORT-EXPORT-V26",
       "title": "reference scheduler EPPM Import/Export and Data Maps",
       "scope": "Import/export interoperability, product/version specific",
-      "status": "DOC_PRODUCT_SCOPE_PENDING",
+      "status": "PRODUCT_SCOPE_AND_DETAIL_REVIEW_PENDING",
       "reviewed": "Official import/export entry point identified; per-format and per-field round-trip mappings are not complete.",
       "remaining": "Catalog XER, resource-only XER, XLSX, XML/MPX and other documented formats separately; map field, nullable/default semantics, read/write support, version, precision and loss reporting.",
       "requirements": [
@@ -1909,7 +1909,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "id": "DOC-REF-ALL-GUIDES-V26",
       "title": "documented source reference scheduler Professional Version 26 — All Guides Index",
       "scope": "Official version-26 documentation-set inventory",
-      "status": "DOC_TOPIC_MAP_PARTIAL",
+      "status": "TOPIC_MAP_PARTIAL",
       "reviewed": "The guide-family listing has been checked to establish source inventory; each guide's contents remain tracked separately above.",
       "remaining": "Mark every guide as intentionally applicable/not applicable and keep product version/context on every requirement.",
       "requirements": []
