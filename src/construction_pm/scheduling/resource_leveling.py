@@ -682,6 +682,8 @@ def _shift_demands_backward(
             _shift_date_backward(d.period, shift_working_days, resolver),
             d.units,
             d.activity_id,
+            d.assignment_id,
+            d.is_driving,
         )
         for d in demands
     )
