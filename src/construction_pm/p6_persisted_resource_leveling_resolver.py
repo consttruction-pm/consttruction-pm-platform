@@ -39,7 +39,6 @@ from .scheduling.leveling_scheduler import _schedule_options_without_leveling
 from .scheduling.resource_leveling import (
     BackwardLevelingActivity,
     LevelingActivity,
-    ResourceLevelingOptions,
 )
 from .scheduling.schedule import schedule
 
@@ -370,7 +369,7 @@ def build_persisted_resource_leveling_input_resolver(
             backward_activities=tuple(backward),
             calendars=calendars,  # strict (calendar ID, version) keys only
             periods=capacity_periods,
-            options=ResourceLevelingOptions(),
+            options=source.schedule_options,
             require_calendar_versions=True,
             source_snapshot_id=snapshot.snapshot_id,
             source_snapshot_hash=snapshot.snapshot_hash,
