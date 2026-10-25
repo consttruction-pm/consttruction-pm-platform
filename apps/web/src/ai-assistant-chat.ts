@@ -30,6 +30,27 @@ type ChatSession = {
 
 const sessions = new WeakMap<HTMLElement, ChatSession>();
 
+const MAX_HISTORY_MESSAGES = 12;
+const MAX_HISTORY_MESSAGE_CHARS = 4_000;
+const MAX_HISTORY_TOTAL_CHARS = 12_000;
+
+/** Keep the newest complete, individually valid messages within the server's documented bounds. */
+export function boundedAIAssistantHistory(
+  messages: readonly AIAssistantHistoryMessage[],
+): AIAssistantHistoryMessage[] {
+  const selected: AIAssistantHistoryMessage[] = [];
+  let totalChars = 0;
+  for (const message of [...messages].reverse()) {
+    if (selected.length >= MAX_HISTORY_MESSAGES) break;
+    const content = message.content.trim();
+    if (!content || content.length > MAX_HISTORY_MESSAGE_CHARS) continue;
+    if (totalChars + content.length > MAX_HISTORY_TOTAL_CHARS) continue;
+    selected.push({ role: message.role, content });
+    totalChars += content.length;
+  }
+  return selected.reverse();
+}
+
 const fallbackLabels: Record<"en" | "fa", ChatLabels> = {
   en: {
     title: "AI Project Assistant",
@@ -209,10 +230,7 @@ export function mountAIAssistantChatPanel(
     const message = textarea.value.trim();
     if (!message || message.length > 6000 || submit.disabled) return;
 
-    const history = session!.messages.slice(-12).map((entry) => ({
-      role: entry.role,
-      content: entry.content,
-    }));
+    const history = boundedAIAssistantHistory(session!.messages);
     session!.messages.push({ role: "user", content: message });
     if (session!.messages.length > 40) session!.messages.splice(0, session!.messages.length - 40);
     session!.lastProposalId = null;
