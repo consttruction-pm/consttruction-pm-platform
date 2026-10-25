@@ -415,19 +415,27 @@ async function mountSettingsPanel(
   const defaultOptions = Object.fromEntries((catalog?.schedule_options_schema ?? []).map((item) => [item.name, item.default]));
   let saved: ScheduleSettingsDTO | null = savedResult.ok ? savedResult.data : null;
   let missing = !savedResult.ok && savedResult.error.code === "PROJECT_SCHEDULE_SETTINGS_NOT_FOUND";
+  const draftKey = `${context.tenant_id}:${context.project_id}:${context.revision}:${locale}`;
+  const draft = scheduleSettingsDrafts.get(draftKey);
   if (!savedResult.ok && !missing) {
     panel.innerHTML = `<p role="status">${safe(labels.settingsError)} (${safe(savedResult.error.code)})</p>`;
   }
   const initial = {
     record_revision: saved?.record_revision ?? 0,
-    mode: saved?.mode ?? "DATE_BASED",
-    calendar_id: saved?.project_calendar.calendar_id ?? "",
-    calendar_version: saved?.project_calendar.calendar_version ?? "",
-    calendar_system: saved?.project_calendar.system ?? "gregorian",
-    project_start: saved?.project_start ?? localDateString(),
-    project_finish: saved?.project_finish ?? "",
-    project_leveling_priority: saved?.project_leveling_priority ?? 10,
-    schedule_options: { ...defaultOptions, ...(saved?.schedule_options ?? {}) },
+    mode: String(draft?.mode ?? saved?.mode ?? "DATE_BASED"),
+    calendar_id: String(draft?.calendar_id ?? saved?.project_calendar.calendar_id ?? ""),
+    calendar_version: String(draft?.calendar_version ?? saved?.project_calendar.calendar_version ?? ""),
+    calendar_system: String(draft?.calendar_system ?? saved?.project_calendar.system ?? "gregorian"),
+    project_start: String(draft?.project_start ?? saved?.project_start ?? localDateString()),
+    project_finish: String(draft?.project_finish ?? saved?.project_finish ?? ""),
+    project_leveling_priority: Number(draft?.project_leveling_priority ?? saved?.project_leveling_priority ?? 10),
+    schedule_options: {
+      ...defaultOptions,
+      ...(saved?.schedule_options ?? {}),
+      ...Object.fromEntries((catalog?.schedule_options_schema ?? [])
+        .filter((item) => draft && Object.hasOwn(draft, `option:${item.name}`))
+        .map((item) => [item.name, draft![`option:${item.name}`]])),
+    },
   };
   const formatDateInput = (value: string, mode: string): string => {
     if (!value) return "";
@@ -439,7 +447,8 @@ async function mountSettingsPanel(
   const calendarField = projectCalendars.length > 0
     ? "<label class=\"cp-schedule-option\"><span>" + safe(labels.chooseCalendar) + "</span><select required name=\"calendar_ref\"><option value=\"\">" + safe(labels.chooseCalendar) + "</option>" + projectCalendars.map((calendar) => {
         const value = JSON.stringify({ id: calendar.calendar_id, version: calendar.calendar_version, kind: calendar.kind });
-        const selected = calendar.calendar_id === initial.calendar_id && calendar.calendar_version === initial.calendar_version;
+        const isDraftSelection = typeof draft?.calendar_ref === "string" && draft.calendar_ref === value;
+        const selected = isDraftSelection || (!draft?.calendar_ref && calendar.calendar_id === initial.calendar_id && calendar.calendar_version === initial.calendar_version);
         return "<option value=\"" + safe(value) + "\"" + (selected ? " selected" : "") + ">" + safe(calendar.name) + " — " + safe(calendar.calendar_id) + " @ " + safe(calendar.calendar_version) + " (" + safe(calendar.kind) + ")</option>";
       }).join("") + "</select></label>"
     : "<label class=\"cp-schedule-option\"><span>" + safe(labels.calendarId) + "</span><input required name=\"calendar_id\" value=\"" + safe(initial.calendar_id) + "\" autocomplete=\"off\" /></label>"
