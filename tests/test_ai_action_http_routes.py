@@ -383,3 +383,22 @@ def test_read_only_user_can_chat_but_cannot_prepare_mutation_proposals():
         assert "assistant_turn_failed" in audit_types
     finally:
         conn.close()
+
+
+def test_assistant_turn_rejects_oversized_json_body_before_provider_call():
+    provider = FakeAssistantProvider({
+        "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+    })
+    routes, conn, executed = build_routes(assistant_provider=provider)
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2,
+            "message": "x" * 130_000,
+            "language": "en",
+        })
+        assert status == 400
+        assert json.loads(body)["code"] == "AI_ASSISTANT_REQUEST_INVALID"
+        assert provider.calls == []
+        assert executed == []
+    finally:
+        conn.close()
