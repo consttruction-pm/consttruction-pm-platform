@@ -87,7 +87,7 @@ def _formula(item: object) -> dict[str, object]:
 def _documentation(item: object) -> dict[str, object]:
     row = asdict(item)
     return {
-        "id": row["id"],
+        "id": re.sub(r"\bP6\b", "REF", row["id"], flags=re.IGNORECASE),
         "title": _scrub(row["title"]),
         "scope": _scrub(row["product_scope"]),
         "status": _scrub(row["review_status"]),
