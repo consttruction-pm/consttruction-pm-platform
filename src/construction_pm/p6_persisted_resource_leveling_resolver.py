@@ -339,6 +339,13 @@ def build_persisted_resource_leveling_input_resolver(
                 )
                 for value in assignment_rows
             )
+            # Duration derivation uses driving assignments only, but this production
+            # query must not claim successful leveling until nondriving assignments
+            # have their own capacity/calendar-aware placement result.
+            if any(fact.is_driving is False for fact in facts):
+                raise PersistedResourceLevelingResolverError(
+                    f"RESOURCE_DEPENDENT_NONDRIVING_PLACEMENT_UNSUPPORTED:{activity.id}"
+                )
             try:
                 derivation = derive_resource_dependent_duration(
                     tenant_id=scope.tenant_id,
