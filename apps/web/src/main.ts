@@ -6,6 +6,7 @@ import { WebSyncRuntime } from "./sync-runtime.js";
 import { WorkspaceReadClient } from "./workspace-read-api.js";
 import {
   addP6Field,
+  applyAuthoritativeScheduleFacts,
   removeP6Field,
   reorderP6Fields,
   updateP6FieldPresentation,
@@ -141,7 +142,14 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
       }
     },
   });
-  void mountScheduleCyclePanels(workspace, aiTransport, state.context, state.locale);
+  void mountScheduleCyclePanels(workspace, aiTransport, state.context, state.locale, (facts) => {
+    try {
+      const next = applyAuthoritativeScheduleFacts(state, facts);
+      if (next !== state) renderApp(container, next, persistence);
+    } catch (error) {
+      console.error("Authoritative schedule result projection failed", error);
+    }
+  });
 }
 function renderBootstrapState(
   container: HTMLElement,
