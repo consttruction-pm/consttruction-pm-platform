@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Callable
 
-from construction_pm.application.authorization import AuthorizationPolicy
+from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.ai_action_boundary import AIToolPermissionAdapter
 from construction_pm.ai_action_activity_tools import build_activity_create_runtime
@@ -50,7 +50,7 @@ def build_project_lifecycle_wsgi_app(
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
     ai_assistant_provider: AIChatProvider | None = None,
-    leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, object], SchedulerLevelingInput | None] | None = None,
+    leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
