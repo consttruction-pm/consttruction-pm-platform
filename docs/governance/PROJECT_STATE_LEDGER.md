@@ -108,7 +108,7 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 ## Required next actions
 
 1. **Still blocked on repository administration:** the post-merge deploy run #40147792411 again failed at Pages preflight. Enable GitHub Pages with Source = GitHub Actions in repository Settings, or add the authorized `PAGES_ADMIN_TOKEN` secret; then rerun deploy and smoke-test the published site and `/app` routes. This connection cannot alter repository settings/secrets.
-2. **Completed:** reconcile latest-main CI and PostgreSQL Sync State Integration at `4133dd8...` — both pass; Client Typecheck also passes. Exact run links are recorded above.
+2. **Completed:** post-merge exact-main ConstructionPM CI, PostgreSQL Sync State Integration, Client Typecheck and ConstructionPM Web CI all pass on `d54e4b55bb13b0cd941eeb15a319541b505c3045`; links and run IDs are recorded above.
 3. **Code slice completed:** PR #1553 adds the proposal-only server-side provider orchestration and authenticated conversation endpoint. Next, wire it into a real deployed backend with production session/project selection, current grant provider, transaction manager and approved server-side `CUBI_AI_*` configuration; verify the live conversation → proposal → approve → execute → fresh-read path.
 4. Implement authoritative reconciliation for interrupted/uncertain actions, then add WBS/relationship/calendar/resource/cost tools and Shared Core run/result grounding.
 5. Keep #1423/#1530/#1540 and #82 open until the complete release acceptance suite, multilingual and Jalali/Gregorian coverage, import/export round-trip, and exact-main end-to-end gates pass.
