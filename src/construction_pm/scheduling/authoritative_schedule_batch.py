@@ -312,7 +312,14 @@ def execute_authoritative_schedule_batch(
                 return tuple(
                     sorted(
                         {
-                            (d.resource_id, d.period, d.units, d.activity_id): d
+                            (
+                                d.resource_id,
+                                d.period,
+                                d.units,
+                                d.activity_id,
+                                d.assignment_id,
+                                d.is_driving,
+                            ): d
                             for d in merged
                         }.values(),
                         key=lambda d: (d.period, d.resource_id, d.activity_id or ""),
