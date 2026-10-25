@@ -10,6 +10,12 @@ These schemas are authoritative for both Web and Desktop clients.
 - API serialization must invoke Domain methods for calculated values; it must never serialize a bound method/reference.
 - Web and Desktop consume the same contract.
 
+## V1 Schedule Validation Workbench
+
+- schedule-validation-report.v1.schema.json
+
+This report contract reconciles normalized calculated CUBI results against stored schedule-result fields from a source XER. It is report-only and does not grant client or AI code authority to calculate or mutate project schedules. Source coverage gaps must remain explicit as NOT_COMPARABLE.
+ 
 ## Stage 34.1 — Shared Control Intelligence
 
 - `dependency-graph.v1.schema.json`
