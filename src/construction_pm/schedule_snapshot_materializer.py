@@ -455,6 +455,13 @@ def _materialize_payload(
                 raise SnapshotMaterializationError(
                     "INVALID_ACTIVITY_LEVELING_PRIORITY"
                 ) from exc
+            raw_resource_dependent_hash = item.get("resource_dependent_input_hash")
+            if raw_resource_dependent_hash is not None and (
+                not isinstance(raw_resource_dependent_hash, str)
+                or len(raw_resource_dependent_hash) != 64
+                or any(character not in "0123456789abcdef" for character in raw_resource_dependent_hash)
+            ):
+                raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_INPUT_HASH")
 
             activities.append(
                 Activity(
@@ -474,6 +481,7 @@ def _materialize_payload(
                     original_duration,
                     planned_finish,
                     leveling_priority,
+                    raw_resource_dependent_hash,
                 )
             )
         else:
