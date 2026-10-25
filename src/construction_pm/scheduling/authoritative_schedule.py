@@ -177,6 +177,22 @@ class AuthoritativeScheduleInput:
             for item in self.resource_dependent_assignment_facts
         ):
             raise TypeError("resource_dependent_assignment_facts must contain ResourceDependentDriverFact items")
+        resource_fact_identifiers = (
+            (item.assignment_id, "assignment_id")
+            for item in self.resource_dependent_assignment_facts
+        )
+        resource_fact_identifiers = tuple(resource_fact_identifiers) + tuple(
+            (item.activity_id, "activity_id")
+            for item in self.resource_dependent_assignment_facts
+        ) + tuple(
+            (item.resource_id, "resource_id")
+            for item in self.resource_dependent_assignment_facts
+        )
+        if any(
+            not isinstance(value, str) or not value.strip() or value != value.strip()
+            for value, _field_name in resource_fact_identifiers
+        ):
+            raise ValueError("resource dependent assignment fact identifiers must be canonical non-empty strings")
         resource_fact_ids = [item.assignment_id for item in self.resource_dependent_assignment_facts]
         if len(resource_fact_ids) != len(set(resource_fact_ids)):
             raise ValueError("resource dependent assignment fact IDs must be unique")
@@ -193,14 +209,6 @@ class AuthoritativeScheduleInput:
             raise ValueError(
                 "resource dependent assignment facts require Resource Dependent activity type"
             )
-        if any(
-            not isinstance(item.assignment_id, str)
-            or not item.assignment_id.strip()
-            or not isinstance(item.resource_id, str)
-            or not item.resource_id.strip()
-            for item in self.resource_dependent_assignment_facts
-        ):
-            raise ValueError("resource dependent assignment fact identifiers must be non-empty")
         if any(item.activity_id not in activity_id_set for item in self.resource_dependent_assignment_facts):
             raise ValueError("resource dependent assignment fact references unknown activity")
         if any(
