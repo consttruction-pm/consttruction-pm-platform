@@ -50,7 +50,7 @@ def build_project_lifecycle_wsgi_app(
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
     ai_assistant_provider: AIChatProvider | None = None,
-    leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry], SchedulerLevelingInput | None] | None = None,
+    leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, object], SchedulerLevelingInput | None] | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
