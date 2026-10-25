@@ -143,3 +143,24 @@ test("rejects mismatched assistant turn kind and proposal state", async () => {
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, "INVALID_AI_ACTION_RESPONSE");
 });
+
+
+test("rejects assistant turn responses missing required proposal field or valid message", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-turn.v1",
+    kind: "message",
+    message: "Hello",
+  }});
+  const missingProposal = await new AIActionClient(transport).sendAssistantTurn(context, "hello", "en");
+  assert.equal(missingProposal.ok, false);
+
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-turn.v1",
+    kind: "message",
+    message: "   ",
+    proposal: null,
+  }});
+  const emptyMessage = await new AIActionClient(transport).sendAssistantTurn(context, "hello", "en");
+  assert.equal(emptyMessage.ok, false);
+});
