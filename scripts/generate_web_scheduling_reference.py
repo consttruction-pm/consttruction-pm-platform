@@ -152,7 +152,7 @@ def main() -> int:
             print("generated Web catalogue omitted a documentation review track", file=sys.stderr)
             return 1
         public_text = json.dumps(actual_data, ensure_ascii=False)
-        if re.search(r"\\bP6\\b|p6[_-][a-z0-9]|Primavera|Oracle|https?://|src/construction_pm|tests/test_|docs\\.oracle", public_text, re.IGNORECASE):
+        if re.search(r"\bP6\b|p6[_-][a-z0-9]|Primavera|Oracle|https?://|src/construction_pm|tests/test_|docs\.oracle", public_text, re.IGNORECASE):
             print("generated Web catalogue leaks source names, URLs, or repository paths", file=sys.stderr)
             return 1
         print("Web scheduling catalogue IDs, statuses, version, and public-safe payload are current.")
