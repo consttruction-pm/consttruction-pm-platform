@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-"""Deterministic, fail-closed duration derivation for a supported Resource Dependent subset.
+"""Deterministic Resource Dependent duration derivation for the supported subset.
 
-This module does not read persistence or calculate dates. It derives an integer
-working-day duration only when all assigned resources explicitly drive the
-activity, share one exact versioned calendar, and provide compatible daily
-Units/Time contracts. Assignment-specific nondriving placement, non-daily time
-periods, and fractional working-day durations remain explicit unsupported cases.
+Only driving assignments determine the activity duration. Driving assignments
+must share one exact versioned calendar and compatible daily Units/Time contracts.
+Nondriving assignment placement remains a separate, fail-closed production
+leveling operation; this module does not read persistence or calculate dates.
+Non-daily rates and fractional working-day durations remain unsupported.
 """
 
 import hashlib
@@ -78,11 +78,14 @@ def derive_resource_dependent_duration(
     activity_id: str,
     assignments: tuple[ResourceDependentDriverFact, ...],
 ) -> ResourceDependentDuration:
-    """Return a reproducible duration from explicit driving resource contracts.
+    """Return a reproducible duration controlled only by driving assignments.
 
-    The supported subset uses each not-started assignment's Planned Units, one
+    The supported subset uses each driving assignment's Planned Units, one
     exact calendar ID/version, one unit of measure, and an explicit daily rate.
-    The longest-to-complete driving assignment controls duration. Fractional duration is rejected, never rounded.
+    The longest-to-complete driving assignment controls duration. All assignment
+    facts remain in the input hash, including nondriving facts whose placement
+    must be resolved independently by the production leveling path. Fractional
+    duration is rejected, never rounded.
     """
     if not isinstance(activity_id, str) or not activity_id.strip():
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ACTIVITY_ID_REQUIRED")
