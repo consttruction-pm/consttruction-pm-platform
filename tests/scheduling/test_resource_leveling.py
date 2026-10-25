@@ -858,3 +858,21 @@ def test_resource_demand_validates_assignment_metadata(assignment_id, is_driving
         ResourceDemand(
             "R1", date(2026, 10, 1), Decimal("8"), "A1", assignment_id, is_driving
         )
+
+
+def test_resource_demand_preserves_assignment_identity_when_shifted_backward():
+    from construction_pm.scheduling.resource_leveling import _shift_demands_backward
+
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    demand = ResourceDemand(
+        "R1", date(2026, 10, 1), Decimal("8"), "A1", "ASG-1", False
+    )
+
+    shifted = _shift_demands_backward((demand,), -1, resolver)
+
+    assert len(shifted) == 1
+    assert shifted[0].period == date(2026, 9, 30)
+    assert shifted[0].assignment_id == "ASG-1"
+    assert shifted[0].is_driving is False
