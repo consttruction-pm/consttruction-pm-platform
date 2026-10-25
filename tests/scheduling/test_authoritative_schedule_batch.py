@@ -585,3 +585,67 @@ def test_shared_graph_allows_project_routing_options_to_differ_when_not_used_glo
     )
 
     assert {item.project_id for item in result.projects} == {"P1", "P2"}
+
+
+def test_batch_demand_merge_keeps_distinct_resource_assignment_identity(monkeypatch):
+    from construction_pm.scheduling import authoritative_schedule_batch as batch_module
+
+    options = ScheduleOptions(
+        level_all_resources=True,
+        include_external_res_ass=False,
+        calculate_float_based_on_finish_date=False,
+        preserve_scheduled_early_and_late_dates=True,
+    )
+    day_one = date(2026, 10, 1)
+    late = date(2026, 10, 10)
+    demand_a = ResourceDemand("R1", day_one, Decimal("1"), "P1-A", "ASG-1", True)
+    demand_b = ResourceDemand("R1", day_one, Decimal("1"), "P1-A", "ASG-2", False)
+    demand_p2 = ResourceDemand("R2", day_one, Decimal("1"), "P2-A", "ASG-3", True)
+    forward = (
+        LevelingActivity("P1-A", day_one, day_one, 10, (demand_a, demand_b)),
+        LevelingActivity("P2-A", day_one, day_one, 10, (demand_p2,)),
+    )
+    backward = (
+        BackwardLevelingActivity("P1-A", day_one, day_one, late, late, (demand_a, demand_b)),
+        BackwardLevelingActivity("P2-A", day_one, day_one, late, late, (demand_p2,)),
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=forward,
+        backward_activities=backward,
+        capacities=(
+            ResourceCapacity("R1", day_one, Decimal("10")),
+            ResourceCapacity("R1", date(2026, 10, 2), Decimal("10")),
+            ResourceCapacity("R2", day_one, Decimal("10")),
+            ResourceCapacity("R2", date(2026, 10, 2), Decimal("10")),
+        ),
+        options=ResourceLevelingOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=True,
+        ),
+    )
+
+    captured = {}
+    original = batch_module.schedule_with_resource_leveling
+
+    def recording_scheduler(*args, **kwargs):
+        captured["input"] = args[4]
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(batch_module, "schedule_with_resource_leveling", recording_scheduler)
+    execute_authoritative_schedule_batch(
+        (
+            snapshot("P1", late, options=options),
+            snapshot("P2", late, options=options),
+        ),
+        resolvers={"P1": resolver(), "P2": resolver()},
+        leveling_input=leveling_input,
+    )
+
+    p1_demands = next(
+        item.resource_demands
+        for item in captured["input"].forward_activities
+        if item.activity_id == "P1-A"
+    )
+    assert len(p1_demands) == 2
+    assert {item.assignment_id for item in p1_demands} == {"ASG-1", "ASG-2"}
+    assert {item.is_driving for item in p1_demands} == {True, False}
