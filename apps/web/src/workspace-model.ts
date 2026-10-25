@@ -482,7 +482,7 @@ export function applyAuthoritativeScheduleFacts(
       start: scheduled.start,
       finish: scheduled.finish,
       progressPercent,
-      critical: scheduled.critical ?? activity.gantt?.critical ?? false,
+      critical: scheduled.critical ?? false,
     });
     const cells: Record<string, WorkspaceCellValue> = {
       ...(activity.cells ?? {}),
