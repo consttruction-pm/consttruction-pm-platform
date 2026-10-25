@@ -103,8 +103,8 @@ def test_query_runs_leveling_only_with_snapshot_bound_resource_inputs():
         resource_facts_hash="b" * 64, calendar_manifest_hash="c" * 64,
     )
     calls = []
-    def resolve_leveling_input(loaded_snapshot, loaded_context, loaded_registry):
-        calls.append((loaded_snapshot.snapshot_hash, loaded_context.calculation_identity, loaded_registry))
+    def resolve_leveling_input(loaded_snapshot, loaded_context, loaded_registry, loaded_auth_context):
+        calls.append((loaded_snapshot.snapshot_hash, loaded_context.calculation_identity, loaded_registry, loaded_auth_context))
         return leveling
 
     service = AuthoritativeScheduleQueryApplicationService(
@@ -121,6 +121,7 @@ def test_query_runs_leveling_only_with_snapshot_bound_resource_inputs():
 
     answer = service.execute(request, auth_context=auth, calculation_context=context)
     assert calls and calls[0][0] == snapshot.snapshot_hash
+    assert calls[0][3] == auth
     assert answer.data["activity_count"] == 1
     assert answer.data["project_finish"] == "2026-09-22"
     assert answer.data["calculation_run_identity"]
