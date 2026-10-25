@@ -24,6 +24,10 @@ class ResourceDemand:
     period: date
     units: Decimal
     activity_id: str | None = None
+    # Preserve source assignment identity so assignment-level placement and
+    # diagnostics can be implemented without losing the persisted driving flag.
+    assignment_id: str | None = None
+    is_driving: bool | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -34,6 +38,15 @@ class ResourceDemand:
             raise ResourceLevelingError("INVALID_DEMAND_UNITS")
         if self.activity_id is not None and (not isinstance(self.activity_id, str) or not self.activity_id.strip()):
             raise ResourceLevelingError("INVALID_ACTIVITY_ID")
+        if self.assignment_id is not None and (
+            not isinstance(self.assignment_id, str) or not self.assignment_id.strip()
+            or self.assignment_id != self.assignment_id.strip()
+        ):
+            raise ResourceLevelingError("INVALID_ASSIGNMENT_ID")
+        if self.is_driving is not None and not isinstance(self.is_driving, bool):
+            raise ResourceLevelingError("INVALID_DRIVING_FLAG")
+        if self.is_driving is not None and self.assignment_id is None:
+            raise ResourceLevelingError("DRIVING_FLAG_REQUIRES_ASSIGNMENT_ID")
 
 
 @dataclass(frozen=True)
@@ -268,7 +281,14 @@ def _shift_demands(
     resolver: WorkingTimeResolver,
 ) -> tuple[ResourceDemand, ...]:
     return tuple(
-        ResourceDemand(d.resource_id, _shift_date_forward(d.period, shift_working_days, resolver), d.units, d.activity_id)
+        ResourceDemand(
+            d.resource_id,
+            _shift_date_forward(d.period, shift_working_days, resolver),
+            d.units,
+            d.activity_id,
+            d.assignment_id,
+            d.is_driving,
+        )
         for d in demands
     )
 
