@@ -28,7 +28,12 @@ class ScheduleQueryProvider(Protocol):
     calculations. The provider owns the existing Core semantics.
     """
 
-    def execute(self, request: ScheduleQueryRequest) -> ScheduleQueryAnswer: ...
+    def execute(
+        self,
+        request: ScheduleQueryRequest,
+        *,
+        auth_context: AuthorizationContext,
+    ) -> ScheduleQueryAnswer: ...
 
 
 @dataclass(frozen=True)
@@ -43,7 +48,7 @@ class ScheduleQueryApplicationService:
         auth_context: AuthorizationContext,
     ) -> ScheduleQueryAnswer:
         self._authorize(request.scope, auth_context)
-        answer = self.provider.execute(request)
+        answer = self.provider.execute(request, auth_context=auth_context)
         if not isinstance(answer, ScheduleQueryAnswer):
             raise BackendApplicationError(
                 ErrorCategory.VALIDATION,
