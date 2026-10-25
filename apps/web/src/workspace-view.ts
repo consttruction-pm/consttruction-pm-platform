@@ -290,8 +290,9 @@ function referenceStatusLabel(status: string, t: WorkspaceLabels): string {
   if (status === "MAPPED_NOT_PROVEN" || status.includes("PARITY_NOT_PROVEN")) return t.referenceMappedStatus;
   if (status === "KNOWN_GAP") return t.referenceGapStatus;
   if (status === "INVENTORY_REQUIRED") return t.referenceInventoryStatus;
-  if (status === "DOC_CORE_RULES_EXTRACTED") return t.referenceDocReviewedLabel;
-  if (status === "DOC_TOPIC_MAP_PARTIAL") return t.referenceDocPartialLabel;
+  if (status === "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN" || status === "DOC_CORE_RULES_EXTRACTED") return t.referenceDocReviewedLabel;
+  if (status === "TOPIC_MAP_PARTIAL" || status === "DOC_TOPIC_MAP_PARTIAL") return t.referenceDocPartialLabel;
+  if (status === "INDEXED_NOT_LINE_REVIEWED" || status === "DOC_INDEXED_NOT_LINE_REVIEWED" || status === "PRODUCT_SCOPE_AND_DETAIL_REVIEW_PENDING" || status === "DOC_PRODUCT_SCOPE_PENDING") return t.referenceDocPendingLabel;
   return t.referenceDocPendingLabel;
 }
 
