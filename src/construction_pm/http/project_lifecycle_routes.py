@@ -2055,12 +2055,32 @@ class ProjectLifecycleHttpRoutes:
                 except json.JSONDecodeError:
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
                 if not isinstance(payload, dict) or set(payload).difference(
-                    {"expected_revision", "message", "language"}
+                    {"expected_revision", "message", "language", "history"}
                 ):
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
                 expected_revision = payload.get("expected_revision")
                 message = payload.get("message")
                 language = payload.get("language")
+                history_raw = payload.get("history", [])
+                if not isinstance(history_raw, list) or len(history_raw) > 12:
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                history = []
+                history_chars = 0
+                for entry in history_raw:
+                    if (
+                        not isinstance(entry, dict)
+                        or set(entry) != {"role", "content"}
+                        or entry.get("role") not in {"user", "assistant"}
+                        or not isinstance(entry.get("content"), str)
+                        or not entry["content"].strip()
+                        or len(entry["content"]) > 4000
+                    ):
+                        return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                    history_content = entry["content"].strip()
+                    history_chars += len(history_content)
+                    if history_chars > 12000:
+                        return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                    history.append({"role": entry["role"], "content": history_content})
                 if (
                     isinstance(expected_revision, bool)
                     or not isinstance(expected_revision, int)
@@ -2110,7 +2130,10 @@ class ProjectLifecycleHttpRoutes:
                 )
                 try:
                     turn = self._ai_assistant_orchestrator.turn(
-                        runtime_context, user_message=message.strip(), language=language.strip()
+                        runtime_context,
+                        user_message=message.strip(),
+                        language=language.strip(),
+                        history=tuple(history),
                     )
                 except AIAssistantProviderError as exc:
                     self._ai_action_runtime.record_request_event(
