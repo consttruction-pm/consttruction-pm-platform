@@ -265,7 +265,7 @@ function mountReferencePanel(
   render();
 }
 
-function renderSettingControl(schema: ScheduleOptionSchema, value: unknown, locale: "fa" | "en"): string {
+function renderSettingControl(schema: ScheduleOptionSchema, value: unknown): string {
   const label = humanize(schema.name);
   const id = `cp-schedule-option-${schema.name}`;
   if (schema.kind === "boolean") return `<label class="cp-schedule-option" for="${safe(id)}"><span>${safe(label)}</span><input id="${safe(id)}" type="checkbox" data-option="${safe(schema.name)}" ${value === true ? "checked" : ""} /></label>`;
@@ -307,7 +307,7 @@ async function mountSettingsPanel(
     return mode === "TIME_AWARE" ? value.slice(0, 16) : value.slice(0, 10);
   };
   const controls = (catalog?.schedule_options_schema ?? []).map((schema) =>
-    renderSettingControl(schema, initial.schedule_options[schema.name] ?? schema.default, locale)).join("");
+    renderSettingControl(schema, initial.schedule_options[schema.name] ?? schema.default)).join("");
   panel.innerHTML = `
     <p>${safe(labels.intro)}</p>
     ${!saved && !missing ? `<p role="alert">${safe(labels.noSettingsApi)}</p>` : ""}
