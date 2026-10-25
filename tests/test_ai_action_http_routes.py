@@ -333,3 +333,53 @@ def test_assistant_turn_rejects_prompt_injection_in_language_field_before_provid
         assert executed == []
     finally:
         conn.close()
+
+
+def test_read_only_user_can_chat_but_cannot_prepare_mutation_proposals():
+    reader_provider = FakeAssistantProvider({
+        "kind": "message",
+        "message": "I can discuss the information you provide, but no project records were changed.",
+        "tool_name": None,
+        "payload": {},
+    })
+    routes, conn, executed = build_routes(
+        roles=frozenset({"viewer"}), assistant_provider=reader_provider
+    )
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2, "message": "Explain what a WBS is", "language": "en",
+        })
+        assert status == 200
+        assert json.loads(body)["kind"] == "message"
+        assert executed == []
+        audit = conn.execute(
+            "SELECT event_json FROM ai_action_audit_events WHERE event_type='assistant_turn_requested'"
+        ).fetchone()
+        assert audit is not None
+        assert json.loads(audit[0])["metadata"]["can_propose"] is False
+    finally:
+        conn.close()
+
+    write_attempt_provider = FakeAssistantProvider({
+        "kind": "action_proposal",
+        "message": "I will prepare an activity proposal.",
+        "tool_name": "activity.create",
+        "payload": {"name": "Excavation"},
+    })
+    routes, conn, executed = build_routes(
+        roles=frozenset({"viewer"}), assistant_provider=write_attempt_provider
+    )
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2, "message": "Create an activity", "language": "en",
+        })
+        assert status == 403
+        assert json.loads(body)["code"] == "AI_ASSISTANT_ACTION_NOT_ALLOWED"
+        assert executed == []
+        assert conn.execute("SELECT COUNT(*) FROM ai_action_proposals").fetchone()[0] == 0
+        audit_types = {
+            row[0] for row in conn.execute("SELECT event_type FROM ai_action_audit_events").fetchall()
+        }
+        assert "assistant_turn_failed" in audit_types
+    finally:
+        conn.close()
