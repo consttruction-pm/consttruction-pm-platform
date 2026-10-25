@@ -826,3 +826,35 @@ def test_leveling_activity_accepts_authoritative_late_dates_before_early_dates(
     assert activity.total_float == -2
     assert activity.late_start == late_start
     assert activity.late_finish == late_finish
+
+
+def test_resource_demand_preserves_assignment_identity_and_driving_flag_when_shifted():
+    from construction_pm.scheduling.resource_leveling import _shift_demands
+
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    demand = ResourceDemand(
+        "R1", date(2026, 10, 1), Decimal("8"), "A1", "ASG-1", False
+    )
+    shifted = _shift_demands((demand,), 1, resolver)
+
+    assert len(shifted) == 1
+    assert shifted[0].period == date(2026, 10, 2)
+    assert shifted[0].assignment_id == "ASG-1"
+    assert shifted[0].is_driving is False
+
+
+@pytest.mark.parametrize(
+    ("assignment_id", "is_driving", "error"),
+    [
+        (" ", False, "INVALID_ASSIGNMENT_ID"),
+        (None, "false", "INVALID_DRIVING_FLAG"),
+        (None, False, "DRIVING_FLAG_REQUIRES_ASSIGNMENT_ID"),
+    ],
+)
+def test_resource_demand_validates_assignment_metadata(assignment_id, is_driving, error):
+    with pytest.raises(ResourceLevelingError, match=error):
+        ResourceDemand(
+            "R1", date(2026, 10, 1), Decimal("8"), "A1", assignment_id, is_driving
+        )
