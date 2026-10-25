@@ -22,6 +22,7 @@ MAX_ASSISTANT_REPLY_CHARS = 4_000
 MAX_ASSISTANT_HISTORY_MESSAGES = 12
 MAX_ASSISTANT_HISTORY_CHARS = 12_000
 MAX_PROVIDER_RESPONSE_BYTES = 1_000_000
+MAX_PROVIDER_OUTPUT_TOKENS = 1_200
 MAX_TOOL_PAYLOAD_BYTES = 64_000
 _LANGUAGE_TAG = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
 
@@ -191,6 +192,7 @@ class OpenAICompatibleChatProvider:
         request_body = {
             "model": self._model,
             "temperature": 0,
+            "max_tokens": MAX_PROVIDER_OUTPUT_TOKENS,
             "response_format": {"type": "json_object"},
             "messages": messages,
         }
