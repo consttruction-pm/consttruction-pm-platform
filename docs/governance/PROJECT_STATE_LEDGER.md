@@ -8,14 +8,26 @@
 
 | Item | Verified state |
 |---|---|
-| Current main SHA inspected | `7606c8cea841fd18455b7c263ef3148251d7246d` |
+| Current main SHA inspected at reconciliation | `4133dd8af6a98921c19f9049c1eb565a09dad6d2` (2026-10-25) |
 | Default branch | `main` |
-| CUBISITE schedule of record | ChatGPT Library workbook `/cubisite.xlsx` version 6; mirror `/CUBISITE/cubisite.xlsx` version 6. Both are the same size (122,288 bytes) and contain the same reconciled schedule snapshot. |
+| CUBISITE schedule of record | Current ChatGPT Library search resolves `cubisite.xlsx` at 123,975 bytes (modified 2026-10-24); the Library result exposes `version_id=1`. The prior ledger's version-6 / 122,288-byte identity is not confirmed by the current Files result; verify whether the Library object/version metadata changed before declaring the mirrored workbook synchronized. |
 | CUBISITE scope | Original T01–T45 retained; AI-C01–AI-C07 additive; risk reserve BUF retained separately |
 | Schedule arithmetic | 193 active effort-days proposed (171 previous + 22 proposed AI), 25-day risk reserve, 218 total; 52 unique capability activity IDs plus BUF; active capability weights sum to exactly 100.00 points |
 | Weighted progress | 26.89% formula estimate after denominator expansion; **not QA acceptance**. Prior 30.4% is historical only. All seven added AI activities keep earned completion at zero. |
 | Forecast assumptions | One executor; half-day sequencing; Monday–Friday; excludes public holidays, leave and external waiting. Proposed base finish 2027-05-21; with 25-day risk reserve 2027-06-25. This is a forecast, not an approved contractual baseline. |
 | CUBISITE exit gate | Full production site E2E and release sign-off remain open |
+
+## Latest exact-main verification (2026-10-25)
+
+The following GitHub Actions runs all target the inspected current main SHA `4133dd8af6a98921c19f9049c1eb565a09dad6d2`:
+
+- [ConstructionPM CI #40143297145](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40143297145) — **PASS**.
+- [PostgreSQL Sync State Integration #40143297002](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40143297002) — **PASS**.
+- [Client Typecheck #40143297007](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40143297007) — **PASS**.
+- [Deploy CUBI Web to GitHub Pages #40143297031](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40143297031) — **FAIL** at the Pages preflight/configuration boundary. The workflow reports that no readable Pages site is configured; resolving it requires repository Settings → Pages (Source: GitHub Actions) or the authorized `PAGES_ADMIN_TOKEN` secret. The available repository connector cannot change Pages settings or create secrets, so the live-site deployment remains **Blocked** and must not be described as released.
+- No dedicated Web CI run is present in the exact-SHA run list above. The earlier Web CI success for `7606c8c...` is historical evidence only, not a fresh Web CI result for this SHA.
+
+The newer main commit contains governance/Pages-diagnostic changes, not a new assistant capability. The assistant remains one authenticated `activity.create` vertical slice with proposal/approval/execute UI; model/provider orchestration, natural-language conversation, additional project tools, calculation-result grounding and full E2E remain open.
 
 ## Implementation evidence on main
 
@@ -79,8 +91,8 @@
 
 ## Required next actions
 
-1. Fix the Pages enablement barrier with valid repository-level authority, then rerun deploy and verify the actual published site and `/app` routes.
-2. Finish the merged-main CI and PostgreSQL Sync State Integration runs for `7606c8...`; record the exact results.
+1. **Blocked on repository administration:** enable GitHub Pages with Source = GitHub Actions in repository Settings, or add the authorized `PAGES_ADMIN_TOKEN` secret; then rerun deploy and smoke-test the published site and `/app` routes. ChatGPT's available GitHub connection cannot alter these repository settings/secrets.
+2. **Completed:** reconcile latest-main CI and PostgreSQL Sync State Integration at `4133dd8...` — both pass; Client Typecheck also passes. Exact run links are recorded above.
 3. Implement the server-side model/provider orchestration and conversation endpoint around the proposal-only boundary; all side effects must still require explicit approval and current-scope authorization.
 4. Implement authoritative reconciliation for interrupted/uncertain actions, then add WBS/relationship/calendar/resource/cost tools and Shared Core run/result grounding.
 5. Keep #1423/#1530/#1540 and #82 open until the complete release acceptance suite, multilingual and Jalali/Gregorian coverage, import/export round-trip, and exact-main end-to-end gates pass.
