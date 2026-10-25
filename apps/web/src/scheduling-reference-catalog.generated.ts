@@ -1904,7 +1904,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       ]
     },
     {
-      "id": "DOC-P6-ALL-GUIDES-V26",
+      "id": "DOC-REF-ALL-GUIDES-V26",
       "title": "documented source reference scheduler Professional Version 26 — All Guides Index",
       "scope": "Official version-26 documentation-set inventory",
       "status": "DOC_TOPIC_MAP_PARTIAL",
