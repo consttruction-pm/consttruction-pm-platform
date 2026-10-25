@@ -104,6 +104,8 @@ class Activity:
     original_duration: int | None = None
     planned_finish: date | None = None
     leveling_priority: ActivityLevelingPriority = ActivityLevelingPriority.NORMAL
+    # Hash of the exact driving assignments used to derive a Resource Dependent duration.
+    resource_dependent_input_hash: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
@@ -119,6 +121,14 @@ class Activity:
                 raise ValueError("original_duration must be non-negative")
         if not isinstance(self.name, str):
             raise TypeError("name must be a string")
+        if self.resource_dependent_input_hash is not None:
+            value = self.resource_dependent_input_hash
+            if (
+                not isinstance(value, str)
+                or len(value) != 64
+                or any(character not in "0123456789abcdef" for character in value)
+            ):
+                raise ValueError("resource_dependent_input_hash must be a lowercase SHA-256 hex digest or None")
         if self.actual_start is not None and (not isinstance(self.actual_start, date) or isinstance(self.actual_start, datetime)):
             raise TypeError("actual_start must be a date or None")
         if self.actual_finish is not None and (not isinstance(self.actual_finish, date) or isinstance(self.actual_finish, datetime)):
