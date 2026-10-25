@@ -91,12 +91,21 @@ def derive_resource_dependent_duration(
     if any(not isinstance(item, ResourceDependentDriverFact) for item in assignments):
         raise ResourceDependentCalculationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
     ordered = tuple(sorted(assignments, key=lambda item: item.assignment_id))
+    if any(
+        not isinstance(value, str) or not value.strip() or value != value.strip()
+        for item in ordered
+        for value in (item.assignment_id, item.activity_id, item.resource_id)
+    ):
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED")
+    assignment_ids = tuple(item.assignment_id for item in ordered)
+    if len(set(assignment_ids)) != len(assignment_ids):
+        raise ResourceDependentCalculationError("DUPLICATE_RESOURCE_DEPENDENT_ASSIGNMENT_ID")
     if any(item.activity_id != activity_id for item in ordered):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ACTIVITY_MISMATCH")
-    if any(not item.assignment_id.strip() or not item.resource_id.strip() for item in ordered):
-        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED")
     if any(item.is_driving is None for item in ordered):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_FLAG_REQUIRED")
+    if any(not isinstance(item.is_driving, bool) for item in ordered):
+        raise ResourceDependentCalculationError("INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG")
     driving = tuple(item for item in ordered if item.is_driving is True)
     if not driving:
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_REQUIRED")
