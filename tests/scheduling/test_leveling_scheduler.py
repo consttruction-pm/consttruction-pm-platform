@@ -1511,3 +1511,83 @@ def test_backward_activity_builder_bounds_negative_float_window_to_intermediate_
 
     assert (built[0].late_start, built[0].late_finish) == (day_two, day_two)
     assert built[0].resource_demands[0].period == day_two
+
+
+def test_assignment_identity_survives_forward_backward_and_final_validation(monkeypatch):
+    from types import SimpleNamespace
+
+    from construction_pm.scheduling import leveling_scheduler
+
+    day_one = date(2026, 10, 1)
+    day_two = date(2026, 10, 2)
+    resolver = WorkingTimeResolver(
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
+    )
+    demand = ResourceDemand(
+        "R1", day_one, __import__("decimal").Decimal("8"), "A", "ASG-1", False
+    )
+    forward = LevelingActivity("A", day_one, day_one, 1, (demand,))
+    backward = BackwardLevelingActivity(
+        "A", day_one, day_one, day_two, day_two, (demand,)
+    )
+    options = ResourceLevelingOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=False,
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(forward,),
+        backward_activities=(backward,),
+        capacities=(ResourceCapacity("R1", day_two, __import__("decimal").Decimal("8")),),
+        options=options,
+    )
+    cpm_activity = SimpleNamespace(start=day_two, finish=day_two)
+    initial = SimpleNamespace(
+        activities={"A": cpm_activity},
+        early_activities={"A": cpm_activity},
+        late_activities={"A": cpm_activity},
+        floats={"A": SimpleNamespace(total_float=1, free_float=0)},
+    )
+
+    rebased = leveling_scheduler._forward_activities_with_authoritative_floats(
+        leveling_input,
+        initial_schedule=initial,
+        resolver=resolver,
+        activity_resolvers={"A": resolver},
+    )
+    assert rebased[0].resource_demands[0].period == day_two
+    assert rebased[0].resource_demands[0].assignment_id == "ASG-1"
+    assert rebased[0].resource_demands[0].is_driving is False
+
+    rebuilt_backward = leveling_scheduler._backward_activities_from_intermediate(
+        leveling_input,
+        early_schedule={"A": cpm_activity},
+        late_schedule={"A": cpm_activity},
+        float_schedule=initial.floats,
+        resolver=resolver,
+        activity_resolvers={"A": resolver},
+    )
+    assert rebuilt_backward[0].resource_demands[0].period == day_two
+    assert rebuilt_backward[0].resource_demands[0].assignment_id == "ASG-1"
+    assert rebuilt_backward[0].resource_demands[0].is_driving is False
+
+    captured = {}
+
+    def record_demands(demands, capacities, **kwargs):
+        captured["demands"] = tuple(demands)
+        return ()
+
+    monkeypatch.setattr(leveling_scheduler, "detect_over_allocations", record_demands)
+    rebased_input = SchedulerLevelingInput(
+        forward_activities=rebased,
+        backward_activities=rebuilt_backward,
+        capacities=leveling_input.capacities,
+        options=options,
+    )
+    leveling_scheduler._validate_final_resource_load(
+        result=SimpleNamespace(activities={"A": cpm_activity}),
+        leveling_input=rebased_input,
+        resolver=resolver,
+        activity_resolvers={"A": resolver},
+    )
+    assert captured["demands"][0].assignment_id == "ASG-1"
+    assert captured["demands"][0].is_driving is False
