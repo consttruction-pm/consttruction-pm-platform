@@ -83,17 +83,22 @@ def test_unsupported_or_ambiguous_driving_contract_fails_closed(facts, code):
         derive(*facts)
 
 
-def test_nondriving_assignment_does_not_determine_activity_duration():
-    result = derive(
-        driver("A-1", planned="8", rate="4", driving=True),
-        driver("A-2", planned="100", rate="1", driving=False),
+def test_nondriving_assignment_does_not_determine_duration_but_is_hash_bound():
+    driving = driver("A-1", planned="8", rate="4", driving=True)
+    nondriving = driver("A-2", planned="100", rate="1", driving=False)
+    changed_nondriving = driver(
+        "A-2", planned="200", rate="2", driving=False,
+        calendar_id="RC-NONDRIVING", calendar_version="v9", unit="equipment-unit",
     )
 
-    # Activity duration follows the driving assignment only; the nondriving
-    # assignment is retained in the input hash for its separate placement path.
-    assert result.duration_working_days == 2
-    assert result.driving_assignment_ids == ("A-1",)
-    assert len(result.input_hash) == 64
+    result = derive(driving, nondriving)
+    changed = derive(driving, changed_nondriving)
+
+    # Activity duration follows driving assignments only, while every
+    # assignment fact remains bound to the immutable calculation input.
+    assert result.duration_working_days == changed.duration_working_days == 2
+    assert result.driving_assignment_ids == changed.driving_assignment_ids == ("A-1",)
+    assert result.input_hash != changed.input_hash
 
 
 @pytest.mark.parametrize("driving", [1, 0, "true", "false"])
