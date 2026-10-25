@@ -20,6 +20,10 @@ from construction_pm.ai_action_runtime import (
     AIActionRuntimeError,
     AIActionTransactionManager,
 )
+from construction_pm.ai_assistant_orchestration import (
+    AIChatProvider,
+    AIAssistantTurnOrchestrator,
+)
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshotRepository
@@ -41,6 +45,7 @@ def build_project_lifecycle_wsgi_app(
     ai_action_runtime: AIActionRuntime | None = None,
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
+    ai_assistant_provider: AIChatProvider | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
@@ -84,6 +89,15 @@ def build_project_lifecycle_wsgi_app(
             clock=None if clock is None else clock.now,
         )
 
+    ai_assistant_orchestrator = None
+    if ai_assistant_provider is not None:
+        if ai_action_runtime is None:
+            raise AIActionRuntimeError("AI_ASSISTANT_ACTION_RUNTIME_REQUIRED")
+        ai_assistant_orchestrator = AIAssistantTurnOrchestrator(
+            provider=ai_assistant_provider,
+            action_runtime=ai_action_runtime,
+        )
+
     activity_master_api = (
         None
         if activity_master_repository is None
@@ -103,6 +117,7 @@ def build_project_lifecycle_wsgi_app(
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
         ai_action_runtime=ai_action_runtime,
+        ai_assistant_orchestrator=ai_assistant_orchestrator,
     )
     return ProjectLifecycleWsgiApp(routes)
 
