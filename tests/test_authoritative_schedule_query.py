@@ -53,8 +53,11 @@ def test_query_executes_real_snapshot_evaluation():
     repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
 
     registry = CalendarResolverRegistry(day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())})
-    provider = AuthoritativeScheduleQueryProvider(lambda: None, lambda: registry)  # replaced below
-    provider = AuthoritativeScheduleQueryProvider(repo, lambda: registry)
+    resolver_calls = []
+    provider = AuthoritativeScheduleQueryProvider(
+        repo, lambda: registry,
+        leveling_input_resolver=lambda *_: resolver_calls.append("unexpected"),
+    )
     service = AuthoritativeScheduleQueryApplicationService(
         provider,
         RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
@@ -66,6 +69,7 @@ def test_query_executes_real_snapshot_evaluation():
     assert answer.data["activity_count"] == 1
     assert answer.data["project_finish"] == "2026-09-22"
     assert isinstance(answer.data["activities"]["A"]["critical"], bool)
+    assert resolver_calls == []
     assert answer.source_refs[0].source_id == "S-I"
 
 
