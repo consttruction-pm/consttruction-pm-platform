@@ -133,6 +133,7 @@ def test_query_rejects_leveling_input_from_a_different_snapshot():
         snapshot_id="S-BIND", tenant_id="T-1", project_id="P-1", project_revision=9,
         mode=AuthoritativeScheduleMode.DATE_BASED, project_calendar=CalendarReference("CAL-1", "1"),
         activities=(Activity("A", 1),), relationships=(), activity_calendar_assignments=(),
+        schedule_options=ScheduleOptions(level_all_resources=True),
         project_start=date(2026, 9, 21),
     )
     context = CalculationContext(
