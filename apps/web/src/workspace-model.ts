@@ -78,6 +78,21 @@ export type WorkspaceActivityRow = {
   gantt?: WorkspaceGanttData;
 };
 
+/** Read-only result facts returned by the authoritative shared scheduling service. */
+export type AuthoritativeScheduledActivity = {
+  start: string;
+  finish: string;
+  duration?: number;
+  critical?: boolean;
+};
+
+export type AuthoritativeScheduleFacts = {
+  calculation_run_identity?: string;
+  project_finish?: string;
+  activity_count?: number;
+  activities: Readonly<Record<string, AuthoritativeScheduledActivity>>;
+};
+
 export type WorkspaceState = {
   context: ProjectContext;
   locale: WorkspaceLocale;
@@ -433,6 +448,56 @@ export function addFormulaColumn(state: WorkspaceState, column: WorkspaceColumn)
     ...state,
     columns: [...state.columns, Object.freeze({ ...column })],
   };
+}
+
+/**
+ * Projects authoritative date results into the activity grid and Gantt view.
+ * It does not calculate or infer schedule values in the client.
+ */
+export function applyAuthoritativeScheduleFacts(
+  state: WorkspaceState,
+  facts: AuthoritativeScheduleFacts,
+): WorkspaceState {
+  if (!facts || typeof facts.activities !== "object" || facts.activities === null || Array.isArray(facts.activities)) {
+    throw new Error("INVALID_AUTHORITATIVE_SCHEDULE_FACTS");
+  }
+  const rows = state.activities.map((activity) => {
+    const scheduled = facts.activities[activity.id];
+    if (!scheduled) return activity;
+    if (
+      typeof scheduled.start !== "string" ||
+      typeof scheduled.finish !== "string" ||
+      !Number.isFinite(Date.parse(scheduled.start)) ||
+      !Number.isFinite(Date.parse(scheduled.finish)) ||
+      Date.parse(scheduled.finish) < Date.parse(scheduled.start) ||
+      (scheduled.duration !== undefined && (typeof scheduled.duration !== "number" || !Number.isFinite(scheduled.duration) || scheduled.duration < 0)) ||
+      (scheduled.critical !== undefined && typeof scheduled.critical !== "boolean")
+    ) {
+      throw new Error("INVALID_AUTHORITATIVE_ACTIVITY_RESULT:" + activity.id);
+    }
+    const progressCell = activity.cells?.progress;
+    const progressPercent = activity.gantt?.progressPercent ??
+      (typeof progressCell === "number" && Number.isFinite(progressCell) ? Math.max(0, Math.min(100, progressCell)) : 0);
+    const gantt = Object.freeze({
+      start: scheduled.start,
+      finish: scheduled.finish,
+      progressPercent,
+      critical: scheduled.critical ?? activity.gantt?.critical ?? false,
+    });
+    const cells: Record<string, WorkspaceCellValue> = {
+      ...(activity.cells ?? {}),
+      start: scheduled.start,
+      finish: scheduled.finish,
+    };
+    if (scheduled.duration !== undefined) cells.duration = scheduled.duration;
+    return Object.freeze({
+      ...activity,
+      cells: Object.freeze(cells),
+      gantt,
+    });
+  });
+  if (rows.every((activity, index) => activity === state.activities[index])) return state;
+  return { ...state, activities: Object.freeze(rows) };
 }
 
 export function withActivities(
