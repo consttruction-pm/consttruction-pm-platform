@@ -17,6 +17,7 @@ from construction_pm.p6_code_reference import (
     FORMULA_REFERENCE,
     ORACLE_SOURCES,
     P6_CODE_REFERENCE,
+    REFERENCE_VERSION,
     P6_DOCUMENTATION_AUDIT,
     coverage_summary,
     documentation_audit_summary,
@@ -186,3 +187,23 @@ def test_documentation_summary_is_not_reported_as_completion_percentage():
 def test_calendar_and_data_date_links_point_to_current_official_p6_help_pages():
     assert ORACLE_SOURCES["calendars"].endswith("/calendars.htm")
     assert ORACLE_SOURCES["data_date"].endswith("/data_date.htm")
+
+
+def test_resource_leveling_registry_tracks_merged_persisted_production_path_without_claiming_parity():
+    assert REFERENCE_VERSION == "0.8.8"
+    leveling = get_reference("RES-002")
+    assert leveling.coverage == MAPPED_NOT_PROVEN
+    assert "src/construction_pm/p6_persisted_resource_leveling_resolver.py" in leveling.cubi_code_paths
+    assert "src/construction_pm/backend_p0/authoritative_schedule_query.py" in leveling.cubi_code_paths
+    assert "tests/test_persisted_resource_leveling_resolver.py" in leveling.regression_tests
+    assert "tests/test_authoritative_schedule_snapshot_composer.py" in leveling.regression_tests
+    assert "Issue #1468 open" in leveling.known_gap
+
+    capacity = get_reference("RES-003")
+    assert "src/construction_pm/p6_persisted_resource_leveling_resolver.py" in capacity.cubi_code_paths
+    assert "Hours-per-Time-Period" in capacity.known_gap
+
+    formula = get_formula_reference("FRM-LEVEL-001")
+    assert formula.status == "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN"
+    assert "src/construction_pm/p6_persisted_resource_leveling_resolver.py" in formula.cubi_code_paths
+    assert "tests/scheduling/test_authoritative_schedule_batch.py" in formula.regression_tests
