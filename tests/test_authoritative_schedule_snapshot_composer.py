@@ -797,6 +797,22 @@ def test_resource_dependent_publication_fails_closed_for_persisted_nondriving_as
             hours_per_units_time_period=Decimal("8"),
         )
     )
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-DRIVING-AS",
+            activity_id="RD-NONDRIVING",
+            resource_id="RD-DRIVING-RES",
+            units=Decimal("8"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
     fixture["connection"].commit()
     settings_status, _ = _save_settings(
         app,
