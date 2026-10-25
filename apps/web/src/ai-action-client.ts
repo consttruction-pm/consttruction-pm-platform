@@ -40,6 +40,18 @@ export type CreateActivityProposal = Readonly<{
   duration_unit: "working-day" | "working-hour";
 }>;
 
+export type AIAssistantHistoryMessage = Readonly<{
+  role: "user" | "assistant";
+  content: string;
+}>;
+
+export type AIAssistantTurn = Readonly<{
+  contract_version: "ai-assistant-turn.v1";
+  kind: "message" | "clarification" | "action_proposal";
+  message: string;
+  proposal: AIActionProposal | null;
+}>;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -149,6 +161,55 @@ export class AIActionClient {
     const proposal = parseProposal(created);
     if (!proposal) return invalidResponse<AIActionProposal>();
     return { ok: true, data: proposal };
+  }
+
+  async sendAssistantTurn(
+    context: ProjectContext,
+    message: string,
+    language: string,
+    history: readonly AIAssistantHistoryMessage[] = [],
+  ): Promise<ApiResult<AIAssistantTurn>> {
+    const result = await this.transport.post<{
+      expected_revision: number;
+      message: string;
+      language: string;
+      history: readonly AIAssistantHistoryMessage[];
+    }, unknown>(
+      `/api/projects/${encodeURIComponent(context.project_id)}/ai/assistant/turn`,
+      {
+        expected_revision: context.revision,
+        message,
+        language,
+        history,
+      },
+      context,
+    );
+    if (!result.ok) return result;
+    const value = result.data;
+    if (!isRecord(value) || value.contract_version !== "ai-assistant-turn.v1" ||
+        !["message", "clarification", "action_proposal"].includes(String(value.kind)) ||
+        typeof value.message !== "string" ||
+        (value.proposal !== null && value.proposal !== undefined && !isRecord(value.proposal))) {
+      return invalidResponse<AIAssistantTurn>();
+    }
+    let proposal: AIActionProposal | null = null;
+    if (value.proposal !== null && value.proposal !== undefined) {
+      proposal = parseProposal(value.proposal);
+      if (!proposal) return invalidResponse<AIAssistantTurn>();
+    }
+    const kind = value.kind as AIAssistantTurn["kind"];
+    if ((kind === "action_proposal") !== (proposal !== null)) {
+      return invalidResponse<AIAssistantTurn>();
+    }
+    return {
+      ok: true,
+      data: Object.freeze({
+        contract_version: "ai-assistant-turn.v1",
+        kind,
+        message: value.message,
+        proposal,
+      }),
+    };
   }
 
   async decide(
