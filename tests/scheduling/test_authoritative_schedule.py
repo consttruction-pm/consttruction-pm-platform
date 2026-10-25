@@ -98,6 +98,54 @@ def test_resource_dependent_facts_reject_task_dependent_activity_type():
         )
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("assignment_id", " AS-1"),
+        ("assignment_id", "AS-1 "),
+        ("activity_id", " A"),
+        ("resource_id", " R-1"),
+        ("resource_id", "R-1 "),
+    ],
+)
+def test_resource_dependent_snapshot_rejects_noncanonical_fact_identifiers(field, value):
+    from dataclasses import replace
+    from decimal import Decimal
+    from construction_pm.scheduling.activity import ActivityType
+
+    base = make_input()
+    fact = ResourceDependentDriverFact(
+        assignment_id="AS-1",
+        activity_id="A",
+        resource_id="R-1",
+        calendar_id="CAL-1",
+        calendar_version="7",
+        unit_of_measure="h",
+        planned_units=Decimal("16"),
+        is_driving=True,
+        units_per_time=Decimal("8"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+    fact = replace(fact, **{field: value})
+    activities = (Activity("A", 2, activity_type=ActivityType.RESOURCE_DEPENDENT), base.activities[1])
+    with pytest.raises(ValueError, match="canonical non-empty strings"):
+        AuthoritativeScheduleInput(
+            snapshot_id=base.snapshot_id,
+            tenant_id=base.tenant_id,
+            project_id=base.project_id,
+            project_revision=base.project_revision,
+            mode=base.mode,
+            project_calendar=base.project_calendar,
+            activities=activities,
+            relationships=base.relationships,
+            activity_calendar_assignments=base.activity_calendar_assignments,
+            schedule_options=base.schedule_options,
+            project_start=base.project_start,
+            resource_dependent_assignment_facts=(fact,),
+        )
+
+
 def test_snapshot_rejects_cross_scope_activity_references():
     calendar = CalendarReference("CAL-1", "1")
     with pytest.raises(ValueError, match="unknown activity"):
