@@ -192,25 +192,76 @@ class AuthoritativeScheduleInputComposer:
             or isinstance(project_settings.schedule_options.data_date, datetime)
         ):
             raise ScheduleInputCompositionError("DATE_BASED_DATA_DATE_MUST_BE_DATE")
+        # Resource leveling is bound by the authoritative Schedule Query's
+        # hash-bound companion input. Do not reject valid persisted options here;
+        # the query resolver will read exact-version resource/calendar facts and
+        # fail closed if those facts are unavailable.
         options = project_settings.schedule_options
-        if any((
-            options.level_all_resources,
-            options.level_within_float,
-            options.resource_list is not None,
-            options.priority_list is not None,
-            options.min_float_to_preserve != 0,
-            options.over_allocation_percentage != 0,
-            options.preserve_scheduled_early_and_late_dates,
-        )):
-            raise ScheduleInputCompositionError("RESOURCE_LEVELING_REQUIRES_HASH_BOUND_INPUT")
 
         if not persisted_activities:
             raise ScheduleInputCompositionError("SCHEDULE_ACTIVITIES_EMPTY")
-        if resource_assignments or resource_periods:
-            raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENTS_NOT_BOUND_TO_SNAPSHOT")
         activity_ids = {item.activity_id for item in persisted_activities}
         if len(activity_ids) != len(persisted_activities):
             raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_ACTIVITY_ID")
+
+        # Resource assignments and period values remain in their own immutable,
+        # revision-scoped repositories and are bound by the leveler's companion
+        # input/hash. Validate the cross-record references here so the snapshot
+        # publisher cannot silently bless orphaned or mis-scoped resource data.
+        assignments_by_id = {}
+        for assignment in resource_assignments:
+            if assignment.scope != scope:
+                raise ScheduleInputCompositionError(
+                    f"RESOURCE_ASSIGNMENT_SCOPE_MISMATCH:{assignment.assignment_id}"
+                )
+            try:
+                assignment.validate()
+            except (TypeError, ValueError) as exc:
+                raise ScheduleInputCompositionError(
+                    f"INVALID_RESOURCE_ASSIGNMENT:{assignment.assignment_id}:{exc}"
+                ) from exc
+            if assignment.assignment_id in assignments_by_id:
+                raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_RESOURCE_ASSIGNMENT_ID")
+            if assignment.activity_id not in activity_ids:
+                raise ScheduleInputCompositionError(
+                    f"RESOURCE_ASSIGNMENT_UNKNOWN_ACTIVITY:{assignment.assignment_id}:{assignment.activity_id}"
+                )
+            assignments_by_id[assignment.assignment_id] = assignment
+
+        seen_resource_periods = set()
+        for period in resource_periods:
+            if period.scope != scope:
+                raise ScheduleInputCompositionError(
+                    f"RESOURCE_PERIOD_SCOPE_MISMATCH:{period.assignment_id}:{period.period_start}"
+                )
+            try:
+                period.validate()
+            except (TypeError, ValueError) as exc:
+                raise ScheduleInputCompositionError(
+                    f"INVALID_RESOURCE_PERIOD:{period.assignment_id}:{period.period_start}:{exc}"
+                ) from exc
+            assignment = assignments_by_id.get(period.assignment_id)
+            if assignment is None:
+                raise ScheduleInputCompositionError(
+                    f"RESOURCE_PERIOD_ASSIGNMENT_NOT_FOUND:{period.assignment_id}"
+                )
+            if (
+                period.activity_id != assignment.activity_id
+                or period.resource_id != assignment.resource_id
+            ):
+                raise ScheduleInputCompositionError(
+                    f"RESOURCE_PERIOD_ASSIGNMENT_MISMATCH:{period.assignment_id}:{period.period_start}"
+                )
+            try:
+                date.fromisoformat(period.period_start)
+            except (TypeError, ValueError) as exc:
+                raise ScheduleInputCompositionError(
+                    f"INVALID_RESOURCE_PERIOD_START:{period.assignment_id}:{period.period_start}"
+                ) from exc
+            period_key = (period.assignment_id, period.period_start)
+            if period_key in seen_resource_periods:
+                raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_RESOURCE_PERIOD")
+            seen_resource_periods.add(period_key)
 
         configured_calendar = project_settings.project_calendar
         project_calendar = self._load_calendar_reference(

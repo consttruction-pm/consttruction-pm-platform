@@ -4,6 +4,10 @@ import os
 from typing import Callable
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
+from construction_pm.calendar_exception_repository import CalendarExceptionRepository
+from construction_pm.calendar_master_repository import CalendarMasterRepository
+from construction_pm.calendar_snapshot_repository import CalendarSnapshotRepository
+from construction_pm.calendar_work_hours_repository import CalendarWorkHourRepository
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.ai_action_boundary import AIToolPermissionAdapter
 from construction_pm.ai_action_activity_tools import build_activity_create_runtime
@@ -12,6 +16,8 @@ from construction_pm.backend_p0.authoritative_schedule_query import Authoritativ
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_persisted_resource_leveling_resolver import build_persisted_resource_leveling_input_resolver
+from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
@@ -51,6 +57,11 @@ def build_project_lifecycle_wsgi_app(
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
     ai_assistant_provider: AIChatProvider | None = None,
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
+    resource_read_api: P6ResourceReadAPI | None = None,
+    resource_calendar_master_repository: CalendarMasterRepository | None = None,
+    resource_calendar_snapshot_repository: CalendarSnapshotRepository | None = None,
+    resource_calendar_exception_repository: CalendarExceptionRepository | None = None,
+    resource_calendar_work_hours_repository: CalendarWorkHourRepository | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
@@ -70,6 +81,27 @@ def build_project_lifecycle_wsgi_app(
     if ai_assistant_provider is None and assistant_enabled:
         ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
 
+    resource_resolver_dependencies = (
+        resource_read_api,
+        resource_calendar_master_repository,
+        resource_calendar_snapshot_repository,
+        resource_calendar_exception_repository,
+        resource_calendar_work_hours_repository,
+    )
+    if leveling_input_resolver is not None and any(
+        dependency is not None for dependency in resource_resolver_dependencies
+    ):
+        raise ValueError("RESOURCE_LEVELING_RESOLVER_CONFIGURATION_CONFLICT")
+    if any(dependency is not None for dependency in resource_resolver_dependencies):
+        if not all(dependency is not None for dependency in resource_resolver_dependencies):
+            raise ValueError("RESOURCE_LEVELING_RESOLVER_DEPENDENCIES_INCOMPLETE")
+        leveling_input_resolver = build_persisted_resource_leveling_input_resolver(
+            resource_read_api=resource_read_api,
+            calendar_master_repository=resource_calendar_master_repository,
+            calendar_snapshot_repository=resource_calendar_snapshot_repository,
+            calendar_exception_repository=resource_calendar_exception_repository,
+            calendar_work_hours_repository=resource_calendar_work_hours_repository,
+        )
     provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,

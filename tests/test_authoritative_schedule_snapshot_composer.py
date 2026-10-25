@@ -16,17 +16,30 @@ from construction_pm.authoritative_schedule_input_composer import AuthoritativeS
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.calendar_master_repository import (
+    ActivityCalendarAssignmentMaster,
     CalendarMaster,
     RelationshipLagCalendarAssignmentMaster,
     SQLiteCalendarAssignmentRepository,
     SQLiteCalendarMasterRepository,
 )
+from construction_pm.calendar_exception_repository import SQLiteCalendarExceptionRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
-from construction_pm.constraint_master_repository import SQLiteConstraintMasterRepository
+from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHourRepository
+from construction_pm.constraint_master_repository import ConstraintMaster, SQLiteConstraintMasterRepository
+from construction_pm.scheduling.constraints import ConstraintType
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    P6ResourceAssignmentApplicationService,
+    P6ResourceAssignmentPeriodApplicationService,
+    P6ResourceAssignmentPeriodValue,
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
+)
+from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.p6_resource_spread_repository import (
+    P6ResourceSpreadApplicationService,
+    SQLiteP6ResourceSpreadRepository,
 )
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
@@ -113,6 +126,15 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
     calendar_snapshots = SQLiteCalendarSnapshotRepository(connection)
     resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
     resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
+    resource_spreads = SQLiteP6ResourceSpreadRepository(connection)
+    resource_read_api = P6ResourceReadAPI(
+        P6ResourceAssignmentApplicationService(resource_assignments, SQLiteTransactionManager(connection)),
+        P6ResourceAssignmentPeriodApplicationService(resource_periods, SQLiteTransactionManager(connection)),
+        P6ResourceSpreadApplicationService(resource_spreads, SQLiteTransactionManager(connection)),
+        policy,
+    )
+    calendar_exceptions = SQLiteCalendarExceptionRepository(connection)
+    calendar_work_hours = SQLiteCalendarWorkHourRepository(connection)
     settings_repo = SQLiteProjectScheduleSettingsRepository(connection)
     snapshot_repo = SQLiteScheduleInputSnapshotRepository(connection)
     context_repo = SQLiteCalculationContextRepository(connection)
@@ -126,6 +148,28 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
     )
     calendar_repo.save(calendar)
     calendar_snapshots.save(calendar, WorkingCalendar())
+    activity_calendar = CalendarMaster(
+        scope=scope,
+        calendar_id="CAL-A",
+        calendar_version="1",
+        kind="working-day",
+        name="Activity Calendar",
+    )
+    calendar_repo.save(activity_calendar)
+    calendar_snapshots.save(
+        activity_calendar,
+        WorkingCalendar(working_weekdays=frozenset({1, 2, 3, 4})),
+    )
+    resource_calendar = CalendarMaster(
+        scope=scope,
+        calendar_id="RC-1",
+        calendar_version="v1",
+        kind="working-day",
+        name="Resource Calendar",
+        calendar_type="resource",
+    )
+    calendar_repo.save(resource_calendar)
+    calendar_snapshots.save(resource_calendar, WorkingCalendar())
 
     composer = AuthoritativeScheduleInputComposer(
         activity_repository=activity_repo,
@@ -162,7 +206,12 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
     )
     snapshot_api = P6ScheduleSnapshotPublicationAPI(publisher, policy, settings_repo)
     registry = CalendarResolverRegistry(
-        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+        day_resolvers={
+            "CAL-1@1": WorkingTimeResolver(WorkingCalendar()),
+            "CAL-A@1": WorkingTimeResolver(
+                WorkingCalendar(working_weekdays=frozenset({1, 2, 3, 4}))
+            ),
+        }
     )
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle,
@@ -174,6 +223,11 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         relationship_master_repository=relationship_repo,
         schedule_snapshot_publication_api=snapshot_api,
         clock=type("Clock", (), {"now": lambda self: now})(),
+        resource_read_api=resource_read_api,
+        resource_calendar_master_repository=calendar_repo,
+        resource_calendar_snapshot_repository=calendar_snapshots,
+        resource_calendar_exception_repository=calendar_exceptions,
+        resource_calendar_work_hours_repository=calendar_work_hours,
     )
     return {
         "app": app,
@@ -186,11 +240,25 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "calendar_repo": calendar_repo,
         "calendar_assignments": calendar_assignments,
         "settings_repo": settings_repo,
+        "constraint_repo": constraint_repo,
+        "resource_assignments": resource_assignments,
+        "resource_periods": resource_periods,
+        "resource_read_api": resource_read_api,
+        "calendar_snapshots": calendar_snapshots,
+        "calendar_exceptions": calendar_exceptions,
+        "calendar_work_hours": calendar_work_hours,
+        "registry": registry,
     }
 
 
-def _save_settings(app, *, expected_revision: int = 0):
-    options = ScheduleOptions(data_date=date(2026, 10, 19))
+def _save_settings(
+    app,
+    *,
+    expected_revision: int = 0,
+    options: ScheduleOptions | None = None,
+    project_start: date = date(2026, 10, 19),
+):
+    options = options or ScheduleOptions(data_date=date(2026, 10, 19))
     payload = {
         "contract_version": P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
         "expected_record_revision": expected_revision,
@@ -198,7 +266,7 @@ def _save_settings(app, *, expected_revision: int = 0):
         "project_calendar_id": "CAL-1",
         "project_calendar_version": "1",
         "project_calendar_system": CalendarSystem.GREGORIAN.value,
-        "project_start": "2026-10-19",
+        "project_start": project_start.isoformat(),
         "project_finish": None,
         "schedule_options": _schedule_options_payload(options),
         "project_leveling_priority": 10,
@@ -360,6 +428,146 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     assert query_result["data"]["activities"]["A-1"]["start"] == "2026-10-19"
     assert query_result["data"]["activities"]["B-1"]["start"] == "2026-10-21"
     assert query_result["source_refs"][0]["source_id"] == published["snapshot_id"]
+    connection.close()
+
+
+
+def test_activity_snapshot_publication_and_query_use_persisted_resource_leveling(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    for activity_id, name, priority in (
+        ("A-1", "High priority task", "High"),
+        ("B-1", "Normal priority task", "Normal"),
+    ):
+        status, result = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/activities",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "activity_id": activity_id,
+                "name": name,
+                "duration_value": "1",
+                "duration_unit": DurationUnit.WORKING_DAY.value,
+                "percent_complete_type": "DURATION",
+                "activity_type": "Task Dependent",
+                "status": "Not Started",
+                "status_code": "Planned",
+                "leveling_priority": priority,
+                "original_duration": 1,
+            },
+        )
+        assert status == "201 Created"
+        assert result["activity"]["activity_id"] == activity_id
+
+    fixture["calendar_assignments"].save_activity(
+        ActivityCalendarAssignmentMaster(scope, "A-1", "CAL-A", "1")
+    )
+    fixture["constraint_repo"].save(
+        ConstraintMaster(
+            scope,
+            "CON-B-START",
+            "B-1",
+            ConstraintType.START_NO_EARLIER_THAN,
+            date(2026, 10, 20),
+        )
+    )
+
+    for assignment_id, activity_id in (("AS-A", "A-1"), ("AS-B", "B-1")):
+        fixture["resource_assignments"].upsert(
+            P6ResourceAssignment(
+                scope=scope,
+                assignment_id=assignment_id,
+                activity_id=activity_id,
+                resource_id="R-1",
+                units=Decimal("8"),
+                calendar_id="RC-1",
+                calendar_version="v1",
+            )
+        )
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id=assignment_id,
+                activity_id=activity_id,
+                resource_id="R-1",
+                period_start="2026-10-20",
+                units=Decimal("8"),
+                cost=Decimal("0"),
+            )
+        )
+
+    connection.commit()
+    settings_status, settings = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 20),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 20),
+    )
+    assert settings_status == "201 Created"
+    assert settings["schedule_options"]["level_all_resources"] is True
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created"
+    assert published["snapshot_id"] == "SNAP-PUBLISHED-1"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    activities = {item.id: item for item in materialized.schedule_input.activities}
+    assert activities["A-1"].leveling_priority is ActivityLevelingPriority.HIGH
+    assert activities["B-1"].leveling_priority is ActivityLevelingPriority.NORMAL
+    assert [
+        (item.activity_id, item.calendar.calendar_id, item.calendar.calendar_version)
+        for item in materialized.schedule_input.activity_calendar_assignments
+    ] == [("A-1", "CAL-A", "1")]
+    assert [
+        (item.activity_id, item.type, item.date)
+        for item in materialized.schedule_input.constraints
+    ] == [
+        ("B-1", ConstraintType.START_NO_EARLIER_THAN, date(2026, 10, 20))
+    ]
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-PERSISTED-LEVELING",
+            "scope": {
+                "tenant_id": "t1",
+                "project_id": "p1",
+                "project_revision": 2,
+            },
+            "requested_by": "u1",
+            "query_text": "level persisted resource assignments",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    assert query_result["contract_version"] == "schedule-query-result.v1"
+    assert query_result["data"]["activity_count"] == 2
+    assert query_result["data"]["project_finish"] == "2026-10-21"
+    assert {
+        item["start"] for item in query_result["data"]["activities"].values()
+    } == {"2026-10-20", "2026-10-21"}
+    assert query_result["data"]["calculation_run_identity"]
     connection.close()
 
 

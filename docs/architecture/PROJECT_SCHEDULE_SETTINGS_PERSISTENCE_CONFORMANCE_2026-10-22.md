@@ -39,11 +39,23 @@ Reference entry points used by adjacent scheduling contracts:
 - P6 Professional v26 relationship type/lag fields: https://docs.oracle.com/cd/G48902_01/client_help/en_US/relationships_tab_-_activity_details.htm
 - P6 Professional v26 resource-leveling priority definitions: https://docs.oracle.com/cd/G48902_01/client_help/en_US/leveling_priority_definitions.htm
 
-## Explicit remaining blockers
+## Implementation update — 2026-10-25 (PR #1566 pending merge)
 
-1. No current production composition yet performs persisted Activity Master + relationships + constraints + activity-calendar assignments + project schedule settings → fresh revision-consistent read → canonical AuthoritativeScheduleInput → immutable ScheduleInputSnapshot. The current query test that hand-builds an AuthoritativeScheduleInput does not prove this path. Keep #1462 OPEN.
-2. No immutable raw resource-assignment/period/capacity/options envelope is bound to the snapshot/calculation identity and composed with intermediate CPM output for SchedulerLevelingInput. The provider still needs the leveling_input seam and real query-path tests. Keep #1468 OPEN.
-3. Existing Activity Master persistence still does not authoritatively persist every Activity field, and duration/date/progress mappings cannot be guessed or silently coerced. Unsupported mappings remain a blocker until an explicit contract is established.
+The earlier two blockers have implementation coverage in the current branch, but not yet in `main`:
+
+1. `src/construction_pm/authoritative_schedule_input_composer.py` no longer rejects valid date-based leveling settings or every non-empty resource assignment set. It validates persisted assignment/period scope, unique identities, cross-record activity/resource references and date keys while the immutable schedule snapshot preserves the authoritative activity, relationships, constraints, calendar assignments and schedule options.
+2. `src/construction_pm/p6_persisted_resource_leveling_resolver.py` reads the real authorized assignment/period repositories at the snapshot's exact tenant/project/revision, resolves each resource calendar by exact ID+version and hashes the source assignments, time-phased facts, calendar capacity manifest, snapshot and calculation identity. The production WSGI composition can construct this resolver from the real read API and calendar repositories.
+3. `tests/test_authoritative_schedule_snapshot_composer.py::test_activity_snapshot_publication_and_query_use_persisted_resource_leveling` covers authenticated activity writes → persisted schedule settings/relationships/constraints/calendar assignment/resource assignments and periods → explicit commit → published immutable snapshot → production Schedule Query → final leveling dates. The test asserts the non-empty resource overload is separated by the Shared Scheduling Core and the snapshot preserved the non-default activity-calendar, priority and constraint values.
+
+The exact head `12be1a8f2facaf527dc240b31e16bef8f9cfd0cc` passed ConstructionPM CI (Python 3.11/3.12/3.13), Client Typecheck (web/desktop/mobile/client-sync) and PostgreSQL Integration. This evidence applies to that SHA; any subsequent source change requires fresh checks. PR #1566 still must be merged before the implementation counts as current-main completion.
+
+## Remaining certification gaps
+
+- Keep #1468 open until the current PR is integrated and an independent semantic review confirms the unit meaning of resource-calendar capacity versus assignment demand, PriorityList/ResourceList options, movement horizon, constraints and exact-version calendar exception/work-hour precedence. Do not call this full resource-leveling conformance.
+- Keep #1462 open until the integrated write→commit→fresh scoped read→snapshot→query coverage and optimistic-concurrency/scope-negative evidence are reviewed on current main; unsupported duration/date/progress/calendar mapping contracts must continue to fail explicitly rather than being coerced.
+- This is only a date-based resource-leveling slice. It does not certify all calculations, time-aware resource leveling, every external scheduling option or complete product parity.
+
+Keep overall conformance status PARTIAL/UNVERIFIED, and do not award full product-completion credit from this resource-leveling slice alone.
 
 ## Acceptance evidence expected for this sub-slice
 
