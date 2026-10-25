@@ -486,6 +486,22 @@ async function mountSettingsPanel(
       }
     }
   };
+  const captureDraft = () => {
+    if (!form) return;
+    const data = new FormData(form);
+    const nextDraft: ScheduleSettingsDraft = {};
+    for (const [key, value] of data.entries()) nextDraft[key] = String(value);
+    for (const schema of catalog?.schedule_options_schema ?? []) {
+      const control = form.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[data-option="${schema.name}"]`);
+      if (!control) continue;
+      nextDraft[`option:${schema.name}`] = schema.kind === "boolean"
+        ? (control as HTMLInputElement).checked
+        : control.value;
+    }
+    scheduleSettingsDrafts.set(draftKey, nextDraft);
+  };
+  form?.addEventListener("input", captureDraft);
+  form?.addEventListener("change", captureDraft);
   modeInput?.addEventListener("change", syncDateTypes);
   calendarRefInput?.addEventListener("change", () => {
     try {
@@ -558,6 +574,7 @@ async function mountSettingsPanel(
       saved = result.data;
       const revisionField = form.elements.namedItem("record_revision") as HTMLInputElement | null;
       if (revisionField) revisionField.value = String(saved.record_revision);
+      scheduleSettingsDrafts.delete(draftKey);
       status.textContent = labels.saved;
     } catch (error) {
       status.textContent = `${labels.saveFailed} (${error instanceof Error ? error.message : "INVALID_SETTINGS"})`;
