@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Callable, Mapping, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 from .ai_action_runtime import (
     AIActionRuntime,
@@ -21,6 +21,13 @@ MAX_ASSISTANT_REPLY_CHARS = 4_000
 MAX_ASSISTANT_HISTORY_MESSAGES = 12
 MAX_ASSISTANT_HISTORY_CHARS = 12_000
 MAX_PROVIDER_RESPONSE_BYTES = 1_000_000
+
+
+class _RejectProviderRedirects(HTTPRedirectHandler):
+    """Do not forward provider credentials or prompt data through HTTP redirects."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 class AIAssistantProviderError(RuntimeError):
@@ -111,7 +118,9 @@ class OpenAICompatibleChatProvider:
         self._api_key = api_key.strip()
         self._model = model.strip()
         self._timeout_seconds = float(timeout_seconds)
-        self._opener = opener or urlopen
+        # Reject redirects by default: credentials and project prompts must only be
+        # sent to the exact HTTPS endpoint configured by the deployment.
+        self._opener = opener if opener is not None else build_opener(_RejectProviderRedirects()).open
 
     @classmethod
     def from_environment(
