@@ -98,6 +98,7 @@ def test_driving_assignments_must_share_exact_calendar_version_and_unit():
     with pytest.raises(ResourceDependentCalculationError, match="RESOURCE_DEPENDENT_DRIVING_UNIT_MISMATCH"):
         derive(driver("A-1"), driver("A-2", unit="equipment-day"))
 
+
 def test_duplicate_assignment_ids_fail_closed():
     with pytest.raises(
         ResourceDependentCalculationError,
