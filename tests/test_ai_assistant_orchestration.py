@@ -26,8 +26,9 @@ from construction_pm.ai_assistant_orchestration import (
 
 
 class FakeProvider:
-    def __init__(self, result):
+    def __init__(self, result=None, error=None):
         self.result = result
+        self.error = error
         self.calls = []
 
     def complete_json(self, *, system_prompt, user_message, language, history=()):
@@ -37,6 +38,8 @@ class FakeProvider:
             "language": language,
             "history": history,
         })
+        if self.error is not None:
+            raise self.error
         return self.result
 
 
@@ -363,3 +366,59 @@ def test_assistant_rejects_language_prompt_injection_before_provider_call():
         assert provider.calls == []
     finally:
         connection.close()
+
+
+
+def test_orchestrator_sanitizes_unexpected_provider_exceptions():
+    connection, runtime, context, executed = build_runtime()
+    provider = FakeProvider(error=RuntimeError("credential=do-not-leak"))
+    try:
+        with pytest.raises(AIAssistantProviderError, match="AI_ASSISTANT_PROVIDER_UNAVAILABLE") as error:
+            AIAssistantTurnOrchestrator(
+                provider=provider, action_runtime=runtime
+            ).turn(context, user_message="Hello", language="en")
+        assert "do-not-leak" not in str(error.value)
+        assert executed == []
+        assert connection.execute("SELECT COUNT(*) FROM ai_action_proposals").fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+def test_orchestrator_rejects_oversized_model_tool_payload_before_validation_or_persistence():
+    connection, runtime, context, executed = build_runtime()
+    provider = FakeProvider({
+        "kind": "action_proposal",
+        "message": "Review this proposed activity.",
+        "tool_name": "activity.create",
+        "payload": {
+            "activity_id": "A-100",
+            "name": "Excavation",
+            "duration_value": 3.5,
+            "duration_unit": "working-day",
+            "ignored": "x" * 65_000,
+        },
+    })
+    try:
+        with pytest.raises(
+            AIAssistantProviderError,
+            match="AI_ASSISTANT_PROVIDER_RESPONSE_INVALID",
+        ):
+            AIAssistantTurnOrchestrator(
+                provider=provider, action_runtime=runtime
+            ).turn(context, user_message="Create activity", language="en")
+        assert executed == []
+        assert connection.execute("SELECT COUNT(*) FROM ai_action_proposals").fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+def test_provider_malformed_https_url_is_a_sanitized_configuration_error():
+    with pytest.raises(
+        AIAssistantProviderError,
+        match="AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID",
+    ):
+        OpenAICompatibleChatProvider(
+            base_url="https://[malformed/v1",
+            api_key="key",
+            model="model-test",
+        )
