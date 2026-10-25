@@ -22,6 +22,7 @@ import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDisplayName } from "./workspace-localization.js";
 import { mountAIActionPanel } from "./ai-action-panel.js";
+import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 
 function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
   const shellLabels = getWorkspaceShellLabels(state.locale);
@@ -53,7 +54,18 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
   };
 
   status.replaceChildren(document.createTextNode(shellLabels.status), languageButton);
-  mountAIActionPanel(appShell, new FetchApiTransport(window.location.origin), state.context, state.locale);
+  const aiTransport = new FetchApiTransport(window.location.origin);
+  let refreshAIProposals: (() => Promise<void>) | undefined;
+  mountAIAssistantChatPanel(
+    appShell,
+    aiTransport,
+    state.context,
+    state.locale,
+    () => { if (refreshAIProposals) void refreshAIProposals(); },
+  );
+  refreshAIProposals = mountAIActionPanel(
+    appShell, aiTransport, state.context, state.locale,
+  );
   renderMainWorkspace(workspace, state, {
     onMenuSelect: (menu) => {
       renderApp(container, { ...state, activeMenu: menu }, persistence);
