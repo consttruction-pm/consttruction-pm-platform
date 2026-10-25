@@ -118,10 +118,44 @@ def main() -> int:
             print(f"missing generated catalog: {OUTPUT.relative_to(ROOT)}", file=sys.stderr)
             return 1
         actual = OUTPUT.read_text(encoding="utf-8")
-        if actual != expected:
-            print("Web scheduling reference catalog is stale; run scripts/generate_web_scheduling_reference.py", file=sys.stderr)
+        if not actual.startswith(HEADER) or not actual.endswith(FOOTER):
+            print("generated Web scheduling catalogue has an invalid TypeScript envelope", file=sys.stderr)
             return 1
-        print("Web scheduling reference catalog is current.")
+        try:
+            expected_data = json.loads(expected[len(HEADER):-len(FOOTER)])
+            actual_data = json.loads(actual[len(HEADER):-len(FOOTER)])
+        except json.JSONDecodeError as exc:
+            print(f"generated Web scheduling catalogue contains invalid JSON: {exc}", file=sys.stderr)
+            return 1
+        identity_fields = {
+            "requirements": ("id", "status"),
+            "formulas": ("id", "status"),
+            "documentation": ("id", "status"),
+        }
+        for key in ("version", "asOf"):
+            if actual_data.get(key) != expected_data.get(key):
+                print(f"generated Web catalogue has stale {key}", file=sys.stderr)
+                return 1
+        for collection, fields in identity_fields.items():
+            expected_rows = [tuple(row.get(field) for field in fields) for row in expected_data.get(collection, [])]
+            actual_rows = [tuple(row.get(field) for field in fields) for row in actual_data.get(collection, [])]
+            if actual_rows != expected_rows:
+                print(f"generated Web catalogue has stale {collection} IDs/status; run scripts/generate_web_scheduling_reference.py", file=sys.stderr)
+                return 1
+        if len(actual_data.get("requirements", [])) != len(P6_CODE_REFERENCE):
+            print("generated Web catalogue omitted a registered requirement", file=sys.stderr)
+            return 1
+        if len(actual_data.get("formulas", [])) != len(FORMULA_REFERENCE):
+            print("generated Web catalogue omitted a formula contract", file=sys.stderr)
+            return 1
+        if len(actual_data.get("documentation", [])) != len(P6_DOCUMENTATION_AUDIT):
+            print("generated Web catalogue omitted a documentation review track", file=sys.stderr)
+            return 1
+        public_text = json.dumps(actual_data, ensure_ascii=False)
+        if re.search(r"\\bP6\\b|p6[_-][a-z0-9]|Primavera|Oracle|https?://|src/construction_pm|tests/test_|docs\\.oracle", public_text, re.IGNORECASE):
+            print("generated Web catalogue leaks source names, URLs, or repository paths", file=sys.stderr)
+            return 1
+        print("Web scheduling catalogue IDs, statuses, version, and public-safe payload are current.")
         return 0
     OUTPUT.write_text(expected, encoding="utf-8")
     print(f"generated {OUTPUT.relative_to(ROOT)}")
