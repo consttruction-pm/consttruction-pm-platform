@@ -315,7 +315,7 @@ class AuthoritativeScheduleInputComposer:
                         calendar_id=assignment.calendar_id,
                         calendar_version=assignment.calendar_version,
                         unit_of_measure=assignment.unit,
-                        remaining_units=assignment.remaining_units,
+                        planned_units=assignment.units,
                         is_driving=assignment.is_driving,
                         units_per_time=assignment.units_per_time,
                         units_per_time_period=assignment.units_per_time_period,
