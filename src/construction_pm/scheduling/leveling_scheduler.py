@@ -191,6 +191,8 @@ def _forward_activities_with_authoritative_floats(
                     shifted_period,
                     demand.units,
                     demand.activity_id,
+                    demand.assignment_id,
+                    demand.is_driving,
                 )
             )
 
@@ -271,6 +273,8 @@ def _backward_activities_from_intermediate(
                 shifted_period,
                 demand.units,
                 demand.activity_id,
+                demand.assignment_id,
+                demand.is_driving,
             ))
 
         result.append(
@@ -333,6 +337,8 @@ def _validate_final_resource_load(
                 period=shifted_period,
                 units=demand.units,
                 activity_id=activity_id,
+                assignment_id=demand.assignment_id,
+                is_driving=demand.is_driving,
             ))
     selected_resources = set(select_leveling_resources(
         shifted_demands,
