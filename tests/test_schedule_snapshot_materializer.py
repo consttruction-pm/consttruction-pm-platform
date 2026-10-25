@@ -1120,3 +1120,37 @@ def test_materializer_rejects_invalid_original_duration(value):
     )
     with pytest.raises(SnapshotMaterializationError, match="INVALID_ACTIVITY_ORIGINAL_DURATION"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
+
+
+@pytest.mark.parametrize(
+    ("facts", "error"),
+    [
+        (
+            [
+                {"assignment_id": "AS-1", "activity_id": "A", "resource_id": "R-1", "is_driving": True},
+                {"assignment_id": "AS-1", "activity_id": "B", "resource_id": "R-2", "is_driving": False},
+            ],
+            "DUPLICATE_RESOURCE_DEPENDENT_ASSIGNMENT_FACT",
+        ),
+        (
+            [{"assignment_id": " AS-1", "activity_id": "A", "resource_id": "R-1", "is_driving": True}],
+            "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT",
+        ),
+        (
+            [{"assignment_id": "AS-1", "activity_id": "A", "resource_id": "R-1 ", "is_driving": True}],
+            "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT",
+        ),
+    ],
+)
+def test_materializer_rejects_duplicate_or_noncanonical_resource_assignment_facts(facts, error):
+    snapshot = make_snapshot()
+    payload = json.loads(snapshot.canonical_payload)
+    payload["resource_dependent_assignment_facts"] = facts
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    tampered = snapshot.__class__(
+        snapshot.scope, snapshot.snapshot_id,
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+        canonical, snapshot.calculation_identity, snapshot.created_at,
+    )
+    with pytest.raises(SnapshotMaterializationError, match=error):
+        materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
