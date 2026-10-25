@@ -1524,7 +1524,7 @@ def test_assignment_identity_survives_forward_backward_and_final_validation(monk
         WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4}), holidays=frozenset())
     )
     demand = ResourceDemand(
-        "R1", day_one, __import__("decimal").Decimal("8"), "A", "ASG-1", False
+        "R1", day_one, Decimal("8"), "A", "ASG-1", False
     )
     forward = LevelingActivity("A", day_one, day_one, 1, (demand,))
     backward = BackwardLevelingActivity(
@@ -1537,7 +1537,7 @@ def test_assignment_identity_survives_forward_backward_and_final_validation(monk
     leveling_input = SchedulerLevelingInput(
         forward_activities=(forward,),
         backward_activities=(backward,),
-        capacities=(ResourceCapacity("R1", day_two, __import__("decimal").Decimal("8")),),
+        capacities=(ResourceCapacity("R1", day_two, Decimal("8")),),
         options=options,
     )
     cpm_activity = SimpleNamespace(start=day_two, finish=day_two)
