@@ -91,6 +91,35 @@ def test_nondriving_assignments_are_not_silently_folded_into_activity_duration()
         derive(driver("A-1"), driver("A-2", driving=False))
 
 
+@pytest.mark.parametrize("driving", [1, 0, "true", "false"])
+def test_driving_flag_requires_an_actual_boolean(driving):
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG",
+    ):
+        derive(driver("A-1", driving=driving))
+
+
+def test_duplicate_assignment_ids_are_rejected_before_duration_derivation():
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="DUPLICATE_RESOURCE_DEPENDENT_ASSIGNMENT_ID",
+    ):
+        derive(driver("A-1"), driver("A-1", resource_id="R-2"))
+
+
+@pytest.mark.parametrize(
+    ("assignment_id", "resource_id"),
+    [(" A-1", "R-1"), ("A-1", " R-1"), ("A-1 ", "R-1"), ("A-1", "R-1 ")],
+)
+def test_noncanonical_assignment_and_resource_ids_are_rejected(assignment_id, resource_id):
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED",
+    ):
+        derive(driver(assignment_id, resource_id=resource_id))
+
+
 def test_driving_assignments_must_share_exact_calendar_version_and_unit():
     with pytest.raises(ResourceDependentCalculationError, match="RESOURCE_DEPENDENT_DRIVING_CALENDAR_MISMATCH"):
         derive(driver("A-1"), driver("A-2", calendar_version="v3"))
