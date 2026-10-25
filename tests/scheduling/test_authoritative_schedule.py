@@ -10,6 +10,7 @@ from construction_pm.scheduling.authoritative_schedule import (
 )
 from construction_pm.scheduling.calendar_context import CalendarReference
 from construction_pm.scheduling.relationships import Relationship
+from construction_pm.scheduling.resource_dependent import ResourceDependentDriverFact
 from construction_pm.scheduling.schedule import ScheduleOptions
 
 
@@ -38,6 +39,34 @@ def test_snapshot_contract_is_deterministic():
     second = make_input()
     assert first.canonical_json() == second.canonical_json()
     assert first.snapshot_hash == second.snapshot_hash
+
+
+def test_resource_dependent_assignment_facts_are_bound_to_snapshot_hash():
+    from decimal import Decimal
+
+    base = make_input()
+    def build(is_driving: bool) -> AuthoritativeScheduleInput:
+        fact = ResourceDependentDriverFact(
+            assignment_id="AS-1", activity_id="A", resource_id="R-1",
+            calendar_id="CAL-1", calendar_version="7", unit_of_measure="h",
+            planned_units=Decimal("16"), is_driving=is_driving,
+            units_per_time=Decimal("8"), units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+        return AuthoritativeScheduleInput(
+            snapshot_id=base.snapshot_id, tenant_id=base.tenant_id, project_id=base.project_id,
+            project_revision=base.project_revision, mode=base.mode, project_calendar=base.project_calendar,
+            activities=base.activities, relationships=base.relationships,
+            activity_calendar_assignments=base.activity_calendar_assignments,
+            schedule_options=base.schedule_options, project_start=base.project_start,
+            resource_dependent_assignment_facts=(fact,),
+        )
+
+    driving = build(True)
+    nondriving = build(False)
+    assert driving.canonical_payload()["resource_dependent_assignment_facts"][0]["is_driving"] is True
+    assert nondriving.canonical_payload()["resource_dependent_assignment_facts"][0]["is_driving"] is False
+    assert driving.snapshot_hash != nondriving.snapshot_hash
 
 
 def test_snapshot_rejects_cross_scope_activity_references():
