@@ -51,8 +51,11 @@ class FakeAssistantProvider:
         self.error = error
         self.calls = []
 
-    def complete_json(self, *, system_prompt, user_message, language):
-        self.calls.append({"system_prompt": system_prompt, "user_message": user_message, "language": language})
+    def complete_json(self, *, system_prompt, user_message, language, history=()):
+        self.calls.append({
+            "system_prompt": system_prompt, "user_message": user_message,
+            "language": language, "history": history,
+        })
         if self.error is not None:
             raise self.error
         return self.result
