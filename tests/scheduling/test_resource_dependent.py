@@ -108,6 +108,16 @@ def test_duplicate_assignment_ids_are_rejected_before_duration_derivation():
         derive(driver("A-1"), driver("A-1", resource_id="R-2"))
 
 
+def test_non_string_assignment_id_is_rejected_before_sorting():
+    from dataclasses import replace
+
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED",
+    ):
+        derive(replace(driver("A-1"), assignment_id=1), driver("A-2"))
+
+
 @pytest.mark.parametrize(
     ("assignment_id", "resource_id"),
     [(" A-1", "R-1"), ("A-1", " R-1"), ("A-1 ", "R-1"), ("A-1", "R-1 ")],
