@@ -23,7 +23,7 @@
 
 | Item | Verified state |
 |---|---|
-| Latest source-code SHA inspected at reconciliation | `f4b51292e8e61124e64ae11e756e8cbad27f66d9` (2026-10-25; PR #1571 merged; post-merge Python 3.11/3.13 checks were still running at last inspection) |
+| Latest source-code SHA inspected at reconciliation | `52483e55e19b927cc392b86808d6ff484cb26215` (2026-10-26; current `main` ref confirmed; PR #1570 merged with restricted duration semantics; full #1517 parity and Pages deployment remain open) |
 | Default branch | `main` |
 | CUBISITE schedule of record | Current ChatGPT Library search resolves `cubisite.xlsx` at 123,975 bytes (modified 2026-10-24); the Library result exposes `version_id=1`. The prior ledger's version-6 / 122,288-byte identity is not confirmed by the current Files result; verify whether the Library object/version metadata changed before declaring the mirrored workbook synchronized. |
 | CUBISITE scope | Original T01–T45 retained; AI-C01–AI-C07 additive; risk reserve BUF retained separately |
