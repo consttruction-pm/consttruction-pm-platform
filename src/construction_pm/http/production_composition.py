@@ -30,6 +30,8 @@ from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
+from construction_pm.scheduling.calculation_context import CalculationContext
+from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 
 
 def build_project_lifecycle_wsgi_app(
@@ -48,6 +50,7 @@ def build_project_lifecycle_wsgi_app(
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
     ai_assistant_provider: AIChatProvider | None = None,
+    leveling_input_resolver: Callable[[object, CalculationContext, CalendarResolverRegistry], SchedulerLevelingInput | None] | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
@@ -71,6 +74,7 @@ def build_project_lifecycle_wsgi_app(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,
         calculation_context_repository=calculation_context_repository,
+        leveling_input_resolver=leveling_input_resolver,
     )
     schedule_query_api = ScheduleQueryAPI(
         ScheduleQueryApplicationService(
