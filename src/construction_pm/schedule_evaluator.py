@@ -113,6 +113,12 @@ def _evaluate_materialized(
             relationship_lag_resolvers = resolve_relationship_lag_resolvers(
                 source, materialized.calendar_registry
             )
+            activity_resolvers = {
+                assignment.activity_id: materialized.calendar_registry.resolve(
+                    assignment.calendar
+                )
+                for assignment in source.activity_calendar_assignments
+            }
             leveling_requested = _resource_leveling_requested(source.schedule_options)
             if leveling_requested:
                 if leveling_input is None:
@@ -128,6 +134,7 @@ def _evaluate_materialized(
                     options=source.schedule_options,
                     calculation_context=calculation_context,
                     relationship_lag_resolvers=relationship_lag_resolvers,
+                    activity_resolvers=activity_resolvers,
                 )
             else:
                 result = schedule(
@@ -140,6 +147,7 @@ def _evaluate_materialized(
                     options=source.schedule_options,
                     calculation_context=calculation_context,
                     relationship_lag_resolvers=relationship_lag_resolvers,
+                    activity_resolvers=activity_resolvers,
                 )
             run_identity = _run_identity(
                 snapshot.snapshot_hash,
