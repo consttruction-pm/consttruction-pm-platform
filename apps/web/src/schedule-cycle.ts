@@ -96,6 +96,10 @@ export type ScheduleSettingsDTO = {
 type SessionInfo = { session_id: string; user_id: string; tenant_id: string; roles: string[] };
 type ProjectCalendarDTO = { calendar_id: string; calendar_version: string; kind: "working-day" | "working-time"; calendar_type: string; name: string; record_revision: number };
 type CalendarCatalogDTO = { contract_version: string; kind: "calendar_catalog"; calendars: ProjectCalendarDTO[] };
+
+type ScheduleSettingsDraft = Record<string, string | boolean>;
+let scheduleReferenceCache: ScheduleCodeReferenceCatalog | null = null;
+const scheduleSettingsDrafts = new Map<string, ScheduleSettingsDraft>();
 type PublishedSnapshot = {
   contract_version: string;
   kind: string;
@@ -131,7 +135,7 @@ const LABELS = {
     settingsError: "Could not load saved settings.", saveFailed: "Settings were not saved.", runFailed: "Schedule calculation did not complete.",
     mustSave: "Save project settings first. Use an existing calendar ID and version from this project.",
     refIntro: "Search the available requirement and formula catalogue. The status labels distinguish a code mapping from verified behavior; this catalogue does not certify complete parity.",
-    search: "Search IDs, features, options, formulas and gaps", allStatuses: "All status values", allAreas: "All areas", allKinds: "All reference entries",
+    search: "Search IDs, features, options, formulas and gaps", allStatuses: "All status values", allAreas: "All areas", allKinds: "All reference entries", optionValidationWarning: "The menu-option reference registry has validation errors; affected items must not be treated as verified.",
     requirements: "Requirements", formulas: "Formula / algorithm references", menuOptions: "Menu options", noMatches: "No matching entries.", noGap: "No known gap is recorded for this entry.", menuPath: "Menu path", behavior: "Required behavior", outputs: "Outputs / effects", mappingEvidence: "Code mappings", testEvidence: "Regression tests", linkedRequirement: "Linked requirement",
     choices: "Options", inputs: "Inputs", calendarRules: "Units and calendar rules", edgeCases: "Edge cases", acceptance: "Acceptance evidence",
     referenceVersion: "Reference version", sourceDate: "Catalogue date", noSettingsApi: "The settings service is not available in this running environment.",
@@ -149,7 +153,7 @@ const LABELS = {
     settingsError: "خواندن تنظیمات ذخیره‌شده ممکن نشد.", saveFailed: "تنظیمات ذخیره نشد.", runFailed: "اجرای زمان‌بندی کامل نشد.",
     mustSave: "ابتدا تنظیمات پروژه را ذخیره کنید. از شناسه و نسخهٔ موجود تقویم پروژه استفاده کنید.",
     refIntro: "در فهرست الزامات و فرمول‌های موجود جست‌وجو کنید. وضعیت‌ها میان وجود مسیر کد و رفتار آزموده‌شده تفاوت می‌گذارند؛ این فهرست گواهی برابری کامل نیست.",
-    search: "جست‌وجو در شناسه، ویژگی، گزینه، فرمول و کمبود", allStatuses: "همهٔ وضعیت‌ها", allAreas: "همهٔ حوزه‌ها", allKinds: "همهٔ موارد مرجع",
+    search: "جست‌وجو در شناسه، ویژگی، گزینه، فرمول و کمبود", allStatuses: "همهٔ وضعیت‌ها", allAreas: "همهٔ حوزه‌ها", allKinds: "همهٔ موارد مرجع", optionValidationWarning: "در اعتبارسنجی مرجع گزینه‌های منو خطا وجود دارد؛ موارد مربوط را تأییدشده تلقی نکنید.",
     requirements: "الزامات", formulas: "مراجع فرمول و الگوریتم", menuOptions: "گزینه‌های منو", noMatches: "موردی مطابق جست‌وجو نیست.", noGap: "کمبود مشخصی برای این مورد ثبت نشده است.", menuPath: "مسیر منو", behavior: "رفتار لازم", outputs: "خروجی‌ها / اثرها", mappingEvidence: "نگاشت‌های کد", testEvidence: "آزمون‌های رگرسیون", linkedRequirement: "الزام مرتبط",
     choices: "گزینه‌ها", inputs: "ورودی‌ها", calendarRules: "واحدها و قواعد تقویم", edgeCases: "حالت‌های مرزی", acceptance: "شواهد پذیرش",
     referenceVersion: "نسخهٔ مرجع", sourceDate: "تاریخ فهرست", noSettingsApi: "سرویس تنظیمات در این محیط اجرا در دسترس نیست.",
