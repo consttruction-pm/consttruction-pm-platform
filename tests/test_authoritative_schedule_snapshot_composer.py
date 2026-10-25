@@ -688,7 +688,8 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
     )
     assert query_status == "200 OK"
     assert query_result["data"]["activities"]["RD-1"]["start"] == "2026-10-19"
-    assert query_result["data"]["activities"]["RD-1"]["finish"] == "2026-10-22"
+    assert query_result["data"]["activities"]["RD-1"]["finish"] == "2026-10-21"
+    assert query_result["data"]["activities"]["RD-1"]["duration"] == 3
     assert query_result["data"]["calculation_run_identity"]
     connection.close()
 
