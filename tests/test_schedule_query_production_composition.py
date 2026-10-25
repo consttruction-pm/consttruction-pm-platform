@@ -183,8 +183,8 @@ def test_production_composition_executes_snapshot_bound_resource_leveling():
         resource_facts_hash="b" * 64, calendar_manifest_hash="c" * 64,
     )
     resolver_calls = []
-    def resolve_leveling(loaded_snapshot, loaded_context, loaded_registry):
-        resolver_calls.append(loaded_snapshot.snapshot_hash)
+    def resolve_leveling(loaded_snapshot, loaded_context, loaded_registry, loaded_auth_context):
+        resolver_calls.append((loaded_snapshot.snapshot_hash, loaded_auth_context.tenant_id, loaded_auth_context.project_id, loaded_auth_context.user_id))
         return leveling_input
 
     app = build_project_lifecycle_wsgi_app(
@@ -213,7 +213,7 @@ def test_production_composition_executes_snapshot_bound_resource_leveling():
     result.extend(app(environ, start_response))
     output = json.loads(b"".join(result))
     assert status_line == ["200 OK"]
-    assert resolver_calls == [snapshot.snapshot_hash]
+    assert resolver_calls == [(snapshot.snapshot_hash, "T-1", "P-1", "u1")]
     assert output["data"]["project_finish"] == "2026-09-22"
     assert output["data"]["calculation_run_identity"]
 
