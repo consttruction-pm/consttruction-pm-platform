@@ -166,7 +166,12 @@ def test_api_maps_authorization_and_validation_errors() -> None:
     assert forbidden["error"]["category"] == ErrorCategory.AUTHORIZATION.value
 
     class InvalidProvider:
-        def execute(self, request: ScheduleQueryRequest) -> ScheduleQueryAnswer:
+        def execute(
+            self,
+            request: ScheduleQueryRequest,
+            *,
+            auth_context: AuthorizationContext,
+        ) -> ScheduleQueryAnswer:
             return object()  # type: ignore[return-value]
 
     invalid = ScheduleQueryAPI(
