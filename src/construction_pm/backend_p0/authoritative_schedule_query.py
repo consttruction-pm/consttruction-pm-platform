@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 import json
 from typing import Callable, Mapping
 
@@ -146,17 +147,34 @@ def _snapshot_requests_resource_leveling(snapshot: ScheduleInputSnapshot) -> boo
         raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
     if mode != "DATE_BASED":
         return False
-    return any(
-        bool(options.get(name))
-        for name in (
-            "level_all_resources",
-            "level_within_float",
-            "min_float_to_preserve",
-            "over_allocation_percentage",
-            "resource_list",
-            "priority_list",
-            "preserve_scheduled_early_and_late_dates",
-        )
+    for name in (
+        "level_all_resources",
+        "level_within_float",
+        "preserve_scheduled_early_and_late_dates",
+    ):
+        if name in options and not isinstance(options[name], bool):
+            raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    try:
+        min_float = Decimal(str(options.get("min_float_to_preserve", "0")))
+        over_allocation = Decimal(str(options.get("over_allocation_percentage", "0")))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT") from exc
+    if not min_float.is_finite() or not over_allocation.is_finite():
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    resource_list = options.get("resource_list")
+    priority_list = options.get("priority_list")
+    if resource_list is not None and not isinstance(resource_list, list):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    if priority_list is not None and not isinstance(priority_list, list):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    return (
+        bool(options.get("level_all_resources", False))
+        or bool(options.get("level_within_float", False))
+        or min_float != Decimal("0")
+        or over_allocation != Decimal("0")
+        or bool(resource_list)
+        or bool(priority_list)
+        or bool(options.get("preserve_scheduled_early_and_late_dates", False))
     )
 
 
