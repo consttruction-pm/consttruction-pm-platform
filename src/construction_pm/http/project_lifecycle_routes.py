@@ -2056,7 +2056,7 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
                 try:
                     payload = json.loads(body.decode("utf-8") or "{}")
-                except json.JSONDecodeError:
+                except (UnicodeDecodeError, json.JSONDecodeError):
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
                 if not isinstance(payload, dict) or set(payload).difference(
                     {"expected_revision", "message", "language", "history"}
