@@ -23,6 +23,7 @@ import { renderLandingPage } from "./landing.js";
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDisplayName } from "./workspace-localization.js";
 import { mountAIActionPanel } from "./ai-action-panel.js";
 import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
+import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 
 function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
   const shellLabels = getWorkspaceShellLabels(state.locale);
@@ -140,6 +141,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
       }
     },
   });
+  void mountScheduleCyclePanels(workspace, aiTransport, state.context, state.locale);
 }
 function renderBootstrapState(
   container: HTMLElement,

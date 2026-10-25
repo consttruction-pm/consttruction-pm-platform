@@ -1826,3 +1826,44 @@ th {
 @media(max-width:560px){.cp-ai-chat-content{padding:.8rem}.cp-ai-chat-form{grid-template-columns:1fr}.cp-ai-chat-message{max-width:100%}.cp-ai-chat-send{justify-self:stretch}}
 
 .cp-ai-chat-privacy{margin:0;font-size:.82rem;line-height:1.6;color:var(--cp-muted,#596676)}
+
+
+/* Authoritative schedule settings, execution result and searchable requirement/formula catalogue. */
+.cp-schedule-panel { display:grid; gap:.85rem; }
+.cp-schedule-panel > p { margin:.15rem 0; color:var(--cp-muted); line-height:1.6; }
+.cp-schedule-settings-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; }
+.cp-schedule-option { display:grid; gap:.35rem; min-width:0; color:var(--cp-navy); font-size:.88rem; }
+.cp-schedule-option > input, .cp-schedule-option > select, .cp-schedule-option > textarea { width:100%; min-width:0; border:1px solid var(--cp-border); border-radius:.4rem; background:#fff; padding:.55rem .6rem; color:var(--cp-text); }
+.cp-schedule-option:has(input[type="checkbox"]) { display:flex; align-items:center; justify-content:space-between; gap:.8rem; border:1px solid var(--cp-border); border-radius:.45rem; padding:.55rem .65rem; }
+.cp-schedule-option:has(input[type="checkbox"]) input { width:1.1rem; height:1.1rem; accent-color:var(--cp-blue); }
+.cp-schedule-option.is-json { grid-column:1/-1; }
+.cp-schedule-options-subtitle { grid-column:1/-1; margin:.8rem 0 0; color:var(--cp-navy); }
+.cp-schedule-options-grid { grid-column:1/-1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+.cp-schedule-actions { grid-column:1/-1; display:flex; align-items:center; flex-wrap:wrap; gap:.8rem; }
+.cp-schedule-actions button, [data-run-schedule] { border:1px solid var(--cp-navy); border-radius:.45rem; background:var(--cp-navy); color:#fff; padding:.65rem .9rem; cursor:pointer; }
+.cp-schedule-actions button:disabled, [data-run-schedule]:disabled { opacity:.6; cursor:wait; }
+.cp-reference-meta, .cp-schedule-result-meta { display:flex; gap:.55rem 1rem; align-items:center; flex-wrap:wrap; color:var(--cp-muted); font-size:.82rem; }
+.cp-reference-filters { display:grid; grid-template-columns:minmax(180px,2fr) repeat(3,minmax(130px,1fr)); gap:.6rem; }
+.cp-reference-filters label { display:grid; gap:.35rem; color:var(--cp-navy); font-size:.82rem; min-width:0; }
+.cp-reference-filters input, .cp-reference-filters select { width:100%; min-width:0; border:1px solid var(--cp-border); border-radius:.4rem; padding:.55rem; background:#fff; color:var(--cp-text); }
+.cp-reference-results { display:grid; gap:.55rem; }
+.cp-reference-results h3 { margin:.85rem 0 .25rem; color:var(--cp-navy); font-size:1rem; }
+.cp-reference-entry { border:1px solid var(--cp-border); border-radius:.5rem; background:#fff; overflow:hidden; }
+.cp-reference-entry summary { display:grid; grid-template-columns:minmax(78px,auto) minmax(130px,1fr) minmax(125px,auto); gap:.65rem; align-items:center; padding:.75rem; cursor:pointer; }
+.cp-reference-id { font:600 .77rem ui-monospace,SFMono-Regular,Consolas,monospace; color:var(--cp-blue); }
+.cp-reference-title { color:var(--cp-navy); font-weight:600; }
+.cp-reference-status { color:var(--cp-muted); font-size:.75rem; }
+.cp-reference-status.is-known_gap { color:var(--cp-error); font-weight:700; }
+.cp-reference-status.is-not_inventoried, .cp-reference-status.is-edge_case_review_needed { color:#946200; }
+.cp-reference-body { border-top:1px solid var(--cp-border); padding:.75rem 1rem; line-height:1.65; overflow-wrap:anywhere; }
+.cp-reference-body h4 { margin:.8rem 0 .25rem; color:var(--cp-navy); font-size:.86rem; }
+.cp-reference-body p { margin:.25rem 0; }
+.cp-reference-body ul { margin:.2rem 0; padding-inline-start:1.3rem; }
+.cp-reference-body li { margin:.15rem 0; }
+.cp-schedule-result-json { max-width:100%; max-height:32rem; overflow:auto; padding:.85rem; border:1px solid var(--cp-border); border-radius:.5rem; background:#f8fafc; direction:ltr; text-align:left; white-space:pre-wrap; overflow-wrap:anywhere; font-size:.78rem; }
+.cp-muted { color:var(--cp-muted); font-size:.82rem; }
+@media (max-width: 720px) {
+  .cp-schedule-settings-form, .cp-schedule-options-grid { grid-template-columns:1fr; }
+  .cp-reference-filters { grid-template-columns:1fr; }
+  .cp-reference-entry summary { grid-template-columns:1fr; gap:.3rem; }
+}

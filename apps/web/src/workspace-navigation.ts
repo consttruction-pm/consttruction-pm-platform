@@ -13,7 +13,7 @@ export type WorkspaceNavigationItem = {
 
 export const WORKSPACE_NAVIGATION: readonly WorkspaceNavigationItem[] = [
   { key: "project", status: "partial", label: { en: "Project", fa: "پروژه" }, statusLabel: { en: "Partial", fa: "جزئی" }, submenus: [{ en: "Project / WBS", fa: "پروژه / WBS" }, { en: "Details", fa: "جزئیات" }] },
-  { key: "schedule", status: "implemented", label: { en: "Schedule", fa: "زمان‌بندی" }, statusLabel: { en: "Implemented", fa: "پیاده‌سازی‌شده" }, submenus: [{ en: "Activity Grid", fa: "جدول فعالیت‌ها" }, { en: "Gantt Chart", fa: "گانت" }] },
+  { key: "schedule", status: "implemented", label: { en: "Schedule", fa: "زمان‌بندی" }, statusLabel: { en: "Implemented", fa: "پیاده‌سازی‌شده" }, submenus: [{ en: "Activity Grid", fa: "جدول فعالیت‌ها" }, { en: "Gantt Chart", fa: "گانت" }, { en: "Schedule Options", fa: "تنظیمات زمان‌بندی" }, { en: "Run Schedule", fa: "اجرای زمان‌بندی" }, { en: "Code Reference", fa: "مرجع کد" }] },
   { key: "progress", status: "preview", label: { en: "Progress", fa: "پیشرفت" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Progress Overview", fa: "نمای کلی پیشرفت" }, { en: "Progress Detail", fa: "جزئیات پیشرفت" }] },
   { key: "resources", status: "preview", label: { en: "Resources", fa: "منابع" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Resources", fa: "منابع" }, { en: "Assignments", fa: "تخصیص‌ها" }] },
   { key: "cost", status: "preview", label: { en: "Cost", fa: "هزینه" }, statusLabel: { en: "Preview", fa: "پیش‌نمایش" }, submenus: [{ en: "Cost Overview", fa: "نمای کلی هزینه" }, { en: "Cost Detail", fa: "جزئیات هزینه" }] },
