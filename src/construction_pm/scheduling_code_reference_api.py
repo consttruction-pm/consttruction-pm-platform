@@ -115,7 +115,7 @@ def build_scheduling_code_reference_payload() -> dict[str, object]:
     formula_items: list[dict[str, object]] = []
     for item in FORMULA_REFERENCE:
         formula_items.append({
-            "id": item.id,
+            "id": _safe_text(item.id),
             "feature": _safe_text(item.feature),
             "algorithm": _safe_text(item.formula_or_algorithm),
             "inputs": [_safe_text(value) for value in item.input_fields],
