@@ -39,16 +39,27 @@ These are explicit blockers, not hidden defaults. Official source context for th
 
 New regression suite: `tests/test_p6_versioned_resource_calendar_resolver.py` exercises deterministic hash/period capacity, weekly hour and nonwork overrides, inherited exceptions plus local reset precedence, detailed work-hours exceptions on time calendars, incorrect version rejection, and fail-closed ambiguous work-hour records. These tests and CI must pass on the same final SHA before acceptance.
 
-## Important remaining gaps — not certified
+## Implementation status after the 2026-10-25 continuation — PR #1566 pending verification
 
-This change is a **sub-slice**, not closure of Issue #1468 or full P6/calendar parity.
+The original blocker record above describes the state before the current continuation. PR [#1565](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1565) merged the immutable provenance fields, exact snapshot/calculation binding, resource/calendar hashes, authorized caller-context flow and production query resolver seam. PR [#1566](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1566) adds the persisted resolver factory and auto-composition.
 
-1. `SchedulerLevelingInput` currently exposes capacity as resource/date/units; it does not yet carry a hash-bound immutable identity for the raw resource facts, calendar definitions, or snapshot to which those facts belong.
-2. The strict adapter currently accepts an explicit version-keyed `ResourceCalendar` map, but the production path must resolve each exact `CalendarMaster` ID+version to the canonical calendar snapshot, apply/version-pin relevant exceptions and working-hour rules, and prove the capacity meaning. Do not replace that production source with an ID-only legacy map or silently assume a default daily capacity.
-3. `AuthoritativeScheduleQueryProvider` still does not pass a version-bound leveling input to `evaluate_schedule_snapshot`. Raw assignment/period/capacity/calendar/options facts must be authorized and read for the same tenant/project revision, snapshot ID/hash and calculation context; CPM-derived dates/floats must be combined only after the CPM intermediate pass.
-4. No test in this slice proves the complete persisted write → commit → fresh scoped read → canonical immutable snapshot → leveling-enabled production Schedule Query → final dates/constraints/resource-capacity output.
+The proposed resolver lives in `src/construction_pm/p6_persisted_resource_leveling_resolver.py`. It:
+- reads assignment and period DTOs once from the authorized resource read API and captures them for adapter mapping;
+- verifies tenant/project/revision, activity-to-assignment identity, and mandatory calendar ID+version;
+- computes CPM seed dates, early/late windows, Total/Free Float and the explicit activity leveling priority using the existing Shared Scheduling Core;
+- resolves exact versioned calendar masters, snapshots, exceptions and work-hour rules across the calculated movement horizon;
+- returns immutable `SchedulerLevelingInput` with SHA-256 hashes for snapshot, calculation identity, raw resource facts and the exact capacity/calendar manifest;
+- fails closed for missing versions, missing/unsupported capacity periods, mismatched scope or stale snapshot identity.
 
-Until those are implemented and tested on one exact final SHA, keep Issues #1462 and #1468 open, keep the calculation conformance status PARTIAL/UNVERIFIED as appropriate, and do not award end-to-end feature completion credit.
+The new test `tests/test_persisted_resource_leveling_resolver.py::test_production_query_uses_real_persisted_resource_and_calendar_repositories` is intended to exercise the production WSGI Schedule Query with real SQLite resource assignment/period and versioned calendar repositories, explicit commit, fresh authorized reads, and the Shared Core's final dates. This is not yet acceptance evidence until the exact final-head CI result is green and the PR is merged.
+
+## Remaining certification gaps — keep status PARTIAL/UNVERIFIED
+
+1. Issue #1468 remains open until PR #1566 passes exact-head ConstructionPM CI, Client Typecheck and PostgreSQL Integration, and the reviewed production query test proves the final resource-capacity result on that same SHA. Deployment owners must supply their real persistent repositories to the composition entry point; the code intentionally has no fake fallback.
+2. Issue #1462 remains separate and open: prove the actual persisted Activity Master, relationship, constraint, activity-calendar assignment and project-settings write/read path assembles the canonical immutable `AuthoritativeScheduleInput`, then snapshots and evaluates it. The resource-leveling test uses a persisted immutable schedule snapshot as its starting point and does not close this composer gap.
+3. This slice does not certify every calculation, time-aware resource leveling, all external schedule-option semantics or full feature parity. Any unmapped calendar work-hour contract, missing version, unsupported mode or incomplete source identity must remain a clear error rather than a guessed default.
+
+Keep conformance status PARTIAL/UNVERIFIED, and do not award end-to-end feature completion credit until the exact evidence and independent semantic review are recorded.
 
 ## Acceptance requirements for this slice
 
