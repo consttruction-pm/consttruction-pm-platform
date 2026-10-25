@@ -601,9 +601,9 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
     assert status == "201 Created"
     assert created["activity"]["activity_id"] == "RD-1"
 
-    # The two explicitly driving resources have different remaining work/rates:
+    # Not-started assignments use Planned Units / Units and the planned Units/Time:
     # 8/4 = 2 days, 9/3 = 3 days. The longest-to-complete driver controls.
-    for assignment_id, resource_id, remaining_units, rate in (
+    for assignment_id, resource_id, planned_units, rate in (
         ("RD-AS-1", "RD-RES-1", "8", "4"),
         ("RD-AS-2", "RD-RES-2", "9", "3"),
     ):
@@ -613,8 +613,9 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
                 assignment_id=assignment_id,
                 activity_id="RD-1",
                 resource_id=resource_id,
-                units=Decimal("8"),
-                remaining_units=Decimal(remaining_units),
+                units=Decimal(planned_units),
+                # Not-started activities derive from Planned Units; remaining units are not used.
+                remaining_units=None,
                 unit="labor-unit",
                 calendar_id="RC-1",
                 calendar_version="v1",
