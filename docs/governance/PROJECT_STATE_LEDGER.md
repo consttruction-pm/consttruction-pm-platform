@@ -8,7 +8,7 @@
 
 | Item | Verified state |
 |---|---|
-| Current main SHA inspected at reconciliation | `d54e4b55bb13b0cd941eeb15a319541b505c3045` (2026-10-25; PR #1553 merged) |
+| Latest source-code SHA inspected at reconciliation | `8e39b3b38a43ef0f80c56e6d2b8deb93099c0172` (2026-10-25; PR #1555 merged) |
 | Default branch | `main` |
 | CUBISITE schedule of record | Current ChatGPT Library search resolves `cubisite.xlsx` at 123,975 bytes (modified 2026-10-24); the Library result exposes `version_id=1`. The prior ledger's version-6 / 122,288-byte identity is not confirmed by the current Files result; verify whether the Library object/version metadata changed before declaring the mirrored workbook synchronized. |
 | CUBISITE scope | Original T01–T45 retained; AI-C01–AI-C07 additive; risk reserve BUF retained separately |
@@ -19,15 +19,15 @@
 
 ## Latest exact-main verification (2026-10-25)
 
-The following GitHub Actions runs all target the inspected merged main SHA `d54e4b55bb13b0cd941eeb15a319541b505c3045`:
+The following code/test runs target the latest merged source SHA `8e39b3b38a43ef0f80c56e6d2b8deb93099c0172`:
 
-- [ConstructionPM CI #40147792381](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40147792381) — **PASS** on Python 3.11, 3.12 and 3.13.
-- [PostgreSQL Sync State Integration #40147792273](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40147792273) — **PASS**.
-- [Client Typecheck #40147792308](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40147792308) — **PASS** for Web, Desktop, Mobile and Client Sync.
-- [ConstructionPM Web CI #40147792425](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40147792425) — **PASS**.
+- [ConstructionPM CI #40148225285](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40148225285) — **PASS** on Python 3.11, 3.12 and 3.13.
+- [PostgreSQL Sync State Integration #40148225226](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40148225226) — **PASS**.
+- [Client Typecheck #40148225224](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40148225224) — **PASS** for Web, Desktop, Mobile and Client Sync.
+- The latest [ConstructionPM Web CI #40147792425](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40147792425) passed on the preceding assistant-Web merge SHA `d54e4b55...`. PR #1555 modifies only the Python HTTP request parser and its regression test; it did not change Web assets.
 - [Deploy CUBI Web to GitHub Pages #40147792411](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40147792411) — **FAIL** at `Verify GitHub Pages configuration`; Pages configuration is still not enabled/readable. Configure repository Settings → Pages with Source = GitHub Actions or set the authorized `PAGES_ADMIN_TOKEN` secret, then rerun deployment and smoke-test the published site. The available repository connection cannot change repository settings or create secrets, so public deployment remains **Blocked**.
 
-The CI results prove the tested code paths, not live deployment or full V1 acceptance. The current static Pages workflow has no deployed authenticated backend/runtime host configured by this repository; a working production provider, session/project selection, current AI grants, database transaction wiring and server-side `CUBI_AI_*` configuration are still needed for live end-to-end assistant behavior.
+The CI results prove the tested code paths, not live deployment or full V1 acceptance. The repository currently has no Vercel project connected for this repo and no configured live authenticated backend/runtime host evidenced here. A working production provider, session/project selection, current AI grants, database transaction wiring and server-side `CUBI_AI_*` configuration remain necessary for live assistant acceptance.
 
 ## Implementation evidence on main
 
@@ -63,6 +63,14 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 - Read-only project members may use non-mutating turns but receive no action tools; proposal creation requires project-write access and current exact-scope AI grant. All mutations still require separate human approval and explicit execution through the existing runtime.
 - Added English/Persian Web chat with an explicit provider data-flow notice, bounded session-only history, response-schema validation, localization-completeness gating for extension locales, and automatic action-panel refresh.
 - This is one proposal-only assistant vertical slice, **not** full AI Assistant V1 and **not** proof that the live site/backend is deployed. Provider/runtime composition is opt-in; no production credentials were committed.
+
+### PR #1555 — malformed UTF-8 handling for assistant turn (merged)
+
+- Merge SHA: `8e39b3b38a43ef0f80c56e6d2b8deb93099c0172`
+- Source: https://github.com/consttruction-pm/consttruction-pm-platform/pull/1555
+- Tested PR head: `2e0d5c8df78cd943042799642f0ff8caadcd9b39`; [ConstructionPM CI #40148146843](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40148146843) passed on Python 3.11/3.12/3.13 and [Client Typecheck #40148146813](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40148146813) passed.
+- The authenticated assistant turn now catches `UnicodeDecodeError` as well as malformed JSON and returns `400 AI_ASSISTANT_REQUEST_INVALID` before contacting the provider or creating a proposal. A regression test proves no provider call or mutation occurs for invalid UTF-8 bytes.
+- This is an input-hardening fix only and does not add assistant capabilities or release-completion credit.
 
 ### PR #1550 — web action proposal/approval panel (merged)
 
