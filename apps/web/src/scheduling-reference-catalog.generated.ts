@@ -1,4 +1,4 @@
-/** Generated from src/construction_pm/p6_code_reference.py. Do not hand-edit; run scripts/generate_web_scheduling_reference.py. */
+/** Generated from the compatibility registry. Do not hand-edit; run scripts/generate_web_scheduling_reference.py. */
 export const SCHEDULING_REFERENCE_CATALOG = {
   "version": "0.8.8",
   "asOf": "2026-10-25",
