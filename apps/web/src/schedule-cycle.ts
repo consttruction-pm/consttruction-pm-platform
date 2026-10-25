@@ -1,4 +1,5 @@
 import type { ApiTransport, ProjectContext } from "./client.js";
+import type { AuthoritativeScheduleFacts } from "./workspace-model.js";
 
 export type ScheduleReferenceStatus =
   | "mapped_unverified"
@@ -99,6 +100,51 @@ type CalendarCatalogDTO = { contract_version: string; kind: "calendar_catalog"; 
 
 type ScheduleSettingsDraft = Record<string, string | boolean>;
 let scheduleReferenceCache: ScheduleCodeReferenceCatalog | null = null;
+type ScheduleRunCacheRecord = { snapshot_id: string; snapshot_hash: string; data: Record<string, unknown> };
+const scheduleRunResults = new Map<string, ScheduleRunCacheRecord>();
+
+function scheduleRunCacheKey(context: ProjectContext): string {
+  return context.tenant_id + ":" + context.project_id + ":" + context.revision;
+}
+
+function extractAuthoritativeScheduleFacts(value: unknown): AuthoritativeScheduleFacts | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const rawActivities = record.activities;
+  if (!rawActivities || typeof rawActivities !== "object" || Array.isArray(rawActivities)) return null;
+  const activities: Record<string, { start: string; finish: string; duration?: number; critical?: boolean }> = {};
+  for (const [id, raw] of Object.entries(rawActivities)) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const activity = raw as Record<string, unknown>;
+    if (typeof activity.start !== "string" || typeof activity.finish !== "string") return null;
+    if (activity.duration !== undefined && (typeof activity.duration !== "number" || !Number.isFinite(activity.duration))) return null;
+    activities[id] = {
+      start: activity.start,
+      finish: activity.finish,
+      ...(typeof activity.duration === "number" ? { duration: activity.duration } : {}),
+      ...(typeof activity.critical === "boolean" ? { critical: activity.critical } : {}),
+    };
+  }
+  return {
+    ...(typeof record.calculation_run_identity === "string" ? { calculation_run_identity: record.calculation_run_identity } : {}),
+    ...(typeof record.project_finish === "string" ? { project_finish: record.project_finish } : {}),
+    ...(typeof record.activity_count === "number" ? { activity_count: record.activity_count } : {}),
+    activities,
+  };
+}
+
+function renderScheduleRunResult(
+  panel: HTMLElement,
+  cached: ScheduleRunCacheRecord,
+  labels: (typeof LABELS)["en"] | (typeof LABELS)["fa"],
+): void {
+  panel.innerHTML =
+    '<p class="cp-muted">' + safe(labels.outputBinding) + '</p>' +
+    '<div class="cp-schedule-result-meta"><span><b>' + safe(labels.snapshot) + ':</b> ' + safe(cached.snapshot_id) +
+    '</span><span><b>' + safe(labels.hash) + ':</b> <code>' + safe(cached.snapshot_hash) + '</code></span></div>' +
+    '<h3>' + safe(labels.results) + '</h3><pre class="cp-schedule-result-json">' +
+    safe(JSON.stringify(cached.data, null, 2)) + '</pre>';
+}
 const scheduleSettingsDrafts = new Map<string, ScheduleSettingsDraft>();
 type PublishedSnapshot = {
   contract_version: string;
@@ -140,7 +186,7 @@ const LABELS = {
     choices: "Options", inputs: "Inputs", calendarRules: "Units and calendar rules", edgeCases: "Edge cases", acceptance: "Acceptance evidence",
     referenceVersion: "Reference version", sourceDate: "Catalogue date", noSettingsApi: "The settings service is not available in this running environment.",
     noReferenceApi: "The reference catalogue is not available in this running environment.", noRunApi: "The schedule service is not available in this running environment.",
-    results: "Calculation output", snapshot: "Snapshot", hash: "Content hash", empty: "—",
+    results: "Calculation output", snapshot: "Snapshot", hash: "Content hash", outputBinding: "Matching loaded activities are updated in the grid and Gantt; critical status is shown only when returned by the scheduling service.", empty: "—",
   },
   fa: {
     options: "تنظیمات محاسبه", run: "اجرای زمان‌بندی", reference: "مرجع کد زمان‌بندی",
@@ -158,7 +204,7 @@ const LABELS = {
     choices: "گزینه‌ها", inputs: "ورودی‌ها", calendarRules: "واحدها و قواعد تقویم", edgeCases: "حالت‌های مرزی", acceptance: "شواهد پذیرش",
     referenceVersion: "نسخهٔ مرجع", sourceDate: "تاریخ فهرست", noSettingsApi: "سرویس تنظیمات در این محیط اجرا در دسترس نیست.",
     noReferenceApi: "فهرست مرجع در این محیط اجرا در دسترس نیست.", noRunApi: "سرویس زمان‌بندی در این محیط اجرا در دسترس نیست.",
-    results: "خروجی محاسبه", snapshot: "تصویر محاسبات", hash: "هش محتوا", empty: "—",
+    results: "خروجی محاسبه", snapshot: "تصویر محاسبات", hash: "هش محتوا", outputBinding: "فعالیت‌های منطبق در جدول و گانت به‌روزرسانی می‌شوند؛ وضعیت بحرانی فقط در صورت بازگشت از سرویس زمان‌بندی نمایش داده می‌شود.", empty: "—",
   },
 } as const;
 
@@ -324,6 +370,7 @@ export async function mountScheduleCyclePanels(
   transport: ApiTransport,
   context: ProjectContext,
   locale: string,
+  onScheduleFacts?: (facts: AuthoritativeScheduleFacts) => void,
 ): Promise<void> {
   const optionsPanel = workspace.querySelector<HTMLElement>("#cp-schedule-options [data-schedule-panel]");
   const runPanel = workspace.querySelector<HTMLElement>("#cp-schedule-run [data-schedule-panel]");
@@ -345,7 +392,7 @@ export async function mountScheduleCyclePanels(
 
   mountReferencePanel(referencePanel, catalog, referenceError, labels, languageCode);
   await mountSettingsPanel(optionsPanel, transport, context, catalog, labels, languageCode);
-  mountRunPanel(runPanel, transport, context, locale, labels, languageCode);
+  mountRunPanel(runPanel, transport, context, locale, labels, languageCode, onScheduleFacts);
 }
 
 function mountReferencePanel(
@@ -591,6 +638,7 @@ function mountRunPanel(
   locale: string,
   labels: (typeof LABELS)["en"] | (typeof LABELS)["fa"],
   languageCode: "fa" | "en",
+  onScheduleFacts?: (facts: AuthoritativeScheduleFacts) => void,
 ): void {
   panel.innerHTML = `<p>${safe(labels.runIntro)}</p><p class="cp-muted">${safe(labels.mustSave)}</p>
     <button type="button" data-run-schedule>${safe(labels.calculate)}</button>
@@ -598,6 +646,8 @@ function mountRunPanel(
   const button = panel.querySelector<HTMLButtonElement>("[data-run-schedule]");
   const status = panel.querySelector<HTMLElement>("[data-run-status]");
   const resultPanel = panel.querySelector<HTMLElement>("[data-run-results]");
+  const cached = scheduleRunResults.get(scheduleRunCacheKey(context));
+  if (cached && resultPanel) renderScheduleRunResult(resultPanel, cached, labels);
   button?.addEventListener("click", async () => {
     if (!button || !status || !resultPanel) return;
     button.disabled = true;
@@ -632,8 +682,11 @@ function mountRunPanel(
       if (queryData.error) throw new Error(queryData.error.code ?? queryData.error.message ?? "SCHEDULE_QUERY_FAILED");
       const data = queryData.answer?.data ?? queryData.data ?? queryData as unknown as Record<string, unknown>;
       status.textContent = "";
-      resultPanel.innerHTML = `<div class="cp-schedule-result-meta"><span><b>${safe(labels.snapshot)}:</b> ${safe(snapshotResult.data.snapshot_id)}</span><span><b>${safe(labels.hash)}:</b> <code>${safe(snapshotResult.data.snapshot_hash)}</code></span></div>
-        <h3>${safe(labels.results)}</h3><pre class="cp-schedule-result-json">${safe(JSON.stringify(data, null, 2))}</pre>`;
+      const cacheRecord = { snapshot_id: snapshotResult.data.snapshot_id, snapshot_hash: snapshotResult.data.snapshot_hash, data };
+      scheduleRunResults.set(scheduleRunCacheKey(context), cacheRecord);
+      renderScheduleRunResult(resultPanel, cacheRecord, labels);
+      const facts = extractAuthoritativeScheduleFacts(data);
+      if (facts) onScheduleFacts?.(facts);
     } catch (error) {
       status.textContent = `${labels.runFailed} (${error instanceof Error ? error.message : "SCHEDULE_RUN_FAILED"})`;
       resultPanel.innerHTML = "";
