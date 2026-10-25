@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Callable
 
 from construction_pm.application.authorization import AuthorizationPolicy
@@ -23,6 +24,7 @@ from construction_pm.ai_action_runtime import (
 from construction_pm.ai_assistant_orchestration import (
     AIChatProvider,
     AIAssistantTurnOrchestrator,
+    OpenAICompatibleChatProvider,
 )
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
@@ -56,7 +58,15 @@ def build_project_lifecycle_wsgi_app(
     AI action runtime exposes proposal/approval/execution routes only when a
     deployment supplies its current grant provider, durable store, and real
     application-tool handlers. There is deliberately no permissive fallback.
+    The assistant provider is wired only through an explicit dependency or
+    CUBI_AI_ENABLED=true with server-only CUBI_AI_* environment configuration.
     """
+    assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
+        "1", "true", "yes"
+    }
+    if ai_assistant_provider is None and assistant_enabled:
+        ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
+
     provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,
