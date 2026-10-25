@@ -402,3 +402,23 @@ def test_assistant_turn_rejects_oversized_json_body_before_provider_call():
         assert executed == []
     finally:
         conn.close()
+
+
+def test_assistant_turn_returns_400_for_invalid_utf8_body():
+    provider = FakeAssistantProvider({
+        "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+    })
+    routes, conn, executed = build_routes(assistant_provider=provider)
+    try:
+        status, _, body = routes.handle(
+            "POST",
+            "/api/projects/p1/ai/assistant/turn",
+            cookies={"cp_session": "session-1"},
+            body=b"\xff\xfe",
+        )
+        assert status == 400
+        assert json.loads(body)["code"] == "AI_ASSISTANT_REQUEST_INVALID"
+        assert provider.calls == []
+        assert executed == []
+    finally:
+        conn.close()
