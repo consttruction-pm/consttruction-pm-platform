@@ -15,6 +15,11 @@ from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, AIActionRuntimeError
+from ..ai_assistant_orchestration import (
+    AIAssistantProviderError,
+    AIAssistantTurnOrchestrator,
+    is_valid_language_tag,
+)
 from ..backend_p0.api import BackendP0API
 from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
 from ..control_intelligence.contracts import ControlScope
@@ -144,6 +149,7 @@ class ProjectLifecycleHttpRoutes:
         backend_p0_api: BackendP0API | None = None,
         schedule_query_api: ScheduleQueryAPI | None = None,
         ai_action_runtime: AIActionRuntime | None = None,
+        ai_assistant_orchestrator: AIAssistantTurnOrchestrator | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -173,6 +179,7 @@ class ProjectLifecycleHttpRoutes:
         self._backend_p0_api = backend_p0_api
         self._schedule_query_api = schedule_query_api
         self._ai_action_runtime = ai_action_runtime
+        self._ai_assistant_orchestrator = ai_assistant_orchestrator
 
     def handle(
         self,
@@ -2036,6 +2043,162 @@ class ProjectLifecycleHttpRoutes:
                     result = self._p6_code_api.create(definition, auth_context=auth)
                 except (TypeError, ValueError): return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            if path.startswith("/api/projects/") and "/ai/assistant/turn" in path:
+                parts = path[len("/api/projects/"):].split("/")
+                if len(parts) != 4 or not parts[0] or parts[1:] != ["ai", "assistant", "turn"]:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if method != "POST":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if self._ai_action_runtime is None or self._ai_assistant_orchestrator is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                # Bound parsing work before decoding attacker-controlled JSON.
+                if len(body) > 128_000:
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except json.JSONDecodeError:
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict) or set(payload).difference(
+                    {"expected_revision", "message", "language", "history"}
+                ):
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                expected_revision = payload.get("expected_revision")
+                message = payload.get("message")
+                language = payload.get("language")
+                history_raw = payload.get("history", [])
+                if not isinstance(history_raw, list) or len(history_raw) > 12:
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                history = []
+                history_chars = 0
+                for entry in history_raw:
+                    if (
+                        not isinstance(entry, dict)
+                        or set(entry) != {"role", "content"}
+                        or not isinstance(entry.get("role"), str)
+                        or entry.get("role") not in {"user", "assistant"}
+                        or not isinstance(entry.get("content"), str)
+                        or not entry["content"].strip()
+                        or len(entry["content"]) > 4000
+                    ):
+                        return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                    history_content = entry["content"].strip()
+                    history_chars += len(history_content)
+                    if history_chars > 12000:
+                        return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                    history.append({"role": entry["role"], "content": history_content})
+                if (
+                    isinstance(expected_revision, bool)
+                    or not isinstance(expected_revision, int)
+                    or expected_revision < 0
+                    or not isinstance(message, str)
+                    or not 1 <= len(message.strip()) <= 6000
+                    or not is_valid_language_tag(language)
+                    or len(language) > 64
+                ):
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                project_id = parts[0]
+                try:
+                    # Conversation is available to readers; proposal creation is a
+                    # separate write capability and is exposed only after write authorization.
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_READ, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                context = authorized.context
+                can_propose = True
+                try:
+                    self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                except AuthorizationError:
+                    can_propose = False
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                runtime_context = AIActionRuntimeContext(
+                    subject_id=session.user_id,
+                    tenant_id=context.tenant_id,
+                    project_id=context.project_id,
+                    project_revision_id=str(context.revision),
+                    roles=session.roles,
+                )
+                if expected_revision != context.revision:
+                    self._ai_action_runtime.record_request_event(
+                        runtime_context,
+                        "assistant_turn_stale_revision",
+                        metadata={
+                            "expected_revision": expected_revision,
+                            "current_revision": context.revision,
+                        },
+                    )
+                    return self._error(
+                        409, "AI_ASSISTANT_STALE_REVISION", "error.conflict.stale_revision"
+                    )
+                # Audit metadata only; never persist the user's prompt as part of an audit event.
+                self._ai_action_runtime.record_request_event(
+                    runtime_context,
+                    "assistant_turn_requested",
+                    metadata={
+                        "language": language.strip(),
+                        "message_length": len(message.strip()),
+                        "can_propose": can_propose,
+                    },
+                )
+                try:
+                    turn = self._ai_assistant_orchestrator.turn(
+                        runtime_context,
+                        user_message=message.strip(),
+                        language=language.strip(),
+                        history=tuple(history),
+                        allow_mutations=can_propose,
+                    )
+                except AIAssistantProviderError as exc:
+                    self._ai_action_runtime.record_request_event(
+                        runtime_context,
+                        "assistant_turn_failed",
+                        metadata={"reason_code": exc.code},
+                    )
+                    raise
+                proposal = turn.proposal
+                proposal_payload = None
+                if proposal is not None:
+                    proposal_payload = {
+                        "proposal_id": proposal.proposal.proposal_id,
+                        "tool_name": proposal.proposal.tool_name,
+                        "action": proposal.proposal.action,
+                        "status": proposal.status,
+                        "requires_human_approval": proposal.proposal.requires_human_approval,
+                        "requested_by": proposal.proposal.requested_by,
+                        "evidence_refs": list(proposal.proposal.evidence_refs),
+                        "project_revision_id": proposal.proposal.project_revision_id,
+                        "resource_domain": proposal.proposal.resource_domain,
+                        "payload": dict(proposal.payload),
+                        "result": None if proposal.result is None else dict(proposal.result),
+                        "created_at": proposal.created_at.isoformat(),
+                        "updated_at": proposal.updated_at.isoformat(),
+                        "decided_by": proposal.decided_by,
+                        "is_stale": proposal.proposal.project_revision_id != runtime_context.project_revision_id,
+                    }
+                self._ai_action_runtime.record_request_event(
+                    runtime_context,
+                    "assistant_turn_completed",
+                    proposal_id=None if proposal is None else proposal.proposal.proposal_id,
+                    metadata={
+                        "kind": turn.kind,
+                        "proposal_created": proposal is not None,
+                    },
+                )
+                return self._json(200, {
+                    "contract_version": "ai-assistant-turn.v1",
+                    "kind": turn.kind,
+                    "message": turn.message,
+                    "proposal": proposal_payload,
+                })
             if path.startswith("/api/projects/") and "/ai/actions/" in path:
                 if self._ai_action_runtime is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
@@ -2234,6 +2397,21 @@ class ProjectLifecycleHttpRoutes:
             return self._error(401, str(exc), "error.session.invalid")
         except AuthorizationError as exc:
             return self._error(403, str(exc), "error.authorization.denied")
+        except AIAssistantProviderError as exc:
+            code = exc.code
+            if code == "AI_ASSISTANT_ACTION_NOT_ALLOWED":
+                status = 403
+            elif code == "AI_ASSISTANT_REQUEST_INVALID":
+                status = 400
+            elif code in {
+                "AI_ASSISTANT_PROVIDER_UNAVAILABLE",
+                "AI_ASSISTANT_PROVIDER_RATE_LIMITED",
+                "AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID",
+            }:
+                status = 503
+            else:
+                status = 502
+            return self._error(status, code, "error.ai_assistant.request_failed")
         except AIActionRuntimeError as exc:
             code = str(exc)
             status = 400

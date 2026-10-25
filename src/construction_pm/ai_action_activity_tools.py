@@ -324,6 +324,37 @@ def build_activity_create_tool(
         requires_human_approval=True,
         validate_payload=validate_payload,
         execute=execute,
+        description=(
+            "Prepare a proposal to create one activity. The user must provide an activity ID, "
+            "activity name, duration value, and duration unit; never invent missing project values."
+        ),
+        input_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["activity_id", "name", "duration_value", "duration_unit"],
+            "properties": {
+                "activity_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The exact activity ID supplied or confirmed by the user.",
+                },
+                "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The activity name supplied or confirmed by the user.",
+                },
+                "duration_value": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "The non-negative duration explicitly supplied or confirmed by the user.",
+                },
+                "duration_unit": {
+                    "type": "string",
+                    "enum": ["working-day", "working-hour"],
+                    "description": "The duration unit explicitly supplied or confirmed by the user.",
+                },
+            },
+        },
     )
 
 

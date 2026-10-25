@@ -79,3 +79,88 @@ test("invalid action contract is rejected", async () => {
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, "INVALID_AI_ACTION_RESPONSE");
 });
+
+
+test("sends an assistant turn with bounded conversation history and current revision", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-turn.v1",
+    kind: "clarification",
+    message: "Please provide the missing duration.",
+    proposal: null,
+  }});
+  const result = await new AIActionClient(transport).sendAssistantTurn(
+    context,
+    "Create an activity",
+    "fa",
+    [{ role: "user", content: "I need to add work" }, { role: "assistant", content: "What activity?" }],
+  );
+  assert.equal(result.ok, true);
+  assert.equal(transport.calls[0]?.path, "/api/projects/project-1/ai/assistant/turn");
+  assert.deepEqual(transport.calls[0]?.request, {
+    expected_revision: 7,
+    message: "Create an activity",
+    language: "fa",
+    history: [
+      { role: "user", content: "I need to add work" },
+      { role: "assistant", content: "What activity?" },
+    ],
+  });
+  if (result.ok) {
+    assert.equal(result.data.kind, "clarification");
+    assert.equal(result.data.proposal, null);
+  }
+});
+
+test("parses a server-created approval-gated proposal returned by the assistant", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-turn.v1",
+    kind: "action_proposal",
+    message: "Review the proposed activity.",
+    proposal: validProposal,
+  }});
+  const result = await new AIActionClient(transport).sendAssistantTurn(
+    context, "Create excavation", "en",
+  );
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.data.kind, "action_proposal");
+    assert.equal(result.data.proposal?.requires_human_approval, true);
+    assert.equal(result.data.proposal?.proposal_id, "prop-1");
+  }
+});
+
+test("rejects mismatched assistant turn kind and proposal state", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-turn.v1",
+    kind: "message",
+    message: "The proposal exists.",
+    proposal: validProposal,
+  }});
+  const result = await new AIActionClient(transport).sendAssistantTurn(context, "hello", "en");
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "INVALID_AI_ACTION_RESPONSE");
+});
+
+
+test("rejects assistant turn responses missing required proposal field or valid message", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-turn.v1",
+    kind: "message",
+    message: "Hello",
+  }});
+  const missingProposal = await new AIActionClient(transport).sendAssistantTurn(context, "hello", "en");
+  assert.equal(missingProposal.ok, false);
+
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-turn.v1",
+    kind: "message",
+    message: "   ",
+    proposal: null,
+  }});
+  const emptyMessage = await new AIActionClient(transport).sendAssistantTurn(context, "hello", "en");
+  assert.equal(emptyMessage.ok, false);
+});

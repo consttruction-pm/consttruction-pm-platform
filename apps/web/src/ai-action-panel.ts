@@ -134,7 +134,7 @@ export function mountAIActionPanel(
   transport: ApiTransport,
   context: ProjectContext,
   locale: string,
-): void {
+): () => Promise<void> {
   const previous = appShell.querySelector<HTMLDetailsElement>("#cp-ai-action-panel");
   const wasOpen = previous?.open ?? false;
   previous?.remove();
@@ -308,5 +308,6 @@ export function mountAIActionPanel(
   details.addEventListener("toggle", () => {
     });
   if (details.open) void refreshProposals();
+  return refreshProposals;
 }
 

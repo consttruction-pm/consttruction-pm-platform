@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Callable
 
 from construction_pm.application.authorization import AuthorizationPolicy
@@ -19,6 +20,11 @@ from construction_pm.ai_action_runtime import (
     AIActionRuntime,
     AIActionRuntimeError,
     AIActionTransactionManager,
+)
+from construction_pm.ai_assistant_orchestration import (
+    AIChatProvider,
+    AIAssistantTurnOrchestrator,
+    OpenAICompatibleChatProvider,
 )
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
@@ -41,6 +47,7 @@ def build_project_lifecycle_wsgi_app(
     ai_action_runtime: AIActionRuntime | None = None,
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
+    ai_assistant_provider: AIChatProvider | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
@@ -51,7 +58,15 @@ def build_project_lifecycle_wsgi_app(
     AI action runtime exposes proposal/approval/execution routes only when a
     deployment supplies its current grant provider, durable store, and real
     application-tool handlers. There is deliberately no permissive fallback.
+    The assistant provider is wired only through an explicit dependency or
+    CUBI_AI_ENABLED=true with server-only CUBI_AI_* environment configuration.
     """
+    assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
+        "1", "true", "yes"
+    }
+    if ai_assistant_provider is None and assistant_enabled:
+        ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
+
     provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,
@@ -84,6 +99,15 @@ def build_project_lifecycle_wsgi_app(
             clock=None if clock is None else clock.now,
         )
 
+    ai_assistant_orchestrator = None
+    if ai_assistant_provider is not None:
+        if ai_action_runtime is None:
+            raise AIActionRuntimeError("AI_ASSISTANT_ACTION_RUNTIME_REQUIRED")
+        ai_assistant_orchestrator = AIAssistantTurnOrchestrator(
+            provider=ai_assistant_provider,
+            action_runtime=ai_action_runtime,
+        )
+
     activity_master_api = (
         None
         if activity_master_repository is None
@@ -103,6 +127,7 @@ def build_project_lifecycle_wsgi_app(
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
         ai_action_runtime=ai_action_runtime,
+        ai_assistant_orchestrator=ai_assistant_orchestrator,
     )
     return ProjectLifecycleWsgiApp(routes)
 
