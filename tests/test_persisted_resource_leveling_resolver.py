@@ -213,6 +213,8 @@ def test_resolver_reads_persisted_assignments_and_exact_calendar_version():
         assert leveling.source_snapshot_id == fixture["snapshot"].snapshot_id
         assert leveling.source_snapshot_hash == fixture["snapshot"].snapshot_hash
         assert leveling.source_calculation_identity == fixture["context"].calculation_identity
+        priorities = {item.activity_id: item.activity_priority for item in leveling.forward_activities}
+        assert priorities == {"A": 4, "B": 3}  # High ranks above Normal in the canonical enum mapping.
         assert len(leveling.resource_facts_hash) == 64
         assert len(leveling.calendar_manifest_hash) == 64
         assert {
