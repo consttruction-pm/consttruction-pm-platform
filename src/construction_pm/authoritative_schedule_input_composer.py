@@ -32,7 +32,13 @@ from .project_schedule_settings_repository import (
     ProjectScheduleSettingsPersistenceError,
     ProjectScheduleSettingsRepository,
 )
-from .scheduling.activity import Activity
+from .scheduling.activity import Activity, ActivityStatus, ActivityType
+from .scheduling.resource_dependent import (
+    ResourceDependentCalculationError,
+    ResourceDependentDriverFact,
+    ResourceDependentDuration,
+    derive_resource_dependent_duration,
+)
 from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
@@ -274,6 +280,11 @@ class AuthoritativeScheduleInputComposer:
             raise ScheduleInputCompositionError("PROJECT_CALENDAR_REFERENCE_MISMATCH")
 
         activities: list[Activity] = []
+        resource_dependent_durations: dict[str, ResourceDependentDuration] = {}
+        assignments_by_activity: dict[str, list[object]] = {}
+        for assignment in assignments_by_id.values():
+            assignments_by_activity.setdefault(assignment.activity_id, []).append(assignment)
+
         for item in sorted(persisted_activities, key=lambda value: value.activity_id):
             if item.scope != scope:
                 raise ScheduleInputCompositionError(f"ACTIVITY_SCOPE_MISMATCH:{item.activity_id}")
@@ -281,9 +292,56 @@ class AuthoritativeScheduleInputComposer:
                 raise ScheduleInputCompositionError(
                     f"UNSUPPORTED_DURATION_UNIT:{item.activity_id}:{item.duration_unit.value}"
                 )
-            value = item.duration_value
-            if not isinstance(value, Decimal) or not value.is_finite() or value != value.to_integral_value():
-                raise ScheduleInputCompositionError(f"NON_INTEGRAL_WORKING_DAY_DURATION:{item.activity_id}")
+
+            raw_activity_type = getattr(item.activity_type, "value", item.activity_type)
+            resource_dependent = raw_activity_type == ActivityType.RESOURCE_DEPENDENT.value
+            derived = None
+            if resource_dependent:
+                raw_status = getattr(item.status, "value", item.status)
+                if (
+                    raw_status != ActivityStatus.NOT_STARTED.value
+                    or item.actual_start is not None
+                    or item.actual_finish is not None
+                ):
+                    raise ScheduleInputCompositionError(
+                        f"RESOURCE_DEPENDENT_IN_PROGRESS_DERIVATION_UNSUPPORTED:{item.activity_id}"
+                    )
+                raw_assignments = assignments_by_activity.get(item.activity_id, [])
+                facts = tuple(
+                    ResourceDependentDriverFact(
+                        assignment_id=assignment.assignment_id,
+                        activity_id=assignment.activity_id,
+                        resource_id=assignment.resource_id,
+                        calendar_id=assignment.calendar_id,
+                        calendar_version=assignment.calendar_version,
+                        unit_of_measure=assignment.unit,
+                        planned_units=assignment.units,
+                        is_driving=assignment.is_driving,
+                        units_per_time=assignment.units_per_time,
+                        units_per_time_period=assignment.units_per_time_period,
+                        hours_per_units_time_period=assignment.hours_per_units_time_period,
+                    )
+                    for assignment in raw_assignments
+                )
+                try:
+                    derived = derive_resource_dependent_duration(
+                        tenant_id=scope.tenant_id,
+                        project_id=scope.project_id,
+                        project_revision=scope.project_revision,
+                        activity_id=item.activity_id,
+                        assignments=facts,
+                    )
+                except ResourceDependentCalculationError as exc:
+                    raise ScheduleInputCompositionError(
+                        f"{exc}:{item.activity_id}"
+                    ) from exc
+                resource_dependent_durations[item.activity_id] = derived
+                value = Decimal(derived.duration_working_days)
+            else:
+                value = item.duration_value
+                if not isinstance(value, Decimal) or not value.is_finite() or value != value.to_integral_value():
+                    raise ScheduleInputCompositionError(f"NON_INTEGRAL_WORKING_DAY_DURATION:{item.activity_id}")
+
             try:
                 activities.append(
                     Activity(
@@ -303,6 +361,7 @@ class AuthoritativeScheduleInputComposer:
                         original_duration=item.original_duration,
                         planned_finish=self._date_value(item.planned_finish, field_name="planned_finish", activity_id=item.activity_id),
                         leveling_priority=item.leveling_priority,
+                        resource_dependent_input_hash=None if derived is None else derived.input_hash,
                     )
                 )
             except (TypeError, ValueError, ArithmeticError) as exc:
@@ -386,6 +445,17 @@ class AuthoritativeScheduleInputComposer:
                 known_calendar_assignments[assignment.activity_id] = ActivityCalendarAssignment(
                     assignment.activity_id, reference
                 )
+
+        # Resource Dependent activities follow their driving resource calendar,
+        # pinned to the exact master version used to derive the duration.
+        for activity_id, derived in resource_dependent_durations.items():
+            reference = self._load_calendar_reference(
+                scope, derived.calendar_id, derived.calendar_version,
+                expected_kind="working-day",
+            )
+            known_calendar_assignments[activity_id] = ActivityCalendarAssignment(
+                activity_id, reference
+            )
 
         relationship_lag_calendar_items: list[RelationshipLagCalendarAssignment] = []
         for assignment in sorted(
