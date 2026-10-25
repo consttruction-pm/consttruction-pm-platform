@@ -2095,8 +2095,10 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
                 project_id = parts[0]
                 try:
+                    # Conversation is available to readers; proposal creation is a
+                    # separate write capability and is exposed only after write authorization.
                     authorized = self._api.authorize_project(
-                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                        session_id, project_id, Permission.PROJECT_READ, now=now
                     )
                     session = self._api.get_session(session_id, now=now)
                 except ProjectLifecycleError as exc:
@@ -2104,6 +2106,17 @@ class ProjectLifecycleHttpRoutes:
                         return self._error(403, str(exc), "error.authorization.denied")
                     raise
                 context = authorized.context
+                can_propose = True
+                try:
+                    self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                except AuthorizationError:
+                    can_propose = False
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
                 runtime_context = AIActionRuntimeContext(
                     subject_id=session.user_id,
                     tenant_id=context.tenant_id,
@@ -2127,7 +2140,11 @@ class ProjectLifecycleHttpRoutes:
                 self._ai_action_runtime.record_request_event(
                     runtime_context,
                     "assistant_turn_requested",
-                    metadata={"language": language.strip(), "message_length": len(message.strip())},
+                    metadata={
+                        "language": language.strip(),
+                        "message_length": len(message.strip()),
+                        "can_propose": can_propose,
+                    },
                 )
                 try:
                     turn = self._ai_assistant_orchestrator.turn(
@@ -2135,6 +2152,7 @@ class ProjectLifecycleHttpRoutes:
                         user_message=message.strip(),
                         language=language.strip(),
                         history=tuple(history),
+                        allow_mutations=can_propose,
                     )
                 except AIAssistantProviderError as exc:
                     self._ai_action_runtime.record_request_event(
@@ -2378,11 +2396,18 @@ class ProjectLifecycleHttpRoutes:
             return self._error(403, str(exc), "error.authorization.denied")
         except AIAssistantProviderError as exc:
             code = exc.code
-            status = 503 if code in {
+            if code == "AI_ASSISTANT_ACTION_NOT_ALLOWED":
+                status = 403
+            elif code == "AI_ASSISTANT_REQUEST_INVALID":
+                status = 400
+            elif code in {
                 "AI_ASSISTANT_PROVIDER_UNAVAILABLE",
                 "AI_ASSISTANT_PROVIDER_RATE_LIMITED",
                 "AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID",
-            } else 502
+            }:
+                status = 503
+            else:
+                status = 502
             return self._error(status, code, "error.ai_assistant.request_failed")
         except AIActionRuntimeError as exc:
             code = str(exc)
