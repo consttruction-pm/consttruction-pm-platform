@@ -62,8 +62,8 @@ def test_longest_driving_resource_controls_whole_working_day_duration():
 
 
 def test_derivation_is_deterministic_independent_of_input_order():
-    first = derive(driver("A-1", remaining="8", rate="4"), driver("B-1", planned="9", rate="3"))
-    second = derive(driver("B-1", remaining="9", rate="3"), driver("A-1", remaining="8", rate="4"))
+    first = derive(driver("A-1", planned="8", rate="4"), driver("B-1", planned="9", rate="3"))
+    second = derive(driver("B-1", planned="9", rate="3"), driver("A-1", planned="8", rate="4"))
     assert first == second
 
 
