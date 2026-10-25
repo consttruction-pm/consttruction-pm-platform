@@ -2051,6 +2051,9 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 if self._ai_action_runtime is None or self._ai_assistant_orchestrator is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                # Bound parsing work before decoding attacker-controlled JSON.
+                if len(body) > 128_000:
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
                 try:
                     payload = json.loads(body.decode("utf-8") or "{}")
                 except json.JSONDecodeError:
