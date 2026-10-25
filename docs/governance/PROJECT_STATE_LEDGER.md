@@ -13,6 +13,16 @@
 - **Calculation gate remains open:** PR #1570 for the limited Resource Dependent duration subset is not merged. Passing tests do not replace the mandated independent semantic review. Requests are pending from Hasan and Farmj; do not claim full Resource Dependent / resource-calendar compatibility until the required review and accepted test evidence are present.
 - **CUBISITE accounting remains evidence-based:** merged reference UI is not scheduling-calculation completion; the Library workbook remains the website schedule of record, all seven AI-C01–AI-C07 activities remain zero earned completion until their own acceptance criteria are proven, and the overall production site E2E/release gate remains open.
 
+## Resource Dependent snapshot-fact binding — 2026-10-25
+
+- **State:** In progress; not merged and not counted as implemented on `main`.
+- **PR:** [#1577](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1577), draft, branch `fix/resource-dependent-snapshot-facts`, base `main` at `52483e55e19b927cc392b86808d6ff484cb26215`.
+- **Changed paths:** `src/construction_pm/scheduling/authoritative_schedule.py`, `src/construction_pm/authoritative_schedule_input_composer.py`, `src/construction_pm/schedule_snapshot_materializer.py`, `tests/scheduling/test_authoritative_schedule.py`.
+- **Implemented in branch:** a typed immutable snapshot field captures Resource Dependent assignment facts; composer binds fresh persisted facts in stable assignment-ID order; canonical payload/hash includes driving flags and resource rate/calendar fields; materializer decodes the facts with strict boolean/identifier checks; a regression test verifies that toggling `is_driving` changes the snapshot hash.
+- **Verification:** local tests were not run in this connector session. No workflow run was yet visible for the initial PR head `af074f9f632a0683340a5cf2e766c996b08382f1`; exact-head CI remains **Pending / verify** after the ledger commit.
+- **Not implemented:** calendar/capacity-aware independent nondriving assignment placement, driving-resource limiting-duration semantic review, assignment-level failure diagnostics, Schedule Query integration proof, and SQLite/PostgreSQL persisted-read → snapshot → calculation end-to-end tests. The current fail-closed nondriving guard remains required. Issue #1517 remains open.
+- **Next action:** run and review exact-head CI plus snapshot materialization round-trip tests; only then proceed to the placement algorithm and full integration coverage.
+
 ## Current baseline
 
 | Item | Verified state |
