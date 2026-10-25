@@ -24,6 +24,7 @@ from construction_pm.schedule_calculation_context_repository import CalculationC
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
+from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ class AuthoritativeScheduleQueryProvider:
     snapshot_repository: ScheduleInputSnapshotRepository
     calendar_registry_factory: Callable[[], CalendarResolverRegistry]
     calculation_context_repository: CalculationContextRepository | None = None
+    leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry], SchedulerLevelingInput | None] | None = None
 
     def execute(
         self,
@@ -86,12 +88,21 @@ class AuthoritativeScheduleQueryProvider:
             )
 
         try:
+            calendar_registry = self.calendar_registry_factory()
+            leveling_input = None
+            if self.leveling_input_resolver is not None:
+                leveling_input = self.leveling_input_resolver(
+                    snapshot, calculation_context, calendar_registry
+                )
+                if leveling_input is not None:
+                    _validate_leveling_input_binding(snapshot, calculation_context, leveling_input)
             result = evaluate_schedule_snapshot(
                 snapshot,
                 calculation_context,
-                self.calendar_registry_factory(),
+                calendar_registry,
+                leveling_input=leveling_input,
             )
-        except ScheduleEvaluationError as exc:
+        except ValueError as exc:
             # Keep fail-closed calculation behavior while translating a core
             # rejection into the stable Schedule Query validation contract.
             # In particular, missing immutable resource-leveling input must
@@ -117,6 +128,23 @@ class AuthoritativeScheduleQueryProvider:
             data=data,
             source_refs=(source,),
         )
+
+
+def _validate_leveling_input_binding(
+    snapshot: ScheduleInputSnapshot,
+    calculation_context: CalculationContext,
+    leveling_input: SchedulerLevelingInput,
+) -> None:
+    if not isinstance(leveling_input, SchedulerLevelingInput):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_LEVELING_INPUT")
+    if not leveling_input.has_bound_provenance:
+        raise ScheduleEvaluationError("LEVELING_INPUT_PROVENANCE_REQUIRED")
+    if leveling_input.source_snapshot_id != snapshot.snapshot_id:
+        raise ScheduleEvaluationError("LEVELING_INPUT_SNAPSHOT_ID_MISMATCH")
+    if leveling_input.source_snapshot_hash != snapshot.snapshot_hash:
+        raise ScheduleEvaluationError("LEVELING_INPUT_SNAPSHOT_HASH_MISMATCH")
+    if leveling_input.source_calculation_identity != calculation_context.calculation_identity:
+        raise ScheduleEvaluationError("LEVELING_INPUT_CALCULATION_IDENTITY_MISMATCH")
 
 
 def _project_result(
