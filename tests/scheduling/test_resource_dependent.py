@@ -17,7 +17,7 @@ def driver(
     calendar_id: str = "RC-1",
     calendar_version: str = "v2",
     unit: str = "labor-unit",
-    remaining: str = "8",
+    planned: str | None = "8",
     driving: bool | None = True,
     rate: str = "4",
     period: str = "day",
@@ -30,7 +30,7 @@ def driver(
         calendar_id=calendar_id,
         calendar_version=calendar_version,
         unit_of_measure=unit,
-        remaining_units=None if remaining is None else Decimal(remaining),
+        planned_units=None if planned is None else Decimal(planned),
         is_driving=driving,
         units_per_time=None if rate is None else Decimal(rate),
         units_per_time_period=period,
@@ -50,8 +50,8 @@ def derive(*assignments: ResourceDependentDriverFact):
 
 def test_longest_driving_resource_controls_whole_working_day_duration():
     result = derive(
-        driver("A-1", remaining="8", rate="4"),
-        driver("B-1", remaining="9", rate="3"),
+        driver("A-1", planned="8", rate="4"),
+        driver("B-1", planned="9", rate="3"),
     )
 
     assert result.duration_working_days == 3
@@ -62,7 +62,7 @@ def test_longest_driving_resource_controls_whole_working_day_duration():
 
 
 def test_derivation_is_deterministic_independent_of_input_order():
-    first = derive(driver("A-1", remaining="8", rate="4"), driver("B-1", remaining="9", rate="3"))
+    first = derive(driver("A-1", remaining="8", rate="4"), driver("B-1", planned="9", rate="3"))
     second = derive(driver("B-1", remaining="9", rate="3"), driver("A-1", remaining="8", rate="4"))
     assert first == second
 
@@ -75,7 +75,7 @@ def test_derivation_is_deterministic_independent_of_input_order():
         ((driver("A-1", driving=False),), "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_REQUIRED"),
         ((driver("A-1", calendar_version=None),), "RESOURCE_DEPENDENT_DRIVER_CALENDAR_VERSION_REQUIRED"),
         ((driver("A-1", period="week"),), "RESOURCE_DEPENDENT_NONDAILY_RATE_UNSUPPORTED"),
-        ((driver("A-1", remaining="5", rate="2"),), "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED"),
+        ((driver("A-1", planned="5", rate="2"),), "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED"),
     ],
 )
 def test_unsupported_or_ambiguous_driving_contract_fails_closed(facts, code):
