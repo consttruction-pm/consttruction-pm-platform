@@ -18,6 +18,7 @@ from ..ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, AIActio
 from ..ai_assistant_orchestration import (
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
+    is_valid_language_tag,
 )
 from ..backend_p0.api import BackendP0API
 from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
@@ -2088,8 +2089,7 @@ class ProjectLifecycleHttpRoutes:
                     or expected_revision < 0
                     or not isinstance(message, str)
                     or not 1 <= len(message.strip()) <= 6000
-                    or not isinstance(language, str)
-                    or not language.strip()
+                    or not is_valid_language_tag(language)
                     or len(language) > 64
                 ):
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
