@@ -15,7 +15,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, Mapping
 
-from .activity import Activity
+from .activity import Activity, ActivityType
 from .calendar_context import CalendarReference, RelationshipLagCalendar
 from .constraints import ActivityConstraint
 from .relationships import Relationship
@@ -181,6 +181,18 @@ class AuthoritativeScheduleInput:
         if len(resource_fact_ids) != len(set(resource_fact_ids)):
             raise ValueError("resource dependent assignment fact IDs must be unique")
         activity_id_set = set(activity_ids)
+        activity_by_id = {activity.id: activity for activity in self.activities}
+        if any(
+            item.activity_id in activity_by_id
+            and (
+                not isinstance(activity_by_id[item.activity_id], Activity)
+                or activity_by_id[item.activity_id].activity_type is not ActivityType.RESOURCE_DEPENDENT
+            )
+            for item in self.resource_dependent_assignment_facts
+        ):
+            raise ValueError(
+                "resource dependent assignment facts require Resource Dependent activity type"
+            )
         if any(
             not isinstance(item.assignment_id, str)
             or not item.assignment_id.strip()
