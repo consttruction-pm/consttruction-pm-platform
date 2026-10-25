@@ -90,9 +90,15 @@ def derive_resource_dependent_duration(
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_REQUIRED")
     if any(not isinstance(item, ResourceDependentDriverFact) for item in assignments):
         raise ResourceDependentCalculationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
+    if any(
+        not isinstance(value, str)
+        for item in assignments
+        for value in (item.assignment_id, item.activity_id, item.resource_id)
+    ):
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED")
     ordered = tuple(sorted(assignments, key=lambda item: item.assignment_id))
     if any(
-        not isinstance(value, str) or not value.strip() or value != value.strip()
+        not value.strip() or value != value.strip()
         for item in ordered
         for value in (item.assignment_id, item.activity_id, item.resource_id)
     ):
