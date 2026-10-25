@@ -71,15 +71,21 @@ test("reference explorer searches feature, option and gap text", () => {
 test("reference explorer filters evidence status and area separately", () => {
   const knownGaps = filterScheduleReferences(catalog, "", "known_gap", "all");
   assert.deepEqual(knownGaps.requirements.map((item) => item.id), ["RES-001"]);
-  assert.deepEqual(knownGaps.formulas, []);\n  assert.deepEqual(knownGaps.options, []);
+  assert.deepEqual(knownGaps.formulas, []);
+  assert.deepEqual(knownGaps.options, []);
 
   const resourceOnly = filterScheduleReferences(catalog, "", "all", "Resources");
   assert.deepEqual(resourceOnly.requirements.map((item) => item.id), ["RES-001"]);
-  assert.deepEqual(resourceOnly.formulas, []);\n  assert.deepEqual(resourceOnly.options.map((item) => item.id), []);
+  assert.deepEqual(resourceOnly.formulas, []);
+  assert.deepEqual(resourceOnly.options.map((item) => item.id), []);
 });
 
 test("reference explorer can show formula-only results", () => {
   const result = filterScheduleReferences(catalog, "total float", "all", "all", "formulas");
   assert.deepEqual(result.requirements, []);
-  assert.deepEqual(result.formulas.map((item) => item.id), ["FRM-TF-001"]);\n  const optionResult = filterScheduleReferences(catalog, "total float", "all", "all", "options");\n  assert.deepEqual(optionResult.options.map((item) => item.id), ["OPT-SCH-001"]);\n  assert.deepEqual(optionResult.requirements, []);\n  assert.deepEqual(optionResult.formulas, []);
+  assert.deepEqual(result.formulas.map((item) => item.id), ["FRM-TF-001"]);
+  const optionResult = filterScheduleReferences(catalog, "total float", "all", "all", "options");
+  assert.deepEqual(optionResult.options.map((item) => item.id), ["OPT-SCH-001"]);
+  assert.deepEqual(optionResult.requirements, []);
+  assert.deepEqual(optionResult.formulas, []);
 });
