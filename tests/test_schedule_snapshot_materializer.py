@@ -157,7 +157,7 @@ def test_materializes_resource_dependent_assignment_facts_with_driving_flag():
     source = AuthoritativeScheduleInput(
         snapshot_id="S-RESOURCE-FACT", tenant_id="T-1", project_id="P-1",
         project_revision=3, mode=AuthoritativeScheduleMode.DATE_BASED,
-        project_calendar=cal, activities=(Activity("A", 2),), relationships=(),
+        project_calendar=cal, activities=(Activity("A", 2, activity_type=ActivityType.RESOURCE_DEPENDENT),), relationships=(),
         activity_calendar_assignments=(ActivityCalendarAssignment("A", cal),),
         project_start=date(2026, 9, 21), resource_dependent_assignment_facts=(fact,),
     )
