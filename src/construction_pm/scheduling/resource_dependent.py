@@ -84,13 +84,28 @@ def derive_resource_dependent_duration(
     exact calendar ID/version, one unit of measure, and an explicit daily rate.
     The longest-to-complete driving assignment controls duration. Fractional duration is rejected, never rounded.
     """
+    if not isinstance(tenant_id, str) or not tenant_id.strip():
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_TENANT_ID_REQUIRED")
+    if not isinstance(project_id, str) or not project_id.strip():
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_PROJECT_ID_REQUIRED")
+    if isinstance(project_revision, bool) or not isinstance(project_revision, int) or project_revision < 0:
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_PROJECT_REVISION_INVALID")
     if not isinstance(activity_id, str) or not activity_id.strip():
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ACTIVITY_ID_REQUIRED")
     if not assignments:
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_REQUIRED")
     if any(not isinstance(item, ResourceDependentDriverFact) for item in assignments):
         raise ResourceDependentCalculationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
+    if any(
+        not isinstance(item.assignment_id, str) or not item.assignment_id.strip()
+        or not isinstance(item.resource_id, str) or not item.resource_id.strip()
+        for item in assignments
+    ):
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ID_REQUIRED")
     ordered = tuple(sorted(assignments, key=lambda item: item.assignment_id))
+    assignment_ids = tuple(item.assignment_id for item in ordered)
+    if len(set(assignment_ids)) != len(assignment_ids):
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_DUPLICATE_ASSIGNMENT_ID")
     if any(item.activity_id != activity_id for item in ordered):
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ASSIGNMENT_ACTIVITY_MISMATCH")
     if any(not item.assignment_id.strip() or not item.resource_id.strip() for item in ordered):
