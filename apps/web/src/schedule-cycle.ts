@@ -94,6 +94,8 @@ export type ScheduleSettingsDTO = {
 };
 
 type SessionInfo = { session_id: string; user_id: string; tenant_id: string; roles: string[] };
+type ProjectCalendarDTO = { calendar_id: string; calendar_version: string; kind: "working-day" | "working-time"; calendar_type: string; name: string; record_revision: number };
+type CalendarCatalogDTO = { contract_version: string; kind: "calendar_catalog"; calendars: ProjectCalendarDTO[] };
 type PublishedSnapshot = {
   contract_version: string;
   kind: string;
@@ -122,7 +124,7 @@ const LABELS = {
     options: "Calculation settings", run: "Run schedule", reference: "Scheduling code reference",
     intro: "Settings are saved to the project and consumed by the shared scheduling engine. The browser does not calculate dates.",
     runIntro: "Publish an immutable snapshot from saved project data, then request results from the authoritative schedule service.",
-    calendarId: "Project calendar ID", calendarVersion: "Calendar version", calendarSystem: "Calendar date system",
+    calendarId: "Project calendar ID", calendarVersion: "Calendar version", chooseCalendar: "Choose an existing project calendar", calendarLoadError: "Could not load project calendars; enter an existing calendar ID and version.", calendarSystem: "Calendar date system",
     start: "Project start", finish: "Project finish (optional)", mode: "Calculation mode", priority: "Project leveling priority",
     save: "Save settings", calculate: "Calculate and show results", saved: "Settings saved.", saving: "Saving…",
     running: "Publishing snapshot and retrieving results…", needSession: "An active sign-in is required.",
@@ -140,7 +142,7 @@ const LABELS = {
     options: "تنظیمات محاسبه", run: "اجرای زمان‌بندی", reference: "مرجع کد زمان‌بندی",
     intro: "تنظیمات در پروژه ذخیره می‌شود و هستهٔ مشترک زمان‌بندی از آن استفاده می‌کند. مرورگر محاسبهٔ تاریخ‌ها را انجام نمی‌دهد.",
     runIntro: "از داده‌های ذخیره‌شده یک تصویر تغییرناپذیر ایجاد می‌شود و سپس نتیجه از سرویس اصلی زمان‌بندی دریافت می‌شود.",
-    calendarId: "شناسهٔ تقویم پروژه", calendarVersion: "نسخهٔ تقویم", calendarSystem: "سیستم تاریخ تقویم",
+    calendarId: "شناسهٔ تقویم پروژه", calendarVersion: "نسخهٔ تقویم", chooseCalendar: "انتخاب تقویم ثبت‌شدهٔ پروژه", calendarLoadError: "فهرست تقویم‌ها دریافت نشد؛ شناسه و نسخهٔ موجود را وارد کنید.", calendarSystem: "سیستم تاریخ تقویم",
     start: "شروع پروژه", finish: "پایان پروژه (اختیاری)", mode: "روش محاسبه", priority: "اولویت تسطیح منابع پروژه",
     save: "ذخیرهٔ تنظیمات", calculate: "محاسبه و نمایش نتیجه", saved: "تنظیمات ذخیره شد.", saving: "در حال ذخیره…",
     running: "در حال انتشار تصویر و دریافت نتیجه…", needSession: "ورود معتبر به سامانه لازم است.",
@@ -164,6 +166,14 @@ function safe(value: unknown): string {
 
 function language(locale: string): "fa" | "en" {
   return locale.toLowerCase().startsWith("fa") ? "fa" : "en";
+}
+
+function localDateString(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function localDateTimeString(date: Date): string {
+  return `${localDateString(date)}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 function humanize(value: string): string {
@@ -323,7 +333,12 @@ async function mountSettingsPanel(
   locale: "fa" | "en",
 ): Promise<void> {
   const path = `/api/projects/${encodeURIComponent(context.project_id)}/p6/schedule/settings`;
-  const savedResult = await transport.get<ScheduleSettingsDTO>(path, context);
+  const calendarsPath = `/api/projects/${encodeURIComponent(context.project_id)}/p6/calendars`;
+  const [savedResult, calendarsResult] = await Promise.all([
+    transport.get<ScheduleSettingsDTO>(path, context),
+    transport.get<CalendarCatalogDTO>(calendarsPath, context),
+  ]);
+  const projectCalendars = calendarsResult.ok ? calendarsResult.data.calendars : [];
   const defaultOptions = Object.fromEntries((catalog?.schedule_options_schema ?? []).map((item) => [item.name, item.default]));
   let saved: ScheduleSettingsDTO | null = savedResult.ok ? savedResult.data : null;
   let missing = !savedResult.ok && savedResult.error.code === "PROJECT_SCHEDULE_SETTINGS_NOT_FOUND";
@@ -336,15 +351,27 @@ async function mountSettingsPanel(
     calendar_id: saved?.project_calendar.calendar_id ?? "",
     calendar_version: saved?.project_calendar.calendar_version ?? "",
     calendar_system: saved?.project_calendar.system ?? "gregorian",
-    project_start: saved?.project_start ?? new Date().toISOString().slice(0, 10),
+    project_start: saved?.project_start ?? localDateString(),
     project_finish: saved?.project_finish ?? "",
     project_leveling_priority: saved?.project_leveling_priority ?? 10,
     schedule_options: { ...defaultOptions, ...(saved?.schedule_options ?? {}) },
   };
   const formatDateInput = (value: string, mode: string): string => {
     if (!value) return "";
-    return mode === "TIME_AWARE" ? value.slice(0, 16) : value.slice(0, 10);
+    if (mode !== "TIME_AWARE") return value.slice(0, 10);
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value.slice(0, 16);
+    return localDateTimeString(parsed);
   };
+  const calendarField = projectCalendars.length > 0
+    ? "<label class=\"cp-schedule-option\"><span>" + safe(labels.chooseCalendar) + "</span><select required name=\"calendar_ref\"><option value=\"\">" + safe(labels.chooseCalendar) + "</option>" + projectCalendars.map((calendar) => {
+        const value = JSON.stringify({ id: calendar.calendar_id, version: calendar.calendar_version, kind: calendar.kind });
+        const selected = calendar.calendar_id === initial.calendar_id && calendar.calendar_version === initial.calendar_version;
+        return "<option value=\"" + safe(value) + "\"" + (selected ? " selected" : "") + ">" + safe(calendar.name) + " — " + safe(calendar.calendar_id) + " @ " + safe(calendar.calendar_version) + " (" + safe(calendar.kind) + ")</option>";
+      }).join("") + "</select></label>"
+    : "<label class=\"cp-schedule-option\"><span>" + safe(labels.calendarId) + "</span><input required name=\"calendar_id\" value=\"" + safe(initial.calendar_id) + "\" autocomplete=\"off\" /></label>"
+      + "<label class=\"cp-schedule-option\"><span>" + safe(labels.calendarVersion) + "</span><input required name=\"calendar_version\" value=\"" + safe(initial.calendar_version) + "\" autocomplete=\"off\" /></label>"
+      + "<p class=\"cp-muted\">" + safe(calendarsResult.ok ? (locale === "fa" ? "هنوز تقویمی در پروژه ثبت نشده است." : "No calendars are registered in this project yet.") : labels.calendarLoadError) + "</p>";
   const controls = (catalog?.schedule_options_schema ?? []).map((schema) =>
     renderSettingControl(schema, initial.schedule_options[schema.name] ?? schema.default)).join("");
   panel.innerHTML = `
@@ -353,8 +380,7 @@ async function mountSettingsPanel(
     <form data-schedule-settings-form class="cp-schedule-settings-form">
       <input type="hidden" name="record_revision" value="${initial.record_revision}" />
       <label class="cp-schedule-option"><span>${safe(labels.mode)}</span><select name="mode"><option value="DATE_BASED" ${initial.mode === "DATE_BASED" ? "selected" : ""}>Date based</option><option value="TIME_AWARE" ${initial.mode === "TIME_AWARE" ? "selected" : ""}>Time aware</option></select></label>
-      <label class="cp-schedule-option"><span>${safe(labels.calendarId)}</span><input required name="calendar_id" value="${safe(initial.calendar_id)}" autocomplete="off" /></label>
-      <label class="cp-schedule-option"><span>${safe(labels.calendarVersion)}</span><input required name="calendar_version" value="${safe(initial.calendar_version)}" autocomplete="off" /></label>
+      ${calendarField}
       <label class="cp-schedule-option"><span>${safe(labels.calendarSystem)}</span><select name="calendar_system"><option value="gregorian" ${initial.calendar_system === "gregorian" ? "selected" : ""}>Gregorian</option><option value="jalali" ${initial.calendar_system === "jalali" ? "selected" : ""}>Jalali</option></select></label>
       <label class="cp-schedule-option"><span>${safe(labels.start)}</span><input required name="project_start" type="${initial.mode === "TIME_AWARE" ? "datetime-local" : "date"}" value="${safe(formatDateInput(initial.project_start, initial.mode))}" /></label>
       <label class="cp-schedule-option"><span>${safe(labels.finish)}</span><input name="project_finish" type="${initial.mode === "TIME_AWARE" ? "datetime-local" : "date"}" value="${safe(formatDateInput(initial.project_finish, initial.mode))}" /></label>
@@ -366,6 +392,7 @@ async function mountSettingsPanel(
   const modeInput = form?.elements.namedItem("mode") as HTMLSelectElement | null;
   const startInput = form?.elements.namedItem("project_start") as HTMLInputElement | null;
   const finishInput = form?.elements.namedItem("project_finish") as HTMLInputElement | null;
+  const calendarRefInput = form?.elements.namedItem("calendar_ref") as HTMLSelectElement | null;
   const syncDateTypes = () => {
     if (!modeInput || !startInput || !finishInput) return;
     const isTime = modeInput.value === "TIME_AWARE";
@@ -378,6 +405,15 @@ async function mountSettingsPanel(
     }
   };
   modeInput?.addEventListener("change", syncDateTypes);
+  calendarRefInput?.addEventListener("change", () => {
+    try {
+      const selected = JSON.parse(calendarRefInput.value) as { id: string; version: string; kind: string };
+      if (modeInput) modeInput.value = selected.kind === "working-time" ? "TIME_AWARE" : "DATE_BASED";
+      syncDateTypes();
+    } catch {
+      // A blank selector is a prompt, not a selectable calendar.
+    }
+  });
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const status = panel.querySelector<HTMLElement>("[data-settings-status]");
@@ -408,12 +444,22 @@ async function mountSettingsPanel(
         } else if (schema.kind === "json") scheduleOptions[schema.name] = JSON.parse(input.value || "null") as unknown;
         else scheduleOptions[schema.name] = input.value === "" ? schema.default : input.value;
       }
+      let calendarId = String(data.get("calendar_id") ?? "").trim();
+      let calendarVersion = String(data.get("calendar_version") ?? "").trim();
+      const selectedCalendarRaw = String(data.get("calendar_ref") ?? "");
+      if (selectedCalendarRaw) {
+        const selectedCalendar = JSON.parse(selectedCalendarRaw) as { id: string; version: string; kind: string };
+        const expectedMode = selectedCalendar.kind === "working-time" ? "TIME_AWARE" : "DATE_BASED";
+        if (mode !== expectedMode) throw new Error("CALENDAR_KIND_MODE_MISMATCH");
+        calendarId = selectedCalendar.id;
+        calendarVersion = selectedCalendar.version;
+      }
       const request = {
         contract_version: "p6-project-schedule-settings-api.v1",
         expected_record_revision: Number(data.get("record_revision") ?? 0),
         mode,
-        project_calendar_id: String(data.get("calendar_id") ?? "").trim(),
-        project_calendar_version: String(data.get("calendar_version") ?? "").trim(),
+        project_calendar_id: calendarId,
+        project_calendar_version: calendarVersion,
         project_calendar_system: String(data.get("calendar_system") ?? "gregorian"),
         project_start: readDate("project_start", true),
         project_finish: readDate("project_finish", false),
