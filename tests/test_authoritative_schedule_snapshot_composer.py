@@ -761,6 +761,65 @@ def test_resource_dependent_activity_publication_fails_closed_for_unknown_drivin
     fixture["connection"].close()
 
 
+def test_resource_dependent_publication_fails_closed_for_persisted_nondriving_assignment(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-NONDRIVING",
+            "name": "Nondriving placement must not be silently ignored",
+            "duration_value": "1",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.NOT_STARTED.value,
+            "status_code": ActivityStatusCode.PLANNED.value,
+        },
+    )
+    assert status == "201 Created"
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-NONDRIVING-AS",
+            activity_id="RD-NONDRIVING",
+            resource_id="RD-NONDRIVING-RES",
+            units=Decimal("8"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=False,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    fixture["connection"].commit()
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(level_all_resources=True),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+
+    status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert status == "400 Bad Request"
+    assert "RESOURCE_DEPENDENT_NONDRIVING_PLACEMENT_UNSUPPORTED" in error["code"]
+    assert fixture["snapshot_repo"].list(scope) == ()
+    fixture["connection"].close()
+
+
 def test_activity_snapshot_publication_fails_closed_for_datetime_date_fields(tmp_path):
     fixture = _fixture(tmp_path)
     app = fixture["app"]
