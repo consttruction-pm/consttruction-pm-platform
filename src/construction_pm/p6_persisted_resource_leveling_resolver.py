@@ -30,7 +30,12 @@ from .p6_versioned_resource_calendar_resolver import resolve_p6_resource_calenda
 from .schedule_evaluator import resolve_relationship_lag_resolvers
 from .schedule_input_snapshot_repository import ScheduleInputSnapshot
 from .schedule_snapshot_materializer import materialize_schedule_snapshot
-from .scheduling.activity import ActivityLevelingPriority
+from .scheduling.activity import ActivityLevelingPriority, ActivityType
+from .scheduling.resource_dependent import (
+    ResourceDependentCalculationError,
+    ResourceDependentDriverFact,
+    derive_resource_dependent_duration,
+)
 from .scheduling.calendar import WorkingTimeResolver
 from .scheduling.calendar_context import CalendarResolverRegistry
 from .scheduling.calculation_context import CalculationContext
@@ -300,6 +305,69 @@ def build_persisted_resource_leveling_input_resolver(
                     f"RESOURCE_ASSIGNMENT_ACTIVITY_NOT_IN_SNAPSHOT:{assignment.get('activity_id')}"
                 )
             typed_assignments[assignment_id] = assignment
+
+        # Resource Dependent duration is derived when the immutable schedule
+        # input is composed. Verify the same driving facts are still persisted
+        # before allowing this query to replay that derived duration.
+        activity_calendar_assignments = {
+            item.activity_id: item.calendar for item in source.activity_calendar_assignments
+        }
+        for activity in source.activities:
+            raw_activity_type = getattr(activity.activity_type, "value", activity.activity_type)
+            if raw_activity_type != ActivityType.RESOURCE_DEPENDENT.value:
+                continue
+            if not isinstance(activity.resource_dependent_input_hash, str):
+                raise PersistedResourceLevelingResolverError(
+                    f"RESOURCE_DEPENDENT_INPUT_HASH_REQUIRED:{activity.id}"
+                )
+            assignment_rows = tuple(
+                value for value in typed_assignments.values()
+                if value.get("activity_id") == activity.id
+            )
+            facts = tuple(
+                ResourceDependentDriverFact(
+                    assignment_id=str(value.get("assignment_id", "")),
+                    activity_id=str(value.get("activity_id", "")),
+                    resource_id=str(value.get("resource_id", "")),
+                    calendar_id=value.get("calendar_id"),
+                    calendar_version=value.get("calendar_version"),
+                    unit_of_measure=value.get("unit"),
+                    remaining_units=value.get("remaining_units"),
+                    is_driving=value.get("is_driving"),
+                    units_per_time=value.get("units_per_time"),
+                    units_per_time_period=value.get("units_per_time_period"),
+                    hours_per_units_time_period=value.get("hours_per_units_time_period"),
+                )
+                for value in assignment_rows
+            )
+            try:
+                derivation = derive_resource_dependent_duration(
+                    tenant_id=scope.tenant_id,
+                    project_id=scope.project_id,
+                    project_revision=scope.project_revision,
+                    activity_id=activity.id,
+                    assignments=facts,
+                )
+            except ResourceDependentCalculationError as exc:
+                raise PersistedResourceLevelingResolverError(
+                    f"{exc}:{activity.id}"
+                ) from exc
+            if (
+                derivation.input_hash != activity.resource_dependent_input_hash
+                or derivation.duration_working_days != activity.duration
+            ):
+                raise PersistedResourceLevelingResolverError(
+                    f"RESOURCE_DEPENDENT_SOURCE_CHANGED:{activity.id}"
+                )
+            calendar_ref = activity_calendar_assignments.get(activity.id)
+            if (
+                calendar_ref is None
+                or calendar_ref.calendar_id != derivation.calendar_id
+                or calendar_ref.calendar_version != derivation.calendar_version
+            ):
+                raise PersistedResourceLevelingResolverError(
+                    f"RESOURCE_DEPENDENT_CALENDAR_BINDING_MISMATCH:{activity.id}"
+                )
 
         period_dates_by_activity: dict[str, list[date]] = {}
         for item in periods_dto:
