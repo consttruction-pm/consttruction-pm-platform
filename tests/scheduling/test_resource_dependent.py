@@ -97,3 +97,32 @@ def test_driving_assignments_must_share_exact_calendar_version_and_unit():
 
     with pytest.raises(ResourceDependentCalculationError, match="RESOURCE_DEPENDENT_DRIVING_UNIT_MISMATCH"):
         derive(driver("A-1"), driver("A-2", unit="equipment-day"))
+
+
+@pytest.mark.parametrize(
+    ("tenant_id", "project_id", "project_revision", "code"),
+    [
+        ("", "P-1", 7, "RESOURCE_DEPENDENT_TENANT_ID_REQUIRED"),
+        ("T-1", " ", 7, "RESOURCE_DEPENDENT_PROJECT_ID_REQUIRED"),
+        ("T-1", "P-1", -1, "RESOURCE_DEPENDENT_PROJECT_REVISION_INVALID"),
+        ("T-1", "P-1", True, "RESOURCE_DEPENDENT_PROJECT_REVISION_INVALID"),
+        ("T-1", "P-1", 7.0, "RESOURCE_DEPENDENT_PROJECT_REVISION_INVALID"),
+    ],
+)
+def test_invalid_scope_and_revision_fail_closed(tenant_id, project_id, project_revision, code):
+    with pytest.raises(ResourceDependentCalculationError, match=code):
+        derive_resource_dependent_duration(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            project_revision=project_revision,
+            activity_id="RD-1",
+            assignments=(driver("A-1"),),
+        )
+
+
+def test_duplicate_assignment_identity_fails_closed():
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_DUPLICATE_ASSIGNMENT_ID",
+    ):
+        derive(driver("A-1"), driver("A-1", resource_id="R-2"))
