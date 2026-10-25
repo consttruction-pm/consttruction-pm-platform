@@ -22,6 +22,7 @@ from ..ai_assistant_orchestration import (
 )
 from ..backend_p0.api import BackendP0API
 from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
+from ..scheduling_code_reference_api import build_scheduling_code_reference_payload
 from ..control_intelligence.contracts import ControlScope
 from ..control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
 from ..backend_p0.models import BackendScope
@@ -197,6 +198,10 @@ class ProjectLifecycleHttpRoutes:
 
         try:
             now = self._clock.now()
+            if method == "GET" and path == "/api/v1/schedule/code-reference":
+                # The catalogue contains no project records, but a valid active session is required.
+                self._api.get_session(session_id, now=now)
+                return self._json(200, build_scheduling_code_reference_payload())
             if method == "GET" and path == "/api/session":
                 response = self._api.get_session(session_id, now=now)
                 return self._json(200, {
