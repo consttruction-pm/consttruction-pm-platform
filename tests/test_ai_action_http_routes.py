@@ -10,6 +10,10 @@ from construction_pm.ai_action_runtime import (
     AIActionToolDefinition,
     SQLiteAIActionRuntimeStore,
 )
+from construction_pm.ai_assistant_orchestration import (
+    AIAssistantProviderError,
+    AIAssistantTurnOrchestrator,
+)
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import (
     AuthenticatedSession,
@@ -41,7 +45,20 @@ class Projects:
         return ProjectSummary(project_id, tenant_id, name, 0)
 
 
-def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"})):
+class FakeAssistantProvider:
+    def __init__(self, result=None, error=None):
+        self.result = result
+        self.error = error
+        self.calls = []
+
+    def complete_json(self, *, system_prompt, user_message, language):
+        self.calls.append({"system_prompt": system_prompt, "user_message": user_message, "language": language})
+        if self.error is not None:
+            raise self.error
+        return self.result
+
+
+def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), assistant_provider=None):
     now = datetime(2026, 10, 23, 12, 0, tzinfo=timezone.utc)
     session = AuthenticatedSession("session-1", "u1", "t1", frozenset(roles), now + timedelta(hours=1))
     api = ProjectLifecycleAPI(ProjectLifecycleService(Sessions(session), Projects(), default_project_policy()))
@@ -71,13 +88,26 @@ def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"})):
         tools=[AIActionToolDefinition(
             tool_name="activity.create", action="create", resource_domain="activities",
             requires_human_approval=True, validate_payload=validate_payload, execute=execute,
+            description="Create one activity when all required fields have been supplied.",
+            input_schema={
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["name"],
+                "properties": {"name": {"type": "string", "minLength": 1}},
+            },
         )],
         clock=lambda: now,
+    )
+    assistant = (
+        AIAssistantTurnOrchestrator(provider=assistant_provider, action_runtime=runtime)
+        if runtime_enabled and assistant_provider is not None
+        else None
     )
     routes = ProjectLifecycleHttpRoutes(
         api,
         clock=type("Clock", (), {"now": lambda self: now})(),
         ai_action_runtime=runtime if runtime_enabled else None,
+        ai_assistant_orchestrator=assistant,
     )
     return routes, conn, executed
 
@@ -176,3 +206,88 @@ def test_read_only_project_user_cannot_inspect_actionable_proposal_payloads():
     status, _, body = request(routes, "/api/projects/p1/ai/actions/proposals", {}, method="GET")
     assert status == 403
     assert json.loads(body)["code"].startswith("authorization denied")
+
+
+
+def test_assistant_turn_endpoint_only_creates_an_approval_gated_proposal():
+    provider = FakeAssistantProvider({
+        "kind": "action_proposal",
+        "message": "Review this activity proposal before approving it.",
+        "tool_name": "activity.create",
+        "payload": {"name": "Excavation"},
+    })
+    routes, conn, executed = build_routes(assistant_provider=provider)
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2,
+            "message": "Prepare an activity proposal named Excavation",
+            "language": "en",
+        })
+        assert status == 200
+        response = json.loads(body)
+        assert response["contract_version"] == "ai-assistant-turn.v1"
+        assert response["kind"] == "action_proposal"
+        assert response["proposal"]["status"] == "proposed"
+        assert response["proposal"]["requires_human_approval"] is True
+        assert response["proposal"]["requested_by"] == "u1"
+        assert response["proposal"]["payload"] == {"name": "Excavation"}
+        assert executed == []
+        assert len(provider.calls) == 1
+        assert provider.calls[0]["language"] == "en"
+        audit_types = {
+            row[0] for row in conn.execute("SELECT event_type FROM ai_action_audit_events").fetchall()
+        }
+        assert {"assistant_turn_requested", "proposal_created", "assistant_turn_completed"} <= audit_types
+    finally:
+        conn.close()
+
+
+def test_assistant_turn_rejects_stale_revision_before_calling_provider():
+    provider = FakeAssistantProvider({
+        "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+    })
+    routes, conn, executed = build_routes(assistant_provider=provider)
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 1, "message": "Hello", "language": "en",
+        })
+        assert status == 409
+        assert json.loads(body)["code"] == "AI_ASSISTANT_STALE_REVISION"
+        assert provider.calls == []
+        assert executed == []
+        assert conn.execute(
+            "SELECT COUNT(*) FROM ai_action_audit_events WHERE event_type='assistant_turn_stale_revision'"
+        ).fetchone()[0] == 1
+    finally:
+        conn.close()
+
+
+def test_assistant_turn_is_fail_closed_without_provider_or_runtime():
+    routes, conn, executed = build_routes()
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2, "message": "Hello", "language": "en",
+        })
+        assert status == 404
+        assert json.loads(body)["code"] == "ROUTE_NOT_FOUND"
+        assert executed == []
+    finally:
+        conn.close()
+
+
+def test_assistant_turn_provider_failure_is_audited_and_not_reported_as_success():
+    provider = FakeAssistantProvider(error=AIAssistantProviderError("AI_ASSISTANT_PROVIDER_UNAVAILABLE"))
+    routes, conn, executed = build_routes(assistant_provider=provider)
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2, "message": "Hello", "language": "en",
+        })
+        assert status == 503
+        assert json.loads(body)["code"] == "AI_ASSISTANT_PROVIDER_UNAVAILABLE"
+        assert executed == []
+        audit_types = {
+            row[0] for row in conn.execute("SELECT event_type FROM ai_action_audit_events").fetchall()
+        }
+        assert {"assistant_turn_requested", "assistant_turn_failed"} <= audit_types
+    finally:
+        conn.close()
