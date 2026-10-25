@@ -28,6 +28,11 @@ class SchedulerLevelingInput:
     backward_activities: tuple[BackwardLevelingActivity, ...]
     capacities: tuple[ResourceCapacity, ...]
     options: ResourceLevelingOptions
+    source_snapshot_id: str | None = None
+    source_snapshot_hash: str | None = None
+    source_calculation_identity: str | None = None
+    resource_facts_hash: str | None = None
+    calendar_manifest_hash: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.forward_activities, tuple):
@@ -38,6 +43,30 @@ class SchedulerLevelingInput:
             raise TypeError("capacities must be a tuple")
         if not isinstance(self.options, ResourceLevelingOptions):
             raise TypeError("options must be ResourceLevelingOptions")
+
+        provenance = (
+            self.source_snapshot_id,
+            self.source_snapshot_hash,
+            self.source_calculation_identity,
+            self.resource_facts_hash,
+            self.calendar_manifest_hash,
+        )
+        if any(value is not None for value in provenance):
+            if not all(isinstance(value, str) and value.strip() for value in provenance):
+                raise ValueError("INCOMPLETE_LEVELING_INPUT_PROVENANCE")
+            if any(
+                len(value) != 64 or any(char not in "0123456789abcdef" for char in value)
+                for value in provenance[1:]
+                if isinstance(value, str)
+            ):
+                raise ValueError("INVALID_LEVELING_INPUT_PROVENANCE_HASH")
+            if any(
+                capacity.calendar_id is None
+                or capacity.calendar_version is None
+                or capacity.calendar_snapshot_hash is None
+                for capacity in self.capacities
+            ):
+                raise ResourceLevelingError("VERSIONED_LEVELING_CAPACITY_REQUIRED")
 
         forward_ids = {item.activity_id for item in self.forward_activities}
         backward_ids = {item.activity_id for item in self.backward_activities}
@@ -68,6 +97,19 @@ class SchedulerLevelingInput:
             for capacity in self.capacities
         ):
             raise ValueError("leveling capacity cannot be negative")
+
+    @property
+    def has_bound_provenance(self) -> bool:
+        return all(
+            isinstance(value, str) and bool(value.strip())
+            for value in (
+                self.source_snapshot_id,
+                self.source_snapshot_hash,
+                self.source_calculation_identity,
+                self.resource_facts_hash,
+                self.calendar_manifest_hash,
+            )
+        )
 
 
 def _map_priority_list(options: ScheduleOptions) -> tuple[LevelingPriority, ...]:
@@ -105,6 +147,11 @@ def scheduler_leveling_input_from_options(
     backward_activities: tuple[BackwardLevelingActivity, ...],
     capacities: tuple[ResourceCapacity, ...],
     options: ScheduleOptions,
+    source_snapshot_id: str | None = None,
+    source_snapshot_hash: str | None = None,
+    source_calculation_identity: str | None = None,
+    resource_facts_hash: str | None = None,
+    calendar_manifest_hash: str | None = None,
 ) -> SchedulerLevelingInput:
     """Map typed ScheduleOptions into the existing Shared Core leveling options.
 
@@ -125,4 +172,9 @@ def scheduler_leveling_input_from_options(
         backward_activities=backward_activities,
         capacities=capacities,
         options=leveling_options,
+        source_snapshot_id=source_snapshot_id,
+        source_snapshot_hash=source_snapshot_hash,
+        source_calculation_identity=source_calculation_identity,
+        resource_facts_hash=resource_facts_hash,
+        calendar_manifest_hash=calendar_manifest_hash,
     )
