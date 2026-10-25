@@ -186,7 +186,7 @@ const LABELS = {
     choices: "Options", inputs: "Inputs", calendarRules: "Units and calendar rules", edgeCases: "Edge cases", acceptance: "Acceptance evidence",
     referenceVersion: "Reference version", sourceDate: "Catalogue date", noSettingsApi: "The settings service is not available in this running environment.",
     noReferenceApi: "The reference catalogue is not available in this running environment.", noRunApi: "The schedule service is not available in this running environment.",
-    results: "Calculation output", snapshot: "Snapshot", hash: "Content hash", outputBinding: "Matching loaded activities are updated in the grid and Gantt; no client-side scheduling is performed.", empty: "—",
+    results: "Calculation output", snapshot: "Snapshot", hash: "Content hash", outputBinding: "Matching loaded activities are updated in the grid and Gantt; critical status is shown only when returned by the scheduling service.", empty: "—",
   },
   fa: {
     options: "تنظیمات محاسبه", run: "اجرای زمان‌بندی", reference: "مرجع کد زمان‌بندی",
@@ -204,7 +204,7 @@ const LABELS = {
     choices: "گزینه‌ها", inputs: "ورودی‌ها", calendarRules: "واحدها و قواعد تقویم", edgeCases: "حالت‌های مرزی", acceptance: "شواهد پذیرش",
     referenceVersion: "نسخهٔ مرجع", sourceDate: "تاریخ فهرست", noSettingsApi: "سرویس تنظیمات در این محیط اجرا در دسترس نیست.",
     noReferenceApi: "فهرست مرجع در این محیط اجرا در دسترس نیست.", noRunApi: "سرویس زمان‌بندی در این محیط اجرا در دسترس نیست.",
-    results: "خروجی محاسبه", snapshot: "تصویر محاسبات", hash: "هش محتوا", outputBinding: "فعالیت‌هایی که شناسه‌شان با محیط کار بازشده منطبق باشد در جدول و گانت به‌روزرسانی می‌شوند؛ محاسبه در مرورگر انجام نمی‌شود.", empty: "—",
+    results: "خروجی محاسبه", snapshot: "تصویر محاسبات", hash: "هش محتوا", outputBinding: "فعالیت‌های منطبق در جدول و گانت به‌روزرسانی می‌شوند؛ وضعیت بحرانی فقط در صورت بازگشت از سرویس زمان‌بندی نمایش داده می‌شود.", empty: "—",
   },
 } as const;
 
