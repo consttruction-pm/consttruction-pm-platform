@@ -188,6 +188,18 @@ class AuthoritativeScheduleInput:
             (item.resource_id, "resource_id")
             for item in self.resource_dependent_assignment_facts
         )
+        optional_resource_fact_identifiers = tuple(
+            (value, field_name)
+            for item in self.resource_dependent_assignment_facts
+            for value, field_name in (
+                (item.calendar_id, "calendar_id"),
+                (item.calendar_version, "calendar_version"),
+                (item.unit_of_measure, "unit_of_measure"),
+                (item.units_per_time_period, "units_per_time_period"),
+            )
+            if value is not None
+        )
+        resource_fact_identifiers = tuple(resource_fact_identifiers) + optional_resource_fact_identifiers
         if any(
             not isinstance(value, str) or not value.strip() or value != value.strip()
             for value, _field_name in resource_fact_identifiers
