@@ -27,7 +27,7 @@ class ResourceDependentDriverFact:
     calendar_id: str | None
     calendar_version: str | None
     unit_of_measure: str | None
-    remaining_units: Decimal | None
+    planned_units: Decimal | None
     is_driving: bool | None
     units_per_time: Decimal | None
     units_per_time_period: str | None
@@ -41,7 +41,7 @@ class ResourceDependentDriverFact:
             "calendar_id": self.calendar_id,
             "calendar_version": self.calendar_version,
             "unit_of_measure": self.unit_of_measure,
-            "remaining_units": None if self.remaining_units is None else str(self.remaining_units),
+            "planned_units": None if self.planned_units is None else str(self.planned_units),
             "is_driving": self.is_driving,
             "units_per_time": None if self.units_per_time is None else str(self.units_per_time),
             "units_per_time_period": self.units_per_time_period,
@@ -80,9 +80,9 @@ def derive_resource_dependent_duration(
 ) -> ResourceDependentDuration:
     """Return a reproducible duration from explicit driving resource contracts.
 
-    The supported subset uses one calendar ID/version, one unit of measure,
-    and an explicit daily rate. The longest-to-complete driving assignment
-    controls duration. Fractional duration is rejected, never rounded.
+    The supported subset uses each not-started assignment's Planned Units, one
+    exact calendar ID/version, one unit of measure, and an explicit daily rate.
+    The longest-to-complete driving assignment controls duration. Fractional duration is rejected, never rounded.
     """
     if not isinstance(activity_id, str) or not activity_id.strip():
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ACTIVITY_ID_REQUIRED")
@@ -129,9 +129,9 @@ def derive_resource_dependent_duration(
 
     durations: list[Decimal] = []
     for item in ordered:
-        remaining = _require_decimal(
-            item.remaining_units,
-            "RESOURCE_DEPENDENT_REMAINING_UNITS_REQUIRED",
+        planned = _require_decimal(
+            item.planned_units,
+            "RESOURCE_DEPENDENT_PLANNED_UNITS_REQUIRED",
             allow_zero=True,
         )
         rate = _require_decimal(
@@ -148,7 +148,7 @@ def derive_resource_dependent_duration(
         # source's explicit period is already "day"; non-daily conversion needs
         # an hourly core model and is rejected above rather than guessed.
         del conversion
-        durations.append(remaining / rate)
+        durations.append(planned / rate)
 
     duration = max(durations)
     if duration != duration.to_integral_value():
