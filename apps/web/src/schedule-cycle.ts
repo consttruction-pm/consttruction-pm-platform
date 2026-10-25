@@ -131,7 +131,7 @@ const LABELS = {
     settingsError: "Could not load saved settings.", saveFailed: "Settings were not saved.", runFailed: "Schedule calculation did not complete.",
     mustSave: "Save project settings first. Use an existing calendar ID and version from this project.",
     refIntro: "Search the available requirement and formula catalogue. The status labels distinguish a code mapping from verified behavior; this catalogue does not certify complete parity.",
-    search: "Search IDs, features, options, formulas and gaps", allStatuses: "All status values", allAreas: "All areas", allKinds: "Requirements and formulas",
+    search: "Search IDs, features, options, formulas and gaps", allStatuses: "All status values", allAreas: "All areas", allKinds: "All reference entries",
     requirements: "Requirements", formulas: "Formula / algorithm references", menuOptions: "Menu options", noMatches: "No matching entries.", noGap: "No known gap is recorded for this entry.", menuPath: "Menu path", behavior: "Required behavior", outputs: "Outputs / effects", mappingEvidence: "Code mappings", testEvidence: "Regression tests", linkedRequirement: "Linked requirement",
     choices: "Options", inputs: "Inputs", calendarRules: "Units and calendar rules", edgeCases: "Edge cases", acceptance: "Acceptance evidence",
     referenceVersion: "Reference version", sourceDate: "Catalogue date", noSettingsApi: "The settings service is not available in this running environment.",
@@ -149,7 +149,7 @@ const LABELS = {
     settingsError: "خواندن تنظیمات ذخیره‌شده ممکن نشد.", saveFailed: "تنظیمات ذخیره نشد.", runFailed: "اجرای زمان‌بندی کامل نشد.",
     mustSave: "ابتدا تنظیمات پروژه را ذخیره کنید. از شناسه و نسخهٔ موجود تقویم پروژه استفاده کنید.",
     refIntro: "در فهرست الزامات و فرمول‌های موجود جست‌وجو کنید. وضعیت‌ها میان وجود مسیر کد و رفتار آزموده‌شده تفاوت می‌گذارند؛ این فهرست گواهی برابری کامل نیست.",
-    search: "جست‌وجو در شناسه، ویژگی، گزینه، فرمول و کمبود", allStatuses: "همهٔ وضعیت‌ها", allAreas: "همهٔ حوزه‌ها", allKinds: "الزامات و فرمول‌ها",
+    search: "جست‌وجو در شناسه، ویژگی، گزینه، فرمول و کمبود", allStatuses: "همهٔ وضعیت‌ها", allAreas: "همهٔ حوزه‌ها", allKinds: "همهٔ موارد مرجع",
     requirements: "الزامات", formulas: "مراجع فرمول و الگوریتم", menuOptions: "گزینه‌های منو", noMatches: "موردی مطابق جست‌وجو نیست.", noGap: "کمبود مشخصی برای این مورد ثبت نشده است.", menuPath: "مسیر منو", behavior: "رفتار لازم", outputs: "خروجی‌ها / اثرها", mappingEvidence: "نگاشت‌های کد", testEvidence: "آزمون‌های رگرسیون", linkedRequirement: "الزام مرتبط",
     choices: "گزینه‌ها", inputs: "ورودی‌ها", calendarRules: "واحدها و قواعد تقویم", edgeCases: "حالت‌های مرزی", acceptance: "شواهد پذیرش",
     referenceVersion: "نسخهٔ مرجع", sourceDate: "تاریخ فهرست", noSettingsApi: "سرویس تنظیمات در این محیط اجرا در دسترس نیست.",
@@ -440,10 +440,10 @@ async function mountSettingsPanel(
       <input type="hidden" name="record_revision" value="${initial.record_revision}" />
       <label class="cp-schedule-option"><span>${safe(labels.mode)}</span><select name="mode"><option value="DATE_BASED" ${initial.mode === "DATE_BASED" ? "selected" : ""}>${safe(locale === "fa" ? "تاریخ‌محور" : "Date based")}</option><option value="TIME_AWARE" ${initial.mode === "TIME_AWARE" ? "selected" : ""}>${safe(locale === "fa" ? "زمان‌محور" : "Time aware")}</option></select></label>
       ${calendarField}
-      <label class="cp-schedule-option"><span>${safe(labels.calendarSystem)}</span><select name="calendar_system"><option value="gregorian" ${initial.calendar_system === "gregorian" ? "selected" : ""}>Gregorian</option><option value="jalali" ${initial.calendar_system === "jalali" ? "selected" : ""}>Jalali</option></select></label>
+      <label class="cp-schedule-option"><span>${safe(labels.calendarSystem)}</span><select name="calendar_system"><option value="gregorian" ${initial.calendar_system === "gregorian" ? "selected" : ""}>${safe(locale === "fa" ? "میلادی" : "Gregorian")}</option><option value="jalali" ${initial.calendar_system === "jalali" ? "selected" : ""}>${safe(locale === "fa" ? "هجری شمسی" : "Jalali")}</option></select></label>
       <label class="cp-schedule-option"><span>${safe(labels.start)}</span><input required name="project_start" type="${initial.mode === "TIME_AWARE" ? "datetime-local" : "date"}" value="${safe(formatDateInput(initial.project_start, initial.mode))}" /></label>
       <label class="cp-schedule-option"><span>${safe(labels.finish)}</span><input name="project_finish" type="${initial.mode === "TIME_AWARE" ? "datetime-local" : "date"}" value="${safe(formatDateInput(initial.project_finish, initial.mode))}" /></label>
-      <label class="cp-schedule-option"><span>${safe(labels.priority)}</span><input required name="project_leveling_priority" type="number" min="0" step="1" value="${initial.project_leveling_priority}" /></label>
+      <label class="cp-schedule-option"><span>${safe(labels.priority)}</span><input required name="project_leveling_priority" type="number" min="1" max="100" step="1" value="${initial.project_leveling_priority}" /></label>
       ${controls ? `<h3 class="cp-schedule-options-subtitle">${safe(locale === "fa" ? "گزینه‌های هستهٔ محاسبه" : "Calculation engine options")}</h3><div class="cp-schedule-options-grid">${controls}</div>` : ""}
       <div class="cp-schedule-actions"><button type="submit">${safe(labels.save)}</button><span role="status" data-settings-status></span></div>
     </form>`;
