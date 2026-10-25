@@ -662,6 +662,15 @@ def _materialize_payload(
             field_value = item.get(field_name)
             if field_value is not None and not isinstance(field_value, str):
                 raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
+        known_activity_ids = {
+            activity.get("id")
+            for activity in _required(payload, "activities")
+            if isinstance(activity, dict)
+        }
+        if item["activity_id"] not in known_activity_ids:
+            raise SnapshotMaterializationError(
+                "RESOURCE_DEPENDENT_ASSIGNMENT_FACT_REFERENCES_UNKNOWN_ACTIVITY"
+            )
         resource_facts.append(
             ResourceDependentDriverFact(
                 assignment_id=item["assignment_id"],
