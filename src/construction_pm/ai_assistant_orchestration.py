@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from typing import Callable, Mapping, Protocol
 from urllib.error import HTTPError, URLError
@@ -21,6 +22,11 @@ MAX_ASSISTANT_REPLY_CHARS = 4_000
 MAX_ASSISTANT_HISTORY_MESSAGES = 12
 MAX_ASSISTANT_HISTORY_CHARS = 12_000
 MAX_PROVIDER_RESPONSE_BYTES = 1_000_000
+_LANGUAGE_TAG = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
+
+
+def _valid_language_tag(value: object) -> bool:
+    return isinstance(value, str) and _LANGUAGE_TAG.fullmatch(value.strip()) is not None
 
 
 class _RejectProviderRedirects(HTTPRedirectHandler):
@@ -161,8 +167,7 @@ class OpenAICompatibleChatProvider:
             or not system_prompt.strip()
             or not isinstance(user_message, str)
             or not 1 <= len(user_message.strip()) <= MAX_ASSISTANT_MESSAGE_CHARS
-            or not isinstance(language, str)
-            or not language.strip()
+            or not _valid_language_tag(language)
             or len(language) > 64
         ):
             raise AIAssistantProviderError("AI_ASSISTANT_REQUEST_INVALID")
@@ -249,8 +254,7 @@ class AIAssistantTurnOrchestrator:
         if (
             not isinstance(user_message, str)
             or not 1 <= len(user_message.strip()) <= MAX_ASSISTANT_MESSAGE_CHARS
-            or not isinstance(language, str)
-            or not language.strip()
+            or not _valid_language_tag(language)
             or len(language) > 64
         ):
             raise AIAssistantProviderError("AI_ASSISTANT_REQUEST_INVALID")
