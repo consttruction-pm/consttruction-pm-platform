@@ -168,6 +168,65 @@ function language(locale: string): "fa" | "en" {
   return locale.toLowerCase().startsWith("fa") ? "fa" : "en";
 }
 
+const FIELD_LABELS: Record<string, { en: string; fa: string }> = {
+  mode: { en: "Scheduling mode", fa: "روش زمان‌بندی" },
+  compute_total_float_type: { en: "Total float calculation", fa: "روش محاسبه شناوری کل" },
+  critical_activity_float_threshold: { en: "Critical activity float threshold", fa: "آستانه شناوری فعالیت بحرانی" },
+  critical_activity_path_type: { en: "Critical path method", fa: "روش مسیر بحرانی" },
+  make_open_ended_activities_critical: { en: "Treat open-ended activities as critical", fa: "فعالیت‌های بدون رابطه را بحرانی در نظر بگیر" },
+  multiple_float_paths_enabled: { en: "Enable multiple float paths", fa: "فعال‌سازی مسیرهای شناوری چندگانه" },
+  maximum_multiple_float_paths: { en: "Maximum number of float paths", fa: "حداکثر تعداد مسیرهای شناوری" },
+  multiple_float_paths_ending_activity_object_id: { en: "Float-path ending activity ID", fa: "شناسه فعالیت پایان مسیر شناوری" },
+  multiple_float_paths_ending_activity_short_name: { en: "Float-path ending activity short name", fa: "نام کوتاه فعالیت پایان مسیر شناوری" },
+  multiple_float_paths_use_total_float: { en: "Use total float for multiple paths", fa: "استفاده از شناوری کل برای مسیرهای چندگانه" },
+  min_float_to_preserve: { en: "Minimum float to preserve", fa: "حداقل شناوری برای حفظ" },
+  out_of_sequence_schedule_type: { en: "Out-of-sequence progress method", fa: "روش پیشرفت خارج از توالی" },
+  start_to_start_lag_calculation_type: { en: "Start-to-start lag calculation", fa: "محاسبه وقفه رابطه شروع-شروع" },
+  relationship_lag_calendar: { en: "Relationship lag calendar", fa: "تقویم وقفه روابط" },
+  use_expected_finish_dates: { en: "Use expected finish dates", fa: "استفاده از تاریخ پایان مورد انتظار" },
+  recalculate_resource_costs: { en: "Recalculate resource costs", fa: "محاسبه مجدد هزینه منابع" },
+  calculate_float_based_on_finish_date: { en: "Calculate float from finish dates", fa: "محاسبه شناوری بر اساس تاریخ پایان" },
+  ignore_other_project_relationships: { en: "Ignore other-project relationships", fa: "نادیده‌گرفتن روابط پروژه‌های دیگر" },
+  include_external_res_ass: { en: "Include external resource assignments", fa: "لحاظ‌کردن تخصیص منابع خارجی" },
+  level_all_resources: { en: "Level all resources", fa: "تسطیح همه منابع" },
+  level_within_float: { en: "Level within available float", fa: "تسطیح در محدوده شناوری" },
+  over_allocation_percentage: { en: "Allowed overallocation percentage", fa: "درصد اضافه‌تخصیص مجاز" },
+  resource_list: { en: "Resource list (JSON)", fa: "فهرست منابع (JSON)" },
+  priority_list: { en: "Priority order (JSON)", fa: "ترتیب اولویت (JSON)" },
+  external_project_priority_limit: { en: "External project priority limit", fa: "حد اولویت پروژه‌های خارجی" },
+  preserve_scheduled_early_and_late_dates: { en: "Preserve scheduled early/late dates", fa: "حفظ تاریخ‌های زود/دیر محاسبه‌شده" },
+  data_date: { en: "Data date", fa: "تاریخ داده" },
+};
+
+const CHOICE_LABELS: Record<string, { en: string; fa: string }> = {
+  EARLIEST: { en: "Earliest dates", fa: "تاریخ‌های زودترین" },
+  ALAP: { en: "As late as possible", fa: "در حد امکان دیرترین" },
+  START_FLOAT: { en: "Start float", fa: "شناوری شروع" },
+  FINISH_FLOAT: { en: "Finish float", fa: "شناوری پایان" },
+  SMALLER_FLOAT: { en: "Smaller of start/finish float", fa: "کمینه شناوری شروع و پایان" },
+  CRITICAL_FLOAT: { en: "Critical by float threshold", fa: "بحرانی بر اساس آستانه شناوری" },
+  LONGEST_PATH: { en: "Longest path", fa: "طولانی‌ترین مسیر" },
+  RETAINED_LOGIC: { en: "Retained logic", fa: "منطق حفظ‌شده" },
+  PROGRESS_OVERRIDE: { en: "Progress override", fa: "جایگزینی منطق بر اساس پیشرفت" },
+  ACTUAL_DATES: { en: "Actual dates", fa: "تاریخ‌های واقعی" },
+  EARLY_START: { en: "Early start", fa: "شروع زودترین" },
+  ACTUAL_START: { en: "Actual start", fa: "شروع واقعی" },
+  PROJECT_DEFAULT: { en: "Project default", fa: "پیش‌فرض پروژه" },
+  PREDECESSOR: { en: "Predecessor calendar", fa: "تقویم فعالیت پیش‌نیاز" },
+  SUCCESSOR: { en: "Successor calendar", fa: "تقویم فعالیت پس‌نیاز" },
+  TWENTY_FOUR_HOUR: { en: "24-hour calendar", fa: "تقویم ۲۴ ساعته" },
+  ASCENDING: { en: "Ascending", fa: "صعودی" },
+  DESCENDING: { en: "Descending", fa: "نزولی" },
+};
+
+function settingFieldLabel(name: string, locale: "fa" | "en"): string {
+  return FIELD_LABELS[name]?.[locale] ?? humanize(name);
+}
+
+function settingChoiceLabel(value: string, locale: "fa" | "en"): string {
+  return CHOICE_LABELS[value]?.[locale] ?? humanize(value);
+}
+
 function localDateString(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -202,7 +261,7 @@ export function filterScheduleReferences(
       includesQuery([item.id, item.feature, item.algorithm, ...item.inputs, ...item.options, item.calendar_rules, ...item.edge_cases, item.known_gap])),
     options: kind === "requirements" || kind === "formulas" ? [] : catalog.options.filter((item) =>
       (status === "all" || item.status === status) &&
-      (area === "all" || area === "formula" ? area === "all" : item.area === area) &&
+      (area === "all" ? true : area === "formula" ? false : item.area === area) &&
       includesQuery([item.id, item.requirement_id, item.area, item.menu_path, item.name, ...item.values, item.behavior, ...item.inputs, ...item.outputs, item.known_gap])),
   };
 }
@@ -315,10 +374,10 @@ function mountReferencePanel(
 }
 
 function renderSettingControl(schema: ScheduleOptionSchema, value: unknown): string {
-  const label = humanize(schema.name);
+  const label = settingFieldLabel(schema.name, locale);
   const id = `cp-schedule-option-${schema.name}`;
   if (schema.kind === "boolean") return `<label class="cp-schedule-option" for="${safe(id)}"><span>${safe(label)}</span><input id="${safe(id)}" type="checkbox" data-option="${safe(schema.name)}" ${value === true ? "checked" : ""} /></label>`;
-  if (schema.kind === "enum") return `<label class="cp-schedule-option" for="${safe(id)}"><span>${safe(label)}</span><select id="${safe(id)}" data-option="${safe(schema.name)}">${schema.choices.map((choice) => `<option value="${safe(choice)}" ${String(value) === choice ? "selected" : ""}>${safe(humanize(choice))}</option>`).join("")}</select></label>`;
+  if (schema.kind === "enum") return `<label class="cp-schedule-option" for="${safe(id)}"><span>${safe(label)}</span><select id="${safe(id)}" data-option="${safe(schema.name)}">${schema.choices.map((choice) => `<option value="${safe(choice)}" ${String(value) === choice ? "selected" : ""}>${safe(settingChoiceLabel(choice, locale))}</option>`).join("")}</select></label>`;
   if (schema.kind === "json") return `<label class="cp-schedule-option is-json" for="${safe(id)}"><span>${safe(label)} (JSON)</span><textarea id="${safe(id)}" data-option="${safe(schema.name)}" rows="2" spellcheck="false">${safe(JSON.stringify(value ?? null))}</textarea></label>`;
   const inputType = schema.kind === "date" ? "date" : schema.kind === "number" ? "number" : "text";
   return `<label class="cp-schedule-option" for="${safe(id)}"><span>${safe(label)}</span><input id="${safe(id)}" type="${inputType}" data-option="${safe(schema.name)}" ${schema.kind === "number" ? 'step="any"' : ""} value="${safe(value ?? "")}" /></label>`;
@@ -373,13 +432,13 @@ async function mountSettingsPanel(
       + "<label class=\"cp-schedule-option\"><span>" + safe(labels.calendarVersion) + "</span><input required name=\"calendar_version\" value=\"" + safe(initial.calendar_version) + "\" autocomplete=\"off\" /></label>"
       + "<p class=\"cp-muted\">" + safe(calendarsResult.ok ? (locale === "fa" ? "هنوز تقویمی در پروژه ثبت نشده است." : "No calendars are registered in this project yet.") : labels.calendarLoadError) + "</p>";
   const controls = (catalog?.schedule_options_schema ?? []).map((schema) =>
-    renderSettingControl(schema, initial.schedule_options[schema.name] ?? schema.default)).join("");
+    renderSettingControl(schema, initial.schedule_options[schema.name] ?? schema.default, locale)).join("");
   panel.innerHTML = `
     <p>${safe(labels.intro)}</p>
     ${!saved && !missing ? `<p role="alert">${safe(labels.noSettingsApi)}</p>` : ""}
     <form data-schedule-settings-form class="cp-schedule-settings-form">
       <input type="hidden" name="record_revision" value="${initial.record_revision}" />
-      <label class="cp-schedule-option"><span>${safe(labels.mode)}</span><select name="mode"><option value="DATE_BASED" ${initial.mode === "DATE_BASED" ? "selected" : ""}>Date based</option><option value="TIME_AWARE" ${initial.mode === "TIME_AWARE" ? "selected" : ""}>Time aware</option></select></label>
+      <label class="cp-schedule-option"><span>${safe(labels.mode)}</span><select name="mode"><option value="DATE_BASED" ${initial.mode === "DATE_BASED" ? "selected" : ""}>${safe(locale === "fa" ? "تاریخ‌محور" : "Date based")}</option><option value="TIME_AWARE" ${initial.mode === "TIME_AWARE" ? "selected" : ""}>${safe(locale === "fa" ? "زمان‌محور" : "Time aware")}</option></select></label>
       ${calendarField}
       <label class="cp-schedule-option"><span>${safe(labels.calendarSystem)}</span><select name="calendar_system"><option value="gregorian" ${initial.calendar_system === "gregorian" ? "selected" : ""}>Gregorian</option><option value="jalali" ${initial.calendar_system === "jalali" ? "selected" : ""}>Jalali</option></select></label>
       <label class="cp-schedule-option"><span>${safe(labels.start)}</span><input required name="project_start" type="${initial.mode === "TIME_AWARE" ? "datetime-local" : "date"}" value="${safe(formatDateInput(initial.project_start, initial.mode))}" /></label>
@@ -431,7 +490,7 @@ async function mountSettingsPanel(
           return null;
         }
         if (mode === "DATE_BASED") return raw;
-        return new Date(raw).toISOString();
+        const date = new Date(raw);\n        if (Number.isNaN(date.getTime())) throw new Error("INVALID_" + name.toUpperCase());\n        return date.toISOString();
       };
       const scheduleOptions: Record<string, unknown> = {};
       for (const schema of catalog?.schedule_options_schema ?? []) {
