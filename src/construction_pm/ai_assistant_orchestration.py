@@ -22,6 +22,7 @@ MAX_ASSISTANT_REPLY_CHARS = 4_000
 MAX_ASSISTANT_HISTORY_MESSAGES = 12
 MAX_ASSISTANT_HISTORY_CHARS = 12_000
 MAX_PROVIDER_RESPONSE_BYTES = 1_000_000
+MAX_TOOL_PAYLOAD_BYTES = 64_000
 _LANGUAGE_TAG = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
 
 
@@ -100,7 +101,12 @@ class OpenAICompatibleChatProvider:
     ) -> None:
         if not isinstance(base_url, str) or not base_url.strip():
             raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID")
-        parsed = urlparse(base_url.strip())
+        try:
+            parsed = urlparse(base_url.strip())
+        except ValueError as exc:
+            raise AIAssistantProviderError(
+                "AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID"
+            ) from exc
         if (
             parsed.scheme != "https"
             or not parsed.netloc
@@ -273,12 +279,18 @@ class AIAssistantTurnOrchestrator:
                 "parameters": dict(schema),
             }
         system_prompt = self._system_prompt(language.strip(), tuple(enabled_tools.values()))
-        response = self._provider.complete_json(
-            system_prompt=system_prompt,
-            user_message=user_message.strip(),
-            language=language.strip(),
-            history=normalized_history,
-        )
+        try:
+            response = self._provider.complete_json(
+                system_prompt=system_prompt,
+                user_message=user_message.strip(),
+                language=language.strip(),
+                history=normalized_history,
+            )
+        except AIAssistantProviderError:
+            raise
+        except Exception as exc:
+            # Alternate provider adapters must not leak raw network errors, payloads, or secrets.
+            raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_UNAVAILABLE") from exc
         if not isinstance(response, Mapping):
             raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_RESPONSE_INVALID")
         allowed_response_keys = {"kind", "message", "tool_name", "payload"}
@@ -307,6 +319,14 @@ class AIAssistantTurnOrchestrator:
             or tool_name not in enabled_tools
             or not isinstance(payload, Mapping)
         ):
+            raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_RESPONSE_INVALID")
+        try:
+            serialized_payload = json.dumps(
+                dict(payload), ensure_ascii=False, separators=(",", ":"), sort_keys=True
+            )
+        except (TypeError, ValueError, RecursionError) as exc:
+            raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_RESPONSE_INVALID") from exc
+        if len(serialized_payload.encode("utf-8")) > MAX_TOOL_PAYLOAD_BYTES:
             raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_RESPONSE_INVALID")
         definition = self._action_runtime.tools.get(tool_name)
         if definition is None or not definition.requires_human_approval:
