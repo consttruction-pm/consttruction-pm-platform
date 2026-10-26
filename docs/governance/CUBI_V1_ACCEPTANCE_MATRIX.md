@@ -31,7 +31,7 @@ This matrix is an evidence index for the approved product scope, not a completio
 |---|---|---|
 | 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q` (full Python suite, after typed capacity, calendar/project-creation and formula-authority changes) | **2837 passed, 124 skipped, 1 warning** |
 | 2026-10-26 | `cd apps/web && npm test` / `npm run typecheck` / `npm run build` | See “Web result” below |
-| 2026-10-26 | `cd apps/web && npm run test:e2e:preview` (isolated temporary SQLite + random port) | **25 checks, 14 screenshots passed**; real WSGI/SQLite/Shared-Core read-back, including formula validation, typed capacity, Jalali display and admin project creation |
+| 2026-10-26 | `cd apps/web && npm run test:e2e:preview` (isolated temporary SQLite + random port) | **27 checks, 18 screenshots passed**; real WSGI/SQLite/Shared-Core read-back, including formula validation, interchange export/import UI, typed capacity, Jalali display, viewer denial and admin project creation |
 | 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q tests/test_preview_runtime.py` | **7 passed** (includes registered-capacity read/restart and admin project creation/restart) |
 | 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q tests/test_p6_formula_authority_api.py tests/test_p6_formula_field_adapter.py tests/test_project_lifecycle_http_routes.py` | **108 passed**; includes unsupported-registry-field isolation, structured duration diagnostic and self-reference precedence |
 | 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q tests/resources/test_max_units_time.py tests/test_p6_resource_capacity_repository.py tests/test_preview_runtime.py` | 18 passed for the typed capacity slice |
@@ -39,7 +39,7 @@ This matrix is an evidence index for the approved product scope, not a completio
 
 **Full-suite result:** 2837 passed, 124 skipped, 1 warning. Earlier defects found by full runs were fixed rather than skipped: (1) the authoritative FACT contract test needed to account for the newly exposed early/late/float fields, and (2) formula audit events with tied timestamps could be returned in random UUID order; SQLite now uses insertion order (`rowid`) and PostgreSQL uses an `event_seq` sequence, with a regression test for identical timestamps.
 
-**Web result:** `npm test` passed 294 TypeScript tests plus 7 preview-resolver tests; `npm run typecheck` and `npm run build` passed. The browser E2E is the runtime evidence for the workspace slice. (Counts are from the latest local run; exact-head CI is tracked separately in OPS-04.)
+**Web result:** `npm test` passed 308 TypeScript tests plus 7 preview-resolver tests; `npm run typecheck` and `npm run build` passed. The browser E2E is the runtime evidence for the workspace slice. (Counts are from the latest local run; exact-head CI is tracked separately in OPS-04.)
 
 ## A. Foundation, architecture and security
 
@@ -121,7 +121,7 @@ This matrix is an evidence index for the approved product scope, not a completio
 
 | ID | Requirement | Code path | UI / API path | Test / evidence | Status |
 |---|---|---|---|---|---|
-| WEB-01 | Real session/bootstrap/workspace read against WSGI, not static fixtures. | `apps/web/src/main.ts`, `project-bootstrap.ts`, `workspace-read-api.ts` | `/app`, `/api/session`, workspace read | Preview E2E 25 checks; `test_preview_runtime.py`; `workspace-read-api.test.ts` | implemented-and-verified |
+| WEB-01 | Real session/bootstrap/workspace read against WSGI, not static fixtures. | `apps/web/src/main.ts`, `project-bootstrap.ts`, `workspace-read-api.ts` | `/app`, `/api/session`, workspace read | Preview E2E 27 checks; `test_preview_runtime.py`; `workspace-read-api.test.ts` | implemented-and-verified |
 | WEB-02 | Main menus and submenus with honest status labels. | `workspace-navigation.ts`, `workspace-view.ts` | Project/Schedule/Progress/Resources/Cost/Documents/Reports/Control/Settings | Preview E2E menu/submenu navigation; `workspace-navigation.test.ts`, `workspace-view-submenu-navigation.test.ts` | implemented-and-verified |
 | WEB-03 | Permission-aware dashboard/workspace entry. | `main.ts`, lifecycle API | Viewer/planner/admin states | Preview E2E viewer read-only + denied writes | implemented-and-verified |
 | WEB-04 | WBS hierarchy display/editing. | `workspace-model.ts` exposes distinct `wbs_id` rows only | Project/WBS surface lists flat WBS IDs | No hierarchy repository/editor; navigation marks Project “Partial” | partial |
@@ -140,7 +140,7 @@ This matrix is an evidence index for the approved product scope, not a completio
 | WEB-17 | Jalali date display/input in the workspace. | `workspace-calendar-display.ts`, `workspace-view.ts`, `main.ts` | Calendar-mode toggle in the workspace status bar; date cells | `workspace-calendar-display.test.ts`; preview E2E toggle 2026-10-07 ↔ ۱۴۰۵/۰۷/۱۵ with stored ISO unchanged | partial (display verified; Jalali date entry not implemented) |
 | WEB-18 | Usable smaller/compact layout. | `styles.css`, responsive workspace | 1024 px layout | Preview E2E compact layout screenshot/assertion | implemented-and-verified |
 | WEB-19 | No raw action/proposal JSON or fake calculated dates shown to users. | `ai-action-panel.ts`, `workspace-view.ts` | AI and workspace panels | Web tests; preview E2E | implemented-and-verified |
-| WEB-20 | Import/export wizard in the Web UI. | Interchange API exists; no Web wizard | API only | Preview E2E calls interchange API directly; no UI path | missing |
+| WEB-20 | Import/export panel in the Web UI with server-codec export, mapped import review and explicit errors. | `apps/web/src/p6-interchange-panel.ts`, `p6-interchange-api.ts`, `main.ts`, `workspace-view.ts`; `src/construction_pm/p6_interchange_api.py` | `Project → Import / Export`; `POST /api/projects/{p}/p6/interchange/{format}/export` and `.../import` | `p6-interchange-panel.test.ts`, `p6-interchange-api.test.ts`; preview E2E 14-activity export→download→import round-trip, invalid-document error and viewer denial | implemented-and-verified |
 | WEB-21 | Recovery, undo/redo and restore UI. | Backend backup/portability exists; no undo/redo stack found | No UI | No dedicated test | missing |
 | WEB-22 | Project creation UI. | `main.ts` project-create form, `bootstrap-labels.ts` | Project selection create form | Preview E2E admin creates project, opens empty workspace, sees curated layout and persisted project name | implemented-and-verified |
 | WEB-23 | Resources, Cost, Progress, Reports and Control product surfaces. | Navigation marks them Preview/Partial; view renders partial sections | Menus exist, deeper workflows not complete | Preview E2E checks navigation only | partial |
@@ -171,8 +171,8 @@ This matrix is an evidence index for the approved product scope, not a completio
 | INT-03 | Export requires explicit object extension and preserves Decimal/typed values. | `p6_interchange_api.py`, codec validation | Export API | Codec/interchange tests; preview E2E export/import | implemented-and-verified |
 | INT-04 | Import round-trip maps canonical values back without warnings. | `p6_interchange_api.py` | Import API | Preview E2E XML round trip; `test_preview_interchange_round_trip...` | implemented-and-verified (API); no Web wizard |
 | INT-05 | Scope/revision validation and viewer denial on interchange writes. | Interchange application service | Import/export routes | Scope tests; preview viewer import 403 | implemented-and-verified |
-| INT-06 | HTTP routes for import/export in production composition. | `production_composition.py`, `project_lifecycle_routes.py` | `/api/projects/{p}/p6/interchange/{format}/import|export` | Route tests; preview runtime test | implemented-and-verified |
-| INT-07 | Web import/export UI with mapping review and error states. | No Web wizard | Not exposed | WEB-20 | missing |
+| INT-06 | HTTP routes for import/export in production composition. | `production_composition.py`, `project_lifecycle_routes.py` | `/api/projects/{p}/p6/interchange/{format}/import` and `.../export` | Route tests; preview runtime test | implemented-and-verified |
+| INT-07 | Web import/export UI with mapping review and error states. | `apps/web/src/p6-interchange-panel.ts`, `p6-interchange-api.ts` | `Project → Import / Export` | WEB-20 Web unit tests; preview E2E round-trip, `INVALID_XML` and viewer 403 states | implemented-and-verified |
 | INT-08 | Excel/XLSX schema and typed I/O. | `resources/excel_schema.py`, `xlsx_io.py` | API/codec | `tests/resources/test_excel_schema.py`, `test_xlsx_io.py` | implemented-and-verified (library); Web UI missing |
 | INT-09 | Microsoft Project XML interchange. | `p6_msproject_xml_codec.py` | Interchange API | `tests/test_p6_msproject_xml_*.py` | implemented-and-verified |
 | INT-10 | Project portability, backup and restore with calendar/settings/context. | `project_portability.py`, preview storage backup | Python/preview CLI | `tests/test_project_portability.py`, preview DB guard/backup tests | implemented-and-verified (backend); Web UI missing |
@@ -220,9 +220,9 @@ This matrix is an evidence index for the approved product scope, not a completio
 
 | ID | Requirement | Code path | UI / API path | Test / evidence | Status |
 |---|---|---|---|---|---|
-| OPS-01 | Reproducible local full-stack preview with real WSGI, SQLite and Shared Core. | `src/construction_pm/preview/`, `apps/web/preview-full.mjs` | `npm run preview:full`, `http://127.0.0.1:4174` | Preview E2E 25 checks; 7 Python preview tests; manual 4174 run | implemented-and-verified (local) |
+| OPS-01 | Reproducible local full-stack preview with real WSGI, SQLite and Shared Core. | `src/construction_pm/preview/`, `apps/web/preview-full.mjs` | `npm run preview:full`, `http://127.0.0.1:4174` | Preview E2E 27 checks; 7 Python preview tests; manual 4174 run | implemented-and-verified (local) |
 | OPS-02 | A real, external preview URL. | n/a | None | `has_pages=false`; no deploy performed | blocked-external |
-| OPS-03 | In-repo browser E2E covering login, project selection, menus, grid/Gantt, columns, filter/sort, settings/calendar, schedule calculation, formula validation, persistence, interchange, capacity, project creation, session/permission errors. | `apps/web/e2e/preview-e2e.mjs` | Browser | 25 checks, 14 screenshots; isolated run passed | implemented-and-verified |
+| OPS-03 | In-repo browser E2E covering login, project selection, menus, grid/Gantt, columns, filter/sort, settings/calendar, schedule calculation, formula validation, persistence, interchange round-trip UI, capacity, project creation, session/permission errors. | `apps/web/e2e/preview-e2e.mjs` | Browser | 27 checks, 18 screenshots; isolated run passed | implemented-and-verified |
 | OPS-04 | Exact-head CI on the final branch before merge. | GitHub workflows | n/a | Not yet available for the uncommitted preview/E2E work | implemented-not-verified |
 | OPS-05 | Independent review, PR splitting and merge of complete changes. | PR #1582 | n/a | PR remains open; capacity/backward/independent-review gaps unresolved | partial |
 | OPS-06 | Official CUBISITE weights/scores/completion percentage. | n/a | n/a | Workbook unavailable; not invented | blocked-external |
@@ -232,12 +232,11 @@ This matrix is an evidence index for the approved product scope, not a completio
 ## Highest-priority remaining gaps
 
 1. **RES-07/RES-08 — assignment-level early/late and backward placement.** Activity-level backward leveling exists and is tested. `scheduling/resource_dependent_placement.py` documents a deliberate contract boundary: it consumes only final authoritative activity start/finish and exposes no assignment-level early/late or backward result. This remains an approved gap until a separate, evidence-backed contract is implemented.
-2. **WEB-20/INT-07 — import/export UI.** Interchange works through the API and browser E2E, but there is no user-facing wizard.
-3. **WEB-21/INT-11 — undo/redo.** No implementation found.
-4. **WEB-04 — WBS hierarchy.** The workspace has a flat WBS list; no hierarchy editor or rollup navigation.
-5. **WEB-17/LOC-04 — Jalali date entry.** Display conversion is implemented and browser-verified; typed Jalali date entry is not implemented.
-6. **LIF-06 — production identity.** Supplied by deployment; the preview personas are not production credentials.
-7. **OPS-02/OPS-06 — external URL and authoritative weights.** Both are external blockers; neither is claimed or faked.
+2. **WEB-21/INT-11 — undo/redo.** No implementation found.
+3. **WEB-04 — WBS hierarchy.** The workspace has a flat WBS list; no hierarchy editor or rollup navigation.
+4. **WEB-17/LOC-04 — Jalali date entry.** Display conversion is implemented and browser-verified; typed Jalali date entry is not implemented.
+5. **LIF-06 — production identity.** Supplied by deployment; the preview personas are not production credentials.
+6. **OPS-02/OPS-06 — external URL and authoritative weights.** Both are external blockers; neither is claimed or faked.
 
 ## Change rule
 

@@ -783,7 +783,7 @@ async function main() {
     });
 
     for (const surface of [
-      { menu: "project", label: "Project", status: "Partial", submenus: 2 },
+      { menu: "project", label: "Project", status: "Partial", submenus: 3 },
       { menu: "resources", label: "Resources", status: "Preview", submenus: 2 },
       { menu: "control", label: "Control", status: "Partial", submenus: 2 },
       { menu: "schedule", label: "Schedule", status: "Implemented", submenus: 13 },
@@ -1374,6 +1374,123 @@ async function main() {
       canonical_values: importedRow.values,
     });
 
+    await page.click('[data-menu="project"]');
+    await page.waitFor(
+      `document.querySelector("[data-menu='project']")?.getAttribute("aria-current") === "page"`,
+      "project surface for interchange",
+    );
+    await page.scrollTo("#cp-interchange");
+    await page.waitForSelector("[data-interchange-export]", "interchange export control");
+    const interchangeActivityCount = await page.text(
+      "[data-interchange-activity-count]",
+    );
+    assert(
+      interchangeActivityCount === "14 loaded activities",
+      `interchange panel must count the loaded activities, got ${interchangeActivityCount}`,
+    );
+    await page.click("[data-interchange-export]");
+    await page.waitFor(
+      `Boolean(document.querySelector("[data-interchange-export-result] .cp-interchange-success [data-interchange-download]"))`,
+      "server-generated interchange export",
+    );
+    const interchangeExportStatus = await page.text(
+      "[data-interchange-export-status]",
+    );
+    assert(
+      (interchangeExportStatus ?? "").includes("server generated"),
+      `export must report the server document, got ${interchangeExportStatus}`,
+    );
+    const exportedUiXml = await page.evaluate(
+      `(async () => {
+        const link = document.querySelector("[data-interchange-download]");
+        if (!link) return null;
+        const response = await fetch(link.href);
+        return await response.text();
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(exportedUiXml, "the download link must expose the exported document");
+    assert(
+      (exportedUiXml.match(/<Activity>/g) ?? []).length === 14,
+      "the exported document must carry every loaded activity",
+    );
+    assert(
+      exportedUiXml.includes("<Id>A100</Id>") &&
+        exportedUiXml.includes("<Name>Project kickoff</Name>"),
+      "the exported document must carry canonical activity values",
+    );
+    assert(
+      !(await page.text("#cp-interchange")).includes("Oracle") &&
+        !(await page.text("#cp-interchange")).includes("Primavera"),
+      "the interchange surface must not expose third-party branding",
+    );
+    await page.screenshot("07d-interchange-export.png");
+
+    await page.setInput("[data-interchange-input]", exportedUiXml);
+    await page.click("[data-interchange-import]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-interchange-import-result] tbody tr").length === 14`,
+      "round-trip mapped import rows",
+    );
+    const interchangeImportStatus = await page.text(
+      "[data-interchange-import-status]",
+    );
+    assert(
+      (interchangeImportStatus ?? "").includes("14 rows mapped"),
+      `import must report all mapped rows, got ${interchangeImportStatus}`,
+    );
+    const firstImportedRow = await page.text(
+      "[data-interchange-import-result] tbody tr:first-child",
+    );
+    assert(
+      (firstImportedRow ?? "").includes("A100") &&
+        (firstImportedRow ?? "").includes("Project kickoff"),
+      `the first mapped row must expose canonical values, got ${firstImportedRow}`,
+    );
+    await page.screenshot("07e-interchange-import.png");
+
+    await page.setInput("[data-interchange-input]", "<not-a-provider-document>");
+    await page.click("[data-interchange-import]");
+    await page.waitFor(
+      `Boolean(document.querySelector("[data-interchange-import-result] .cp-interchange-error"))`,
+      "explicit invalid document error",
+    );
+    const invalidInterchange = await page.text(
+      "[data-interchange-import-result]",
+    );
+    assert(
+      (invalidInterchange ?? "").includes("INVALID_XML"),
+      `invalid documents must surface the server code, got ${invalidInterchange}`,
+    );
+    assert(
+      (await page.count("[data-interchange-import-result] tbody tr")) === 0,
+      "an invalid document must not display fabricated rows",
+    );
+    await page.screenshot("07f-interchange-invalid.png");
+    EVIDENCE.interchange_ui = {
+      activity_count: interchangeActivityCount,
+      export_status: interchangeExportStatus,
+      download_rows: (exportedUiXml.match(/<Activity>/g) ?? []).length,
+      import_status: interchangeImportStatus,
+      first_imported_row: firstImportedRow,
+      invalid_document: invalidInterchange,
+      source: "project import/export panel over the authenticated API",
+    };
+    record("project panel exports and re-imports every activity through the server codec", {
+      activity_count: interchangeActivityCount,
+      export_status: interchangeExportStatus,
+      import_status: interchangeImportStatus,
+      invalid_document_row_count: await page.count(
+        "[data-interchange-import-result] tbody tr",
+      ),
+    });
+
+    await page.click('[data-menu="schedule"]');
+    await page.waitFor(
+      `document.querySelector("[data-menu='schedule']")?.getAttribute("aria-current") === "page"`,
+      "schedule surface after interchange",
+    );
+
     const capacity = await page.evaluate(
       `(async () => {
         const headers = {
@@ -1644,12 +1761,70 @@ async function main() {
       return { status: response.status, body };
     })()`, { awaitPromise: true });
     assert(viewerSnapshotPost.status === 403, "viewer snapshot publication must be denied with 403");
+
+    await page.click('[data-menu="project"]');
+    await page.scrollTo("#cp-interchange");
+    await page.waitForSelector("[data-interchange-export]", "viewer interchange export");
+    await page.click("[data-interchange-export]");
+    await page.waitFor(
+      `Boolean(document.querySelector("[data-interchange-export-result] .cp-interchange-success [data-interchange-download]"))`,
+      "viewer interchange read export",
+    );
+    const viewerExportStatus = await page.text(
+      "[data-interchange-export-status]",
+    );
+    assert(
+      (viewerExportStatus ?? "").includes("server generated"),
+      "viewer must be able to generate a read-only export",
+    );
+    await page.setInput(
+      "[data-interchange-input]",
+      "<APIBusinessObjects><Activity><Id>V1</Id><Name>Denied</Name></Activity></APIBusinessObjects>",
+    );
+    await page.click("[data-interchange-import]");
+    await page.waitFor(
+      `Boolean(document.querySelector("[data-interchange-import-result] .cp-interchange-error"))`,
+      "viewer interchange write denial",
+    );
+    const viewerImportError = await page.text(
+      "[data-interchange-import-result]",
+    );
+    assert(
+      (viewerImportError ?? "").includes("authorization denied") &&
+        (viewerImportError ?? "").includes("project.write"),
+      `viewer import must surface the denied permission, got ${viewerImportError}`,
+    );
+    assert(
+      (await page.count("[data-interchange-import-result] tbody tr")) === 0,
+      "a denied import must not display mapped rows",
+    );
+    await page.screenshot("11a-viewer-interchange.png");
+
     EVIDENCE.permissions = {
       session_roles: sessionViewer.roles,
       layout_read_status: layoutGet.status,
       layout_write: viewerLayoutPost,
       snapshot_write: viewerSnapshotPost,
+      interchange_export: viewerExportStatus,
+      interchange_import_denied: viewerImportError,
     };
+    record("viewer can read interchange but the import write is explicitly denied", {
+      export_status: viewerExportStatus,
+      import_error: viewerImportError,
+      import_rows: await page.count(
+        "[data-interchange-import-result] tbody tr",
+      ),
+    });
+    await page.evaluate(`(() => {
+      const button = document.querySelector("[data-run-schedule]");
+      if (button) button.setAttribute("data-e2e-stale", "true");
+      return true;
+    })()`);
+    await page.click('[data-menu="schedule"]');
+    await page.waitFor(
+      `Boolean(document.querySelector("[data-run-schedule]:not([data-e2e-stale])"))`,
+      "viewer schedule run panel remounted",
+    );
     await page.click("[data-run-schedule]");
     await page.waitFor(
       `(document.querySelector("[data-run-status]")?.textContent ?? "").includes("did not complete") ||
