@@ -156,7 +156,15 @@ export function mountAIAssistantChatPanel(
   details.open = wasOpen;
   details.dir = locale.toLowerCase().startsWith("fa") ? "rtl" : "ltr";
 
-  const summary = element("summary", "cp-ai-chat-summary", t.title);
+  const summary = element("summary", "cp-ai-chat-summary");
+  const avatar = element("img", "cp-ai-chat-avatar");
+  avatar.src = "./cubi-assistant-avatar.svg";
+  avatar.alt = "CUBI AI Assistant";
+  avatar.width = 44;
+  avatar.height = 44;
+  avatar.decoding = "async";
+  const summaryTitle = element("span", "cp-ai-chat-summary-title", t.title);
+  summary.append(avatar, summaryTitle);
   details.append(summary);
   const content = element("div", "cp-ai-chat-content");
   if (!isAIAssistantChatLocaleSupported(locale)) {
