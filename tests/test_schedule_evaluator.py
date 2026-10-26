@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
 
@@ -333,6 +334,64 @@ def test_evaluator_places_alap_assignments_backward_from_cpm_early_and_late_date
         date(2026, 9, 29),
     )
     assert placed.assignment_float_working_days == 5
+
+    # The P6 Level Resources preservation option is independent of ScheduleMode.
+    # EARLIEST + resource leveling + preservation disabled triggers a backward
+    # leveling pass and must therefore use the latest feasible nondriving window.
+    def evaluate_earliest_with_preservation(*, snapshot_id: str, preserve: bool):
+        configured_source = replace(
+            source,
+            snapshot_id=snapshot_id,
+            schedule_options=ScheduleOptions(
+                mode=ScheduleMode.EARLIEST,
+                level_all_resources=True,
+                preserve_scheduled_early_and_late_dates=preserve,
+            ),
+        )
+        configured_context = replace(context, input_snapshot_id=snapshot_id)
+        configured_snapshot = build_snapshot(
+            configured_source,
+            configured_context,
+            datetime(2026, 9, 30, tzinfo=timezone.utc),
+        )
+        return evaluate_schedule_snapshot(
+            configured_snapshot,
+            configured_context,
+            registry(),
+            leveling_input=leveling_input,
+        )
+
+    backward_levelled = evaluate_earliest_with_preservation(
+        snapshot_id="S-EARLIEST-BACKWARD-LEVEL",
+        preserve=False,
+    )
+    assert backward_levelled.date_result is not None
+    assert backward_levelled.date_result.mode is ScheduleMode.EARLIEST
+    backward_placement = backward_levelled.resource_dependent_placement
+    assert backward_placement is not None
+    assert backward_placement.status == "COMPLETE"
+    assert backward_placement.placement_direction == "LATE"
+    backward_assignment = backward_placement.assignments[0]
+    assert (backward_assignment.start, backward_assignment.finish) == (
+        backward_assignment.late_start,
+        backward_assignment.late_finish,
+    )
+
+    forward_levelled = evaluate_earliest_with_preservation(
+        snapshot_id="S-EARLIEST-PRESERVED",
+        preserve=True,
+    )
+    assert forward_levelled.date_result is not None
+    assert forward_levelled.date_result.mode is ScheduleMode.EARLIEST
+    forward_placement = forward_levelled.resource_dependent_placement
+    assert forward_placement is not None
+    assert forward_placement.status == "COMPLETE"
+    assert forward_placement.placement_direction == "EARLY"
+    forward_assignment = forward_placement.assignments[0]
+    assert (forward_assignment.start, forward_assignment.finish) == (
+        forward_assignment.early_start,
+        forward_assignment.early_finish,
+    )
 
 
 def test_evaluator_rejects_leveling_request_without_authoritative_leveling_input():
