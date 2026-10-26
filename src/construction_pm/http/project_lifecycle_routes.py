@@ -2238,7 +2238,13 @@ class ProjectLifecycleHttpRoutes:
                     columns,
                     metadata,
                 )
-                result = self._p6_layout_definition_api.save(layout, auth_context=auth)
+                try:
+                    result = self._p6_layout_definition_api.save(layout, auth_context=auth)
+                except P6LayoutPersistenceError as exc:
+                    code = str(exc)
+                    if code in {"REVISION_CONFLICT", "IMMUTABLE_LAYOUT_REVISION"}:
+                        return self._error(409, code, "error.p6.layout.conflict")
+                    return self._error(400, code or "INVALID_LAYOUT_REQUEST", "error.request.invalid")
                 return self._json(200, {"contract_version": P6_LAYOUT_DEFINITION_API_VERSION, **result["layout"]})
             if (
                 method == "GET"

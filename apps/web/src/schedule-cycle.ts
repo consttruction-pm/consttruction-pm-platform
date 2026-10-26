@@ -595,8 +595,9 @@ async function mountSettingsPanel(
   const calendarSystemInput = form?.elements.namedItem("calendar_system") as HTMLSelectElement | null;
   const recordIso = (input: HTMLInputElement) => {
     if (input.dataset.dateSystem === "jalali") {
-      const parsed = parseJalaliDateInput(input.value);
-      if (parsed) input.dataset.iso = parsed;
+      // An unparsable entry must not leave the previously valid ISO value
+      // behind: switching calendars would silently resurrect that date.
+      input.dataset.iso = parseJalaliDateInput(input.value) ?? "";
       return;
     }
     const raw = input.value.trim();
@@ -606,7 +607,7 @@ async function mountSettingsPanel(
     }
     if (input.type === "datetime-local") {
       const parsed = new Date(raw);
-      if (!Number.isNaN(parsed.getTime())) input.dataset.iso = parsed.toISOString();
+      input.dataset.iso = Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString();
       return;
     }
     input.dataset.iso = raw.slice(0, 10);

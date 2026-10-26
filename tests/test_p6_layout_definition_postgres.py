@@ -79,5 +79,22 @@ def test_postgres_layout_revision_history_is_newest_first_and_scoped():
                 repo.list_revisions(
                     BackendScope(tenant, "layout-pg", 7), "project", "activity", limit=101
                 )
+
+            # Retrying the stored head is idempotent and appends nothing.
+            assert repo.upsert(_layout(3, 240, tenant)) == _layout(3, 240, tenant)
+            assert [item.revision for item in repo.list_revisions(
+                BackendScope(tenant, "layout-pg", 7), "project", "activity"
+            )] == [3, 2, 1]
+
+            # Stale bases conflict; rewriting a published revision is immutable.
+            with pytest.raises(P6LayoutPersistenceError, match="REVISION_CONFLICT"):
+                repo.upsert(_layout(2, 300, tenant))
+            with pytest.raises(P6LayoutPersistenceError, match="IMMUTABLE_LAYOUT_REVISION"):
+                repo.upsert(_layout(3, 999, tenant))
+            with pytest.raises(P6LayoutPersistenceError, match="REVISION_CONFLICT"):
+                repo.upsert(_layout(5, 240, tenant))
+            assert [item.revision for item in repo.list_revisions(
+                BackendScope(tenant, "layout-pg", 7), "project", "activity"
+            )] == [3, 2, 1]
         finally:
             connection.rollback()

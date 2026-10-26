@@ -1384,6 +1384,94 @@ def test_p6_layout_write_route_persists_authenticated_layout():
     assert json.loads(body) == saved
 
 
+def test_p6_layout_write_route_retry_is_idempotent():
+    r, _, _ = p6_routes()
+    payload = {
+        "revision": 1,
+        "columns": [{
+            "field_id": "activity_id",
+            "visible": True,
+            "order": 0,
+            "label": None,
+            "width": 120.0,
+            "alignment": "start",
+            "pinned": False,
+            "frozen": False,
+        }],
+        "metadata": {"density": "compact"},
+    }
+    for _ in range(2):
+        status, _, body = r.handle(
+            "POST",
+            "/api/projects/p1/p6/layouts/project/activity",
+            cookies={"cp_session": "s1"},
+            body=json.dumps(payload).encode("utf-8"),
+        )
+        assert status == 200
+        assert json.loads(body)["revision"] == 1
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/layouts/project/activity/revisions",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    revisions = json.loads(body)["revisions"]
+    assert [item["revision"] for item in revisions] == [1]
+    assert revisions[0]["columns"][0]["width"] == 120.0
+
+
+def test_p6_layout_write_route_reports_stale_and_immutable_writes_as_409():
+    r, _, _ = p6_routes()
+
+    def write(revision: int, width: float):
+        column = {
+            "field_id": "activity_id",
+            "visible": True,
+            "order": 0,
+            "label": None,
+            "width": width,
+            "alignment": "start",
+            "pinned": False,
+            "frozen": False,
+        }
+        return r.handle(
+            "POST",
+            "/api/projects/p1/p6/layouts/project/activity",
+            cookies={"cp_session": "s1"},
+            body=json.dumps({
+                "revision": revision,
+                "columns": [column],
+                "metadata": {},
+            }).encode("utf-8"),
+        )
+
+    assert write(2, 120.0)[0] == 200
+    assert write(3, 180.0)[0] == 200
+
+    # A client behind the head must reload instead of rewriting history.
+    status, _, body = write(2, 300.0)
+    assert status == 409
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"
+    assert json.loads(body)["message_key"] == "error.p6.layout.conflict"
+
+    # Publishing different content under an existing revision is immutable.
+    status, _, body = write(3, 300.0)
+    assert status == 409
+    assert json.loads(body)["code"] == "IMMUTABLE_LAYOUT_REVISION"
+
+    # Rejected writes leave the published head untouched.
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/layouts/project/activity",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    head = json.loads(body)
+    assert head["revision"] == 3
+    assert head["columns"][0]["width"] == 180.0
+
+
 def test_p6_layout_write_route_rejects_non_object_json():
     r, _, _ = p6_routes()
     status, _, body = r.handle(

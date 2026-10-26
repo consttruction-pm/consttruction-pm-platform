@@ -93,6 +93,36 @@ def _encode(layout: PersistedP6Layout) -> tuple[object, ...]:
     )
 
 
+def _decide_write(
+    latest: tuple[object, ...] | None,
+    layout: PersistedP6Layout,
+    payload: tuple[object, ...],
+) -> str | None:
+    """Classify a write against the persisted head.
+
+    ``None`` means the write is an idempotent retry of the stored head and must
+    not append. ``"append"`` means it is the next revision. Any other value is
+    the fail-closed error code.
+
+    A retry is only idempotent when both the revision and the full content
+    match the head. A client whose revision disagrees with the head is stale
+    and receives ``REVISION_CONFLICT`` so it can reload the latest layout;
+    attempting to change an already-published revision number is reported as
+    ``IMMUTABLE_LAYOUT_REVISION``.
+    """
+
+    if latest is None:
+        return "append"
+    head_revision = int(latest[0])
+    if tuple(latest) == payload:
+        return None if head_revision == layout.revision else "REVISION_CONFLICT"
+    if layout.revision == head_revision:
+        return "IMMUTABLE_LAYOUT_REVISION"
+    if layout.revision != head_revision + 1:
+        return "REVISION_CONFLICT"
+    return "append"
+
+
 def _from_row(scope: BackendScope, layout_scope: str, view_id: str, row: tuple[object, ...]) -> PersistedP6Layout:
     revision, columns_json, metadata_json = row
     try:
@@ -182,15 +212,11 @@ class SQLiteP6LayoutRepository:
                 self.connection.commit()
             return layout
 
-        latest_revision = int(latest[0])
-        if tuple(latest[1:]) == payload:
-            if latest_revision != layout.revision:
-                raise P6LayoutPersistenceError("IMMUTABLE_LAYOUT_REVISION")
+        decision = _decide_write(latest, layout, payload)
+        if decision is None:
             return layout
-        if layout.revision <= latest_revision:
-            raise P6LayoutPersistenceError("IMMUTABLE_LAYOUT_REVISION")
-        if layout.revision != latest_revision + 1:
-            raise P6LayoutPersistenceError("REVISION_CONFLICT")
+        if decision != "append":
+            raise P6LayoutPersistenceError(decision)
         try:
             self.connection.execute(
                 "INSERT INTO p6_layout_definition_revisions VALUES (?,?,?,?,?,?,?,?)",
@@ -286,15 +312,11 @@ class PostgresP6LayoutRepository:
             if self._other_project_revision_exists(layout):
                 raise P6LayoutPersistenceError("REVISION_CONFLICT")
         else:
-            latest_revision = int(latest[0])
-            if tuple(latest[1:]) == payload:
-                if latest_revision != layout.revision:
-                    raise P6LayoutPersistenceError("IMMUTABLE_LAYOUT_REVISION")
+            decision = _decide_write(latest, layout, payload)
+            if decision is None:
                 return layout
-            if layout.revision <= latest_revision:
-                raise P6LayoutPersistenceError("IMMUTABLE_LAYOUT_REVISION")
-            if layout.revision != latest_revision + 1:
-                raise P6LayoutPersistenceError("REVISION_CONFLICT")
+            if decision != "append":
+                raise P6LayoutPersistenceError(decision)
         self.connection.execute(
             "INSERT INTO p6_layout_definition_revisions "
             "(tenant_id, project_id, project_revision, layout_scope, view_id, revision, columns_json, metadata_json) "
