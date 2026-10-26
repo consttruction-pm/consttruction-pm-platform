@@ -64,6 +64,7 @@ jobs:
             const checks = [
               ["http://127.0.0.1:4173/", "CUBI Platform"],
               ["http://127.0.0.1:4173/styles.css", "prefers-reduced-motion"],
+              ["http://127.0.0.1:4173/cubi-assistant-avatar.svg", "CUBI AI Project Assistant"],
               ["http://127.0.0.1:4173/client-sync/src/scheduling-adapter.js", "SCHEDULING_CONTRACT_VERSION"],
               ["http://127.0.0.1:4173/platform/", "Project planning and controls, connected."],
               ["http://127.0.0.1:4173/solutions/", "Built around how construction projects are delivered."],
@@ -83,3 +84,18 @@ jobs:
             await new Promise((resolve) => server.close(resolve));
           }
           NODE
+
+      - name: Set up Python for full-stack preview E2E
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install preview runtime dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ../..
+
+      - name: Browser E2E for rendered assistant avatars
+        env:
+          CUBI_PYTHON: python
+        run: npm run test:e2e:preview

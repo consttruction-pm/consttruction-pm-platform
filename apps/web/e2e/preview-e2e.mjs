@@ -663,6 +663,34 @@ async function main() {
       mobile: false,
     });
 
+    await page.navigate(`${baseUrl}/`, ".cubi-reference-home", "public homepage for assistant avatar");
+    const landingAvatarState = await page.evaluate(`(() => {
+      const selectors = {
+        dashboard: ".cubi-ai-bubble img",
+        capability: ".cubi-feature-icon-assistant img",
+        technology: ".cubi-tech-badges .ai img",
+      };
+      return Object.fromEntries(Object.entries(selectors).map(([name, selector]) => {
+        const image = document.querySelector(selector);
+        return [name, {
+          found: Boolean(image),
+          source: image?.getAttribute("src") ?? null,
+          loaded: Boolean(image?.complete && image?.naturalWidth > 0),
+        }];
+      }));
+    })()`);
+    assert(
+      Object.values(landingAvatarState).length === 3 &&
+      Object.values(landingAvatarState).every((avatar) =>
+        avatar.found && avatar.loaded && avatar.source?.endsWith("/cubi-assistant-avatar.svg")
+      ),
+      `homepage assistant avatars must all load from the shared asset: ${JSON.stringify(landingAvatarState)}`,
+    );
+    await page.screenshot("01-homepage-assistant-avatar.png");
+    record("homepage assistant avatar is rendered and loaded in dashboard, capability card and technology badge", {
+      avatars: landingAvatarState,
+    });
+
     await page.navigate(
       `${baseUrl}/preview/login`,
       'form[action="/preview/login"]',
@@ -715,6 +743,35 @@ async function main() {
       `document.querySelectorAll(".cp-gantt-row").length === 14`,
       "fourteen Gantt rows",
     );
+    await page.waitForSelector("#cp-ai-assistant-chat .cp-ai-chat-avatar", "assistant chat avatar");
+    await page.waitForSelector("#cp-ai-action-panel .cp-ai-action-avatar", "assistant action panel avatar");
+    await page.waitFor(
+      `(() => {
+        const images = [
+          document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-avatar"),
+          document.querySelector("#cp-ai-action-panel .cp-ai-action-avatar"),
+        ];
+        return images.every((image) =>
+          image && image.complete && image.naturalWidth > 0 &&
+          image.getAttribute("src")?.endsWith("/cubi-assistant-avatar.svg")
+        );
+      })()`,
+      "workspace assistant avatars load from the shared asset",
+    );
+    const workspaceAvatarState = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("#cp-ai-assistant-chat .cp-ai-chat-avatar, #cp-ai-action-panel .cp-ai-action-avatar"))
+        .map((image) => ({
+          src: image.getAttribute("src"),
+          loaded: image.complete && image.naturalWidth > 0,
+        }))
+    )()`);
+    assert(
+      workspaceAvatarState.length === 2 && workspaceAvatarState.every((avatar) => avatar.loaded),
+      `workspace chat and action avatars must both load: ${JSON.stringify(workspaceAvatarState)}`,
+    );
+    record("authenticated workspace renders loaded chat and action-panel assistant avatars", {
+      avatars: workspaceAvatarState,
+    });
 
     assert(
       (await page.text(".cp-project"))?.includes(PROJECT_ID),

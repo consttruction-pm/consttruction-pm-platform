@@ -1,6 +1,7 @@
 import type { ApiTransport, ProjectContext } from "./client.js";
 import { AIActionClient, type AIActionProposal, type CreateActivityProposal } from "./ai-action-client.js";
 import { translateWorkspaceText } from "./workspace-localization.js";
+import { cubiAssistantAvatarUrl } from "./cubi-brand-assets.js";
 
 type PanelLabels = {
   title: string; description: string; createTitle: string; activityId: string;
@@ -146,7 +147,16 @@ export function mountAIActionPanel(
   details.open = wasOpen;
   details.dir = locale.toLowerCase().startsWith("fa") ? "rtl" : "ltr";
 
-  const summary = element("summary", "cp-ai-action-summary", t.title);
+  const summary = element("summary", "cp-ai-action-summary");
+  const avatar = element("img", "cp-ai-action-avatar");
+  avatar.src = cubiAssistantAvatarUrl();
+  avatar.alt = "";
+  avatar.width = 44;
+  avatar.height = 44;
+  avatar.decoding = "async";
+  avatar.setAttribute("aria-hidden", "true");
+  const summaryTitle = element("span", "cp-ai-action-summary-title", t.title);
+  summary.append(avatar, summaryTitle);
   details.append(summary);
   const content = element("div", "cp-ai-action-content");
   content.append(element("p", "cp-ai-action-description", t.description));

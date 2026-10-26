@@ -99,6 +99,27 @@ test("standalone public pages have unique metadata and expected content", () => 
   }
 });
 
+test("assistant avatar is connected to every existing Web assistant surface while the product logo stays canonical", () => {
+  const chat = readFileSync(join(root, "src/ai-assistant-chat.ts"), "utf8");
+  const actions = readFileSync(join(root, "src/ai-action-panel.ts"), "utf8");
+  const brandAssets = readFileSync(join(root, "src/cubi-brand-assets.ts"), "utf8");
+  const desktopAssets = readFileSync(join(root, "../desktop/src/cubi-brand-assets.ts"), "utf8");
+  const mobileAssets = readFileSync(join(root, "../mobile/src/cubi-brand-assets.ts"), "utf8");
+  const avatar = readFileSync(join(root, "public/cubi-assistant-avatar.svg"), "utf8");
+
+  assert.match(landing, /assistantAvatar: true/);
+  assert.match(landing, /cubiAssistantAvatarUrl\(\)/);
+  assert.match(landing, /cubi-feature-icon-assistant/);
+  assert.match(chat, /avatar\.src = cubiAssistantAvatarUrl\(\)/);
+  assert.match(chat, /messageAvatar\.src = cubiAssistantAvatarUrl\(\)/);
+  assert.match(actions, /avatar\.src = cubiAssistantAvatarUrl\(\)/);
+  assert.match(brandAssets, /new URL\("\.\.\/\.\.\/\.\.\/cubi-assistant-avatar\.svg", moduleUrl\)/);
+  assert.match(desktopAssets, /CUBI_ASSISTANT_AVATAR_ASSET/);
+  assert.match(mobileAssets, /CUBI_ASSISTANT_AVATAR_ASSET/);
+  assert.match(avatar, /<title id="title">CUBI AI Project Assistant<\/title>/);
+  assert.match(index, /<link rel="icon" href="\.\/cubi-platform-logo-primary\.svg" type="image\/svg\+xml"\s*\/>/);
+});
+
 test("homepage header, dashboard and footer use the canonical logo asset only", () => {
   assert.equal((landing.match(/src="\.\/cubi-platform-logo-primary\.svg"/g) ?? []).length, 3);
   assert.match(landing, /cubi-exact-brand[^>]*>[\s\S]*?cubi-platform-logo-primary\.svg/);
