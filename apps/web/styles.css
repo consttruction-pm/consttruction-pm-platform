@@ -589,6 +589,36 @@ th {
   cursor: not-allowed;
 }
 
+.cp-p6-history-restore {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+}
+
+.cp-p6-history-restore label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cp-muted);
+  font-size: var(--cubi-ui-small);
+}
+
+.cp-p6-history-restore select {
+  min-height: 30px;
+  max-width: 220px;
+  padding: 4px 8px;
+  border: 1px solid var(--cp-border);
+  border-radius: 6px;
+  background: var(--cp-surface);
+  color: var(--cp-navy);
+  font-size: var(--cubi-ui-small);
+}
+
+.cp-p6-history-restore select:disabled {
+  opacity: 0.55;
+}
+
 .cp-p6-history-notice {
   color: var(--cp-muted);
   font-size: var(--cubi-ui-small);

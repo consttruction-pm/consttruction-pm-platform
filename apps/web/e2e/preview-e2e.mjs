@@ -1228,6 +1228,74 @@ async function main() {
       restored_field: addTarget,
     });
 
+    const restoreRevision = layoutAfterUndo.body.revision;
+    await page.waitFor(
+      `(() => {
+        const select = document.querySelector("[data-p6-layout-revision-select]");
+        return Boolean(select) && Array.from(select.options).some(
+          (option) => option.value === ${JSON.stringify(String(restoreRevision))},
+        );
+      })()`,
+      "older layout revision is offered for restore",
+    );
+    const restoreSelectValues = await page.evaluate(`(() => {
+      const select = document.querySelector("[data-p6-layout-revision-select]");
+      return select ? Array.from(select.options).map((option) => option.value) : [];
+    })()`);
+    assert(
+      Array.isArray(restoreSelectValues)
+        && restoreSelectValues.includes(String(restoreRevision))
+        && !restoreSelectValues.includes(String(layoutAfterRedo.body.revision)),
+      "restore must offer only older revisions, never the current head",
+    );
+    await page.evaluate(`(() => {
+      const select = document.querySelector("[data-p6-layout-revision-select]");
+      if (!select) return false;
+      select.value = ${JSON.stringify(String(restoreRevision))};
+      return select.value === ${JSON.stringify(String(restoreRevision))};
+    })()`);
+    await page.click("[data-p6-layout-restore]");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      "restore reapplies the selected older revision",
+    );
+    const restoreNotice = await page.text(".cp-p6-history-notice");
+    assert(
+      typeof restoreNotice === "string" && /restored|بازگردانی نسخه/.test(restoreNotice),
+      "restore must report its outcome in the active locale",
+    );
+    const layoutAfterRestore = await readLayoutFromPage(page);
+    assert(
+      layoutAfterRestore.body.revision > layoutAfterRedo.body.revision,
+      "restore must append a new revision instead of rewriting the old one",
+    );
+    assert(
+      layoutAfterRestore.body.columns.some((column) => column.field_id === addTarget),
+      "restore must persist the selected revision's column set",
+    );
+    const historyAfterRestore = await readLayoutHistoryFromPage(page);
+    const restoreHistoryRevisions = (historyAfterRestore.body?.revisions ?? []).map((revision) => revision.revision);
+    assert(
+      restoreHistoryRevisions[0] === layoutAfterRestore.body.revision
+        && restoreHistoryRevisions.includes(restoreRevision)
+        && restoreHistoryRevisions.length >= 4
+        && restoreHistoryRevisions.every((revision, index) => index === 0 || revision < restoreHistoryRevisions[index - 1]),
+      "restore must keep the append-only history and preserve the selected revision",
+    );
+    await page.screenshot("04c-layout-restore.png");
+    record("layout restore reapplies a selected older revision as a new revision", {
+      restored_from_revision: restoreRevision,
+      revision_after_restore: layoutAfterRestore.body.revision,
+      history_revisions: restoreHistoryRevisions.slice(0, 6),
+      restored_field: addTarget,
+    });
+
+    await page.click(`[data-p6-field-remove="${addTarget}"]`);
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
+      "remove restored column before durable undo",
+    );
+
     await page.reload(".cp-project-selection", "reload before durable undo");
     await page.click(`button[data-project-id="${PROJECT_ID}"]`);
     await page.waitForSelector(".cp-workspace", "workspace for durable undo");

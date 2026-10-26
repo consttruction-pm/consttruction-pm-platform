@@ -500,7 +500,7 @@ test("P6 chooser width controls forward authoritative presentation changes", () 
 });
 
 
-test("layout history controls render localized state and dispatch undo and redo", () => {
+test("layout history controls render localized state and dispatch undo, redo and restore", () => {
   const state = {
     ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
     p6FieldRegistry: {
@@ -545,30 +545,102 @@ test("layout history controls render localized state and dispatch undo and redo"
     dataset: { p6LayoutRedo: "" },
     closest: () => redoButton,
   };
-  const container: RenderContainer & { addEventListener: (event: string, listener: (event: Event) => void) => void } = {
+  const restoreButton = {
+    dataset: { p6LayoutRestore: "" },
+    closest: () => restoreButton,
+  };
+  const revisionSelect = { value: "3" };
+  const container: RenderContainer & {
+    addEventListener: (event: string, listener: (event: Event) => void) => void;
+    querySelector: (selector: string) => unknown;
+  } = {
     innerHTML: "",
     querySelectorAll: () => [],
     addEventListener: (event, listener) => { if (event === "click") clickListener = listener; },
+    querySelector: (selector) => selector === "[data-p6-layout-revision-select]" ? revisionSelect : null,
   };
 
   renderMainWorkspace(container as unknown as HTMLElement, state, {
-    layoutHistory: { canUndo: true, canRedo: false, noticeKey: "undone" },
+    layoutHistory: {
+      canUndo: true,
+      canRedo: false,
+      noticeKey: "restored",
+      revisions: [
+        { revision: 4, columnCount: 1 },
+        { revision: 3, columnCount: 2 },
+        { revision: 1, columnCount: 1 },
+      ],
+    },
     onP6LayoutUndo: () => events.push("undo"),
     onP6LayoutRedo: () => events.push("redo"),
+    onP6LayoutRestore: (revision) => events.push(`restore:${revision}`),
   });
 
   assert.ok(container.innerHTML.includes("data-p6-layout-undo"));
   assert.ok(container.innerHTML.includes("data-p6-layout-redo"));
-  assert.match(container.innerHTML, /Last layout change undone\./);
+  assert.match(container.innerHTML, /Layout revision restored\./);
   assert.match(container.innerHTML, /aria-label="Layout history"/);
+  assert.match(container.innerHTML, /data-p6-layout-revision-select/);
+  assert.match(container.innerHTML, /<option value="3">R3 · 2 column\(s\)<\/option>/);
+  assert.match(container.innerHTML, /<option value="1">R1 · 1 column\(s\)<\/option>/);
+  assert.doesNotMatch(container.innerHTML, /<option value="4">/);
   const undoMarkup = container.innerHTML.match(/<button[^>]*data-p6-layout-undo[^>]*>/)?.[0] ?? "";
   const redoMarkup = container.innerHTML.match(/<button[^>]*data-p6-layout-redo[^>]*>/)?.[0] ?? "";
+  const restoreMarkup = container.innerHTML.match(/<button[^>]*data-p6-layout-restore[^>]*>/)?.[0] ?? "";
   assert.ok(!undoMarkup.includes("disabled"), "undo must be enabled when canUndo is true");
   assert.ok(redoMarkup.includes("disabled"), "redo must be disabled when canRedo is false");
+  assert.ok(!restoreMarkup.includes("disabled"), "restore must be enabled when older revisions exist");
 
   clickListener?.({ target: undoButton } as unknown as Event);
   clickListener?.({ target: redoButton } as unknown as Event);
-  assert.deepEqual(events, ["undo", "redo"]);
+  clickListener?.({ target: restoreButton } as unknown as Event);
+  assert.deepEqual(events, ["undo", "redo", "restore:3"]);
+});
+
+test("layout restore control stays disabled without an older revision", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "26",
+      status: "active",
+      fields: [{
+        field_id: "activity.activity_id",
+        subject_area: "activity",
+        p6_field: "Activity ID",
+        display_name: "Activity ID",
+        data_type: "string",
+        writable: false,
+        computed: false,
+        disposition: "supported",
+      }],
+    } as const,
+    p6Layout: {
+      schema_version: "p6-layout.v1",
+      scope: "project",
+      view_id: "activity-grid",
+      revision: 1,
+      columns: [{
+        field_id: "activity.activity_id",
+        visible: true,
+        order: 0,
+        width: 120,
+        alignment: "start",
+        pinned: false,
+        frozen: false,
+      }],
+    } as const,
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    layoutHistory: { canUndo: true, canRedo: false, revisions: [{ revision: 1, columnCount: 1 }] },
+  });
+  const selectMarkup = container.innerHTML.match(/<select[^>]*data-p6-layout-revision-select[^>]*>/)?.[0] ?? "";
+  const restoreMarkup = container.innerHTML.match(/<button[^>]*data-p6-layout-restore[^>]*>/)?.[0] ?? "";
+  assert.ok(selectMarkup.includes("disabled"));
+  assert.ok(restoreMarkup.includes("disabled"));
+  assert.match(container.innerHTML, /No earlier layout revision is available\./);
 });
 
 test("P6 chooser exposes hidden authoritative fields", () => {  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), p6FieldRegistry: { registry_version: "p6-field-registry.v1", reference_product: "Oracle Primavera P6 Professional", reference_version: "26", status: "active", fields: [{ field_id: "activity.activity_id", subject_area: "activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "supported" }] } as const, p6Layout: { schema_version: "p6-layout.v1", scope: "project", view_id: "activity-grid", revision: 1, columns: [{ field_id: "activity.activity_id", visible: false, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }] } as const };
