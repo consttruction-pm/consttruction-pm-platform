@@ -1,6 +1,7 @@
 import type { ApiTransport, ProjectContext } from "./client.js";
 import { AIActionClient, type AIAssistantHistoryMessage } from "./ai-action-client.js";
 import { getWorkspaceLocaleDefinition, translateWorkspaceText } from "./workspace-localization.js";
+import { cubiAssistantAvatarUrl } from "./cubi-brand-assets.js";
 
 type ChatLabels = {
   title: string;
@@ -158,8 +159,9 @@ export function mountAIAssistantChatPanel(
 
   const summary = element("summary", "cp-ai-chat-summary");
   const avatar = element("img", "cp-ai-chat-avatar");
-  avatar.src = "./cubi-assistant-avatar.svg";
-  avatar.alt = "CUBI AI Assistant";
+  avatar.src = cubiAssistantAvatarUrl();
+  avatar.alt = "";
+  avatar.setAttribute("aria-hidden", "true");
   avatar.width = 44;
   avatar.height = 44;
   avatar.decoding = "async";
@@ -213,8 +215,19 @@ export function mountAIAssistantChatPanel(
       for (const message of session!.messages) {
         const item = element("article", `cp-ai-chat-message cp-ai-chat-message-${message.role}`);
         const author = message.role === "user" ? t.you : t.assistant;
-        item.append(element("div", "cp-ai-chat-author", author));
-        item.append(element("p", "cp-ai-chat-text", message.content));
+        const authorHeading = element("div", "cp-ai-chat-message-heading");
+        if (message.role === "assistant") {
+          const messageAvatar = element("img", "cp-ai-chat-message-avatar");
+          messageAvatar.src = cubiAssistantAvatarUrl();
+          messageAvatar.alt = "";
+          messageAvatar.width = 28;
+          messageAvatar.height = 28;
+          messageAvatar.decoding = "async";
+          messageAvatar.setAttribute("aria-hidden", "true");
+          authorHeading.append(messageAvatar);
+        }
+        authorHeading.append(element("div", "cp-ai-chat-author", author));
+        item.append(authorHeading, element("p", "cp-ai-chat-text", message.content));
         transcript.append(item);
       }
     }
