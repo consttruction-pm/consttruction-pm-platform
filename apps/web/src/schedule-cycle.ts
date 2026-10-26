@@ -1,5 +1,10 @@
 import type { ApiTransport, ProjectContext } from "./client.js";
 import type { AuthoritativeScheduleFacts } from "./workspace-model.js";
+import {
+  formatJalaliDateInput,
+  isValidCanonicalIsoDate,
+  parseJalaliDateInput,
+} from "./workspace-jalali-entry.js";
 
 export type ScheduleReferenceStatus =
   | "mapped_unverified"
@@ -224,6 +229,7 @@ const LABELS = {
     runIntro: "Publish an immutable snapshot from saved project data, then request results from the authoritative schedule service.",
     calendarId: "Project calendar ID", calendarVersion: "Calendar version", chooseCalendar: "Choose an existing project calendar", calendarLoadError: "Could not load project calendars; enter an existing calendar ID and version.", calendarSystem: "Calendar date system",
     start: "Project start", finish: "Project finish (optional)", mode: "Calculation mode", priority: "Project leveling priority",
+    jalaliDateHint: "Type a Jalali date, for example ۱۴۰۵/۰۷/۱۵. It is stored as the canonical Gregorian date.",
     save: "Save settings", calculate: "Calculate and show results", saved: "Settings saved.", saving: "Saving…",
     running: "Publishing snapshot and retrieving results…", needSession: "An active sign-in is required.",
     settingsError: "Could not load saved settings.", saveFailed: "Settings were not saved.", runFailed: "Schedule calculation did not complete.",
@@ -243,6 +249,7 @@ const LABELS = {
     runIntro: "از داده‌های ذخیره‌شده یک تصویر تغییرناپذیر ایجاد می‌شود و سپس نتیجه از سرویس اصلی زمان‌بندی دریافت می‌شود.",
     calendarId: "شناسهٔ تقویم پروژه", calendarVersion: "نسخهٔ تقویم", chooseCalendar: "انتخاب تقویم ثبت‌شدهٔ پروژه", calendarLoadError: "فهرست تقویم‌ها دریافت نشد؛ شناسه و نسخهٔ موجود را وارد کنید.", calendarSystem: "سیستم تاریخ تقویم",
     start: "شروع پروژه", finish: "پایان پروژه (اختیاری)", mode: "روش محاسبه", priority: "اولویت تسطیح منابع پروژه",
+    jalaliDateHint: "تاریخ شمسی را مانند ۱۴۰۵/۰۷/۱۵ وارد کنید؛ به‌صورت تاریخ میلادی استاندارد ذخیره می‌شود.",
     save: "ذخیرهٔ تنظیمات", calculate: "محاسبه و نمایش نتیجه", saved: "تنظیمات ذخیره شد.", saving: "در حال ذخیره…",
     running: "در حال انتشار تصویر و دریافت نتیجه…", needSession: "ورود معتبر به سامانه لازم است.",
     settingsError: "خواندن تنظیمات ذخیره‌شده ممکن نشد.", saveFailed: "تنظیمات ذخیره نشد.", runFailed: "اجرای زمان‌بندی کامل نشد.",
@@ -534,8 +541,11 @@ async function mountSettingsPanel(
         .map((item) => [item.name, draft![`option:${item.name}`]])),
     },
   };
-  const formatDateInput = (value: string, mode: string): string => {
+  const usesTypedJalali = (system: string, mode: string): boolean =>
+    system === "jalali" && mode === "DATE_BASED";
+  const formatDateInput = (value: string, mode: string, jalali: boolean): string => {
     if (!value) return "";
+    if (jalali) return formatJalaliDateInput(value);
     if (mode !== "TIME_AWARE") return value.slice(0, 10);
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value.slice(0, 16);
@@ -553,6 +563,16 @@ async function mountSettingsPanel(
       + "<p class=\"cp-muted\">" + safe(calendarsResult.ok ? (locale === "fa" ? "هنوز تقویمی در پروژه ثبت نشده است." : "No calendars are registered in this project yet.") : labels.calendarLoadError) + "</p>";
   const controls = (catalog?.schedule_options_schema ?? []).map((schema) =>
     renderSettingControl(schema, initial.schedule_options[schema.name] ?? schema.default, locale)).join("");
+  const dateField = (
+    name: "project_start" | "project_finish",
+    value: string,
+    required: boolean,
+  ): string => {
+    const jalali = usesTypedJalali(initial.calendar_system, initial.mode);
+    const type = jalali ? "text" : initial.mode === "TIME_AWARE" ? "datetime-local" : "date";
+    const label = name === "project_start" ? labels.start : labels.finish;
+    return `<label class="cp-schedule-option"><span>${safe(label)}</span><input${required ? " required" : ""} name="${name}" type="${type}" value="${safe(formatDateInput(value, initial.mode, jalali))}" data-date-system="${jalali ? "jalali" : "gregorian"}" data-iso="${safe(value)}"${jalali ? ' inputmode="numeric" placeholder="۱۴۰۵/۰۷/۱۵" autocomplete="off"' : ""} />${jalali ? `<small class="cp-muted">${safe(labels.jalaliDateHint)}</small>` : ""}</label>`;
+  };
   panel.innerHTML = `
     <p>${safe(labels.intro)}</p>
     ${!saved && !missing ? `<p role="alert">${safe(labels.noSettingsApi)}</p>` : ""}
@@ -561,8 +581,8 @@ async function mountSettingsPanel(
       <label class="cp-schedule-option"><span>${safe(labels.mode)}</span><select name="mode"><option value="DATE_BASED" ${initial.mode === "DATE_BASED" ? "selected" : ""}>${safe(locale === "fa" ? "تاریخ‌محور" : "Date based")}</option><option value="TIME_AWARE" ${initial.mode === "TIME_AWARE" ? "selected" : ""}>${safe(locale === "fa" ? "زمان‌محور" : "Time aware")}</option></select></label>
       ${calendarField}
       <label class="cp-schedule-option"><span>${safe(labels.calendarSystem)}</span><select name="calendar_system"><option value="gregorian" ${initial.calendar_system === "gregorian" ? "selected" : ""}>${safe(locale === "fa" ? "میلادی" : "Gregorian")}</option><option value="jalali" ${initial.calendar_system === "jalali" ? "selected" : ""}>${safe(locale === "fa" ? "هجری شمسی" : "Jalali")}</option></select></label>
-      <label class="cp-schedule-option"><span>${safe(labels.start)}</span><input required name="project_start" type="${initial.mode === "TIME_AWARE" ? "datetime-local" : "date"}" value="${safe(formatDateInput(initial.project_start, initial.mode))}" /></label>
-      <label class="cp-schedule-option"><span>${safe(labels.finish)}</span><input name="project_finish" type="${initial.mode === "TIME_AWARE" ? "datetime-local" : "date"}" value="${safe(formatDateInput(initial.project_finish, initial.mode))}" /></label>
+      ${dateField("project_start", initial.project_start, true)}
+      ${dateField("project_finish", initial.project_finish, false)}
       <label class="cp-schedule-option"><span>${safe(labels.priority)}</span><input required name="project_leveling_priority" type="number" min="1" max="100" step="1" value="${initial.project_leveling_priority}" /></label>
       ${controls ? `<h3 class="cp-schedule-options-subtitle">${safe(locale === "fa" ? "گزینه‌های هستهٔ محاسبه" : "Calculation engine options")}</h3><div class="cp-schedule-options-grid">${controls}</div>` : ""}
       <div class="cp-schedule-actions"><button type="submit">${safe(labels.save)}</button><span role="status" data-settings-status></span></div>
@@ -572,22 +592,62 @@ async function mountSettingsPanel(
   const startInput = form?.elements.namedItem("project_start") as HTMLInputElement | null;
   const finishInput = form?.elements.namedItem("project_finish") as HTMLInputElement | null;
   const calendarRefInput = form?.elements.namedItem("calendar_ref") as HTMLSelectElement | null;
+  const calendarSystemInput = form?.elements.namedItem("calendar_system") as HTMLSelectElement | null;
+  const recordIso = (input: HTMLInputElement) => {
+    if (input.dataset.dateSystem === "jalali") {
+      const parsed = parseJalaliDateInput(input.value);
+      if (parsed) input.dataset.iso = parsed;
+      return;
+    }
+    const raw = input.value.trim();
+    if (!raw) {
+      input.dataset.iso = "";
+      return;
+    }
+    if (input.type === "datetime-local") {
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) input.dataset.iso = parsed.toISOString();
+      return;
+    }
+    input.dataset.iso = raw.slice(0, 10);
+  };
   const syncDateTypes = () => {
     if (!modeInput || !startInput || !finishInput) return;
-    const isTime = modeInput.value === "TIME_AWARE";
+    const jalali = usesTypedJalali(calendarSystemInput?.value ?? initial.calendar_system, modeInput.value);
     for (const input of [startInput, finishInput]) {
-      const nextType = isTime ? "datetime-local" : "date";
-      if (input.type !== nextType) {
-        input.type = nextType;
-        input.value = isTime ? (input.value ? `${input.value.slice(0, 10)}T08:00` : "") : input.value.slice(0, 10);
+      const iso = String(input.dataset.iso ?? input.value);
+      if (jalali) {
+        input.type = "text";
+        input.inputMode = "numeric";
+        input.placeholder = "۱۴۰۵/۰۷/۱۵";
+        input.autocomplete = "off";
+        input.value = formatJalaliDateInput(iso);
+        input.dataset.dateSystem = "jalali";
+        continue;
       }
+      input.type = modeInput.value === "TIME_AWARE" ? "datetime-local" : "date";
+      input.removeAttribute("inputmode");
+      input.removeAttribute("placeholder");
+      input.value = modeInput.value === "TIME_AWARE"
+        ? (iso ? (iso.includes("T") ? iso.slice(0, 16) : `${iso.slice(0, 10)}T08:00`) : "")
+        : iso.slice(0, 10);
+      input.dataset.dateSystem = "gregorian";
     }
   };
+  for (const input of [startInput, finishInput]) {
+    input?.addEventListener("input", () => recordIso(input));
+    input?.addEventListener("change", () => recordIso(input));
+  }
   const captureDraft = () => {
     if (!form) return;
     const data = new FormData(form);
     const nextDraft: ScheduleSettingsDraft = {};
     for (const [key, value] of data.entries()) nextDraft[key] = String(value);
+    for (const input of [startInput, finishInput]) {
+      if (!input) continue;
+      recordIso(input);
+      nextDraft[input.name] = input.dataset.iso || input.value;
+    }
     for (const schema of catalog?.schedule_options_schema ?? []) {
       const control = form.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[data-option="${schema.name}"]`);
       if (!control) continue;
@@ -600,6 +660,7 @@ async function mountSettingsPanel(
   form?.addEventListener("input", captureDraft);
   form?.addEventListener("change", captureDraft);
   modeInput?.addEventListener("change", syncDateTypes);
+  calendarSystemInput?.addEventListener("change", syncDateTypes);
   calendarRefInput?.addEventListener("change", () => {
     try {
       const selected = JSON.parse(calendarRefInput.value) as { id: string; version: string; kind: string };
@@ -620,12 +681,22 @@ async function mountSettingsPanel(
       const data = new FormData(form);
       const mode = String(data.get("mode"));
       const readDate = (name: "project_start" | "project_finish", required: boolean): string | null => {
-        const raw = String(data.get(name) ?? "").trim();
+        const input = form.elements.namedItem(name) as HTMLInputElement | null;
+        const raw = String(input?.value ?? data.get(name) ?? "").trim();
         if (!raw) {
           if (required) throw new Error(`${name.toUpperCase()}_REQUIRED`);
           return null;
         }
-        if (mode === "DATE_BASED") return raw;
+        if (mode === "DATE_BASED") {
+          if (input?.dataset.dateSystem === "jalali") {
+            const iso = parseJalaliDateInput(raw);
+            if (!iso) throw new Error("INVALID_" + name.toUpperCase());
+            return iso;
+          }
+          const iso = raw.slice(0, 10);
+          if (!isValidCanonicalIsoDate(iso)) throw new Error("INVALID_" + name.toUpperCase());
+          return iso;
+        }
         const date = new Date(raw);
         if (Number.isNaN(date.getTime())) throw new Error("INVALID_" + name.toUpperCase());
         return date.toISOString();
@@ -671,6 +742,11 @@ async function mountSettingsPanel(
       saved = result.data;
       const revisionField = form.elements.namedItem("record_revision") as HTMLInputElement | null;
       if (revisionField) revisionField.value = String(saved.record_revision);
+      if (modeInput) modeInput.value = saved.mode;
+      if (calendarSystemInput) calendarSystemInput.value = saved.project_calendar.system;
+      if (startInput) startInput.dataset.iso = saved.project_start;
+      if (finishInput) finishInput.dataset.iso = saved.project_finish ?? "";
+      syncDateTypes();
       scheduleSettingsDrafts.delete(draftKey);
       status.textContent = labels.saved;
     } catch (error) {
