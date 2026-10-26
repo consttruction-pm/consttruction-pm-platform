@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
+
+from dataclasses import dataclass, replace
 from datetime import date, datetime
-from decimal import Decimal
-from typing import Any
+from decimal import Decimal, InvalidOperation
+from typing import Any, Mapping
 
 from .application.authorization import (
     AuthorizationContext,
@@ -11,7 +13,11 @@ from .application.authorization import (
     AuthorizationPolicy,
     Permission,
 )
-from .activity_master_repository import ActivityMaster, ActivityMasterRepository
+from .activity_master_repository import (
+    ActivityMaster,
+    ActivityMasterRepository,
+    ActivityPersistenceError,
+)
 from .backend_p0.models import BackendScope
 from .scheduling.activity import (
     ActivityLevelingPriority,
@@ -20,6 +26,7 @@ from .scheduling.activity import (
     ActivityType,
     PercentCompleteType,
 )
+from .scheduling.time_duration import DurationUnit
 
 
 P6_ACTIVITY_MASTER_API_VERSION = "p6-activity-master-api.v1"
@@ -103,6 +110,166 @@ class P6ActivityMasterAPI:
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
         return _dto(self.repository.save(activity, expected_revision=expected_revision))
+
+    def update_fields(
+        self,
+        scope: BackendScope,
+        activity_id: str,
+        *,
+        expected_revision: int,
+        changes: Mapping[str, object],
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Apply an explicit, field-limited edit with record-revision locking.
+
+        Only the fields accepted here can change. Actual dates, progress, status
+        codes, and every other persisted field stay owned by their dedicated
+        workflows and are never taken directly from an AI payload.
+        """
+        _require_scope(scope, auth_context)
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+            raise AuthorizationError("authorization denied for permission=project.write")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise ValueError("EXPECTED_REVISION_REQUIRED")
+        if not isinstance(activity_id, str) or not activity_id.strip():
+            raise ValueError("INVALID_ACTIVITY_ID")
+        if not isinstance(changes, Mapping) or not changes:
+            raise ValueError("ACTIVITY_UPDATE_CHANGES_REQUIRED")
+        if set(changes) - {"name", "duration_value", "duration_unit"}:
+            raise ValueError("UNSUPPORTED_ACTIVITY_UPDATE_FIELD")
+        existing = self.repository.get(scope, activity_id)
+        if existing is None:
+            raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+        if existing.record_revision != expected_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+
+        updates: dict[str, object] = {}
+        if "name" in changes:
+            name = changes["name"]
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError("INVALID_ACTIVITY_NAME")
+            updates["name"] = name.strip()
+        duration_fields = {"duration_value", "duration_unit"} & set(changes)
+        if duration_fields:
+            if duration_fields != {"duration_value", "duration_unit"}:
+                raise ValueError("DURATION_UPDATE_PAIR_REQUIRED")
+            raw_duration = changes["duration_value"]
+            if isinstance(raw_duration, bool):
+                raise ValueError("INVALID_DURATION_VALUE")
+            try:
+                duration = Decimal(str(raw_duration))
+            except (InvalidOperation, TypeError, ValueError) as exc:
+                raise ValueError("INVALID_DURATION_VALUE") from exc
+            if not duration.is_finite() or duration < 0:
+                raise ValueError("INVALID_DURATION_VALUE")
+            updates["duration_value"] = duration
+            updates["duration_unit"] = DurationUnit(str(changes["duration_unit"]))
+
+        updated = replace(existing, **updates)
+        updated.validate()
+        return _dto(self.repository.save(updated, expected_revision=expected_revision))
+
+    def update_progress(
+        self,
+        scope: BackendScope,
+        activity_id: str,
+        *,
+        expected_revision: int,
+        actual_start: date | None,
+        actual_finish: date | None,
+        remaining_duration: int | None,
+        percent_complete: float | None,
+        data_date: date,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Persist one consistent progress observation with revision locking.
+
+        The Data Date is supplied by the caller from saved project settings and
+        never from the request transcript. Recorded actuals cannot exceed that
+        boundary, and a completed activity must carry its actual finish, zero
+        remaining duration, full percent complete, and no remaining start.
+        """
+        _require_scope(scope, auth_context)
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+            raise AuthorizationError("authorization denied for permission=project.write")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise ValueError("EXPECTED_REVISION_REQUIRED")
+        if not isinstance(activity_id, str) or not activity_id.strip():
+            raise ValueError("INVALID_ACTIVITY_ID")
+        if not isinstance(data_date, date) or isinstance(data_date, datetime):
+            raise ValueError("DATE_BASED_DATA_DATE_REQUIRED")
+
+        def optional_date(value: object, field_name: str) -> date | None:
+            if value is None:
+                return None
+            if not isinstance(value, date) or isinstance(value, datetime):
+                raise ValueError(f"INVALID_{field_name}")
+            return value
+
+        actual_start = optional_date(actual_start, "ACTUAL_START")
+        actual_finish = optional_date(actual_finish, "ACTUAL_FINISH")
+        if remaining_duration is not None and (
+            isinstance(remaining_duration, bool)
+            or not isinstance(remaining_duration, int)
+            or remaining_duration < 0
+        ):
+            raise ValueError("INVALID_REMAINING_DURATION")
+        if percent_complete is not None:
+            if isinstance(percent_complete, bool) or not isinstance(percent_complete, (int, float)):
+                raise ValueError("INVALID_PERCENT_COMPLETE")
+            if not math.isfinite(float(percent_complete)) or not 0 <= float(percent_complete) <= 100:
+                raise ValueError("INVALID_PERCENT_COMPLETE")
+
+        if actual_finish is not None and actual_start is None:
+            raise ValueError("PROGRESS_ACTUAL_FINISH_REQUIRES_ACTUAL_START")
+        if actual_finish is not None and actual_finish < actual_start:
+            raise ValueError("PROGRESS_ACTUAL_FINISH_BEFORE_ACTUAL_START")
+        if actual_start is not None and actual_start > data_date:
+            raise ValueError("PROGRESS_ACTUAL_START_AFTER_DATA_DATE")
+        if actual_finish is not None and actual_finish > data_date:
+            raise ValueError("PROGRESS_ACTUAL_FINISH_AFTER_DATA_DATE")
+        if actual_start is None and (remaining_duration is not None or percent_complete is not None):
+            raise ValueError("PROGRESS_ACTUAL_START_REQUIRED")
+        if actual_finish is None and (
+            remaining_duration == 0 or percent_complete == 100
+        ):
+            raise ValueError("PROGRESS_ACTUAL_FINISH_REQUIRED_FOR_COMPLETION")
+        if actual_finish is not None:
+            if remaining_duration not in (None, 0):
+                raise ValueError("PROGRESS_COMPLETED_ACTIVITY_REMAINING_DURATION")
+            if percent_complete is not None and percent_complete != 100:
+                raise ValueError("PROGRESS_COMPLETED_ACTIVITY_PERCENT_COMPLETE")
+
+        existing = self.repository.get(scope, activity_id)
+        if existing is None:
+            raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+        if existing.record_revision != expected_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+
+        completed = actual_finish is not None
+        derived_status = (
+            ActivityStatus.COMPLETED
+            if completed
+            else ActivityStatus.IN_PROGRESS
+            if actual_start is not None
+            else ActivityStatus.NOT_STARTED
+        )
+        updated = replace(
+            existing,
+            actual_start=actual_start,
+            actual_finish=actual_finish,
+            remaining_duration=(
+                0 if completed else remaining_duration
+            ),
+            remaining_start=None,
+            percent_complete=(
+                100.0 if completed and percent_complete is None else percent_complete
+            ),
+            status=derived_status,
+        )
+        updated.validate()
+        updated.validate_progress()
+        return _dto(self.repository.save(updated, expected_revision=expected_revision))
 
     def get(
         self,

@@ -46,6 +46,29 @@ test("activity filter matches ID, WBS, status and multiple tokens", () => {
   assert.equal(filterAndSortActivities(rows, "", null), rows);
 });
 
+test("WBS selection filters by exact persisted group and composes with text and sort", () => {
+  const rows = activities();
+  assert.deepEqual(
+    filterAndSortActivities(rows, "", null, "2 Civil").map((row) => row.id),
+    ["A-10", "A-100"],
+  );
+  assert.deepEqual(
+    filterAndSortActivities(rows, "piling", null, "2 Civil").map((row) => row.id),
+    ["A-100"],
+  );
+  assert.deepEqual(
+    filterAndSortActivities(
+      rows,
+      "",
+      { columnId: "activity.total_float", direction: "asc" },
+      "2 Civil",
+    ).map((row) => row.id),
+    ["A-10", "A-100"],
+  );
+  assert.deepEqual(filterAndSortActivities(rows, "", null, "Missing"), []);
+  assert.equal(filterAndSortActivities(rows, "", null, null), rows);
+});
+
 test("activity sort is numeric when possible, pushes blanks last and is stable", () => {
   const rows = activities();
   assert.deepEqual(

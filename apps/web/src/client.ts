@@ -23,6 +23,13 @@ export interface ApiTransport {
     context: ProjectContext,
     idempotencyKey?: string,
   ): Promise<ApiResult<TResponse>>;
+  /** Replace an existing record field set, such as an activity progress update. */
+  patch?<TRequest, TResponse>(
+    path: string,
+    request: TRequest,
+    context: ProjectContext,
+    idempotencyKey?: string,
+  ): Promise<ApiResult<TResponse>>;
   /** Post a non-JSON body, such as an interchange document, verbatim. */
   postRaw?<TResponse>(
     path: string,
@@ -73,6 +80,24 @@ export class FetchApiTransport implements ApiTransport {
         "Content-Type": contentType,
       },
       body,
+    });
+  }
+
+  async patch<TRequest, TResponse>(
+    path: string,
+    request: TRequest,
+    context: ProjectContext,
+    idempotencyKey?: string,
+  ): Promise<ApiResult<TResponse>> {
+    const headers = {
+      ...this.contextHeaders(context),
+      "Content-Type": "application/json",
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+    };
+    return this.request<TResponse>(path, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(request),
     });
   }
 

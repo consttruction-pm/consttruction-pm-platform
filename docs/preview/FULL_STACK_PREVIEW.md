@@ -105,6 +105,61 @@ The create-project form creates an empty project with the curated 20-field
 catalogue (10 visible columns by default), a revision-1 layout, a default
 calendar and no invented activities or capacity.
 
+## AI action execution in the preview
+
+The preview composes the **real** AI action runtime, not a mock. The typed
+`activity.create` and `activity.update` tools are exposed in the workspace
+**AI Assistant · Actions** panel. The flow is:
+
+1. The editor prepares a proposal; the server validates the payload, checks the
+   current project revision and the exact-scope grant, and returns a durable
+   `proposed` record. No project row is written yet.
+2. A human explicitly approves or rejects the proposal. Approval is bound to the
+   actor, proposal and project revision.
+3. Execution is a separate explicit request. The runtime authorizes the exact
+   tool/operation/domain grant again, writes the activity transactionally, then
+   recalculates through the Shared Core snapshot/query path.
+4. The panel displays the calculated start/finish, duration, project finish and
+   snapshot identity returned by that recalculation. It never computes dates in
+   the browser and never shows a fabricated result.
+5. A stale project revision is rejected before mutation, and replaying a
+   completed execution returns `409 AI_ACTION_PROPOSAL_NOT_APPROVED` without a
+   second write.
+
+Grants in the preview are default-deny and rebuilt from the persisted project
+rows on every decision: only the `planner` and `project_admin` demo personas
+receive the two activity tools, and an advanced project revision revokes the
+older grant immediately. Viewers, unknown subjects, other resource domains and
+every other tool/operation are denied.
+
+## AI assistant chat, voice and grounding
+
+The workspace **AI Assistant · Chat** panel is a real client of the authenticated
+assistant route, not a mock conversation:
+
+- A typed message is sent to `POST /api/projects/{p}/ai/assistant/turn` with the
+  current project revision, the selected language and bounded session-only
+  history. The localized, explicit unavailable state from
+  `GET .../ai/assistant/capabilities` is shown when no provider is configured;
+  the panel never invents an answer.
+- Browser speech adapters (`SpeechRecognition`) put the recognized transcript
+  into the same visible textarea so the user reviews and sends it as an ordinary
+  message. Spoken replies use `speechSynthesis` with a read-aloud toggle and
+  per-message Play/Stop; pending recognition/synthesis is cancelled when the
+  panel is superseded. Raw audio is not uploaded by this client.
+- Turns are grounded server-side: the server reads only the authorized current
+  project revision's persisted activities and relationships plus the latest
+  published Shared Core schedule projection, bounded and counted. The model
+  receives that context as data with an explicit prohibition on following
+  embedded commands or inventing dates/calculations; the browser computes no
+  schedule value. A failed or unauthorized context read fails closed before the
+  provider is called.
+
+The natural-language assistant turn still requires an external model provider.
+The preview has none configured, so a real provider-backed answer is not claimed;
+the typed/voice request path, localization, provenance and fail-closed behavior
+are what the preview verifies.
+
 ## Automated verification
 
 Run the repository browser E2E (Chrome or Edge must be installed; set
@@ -138,7 +193,32 @@ SQLite database and a real headless browser. It verifies:
   localized conflict notice and reloads the authoritative head, the competing
   presentation survives, and the lost race appends no revision;
 - filter and numeric sort behavior, including an explicit empty state;
+- WBS rollup navigation: the server returns a `wbs_summary` aggregated from the
+  persisted WBS assignment and the schedule facts the read already projects
+  (activity count, critical count, scheduled bounds, minimum total float).
+  Clicking `2 Civil works` filters the grid and Gantt to exactly its 5 activities,
+  shows the Jalali-formatted server bounds and the count `/ 14`, toggles off,
+  re-selects, and clears through the explicit control. The browser derives no
+  schedule value; a malformed summary fails closed with
+  `INVALID_WORKSPACE_WBS_SUMMARY`;
 - project settings/calendar read, save and revision increment;
+- the scheduling-mode option offers both `EARLIEST` and `ALAP`; selecting
+  `ALAP` persists through the settings API, and restoring `EARLIEST` appends a
+  further revision. The Shared Core evaluator regression proves ALAP drives
+  `LATE` resource-dependent placement, while EARLIEST keeps the `EARLY` default;
+- append-only schedule-settings history and explicit restore: each save appends
+  a revision row with its canonical payload and hash, `GET
+  /api/projects/{p}/p6/schedule/settings/revisions` lists them newest-first, and
+  the panel's history control restores a selected older revision by saving it as
+  a new revision at the current expected revision. The E2E asserts revisions
+  `3,2,1`, restores revision 1, and re-reads `4,3,2,1` with `EARLIEST` applied;
+  `POST .../revisions` fails closed with `405 Method Not Allowed`, a tampered
+  history hash fails closed with `SETTINGS_HASH_MISMATCH`, and an appended
+  duplicate revision fails closed with `SETTINGS_HISTORY_CONFLICT`, rolling the
+  settings write back to a savepoint (including inside a caller-owned
+  transaction) so the current row cannot survive without its matching history;
+  revision reads are capped at 50 rows with no HTTP pagination, so older
+  revisions beyond the newest 50 are not returned;
 - snapshot publication plus Shared Core query results and content hash;
 - formula editor validation through the Shared Core authority: a valid numeric
   expression returns its dependency and result type, a context self-reference
@@ -170,18 +250,39 @@ SQLite database and a real headless browser. It verifies:
   failed-calculation message with zero fabricated result rows;
 - admin-only project creation from the Web form, persisted project name, empty
   activity grid and curated layout;
-- no uncaught browser exceptions and no API 5xx responses.
+- the real AI action path: prepare an `activity.create` proposal, see it bound to
+  the current project revision, approve it explicitly, execute it, and read the
+  Shared Core calculated start/finish plus snapshot and calculation-run identity;
+  the stored proposal is then re-read with `status=executed` and a `COMPUTED`
+  verification, the grid row after a full reload shows exactly the verified
+  dates, replaying the execution returns `409 AI_ACTION_PROPOSAL_NOT_APPROVED`,
+  a stale revision returns `409 AI_ACTION_PROPOSAL_STALE_REVISION`, and a viewer
+  receives an explicit `project.write` denial from both the panel and the direct
+  route with no created activity;
+- the assistant chat/voice path: a typed English turn, a deterministic browser
+  speech fixture recognized into the same textarea and sent as the next turn, and
+  a Persian turn all reach the real fail-closed assistant endpoint with the
+  current revision/language and never display a fabricated answer; the recorded
+  provider-not-configured state is the same in English and Persian
+  (`13e-ai-chat-voice.png`, `13f-ai-chat-persian.png`);
+- no uncaught browser exceptions and no unexpected API 5xx responses (the three
+  provider-not-configured `503` assistant responses are asserted as expected).
 
-The latest isolated run recorded **36 checks and 25 screenshots**.
+The latest isolated run recorded **42 checks and 33 screenshots** on
+`c9670c88`.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
+`03b-wbs-rollup.png` (WBS group selected and grid filtered),
 `04b-layout-undo-redo.png`, `04c-layout-restore.png`, `04d-layout-conflict.png`
 (same-revision clash), `04e-layout-conflict-gap.png` (revision-gap conflict),
+`06b-settings-history.png` (older settings restored as a new revision),
 `07b`–`07f` (formula and interchange states),
 `08-capacity-effective-change.png`, `10a-capacity-persisted.png`,
-`11a-viewer-interchange.png`, `11b-viewer-capacity.png`, the preview server
-log and `evidence.json`.
+`11a-viewer-interchange.png`, `11b-viewer-capacity.png`,
+`13a-ai-proposal.png`, `13b-ai-executed.png`, `13c-ai-persisted.png`,
+`13d-ai-viewer-denied.png`, `13e-ai-chat-voice.png`,
+`13f-ai-chat-persian.png`, the preview server log and `evidence.json`.
 
 Fast backend checks for the preview composition:
 
@@ -193,38 +294,49 @@ They prove the foreign-database guard, real calculated reads and revision
 conflict, login/banner/static/logout behavior, layout persistence across a runtime
 restart, viewer write denial, the interchange round-trip, registered-capacity
 effective-date reads and an authenticated append-only capacity change across a
-runtime restart, and admin project creation with a consistent initialized
-workspace.
+runtime restart, admin project creation with a consistent initialized
+workspace, and the authorized AI action path: default-deny exact grants that
+follow the current project revision, proposal/approval/execution, Shared Core
+verification, durable read-back after a runtime restart, stale-revision refusal
+and replay protection (`12 passed` on `7f1116ae`).
 
 ## Manual walkthrough
 
 1. Open `/preview/login` and choose **Planner**.
 2. Select **Riverside Pump Station Upgrade**; inspect the activity grid and Gantt.
-3. Hide, add, reorder, resize, pin or freeze columns; reload and confirm persistence.
+3. In **Project / WBS**, confirm each group shows its server-computed activity and
+   critical counts plus scheduled bounds (or **Not scheduled**). Click
+   `2 Civil works` and confirm the grid/Gantt show exactly its 5 activities and the
+   selected count reads `5 / 14`; click again or press **All activities** to clear.
+4. Hide, add, reorder, resize, pin or freeze columns; reload and confirm persistence.
    Remove a column, press **Undo** and confirm it returns; press **Redo** and confirm
    the removal returns. Choose an older revision in the revision picker and press
    **Restore** to confirm that revision is reapplied. Reload again and press **Undo**
    to confirm the prior persisted revision is restored; the history endpoint must
    show a new revision on top rather than rewritten rows.
-4. Filter by `civil` or `civil completed`; sort by Id or Total Float.
-5. Toggle **Jalali** and confirm dates change for display only; toggle back.
-6. Open **Schedule → Schedule settings**, confirm `CUBI-RPS-CAL` and save. Set the
+5. Filter by `civil` or `civil completed`; sort by Id or Total Float.
+6. Toggle **Jalali** and confirm dates change for display only; toggle back.
+7. Open **Schedule → Schedule settings**, confirm `CUBI-RPS-CAL` and save. Set the
    calendar system to **Jalali**, confirm the start renders as `1405/06/30`, type
    `۱۴۰۵/۰۶/۳۰`, save and confirm the API still stores `2026-09-21`; try
    `1405/13/01` and confirm `INVALID_PROJECT_START`; switch back to Gregorian.
-7. Open **Schedule → Run Schedule** and compare the returned A130 dates, float,
+   Switch the mode to `ALAP` and save, then use the settings-history control to
+   select an older revision and press **Restore**; confirm the panel reports the
+   restored revision and that the history now shows one more revision on top
+   (older revisions are preserved, never rewritten).
+8. Open **Schedule → Run Schedule** and compare the returned A130 dates, float,
    critical flag and snapshot hash.
-8. Open **Schedule → Formula editor**, enter
+9. Open **Schedule → Formula editor**, enter
    `[activity.duration_percent_complete] / 100`, validate and confirm the
    authoritative dependency and result type. Then make the context field the
    referenced field and confirm `FORMULA_SELF_REFERENCE`; finally use the
    registered duration field and confirm the explicit
    `UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration` diagnostic.
-9. Open **Project → Import / Export**, export the 14 loaded activities, download
-   the server-generated document, paste it back and map it to confirm 14 canonical
-   rows. Submit an invalid document and confirm an explicit `INVALID_XML` error
-   with no rows.
-10. Open **Resources → Max units / time**. Read the seeded 8 → 12 units/day
+10. Open **Project → Import / Export**, export the 14 loaded activities, download
+    the server-generated document, paste it back and map it to confirm 14 canonical
+    rows. Submit an invalid document and confirm an explicit `INVALID_XML` error
+    with no rows.
+11. Open **Resources → Max units / time**. Read the seeded 8 → 12 units/day
     profile, resolve 2026-10-16 as a 40-hour week and confirm 60. Register
     10 units/day from 2026-11-01 with the close option, confirm 2026-10-31 closes
     the prior open segment, and resolve 2026-11-02 as a week to confirm 50.
@@ -232,11 +344,28 @@ workspace.
     through `GET /api/projects/preview-rps-01/p6/resource-capacities/RPS-CIVIL-CREW`
     with a planner session; an unregistered resource returns 404
     `RESOURCE_CAPACITY_NOT_REGISTERED`.
-11. Switch the top-right language control to Persian and confirm RTL labels.
-12. Sign out, sign in as **Viewer**, and confirm exports remain readable while an
+12. Switch the top-right language control to Persian and confirm RTL labels.
+13. Sign out, sign in as **Viewer**, and confirm exports remain readable while an
     import is denied with an explicit permission error.
-13. Sign out, sign in as **Admin**, create a project from the project-selection
+14. Sign out, sign in as **Admin**, create a project from the project-selection
     form, and confirm the new empty workspace, curated layout and persisted name.
+15. Re-select **Riverside Pump Station Upgrade** and open **AI Assistant ·
+    Actions**. Prepare an activity with a unique ID, a name and a 3 working-day
+    duration. Confirm the proposal shows the current project revision and no
+    activity exists yet. Press **Approve**, then **Execute approved action**;
+    confirm the panel reports the saved-and-recalculated outcome with real
+    calculated start/finish and snapshot identity. Reload and confirm the new row
+    shows the same dates and the saved verification is still displayed. Replaying
+    execution must be refused, and a project-revision change must mark the
+    proposal stale. Signing in as Viewer must deny both proposal reads and
+    writes with no project change.
+16. Open **AI Assistant · Chat**, type a question and send it. With no provider
+    configured, confirm the panel shows the explicit unavailable message rather
+    than a fabricated answer. If the browser supports speech recognition, use
+    the microphone and confirm the recognized text appears in the textarea for
+    review before sending; a Persian message with the language set to Persian
+    must show the Persian unavailable message. Use the read-aloud control only
+    if the browser supports `speechSynthesis`.
 
 ## Known limitations
 
@@ -255,15 +384,32 @@ workspace.
   duration arithmetic has no safe formula representation yet.
 - The WBS surface is a flat persisted WBS grouping, not a hierarchy editor.
 - Undo/redo and explicit revision restore currently cover the persisted layout
-  presentation (append-only revisions plus durable history). They do not yet cover
-  activity, WBS, settings or commercial edits, and there is no project-wide
-  backup/restore UI.
+  presentation and schedule settings (append-only revisions plus durable
+  history). Settings restore re-saves the selected older settings as a new
+  revision; it is not an in-place rollback. Schedule-settings history begins
+  when the history table is created: settings persisted before that upgrade have
+  no backfilled revision rows. Activity, WBS and commercial undo/redo and a
+  project-wide backup/restore UI are not implemented.
 - Typed Resource Max Units/Time is implemented as domain + persistence + read and
   write APIs plus a Web panel. The panel appends effective changes and resolves
   periods; it does not provide bulk capacity import or a separate leveling
   editor, and it never computes capacity client-side.
-- Assignment-level early/late dates and backward placement are not exposed; the
-  placement module documents this contract boundary and the activity-level Shared
-  Core result remains authoritative.
+- Assignment-level early/late windows and assignment float are now returned by
+  the Shared Core placement result and are derived from the authoritative CPM
+  early/late dates of the same run; the placement module never recomputes CPM.
+  An `ALAP` schedule result places assignments backward automatically, while an
+  `EARLIEST` result keeps the documented `EARLY` default. Backward placement
+  also exists as an explicit Shared Core `placement_direction="LATE"` contract,
+  but no persisted schedule option or Web control selects it independently yet.
 - CUBISITE workbook-derived official weights, scoring or completion percentages
   are unavailable and must not be inferred from file counts.
+- The assistant chat is a real request/UI path, but the preview has no model
+  provider configured, so it proves the localized fail-closed state and the
+  request contract rather than a provider-backed answer. The browser E2E uses a
+  deterministic speech fixture, not a physical microphone or vendor ASR;
+  audible TTS is browser-dependent. Conversation history is held in session
+  memory, not persisted as a durable transcript. Project grounding reads only
+  the current revision's persisted activities/relationships and the latest
+  published Shared Core projection; it does not yet cover uploaded documents,
+  spreadsheets or reports, and it does not expose a live model's use of that
+  context.

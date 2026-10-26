@@ -17,6 +17,7 @@
 import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { createServer } from "node:net";
 import { createWriteStream, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -35,6 +36,7 @@ const CHECKS = [];
 const EXCEPTIONS = [];
 const CONSOLE_ERRORS = [];
 const API_FAILURES = [];
+const ASSISTANT_REQUESTS = [];
 const EVIDENCE = {
   contract: "cubi-preview-browser-e2e.v1",
   started_at: new Date().toISOString(),
@@ -46,10 +48,57 @@ const EVIDENCE = {
   exceptions: EXCEPTIONS,
   console_errors: CONSOLE_ERRORS,
   api_failures: API_FAILURES,
+  assistant_requests: ASSISTANT_REQUESTS,
   persistence: {},
   calculation: {},
   permissions: {},
 };
+
+/**
+ * Deterministic browser speech adapters for the E2E only. They exercise the
+ * real chat/voice integration through the browser's Web Speech surface without
+ * claiming that a human microphone or a cloud speech service was used.
+ */
+const SPEECH_FIXTURE_SOURCE = `(() => {
+  class FixtureSpeechRecognition {
+    constructor() {
+      this.lang = "";
+      this.continuous = false;
+      this.interimResults = false;
+      this.onresult = null;
+      this.onerror = null;
+      this.onend = null;
+      this.stopped = false;
+    }
+    start() {
+      setTimeout(() => {
+        if (this.stopped) return;
+        this.onresult?.({ results: { 0: { 0: {
+          transcript: "How is the project schedule performing?",
+          confidence: 0.91,
+        } } } });
+        this.onend?.();
+      }, 10);
+    }
+    stop() { this.stopped = true; this.onend?.(); }
+  }
+  Object.defineProperty(globalThis, "SpeechRecognition", { configurable: true, value: FixtureSpeechRecognition });
+  Object.defineProperty(globalThis, "webkitSpeechRecognition", { configurable: true, value: FixtureSpeechRecognition });
+  const spoken = [];
+  globalThis.__cubiSpokenReplies = spoken;
+  class FixtureUtterance {
+    constructor(text) { this.text = text; this.lang = ""; this.onerror = null; this.onend = null; }
+  }
+  const synthesis = {
+    speak(utterance) {
+      spoken.push({ text: utterance.text, lang: utterance.lang });
+      setTimeout(() => utterance.onend?.(), 5);
+    },
+    cancel() {},
+  };
+  Object.defineProperty(globalThis, "SpeechSynthesisUtterance", { configurable: true, value: FixtureUtterance });
+  Object.defineProperty(globalThis, "speechSynthesis", { configurable: true, value: synthesis });
+})();`;
 
 function log(message) {
   process.stdout.write(`${message}\n`);
@@ -367,6 +416,9 @@ class Page {
     await this.cdp.send("Runtime.enable");
     await this.cdp.send("Network.enable");
     await this.cdp.send("Log.enable");
+    await this.cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: SPEECH_FIXTURE_SOURCE,
+    });
     this.cdp.on("Runtime.exceptionThrown", (params) => {
       const text =
         params.exceptionDetails?.exception?.description ??
@@ -381,6 +433,16 @@ class Page {
         text: (params.args ?? [])
           .map((arg) => arg.value ?? arg.description ?? arg.type)
           .join(" "),
+      });
+    });
+    this.cdp.on("Network.requestWillBeSent", (params) => {
+      const url = params.request?.url ?? "";
+      if (!url.includes("/ai/assistant/turn")) return;
+      const postData = params.request?.postData ?? "";
+      ASSISTANT_REQUESTS.push({
+        at: new Date().toISOString(),
+        url,
+        body: postData.length > 1200 ? `${postData.slice(0, 1200)}…` : postData,
       });
     });
     this.cdp.on("Network.responseReceived", (params) => {
@@ -558,16 +620,25 @@ async function launchChrome() {
 
   const activePortFile = join(userDataDir, "DevToolsActivePort");
   const deadline = Date.now() + 20000;
-  while (!existsSync(activePortFile)) {
+  let activePortText = null;
+  while (activePortText === null) {
     if (exited) {
       throw new Error(`CHROME_EXITED: ${JSON.stringify(exited)} ${stderr.slice(-800)}`);
     }
     if (Date.now() > deadline) {
       throw new Error(`CHROME_DID_NOT_START ${stderr.slice(-800)}`);
     }
-    await sleep(50);
+    try {
+      activePortText = await readFile(activePortFile, "utf8");
+    } catch (error) {
+      // Windows can briefly hold the file while Chrome is still writing it.
+      if (error?.code !== "ENOENT" && error?.code !== "EBUSY" && error?.code !== "EPERM") {
+        throw error;
+      }
+      await sleep(50);
+    }
   }
-  const [debugPort] = (await (await import("node:fs/promises")).readFile(activePortFile, "utf8")).split("\n");
+  const [debugPort] = activePortText.split("\n");
   let target = null;
   for (let attempt = 0; attempt < 50 && !target; attempt += 1) {
     try {
@@ -773,6 +844,95 @@ async function main() {
       schedule_submenus: scheduleSubmenus,
     });
 
+    const readWbsSummary = () => page.evaluate(
+      `(async () => {
+        const headers = {
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        };
+        const response = await fetch("/api/v1/workspace/control-room/read", { headers });
+        const body = await response.json();
+        return { status: response.status, summary: body?.workspace?.wbs_summary ?? null };
+      })()`,
+      { awaitPromise: true },
+    );
+    const serverWbs = await readWbsSummary();
+    assert(serverWbs.status === 200, "workspace read must return the WBS rollup");
+    assert(Array.isArray(serverWbs.summary), "workspace read must carry a WBS summary array");
+    const civilWbs = serverWbs.summary.find((group) => group.wbs_id === "2 Civil works");
+    assert(
+      civilWbs && civilWbs.activity_count === 5 && civilWbs.scheduled_start && civilWbs.scheduled_finish,
+      "server must aggregate the civil WBS count and scheduled bounds",
+    );
+    await page.click('[data-wbs-id="2 Civil works"]');
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 5`,
+      "five activities after WBS selection",
+    );
+    assert(
+      (await page.count(".cp-gantt-row")) === 5,
+      "the Gantt must follow the same WBS selection",
+    );
+    const selectedWbs = await page.evaluate(`(() => {
+      const node = document.querySelector('[data-wbs-id="2 Civil works"]');
+      return {
+        pressed: node?.getAttribute("aria-pressed"),
+        dates: node?.querySelector(".cp-wbs-node-dates")?.textContent.trim(),
+        meta: node?.querySelector(".cp-wbs-node-meta")?.textContent.trim(),
+        clearDisabled: document.querySelector("[data-wbs-clear]")?.disabled,
+        count: document.querySelector("[data-activity-count]")?.textContent.trim(),
+      };
+    })()`);
+    assert(selectedWbs.pressed === "true", "the selected WBS node must be pressed");
+    assert(
+      selectedWbs.dates === `${civilWbs.scheduled_start} – ${civilWbs.scheduled_finish}`,
+      `WBS dates must render the server bounds, got ${selectedWbs.dates}`,
+    );
+    assert(
+      selectedWbs.meta?.includes("5") && selectedWbs.meta.includes("critical"),
+      "WBS rollup must show the aggregate count and critical count",
+    );
+    assert(selectedWbs.clearDisabled === false, "the WBS filter must be clearable");
+    assert(
+      selectedWbs.count?.startsWith("5 / 14"),
+      `the grid count must reflect the WBS filter, got ${selectedWbs.count}`,
+    );
+    await page.scrollTo("#cp-project-wbs");
+    await page.screenshot("03b-wbs-rollup.png");
+    await page.click('[data-wbs-id="2 Civil works"]');
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
+      "fourteen activities after toggling the WBS selection off",
+    );
+    await page.click('[data-wbs-id="2 Civil works"]');
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 5`,
+      "five activities before clearing the WBS filter",
+    );
+    await page.click("[data-wbs-clear]");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
+      "fourteen activities after clearing the WBS filter",
+    );
+    assert(
+      (await page.evaluate(`document.querySelector("[data-wbs-clear]")?.disabled`)) === true,
+      "the clear control must be disabled once no WBS is selected",
+    );
+    EVIDENCE.wbs_rollup = {
+      server_summary: serverWbs.summary,
+      selected_group: "2 Civil works",
+      rendered_dates: selectedWbs.dates,
+      rendered_meta: selectedWbs.meta,
+      filtered_rows: 5,
+      source: "workspace read wbs_summary rendered by the Web WBS panel",
+    };
+    record("server-computed WBS rollup filters the grid and Gantt", {
+      groups: serverWbs.summary.length,
+      civil_count: civilWbs.activity_count,
+      rendered_dates: selectedWbs.dates,
+    });
+
     await page.click('#cp-activity-grid tbody tr[data-activity-id="A130"]');
     await page.waitFor(
       `document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() === "A130"`,
@@ -802,17 +962,21 @@ async function main() {
       /^\d{4}-\d{2}-\d{2}$/.test(isoTooltip ?? ""),
       `Gregorian display must show the canonical ISO date, got ${isoTooltip}`,
     );
+    assert(
+      isoTooltip === "2026-10-12",
+      `A130 remaining early start must begin at the Data Date, got ${isoTooltip}`,
+    );
     await page.click('[data-calendar-mode="jalali"]');
     await page.waitFor(
-      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim() === "۱۴۰۵/۰۷/۱۵"`,
+      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim() === "۱۴۰۵/۰۷/۲۰"`,
       "Jalali display of the stored early start",
     );
     const jalaliText = await page.evaluate(
       `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim()`,
     );
     assert(
-      jalaliText === "۱۴۰۵/۰۷/۱۵",
-      `Jalali display must convert 2026-10-07 without shifting it, got ${jalaliText}`,
+      jalaliText === "۱۴۰۵/۰۷/۲۰",
+      `Jalali display must convert 2026-10-12 without shifting it, got ${jalaliText}`,
     );
     await page.click('[data-calendar-mode="gregorian"]');
     await page.waitFor(
@@ -1643,6 +1807,142 @@ async function main() {
     await page.scrollTo("#cp-schedule-options");
     await page.screenshot("06-settings-calendar.png");
 
+    // Backward/ALAP selection is a real persisted schedule option. The Shared
+    // Core evaluator regression proves ALAP drives LATE resource-dependent
+    // placement; this browser branch proves the user selection round-trips
+    // through the authoritative settings API and can be restored.
+    const schedulingModes = await page.evaluate(`(() => {
+      const select = document.querySelector('[data-schedule-settings-form] select[data-option="mode"]');
+      return select ? Array.from(select.options).map((option) => option.value) : [];
+    })()`);
+    assert(
+      schedulingModes.includes("EARLIEST") && schedulingModes.includes("ALAP"),
+      `the workspace must offer the backward (ALAP) scheduling option, got ${JSON.stringify(schedulingModes)}`,
+    );
+    const readSettings = () => page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/schedule/settings", {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`,
+      { awaitPromise: true },
+    );
+    await page.setSelect(
+      '[data-schedule-settings-form] select[data-option="mode"]',
+      "ALAP",
+    );
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
+      "ALAP settings save status",
+    );
+    const alapSettings = await readSettings();
+    assert(
+      alapSettings.status === 200 &&
+        alapSettings.body?.schedule_options?.mode === "ALAP",
+      `an ALAP selection must persist through the settings API, got ${JSON.stringify(alapSettings)}`,
+    );
+    await page.setSelect(
+      '[data-schedule-settings-form] select[data-option="mode"]',
+      "EARLIEST",
+    );
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1) > ${Number(alapSettings.body.record_revision)}`,
+      "EARLIEST settings restored",
+    );
+    const earliestSettings = await readSettings();
+    assert(
+      earliestSettings.status === 200 &&
+        earliestSettings.body?.schedule_options?.mode === "EARLIEST",
+      `the earliest scheduling mode must be restorable, got ${JSON.stringify(earliestSettings)}`,
+    );
+    const readSettingsRevisions = () => page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/schedule/settings/revisions", {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`,
+      { awaitPromise: true },
+    );
+    const revisionsBefore = await readSettingsRevisions();
+    assert(
+      revisionsBefore.status === 200 &&
+        revisionsBefore.body?.revisions?.map((item) => item.record_revision).join(",") === "3,2,1",
+      `settings history must list appended revisions newest first, got ${JSON.stringify(revisionsBefore)}`,
+    );
+    const restoreOptions = await page.evaluate(`(() => {
+      const select = document.querySelector("[data-settings-revision-select]");
+      return select ? Array.from(select.options).map((option) => option.value) : [];
+    })()`);
+    assert(
+      restoreOptions.join(",") === "2,1",
+      `settings history must offer exactly the older revisions, got ${JSON.stringify(restoreOptions)}`,
+    );
+    await page.setSelect("[data-settings-revision-select]", "1");
+    await page.click("[data-settings-restore]");
+    await page.waitFor(
+      `document.querySelector("[data-settings-history-status]")?.textContent.trim() === "Settings revision restored."`,
+      "settings history restore status",
+    );
+    const restoredFromHistory = await readSettings();
+    assert(
+      restoredFromHistory.status === 200 &&
+        restoredFromHistory.body?.record_revision === 4 &&
+        restoredFromHistory.body?.schedule_options?.mode === "EARLIEST",
+      `restoring revision 1 must append revision 4 without rewriting history, got ${JSON.stringify(restoredFromHistory)}`,
+    );
+    const revisionsAfter = await readSettingsRevisions();
+    assert(
+      revisionsAfter.status === 200 &&
+        revisionsAfter.body?.revisions?.map((item) => item.record_revision).join(",") === "4,3,2,1",
+      `restored settings must append a new revision, got ${JSON.stringify(revisionsAfter)}`,
+    );
+    await page.screenshot("06b-settings-history.png");
+    EVIDENCE.settings_history = {
+      revisions_before: revisionsBefore.body.revisions.map((item) => ({
+        record_revision: item.record_revision,
+        mode: item.schedule_options.mode,
+      })),
+      restored_from_revision: 1,
+      restored_record_revision: restoredFromHistory.body.record_revision,
+      revisions_after: revisionsAfter.body.revisions.map((item) => ({
+        record_revision: item.record_revision,
+        mode: item.schedule_options.mode,
+      })),
+      source: "schedule settings history -> GET /p6/schedule/settings/revisions; restore posts the selected values with the current expected revision",
+    };
+    record("settings history restores an older revision as a new append-only revision", {
+      offered_older_revisions: restoreOptions,
+      restored_revision: restoredFromHistory.body.record_revision,
+      history: revisionsAfter.body.revisions.map((item) => item.record_revision),
+    });
+    EVIDENCE.backward_placement = {
+      offered_modes: schedulingModes,
+      persisted_mode: alapSettings.body.schedule_options.mode,
+      persisted_revision: alapSettings.body.record_revision,
+      restored_mode: earliestSettings.body.schedule_options.mode,
+      restored_revision: earliestSettings.body.record_revision,
+      history_restored_revision: restoredFromHistory.body.record_revision,
+      source: "schedule settings form and history -> POST/GET /p6/schedule/settings[/revisions]",
+      placement_evidence: "Shared Core ALAP evaluator test selects LATE placement",
+    };
+    record("the workspace persists the backward (ALAP) scheduling selection", {
+      modes: schedulingModes,
+      persisted: alapSettings.body.schedule_options.mode,
+      restored: earliestSettings.body.schedule_options.mode,
+    });
+
     await page.setSelect('select[name="calendar_system"]', "jalali");
     await page.waitFor(
       `(() => {
@@ -1819,6 +2119,470 @@ async function main() {
       hash: calculation.hash,
       a130_start: calculation.a130?.[1],
       a130_finish: calculation.a130?.[2],
+    });
+
+    // ── Data Date, progress entry, and out-of-sequence mode cycle ─────────
+    // Everything below drives the visible controls and then reads the same
+    // facts back from the authenticated APIs. No browser-side date calculation
+    // is accepted as evidence.
+    const readActivitiesApi = () => page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/activities", {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`,
+      { awaitPromise: true },
+    );
+    const plannerSession = await page.evaluate(
+      `fetch("/api/session").then((response) => response.json())`,
+      { awaitPromise: true },
+    );
+    assert(
+      typeof plannerSession.user_id === "string" && plannerSession.user_id.length > 0,
+      "planner session identity is required for the authoritative schedule query",
+    );
+    const querySnapshotFacts = (snapshotId) => page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/v1/schedule/query", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+          body: JSON.stringify({
+            contract_version: "schedule-query.v1",
+            query_id: crypto.randomUUID(),
+            scope: {
+              tenant_id: ${JSON.stringify(TENANT_ID)},
+              project_id: ${JSON.stringify(PROJECT_ID)},
+              project_revision: ${PROJECT_REVISION},
+            },
+            requested_by: ${JSON.stringify(plannerSession.user_id)},
+            query_text: "Return authoritative schedule facts for the E2E progress cycle.",
+            kind: "fact",
+            language: "en",
+            constraints: { snapshot_id: ${JSON.stringify(snapshotId)} },
+          }),
+        });
+        const body = await response.json().catch(() => null);
+        const data = body?.answer?.data ?? body?.data ?? body;
+        return { status: response.status, body, activities: data?.activities ?? null };
+      })()`,
+      { awaitPromise: true },
+    );
+    const readActivitySurface = (activityId) => page.evaluate(
+      `(() => {
+        const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id=' + ${JSON.stringify(activityId)} + ']');
+        const cell = (column) => row?.querySelector('[data-column-id="' + column + '"]')?.textContent.trim() ?? null;
+        const bar = document.querySelector('.cp-gantt-row[data-gantt-activity-id=' + ${JSON.stringify(activityId)} + '] .cp-gantt-bar');
+        return {
+          row: row ? {
+            start: cell("activity.early_start"),
+            finish: cell("activity.early_finish"),
+            float: cell("activity.total_float"),
+            critical: cell("activity.critical"),
+          } : null,
+          gantt_style: bar?.getAttribute("style") ?? null,
+        };
+      })()`,
+    );
+
+    await page.waitForSelector(
+      "#cp-progress-entry [data-progress-form]",
+      "progress entry form",
+      30000,
+    );
+    const progressStart = await page.evaluate(`(() => {
+      const settingsForm = document.querySelector("[data-schedule-settings-form]");
+      const dataDate = settingsForm?.querySelector('input[name="data_date"]');
+      const progressDate = document.querySelector("[data-progress-data-date]");
+      const oos = settingsForm?.querySelector('select[data-option="out_of_sequence_schedule_type"]');
+      return {
+        data_date_value: dataDate?.value ?? null,
+        data_date_type: dataDate?.type ?? null,
+        progress_data_date: progressDate?.getAttribute("data-progress-data-date") ?? null,
+        progress_data_date_text: progressDate?.textContent.trim() ?? null,
+        mode: settingsForm?.elements.namedItem("mode")?.value ?? null,
+        oos_choices: oos ? Array.from(oos.options).map((option) => option.value) : [],
+        activities: Array.from(document.querySelectorAll("[data-progress-activity] option")).map((option) => option.value),
+      };
+    })()`);
+    assert(progressStart.mode === "DATE_BASED", "progress entry must require date-based settings");
+    assert(
+      progressStart.data_date_value === "2026-10-12" && progressStart.data_date_type === "date",
+      `the saved Data Date must load into the settings control, got ${JSON.stringify(progressStart)}`,
+    );
+    assert(
+      progressStart.progress_data_date === "2026-10-12",
+      `the progress panel must show the saved Data Date, got ${JSON.stringify(progressStart)}`,
+    );
+    assert(
+      progressStart.oos_choices.join(",") === "RETAINED_LOGIC,PROGRESS_OVERRIDE,ACTUAL_DATES",
+      `all three out-of-sequence options must be offered, got ${JSON.stringify(progressStart.oos_choices)}`,
+    );
+    assert(
+      progressStart.activities.includes("A140"),
+      "the progress activity selector must come from persisted activities",
+    );
+    await page.scrollTo("#cp-progress-entry");
+    await page.screenshot("07g-progress-data-date.png");
+
+    const preDataDateA140 = await page.evaluate(`(() => {
+      const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr"))
+        .map((row) => Array.from(row.children).map((cell) => cell.textContent.trim()));
+      return rows.find((row) => row[0] === "A140") ?? null;
+    })()`);
+    assert(preDataDateA140, "A140 must be present in the baseline authoritative results");
+
+    // Move the Data Date one working day forward through a typed Jalali entry.
+    // The server must store the canonical Gregorian date and the remaining
+    // schedule must move with it.
+    await page.setSelect('select[name="calendar_system"]', "jalali");
+    await page.waitFor(
+      `(() => {
+        const input = document.querySelector('[data-schedule-settings-form] input[name="data_date"]');
+        return input?.type === "text" && input?.value === "1405/07/20";
+      })()`,
+      "typed Jalali Data Date loaded from the canonical value",
+    );
+    await page.setInput(
+      '[data-schedule-settings-form] input[name="data_date"]',
+      "۱۴۰۵/۰۷/۲۱",
+    );
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
+      "Jalali Data Date save status",
+    );
+    const jalaliDataDateSettings = await readSettings();
+    assert(
+      jalaliDataDateSettings.status === 200 &&
+        jalaliDataDateSettings.body?.schedule_options?.data_date === "2026-10-13" &&
+        jalaliDataDateSettings.body?.project_calendar?.system === "jalali",
+      `a typed Jalali Data Date must persist as 2026-10-13, got ${JSON.stringify(jalaliDataDateSettings)}`,
+    );
+    await page.setSelect('select[name="calendar_system"]', "gregorian");
+    await page.waitFor(
+      `(() => {
+        const input = document.querySelector('[data-schedule-settings-form] input[name="data_date"]');
+        return input?.type === "date" && input?.value === "2026-10-13";
+      })()`,
+      "Gregorian Data Date after the Jalali round-trip",
+    );
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
+      "Gregorian Data Date save status",
+    );
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 14`,
+      "schedule result rows after the Data Date change",
+      60000,
+    );
+    const postDataDateA140 = await page.evaluate(`(() => {
+      const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr"))
+        .map((row) => Array.from(row.children).map((cell) => cell.textContent.trim()));
+      return rows.find((row) => row[0] === "A140") ?? null;
+    })()`);
+    assert(postDataDateA140, "A140 must remain in authoritative results after the Data Date change");
+    assert(
+      postDataDateA140[1] === "2026-10-20" && postDataDateA140[1] !== preDataDateA140[1],
+      `a later Data Date must move A140 remaining work from ${preDataDateA140[1]} to 2026-10-20, got ${postDataDateA140[1]}`,
+    );
+    await page.waitFor(
+      `document.querySelector("[data-progress-data-date]")?.getAttribute("data-progress-data-date") === "2026-10-13"`,
+      "progress panel refreshed with the saved Data Date",
+    );
+    EVIDENCE.data_date = {
+      initial: "2026-10-12",
+      saved_iso: jalaliDataDateSettings.body.schedule_options.data_date,
+      saved_jalali_entry: "۱۴۰۵/۰۷/۲۱",
+      persisted_system: jalaliDataDateSettings.body.project_calendar.system,
+      a140_start_before: preDataDateA140[1],
+      a140_start_after: postDataDateA140[1],
+      source: "settings form typed Jalali Data Date -> canonical settings API -> snapshot and Shared Core query",
+    };
+    record("Data Date round-trips through typed Jalali entry and moves remaining schedule", {
+      saved_iso: jalaliDataDateSettings.body.schedule_options.data_date,
+      a140_before: preDataDateA140[1],
+      a140_after: postDataDateA140[1],
+    });
+
+    // Record real out-of-sequence progress for A140 through the visible panel.
+    // A140's actual start precedes A130's remaining finish.
+    await page.setSelect("[data-progress-activity]", "A140");
+    await page.waitFor(
+      `document.querySelector('[data-progress-form] input[name="actual_start"]') !== null`,
+      "A140 progress form",
+    );
+    await page.setInput('[data-progress-form] input[name="actual_start"]', "2026-10-09");
+    await page.setInput('[data-progress-form] input[name="remaining_duration"]', "10");
+    await page.setInput('[data-progress-form] input[name="percent_complete"]', "0");
+    await page.click('[data-progress-form] button[type="submit"]');
+    await page.waitFor(
+      `(document.querySelector("[data-progress-status]")?.textContent ?? "").includes("Progress saved")`,
+      "A140 progress save status",
+      30000,
+    );
+    const activitiesAfterProgress = await readActivitiesApi();
+    const a140Saved = activitiesAfterProgress.body?.activities
+      ?.map((item) => item.activity)
+      .find((item) => item.activity_id === "A140");
+    assert(
+      activitiesAfterProgress.status === 200 &&
+        a140Saved?.actual_start === "2026-10-09" &&
+        a140Saved?.actual_finish === null &&
+        a140Saved?.remaining_duration === 10 &&
+        a140Saved?.percent_complete === 0 &&
+        a140Saved?.status === "In Progress",
+      `A140 progress must persist through the authenticated API, got ${JSON.stringify(a140Saved)}`,
+    );
+
+    // A contradictory finish must be rejected by the server and shown in the
+    // panel without changing the valid row that was just stored.
+    await page.setInput('[data-progress-form] input[name="actual_finish"]', "2026-10-08");
+    await page.click('[data-progress-form] button[type="submit"]');
+    await page.waitFor(
+      `(document.querySelector("[data-progress-status]")?.textContent ?? "").includes("PROGRESS_ACTUAL_FINISH_BEFORE_ACTUAL_START")`,
+      "explicit inconsistent progress error",
+      30000,
+    );
+    const activitiesAfterRejectedProgress = await readActivitiesApi();
+    const a140AfterRejected = activitiesAfterRejectedProgress.body?.activities
+      ?.map((item) => item.activity)
+      .find((item) => item.activity_id === "A140");
+    assert(
+      a140AfterRejected?.actual_finish === null &&
+        a140AfterRejected?.remaining_duration === 10,
+      `a rejected progress edit must not mutate the stored row, got ${JSON.stringify(a140AfterRejected)}`,
+    );
+
+    // A stale expected revision must fail closed rather than overwrite.
+    const staleProgressWrite = await page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/activities/A140/progress", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+          body: JSON.stringify({
+            contract_version: "p6-activity-master-api.v1",
+            expected_revision: ${Number(a140Saved.record_revision) - 1},
+            actual_start: "2026-10-09",
+            actual_finish: null,
+            remaining_duration: 2,
+            percent_complete: 0,
+          }),
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(
+      staleProgressWrite.status === 409 &&
+        staleProgressWrite.body?.code === "REVISION_CONFLICT",
+      `a stale progress revision must be rejected with 409, got ${JSON.stringify(staleProgressWrite)}`,
+    );
+    const activitiesAfterStaleProgress = await readActivitiesApi();
+    const a140AfterStale = activitiesAfterStaleProgress.body?.activities
+      ?.map((item) => item.activity)
+      .find((item) => item.activity_id === "A140");
+    assert(
+      a140AfterStale?.record_revision === a140Saved.record_revision &&
+        a140AfterStale?.remaining_duration === 10,
+      `a stale write must retain the prior valid progress, got ${JSON.stringify(a140AfterStale)}`,
+    );
+    await page.screenshot("07h-progress-saved.png");
+    record("real progress entry validates, persists, rejects contradictions and stale revisions", {
+      activity: "A140",
+      actual_start: a140Saved.actual_start,
+      remaining_duration: a140Saved.remaining_duration,
+      record_revision: a140Saved.record_revision,
+      rejected_error: "PROGRESS_ACTUAL_FINISH_BEFORE_ACTUAL_START",
+      stale_status: staleProgressWrite.status,
+    });
+
+    // Each out-of-sequence option must change the authoritative result, be
+    // recorded in the settings revision, and preserve the actual dates.
+    const outOfSequenceRuns = [];
+    for (const [mode, expectedStart] of [
+      ["RETAINED_LOGIC", "2026-10-20"],
+      ["PROGRESS_OVERRIDE", "2026-10-13"],
+      ["ACTUAL_DATES", "2026-10-09"],
+    ]) {
+      await page.setSelect(
+        '[data-schedule-settings-form] select[data-option="out_of_sequence_schedule_type"]',
+        mode,
+      );
+      await page.click('[data-schedule-settings-form] button[type="submit"]');
+      await page.waitFor(
+        `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
+        `${mode} settings save status`,
+      );
+      const savedModeSettings = await readSettings();
+      assert(
+        savedModeSettings.status === 200 &&
+          savedModeSettings.body?.schedule_options?.out_of_sequence_schedule_type === mode &&
+          savedModeSettings.body?.schedule_options?.data_date === "2026-10-13",
+        `${mode} must persist with the Data Date, got ${JSON.stringify(savedModeSettings)}`,
+      );
+      await page.click("[data-run-schedule]");
+      await page.waitFor(
+        `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 14 &&
+         Boolean(document.querySelector("[data-run-results] .cp-schedule-result-meta")?.getAttribute("data-snapshot-id"))`,
+        `${mode} authoritative results`,
+        60000,
+      );
+      const snapshotId = await page.evaluate(
+        `document.querySelector("[data-run-results] .cp-schedule-result-meta")?.getAttribute("data-snapshot-id")`,
+      );
+      const uiRow = await page.evaluate(`(() => {
+        const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr"))
+          .map((row) => Array.from(row.children).map((cell) => cell.textContent.trim()));
+        return rows.find((row) => row[0] === "A140") ?? null;
+      })()`);
+      assert(uiRow, `${mode} must return A140`);
+      const apiFacts = await querySnapshotFacts(snapshotId);
+      assert(
+        apiFacts.status === 200 && apiFacts.activities?.A140,
+        `${mode} snapshot facts must be queryable, got ${JSON.stringify(apiFacts).slice(0, 500)}`,
+      );
+      const apiA140 = apiFacts.activities.A140;
+      assert(
+        uiRow[1] === apiA140.start && uiRow[2] === apiA140.finish,
+        `${mode} browser row must match the authoritative API facts, got ${JSON.stringify(uiRow)} vs ${JSON.stringify(apiA140)}`,
+      );
+      assert(
+        apiA140.start === expectedStart,
+        `${mode} must schedule A140 at ${expectedStart}, got ${apiA140.start}`,
+      );
+      const afterModeActivities = await readActivitiesApi();
+      const a140AfterMode = afterModeActivities.body?.activities
+        ?.map((item) => item.activity)
+        .find((item) => item.activity_id === "A140");
+      assert(
+        a140AfterMode?.actual_start === "2026-10-09" && a140AfterMode?.actual_finish === null,
+        `${mode} must not rewrite A140 actual dates, got ${JSON.stringify(a140AfterMode)}`,
+      );
+      const gridA140 = await readActivitySurface("A140");
+      assert(
+        gridA140.row?.start === apiA140.start,
+        `${mode} grid must show the same A140 start, got ${JSON.stringify(gridA140)}`,
+      );
+      outOfSequenceRuns.push({
+        mode,
+        snapshot_id: snapshotId,
+        ui_start: uiRow[1],
+        ui_finish: uiRow[2],
+        api_start: apiA140.start,
+        api_finish: apiA140.finish,
+        api_total_float: apiA140.total_float ?? null,
+        api_critical: apiA140.critical ?? null,
+        actual_start_preserved: a140AfterMode.actual_start,
+        grid_start: gridA140.row.start,
+      });
+    }
+    assert(
+      new Set(outOfSequenceRuns.map((run) => run.api_start)).size === 3,
+      `all three out-of-sequence modes must produce distinct A140 starts, got ${JSON.stringify(outOfSequenceRuns.map((run) => run.api_start))}`,
+    );
+    const lastRun = outOfSequenceRuns[outOfSequenceRuns.length - 1];
+    await page.scrollTo("#cp-schedule-run");
+    await page.screenshot("07i-out-of-sequence-modes.png");
+    EVIDENCE.progress_cycle = {
+      activity: "A140",
+      actual_start: a140Saved.actual_start,
+      data_date: "2026-10-13",
+      rejected_error: "PROGRESS_ACTUAL_FINISH_BEFORE_ACTUAL_START",
+      stale_status: staleProgressWrite.status,
+      modes: outOfSequenceRuns,
+      source: "progress panel -> PATCH activities/A140/progress; settings form -> PATCH settings; Run Schedule -> snapshot + Shared Core fact query",
+    };
+    record("all three out-of-sequence options persist and produce distinct authoritative dates", {
+      starts: outOfSequenceRuns.map((run) => `${run.mode}=${run.api_start}`),
+      actual_start_preserved: outOfSequenceRuns.every(
+        (run) => run.actual_start_preserved === "2026-10-09",
+      ),
+    });
+
+    // Re-read the persisted result after a full reload: settings, grid and
+    // Gantt must agree with the last authoritative snapshot.
+    const beforeReloadSurface = await readActivitySurface("A140");
+    const beforeReloadSettings = await readSettings();
+    assert(
+      beforeReloadSettings.status === 200 &&
+        beforeReloadSettings.body?.schedule_options?.out_of_sequence_schedule_type === "ACTUAL_DATES" &&
+        beforeReloadSettings.body?.schedule_options?.data_date === "2026-10-13",
+      "the last selected mode and Data Date must be readable before reload",
+    );
+    await page.reload(".cp-project-selection", "progress cycle reload");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "workspace after progress cycle reload");
+    await page.waitForSelector("[data-schedule-settings-form]", "settings after progress cycle reload");
+    await page.waitForSelector("#cp-progress-entry [data-progress-form]", "progress panel after reload", 30000);
+    const afterReloadSettings = await readSettings();
+    assert(
+      afterReloadSettings.status === 200 &&
+        afterReloadSettings.body?.schedule_options?.out_of_sequence_schedule_type === "ACTUAL_DATES" &&
+        afterReloadSettings.body?.schedule_options?.data_date === "2026-10-13",
+      `settings, Data Date and mode must survive reload, got ${JSON.stringify(afterReloadSettings.body?.schedule_options)}`,
+    );
+    const afterReloadGrid = await page.evaluate(`(() => {
+      const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A140"]');
+      const cell = (column) => row?.querySelector('[data-column-id="' + column + '"]')?.textContent.trim() ?? null;
+      const bar = document.querySelector('.cp-gantt-row[data-gantt-activity-id="A140"] .cp-gantt-bar');
+      return {
+        start: cell("activity.early_start"),
+        finish: cell("activity.early_finish"),
+        gantt_style: bar?.getAttribute("style") ?? null,
+        progress_data_date: document.querySelector("[data-progress-data-date]")?.getAttribute("data-progress-data-date") ?? null,
+      };
+    })()`);
+    assert(
+      afterReloadGrid.start === beforeReloadSurface.row?.start &&
+        afterReloadGrid.finish === beforeReloadSurface.row?.finish,
+      `grid dates must survive reload unchanged, got ${JSON.stringify(afterReloadGrid)} vs ${JSON.stringify(beforeReloadSurface)}`,
+    );
+    assert(
+      afterReloadGrid.gantt_style === beforeReloadSurface.gantt_style,
+      `Gantt geometry must survive reload unchanged, got ${JSON.stringify(afterReloadGrid.gantt_style)} vs ${JSON.stringify(beforeReloadSurface.gantt_style)}`,
+    );
+    assert(
+      afterReloadGrid.progress_data_date === "2026-10-13",
+      `the progress panel must reload the saved Data Date, got ${JSON.stringify(afterReloadGrid)}`,
+    );
+    const reloadedApiFacts = await querySnapshotFacts(lastRun.snapshot_id);
+    assert(
+      reloadedApiFacts.status === 200 &&
+        reloadedApiFacts.activities?.A140?.start === afterReloadGrid.start &&
+        reloadedApiFacts.activities?.A140?.finish === afterReloadGrid.finish,
+      `reloaded grid must match the persisted authoritative snapshot, got ${JSON.stringify(afterReloadGrid)} vs ${JSON.stringify(reloadedApiFacts.activities?.A140)}`,
+    );
+    await page.screenshot("07j-progress-reload.png");
+    EVIDENCE.persistence.progress_cycle = {
+      settings_mode: afterReloadSettings.body.schedule_options.out_of_sequence_schedule_type,
+      settings_data_date: afterReloadSettings.body.schedule_options.data_date,
+      a140_grid_start: afterReloadGrid.start,
+      a140_grid_finish: afterReloadGrid.finish,
+      gantt_style_unchanged: afterReloadGrid.gantt_style === beforeReloadSurface.gantt_style,
+      snapshot_id: lastRun.snapshot_id,
+    };
+    record("settings, progress, grid and Gantt reload consistently with the persisted snapshot", {
+      mode: afterReloadSettings.body.schedule_options.out_of_sequence_schedule_type,
+      data_date: afterReloadSettings.body.schedule_options.data_date,
+      a140_start: afterReloadGrid.start,
+      gantt_unchanged: afterReloadGrid.gantt_style === beforeReloadSurface.gantt_style,
     });
 
     await page.scrollTo("#cp-formula-editor");
@@ -2428,6 +3192,31 @@ async function main() {
       return { status: response.status, body };
     })()`, { awaitPromise: true });
     assert(viewerSnapshotPost.status === 403, "viewer snapshot publication must be denied with 403");
+    const viewerProgressWrite = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/p6/activities/A140/progress", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({
+          contract_version: "p6-activity-master-api.v1",
+          expected_revision: 1,
+          actual_start: "2026-10-09",
+          actual_finish: null,
+          remaining_duration: 1,
+          percent_complete: 90,
+        }),
+      });
+      return { status: response.status, body: await response.json().catch(() => null) };
+    })()`, { awaitPromise: true });
+    assert(
+      viewerProgressWrite.status === 403 &&
+        String(viewerProgressWrite.body?.code ?? viewerProgressWrite.body?.error ?? "").includes("authorization denied"),
+      `viewer progress entry must be denied, got ${JSON.stringify(viewerProgressWrite)}`,
+    );
 
     await page.click('[data-menu="project"]');
     await page.scrollTo("#cp-interchange");
@@ -2509,6 +3298,7 @@ async function main() {
       layout_read_status: layoutGet.status,
       layout_write: viewerLayoutPost,
       snapshot_write: viewerSnapshotPost,
+      progress_write: viewerProgressWrite,
       interchange_export: viewerExportStatus,
       interchange_import_denied: viewerImportError,
       capacity_read_resolved: "50",
@@ -2619,16 +3409,534 @@ async function main() {
       columns: createdProject.columns,
     });
 
+    // AI action path: a real server-created proposal, explicit human approval,
+    // authorized execution, durable persistence and a fresh Shared Core
+    // recalculation read back into the browser. The panel never sends a payload
+    // that the server has not validated and never displays a result that was not
+    // computed from saved project data.
+    await page.reload(".cp-project-selection", "reload to select the fixture project for AI actions");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "workspace for AI actions");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
+      "fixture rows before the AI action",
+    );
+    await page.waitForSelector("#cp-ai-action-panel", "AI action panel");
+    assert(
+      (await page.text("#cp-ai-action-panel summary"))?.includes("AI Assistant"),
+      "the AI action panel must be present on the authenticated workspace",
+    );
+    await page.click("#cp-ai-action-panel summary");
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-action-panel .cp-ai-action-list")?.textContent ?? "").includes("no action proposals")`,
+      "empty persisted proposal list",
+    );
+
+    const aiActivityId = `AI-E2E-${Date.now()}`;
+    await page.setInput(
+      '#cp-ai-action-panel form.cp-ai-action-form input[name="activity_id"]',
+      aiActivityId,
+    );
+    await page.setInput(
+      '#cp-ai-action-panel form.cp-ai-action-form input[name="name"]',
+      "AI created preview activity",
+    );
+    await page.setInput(
+      '#cp-ai-action-panel form.cp-ai-action-form input[name="duration_value"]',
+      "3",
+    );
+    await page.setSelect(
+      '#cp-ai-action-panel form.cp-ai-action-form select[name="duration_unit"]',
+      "working-day",
+    );
+    await page.click(
+      "#cp-ai-action-panel form.cp-ai-action-form button.cp-ai-action-primary",
+    );
+    await page.waitFor(
+      `document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal").length === 1`,
+      "server proposal listed after preparation",
+    );
+    const proposedState = await page.text(
+      "#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-state",
+    );
+    assert(
+      (proposedState ?? "").includes("ready for review"),
+      `the proposal must require review before any write, got ${proposedState}`,
+    );
+    const proposedMeta = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-metadata"))
+        .map((element) => element.textContent.trim())
+    )()`);
+    assert(
+      proposedMeta.some((text) => text === `Project revision: ${PROJECT_REVISION}`),
+      `the proposal must be bound to the current project revision, got ${JSON.stringify(proposedMeta)}`,
+    );
+    const proposalId = await page.evaluate(`(() => {
+      const line = Array.from(document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-metadata"))
+        .find((element) => element.textContent.trim().startsWith("ID: "));
+      return line ? line.textContent.trim().slice(4) : null;
+    })()`);
+    assert(typeof proposalId === "string" && proposalId.length > 0, "proposal id must be visible");
+    await page.screenshot("13a-ai-proposal.png");
+
+    await page.click(
+      "#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-controls button.cp-ai-action-primary",
+    );
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-state")?.textContent ?? "").includes("approved")`,
+      "explicit human approval",
+    );
+    const approvedMessage = await page.text("#cp-ai-action-panel .cp-ai-action-message");
+    assert(
+      (approvedMessage ?? "").includes("approved"),
+      `approval must be reported explicitly, got ${approvedMessage}`,
+    );
+
+    await page.waitForSelector(
+      "#cp-ai-action-panel .cp-ai-action-proposal button.cp-ai-action-primary",
+      "execute control for the approved action",
+    );
+    await page.click(
+      "#cp-ai-action-panel .cp-ai-action-proposal button.cp-ai-action-primary",
+    );
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-action-panel .cp-ai-action-message")?.textContent ?? "").includes("saved and recalculated")`,
+      "authoritative recalculation reported after execution",
+      30000,
+    );
+    const executedMessage = await page.text("#cp-ai-action-panel .cp-ai-action-message");
+    const executedState = await page.text(
+      "#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-state",
+    );
+    assert(
+      /created successfully|executed/i.test(executedState ?? ""),
+      `the executed proposal must persist its state, got ${executedState}`,
+    );
+    assert(
+      /Calculated start: \d{4}-\d{2}-\d{2}/.test(executedMessage ?? "") &&
+        /Calculated finish: \d{4}-\d{2}-\d{2}/.test(executedMessage ?? ""),
+      `the browser must show real calculated dates, got ${executedMessage}`,
+    );
+    const screenshotBeforeReload = await page.text(
+      "#cp-ai-action-panel .cp-ai-action-proposal",
+    );
+    assert(
+      screenshotBeforeReload !== null && screenshotBeforeReload.includes(aiActivityId),
+      "the panel must show the saved activity identity",
+    );
+    assert(
+      !/Oracle|Primavera|\bP6\b|https?:\/\//i.test(
+        (await page.text("#cp-ai-action-panel")) ?? "",
+      ),
+      "the AI action panel must not expose third-party branding or URLs",
+    );
+    await page.screenshot("13b-ai-executed.png");
+
+    const aiListResponse = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/ai/actions/proposals", {
+        headers: {
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+      });
+      return { status: response.status, body: await response.json().catch(() => null) };
+    })()`, { awaitPromise: true });
+    assert(aiListResponse.status === 200, "the persisted proposal must be readable");
+    const storedProposal = (aiListResponse.body?.proposals ?? [])
+      .find((proposal) => proposal.proposal_id === proposalId);
+    assert(storedProposal, "the executed proposal must be returned by the server");
+    assert(storedProposal.status === "executed", "the stored proposal status must be executed");
+    const storedVerification = storedProposal.execution_verification;
+    assert(
+      storedVerification?.status === "COMPUTED",
+      `the stored verification must be COMPUTED, got ${JSON.stringify(storedVerification)}`,
+    );
+    assert(
+      storedVerification.activity.activity_id === aiActivityId,
+      "the stored verification must reference the created activity",
+    );
+    assert(
+      storedVerification.activity.duration === 3 &&
+        storedVerification.activity.duration_unit === "working-day",
+      "the stored verification must use the saved duration and unit",
+    );
+    assert(
+      /^\d{4}-\d{2}-\d{2}$/.test(storedVerification.activity.start) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(storedVerification.activity.finish) &&
+        storedVerification.activity.start < storedVerification.activity.finish,
+      "the stored verification must contain real calculated dates",
+    );
+    assert(
+      typeof storedVerification.snapshot?.snapshot_id === "string" &&
+        storedVerification.snapshot.snapshot_id.length > 0 &&
+        typeof storedVerification.calculation_run_identity === "string" &&
+        storedVerification.calculation_run_identity.length > 0,
+      "the stored verification must identify the snapshot and calculation run",
+    );
+
+    const duplicateExecution = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/ai/actions/proposals/${proposalId}/execute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({ expected_revision: ${PROJECT_REVISION}, timezone: "UTC" }),
+      });
+      return { status: response.status, body: await response.json().catch(() => null) };
+    })()`, { awaitPromise: true });
+    assert(
+      duplicateExecution.status === 409 &&
+        duplicateExecution.body?.code === "AI_ACTION_PROPOSAL_NOT_APPROVED",
+      `completed execution must not replay, got ${JSON.stringify(duplicateExecution)}`,
+    );
+
+    const staleProposal = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/ai/actions/proposals", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({
+          expected_revision: ${PROJECT_REVISION - 1},
+          tool_name: "activity.create",
+          payload: {
+            activity_id: "AI-STALE-BROWSER",
+            name: "Stale browser proposal",
+            duration_value: "1",
+            duration_unit: "working-day",
+          },
+          evidence_refs: [],
+        }),
+      });
+      return { status: response.status, body: await response.json().catch(() => null) };
+    })()`, { awaitPromise: true });
+    assert(
+      staleProposal.status === 409 &&
+        staleProposal.body?.code === "AI_ACTION_PROPOSAL_STALE_REVISION",
+      `a stale browser revision must fail closed, got ${JSON.stringify(staleProposal)}`,
+    );
+
+    await page.reload(".cp-project-selection", "reload after the AI execution");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "workspace after AI execution");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 15`,
+      "the created activity must appear after reload",
+      30000,
+    );
+    const aiRow = await page.evaluate(`(() => {
+      const row = document.querySelector('tr[data-activity-id="${aiActivityId}"]');
+      if (!row) return null;
+      const cell = (column) => row.querySelector('[data-column-id="' + column + '"]')?.textContent.trim() ?? null;
+      return {
+        id: row.dataset.activityId,
+        name: cell("activity.name"),
+        start: cell("activity.early_start"),
+        finish: cell("activity.early_finish"),
+      };
+    })()`);
+    assert(
+      aiRow?.start === storedVerification.activity.start &&
+        aiRow?.finish === storedVerification.activity.finish,
+      `the grid must read the recalculated dates from the saved snapshot, got ${JSON.stringify(aiRow)} and ${JSON.stringify(storedVerification.activity)}`,
+    );
+    await page.click("#cp-ai-action-panel summary");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal").length === 1 &&
+       (document.querySelector("#cp-ai-action-panel .cp-ai-action-proposal")?.textContent ?? "").includes("saved and recalculated")`,
+      "the stored verification must render after a full reload",
+    );
+    const persistedPanelText = await page.text(
+      "#cp-ai-action-panel .cp-ai-action-proposal",
+    );
+    assert(
+      (persistedPanelText ?? "").includes(storedVerification.activity.start) &&
+        (persistedPanelText ?? "").includes(storedVerification.activity.finish),
+      "the reloaded panel must show the stored calculated dates",
+    );
+    await page.screenshot("13c-ai-persisted.png");
+    EVIDENCE.ai_action = {
+      activity_id: aiActivityId,
+      proposal_id: proposalId,
+      proposal_revision: storedProposal.project_revision_id,
+      requested_by: storedProposal.requested_by,
+      status: storedProposal.status,
+      verification_status: storedVerification.status,
+      calculated_start: storedVerification.activity.start,
+      calculated_finish: storedVerification.activity.finish,
+      calculated_duration: storedVerification.activity.duration,
+      project_finish: storedVerification.project_finish,
+      snapshot_id: storedVerification.snapshot.snapshot_id,
+      calculation_run_identity: storedVerification.calculation_run_identity,
+      grid_readback_start: aiRow.start,
+      grid_readback_finish: aiRow.finish,
+      duplicate_execution_status: duplicateExecution.status,
+      stale_propose_status: staleProposal.status,
+      persisted_after_reload: true,
+    };
+    record("AI action proposal, approval, execution and recalculation persist through the real server", {
+      activity_id: aiActivityId,
+      calculated_start: storedVerification.activity.start,
+      calculated_finish: storedVerification.activity.finish,
+      snapshot_id: storedVerification.snapshot.snapshot_id,
+      duplicate_execution_status: duplicateExecution.status,
+      stale_propose_status: staleProposal.status,
+    });
+
+    // Assistant conversation: typed messages and a browser-recognized transcript
+    // use the same authenticated turn endpoint and project revision. This local
+    // runtime has no AI provider configured, so every turn must fail closed with
+    // a stable code and a clear localized message instead of a fabricated reply.
+    await page.waitForSelector("#cp-ai-assistant-chat", "assistant chat panel");
+    if (await page.evaluate(`!document.querySelector("#cp-ai-assistant-chat").open`)) {
+      await page.click("#cp-ai-assistant-chat summary");
+    }
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-provider-notice")?.textContent ?? "").includes("not configured")`,
+      "provider fail-closed notice",
+    );
+    const chatDirection = await page.evaluate(
+      `document.querySelector("#cp-ai-assistant-chat").dir`,
+    );
+    assert(chatDirection === "ltr", `English chat must be LTR, got ${chatDirection}`);
+    assert(
+      (await page.text("#cp-ai-assistant-chat .cp-ai-chat-summary"))?.includes("AI Project Assistant"),
+      "the chat panel must be visible on the authenticated workspace",
+    );
+
+    const typedChatMessage = "Summarize the current project status.";
+    await page.setInput("#cp-ai-assistant-chat textarea.cp-ai-chat-input", typedChatMessage);
+    await page.click("#cp-ai-assistant-chat button.cp-ai-chat-send");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-status")?.dataset.kind === "error" &&
+       (document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-status")?.textContent ?? "").includes("not configured")`,
+      "typed assistant turn fail-closed message",
+    );
+    const typedChatStatus = await page.text("#cp-ai-assistant-chat .cp-ai-chat-status");
+    const typedRestored = await page.evaluate(
+      `document.querySelector("#cp-ai-assistant-chat textarea.cp-ai-chat-input").value`,
+    );
+    assert(
+      typedRestored === typedChatMessage,
+      `the failed typed message must stay editable, got ${JSON.stringify(typedRestored)}`,
+    );
+    assert(
+      (await page.text("#cp-ai-assistant-chat .cp-ai-chat-message-user"))?.includes(typedChatMessage),
+      "the typed message must appear in the conversation",
+    );
+    const typedRequest = JSON.parse(ASSISTANT_REQUESTS.at(-1)?.body ?? "{}");
+    assert(
+      typedRequest.message === typedChatMessage &&
+        typedRequest.language === "en" &&
+        Number.isInteger(typedRequest.expected_revision) &&
+        !("input" in typedRequest),
+      `the typed message must reach the authenticated turn endpoint with current context, got ${JSON.stringify(typedRequest)}`,
+    );
+
+    await page.click("#cp-ai-assistant-chat button.cp-ai-chat-voice");
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-assistant-chat textarea.cp-ai-chat-input")?.value ?? "").includes("How is the project schedule performing?")`,
+      "recognized transcript in the same message field",
+    );
+    const recognizedStatus = await page.text("#cp-ai-assistant-chat .cp-ai-chat-status");
+    assert(
+      (recognizedStatus ?? "").includes("Speech recognized"),
+      `recognized speech must be explained before sending, got ${recognizedStatus}`,
+    );
+    await page.screenshot("13e-ai-chat-voice.png");
+    const requestCountBeforeVoiceSend = ASSISTANT_REQUESTS.length;
+    await page.click("#cp-ai-assistant-chat button.cp-ai-chat-send");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-status")?.dataset.kind === "error"`,
+      "voice-originated assistant turn fail-closed message",
+    );
+    const voiceRequest = JSON.parse(ASSISTANT_REQUESTS.at(-1)?.body ?? "{}");
+    assert(
+      ASSISTANT_REQUESTS.length === requestCountBeforeVoiceSend + 1 &&
+        voiceRequest.message === "How is the project schedule performing?" &&
+        voiceRequest.input?.channel === "voice" &&
+        voiceRequest.input?.source === "microphone" &&
+        voiceRequest.input?.confidence === 0.91,
+      `the recognized transcript must use the same turn endpoint with voice provenance, got ${JSON.stringify(voiceRequest)}`,
+    );
+    const voiceStatus = await page.text("#cp-ai-assistant-chat .cp-ai-chat-status");
+    assert(
+      (voiceStatus ?? "").includes("not configured"),
+      `the voice turn must fail closed visibly, got ${voiceStatus}`,
+    );
+
+    const readAloudButton = "#cp-ai-assistant-chat button.cp-ai-chat-toggle";
+    assert(
+      (await page.evaluate(`document.querySelector("${readAloudButton}")?.getAttribute("aria-pressed")`)) === "false",
+      "spoken replies must be off until the user enables them",
+    );
+    await page.click(readAloudButton);
+    assert(
+      (await page.evaluate(`document.querySelector("${readAloudButton}")?.getAttribute("aria-pressed")`)) === "true",
+      "the read-aloud preference must be visible",
+    );
+    await page.click(readAloudButton);
+    assert(
+      (await page.evaluate(`document.querySelector("${readAloudButton}")?.getAttribute("aria-pressed")`)) === "false",
+      "the read-aloud preference must be reversible",
+    );
+    assert(
+      (await page.evaluate(`document.querySelector("#cp-ai-assistant-chat button.cp-ai-chat-stop-reading")?.disabled`)) === true,
+      "stop-reading must be disabled while nothing is spoken",
+    );
+
+    await page.click("[data-language-toggle]");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-assistant-chat")?.dir === "rtl"`,
+      "Persian RTL assistant chat",
+    );
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-provider-notice")?.textContent ?? "").includes("پیکربندی نشده")`,
+      "Persian provider fail-closed notice",
+    );
+    assert(
+      (await page.text("#cp-ai-assistant-chat .cp-ai-chat-summary"))?.includes("دستیار هوشمند پروژه"),
+      "the Persian chat must expose translated labels",
+    );
+    const persianChatMessage = "وضعیت زمان‌بندی پروژه را خلاصه کن.";
+    await page.setInput("#cp-ai-assistant-chat textarea.cp-ai-chat-input", persianChatMessage);
+    const requestsBeforePersian = ASSISTANT_REQUESTS.length;
+    await page.click("#cp-ai-assistant-chat button.cp-ai-chat-send");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-status")?.dataset.kind === "error"`,
+      "Persian assistant turn fail-closed message",
+    );
+    const persianRequest = JSON.parse(ASSISTANT_REQUESTS.at(-1)?.body ?? "{}");
+    assert(
+      ASSISTANT_REQUESTS.length === requestsBeforePersian + 1 &&
+        persianRequest.message === persianChatMessage &&
+        persianRequest.language === "fa",
+      `the Persian turn must carry the selected locale, got ${JSON.stringify(persianRequest)}`,
+    );
+    await page.screenshot("13f-ai-chat-persian.png");
+    await page.click("[data-language-toggle]");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-assistant-chat")?.dir === "ltr"`,
+      "English chat restored before the remaining checks",
+    );
+    EVIDENCE.ai_assistant = {
+      provider_configured: false,
+      capabilities_contract: "ai-assistant-capabilities.v1",
+      typed_request: {
+        message: typedRequest.message,
+        language: typedRequest.language,
+        expected_revision: typedRequest.expected_revision,
+      },
+      typed_status: typedChatStatus,
+      voice_request: {
+        message: voiceRequest.message,
+        language: voiceRequest.language,
+        input: voiceRequest.input,
+      },
+      voice_status: voiceStatus,
+      persian_request: {
+        message: persianRequest.message,
+        language: persianRequest.language,
+      },
+      speech_fixture: "deterministic browser Web Speech adapter",
+      microphone: "not used; deterministic browser speech fixture only",
+    };
+    record("typed and recognized voice turns share the real fail-closed assistant endpoint", {
+      typed_status: typedChatStatus,
+      voice_status: voiceStatus,
+      persian_language: persianRequest.language,
+    });
+
+    // The same authenticated browser must not be able to bypass the grant by
+    // presenting the proposal to a read-only identity; the panel and the direct
+    // route both fail closed.
+    await page.click("#cubi-preview-banner button");
+    await page.waitForSelector('form[action="/preview/login"]', "login after AI actions");
+    await page.click('button[name="role"][value="viewer"]');
+    await page.waitForSelector(".cp-project-selection", "viewer project selection after AI actions");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "viewer workspace after AI actions");
+    await page.waitForSelector("#cp-ai-action-panel", "viewer AI action panel");
+    await page.click("#cp-ai-action-panel summary");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-action-panel .cp-ai-action-message")?.dataset.kind === "error"`,
+      "viewer proposal list denial",
+    );
+    const viewerAiMessage = await page.text("#cp-ai-action-panel .cp-ai-action-message");
+    assert(
+      (viewerAiMessage ?? "").includes("authorization denied") ||
+        (viewerAiMessage ?? "").includes("permission"),
+      `viewer AI reads must fail closed, got ${viewerAiMessage}`,
+    );
+    const viewerAiPropose = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/ai/actions/proposals", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({
+          expected_revision: ${PROJECT_REVISION},
+          tool_name: "activity.create",
+          payload: {
+            activity_id: "AI-VIEWER-DENIED",
+            name: "Viewer denied",
+            duration_value: "1",
+            duration_unit: "working-day",
+          },
+          evidence_refs: [],
+        }),
+      });
+      return { status: response.status, body: await response.json().catch(() => null) };
+    })()`, { awaitPromise: true });
+    assert(
+      viewerAiPropose.status === 403 &&
+        String(viewerAiPropose.body?.code ?? "").includes("authorization denied"),
+      `viewer AI proposals must be denied before authorization, got ${JSON.stringify(viewerAiPropose)}`,
+    );
+    await page.screenshot("13d-ai-viewer-denied.png");
+    EVIDENCE.ai_permissions = {
+      viewer_list_error: viewerAiMessage,
+      viewer_propose_status: viewerAiPropose.status,
+      viewer_propose_code: viewerAiPropose.body?.code ?? null,
+    };
+    record("viewer cannot read or create AI action proposals", {
+      list_error: viewerAiMessage,
+      propose_status: viewerAiPropose.status,
+    });
+
     if (EXCEPTIONS.length > 0) {
       throw new Error(
         `UNCAUGHT_PAGE_EXCEPTIONS: ${JSON.stringify(EXCEPTIONS.slice(0, 5))}`,
       );
     }
-    if (API_FAILURES.length > 0) {
-      throw new Error(`API_5XX_RESPONSES: ${JSON.stringify(API_FAILURES.slice(0, 5))}`);
+    const expectedProviderFailures = API_FAILURES.filter(
+      (failure) => failure.status === 503 && failure.url.includes("/ai/assistant/turn"),
+    );
+    const unexpectedApiFailures = API_FAILURES.filter(
+      (failure) => !(failure.status === 503 && failure.url.includes("/ai/assistant/turn")),
+    );
+    if (unexpectedApiFailures.length > 0) {
+      throw new Error(
+        `API_5XX_RESPONSES: ${JSON.stringify(unexpectedApiFailures.slice(0, 5))}`,
+      );
     }
-    record("no uncaught browser exceptions or API 5xx responses", {
+    assert(
+      expectedProviderFailures.length >= 3,
+      `each fail-closed assistant turn must answer 503, got ${JSON.stringify(expectedProviderFailures)}`,
+    );
+    record("no uncaught browser exceptions or unexpected API 5xx responses", {
       console_error_count: CONSOLE_ERRORS.length,
+      expected_assistant_provider_503: expectedProviderFailures.length,
     });
   } finally {
     page?.cdp.close();

@@ -57,6 +57,44 @@ test("creates activity proposal with expected revision and registered tool", asy
   });
 });
 
+test("creates activity update proposal with record revision and registered tool", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: AI_ACTION_CONTRACT_VERSION, status: "proposed",
+    proposal: {
+      ...validProposal, tool_name: "activity.update", action: "update", status: undefined,
+      payload: { activity_id: "A-17", expected_revision: 3, name: "Excavation revised" },
+    },
+  }});
+  const result = await new AIActionClient(transport).proposeActivityUpdate(context, {
+    activity_id: "A-17", expected_revision: 3, name: "Excavation revised",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(transport.calls[0]?.path, "/api/projects/project-1/ai/actions/proposals");
+  assert.deepEqual(transport.calls[0]?.request, {
+    expected_revision: 7, tool_name: "activity.update",
+    payload: { activity_id: "A-17", expected_revision: 3, name: "Excavation revised" },
+    evidence_refs: [],
+  });
+  if (result.ok) {
+    assert.equal(result.data.tool_name, "activity.update");
+    assert.equal(result.data.payload.expected_revision, 3);
+  }
+});
+
+test("propagates an execution error without inventing a verification", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: false, error: {
+    code: "AI_ACTION_ACTIVITY_REVISION_CONFLICT",
+    retryable: false,
+    message_key: "error.ai_action.request_failed",
+    available_actions: [],
+  } });
+  const result = await new AIActionClient(transport).execute(context, "prop-1", "UTC");
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "AI_ACTION_ACTIVITY_REVISION_CONFLICT");
+});
+
 test("approval and execution use separate explicit requests", async () => {
   const transport = new FakeTransport();
   transport.responses.push(
@@ -78,6 +116,157 @@ test("invalid action contract is rejected", async () => {
   const result = await new AIActionClient(transport).listProposals(context);
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, "INVALID_AI_ACTION_RESPONSE");
+});
+
+test("execution sends the calculation timezone and parses a computed verification", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: AI_ACTION_CONTRACT_VERSION,
+    proposal_id: "prop-1",
+    status: "executed",
+    result: { activity: { activity_id: "A-17" } },
+    execution_verification: {
+      contract_version: "ai-action-execution-verification.v1",
+      status: "COMPUTED",
+      reason_code: null,
+      activity: {
+        activity_id: "A-17", start: "2026-10-19", finish: "2026-10-20",
+        duration: 2, duration_unit: "working-day", critical: true,
+      },
+      project_finish: "2026-10-20",
+      calculation_run_identity: "run-identity-1",
+      snapshot: {
+        snapshot_id: "SNAP-1",
+        snapshot_hash: "a".repeat(64),
+        calculation_identity: "b".repeat(64),
+      },
+      query_id: "ai-action-execution:prop-1",
+    },
+    execution_verification_stored: true,
+  }});
+  const result = await new AIActionClient(transport).execute(context, "prop-1", "Asia/Tehran");
+  assert.deepEqual(transport.calls[0]?.request, {
+    expected_revision: 7,
+    timezone: "Asia/Tehran",
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    const verification = result.data.execution_verification;
+    assert.equal(verification?.status, "COMPUTED");
+    assert.equal(verification?.activity?.start, "2026-10-19");
+    assert.equal(verification?.snapshot?.snapshot_id, "SNAP-1");
+    assert.equal(result.data.execution_verification_stored, true);
+  }
+});
+
+test("reads a durable execution verification from the proposal list", async () => {
+  const transport = new FakeTransport();
+  const storedProposal = {
+    ...validProposal,
+    status: "executed",
+    result: { activity: { activity_id: "A-17", name: "Excavation" } },
+    execution_verification: {
+      contract_version: "ai-action-execution-verification.v1",
+      status: "COMPUTED",
+      reason_code: null,
+      activity: {
+        activity_id: "A-17", start: "2026-10-19", finish: "2026-10-20",
+        duration: 2, duration_unit: "working-day", critical: false,
+      },
+      project_finish: "2026-10-20",
+      calculation_run_identity: "run-identity-1",
+      snapshot: {
+        snapshot_id: "SNAP-1",
+        snapshot_hash: "a".repeat(64),
+        calculation_identity: "b".repeat(64),
+      },
+      query_id: "ai-action-execution:prop-1",
+    },
+  };
+  transport.responses.push({ ok: true, data: {
+    contract_version: AI_ACTION_CONTRACT_VERSION,
+    proposals: [storedProposal],
+  }});
+  const result = await new AIActionClient(transport).listProposals(context);
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.data.proposals[0]?.execution_verification?.status, "COMPUTED");
+    assert.equal(result.data.proposals[0]?.execution_verification?.activity?.finish, "2026-10-20");
+  }
+});
+
+test("rejects a malformed durable verification in the proposal list", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: AI_ACTION_CONTRACT_VERSION,
+    proposals: [{
+      ...validProposal,
+      status: "executed",
+      execution_verification: {
+        contract_version: "ai-action-execution-verification.v1",
+        status: "COMPUTED",
+        reason_code: null,
+        activity: null,
+        project_finish: "2026-10-20",
+        calculation_run_identity: "run-identity-1",
+        snapshot: null,
+        query_id: "ai-action-execution:prop-1",
+      },
+    }],
+  }});
+  const result = await new AIActionClient(transport).listProposals(context);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "INVALID_AI_ACTION_RESPONSE");
+});
+
+test("rejects a computed verification that omits calculated activity or snapshot", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: AI_ACTION_CONTRACT_VERSION,
+    proposal_id: "prop-1",
+    status: "executed",
+    result: { activity: { activity_id: "A-17" } },
+    execution_verification: {
+      contract_version: "ai-action-execution-verification.v1",
+      status: "COMPUTED",
+      reason_code: null,
+      activity: null,
+      project_finish: "2026-10-20",
+      calculation_run_identity: "run-identity-1",
+      snapshot: null,
+      query_id: "ai-action-execution:prop-1",
+    },
+  }});
+  const result = await new AIActionClient(transport).execute(context, "prop-1", null);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "INVALID_AI_ACTION_RESPONSE");
+});
+
+test("accepts an explicit unavailable verification without fabricated dates", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: AI_ACTION_CONTRACT_VERSION,
+    proposal_id: "prop-1",
+    status: "executed",
+    result: { activity: { activity_id: "A-17" } },
+    execution_verification: {
+      contract_version: "ai-action-execution-verification.v1",
+      status: "UNAVAILABLE",
+      reason_code: "CALCULATION_TIMEZONE_REQUIRED",
+      activity: null,
+      project_finish: null,
+      calculation_run_identity: null,
+      snapshot: null,
+      query_id: null,
+    },
+  }});
+  const result = await new AIActionClient(transport).execute(context, "prop-1", null);
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.data.execution_verification?.status, "UNAVAILABLE");
+    assert.equal(result.data.execution_verification?.reason_code, "CALCULATION_TIMEZONE_REQUIRED");
+    assert.equal(result.data.execution_verification?.activity, null);
+  }
 });
 
 
@@ -163,4 +352,59 @@ test("rejects assistant turn responses missing required proposal field or valid 
   }});
   const emptyMessage = await new AIActionClient(transport).sendAssistantTurn(context, "hello", "en");
   assert.equal(emptyMessage.ok, false);
+});
+
+test("sends recognized voice provenance through the same assistant turn endpoint", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-turn.v1",
+    kind: "message",
+    message: "The project has 14 activities.",
+    proposal: null,
+  }});
+  const result = await new AIActionClient(transport).sendAssistantTurn(
+    context,
+    "How many activities are there?",
+    "en",
+    [],
+    { channel: "voice", source: "microphone", confidence: 0.87 },
+  );
+  assert.equal(result.ok, true);
+  assert.equal(transport.calls[0]?.path, "/api/projects/project-1/ai/assistant/turn");
+  assert.deepEqual(transport.calls[0]?.request, {
+    expected_revision: 7,
+    message: "How many activities are there?",
+    language: "en",
+    history: [],
+    input: { channel: "voice", source: "microphone", confidence: 0.87 },
+  });
+});
+
+test("reads fail-closed assistant capabilities without inventing a provider", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-capabilities.v1",
+    enabled: false,
+    reason: "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
+  }});
+  const disabled = await new AIActionClient(transport).getAssistantCapabilities(context);
+  assert.equal(disabled.ok, true);
+  if (disabled.ok) {
+    assert.equal(disabled.data.enabled, false);
+    assert.equal(disabled.data.reason, "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED");
+  }
+  assert.equal(transport.calls[0]?.method, "GET");
+  assert.equal(
+    transport.calls[0]?.path,
+    "/api/projects/project-1/ai/assistant/capabilities",
+  );
+
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-capabilities.v1",
+    enabled: "yes",
+    reason: null,
+  }});
+  const invalid = await new AIActionClient(transport).getAssistantCapabilities(context);
+  assert.equal(invalid.ok, false);
+  if (!invalid.ok) assert.equal(invalid.error.code, "INVALID_AI_ACTION_RESPONSE");
 });

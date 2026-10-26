@@ -104,6 +104,21 @@ export type WorkspaceActivitySort = {
   readonly direction: "asc" | "desc";
 };
 
+/**
+ * Server-side aggregate of the persisted WBS assignment.
+ *
+ * The counts and bounds are computed by the authoritative read provider from
+ * the same activity and schedule-fact rows; the Web never derives them.
+ */
+export type WorkspaceWbsSummary = {
+  wbsId: string;
+  activityCount: number;
+  criticalCount: number;
+  scheduledStart: string | null;
+  scheduledFinish: string | null;
+  totalFloatMin: number | null;
+};
+
 export type WorkspaceState = {
   context: ProjectContext;
   locale: WorkspaceLocale;
@@ -115,6 +130,7 @@ export type WorkspaceState = {
   selectedActivityId: string | null;
   columns: readonly WorkspaceColumn[];
   activities: readonly WorkspaceActivityRow[];
+  wbsSummary: readonly WorkspaceWbsSummary[];
   activityFilter: string;
   activitySort: WorkspaceActivitySort | null;
   controlSummary: WorkspaceControlSummary | null;
@@ -180,6 +196,7 @@ export function createWorkspaceState(
     selectedActivityId: null,
     columns: getDefaultWorkspaceColumns(locale),
     activities: [],
+    wbsSummary: [],
     activityFilter: "",
     activitySort: null,
     controlSummary: null,
@@ -208,6 +225,36 @@ export function selectWbs(state: WorkspaceState, wbsId: string | null): Workspac
     ...state,
     selectedWbsId: wbsId,
     selectedActivityId: null,
+  };
+}
+
+export function setWbsSummary(
+  state: WorkspaceState,
+  summary: readonly WorkspaceWbsSummary[],
+): WorkspaceState {
+  const ids = new Set<string>();
+  for (const group of summary) {
+    if (
+      !group.wbsId ||
+      ids.has(group.wbsId) ||
+      !Number.isInteger(group.activityCount) ||
+      group.activityCount < 0 ||
+      !Number.isInteger(group.criticalCount) ||
+      group.criticalCount < 0 ||
+      group.criticalCount > group.activityCount ||
+      (group.scheduledStart !== null && !group.scheduledStart) ||
+      (group.scheduledFinish !== null && !group.scheduledFinish) ||
+      (group.totalFloatMin !== null && !Number.isFinite(group.totalFloatMin))
+    ) {
+      throw new Error("INVALID_WBS_SUMMARY");
+    }
+    ids.add(group.wbsId);
+  }
+  return {
+    ...state,
+    wbsSummary: summary.map((group) => Object.freeze({ ...group })),
+    selectedWbsId:
+      state.selectedWbsId && ids.has(state.selectedWbsId) ? state.selectedWbsId : null,
   };
 }
 

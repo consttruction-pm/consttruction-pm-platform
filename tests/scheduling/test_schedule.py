@@ -660,7 +660,9 @@ def test_start_to_start_with_progressed_root_actual_start_and_data_date(
         ),
     )
 
-    assert result.early_activities["A"].start == date(2026, 9, 22)
+    # A's remaining interval starts at the Data Date; the elapsed working day
+    # since its actual start consumes one day of the SS lag for both modes.
+    assert result.early_activities["A"].start == date(2026, 9, 23)
     assert result.early_activities["B"].start == date(2026, 9, 24)
 
 

@@ -3,22 +3,30 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 
 psycopg = pytest.importorskip("psycopg")
 
-from construction_pm.ai_action_activity_tools import build_activity_create_runtime
+from construction_pm.ai_action_activity_tools import (
+    build_activity_action_runtime,
+    build_activity_create_runtime,
+)
 from construction_pm.ai_action_boundary import (
     AIActionPermissionGrant,
     AIActionProposal,
     UserConfiguredAIActionPermissionAdapter,
 )
 from construction_pm.application.authorization import default_project_policy
-from construction_pm.activity_master_repository import PostgresActivityMasterRepository
+from construction_pm.activity_master_repository import (
+    ActivityMaster,
+    PostgresActivityMasterRepository,
+)
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
+from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.ai_action_runtime import (
     AIActionRuntimeContext,
     AIActionRuntimeError,
@@ -92,6 +100,46 @@ def test_postgres_action_proposal_and_audit_round_trip(postgres_connection):
             updated_at=now,
             decided_by="user-1",
         )
+
+        verification = {
+            "contract_version": "ai-action-execution-verification.v1",
+            "status": "UNAVAILABLE",
+            "reason_code": "SCHEDULE_VERIFICATION_NOT_COMPOSED",
+            "activity": None,
+            "project_finish": None,
+            "calculation_run_identity": None,
+            "snapshot": None,
+            "query_id": None,
+        }
+        store.save_execution_verification(
+            proposal, verification=verification, recorded_at=now
+        )
+        persisted_verification = store.get(
+            proposal.proposal_id,
+            tenant_id=proposal.tenant_id,
+            project_id=proposal.project_id,
+        )
+        assert persisted_verification is not None
+        assert persisted_verification.execution_verification == verification
+
+        # Re-saving the verification updates the single scoped record rather
+        # than duplicating or leaking it across scopes.
+        updated_verification = dict(verification, status="FAILED", reason_code="SCHEDULE_VERIFICATION_FAILED")
+        store.save_execution_verification(
+            proposal, verification=updated_verification, recorded_at=now
+        )
+        persisted_verification = store.get(
+            proposal.proposal_id,
+            tenant_id=proposal.tenant_id,
+            project_id=proposal.project_id,
+        )
+        assert persisted_verification is not None
+        assert persisted_verification.execution_verification == updated_verification
+        assert store.get(
+            proposal.proposal_id,
+            tenant_id=f"other-{suffix}",
+            project_id=proposal.project_id,
+        ) is None
 
 
 
@@ -193,6 +241,143 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
             (tenant_id, project_id),
         )
         postgres_connection.execute(
+            "DELETE FROM ai_action_execution_verifications WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id, project_id),
+        )
+        postgres_connection.execute(
             "DELETE FROM ai_action_proposals WHERE tenant_id=%s AND project_id=%s",
             (tenant_id, project_id),
         )
+
+
+def test_postgres_activity_update_locks_record_revision_and_persists_verification(postgres_connection):
+    suffix = uuid4().hex
+    tenant_id = f"tenant-ai-upd-{suffix}"
+    project_id = f"project-ai-upd-{suffix}"
+    scope = BackendScope(tenant_id, project_id, 12)
+    transaction_manager = PostgresTransactionManager(postgres_connection)
+    activity_repository = PostgresActivityMasterRepository(postgres_connection)
+    activity_repository.initialize()
+
+    grants = (
+        AIActionPermissionGrant(
+            subject_id="user-1",
+            tenant_id=tenant_id,
+            project_id=project_id,
+            project_revision_id="12",
+            resource_domain="activities",
+            operation="update",
+            tool_name="activity.update",
+        ),
+    )
+    runtime = build_activity_action_runtime(
+        activity_master_repository=activity_repository,
+        authorization_policy=default_project_policy(),
+        permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: grants),
+        transaction_manager=transaction_manager,
+    )
+    postgres_connection.commit()
+
+    context = AIActionRuntimeContext(
+        subject_id="user-1",
+        tenant_id=tenant_id,
+        project_id=project_id,
+        project_revision_id="12",
+        roles=frozenset({"project_admin"}),
+    )
+    try:
+        with transaction_manager.transaction():
+            seeded = activity_repository.save(
+                ActivityMaster(
+                    scope=scope,
+                    activity_id="A-POSTGRES-UPD",
+                    duration_value=Decimal("3"),
+                    duration_unit=DurationUnit.WORKING_DAY,
+                    name="Original Postgres activity",
+                ),
+                expected_revision=0,
+            )
+        assert seeded.record_revision == 1
+
+        proposal = runtime.propose(
+            context,
+            tool_name="activity.update",
+            payload={
+                "activity_id": "A-POSTGRES-UPD",
+                "expected_revision": 1,
+                "name": "Revised Postgres activity",
+                "duration_value": "4",
+                "duration_unit": "working-day",
+            },
+        )
+        runtime.decide(context, proposal.proposal.proposal_id, approved=True)
+        executed = runtime.execute(context, proposal.proposal.proposal_id)
+        assert executed.status == "executed"
+        assert executed.result is not None
+        assert executed.result["activity"]["record_revision"] == 2
+
+        verification = {
+            "contract_version": "ai-action-execution-verification.v1",
+            "status": "UNAVAILABLE",
+            "reason_code": "CALCULATION_TIMEZONE_REQUIRED",
+            "activity": None,
+            "project_finish": None,
+            "calculation_run_identity": None,
+            "snapshot": None,
+            "query_id": None,
+        }
+        stored = runtime.record_execution_verification(
+            context, proposal.proposal.proposal_id, verification
+        )
+        assert stored.execution_verification == verification
+
+        fresh_connection = psycopg.connect(
+            os.getenv("P6_TEST_POSTGRES_DSN") or os.environ["CONSTRUCTION_PM_POSTGRES_DSN"]
+        )
+        try:
+            fresh_activity_repository = PostgresActivityMasterRepository(fresh_connection)
+            persisted = fresh_activity_repository.get(scope, "A-POSTGRES-UPD")
+            assert persisted is not None
+            assert persisted.name == "Revised Postgres activity"
+            assert persisted.duration_value == Decimal("4")
+            assert persisted.record_revision == 2
+            fresh_store = PostgresAIActionRuntimeStore(fresh_connection)
+            fresh_proposal = fresh_store.get(
+                proposal.proposal.proposal_id,
+                tenant_id=tenant_id,
+                project_id=project_id,
+            )
+            assert fresh_proposal is not None
+            assert fresh_proposal.status == "executed"
+            assert fresh_proposal.execution_verification == verification
+            idem = fresh_connection.execute(
+                "SELECT fingerprint, result_json FROM ai_action_tool_idempotency "
+                "WHERE tenant_id=%s AND project_id=%s AND tool_name=%s AND idempotency_key=%s",
+                (tenant_id, project_id, "activity.update", proposal.proposal.proposal_id),
+            ).fetchone()
+            assert idem is not None
+            assert json.loads(idem[1]) == executed.result
+        finally:
+            fresh_connection.close()
+    finally:
+        with transaction_manager.transaction():
+            postgres_connection.execute(
+                "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
+                (tenant_id, project_id),
+            )
+            postgres_connection.execute(
+                "DELETE FROM ai_action_tool_idempotency WHERE tenant_id=%s AND project_id=%s",
+                (tenant_id, project_id),
+            )
+            postgres_connection.execute(
+                "DELETE FROM ai_action_audit_events WHERE tenant_id=%s AND project_id=%s",
+                (tenant_id, project_id),
+            )
+            postgres_connection.execute(
+                "DELETE FROM ai_action_execution_verifications WHERE tenant_id=%s AND project_id=%s",
+                (tenant_id, project_id),
+            )
+            postgres_connection.execute(
+                "DELETE FROM ai_action_proposals WHERE tenant_id=%s AND project_id=%s",
+                (tenant_id, project_id),
+            )

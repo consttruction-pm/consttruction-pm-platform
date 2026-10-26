@@ -178,6 +178,16 @@ def test_provider_joins_scoped_activities_layout_and_shared_core_facts() -> None
         assert workspace["columns"][1]["data_type"] == "date"
         assert workspace["columns"][3]["data_type"] == "boolean"
         assert [row["id"] for row in workspace["activities"]] == ["A-1", "A-2"]
+        assert workspace["wbs_summary"] == [
+            {
+                "wbs_id": "WBS-1 Site works",
+                "activity_count": 2,
+                "critical_count": 1,
+                "scheduled_start": "2026-10-19",
+                "scheduled_finish": "2026-10-23",
+                "total_float_min": 2,
+            }
+        ]
         first = workspace["activities"][0]
         assert first["wbs_id"] == "WBS-1 Site works"
         assert first["code"] == "A-1"
@@ -217,6 +227,51 @@ def test_provider_joins_scoped_activities_layout_and_shared_core_facts() -> None
         connection.close()
 
 
+def test_provider_rolls_up_wbs_groups_in_first_appearance_order() -> None:
+    connection = sqlite3.connect(":memory:")
+    try:
+        activity_repository, field_service, layout_repository = _fixture(connection)
+        activity_repository.save(_activity(SCOPE, "A-3", "Closeout", 1))
+        facts = {"activities": {"A-1": dict(FACTS["activities"]["A-1"])}}
+        provider = PersistedWorkspaceReadProvider(
+            activity_repository=activity_repository,
+            field_service=field_service,
+            layout_repository=layout_repository,
+            schedule_facts_provider=lambda scope, auth: facts,
+            wbs_by_activity={"A-1": "WBS-1 Civil", "A-2": "WBS-2 MEP"},
+        )
+        summary = provider.read(SCOPE)["workspace"]["wbs_summary"]
+
+        assert summary == [
+            {
+                "wbs_id": "WBS-1 Civil",
+                "activity_count": 1,
+                "critical_count": 1,
+                "scheduled_start": "2026-10-19",
+                "scheduled_finish": "2026-10-20",
+                "total_float_min": 2,
+            },
+            {
+                "wbs_id": "WBS-2 MEP",
+                "activity_count": 1,
+                "critical_count": 0,
+                "scheduled_start": None,
+                "scheduled_finish": None,
+                "total_float_min": None,
+            },
+            {
+                "wbs_id": "UNASSIGNED",
+                "activity_count": 1,
+                "critical_count": 0,
+                "scheduled_start": None,
+                "scheduled_finish": None,
+                "total_float_min": None,
+            },
+        ]
+    finally:
+        connection.close()
+
+
 def test_provider_without_snapshot_keeps_activities_but_fabricates_no_dates() -> None:
     connection = sqlite3.connect(":memory:")
     try:
@@ -233,6 +288,16 @@ def test_provider_without_snapshot_keeps_activities_but_fabricates_no_dates() ->
             assert "start" not in activity["cells"]
             assert "activity.early_start" not in activity["cells"]
             assert "activity.is_critical" not in activity["cells"]
+        assert workspace["wbs_summary"] == [
+            {
+                "wbs_id": "UNASSIGNED",
+                "activity_count": 2,
+                "critical_count": 0,
+                "scheduled_start": None,
+                "scheduled_finish": None,
+                "total_float_min": None,
+            }
+        ]
     finally:
         connection.close()
 

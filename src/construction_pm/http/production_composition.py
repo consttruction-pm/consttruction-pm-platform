@@ -10,8 +10,14 @@ from construction_pm.calendar_snapshot_repository import CalendarSnapshotReposit
 from construction_pm.calendar_work_hours_repository import CalendarWorkHourRepository
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.ai_action_boundary import AIToolPermissionAdapter
-from construction_pm.ai_action_activity_tools import build_activity_create_runtime
+from construction_pm.ai_action_activity_tools import build_activity_action_runtime
+from construction_pm.ai_assistant_project_context import (
+    PersistedProjectAssistantContextProvider,
+)
 from construction_pm.backend_p0.api import BackendP0API
+from construction_pm.backend_p0.authoritative_schedule_facts import (
+    PublishedScheduleFactsProvider,
+)
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
@@ -143,7 +149,7 @@ def build_project_lifecycle_wsgi_app(
             or activity_master_repository is None
         ):
             raise AIActionRuntimeError("AI_ACTION_RUNTIME_DEPENDENCIES_INCOMPLETE")
-        ai_action_runtime = build_activity_create_runtime(
+        ai_action_runtime = build_activity_action_runtime(
             activity_master_repository=activity_master_repository,
             authorization_policy=authorization_policy,
             permission_adapter=ai_action_permission_adapter,
@@ -155,9 +161,21 @@ def build_project_lifecycle_wsgi_app(
     if ai_assistant_provider is not None:
         if ai_action_runtime is None:
             raise AIActionRuntimeError("AI_ASSISTANT_ACTION_RUNTIME_REQUIRED")
+        project_context_provider = None
+        if activity_master_repository is not None:
+            project_context_provider = PersistedProjectAssistantContextProvider(
+                activity_repository=activity_master_repository,
+                authorization_policy=authorization_policy,
+                relationship_repository=relationship_master_repository,
+                schedule_facts=PublishedScheduleFactsProvider(
+                    snapshot_repository=snapshot_repository,
+                    query_provider=provider,
+                ),
+            )
         ai_assistant_orchestrator = AIAssistantTurnOrchestrator(
             provider=ai_assistant_provider,
             action_runtime=ai_action_runtime,
+            project_context_provider=project_context_provider,
         )
 
     activity_master_api = (

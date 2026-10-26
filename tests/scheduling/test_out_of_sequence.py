@@ -254,15 +254,15 @@ def test_oos_reference_matrix_completed_successor_preserves_progress_boundary(
 
 @pytest.mark.parametrize("relationship_type", list(RelationshipType))
 @pytest.mark.parametrize(
-    ("mode", "expected_start"),
+    ("mode", "expected_start_source"),
     [
-        (OutOfSequenceScheduleType.RETAINED_LOGIC, None),
-        (OutOfSequenceScheduleType.PROGRESS_OVERRIDE, date(2026, 10, 2)),
-        (OutOfSequenceScheduleType.ACTUAL_DATES, None),
+        (OutOfSequenceScheduleType.RETAINED_LOGIC, "data_date"),
+        (OutOfSequenceScheduleType.PROGRESS_OVERRIDE, "data_date"),
+        (OutOfSequenceScheduleType.ACTUAL_DATES, "actual_start"),
     ],
 )
 def test_schedule_applies_oos_mode_to_in_progress_successor(
-    relationship_type, mode, expected_start
+    relationship_type, mode, expected_start_source
 ):
     resolver = WorkingTimeResolver(WorkingCalendar())
     predecessor = Activity("P", 2)
@@ -283,6 +283,7 @@ def test_schedule_applies_oos_mode_to_in_progress_successor(
         actual_start=actual_start,
         remaining_duration=1,
     )
+    data_date = date(2026, 10, 2)
     result = schedule(
         [predecessor, successor],
         [Relationship("P", "S", relationship_type)],
@@ -290,18 +291,18 @@ def test_schedule_applies_oos_mode_to_in_progress_successor(
         resolver,
         project_finish=date(2026, 10, 5),
         options=ScheduleOptions(
-            data_date=date(2026, 10, 2),
+            data_date=data_date,
             out_of_sequence_schedule_type=mode,
         ),
     )
 
+    # The predecessor finishes before the Data Date, so Retained Logic and
+    # Progress Override both place remaining work at the Data Date. Actual
+    # Dates anchors the remaining interval on the recorded actual start.
+    expected_start = data_date if expected_start_source == "data_date" else actual_start
     assert result.early_activities is not None
-    if expected_start is not None:
-        assert result.early_activities["S"].start == expected_start
-        assert result.early_activities["S"].duration == 1
-    else:
-        assert result.early_activities["S"].start == required_start
-        assert result.early_activities["S"].duration == 1
+    assert result.early_activities["S"].start == expected_start
+    assert result.early_activities["S"].duration == 1
 
 
 @pytest.mark.parametrize("relationship_type", list(RelationshipType))

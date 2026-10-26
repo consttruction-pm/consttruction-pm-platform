@@ -21,6 +21,10 @@ from construction_pm.activity_master_repository import (
     ActivityMaster,
     SQLiteActivityMasterRepository,
 )
+from construction_pm.ai_action_boundary import (
+    AIActionPermissionGrant,
+    UserConfiguredAIActionPermissionAdapter,
+)
 from construction_pm.application.authorization import (
     AuthorizationContext,
     RoleBasedAuthorizationPolicy,
@@ -152,6 +156,7 @@ from .fixtures import (
     DemoProjectFixture,
 )
 from .storage import (
+    DEMO_USERS,
     DEMO_USER_IDS,
     PREVIEW_SEED_VERSION,
     PREVIEW_TENANT_ID,
@@ -167,6 +172,13 @@ PREVIEW_RULES_VERSION = "cubi-preview-rules.v1"
 PREVIEW_ENGINE_VERSION = "cubi-preview-engine.v1"
 PREVIEW_DEFAULT_CALENDAR_NAME = "Project working calendar (Mon-Fri)"
 PREVIEW_DEFAULT_WORKING_WEEKDAYS = frozenset({0, 1, 2, 3, 4})
+# The preview exposes only the two real, typed activity tools and only to the
+# curated editor identities. There is intentionally no wildcard or fallback.
+PREVIEW_AI_ACTION_ROLES = frozenset({"planner", "project_admin"})
+PREVIEW_AI_ACTION_TOOLS: tuple[tuple[str, str, str], ...] = (
+    ("activity.create", "create", "activities"),
+    ("activity.update", "update", "activities"),
+)
 
 
 class PreviewRuntimeError(RuntimeError):
@@ -180,6 +192,47 @@ class PreviewRuntimeError(RuntimeError):
 class PreviewClock:
     def now(self) -> datetime:
         return datetime.now(timezone.utc)
+
+
+def build_preview_ai_action_permission_adapter(
+    store: PreviewStore,
+) -> UserConfiguredAIActionPermissionAdapter:
+    """Grant the curated preview editors the exact registered activity tools.
+
+    Grants are rebuilt from the persisted project rows on every decision, so an
+    advanced project revision revokes every older grant immediately. The adapter
+    remains default-deny: viewers, unknown subjects, unknown projects/revisions,
+    other resource domains, operations and tools never receive a grant.
+    """
+
+    def grants() -> tuple[AIActionPermissionGrant, ...]:
+        issued: list[AIActionPermissionGrant] = []
+        rows = store.project_rows()
+        if not rows:
+            return ()
+        for user in DEMO_USERS:
+            if not user.roles.intersection(PREVIEW_AI_ACTION_ROLES):
+                continue
+            for row in rows:
+                if str(row["tenant_id"]) != PREVIEW_TENANT_ID:
+                    continue
+                project_id = str(row["project_id"])
+                revision = str(row["revision"])
+                for tool_name, operation, resource_domain in PREVIEW_AI_ACTION_TOOLS:
+                    issued.append(
+                        AIActionPermissionGrant(
+                            subject_id=user.user_id,
+                            tenant_id=PREVIEW_TENANT_ID,
+                            project_id=project_id,
+                            project_revision_id=revision,
+                            resource_domain=resource_domain,
+                            operation=operation,
+                            tool_name=tool_name,
+                        )
+                    )
+        return tuple(issued)
+
+    return UserConfiguredAIActionPermissionAdapter(grants)
 
 
 @dataclass
@@ -816,6 +869,8 @@ def open_preview_runtime(
             policy,
             clock=PreviewClock(),
         ),
+        ai_action_permission_adapter=build_preview_ai_action_permission_adapter(store),
+        ai_action_transaction_manager=repositories.transaction_manager,
         clock=PreviewClock(),
     )
     return PreviewRuntime(
@@ -839,6 +894,7 @@ __all__ = [
     "PreviewRuntime",
     "PreviewRuntimeError",
     "build_calendar_registry",
+    "build_preview_ai_action_permission_adapter",
     "open_preview_runtime",
     "seed_database",
     "seed_resource_capacities",

@@ -15,7 +15,9 @@ from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, AIActionRuntimeError
+from ..ai_action_execution_verification import verify_ai_action_execution
 from ..ai_assistant_orchestration import (
+    AIAssistantProjectContextError,
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
     is_valid_language_tag,
@@ -895,10 +897,7 @@ class ProjectLifecycleHttpRoutes:
                 suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
                 if not project_id:
                     return self._error(400, "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID", "error.request.invalid")
-                if suffix.strip("/"):
-                    return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
-                if method not in {"GET", "POST"}:
-                    return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
+                suffix_parts = [part for part in suffix.strip("/").split("/") if part]
                 try:
                     project_context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
@@ -912,8 +911,18 @@ class ProjectLifecycleHttpRoutes:
                     project_context.project_id,
                     project_context.revision,
                 )
+                if "//" in suffix or (
+                    suffix_parts and not (method == "GET" and suffix_parts == ["revisions"])
+                ):
+                    return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
+                if method not in {"GET", "POST"}:
+                    return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
                 try:
                     if method == "GET":
+                        if suffix_parts == ["revisions"]:
+                            return self._json(200, self._p6_schedule_snapshot_api.get_settings_revisions(
+                                scope, auth_context=auth
+                            ))
                         settings = self._p6_schedule_snapshot_api.get_settings(
                             scope, auth_context=auth
                         )
@@ -1055,6 +1064,8 @@ class ProjectLifecycleHttpRoutes:
                     code = str(exc) or "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
                     if code == "REVISION_CONFLICT":
                         return self._error(409, code, "error.revision.conflict")
+                    if code in {"SETTINGS_HASH_MISMATCH", "SETTINGS_HISTORY_CONFLICT"}:
+                        return self._error(500, code, "error.request.invalid")
                     return self._error(400, code, "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
                     code = str(exc) or "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
@@ -1252,6 +1263,45 @@ class ProjectLifecycleHttpRoutes:
                         original_duration=raw_original_duration,
                     )
 
+                def validate_date_based_actuals(activity: ActivityMaster) -> None:
+                    """Enforce DATE_BASED actuals on every activity write path.
+
+                    Actual dates are day-precision facts and cannot exceed the
+                    saved Data Date. The general create/edit routes therefore
+                    apply the same rule as the dedicated progress route; without
+                    it they could store progress that the scheduler rejects.
+                    """
+                    actual_fields = {
+                        "actual_start",
+                        "actual_finish",
+                    } & set(payload)
+                    if not actual_fields:
+                        return
+                    settings = (
+                        self._p6_schedule_snapshot_api.project_schedule_settings_repository.get(scope)
+                        if self._p6_schedule_snapshot_api is not None
+                        else None
+                    )
+                    if (
+                        settings is None
+                        or settings.mode is not AuthoritativeScheduleMode.DATE_BASED
+                    ):
+                        return
+                    data_date = settings.schedule_options.data_date
+                    for field_name in sorted(actual_fields):
+                        value = getattr(activity, field_name)
+                        if isinstance(value, datetime):
+                            raise ValueError("INVALID_" + field_name.upper())
+                        if (
+                            isinstance(value, date)
+                            and isinstance(data_date, date)
+                            and not isinstance(data_date, datetime)
+                            and value > data_date
+                        ):
+                            raise ValueError(
+                                "PROGRESS_" + field_name.upper() + "_AFTER_DATA_DATE"
+                            )
+
                 try:
                     parts = suffix.strip("/").split("/") if suffix.strip("/") else []
                     payload = json.loads(body.decode("utf-8") or "{}") if body else {}
@@ -1269,8 +1319,11 @@ class ProjectLifecycleHttpRoutes:
                         activity_id = payload.get("activity_id")
                         if not isinstance(activity_id, str) or not activity_id.strip():
                             raise ValueError("INVALID_ACTIVITY_ID")
+                        created = build_activity(activity_id)
+                        created.validate_progress()
+                        validate_date_based_actuals(created)
                         result = self._p6_activity_master_api.create(
-                            build_activity(activity_id), auth_context=auth
+                            created, auth_context=auth
                         )
                         return self._json(201, result)
                     if method == "GET" and len(parts) == 1 and parts[0]:
@@ -1280,6 +1333,111 @@ class ProjectLifecycleHttpRoutes:
                         if result is None:
                             return self._error(404, "P6_ACTIVITY_MASTER_NOT_FOUND", "error.resource.not_found")
                         return self._json(200, result)
+                    if method == "PATCH" and len(parts) == 2 and parts[0] and parts[1] == "progress":
+                        # Progress entry derives the Data Date from saved project
+                        # settings. It is never taken from the request body, so a
+                        # caller cannot move the observed boundary to hide lateness.
+                        if not self._p6_activity_master_api.authorization_policy.is_allowed(
+                            auth, Permission.PROJECT_WRITE
+                        ):
+                            raise AuthorizationError(
+                                "authorization denied for permission=project.write"
+                            )
+                        allowed_fields = {
+                            "contract_version",
+                            "expected_revision",
+                            "actual_start",
+                            "actual_finish",
+                            "remaining_duration",
+                            "percent_complete",
+                        }
+                        if set(payload) - allowed_fields:
+                            raise ValueError("PROGRESS_REQUEST_FIELDS_INVALID")
+                        expected_revision = payload.get("expected_revision")
+
+                        def progress_date(field_name: str) -> date | None:
+                            if field_name not in payload:
+                                return None
+                            value = payload[field_name]
+                            if value is None:
+                                return None
+                            # Dates are recorded at day precision only. A time
+                            # component would require a timezone assumption that
+                            # the saved date-based settings do not provide.
+                            if not isinstance(value, str) or "T" in value or " " in value:
+                                raise ValueError("INVALID_" + field_name.upper())
+                            try:
+                                return date.fromisoformat(value)
+                            except ValueError as exc:
+                                raise ValueError(
+                                    "INVALID_" + field_name.upper()
+                                ) from exc
+
+                        progress_actual_start = progress_date("actual_start")
+                        progress_actual_finish = progress_date("actual_finish")
+                        snapshot_api = self._p6_schedule_snapshot_api
+                        if snapshot_api is None:
+                            raise ValueError("PROJECT_SCHEDULE_SETTINGS_REQUIRED")
+                        settings = (
+                            snapshot_api.project_schedule_settings_repository.get(scope)
+                        )
+                        if settings is None:
+                            raise ValueError("PROJECT_SCHEDULE_SETTINGS_REQUIRED")
+                        if settings.mode is not AuthoritativeScheduleMode.DATE_BASED:
+                            raise ValueError(
+                                "TIME_AWARE_PROGRESS_ENTRY_NOT_AVAILABLE"
+                            )
+                        data_date = settings.schedule_options.data_date
+                        if data_date is None or (
+                            isinstance(data_date, datetime) or not isinstance(data_date, date)
+                        ):
+                            raise ValueError("DATE_BASED_DATA_DATE_REQUIRED")
+                        existing = self._p6_activity_master_api.repository.get(
+                            scope, parts[0]
+                        )
+                        if existing is None:
+                            return self._error(
+                                404,
+                                "P6_ACTIVITY_MASTER_NOT_FOUND",
+                                "error.resource.not_found",
+                            )
+                        # A PATCH preserves fields it omits, matching the general
+                        # edit route. An omitted actual finish must never silently
+                        # reopen completed work; clearing it requires an explicit
+                        # null together with reopening values.
+                        effective_actual_start = (
+                            progress_actual_start
+                            if "actual_start" in payload
+                            else existing.actual_start
+                        )
+                        effective_actual_finish = (
+                            progress_actual_finish
+                            if "actual_finish" in payload
+                            else existing.actual_finish
+                        )
+                        completed_now = effective_actual_finish is not None
+                        effective_remaining = (
+                            payload.get("remaining_duration")
+                            if "remaining_duration" in payload
+                            else (None if completed_now else existing.remaining_duration)
+                        )
+                        effective_percent = (
+                            payload.get("percent_complete")
+                            if "percent_complete" in payload
+                            else (None if completed_now else existing.percent_complete)
+                        )
+                        result = self._p6_activity_master_api.update_progress(
+                            scope,
+                            parts[0],
+                            expected_revision=expected_revision,
+                            actual_start=effective_actual_start,
+                            actual_finish=effective_actual_finish,
+                            remaining_duration=effective_remaining,
+                            percent_complete=effective_percent,
+                            data_date=data_date,
+                            auth_context=auth,
+                        )
+                        return self._json(200, result)
                     if method == "PATCH" and len(parts) == 1 and parts[0]:
                         expected_revision = payload.get("expected_revision")
                         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
@@ -1287,8 +1445,18 @@ class ProjectLifecycleHttpRoutes:
                         existing = self._p6_activity_master_api.repository.get(scope, parts[0])
                         if existing is None:
                             return self._error(404, "P6_ACTIVITY_MASTER_NOT_FOUND", "error.resource.not_found")
+                        edited = build_activity(parts[0], existing=existing)
+                        # The general edit route must not be a way around the
+                        # cross-field progress invariants enforced by the
+                        # dedicated progress endpoint.
+                        edited.validate_progress()
+                        # DATE_BASED actuals are day-precision facts bounded by
+                        # the saved Data Date. Without this check the general
+                        # edit route could store progress that the scheduler
+                        # later rejects, making the whole project unpublishable.
+                        validate_date_based_actuals(edited)
                         result = self._p6_activity_master_api.update(
-                            build_activity(parts[0], existing=existing),
+                            edited,
                             expected_revision=expected_revision,
                             auth_context=auth,
                         )
@@ -1299,6 +1467,17 @@ class ProjectLifecycleHttpRoutes:
                     if str(exc) == "REVISION_CONFLICT":
                         return self._error(409, str(exc), "error.revision.conflict")
                     return self._error(400, str(exc), "error.request.invalid")
+                except ProjectScheduleSettingsPersistenceError as exc:
+                    # Progress entry reads the saved settings to derive the Data
+                    # Date. A project-revision mismatch must be a conflict, and a
+                    # tampered settings/history row is an integrity failure, not
+                    # a client input error.
+                    code = str(exc) or "P6_ACTIVITY_MASTER_REQUEST_INVALID"
+                    if code == "REVISION_CONFLICT":
+                        return self._error(409, code, "error.revision.conflict")
+                    if code in {"SETTINGS_HASH_MISMATCH", "SETTINGS_HISTORY_CONFLICT"}:
+                        return self._error(500, code, "error.request.invalid")
+                    return self._error(400, code, "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
                     return self._error(400, str(exc) or "P6_ACTIVITY_MASTER_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/relationships" in path and self._p6_relationship_api is not None:
@@ -2359,14 +2538,46 @@ class ProjectLifecycleHttpRoutes:
                     result = self._p6_code_api.create(definition, auth_context=auth)
                 except (TypeError, ValueError): return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            if path.startswith("/api/projects/") and "/ai/assistant/capabilities" in path:
+                parts = path[len("/api/projects/"):].split("/")
+                if len(parts) != 4 or not parts[0] or parts[1:] != ["ai", "assistant", "capabilities"]:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if method != "GET":
+                    return self._error(405, "AI_ASSISTANT_METHOD_NOT_ALLOWED", "error.request.invalid")
+                if self._ai_action_runtime is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = parts[0]
+                try:
+                    self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_READ, now=now
+                    )
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                enabled = self._ai_assistant_orchestrator is not None
+                return self._json(200, {
+                    "contract_version": "ai-assistant-capabilities.v1",
+                    "enabled": enabled,
+                    "reason": None if enabled else "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
+                    "project_context": (
+                        enabled and self._ai_assistant_orchestrator.has_project_context
+                    ),
+                })
             if path.startswith("/api/projects/") and "/ai/assistant/turn" in path:
                 parts = path[len("/api/projects/"):].split("/")
                 if len(parts) != 4 or not parts[0] or parts[1:] != ["ai", "assistant", "turn"]:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 if method != "POST":
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
-                if self._ai_action_runtime is None or self._ai_assistant_orchestrator is None:
+                if self._ai_action_runtime is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if self._ai_assistant_orchestrator is None:
+                    return self._error(
+                        503,
+                        "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
+                        "error.ai_assistant.provider_not_configured",
+                    )
                 # Bound parsing work before decoding attacker-controlled JSON.
                 if len(body) > 128_000:
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
@@ -2375,12 +2586,45 @@ class ProjectLifecycleHttpRoutes:
                 except (UnicodeDecodeError, json.JSONDecodeError):
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
                 if not isinstance(payload, dict) or set(payload).difference(
-                    {"expected_revision", "message", "language", "history"}
+                    {"expected_revision", "message", "language", "history", "input"}
                 ):
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
                 expected_revision = payload.get("expected_revision")
                 message = payload.get("message")
                 language = payload.get("language")
+                input_raw = payload.get("input")
+                input_provenance = None
+                if input_raw is not None:
+                    # Voice provenance is untrusted client metadata used only for
+                    # audit context. It never supplies identity, scope or revision.
+                    if (
+                        not isinstance(input_raw, dict)
+                        or set(input_raw) != {"channel", "source", "confidence"}
+                        or input_raw.get("channel") != "voice"
+                        or input_raw.get("source") not in {
+                            "microphone", "imported_audio", "manual_transcript"
+                        }
+                    ):
+                        return self._error(
+                            400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid"
+                        )
+                    input_confidence = input_raw.get("confidence")
+                    if (
+                        input_confidence is not None
+                        and (
+                            isinstance(input_confidence, bool)
+                            or not isinstance(input_confidence, (int, float))
+                            or not 0 <= input_confidence <= 1
+                        )
+                    ):
+                        return self._error(
+                            400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid"
+                        )
+                    input_provenance = {
+                        "channel": "voice",
+                        "source": str(input_raw.get("source")),
+                        "confidence": input_confidence,
+                    }
                 history_raw = payload.get("history", [])
                 if not isinstance(history_raw, list) or len(history_raw) > 12:
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
@@ -2463,6 +2707,21 @@ class ProjectLifecycleHttpRoutes:
                         "language": language.strip(),
                         "message_length": len(message.strip()),
                         "can_propose": can_propose,
+                        "input_channel": (
+                            "text" if input_provenance is None
+                            else input_provenance["channel"]
+                        ),
+                        "input_source": (
+                            None if input_provenance is None
+                            else input_provenance["source"]
+                        ),
+                        "input_confidence": (
+                            None if input_provenance is None
+                            else input_provenance["confidence"]
+                        ),
+                        "project_context_expected": (
+                            self._ai_assistant_orchestrator.has_project_context
+                        ),
                     },
                 )
                 try:
@@ -2473,7 +2732,7 @@ class ProjectLifecycleHttpRoutes:
                         history=tuple(history),
                         allow_mutations=can_propose,
                     )
-                except AIAssistantProviderError as exc:
+                except (AIAssistantProviderError, AIAssistantProjectContextError) as exc:
                     self._ai_action_runtime.record_request_event(
                         runtime_context,
                         "assistant_turn_failed",
@@ -2500,6 +2759,7 @@ class ProjectLifecycleHttpRoutes:
                         "decided_by": proposal.decided_by,
                         "is_stale": proposal.proposal.project_revision_id != runtime_context.project_revision_id,
                     }
+                grounding = turn.grounding
                 self._ai_action_runtime.record_request_event(
                     runtime_context,
                     "assistant_turn_completed",
@@ -2507,6 +2767,19 @@ class ProjectLifecycleHttpRoutes:
                     metadata={
                         "kind": turn.kind,
                         "proposal_created": proposal is not None,
+                        "grounded": grounding is not None,
+                        "grounded_activity_total": (
+                            None if grounding is None else grounding.get("activity_total")
+                        ),
+                        "grounded_activity_truncated": (
+                            None if grounding is None else grounding.get("activity_truncated")
+                        ),
+                        "grounded_relationship_total": (
+                            None if grounding is None else grounding.get("relationship_total")
+                        ),
+                        "grounded_schedule_available": (
+                            None if grounding is None else grounding.get("schedule_available")
+                        ),
                     },
                 )
                 return self._json(200, {
@@ -2571,6 +2844,11 @@ class ProjectLifecycleHttpRoutes:
                             "resource_domain": record.proposal.resource_domain,
                             "payload": dict(record.payload),
                             "result": None if record.result is None else dict(record.result),
+                            "execution_verification": (
+                                None
+                                if record.execution_verification is None
+                                else dict(record.execution_verification)
+                            ),
                             "created_at": record.created_at.isoformat(),
                             "updated_at": record.updated_at.isoformat(),
                             "decided_by": record.decided_by,
@@ -2687,11 +2965,50 @@ class ProjectLifecycleHttpRoutes:
                         "decided_by": record.decided_by,
                     })
                 record = self._ai_action_runtime.execute(runtime_context, proposal_id or "")
+                verification = None
+                verification_stored = False
+                if record.proposal.tool_name in {"activity.create", "activity.update"}:
+                    raw_timezone = payload.get("timezone")
+                    verification = verify_ai_action_execution(
+                        record,
+                        activity_api=self._p6_activity_master_api,
+                        snapshot_api=self._p6_schedule_snapshot_api,
+                        schedule_query_api=self._schedule_query_api,
+                        auth_context=context.authorization_context(session.roles),
+                        timezone_name=(
+                            raw_timezone.strip()
+                            if isinstance(raw_timezone, str)
+                            else None
+                        ),
+                        request_id=(headers or {}).get("X-Request-Id"),
+                    )
+                    try:
+                        stored_record = self._ai_action_runtime.record_execution_verification(
+                            runtime_context,
+                            record.proposal.proposal_id,
+                            verification,
+                        )
+                        # Report exactly the durable state, not a separate in-memory copy.
+                        record = stored_record
+                        verification = stored_record.execution_verification
+                        verification_stored = verification is not None
+                    except Exception:
+                        # The committed action and its computed verification stay
+                        # visible; only durable retrieval after reload is unavailable.
+                        verification_stored = False
                 return self._json(200, {
                     "contract_version": "ai-action-runtime.v1",
                     "proposal_id": record.proposal.proposal_id,
                     "status": record.status,
                     "result": None if record.result is None else dict(record.result),
+                    **(
+                        {}
+                        if verification is None
+                        else {
+                            "execution_verification": verification,
+                            "execution_verification_stored": verification_stored,
+                        }
+                    ),
                 })
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/open"):
                 project_id = path[len("/api/projects/"):-len("/open")]
@@ -2713,6 +3030,15 @@ class ProjectLifecycleHttpRoutes:
             return self._error(401, str(exc), "error.session.invalid")
         except AuthorizationError as exc:
             return self._error(403, str(exc), "error.authorization.denied")
+        except AIAssistantProjectContextError as exc:
+            code = exc.code
+            if code == "AI_ASSISTANT_PROJECT_CONTEXT_NOT_AUTHORIZED":
+                status = 403
+            elif code == "AI_ASSISTANT_PROJECT_CONTEXT_SCOPE_INVALID":
+                status = 500
+            else:
+                status = 503
+            return self._error(status, code, "error.ai_assistant.request_failed")
         except AIAssistantProviderError as exc:
             code = exc.code
             if code == "AI_ASSISTANT_ACTION_NOT_ALLOWED":
@@ -2723,6 +3049,7 @@ class ProjectLifecycleHttpRoutes:
                 "AI_ASSISTANT_PROVIDER_UNAVAILABLE",
                 "AI_ASSISTANT_PROVIDER_RATE_LIMITED",
                 "AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID",
+                "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
             }:
                 status = 503
             else:
@@ -2731,9 +3058,9 @@ class ProjectLifecycleHttpRoutes:
         except AIActionRuntimeError as exc:
             code = str(exc)
             status = 400
-            if code in {"AI_TOOL_NOT_PERMITTED", "AI_ACTION_PERMISSION_CHECK_FAILED"}:
+            if code in {"AI_TOOL_NOT_PERMITTED", "AI_ACTION_PERMISSION_CHECK_FAILED", "AI_ACTION_ACTIVITY_TOOL_SCOPE_MISMATCH"}:
                 status = 403
-            elif code == "AI_ACTION_PROPOSAL_NOT_FOUND":
+            elif code in {"AI_ACTION_PROPOSAL_NOT_FOUND", "AI_ACTION_ACTIVITY_NOT_FOUND"}:
                 status = 404
             elif code in {
                 "AI_ACTION_PROPOSAL_STALE_REVISION",
@@ -2743,6 +3070,10 @@ class ProjectLifecycleHttpRoutes:
                 "AI_ACTION_IDEMPOTENCY_KEY_REUSE",
                 "AI_ACTION_EXECUTION_OUTCOME_UNCERTAIN",
                 "AI_ACTION_EXECUTION_PRECONDITION_FAILED",
+                "AI_ACTION_ACTIVITY_ALREADY_EXISTS",
+                "AI_ACTION_ACTIVITY_REVISION_CONFLICT",
+                "AI_ACTION_ACTIVITY_CREATE_REJECTED",
+                "AI_ACTION_ACTIVITY_UPDATE_REJECTED",
             }:
                 status = 409
             elif code == "AI_ACTION_EXECUTION_FAILED":
@@ -2755,6 +3086,10 @@ class ProjectLifecycleHttpRoutes:
                 "AI_ACTION_IDEMPOTENCY_RESULT_NOT_PERSISTED",
                 "AI_ACTION_IDEMPOTENCY_RESULT_INVALID",
                 "AI_ACTION_TRANSACTION_FAILED",
+                "AI_ACTION_VERIFICATION_INVALID",
+                "AI_ACTION_VERIFICATION_RESULT_MISMATCH",
+                "AI_ACTION_VERIFICATION_PERSISTENCE_FAILED",
+                "AI_ACTION_STORED_VERIFICATION_INVALID",
             }:
                 status = 500
             return self._error(status, code, "error.ai_action.request_failed")
@@ -2781,6 +3116,8 @@ class ProjectLifecycleHttpRoutes:
             "AI_ACTION_EXECUTION_RESERVATION_FAILED",
             "AI_ACTION_IDEMPOTENCY_RESULT_NOT_PERSISTED",
             "AI_ACTION_IDEMPOTENCY_RESULT_INVALID",
+            "SETTINGS_HASH_MISMATCH",
+            "SETTINGS_HISTORY_CONFLICT",
         }
         retryable = status >= 500 and code not in non_retryable_integrity_errors
         return cls._json(status, {

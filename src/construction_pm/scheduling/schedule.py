@@ -120,10 +120,16 @@ def backward_pass(
     if set(activity_map) != set(forward):
         raise ValueError("forward schedule must contain every activity")
 
+    # Late dates must use the same scheduled duration as the forward pass:
+    # remaining duration for in-progress work and zero for completed work.
+    scheduled_durations = {
+        activity_id: scheduled.duration for activity_id, scheduled in forward.items()
+    }
+
     for activity_id, activity_constraints in constraint_map.items():
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
         validate_constraint_set(
-            activity_constraints, activity_map[activity_id].duration, activity_resolver
+            activity_constraints, scheduled_durations[activity_id], activity_resolver
         )
 
     for rel in relationship_list:
@@ -143,15 +149,16 @@ def backward_pass(
     for activity_id in reversed(order):
         activity = activity_map[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
+        scheduled_duration = scheduled_durations[activity_id]
         successors = outgoing[activity_id]
 
         if not successors:
             late_finish = activity_resolver.normalize_finish(finish)
-            late_start = activity_resolver.subtract_working_duration(late_finish, activity.duration)
+            late_start = activity_resolver.subtract_working_duration(late_finish, scheduled_duration)
         else:
             late_start = min(
                 _latest_predecessor_start(
-                    rel, result[rel.successor_id], activity.duration, activity_resolver,
+                    rel, result[rel.successor_id], scheduled_duration, activity_resolver,
                     (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
                 )
                 for rel in sorted(
@@ -162,18 +169,18 @@ def backward_pass(
                 )
             )
             latest_by_project_finish = activity_resolver.subtract_working_duration(
-                activity_resolver.normalize_finish(finish), activity.duration
+                activity_resolver.normalize_finish(finish), scheduled_duration
             )
             late_start = min(late_start, latest_by_project_finish)
-            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, scheduled_duration)
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
             late_start = apply_latest_constraint(
-                constraint, late_start, activity.duration, activity_resolver
+                constraint, late_start, scheduled_duration, activity_resolver
             )
-            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, scheduled_duration)
 
         if late_finish > activity_resolver.normalize_finish(finish):
             raise ValueError(f"backward schedule exceeds project finish for {activity_id}")
@@ -187,7 +194,7 @@ def backward_pass(
             activity_id=activity_id,
             start=late_start,
             finish=late_finish,
-            duration=activity.duration,
+            duration=scheduled_duration,
         )
 
     # P6 lower-bound constraints (Start/Finish No Earlier Than) affect
@@ -304,8 +311,8 @@ def _free_float(
             candidate = ScheduledActivity(
                 activity_id=early.activity_id,
                 start=candidate_start,
-                finish=activity_resolver.add_working_duration(candidate_start, activity.duration),
-                duration=activity.duration,
+                finish=activity_resolver.add_working_duration(candidate_start, early.duration),
+                duration=early.duration,
             )
             return _relationship_holds(rel, candidate, successor, activity_resolver, lag_resolver)
 
@@ -405,8 +412,8 @@ def _relationship_free_float(
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
             start=candidate_start,
-            finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
-            duration=predecessor_activity.duration,
+            finish=activity_resolver.add_working_duration(candidate_start, predecessor.duration),
+            duration=predecessor.duration,
         )
         return _relationship_holds(relationship, candidate, successor, resolver, lag_resolver)
 
@@ -430,8 +437,8 @@ def _relationship_total_float(
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
             start=candidate_start,
-            finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
-            duration=predecessor_activity.duration,
+            finish=activity_resolver.add_working_duration(candidate_start, predecessor.duration),
+            duration=predecessor.duration,
         )
         return _relationship_holds(relationship, candidate, successor_late, resolver, lag_resolver)
 

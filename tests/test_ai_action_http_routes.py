@@ -11,6 +11,7 @@ from construction_pm.ai_action_runtime import (
     SQLiteAIActionRuntimeStore,
 )
 from construction_pm.ai_assistant_orchestration import (
+    AIAssistantProjectContextError,
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
 )
@@ -61,7 +62,13 @@ class FakeAssistantProvider:
         return self.result
 
 
-def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), assistant_provider=None):
+def build_routes(
+    *,
+    runtime_enabled=True,
+    roles=frozenset({"project_admin"}),
+    assistant_provider=None,
+    project_context_provider=None,
+):
     now = datetime(2026, 10, 23, 12, 0, tzinfo=timezone.utc)
     session = AuthenticatedSession("session-1", "u1", "t1", frozenset(roles), now + timedelta(hours=1))
     api = ProjectLifecycleAPI(ProjectLifecycleService(Sessions(session), Projects(), default_project_policy()))
@@ -102,7 +109,11 @@ def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), as
         clock=lambda: now,
     )
     assistant = (
-        AIAssistantTurnOrchestrator(provider=assistant_provider, action_runtime=runtime)
+        AIAssistantTurnOrchestrator(
+            provider=assistant_provider,
+            action_runtime=runtime,
+            project_context_provider=project_context_provider,
+        )
         if runtime_enabled and assistant_provider is not None
         else None
     )
@@ -171,9 +182,50 @@ def test_authenticated_project_action_route_runs_propose_approve_execute():
     result = json.loads(body)
     assert result["status"] == "executed"
     assert result["result"] == {"activity_id": "a-1", "name": "Excavation"}
+    assert result["execution_verification"]["status"] == "UNAVAILABLE"
+    assert result["execution_verification"]["reason_code"] == "SCHEDULE_VERIFICATION_NOT_COMPOSED"
+    assert result["execution_verification_stored"] is True
     assert len(executed) == 1
     assert executed[0][2] == proposal_id
-    assert conn.execute("SELECT COUNT(*) FROM ai_action_audit_events").fetchone()[0] == 5
+    assert conn.execute("SELECT COUNT(*) FROM ai_action_audit_events").fetchone()[0] == 6
+    assert conn.execute(
+        "SELECT COUNT(*) FROM ai_action_audit_events WHERE event_type=?",
+        ("execution_verification_recorded",),
+    ).fetchone()[0] == 1
+
+
+def test_execution_verification_persistence_failure_does_not_mask_committed_action():
+    routes, conn, executed = build_routes()
+    status, _, body = request(routes, "/api/projects/p1/ai/actions/proposals", {
+        "expected_revision": 2,
+        "tool_name": "activity.create",
+        "payload": {"name": "Excavation"},
+        "evidence_refs": [],
+    })
+    assert status == 201
+    proposal_id = json.loads(body)["proposal"]["proposal_id"]
+    status, _, _ = request(routes, f"/api/projects/p1/ai/actions/proposals/{proposal_id}/decision", {
+        "expected_revision": 2, "approved": True,
+    })
+    assert status == 200
+
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("verification store unavailable")
+
+    routes._ai_action_runtime.record_execution_verification = unavailable
+    status, _, body = request(routes, f"/api/projects/p1/ai/actions/proposals/{proposal_id}/execute", {
+        "expected_revision": 2,
+    })
+    assert status == 200
+    result = json.loads(body)
+    assert result["status"] == "executed"
+    assert result["execution_verification"]["status"] == "UNAVAILABLE"
+    assert result["execution_verification_stored"] is False
+    assert len(executed) == 1
+    assert conn.execute(
+        "SELECT status FROM ai_action_proposals WHERE proposal_id=?",
+        (proposal_id,),
+    ).fetchone()[0] == "executed"
 
 
 def test_ai_action_route_rejects_and_audits_stale_request_revision():
@@ -271,9 +323,278 @@ def test_assistant_turn_is_fail_closed_without_provider_or_runtime():
         status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
             "expected_revision": 2, "message": "Hello", "language": "en",
         })
-        assert status == 404
-        assert json.loads(body)["code"] == "ROUTE_NOT_FOUND"
+        assert status == 503
+        response = json.loads(body)
+        assert response["code"] == "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED"
+        assert response["retryable"] is True
         assert executed == []
+        capabilities, _, capabilities_body = request(
+            routes, "/api/projects/p1/ai/assistant/capabilities", {}, method="GET"
+        )
+        assert capabilities == 200
+        assert json.loads(capabilities_body) == {
+            "contract_version": "ai-assistant-capabilities.v1",
+            "enabled": False,
+            "reason": "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
+            "project_context": False,
+        }
+    finally:
+        conn.close()
+
+
+def test_assistant_turn_reports_enabled_capabilities_without_exposing_configuration():
+    provider = FakeAssistantProvider({
+        "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+    })
+    routes, conn, executed = build_routes(assistant_provider=provider)
+    try:
+        status, _, body = request(
+            routes, "/api/projects/p1/ai/assistant/capabilities", {}, method="GET"
+        )
+        assert status == 200
+        assert json.loads(body) == {
+            "contract_version": "ai-assistant-capabilities.v1",
+            "enabled": True,
+            "reason": None,
+            "project_context": False,
+        }
+        post_status, _, _ = request(
+            routes, "/api/projects/p1/ai/assistant/capabilities", {}, method="POST"
+        )
+        assert post_status == 405
+    finally:
+        conn.close()
+
+
+class FakeProjectContextProvider:
+    def __init__(self, value=None, error=None):
+        self.value = value
+        self.error = error
+        self.calls = []
+
+    def read(self, context):
+        self.calls.append(context)
+        if self.error is not None:
+            raise self.error
+        return self.value
+
+
+def authorized_project_context():
+    return {
+        "contract_version": "ai-assistant-project-context.v1",
+        "project_id": "p1",
+        "project_revision": 2,
+        "activities": {
+            "total": 1,
+            "returned": 1,
+            "truncated": False,
+            "items": [{
+                "activity_id": "A-100",
+                "name": "Excavation",
+                "duration": {"value": "3", "unit": "working-day"},
+                "status": "In Progress",
+                "record_revision": 4,
+            }],
+        },
+        "relationships": {
+            "source_available": True,
+            "total": 0,
+            "returned": 0,
+            "truncated": False,
+            "items": [],
+        },
+        "schedule_calculation": {
+            "available": True,
+            "project_finish": "2026-12-01",
+            "calculation_run_identity": "a" * 64,
+            "total_activities": 1,
+            "returned": 1,
+            "truncated": False,
+            "activities": [{"activity_id": "A-100", "start": "2026-11-01", "finish": "2026-12-01"}],
+        },
+    }
+
+
+def test_assistant_turn_grounds_the_provider_in_authorized_project_context():
+    model = FakeAssistantProvider({
+        "kind": "message",
+        "message": "A-100 Excavation is in progress and the calculated project finish is 2026-12-01.",
+        "tool_name": None,
+        "payload": {},
+    })
+    context_provider = FakeProjectContextProvider(authorized_project_context())
+    routes, conn, executed = build_routes(
+        assistant_provider=model,
+        project_context_provider=context_provider,
+    )
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2,
+            "message": "What is the current project finish?",
+            "language": "en",
+        })
+        assert status == 200
+        assert json.loads(body)["kind"] == "message"
+        assert len(context_provider.calls) == 1
+        trusted = context_provider.calls[0]
+        assert trusted.tenant_id == "t1"
+        assert trusted.project_id == "p1"
+        assert trusted.project_revision_id == "2"
+        assert trusted.subject_id == "u1"
+        system_prompt = model.calls[0]["system_prompt"]
+        assert "PROJECT CONTEXT" in system_prompt
+        assert '"activity_id":"A-100"' in system_prompt
+        assert '"project_finish":"2026-12-01"' in system_prompt
+        assert executed == []
+        metadata = json.loads(conn.execute(
+            "SELECT event_json FROM ai_action_audit_events "
+            "WHERE event_type='assistant_turn_completed' ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()[0])["metadata"]
+        assert metadata["grounded"] is True
+        assert metadata["grounded_activity_total"] == 1
+        assert metadata["grounded_schedule_available"] is True
+        capabilities, _, capabilities_body = request(
+            routes, "/api/projects/p1/ai/assistant/capabilities", {}, method="GET"
+        )
+        assert capabilities == 200
+        assert json.loads(capabilities_body)["project_context"] is True
+    finally:
+        conn.close()
+
+
+def test_assistant_turn_grounds_real_persisted_activity_through_the_route():
+    from construction_pm.activity_master_repository import (
+        ActivityMaster,
+        SQLiteActivityMasterRepository,
+    )
+    from construction_pm.ai_assistant_project_context import (
+        PersistedProjectAssistantContextProvider,
+    )
+    from construction_pm.backend_p0.models import BackendScope
+    from construction_pm.scheduling.time_duration import DurationUnit
+    from decimal import Decimal
+
+    class MutableContextProvider:
+        def __init__(self):
+            self.inner = None
+
+        def read(self, context):
+            return self.inner.read(context)
+
+    model = FakeAssistantProvider({
+        "kind": "message",
+        "message": "The project contains the persisted activity A-200.",
+        "tool_name": None,
+        "payload": {},
+    })
+    context_provider = MutableContextProvider()
+    routes, conn, executed = build_routes(
+        assistant_provider=model,
+        project_context_provider=context_provider,
+    )
+    try:
+        SQLiteActivityMasterRepository(conn).save(
+            ActivityMaster(
+                scope=BackendScope("t1", "p1", 2),
+                activity_id="A-200",
+                name="Persisted foundation",
+                duration_value=Decimal("5"),
+                duration_unit=DurationUnit.WORKING_DAY,
+            )
+        )
+        context_provider.inner = PersistedProjectAssistantContextProvider(
+            activity_repository=SQLiteActivityMasterRepository(conn),
+            authorization_policy=default_project_policy(),
+        )
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2,
+            "message": "Which persisted activities exist?",
+            "language": "en",
+        })
+        assert status == 200
+        assert json.loads(body)["kind"] == "message"
+        prompt = model.calls[0]["system_prompt"]
+        assert '"activity_id":"A-200"' in prompt
+        assert "Persisted foundation" in prompt
+        assert executed == []
+    finally:
+        conn.close()
+
+
+def test_assistant_turn_fails_closed_before_the_model_when_project_context_is_unavailable():
+    model = FakeAssistantProvider({
+        "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+    })
+    context_provider = FakeProjectContextProvider(
+        error=AIAssistantProjectContextError(
+            "AI_ASSISTANT_PROJECT_CONTEXT_UNAVAILABLE"
+        )
+    )
+    routes, conn, executed = build_routes(
+        assistant_provider=model,
+        project_context_provider=context_provider,
+    )
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2, "message": "How many activities are critical?", "language": "en",
+        })
+        assert status == 503
+        assert json.loads(body)["code"] == "AI_ASSISTANT_PROJECT_CONTEXT_UNAVAILABLE"
+        assert model.calls == []
+        assert executed == []
+        audit_types = {
+            row[0] for row in conn.execute(
+                "SELECT event_type FROM ai_action_audit_events"
+            ).fetchall()
+        }
+        assert {"assistant_turn_requested", "assistant_turn_failed"} <= audit_types
+    finally:
+        conn.close()
+
+
+def test_assistant_turn_accepts_voice_provenance_without_trusting_it_as_identity():
+    provider = FakeAssistantProvider({
+        "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+    })
+    routes, conn, executed = build_routes(assistant_provider=provider)
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2,
+            "message": "How many activities are critical?",
+            "language": "en",
+            "input": {
+                "channel": "voice",
+                "source": "microphone",
+                "confidence": 0.82,
+            },
+        })
+        assert status == 200
+        assert json.loads(body)["kind"] == "message"
+        assert provider.calls[0]["user_message"] == "How many activities are critical?"
+        metadata = json.loads(conn.execute(
+            "SELECT event_json FROM ai_action_audit_events "
+            "WHERE event_type='assistant_turn_requested' ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()[0])["metadata"]
+        assert metadata["input_channel"] == "voice"
+        assert metadata["input_source"] == "microphone"
+        assert metadata["input_confidence"] == 0.82
+
+        for malformed in (
+            {"channel": "voice", "source": "microphone", "confidence": 2},
+            {"channel": "text", "source": "microphone", "confidence": 0.5},
+            {"channel": "voice", "source": "microphone", "confidence": 0.5, "tenant_id": "t2"},
+        ):
+            rejected, _, rejected_body = request(
+                routes, "/api/projects/p1/ai/assistant/turn", {
+                    "expected_revision": 2,
+                    "message": "Hello",
+                    "language": "en",
+                    "input": malformed,
+                },
+            )
+            assert rejected == 400
+            assert json.loads(rejected_body)["code"] == "AI_ASSISTANT_REQUEST_INVALID"
+        assert len(provider.calls) == 1
     finally:
         conn.close()
 

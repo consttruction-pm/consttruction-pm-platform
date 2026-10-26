@@ -57,7 +57,7 @@ testCase("schedule submenu entries have matching target sections in the referenc
     "#cp-reference-calendars",
     "#cp-reference-options",
     "#cp-reference-resources",
-    "#cp-reference-progress",
+    "#cp-progress-entry",
     "#cp-schedule-run",
     "#cp-formula-editor",
     "#cp-scheduling-reference-formulas",

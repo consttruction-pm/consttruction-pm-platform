@@ -77,6 +77,7 @@ def build_scheduler_leveling_input(
     periods: Sequence[date],
     options: ResourceLevelingOptions | ScheduleOptions,
     require_calendar_versions: bool = False,
+    excluded_demand_assignment_ids: frozenset[str] = frozenset(),
     source_snapshot_id: str | None = None,
     source_snapshot_hash: str | None = None,
     source_calculation_identity: str | None = None,
@@ -90,6 +91,11 @@ def build_scheduler_leveling_input(
     calculation is performed here.
     """
     scope.validate()
+    if not isinstance(excluded_demand_assignment_ids, frozenset) or any(
+        not isinstance(value, str) or not value.strip()
+        for value in excluded_demand_assignment_ids
+    ):
+        raise P6ResourceLevelingReadAdapterError("INVALID_EXCLUDED_DEMAND_ASSIGNMENT_IDS")
     source_binding = (source_snapshot_id, source_snapshot_hash, source_calculation_identity)
     if any(value is not None for value in source_binding) and not all(
         isinstance(value, str) and value.strip() for value in source_binding
@@ -153,6 +159,11 @@ def build_scheduler_leveling_input(
         resource_id = period.get("resource_id")
         if activity_id != assignment["activity_id"] or resource_id != assignment["resource_id"]:
             raise P6ResourceLevelingReadAdapterError("RESOURCE_PERIOD_ASSIGNMENT_MISMATCH")
+        if assignment_id in excluded_demand_assignment_ids:
+            # Nondriving Resource Dependent demand is placed independently by
+            # the shared-core assignment engine after CPM/leveling. It must not
+            # participate in activity-level movement.
+            continue
         demand_periods.add(period_date)
         demand_by_activity.setdefault(activity_id, []).append(
             ResourceDemand(
@@ -160,6 +171,8 @@ def build_scheduler_leveling_input(
                 period=period_date,
                 units=period["units"],
                 activity_id=activity_id,
+                assignment_id=assignment_id,
+                is_driving=assignment.get("is_driving"),
             )
         )
 

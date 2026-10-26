@@ -327,7 +327,14 @@ function renderApp(
       renderApp(container, { ...state, activeMenu: menu }, persistence);
     },
     onWbsSelect: (wbsId) => {
-      renderApp(container, selectWbs(state, wbsId), persistence);
+      renderApp(
+        container,
+        selectWbs(state, state.selectedWbsId === wbsId ? null : wbsId),
+        persistence,
+      );
+    },
+    onWbsClear: () => {
+      renderApp(container, selectWbs(state, null), persistence);
     },
     onActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId), persistence);

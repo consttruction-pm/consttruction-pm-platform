@@ -21,6 +21,7 @@ interface BrowserRecognitionConstructor {
 
 interface BrowserSpeechSynthesis {
   speak(utterance: BrowserSpeechSynthesisUtterance): void;
+  cancel(): void;
 }
 interface BrowserSpeechSynthesisUtteranceConstructor {
   new (text: string): BrowserSpeechSynthesisUtterance;
@@ -54,6 +55,7 @@ export function createWebSpeechInputAdapter(
 ): VoiceInputAdapter {
   const provider = browserSpeech();
   const Recognition = provider.SpeechRecognition ?? provider.webkitSpeechRecognition;
+  let cancelActiveCapture: (() => void) | null = null;
   return {
     capabilities: { input: Boolean(Recognition), output: false },
     capture: async ({ aiLanguage, expectedScope }) => {
@@ -67,11 +69,24 @@ export function createWebSpeechInputAdapter(
         recognition.continuous = false;
         recognition.interimResults = false;
         let settled = false;
+        const release = () => {
+          if (cancelActiveCapture === cancel) cancelActiveCapture = null;
+        };
         const finish = (fn: () => void) => {
           if (settled) return;
           settled = true;
+          release();
           fn();
         };
+        const cancel = () => finish(() => {
+          try {
+            recognition.stop();
+          } catch {
+            // The provider may already be stopped; cancellation is best effort.
+          }
+          reject(new Error("VOICE_INPUT_CANCELLED"));
+        });
+        cancelActiveCapture = cancel;
         recognition.onresult = (event) => finish(() => {
           const result = event.results[0][0];
           const capturedAt = (options.now ?? (() => new Date()))().toISOString();
@@ -90,7 +105,7 @@ export function createWebSpeechInputAdapter(
             },
           });
         });
-        recognition.onerror = (event) => finish(() => reject(new Error(`VOICE_INPUT_${event.error.toUpperCase()}`)));
+        recognition.onerror = (event) => finish(() => reject(new Error(`VOICE_INPUT_${event.error.toUpperCase().replace(/-/g, "_")}`)));
         recognition.onend = () => finish(() => reject(new Error("VOICE_INPUT_ENDED_WITHOUT_RESULT")));
         try {
           recognition.start();
@@ -99,6 +114,7 @@ export function createWebSpeechInputAdapter(
         }
       });
     },
+    cancel: () => { cancelActiveCapture?.(); },
   };
 }
 
@@ -107,6 +123,7 @@ export function createWebSpeechOutputAdapter(
 ): VoiceOutputAdapter {
   const provider = browserSpeech();
   const Utterance = provider.SpeechSynthesisUtterance;
+  let stopActiveSpeech: (() => void) | null = null;
   return {
     capabilities: { input: false, output: Boolean(provider.speechSynthesis && Utterance) },
     speak: async (text, context) => {
@@ -115,11 +132,17 @@ export function createWebSpeechOutputAdapter(
       const utterance = ((options.createUtterance ?? ((value) => new Utterance(value)))(text)) as BrowserSpeechSynthesisUtterance;
       utterance.lang = context.language;
       await new Promise<void>((resolve, reject) => {
-        utterance.onerror = () => reject(new Error("VOICE_OUTPUT_FAILED"));
-        utterance.onend = () => resolve();
+        const stop = () => provider.speechSynthesis!.cancel();
+        const release = () => {
+          if (stopActiveSpeech === stop) stopActiveSpeech = null;
+        };
+        stopActiveSpeech = stop;
+        utterance.onerror = () => { release(); reject(new Error("VOICE_OUTPUT_FAILED")); };
+        utterance.onend = () => { release(); resolve(); };
         provider.speechSynthesis!.speak(utterance);
       });
     },
+    stop: () => { stopActiveSpeech?.(); },
   };
 }
 

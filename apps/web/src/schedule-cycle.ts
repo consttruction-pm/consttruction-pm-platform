@@ -99,6 +99,96 @@ export type ScheduleSettingsDTO = {
   project_leveling_priority: number;
 };
 
+export type ScheduleSettingsRevisionsDTO = {
+  contract_version: "p6-project-schedule-settings-revisions-api.v1";
+  kind: "project_schedule_settings_revisions";
+  revisions: ScheduleSettingsDTO[];
+};
+
+type ActivityMasterDTO = {
+  activity_id: string;
+  name: string;
+  status: string;
+  actual_start: string | null;
+  actual_finish: string | null;
+  remaining_duration: number | null;
+  percent_complete: number | null;
+  record_revision: number;
+};
+
+type ActivityListDTO = {
+  contract_version: string;
+  activities: { activity: ActivityMasterDTO }[];
+};
+
+type ActivityDTO = {
+  contract_version: string;
+  kind: string;
+  activity: ActivityMasterDTO;
+};
+
+export type ProgressEntryValues = {
+  actual_start: string | null;
+  actual_finish: string | null;
+  remaining_duration: number | null;
+  percent_complete: number | null;
+};
+
+/**
+ * Build the exact progress request contract. Dates must already be canonical
+ * Gregorian ISO dates; the server derives and validates the Data Date itself.
+ */
+export function buildProgressRequest(
+  expectedRevision: number,
+  values: ProgressEntryValues,
+): Record<string, unknown> {
+  return {
+    contract_version: "p6-activity-master-api.v1",
+    expected_revision: expectedRevision,
+    actual_start: values.actual_start,
+    actual_finish: values.actual_finish,
+    remaining_duration: values.remaining_duration,
+    percent_complete: values.percent_complete,
+  };
+}
+
+/**
+ * Convert a typed progress date into the canonical Gregorian date the server
+ * stores. An unparsable entry returns null so callers can reject it explicitly.
+ */
+export function parseProgressDateInput(value: string, jalali: boolean): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
+  if (jalali) return parseJalaliDateInput(raw);
+  // Progress dates are calendar dates. A time component would imply an
+  // instant that the DATE_BASED server path deliberately rejects.
+  if (raw.length !== 10) return null;
+  return isValidCanonicalIsoDate(raw) ? raw : null;
+}
+
+/**
+ * Build the ordinary save request that restores an older settings revision.
+ * It targets the current record revision, so the server appends a new revision
+ * and retains every older row.
+ */
+export function buildSettingsRestoreRequest(
+  revision: ScheduleSettingsDTO,
+  expectedRevision: number,
+): Record<string, unknown> {
+  return {
+    contract_version: "p6-project-schedule-settings-api.v1",
+    expected_record_revision: expectedRevision,
+    mode: revision.mode,
+    project_calendar_id: revision.project_calendar.calendar_id,
+    project_calendar_version: revision.project_calendar.calendar_version,
+    project_calendar_system: revision.project_calendar.system,
+    project_start: revision.project_start,
+    project_finish: revision.project_finish,
+    schedule_options: revision.schedule_options,
+    project_leveling_priority: revision.project_leveling_priority,
+  };
+}
+
 type SessionInfo = { session_id: string; user_id: string; tenant_id: string; roles: string[] };
 type ProjectCalendarDTO = { calendar_id: string; calendar_version: string; kind: "working-day" | "working-time"; calendar_type: string; name: string; record_revision: number };
 type CalendarCatalogDTO = { contract_version: string; kind: "calendar_catalog"; calendars: ProjectCalendarDTO[] };
@@ -181,7 +271,7 @@ function renderScheduleRunResult(
   }).join("");
   panel.innerHTML =
     '<p class="cp-muted">' + safe(labels.outputBinding) + '</p>' +
-    '<div class="cp-schedule-result-meta"><span><b>' + safe(labels.snapshot) + ':</b> ' + safe(cached.snapshot_id) +
+    '<div class="cp-schedule-result-meta" data-snapshot-id="' + safe(cached.snapshot_id) + '" data-snapshot-hash="' + safe(cached.snapshot_hash) + '"><span><b>' + safe(labels.snapshot) + ':</b> ' + safe(cached.snapshot_id) +
     '</span><span><b>' + safe(labels.hash) + ':</b> <code>' + safe(cached.snapshot_hash) + '</code></span>' +
     (facts.project_finish ? '<span><b>' + safe(labels.projectFinish) + ':</b> ' + safe(facts.project_finish) + '</span>' : '') +
     (facts.activity_count !== undefined ? '<span><b>' + safe(labels.activityCount) + ':</b> ' + safe(facts.activity_count) + '</span>' : '') +
@@ -199,6 +289,8 @@ function renderScheduleRunResult(
     '</tbody></table>';
 }
 const scheduleSettingsDrafts = new Map<string, ScheduleSettingsDraft>();
+const settingsPanelMountTokens = new WeakMap<HTMLElement, number>();
+const progressPanelMountTokens = new WeakMap<HTMLElement, number>();
 type PublishedSnapshot = {
   contract_version: string;
   kind: string;
@@ -231,9 +323,14 @@ const LABELS = {
     start: "Project start", finish: "Project finish (optional)", mode: "Calculation mode", priority: "Project leveling priority",
     jalaliDateHint: "Type a Jalali date, for example ۱۴۰۵/۰۷/۱۵. It is stored as the canonical Gregorian date.",
     save: "Save settings", calculate: "Calculate and show results", saved: "Settings saved.", saving: "Saving…",
+    settingsHistory: "Settings history", restoreRevision: "Restore revision", restoreSettings: "Restore",
+    restoreSettingsHint: "Restoring saves the selected values as a new revision; older revisions are kept.",
+    settingsRestored: "Settings revision restored.", restoreSettingsFailed: "Settings revision was not restored.",
+    noEarlierSettingsRevision: "No older revision is available.", settingsHistoryUnavailable: "Settings history is not available.",
     running: "Publishing snapshot and retrieving results…", needSession: "An active sign-in is required.",
     settingsError: "Could not load saved settings.", saveFailed: "Settings were not saved.", runFailed: "Schedule calculation did not complete.",
     mustSave: "Save project settings first. Use an existing calendar ID and version from this project.",
+    progressEntry: "Progress entry", progressIntro: "Record actual start and finish, remaining duration, and percent complete. The Data Date comes from saved settings; the browser does not calculate dates.", progressActivity: "Activity", progressDataDate: "Data Date (from saved settings)", progressActualStart: "Actual start", progressActualFinish: "Actual finish", progressRemaining: "Remaining duration", progressPercent: "Percent complete", progressSave: "Save progress", progressSaved: "Progress saved. Run the schedule to see recalculated dates.", progressSaveFailed: "Progress was not saved.", progressListFailed: "Activities could not be loaded.", progressNoActivities: "No activities are available for progress entry.", progressSelectActivity: "Choose an activity to record progress.", progressSettingsRequired: "Save project settings with a Data Date before recording progress.", progressDataDateRequired: "Saved settings do not contain a Data Date.", progressTimeAwareUnavailable: "Progress entry currently requires date-based settings; time-aware entry is not available.", progressCompletedHint: "A completed activity requires an actual finish, zero remaining duration, and 100 percent complete.", progressStatus: "Status", progressRevisionShort: "revision", runStale: "Settings or progress changed. Run the schedule again to refresh results.",
     refIntro: "Search the available requirement and formula catalogue. The status labels distinguish a code mapping from verified behavior; this catalogue does not certify complete parity.",
     search: "Search IDs, features, options, formulas and gaps", allStatuses: "All status values", allAreas: "All areas", allKinds: "All reference entries", optionValidationWarning: "The menu-option reference registry has validation errors; affected items must not be treated as verified.",
     requirements: "Requirements", formulas: "Formula / algorithm references", menuOptions: "Menu options", noMatches: "No matching entries.", noGap: "No known gap is recorded for this entry.", menuPath: "Menu path", behavior: "Required behavior", outputs: "Outputs / effects", mappingEvidence: "Code mappings", testEvidence: "Regression tests", linkedRequirement: "Linked requirement",
@@ -251,9 +348,14 @@ const LABELS = {
     start: "شروع پروژه", finish: "پایان پروژه (اختیاری)", mode: "روش محاسبه", priority: "اولویت تسطیح منابع پروژه",
     jalaliDateHint: "تاریخ شمسی را مانند ۱۴۰۵/۰۷/۱۵ وارد کنید؛ به‌صورت تاریخ میلادی استاندارد ذخیره می‌شود.",
     save: "ذخیرهٔ تنظیمات", calculate: "محاسبه و نمایش نتیجه", saved: "تنظیمات ذخیره شد.", saving: "در حال ذخیره…",
+    settingsHistory: "تاریخچهٔ تنظیمات", restoreRevision: "نسخهٔ بازگردانی", restoreSettings: "بازگردانی",
+    restoreSettingsHint: "بازگردانی، مقادیر نسخهٔ انتخابی را به‌صورت نسخهٔ جدید ذخیره می‌کند؛ نسخه‌های قدیمی حفظ می‌شوند.",
+    settingsRestored: "نسخهٔ تنظیمات بازگردانی شد.", restoreSettingsFailed: "نسخهٔ تنظیمات بازگردانی نشد.",
+    noEarlierSettingsRevision: "نسخهٔ قدیمی‌تری در دسترس نیست.", settingsHistoryUnavailable: "تاریخچهٔ تنظیمات در دسترس نیست.",
     running: "در حال انتشار تصویر و دریافت نتیجه…", needSession: "ورود معتبر به سامانه لازم است.",
     settingsError: "خواندن تنظیمات ذخیره‌شده ممکن نشد.", saveFailed: "تنظیمات ذخیره نشد.", runFailed: "اجرای زمان‌بندی کامل نشد.",
     mustSave: "ابتدا تنظیمات پروژه را ذخیره کنید. از شناسه و نسخهٔ موجود تقویم پروژه استفاده کنید.",
+    progressEntry: "ثبت پیشرفت", progressIntro: "شروع و پایان واقعی، مدت باقی‌مانده و درصد پیشرفت را ثبت کنید. تاریخ داده از تنظیمات ذخیره‌شده خوانده می‌شود؛ مرورگر تاریخ‌ها را محاسبه نمی‌کند.", progressActivity: "فعالیت", progressDataDate: "تاریخ داده (از تنظیمات ذخیره‌شده)", progressActualStart: "شروع واقعی", progressActualFinish: "پایان واقعی", progressRemaining: "مدت باقی‌مانده", progressPercent: "درصد پیشرفت", progressSave: "ذخیرهٔ پیشرفت", progressSaved: "پیشرفت ذخیره شد. برای مشاهدهٔ تاریخ‌های بازمحاسبه‌شده زمان‌بندی را اجرا کنید.", progressSaveFailed: "پیشرفت ذخیره نشد.", progressListFailed: "فعالیت‌ها بارگذاری نشدند.", progressNoActivities: "فعالیتی برای ثبت پیشرفت وجود ندارد.", progressSelectActivity: "برای ثبت پیشرفت یک فعالیت را انتخاب کنید.", progressSettingsRequired: "پیش از ثبت پیشرفت، تنظیمات پروژه را همراه با تاریخ داده ذخیره کنید.", progressDataDateRequired: "تنظیمات ذخیره‌شده تاریخ داده ندارد.", progressTimeAwareUnavailable: "ثبت پیشرفت در حال حاضر فقط با تنظیمات تاریخ‌محور ممکن است؛ ورود زمان‌محور در دسترس نیست.", progressCompletedHint: "فعالیت تکمیل‌شده به پایان واقعی، مدت باقی‌ماندهٔ صفر و پیشرفت ۱۰۰ درصد نیاز دارد.", progressStatus: "وضعیت", progressRevisionShort: "نسخه", runStale: "تنظیمات یا پیشرفت تغییر کرد. برای تازه‌سازی نتیجه، زمان‌بندی را دوباره اجرا کنید.",
     refIntro: "در فهرست الزامات و فرمول‌های موجود جست‌وجو کنید. وضعیت‌ها میان وجود مسیر کد و رفتار آزموده‌شده تفاوت می‌گذارند؛ این فهرست گواهی برابری کامل نیست.",
     search: "جست‌وجو در شناسه، ویژگی، گزینه، فرمول و کمبود", allStatuses: "همهٔ وضعیت‌ها", allAreas: "همهٔ حوزه‌ها", allKinds: "همهٔ موارد مرجع", optionValidationWarning: "در اعتبارسنجی مرجع گزینه‌های منو خطا وجود دارد؛ موارد مربوط را تأییدشده تلقی نکنید.",
     requirements: "الزامات", formulas: "مراجع فرمول و الگوریتم", menuOptions: "گزینه‌های منو", noMatches: "موردی مطابق جست‌وجو نیست.", noGap: "کمبود مشخصی برای این مورد ثبت نشده است.", menuPath: "مسیر منو", behavior: "رفتار لازم", outputs: "خروجی‌ها / اثرها", mappingEvidence: "نگاشت‌های کد", testEvidence: "آزمون‌های رگرسیون", linkedRequirement: "الزام مرتبط",
@@ -430,6 +532,7 @@ export async function mountScheduleCyclePanels(
   onScheduleFacts?: (facts: AuthoritativeScheduleFacts) => void,
 ): Promise<void> {
   const optionsPanel = workspace.querySelector<HTMLElement>("#cp-schedule-options [data-schedule-panel]");
+  const progressPanel = workspace.querySelector<HTMLElement>("#cp-progress-entry [data-progress-panel]");
   const runPanel = workspace.querySelector<HTMLElement>("#cp-schedule-run [data-schedule-panel]");
   const referencePanel = workspace.querySelector<HTMLElement>("#cp-schedule-reference [data-schedule-panel]");
   if (!optionsPanel || !runPanel || !referencePanel) return;
@@ -447,8 +550,27 @@ export async function mountScheduleCyclePanels(
     }
   }
 
+  // A saved setting or a progress edit changes snapshot inputs. Previously
+  // displayed results must not survive that change as if they were current.
+  const invalidateRunResults = (): void => {
+    scheduleRunResults.delete(scheduleRunCacheKey(context));
+    const resultPanel = runPanel.querySelector<HTMLElement>("[data-run-results]");
+    const status = runPanel.querySelector<HTMLElement>("[data-run-status]");
+    if (resultPanel) resultPanel.innerHTML = "";
+    if (status) status.textContent = labels.runStale;
+  };
+  const mountProgress = (): void => {
+    if (!progressPanel) return;
+    void mountProgressPanel(progressPanel, transport, context, labels, invalidateRunResults);
+  };
+  const handleSettingsSaved = (): void => {
+    invalidateRunResults();
+    mountProgress();
+  };
+
   mountReferencePanel(referencePanel, catalog, referenceError, labels, languageCode);
-  await mountSettingsPanel(optionsPanel, transport, context, catalog, labels, languageCode);
+  await mountSettingsPanel(optionsPanel, transport, context, catalog, labels, languageCode, handleSettingsSaved);
+  mountProgress();
   mountRunPanel(runPanel, transport, context, locale, labels, languageCode, onScheduleFacts);
 }
 
@@ -508,13 +630,20 @@ async function mountSettingsPanel(
   catalog: ScheduleCodeReferenceCatalog | null,
   labels: (typeof LABELS)["en"] | (typeof LABELS)["fa"],
   locale: "fa" | "en",
-): Promise<void> {
+  onSettingsSaved?: () => void,
+): Promise<number | null> {
+  const mountToken = (settingsPanelMountTokens.get(panel) ?? 0) + 1;
+  settingsPanelMountTokens.set(panel, mountToken);
   const path = `/api/projects/${encodeURIComponent(context.project_id)}/p6/schedule/settings`;
+  const revisionsPath = `${path}/revisions`;
   const calendarsPath = `/api/projects/${encodeURIComponent(context.project_id)}/p6/calendars`;
-  const [savedResult, calendarsResult] = await Promise.all([
+  const [savedResult, calendarsResult, revisionsResult] = await Promise.all([
     transport.get<ScheduleSettingsDTO>(path, context),
     transport.get<CalendarCatalogDTO>(calendarsPath, context),
+    transport.get<ScheduleSettingsRevisionsDTO>(revisionsPath, context),
   ]);
+  if (settingsPanelMountTokens.get(panel) !== mountToken) return null;
+  let revisionsState = revisionsResult.ok ? revisionsResult.data.revisions : null;
   const projectCalendars = calendarsResult.ok ? calendarsResult.data.calendars : [];
   const defaultOptions = Object.fromEntries((catalog?.schedule_options_schema ?? []).map((item) => [item.name, item.default]));
   let saved: ScheduleSettingsDTO | null = savedResult.ok ? savedResult.data : null;
@@ -561,8 +690,19 @@ async function mountSettingsPanel(
     : "<label class=\"cp-schedule-option\"><span>" + safe(labels.calendarId) + "</span><input required name=\"calendar_id\" value=\"" + safe(initial.calendar_id) + "\" autocomplete=\"off\" /></label>"
       + "<label class=\"cp-schedule-option\"><span>" + safe(labels.calendarVersion) + "</span><input required name=\"calendar_version\" value=\"" + safe(initial.calendar_version) + "\" autocomplete=\"off\" /></label>"
       + "<p class=\"cp-muted\">" + safe(calendarsResult.ok ? (locale === "fa" ? "هنوز تقویمی در پروژه ثبت نشده است." : "No calendars are registered in this project yet.") : labels.calendarLoadError) + "</p>";
-  const controls = (catalog?.schedule_options_schema ?? []).map((schema) =>
+  const controls = (catalog?.schedule_options_schema ?? []).filter((schema) => schema.name !== "data_date").map((schema) =>
     renderSettingControl(schema, initial.schedule_options[schema.name] ?? schema.default, locale)).join("");
+  const dataDateSchema = (catalog?.schedule_options_schema ?? []).find((schema) => schema.name === "data_date");
+  const dataDateIso = typeof initial.schedule_options["data_date"] === "string"
+    ? String(initial.schedule_options["data_date"]).slice(0, 10)
+    : "";
+  const dataDateField = (): string => {
+    if (!dataDateSchema) return "";
+    const jalali = usesTypedJalali(initial.calendar_system, initial.mode);
+    const value = jalali ? formatJalaliDateInput(dataDateIso) : dataDateIso;
+    return `<label class="cp-schedule-option"><span>${safe(settingFieldLabel("data_date", locale))}</span><input name="data_date" type="${jalali ? "text" : "date"}" value="${safe(value)}" data-date-system="${jalali ? "jalali" : "gregorian"}" data-iso="${safe(dataDateIso)}"${jalali ? ' inputmode="numeric" placeholder="۱۴۰۵/۰۷/۱۵" autocomplete="off"' : ""} />${jalali ? `<small class="cp-muted">${safe(labels.jalaliDateHint)}</small>` : ""}</label>`;
+  };
+
   const dateField = (
     name: "project_start" | "project_finish",
     value: string,
@@ -583,14 +723,17 @@ async function mountSettingsPanel(
       <label class="cp-schedule-option"><span>${safe(labels.calendarSystem)}</span><select name="calendar_system"><option value="gregorian" ${initial.calendar_system === "gregorian" ? "selected" : ""}>${safe(locale === "fa" ? "میلادی" : "Gregorian")}</option><option value="jalali" ${initial.calendar_system === "jalali" ? "selected" : ""}>${safe(locale === "fa" ? "هجری شمسی" : "Jalali")}</option></select></label>
       ${dateField("project_start", initial.project_start, true)}
       ${dateField("project_finish", initial.project_finish, false)}
+      ${dataDateField()}
       <label class="cp-schedule-option"><span>${safe(labels.priority)}</span><input required name="project_leveling_priority" type="number" min="1" max="100" step="1" value="${initial.project_leveling_priority}" /></label>
       ${controls ? `<h3 class="cp-schedule-options-subtitle">${safe(locale === "fa" ? "گزینه‌های هستهٔ محاسبه" : "Calculation engine options")}</h3><div class="cp-schedule-options-grid">${controls}</div>` : ""}
       <div class="cp-schedule-actions"><button type="submit">${safe(labels.save)}</button><span role="status" data-settings-status></span></div>
-    </form>`;
+    </form>
+    <section class="cp-settings-history" data-settings-history></section>`;
   const form = panel.querySelector<HTMLFormElement>("[data-schedule-settings-form]");
   const modeInput = form?.elements.namedItem("mode") as HTMLSelectElement | null;
   const startInput = form?.elements.namedItem("project_start") as HTMLInputElement | null;
   const finishInput = form?.elements.namedItem("project_finish") as HTMLInputElement | null;
+  const dataDateInput = form?.elements.namedItem("data_date") as HTMLInputElement | null;
   const calendarRefInput = form?.elements.namedItem("calendar_ref") as HTMLSelectElement | null;
   const calendarSystemInput = form?.elements.namedItem("calendar_system") as HTMLSelectElement | null;
   const recordIso = (input: HTMLInputElement) => {
@@ -634,8 +777,26 @@ async function mountSettingsPanel(
         : iso.slice(0, 10);
       input.dataset.dateSystem = "gregorian";
     }
+    if (dataDateInput) {
+      // The Data Date is always a calendar date even for time-aware projects.
+      const iso = String(dataDateInput.dataset.iso ?? dataDateInput.value);
+      if (jalali) {
+        dataDateInput.type = "text";
+        dataDateInput.inputMode = "numeric";
+        dataDateInput.placeholder = "۱۴۰۵/۰۷/۱۵";
+        dataDateInput.autocomplete = "off";
+        dataDateInput.value = formatJalaliDateInput(iso);
+        dataDateInput.dataset.dateSystem = "jalali";
+      } else {
+        dataDateInput.type = "date";
+        dataDateInput.removeAttribute("inputmode");
+        dataDateInput.removeAttribute("placeholder");
+        dataDateInput.value = iso.slice(0, 10);
+        dataDateInput.dataset.dateSystem = "gregorian";
+      }
+    }
   };
-  for (const input of [startInput, finishInput]) {
+  for (const input of [startInput, finishInput, dataDateInput]) {
     input?.addEventListener("input", () => recordIso(input));
     input?.addEventListener("change", () => recordIso(input));
   }
@@ -648,6 +809,10 @@ async function mountSettingsPanel(
       if (!input) continue;
       recordIso(input);
       nextDraft[input.name] = input.dataset.iso || input.value;
+    }
+    if (dataDateInput) {
+      recordIso(dataDateInput);
+      nextDraft["option:data_date"] = dataDateInput.dataset.iso || "";
     }
     for (const schema of catalog?.schedule_options_schema ?? []) {
       const control = form.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[data-option="${schema.name}"]`);
@@ -671,6 +836,70 @@ async function mountSettingsPanel(
       // A blank selector is a prompt, not a selectable calendar.
     }
   });
+  const historySection = panel.querySelector<HTMLElement>("[data-settings-history]");
+  const renderHistory = (currentRevision: number): void => {
+    if (!historySection) return;
+    const statusSpan = '<span role="status" data-settings-history-status></span>';
+    if (!revisionsState) {
+      historySection.innerHTML = `<h3>${safe(labels.settingsHistory)}</h3><p class="cp-muted">${safe(labels.settingsHistoryUnavailable)}</p>${statusSpan}`;
+      return;
+    }
+    const older = revisionsState.filter((item) => item.record_revision < currentRevision);
+    if (!older.length) {
+      historySection.innerHTML = `<h3>${safe(labels.settingsHistory)}</h3><p class="cp-muted">${safe(labels.noEarlierSettingsRevision)}</p>${statusSpan}`;
+      return;
+    }
+    historySection.innerHTML = `<h3>${safe(labels.settingsHistory)}</h3>
+      <div class="cp-settings-history-controls">
+        <label class="cp-schedule-option"><span>${safe(labels.restoreRevision)}</span><select data-settings-revision-select>${older.map((item) => `<option value="${item.record_revision}">${safe(`${locale === "fa" ? "نسخه" : "revision"} ${item.record_revision} · ${item.mode} · ${item.project_start}`)}</option>`).join("")}</select></label>
+        <button type="button" data-settings-restore>${safe(labels.restoreSettings)}</button>
+      </div>
+      <p class="cp-muted">${safe(labels.restoreSettingsHint)}</p>${statusSpan}`;
+    const select = historySection.querySelector<HTMLSelectElement>("[data-settings-revision-select]");
+    const button = historySection.querySelector<HTMLButtonElement>("[data-settings-restore]");
+    button?.addEventListener("click", async () => {
+      const hidden = form?.elements.namedItem("record_revision") as HTMLInputElement | null;
+      const status = historySection.querySelector<HTMLElement>("[data-settings-history-status]");
+      const target = older.find((item) => String(item.record_revision) === select?.value);
+      if (!target || !hidden || !status) return;
+      button.disabled = true;
+      if (select) select.disabled = true;
+      status.textContent = labels.saving;
+      try {
+        const result = await transport.post<Record<string, unknown>, ScheduleSettingsDTO>(
+          path,
+          buildSettingsRestoreRequest(target, Number(hidden.value)),
+          context,
+          crypto.randomUUID(),
+        );
+        if (settingsPanelMountTokens.get(panel) !== mountToken) return;
+        if (!result.ok) {
+          status.textContent = `${labels.restoreSettingsFailed} (${result.error.code})`;
+          button.disabled = false;
+          if (select) select.disabled = false;
+          return;
+        }
+        scheduleSettingsDrafts.delete(draftKey);
+        onSettingsSaved?.();
+        const mountedToken = await mountSettingsPanel(panel, transport, context, catalog, labels, locale, onSettingsSaved);
+        if (mountedToken === null || settingsPanelMountTokens.get(panel) !== mountedToken) return;
+        const restored = panel.querySelector<HTMLElement>("[data-settings-history-status]");
+        if (restored) restored.textContent = labels.settingsRestored;
+      } catch (error) {
+        if (settingsPanelMountTokens.get(panel) !== mountToken) return;
+        status.textContent = `${labels.restoreSettingsFailed} (${error instanceof Error ? error.message : "INVALID_SETTINGS"})`;
+        button.disabled = false;
+        if (select) select.disabled = false;
+      }
+    });
+  };
+  const refreshHistory = async (currentRevision: number): Promise<void> => {
+    const result = await transport.get<ScheduleSettingsRevisionsDTO>(revisionsPath, context);
+    if (settingsPanelMountTokens.get(panel) !== mountToken) return;
+    revisionsState = result.ok ? result.data.revisions : null;
+    renderHistory(currentRevision);
+  };
+  renderHistory(initial.record_revision);
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const status = panel.querySelector<HTMLElement>("[data-settings-status]");
@@ -702,6 +931,18 @@ async function mountSettingsPanel(
         if (Number.isNaN(date.getTime())) throw new Error("INVALID_" + name.toUpperCase());
         return date.toISOString();
       };
+      const readDataDate = (): string | null => {
+        const raw = String(dataDateInput?.value ?? "").trim();
+        if (!raw) return null;
+        if (dataDateInput?.dataset.dateSystem === "jalali") {
+          const iso = parseJalaliDateInput(raw);
+          if (!iso) throw new Error("INVALID_DATA_DATE");
+          return iso;
+        }
+        const iso = raw.slice(0, 10);
+        if (!isValidCanonicalIsoDate(iso)) throw new Error("INVALID_DATA_DATE");
+        return iso;
+      };
       const scheduleOptions: Record<string, unknown> = {};
       for (const schema of catalog?.schedule_options_schema ?? []) {
         const input = form.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[data-option="${schema.name}"]`);
@@ -713,6 +954,7 @@ async function mountSettingsPanel(
         } else if (schema.kind === "json") scheduleOptions[schema.name] = JSON.parse(input.value || "null") as unknown;
         else scheduleOptions[schema.name] = input.value === "" ? schema.default : input.value;
       }
+      if (dataDateSchema) scheduleOptions["data_date"] = readDataDate();
       let calendarId = String(data.get("calendar_id") ?? "").trim();
       let calendarVersion = String(data.get("calendar_version") ?? "").trim();
       const selectedCalendarRaw = String(data.get("calendar_ref") ?? "");
@@ -747,15 +989,180 @@ async function mountSettingsPanel(
       if (calendarSystemInput) calendarSystemInput.value = saved.project_calendar.system;
       if (startInput) startInput.dataset.iso = saved.project_start;
       if (finishInput) finishInput.dataset.iso = saved.project_finish ?? "";
+      if (dataDateInput) {
+        const savedDataDate = saved.schedule_options["data_date"];
+        dataDateInput.dataset.iso = typeof savedDataDate === "string" ? savedDataDate.slice(0, 10) : "";
+      }
       syncDateTypes();
       scheduleSettingsDrafts.delete(draftKey);
+      onSettingsSaved?.();
       status.textContent = labels.saved;
+      await refreshHistory(saved.record_revision);
     } catch (error) {
       status.textContent = `${labels.saveFailed} (${error instanceof Error ? error.message : "INVALID_SETTINGS"})`;
     } finally {
       submit.disabled = false;
     }
   });
+  return mountToken;
+}
+
+async function mountProgressPanel(
+  panel: HTMLElement,
+  transport: ApiTransport,
+  context: ProjectContext,
+  labels: (typeof LABELS)["en"] | (typeof LABELS)["fa"],
+  onProgressSaved?: () => void,
+): Promise<void> {
+  const activitiesPath = `/api/projects/${encodeURIComponent(context.project_id)}/p6/activities`;
+  const settingsPath = `/api/projects/${encodeURIComponent(context.project_id)}/p6/schedule/settings`;
+  const token = (progressPanelMountTokens.get(panel) ?? 0) + 1;
+  progressPanelMountTokens.set(panel, token);
+  const [settingsResult, activitiesResult] = await Promise.all([
+    transport.get<ScheduleSettingsDTO>(settingsPath, context),
+    transport.get<ActivityListDTO>(activitiesPath, context),
+  ]);
+  if (progressPanelMountTokens.get(panel) !== token) return;
+
+  let settings: ScheduleSettingsDTO | null = settingsResult.ok ? settingsResult.data : null;
+  let activities: ActivityMasterDTO[] = activitiesResult.ok
+    ? activitiesResult.data.activities.map((item) => item.activity)
+    : [];
+  let selectedId = activities[0]?.activity_id ?? "";
+
+  const dateInput = (name: string, value: string | null, jalali: boolean): string => {
+    const iso = value ? value.slice(0, 10) : "";
+    const displayed = jalali ? formatJalaliDateInput(iso) : iso;
+    return `<label class="cp-schedule-option"><span>${safe(name === "actual_start" ? labels.progressActualStart : labels.progressActualFinish)}</span><input name="${name}" type="${jalali ? "text" : "date"}" value="${safe(displayed)}" data-progress-date="${jalali ? "jalali" : "gregorian"}"${jalali ? ' inputmode="numeric" placeholder="۱۴۰۵/۰۷/۱۵" autocomplete="off"' : ""} /></label>`;
+  };
+
+  const render = (): void => {
+    if (!settingsResult.ok) {
+      panel.innerHTML = `<p role="status">${safe(
+        settingsResult.error.code === "PROJECT_SCHEDULE_SETTINGS_NOT_FOUND"
+          ? labels.progressSettingsRequired
+          : `${labels.settingsError} (${settingsResult.error.code})`,
+      )}</p>`;
+      return;
+    }
+    if (!settings) {
+      panel.innerHTML = `<p role="status">${safe(labels.settingsError)}</p>`;
+      return;
+    }
+    if (settings.mode !== "DATE_BASED") {
+      panel.innerHTML = `<p role="status">${safe(labels.progressTimeAwareUnavailable)}</p>`;
+      return;
+    }
+    const rawDataDate = settings.schedule_options["data_date"];
+    if (typeof rawDataDate !== "string") {
+      panel.innerHTML = `<p role="status">${safe(labels.progressDataDateRequired)}</p>`;
+      return;
+    }
+    const dataDate = rawDataDate.slice(0, 10);
+    if (!activitiesResult.ok) {
+      panel.innerHTML = `<p role="status">${safe(
+        `${labels.progressListFailed} (${activitiesResult.error.code})`,
+      )}</p>`;
+      return;
+    }
+    if (!activities.length) {
+      panel.innerHTML = `<p role="status">${safe(labels.progressNoActivities)}</p>`;
+      return;
+    }
+    const selected = activities.find((item) => item.activity_id === selectedId) ?? activities[0];
+    selectedId = selected.activity_id;
+    const jalali = settings.project_calendar.system === "jalali";
+    const dataDateDisplay = jalali
+      ? `${formatJalaliDateInput(dataDate)} (${dataDate})`
+      : dataDate;
+    panel.innerHTML = `
+      <p>${safe(labels.progressIntro)}</p>
+      <p class="cp-muted"><b>${safe(labels.progressDataDate)}:</b> <span data-progress-data-date="${safe(dataDate)}">${safe(dataDateDisplay)}</span></p>
+      <label class="cp-schedule-option"><span>${safe(labels.progressActivity)}</span><select data-progress-activity>${activities
+        .map((item) => `<option value="${safe(item.activity_id)}" ${item.activity_id === selected.activity_id ? "selected" : ""}>${safe(`${item.activity_id} — ${item.name || item.activity_id} · ${item.status} · ${labels.progressRevisionShort} ${item.record_revision}`)}</option>`)
+        .join("")}</select></label>
+      <form data-progress-form class="cp-schedule-settings-form">
+        ${dateInput("actual_start", selected.actual_start, jalali)}
+        ${dateInput("actual_finish", selected.actual_finish, jalali)}
+        <label class="cp-schedule-option"><span>${safe(labels.progressRemaining)}</span><input name="remaining_duration" type="number" min="0" step="1" value="${selected.remaining_duration === null ? "" : selected.remaining_duration}" /></label>
+        <label class="cp-schedule-option"><span>${safe(labels.progressPercent)}</span><input name="percent_complete" type="number" min="0" max="100" step="any" value="${selected.percent_complete === null ? "" : selected.percent_complete}" /></label>
+        <p class="cp-muted">${safe(labels.progressCompletedHint)}</p>
+        <div class="cp-schedule-actions"><button type="submit">${safe(labels.progressSave)}</button><span role="status" data-progress-status></span></div>
+      </form>`;
+    const select = panel.querySelector<HTMLSelectElement>("[data-progress-activity]");
+    select?.addEventListener("change", () => {
+      selectedId = select.value;
+      render();
+    });
+    const form = panel.querySelector<HTMLFormElement>("[data-progress-form]");
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const status = panel.querySelector<HTMLElement>("[data-progress-status]");
+      const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (!status || !submit) return;
+      status.textContent = labels.saving;
+      submit.disabled = true;
+      try {
+        const readDate = (name: "actual_start" | "actual_finish"): string | null => {
+          const input = form.elements.namedItem(name) as HTMLInputElement | null;
+          const raw = String(input?.value ?? "").trim();
+          if (!raw) return null;
+          const iso = parseProgressDateInput(raw, jalali);
+          if (!iso) throw new Error("INVALID_" + name.toUpperCase());
+          return iso;
+        };
+        const readRemaining = (): number | null => {
+          const input = form.elements.namedItem("remaining_duration") as HTMLInputElement | null;
+          const raw = String(input?.value ?? "").trim();
+          if (!raw) return null;
+          const value = Number(raw);
+          if (!Number.isInteger(value) || value < 0) throw new Error("INVALID_REMAINING_DURATION");
+          return value;
+        };
+        const readPercent = (): number | null => {
+          const input = form.elements.namedItem("percent_complete") as HTMLInputElement | null;
+          const raw = String(input?.value ?? "").trim();
+          if (!raw) return null;
+          const value = Number(raw);
+          if (!Number.isFinite(value) || value < 0 || value > 100) throw new Error("INVALID_PERCENT_COMPLETE");
+          return value;
+        };
+        const request = buildProgressRequest(selected.record_revision, {
+          actual_start: readDate("actual_start"),
+          actual_finish: readDate("actual_finish"),
+          remaining_duration: readRemaining(),
+          percent_complete: readPercent(),
+        });
+        if (!transport.patch) throw new Error("PATCH_TRANSPORT_UNAVAILABLE");
+        const result = await transport.patch<Record<string, unknown>, ActivityDTO>(
+          `${activitiesPath}/${encodeURIComponent(selected.activity_id)}/progress`,
+          request,
+          context,
+          crypto.randomUUID(),
+        );
+        if (progressPanelMountTokens.get(panel) !== token) return;
+        if (!result.ok) {
+          status.textContent = `${labels.progressSaveFailed} (${result.error.code})`;
+          submit.disabled = false;
+          return;
+        }
+        activities = activities.map((item) =>
+          item.activity_id === result.data.activity.activity_id
+            ? result.data.activity
+            : item,
+        );
+        onProgressSaved?.();
+        render();
+        const refreshed = panel.querySelector<HTMLElement>("[data-progress-status]");
+        if (refreshed) refreshed.textContent = labels.progressSaved;
+      } catch (error) {
+        if (progressPanelMountTokens.get(panel) !== token) return;
+        status.textContent = `${labels.progressSaveFailed} (${error instanceof Error ? error.message : "INVALID_PROGRESS"})`;
+        submit.disabled = false;
+      }
+    });
+  };
+  render();
 }
 
 function mountRunPanel(

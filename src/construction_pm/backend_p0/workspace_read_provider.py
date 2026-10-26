@@ -137,6 +137,10 @@ class PersistedWorkspaceReadProvider:
         layout = self._layout(scope)
         columns = _columns(fields, layout)
         facts = self._facts(scope, auth_context)
+        activity_rows = [
+            _activity_payload(activity, facts, self.wbs_by_activity)
+            for activity in activities
+        ]
         return {
             "contract_version": WORKSPACE_CONTROL_ROOM_READ_VERSION,
             "context": _scope_payload(scope),
@@ -144,10 +148,11 @@ class PersistedWorkspaceReadProvider:
                 "contract_version": WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION,
                 "context": _scope_payload(scope),
                 "columns": columns,
-                "activities": [
-                    _activity_payload(activity, facts, self.wbs_by_activity)
-                    for activity in activities
-                ],
+                "activities": activity_rows,
+                # Rollup navigation over the persisted WBS assignment. Every
+                # value is an aggregate of the same authoritative activity and
+                # schedule-fact rows above; no date is calculated here.
+                "wbs_summary": _wbs_summary(activity_rows),
             },
             "field_daily_logs": [],
             "field_issues": [],
@@ -201,6 +206,56 @@ def _scope_payload(scope: BackendScope) -> dict[str, object]:
         "project_id": scope.project_id,
         "revision": scope.project_revision,
     }
+
+
+def _wbs_summary(
+    activity_rows: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Aggregate persisted WBS assignments for navigation.
+
+    The summary contains only counts and bounds of values already projected
+    from authoritative facts. It never derives a schedule date.
+    """
+
+    groups: dict[str, dict[str, object]] = {}
+    for row in activity_rows:
+        wbs_id = row["wbs_id"]
+        if not isinstance(wbs_id, str):
+            raise ValueError("INVALID_WORKSPACE_WBS_ID")
+        group = groups.get(wbs_id)
+        if group is None:
+            group = {
+                "wbs_id": wbs_id,
+                "activity_count": 0,
+                "critical_count": 0,
+                "scheduled_start": None,
+                "scheduled_finish": None,
+                "total_float_min": None,
+            }
+            groups[wbs_id] = group
+        group["activity_count"] = int(group["activity_count"]) + 1
+        gantt = row.get("gantt")
+        if isinstance(gantt, Mapping):
+            start = gantt.get("start")
+            finish = gantt.get("finish")
+            if not isinstance(start, str) or not isinstance(finish, str):
+                raise ValueError("INVALID_WORKSPACE_WBS_SCHEDULE_BOUNDS")
+            current_start = group["scheduled_start"]
+            current_finish = group["scheduled_finish"]
+            if current_start is None or start < str(current_start):
+                group["scheduled_start"] = start
+            if current_finish is None or finish > str(current_finish):
+                group["scheduled_finish"] = finish
+            if gantt.get("critical") is True:
+                group["critical_count"] = int(group["critical_count"]) + 1
+        cells = row.get("cells")
+        if isinstance(cells, Mapping):
+            total_float = cells.get("activity.total_float")
+            if isinstance(total_float, int) and not isinstance(total_float, bool):
+                current_float = group["total_float_min"]
+                if current_float is None or total_float < int(current_float):
+                    group["total_float_min"] = total_float
+    return list(groups.values())
 
 
 def _columns(

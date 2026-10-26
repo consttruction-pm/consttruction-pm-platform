@@ -18,11 +18,34 @@ export type AIActionProposal = Readonly<{
   updated_at: string;
   decided_by: string | null;
   is_stale: boolean;
+  execution_verification?: AIActionExecutionVerification | null;
 }>;
 
 export type AIActionProposalList = Readonly<{
   contract_version: typeof AI_ACTION_CONTRACT_VERSION;
   proposals: readonly AIActionProposal[];
+}>;
+
+export type AIActionExecutionVerification = Readonly<{
+  contract_version: "ai-action-execution-verification.v1";
+  status: "COMPUTED" | "UNAVAILABLE" | "FAILED";
+  reason_code: string | null;
+  activity: Readonly<{
+    activity_id: string;
+    start: string;
+    finish: string;
+    duration: number | null;
+    duration_unit: string;
+    critical: boolean | null;
+  }> | null;
+  project_finish: string | null;
+  calculation_run_identity: string | null;
+  snapshot: Readonly<{
+    snapshot_id: string;
+    snapshot_hash: string;
+    calculation_identity: string;
+  }> | null;
+  query_id: string | null;
 }>;
 
 export type AIActionMutationResult = Readonly<{
@@ -31,6 +54,8 @@ export type AIActionMutationResult = Readonly<{
   status: string;
   decided_by?: string | null;
   result?: Readonly<Record<string, unknown>> | null;
+  execution_verification?: AIActionExecutionVerification | null;
+  execution_verification_stored?: boolean;
 }>;
 
 export type CreateActivityProposal = Readonly<{
@@ -40,9 +65,29 @@ export type CreateActivityProposal = Readonly<{
   duration_unit: "working-day" | "working-hour";
 }>;
 
+export type UpdateActivityProposal = Readonly<{
+  activity_id: string;
+  expected_revision: number;
+  name?: string;
+  duration_value?: string;
+  duration_unit?: "working-day" | "working-hour";
+}>;
+
 export type AIAssistantHistoryMessage = Readonly<{
   role: "user" | "assistant";
   content: string;
+}>;
+
+export type AIAssistantInputProvenance = Readonly<{
+  channel: "voice";
+  source: "microphone" | "imported_audio" | "manual_transcript";
+  confidence: number | null;
+}>;
+
+export type AIAssistantCapabilities = Readonly<{
+  contract_version: "ai-assistant-capabilities.v1";
+  enabled: boolean;
+  reason: string | null;
 }>;
 
 export type AIAssistantTurn = Readonly<{
@@ -78,6 +123,13 @@ function parseProposal(value: unknown): AIActionProposal | null {
   if (!isRecord(value.payload)) return null;
   if (value.result !== null && !isRecord(value.result)) return null;
   if (value.decided_by !== null && typeof value.decided_by !== "string") return null;
+  let storedVerification: AIActionExecutionVerification | null | undefined;
+  if (value.execution_verification !== undefined) {
+    storedVerification = value.execution_verification === null
+      ? null
+      : parseVerification(value.execution_verification);
+    if (storedVerification === null && value.execution_verification !== null) return null;
+  }
   return Object.freeze({
     proposal_id: value.proposal_id as string,
     tool_name: value.tool_name as string,
@@ -94,6 +146,7 @@ function parseProposal(value: unknown): AIActionProposal | null {
     updated_at: value.updated_at as string,
     decided_by: value.decided_by as string | null,
     is_stale: value.is_stale,
+    ...(storedVerification !== undefined ? { execution_verification: storedVerification } : {}),
   });
 }
 
@@ -101,8 +154,91 @@ function projectPath(context: ProjectContext): string {
   return `/api/projects/${encodeURIComponent(context.project_id)}/ai/actions`;
 }
 
+function nonEmptyText(value: unknown): value is string {
+  return typeof value === "string" && Boolean(value.trim());
+}
+
+function parseVerification(value: unknown): AIActionExecutionVerification | null {
+  if (!isRecord(value) || value.contract_version !== "ai-action-execution-verification.v1") return null;
+  const status = value.status;
+  if (status !== "COMPUTED" && status !== "UNAVAILABLE" && status !== "FAILED") return null;
+  const reasonCode = value.reason_code;
+  if (reasonCode !== null && !nonEmptyText(reasonCode)) return null;
+  if (value.activity !== null && !isRecord(value.activity)) return null;
+  if (value.snapshot !== null && !isRecord(value.snapshot)) return null;
+  for (const field of [value.project_finish, value.calculation_run_identity, value.query_id]) {
+    if (field !== null && typeof field !== "string") return null;
+  }
+
+  if (status === "COMPUTED") {
+    const activity = value.activity;
+    const snapshot = value.snapshot;
+    if (!isRecord(activity) || !isRecord(snapshot) || reasonCode !== null) return null;
+    const activityId = activity.activity_id;
+    const start = activity.start;
+    const finish = activity.finish;
+    const durationUnit = activity.duration_unit;
+    const duration = activity.duration;
+    const critical = activity.critical;
+    if (!nonEmptyText(activityId) || !nonEmptyText(start) ||
+        !nonEmptyText(finish) || !nonEmptyText(durationUnit)) return null;
+    if (duration !== null &&
+        (typeof duration !== "number" || !Number.isFinite(duration) || duration < 0)) return null;
+    if (critical !== null && typeof critical !== "boolean") return null;
+    const snapshotId = snapshot.snapshot_id;
+    const snapshotHash = snapshot.snapshot_hash;
+    const calculationIdentity = snapshot.calculation_identity;
+    const projectFinish = value.project_finish;
+    const calculationRunIdentity = value.calculation_run_identity;
+    const queryId = value.query_id;
+    if (!nonEmptyText(snapshotId) || !nonEmptyText(snapshotHash) ||
+        !nonEmptyText(calculationIdentity)) return null;
+    if (!nonEmptyText(projectFinish) || !nonEmptyText(calculationRunIdentity) ||
+        !nonEmptyText(queryId)) return null;
+    return Object.freeze({
+      contract_version: "ai-action-execution-verification.v1",
+      status: "COMPUTED",
+      reason_code: null,
+      activity: Object.freeze({
+        activity_id: activityId,
+        start,
+        finish,
+        duration,
+        duration_unit: durationUnit,
+        critical,
+      }),
+      project_finish: projectFinish,
+      calculation_run_identity: calculationRunIdentity,
+      snapshot: Object.freeze({
+        snapshot_id: snapshotId,
+        snapshot_hash: snapshotHash,
+        calculation_identity: calculationIdentity,
+      }),
+      query_id: queryId,
+    });
+  }
+
+  if (!nonEmptyText(reasonCode)) return null;
+  if (value.activity !== null || value.snapshot !== null || value.project_finish !== null ||
+      value.calculation_run_identity !== null || value.query_id !== null) return null;
+  return Object.freeze({
+    contract_version: "ai-action-execution-verification.v1",
+    status,
+    reason_code: reasonCode,
+    activity: null,
+    project_finish: null,
+    calculation_run_identity: null,
+    snapshot: null,
+    query_id: null,
+  });
+}
+
 export class AIActionClient {
-  constructor(private readonly transport: ApiTransport) {}
+  private readonly transport: ApiTransport;
+
+  constructor(transport: ApiTransport) {
+    this.transport = transport;
+  }
 
   async listProposals(context: ProjectContext): Promise<ApiResult<AIActionProposalList>> {
     const result = await this.transport.get<unknown>(
@@ -163,17 +299,79 @@ export class AIActionClient {
     return { ok: true, data: proposal };
   }
 
+  async proposeActivityUpdate(
+    context: ProjectContext,
+    activity: UpdateActivityProposal,
+  ): Promise<ApiResult<AIActionProposal>> {
+    const result = await this.transport.post<
+      { expected_revision: number; tool_name: string; payload: UpdateActivityProposal; evidence_refs: string[] },
+      unknown
+    >(
+      `${projectPath(context)}/proposals`,
+      {
+        expected_revision: context.revision,
+        tool_name: "activity.update",
+        payload: activity,
+        evidence_refs: [],
+      },
+      context,
+    );
+    if (!result.ok) return result;
+    const data = result.data;
+    if (!isRecord(data) || data.contract_version !== AI_ACTION_CONTRACT_VERSION || !isRecord(data.proposal)) {
+      return invalidResponse<AIActionProposal>();
+    }
+    const created = {
+      ...data.proposal,
+      status: data.status,
+      result: null,
+      updated_at: data.proposal.updated_at ?? data.proposal.created_at,
+      requested_by: data.proposal.requested_by ?? "",
+      decided_by: null,
+      is_stale: String(data.proposal.project_revision_id) !== String(context.revision),
+    };
+    const proposal = parseProposal(created);
+    if (!proposal) return invalidResponse<AIActionProposal>();
+    return { ok: true, data: proposal };
+  }
+
+  async getAssistantCapabilities(
+    context: ProjectContext,
+  ): Promise<ApiResult<AIAssistantCapabilities>> {
+    const result = await this.transport.get<unknown>(
+      `/api/projects/${encodeURIComponent(context.project_id)}/ai/assistant/capabilities`,
+      context,
+    );
+    if (!result.ok) return result;
+    const value = result.data;
+    if (!isRecord(value) || value.contract_version !== "ai-assistant-capabilities.v1" ||
+        typeof value.enabled !== "boolean" ||
+        (value.reason !== null && (typeof value.reason !== "string" || !value.reason.trim()))) {
+      return invalidResponse<AIAssistantCapabilities>();
+    }
+    return {
+      ok: true,
+      data: Object.freeze({
+        contract_version: "ai-assistant-capabilities.v1",
+        enabled: value.enabled,
+        reason: value.reason === null ? null : value.reason,
+      }),
+    };
+  }
+
   async sendAssistantTurn(
     context: ProjectContext,
     message: string,
     language: string,
     history: readonly AIAssistantHistoryMessage[] = [],
+    input: AIAssistantInputProvenance | null = null,
   ): Promise<ApiResult<AIAssistantTurn>> {
     const result = await this.transport.post<{
       expected_revision: number;
       message: string;
       language: string;
       history: readonly AIAssistantHistoryMessage[];
+      input?: AIAssistantInputProvenance;
     }, unknown>(
       `/api/projects/${encodeURIComponent(context.project_id)}/ai/assistant/turn`,
       {
@@ -181,6 +379,7 @@ export class AIActionClient {
         message,
         language,
         history,
+        ...(input === null ? {} : { input }),
       },
       context,
     );
@@ -236,13 +435,18 @@ export class AIActionClient {
   async execute(
     context: ProjectContext,
     proposalId: string,
+    timezone: string | null = null,
   ): Promise<ApiResult<AIActionMutationResult>> {
+    const request: { expected_revision: number; timezone?: string } = {
+      expected_revision: context.revision,
+    };
+    if (typeof timezone === "string" && timezone.trim()) request.timezone = timezone.trim();
     const result = await this.transport.post<
-      { expected_revision: number },
+      { expected_revision: number; timezone?: string },
       unknown
     >(
       `${projectPath(context)}/proposals/${encodeURIComponent(proposalId)}/execute`,
-      { expected_revision: context.revision },
+      request,
       context,
     );
     if (!result.ok) return result;
@@ -263,6 +467,19 @@ export class AIActionClient {
     if (includeResult && value.result !== undefined && value.result !== null && !isRecord(value.result)) {
       return invalidResponse<AIActionMutationResult>();
     }
+    let verification: AIActionExecutionVerification | null | undefined;
+    if (value.execution_verification !== undefined) {
+      verification = value.execution_verification === null
+        ? null
+        : parseVerification(value.execution_verification);
+      if (verification === null && value.execution_verification !== null) {
+        return invalidResponse<AIActionMutationResult>();
+      }
+    }
+    if (value.execution_verification_stored !== undefined &&
+        typeof value.execution_verification_stored !== "boolean") {
+      return invalidResponse<AIActionMutationResult>();
+    }
     return {
       ok: true,
       data: Object.freeze({
@@ -275,6 +492,12 @@ export class AIActionClient {
             ? null
             : Object.freeze({ ...(value.result as Record<string, unknown>) }),
         } : {}),
+        ...(includeResult && verification !== undefined
+          ? { execution_verification: verification }
+          : {}),
+        ...(includeResult && value.execution_verification_stored !== undefined
+          ? { execution_verification_stored: value.execution_verification_stored }
+          : {}),
       }),
     };
   }

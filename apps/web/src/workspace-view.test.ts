@@ -310,6 +310,79 @@ test("representative activity sets avoid full workspace replacement on selection
   assert.equal(container.innerHTML.length, initialHtmlLength);
 });
 
+test("WBS rollup renders server bounds and filters the grid and Gantt", () => {
+  const base = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "fa",
+    "jalali",
+  );
+  const state = {
+    ...base,
+    selectedWbsId: "W-2",
+    activities: [
+      {
+        id: "A-1", wbsId: "W-1", code: "01", name: "Foundation",
+        cells: {}, gantt: { start: "2026-10-01", finish: "2026-10-05", progressPercent: 0, critical: false },
+      },
+      {
+        id: "A-2", wbsId: "W-2", code: "02", name: "Structure",
+        cells: {}, gantt: { start: "2026-10-06", finish: "2026-10-12", progressPercent: 50, critical: true },
+      },
+    ],
+    wbsSummary: [
+      {
+        wbsId: "W-1", activityCount: 1, criticalCount: 0,
+        scheduledStart: "2026-10-01", scheduledFinish: "2026-10-05", totalFloatMin: 4,
+      },
+      {
+        wbsId: "W-2", activityCount: 1, criticalCount: 1,
+        scheduledStart: "2026-10-06", scheduledFinish: "2026-10-12", totalFloatMin: 0,
+      },
+    ],
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+
+  assert.match(container.innerHTML, /data-wbs-id="W-2"[^>]*aria-pressed="true"/);
+  assert.match(container.innerHTML, /data-wbs-id="W-1"[^>]*aria-pressed="false"/);
+  assert.match(container.innerHTML, /1 فعالیت · 1 بحرانی/);
+  assert.match(container.innerHTML, /۱۴۰۵\/۰۷\/۱۴/);
+  assert.match(container.innerHTML, /data-wbs-clear/);
+  assert.doesNotMatch(container.innerHTML, /data-wbs-clear disabled/);
+  assert.match(container.innerHTML, /data-activity-id="A-2"/);
+  assert.doesNotMatch(container.innerHTML, /data-activity-id="A-1"/);
+});
+
+test("WBS rollup keeps a clear control disabled without a selection", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activities: [
+      { id: "A-1", wbsId: "W-1", code: "01", name: "Foundation", cells: {} },
+    ],
+    wbsSummary: [
+      {
+        wbsId: "W-1", activityCount: 1, criticalCount: 0,
+        scheduledStart: null, scheduledFinish: null, totalFloatMin: null,
+      },
+    ],
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+
+  assert.match(container.innerHTML, /data-wbs-clear disabled/);
+  assert.match(container.innerHTML, /Not scheduled/);
+  assert.match(container.innerHTML, /data-activity-id="A-1"/);
+});
+
 test("WBS selection still uses a full render because it clears activity selection", () => {
   const base = {
     ...createWorkspaceState(

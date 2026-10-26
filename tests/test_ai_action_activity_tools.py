@@ -7,12 +7,16 @@ from decimal import Decimal
 
 import pytest
 
-from construction_pm.ai_action_activity_tools import build_activity_create_runtime
+from construction_pm.ai_action_activity_tools import (
+    build_activity_action_runtime,
+    build_activity_create_runtime,
+)
 from construction_pm.ai_action_boundary import (
     AIActionPermissionGrant,
     UserConfiguredAIActionPermissionAdapter,
 )
 from construction_pm.ai_action_runtime import (
+    AIActionExecutionRejected,
     AIActionRuntimeContext,
     AIActionRuntimeError,
     AIActionToolDefinition,
@@ -22,7 +26,10 @@ from construction_pm.ai_action_runtime import (
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
-from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
+from construction_pm.activity_master_repository import (
+    ActivityMaster,
+    SQLiteActivityMasterRepository,
+)
 from construction_pm.application.project_lifecycle import (
     AuthenticatedSession,
     ProjectLifecycleService,
@@ -30,9 +37,10 @@ from construction_pm.application.project_lifecycle import (
 )
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
+from construction_pm.scheduling.time_duration import DurationUnit
 
 
-def build_runtime(database_path):
+def build_runtime(database_path, *, include_update: bool = False):
     connection = sqlite3.connect(str(database_path))
     transaction_manager = SQLiteTransactionManager(connection)
     activity_repository = SQLiteActivityMasterRepository(connection)
@@ -47,7 +55,18 @@ def build_runtime(database_path):
             tool_name="activity.create",
         )
     ]
-    runtime = build_activity_create_runtime(
+    if include_update:
+        grants.append(AIActionPermissionGrant(
+            subject_id="user-1",
+            tenant_id="tenant-1",
+            project_id="project-1",
+            project_revision_id="12",
+            resource_domain="activities",
+            operation="update",
+            tool_name="activity.update",
+        ))
+    factory = build_activity_action_runtime if include_update else build_activity_create_runtime
+    runtime = factory(
         activity_master_repository=activity_repository,
         authorization_policy=default_project_policy(),
         permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: tuple(grants)),
@@ -324,6 +343,216 @@ def test_atomic_executor_error_rolls_back_partial_sql_and_blocks_replay(tmp_path
     finally:
         connection.close()
 
+
+
+def _seed_activity(repository, *, activity_id: str = "A-100", name: str = "Excavation"):
+    return repository.save(
+        ActivityMaster(
+            scope=BackendScope("tenant-1", "project-1", 12),
+            activity_id=activity_id,
+            duration_value=Decimal("3.5"),
+            duration_unit=DurationUnit("working-day"),
+            name=name,
+        ),
+        expected_revision=0,
+    )
+
+
+def _update_payload(**overrides):
+    result = {
+        "activity_id": "A-100",
+        "expected_revision": 1,
+        "name": "Excavation revised",
+    }
+    result.update(overrides)
+    return result
+
+
+def test_activity_update_changes_only_allowed_fields_with_revision_lock(tmp_path):
+    database_path = tmp_path / "activity-update.sqlite"
+    connection, _, repo, store, runtime, context, _ = build_runtime(
+        database_path, include_update=True
+    )
+    try:
+        seeded = _seed_activity(repo)
+        assert seeded.record_revision == 1
+        proposed = runtime.propose(
+            context,
+            tool_name="activity.update",
+            payload=_update_payload(
+                duration_value="5",
+                duration_unit="working-hour",
+            ),
+        )
+        assert proposed.payload == {
+            "activity_id": "A-100",
+            "expected_revision": 1,
+            "name": "Excavation revised",
+            "duration_value": "5",
+            "duration_unit": "working-hour",
+        }
+        runtime.decide(context, proposed.proposal.proposal_id, approved=True)
+        executed = runtime.execute(context, proposed.proposal.proposal_id)
+        assert executed.status == "executed"
+        assert executed.result is not None
+        assert executed.result["activity"]["activity_id"] == "A-100"
+        assert executed.result["activity"]["name"] == "Excavation revised"
+        assert executed.result["activity"]["duration_value"] == "5"
+        assert executed.result["activity"]["duration_unit"] == "working-hour"
+        assert executed.result["activity"]["record_revision"] == 2
+
+        persisted = repo.get(BackendScope("tenant-1", "project-1", 12), "A-100")
+        assert persisted is not None
+        assert persisted.name == "Excavation revised"
+        assert persisted.duration_value == Decimal("5")
+        assert persisted.duration_unit is DurationUnit("working-hour")
+        assert persisted.record_revision == 2
+        # Fields that were not proposed remain untouched.
+        assert persisted.status_code.value == "Planned"
+        assert persisted.percent_complete is None
+
+        fetched = store.get(
+            proposed.proposal.proposal_id, tenant_id="tenant-1", project_id="project-1"
+        )
+        assert fetched is not None
+        assert fetched.status == "executed"
+        assert fetched.result == executed.result
+        assert connection.execute(
+            "SELECT COUNT(*) FROM ai_action_audit_events "
+            "WHERE proposal_id=? AND event_type='execution_succeeded'",
+            (proposed.proposal.proposal_id,),
+        ).fetchone()[0] == 1
+        idempotency = connection.execute(
+            "SELECT fingerprint, result_json FROM ai_action_tool_idempotency "
+            "WHERE tenant_id=? AND project_id=? AND tool_name=? AND idempotency_key=?",
+            ("tenant-1", "project-1", "activity.update", proposed.proposal.proposal_id),
+        ).fetchone()
+        assert idempotency is not None
+        assert json.loads(idempotency[1]) == executed.result
+    finally:
+        connection.close()
+
+
+def test_activity_update_stale_record_revision_is_blocked_without_mutation(tmp_path):
+    database_path = tmp_path / "activity-update-stale.sqlite"
+    connection, _, repo, store, runtime, context, _ = build_runtime(
+        database_path, include_update=True
+    )
+    try:
+        _seed_activity(repo)
+        proposed = runtime.propose(
+            context, tool_name="activity.update", payload=_update_payload()
+        )
+        runtime.decide(context, proposed.proposal.proposal_id, approved=True)
+        current = repo.get(BackendScope("tenant-1", "project-1", 12), "A-100")
+        assert current is not None
+        repo.save(
+            ActivityMaster(
+                scope=current.scope,
+                activity_id=current.activity_id,
+                duration_value=current.duration_value,
+                duration_unit=current.duration_unit,
+                name="Manual concurrent edit",
+            ),
+            expected_revision=1,
+        )
+
+        with pytest.raises(
+            AIActionRuntimeError, match="AI_ACTION_ACTIVITY_REVISION_CONFLICT"
+        ):
+            runtime.execute(context, proposed.proposal.proposal_id)
+
+        persisted = repo.get(BackendScope("tenant-1", "project-1", 12), "A-100")
+        assert persisted is not None
+        assert persisted.name == "Manual concurrent edit"
+        assert persisted.record_revision == 2
+        stored = store.get(
+            proposed.proposal.proposal_id, tenant_id="tenant-1", project_id="project-1"
+        )
+        assert stored is not None
+        assert stored.status == "blocked"
+        assert stored.result is None
+        precondition_events = connection.execute(
+            "SELECT event_json FROM ai_action_audit_events "
+            "WHERE proposal_id=? AND event_type='execution_precondition_failed'",
+            (proposed.proposal.proposal_id,),
+        ).fetchall()
+        assert len(precondition_events) == 1
+        metadata = json.loads(precondition_events[0][0])["metadata"]
+        assert metadata["reason_code"] == "AI_ACTION_ACTIVITY_REVISION_CONFLICT"
+        assert metadata["automatic_retry_allowed"] is False
+        assert connection.execute(
+            "SELECT COUNT(*) FROM ai_action_tool_idempotency WHERE idempotency_key=?",
+            (proposed.proposal.proposal_id,),
+        ).fetchone()[0] == 0
+        with pytest.raises(AIActionRuntimeError, match="AI_ACTION_PROPOSAL_NOT_APPROVED"):
+            runtime.execute(context, proposed.proposal.proposal_id)
+    finally:
+        connection.close()
+
+
+def test_activity_update_missing_activity_and_mass_assignment_are_rejected(tmp_path):
+    database_path = tmp_path / "activity-update-invalid.sqlite"
+    connection, _, _, store, runtime, context, _ = build_runtime(
+        database_path, include_update=True
+    )
+    try:
+        with pytest.raises(AIActionRuntimeError, match="AI_ACTION_TOOL_PAYLOAD_INVALID"):
+            runtime.propose(
+                context,
+                tool_name="activity.update",
+                payload=_update_payload(percent_complete=50),
+            )
+        with pytest.raises(AIActionRuntimeError, match="AI_ACTION_TOOL_PAYLOAD_INVALID"):
+            runtime.propose(
+                context,
+                tool_name="activity.update",
+                payload=_update_payload(duration_value="4"),
+            )
+
+        proposed = runtime.propose(
+            context, tool_name="activity.update", payload=_update_payload()
+        )
+        runtime.decide(context, proposed.proposal.proposal_id, approved=True)
+        with pytest.raises(AIActionRuntimeError, match="AI_ACTION_ACTIVITY_NOT_FOUND"):
+            runtime.execute(context, proposed.proposal.proposal_id)
+        stored = store.get(
+            proposed.proposal.proposal_id, tenant_id="tenant-1", project_id="project-1"
+        )
+        assert stored is not None
+        assert stored.status == "blocked"
+        assert stored.result is None
+    finally:
+        connection.close()
+
+
+def test_duplicate_activity_create_is_a_known_rejection_not_uncertain(tmp_path):
+    database_path = tmp_path / "activity-create-duplicate.sqlite"
+    connection, _, repo, store, runtime, context, _ = build_runtime(database_path)
+    try:
+        _seed_activity(repo)
+        proposed = runtime.propose(
+            context, tool_name="activity.create", payload=activity_payload()
+        )
+        runtime.decide(context, proposed.proposal.proposal_id, approved=True)
+        with pytest.raises(AIActionRuntimeError, match="AI_ACTION_ACTIVITY_ALREADY_EXISTS"):
+            runtime.execute(context, proposed.proposal.proposal_id)
+        stored = store.get(
+            proposed.proposal.proposal_id, tenant_id="tenant-1", project_id="project-1"
+        )
+        assert stored is not None
+        assert stored.status == "blocked"
+        persisted = repo.get(BackendScope("tenant-1", "project-1", 12), "A-100")
+        assert persisted is not None
+        assert persisted.record_revision == 1
+        assert persisted.name == "Excavation"
+    finally:
+        connection.close()
+
+
+def test_execution_rejection_exception_requires_a_non_empty_code():
+    with pytest.raises(ValueError, match="AI_ACTION_EXECUTION_REJECTION_CODE_REQUIRED"):
+        AIActionExecutionRejected(" ")
 
 
 class _RouteSessions:

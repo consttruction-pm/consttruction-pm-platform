@@ -29,6 +29,10 @@ test("assistant chat accepts a language only when every required label has a tra
     "title", "description", "messageLabel", "placeholder", "send", "sending",
     "you", "assistant", "proposalNotice", "requestFailed", "serverUnavailable",
     "staleRevision", "empty", "privacyNotice", "translationsUnavailable",
+    "providerNotConfigured", "connectionFailed", "voiceStart", "voiceStop",
+    "voiceListening", "voiceCaptured", "voiceUnavailable", "voiceDenied",
+    "voiceFailed", "voiceEmpty", "voicePrivacyNotice", "readAloud",
+    "stopReading", "playReply", "speaking", "speechUnavailable", "speechFailed",
   ];
   registerWorkspaceLocale({
     locale: "de-DE",

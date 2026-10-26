@@ -22,6 +22,8 @@ export interface VoiceInputAdapter {
       expectedScope: VoiceCommand["scope"];
     }>,
   ): Promise<VoiceInputCapture>;
+  /** Stop an in-flight capture; the pending capture fails with VOICE_INPUT_CANCELLED. */
+  cancel?(): void;
 }
 
 export interface VoiceOutputAdapter {
@@ -33,6 +35,8 @@ export interface VoiceOutputAdapter {
       scope: VoiceCommand["scope"];
     }>,
   ): Promise<void>;
+  /** Stop any in-flight spoken output. */
+  stop?(): void;
 }
 
 export function normalizeVoiceCapture(

@@ -82,3 +82,82 @@ test("web speech output resolves only after provider completion", async () => {
     Object.assign(globalThis, { speechSynthesis: originalSynthesis, SpeechSynthesisUtterance: originalUtterance });
   }
 });
+
+test("web speech input cancel stops the provider and fails the pending capture", async () => {
+  const browserRuntime = globalThis as typeof globalThis & { SpeechRecognition?: unknown };
+  const original = browserRuntime.SpeechRecognition;
+  let stopped = false;
+  const fake = class {
+    lang = "";
+    continuous = false;
+    interimResults = false;
+    onresult: ((event: unknown) => void) | null = null;
+    onerror: ((event: { readonly error: string }) => void) | null = null;
+    onend: (() => void) | null = null;
+    start() {}
+    stop() { stopped = true; }
+  };
+  Object.assign(browserRuntime, { SpeechRecognition: fake });
+  try {
+    const adapter = createWebSpeechInputAdapter();
+    const pending = adapter.capture({ aiLanguage, expectedScope: scope });
+    adapter.cancel?.();
+    await assert.rejects(() => pending, /VOICE_INPUT_CANCELLED/);
+    assert.equal(stopped, true);
+  } finally {
+    Object.assign(browserRuntime, { SpeechRecognition: original });
+  }
+});
+
+test("web speech input normalizes microphone permission errors", async () => {
+  const browserRuntime = globalThis as typeof globalThis & { SpeechRecognition?: unknown };
+  const original = browserRuntime.SpeechRecognition;
+  const fake = class {
+    lang = "";
+    continuous = false;
+    interimResults = false;
+    onresult: ((event: unknown) => void) | null = null;
+    onerror: ((event: { readonly error: string }) => void) | null = null;
+    onend: (() => void) | null = null;
+    start() { this.onerror?.({ error: "not-allowed" }); }
+    stop() {}
+  };
+  Object.assign(browserRuntime, { SpeechRecognition: fake });
+  try {
+    const adapter = createWebSpeechInputAdapter();
+    await assert.rejects(
+      () => adapter.capture({ aiLanguage, expectedScope: scope }),
+      /VOICE_INPUT_NOT_ALLOWED/,
+    );
+  } finally {
+    Object.assign(browserRuntime, { SpeechRecognition: original });
+  }
+});
+
+test("web speech output stop cancels the browser utterance", async () => {
+  const originalSynthesis = globalThis.speechSynthesis;
+  const originalUtterance = globalThis.SpeechSynthesisUtterance;
+  let cancelled = false;
+  let current: FakeUtterance | null = null;
+  class FakeUtterance {
+    lang = "";
+    text: string;
+    onerror: (() => void) | null = null;
+    onend: (() => void) | null = null;
+    constructor(text: string) { this.text = text; current = this; }
+  }
+  const synthesis = {
+    speak(utterance: FakeUtterance) { current = utterance; },
+    cancel() { cancelled = true; current?.onerror?.(); },
+  };
+  Object.assign(globalThis, { speechSynthesis: synthesis, SpeechSynthesisUtterance: FakeUtterance });
+  try {
+    const adapter = createWebSpeechOutputAdapter();
+    const pending = adapter.speak("سلام", { language: "fa-IR", scope });
+    adapter.stop?.();
+    await assert.rejects(() => pending, /VOICE_OUTPUT_FAILED/);
+    assert.equal(cancelled, true);
+  } finally {
+    Object.assign(globalThis, { speechSynthesis: originalSynthesis, SpeechSynthesisUtterance: originalUtterance });
+  }
+});

@@ -16,10 +16,31 @@ from .ai_action_boundary import (
     AIActionProposal,
     AIToolPermissionAdapter,
 )
+from .ai_action_execution_verification_contract import (
+    STATUS_COMPUTED,
+    ExecutionVerificationPayloadError,
+    validate_execution_verification,
+)
 
 
 class AIActionRuntimeError(ValueError):
     """Stable error code for a denied, stale, conflicting, or failed AI action."""
+
+
+class AIActionExecutionRejected(Exception):
+    """Raised by a tool only when it guarantees no domain mutation occurred.
+
+    Any other executor exception remains an uncertain outcome because the tool
+    may have committed a change before losing its response. Using this exception
+    for a known optimistic-lock/not-found rejection lets the runtime persist a
+    non-replayable blocked state without falsely claiming an unknown side effect.
+    """
+
+    def __init__(self, code: str) -> None:
+        if not isinstance(code, str) or not code.strip():
+            raise ValueError("AI_ACTION_EXECUTION_REJECTION_CODE_REQUIRED")
+        super().__init__(code)
+        self.code = code.strip()
 
 
 @dataclass(frozen=True)
@@ -108,6 +129,7 @@ class AIActionStoredProposal:
     updated_at: datetime
     decided_by: str | None = None
     result: Mapping[str, object] | None = None
+    execution_verification: Mapping[str, object] | None = None
 
 
 class AIActionRuntimeAuditSink(AIActionAuditSink, Protocol):
@@ -155,6 +177,14 @@ class AIActionRuntimeStore(Protocol):
         decided_by: str | None = None,
         result: Mapping[str, object] | None = None,
     ) -> bool: ...
+
+    def save_execution_verification(
+        self,
+        proposal: AIActionProposal,
+        *,
+        verification: Mapping[str, object],
+        recorded_at: datetime,
+    ) -> None: ...
 
 
 def _json_object(value: Mapping[str, object], error_code: str) -> str:
@@ -228,6 +258,20 @@ class _SqlAIActionRuntimeStore:
             "CREATE INDEX IF NOT EXISTS idx_ai_action_audit_scope "
             "ON ai_action_audit_events (tenant_id, project_id, proposal_id, happened_at)"
         )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS ai_action_execution_verifications (
+                proposal_id TEXT PRIMARY KEY,
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                project_revision_id TEXT NOT NULL,
+                recorded_at TEXT NOT NULL,
+                verification_json TEXT NOT NULL
+            )"""
+        )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_ai_action_verification_scope "
+            "ON ai_action_execution_verifications (tenant_id, project_id)"
+        )
 
     def create(self, record: AIActionStoredProposal) -> None:
         proposal = record.proposal
@@ -272,23 +316,50 @@ class _SqlAIActionRuntimeStore:
         if row is None:
             return None
         try:
+            proposal = _decode_proposal(row[0])
             payload = json.loads(str(row[1]))
             result = None if row[6] is None else json.loads(str(row[6]))
-            if not isinstance(payload, dict) or (result is not None and not isinstance(result, dict)):
+            # A verification is meaningful only for the exact proposal revision
+            # that produced it. Filtering here also prevents a corrupted or
+            # legacy row from leaking an earlier revision's calculation.
+            verification_row = self.connection.execute(
+                "SELECT verification_json FROM ai_action_execution_verifications "
+                "WHERE proposal_id=" + p + " AND tenant_id=" + p + " AND project_id=" + p
+                + " AND project_revision_id=" + p,
+                (
+                    proposal_id, tenant_id, project_id,
+                    proposal.project_revision_id or "",
+                ),
+            ).fetchone()
+            verification = None if verification_row is None else json.loads(str(verification_row[0]))
+            if (
+                not isinstance(payload, dict)
+                or (result is not None and not isinstance(result, dict))
+            ):
                 raise ValueError("payload/result must be objects")
+            if verification is not None:
+                try:
+                    verification = validate_execution_verification(verification)
+                except ExecutionVerificationPayloadError as exc:
+                    raise AIActionRuntimeError(
+                        "AI_ACTION_STORED_VERIFICATION_INVALID"
+                    ) from exc
             created_at = datetime.fromisoformat(str(row[3]))
             updated_at = datetime.fromisoformat(str(row[4]))
             if created_at.tzinfo is None or updated_at.tzinfo is None:
                 raise ValueError("stored timestamps must be timezone-aware")
             return AIActionStoredProposal(
-                proposal=_decode_proposal(row[0]),
+                proposal=proposal,
                 payload=payload,
                 status=str(row[2]),
                 created_at=created_at,
                 updated_at=updated_at,
                 decided_by=None if row[5] is None else str(row[5]),
                 result=result,
+                execution_verification=verification,
             )
+        except AIActionRuntimeError:
+            raise
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
             raise AIActionRuntimeError("AI_ACTION_STORED_PROPOSAL_INVALID") from exc
 
@@ -341,6 +412,63 @@ class _SqlAIActionRuntimeStore:
             ),
         )
         return cursor.rowcount == 1
+
+    def save_execution_verification(
+        self,
+        proposal: AIActionProposal,
+        *,
+        verification: Mapping[str, object],
+        recorded_at: datetime,
+    ) -> None:
+        proposal.validate()
+        try:
+            verification = validate_execution_verification(verification)
+        except ExecutionVerificationPayloadError as exc:
+            raise AIActionRuntimeError("AI_ACTION_VERIFICATION_INVALID") from exc
+        if recorded_at.tzinfo is None or recorded_at.utcoffset() is None:
+            raise AIActionRuntimeError("AI_ACTION_VERIFICATION_TIMESTAMP_MUST_BE_AWARE")
+        verification_json = _json_object(
+            verification, "AI_ACTION_VERIFICATION_NOT_SERIALIZABLE"
+        )
+        p = self.placeholder
+        proposal_row = self.connection.execute(
+            "SELECT project_revision_id FROM ai_action_proposals "
+            "WHERE proposal_id=" + p + " AND tenant_id=" + p + " AND project_id=" + p,
+            (proposal.proposal_id, proposal.tenant_id, proposal.project_id),
+        ).fetchone()
+        if (
+            proposal_row is None
+            or str(proposal_row[0]) != proposal.project_revision_id
+        ):
+            raise AIActionRuntimeError("AI_ACTION_PROPOSAL_NOT_FOUND")
+        try:
+            self.connection.execute(
+                "INSERT INTO ai_action_execution_verifications "
+                "(proposal_id, tenant_id, project_id, project_revision_id, recorded_at, verification_json) "
+                f"VALUES ({p},{p},{p},{p},{p},{p}) "
+                "ON CONFLICT (proposal_id) DO UPDATE SET "
+                "recorded_at=excluded.recorded_at, verification_json=excluded.verification_json "
+                "WHERE ai_action_execution_verifications.tenant_id=excluded.tenant_id "
+                "AND ai_action_execution_verifications.project_id=excluded.project_id "
+                "AND ai_action_execution_verifications.project_revision_id=excluded.project_revision_id",
+                (
+                    proposal.proposal_id,
+                    proposal.tenant_id,
+                    proposal.project_id,
+                    proposal.project_revision_id,
+                    recorded_at.isoformat(),
+                    verification_json,
+                ),
+            )
+        except Exception as exc:
+            raise AIActionRuntimeError("AI_ACTION_VERIFICATION_PERSISTENCE_FAILED") from exc
+        fresh = self.connection.execute(
+            "SELECT verification_json FROM ai_action_execution_verifications "
+            "WHERE proposal_id=" + p + " AND tenant_id=" + p + " AND project_id=" + p,
+            (proposal.proposal_id, proposal.tenant_id, proposal.project_id),
+        ).fetchone()
+        if fresh is None or str(fresh[0]) != verification_json:
+            raise AIActionRuntimeError("AI_ACTION_VERIFICATION_PERSISTENCE_FAILED")
 
     def record(self, proposal: AIActionProposal, decision: AIActionDecision) -> None:
         proposal.validate()
@@ -671,6 +799,92 @@ class AIActionRuntime:
             return self._execute_atomically(context, proposal_id)
         return self._execute_without_transaction(context, proposal_id)
 
+    def record_execution_verification(
+        self,
+        context: AIActionRuntimeContext,
+        proposal_id: str,
+        verification: Mapping[str, object],
+    ) -> AIActionStoredProposal:
+        """Persist the read-after-write result once the action has been executed.
+
+        Verification is recorded after the authoritative mutation committed. A
+        failure here must never change or hide the executed proposal; callers
+        treat it as a durable-retrieval failure only.
+        """
+        context.validate()
+        try:
+            normalized_verification = validate_execution_verification(verification)
+        except ExecutionVerificationPayloadError as exc:
+            raise AIActionRuntimeError("AI_ACTION_VERIFICATION_INVALID") from exc
+        record = self._get_scoped(context, proposal_id)
+        self._assert_current_revision(record, context)
+        if record.status != "executed":
+            raise AIActionRuntimeError("AI_ACTION_PROPOSAL_NOT_EXECUTED")
+        if normalized_verification["status"] == STATUS_COMPUTED:
+            result = record.result
+            result_activity = result.get("activity") if isinstance(result, Mapping) else None
+            verified_activity = normalized_verification.get("activity")
+            if (
+                not isinstance(result_activity, Mapping)
+                or not isinstance(verified_activity, Mapping)
+                or result_activity.get("activity_id") != verified_activity.get("activity_id")
+            ):
+                raise AIActionRuntimeError("AI_ACTION_VERIFICATION_RESULT_MISMATCH")
+        previous = record.execution_verification
+        snapshot = normalized_verification.get("snapshot")
+        snapshot_id = snapshot.get("snapshot_id") if isinstance(snapshot, Mapping) else None
+        calculation_identity = normalized_verification.get("calculation_run_identity")
+        metadata = {
+            "contract_version": normalized_verification.get("contract_version"),
+            "status": normalized_verification.get("status"),
+            "reason_code": normalized_verification.get("reason_code"),
+            "snapshot_id": snapshot_id if isinstance(snapshot_id, str) else None,
+            "calculation_run_identity": (
+                calculation_identity if isinstance(calculation_identity, str) else None
+            ),
+            "previous_status": (
+                previous.get("status") if isinstance(previous, Mapping) else None
+            ),
+        }
+        now = self._now()
+        try:
+            with self._transaction():
+                self.store.save_execution_verification(
+                    record.proposal, verification=normalized_verification, recorded_at=now
+                )
+                self.audit_sink.record_event(
+                    record.proposal,
+                    "execution_verification_recorded",
+                    actor_id=context.subject_id,
+                    metadata=metadata,
+                    happened_at=now,
+                )
+        except Exception as exc:
+            try:
+                with self._transaction():
+                    self.audit_sink.record_scope_event(
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        actor_id=context.subject_id,
+                        event_type="execution_verification_persistence_failed",
+                        metadata={"failure_type": type(exc).__name__},
+                        happened_at=self._now(),
+                        proposal_id=record.proposal.proposal_id,
+                    )
+            except Exception:
+                pass
+            if isinstance(exc, AIActionRuntimeError):
+                raise
+            raise AIActionRuntimeError(
+                "AI_ACTION_VERIFICATION_PERSISTENCE_FAILED"
+            ) from exc
+        fresh = self._get_scoped(context, proposal_id)
+        if fresh.execution_verification != normalized_verification:
+            # A concurrent writer must not be able to make this request report a
+            # different calculation as its own successfully stored result.
+            raise AIActionRuntimeError("AI_ACTION_VERIFICATION_PERSISTENCE_FAILED")
+        return fresh
+
     def _execute_without_transaction(
         self, context: AIActionRuntimeContext, proposal_id: str
     ) -> AIActionStoredProposal:
@@ -710,6 +924,25 @@ class AIActionRuntime:
             if not isinstance(result, Mapping):
                 raise TypeError("AI action executor must return a mapping")
             _json_object(result, "AI_ACTION_EXECUTOR_RESULT_INVALID")
+        except AIActionExecutionRejected as exc:
+            # The tool explicitly guarantees that no domain mutation occurred.
+            # Persist a non-replayable blocked/denied state rather than claiming
+            # an uncertain side effect that would require reconciliation.
+            rejected_at = self._now()
+            target_status = "denied" if exc.code == "AI_TOOL_NOT_PERMITTED" else "blocked"
+            try:
+                self.store.transition(
+                    proposal, expected_status="executing", next_status=target_status,
+                    updated_at=rejected_at,
+                )
+            except Exception:
+                pass
+            self.audit_sink.record_event(
+                proposal, "execution_precondition_failed", actor_id=context.subject_id,
+                metadata={"reason_code": exc.code, "automatic_retry_allowed": False},
+                happened_at=rejected_at,
+            )
+            raise AIActionRuntimeError(exc.code) from exc
         except Exception as exc:
             # An executor can fail after its authoritative mutation committed but before
             # returning a result. Treat the outcome as uncertain by default; marking it
@@ -824,6 +1057,14 @@ class AIActionRuntime:
                     raise TypeError("AI action executor must return a mapping")
                 _json_object(result, "AI_ACTION_EXECUTOR_RESULT_INVALID")
                 result = dict(result)
+        except AIActionExecutionRejected as exc:
+            # The executor guarantees that the transaction rolled back without a
+            # domain mutation. Persist the explicit rejection instead of uncertain.
+            try:
+                self._persist_preexecution_outcome(context, proposal_id, exc.code)
+            except Exception as persistence_exc:
+                raise AIActionRuntimeError("AI_ACTION_EXECUTION_STATE_NOT_PERSISTED") from persistence_exc
+            raise AIActionRuntimeError(exc.code) from exc
         except Exception as exc:
             # Before the handler starts, failures are known not to have mutated the
             # domain. Persist an explicit non-replayable stale/denied/blocked state;
@@ -1136,6 +1377,7 @@ class AIActionRuntime:
 
 
 __all__ = [
+    "AIActionExecutionRejected",
     "AIActionRuntimeError",
     "AIActionRuntimeContext",
     "AIActionToolDefinition",

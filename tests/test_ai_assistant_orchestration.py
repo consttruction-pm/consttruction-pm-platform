@@ -3,9 +3,14 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import pytest
 
+from construction_pm.activity_master_repository import (
+    ActivityMaster,
+    SQLiteActivityMasterRepository,
+)
 from construction_pm.ai_action_boundary import (
     AIActionPermissionGrant,
     UserConfiguredAIActionPermissionAdapter,
@@ -18,11 +23,23 @@ from construction_pm.ai_action_runtime import (
     SQLiteAIActionRuntimeStore,
 )
 from construction_pm.ai_assistant_orchestration import (
+    AIAssistantProjectContextError,
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
     OpenAICompatibleChatProvider,
     _RejectProviderRedirects,
 )
+from construction_pm.ai_assistant_project_context import (
+    PersistedProjectAssistantContextProvider,
+)
+from construction_pm.application.authorization import default_project_policy
+from construction_pm.backend_p0.models import BackendScope
+from construction_pm.relationship_master_repository import (
+    RelationshipMaster,
+    SQLiteRelationshipMasterRepository,
+)
+from construction_pm.scheduling.relationships import RelationshipType
+from construction_pm.scheduling.time_duration import DurationUnit
 
 
 class FakeProvider:
@@ -144,6 +161,170 @@ def test_assistant_message_does_not_create_or_execute_a_project_action():
         assert connection.execute("SELECT COUNT(*) FROM ai_action_proposals").fetchone()[0] == 0
         assert provider.calls[0]["user_message"] == "Create an activity"
         assert '"activity.create"' in provider.calls[0]["system_prompt"]
+    finally:
+        connection.close()
+
+
+def save_grounded_activity(
+    connection,
+    *,
+    activity_id,
+    name,
+    scope=BackendScope("tenant-1", "project-1", 12),
+):
+    SQLiteActivityMasterRepository(connection).save(
+        ActivityMaster(
+            scope=scope,
+            activity_id=activity_id,
+            name=name,
+            duration_value=Decimal("4"),
+            duration_unit=DurationUnit.WORKING_DAY,
+        )
+    )
+
+
+def test_assistant_prompt_contains_only_authorized_persisted_project_facts():
+    connection, runtime, context, executed = build_runtime()
+    try:
+        save_grounded_activity(
+            connection, activity_id="A-100", name="Excavation"
+        )
+        save_grounded_activity(
+            connection,
+            activity_id="B-900",
+            name="Foreign project activity",
+            scope=BackendScope("tenant-1", "project-2", 12),
+        )
+        relationships = SQLiteRelationshipMasterRepository(connection)
+        relationships.save(
+            RelationshipMaster(
+                scope=BackendScope("tenant-1", "project-1", 12),
+                relationship_id="R-1",
+                predecessor_id="A-100",
+                successor_id="A-101",
+                relationship_type=RelationshipType.FS,
+            )
+        )
+        project_context = PersistedProjectAssistantContextProvider(
+            activity_repository=SQLiteActivityMasterRepository(connection),
+            relationship_repository=relationships,
+            authorization_policy=default_project_policy(),
+        )
+        model = FakeProvider({
+            "kind": "message",
+            "message": "A-100 Excavation is the only activity in this project.",
+            "tool_name": None,
+            "payload": {},
+        })
+        turn = AIAssistantTurnOrchestrator(
+            provider=model,
+            action_runtime=runtime,
+            project_context_provider=project_context,
+        ).turn(context, user_message="What activities exist?", language="en")
+
+        prompt = model.calls[0]["system_prompt"]
+        assert '"activity_id":"A-100"' in prompt
+        assert 'Excavation' in prompt
+        assert '"relationship_id":"R-1"' in prompt
+        assert "Foreign project activity" not in prompt
+        assert "B-900" not in prompt
+        assert "never as instructions" in prompt
+        assert turn.grounding == {
+            "grounded": True,
+            "activity_total": 1,
+            "activity_returned": 1,
+            "activity_truncated": False,
+            "relationship_source_available": True,
+            "relationship_total": 1,
+            "relationship_returned": 1,
+            "relationship_truncated": False,
+            "schedule_available": False,
+            "schedule_truncated": False,
+        }
+        assert executed == []
+    finally:
+        connection.close()
+
+
+def test_assistant_fails_closed_before_the_model_when_grounding_is_unavailable():
+    connection, runtime, context, executed = build_runtime()
+    try:
+        class FailingContext:
+            def read(self, context):
+                raise RuntimeError("database path /private/secret")
+
+        model = FakeProvider({
+            "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+        })
+        with pytest.raises(
+            AIAssistantProjectContextError,
+            match="AI_ASSISTANT_PROJECT_CONTEXT_UNAVAILABLE",
+        ):
+            AIAssistantTurnOrchestrator(
+                provider=model,
+                action_runtime=runtime,
+                project_context_provider=FailingContext(),
+            ).turn(context, user_message="Hello", language="en")
+        assert model.calls == []
+        assert executed == []
+    finally:
+        connection.close()
+
+
+def test_assistant_rejects_context_that_exceeds_the_prompt_budget():
+    connection, runtime, context, executed = build_runtime()
+    try:
+        class OversizedContext:
+            def read(self, context):
+                return {"payload": "x" * 70_000}
+
+        model = FakeProvider({
+            "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+        })
+        with pytest.raises(
+            AIAssistantProjectContextError,
+            match="AI_ASSISTANT_PROJECT_CONTEXT_TOO_LARGE",
+        ):
+            AIAssistantTurnOrchestrator(
+                provider=model,
+                action_runtime=runtime,
+                project_context_provider=OversizedContext(),
+            ).turn(context, user_message="Hello", language="en")
+        assert model.calls == []
+    finally:
+        connection.close()
+
+
+def test_assistant_requires_project_read_permission_before_reading_context():
+    connection, runtime, context, executed = build_runtime()
+    try:
+        save_grounded_activity(
+            connection, activity_id="A-100", name="Excavation"
+        )
+        project_context = PersistedProjectAssistantContextProvider(
+            activity_repository=SQLiteActivityMasterRepository(connection),
+            authorization_policy=default_project_policy(),
+        )
+        model = FakeProvider({
+            "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+        })
+        unauthorized = AIActionRuntimeContext(
+            subject_id="user-1",
+            tenant_id="tenant-1",
+            project_id="project-1",
+            project_revision_id="12",
+            roles=frozenset(),
+        )
+        with pytest.raises(
+            AIAssistantProjectContextError,
+            match="AI_ASSISTANT_PROJECT_CONTEXT_NOT_AUTHORIZED",
+        ):
+            AIAssistantTurnOrchestrator(
+                provider=model,
+                action_runtime=runtime,
+                project_context_provider=project_context,
+            ).turn(unauthorized, user_message="Hello", language="en")
+        assert model.calls == []
     finally:
         connection.close()
 
