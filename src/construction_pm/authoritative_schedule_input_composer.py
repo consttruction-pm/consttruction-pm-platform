@@ -35,7 +35,6 @@ from .project_schedule_settings_repository import (
 from .scheduling.activity import Activity, ActivityStatus, ActivityType
 from .scheduling.resource_dependent import (
     ResourceDependentCalculationError,
-    ResourceDependentDemandPeriod,
     ResourceDependentDriverFact,
     ResourceDependentDuration,
     derive_resource_dependent_duration,
@@ -236,7 +235,6 @@ class AuthoritativeScheduleInputComposer:
             assignments_by_id[assignment.assignment_id] = assignment
 
         seen_resource_periods = set()
-        periods_by_assignment: dict[str, list[ResourceDependentDemandPeriod]] = {}
         for period in resource_periods:
             if period.scope != scope:
                 raise ScheduleInputCompositionError(
@@ -261,7 +259,7 @@ class AuthoritativeScheduleInputComposer:
                     f"RESOURCE_PERIOD_ASSIGNMENT_MISMATCH:{period.assignment_id}:{period.period_start}"
                 )
             try:
-                period_date = date.fromisoformat(period.period_start)
+                date.fromisoformat(period.period_start)
             except (TypeError, ValueError) as exc:
                 raise ScheduleInputCompositionError(
                     f"INVALID_RESOURCE_PERIOD_START:{period.assignment_id}:{period.period_start}"
@@ -270,9 +268,6 @@ class AuthoritativeScheduleInputComposer:
             if period_key in seen_resource_periods:
                 raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_RESOURCE_PERIOD")
             seen_resource_periods.add(period_key)
-            periods_by_assignment.setdefault(period.assignment_id, []).append(
-                ResourceDependentDemandPeriod(period_date, period.units)
-            )
 
         configured_calendar = project_settings.project_calendar
         project_calendar = self._load_calendar_reference(
@@ -286,7 +281,6 @@ class AuthoritativeScheduleInputComposer:
 
         activities: list[Activity] = []
         resource_dependent_durations: dict[str, ResourceDependentDuration] = {}
-        resource_dependent_assignment_facts: list[ResourceDependentDriverFact] = []
         assignments_by_activity: dict[str, list[object]] = {}
         for assignment in assignments_by_id.values():
             assignments_by_activity.setdefault(assignment.activity_id, []).append(assignment)
@@ -313,20 +307,6 @@ class AuthoritativeScheduleInputComposer:
                         f"RESOURCE_DEPENDENT_IN_PROGRESS_DERIVATION_UNSUPPORTED:{item.activity_id}"
                     )
                 raw_assignments = assignments_by_activity.get(item.activity_id, [])
-                for assignment in raw_assignments:
-                    if (
-                        assignment.remaining_units is not None
-                        and assignment.units is not None
-                        and assignment.remaining_units != assignment.units
-                    ):
-                        # A not-started Resource Dependent assignment derives
-                        # from Planned Units. A divergent Remaining Units value
-                        # makes the time-phased rows ambiguous; do not publish a
-                        # snapshot that would silently choose one of them.
-                        raise ScheduleInputCompositionError(
-                            "RESOURCE_DEPENDENT_REMAINING_UNITS_MISMATCH:"
-                            f"{item.activity_id}:{assignment.assignment_id}"
-                        )
                 facts = tuple(
                     ResourceDependentDriverFact(
                         assignment_id=assignment.assignment_id,
@@ -340,52 +320,9 @@ class AuthoritativeScheduleInputComposer:
                         units_per_time=assignment.units_per_time,
                         units_per_time_period=assignment.units_per_time_period,
                         hours_per_units_time_period=assignment.hours_per_units_time_period,
-                        demand_periods=tuple(
-                            sorted(
-                                periods_by_assignment.get(assignment.assignment_id, ()),
-                                key=lambda period: period.period_start,
-                            )
-                        ),
                     )
-                    for assignment in sorted(
-                        raw_assignments, key=lambda value: value.assignment_id
-                    )
+                    for assignment in raw_assignments
                 )
-                for fact in facts:
-                    if not fact.demand_periods:
-                        # Assignment identity, dates, units, and capacity
-                        # provenance must all be immutable calculation inputs.
-                        # A missing time-phased row cannot be reconstructed
-                        # without inventing demand.
-                        raise ScheduleInputCompositionError(
-                            "RESOURCE_DEPENDENT_ASSIGNMENT_PERIODS_REQUIRED:"
-                            f"{item.activity_id}:{fact.assignment_id}"
-                        )
-                resource_dependent_assignment_facts.extend(facts)
-                fallback_duration: int | None = None
-                duration_value = item.duration_value
-                if (
-                    isinstance(duration_value, Decimal)
-                    and duration_value.is_finite()
-                    and duration_value >= 0
-                    and duration_value == duration_value.to_integral_value()
-                ):
-                    fallback_duration = int(duration_value)
-                # An all-nondriving Resource Dependent activity keeps its
-                # persisted activity duration/calendar. Never synthesize a
-                # driving assignment to force a duration.
-                fallback_calendar = project_calendar
-                for calendar_assignment in activity_calendar_assignments:
-                    if (
-                        calendar_assignment.scope == scope
-                        and calendar_assignment.activity_id == item.activity_id
-                    ):
-                        fallback_calendar = self._load_calendar_reference(
-                            scope,
-                            calendar_assignment.calendar_id,
-                            calendar_assignment.calendar_version,
-                        )
-                        break
                 try:
                     derived = derive_resource_dependent_duration(
                         tenant_id=scope.tenant_id,
@@ -393,9 +330,6 @@ class AuthoritativeScheduleInputComposer:
                         project_revision=scope.project_revision,
                         activity_id=item.activity_id,
                         assignments=facts,
-                        fallback_duration_working_days=fallback_duration,
-                        fallback_calendar_id=fallback_calendar.calendar_id,
-                        fallback_calendar_version=fallback_calendar.calendar_version,
                     )
                 except ResourceDependentCalculationError as exc:
                     raise ScheduleInputCompositionError(
@@ -581,12 +515,6 @@ class AuthoritativeScheduleInputComposer:
                 known_calendar_assignments[key] for key in sorted(known_calendar_assignments)
             ),
             relationship_lag_calendar_assignments=tuple(relationship_lag_calendar_items),
-            resource_dependent_assignment_facts=tuple(
-                sorted(
-                    resource_dependent_assignment_facts,
-                    key=lambda fact: fact.assignment_id,
-                )
-            ),
             constraints=tuple(constraints),
             schedule_options=project_settings.schedule_options,
             project_start=project_settings.project_start,

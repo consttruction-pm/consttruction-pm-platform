@@ -2,7 +2,6 @@ import json
 import hashlib
 import sqlite3
 from datetime import date, datetime, timezone
-from decimal import Decimal
 
 import pytest
 
@@ -28,10 +27,6 @@ from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.relationships import Relationship
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
-from construction_pm.scheduling.resource_dependent import (
-    ResourceDependentDemandPeriod,
-    ResourceDependentDriverFact,
-)
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import TimeQuantity
 from construction_pm.scheduling.time_forward_pass import TimeActivity
@@ -160,101 +155,6 @@ def test_materializer_rejects_tampered_hash():
     )
     with pytest.raises(ScheduleSnapshotPersistenceError, match="SNAPSHOT_HASH_MISMATCH"):
         materialize_schedule_snapshot(tampered, CalendarResolverRegistry())
-
-
-def _snapshot_with_payload(snapshot, payload):
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    return snapshot.__class__(
-        snapshot.scope,
-        snapshot.snapshot_id,
-        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
-        canonical,
-        snapshot.calculation_identity,
-        snapshot.created_at,
-    )
-
-
-def test_materializer_rejects_invalid_resource_dependent_driving_flag():
-    snapshot = make_rd_snapshot()
-    payload = json.loads(snapshot.canonical_payload)
-    payload["resource_dependent_assignment_facts"][0]["is_driving"] = "yes"
-    with pytest.raises(
-        SnapshotMaterializationError,
-        match="INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG",
-    ):
-        materialize_schedule_snapshot(
-            _snapshot_with_payload(snapshot, payload),
-            CalendarResolverRegistry(),
-        )
-
-
-def test_materializer_rejects_duplicate_resource_dependent_demand_period():
-    snapshot = make_rd_snapshot()
-    payload = json.loads(snapshot.canonical_payload)
-    periods = payload["resource_dependent_assignment_facts"][0]["demand_periods"]
-    periods.append(dict(periods[0]))
-    with pytest.raises(
-        SnapshotMaterializationError,
-        match="DUPLICATE_RESOURCE_DEPENDENT_DEMAND_PERIOD",
-    ):
-        materialize_schedule_snapshot(
-            _snapshot_with_payload(snapshot, payload),
-            CalendarResolverRegistry(),
-        )
-
-
-def make_rd_snapshot():
-    cal = CalendarReference("CAL-1", "1")
-    activity = Activity(
-        "RD-1",
-        2,
-        activity_type=ActivityType.RESOURCE_DEPENDENT,
-        resource_dependent_input_hash="a" * 64,
-    )
-    fact = ResourceDependentDriverFact(
-        assignment_id="AS-1",
-        activity_id="RD-1",
-        resource_id="R-1",
-        calendar_id="RC-1",
-        calendar_version="v1",
-        unit_of_measure="labor-unit",
-        planned_units=Decimal("8"),
-        is_driving=True,
-        units_per_time=Decimal("4"),
-        units_per_time_period="day",
-        hours_per_units_time_period=Decimal("8"),
-        demand_periods=(
-            ResourceDependentDemandPeriod(date(2026, 9, 21), Decimal("4")),
-        ),
-    )
-    source = AuthoritativeScheduleInput(
-        snapshot_id="S-RD",
-        tenant_id="T-1",
-        project_id="P-1",
-        project_revision=5,
-        mode=AuthoritativeScheduleMode.DATE_BASED,
-        project_calendar=cal,
-        activities=(activity,),
-        relationships=(),
-        activity_calendar_assignments=(ActivityCalendarAssignment("RD-1", cal),),
-        resource_dependent_assignment_facts=(fact,),
-        project_start=date(2026, 9, 21),
-    )
-    context = CalculationContext(
-        project_id="P-1",
-        project_version=5,
-        calendar_id="CAL-1",
-        calendar_version="1",
-        rules_version="rules-1",
-        engine_version="engine-1",
-        timezone="UTC",
-        calculation_timestamp="2026-09-21T08:00:00+00:00",
-        input_snapshot_id="S-RD",
-        tenant_id="T-1",
-    )
-    return build_snapshot(
-        source, context, datetime(2026, 9, 21, 8, tzinfo=timezone.utc)
-    )
 
 
 def test_materializer_rejects_unsupported_date_duration_unit():

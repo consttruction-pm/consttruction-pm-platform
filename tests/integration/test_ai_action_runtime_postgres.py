@@ -93,46 +93,6 @@ def test_postgres_action_proposal_and_audit_round_trip(postgres_connection):
             decided_by="user-1",
         )
 
-        verification = {
-            "contract_version": "ai-action-execution-verification.v1",
-            "status": "UNAVAILABLE",
-            "reason_code": "SCHEDULE_VERIFICATION_NOT_COMPOSED",
-            "activity": None,
-            "project_finish": None,
-            "calculation_run_identity": None,
-            "snapshot": None,
-            "query_id": None,
-        }
-        store.save_execution_verification(
-            proposal, verification=verification, recorded_at=now
-        )
-        persisted_verification = store.get(
-            proposal.proposal_id,
-            tenant_id=proposal.tenant_id,
-            project_id=proposal.project_id,
-        )
-        assert persisted_verification is not None
-        assert persisted_verification.execution_verification == verification
-
-        # Re-saving the verification updates the single scoped record rather
-        # than duplicating or leaking it across scopes.
-        updated_verification = dict(verification, status="FAILED", reason_code="SCHEDULE_VERIFICATION_FAILED")
-        store.save_execution_verification(
-            proposal, verification=updated_verification, recorded_at=now
-        )
-        persisted_verification = store.get(
-            proposal.proposal_id,
-            tenant_id=proposal.tenant_id,
-            project_id=proposal.project_id,
-        )
-        assert persisted_verification is not None
-        assert persisted_verification.execution_verification == updated_verification
-        assert store.get(
-            proposal.proposal_id,
-            tenant_id=f"other-{suffix}",
-            project_id=proposal.project_id,
-        ) is None
-
 
 
 def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fresh_readback(postgres_connection):
@@ -230,10 +190,6 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
         )
         postgres_connection.execute(
             "DELETE FROM ai_action_audit_events WHERE tenant_id=%s AND project_id=%s",
-            (tenant_id, project_id),
-        )
-        postgres_connection.execute(
-            "DELETE FROM ai_action_execution_verifications WHERE tenant_id=%s AND project_id=%s",
             (tenant_id, project_id),
         )
         postgres_connection.execute(

@@ -43,7 +43,7 @@ from construction_pm.p6_resource_spread_repository import (
 )
 from construction_pm.schedule_evaluator import evaluate_schedule_snapshot
 from construction_pm.schedule_input_snapshot_repository import build_snapshot
-from construction_pm.scheduling.activity import Activity, ActivityLevelingPriority, ActivityType
+from construction_pm.scheduling.activity import Activity, ActivityLevelingPriority
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
@@ -82,13 +82,7 @@ class TransactionManager:
         yield
 
 
-def make_fixture(
-    *,
-    calendar_version: str = "v1",
-    add_resources: bool = True,
-    schedule_options: ScheduleOptions | None = None,
-    activities: tuple[Activity, ...] | None = None,
-):
+def make_fixture(*, calendar_version: str = "v1", add_resources: bool = True, schedule_options: ScheduleOptions | None = None):
     connection = sqlite3.connect(":memory:")
     scope = BackendScope("T-1", "P-1", 7)
     transaction_manager = TransactionManager(connection)
@@ -125,7 +119,7 @@ def make_fixture(
             "CAL-1@1": WorkingTimeResolver(WorkingCalendar()),
         }
     )
-    activities = activities or (
+    activities = (
         Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH),
         Activity("B", 1, leveling_priority=ActivityLevelingPriority.NORMAL),
     )
@@ -411,69 +405,5 @@ def test_resolver_fails_closed_when_authorized_scope_differs_from_snapshot():
             fixture["resolver"](
                 fixture["snapshot"], fixture["context"], fixture["registry"], wrong_auth
             )
-    finally:
-        fixture["connection"].close()
-
-
-def test_resolver_excludes_wbs_summary_and_loe_from_leveling_candidates():
-    fixture = make_fixture(
-        add_resources=False,
-        activities=(
-            Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH),
-            Activity("WBS-1", 1, activity_type=ActivityType.WBS_SUMMARY),
-            Activity("LOE-1", 1, activity_type=ActivityType.LEVEL_OF_EFFORT),
-        ),
-    )
-    try:
-        leveling = fixture["resolver"](
-            fixture["snapshot"], fixture["context"], fixture["registry"], auth()
-        )
-        assert [item.activity_id for item in leveling.forward_activities] == ["A"]
-        assert [item.activity_id for item in leveling.backward_activities] == ["A"]
-        assert leveling.capacities == ()
-    finally:
-        fixture["connection"].close()
-
-
-def test_resolver_ignores_wbs_summary_assignments_from_demand_and_capacity():
-    fixture = make_fixture(
-        add_resources=False,
-        activities=(
-            Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH),
-            Activity("WBS-1", 1, activity_type=ActivityType.WBS_SUMMARY),
-        ),
-    )
-    scope = fixture["scope"]
-    assignment_repo = fixture["read_api"].assignment_service.repository
-    period_repo = fixture["read_api"].period_service.repository
-    # The WBS Summary row has no resource calendar and deliberately large units.
-    # It is ignored by leveling, so neither field may be interpreted as demand
-    # or used to build capacity.
-    assignment_repo.upsert(P6ResourceAssignment(
-        scope=scope,
-        assignment_id="AS-WBS",
-        activity_id="WBS-1",
-        resource_id="R-WBS",
-        units=Decimal("80"),
-        calendar_id=None,
-        calendar_version=None,
-    ))
-    period_repo.upsert(P6ResourceAssignmentPeriodValue(
-        scope=scope,
-        assignment_id="AS-WBS",
-        activity_id="WBS-1",
-        resource_id="R-WBS",
-        period_start="2026-10-19",
-        units=Decimal("80"),
-        cost=Decimal("0"),
-    ))
-    try:
-        leveling = fixture["resolver"](
-            fixture["snapshot"], fixture["context"], fixture["registry"], auth()
-        )
-        assert [item.activity_id for item in leveling.forward_activities] == ["A"]
-        assert all(not item.resource_demands for item in leveling.forward_activities)
-        assert leveling.capacities == ()
-        assert len(leveling.resource_facts_hash) == 64
     finally:
         fixture["connection"].close()

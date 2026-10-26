@@ -191,8 +191,6 @@ def _forward_activities_with_authoritative_floats(
                     shifted_period,
                     demand.units,
                     demand.activity_id,
-                    assignment_id=demand.assignment_id,
-                    is_driving=demand.is_driving,
                 )
             )
 
@@ -273,8 +271,6 @@ def _backward_activities_from_intermediate(
                 shifted_period,
                 demand.units,
                 demand.activity_id,
-                assignment_id=demand.assignment_id,
-                is_driving=demand.is_driving,
             ))
 
         result.append(
@@ -301,14 +297,43 @@ def _validate_final_resource_load(
     activity_resolvers: Mapping[str, object] | None = None,
 ) -> None:
     """Reject a CPM result whose dependency propagation reintroduces overloads."""
-    from .resource_dependent_placement import demands_at_final_schedule
-
-    shifted_demands = demands_at_final_schedule(
-        forward_activities=leveling_input.forward_activities,
-        final_activities=getattr(result, "activities", {}),
-        resolver=resolver,
-        activity_resolvers=activity_resolvers,
-    )
+    forward_by_id = {activity.activity_id: activity for activity in leveling_input.forward_activities}
+    final_activities = getattr(result, "activities", {})
+    shifted_demands: list[ResourceDemand] = []
+    for activity_id, activity_input in forward_by_id.items():
+        final_activity = final_activities.get(activity_id)
+        if final_activity is None:
+            if activity_input.resource_demands:
+                raise ResourceLevelingError(
+                    f"FINAL_SCHEDULE_MISSING_ACTIVITY:{activity_id}"
+                )
+            continue
+        activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
+        if final_activity.start >= activity_input.start:
+            shift_days = activity_resolver.working_days_between(
+                activity_input.start, final_activity.start
+            )
+        else:
+            shift_days = -activity_resolver.working_days_between(
+                final_activity.start, activity_input.start
+            )
+        for demand in activity_input.resource_demands:
+            if shift_days > 0:
+                shifted_period = activity_resolver.add_working_duration(
+                    demand.period, shift_days + 1
+                )
+            elif shift_days < 0:
+                shifted_period = activity_resolver.subtract_working_duration(
+                    demand.period, abs(shift_days) + 1
+                )
+            else:
+                shifted_period = demand.period
+            shifted_demands.append(ResourceDemand(
+                resource_id=demand.resource_id,
+                period=shifted_period,
+                units=demand.units,
+                activity_id=activity_id,
+            ))
     selected_resources = set(select_leveling_resources(
         shifted_demands,
         level_all_resources=leveling_input.options.level_all_resources,

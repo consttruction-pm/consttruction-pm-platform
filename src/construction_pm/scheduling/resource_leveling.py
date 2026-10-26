@@ -24,11 +24,6 @@ class ResourceDemand:
     period: date
     units: Decimal
     activity_id: str | None = None
-    # Assignment identity is optional for legacy callers. Persisted P6 demand
-    # supplies it so final assignment-level results and failure diagnostics
-    # remain attributable after leveling shifts the demand periods.
-    assignment_id: str | None = None
-    is_driving: bool | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.resource_id, str) or not self.resource_id.strip():
@@ -39,12 +34,6 @@ class ResourceDemand:
             raise ResourceLevelingError("INVALID_DEMAND_UNITS")
         if self.activity_id is not None and (not isinstance(self.activity_id, str) or not self.activity_id.strip()):
             raise ResourceLevelingError("INVALID_ACTIVITY_ID")
-        if self.assignment_id is not None and (
-            not isinstance(self.assignment_id, str) or not self.assignment_id.strip()
-        ):
-            raise ResourceLevelingError("INVALID_DEMAND_ASSIGNMENT_ID")
-        if self.is_driving is not None and not isinstance(self.is_driving, bool):
-            raise ResourceLevelingError("INVALID_DEMAND_DRIVING_FLAG")
 
 
 @dataclass(frozen=True)
@@ -279,14 +268,7 @@ def _shift_demands(
     resolver: WorkingTimeResolver,
 ) -> tuple[ResourceDemand, ...]:
     return tuple(
-        ResourceDemand(
-            d.resource_id,
-            _shift_date_forward(d.period, shift_working_days, resolver),
-            d.units,
-            d.activity_id,
-            assignment_id=d.assignment_id,
-            is_driving=d.is_driving,
-        )
+        ResourceDemand(d.resource_id, _shift_date_forward(d.period, shift_working_days, resolver), d.units, d.activity_id)
         for d in demands
     )
 
@@ -680,8 +662,6 @@ def _shift_demands_backward(
             _shift_date_backward(d.period, shift_working_days, resolver),
             d.units,
             d.activity_id,
-            assignment_id=d.assignment_id,
-            is_driving=d.is_driving,
         )
         for d in demands
     )

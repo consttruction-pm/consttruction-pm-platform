@@ -14,16 +14,12 @@ from construction_pm.control_intelligence.contracts import ControlScope
 from construction_pm.control_intelligence.query import ScheduleQueryRequest
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository, build_persisted_context
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, build_snapshot
-from construction_pm.scheduling.activity import Activity, ActivityType
+from construction_pm.scheduling.activity import Activity
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
-from construction_pm.scheduling.resource_dependent import (
-    ResourceDependentDemandPeriod,
-    ResourceDependentDriverFact,
-)
 from construction_pm.scheduling.resource_leveling import (
     BackwardLevelingActivity,
     LevelingActivity,
@@ -76,73 +72,6 @@ def test_query_executes_real_snapshot_evaluation():
     assert isinstance(answer.data["activities"]["A"]["critical"], bool)
     assert resolver_calls == []
     assert answer.source_refs[0].source_id == "S-I"
-
-
-def test_query_requires_authorized_resource_input_for_resource_dependent_facts():
-    conn = sqlite3.connect(":memory:")
-    repo = SQLiteScheduleInputSnapshotRepository(conn)
-    calendar = CalendarReference("CAL-1", "1")
-    fact = ResourceDependentDriverFact(
-        assignment_id="AS-RD",
-        activity_id="RD-1",
-        resource_id="R-1",
-        calendar_id="RC-1",
-        calendar_version="v1",
-        unit_of_measure="labor-unit",
-        planned_units=Decimal("8"),
-        is_driving=True,
-        units_per_time=Decimal("4"),
-        units_per_time_period="day",
-        hours_per_units_time_period=Decimal("8"),
-        demand_periods=(
-            ResourceDependentDemandPeriod(date(2026, 9, 21), Decimal("4")),
-        ),
-    )
-    source = AuthoritativeScheduleInput(
-        snapshot_id="S-RD-ONLY",
-        tenant_id="T-1",
-        project_id="P-1",
-        project_revision=9,
-        mode=AuthoritativeScheduleMode.DATE_BASED,
-        project_calendar=calendar,
-        activities=(
-            Activity(
-                "RD-1",
-                2,
-                activity_type=ActivityType.RESOURCE_DEPENDENT,
-                resource_dependent_input_hash="a" * 64,
-            ),
-        ),
-        relationships=(),
-        activity_calendar_assignments=(),
-        resource_dependent_assignment_facts=(fact,),
-        project_start=date(2026, 9, 21),
-    )
-    context = CalculationContext(
-        project_id="P-1", project_version=9, calendar_id="CAL-1", calendar_version="1",
-        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
-        calculation_timestamp="2026-09-30T00:00:00+00:00", input_snapshot_id="S-RD-ONLY", tenant_id="T-1",
-    )
-    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
-    registry = CalendarResolverRegistry(day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())})
-    service = AuthoritativeScheduleQueryApplicationService(
-        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
-        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
-    )
-    request = ScheduleQueryRequest(
-        "Q-RD-ONLY", ControlScope("T-1", "P-1", 9), "user-1", "show schedule",
-        constraints={"snapshot_id": "S-RD-ONLY"},
-    )
-    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
-
-    try:
-        service.execute(request, auth_context=auth, calculation_context=context)
-    except Exception as exc:
-        assert getattr(exc, "code", None) == "SCHEDULE_RESOURCE_INPUT_REQUIRED"
-    else:
-        raise AssertionError(
-            "provider evaluated resource-dependent facts without authorized resource input"
-        )
 
 
 def test_query_runs_leveling_only_with_snapshot_bound_resource_inputs():

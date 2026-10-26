@@ -1,10 +1,5 @@
 import type { ApiTransport, ProjectContext } from "./client.js";
-import {
-  AIActionClient,
-  type AIActionExecutionVerification,
-  type AIActionProposal,
-  type CreateActivityProposal,
-} from "./ai-action-client.js";
+import { AIActionClient, type AIActionProposal, type CreateActivityProposal } from "./ai-action-client.js";
 import { translateWorkspaceText } from "./workspace-localization.js";
 
 type PanelLabels = {
@@ -17,12 +12,6 @@ type PanelLabels = {
   executionFailed: string; stale: string; noRetry: string; approve: string;
   reject: string; execute: string; required: string; invalidResponse: string;
   action: string; projectRevision: string; result: string; operationFailed: string; serverUnavailable: string;
-  createdVerified: string; verificationUnavailable: string; verificationFailed: string;
-  verificationNotReturned: string; calculationTimezoneMissing: string;
-  calculationPermissionMissing: string; calculationNotConfigured: string;
-  scheduleStart: string; scheduleFinish: string; calculatedDuration: string;
-  critical: string; yes: string; no: string; persistedActivity: string;
-  calculationAtExecution: string; savedResultUnavailable: string; verificationNotStored: string;
 };
 
 const labels: Record<"en" | "fa", PanelLabels> = {
@@ -44,19 +33,6 @@ const labels: Record<"en" | "fa", PanelLabels> = {
     approve: "Approve", reject: "Reject", execute: "Execute approved action",
     required: "This field is required.", invalidResponse: "The server returned an invalid action response.",
     action: "Action", projectRevision: "Project revision", result: "Result", operationFailed: "Request failed", serverUnavailable: "This server has not enabled AI action execution.",
-    createdVerified: "Activity created and recalculated from saved project data.",
-    verificationUnavailable: "Activity created, but authoritative recalculation is unavailable.",
-    verificationFailed: "Activity created, but authoritative recalculation failed. No calculated dates are shown.",
-    verificationNotReturned: "Activity created. This server did not return an authoritative recalculation result.",
-    calculationTimezoneMissing: "The calculation timezone was not provided.",
-    calculationPermissionMissing: "This account is not allowed to run project scheduling.",
-    calculationNotConfigured: "Schedule verification is not configured on this server.",
-    scheduleStart: "Calculated start", scheduleFinish: "Calculated finish",
-    calculatedDuration: "Calculated duration", critical: "Critical", yes: "yes", no: "no",
-    persistedActivity: "Saved activity",
-    calculationAtExecution: "Schedule dates are verified at execution time; this saved record shows the persisted activity.",
-    savedResultUnavailable: "The saved result is not available.",
-    verificationNotStored: "The calculated result could not be saved for later display.",
   },
   fa: {
     title: "دستیار هوشمند · اقدامات",
@@ -76,19 +52,6 @@ const labels: Record<"en" | "fa", PanelLabels> = {
     approve: "تأیید", reject: "رد", execute: "اجرای اقدام تأییدشده",
     required: "این فیلد الزامی است.", invalidResponse: "پاسخ سرور برای اقدام معتبر نیست.",
     action: "اقدام", projectRevision: "نسخه پروژه", result: "نتیجه", operationFailed: "درخواست ناموفق بود", serverUnavailable: "اجرای اقدامات دستیار در این سرور پیکربندی نشده است.",
-    createdVerified: "فعالیت ایجاد و بر اساس داده‌های ذخیره‌شده پروژه محاسبه مجدد شد.",
-    verificationUnavailable: "فعالیت ایجاد شد، اما محاسبه مجدد معتبر در دسترس نیست.",
-    verificationFailed: "فعالیت ایجاد شد، اما محاسبه مجدد معتبر ناموفق بود. هیچ تاریخ محاسبه‌شده‌ای نمایش داده نمی‌شود.",
-    verificationNotReturned: "فعالیت ایجاد شد؛ این سرور نتیجه محاسبه مجدد معتبر را برنگرداند.",
-    calculationTimezoneMissing: "منطقه زمانی محاسبه ارائه نشده است.",
-    calculationPermissionMissing: "این حساب اجازه اجرای زمان‌بندی پروژه را ندارد.",
-    calculationNotConfigured: "تأیید محاسبه زمان‌بندی در این سرور پیکربندی نشده است.",
-    scheduleStart: "شروع محاسبه‌شده", scheduleFinish: "پایان محاسبه‌شده",
-    calculatedDuration: "مدت محاسبه‌شده", critical: "بحرانی", yes: "بله", no: "خیر",
-    persistedActivity: "فعالیت ذخیره‌شده",
-    calculationAtExecution: "تاریخ‌های زمان‌بندی هنگام اجرا تأیید می‌شوند؛ این رکورد ذخیره‌شده فعالیت را نشان می‌دهد.",
-    savedResultUnavailable: "نتیجه ذخیره‌شده در دسترس نیست.",
-    verificationNotStored: "نتیجه محاسبه‌شده برای نمایش بعدی ذخیره نشد.",
   },
 };
 
@@ -163,85 +126,6 @@ function proposalLabel(proposal: AIActionProposal, t: PanelLabels): string {
   const name = typeof proposal.payload.name === "string" ? proposal.payload.name : proposal.proposal_id;
   const id = typeof proposal.payload.activity_id === "string" ? proposal.payload.activity_id : "";
   return id ? `${name} (${id})` : name;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
-
-function durationUnitText(unit: unknown, t: PanelLabels): string {
-  if (unit === "working-hour") return t.workingHour;
-  if (unit === "working-day") return t.workingDay;
-  return typeof unit === "string" ? unit : "";
-}
-
-function verificationOutcome(
-  verification: AIActionExecutionVerification | null | undefined,
-  t: PanelLabels,
-): { text: string; kind: "success" | "warning" | "error" } {
-  if (!verification) {
-    return { text: t.verificationNotReturned, kind: "warning" };
-  }
-  if (verification.status === "COMPUTED" && verification.activity) {
-    const activity = verification.activity;
-    const unit = durationUnitText(activity.duration_unit, t);
-    const details = [
-      t.createdVerified,
-      `${t.scheduleStart}: ${activity.start}`,
-      `${t.scheduleFinish}: ${activity.finish}`,
-    ];
-    if (activity.duration !== null) {
-      details.push(`${t.calculatedDuration}: ${activity.duration} ${unit}`.trim());
-    }
-    if (activity.critical !== null) {
-      details.push(`${t.critical}: ${activity.critical ? t.yes : t.no}`);
-    }
-    return { text: details.join(" "), kind: "success" };
-  }
-  if (verification.status === "UNAVAILABLE") {
-    const reason = verification.reason_code === "CALCULATION_TIMEZONE_REQUIRED"
-      ? t.calculationTimezoneMissing
-      : verification.reason_code === "PROJECT_SCHEDULE_PERMISSION_REQUIRED"
-        ? t.calculationPermissionMissing
-        : verification.reason_code === "SCHEDULE_VERIFICATION_NOT_COMPOSED"
-          ? t.calculationNotConfigured
-          : "";
-    return {
-      text: reason ? `${t.verificationUnavailable} ${reason}` : t.verificationUnavailable,
-      kind: "warning",
-    };
-  }
-  return { text: t.verificationFailed, kind: "error" };
-}
-
-function persistedActivitySummary(
-  result: Readonly<Record<string, unknown>> | null,
-  t: PanelLabels,
-): string {
-  const activity = asRecord(asRecord(result)?.activity);
-  if (!activity) return t.savedResultUnavailable;
-  const id = typeof activity.activity_id === "string" ? activity.activity_id : "";
-  const name = typeof activity.name === "string" ? activity.name : "";
-  const durationValue = typeof activity.duration_value === "string" || typeof activity.duration_value === "number"
-    ? String(activity.duration_value)
-    : "";
-  const unit = durationUnitText(activity.duration_unit, t);
-  const revision = typeof activity.record_revision === "number" ? String(activity.record_revision) : "";
-  const parts = [id ? `${name || t.persistedActivity} (${id})` : name || t.persistedActivity];
-  if (durationValue) parts.push(`${t.duration}: ${durationValue} ${unit}`.trim());
-  if (revision) parts.push(`${t.projectRevision}: ${revision}`);
-  return parts.join(" · ");
-}
-
-function browserTimeZone(): string | null {
-  try {
-    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return typeof zone === "string" && zone.trim() ? zone : null;
-  } catch {
-    return null;
-  }
 }
 
 /** Mounts the authenticated project's explicitly approval-gated AI action surface. */
@@ -372,16 +256,11 @@ export function mountAIActionPanel(
         execute.addEventListener("click", async () => {
           execute.disabled = true;
           setMessage(t.executing);
-          const result = await client.execute(context, proposal.proposal_id, browserTimeZone());
+          const result = await client.execute(context, proposal.proposal_id);
           if (!result.ok) {
             setMessage(operationError(result.error.code), "error");
           } else if (result.data.status === "executed") {
-            const outcome = verificationOutcome(result.data.execution_verification, t);
-            const notStored = result.data.execution_verification_stored === false;
-            setMessage(
-              notStored ? `${outcome.text} ${t.verificationNotStored}` : outcome.text,
-              notStored ? "warning" : outcome.kind,
-            );
+            setMessage(t.executed, "success");
           } else {
             setMessage(statusText(result.data.status, t), "warning");
           }
@@ -389,20 +268,8 @@ export function mountAIActionPanel(
         });
         item.append(execute);
       } else if (proposal.status === "executed" && proposal.result) {
-        item.append(element(
-          "p",
-          "cp-ai-action-result",
-          `${t.result}: ${persistedActivitySummary(proposal.result, t)}`,
-        ));
-        if (proposal.execution_verification) {
-          const storedOutcome = verificationOutcome(proposal.execution_verification, t);
-          item.append(element(
-            "p",
-            storedOutcome.kind === "success" ? "cp-ai-action-result" : "cp-ai-action-metadata",
-            storedOutcome.text,
-          ));
-        }
-        item.append(element("p", "cp-ai-action-metadata", t.calculationAtExecution));
+        const serialized = JSON.stringify(proposal.result);
+        item.append(element("p", "cp-ai-action-result", `${t.result}: ${serialized}`));
       }
       list.append(item);
     }
