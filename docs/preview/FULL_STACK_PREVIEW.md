@@ -180,6 +180,15 @@ SQLite database and a real headless browser. It verifies:
   `ALAP` persists through the settings API, and restoring `EARLIEST` appends a
   further revision. The Shared Core evaluator regression proves ALAP drives
   `LATE` resource-dependent placement, while EARLIEST keeps the `EARLY` default;
+- append-only schedule-settings history and explicit restore: each save appends
+  a revision row with its canonical payload and hash, `GET
+  /api/projects/{p}/p6/schedule/settings/revisions` lists them newest-first, and
+  the panel's history control restores a selected older revision by saving it as
+  a new revision at the current expected revision. The E2E asserts revisions
+  `3,2,1`, restores revision 1, and re-reads `4,3,2,1` with `EARLIEST` applied;
+  `POST .../revisions` fails closed with `405 Method Not Allowed`, and repository
+  tests cover a tampered history hash failing closed with
+  `SETTINGS_HISTORY_CONFLICT`;
 - snapshot publication plus Shared Core query results and content hash;
 - formula editor validation through the Shared Core authority: a valid numeric
   expression returns its dependency and result type, a context self-reference
@@ -222,14 +231,15 @@ SQLite database and a real headless browser. It verifies:
   route with no created activity;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **40 checks and 30 screenshots** on
-`6b5e56cb`.
+The latest isolated run recorded **41 checks and 31 screenshots** on
+`3c5cf145`.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
 `03b-wbs-rollup.png` (WBS group selected and grid filtered),
 `04b-layout-undo-redo.png`, `04c-layout-restore.png`, `04d-layout-conflict.png`
 (same-revision clash), `04e-layout-conflict-gap.png` (revision-gap conflict),
+`06b-settings-history.png` (older settings restored as a new revision),
 `07b`–`07f` (formula and interchange states),
 `08-capacity-effective-change.png`, `10a-capacity-persisted.png`,
 `11a-viewer-interchange.png`, `11b-viewer-capacity.png`,
@@ -272,6 +282,10 @@ and replay protection (`12 passed` on `7f1116ae`).
    calendar system to **Jalali**, confirm the start renders as `1405/06/30`, type
    `۱۴۰۵/۰۶/۳۰`, save and confirm the API still stores `2026-09-21`; try
    `1405/13/01` and confirm `INVALID_PROJECT_START`; switch back to Gregorian.
+   Switch the mode to `ALAP` and save, then use the settings-history control to
+   select an older revision and press **Restore**; confirm the panel reports the
+   restored revision and that the history now shows one more revision on top
+   (older revisions are preserved, never rewritten).
 8. Open **Schedule → Run Schedule** and compare the returned A130 dates, float,
    critical flag and snapshot hash.
 9. Open **Schedule → Formula editor**, enter
@@ -325,9 +339,10 @@ and replay protection (`12 passed` on `7f1116ae`).
   duration arithmetic has no safe formula representation yet.
 - The WBS surface is a flat persisted WBS grouping, not a hierarchy editor.
 - Undo/redo and explicit revision restore currently cover the persisted layout
-  presentation (append-only revisions plus durable history). They do not yet cover
-  activity, WBS, settings or commercial edits, and there is no project-wide
-  backup/restore UI.
+  presentation and schedule settings (append-only revisions plus durable
+  history). Settings restore re-saves the selected older settings as a new
+  revision; it is not an in-place rollback. Activity, WBS and commercial
+  undo/redo and a project-wide backup/restore UI are not implemented.
 - Typed Resource Max Units/Time is implemented as domain + persistence + read and
   write APIs plus a Web panel. The panel appends effective changes and resolves
   periods; it does not provide bulk capacity import or a separate leveling
