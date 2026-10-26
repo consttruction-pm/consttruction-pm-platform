@@ -111,7 +111,9 @@ class ProjectScheduleSettingsRepository(Protocol):
 
     def get(self, scope: BackendScope) -> ProjectScheduleSettings | None: ...
 
-    def list_revisions(self, scope: BackendScope) -> list[ProjectScheduleSettings]: ...
+    def list_revisions(
+        self, scope: BackendScope, limit: int = 50
+    ) -> list[ProjectScheduleSettings]: ...
 
 
 def _schedule_options_payload(options: ScheduleOptions) -> dict[str, object]:
@@ -319,6 +321,11 @@ def _validate_expected_revision(value: int | None) -> None:
         raise ProjectScheduleSettingsPersistenceError("INVALID_EXPECTED_REVISION")
 
 
+def _validate_history_limit(value: int) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 100:
+        raise ProjectScheduleSettingsPersistenceError("INVALID_SETTINGS_HISTORY_LIMIT")
+
+
 class SQLiteProjectScheduleSettingsRepository:
     """SQLite adapter; preserves an outer caller-owned transaction."""
 
@@ -361,6 +368,28 @@ class SQLiteProjectScheduleSettingsRepository:
         settings.validate()
         _validate_expected_revision(expected_revision)
         was_in_transaction = self.connection.in_transaction
+        # A savepoint keeps the settings row and its history row atomic even
+        # when a caller already owns the transaction; rolling the savepoint
+        # back must not roll back the caller's earlier work.
+        self.connection.execute("SAVEPOINT project_schedule_settings_save")
+        try:
+            stored = self._save_without_savepoint(settings, expected_revision)
+        except BaseException:
+            self.connection.execute("ROLLBACK TO project_schedule_settings_save")
+            self.connection.execute("RELEASE project_schedule_settings_save")
+            if not was_in_transaction:
+                self.connection.rollback()
+            raise
+        self.connection.execute("RELEASE project_schedule_settings_save")
+        if not was_in_transaction:
+            self.connection.commit()
+        return stored
+
+    def _save_without_savepoint(
+        self,
+        settings: ProjectScheduleSettings,
+        expected_revision: int | None,
+    ) -> ProjectScheduleSettings:
         existing = self.connection.execute(
             "SELECT project_revision,record_revision,canonical_payload,settings_hash "
             "FROM project_schedule_settings WHERE tenant_id=? AND project_id=?",
@@ -381,14 +410,7 @@ class SQLiteProjectScheduleSettingsRepository:
                     1, payload, stored_hash,
                 ),
             )
-            try:
-                self._append_history(stored, payload, stored_hash)
-            except ProjectScheduleSettingsPersistenceError:
-                if not was_in_transaction:
-                    self.connection.rollback()
-                raise
-            if not was_in_transaction:
-                self.connection.commit()
+            self._append_history(stored, payload, stored_hash)
             return replace(settings, record_revision=1)
 
         if int(existing[0]) != settings.scope.project_revision:
@@ -410,17 +432,8 @@ class SQLiteProjectScheduleSettingsRepository:
             ),
         )
         if cursor.rowcount != 1:
-            if not was_in_transaction:
-                self.connection.rollback()
             raise ProjectScheduleSettingsPersistenceError("REVISION_CONFLICT")
-        try:
-            self._append_history(stored, payload, _content_hash(payload))
-        except ProjectScheduleSettingsPersistenceError:
-            if not was_in_transaction:
-                self.connection.rollback()
-            raise
-        if not was_in_transaction:
-            self.connection.commit()
+        self._append_history(stored, payload, _content_hash(payload))
         return stored
 
     def _append_history(
@@ -446,14 +459,17 @@ class SQLiteProjectScheduleSettingsRepository:
         except sqlite3.IntegrityError as exc:
             raise ProjectScheduleSettingsPersistenceError("SETTINGS_HISTORY_CONFLICT") from exc
 
-    def list_revisions(self, scope: BackendScope) -> list[ProjectScheduleSettings]:
+    def list_revisions(
+        self, scope: BackendScope, limit: int = 50
+    ) -> list[ProjectScheduleSettings]:
         scope.validate()
+        _validate_history_limit(limit)
         rows = self.connection.execute(
             "SELECT record_revision,canonical_payload,settings_hash "
             "FROM project_schedule_settings_history "
             "WHERE tenant_id=? AND project_id=? AND project_revision=? "
-            "ORDER BY record_revision DESC",
-            (scope.tenant_id, scope.project_id, scope.project_revision),
+            "ORDER BY record_revision DESC LIMIT ?",
+            (scope.tenant_id, scope.project_id, scope.project_revision, limit),
         ).fetchall()
         result: list[ProjectScheduleSettings] = []
         for row in rows:
@@ -557,28 +573,40 @@ class PostgresProjectScheduleSettingsRepository:
         return stored
 
     def _append_history(self, stored: ProjectScheduleSettings, payload: str) -> None:
-        self.connection.execute(
-            "INSERT INTO project_schedule_settings_history "
-            "(tenant_id,project_id,project_revision,record_revision,canonical_payload,settings_hash) "
-            "VALUES (%s,%s,%s,%s,%s,%s)",
-            (
-                stored.scope.tenant_id,
-                stored.scope.project_id,
-                stored.scope.project_revision,
-                stored.record_revision,
-                payload,
-                _content_hash(payload),
-            ),
-        )
+        try:
+            self.connection.execute(
+                "INSERT INTO project_schedule_settings_history "
+                "(tenant_id,project_id,project_revision,record_revision,canonical_payload,settings_hash) "
+                "VALUES (%s,%s,%s,%s,%s,%s)",
+                (
+                    stored.scope.tenant_id,
+                    stored.scope.project_id,
+                    stored.scope.project_revision,
+                    stored.record_revision,
+                    payload,
+                    _content_hash(payload),
+                ),
+            )
+        except Exception as exc:
+            if type(exc).__name__ in {"IntegrityError", "UniqueViolation"} or getattr(
+                exc, "sqlstate", None
+            ) == "23505":
+                raise ProjectScheduleSettingsPersistenceError(
+                    "SETTINGS_HISTORY_CONFLICT"
+                ) from exc
+            raise
 
-    def list_revisions(self, scope: BackendScope) -> list[ProjectScheduleSettings]:
+    def list_revisions(
+        self, scope: BackendScope, limit: int = 50
+    ) -> list[ProjectScheduleSettings]:
         scope.validate()
+        _validate_history_limit(limit)
         rows = self.connection.execute(
             "SELECT record_revision,canonical_payload,settings_hash "
             "FROM project_schedule_settings_history "
             "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s "
-            "ORDER BY record_revision DESC",
-            (scope.tenant_id, scope.project_id, scope.project_revision),
+            "ORDER BY record_revision DESC LIMIT %s",
+            (scope.tenant_id, scope.project_id, scope.project_revision, limit),
         ).fetchall()
         result: list[ProjectScheduleSettings] = []
         for row in rows:

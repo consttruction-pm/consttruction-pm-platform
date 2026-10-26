@@ -897,10 +897,6 @@ class ProjectLifecycleHttpRoutes:
                 if not project_id:
                     return self._error(400, "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID", "error.request.invalid")
                 suffix_parts = [part for part in suffix.strip("/").split("/") if part]
-                if suffix_parts and not (method == "GET" and suffix_parts == ["revisions"]):
-                    return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
-                if method not in {"GET", "POST"}:
-                    return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
                 try:
                     project_context = self._api.open_project(session_id, project_id, now=now).context
                 except ProjectLifecycleError as exc:
@@ -914,6 +910,12 @@ class ProjectLifecycleHttpRoutes:
                     project_context.project_id,
                     project_context.revision,
                 )
+                if "//" in suffix or (
+                    suffix_parts and not (method == "GET" and suffix_parts == ["revisions"])
+                ):
+                    return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
+                if method not in {"GET", "POST"}:
+                    return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
                 try:
                     if method == "GET":
                         if suffix_parts == ["revisions"]:

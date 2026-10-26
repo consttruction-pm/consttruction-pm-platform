@@ -2747,5 +2747,22 @@ def test_project_schedule_settings_history_is_read_only_and_restore_appends(tmp_
             app, "POST", "/api/projects/p1/p6/schedule/settings/revisions", {}
         )
         assert status == "405 Method Not Allowed"
+        status, _ = _request(
+            app, "POST", "/api/projects/p1/p6/schedule/settings//revisions", {}
+        )
+        assert status == "405 Method Not Allowed"
+
+        viewer_dir = tmp_path / "viewer"
+        viewer_dir.mkdir()
+        viewer_fixture = _fixture(viewer_dir, role="viewer")
+        try:
+            status, denied = _request(
+                viewer_fixture["app"],
+                "GET",
+                "/api/projects/p1/p6/schedule/settings/revisions",
+            )
+            assert status == "403 Forbidden", denied
+        finally:
+            viewer_fixture["connection"].close()
     finally:
         fixture["connection"].close()

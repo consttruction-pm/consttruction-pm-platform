@@ -228,6 +228,7 @@ function renderScheduleRunResult(
     '</tbody></table>';
 }
 const scheduleSettingsDrafts = new Map<string, ScheduleSettingsDraft>();
+const settingsPanelMountTokens = new WeakMap<HTMLElement, number>();
 type PublishedSnapshot = {
   contract_version: string;
   kind: string;
@@ -545,7 +546,9 @@ async function mountSettingsPanel(
   catalog: ScheduleCodeReferenceCatalog | null,
   labels: (typeof LABELS)["en"] | (typeof LABELS)["fa"],
   locale: "fa" | "en",
-): Promise<void> {
+): Promise<number | null> {
+  const mountToken = (settingsPanelMountTokens.get(panel) ?? 0) + 1;
+  settingsPanelMountTokens.set(panel, mountToken);
   const path = `/api/projects/${encodeURIComponent(context.project_id)}/p6/schedule/settings`;
   const revisionsPath = `${path}/revisions`;
   const calendarsPath = `/api/projects/${encodeURIComponent(context.project_id)}/p6/calendars`;
@@ -554,6 +557,7 @@ async function mountSettingsPanel(
     transport.get<CalendarCatalogDTO>(calendarsPath, context),
     transport.get<ScheduleSettingsRevisionsDTO>(revisionsPath, context),
   ]);
+  if (settingsPanelMountTokens.get(panel) !== mountToken) return null;
   let revisionsState = revisionsResult.ok ? revisionsResult.data.revisions : null;
   const projectCalendars = calendarsResult.ok ? calendarsResult.data.calendars : [];
   const defaultOptions = Object.fromEntries((catalog?.schedule_options_schema ?? []).map((item) => [item.name, item.default]));
@@ -748,6 +752,7 @@ async function mountSettingsPanel(
           context,
           crypto.randomUUID(),
         );
+        if (settingsPanelMountTokens.get(panel) !== mountToken) return;
         if (!result.ok) {
           status.textContent = `${labels.restoreSettingsFailed} (${result.error.code})`;
           button.disabled = false;
@@ -755,10 +760,12 @@ async function mountSettingsPanel(
           return;
         }
         scheduleSettingsDrafts.delete(draftKey);
-        await mountSettingsPanel(panel, transport, context, catalog, labels, locale);
+        const mountedToken = await mountSettingsPanel(panel, transport, context, catalog, labels, locale);
+        if (mountedToken === null || settingsPanelMountTokens.get(panel) !== mountedToken) return;
         const restored = panel.querySelector<HTMLElement>("[data-settings-history-status]");
         if (restored) restored.textContent = labels.settingsRestored;
       } catch (error) {
+        if (settingsPanelMountTokens.get(panel) !== mountToken) return;
         status.textContent = `${labels.restoreSettingsFailed} (${error instanceof Error ? error.message : "INVALID_SETTINGS"})`;
         button.disabled = false;
         if (select) select.disabled = false;
@@ -767,6 +774,7 @@ async function mountSettingsPanel(
   };
   const refreshHistory = async (currentRevision: number): Promise<void> => {
     const result = await transport.get<ScheduleSettingsRevisionsDTO>(revisionsPath, context);
+    if (settingsPanelMountTokens.get(panel) !== mountToken) return;
     revisionsState = result.ok ? result.data.revisions : null;
     renderHistory(currentRevision);
   };
@@ -857,6 +865,7 @@ async function mountSettingsPanel(
       submit.disabled = false;
     }
   });
+  return mountToken;
 }
 
 function mountRunPanel(

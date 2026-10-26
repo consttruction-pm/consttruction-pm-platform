@@ -147,6 +147,8 @@ def test_sqlite_settings_history_detects_tampering_and_scope_changes():
     repo.save(date_settings(), expected_revision=0)
 
     assert repo.list_revisions(scope(8)) == []
+    assert repo.list_revisions(scope(tenant="T-2")) == []
+    assert repo.list_revisions(scope(project="P-2")) == []
     connection.execute(
         "UPDATE project_schedule_settings_history SET canonical_payload=? "
         "WHERE tenant_id=? AND project_id=? AND record_revision=1",
@@ -155,6 +157,75 @@ def test_sqlite_settings_history_detects_tampering_and_scope_changes():
     connection.commit()
     with pytest.raises(ProjectScheduleSettingsPersistenceError, match="SETTINGS_HASH_MISMATCH"):
         repo.list_revisions(scope())
+
+
+def test_sqlite_settings_history_limit_is_bounded():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteProjectScheduleSettingsRepository(connection)
+    first = repo.save(date_settings(), expected_revision=0)
+    second = repo.save(
+        replace(date_settings(), project_leveling_priority=24),
+        expected_revision=first.record_revision,
+    )
+    repo.save(
+        replace(date_settings(), project_leveling_priority=25),
+        expected_revision=second.record_revision,
+    )
+
+    assert [item.record_revision for item in repo.list_revisions(scope(), limit=2)] == [3, 2]
+    for invalid in (0, 101, True):
+        with pytest.raises(
+            ProjectScheduleSettingsPersistenceError,
+            match="INVALID_SETTINGS_HISTORY_LIMIT",
+        ):
+            repo.list_revisions(scope(), limit=invalid)
+
+
+def _prepare_history_conflict(
+    connection: sqlite3.Connection,
+    repo: SQLiteProjectScheduleSettingsRepository,
+) -> None:
+    repo.save(date_settings(), expected_revision=0)
+    # Keep the revision-1 history row but remove the current settings row so
+    # the next save tries to append a duplicate revision and must roll back.
+    connection.execute(
+        "DELETE FROM project_schedule_settings WHERE tenant_id=? AND project_id=?",
+        ("T-1", "P-1"),
+    )
+    connection.commit()
+
+
+def test_sqlite_settings_history_conflict_rolls_back_the_settings_write():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteProjectScheduleSettingsRepository(connection)
+    _prepare_history_conflict(connection, repo)
+
+    with pytest.raises(ProjectScheduleSettingsPersistenceError, match="SETTINGS_HISTORY_CONFLICT"):
+        repo.save(date_settings(), expected_revision=0)
+
+    assert connection.in_transaction is False
+    assert repo.get(scope()) is None
+    assert [item.record_revision for item in repo.list_revisions(scope())] == [1]
+
+
+def test_sqlite_settings_history_conflict_preserves_caller_owned_transaction(tmp_path):
+    database = str(tmp_path / "settings-history-conflict.sqlite")
+    writer = sqlite3.connect(database)
+    repo = SQLiteProjectScheduleSettingsRepository(writer)
+    reader = sqlite3.connect(database)
+    reader_repo = SQLiteProjectScheduleSettingsRepository(reader)
+    _prepare_history_conflict(writer, repo)
+
+    writer.execute("BEGIN")
+    with pytest.raises(ProjectScheduleSettingsPersistenceError, match="SETTINGS_HISTORY_CONFLICT"):
+        repo.save(date_settings(), expected_revision=0)
+    assert writer.in_transaction is True
+    assert reader_repo.get(scope()) is None
+    writer.rollback()
+    assert reader_repo.get(scope()) is None
+    assert [item.record_revision for item in reader_repo.list_revisions(scope())] == [1]
+    reader.close()
+    writer.close()
 
 
 def test_project_schedule_settings_history_preserves_caller_owned_transaction(tmp_path):

@@ -1811,8 +1811,8 @@ async function main() {
       return select ? Array.from(select.options).map((option) => option.value) : [];
     })()`);
     assert(
-      restoreOptions.includes("2") && restoreOptions.includes("1"),
-      `settings history must offer older revisions only, got ${JSON.stringify(restoreOptions)}`,
+      restoreOptions.join(",") === "2,1",
+      `settings history must offer exactly the older revisions, got ${JSON.stringify(restoreOptions)}`,
     );
     await page.setSelect("[data-settings-revision-select]", "1");
     await page.click("[data-settings-restore]");
