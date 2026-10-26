@@ -17,6 +17,7 @@ from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, AIActionRuntimeError
 from ..ai_action_execution_verification import verify_ai_action_execution
 from ..ai_assistant_orchestration import (
+    AIAssistantProjectContextError,
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
     is_valid_language_tag,
@@ -2391,6 +2392,9 @@ class ProjectLifecycleHttpRoutes:
                     "contract_version": "ai-assistant-capabilities.v1",
                     "enabled": enabled,
                     "reason": None if enabled else "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
+                    "project_context": (
+                        enabled and self._ai_assistant_orchestrator.has_project_context
+                    ),
                 })
             if path.startswith("/api/projects/") and "/ai/assistant/turn" in path:
                 parts = path[len("/api/projects/"):].split("/")
@@ -2547,6 +2551,9 @@ class ProjectLifecycleHttpRoutes:
                             None if input_provenance is None
                             else input_provenance["confidence"]
                         ),
+                        "project_context_expected": (
+                            self._ai_assistant_orchestrator.has_project_context
+                        ),
                     },
                 )
                 try:
@@ -2557,7 +2564,7 @@ class ProjectLifecycleHttpRoutes:
                         history=tuple(history),
                         allow_mutations=can_propose,
                     )
-                except AIAssistantProviderError as exc:
+                except (AIAssistantProviderError, AIAssistantProjectContextError) as exc:
                     self._ai_action_runtime.record_request_event(
                         runtime_context,
                         "assistant_turn_failed",
@@ -2584,6 +2591,7 @@ class ProjectLifecycleHttpRoutes:
                         "decided_by": proposal.decided_by,
                         "is_stale": proposal.proposal.project_revision_id != runtime_context.project_revision_id,
                     }
+                grounding = turn.grounding
                 self._ai_action_runtime.record_request_event(
                     runtime_context,
                     "assistant_turn_completed",
@@ -2591,6 +2599,19 @@ class ProjectLifecycleHttpRoutes:
                     metadata={
                         "kind": turn.kind,
                         "proposal_created": proposal is not None,
+                        "grounded": grounding is not None,
+                        "grounded_activity_total": (
+                            None if grounding is None else grounding.get("activity_total")
+                        ),
+                        "grounded_activity_truncated": (
+                            None if grounding is None else grounding.get("activity_truncated")
+                        ),
+                        "grounded_relationship_total": (
+                            None if grounding is None else grounding.get("relationship_total")
+                        ),
+                        "grounded_schedule_available": (
+                            None if grounding is None else grounding.get("schedule_available")
+                        ),
                     },
                 )
                 return self._json(200, {
@@ -2841,6 +2862,15 @@ class ProjectLifecycleHttpRoutes:
             return self._error(401, str(exc), "error.session.invalid")
         except AuthorizationError as exc:
             return self._error(403, str(exc), "error.authorization.denied")
+        except AIAssistantProjectContextError as exc:
+            code = exc.code
+            if code == "AI_ASSISTANT_PROJECT_CONTEXT_NOT_AUTHORIZED":
+                status = 403
+            elif code == "AI_ASSISTANT_PROJECT_CONTEXT_SCOPE_INVALID":
+                status = 500
+            else:
+                status = 503
+            return self._error(status, code, "error.ai_assistant.request_failed")
         except AIAssistantProviderError as exc:
             code = exc.code
             if code == "AI_ASSISTANT_ACTION_NOT_ALLOWED":
