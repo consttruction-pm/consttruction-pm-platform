@@ -105,6 +105,35 @@ The create-project form creates an empty project with the curated 20-field
 catalogue (10 visible columns by default), a revision-1 layout, a default
 calendar and no invented activities or capacity.
 
+## AI action execution in the preview
+
+The preview composes the **real** AI action runtime, not a mock. The typed
+`activity.create` and `activity.update` tools are exposed in the workspace
+**AI Assistant · Actions** panel. The flow is:
+
+1. The editor prepares a proposal; the server validates the payload, checks the
+   current project revision and the exact-scope grant, and returns a durable
+   `proposed` record. No project row is written yet.
+2. A human explicitly approves or rejects the proposal. Approval is bound to the
+   actor, proposal and project revision.
+3. Execution is a separate explicit request. The runtime authorizes the exact
+   tool/operation/domain grant again, writes the activity transactionally, then
+   recalculates through the Shared Core snapshot/query path.
+4. The panel displays the calculated start/finish, duration, project finish and
+   snapshot identity returned by that recalculation. It never computes dates in
+   the browser and never shows a fabricated result.
+5. A stale project revision is rejected before mutation, and replaying a
+   completed execution returns `409 AI_ACTION_PROPOSAL_NOT_APPROVED` without a
+   second write.
+
+Grants in the preview are default-deny and rebuilt from the persisted project
+rows on every decision: only the `planner` and `project_admin` demo personas
+receive the two activity tools, and an advanced project revision revokes the
+older grant immediately. Viewers, unknown subjects, other resource domains and
+every other tool/operation are denied. The natural-language assistant turn still
+requires an external model provider; the chat panel reports that it is not
+configured instead of inventing a reply.
+
 ## Automated verification
 
 Run the repository browser E2E (Chrome or Edge must be installed; set
@@ -170,9 +199,19 @@ SQLite database and a real headless browser. It verifies:
   failed-calculation message with zero fabricated result rows;
 - admin-only project creation from the Web form, persisted project name, empty
   activity grid and curated layout;
+- the real AI action path: prepare an `activity.create` proposal, see it bound to
+  the current project revision, approve it explicitly, execute it, and read the
+  Shared Core calculated start/finish plus snapshot and calculation-run identity;
+  the stored proposal is then re-read with `status=executed` and a `COMPUTED`
+  verification, the grid row after a full reload shows exactly the verified
+  dates, replaying the execution returns `409 AI_ACTION_PROPOSAL_NOT_APPROVED`,
+  a stale revision returns `409 AI_ACTION_PROPOSAL_STALE_REVISION`, and a viewer
+  receives an explicit `project.write` denial from both the panel and the direct
+  route with no created activity;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **36 checks and 25 screenshots**.
+The latest isolated run recorded **38 checks and 29 screenshots** on
+`7f1116ae`.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
@@ -180,8 +219,9 @@ Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 (same-revision clash), `04e-layout-conflict-gap.png` (revision-gap conflict),
 `07b`–`07f` (formula and interchange states),
 `08-capacity-effective-change.png`, `10a-capacity-persisted.png`,
-`11a-viewer-interchange.png`, `11b-viewer-capacity.png`, the preview server
-log and `evidence.json`.
+`11a-viewer-interchange.png`, `11b-viewer-capacity.png`,
+`13a-ai-proposal.png`, `13b-ai-executed.png`, `13c-ai-persisted.png`,
+`13d-ai-viewer-denied.png`, the preview server log and `evidence.json`.
 
 Fast backend checks for the preview composition:
 
@@ -193,8 +233,11 @@ They prove the foreign-database guard, real calculated reads and revision
 conflict, login/banner/static/logout behavior, layout persistence across a runtime
 restart, viewer write denial, the interchange round-trip, registered-capacity
 effective-date reads and an authenticated append-only capacity change across a
-runtime restart, and admin project creation with a consistent initialized
-workspace.
+runtime restart, admin project creation with a consistent initialized
+workspace, and the authorized AI action path: default-deny exact grants that
+follow the current project revision, proposal/approval/execution, Shared Core
+verification, durable read-back after a runtime restart, stale-revision refusal
+and replay protection (`12 passed` on `7f1116ae`).
 
 ## Manual walkthrough
 
@@ -237,6 +280,16 @@ workspace.
     import is denied with an explicit permission error.
 13. Sign out, sign in as **Admin**, create a project from the project-selection
     form, and confirm the new empty workspace, curated layout and persisted name.
+14. Re-select **Riverside Pump Station Upgrade** and open **AI Assistant ·
+    Actions**. Prepare an activity with a unique ID, a name and a 3 working-day
+    duration. Confirm the proposal shows the current project revision and no
+    activity exists yet. Press **Approve**, then **Execute approved action**;
+    confirm the panel reports the saved-and-recalculated outcome with real
+    calculated start/finish and snapshot identity. Reload and confirm the new row
+    shows the same dates and the saved verification is still displayed. Replaying
+    execution must be refused, and a project-revision change must mark the
+    proposal stale. Signing in as Viewer must deny both proposal reads and
+    writes with no project change.
 
 ## Known limitations
 
