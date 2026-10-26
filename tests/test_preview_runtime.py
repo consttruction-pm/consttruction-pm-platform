@@ -7,9 +7,18 @@ from pathlib import Path
 
 import pytest
 
-from construction_pm.preview.runtime import PreviewRuntimeError, open_preview_runtime
+from construction_pm.ai_action_boundary import AIActionProposal
+from construction_pm.preview.runtime import (
+    PreviewRuntimeError,
+    build_preview_ai_action_permission_adapter,
+    open_preview_runtime,
+)
 from construction_pm.preview.server import build_preview_application
-from construction_pm.preview.storage import DEMO_USERS_BY_ROLE
+from construction_pm.preview.storage import (
+    DEMO_USERS_BY_ROLE,
+    DemoUser,
+    PREVIEW_TENANT_ID,
+)
 
 RPS_PROJECT = "preview-rps-01"
 RPS_REVISION = 7
@@ -736,3 +745,361 @@ def test_preview_project_creation_initializes_real_workspace_and_persists(
         assert created.name == "New preview project"
     finally:
         reopened.close()
+
+
+def _ai_proposal(
+    *,
+    subject: str = "preview-planner",
+    project_revision_id: str = str(RPS_REVISION),
+    tool_name: str = "activity.create",
+    action: str = "create",
+    resource_domain: str = "activities",
+) -> AIActionProposal:
+    return AIActionProposal(
+        tenant_id=PREVIEW_TENANT_ID,
+        project_id=RPS_PROJECT,
+        proposal_id="preview-probe",
+        tool_name=tool_name,
+        action=action,
+        requires_human_approval=True,
+        requested_by=subject,
+        project_revision_id=project_revision_id,
+        resource_domain=resource_domain,
+    )
+
+
+def test_preview_ai_action_grants_are_exact_and_reread_the_project_revision(
+    tmp_path: Path,
+) -> None:
+    runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        adapter = build_preview_ai_action_permission_adapter(runtime.store)
+        assert adapter.allowed(_ai_proposal(), subject_id="preview-planner") is True
+        assert adapter.allowed(_ai_proposal(), subject_id="preview-admin") is True
+        assert adapter.allowed(_ai_proposal(), subject_id="preview-viewer") is False
+        assert adapter.allowed(_ai_proposal(), subject_id=None) is False
+        assert adapter.allowed(
+            _ai_proposal(project_revision_id="6"), subject_id="preview-planner"
+        ) is False
+        assert adapter.allowed(
+            _ai_proposal(tool_name="activity.delete", action="delete"),
+            subject_id="preview-planner",
+        ) is False
+        assert adapter.allowed(
+            _ai_proposal(resource_domain="projects"), subject_id="preview-planner"
+        ) is False
+
+        runtime.connection.execute(
+            "UPDATE preview_project SET project_revision=8 "
+            "WHERE tenant_id=? AND project_id=?",
+            (PREVIEW_TENANT_ID, RPS_PROJECT),
+        )
+        runtime.connection.commit()
+        # The grant provider is consulted per decision: the advanced revision
+        # grants the new head and revokes the previous one immediately.
+        assert adapter.allowed(
+            _ai_proposal(project_revision_id="8"), subject_id="preview-planner"
+        ) is True
+        assert adapter.allowed(
+            _ai_proposal(project_revision_id="7"), subject_id="preview-planner"
+        ) is False
+    finally:
+        runtime.close()
+
+
+def test_preview_ai_action_requires_an_explicit_grant_even_for_project_editors(
+    tmp_path: Path,
+) -> None:
+    runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        runtime.store.add_members(
+            PREVIEW_TENANT_ID, RPS_PROJECT, ("preview-auditor",)
+        )
+        auditor = runtime.sessions.create(
+            DemoUser(
+                "preview-auditor",
+                "Auditor",
+                "بازرس",
+                "auditor",
+                frozenset({"project_admin"}),
+            )
+        )
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"/api/projects/{RPS_PROJECT}/ai/actions/proposals",
+            cookie=auditor.session_id,
+            headers=_scope_headers(),
+            body=json.dumps(
+                {
+                    "expected_revision": RPS_REVISION,
+                    "tool_name": "activity.create",
+                    "payload": {
+                        "activity_id": "AI-DENIED-01",
+                        "name": "Denied activity",
+                        "duration_value": "1",
+                        "duration_unit": "working-day",
+                    },
+                    "evidence_refs": [],
+                }
+            ).encode("utf-8"),
+        )
+        assert status == 403
+        assert json.loads(body)["code"] == "AI_TOOL_NOT_PERMITTED"
+        row = runtime.connection.execute(
+            "SELECT COUNT(*) FROM activity_master "
+            "WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            (PREVIEW_TENANT_ID, RPS_PROJECT, "AI-DENIED-01"),
+        ).fetchone()
+        assert row is not None and int(row[0]) == 0
+    finally:
+        runtime.close()
+
+
+def test_preview_ai_action_proposal_execution_recalculates_and_persists(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview.sqlite3"
+    proposals_path = f"/api/projects/{RPS_PROJECT}/ai/actions/proposals"
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        viewer = runtime.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            proposals_path,
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        assert json.loads(body)["proposals"] == []
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            proposals_path,
+            cookie=viewer.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 403
+        assert "authorization denied" in json.loads(body)["code"]
+
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            proposals_path,
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+            body=json.dumps(
+                {
+                    "expected_revision": RPS_REVISION,
+                    "tool_name": "activity.create",
+                    "payload": {
+                        "activity_id": "AI-PREVIEW-01",
+                        "name": "AI preview activity",
+                        "duration_value": "3",
+                        "duration_unit": "working-day",
+                    },
+                    "evidence_refs": ["preview-runtime-test"],
+                }
+            ).encode("utf-8"),
+        )
+        assert status == 201
+        created_proposal = json.loads(body)
+        assert created_proposal["status"] == "proposed"
+        proposed = created_proposal["proposal"]
+        proposal_id = proposed["proposal_id"]
+        assert proposed["project_revision_id"] == str(RPS_REVISION)
+        assert proposed["requested_by"] == "preview-planner"
+        assert proposed["resource_domain"] == "activities"
+
+        # A project revision mismatch is rejected before any decision is stored.
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"{proposals_path}/{proposal_id}/decision",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+            body=json.dumps(
+                {"expected_revision": RPS_REVISION - 1, "approved": True}
+            ).encode("utf-8"),
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "AI_ACTION_PROPOSAL_STALE_REVISION"
+
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"{proposals_path}/{proposal_id}/decision",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+            body=json.dumps(
+                {"expected_revision": RPS_REVISION, "approved": True}
+            ).encode("utf-8"),
+        )
+        assert status == 200
+        assert json.loads(body)["status"] == "approved"
+        assert json.loads(body)["decided_by"] == "preview-planner"
+
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"{proposals_path}/{proposal_id}/execute",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+            body=json.dumps(
+                {"expected_revision": RPS_REVISION, "timezone": "UTC"}
+            ).encode("utf-8"),
+        )
+        assert status == 200
+        executed = json.loads(body)
+        assert executed["status"] == "executed"
+        assert executed["result"]["activity"]["activity_id"] == "AI-PREVIEW-01"
+        verification = executed["execution_verification"]
+        assert verification["status"] == "COMPUTED"
+        assert verification["reason_code"] is None
+        assert verification["activity"]["activity_id"] == "AI-PREVIEW-01"
+        assert verification["activity"]["duration"] == 3
+        assert verification["activity"]["start"] < verification["activity"]["finish"]
+        assert len(verification["snapshot"]["snapshot_hash"]) == 64
+        assert verification["project_finish"]
+        assert executed["execution_verification_stored"] is True
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            "/api/v1/workspace/control-room/read",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        activities = json.loads(body)["workspace"]["activities"]
+        assert len(activities) == 15
+        created_row = next(
+            item for item in activities if item["id"] == "AI-PREVIEW-01"
+        )
+        assert (
+            created_row["cells"]["activity.early_start"]
+            == verification["activity"]["start"]
+        )
+        assert (
+            created_row["cells"]["activity.early_finish"]
+            == verification["activity"]["finish"]
+        )
+
+        # Replaying the completed execution cannot create a second activity.
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"{proposals_path}/{proposal_id}/execute",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+            body=json.dumps(
+                {"expected_revision": RPS_REVISION, "timezone": "UTC"}
+            ).encode("utf-8"),
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "AI_ACTION_PROPOSAL_NOT_APPROVED"
+        row = runtime.connection.execute(
+            "SELECT COUNT(*) FROM activity_master "
+            "WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            (PREVIEW_TENANT_ID, RPS_PROJECT, "AI-PREVIEW-01"),
+        ).fetchone()
+        assert row is not None and int(row[0]) == 1
+    finally:
+        runtime.close()
+
+    reopened = open_preview_runtime(database)
+    try:
+        planner = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            reopened.app,
+            "GET",
+            f"{proposals_path}/{proposal_id}",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        persisted = json.loads(body)["proposal"]
+        assert persisted["status"] == "executed"
+        stored = persisted["execution_verification"]
+        assert stored["status"] == "COMPUTED"
+        assert stored["activity"]["activity_id"] == "AI-PREVIEW-01"
+        assert stored["snapshot"]["snapshot_id"]
+    finally:
+        reopened.close()
+
+
+def test_preview_ai_action_stale_project_revision_blocks_without_mutation(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview.sqlite3"
+    proposals_path = f"/api/projects/{RPS_PROJECT}/ai/actions/proposals"
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            proposals_path,
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+            body=json.dumps(
+                {
+                    "expected_revision": RPS_REVISION,
+                    "tool_name": "activity.create",
+                    "payload": {
+                        "activity_id": "AI-STALE-01",
+                        "name": "Stale activity",
+                        "duration_value": "1",
+                        "duration_unit": "working-day",
+                    },
+                    "evidence_refs": [],
+                }
+            ).encode("utf-8"),
+        )
+        assert status == 201
+        proposal_id = json.loads(body)["proposal"]["proposal_id"]
+
+        runtime.connection.execute(
+            "UPDATE preview_project SET project_revision=? "
+            "WHERE tenant_id=? AND project_id=?",
+            (RPS_REVISION + 1, PREVIEW_TENANT_ID, RPS_PROJECT),
+        )
+        runtime.connection.commit()
+
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"{proposals_path}/{proposal_id}/decision",
+            cookie=planner.session_id,
+            headers={**_scope_headers(), "X-Project-Revision": str(RPS_REVISION + 1)},
+            body=json.dumps(
+                {"expected_revision": RPS_REVISION + 1, "approved": True}
+            ).encode("utf-8"),
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "AI_ACTION_PROPOSAL_STALE_REVISION"
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            f"{proposals_path}/{proposal_id}",
+            cookie=planner.session_id,
+            headers={**_scope_headers(), "X-Project-Revision": str(RPS_REVISION + 1)},
+        )
+        assert status == 200
+        stale = json.loads(body)["proposal"]
+        assert stale["status"] == "stale"
+        assert stale["is_stale"] is True
+
+        row = runtime.connection.execute(
+            "SELECT COUNT(*) FROM activity_master "
+            "WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            (PREVIEW_TENANT_ID, RPS_PROJECT, "AI-STALE-01"),
+        ).fetchone()
+        assert row is not None and int(row[0]) == 0
+    finally:
+        runtime.close()

@@ -2619,6 +2619,347 @@ async function main() {
       columns: createdProject.columns,
     });
 
+    // AI action path: a real server-created proposal, explicit human approval,
+    // authorized execution, durable persistence and a fresh Shared Core
+    // recalculation read back into the browser. The panel never sends a payload
+    // that the server has not validated and never displays a result that was not
+    // computed from saved project data.
+    await page.reload(".cp-project-selection", "reload to select the fixture project for AI actions");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "workspace for AI actions");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
+      "fixture rows before the AI action",
+    );
+    await page.waitForSelector("#cp-ai-action-panel", "AI action panel");
+    assert(
+      (await page.text("#cp-ai-action-panel summary"))?.includes("AI Assistant"),
+      "the AI action panel must be present on the authenticated workspace",
+    );
+    await page.click("#cp-ai-action-panel summary");
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-action-panel .cp-ai-action-list")?.textContent ?? "").includes("no action proposals")`,
+      "empty persisted proposal list",
+    );
+
+    const aiActivityId = `AI-E2E-${Date.now()}`;
+    await page.setInput(
+      '#cp-ai-action-panel form.cp-ai-action-form input[name="activity_id"]',
+      aiActivityId,
+    );
+    await page.setInput(
+      '#cp-ai-action-panel form.cp-ai-action-form input[name="name"]',
+      "AI created preview activity",
+    );
+    await page.setInput(
+      '#cp-ai-action-panel form.cp-ai-action-form input[name="duration_value"]',
+      "3",
+    );
+    await page.setSelect(
+      '#cp-ai-action-panel form.cp-ai-action-form select[name="duration_unit"]',
+      "working-day",
+    );
+    await page.click(
+      "#cp-ai-action-panel form.cp-ai-action-form button.cp-ai-action-primary",
+    );
+    await page.waitFor(
+      `document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal").length === 1`,
+      "server proposal listed after preparation",
+    );
+    const proposedState = await page.text(
+      "#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-state",
+    );
+    assert(
+      (proposedState ?? "").includes("ready for review"),
+      `the proposal must require review before any write, got ${proposedState}`,
+    );
+    const proposedMeta = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-metadata"))
+        .map((element) => element.textContent.trim())
+    )()`);
+    assert(
+      proposedMeta.some((text) => text === `Project revision: ${PROJECT_REVISION}`),
+      `the proposal must be bound to the current project revision, got ${JSON.stringify(proposedMeta)}`,
+    );
+    const proposalId = await page.evaluate(`(() => {
+      const line = Array.from(document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-metadata"))
+        .find((element) => element.textContent.trim().startsWith("ID: "));
+      return line ? line.textContent.trim().slice(4) : null;
+    })()`);
+    assert(typeof proposalId === "string" && proposalId.length > 0, "proposal id must be visible");
+    await page.screenshot("13a-ai-proposal.png");
+
+    await page.click(
+      "#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-controls button.cp-ai-action-primary",
+    );
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-state")?.textContent ?? "").includes("approved")`,
+      "explicit human approval",
+    );
+    const approvedMessage = await page.text("#cp-ai-action-panel .cp-ai-action-message");
+    assert(
+      (approvedMessage ?? "").includes("approved"),
+      `approval must be reported explicitly, got ${approvedMessage}`,
+    );
+
+    await page.waitForSelector(
+      "#cp-ai-action-panel .cp-ai-action-proposal button.cp-ai-action-primary",
+      "execute control for the approved action",
+    );
+    await page.click(
+      "#cp-ai-action-panel .cp-ai-action-proposal button.cp-ai-action-primary",
+    );
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-action-panel .cp-ai-action-message")?.textContent ?? "").includes("saved and recalculated")`,
+      "authoritative recalculation reported after execution",
+      30000,
+    );
+    const executedMessage = await page.text("#cp-ai-action-panel .cp-ai-action-message");
+    const executedState = await page.text(
+      "#cp-ai-action-panel .cp-ai-action-proposal .cp-ai-action-state",
+    );
+    assert(
+      /created successfully|executed/i.test(executedState ?? ""),
+      `the executed proposal must persist its state, got ${executedState}`,
+    );
+    assert(
+      /Calculated start: \d{4}-\d{2}-\d{2}/.test(executedMessage ?? "") &&
+        /Calculated finish: \d{4}-\d{2}-\d{2}/.test(executedMessage ?? ""),
+      `the browser must show real calculated dates, got ${executedMessage}`,
+    );
+    const screenshotBeforeReload = await page.text(
+      "#cp-ai-action-panel .cp-ai-action-proposal",
+    );
+    assert(
+      screenshotBeforeReload !== null && screenshotBeforeReload.includes(aiActivityId),
+      "the panel must show the saved activity identity",
+    );
+    assert(
+      !/Oracle|Primavera|\bP6\b|https?:\/\//i.test(
+        (await page.text("#cp-ai-action-panel")) ?? "",
+      ),
+      "the AI action panel must not expose third-party branding or URLs",
+    );
+    await page.screenshot("13b-ai-executed.png");
+
+    const aiListResponse = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/ai/actions/proposals", {
+        headers: {
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+      });
+      return { status: response.status, body: await response.json().catch(() => null) };
+    })()`, { awaitPromise: true });
+    assert(aiListResponse.status === 200, "the persisted proposal must be readable");
+    const storedProposal = (aiListResponse.body?.proposals ?? [])
+      .find((proposal) => proposal.proposal_id === proposalId);
+    assert(storedProposal, "the executed proposal must be returned by the server");
+    assert(storedProposal.status === "executed", "the stored proposal status must be executed");
+    const storedVerification = storedProposal.execution_verification;
+    assert(
+      storedVerification?.status === "COMPUTED",
+      `the stored verification must be COMPUTED, got ${JSON.stringify(storedVerification)}`,
+    );
+    assert(
+      storedVerification.activity.activity_id === aiActivityId,
+      "the stored verification must reference the created activity",
+    );
+    assert(
+      storedVerification.activity.duration === 3 &&
+        storedVerification.activity.duration_unit === "working-day",
+      "the stored verification must use the saved duration and unit",
+    );
+    assert(
+      /^\d{4}-\d{2}-\d{2}$/.test(storedVerification.activity.start) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(storedVerification.activity.finish) &&
+        storedVerification.activity.start < storedVerification.activity.finish,
+      "the stored verification must contain real calculated dates",
+    );
+    assert(
+      typeof storedVerification.snapshot?.snapshot_id === "string" &&
+        storedVerification.snapshot.snapshot_id.length > 0 &&
+        typeof storedVerification.calculation_run_identity === "string" &&
+        storedVerification.calculation_run_identity.length > 0,
+      "the stored verification must identify the snapshot and calculation run",
+    );
+
+    const duplicateExecution = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/ai/actions/proposals/${proposalId}/execute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({ expected_revision: ${PROJECT_REVISION}, timezone: "UTC" }),
+      });
+      return { status: response.status, body: await response.json().catch(() => null) };
+    })()`, { awaitPromise: true });
+    assert(
+      duplicateExecution.status === 409 &&
+        duplicateExecution.body?.code === "AI_ACTION_PROPOSAL_NOT_APPROVED",
+      `completed execution must not replay, got ${JSON.stringify(duplicateExecution)}`,
+    );
+
+    const staleProposal = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/ai/actions/proposals", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({
+          expected_revision: ${PROJECT_REVISION - 1},
+          tool_name: "activity.create",
+          payload: {
+            activity_id: "AI-STALE-BROWSER",
+            name: "Stale browser proposal",
+            duration_value: "1",
+            duration_unit: "working-day",
+          },
+          evidence_refs: [],
+        }),
+      });
+      return { status: response.status, body: await response.json().catch(() => null) };
+    })()`, { awaitPromise: true });
+    assert(
+      staleProposal.status === 409 &&
+        staleProposal.body?.code === "AI_ACTION_PROPOSAL_STALE_REVISION",
+      `a stale browser revision must fail closed, got ${JSON.stringify(staleProposal)}`,
+    );
+
+    await page.reload(".cp-project-selection", "reload after the AI execution");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "workspace after AI execution");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 15`,
+      "the created activity must appear after reload",
+      30000,
+    );
+    const aiRow = await page.evaluate(`(() => {
+      const row = document.querySelector('tr[data-activity-id="${aiActivityId}"]');
+      if (!row) return null;
+      const cell = (column) => row.querySelector('[data-column-id="' + column + '"]')?.textContent.trim() ?? null;
+      return {
+        id: row.dataset.activityId,
+        name: cell("activity.name"),
+        start: cell("activity.early_start"),
+        finish: cell("activity.early_finish"),
+      };
+    })()`);
+    assert(
+      aiRow?.start === storedVerification.activity.start &&
+        aiRow?.finish === storedVerification.activity.finish,
+      `the grid must read the recalculated dates from the saved snapshot, got ${JSON.stringify(aiRow)} and ${JSON.stringify(storedVerification.activity)}`,
+    );
+    await page.click("#cp-ai-action-panel summary");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal").length === 1 &&
+       (document.querySelector("#cp-ai-action-panel .cp-ai-action-proposal")?.textContent ?? "").includes("saved and recalculated")`,
+      "the stored verification must render after a full reload",
+    );
+    const persistedPanelText = await page.text(
+      "#cp-ai-action-panel .cp-ai-action-proposal",
+    );
+    assert(
+      (persistedPanelText ?? "").includes(storedVerification.activity.start) &&
+        (persistedPanelText ?? "").includes(storedVerification.activity.finish),
+      "the reloaded panel must show the stored calculated dates",
+    );
+    await page.screenshot("13c-ai-persisted.png");
+    EVIDENCE.ai_action = {
+      activity_id: aiActivityId,
+      proposal_id: proposalId,
+      proposal_revision: storedProposal.project_revision_id,
+      requested_by: storedProposal.requested_by,
+      status: storedProposal.status,
+      verification_status: storedVerification.status,
+      calculated_start: storedVerification.activity.start,
+      calculated_finish: storedVerification.activity.finish,
+      calculated_duration: storedVerification.activity.duration,
+      project_finish: storedVerification.project_finish,
+      snapshot_id: storedVerification.snapshot.snapshot_id,
+      calculation_run_identity: storedVerification.calculation_run_identity,
+      grid_readback_start: aiRow.start,
+      grid_readback_finish: aiRow.finish,
+      duplicate_execution_status: duplicateExecution.status,
+      stale_propose_status: staleProposal.status,
+      persisted_after_reload: true,
+    };
+    record("AI action proposal, approval, execution and recalculation persist through the real server", {
+      activity_id: aiActivityId,
+      calculated_start: storedVerification.activity.start,
+      calculated_finish: storedVerification.activity.finish,
+      snapshot_id: storedVerification.snapshot.snapshot_id,
+      duplicate_execution_status: duplicateExecution.status,
+      stale_propose_status: staleProposal.status,
+    });
+
+    // The same authenticated browser must not be able to bypass the grant by
+    // presenting the proposal to a read-only identity; the panel and the direct
+    // route both fail closed.
+    await page.click("#cubi-preview-banner button");
+    await page.waitForSelector('form[action="/preview/login"]', "login after AI actions");
+    await page.click('button[name="role"][value="viewer"]');
+    await page.waitForSelector(".cp-project-selection", "viewer project selection after AI actions");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "viewer workspace after AI actions");
+    await page.waitForSelector("#cp-ai-action-panel", "viewer AI action panel");
+    await page.click("#cp-ai-action-panel summary");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-action-panel .cp-ai-action-message")?.dataset.kind === "error"`,
+      "viewer proposal list denial",
+    );
+    const viewerAiMessage = await page.text("#cp-ai-action-panel .cp-ai-action-message");
+    assert(
+      (viewerAiMessage ?? "").includes("authorization denied") ||
+        (viewerAiMessage ?? "").includes("permission"),
+      `viewer AI reads must fail closed, got ${viewerAiMessage}`,
+    );
+    const viewerAiPropose = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/ai/actions/proposals", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({
+          expected_revision: ${PROJECT_REVISION},
+          tool_name: "activity.create",
+          payload: {
+            activity_id: "AI-VIEWER-DENIED",
+            name: "Viewer denied",
+            duration_value: "1",
+            duration_unit: "working-day",
+          },
+          evidence_refs: [],
+        }),
+      });
+      return { status: response.status, body: await response.json().catch(() => null) };
+    })()`, { awaitPromise: true });
+    assert(
+      viewerAiPropose.status === 403 &&
+        String(viewerAiPropose.body?.code ?? "").includes("authorization denied"),
+      `viewer AI proposals must be denied before authorization, got ${JSON.stringify(viewerAiPropose)}`,
+    );
+    await page.screenshot("13d-ai-viewer-denied.png");
+    EVIDENCE.ai_permissions = {
+      viewer_list_error: viewerAiMessage,
+      viewer_propose_status: viewerAiPropose.status,
+      viewer_propose_code: viewerAiPropose.body?.code ?? null,
+    };
+    record("viewer cannot read or create AI action proposals", {
+      list_error: viewerAiMessage,
+      propose_status: viewerAiPropose.status,
+    });
+
     if (EXCEPTIONS.length > 0) {
       throw new Error(
         `UNCAUGHT_PAGE_EXCEPTIONS: ${JSON.stringify(EXCEPTIONS.slice(0, 5))}`,
