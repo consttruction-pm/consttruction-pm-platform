@@ -773,6 +773,95 @@ async function main() {
       schedule_submenus: scheduleSubmenus,
     });
 
+    const readWbsSummary = () => page.evaluate(
+      `(async () => {
+        const headers = {
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        };
+        const response = await fetch("/api/v1/workspace/control-room/read", { headers });
+        const body = await response.json();
+        return { status: response.status, summary: body?.workspace?.wbs_summary ?? null };
+      })()`,
+      { awaitPromise: true },
+    );
+    const serverWbs = await readWbsSummary();
+    assert(serverWbs.status === 200, "workspace read must return the WBS rollup");
+    assert(Array.isArray(serverWbs.summary), "workspace read must carry a WBS summary array");
+    const civilWbs = serverWbs.summary.find((group) => group.wbs_id === "2 Civil works");
+    assert(
+      civilWbs && civilWbs.activity_count === 5 && civilWbs.scheduled_start && civilWbs.scheduled_finish,
+      "server must aggregate the civil WBS count and scheduled bounds",
+    );
+    await page.click('[data-wbs-id="2 Civil works"]');
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 5`,
+      "five activities after WBS selection",
+    );
+    assert(
+      (await page.count(".cp-gantt-row")) === 5,
+      "the Gantt must follow the same WBS selection",
+    );
+    const selectedWbs = await page.evaluate(`(() => {
+      const node = document.querySelector('[data-wbs-id="2 Civil works"]');
+      return {
+        pressed: node?.getAttribute("aria-pressed"),
+        dates: node?.querySelector(".cp-wbs-node-dates")?.textContent.trim(),
+        meta: node?.querySelector(".cp-wbs-node-meta")?.textContent.trim(),
+        clearDisabled: document.querySelector("[data-wbs-clear]")?.disabled,
+        count: document.querySelector("[data-activity-count]")?.textContent.trim(),
+      };
+    })()`);
+    assert(selectedWbs.pressed === "true", "the selected WBS node must be pressed");
+    assert(
+      selectedWbs.dates === `${civilWbs.scheduled_start} – ${civilWbs.scheduled_finish}`,
+      `WBS dates must render the server bounds, got ${selectedWbs.dates}`,
+    );
+    assert(
+      selectedWbs.meta?.includes("5") && selectedWbs.meta.includes("critical"),
+      "WBS rollup must show the aggregate count and critical count",
+    );
+    assert(selectedWbs.clearDisabled === false, "the WBS filter must be clearable");
+    assert(
+      selectedWbs.count?.startsWith("5 / 14"),
+      `the grid count must reflect the WBS filter, got ${selectedWbs.count}`,
+    );
+    await page.scrollTo("#cp-project-wbs");
+    await page.screenshot("03b-wbs-rollup.png");
+    await page.click('[data-wbs-id="2 Civil works"]');
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
+      "fourteen activities after toggling the WBS selection off",
+    );
+    await page.click('[data-wbs-id="2 Civil works"]');
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 5`,
+      "five activities before clearing the WBS filter",
+    );
+    await page.click("[data-wbs-clear]");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
+      "fourteen activities after clearing the WBS filter",
+    );
+    assert(
+      (await page.evaluate(`document.querySelector("[data-wbs-clear]")?.disabled`)) === true,
+      "the clear control must be disabled once no WBS is selected",
+    );
+    EVIDENCE.wbs_rollup = {
+      server_summary: serverWbs.summary,
+      selected_group: "2 Civil works",
+      rendered_dates: selectedWbs.dates,
+      rendered_meta: selectedWbs.meta,
+      filtered_rows: 5,
+      source: "workspace read wbs_summary rendered by the Web WBS panel",
+    };
+    record("server-computed WBS rollup filters the grid and Gantt", {
+      groups: serverWbs.summary.length,
+      civil_count: civilWbs.activity_count,
+      rendered_dates: selectedWbs.dates,
+    });
+
     await page.click('#cp-activity-grid tbody tr[data-activity-id="A130"]');
     await page.waitFor(
       `document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() === "A130"`,

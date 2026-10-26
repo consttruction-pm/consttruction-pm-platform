@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   createWorkspaceControlRoomSnapshot,
   workspaceActivitiesFromSnapshot,
+  workspaceWbsSummaryFromSnapshot,
   WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION,
 } from "./workspace-contract.js";
 import { createWorkspaceState, withActivities } from "./workspace-model.js";
@@ -33,6 +34,45 @@ test("control-room snapshot is versioned and round-trips typed activity data", (
   const activities = workspaceActivitiesFromSnapshot(snapshot);
   assert.equal(activities[0]?.cells?.duration, 4);
   assert.equal(activities[0]?.gantt?.critical, true);
+});
+
+test("WBS summary adapter keeps server aggregates and fails closed when malformed", () => {
+  const snapshot = createWorkspaceControlRoomSnapshot(createWorkspaceState(context));
+  assert.deepEqual(workspaceWbsSummaryFromSnapshot(snapshot), []);
+
+  const withSummary = {
+    ...snapshot,
+    wbs_summary: [{
+      wbs_id: "W-1",
+      activity_count: 3,
+      critical_count: 2,
+      scheduled_start: "2026-09-01",
+      scheduled_finish: "2026-09-10",
+      total_float_min: -4,
+    }],
+  };
+  const summary = workspaceWbsSummaryFromSnapshot(withSummary as never);
+  assert.equal(summary[0].wbsId, "W-1");
+  assert.equal(summary[0].activityCount, 3);
+  assert.equal(summary[0].criticalCount, 2);
+  assert.equal(summary[0].totalFloatMin, -4);
+
+  for (const broken of [
+    { ...withSummary, wbs_summary: "no" },
+    { ...withSummary, wbs_summary: [{ ...withSummary.wbs_summary[0], activity_count: -1 }] },
+    { ...withSummary, wbs_summary: [{ ...withSummary.wbs_summary[0], critical_count: 4 }] },
+    { ...withSummary, wbs_summary: [{ ...withSummary.wbs_summary[0], scheduled_start: "" }] },
+    { ...withSummary, wbs_summary: [{ ...withSummary.wbs_summary[0], total_float_min: "NaN" }] },
+    {
+      ...withSummary,
+      wbs_summary: [withSummary.wbs_summary[0], withSummary.wbs_summary[0]],
+    },
+  ]) {
+    assert.throws(
+      () => workspaceWbsSummaryFromSnapshot(broken as never),
+      /INVALID_WORKSPACE_WBS_SUMMARY/,
+    );
+  }
 });
 
 test("contract adapter rejects duplicate activity identities", () => {

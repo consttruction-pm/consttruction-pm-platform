@@ -23,12 +23,15 @@ function searchableText(activity: WorkspaceActivityRow): string {
 
 /**
  * Filters and sorts persisted activity rows for display only. It never
- * calculates schedule values and never changes the underlying rows.
+ * calculates schedule values and never changes the underlying rows. The
+ * optional WBS filter follows a server-provided group identity; it is an
+ * exact match, not a text search.
  */
 export function filterAndSortActivities(
   activities: readonly WorkspaceActivityRow[],
   filterText: string,
   sort: WorkspaceActivitySort | null,
+  wbsId: string | null = null,
 ): readonly WorkspaceActivityRow[] {
   const tokens = filterText
     .trim()
@@ -36,9 +39,10 @@ export function filterAndSortActivities(
     .split(/\s+/u)
     .filter((token) => token.length > 0);
 
-  let rows: readonly WorkspaceActivityRow[] = activities;
+  let rows: readonly WorkspaceActivityRow[] =
+    wbsId === null ? activities : activities.filter((activity) => activity.wbsId === wbsId);
   if (tokens.length > 0) {
-    rows = activities.filter((activity) => {
+    rows = rows.filter((activity) => {
       const text = searchableText(activity);
       return tokens.every((token) => text.includes(token));
     });

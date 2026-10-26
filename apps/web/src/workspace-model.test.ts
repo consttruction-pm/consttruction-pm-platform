@@ -17,6 +17,7 @@ import {
   setDocuments,
   setFieldAssurance,
   setSiteDailyLogs,
+  setWbsSummary,
   withActivities,
   setP6Presentation,
   addP6Field,
@@ -98,6 +99,57 @@ test("WBS selection clears Activity selection", () => {
   state = selectWbs(state, "W-2");
   assert.equal(state.selectedWbsId, "W-2");
   assert.equal(state.selectedActivityId, null);
+});
+
+test("WBS summary validates server aggregates and clears a vanished selection", () => {
+  let state = createWorkspaceState(context);
+  state = selectWbs(state, "W-2");
+  state = setWbsSummary(state, [
+    {
+      wbsId: "W-1",
+      activityCount: 2,
+      criticalCount: 1,
+      scheduledStart: "2026-10-01",
+      scheduledFinish: "2026-10-05",
+      totalFloatMin: 0,
+    },
+  ]);
+  assert.equal(state.selectedWbsId, null);
+  assert.equal(state.wbsSummary[0].activityCount, 2);
+
+  state = selectWbs(state, "W-1");
+  state = setWbsSummary(state, [
+    {
+      wbsId: "W-1",
+      activityCount: 2,
+      criticalCount: 1,
+      scheduledStart: "2026-10-01",
+      scheduledFinish: "2026-10-05",
+      totalFloatMin: 0,
+    },
+  ]);
+  assert.equal(state.selectedWbsId, "W-1");
+
+  assert.throws(() => setWbsSummary(state, [
+    {
+      wbsId: "W-1",
+      activityCount: 1,
+      criticalCount: 2,
+      scheduledStart: null,
+      scheduledFinish: null,
+      totalFloatMin: null,
+    },
+  ]), /INVALID_WBS_SUMMARY/);
+  assert.throws(() => setWbsSummary(state, [
+    {
+      wbsId: "W-1",
+      activityCount: 1,
+      criticalCount: 0,
+      scheduledStart: null,
+      scheduledFinish: null,
+      totalFloatMin: Number.NaN,
+    },
+  ]), /INVALID_WBS_SUMMARY/);
 });
 
 test("activity selection rejects activities that are not loaded", () => {

@@ -38,6 +38,14 @@ function workspaceSnapshot(): WorkspaceControlRoomReadSnapshot {
         cells: { activity_id: "A-101" },
         gantt: null,
       }],
+      wbs_summary: [{
+        wbs_id: "WBS-1",
+        activity_count: 1,
+        critical_count: 0,
+        scheduled_start: null,
+        scheduled_finish: null,
+        total_float_min: null,
+      }],
     },
     control_intelligence: null,
     field_daily_logs: [],
@@ -117,6 +125,8 @@ test("workspace read client hydrates the control room and field issue projection
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("expected success");
   assert.equal(result.data.activities[0]?.id, "A-101");
+  assert.equal(result.data.wbsSummary[0]?.wbsId, "WBS-1");
+  assert.equal(result.data.wbsSummary[0]?.activityCount, 1);
   assert.equal(result.data.fieldIssues[0]?.issueId, "issue-1");
   assert.equal(result.data.locale, "fa");
   assert.equal(result.data.direction, "rtl");
@@ -209,6 +219,33 @@ test("workspace read client rejects malformed workspace with a stable error", as
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("expected invalid workspace error");
   assert.equal(result.error.code, "INVALID_WORKSPACE_READ_WORKSPACE");
+});
+
+test("workspace read client rejects a malformed WBS summary", async () => {
+  const snapshot = workspaceSnapshot();
+  const transport = new StubTransport({
+    ok: true,
+    data: {
+      ...snapshot,
+      workspace: {
+        ...snapshot.workspace,
+        wbs_summary: [{
+          wbs_id: "WBS-1",
+          activity_count: 1,
+          critical_count: 5,
+          scheduled_start: null,
+          scheduled_finish: null,
+          total_float_min: null,
+        }],
+      },
+    } as never,
+  });
+
+  const result = await new WorkspaceReadClient(transport).load(context);
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("expected invalid WBS summary error");
+  assert.equal(result.error.code, "INVALID_WORKSPACE_WBS_SUMMARY");
 });
 
 test("workspace read client hydrates document workflow metadata and links", async () => {
