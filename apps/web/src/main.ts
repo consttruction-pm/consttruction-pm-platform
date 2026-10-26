@@ -9,11 +9,15 @@ import {
   applyAuthoritativeScheduleFacts,
   removeP6Field,
   reorderP6Fields,
+  setActivityFilter,
+  setActivitySort,
+  toggleActivitySortDirection,
   updateP6FieldPresentation,
   selectActivity,
   selectWbs,
   setP6Presentation,
   setLocale,
+  setCalendarMode,
   type WorkspaceLocale,
   type WorkspaceState,
 } from "./workspace-model.js";
@@ -45,6 +49,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
 
   const languageButton = document.createElement("button");
   languageButton.type = "button";
+  languageButton.dataset.languageToggle = "true";
   const availableLocales = getAvailableWorkspaceLocales();
   const currentLocaleIndex = availableLocales.indexOf(state.locale);
   const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? "en";
@@ -55,7 +60,18 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     renderApp(container, setLocale(state, next), persistence);
   };
 
-  status.replaceChildren(document.createTextNode(shellLabels.status), languageButton);
+  const nextCalendarMode = state.calendarMode === "jalali" ? "gregorian" : "jalali";
+  const calendarButton = document.createElement("button");
+  calendarButton.type = "button";
+  calendarButton.dataset.calendarMode = nextCalendarMode;
+  calendarButton.textContent = state.calendarMode === "jalali" ? "Gregorian" : "Jalali";
+  const calendarLabel = nextCalendarMode === "jalali" ? shellLabels.switchToJalali : shellLabels.switchToGregorian;
+  calendarButton.setAttribute("aria-label", calendarLabel);
+  calendarButton.setAttribute("title", calendarLabel);
+  calendarButton.onclick = () => {
+    renderApp(container, setCalendarMode(state, nextCalendarMode), persistence);
+  };
+  status.replaceChildren(document.createTextNode(shellLabels.status), calendarButton, languageButton);
   const aiTransport = new FetchApiTransport(window.location.origin);
   let refreshAIProposals: (() => Promise<void>) | undefined;
   mountAIAssistantChatPanel(
@@ -80,6 +96,18 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     },
     onGanttActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId), persistence);
+    },
+    onActivityFilterChange: (filterText) => {
+      renderApp(container, setActivityFilter(state, filterText), persistence);
+    },
+    onActivitySortChange: (columnId) => {
+      const direction = state.activitySort?.columnId === columnId
+        ? state.activitySort.direction
+        : "asc";
+      renderApp(container, setActivitySort(state, columnId, direction), persistence);
+    },
+    onActivitySortDirectionToggle: () => {
+      renderApp(container, toggleActivitySortDirection(state), persistence);
     },
     onP6FieldAdd: async (fieldId) => {
       try {

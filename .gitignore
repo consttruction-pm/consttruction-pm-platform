@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Web build/dependencies
+apps/web/node_modules/
+apps/web/dist/
+
+# Local full-stack preview state (demo SQLite + screenshots scratch)
+.preview/
+.preview-server.log
+apps/web/e2e/artifacts/
+
+# Test/coverage caches
+.coverage
+htmlcov/
+coverage.xml

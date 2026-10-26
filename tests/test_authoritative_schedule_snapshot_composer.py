@@ -1905,17 +1905,40 @@ def test_resource_dependent_placement_preserves_relationships_and_constraints(tm
         },
     )
     assert query_status == "200 OK"
-    assert query_result["data"]["activities"]["RD-CPM"] == {
+    rd_activity = query_result["data"]["activities"]["RD-CPM"]
+    assert {key: rd_activity[key] for key in ("start", "finish", "duration", "critical")} == {
         "start": "2026-10-19",
         "finish": "2026-10-19",
         "duration": 1,
         "critical": False,
     }
-    assert query_result["data"]["activities"]["SUCC-CPM"] == {
+    # The authoritative FACT contract also carries early/late dates and float
+    # from the same Shared Core result; placement assertions above remain the
+    # subject of this scenario.
+    assert {
+        key: rd_activity[key]
+        for key in ("early_start", "early_finish", "total_float", "free_float")
+    } == {
+        "early_start": "2026-10-19",
+        "early_finish": "2026-10-19",
+        "total_float": 2,
+        "free_float": 2,
+    }
+    succ_activity = query_result["data"]["activities"]["SUCC-CPM"]
+    assert {key: succ_activity[key] for key in ("start", "finish", "duration", "critical")} == {
         "start": "2026-10-22",
         "finish": "2026-10-23",
         "duration": 2,
         "critical": True,
+    }
+    assert {
+        key: succ_activity[key]
+        for key in ("early_start", "early_finish", "total_float", "free_float")
+    } == {
+        "early_start": "2026-10-22",
+        "early_finish": "2026-10-23",
+        "total_float": 0,
+        "free_float": 0,
     }
     assert query_result["data"]["project_finish"] == "2026-10-23"
     assert query_result["data"]["resource_dependent_placement"]["status"] == "COMPLETE"

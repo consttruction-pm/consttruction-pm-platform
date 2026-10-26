@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime, timezone
 
 import pytest
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationError, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
-from construction_pm.p6_formula_audit import SQLiteP6FormulaAuditRepository, expression_sha256
+from construction_pm.p6_formula_audit import (
+    P6FormulaAuditEvent,
+    SQLiteP6FormulaAuditRepository,
+    expression_sha256,
+)
 from construction_pm.p6_formula_definition_api import P6FormulaDefinitionAPI, P6_FORMULA_DEFINITION_API_VERSION
 from construction_pm.p6_formula_definition_repository import (
     FormulaDefinitionCreateRequest,
@@ -125,3 +130,28 @@ def test_formula_api_creates_a_distinct_audit_event_for_new_version() -> None:
         auth_context=auth("viewer"),
     )
     assert [event["formula_version"] for event in events] == ["1.0", "2.0"]
+
+
+def test_formula_audit_tied_timestamps_preserve_insertion_order() -> None:
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteP6FormulaAuditRepository(connection)
+    occurred_at = datetime(2026, 10, 26, 12, 0, tzinfo=timezone.utc)
+    for event_id, formula_version in (("zzz-event", "1.0"), ("aaa-event", "2.0")):
+        repository.record(
+            P6FormulaAuditEvent(
+                event_id=event_id,
+                scope=BackendScope("tenant-a", "project-a", 3),
+                formula_id="activity.total",
+                formula_version=formula_version,
+                action="create",
+                actor_id="user-a",
+                occurred_at=occurred_at,
+                semantic_version="p6-formula.v1",
+                expression_sha256=expression_sha256("[activity.qty]"),
+            )
+        )
+    events = repository.list_events(
+        BackendScope("tenant-a", "project-a", 3), "activity.total"
+    )
+    # Identical timestamps must not fall back to random event-ID ordering.
+    assert [event.formula_version for event in events] == ["1.0", "2.0"]

@@ -798,3 +798,43 @@ test("Activity Grid offsets multiple pinned/frozen columns without overlap", () 
   assert.match(container.innerHTML, /<td role="gridcell"[^>]*data-column-pinned="true"[^>]*style="[^"]*--cp-p6-sticky-offset:140px/);
   assert.match(container.innerHTML, /<td role="gridcell"[^>]*data-column-frozen="true"[^>]*style="[^"]*--cp-p6-sticky-offset:340px/);
 });
+
+test("activity grid date cells follow the selected display calendar without changing stored values", () => {
+  const base = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+    "gregorian",
+  );
+  const dateColumn = {
+    id: "start",
+    label: "Start",
+    dataType: "date" as const,
+    editable: false,
+    formula: null,
+    width: 120,
+    alignment: "center" as const,
+    pinned: false,
+    frozen: false,
+  };
+  const row = {
+    id: "A130",
+    wbsId: "civil",
+    code: "A130",
+    name: "Earthworks",
+    cells: { start: "2026-10-07" },
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    { ...base, columns: [dateColumn], activities: [row] },
+  );
+  assert.match(container.innerHTML, /data-column-id="start"[^>]*>2026-10-07<\/td>/);
+
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    { ...base, calendarMode: "jalali", columns: [dateColumn], activities: [row] },
+  );
+  assert.match(container.innerHTML, /data-column-id="start"[^>]*>۱۴۰۵\/۰۷\/۱۵<\/td>/);
+  assert.doesNotMatch(container.innerHTML, />2026-10-07<\/td>/);
+});

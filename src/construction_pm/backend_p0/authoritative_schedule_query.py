@@ -157,6 +157,27 @@ class AuthoritativeScheduleQueryProvider:
         )
 
 
+def _date_activity_fact(value, floats) -> dict[str, object]:
+    """Project one calculated activity into the read-only FACT contract.
+
+    Scheduled dates remain the authoritative output used by the Gantt. Early
+    and late dates, float and criticality come from the same Shared Core
+    result; no caller derives them independently.
+    """
+    return {
+        "start": value.start.isoformat(),
+        "finish": value.finish.isoformat(),
+        "duration": value.duration,
+        "critical": floats.critical,
+        "early_start": floats.early_start.isoformat(),
+        "early_finish": floats.early_finish.isoformat(),
+        "late_start": floats.late_start.isoformat(),
+        "late_finish": floats.late_finish.isoformat(),
+        "total_float": floats.total_float,
+        "free_float": floats.free_float,
+    }
+
+
 def _snapshot_requests_resource_leveling(snapshot: ScheduleInputSnapshot) -> bool:
     try:
         payload = json.loads(snapshot.canonical_payload)
@@ -256,12 +277,7 @@ def _project_result(
                 "project_finish": result.project_finish.isoformat(),
                 "activity_count": len(activities),
                 "activities": {
-                    key: {
-                        "start": value.start.isoformat(),
-                        "finish": value.finish.isoformat(),
-                        "duration": value.duration,
-                        "critical": result.date_result.floats[key].critical,
-                    }
+                    key: _date_activity_fact(value, result.date_result.floats[key])
                     for key, value in sorted(activities.items())
                 },
             }
@@ -278,12 +294,7 @@ def _project_result(
             else:
                 raise ValueError("INVALID_SCHEDULE_QUERY_FILTER")
             selected = {
-                key: {
-                    "start": value.start.isoformat(),
-                    "finish": value.finish.isoformat(),
-                    "duration": value.duration,
-                    "critical": result.date_result.floats[key].critical,
-                }
+                key: _date_activity_fact(value, result.date_result.floats[key])
                 for key, value in sorted(activities.items())
                 if key in selected_ids
             }

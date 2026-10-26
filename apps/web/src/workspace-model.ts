@@ -84,6 +84,12 @@ export type AuthoritativeScheduledActivity = {
   finish: string;
   duration?: number;
   critical?: boolean;
+  early_start?: string;
+  early_finish?: string;
+  late_start?: string;
+  late_finish?: string;
+  total_float?: number;
+  free_float?: number;
 };
 
 export type AuthoritativeScheduleFacts = {
@@ -91,6 +97,11 @@ export type AuthoritativeScheduleFacts = {
   project_finish?: string;
   activity_count?: number;
   activities: Readonly<Record<string, AuthoritativeScheduledActivity>>;
+};
+
+export type WorkspaceActivitySort = {
+  readonly columnId: string;
+  readonly direction: "asc" | "desc";
 };
 
 export type WorkspaceState = {
@@ -104,6 +115,8 @@ export type WorkspaceState = {
   selectedActivityId: string | null;
   columns: readonly WorkspaceColumn[];
   activities: readonly WorkspaceActivityRow[];
+  activityFilter: string;
+  activitySort: WorkspaceActivitySort | null;
   controlSummary: WorkspaceControlSummary | null;
   smartGuide: WorkspaceSmartGuide | null;
   siteDailyLogs: readonly WorkspaceSiteDailyLog[];
@@ -167,6 +180,8 @@ export function createWorkspaceState(
     selectedActivityId: null,
     columns: getDefaultWorkspaceColumns(locale),
     activities: [],
+    activityFilter: "",
+    activitySort: null,
     controlSummary: null,
     smartGuide: null,
     siteDailyLogs: [],
@@ -204,6 +219,44 @@ export function selectActivity(state: WorkspaceState, activityId: string | null)
   return {
     ...state,
     selectedActivityId: activityId,
+  };
+}
+
+export function setActivityFilter(state: WorkspaceState, filterText: string): WorkspaceState {
+  const normalized = filterText.slice(0, 200);
+  if (normalized === state.activityFilter) return state;
+  return { ...state, activityFilter: normalized };
+}
+
+export function setActivitySort(
+  state: WorkspaceState,
+  columnId: string | null,
+  direction: "asc" | "desc" = "asc",
+): WorkspaceState {
+  if (columnId === null) {
+    return state.activitySort === null ? state : { ...state, activitySort: null };
+  }
+  if (!state.columns.some((column) => column.id === columnId)) {
+    throw new Error("SORT_COLUMN_NOT_FOUND");
+  }
+  const next = Object.freeze({ columnId, direction });
+  if (
+    state.activitySort?.columnId === next.columnId &&
+    state.activitySort.direction === next.direction
+  ) {
+    return state;
+  }
+  return { ...state, activitySort: next };
+}
+
+export function toggleActivitySortDirection(state: WorkspaceState): WorkspaceState {
+  if (!state.activitySort) return state;
+  return {
+    ...state,
+    activitySort: Object.freeze({
+      columnId: state.activitySort.columnId,
+      direction: state.activitySort.direction === "asc" ? "desc" : "asc",
+    }),
   };
 }
 
@@ -475,6 +528,18 @@ export function applyAuthoritativeScheduleFacts(
     ) {
       throw new Error("INVALID_AUTHORITATIVE_ACTIVITY_RESULT:" + activity.id);
     }
+    for (const key of ["early_start", "early_finish", "late_start", "late_finish"] as const) {
+      const value = scheduled[key];
+      if (value !== undefined && (typeof value !== "string" || !Number.isFinite(Date.parse(value)))) {
+        throw new Error("INVALID_AUTHORITATIVE_ACTIVITY_RESULT:" + activity.id);
+      }
+    }
+    for (const key of ["total_float", "free_float"] as const) {
+      const value = scheduled[key];
+      if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
+        throw new Error("INVALID_AUTHORITATIVE_ACTIVITY_RESULT:" + activity.id);
+      }
+    }
     const progressCell = activity.cells?.progress;
     const progressPercent = activity.gantt?.progressPercent ??
       (typeof progressCell === "number" && Number.isFinite(progressCell) ? Math.max(0, Math.min(100, progressCell)) : 0);
@@ -490,6 +555,16 @@ export function applyAuthoritativeScheduleFacts(
       finish: scheduled.finish,
     };
     if (scheduled.duration !== undefined) cells.duration = scheduled.duration;
+    // Persisted P6 presentation columns are keyed by registry field IDs. The
+    // same authoritative facts therefore populate those cells too; the browser
+    // neither recalculates nor renames schedule results.
+    if (scheduled.early_start !== undefined) cells["activity.early_start"] = scheduled.early_start;
+    if (scheduled.early_finish !== undefined) cells["activity.early_finish"] = scheduled.early_finish;
+    if (scheduled.late_start !== undefined) cells["activity.late_start"] = scheduled.late_start;
+    if (scheduled.late_finish !== undefined) cells["activity.late_finish"] = scheduled.late_finish;
+    if (scheduled.total_float !== undefined) cells["activity.total_float"] = scheduled.total_float;
+    if (scheduled.free_float !== undefined) cells["activity.free_float"] = scheduled.free_float;
+    if (scheduled.critical !== undefined) cells["activity.is_critical"] = scheduled.critical;
     return Object.freeze({
       ...activity,
       cells: Object.freeze(cells),

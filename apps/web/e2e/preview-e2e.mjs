@@ -1,0 +1,1686 @@
+#!/usr/bin/env node
+/**
+ * Real browser E2E for the CUBI local full-stack preview.
+ *
+ * It drives headless Chrome through the DevTools protocol against the real
+ * WSGI runtime, real SQLite repositories and the Shared Domain/Calculation
+ * Core. It does not mock API responses and it never touches production.
+ *
+ * Usage:
+ *   npm run test:e2e:preview              # builds and starts its own runtime
+ *   CUBI_PREVIEW_URL=http://127.0.0.1:4174 npm run test:e2e:preview
+ *
+ * The current Chrome path can be overridden with CHROME_PATH. A CRISP_HTML
+ * style fixture is not used: every assertion runs against the served app.
+ */
+
+import { spawn, spawnSync, execFileSync } from "node:child_process";
+import { createServer } from "node:net";
+import { createWriteStream, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { delimiter, join, resolve } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
+
+const webRoot = fileURLToPath(new URL("..", import.meta.url));
+const repoRoot = resolve(webRoot, "..", "..");
+const artifactsDir = join(webRoot, "e2e", "artifacts");
+mkdirSync(artifactsDir, { recursive: true });
+
+const PROJECT_ID = "preview-rps-01";
+const PROJECT_REVISION = 7;
+const TENANT_ID = "cubi-preview-tenant";
+const SCREENSHOTS = [];
+const CHECKS = [];
+const EXCEPTIONS = [];
+const CONSOLE_ERRORS = [];
+const API_FAILURES = [];
+const EVIDENCE = {
+  contract: "cubi-preview-browser-e2e.v1",
+  started_at: new Date().toISOString(),
+  base_url: null,
+  managed_runtime: false,
+  git_head: null,
+  checks: CHECKS,
+  screenshots: SCREENSHOTS,
+  exceptions: EXCEPTIONS,
+  console_errors: CONSOLE_ERRORS,
+  api_failures: API_FAILURES,
+  persistence: {},
+  calculation: {},
+  permissions: {},
+};
+
+function log(message) {
+  process.stdout.write(`${message}\n`);
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(`ASSERTION_FAILED: ${message}`);
+}
+
+function record(name, details = {}) {
+  CHECKS.push({ name, at: new Date().toISOString(), ...details });
+  log(`  ok ${name}`);
+}
+
+function relativeArtifact(file) {
+  return file.replace(`${artifactsDir}\\`, "").replace(`${artifactsDir}/`, "");
+}
+
+function gitHead() {
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot })
+      .toString()
+      .trim();
+  } catch {
+    return null;
+  }
+}
+
+function findChrome() {
+  const candidates = [
+    process.env.CHROME_PATH,
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+    "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  throw new Error(
+    "CHROME_NOT_FOUND: set CHROME_PATH to a Chrome/Edge executable",
+  );
+}
+
+async function freePort() {
+  return new Promise((resolvePort, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const port = server.address().port;
+      server.close(() => resolvePort(port));
+    });
+  });
+}
+
+async function fetchJson(url, init) {
+  const response = await fetch(url, init);
+  let body = null;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+  return { status: response.status, headers: response.headers, body };
+}
+
+async function waitForHttp(url, timeoutMs = 60000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) return await response.json();
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(250);
+  }
+  throw new Error(`PREVIEW_DID_NOT_START: ${lastError?.message ?? "timeout"}`);
+}
+
+function pythonCommand() {
+  const configured = process.env.CUBI_PYTHON?.trim();
+  if (configured) return { executable: configured, prefix: [] };
+  if (process.platform === "win32") return { executable: "py", prefix: ["-3"] };
+  return { executable: "python3", prefix: [] };
+}
+
+async function startManagedRuntime() {
+  const runtimeDir = mkdtempSync(join(tmpdir(), "cubi-preview-e2e-"));
+  const database = join(runtimeDir, "preview-e2e.sqlite3");
+  const port = await freePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const logFile = join(artifactsDir, "preview-server.log");
+  const logStream = createWriteStream(logFile, { flags: "w" });
+  const command = pythonCommand();
+  const pythonPath = [join(repoRoot, "src"), process.env.PYTHONPATH]
+    .filter((value) => value && value.length > 0)
+    .join(delimiter);
+  const child = spawn(
+    command.executable,
+    [
+      ...command.prefix,
+      "-m",
+      "construction_pm.preview",
+      "--web-root",
+      webRoot,
+      "--database",
+      database,
+      "--port",
+      String(port),
+      "--reset",
+    ],
+    {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PYTHONPATH: pythonPath,
+        PYTHONIOENCODING: "utf-8",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  child.stdout.pipe(logStream);
+  child.stderr.pipe(logStream);
+  let exited = null;
+  child.on("exit", (code, signal) => {
+    exited = { code, signal };
+  });
+  child.on("error", (error) => {
+    exited = { error: String(error) };
+  });
+  const health = await waitForHttp(`${baseUrl}/preview/health`).catch((error) => {
+    if (exited) {
+      throw new Error(
+        `PREVIEW_RUNTIME_EXITED: ${JSON.stringify(exited)} (see ${logFile})`,
+      );
+    }
+    throw error;
+  });
+  return {
+    baseUrl,
+    health,
+    logFile,
+    runtimeDir,
+    stop: () => stopProcessTree(child),
+  };
+}
+
+function stopProcessTree(child) {
+  if (!child || child.killed) return;
+  if (process.platform === "win32" && child.pid) {
+    spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+    });
+    return;
+  }
+  child.kill();
+}
+
+class Cdp {
+  constructor(socket) {
+    this.socket = socket;
+    this.nextId = 1;
+    this.pending = new Map();
+    this.listeners = new Map();
+    this.closed = false;
+    socket.addEventListener("message", (event) => {
+      const text =
+        typeof event.data === "string"
+          ? event.data
+          : Buffer.from(event.data).toString("utf8");
+      let message;
+      try {
+        message = JSON.parse(text);
+      } catch {
+        return;
+      }
+      if (message.id !== undefined) {
+        const pending = this.pending.get(message.id);
+        if (!pending) return;
+        this.pending.delete(message.id);
+        if (message.error) {
+          pending.reject(new Error(`${pending.method}: ${message.error.message}`));
+        } else {
+          pending.resolve(message.result);
+        }
+        return;
+      }
+      for (const listener of this.listeners.get(message.method) ?? []) {
+        listener(message.params);
+      }
+    });
+    socket.addEventListener("close", () => {
+      this.closed = true;
+      for (const pending of this.pending.values()) {
+        pending.reject(new Error(`${pending.method}: DevTools socket closed`));
+      }
+      this.pending.clear();
+    });
+  }
+
+  static async connect(url) {
+    const socket = new WebSocket(url);
+    await new Promise((resolveOpen, rejectOpen) => {
+      socket.addEventListener("open", resolveOpen, { once: true });
+      socket.addEventListener(
+        "error",
+        () => rejectOpen(new Error("DEVTOOLS_SOCKET_FAILED")),
+        { once: true },
+      );
+    });
+    return new Cdp(socket);
+  }
+
+  on(method, listener) {
+    const listeners = this.listeners.get(method) ?? [];
+    listeners.push(listener);
+    this.listeners.set(method, listeners);
+  }
+
+  send(method, params = {}, timeoutMs = 30000) {
+    if (this.closed) return Promise.reject(new Error("DEVTOOLS_CLOSED"));
+    const id = this.nextId;
+    this.nextId += 1;
+    return new Promise((resolveSend, rejectSend) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        rejectSend(new Error(`${method}: timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+      this.pending.set(id, {
+        method,
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolveSend(value);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          rejectSend(error);
+        },
+      });
+      this.socket.send(JSON.stringify({ id, method, params }));
+    });
+  }
+
+  close() {
+    try {
+      this.socket.close();
+    } catch {
+      // already closed
+    }
+  }
+}
+
+class Page {
+  constructor(cdp) {
+    this.cdp = cdp;
+  }
+
+  async initialize() {
+    await this.cdp.send("Page.enable");
+    await this.cdp.send("Runtime.enable");
+    await this.cdp.send("Network.enable");
+    await this.cdp.send("Log.enable");
+    this.cdp.on("Runtime.exceptionThrown", (params) => {
+      const text =
+        params.exceptionDetails?.exception?.description ??
+        params.exceptionDetails?.text ??
+        "unknown exception";
+      EXCEPTIONS.push({ at: new Date().toISOString(), text });
+    });
+    this.cdp.on("Runtime.consoleAPICalled", (params) => {
+      if (params.type !== "error") return;
+      CONSOLE_ERRORS.push({
+        at: new Date().toISOString(),
+        text: (params.args ?? [])
+          .map((arg) => arg.value ?? arg.description ?? arg.type)
+          .join(" "),
+      });
+    });
+    this.cdp.on("Network.responseReceived", (params) => {
+      const url = params.response?.url ?? "";
+      if (url.includes("/api/") && params.response.status >= 500) {
+        API_FAILURES.push({
+          at: new Date().toISOString(),
+          status: params.response.status,
+          url,
+        });
+      }
+    });
+  }
+
+  async evaluate(expression, options = {}) {
+    const response = await this.cdp.send("Runtime.evaluate", {
+      expression,
+      awaitPromise: options.awaitPromise ?? false,
+      returnByValue: true,
+      userGesture: true,
+    });
+    if (response.exceptionDetails) {
+      const text =
+        response.exceptionDetails.exception?.description ??
+        response.exceptionDetails.text ??
+        "evaluation failed";
+      throw new Error(`PAGE_EVALUATION_FAILED: ${text}\n${expression}`);
+    }
+    return response.result?.value;
+  }
+
+  async waitFor(expression, label, timeoutMs = 20000) {
+    const deadline = Date.now() + timeoutMs;
+    let lastError;
+    while (Date.now() < deadline) {
+      try {
+        const value = await this.evaluate(expression);
+        if (value) return value;
+      } catch (error) {
+        lastError = error;
+      }
+      await sleep(100);
+    }
+    throw new Error(
+      `WAIT_TIMEOUT: ${label}${lastError ? ` (last error: ${lastError.message})` : ""}`,
+    );
+  }
+
+  waitForSelector(selector, label = selector, timeoutMs = 20000) {
+    return this.waitFor(
+      `Boolean(document.querySelector(${JSON.stringify(selector)}))`,
+      label,
+      timeoutMs,
+    );
+  }
+
+  async navigate(url, selector, label = url, expectedUrl = url) {
+    await this.cdp.send("Page.navigate", { url });
+    await this.waitFor(
+      `document.readyState === "complete" && location.href.startsWith(${JSON.stringify(expectedUrl.split("?")[0])})`,
+      `${label} document`,
+    );
+    if (selector) await this.waitForSelector(selector, label);
+  }
+
+  async click(selector) {
+    const clicked = await this.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      if (!element) return false;
+      element.click();
+      return true;
+    })()`);
+    assert(clicked, `click target not found: ${selector}`);
+  }
+
+  async setInput(selector, value) {
+    const changed = await this.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      if (!element) return false;
+      element.focus();
+      element.value = ${JSON.stringify(value)};
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`);
+    assert(changed, `input target not found: ${selector}`);
+  }
+
+  async setSelect(selector, value) {
+    const changed = await this.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      if (!element) return false;
+      element.value = ${JSON.stringify(value)};
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`);
+    assert(changed, `select target not found: ${selector}`);
+  }
+
+  async text(selector) {
+    return this.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      return element ? element.textContent.trim() : null;
+    })()`);
+  }
+
+  async count(selector) {
+    return this.evaluate(
+      `document.querySelectorAll(${JSON.stringify(selector)}).length`,
+    );
+  }
+
+  async reload(selector, label = "reload") {
+    await this.cdp.send("Page.reload", { ignoreCache: true });
+    await this.waitFor(
+      `document.readyState === "complete"`,
+      `${label} document`,
+    );
+    if (selector) await this.waitForSelector(selector, label);
+  }
+
+  async screenshot(name) {
+    const result = await this.cdp.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+    });
+    const file = join(artifactsDir, name);
+    writeFileSync(file, Buffer.from(result.data, "base64"));
+    SCREENSHOTS.push({ name, file: relativeArtifact(file) });
+    log(`  captured ${relativeArtifact(file)}`);
+    return file;
+  }
+
+  async scrollTo(selector) {
+    await this.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      if (element) element.scrollIntoView({ block: "start", inline: "nearest" });
+      return true;
+    })()`);
+    await sleep(150);
+  }
+}
+
+async function launchChrome() {
+  const chromePath = findChrome();
+  const userDataDir = mkdtempSync(join(tmpdir(), "cubi-preview-chrome-"));
+  const child = spawn(
+    chromePath,
+    [
+      "--headless=new",
+      `--user-data-dir=${userDataDir}`,
+      "--remote-debugging-port=0",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-background-networking",
+      "--disable-component-update",
+      "--disable-sync",
+      "--disable-extensions",
+      "--disable-gpu",
+      "--disable-features=Translate,MediaRouter",
+      "--window-size=1440,900",
+      "--hide-scrollbars",
+      "about:blank",
+    ],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  let stderr = "";
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString();
+  });
+  let exited = null;
+  child.on("exit", (code, signal) => {
+    exited = { code, signal };
+  });
+
+  const activePortFile = join(userDataDir, "DevToolsActivePort");
+  const deadline = Date.now() + 20000;
+  while (!existsSync(activePortFile)) {
+    if (exited) {
+      throw new Error(`CHROME_EXITED: ${JSON.stringify(exited)} ${stderr.slice(-800)}`);
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`CHROME_DID_NOT_START ${stderr.slice(-800)}`);
+    }
+    await sleep(50);
+  }
+  const [debugPort] = (await (await import("node:fs/promises")).readFile(activePortFile, "utf8")).split("\n");
+  let target = null;
+  for (let attempt = 0; attempt < 50 && !target; attempt += 1) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${debugPort}/json/list`);
+      const targets = await response.json();
+      target = targets.find((item) => item.type === "page");
+    } catch {
+      // Chrome HTTP endpoint not ready yet
+    }
+    if (!target) await sleep(100);
+  }
+  if (!target) {
+    const response = await fetch(`http://127.0.0.1:${debugPort}/json/new?about:blank`, {
+      method: "PUT",
+    });
+    target = await response.json();
+  }
+  assert(target?.webSocketDebuggerUrl, "Chrome page target websocket missing");
+  return {
+    child,
+    userDataDir,
+    cdp: await Cdp.connect(target.webSocketDebuggerUrl),
+    stop: () => stopProcessTree(child),
+  };
+}
+
+async function main() {
+  EVIDENCE.git_head = gitHead();
+  const buildEntry = join(webRoot, "dist", "web", "src", "landing-entry.js");
+  if (!existsSync(buildEntry)) {
+    throw new Error(
+      `WEB_BUILD_MISSING: ${buildEntry}; run "npm run build" first (npm run test:e2e:preview does this).`,
+    );
+  }
+
+  let managed = null;
+  let baseUrl = process.env.CUBI_PREVIEW_URL?.replace(/\/$/, "") ?? null;
+  let health;
+  if (baseUrl) {
+    health = await waitForHttp(`${baseUrl}/preview/health`, 15000);
+  } else {
+    log("Starting an isolated preview runtime (temporary SQLite, random port)");
+    managed = await startManagedRuntime();
+    baseUrl = managed.baseUrl;
+    health = managed.health;
+    EVIDENCE.managed_runtime = true;
+  }
+  EVIDENCE.base_url = baseUrl;
+  log(`Preview runtime: ${baseUrl}`);
+
+  assert(health.status === "ok", "preview health status");
+  assert(health.production === false, "preview must not present itself as production");
+  assert(health.demo_data === true, "preview must declare demo data");
+  assert(health.project_count >= 2, "two fixture projects expected");
+  assert(health.activity_count >= 20, "twenty fixture activities expected");
+  record("runtime health identifies local demo composition", {
+    project_count: health.project_count,
+    activity_count: health.activity_count,
+    seed_version: health.seed_version,
+  });
+
+  const unauthenticatedApp = await fetch(`${baseUrl}/app`, { redirect: "manual" });
+  assert(unauthenticatedApp.status === 302, "unauthenticated /app must redirect");
+  assert(
+    unauthenticatedApp.headers.get("location") === "/preview/login?next=%2Fapp",
+    "unauthenticated /app redirect target",
+  );
+  const unauthenticatedSession = await fetchJson(`${baseUrl}/api/session`);
+  assert(unauthenticatedSession.status === 401, "unauthenticated /api/session must be 401");
+  record("unauthenticated workspace and session APIs are guarded", {
+    app_status: unauthenticatedApp.status,
+    session_status: unauthenticatedSession.status,
+  });
+
+  const landing = await fetch(`${baseUrl}/`);
+  const landingText = await landing.text();
+  assert(landing.status === 200, "landing page must load");
+  assert(landingText.includes("CUBI"), "landing page must carry CUBI branding");
+  record("landing page served by the same preview runtime", {
+    status: landing.status,
+    bytes: landingText.length,
+  });
+
+  const chrome = await launchChrome();
+  let page;
+  try {
+    page = new Page(chrome.cdp);
+    await page.initialize();
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+
+    await page.navigate(
+      `${baseUrl}/preview/login`,
+      'form[action="/preview/login"]',
+      "login page",
+    );
+    const personaCount = await page.count(
+      'form[action="/preview/login"] button[name="role"]',
+    );
+    assert(personaCount === 3, "three demo personas must be offered");
+    assert(
+      (await page.text(".eyebrow"))?.includes("local full-stack preview"),
+      "login page must declare local preview",
+    );
+    await page.screenshot("01-login.png");
+    record("demo login exposes exactly three fixture-only personas", {
+      personas: personaCount,
+    });
+
+    await page.click('button[name="role"][value="planner"]');
+    await page.waitFor(`location.pathname === "/app"`, "planner redirect to /app");
+    await page.waitForSelector(".cp-project-selection", "project selection");
+    const projectButtons = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("button[data-project-id]")).map((button) => ({
+        id: button.dataset.projectId,
+        name: button.textContent.trim(),
+      }))
+    )()`);
+    assert(projectButtons.length === 2, "two projects must be selectable");
+    const projectIds = projectButtons.map((item) => item.id).sort();
+    assert(
+      projectIds.includes("preview-rps-01") && projectIds.includes("preview-nse-02"),
+      "both fixture projects must be listed",
+    );
+    assert(
+      (await page.text("#cubi-preview-banner"))?.includes("LOCAL PREVIEW"),
+      "preview banner must be visible on the workspace shell",
+    );
+    await page.screenshot("02-project-selection.png");
+    record("planner session lists the two persisted fixture projects", {
+      projects: projectButtons,
+    });
+
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "workspace shell");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
+      "fourteen persisted activity rows",
+    );
+    await page.waitFor(
+      `document.querySelectorAll(".cp-gantt-row").length === 14`,
+      "fourteen Gantt rows",
+    );
+
+    assert(
+      (await page.text(".cp-project"))?.includes(PROJECT_ID),
+      "workspace identifies the selected project",
+    );
+    assert(
+      (await page.text(".cp-revision"))?.includes(`R${PROJECT_REVISION}`),
+      "workspace identifies the persisted project revision",
+    );
+    const menuCount = await page.count(".cp-menu button[data-menu]");
+    assert(menuCount === 9, "nine main menus must render");
+    const menuLabels = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll(".cp-menu button[data-menu]")).map((button) => button.textContent.trim())
+    )()`);
+    assert(
+      menuLabels.includes("Schedule") && menuLabels.includes("Resources"),
+      "main menu labels must be bilingual-ready English defaults",
+    );
+    assert(
+      (await page.text(".cp-navigation-surface strong")) === "Schedule",
+      "schedule is the initial workspace surface",
+    );
+    assert(
+      (await page.text(".cp-navigation-surface [data-surface-status]")) === "Implemented",
+      "schedule surface status must be honest",
+    );
+    const scheduleSubmenus = await page.count(".cp-navigation-surface a.cp-submenu-item");
+    assert(scheduleSubmenus === 12, "twelve schedule submenu anchors expected");
+    const headerLabels = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+    )()`);
+    assert(headerLabels.length === 10, "ten visible persisted columns expected");
+    assert(
+      headerLabels[0] === "Id" && headerLabels[1] === "Name",
+      "authoritative Activity Id/Name columns must lead the grid",
+    );
+    const criticalBars = await page.count(".cp-gantt-bar.is-critical");
+    assert(criticalBars >= 1, "Shared Core critical path must reach the Gantt");
+    const ganttAria = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll(".cp-gantt-row")).slice(0, 3).map((row) => ({
+        id: row.dataset.ganttActivityId,
+        label: row.getAttribute("aria-label"),
+      }))
+    )()`);
+    assert(
+      ganttAria.every((row) => row.id && row.label === row.id),
+      "Gantt rows must expose real activity identities",
+    );
+    await page.screenshot("03-workspace-desktop.png");
+    record("real workspace renders persisted rows, columns and Gantt facts", {
+      menu_count: menuCount,
+      visible_columns: headerLabels,
+      grid_rows: 14,
+      gantt_rows: 14,
+      critical_bars: criticalBars,
+      schedule_submenus: scheduleSubmenus,
+    });
+
+    await page.click('#cp-activity-grid tbody tr[data-activity-id="A130"]');
+    await page.waitFor(
+      `document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() === "A130"`,
+      "A130 selection details",
+    );
+    assert(
+      (await page.evaluate(
+        `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"]').getAttribute("aria-selected")`,
+      )) === "true",
+      "grid row selection must be exposed",
+    );
+    await page.click('.cp-gantt-row[data-gantt-activity-id="A130"]');
+    await page.waitFor(
+      `document.querySelector('.cp-gantt-row[data-gantt-activity-id="A130"]').getAttribute("aria-pressed") === "true"`,
+      "Gantt row selection",
+    );
+    assert(
+      (await page.text("#cp-details .cp-detail-selected")) === "A130",
+      "table and Gantt must share activity selection",
+    );
+    record("grid and Gantt share real activity selection", { activity: "A130" });
+
+    const isoTooltip = await page.evaluate(
+      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim()`,
+    );
+    assert(
+      /^\d{4}-\d{2}-\d{2}$/.test(isoTooltip ?? ""),
+      `Gregorian display must show the canonical ISO date, got ${isoTooltip}`,
+    );
+    await page.click('[data-calendar-mode="jalali"]');
+    await page.waitFor(
+      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim() === "۱۴۰۵/۰۷/۱۵"`,
+      "Jalali display of the stored early start",
+    );
+    const jalaliText = await page.evaluate(
+      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim()`,
+    );
+    assert(
+      jalaliText === "۱۴۰۵/۰۷/۱۵",
+      `Jalali display must convert 2026-10-07 without shifting it, got ${jalaliText}`,
+    );
+    await page.click('[data-calendar-mode="gregorian"]');
+    await page.waitFor(
+      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim() === ${JSON.stringify(isoTooltip)}`,
+      "Gregorian restoration of the stored early start",
+    );
+    EVIDENCE.calendar_display = {
+      stored_iso: isoTooltip,
+      jalali: jalaliText,
+      restored_iso: isoTooltip,
+      source: "persisted workspace cells rendered in Jalali and Gregorian",
+    };
+    record("Jalali/Gregorian display toggles without changing stored schedule dates", {
+      stored_iso: isoTooltip,
+      jalali: jalaliText,
+    });
+
+    for (const surface of [
+      { menu: "project", label: "Project", status: "Partial", submenus: 2 },
+      { menu: "resources", label: "Resources", status: "Preview", submenus: 2 },
+      { menu: "control", label: "Control", status: "Partial", submenus: 2 },
+      { menu: "schedule", label: "Schedule", status: "Implemented", submenus: 12 },
+    ]) {
+      await page.click(`[data-menu="${surface.menu}"]`);
+      await page.waitFor(
+        `document.querySelector(".cp-navigation-surface strong")?.textContent.trim() === ${JSON.stringify(surface.label)}`,
+        `${surface.label} navigation surface`,
+      );
+      const status = await page.text(".cp-navigation-surface [data-surface-status]");
+      assert(
+        status === surface.status,
+        `${surface.label} status must be ${surface.status}, got ${status}`,
+      );
+      const submenus = await page.count(
+        ".cp-navigation-surface a.cp-submenu-item, .cp-navigation-surface span.cp-submenu-item",
+      );
+      assert(
+        submenus === surface.submenus,
+        `${surface.label} must expose ${surface.submenus} submenus`,
+      );
+      const current = await page.evaluate(
+        `document.querySelector('[data-menu="${surface.menu}"]').getAttribute("aria-current")`,
+      );
+      assert(current === "page", `${surface.label} menu must be current`);
+    }
+    record("menus and submenus expose their real implementation status", {
+      surfaces: ["Project", "Resources", "Control", "Schedule"],
+    });
+
+    await page.waitForSelector("[data-schedule-settings-form]", "schedule settings form");
+    await page.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "grid after menu renders");
+    const initialHeaders = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+    )()`);
+    assert(initialHeaders.length === 10, "initial visible column count before layout edits");
+    const hiddenTarget = await page.evaluate(`(() => {
+      const button = document.querySelector('[data-p6-field-visibility]:not([data-p6-field-visible])');
+      return button ? button.dataset.p6FieldVisibility : null;
+    })()`);
+    const addTarget = await page.evaluate(`(() => {
+      const button = document.querySelector('[data-p6-field-visibility][data-p6-field-visible="true"]');
+      return button ? button.dataset.p6FieldVisibility : null;
+    })()`);
+    assert(hiddenTarget, "a visible column must be available for hiding");
+    assert(addTarget, "a hidden layout field must be available for remove/add");
+    const hiddenLabel = await page.evaluate(
+      `document.querySelector('[data-p6-field-rename="${hiddenTarget}"]')?.value ?? null`,
+    );
+    const addedLabel = await page.evaluate(
+      `document.querySelector('[data-p6-field-visibility="${addTarget}"][data-p6-field-visible="true"]')?.textContent.trim() ?? null`,
+    );
+    assert(hiddenLabel, "hidden target must expose its persisted label");
+    assert(addedLabel, "add target must expose its persisted label");
+
+    await page.click(`[data-p6-field-visibility="${hiddenTarget}"]:not([data-p6-field-visible])`);
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
+      "hide persisted column",
+    );
+    await page.click(`[data-p6-field-remove="${addTarget}"]`);
+    await page.waitForSelector(
+      `[data-p6-field-add="${addTarget}"]`,
+      "removed registry field becomes addable",
+    );
+    await page.click(`[data-p6-field-add="${addTarget}"]`);
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      "add persisted column",
+    );
+
+    const orderBeforeMove = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+    )()`);
+    await page.click(`[data-p6-field-move="${addTarget}"][data-p6-field-direction="up"]`);
+    await page.waitFor(
+      `JSON.stringify(Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())) !== ${JSON.stringify(JSON.stringify(orderBeforeMove))}`,
+      "reorder persisted column",
+    );
+    const orderAfterMove = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+    )()`);
+    const addedIndex = orderAfterMove.indexOf(addedLabel);
+    assert(
+      addedIndex >= 0 && addedIndex !== orderBeforeMove.indexOf(addedLabel),
+      "reordered column must move in the persisted order",
+    );
+
+    const widthBefore = await page.evaluate(`(() => {
+      const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+      const index = ths.findIndex((th) => th.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedLabel)});
+      return index >= 0 ? Number.parseFloat(ths[index].style.width) : null;
+    })()`);
+    assert(widthBefore > 0, "added column width must be readable");
+    await page.click(`[data-p6-field-width="${addTarget}"][data-p6-field-width-delta="increase"]`);
+    await page.waitFor(
+      `(() => {
+        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+        const index = ths.findIndex((th) => th.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedLabel)});
+        return index >= 0 && Number.parseFloat(ths[index].style.width) > ${Number(widthBefore)};
+      })()`,
+      "increase persisted column width",
+    );
+    const widthAfter = await page.evaluate(`(() => {
+      const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+      const index = ths.findIndex((th) => th.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedLabel)});
+      return index >= 0 ? Number.parseFloat(ths[index].style.width) : null;
+    })()`);
+
+    await page.click(`[data-p6-field-pin="${addTarget}"]`);
+    await page.waitFor(
+      `(() => {
+        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+        const index = ths.findIndex((th) => th.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedLabel)});
+        return index >= 0 && ths[index].getAttribute("data-column-pinned") === "true";
+      })()`,
+      "pin persisted column",
+    );
+    await page.click(`[data-p6-field-freeze="${addTarget}"]`);
+    await page.waitFor(
+      `(() => {
+        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+        const index = ths.findIndex((th) => th.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedLabel)});
+        return index >= 0 && ths[index].getAttribute("data-column-frozen") === "true";
+      })()`,
+      "freeze persisted column",
+    );
+    await page.scrollTo("#cp-activity-grid");
+    await page.screenshot("04-column-operations.png");
+    record("column hide/remove/add/reorder/width/pin/freeze are persisted by the layout API", {
+      hidden_field: hiddenTarget,
+      added_field: addTarget,
+      order_after_move: orderAfterMove,
+      width_before: widthBefore,
+      width_after: widthAfter,
+    });
+
+    await page.reload(".cp-project-selection", "reload to project selection");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "workspace after reload");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      "persisted column count after reload",
+    );
+    const orderAfterReload = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+    )()`);
+    assert(
+      JSON.stringify(orderAfterReload) === JSON.stringify(orderAfterMove),
+      "column order must survive a full browser reload",
+    );
+    const addedHeader = addedLabel;
+    assert(
+      orderAfterReload.indexOf(addedHeader) === orderAfterMove.indexOf(addedHeader),
+      "added column position must survive reload",
+    );
+    const addedPresentation = await page.evaluate(`(() => {
+      const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+      const th = ths.find((item) => item.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedHeader)});
+      return th ? {
+        width: Number.parseFloat(th.style.width),
+        pinned: th.getAttribute("data-column-pinned"),
+        frozen: th.getAttribute("data-column-frozen"),
+      } : null;
+    })()`);
+    assert(addedPresentation?.pinned === "true", "pinned state must survive reload");
+    assert(addedPresentation?.frozen === "true", "frozen state must survive reload");
+    assert(addedPresentation.width === widthAfter, "width must survive reload");
+    assert(
+      !orderAfterReload.includes(hiddenLabel),
+      "hidden column must remain hidden after reload",
+    );
+    EVIDENCE.persistence.layout = {
+      hidden_field: hiddenTarget,
+      hidden_label: hiddenLabel,
+      added_field: addTarget,
+      added_label: addedLabel,
+      order: orderAfterReload,
+      width: addedPresentation.width,
+      pinned: addedPresentation.pinned,
+      frozen: addedPresentation.frozen,
+      reload_verified: true,
+    };
+    record("layout survives a full reload through the real API and SQLite", {
+      order: orderAfterReload,
+      width: addedPresentation.width,
+      pinned: addedPresentation.pinned,
+      frozen: addedPresentation.frozen,
+    });
+
+    await page.click(`[data-p6-field-remove="${addTarget}"]`);
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
+      "remove temporary column",
+    );
+    await page.click(`[data-p6-field-visibility="${hiddenTarget}"][data-p6-field-visible="true"]`);
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      "restore hidden column",
+    );
+    record("temporary visible column changes restored to the fixture baseline", {
+      removed: addTarget,
+      restored: hiddenTarget,
+      note: "the removed field stays addable in the demo field registry",
+    });
+
+    await page.setInput("[data-activity-filter]", "civil");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 5`,
+      "filter civil works",
+    );
+    const civilIds = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]")).map((row) => row.dataset.activityId)
+    )()`);
+    assert(
+      civilIds.join(",") === "A120,A130,A140,A145,A160",
+      `civil filter must return the real WBS rows, got ${civilIds.join(",")}`,
+    );
+    await page.setInput("[data-activity-filter]", "civil completed");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 1`,
+      "multi-token filter",
+    );
+    assert(
+      (await page.evaluate(
+        `document.querySelector("#cp-activity-grid tbody tr[data-activity-id]").dataset.activityId`,
+      )) === "A120",
+      "multi-token filter must match WBS and status",
+    );
+    await page.setInput("[data-activity-filter]", "zzzz-no-match");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 0`,
+      "empty filter result",
+    );
+    assert(
+      (await page.text("#cp-activity-grid tbody")).includes("No activities match"),
+      "empty filter must have an explicit empty state",
+    );
+    await page.setInput("[data-activity-filter]", "civil");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 5`,
+      "restore civil filter",
+    );
+    assert(
+      (await page.count(".cp-gantt-row")) === 5,
+      "Gantt must follow the filtered activity set",
+    );
+    await page.scrollTo("#cp-activity-grid");
+    await page.screenshot("05-filter-sort.png");
+    await page.setInput("[data-activity-filter]", "");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
+      "clear activity filter",
+    );
+
+    await page.setSelect("[data-activity-sort]", "activity.id");
+    await page.waitFor(
+      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id]')?.dataset.activityId === "A100"`,
+      "sort by activity id",
+    );
+    await page.click("[data-activity-sort-direction]");
+    await page.waitFor(
+      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id]')?.dataset.activityId === "A210"`,
+      "descending activity id sort",
+    );
+    await page.setSelect("[data-activity-sort]", "activity.total_float");
+    await page.waitFor(
+      `document.querySelector("[data-activity-sort]").value === "activity.total_float"`,
+      "sort by total float",
+    );
+    const floatIndex = await page.evaluate(`(() => {
+      const labels = Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim());
+      return labels.findIndex((label) => /float/i.test(label));
+    })()`);
+    assert(floatIndex >= 0, "Total Float column must be visible");
+    const ascFloats = await page.evaluate(`(() => {
+      const rows = Array.from(document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]"));
+      return rows.map((row) => {
+        const text = row.children[${floatIndex}]?.textContent.trim() ?? "";
+        const value = Number.parseFloat(text);
+        return { id: row.dataset.activityId, value: Number.isFinite(value) ? value : null };
+      });
+    })()`);
+    const numericAsc = ascFloats.filter((item) => item.value !== null).map((item) => item.value);
+    assert(
+      numericAsc.every((value, index) => index === 0 || numericAsc[index - 1] <= value),
+      `total float ascending order expected, got ${JSON.stringify(ascFloats)}`,
+    );
+    assert(
+      ascFloats.slice(numericAsc.length).every((item) => item.value === null),
+      "missing total float values must sort last",
+    );
+    await page.click("[data-activity-sort-direction]");
+    await page.waitFor(
+      `(() => {
+        const rows = Array.from(document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]"));
+        const values = rows.map((row) => Number.parseFloat(row.children[${floatIndex}]?.textContent.trim() ?? "")).filter(Number.isFinite);
+        return values.length < 2 || values[0] >= values[1];
+      })()`,
+      "descending total float sort",
+    );
+    const descFloats = await page.evaluate(`(() => {
+      const rows = Array.from(document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]"));
+      return rows.map((row) => {
+        const text = row.children[${floatIndex}]?.textContent.trim() ?? "";
+        const value = Number.parseFloat(text);
+        return Number.isFinite(value) ? value : null;
+      });
+    })()`);
+    const numericDesc = descFloats.filter((value) => value !== null);
+    assert(
+      numericDesc.every((value, index) => index === 0 || numericDesc[index - 1] >= value),
+      "total float descending order",
+    );
+    await page.setSelect("[data-activity-sort]", "");
+    await page.waitFor(
+      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id]')?.dataset.activityId === "A100"`,
+      "reset activity sort",
+    );
+    record("filter and numeric sort operate on persisted activity facts", {
+      civil_rows: civilIds,
+      multi_token_row: "A120",
+      no_match_empty_state: true,
+      float_ascending: ascFloats,
+      float_descending: descFloats,
+    });
+
+    await page.click('[data-menu="schedule"]');
+    await page.waitForSelector("[data-schedule-settings-form]", "settings form after menu");
+    const settings = await page.evaluate(`(() => {
+      const form = document.querySelector("[data-schedule-settings-form]");
+      const calendar = form?.querySelector('select[name="calendar_ref"]');
+      const selected = calendar?.selectedOptions?.[0];
+      return {
+        revision: Number(form?.elements.namedItem("record_revision")?.value ?? -1),
+        mode: form?.elements.namedItem("mode")?.value ?? null,
+        project_start: form?.elements.namedItem("project_start")?.value ?? null,
+        calendar_system: form?.elements.namedItem("calendar_system")?.value ?? null,
+        priority: form?.elements.namedItem("project_leveling_priority")?.value ?? null,
+        selected_calendar: selected?.textContent.trim() ?? null,
+        calendar_options: calendar ? Array.from(calendar.options).map((option) => option.textContent.trim()) : [],
+      };
+    })()`);
+    assert(settings.mode === "DATE_BASED", "fixture settings must be date based");
+    assert(settings.project_start === "2026-09-21", "fixture project start must load");
+    assert(settings.calendar_system === "gregorian", "fixture calendar system must load");
+    assert(settings.priority === "10", "fixture leveling priority must load");
+    assert(
+      settings.calendar_options.some((option) => option.includes("CUBI-RPS-CAL")),
+      "project calendar catalogue must include the persisted calendar",
+    );
+    await page.scrollTo("#cp-schedule-options");
+    await page.screenshot("06-settings-calendar.png");
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
+      "settings save status",
+    );
+    const savedRevision = await page.evaluate(
+      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1)`,
+    );
+    assert(savedRevision > settings.revision, "settings save must persist a new revision");
+    EVIDENCE.persistence.settings = {
+      initial_revision: settings.revision,
+      saved_revision: savedRevision,
+      calendar: settings.selected_calendar,
+      project_start: settings.project_start,
+      calendar_system: settings.calendar_system,
+    };
+    record("project settings and calendar persist through the real settings API", {
+      initial_revision: settings.revision,
+      saved_revision: savedRevision,
+      calendar: settings.selected_calendar,
+    });
+
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 14`,
+      "authoritative schedule result rows",
+      60000,
+    );
+    const runStatus = await page.text("[data-run-status]");
+    assert(runStatus === "", `schedule run status should be clear, got ${runStatus}`);
+    const calculation = await page.evaluate(`(() => {
+      const meta = document.querySelector(".cp-schedule-result-meta")?.textContent ?? "";
+      const hash = document.querySelector(".cp-schedule-result-meta code")?.textContent.trim() ?? "";
+      const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr")).map((row) =>
+        Array.from(row.children).map((cell) => cell.textContent.trim())
+      );
+      const a130 = rows.find((row) => row[0] === "A130");
+      const a100 = rows.find((row) => row[0] === "A100");
+      return { meta, hash, row_count: rows.length, a130, a100 };
+    })()`);
+    assert(calculation.hash.length >= 16, "published snapshot hash must be substantial");
+    assert(calculation.a130, "A130 must be present in authoritative schedule output");
+    assert(
+      calculation.a130.every((value) => value.length > 0),
+      "A130 authoritative schedule row must be fully populated",
+    );
+    const gridA130 = await page.evaluate(`(() => {
+      const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"]');
+      return row ? Array.from(row.children).map((cell) => cell.textContent.trim()) : null;
+    })()`);
+    assert(gridA130, "A130 must remain in the activity grid after calculation");
+    await page.scrollTo("#cp-schedule-run");
+    await page.screenshot("07-schedule-results.png");
+    EVIDENCE.calculation = {
+      snapshot_meta: calculation.meta,
+      snapshot_hash: calculation.hash,
+      row_count: calculation.row_count,
+      a130: calculation.a130,
+      a100: calculation.a100,
+      grid_a130: gridA130,
+      source: "POST snapshot + /api/v1/schedule/query (Shared Domain/Calculation Core)",
+    };
+    record("snapshot publication and Shared Core schedule query return real results", {
+      row_count: calculation.row_count,
+      hash: calculation.hash,
+      a130_start: calculation.a130?.[1],
+      a130_finish: calculation.a130?.[2],
+    });
+
+    const interchange = await page.evaluate(
+      `(async () => {
+        const headers = {
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        };
+        const exportResponse = await fetch("/api/projects/${PROJECT_ID}/p6/interchange/PRIMAVERA_XML/export", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({
+            values: [{ "activity.id": "A130", "activity.name": "Earthworks" }],
+            extensions: [{ "p6.primavera.xml.object": "Activity" }],
+          }),
+        });
+        const exported = await exportResponse.json();
+        const importResponse = await fetch("/api/projects/${PROJECT_ID}/p6/interchange/PRIMAVERA_XML/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/xml", ...headers },
+          body: exported.document?.data ?? "",
+        });
+        return {
+          export_status: exportResponse.status,
+          exported,
+          import_status: importResponse.status,
+          imported: await importResponse.json(),
+        };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(interchange.export_status === 200, "interchange export must succeed");
+    assert(
+      interchange.exported.format === "PRIMAVERA_XML",
+      "export must use the configured provider format",
+    );
+    assert(
+      interchange.exported.document?.encoding === "utf-8",
+      "exported document must be UTF-8 text",
+    );
+    const exportedXml = interchange.exported.document?.data ?? "";
+    assert(
+      exportedXml.includes("<Id>A130</Id>") &&
+        exportedXml.includes("<Name>Earthworks</Name>"),
+      "exported XML must carry the mapped activity values",
+    );
+    assert(interchange.import_status === 200, "interchange import must succeed");
+    const importedRow = interchange.imported.rows?.[0];
+    assert(importedRow, "import must return the mapped row");
+    assert(
+      importedRow.values["activity.id"] === "A130" &&
+        importedRow.values["activity.name"] === "Earthworks",
+      "import must map provider fields back to canonical activity fields",
+    );
+    assert(
+      importedRow.extensions["p6.primavera.xml.object"] === "Activity",
+      "provider object identity must be preserved",
+    );
+    assert(
+      Array.isArray(importedRow.warnings) && importedRow.warnings.length === 0,
+      "round-trip row must not need loss warnings",
+    );
+    EVIDENCE.interchange = {
+      format: interchange.exported.format,
+      export_status: interchange.export_status,
+      import_status: interchange.import_status,
+      exported_xml: exportedXml,
+      imported_row: importedRow,
+    };
+    record("provider XML interchange round-trip uses persisted mappings and the real codec", {
+      format: interchange.exported.format,
+      export_status: interchange.export_status,
+      import_status: interchange.import_status,
+      canonical_values: importedRow.values,
+    });
+
+    const capacity = await page.evaluate(
+      `(async () => {
+        const headers = {
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        };
+        const listResponse = await fetch("/api/projects/${PROJECT_ID}/p6/resource-capacities", {
+          headers,
+        });
+        const listed = await listResponse.json();
+        const profileResponse = await fetch(
+          "/api/projects/${PROJECT_ID}/p6/resource-capacities/RPS-CIVIL-CREW",
+          { headers },
+        );
+        const profile = await profileResponse.json();
+        const missingResponse = await fetch(
+          "/api/projects/${PROJECT_ID}/p6/resource-capacities/UNREGISTERED-RESOURCE",
+          { headers },
+        );
+        const missing = await missingResponse.json();
+        return {
+          list_status: listResponse.status,
+          listed,
+          profile_status: profileResponse.status,
+          profile,
+          missing_status: missingResponse.status,
+          missing,
+        };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(capacity.list_status === 200, "capacity list must be readable");
+    assert(
+      capacity.listed.contract_version === "p6-resource-capacity-read-api.v1",
+      "capacity list must use the typed read contract",
+    );
+    assert(
+      capacity.listed.capacities?.length === 2,
+      "RPS-CIVIL-CREW must expose two effective-dated ceiling segments",
+    );
+    const [earlyCeiling, lateCeiling] = capacity.listed.capacities;
+    assert(
+      earlyCeiling.capacity.max_units === "8" &&
+        earlyCeiling.capacity.unit_basis === "day" &&
+        earlyCeiling.capacity.hours_per_time_period === "8" &&
+        earlyCeiling.capacity.effective_to === "2026-10-14",
+      "first ceiling must be an explicit 8/day segment with an end date",
+    );
+    assert(
+      lateCeiling.capacity.max_units === "12" &&
+        lateCeiling.capacity.effective_from === "2026-10-15" &&
+        lateCeiling.capacity.effective_to === null,
+      "second ceiling must be an explicit 12/day open-ended segment",
+    );
+    assert(
+      earlyCeiling.capacity.identity !== lateCeiling.capacity.identity &&
+        earlyCeiling.capacity.identity.length === 64,
+      "each ceiling segment must carry a distinct content identity",
+    );
+    assert(
+      capacity.profile_status === 200 &&
+        capacity.profile.status === "REGISTERED" &&
+        capacity.profile.segments?.length === 2,
+      "capacity profile must resolve the registered effective-dated profile",
+    );
+    assert(
+      capacity.missing_status === 404 &&
+        capacity.missing.code === "RESOURCE_CAPACITY_NOT_REGISTERED",
+      "an unregistered ceiling must fail closed instead of assuming a value",
+    );
+    EVIDENCE.resource_capacity = {
+      contract_version: capacity.listed.contract_version,
+      list_status: capacity.list_status,
+      profile_status: capacity.profile_status,
+      segments: capacity.profile.segments,
+      missing_status: capacity.missing_status,
+      missing_code: capacity.missing.code,
+      source: "GET /p6/resource-capacities over persisted typed capacity segments",
+    };
+    record("typed resource Max Units/Time read resolves effective-dated registered ceilings", {
+      list_status: capacity.list_status,
+      profile_status: capacity.profile_status,
+      segment_count: capacity.profile.segments?.length,
+      first_max_units: earlyCeiling.capacity.max_units,
+      second_max_units: lateCeiling.capacity.max_units,
+      unregistered_status: capacity.missing_status,
+    });
+
+    await page.click("[data-language-toggle]");
+    await page.waitFor(
+      `document.querySelector(".cp-workspace")?.getAttribute("dir") === "rtl"`,
+      "Persian RTL workspace",
+    );
+    const faMenu = await page.evaluate(
+      `Array.from(document.querySelectorAll(".cp-menu button[data-menu]")).find((button) => button.dataset.menu === "schedule")?.textContent.trim()`,
+    );
+    assert(faMenu === "زمان‌بندی", "Persian menu label must render");
+    const faFilter = await page.evaluate(
+      `document.querySelector("[data-activity-filter]")?.getAttribute("placeholder")`,
+    );
+    assert(faFilter && /[\u0600-\u06FF]/.test(faFilter), "Persian filter placeholder must render");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
+      "Persian workspace keeps activity rows",
+    );
+    await page.scrollTo("#cp-activity-grid");
+    await page.screenshot("08-persian-rtl.png");
+    record("Persian/RTL surface renders persisted project data", {
+      schedule_label: faMenu,
+      filter_placeholder: faFilter,
+    });
+    await page.click("[data-language-toggle]");
+    await page.waitFor(
+      `document.querySelector(".cp-workspace")?.getAttribute("dir") === "ltr"`,
+      "English LTR workspace",
+    );
+
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1024,
+      height: 768,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await sleep(300);
+    const compact = await page.evaluate(`(() => ({
+      innerWidth: window.innerWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      menuWidth: document.querySelector(".cp-menu")?.getBoundingClientRect().width ?? 0,
+      menuButtons: Array.from(document.querySelectorAll(".cp-menu button[data-menu]")).map((button) => {
+        const rect = button.getBoundingClientRect();
+        return { label: button.textContent.trim(), left: rect.left, right: rect.right, width: rect.width };
+      }),
+    }))()`);
+    assert(compact.menuWidth > 0, "menu must be visible at 1024px");
+    assert(
+      compact.menuButtons.every((button) => button.width > 0 && button.left >= -1 && button.right <= compact.innerWidth + 1),
+      `menu buttons must stay inside the 1024px viewport: ${JSON.stringify(compact.menuButtons)}`,
+    );
+    await page.evaluate("window.scrollTo(0, 0)");
+    await page.screenshot("09-compact-1024.png");
+    record("compact 1024px desktop layout keeps navigation usable", compact);
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+
+    await page.reload(".cp-project-selection", "final reload");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "workspace after final reload");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
+      "persisted rows after final reload",
+    );
+    const finalHeaders = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+    )()`);
+    assert(
+      finalHeaders.length === initialHeaders.length,
+      "baseline column set must be restored after the layout round-trip",
+    );
+    assert(
+      finalHeaders.includes(hiddenLabel) && !finalHeaders.includes(addedLabel),
+      "final reload must show the restored baseline columns",
+    );
+    await page.waitForSelector("[data-schedule-settings-form]", "settings after final reload");
+    const finalSettings = await page.evaluate(`(() => {
+      const form = document.querySelector("[data-schedule-settings-form]");
+      const calendar = form?.querySelector('select[name="calendar_ref"]');
+      return {
+        revision: Number(form?.elements.namedItem("record_revision")?.value ?? -1),
+        calendar: calendar?.selectedOptions?.[0]?.textContent.trim() ?? null,
+        project_start: form?.elements.namedItem("project_start")?.value ?? null,
+      };
+    })()`);
+    assert(
+      finalSettings.revision >= savedRevision,
+      "saved settings revision must survive reload",
+    );
+    assert(
+      finalSettings.calendar?.includes("CUBI-RPS-CAL"),
+      "saved calendar must survive reload",
+    );
+    await page.scrollTo("#cp-activity-grid");
+    await page.screenshot("10-reload-persisted.png");
+    record("saved settings, calendar and layout survive a full reload", finalSettings);
+
+    await page.click("#cubi-preview-banner button");
+    await page.waitForSelector('form[action="/preview/login"]', "logout returns to login");
+    await page.navigate(
+      `${baseUrl}/app`,
+      'form[action="/preview/login"]',
+      "guarded /app",
+      `${baseUrl}/preview/login`,
+    );
+    assert(
+      (await page.evaluate("location.pathname")) === "/preview/login",
+      "unauthenticated /app must land on the preview login",
+    );
+    record("session logout and /app guard work in the browser", {
+      path: await page.evaluate("location.pathname"),
+    });
+
+    await page.click('button[name="role"][value="viewer"]');
+    await page.waitForSelector(".cp-project-selection", "viewer project selection");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "viewer workspace");
+    await page.waitFor(
+      `document.querySelector("#cubi-preview-banner")?.textContent.includes("preview-viewer")`,
+      "viewer banner identity",
+    );
+    await page.waitForSelector("[data-run-schedule]", "viewer run control");
+    const sessionViewer = await page.evaluate(
+      `fetch("/api/session").then((response) => response.json())`,
+      { awaitPromise: true },
+    );
+    assert(
+      Array.isArray(sessionViewer.roles) && sessionViewer.roles.includes("viewer"),
+      "viewer session roles must come from the server",
+    );
+
+    const layoutGet = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/p6/layouts/project/activity", {
+        headers: {
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+      });
+      const body = await response.json().catch(() => null);
+      return { status: response.status, body };
+    })()`, { awaitPromise: true });
+    assert(layoutGet.status === 200, "viewer must be able to read the layout");
+    const viewerLayoutPost = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/p6/layouts/project/activity", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({
+          revision: ${Number(layoutGet.body.revision) + 1},
+          columns: ${JSON.stringify(layoutGet.body.columns)},
+          metadata: {},
+        }),
+      });
+      const body = await response.json().catch(() => null);
+      return { status: response.status, body };
+    })()`, { awaitPromise: true });
+    assert(viewerLayoutPost.status === 403, "viewer layout write must be denied with 403");
+    const viewerSnapshotPost = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/p6/schedule/snapshots", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          "Idempotency-Key": "preview-e2e-viewer-denied",
+        },
+        body: JSON.stringify({ contract_version: "p6-schedule-snapshot-api.v1", timezone: "UTC" }),
+      });
+      const body = await response.json().catch(() => null);
+      return { status: response.status, body };
+    })()`, { awaitPromise: true });
+    assert(viewerSnapshotPost.status === 403, "viewer snapshot publication must be denied with 403");
+    EVIDENCE.permissions = {
+      session_roles: sessionViewer.roles,
+      layout_read_status: layoutGet.status,
+      layout_write: viewerLayoutPost,
+      snapshot_write: viewerSnapshotPost,
+    };
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `(document.querySelector("[data-run-status]")?.textContent ?? "").includes("did not complete") ||
+       (document.querySelector("[data-run-status]")?.textContent ?? "").includes("کامل نشد")`,
+      "viewer run failure is shown",
+      30000,
+    );
+    const viewerRunStatus = await page.text("[data-run-status]");
+    const viewerRunRows = await page.count(
+      "[data-run-results] .cp-schedule-result-table tbody tr",
+    );
+    assert(viewerRunRows === 0, "denied calculation must not display fabricated results");
+    await page.scrollTo("#cp-schedule-run");
+    await page.screenshot("11-viewer-permission.png");
+    record("viewer role is read-only and sees an explicit failed-calculation error", {
+      run_status: viewerRunStatus,
+      layout_write_status: viewerLayoutPost.status,
+      snapshot_write_status: viewerSnapshotPost.status,
+      result_rows: viewerRunRows,
+    });
+    await page.click("#cubi-preview-banner button");
+    await page.waitForSelector('form[action="/preview/login"]', "final logout");
+
+    await page.click('button[name="role"][value="admin"]');
+    await page.waitForSelector(".cp-project-selection", "admin project selection");
+    const createdProjectName = `E2E project ${Date.now()}`;
+    await page.evaluate(
+      `(() => {
+        const input = document.querySelector('.cp-project-create-form input[name="projectName"]');
+        const form = document.querySelector('.cp-project-create-form');
+        if (!input || !form) throw new Error("PROJECT_CREATE_FORM_MISSING");
+        input.value = ${JSON.stringify(createdProjectName)};
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        form.requestSubmit();
+        return true;
+      })()`,
+    );
+    await page.waitForSelector(".cp-workspace", "created project workspace");
+    await page.waitFor(
+      `document.querySelector("#cubi-preview-banner")?.textContent.includes("preview-admin")`,
+      "admin banner identity",
+    );
+    const createdProject = await page.evaluate(`(() => ({
+      name: document.querySelector(".cp-project")?.textContent.trim() ?? "",
+      revision: document.querySelector(".cp-revision")?.textContent.trim() ?? "",
+      rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+      columns: document.querySelectorAll("#cp-activity-grid thead th").length,
+      calendar_toggle: document.querySelector("[data-calendar-mode]")?.getAttribute("data-calendar-mode") ?? null,
+    }))()`);
+    const projectsAfterCreate = await page.evaluate(
+      `fetch("/api/projects").then((response) => response.json())`,
+      { awaitPromise: true },
+    );
+    assert(
+      Array.isArray(projectsAfterCreate.projects) &&
+        projectsAfterCreate.projects.some(
+          (project) => project.name === createdProjectName,
+        ),
+      "the created project name must be returned by the persisted project list",
+    );
+    assert(
+      createdProject.name.length > 0 && createdProject.revision.startsWith("R"),
+      "the newly created project must be opened in the workspace",
+    );
+    assert(createdProject.rows === 0, "a new project must show an explicit empty activity grid");
+    assert(createdProject.columns === 10, "a new project must receive the persisted curated layout");
+    assert(
+      createdProject.calendar_toggle === "jalali",
+      "the created empty workspace must still expose the calendar display toggle",
+    );
+    await page.screenshot("12-admin-project-created.png");
+    EVIDENCE.project_creation = {
+      name: createdProjectName,
+      revision: createdProject.revision,
+      rows: createdProject.rows,
+      columns: createdProject.columns,
+      calendar_toggle: createdProject.calendar_toggle,
+      source: "Web create-project form -> POST /api/projects -> preview initializer",
+    };
+    record("authorized project creation initializes an empty persisted workspace", {
+      name: createdProjectName,
+      rows: createdProject.rows,
+      columns: createdProject.columns,
+    });
+
+    if (EXCEPTIONS.length > 0) {
+      throw new Error(
+        `UNCAUGHT_PAGE_EXCEPTIONS: ${JSON.stringify(EXCEPTIONS.slice(0, 5))}`,
+      );
+    }
+    if (API_FAILURES.length > 0) {
+      throw new Error(`API_5XX_RESPONSES: ${JSON.stringify(API_FAILURES.slice(0, 5))}`);
+    }
+    record("no uncaught browser exceptions or API 5xx responses", {
+      console_error_count: CONSOLE_ERRORS.length,
+    });
+  } finally {
+    page?.cdp.close();
+    chrome.cdp.close();
+    chrome.stop();
+    if (managed) managed.stop();
+  }
+}
+
+let failure = null;
+try {
+  await main();
+} catch (error) {
+  failure = error;
+  EVIDENCE.failure = {
+    message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : null,
+  };
+  log(`\nE2E FAILED: ${EVIDENCE.failure.message}`);
+} finally {
+  EVIDENCE.finished_at = new Date().toISOString();
+  EVIDENCE.status = failure ? "failed" : "passed";
+  const evidenceFile = join(artifactsDir, "evidence.json");
+  writeFileSync(evidenceFile, JSON.stringify(EVIDENCE, null, 2));
+  log(`\nEvidence: ${evidenceFile}`);
+  log(`Screenshots: ${SCREENSHOTS.length}`);
+  if (failure) {
+    process.exitCode = 1;
+  } else {
+    log(`\nCUBI full-stack preview E2E passed (${CHECKS.length} recorded checks).`);
+  }
+}

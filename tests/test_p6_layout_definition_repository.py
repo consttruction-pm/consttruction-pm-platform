@@ -1,19 +1,22 @@
+import json
 import sqlite3
+
 import pytest
 
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.p6_layout_definition_repository import (
     LayoutColumn, PersistedP6Layout, P6LayoutPersistenceError, PostgresP6LayoutRepository, SQLiteP6LayoutRepository,
+    layout_column_from_mapping,
 )
 
 
-def layout(revision=2, tenant="t1", project="p1"):
+def layout(revision=2, tenant="t1", project="p1", width=120):
     return PersistedP6Layout(
         BackendScope(tenant, project, 7),
         "project",
         "activity",
         revision,
-        (LayoutColumn("activity_id", True, 0, None, 120, "start", False, False),),
+        (LayoutColumn("activity_id", True, 0, None, width, "start", False, False),),
         {"future": {"enabled": True}},
     )
 
@@ -26,12 +29,47 @@ def test_layout_round_trip_and_scope_isolation():
     assert repo.get(BackendScope("other", "p1", 7), "project", "activity") is None
 
 
-def test_layout_revision_is_immutable_and_project_revision_checked():
+def test_layout_edits_append_immutable_revisions_and_survive_reload():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteP6LayoutRepository(connection)
+    repo.upsert(layout(revision=2))
+    repo.upsert(layout(revision=3, width=180))
+    assert repo.get(BackendScope("t1", "p1", 7), "project", "activity") == layout(revision=3, width=180)
+
+    # Reopening the repository against the same database proves durable
+    # persistence rather than in-memory presentation state.
+    reopened = SQLiteP6LayoutRepository(connection)
+    assert reopened.get(BackendScope("t1", "p1", 7), "project", "activity") == layout(revision=3, width=180)
+
+
+def test_layout_save_is_committed_for_a_standalone_repository(tmp_path):
+    database = tmp_path / "layout.sqlite3"
+    writer = sqlite3.connect(database)
+    SQLiteP6LayoutRepository(writer).upsert(layout(revision=1))
+    writer.close()
+
+    reader = sqlite3.connect(database)
+    try:
+        assert SQLiteP6LayoutRepository(reader).get(
+            BackendScope("t1", "p1", 7), "project", "activity"
+        ) == layout(revision=1)
+    finally:
+        reader.close()
+
+
+def test_layout_revision_is_immutable_and_optimistic():
     repo = SQLiteP6LayoutRepository(sqlite3.connect(":memory:"))
-    value = layout()
-    repo.upsert(value)
+    repo.upsert(layout(revision=2))
+    repo.upsert(layout(revision=3, width=180))
+
+    # A stale writer cannot overwrite an already-published revision.
     with pytest.raises(P6LayoutPersistenceError, match="IMMUTABLE_LAYOUT_REVISION"):
-        repo.upsert(layout(revision=3))
+        repo.upsert(layout(revision=3, width=240))
+    with pytest.raises(P6LayoutPersistenceError, match="IMMUTABLE_LAYOUT_REVISION"):
+        repo.upsert(layout(revision=2, width=240))
+    # Gaps are rejected so every persisted revision has a linear history.
+    with pytest.raises(P6LayoutPersistenceError, match="REVISION_CONFLICT"):
+        repo.upsert(layout(revision=5))
     with pytest.raises(P6LayoutPersistenceError, match="REVISION_CONFLICT"):
         repo.get(BackendScope("t1", "p1", 8), "project", "activity")
 
@@ -44,6 +82,76 @@ def test_layout_rejects_non_normalized_columns():
         bad.validate()
 
 
+def test_layout_column_mapping_allows_optional_label():
+    column = layout_column_from_mapping({
+        "field_id": "activity.type",
+        "visible": True,
+        "order": 10,
+        "width": 130,
+        "alignment": "start",
+        "pinned": False,
+        "frozen": False,
+    })
+    assert column.label is None
+    assert column.field_id == "activity.type"
+
+
+def test_layout_column_mapping_rejects_malformed_columns():
+    with pytest.raises(P6LayoutPersistenceError, match="INVALID_LAYOUT_COLUMNS"):
+        layout_column_from_mapping(["not", "a", "mapping"])
+    with pytest.raises(P6LayoutPersistenceError, match="INVALID_LAYOUT_COLUMNS"):
+        layout_column_from_mapping({"field_id": "activity.id"})
+
+
+def test_layout_stored_column_without_label_is_readable():
+    column = {
+        "field_id": "activity.type",
+        "visible": True,
+        "order": 0,
+        "width": 130,
+        "alignment": "start",
+        "pinned": False,
+        "frozen": False,
+    }
+    repo = SQLiteP6LayoutRepository(sqlite3.connect(":memory:"))
+    value = PersistedP6Layout(
+        BackendScope("t1", "p1", 7), "project", "activity", 2,
+        (layout_column_from_mapping(column),), {},
+    )
+    repo.upsert(value)
+    read_back = repo.get(value.scope, "project", "activity")
+    assert read_back == value
+    assert read_back.columns[0].label is None
+
+
+def test_layout_migrates_legacy_single_revision_table_without_deleting_it():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        "CREATE TABLE p6_layout_definitions ("
+        "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL, "
+        "layout_scope TEXT NOT NULL, view_id TEXT NOT NULL, revision INTEGER NOT NULL, "
+        "columns_json TEXT NOT NULL, metadata_json TEXT NOT NULL, "
+        "PRIMARY KEY (tenant_id, project_id, layout_scope, view_id))"
+    )
+    legacy = layout(revision=4)
+    connection.execute(
+        "INSERT INTO p6_layout_definitions VALUES (?,?,?,?,?,?,?,?)",
+        (
+            legacy.scope.tenant_id,
+            legacy.scope.project_id,
+            legacy.scope.project_revision,
+            legacy.layout_scope,
+            legacy.view_id,
+            legacy.revision,
+            json.dumps([c.__dict__ for c in legacy.columns], sort_keys=True, separators=(",", ":")),
+            json.dumps(dict(legacy.metadata), sort_keys=True, separators=(",", ":")),
+        ),
+    )
+    repo = SQLiteP6LayoutRepository(connection)
+    assert repo.get(legacy.scope, "project", "activity") == legacy
+    assert connection.execute("SELECT COUNT(*) FROM p6_layout_definitions").fetchone()[0] == 1
+
+
 class _FakePostgresConnection:
     def __init__(self, value):
         self.value = value
@@ -54,10 +162,10 @@ class _FakePostgresConnection:
     def fetchone(self):
         value = self.value
         columns_json = '[{"alignment":"start","field_id":"activity_id","frozen":false,"label":null,"order":0,"pinned":false,"visible":true,"width":120}]'
-        return (value.scope.project_revision, value.revision, columns_json, '{"future":{"enabled":true}}')
+        return (value.revision, columns_json, '{"future":{"enabled":true}}')
 
 
-def test_postgres_get_decodes_layout_columns_after_project_revision():
+def test_postgres_get_decodes_latest_layout_revision():
     value = layout()
     repo = PostgresP6LayoutRepository(_FakePostgresConnection(value))
     assert repo.get(value.scope, "project", "activity") == value
