@@ -148,6 +148,27 @@ async function readLayoutHistoryFromPage(page) {
   })()`, { awaitPromise: true });
 }
 
+async function writeLayoutFromPage(page, revision, columns, metadata = {}) {
+  return page.evaluate(`(async () => {
+    const response = await fetch("/api/projects/${PROJECT_ID}/p6/layouts/project/activity", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+        "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+        "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+      },
+      body: JSON.stringify({
+        revision: ${Number(revision)},
+        columns: ${JSON.stringify(columns)},
+        metadata: ${JSON.stringify(metadata)},
+      }),
+    });
+    const body = await response.json().catch(() => null);
+    return { status: response.status, body };
+  })()`, { awaitPromise: true });
+}
+
 async function waitForHttp(url, timeoutMs = 60000) {  const deadline = Date.now() + timeoutMs;
   let lastError;
   while (Date.now() < deadline) {
@@ -1298,24 +1319,12 @@ async function main() {
     assert(conflictBase.status === 200, "layout must be readable before the conflict race");
     const externalColumns = conflictBase.body.columns.map((column) =>
       column.field_id === addTarget ? { ...column, width: 333 } : column);
-    const externalWrite = await page.evaluate(`(async () => {
-      const response = await fetch("/api/projects/${PROJECT_ID}/p6/layouts/project/activity", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
-          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
-          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
-        },
-        body: JSON.stringify({
-          revision: ${Number(conflictBase.body.revision) + 1},
-          columns: ${JSON.stringify(externalColumns)},
-          metadata: ${JSON.stringify(conflictBase.body.metadata ?? {})},
-        }),
-      });
-      const body = await response.json().catch(() => null);
-      return { status: response.status, body };
-    })()`, { awaitPromise: true });
+    const externalWrite = await writeLayoutFromPage(
+      page,
+      conflictBase.body.revision + 1,
+      externalColumns,
+      conflictBase.body.metadata ?? {},
+    );
     assert(
       externalWrite.status === 200,
       `competing writer must publish the next revision, got ${externalWrite.status}`,
@@ -1369,6 +1378,68 @@ async function main() {
       authoritative_head: serverHeadAfterConflict.body.revision,
       localized_conflict_shown: true,
       competing_width: 333,
+    });
+
+    // A second race advances the head twice, so the next stale edit is a
+    // revision gap (REVISION_CONFLICT) rather than a same-revision clash
+    // (IMMUTABLE_LAYOUT_REVISION). Both Web recovery branches must reload.
+    await page.click(`[data-p6-field-width="${addTarget}"][data-p6-field-width-delta="decrease"]`);
+    await page.waitFor(
+      `!document.querySelector(".cp-p6-history-notice")`,
+      "a successful layout save clears the previous conflict notice",
+    );
+    const gapBase = await readLayoutFromPage(page);
+    assert(
+      gapBase.body.revision > conflictBase.body.revision,
+      "the successful recovery save must append a revision",
+    );
+    for (const offset of [1, 2]) {
+      const append = await writeLayoutFromPage(
+        page,
+        gapBase.body.revision + offset,
+        gapBase.body.columns,
+        gapBase.body.metadata ?? {},
+      );
+      assert(
+        append.status === 200,
+        `competing writer must append gap revision ${offset}, got ${append.status}`,
+      );
+    }
+
+    await page.click(`[data-p6-field-remove="${addTarget}"]`);
+    await page.waitFor(
+      `(() => {
+        const notice = document.querySelector(".cp-p6-history-notice");
+        return Boolean(notice) && /Another session changed|نشست دیگری/.test(notice.textContent || "");
+      })()`,
+      "stale edit behind a revision gap reports the conflict",
+    );
+    await page.waitFor(
+      `(() => {
+        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+        const target = ths.find((th) => th.dataset.columnId === ${JSON.stringify(addTarget)});
+        return ths.length === ${initialHeaders.length}
+          && Boolean(target) && Number.parseFloat(target.style.width) === 313;
+      })()`,
+      "gap conflict reloads the newest authoritative head",
+    );
+    const headAfterGap = await readLayoutFromPage(page);
+    assert(
+      headAfterGap.body.revision === gapBase.body.revision + 2,
+      "the stale gap write must not append a revision",
+    );
+    const historyAfterGap = await readLayoutHistoryFromPage(page);
+    const gapHistoryRevisions = (historyAfterGap.body?.revisions ?? []).map((revision) => revision.revision);
+    assert(
+      gapHistoryRevisions.length === conflictHistoryRevisions.length + 3
+        && gapHistoryRevisions[0] === headAfterGap.body.revision,
+      "the recovery save and both competing revisions must be the only appends",
+    );
+    await page.screenshot("04e-layout-conflict-gap.png");
+    record("stale layout write behind a revision gap reloads the newest head and appends nothing", {
+      stale_base_revision: gapBase.body.revision,
+      authoritative_head: headAfterGap.body.revision,
+      localized_conflict_shown: true,
     });
 
     await page.click(`[data-p6-field-remove="${addTarget}"]`);
@@ -1605,6 +1676,25 @@ async function main() {
       invalidJalaliSettings.status === 200 &&
         invalidJalaliSettings.body.project_start === "2026-09-21",
       "an impossible Jalali date must fail closed without changing the stored Gregorian date",
+    );
+    // The rejected entry must not leave the previous canonical date behind in
+    // the control: switching calendars must show the unresolved empty state
+    // rather than silently reusing the stored value.
+    await page.setSelect('select[name="calendar_system"]', "gregorian");
+    await page.waitFor(
+      `(() => {
+        const input = document.querySelector('[data-schedule-settings-form] input[name="project_start"]');
+        return input?.type === "date" && input?.value === "";
+      })()`,
+      "invalid Jalali entry must not resurrect the previous Gregorian date",
+    );
+    await page.setSelect('select[name="calendar_system"]', "jalali");
+    await page.waitFor(
+      `(() => {
+        const input = document.querySelector('[data-schedule-settings-form] input[name="project_start"]');
+        return input?.type === "text" && input?.value === "";
+      })()`,
+      "Jalali control stays unresolved after the invalid entry",
     );
     await page.setInput(
       '[data-schedule-settings-form] input[name="project_start"]',
