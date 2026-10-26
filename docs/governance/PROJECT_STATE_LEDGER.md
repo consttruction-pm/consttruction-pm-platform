@@ -4,6 +4,14 @@
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
+## Branch delivery checkpoint — 2026-10-26 (preview, capacity and formula authority; not merged)
+
+- **Branch:** `fix/resource-dependent-nondriving-leveling`. Preview/capacity/project-creation delivery is committed at `17540c75` (`feat(preview): deliver full-stack workspace preview with typed capacity`, 45 files, 8,861 insertions). The subsequent formula-authority slice is committed on the same branch; this checkpoint is branch evidence, not merged-main completion.
+- **Preview:** `npm run preview:full` (or `PYTHONPATH=src py -3 -m construction_pm.preview --web-root apps/web --port 4174`) serves the built Web client through the real WSGI API, SQLite persistence and Shared Core. There is still no external preview URL: the repository has no GitHub Pages site and no deployment was performed.
+- **Local verification:** full Python `2837 passed, 124 skipped, 1 warning`; focused formula/HTTP `108 passed`; preview runtime `7 passed`; Web `294` TypeScript tests plus `7` preview-resolver tests; `npm run typecheck` and `npm run build` passed; isolated browser E2E `25 checks, 14 screenshots` with temporary SQLite and random loopback port. PostgreSQL execution is covered by repository CI modules but was not run locally in this checkpoint because the configured service was unavailable.
+- **Formula authority:** the workspace posts expressions to the versioned Shared Core route. A valid expression returns authoritative dependencies and result type; a context self-reference returns `FORMULA_SELF_REFERENCE`; a registered field without a safe formula representation returns its explicit diagnostic instead of poisoning unrelated validation or becoming an HTTP 400. The editor is validation-only: saving formula definitions and binding calculated formula columns remain open.
+- **Not claimed:** production identity, external deployment, official CUBISITE weights/percentages, assignment-level early/late/backward placement, import/export UI, undo/redo, WBS hierarchy and typed Jalali date entry remain open as recorded in `CUBI_V1_ACCEPTANCE_MATRIX.md`. PR #1582 remains unmerged and no production deployment, secret change or sensitive admin change was performed.
+
 ## Release-gate reconciliation — 2026-10-26
 
 - **Source state checked:** default branch `main` resolves to `52483e55e19b927cc392b86808d6ff484cb26215`. The previously recorded statement that PR #1570 had not merged was stale; GitHub reports PR #1570 merged at that SHA. Its merged scope remains limited, as recorded above.

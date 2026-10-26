@@ -48,7 +48,7 @@ testCase("the visible reference panel does not expose source-brand names, URLs, 
 
 testCase("schedule submenu entries have matching target sections in the reference view", () => {
   const item = getWorkspaceNavigation("schedule");
-  assert.equal(item.submenus.length, 12);
+  assert.equal(item.submenus.length, 13);
   const html = renderReference();
   for (const target of [
     "#cp-activity-grid",
@@ -58,6 +58,8 @@ testCase("schedule submenu entries have matching target sections in the referenc
     "#cp-reference-options",
     "#cp-reference-resources",
     "#cp-reference-progress",
+    "#cp-schedule-run",
+    "#cp-formula-editor",
     "#cp-scheduling-reference-formulas",
     "#cp-scheduling-reference-documentation",
   ]) {

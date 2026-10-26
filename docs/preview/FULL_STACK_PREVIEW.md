@@ -54,6 +54,7 @@ the process restarts.
 | Persistence | Real SQLite repositories for activities, relationships, calendars, settings, layouts, field registry, UDFs, snapshots and the mapping registry. |
 | Calculation | Published immutable snapshot + `POST /api/v1/schedule/query` through the Shared Domain/Calculation Core. Dates, float and critical flags are not computed in the browser. |
 | Presentation | Persisted `p6-layout.v1` revisions and `p6-field-registry.v1` fields; optimistic layout revisions. |
+| Formulas | The workspace formula editor posts expressions to `POST /api/projects/{project}/p6/formulas/{registry_version}`. Parsing, dependency analysis, type inference and fail-closed field-type diagnostics come from the Shared Core; the browser does not evaluate formulas. |
 | Resource capacity | Typed effective-dated Resource Max Units/Time persisted per tenant/project/revision through `SQLiteP6ResourceCapacityRepository`; read through `GET /api/projects/{project}/p6/resource-capacities[/{resource_id}]`. Ceilings come from explicit fixture segments, never from assignment `units_per_time` or a calendar default. |
 | Interchange | Real provider XML codec and persisted mapping registry through `POST .../p6/interchange/PRIMAVERA_XML/{export,import}`. |
 | Sessions | In-memory opaque demo sessions (8-hour TTL), server-enforced role policy. |
@@ -121,6 +122,11 @@ SQLite database and a real headless browser. It verifies:
 - filter and numeric sort behavior, including an explicit empty state;
 - project settings/calendar read, save and revision increment;
 - snapshot publication plus Shared Core query results and content hash;
+- formula editor validation through the Shared Core authority: a valid numeric
+  expression returns its dependency and result type, a context self-reference
+  returns `FORMULA_SELF_REFERENCE`, and a registered duration field that has no
+  safe formula representation returns
+  `UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration` with no invented result type;
 - typed resource capacity read, effective-dated profile, day→week conversion with
   an explicit 40 h/week factor, distinct immutable identities and a fail-closed
   404 for an unregistered resource;
@@ -136,10 +142,11 @@ SQLite database and a real headless browser. It verifies:
   activity grid and curated layout;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **24 checks and 12 screenshots**.
+The latest isolated run recorded **25 checks and 14 screenshots**.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
-`01-login.png` through `12-admin-project-created.png`, the preview server log and
+`01-login.png` through `12-admin-project-created.png`, including
+`07b-formula-valid.png` and `07c-formula-invalid.png`, the preview server log and
 `evidence.json`.
 
 Fast backend checks for the preview composition:
@@ -164,14 +171,20 @@ initialized workspace.
 6. Open **Schedule → Schedule settings**, confirm `CUBI-RPS-CAL` and save.
 7. Open **Schedule → Run Schedule** and compare the returned A130 dates, float,
    critical flag and snapshot hash.
-8. Read the seeded capacity through
+8. Open **Schedule → Formula editor**, enter
+   `[activity.duration_percent_complete] / 100`, validate and confirm the
+   authoritative dependency and result type. Then make the context field the
+   referenced field and confirm `FORMULA_SELF_REFERENCE`; finally use the
+   registered duration field and confirm the explicit
+   `UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration` diagnostic.
+9. Read the seeded capacity through
    `GET /api/projects/preview-rps-01/p6/resource-capacities/RPS-CIVIL-CREW`
    (planner session, scope headers); confirm the 2026-10-15 basis change and that
    an unregistered resource returns 404 `RESOURCE_CAPACITY_NOT_REGISTERED`.
-9. Switch the top-right language control to Persian and confirm RTL labels.
-10. Sign out, sign in as **Viewer**, and confirm writes fail explicitly while reads
+10. Switch the top-right language control to Persian and confirm RTL labels.
+11. Sign out, sign in as **Viewer**, and confirm writes fail explicitly while reads
     remain available.
-11. Sign out, sign in as **Admin**, create a project from the project-selection
+12. Sign out, sign in as **Admin**, create a project from the project-selection
     form, and confirm the new empty workspace, curated layout and persisted name.
 
 ## Known limitations
@@ -182,6 +195,11 @@ initialized workspace.
   Web import/export screen is not implemented yet.
 - Jalali dates are rendered through the display toggle; typed Jalali date entry in
   workspace controls is not implemented yet.
+- The formula editor performs authoritative validation only. Saving formula
+  definitions and binding calculated formula columns to persisted values are not
+  exposed in this workspace slice. Registered `duration` fields fail closed with
+  `UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration` because calendar-dependent
+  duration arithmetic has no safe formula representation yet.
 - The WBS surface is a flat persisted WBS grouping, not a hierarchy editor.
 - Typed Resource Max Units/Time is implemented as domain + persistence + read API
   and seeded in the preview. A capacity-editing panel in the Web UI is not

@@ -694,7 +694,7 @@ async function main() {
       "schedule surface status must be honest",
     );
     const scheduleSubmenus = await page.count(".cp-navigation-surface a.cp-submenu-item");
-    assert(scheduleSubmenus === 12, "twelve schedule submenu anchors expected");
+    assert(scheduleSubmenus === 13, "thirteen schedule submenu anchors expected");
     const headerLabels = await page.evaluate(`(() =>
       Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
@@ -786,7 +786,7 @@ async function main() {
       { menu: "project", label: "Project", status: "Partial", submenus: 2 },
       { menu: "resources", label: "Resources", status: "Preview", submenus: 2 },
       { menu: "control", label: "Control", status: "Partial", submenus: 2 },
-      { menu: "schedule", label: "Schedule", status: "Implemented", submenus: 12 },
+      { menu: "schedule", label: "Schedule", status: "Implemented", submenus: 13 },
     ]) {
       await page.click(`[data-menu="${surface.menu}"]`);
       await page.waitFor(
@@ -1204,6 +1204,99 @@ async function main() {
       hash: calculation.hash,
       a130_start: calculation.a130?.[1],
       a130_finish: calculation.a130?.[2],
+    });
+
+    await page.scrollTo("#cp-formula-editor");
+    await page.setSelect(
+      "#cp-formula-editor [data-formula-field]",
+      "activity.total_float",
+    );
+    await page.setInput(
+      "#cp-formula-editor [data-formula-expression]",
+      "[activity.duration_percent_complete] / 100",
+    );
+    await page.click("#cp-formula-editor [data-formula-validate]");
+    await page.waitFor(
+      `Boolean(document.querySelector("#cp-formula-editor [data-formula-result] .cp-formula-valid"))`,
+      "authoritative valid formula result",
+    );
+    const validFormula = await page.text(
+      "#cp-formula-editor [data-formula-result]",
+    );
+    assert(
+      (validFormula ?? "").includes("activity.duration_percent_complete"),
+      `valid formula result must list the Shared Core dependency, got ${validFormula}`,
+    );
+    assert(
+      (validFormula ?? "").includes("double"),
+      `valid formula result must expose the authoritative result type, got ${validFormula}`,
+    );
+    await page.screenshot("07b-formula-valid.png");
+
+    await page.setSelect(
+      "#cp-formula-editor [data-formula-field]",
+      "activity.duration_percent_complete",
+    );
+    await page.setInput(
+      "#cp-formula-editor [data-formula-expression]",
+      "[activity.duration_percent_complete] + 1",
+    );
+    await page.click("#cp-formula-editor [data-formula-validate]");
+    await page.waitFor(
+      `Boolean(document.querySelector("#cp-formula-editor [data-formula-result] .cp-formula-invalid"))`,
+      "authoritative invalid formula result",
+    );
+    const invalidFormula = await page.text(
+      "#cp-formula-editor [data-formula-result]",
+    );
+    assert(
+      (invalidFormula ?? "").includes("FORMULA_SELF_REFERENCE"),
+      `invalid formula must report the Shared Core error code, got ${invalidFormula}`,
+    );
+    assert(
+      !(invalidFormula ?? "").includes("Result type"),
+      "an invalid formula must not present an invented result type",
+    );
+    await page.screenshot("07c-formula-invalid.png");
+
+    await page.setSelect(
+      "#cp-formula-editor [data-formula-field]",
+      "activity.total_float",
+    );
+    await page.setInput(
+      "#cp-formula-editor [data-formula-expression]",
+      "[activity.planned_duration] * 2",
+    );
+    await page.click("#cp-formula-editor [data-formula-validate]");
+    await page.waitFor(
+      `document.querySelector("#cp-formula-editor [data-formula-result]")?.textContent.includes("UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration")`,
+      "unsupported duration field diagnostic",
+    );
+    const unsupportedFormula = await page.text(
+      "#cp-formula-editor [data-formula-result]",
+    );
+    assert(
+      !(unsupportedFormula ?? "").includes("Result type"),
+      "an unsupported field must not present an invented result type",
+    );
+    EVIDENCE.formula = {
+      registry_version: "p6-field-registry.v1",
+      valid_expression: "[activity.duration_percent_complete] / 100",
+      valid_context_field: "activity.total_float",
+      valid_result: validFormula,
+      invalid_expression: "[activity.duration_percent_complete] + 1",
+      invalid_context_field: "activity.duration_percent_complete",
+      invalid_result: invalidFormula,
+      unsupported_expression: "[activity.planned_duration] * 2",
+      unsupported_error: "UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration",
+      source: "POST /api/projects/{project}/p6/formulas/{registry_version}",
+    };
+    record("formula editor validates expressions through the Shared Core authority", {
+      valid: (validFormula ?? "").includes("Valid expression"),
+      error_code: "FORMULA_SELF_REFERENCE",
+      invalid_shows_type: (invalidFormula ?? "").includes("Result type"),
+      unsupported_code: "UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration",
+      unsupported_shows_type: (unsupportedFormula ?? "").includes("Result type"),
     });
 
     const interchange = await page.evaluate(

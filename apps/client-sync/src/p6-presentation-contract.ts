@@ -67,7 +67,11 @@ export type FormulaDependencyResult = {
 };
 
 export type FormulaTypeResult = {
-  data_type: P6FieldDataType;
+  /**
+   * The authoritative result type, or null when validation failed. An invalid
+   * expression has no inferred type; the client must not invent one.
+   */
+  data_type: P6FieldDataType | null;
 };
 
 export type FormulaAuthoritativeResult = {
@@ -198,7 +202,9 @@ export function validateFormulaAuthoritativeResult(
       result.dependencies.field_ids.some((id) => typeof id !== "string" || !id.trim())) {
     throw new Error("INVALID_P6_FORMULA_DEPENDENCIES");
   }
-  if (!FIELD_TYPES.has(result.result_type?.data_type)) {
+  if (result.result_type == null) throw new Error("INVALID_P6_FORMULA_RESULT_TYPE");
+  const dataType = result.result_type.data_type;
+  if (dataType !== null && !FIELD_TYPES.has(dataType)) {
     throw new Error("INVALID_P6_FORMULA_RESULT_TYPE");
   }
   return result;

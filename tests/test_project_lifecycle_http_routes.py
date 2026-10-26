@@ -1269,6 +1269,30 @@ def test_p6_formula_route_exposes_authoritative_versioned_validation():
     assert payload["result_type"]["data_type"] == "double"
 
 
+def test_p6_formula_route_returns_structured_unsupported_field_result():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.percent_complete"), auth_context=auth)
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.planned_duration"), auth_context=auth)
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formulas/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expression": "[activity.planned_duration] * 2"}).encode("utf-8"),
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == P6_FORMULA_AUTHORITY_API_VERSION
+    assert payload["validation"]["valid"] is False
+    assert (
+        payload["validation"]["error_code"]
+        == "UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration"
+    )
+    assert payload["dependencies"]["field_ids"] == []
+    assert payload["result_type"]["data_type"] is None
+
+
 def test_p6_formula_route_requires_session_and_rejects_invalid_request():
     r, _, _ = p6_routes()
     status, _, body = r.handle(
