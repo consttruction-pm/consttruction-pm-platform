@@ -130,9 +130,35 @@ Grants in the preview are default-deny and rebuilt from the persisted project
 rows on every decision: only the `planner` and `project_admin` demo personas
 receive the two activity tools, and an advanced project revision revokes the
 older grant immediately. Viewers, unknown subjects, other resource domains and
-every other tool/operation are denied. The natural-language assistant turn still
-requires an external model provider; the chat panel reports that it is not
-configured instead of inventing a reply.
+every other tool/operation are denied.
+
+## AI assistant chat, voice and grounding
+
+The workspace **AI Assistant · Chat** panel is a real client of the authenticated
+assistant route, not a mock conversation:
+
+- A typed message is sent to `POST /api/projects/{p}/ai/assistant/turn` with the
+  current project revision, the selected language and bounded session-only
+  history. The localized, explicit unavailable state from
+  `GET .../ai/assistant/capabilities` is shown when no provider is configured;
+  the panel never invents an answer.
+- Browser speech adapters (`SpeechRecognition`) put the recognized transcript
+  into the same visible textarea so the user reviews and sends it as an ordinary
+  message. Spoken replies use `speechSynthesis` with a read-aloud toggle and
+  per-message Play/Stop; pending recognition/synthesis is cancelled when the
+  panel is superseded. Raw audio is not uploaded by this client.
+- Turns are grounded server-side: the server reads only the authorized current
+  project revision's persisted activities and relationships plus the latest
+  published Shared Core schedule projection, bounded and counted. The model
+  receives that context as data with an explicit prohibition on following
+  embedded commands or inventing dates/calculations; the browser computes no
+  schedule value. A failed or unauthorized context read fails closed before the
+  provider is called.
+
+The natural-language assistant turn still requires an external model provider.
+The preview has none configured, so a real provider-backed answer is not claimed;
+the typed/voice request path, localization, provenance and fail-closed behavior
+are what the preview verifies.
 
 ## Automated verification
 
@@ -233,10 +259,17 @@ SQLite database and a real headless browser. It verifies:
   a stale revision returns `409 AI_ACTION_PROPOSAL_STALE_REVISION`, and a viewer
   receives an explicit `project.write` denial from both the panel and the direct
   route with no created activity;
-- no uncaught browser exceptions and no API 5xx responses.
+- the assistant chat/voice path: a typed English turn, a deterministic browser
+  speech fixture recognized into the same textarea and sent as the next turn, and
+  a Persian turn all reach the real fail-closed assistant endpoint with the
+  current revision/language and never display a fabricated answer; the recorded
+  provider-not-configured state is the same in English and Persian
+  (`13e-ai-chat-voice.png`, `13f-ai-chat-persian.png`);
+- no uncaught browser exceptions and no unexpected API 5xx responses (the three
+  provider-not-configured `503` assistant responses are asserted as expected).
 
-The latest isolated run recorded **41 checks and 31 screenshots** on
-`c328abce`.
+The latest isolated run recorded **42 checks and 33 screenshots** on
+`c9670c88`.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
@@ -248,7 +281,8 @@ Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `08-capacity-effective-change.png`, `10a-capacity-persisted.png`,
 `11a-viewer-interchange.png`, `11b-viewer-capacity.png`,
 `13a-ai-proposal.png`, `13b-ai-executed.png`, `13c-ai-persisted.png`,
-`13d-ai-viewer-denied.png`, the preview server log and `evidence.json`.
+`13d-ai-viewer-denied.png`, `13e-ai-chat-voice.png`,
+`13f-ai-chat-persian.png`, the preview server log and `evidence.json`.
 
 Fast backend checks for the preview composition:
 
@@ -325,6 +359,13 @@ and replay protection (`12 passed` on `7f1116ae`).
     execution must be refused, and a project-revision change must mark the
     proposal stale. Signing in as Viewer must deny both proposal reads and
     writes with no project change.
+16. Open **AI Assistant · Chat**, type a question and send it. With no provider
+    configured, confirm the panel shows the explicit unavailable message rather
+    than a fabricated answer. If the browser supports speech recognition, use
+    the microphone and confirm the recognized text appears in the textarea for
+    review before sending; a Persian message with the language set to Persian
+    must show the Persian unavailable message. Use the read-aloud control only
+    if the browser supports `speechSynthesis`.
 
 ## Known limitations
 
@@ -362,3 +403,13 @@ and replay protection (`12 passed` on `7f1116ae`).
   but no persisted schedule option or Web control selects it independently yet.
 - CUBISITE workbook-derived official weights, scoring or completion percentages
   are unavailable and must not be inferred from file counts.
+- The assistant chat is a real request/UI path, but the preview has no model
+  provider configured, so it proves the localized fail-closed state and the
+  request contract rather than a provider-backed answer. The browser E2E uses a
+  deterministic speech fixture, not a physical microphone or vendor ASR;
+  audible TTS is browser-dependent. Conversation history is held in session
+  memory, not persisted as a durable transcript. Project grounding reads only
+  the current revision's persisted activities/relationships and the latest
+  published Shared Core projection; it does not yet cover uploaded documents,
+  spreadsheets or reports, and it does not expose a live model's use of that
+  context.
