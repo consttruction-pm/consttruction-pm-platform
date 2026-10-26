@@ -230,6 +230,16 @@ def derive_resource_dependent_duration(
     "activity dates govern placement" case; no driving resource is synthesized.
     Fractional or non-daily driving durations are rejected, never rounded.
     """
+    if not isinstance(tenant_id, str) or not tenant_id.strip():
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_TENANT_ID_REQUIRED")
+    if not isinstance(project_id, str) or not project_id.strip():
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_PROJECT_ID_REQUIRED")
+    if (
+        isinstance(project_revision, bool)
+        or not isinstance(project_revision, int)
+        or project_revision < 0
+    ):
+        raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_PROJECT_REVISION_INVALID")
     if not isinstance(activity_id, str) or not activity_id.strip():
         raise ResourceDependentCalculationError("RESOURCE_DEPENDENT_ACTIVITY_ID_REQUIRED")
     if not assignments:
