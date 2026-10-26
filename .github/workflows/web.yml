@@ -64,6 +64,7 @@ jobs:
             const checks = [
               ["http://127.0.0.1:4173/", "CUBI Platform"],
               ["http://127.0.0.1:4173/styles.css", "prefers-reduced-motion"],
+              ["http://127.0.0.1:4173/cubi-assistant-avatar.svg", "CUBI AI Project Assistant"],
               ["http://127.0.0.1:4173/client-sync/src/scheduling-adapter.js", "SCHEDULING_CONTRACT_VERSION"],
               ["http://127.0.0.1:4173/platform/", "Project planning and controls, connected."],
               ["http://127.0.0.1:4173/solutions/", "Built around how construction projects are delivered."],
