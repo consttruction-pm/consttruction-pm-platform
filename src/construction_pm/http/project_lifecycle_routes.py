@@ -91,6 +91,11 @@ from ..p6_resource_capacity_read_api import (
     P6ResourceCapacityReadAPI,
     P6_RESOURCE_CAPACITY_READ_API_VERSION,
 )
+from ..p6_resource_capacity_write_api import (
+    P6ResourceCapacityWriteAPI,
+    P6_RESOURCE_CAPACITY_WRITE_API_VERSION,
+)
+from ..resources.max_units_time import ResourceCapacityBasis
 from ..p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
 from ..p6_resource_assignment_repository import (
     P6ResourceAssignment,
@@ -155,6 +160,7 @@ class ProjectLifecycleHttpRoutes:
         p6_interchange_api: P6InterchangeAPI | None = None,
         p6_resource_read_api: P6ResourceReadAPI | None = None,
         p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
+        p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
         p6_resource_write_api: P6ResourceWriteAPI | None = None,
         p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
         p6_code_api: P6CodeAPI | None = None,
@@ -186,6 +192,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_interchange_api = p6_interchange_api
         self._p6_resource_read_api = p6_resource_read_api
         self._p6_resource_capacity_read_api = p6_resource_capacity_read_api
+        self._p6_resource_capacity_write_api = p6_resource_capacity_write_api
         self._p6_resource_write_api = p6_resource_write_api
         self._p6_resource_spread_api = p6_resource_spread_api
         self._p6_code_api = p6_code_api
@@ -1564,6 +1571,139 @@ class ProjectLifecycleHttpRoutes:
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 result = self._p6_resource_read_api.get_assignment(BackendScope(context.tenant_id, context.project_id, context.revision), assignment_id, auth_context=auth)
                 if result is None: return self._error(404, "P6_RESOURCE_ASSIGNMENT_NOT_FOUND", "error.p6.resource_assignment.not_found")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-capacities"):
+                if self._p6_resource_capacity_write_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-capacities")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("contract_version") != P6_RESOURCE_CAPACITY_WRITE_API_VERSION
+                ):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    result = self._p6_resource_capacity_write_api.save_effective_change(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id=payload.get("resource_id"),
+                        max_units=payload.get("max_units"),
+                        unit_basis=payload.get("unit_basis"),
+                        hours_per_time_period=payload.get("hours_per_time_period"),
+                        effective_from=payload.get("effective_from"),
+                        effective_to=payload.get("effective_to"),
+                        expected_revision=payload.get("expected_revision"),
+                        close_open_segment=payload.get("close_open_segment", False),
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code in {
+                        "REVISION_CONFLICT",
+                        "CAPACITY_SEGMENTS_OVERLAP",
+                        "IMMUTABLE_RESOURCE_CAPACITY_SEGMENT",
+                        "RESOURCE_CAPACITY_INSERT_CONFLICT",
+                    }:
+                        return self._error(409, code, "error.p6.resource_capacity.conflict")
+                    if code == "RESOURCE_CAPACITY_WRITE_SERVICE_NOT_CONFIGURED":
+                        return self._error(503, code, "error.p6.resource_capacity.unavailable")
+                    if code.startswith("INVALID_") or code.startswith("CAPACITY_"):
+                        return self._error(400, code, "error.request.invalid")
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and "/p6/resource-capacities/" in path and path.endswith("/resolve"):
+                if self._p6_resource_capacity_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, suffix = path.split("/p6/resource-capacities/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                resource_id = suffix[: -len("/resolve")].rstrip("/")
+                if not project_id or not resource_id or "/" in resource_id:
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("contract_version") != P6_RESOURCE_CAPACITY_READ_API_VERSION
+                ):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    period_raw = payload.get("period")
+                    if not isinstance(period_raw, str) or not period_raw.strip():
+                        raise ValueError("INVALID_EFFECTIVE_DATE")
+                    period = date.fromisoformat(period_raw)
+                    basis_raw = payload.get("basis")
+                    hours_raw = payload.get("hours_per_time_period")
+                    if (basis_raw is None) != (hours_raw is None):
+                        raise ValueError("CAPACITY_CONVERSION_INCOMPLETE")
+                    basis = (
+                        None
+                        if basis_raw is None
+                        else ResourceCapacityBasis(str(basis_raw))
+                    )
+                    hours = (
+                        None
+                        if hours_raw is None
+                        else Decimal(str(hours_raw))
+                    )
+                    result = self._p6_resource_capacity_read_api.capacity_on(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id,
+                        period,
+                        basis=basis,
+                        hours_per_time_period=hours,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code == "RESOURCE_CAPACITY_NOT_REGISTERED":
+                        return self._error(404, code, "error.p6.resource_capacity.not_registered")
+                    if code in {
+                        "CAPACITY_SEGMENT_NOT_EFFECTIVE",
+                        "CAPACITY_SEGMENTS_OVERLAP",
+                    }:
+                        return self._error(409, code, "error.p6.resource_capacity.conflict")
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                capacity = result.get("capacity")
+                if isinstance(capacity, Decimal):
+                    # Serialize the authoritative server-side conversion as a
+                    # canonical decimal string (no client-side arithmetic).
+                    canonical = capacity.normalize()
+                    result = {
+                        **result,
+                        "capacity": f"{canonical:f}"
+                        if capacity.is_finite()
+                        else str(capacity),
+                    }
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-capacities"):
                 if self._p6_resource_capacity_read_api is None:

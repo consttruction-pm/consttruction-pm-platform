@@ -784,7 +784,7 @@ async function main() {
 
     for (const surface of [
       { menu: "project", label: "Project", status: "Partial", submenus: 3 },
-      { menu: "resources", label: "Resources", status: "Preview", submenus: 2 },
+      { menu: "resources", label: "Resources", status: "Partial", submenus: 2 },
       { menu: "control", label: "Control", status: "Partial", submenus: 2 },
       { menu: "schedule", label: "Schedule", status: "Implemented", submenus: 13 },
     ]) {
@@ -813,6 +813,159 @@ async function main() {
     record("menus and submenus expose their real implementation status", {
       surfaces: ["Project", "Resources", "Control", "Schedule"],
     });
+
+    await page.click('[data-menu="resources"]');
+    await page.waitFor(
+      `document.querySelector(".cp-navigation-surface strong")?.textContent.trim() === "Resources"`,
+      "resources surface after menu selection",
+    );
+    await page.scrollTo("#cp-resource-capacity");
+    await page.waitForSelector(
+      "[data-capacity-write-form]",
+      "capacity write form",
+    );
+    await page.waitFor(
+      `document.querySelectorAll("[data-capacity-profile] tbody tr").length === 2`,
+      "seeded effective-dated capacity profile",
+    );
+    const initialCapacityRows = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("[data-capacity-profile] tbody tr")).map((row) => ({
+        from: row.children[0]?.textContent.trim(),
+        to: row.children[1]?.textContent.trim(),
+        max_units: row.children[2]?.textContent.trim(),
+        basis: row.children[3]?.textContent.trim(),
+        hours: row.children[4]?.textContent.trim(),
+        source: row.children[6]?.textContent.trim(),
+        identity: row.children[7]?.textContent.trim(),
+      }))
+    )()`);
+    assert(
+      initialCapacityRows.length === 2 &&
+        initialCapacityRows[0].max_units === "8" &&
+        initialCapacityRows[0].from === "2026-09-21" &&
+        initialCapacityRows[1].max_units === "12" &&
+        initialCapacityRows[1].to === "Open-ended",
+      `seeded capacity profile must be read from the server, got ${JSON.stringify(initialCapacityRows)}`,
+    );
+    assert(
+      initialCapacityRows.every((row) => row.source.startsWith("preview-fixture:")),
+      "capacity provenance must come from the server, not the browser",
+    );
+
+    await page.setInput("[data-capacity-resolve-resource]", "RPS-CIVIL-CREW");
+    await page.setInput("[data-capacity-resolve-period]", "2026-10-16");
+    await page.setSelect("[data-capacity-resolve-basis]", "week");
+    await page.setInput("[data-capacity-resolve-hours]", "40");
+    await page.click("[data-capacity-resolve]");
+    await page.waitFor(
+      `document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") === "60"`,
+      "server-resolved weekly capacity before the change",
+    );
+
+    await page.setInput("[data-capacity-resource]", "RPS-CIVIL-CREW");
+    await page.setInput("[data-capacity-max-units]", "10");
+    await page.setSelect("[data-capacity-unit-basis]", "day");
+    await page.setInput("[data-capacity-hours]", "8");
+    await page.setInput("[data-capacity-from]", "2026-11-01");
+    await page.setInput("[data-capacity-to]", "");
+    const closeChecked = await page.evaluate(`(() => {
+      const element = document.querySelector("[data-capacity-close]");
+      if (!element) return false;
+      element.checked = true;
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      return element.checked;
+    })()`);
+    assert(closeChecked, "the effective change must request closing the open segment");
+    await page.click("[data-capacity-save]");
+    await page.waitFor(
+      `Boolean(document.querySelector("[data-capacity-write-result] [data-capacity-write-success]"))`,
+      "capacity write accepted by the server",
+    );
+    await page.waitFor(
+      `document.querySelectorAll("[data-capacity-profile] tbody tr").length === 3`,
+      "three active capacity segments after the effective change",
+    );
+    const changedCapacityRows = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("[data-capacity-profile] tbody tr")).map((row) => ({
+        from: row.children[0]?.textContent.trim(),
+        to: row.children[1]?.textContent.trim(),
+        max_units: row.children[2]?.textContent.trim(),
+        source: row.children[6]?.textContent.trim(),
+      }))
+    )()`);
+    assert(
+      changedCapacityRows.length === 3 &&
+        changedCapacityRows[0].max_units === "8" &&
+        changedCapacityRows[1].max_units === "12" &&
+        changedCapacityRows[1].to === "2026-10-31" &&
+        changedCapacityRows[2].max_units === "10" &&
+        changedCapacityRows[2].from === "2026-11-01" &&
+        changedCapacityRows[2].to === "Open-ended" &&
+        changedCapacityRows[2].source === "manual-entry:preview-planner",
+      `append-only capacity change must close the prior open segment, got ${JSON.stringify(changedCapacityRows)}`,
+    );
+    const supersededNotice = await page.text("[data-capacity-superseded]");
+    assert(
+      (supersededNotice ?? "").includes("closed") &&
+        (supersededNotice ?? "").includes("retained"),
+      `the panel must report the supersession, got ${supersededNotice}`,
+    );
+
+    await page.setInput("[data-capacity-resolve-period]", "2026-11-02");
+    await page.setSelect("[data-capacity-resolve-basis]", "week");
+    await page.setInput("[data-capacity-resolve-hours]", "40");
+    await page.click("[data-capacity-resolve]");
+    await page.waitFor(
+      `document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") === "50"`,
+      "server-resolved weekly capacity after the change",
+    );
+    const resolvedCapacityText = await page.text(
+      "[data-capacity-resolve-result]",
+    );
+    assert(
+      (resolvedCapacityText ?? "").includes("50") &&
+        (resolvedCapacityText ?? "").includes("Week") &&
+        (resolvedCapacityText ?? "").includes("manual-entry:preview-planner"),
+      `resolved capacity must come from the stored segment, got ${resolvedCapacityText}`,
+    );
+
+    await page.setInput("[data-capacity-resolve-period]", "2026-09-01");
+    await page.click("[data-capacity-resolve]");
+    await page.waitFor(
+      `Boolean(document.querySelector("[data-capacity-resolve-result] .cp-capacity-error"))`,
+      "out-of-range capacity resolution error",
+    );
+    const unresolvedCapacityText = await page.text(
+      "[data-capacity-resolve-result]",
+    );
+    assert(
+      (unresolvedCapacityText ?? "").includes("No capacity segment is effective") &&
+        (unresolvedCapacityText ?? "").includes("CAPACITY_SEGMENT_NOT_EFFECTIVE"),
+      `missing-capacity errors must be explicit, got ${unresolvedCapacityText}`,
+    );
+    assert(
+      !/Oracle|Primavera|\bP6\b|https?:\/\//i.test(
+        (await page.text("#cp-resource-capacity")) ?? "",
+      ),
+      "the capacity surface must not expose third-party branding or URLs",
+    );
+    await page.screenshot("08-capacity-effective-change.png");
+    EVIDENCE.capacity = {
+      initial_profile: initialCapacityRows,
+      changed_profile: changedCapacityRows,
+      resolved_before_change: "60",
+      resolved_after_change: "50",
+      out_of_range_error: "CAPACITY_SEGMENT_NOT_EFFECTIVE",
+      supersession_reported: supersededNotice,
+    };
+    record(
+      "effective-dated capacity is edited, closed append-only and resolved by the server",
+      {
+        initial_segments: initialCapacityRows.map((row) => row.max_units),
+        changed_segments: changedCapacityRows.map((row) => row.max_units),
+        resolved_week: "50",
+      },
+    );
 
     await page.waitForSelector("[data-schedule-settings-form]", "schedule settings form");
     await page.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "grid after menu renders");
@@ -1529,10 +1682,10 @@ async function main() {
       "capacity list must use the typed read contract",
     );
     assert(
-      capacity.listed.capacities?.length === 2,
-      "RPS-CIVIL-CREW must expose two effective-dated ceiling segments",
+      capacity.listed.capacities?.length === 3,
+      "RPS-CIVIL-CREW must expose the two fixture ceilings and the appended effective change",
     );
-    const [earlyCeiling, lateCeiling] = capacity.listed.capacities;
+    const [earlyCeiling, lateCeiling, latestCeiling] = capacity.listed.capacities;
     assert(
       earlyCeiling.capacity.max_units === "8" &&
         earlyCeiling.capacity.unit_basis === "day" &&
@@ -1543,18 +1696,27 @@ async function main() {
     assert(
       lateCeiling.capacity.max_units === "12" &&
         lateCeiling.capacity.effective_from === "2026-10-15" &&
-        lateCeiling.capacity.effective_to === null,
-      "second ceiling must be an explicit 12/day open-ended segment",
+        lateCeiling.capacity.effective_to === "2026-10-31",
+      "the prior open ceiling must be closed the day before the new segment",
     );
     assert(
-      earlyCeiling.capacity.identity !== lateCeiling.capacity.identity &&
-        earlyCeiling.capacity.identity.length === 64,
+      latestCeiling.capacity.max_units === "10" &&
+        latestCeiling.capacity.effective_from === "2026-11-01" &&
+        latestCeiling.capacity.effective_to === null &&
+        latestCeiling.capacity.source === "manual-entry:preview-planner",
+      "the appended change must be an authenticated 10/day open-ended segment",
+    );
+    assert(
+      new Set(
+        capacity.listed.capacities.map((item) => item.capacity.identity),
+      ).size === 3 &&
+        latestCeiling.capacity.identity.length === 64,
       "each ceiling segment must carry a distinct content identity",
     );
     assert(
       capacity.profile_status === 200 &&
         capacity.profile.status === "REGISTERED" &&
-        capacity.profile.segments?.length === 2,
+        capacity.profile.segments?.length === 3,
       "capacity profile must resolve the registered effective-dated profile",
     );
     assert(
@@ -1577,6 +1739,7 @@ async function main() {
       segment_count: capacity.profile.segments?.length,
       first_max_units: earlyCeiling.capacity.max_units,
       second_max_units: lateCeiling.capacity.max_units,
+      latest_max_units: latestCeiling.capacity.max_units,
       unregistered_status: capacity.missing_status,
     });
 
@@ -1676,6 +1839,48 @@ async function main() {
       finalSettings.calendar?.includes("CUBI-RPS-CAL"),
       "saved calendar must survive reload",
     );
+    await page.click('[data-menu="resources"]');
+    await page.waitFor(
+      `document.querySelector(".cp-navigation-surface strong")?.textContent.trim() === "Resources"`,
+      "resources surface after final reload",
+    );
+    await page.waitFor(
+      `document.querySelectorAll("[data-capacity-profile] tbody tr").length === 3`,
+      "persisted effective-dated capacity after final reload",
+    );
+    const finalCapacityRows = await page.evaluate(`(() =>
+      Array.from(document.querySelectorAll("[data-capacity-profile] tbody tr")).map((row) => ({
+        from: row.children[0]?.textContent.trim(),
+        to: row.children[1]?.textContent.trim(),
+        max_units: row.children[2]?.textContent.trim(),
+        source: row.children[6]?.textContent.trim(),
+      }))
+    )()`);
+    assert(
+      finalCapacityRows.length === 3 &&
+        finalCapacityRows[2].max_units === "10" &&
+        finalCapacityRows[2].from === "2026-11-01" &&
+        finalCapacityRows[2].to === "Open-ended" &&
+        finalCapacityRows[2].source === "manual-entry:preview-planner",
+      `effective-dated capacity must survive a full reload, got ${JSON.stringify(finalCapacityRows)}`,
+    );
+    await page.setInput("[data-capacity-resolve-period]", "2026-11-02");
+    await page.setSelect("[data-capacity-resolve-basis]", "week");
+    await page.setInput("[data-capacity-resolve-hours]", "40");
+    await page.click("[data-capacity-resolve]");
+    await page.waitFor(
+      `document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") === "50"`,
+      "persisted capacity resolution after final reload",
+    );
+    await page.screenshot("10a-capacity-persisted.png");
+    EVIDENCE.persistence.capacity = {
+      segments: finalCapacityRows.map((row) => row.max_units),
+      resolved_week: "50",
+      reload_verified: true,
+    };
+    record("effective-dated capacity survives a full reload and still resolves on the server", {
+      segments: finalCapacityRows.map((row) => row.max_units),
+    });
     await page.scrollTo("#cp-activity-grid");
     await page.screenshot("10-reload-persisted.png");
     record("saved settings, calendar and layout survive a full reload", finalSettings);
@@ -1800,6 +2005,43 @@ async function main() {
     );
     await page.screenshot("11a-viewer-interchange.png");
 
+    await page.click('[data-menu="resources"]');
+    await page.waitFor(
+      `document.querySelector(".cp-navigation-surface strong")?.textContent.trim() === "Resources"`,
+      "viewer resources surface",
+    );
+    await page.waitFor(
+      `document.querySelectorAll("[data-capacity-profile] tbody tr").length === 3`,
+      "viewer capacity read profile",
+    );
+    await page.setInput("[data-capacity-resource]", "RPS-CIVIL-CREW");
+    await page.setInput("[data-capacity-max-units]", "9");
+    await page.setSelect("[data-capacity-unit-basis]", "day");
+    await page.setInput("[data-capacity-hours]", "8");
+    await page.setInput("[data-capacity-from]", "2026-12-01");
+    await page.click("[data-capacity-save]");
+    await page.waitFor(
+      `Boolean(document.querySelector("[data-capacity-write-result] .cp-capacity-error"))`,
+      "viewer capacity write denial",
+    );
+    const viewerCapacityError = await page.text(
+      "[data-capacity-write-result]",
+    );
+    assert(
+      (viewerCapacityError ?? "").includes("denied this operation") &&
+        (viewerCapacityError ?? "").includes("project.write"),
+      `viewer capacity write must surface the denied permission, got ${viewerCapacityError}`,
+    );
+    await page.setInput("[data-capacity-resolve-period]", "2026-11-02");
+    await page.setSelect("[data-capacity-resolve-basis]", "week");
+    await page.setInput("[data-capacity-resolve-hours]", "40");
+    await page.click("[data-capacity-resolve]");
+    await page.waitFor(
+      `document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") === "50"`,
+      "viewer capacity read resolution",
+    );
+    await page.screenshot("11b-viewer-capacity.png");
+
     EVIDENCE.permissions = {
       session_roles: sessionViewer.roles,
       layout_read_status: layoutGet.status,
@@ -1807,7 +2049,12 @@ async function main() {
       snapshot_write: viewerSnapshotPost,
       interchange_export: viewerExportStatus,
       interchange_import_denied: viewerImportError,
+      capacity_read_resolved: "50",
+      capacity_write_denied: viewerCapacityError,
     };
+    record("viewer can read capacity but the effective change is explicitly denied", {
+      capacity_error: viewerCapacityError,
+    });
     record("viewer can read interchange but the import write is explicitly denied", {
       export_status: viewerExportStatus,
       import_error: viewerImportError,

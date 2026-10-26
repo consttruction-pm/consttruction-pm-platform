@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Protocol
 
@@ -33,8 +33,96 @@ class P6ResourceCapacityRecord:
             raise P6ResourceCapacityRepositoryError("INVALID_CAPACITY_SEGMENT")
 
 
+@dataclass(frozen=True)
+class P6ResourceCapacityWriteResult:
+    """Outcome of appending a capacity change.
+
+    ``superseded_identity`` is the immutable identity of the prior open-ended
+    segment that was ended by this write. The prior row is retained for history;
+    ``closed_segment`` is the new, separately identified segment that carries the
+    shortened effective interval. Neither value is inferred by a caller.
+    """
+
+    record: P6ResourceCapacityRecord
+    superseded_identity: str | None = None
+    closed_segment: ResourceMaxUnitsTime | None = None
+
+
+def _segments_overlap(
+    left: ResourceMaxUnitsTime,
+    right: ResourceMaxUnitsTime,
+) -> bool:
+    left_to = left.effective_to or date.max
+    right_to = right.effective_to or date.max
+    return left.effective_from <= right_to and right.effective_from <= left_to
+
+
+def plan_capacity_supersession(
+    existing: tuple[ResourceMaxUnitsTime, ...],
+    candidate: ResourceMaxUnitsTime,
+) -> ResourceMaxUnitsTime | None:
+    """Return the closed replacement for an overlapping open-ended segment.
+
+    Capacity history is append-only. A new open-ended change may supersede the
+    currently open segment: the prior segment is retained unchanged and a new
+    closed copy, ending the day before the candidate starts, becomes effective.
+    The caller persists both the closed copy and the supersession link in one
+    transaction. A bounded candidate never silently leaves an uncovered gap after
+    its end, and a closed prior segment is never rewritten.
+    """
+
+    conflicts = tuple(
+        segment for segment in existing if _segments_overlap(segment, candidate)
+    )
+    if not conflicts:
+        return None
+    if len(conflicts) > 1:
+        raise P6ResourceCapacityRepositoryError("CAPACITY_SEGMENTS_OVERLAP")
+    original = conflicts[0]
+    if original.effective_to is not None:
+        raise P6ResourceCapacityRepositoryError("CAPACITY_SEGMENTS_OVERLAP")
+    if candidate.effective_from <= original.effective_from:
+        raise P6ResourceCapacityRepositoryError(
+            "CAPACITY_REPLACEMENT_NOT_APPLICABLE"
+        )
+    if candidate.effective_to is not None:
+        raise P6ResourceCapacityRepositoryError(
+            "CAPACITY_REPLACEMENT_REQUIRES_OPEN_RANGE"
+        )
+    ended_to = candidate.effective_from - timedelta(days=1)
+    if ended_to < original.effective_from:
+        raise P6ResourceCapacityRepositoryError(
+            "CAPACITY_REPLACEMENT_NOT_APPLICABLE"
+        )
+    closed = ResourceMaxUnitsTime.create(
+        resource_id=original.resource_id,
+        max_units=original.max_units,
+        unit_basis=original.unit_basis,
+        hours_per_time_period=original.hours_per_time_period,
+        effective_from=original.effective_from,
+        effective_to=ended_to,
+        source=original.source,
+    )
+    remaining = tuple(
+        segment for segment in existing if segment.identity != original.identity
+    )
+    ResourceMaxUnitsTimeProfile(
+        candidate.resource_id,
+        remaining + (closed, candidate),
+    )
+    return closed
+
+
 class P6ResourceCapacityRepository(Protocol):
     def upsert(self, record: P6ResourceCapacityRecord) -> P6ResourceCapacityRecord: ...
+
+    def save_effective_change(
+        self,
+        record: P6ResourceCapacityRecord,
+        *,
+        close_open_segment: bool,
+        recorded_at: datetime,
+    ) -> P6ResourceCapacityWriteResult: ...
 
     def get(
         self,
@@ -111,6 +199,22 @@ class SQLiteP6ResourceCapacityRepository:
             (tenant_id, project_id, project_revision, resource_id, effective_from)
             """
         )
+        self.connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS p6_resource_capacity_supersession (
+                tenant_id TEXT NOT NULL,
+                project_id TEXT NOT NULL,
+                resource_id TEXT NOT NULL,
+                identity TEXT NOT NULL,
+                superseded_by_identity TEXT NOT NULL,
+                recorded_at TEXT NOT NULL,
+                PRIMARY KEY (tenant_id, project_id, resource_id, identity),
+                FOREIGN KEY (tenant_id, project_id, resource_id, superseded_by_identity)
+                    REFERENCES p6_resource_capacity_segment
+                    (tenant_id, project_id, resource_id, identity)
+            )
+            """
+        )
         self.connection.commit()
 
     def upsert(self, record: P6ResourceCapacityRecord) -> P6ResourceCapacityRecord:
@@ -131,21 +235,79 @@ class SQLiteP6ResourceCapacityRepository:
                 )
             return record
         self._reject_overlap(record)
+        self._insert_segment(record)
+        return record
+
+    def save_effective_change(
+        self,
+        record: P6ResourceCapacityRecord,
+        *,
+        close_open_segment: bool,
+        recorded_at: datetime,
+    ) -> P6ResourceCapacityWriteResult:
+        record.validate()
+        if not close_open_segment:
+            return P6ResourceCapacityWriteResult(self.upsert(record))
+        existing = self.list(record.scope, record.segment.resource_id)
+        existing_segments = tuple(item.segment for item in existing)
+        if any(
+            segment.identity == record.segment.identity
+            for segment in existing_segments
+        ):
+            # Retrying the same authenticated change is idempotent; it must not
+            # supersede itself.
+            return P6ResourceCapacityWriteResult(record)
+        closed = plan_capacity_supersession(existing_segments, record.segment)
+        if closed is None:
+            return P6ResourceCapacityWriteResult(self.upsert(record))
+        original = next(
+            segment
+            for segment in existing_segments
+            if _segments_overlap(segment, record.segment)
+        )
+        self._insert_segment(
+            P6ResourceCapacityRecord(scope=record.scope, segment=closed)
+        )
         self.connection.execute(
-            "INSERT INTO p6_resource_capacity_segment "
-            "(tenant_id,project_id,project_revision,resource_id,identity,max_units,"
-            "unit_basis,hours_per_time_period,effective_from,effective_to,source) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO p6_resource_capacity_supersession "
+            "(tenant_id,project_id,resource_id,identity,superseded_by_identity,recorded_at) "
+            "VALUES (?,?,?,?,?,?)",
             (
                 record.scope.tenant_id,
                 record.scope.project_id,
-                record.scope.project_revision,
                 record.segment.resource_id,
-                record.segment.identity,
-                *_payload(record.segment),
+                original.identity,
+                closed.identity,
+                recorded_at.isoformat(),
             ),
         )
-        return record
+        self._insert_segment(record)
+        return P6ResourceCapacityWriteResult(
+            record,
+            superseded_identity=original.identity,
+            closed_segment=closed,
+        )
+
+    def _insert_segment(self, record: P6ResourceCapacityRecord) -> None:
+        try:
+            self.connection.execute(
+                "INSERT INTO p6_resource_capacity_segment "
+                "(tenant_id,project_id,project_revision,resource_id,identity,max_units,"
+                "unit_basis,hours_per_time_period,effective_from,effective_to,source) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    record.scope.tenant_id,
+                    record.scope.project_id,
+                    record.scope.project_revision,
+                    record.segment.resource_id,
+                    record.segment.identity,
+                    *_payload(record.segment),
+                ),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise P6ResourceCapacityRepositoryError(
+                "RESOURCE_CAPACITY_INSERT_CONFLICT"
+            ) from exc
 
     def _reject_overlap(self, candidate: P6ResourceCapacityRecord) -> None:
         existing = self.list(candidate.scope, candidate.segment.resource_id)
@@ -168,15 +330,20 @@ class SQLiteP6ResourceCapacityRepository:
         if not isinstance(identity, str) or not identity.strip():
             raise P6ResourceCapacityRepositoryError("INVALID_CAPACITY_IDENTITY")
         row = self.connection.execute(
-            "SELECT resource_id,project_revision,identity,max_units,unit_basis,"
-            "hours_per_time_period,effective_from,effective_to,source "
-            "FROM p6_resource_capacity_segment "
-            "WHERE tenant_id=? AND project_id=? AND resource_id=? AND identity=?",
+            "SELECT s.resource_id,s.project_revision,s.identity,s.max_units,"
+            "s.unit_basis,s.hours_per_time_period,s.effective_from,s.effective_to,"
+            "s.source "
+            "FROM p6_resource_capacity_segment s "
+            "WHERE s.tenant_id=? AND s.project_id=? AND s.resource_id=? "
+            "AND s.identity=? AND NOT EXISTS ("
+            "SELECT 1 FROM p6_resource_capacity_supersession x "
+            "WHERE x.tenant_id=s.tenant_id AND x.project_id=s.project_id "
+            "AND x.resource_id=s.resource_id AND x.identity=s.identity)",
             (scope.tenant_id, scope.project_id, resource_id, identity),
         ).fetchone()
         if row is None:
             return None
-        if int(row[0]) != scope.project_revision:
+        if int(row[1]) != scope.project_revision:
             raise P6ResourceCapacityRepositoryError("REVISION_CONFLICT")
         return _record_from_row(scope, row)
 
@@ -187,10 +354,15 @@ class SQLiteP6ResourceCapacityRepository:
     ) -> tuple[P6ResourceCapacityRecord, ...]:
         scope.validate()
         query = (
-            "SELECT resource_id,project_revision,identity,max_units,unit_basis,"
-            "hours_per_time_period,effective_from,effective_to,source "
-            "FROM p6_resource_capacity_segment "
-            "WHERE tenant_id=? AND project_id=? AND project_revision=?"
+            "SELECT s.resource_id,s.project_revision,s.identity,s.max_units,"
+            "s.unit_basis,s.hours_per_time_period,s.effective_from,s.effective_to,"
+            "s.source "
+            "FROM p6_resource_capacity_segment s "
+            "WHERE s.tenant_id=? AND s.project_id=? AND s.project_revision=? "
+            "AND NOT EXISTS ("
+            "SELECT 1 FROM p6_resource_capacity_supersession x "
+            "WHERE x.tenant_id=s.tenant_id AND x.project_id=s.project_id "
+            "AND x.resource_id=s.resource_id AND x.identity=s.identity)"
         )
         params: tuple[object, ...] = (
             scope.tenant_id,
@@ -199,10 +371,10 @@ class SQLiteP6ResourceCapacityRepository:
         )
         if resource_id is not None:
             _validate_resource_id(resource_id)
-            query += " AND resource_id=?"
+            query += " AND s.resource_id=?"
             params += (resource_id,)
         rows = self.connection.execute(
-            query + " ORDER BY resource_id,effective_from,identity", params
+            query + " ORDER BY s.resource_id,s.effective_from,s.identity", params
         ).fetchall()
         return tuple(_record_from_row(scope, row) for row in rows)
 
@@ -236,6 +408,16 @@ class PostgresP6ResourceCapacityRepository:
             "CREATE INDEX IF NOT EXISTS idx_p6_resource_capacity_scope "
             "ON p6_resource_capacity_segment "
             "(tenant_id, project_id, project_revision, resource_id, effective_from)"
+        )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS p6_resource_capacity_supersession ("
+            "tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, "
+            "resource_id TEXT NOT NULL, identity TEXT NOT NULL, "
+            "superseded_by_identity TEXT NOT NULL, recorded_at TEXT NOT NULL, "
+            "PRIMARY KEY (tenant_id, project_id, resource_id, identity), "
+            "FOREIGN KEY (tenant_id, project_id, resource_id, superseded_by_identity) "
+            "REFERENCES p6_resource_capacity_segment "
+            "(tenant_id, project_id, resource_id, identity))"
         )
 
     def upsert(self, record: P6ResourceCapacityRecord) -> P6ResourceCapacityRecord:
@@ -293,6 +475,79 @@ class PostgresP6ResourceCapacityRepository:
             )
         return record
 
+    def save_effective_change(
+        self,
+        record: P6ResourceCapacityRecord,
+        *,
+        close_open_segment: bool,
+        recorded_at: datetime,
+    ) -> P6ResourceCapacityWriteResult:
+        record.validate()
+        if not close_open_segment:
+            return P6ResourceCapacityWriteResult(self.upsert(record))
+        existing = self.list(record.scope, record.segment.resource_id)
+        existing_segments = tuple(item.segment for item in existing)
+        if any(
+            segment.identity == record.segment.identity
+            for segment in existing_segments
+        ):
+            # Retrying the same authenticated change is idempotent; it must not
+            # supersede itself.
+            return P6ResourceCapacityWriteResult(record)
+        closed = plan_capacity_supersession(existing_segments, record.segment)
+        if closed is None:
+            return P6ResourceCapacityWriteResult(self.upsert(record))
+        original = next(
+            segment
+            for segment in existing_segments
+            if _segments_overlap(segment, record.segment)
+        )
+        self._insert_segment(
+            P6ResourceCapacityRecord(scope=record.scope, segment=closed)
+        )
+        self.connection.execute(
+            "INSERT INTO p6_resource_capacity_supersession "
+            "(tenant_id,project_id,resource_id,identity,superseded_by_identity,recorded_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,resource_id,identity) DO NOTHING",
+            (
+                record.scope.tenant_id,
+                record.scope.project_id,
+                record.segment.resource_id,
+                original.identity,
+                closed.identity,
+                recorded_at.isoformat(),
+            ),
+        )
+        self._insert_segment(record)
+        return P6ResourceCapacityWriteResult(
+            record,
+            superseded_identity=original.identity,
+            closed_segment=closed,
+        )
+
+    def _insert_segment(self, record: P6ResourceCapacityRecord) -> None:
+        inserted = self.connection.execute(
+            "INSERT INTO p6_resource_capacity_segment "
+            "(tenant_id,project_id,project_revision,resource_id,identity,max_units,"
+            "unit_basis,hours_per_time_period,effective_from,effective_to,source) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "ON CONFLICT (tenant_id,project_id,resource_id,identity) DO NOTHING "
+            "RETURNING identity",
+            (
+                record.scope.tenant_id,
+                record.scope.project_id,
+                record.scope.project_revision,
+                record.segment.resource_id,
+                record.segment.identity,
+                *_payload(record.segment),
+            ),
+        )
+        if inserted.fetchone() is None:
+            raise P6ResourceCapacityRepositoryError(
+                "RESOURCE_CAPACITY_INSERT_CONFLICT"
+            )
+
     def _reject_overlap(self, candidate: P6ResourceCapacityRecord) -> None:
         existing = self.list(candidate.scope, candidate.segment.resource_id)
         ResourceMaxUnitsTimeProfile(
@@ -311,15 +566,20 @@ class PostgresP6ResourceCapacityRepository:
         if not isinstance(identity, str) or not identity.strip():
             raise P6ResourceCapacityRepositoryError("INVALID_CAPACITY_IDENTITY")
         row = self.connection.execute(
-            "SELECT resource_id,project_revision,identity,max_units,unit_basis,"
-            "hours_per_time_period,effective_from,effective_to,source "
-            "FROM p6_resource_capacity_segment "
-            "WHERE tenant_id=%s AND project_id=%s AND resource_id=%s AND identity=%s",
+            "SELECT s.resource_id,s.project_revision,s.identity,s.max_units,"
+            "s.unit_basis,s.hours_per_time_period,s.effective_from,s.effective_to,"
+            "s.source "
+            "FROM p6_resource_capacity_segment s "
+            "WHERE s.tenant_id=%s AND s.project_id=%s AND s.resource_id=%s "
+            "AND s.identity=%s AND NOT EXISTS ("
+            "SELECT 1 FROM p6_resource_capacity_supersession x "
+            "WHERE x.tenant_id=s.tenant_id AND x.project_id=s.project_id "
+            "AND x.resource_id=s.resource_id AND x.identity=s.identity)",
             (scope.tenant_id, scope.project_id, resource_id, identity),
         ).fetchone()
         if row is None:
             return None
-        if int(row[0]) != scope.project_revision:
+        if int(row[1]) != scope.project_revision:
             raise P6ResourceCapacityRepositoryError("REVISION_CONFLICT")
         return _record_from_row(scope, row)
 
@@ -330,10 +590,15 @@ class PostgresP6ResourceCapacityRepository:
     ) -> tuple[P6ResourceCapacityRecord, ...]:
         scope.validate()
         query = (
-            "SELECT resource_id,project_revision,identity,max_units,unit_basis,"
-            "hours_per_time_period,effective_from,effective_to,source "
-            "FROM p6_resource_capacity_segment "
-            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s"
+            "SELECT s.resource_id,s.project_revision,s.identity,s.max_units,"
+            "s.unit_basis,s.hours_per_time_period,s.effective_from,s.effective_to,"
+            "s.source "
+            "FROM p6_resource_capacity_segment s "
+            "WHERE s.tenant_id=%s AND s.project_id=%s AND s.project_revision=%s "
+            "AND NOT EXISTS ("
+            "SELECT 1 FROM p6_resource_capacity_supersession x "
+            "WHERE x.tenant_id=s.tenant_id AND x.project_id=s.project_id "
+            "AND x.resource_id=s.resource_id AND x.identity=s.identity)"
         )
         params: tuple[object, ...] = (
             scope.tenant_id,
@@ -342,10 +607,10 @@ class PostgresP6ResourceCapacityRepository:
         )
         if resource_id is not None:
             _validate_resource_id(resource_id)
-            query += " AND resource_id=%s"
+            query += " AND s.resource_id=%s"
             params += (resource_id,)
         rows = self.connection.execute(
-            query + " ORDER BY resource_id,effective_from,identity", params
+            query + " ORDER BY s.resource_id,s.effective_from,s.identity", params
         ).fetchall()
         return tuple(_record_from_row(scope, row) for row in rows)
 
@@ -394,6 +659,21 @@ class P6ResourceCapacityApplicationService:
         with self.transaction_manager.transaction():
             return self.repository.upsert(record)
 
+    def save_effective_change(
+        self,
+        record: P6ResourceCapacityRecord,
+        *,
+        close_open_segment: bool,
+        recorded_at: datetime,
+    ) -> P6ResourceCapacityWriteResult:
+        record.validate()
+        with self.transaction_manager.transaction():
+            return self.repository.save_effective_change(
+                record,
+                close_open_segment=close_open_segment,
+                recorded_at=recorded_at,
+            )
+
     def list(
         self,
         scope: BackendScope,
@@ -416,6 +696,8 @@ __all__ = [
     "P6ResourceCapacityRecord",
     "P6ResourceCapacityRepository",
     "P6ResourceCapacityRepositoryError",
+    "P6ResourceCapacityWriteResult",
     "PostgresP6ResourceCapacityRepository",
     "SQLiteP6ResourceCapacityRepository",
+    "plan_capacity_supersession",
 ]
