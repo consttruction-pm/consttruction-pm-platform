@@ -9,7 +9,10 @@ import sqlite3
 
 import pytest
 
-from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
+from construction_pm.activity_master_repository import (
+    ActivityMaster,
+    SQLiteActivityMasterRepository,
+)
 from construction_pm.ai_action_boundary import (
     AIActionPermissionGrant,
     UserConfiguredAIActionPermissionAdapter,
@@ -248,6 +251,15 @@ def _fixture(
                     resource_domain="activities",
                     operation="create",
                     tool_name="activity.create",
+                ),
+                AIActionPermissionGrant(
+                    subject_id="u1",
+                    tenant_id="t1",
+                    project_id="p1",
+                    project_revision_id="2",
+                    resource_domain="activities",
+                    operation="update",
+                    tool_name="activity.update",
                 ),
             )
         )
@@ -2335,6 +2347,156 @@ def test_ai_activity_execution_is_persisted_and_recalculated_by_shared_core(tmp_
         assert connection.execute(
             "SELECT COUNT(*) FROM schedule_input_snapshot"
         ).fetchone()[0] == 1
+    finally:
+        connection.close()
+
+
+def test_ai_activity_update_is_approved_locked_and_durably_verified(tmp_path):
+    fixture = _fixture(tmp_path, enable_ai=True)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+    try:
+        status, _ = _save_settings(app)
+        assert status == "201 Created"
+        seeded = fixture["activity_repo"].save(
+            ActivityMaster(
+                scope=scope,
+                activity_id="AI-UPD-1",
+                duration_value=Decimal("3"),
+                duration_unit=DurationUnit.WORKING_DAY,
+                name="Original activity",
+            ),
+            expected_revision=0,
+        )
+        assert seeded.record_revision == 1
+
+        status, proposed = _request(
+            app,
+            "POST",
+            "/api/projects/p1/ai/actions/proposals",
+            {
+                "expected_revision": 2,
+                "tool_name": "activity.update",
+                "payload": {
+                    "activity_id": "AI-UPD-1",
+                    "expected_revision": 1,
+                    "name": "Revised activity",
+                    "duration_value": "4",
+                    "duration_unit": "working-day",
+                },
+                "evidence_refs": ["activity-row"],
+            },
+        )
+        assert status == "201 Created", proposed
+        assert proposed["proposal"]["tool_name"] == "activity.update"
+        assert proposed["proposal"]["action"] == "update"
+        proposal_id = proposed["proposal"]["proposal_id"]
+
+        # No mutation is possible before explicit human approval.
+        status, blocked = _ai_execute(app, proposal_id)
+        assert status == "409 Conflict"
+        assert blocked["code"] == "AI_ACTION_PROPOSAL_NOT_APPROVED"
+        unchanged = fixture["activity_repo"].get(scope, "AI-UPD-1")
+        assert unchanged is not None
+        assert unchanged.name == "Original activity"
+        assert unchanged.record_revision == 1
+
+        status, _ = _ai_decide(app, proposal_id, approved=True)
+        assert status == "200 OK"
+        status, executed = _ai_execute(app, proposal_id)
+        assert status == "200 OK", executed
+        assert executed["status"] == "executed"
+        assert executed["result"]["activity"]["activity_id"] == "AI-UPD-1"
+        assert executed["result"]["activity"]["name"] == "Revised activity"
+        assert executed["result"]["activity"]["duration_value"] == "4"
+        assert executed["result"]["activity"]["record_revision"] == 2
+        verification = executed["execution_verification"]
+        assert verification["status"] == "COMPUTED", verification
+        assert verification["activity"]["activity_id"] == "AI-UPD-1"
+        assert verification["activity"]["start"] == "2026-10-19"
+        assert verification["activity"]["finish"] == "2026-10-22"
+        assert verification["activity"]["duration"] == 4
+        assert verification["activity"]["duration_unit"] == "working-day"
+        assert verification["snapshot"]["snapshot_id"] == "SNAP-PUBLISHED-1"
+        assert executed["execution_verification_stored"] is True
+
+        fresh_connection = sqlite3.connect(str(tmp_path / "schedule-composition.sqlite"))
+        try:
+            stored = SQLiteActivityMasterRepository(fresh_connection).get(scope, "AI-UPD-1")
+            assert stored is not None
+            assert stored.name == "Revised activity"
+            assert stored.duration_value == Decimal("4")
+            assert stored.record_revision == 2
+            verification_row = fresh_connection.execute(
+                "SELECT verification_json FROM ai_action_execution_verifications "
+                "WHERE proposal_id=? AND tenant_id='t1' AND project_id='p1' "
+                "AND project_revision_id='2'",
+                (proposal_id,),
+            ).fetchone()
+            assert verification_row is not None
+            assert json.loads(verification_row[0]) == verification
+        finally:
+            fresh_connection.close()
+
+        status, listed = _request(app, "GET", "/api/projects/p1/ai/actions/proposals")
+        assert status == "200 OK"
+        listed_proposal = next(
+            item for item in listed["proposals"] if item["proposal_id"] == proposal_id
+        )
+        assert listed_proposal["status"] == "executed"
+        assert listed_proposal["execution_verification"] == verification
+        status, detail = _request(
+            app,
+            "GET",
+            f"/api/projects/p1/ai/actions/proposals/{proposal_id}",
+        )
+        assert status == "200 OK"
+        assert detail["proposal"]["execution_verification"] == verification
+
+        # The same approved proposal cannot apply a second edit.
+        status, duplicate = _ai_execute(app, proposal_id)
+        assert status == "409 Conflict"
+        assert duplicate["code"] == "AI_ACTION_PROPOSAL_NOT_APPROVED"
+        assert fixture["activity_repo"].get(scope, "AI-UPD-1").record_revision == 2
+
+        # A later proposal that still carries the old record revision is rejected
+        # as a known precondition failure instead of being retried or marked uncertain.
+        status, stale_proposed = _request(
+            app,
+            "POST",
+            "/api/projects/p1/ai/actions/proposals",
+            {
+                "expected_revision": 2,
+                "tool_name": "activity.update",
+                "payload": {
+                    "activity_id": "AI-UPD-1",
+                    "expected_revision": 1,
+                    "name": "Overwriting stale edit",
+                },
+                "evidence_refs": [],
+            },
+        )
+        assert status == "201 Created", stale_proposed
+        stale_id = stale_proposed["proposal"]["proposal_id"]
+        status, _ = _ai_decide(app, stale_id, approved=True)
+        assert status == "200 OK"
+        status, stale_error = _ai_execute(app, stale_id)
+        assert status == "409 Conflict"
+        assert stale_error["code"] == "AI_ACTION_ACTIVITY_REVISION_CONFLICT"
+        status, stale_detail = _request(
+            app, "GET", f"/api/projects/p1/ai/actions/proposals/{stale_id}"
+        )
+        assert status == "200 OK"
+        assert stale_detail["proposal"]["status"] == "blocked"
+        assert stale_detail["proposal"]["result"] is None
+        assert fixture["activity_repo"].get(scope, "AI-UPD-1").name == "Revised activity"
+        precondition_count = connection.execute(
+            "SELECT COUNT(*) FROM ai_action_audit_events "
+            "WHERE proposal_id=? AND event_type='execution_precondition_failed'",
+            (stale_id,),
+        ).fetchone()[0]
+        assert precondition_count == 1
     finally:
         connection.close()
 

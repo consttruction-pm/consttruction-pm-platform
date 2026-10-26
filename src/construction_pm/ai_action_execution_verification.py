@@ -9,8 +9,16 @@ cannot be recalculated is reported as UNAVAILABLE/FAILED instead of being
 shown as a fully calculated success.
 """
 
+import re
 from typing import Mapping
 
+from .ai_action_execution_verification_contract import (
+    AI_ACTION_EXECUTION_VERIFICATION_VERSION,
+    STATUS_COMPUTED,
+    STATUS_FAILED,
+    STATUS_UNAVAILABLE,
+    validate_execution_verification,
+)
 from .ai_action_runtime import AIActionStoredProposal
 from .application.authorization import AuthorizationContext, AuthorizationError
 from .backend_p0.models import BackendScope
@@ -22,11 +30,7 @@ from .p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationA
 from .schedule_snapshot_publisher import ScheduleSnapshotPublicationError
 
 
-AI_ACTION_EXECUTION_VERIFICATION_VERSION = "ai-action-execution-verification.v1"
-
-STATUS_COMPUTED = "COMPUTED"
-STATUS_UNAVAILABLE = "UNAVAILABLE"
-STATUS_FAILED = "FAILED"
+_SAFE_REASON_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,119}$")
 
 
 def _payload(
@@ -47,8 +51,11 @@ def _payload(
 
 
 def _stable_code(exc: BaseException, fallback: str) -> str:
+    # Never surface an arbitrary exception message to clients. Only a compact
+    # upper-case diagnostic token is accepted; everything else becomes a stable
+    # sanitized fallback.
     code = str(exc).split(":", 1)[0].strip().replace(" ", "_")
-    return code[:120] or fallback
+    return code if _SAFE_REASON_CODE.fullmatch(code) else fallback
 
 
 def _is_non_empty_text(value: object) -> bool:
@@ -73,7 +80,7 @@ def _verify_ai_action_execution(
     """
     if record.status != "executed":
         return _payload(STATUS_UNAVAILABLE, reason_code="AI_ACTION_NOT_EXECUTED")
-    if record.proposal.tool_name != "activity.create":
+    if record.proposal.tool_name not in {"activity.create", "activity.update"}:
         return _payload(STATUS_UNAVAILABLE, reason_code="AI_ACTION_VERIFICATION_NOT_SUPPORTED")
     if activity_api is None or snapshot_api is None or schedule_query_api is None:
         return _payload(STATUS_UNAVAILABLE, reason_code="SCHEDULE_VERIFICATION_NOT_COMPOSED")
@@ -237,7 +244,7 @@ def _verify_ai_action_execution(
         "calculation_identity": calculation_identity,
     }
     payload["query_id"] = resolved_query_id if _is_non_empty_text(resolved_query_id) else query_id
-    return payload
+    return validate_execution_verification(payload)
 
 
 def verify_ai_action_execution(

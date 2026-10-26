@@ -57,6 +57,44 @@ test("creates activity proposal with expected revision and registered tool", asy
   });
 });
 
+test("creates activity update proposal with record revision and registered tool", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: AI_ACTION_CONTRACT_VERSION, status: "proposed",
+    proposal: {
+      ...validProposal, tool_name: "activity.update", action: "update", status: undefined,
+      payload: { activity_id: "A-17", expected_revision: 3, name: "Excavation revised" },
+    },
+  }});
+  const result = await new AIActionClient(transport).proposeActivityUpdate(context, {
+    activity_id: "A-17", expected_revision: 3, name: "Excavation revised",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(transport.calls[0]?.path, "/api/projects/project-1/ai/actions/proposals");
+  assert.deepEqual(transport.calls[0]?.request, {
+    expected_revision: 7, tool_name: "activity.update",
+    payload: { activity_id: "A-17", expected_revision: 3, name: "Excavation revised" },
+    evidence_refs: [],
+  });
+  if (result.ok) {
+    assert.equal(result.data.tool_name, "activity.update");
+    assert.equal(result.data.payload.expected_revision, 3);
+  }
+});
+
+test("propagates an execution error without inventing a verification", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: false, error: {
+    code: "AI_ACTION_ACTIVITY_REVISION_CONFLICT",
+    retryable: false,
+    message_key: "error.ai_action.request_failed",
+    available_actions: [],
+  } });
+  const result = await new AIActionClient(transport).execute(context, "prop-1", "UTC");
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "AI_ACTION_ACTIVITY_REVISION_CONFLICT");
+});
+
 test("approval and execution use separate explicit requests", async () => {
   const transport = new FakeTransport();
   transport.responses.push(

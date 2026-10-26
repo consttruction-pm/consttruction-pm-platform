@@ -2451,7 +2451,7 @@ class ProjectLifecycleHttpRoutes:
                 record = self._ai_action_runtime.execute(runtime_context, proposal_id or "")
                 verification = None
                 verification_stored = False
-                if record.proposal.tool_name == "activity.create":
+                if record.proposal.tool_name in {"activity.create", "activity.update"}:
                     raw_timezone = payload.get("timezone")
                     verification = verify_ai_action_execution(
                         record,
@@ -2467,12 +2467,15 @@ class ProjectLifecycleHttpRoutes:
                         request_id=(headers or {}).get("X-Request-Id"),
                     )
                     try:
-                        self._ai_action_runtime.record_execution_verification(
+                        stored_record = self._ai_action_runtime.record_execution_verification(
                             runtime_context,
                             record.proposal.proposal_id,
                             verification,
                         )
-                        verification_stored = True
+                        # Report exactly the durable state, not a separate in-memory copy.
+                        record = stored_record
+                        verification = stored_record.execution_verification
+                        verification_stored = verification is not None
                     except Exception:
                         # The committed action and its computed verification stay
                         # visible; only durable retrieval after reload is unavailable.
@@ -2529,9 +2532,9 @@ class ProjectLifecycleHttpRoutes:
         except AIActionRuntimeError as exc:
             code = str(exc)
             status = 400
-            if code in {"AI_TOOL_NOT_PERMITTED", "AI_ACTION_PERMISSION_CHECK_FAILED"}:
+            if code in {"AI_TOOL_NOT_PERMITTED", "AI_ACTION_PERMISSION_CHECK_FAILED", "AI_ACTION_ACTIVITY_TOOL_SCOPE_MISMATCH"}:
                 status = 403
-            elif code == "AI_ACTION_PROPOSAL_NOT_FOUND":
+            elif code in {"AI_ACTION_PROPOSAL_NOT_FOUND", "AI_ACTION_ACTIVITY_NOT_FOUND"}:
                 status = 404
             elif code in {
                 "AI_ACTION_PROPOSAL_STALE_REVISION",
@@ -2541,6 +2544,10 @@ class ProjectLifecycleHttpRoutes:
                 "AI_ACTION_IDEMPOTENCY_KEY_REUSE",
                 "AI_ACTION_EXECUTION_OUTCOME_UNCERTAIN",
                 "AI_ACTION_EXECUTION_PRECONDITION_FAILED",
+                "AI_ACTION_ACTIVITY_ALREADY_EXISTS",
+                "AI_ACTION_ACTIVITY_REVISION_CONFLICT",
+                "AI_ACTION_ACTIVITY_CREATE_REJECTED",
+                "AI_ACTION_ACTIVITY_UPDATE_REJECTED",
             }:
                 status = 409
             elif code == "AI_ACTION_EXECUTION_FAILED":
@@ -2553,6 +2560,10 @@ class ProjectLifecycleHttpRoutes:
                 "AI_ACTION_IDEMPOTENCY_RESULT_NOT_PERSISTED",
                 "AI_ACTION_IDEMPOTENCY_RESULT_INVALID",
                 "AI_ACTION_TRANSACTION_FAILED",
+                "AI_ACTION_VERIFICATION_INVALID",
+                "AI_ACTION_VERIFICATION_RESULT_MISMATCH",
+                "AI_ACTION_VERIFICATION_PERSISTENCE_FAILED",
+                "AI_ACTION_STORED_VERIFICATION_INVALID",
             }:
                 status = 500
             return self._error(status, code, "error.ai_action.request_failed")

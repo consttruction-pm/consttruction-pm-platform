@@ -65,6 +65,14 @@ export type CreateActivityProposal = Readonly<{
   duration_unit: "working-day" | "working-hour";
 }>;
 
+export type UpdateActivityProposal = Readonly<{
+  activity_id: string;
+  expected_revision: number;
+  name?: string;
+  duration_value?: string;
+  duration_unit?: "working-day" | "working-hour";
+}>;
+
 export type AIAssistantHistoryMessage = Readonly<{
   role: "user" | "assistant";
   content: string;
@@ -214,7 +222,11 @@ function parseVerification(value: unknown): AIActionExecutionVerification | null
 }
 
 export class AIActionClient {
-  constructor(private readonly transport: ApiTransport) {}
+  private readonly transport: ApiTransport;
+
+  constructor(transport: ApiTransport) {
+    this.transport = transport;
+  }
 
   async listProposals(context: ProjectContext): Promise<ApiResult<AIActionProposalList>> {
     const result = await this.transport.get<unknown>(
@@ -261,6 +273,42 @@ export class AIActionClient {
     }
     // Create responses omit list-only fields. Normalize only fields the server
     // authoritatively returned; don't copy identity or approval flags from input.
+    const created = {
+      ...data.proposal,
+      status: data.status,
+      result: null,
+      updated_at: data.proposal.updated_at ?? data.proposal.created_at,
+      requested_by: data.proposal.requested_by ?? "",
+      decided_by: null,
+      is_stale: String(data.proposal.project_revision_id) !== String(context.revision),
+    };
+    const proposal = parseProposal(created);
+    if (!proposal) return invalidResponse<AIActionProposal>();
+    return { ok: true, data: proposal };
+  }
+
+  async proposeActivityUpdate(
+    context: ProjectContext,
+    activity: UpdateActivityProposal,
+  ): Promise<ApiResult<AIActionProposal>> {
+    const result = await this.transport.post<
+      { expected_revision: number; tool_name: string; payload: UpdateActivityProposal; evidence_refs: string[] },
+      unknown
+    >(
+      `${projectPath(context)}/proposals`,
+      {
+        expected_revision: context.revision,
+        tool_name: "activity.update",
+        payload: activity,
+        evidence_refs: [],
+      },
+      context,
+    );
+    if (!result.ok) return result;
+    const data = result.data;
+    if (!isRecord(data) || data.contract_version !== AI_ACTION_CONTRACT_VERSION || !isRecord(data.proposal)) {
+      return invalidResponse<AIActionProposal>();
+    }
     const created = {
       ...data.proposal,
       status: data.status,
