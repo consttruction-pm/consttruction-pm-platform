@@ -265,8 +265,9 @@ workspace.
 - Assignment-level early/late windows and assignment float are now returned by
   the Shared Core placement result and are derived from the authoritative CPM
   early/late dates of the same run; the placement module never recomputes CPM.
-  Backward assignment placement exists as an explicit Shared Core
-  `placement_direction="LATE"` contract, but no persisted schedule option or Web
-  control selects it yet; the preview uses the documented `EARLY` default.
+  An `ALAP` schedule result places assignments backward automatically, while an
+  `EARLIEST` result keeps the documented `EARLY` default. Backward placement
+  also exists as an explicit Shared Core `placement_direction="LATE"` contract,
+  but no persisted schedule option or Web control selects it independently yet.
 - CUBISITE workbook-derived official weights, scoring or completion percentages
   are unavailable and must not be inferred from file counts.
