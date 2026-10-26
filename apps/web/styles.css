@@ -1919,10 +1919,11 @@ th {
 
 /* Accessible, session-only assistant conversation surface */
 .cp-ai-assistant-chat{margin:0 0 1rem;border:1px solid var(--cp-border);border-radius:.8rem;background:var(--cp-panel,#fff);overflow:hidden}
-.cp-ai-chat-summary{cursor:pointer;list-style:none;padding:1rem 1.2rem;font-weight:800;color:var(--cubi-deep-navy);display:flex;align-items:center;gap:.65rem}
+.cp-ai-chat-summary{cursor:pointer;list-style:none;padding:.7rem 1rem;font-weight:800;color:var(--cubi-deep-navy);display:flex;align-items:center;gap:.8rem}
 .cp-ai-chat-summary::-webkit-details-marker{display:none}
-.cp-ai-chat-summary:before{content:"✦";display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--cubi-copper-orange);color:#1e2732;font-weight:900}
-.cp-ai-assistant-chat[open]>.cp-ai-chat-summary:before{content:"−"}
+.cp-ai-chat-avatar{display:block;flex:0 0 44px;width:44px;height:44px;object-fit:cover;border-radius:50%;border:1px solid #B7D7EE;background:#EAF6FF;box-shadow:0 2px 8px rgb(18 52 90 / 14%)}
+.cp-ai-chat-summary-title{display:block;line-height:1.35}
+.cp-ai-assistant-chat[open]>.cp-ai-chat-summary{background:linear-gradient(90deg,#EAF6FF 0%,var(--cp-panel,#fff) 70%)}
 .cp-ai-chat-content{border-top:1px solid var(--cp-border);padding:1rem 1.2rem 1.25rem;display:grid;gap:.85rem}
 .cp-ai-chat-description{margin:0;max-width:85ch;line-height:1.7;color:var(--cp-muted,#596676)}
 .cp-ai-chat-transcript{display:grid;gap:.65rem;max-height:24rem;overflow:auto;padding:.2rem}
