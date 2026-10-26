@@ -23,7 +23,12 @@ an assignment that was not placed.
 
 Assignment-level windows are derived from the authoritative CPM early/late
 dates that the Shared Core already calculated; this module never calculates
-activity dates or float itself.
+activity dates or float itself. ``activities`` carries the final scheduled
+dates, ``early_activities`` the CPM early dates, and ``late_activities`` the
+CPM late dates. Backward (``ALAP``) schedules select the late dates as the
+scheduled activity result, so the caller must also supply the CPM early dates;
+otherwise forward placement would treat late starts as the earliest legal
+assignment date.
 
 * The assignment duration is the number of persisted, consecutive,
   positive-capacity demand periods. It is not inferred from activity duration.
@@ -36,7 +41,9 @@ activity dates or float itself.
   therefore finish after the activity late start, mirroring the documented
   rule that it may finish after activity finish. A late start earlier than the
   activity early start is reported as a negative-float window instead of being
-  clamped or invented.
+  clamped or invented. When a zero-float activity starts on a date without
+  positive resource capacity, the late window falls back to the first run at
+  or after that shared start instead of inventing a window before it.
 * Assignment float is the number of positive-capacity resource dates from the
   early window start up to (excluding) the late window start. It is an
   assignment-level diagnostic measured on the resource calendar, separate
@@ -44,13 +51,16 @@ activity dates or float itself.
   come from independent priority-ordered ledgers, so a negative value means
   the two passes assign the shared capacity differently and the assignment has
   no true float.
-* A driving assignment is fixed to the authoritative activity start/finish in
-  both directions and reports zero assignment float.
-* ``placement_direction="EARLY"`` (the production default) places each
-  nondriving assignment in its early window using forward priority order.
-  ``placement_direction="LATE"`` implements the backward contract: it starts
-  from the late dates, gives the first priority activity the latest feasible
-  window, and fails the assignment explicitly when no late window fits.
+* A driving assignment is fixed to the authoritative activity start/finish.
+  Both its reported windows are those fixed dates because the demand cannot
+  move, and its assignment float is zero regardless of activity float.
+* ``placement_direction="EARLY"`` places each nondriving assignment in its
+  early window using forward priority order. ``placement_direction="LATE"``
+  implements the backward contract: it starts from the late dates, gives the
+  first priority activity the latest feasible window, and fails the assignment
+  explicitly when no late window fits. An ``ALAP`` schedule result uses
+  ``LATE`` so the placed assignments belong to the same dates as the
+  activities.
 
 The Shared Core schedule result remains the only owner of activity early/late
 dates and floats. This module consumes them; it never recomputes CPM and never
@@ -137,11 +147,17 @@ class ResourceDependentAssignmentSchedule:
     """Assignment-level outcome returned to the production Schedule Query.
 
     ``start``/``finish`` are the placement selected by
-    ``placement_direction``. ``early_*`` and ``late_*`` are the independently
-    calculated assignment windows from the authoritative activity early/late
-    dates. When a window cannot be calculated the pair is ``None`` and the
-    matching ``*_window_code`` states why; the other window and the selected
-    placement are not overwritten or guessed.
+    ``placement_direction``. For a nondriving assignment ``early_*`` and
+    ``late_*`` are the independently calculated windows from the authoritative
+    activity early/late starts. When a window cannot be calculated the pair is
+    ``None`` and the matching ``*_window_code`` states why; the other window
+    and the selected placement are not overwritten or guessed.
+
+    A driving assignment cannot move, so both window pairs are the fixed
+    authoritative activity ``start``/``finish`` and
+    ``assignment_float_working_days`` is always ``0``, independent of the
+    activity's CPM float. A failed row keeps the windows that were derived as
+    evidence but never exposes ``start``/``finish``.
     """
 
     assignment_id: str
@@ -445,11 +461,19 @@ def _latest_window_start_index(
     The first date of the window is the anchored date, mirroring forward
     placement. It must not precede the authoritative activity early start and
     must not follow the authoritative activity late start.
+
+    A zero-float activity can start on a date without positive resource
+    capacity. No capacity date then exists on or before the shared start, but
+    the assignment still cannot be placed before the activity. In exactly that
+    case the first capacity date at or after the start is the only legal late
+    anchor and is used instead of reporting a window the contract forbids.
     """
     if count == 0:
         return None
     first_allowed = bisect.bisect_left(available, earliest_start)
     latest_start = bisect.bisect_right(available, late_start) - 1
+    if latest_start < first_allowed and late_start == earliest_start:
+        latest_start = first_allowed
     last = min(latest_start, len(available) - count)
     if last < first_allowed:
         return None
@@ -669,25 +693,27 @@ def _failed_assignment(
     )
 
 
-def _late_activity_dates(
+def _authoritative_activity_dates(
     activities: Mapping[str, object],
+    *,
+    label: str,
 ) -> dict[str, tuple[date, date]]:
-    """Validate the authoritative CPM late dates supplied by the caller."""
+    """Validate a caller-supplied authoritative CPM early/late date map."""
     result: dict[str, tuple[date, date]] = {}
     for activity_id, activity in activities.items():
         start = getattr(activity, "start", None)
         finish = getattr(activity, "finish", None)
         if not isinstance(start, date) or isinstance(start, datetime):
             raise ResourceDependentPlacementError(
-                f"RESOURCE_DEPENDENT_LATE_ACTIVITY_START_MISSING:{activity_id}"
+                f"RESOURCE_DEPENDENT_{label}_ACTIVITY_START_MISSING:{activity_id}"
             )
         if not isinstance(finish, date) or isinstance(finish, datetime):
             raise ResourceDependentPlacementError(
-                f"RESOURCE_DEPENDENT_LATE_ACTIVITY_FINISH_MISSING:{activity_id}"
+                f"RESOURCE_DEPENDENT_{label}_ACTIVITY_FINISH_MISSING:{activity_id}"
             )
         if finish < start:
             raise ResourceDependentPlacementError(
-                f"RESOURCE_DEPENDENT_LATE_ACTIVITY_DATES_INVALID:{activity_id}"
+                f"RESOURCE_DEPENDENT_{label}_ACTIVITY_DATES_INVALID:{activity_id}"
             )
         result[activity_id] = (start, finish)
     return result
@@ -702,18 +728,23 @@ def place_resource_dependent_assignments(
     max_candidates: int = 10_000,
     priority_activities: Mapping[str, LevelingActivity] | None = None,
     priorities: tuple[LevelingPriority, ...] = (),
+    early_activities: Mapping[str, object] | None = None,
     late_activities: Mapping[str, object] | None = None,
     placement_direction: str = PLACEMENT_DIRECTION_EARLY,
 ) -> ResourceDependentPlacementResult:
     """Place every Resource Dependent assignment against final activity dates.
 
     ``activities`` must be the authoritative final CPM/leveling result keyed by
-    activity ID. ``late_activities`` must be the matching authoritative CPM late
-    dates (``start`` is the late start, ``finish`` the late finish). They are
-    required to calculate assignment late windows; when omitted, the early
-    placement still succeeds and each nondriving assignment reports
+    activity ID. ``early_activities`` and ``late_activities`` must be the
+    matching authoritative CPM early and late dates (``start`` is the CPM
+    start, ``finish`` the CPM finish). ``early_activities`` is required when
+    ``activities`` is not the early result, as in an ``ALAP`` schedule; when
+    omitted, the supplied ``activities`` dates are used as the early anchor.
+    ``late_activities`` is required to calculate assignment late windows; when
+    omitted, early placement still succeeds and each nondriving assignment
+    reports
     ``late_window_code=RESOURCE_DEPENDENT_ACTIVITY_LATE_DATES_REQUIRED``.
-    They are mandatory for ``placement_direction="LATE"``.
+    It is mandatory for ``placement_direction="LATE"``.
 
     ``committed_demands`` must contain only demand from activities other than
     the Resource Dependent activities represented by ``facts``; the driving
@@ -751,6 +782,10 @@ def place_resource_dependent_assignments(
     if placement_direction not in PLACEMENT_DIRECTIONS:
         raise ResourceDependentPlacementError(
             "INVALID_RESOURCE_DEPENDENT_PLACEMENT_DIRECTION"
+        )
+    if early_activities is not None and not isinstance(early_activities, Mapping):
+        raise ResourceDependentPlacementError(
+            "INVALID_RESOURCE_DEPENDENT_EARLY_ACTIVITIES"
         )
     if late_activities is not None and not isinstance(late_activities, Mapping):
         raise ResourceDependentPlacementError(
@@ -823,12 +858,28 @@ def place_resource_dependent_assignments(
             )
         periods_by_fact[fact.assignment_id] = _validated_periods(fact)
 
+    fact_activity_ids_for_dates = {fact.activity_id for fact in facts}
+    early_activity_dates = (
+        dict(activity_dates)
+        if early_activities is None
+        else _authoritative_activity_dates(early_activities, label="EARLY")
+    )
+    missing_early_activities = sorted(
+        fact_activity_ids_for_dates - set(early_activity_dates)
+    )
+    if missing_early_activities:
+        raise ResourceDependentPlacementError(
+            "RESOURCE_DEPENDENT_EARLY_ACTIVITY_MISSING:"
+            + ",".join(missing_early_activities)
+        )
     late_activity_dates = (
-        None if late_activities is None else _late_activity_dates(late_activities)
+        None
+        if late_activities is None
+        else _authoritative_activity_dates(late_activities, label="LATE")
     )
     if late_activity_dates is not None:
         missing_late_activities = sorted(
-            {fact.activity_id for fact in facts} - set(late_activity_dates)
+            fact_activity_ids_for_dates - set(late_activity_dates)
         )
         if missing_late_activities:
             raise ResourceDependentPlacementError(
@@ -941,6 +992,12 @@ def place_resource_dependent_assignments(
             code=code,
             message=message,
             activity_priority_rank=activity_priority_rank.get(fact.activity_id),
+            # A driving row's windows are its fixed activity dates. Preserve
+            # them on failure as evidence; they are never used as placement.
+            early_start=start if fact.is_driving else None,
+            early_finish=finish if fact.is_driving else None,
+            late_start=start if fact.is_driving else None,
+            late_finish=finish if fact.is_driving else None,
             placement_direction=placement_direction,
         )
 
@@ -1152,17 +1209,19 @@ def place_resource_dependent_assignments(
                     None, code=precheck[0], message=precheck[1]
                 )
                 continue
-            activity_start, _ = activity_dates[fact.activity_id]
+            # Both directions are lower-bounded by the authoritative CPM early
+            # start, never by the scheduled date of an ALAP activity.
+            early_start, _ = early_activity_dates[fact.activity_id]
             periods = periods_by_fact[fact.assignment_id]
             resource_dates = available.get(fact.resource_id, ())
-            if not resource_dates or resource_dates[-1] < activity_start:
+            if not resource_dates or resource_dates[-1] < early_start:
                 outcomes[fact.assignment_id] = _WindowOutcome(
                     None,
                     code="RESOURCE_DEPENDENT_CAPACITY_HORIZON_EXHAUSTED",
                     message=(
                         f"resource {fact.resource_id} has no positive capacity "
-                        f"on or after activity start "
-                        f"{activity_start.isoformat()}"
+                        f"on or after activity early start "
+                        f"{early_start.isoformat()}"
                     ),
                 )
                 continue
@@ -1180,7 +1239,7 @@ def place_resource_dependent_assignments(
                     ),
                 )
                 continue
-            start_index = bisect.bisect_left(resource_dates, activity_start)
+            start_index = bisect.bisect_left(resource_dates, early_start)
             if len(periods) > len(resource_dates) - start_index:
                 outcomes[fact.assignment_id] = _WindowOutcome(
                     None,
@@ -1200,18 +1259,18 @@ def place_resource_dependent_assignments(
             if direction == PLACEMENT_DIRECTION_LATE:
                 assert late_activity_dates is not None
                 late_start, _ = late_activity_dates[fact.activity_id]
-                if late_start < activity_start:
+                if late_start < early_start:
                     code = NEGATIVE_FLOAT_WINDOW_CODE
                     message = (
                         f"authoritative activity late start "
                         f"{late_start.isoformat()} precedes early start "
-                        f"{activity_start.isoformat()}; no late window exists"
+                        f"{early_start.isoformat()}; no late window exists"
                     )
                 else:
                     latest = _latest_window_start_index(
                         resource_dates,
                         len(periods),
-                        earliest_start=activity_start,
+                        earliest_start=early_start,
                         late_start=late_start,
                     )
                     if latest is None:
@@ -1220,7 +1279,7 @@ def place_resource_dependent_assignments(
                             f"no consecutive capacity window for resource "
                             f"{fact.resource_id} starts within the activity "
                             f"early/late start window "
-                            f"{activity_start.isoformat()}.."
+                            f"{early_start.isoformat()}.."
                             f"{late_start.isoformat()} for "
                             f"{len(periods)} demand period(s)"
                         )
@@ -1242,8 +1301,15 @@ def place_resource_dependent_assignments(
                             code = LATE_CAPACITY_EXHAUSTED_CODE
                             message = (
                                 f"no contiguous late capacity window for "
-                                f"resource {fact.resource_id} on or before "
-                                f"late start {late_start.isoformat()}"
+                                f"resource {fact.resource_id} with a start on "
+                                f"or before late start "
+                                f"{late_start.isoformat()}"
+                                + (
+                                    f" among the {max_candidates} latest "
+                                    f"candidate resource dates searched"
+                                    if lowest > start_index
+                                    else ""
+                                )
                             )
             else:
                 last_candidate = min(
@@ -1268,8 +1334,14 @@ def place_resource_dependent_assignments(
                     code = "RESOURCE_DEPENDENT_NONDRIVING_CAPACITY_EXHAUSTED"
                     message = (
                         f"no contiguous capacity window for resource "
-                        f"{fact.resource_id} on or after activity start "
-                        f"{activity_start.isoformat()}"
+                        f"{fact.resource_id} on or after activity early start "
+                        f"{early_start.isoformat()}"
+                        + (
+                            f" within the first {max_candidates} candidate "
+                            f"resource dates searched"
+                            if last_candidate < len(resource_dates) - len(periods)
+                            else ""
+                        )
                     )
             if window is None:
                 outcomes[fact.assignment_id] = _WindowOutcome(
@@ -1402,12 +1474,22 @@ def place_resource_dependent_assignments(
                 for fact in sorted(facts, key=lambda item: item.assignment_id)
             ],
             "placement_direction": placement_direction,
+            "max_candidates": max_candidates,
             "activities": {
                 activity_id: {
                     "start": start.isoformat(),
                     "finish": finish.isoformat(),
                 }
                 for activity_id, (start, finish) in sorted(activity_dates.items())
+            },
+            "early_activities": {
+                activity_id: {
+                    "start": start.isoformat(),
+                    "finish": finish.isoformat(),
+                }
+                for activity_id, (start, finish) in sorted(
+                    early_activity_dates.items()
+                )
             },
             "late_activities": (
                 None

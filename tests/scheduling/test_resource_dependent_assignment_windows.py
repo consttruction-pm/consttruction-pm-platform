@@ -115,7 +115,7 @@ def _one_nondriving(**overrides):
     return place_resource_dependent_assignments(**kwargs)
 
 
-def test_assignment_early_and_late_windows_follow_authoritative_cpm_dates():
+def test_assignment_early_and_late_windows_follow_authoritative_cpm_starts():
     result = _one_nondriving(
         late_activities=late_dates(start="2026-10-22", finish="2026-10-22"),
     )
@@ -435,7 +435,7 @@ def test_assignment_float_counts_resource_dates_not_civil_days():
     assert placed.assignment_float_working_days == 2
 
 
-def test_placement_direction_and_late_dates_are_bound_to_the_input_hash():
+def test_placement_inputs_are_bound_to_the_input_hash():
     kwargs = {
         "facts": (
             fact(
@@ -459,8 +459,215 @@ def test_placement_direction_and_late_dates_are_bound_to_the_input_hash():
         placement_direction=PLACEMENT_DIRECTION_LATE,
         **kwargs,
     )
+    narrow = place_resource_dependent_assignments(max_candidates=1, **kwargs)
 
-    assert len({without_late.input_hash, early.input_hash, late.input_hash}) == 3
+    assert len(
+        {
+            without_late.input_hash,
+            early.input_hash,
+            late.input_hash,
+            narrow.input_hash,
+        }
+    ) == 4
+
+
+def test_late_dates_with_identical_placement_still_change_the_input_hash():
+    # Two different authoritative late starts map to the same last feasible
+    # window because 2026-10-21 has no capacity. The placement is identical,
+    # but the immutable input identity must differ.
+    kwargs = {
+        "facts": (
+            fact(
+                "AS-FLEX",
+                driving=False,
+                periods=(("2026-10-19", "4"), ("2026-10-20", "4")),
+            ),
+        ),
+        "activities": activities(),
+        "capacities": capacity(
+            "AS-FLEX", ("2026-10-19", "2026-10-20", "2026-10-22", "2026-10-23")
+        ),
+        "placement_direction": PLACEMENT_DIRECTION_LATE,
+    }
+
+    oct_22 = place_resource_dependent_assignments(
+        late_activities=late_dates(start="2026-10-22", finish="2026-10-22"),
+        **kwargs,
+    )
+    oct_23 = place_resource_dependent_assignments(
+        late_activities=late_dates(start="2026-10-23", finish="2026-10-23"),
+        **kwargs,
+    )
+
+    assert oct_22.assignments[0].to_payload() == oct_23.assignments[0].to_payload()
+    assert oct_22.assignments[0].late_start == date(2026, 10, 22)
+    assert oct_22.input_hash != oct_23.input_hash
+
+
+def test_backward_search_reports_a_truncated_candidate_search():
+    # Only the last two candidate starts are searched. The earlier free window
+    # must not be reported as a full backward exhaustion.
+    result = _one_nondriving(
+        facts=(
+            fact(
+                "AS-FLEX",
+                driving=False,
+                periods=(("2026-10-19", "4"),),
+                planned="4",
+            ),
+        ),
+        late_activities=late_dates(start="2026-10-28", finish="2026-10-28"),
+        committed_demands=tuple(
+            ResourceDemand("AS-FLEX", date(2026, 10, day), Decimal("8"), "TD-1")
+            for day in (26, 27, 28)
+        ),
+        capacities=capacity(
+            "AS-FLEX",
+            tuple(f"2026-10-{day}" for day in range(19, 29)),
+        ),
+        max_candidates=2,
+        placement_direction=PLACEMENT_DIRECTION_LATE,
+    )
+
+    failed = result.assignments[0]
+    assert result.status == PLACEMENT_FAILED
+    assert failed.diagnostic_code == LATE_CAPACITY_EXHAUSTED_CODE
+    assert "2 latest candidate resource dates searched" in failed.diagnostic_message
+
+    unbounded = _one_nondriving(
+        facts=(
+            fact(
+                "AS-FLEX",
+                driving=False,
+                periods=(("2026-10-19", "4"),),
+                planned="4",
+            ),
+        ),
+        late_activities=late_dates(start="2026-10-28", finish="2026-10-28"),
+        committed_demands=tuple(
+            ResourceDemand("AS-FLEX", date(2026, 10, day), Decimal("8"), "TD-1")
+            for day in (26, 27, 28)
+        ),
+        capacities=capacity(
+            "AS-FLEX",
+            tuple(f"2026-10-{day}" for day in range(19, 29)),
+        ),
+        max_candidates=10,
+        placement_direction=PLACEMENT_DIRECTION_LATE,
+    )
+
+    assert unbounded.status == PLACEMENT_COMPLETE
+    assert unbounded.assignments[0].start == date(2026, 10, 25)
+
+
+def test_zero_float_activity_starting_without_capacity_uses_the_first_window():
+    # The activity is critical and starts on 2026-10-19, but this resource has
+    # no capacity before 2026-10-21. The late window must not be reported as
+    # unavailable or invented before the activity start.
+    result = _one_nondriving(
+        facts=(
+            fact(
+                "AS-FLEX",
+                driving=False,
+                periods=(("2026-10-21", "4"), ("2026-10-22", "4")),
+            ),
+        ),
+        late_activities=late_dates(start="2026-10-19", finish="2026-10-19"),
+        capacities=capacity("AS-FLEX", ("2026-10-21", "2026-10-22")),
+    )
+
+    assert result.status == PLACEMENT_COMPLETE
+    placed = result.assignments[0]
+    assert (placed.start, placed.finish) == (date(2026, 10, 21), date(2026, 10, 22))
+    assert (placed.early_start, placed.early_finish) == (
+        date(2026, 10, 21),
+        date(2026, 10, 22),
+    )
+    assert (placed.late_start, placed.late_finish) == (
+        date(2026, 10, 21),
+        date(2026, 10, 22),
+    )
+    assert placed.assignment_float_working_days == 0
+    assert placed.early_window_code is None
+    assert placed.late_window_code is None
+
+
+def test_alap_backward_placement_uses_cpm_early_dates_as_the_lower_bound():
+    # ``activities`` carries the scheduled late dates in ALAP mode. Without the
+    # explicit CPM early dates, forward placement would treat the late start as
+    # the earliest legal assignment date and mislabel it as the early window.
+    result = place_resource_dependent_assignments(
+        facts=(
+            fact(
+                "AS-FLEX",
+                driving=False,
+                periods=(("2026-10-21", "4"), ("2026-10-22", "4")),
+            ),
+        ),
+        activities={
+            "RD-1": SimpleNamespace(
+                start=date(2026, 10, 28), finish=date(2026, 10, 29)
+            )
+        },
+        early_activities={
+            "RD-1": SimpleNamespace(
+                start=date(2026, 10, 21), finish=date(2026, 10, 22)
+            )
+        },
+        late_activities={
+            "RD-1": SimpleNamespace(
+                start=date(2026, 10, 28), finish=date(2026, 10, 29)
+            )
+        },
+        capacities=capacity(
+            "AS-FLEX",
+            (
+                "2026-10-21",
+                "2026-10-22",
+                "2026-10-23",
+                "2026-10-26",
+                "2026-10-27",
+                "2026-10-28",
+                "2026-10-29",
+            ),
+        ),
+        placement_direction=PLACEMENT_DIRECTION_LATE,
+    )
+
+    assert result.status == PLACEMENT_COMPLETE
+    placed = result.assignments[0]
+    assert (placed.start, placed.finish) == (date(2026, 10, 28), date(2026, 10, 29))
+    assert (placed.early_start, placed.early_finish) == (
+        date(2026, 10, 21),
+        date(2026, 10, 22),
+    )
+    assert (placed.late_start, placed.late_finish) == (
+        date(2026, 10, 28),
+        date(2026, 10, 29),
+    )
+    assert placed.activity_start == date(2026, 10, 28)
+    assert placed.assignment_float_working_days == 5
+    assert result.placement_direction == PLACEMENT_DIRECTION_LATE
+
+
+def test_early_activities_missing_for_a_fact_activity_fail_closed():
+    with pytest.raises(
+        ResourceDependentPlacementError,
+        match="RESOURCE_DEPENDENT_EARLY_ACTIVITY_MISSING:RD-1",
+    ):
+        place_resource_dependent_assignments(
+            facts=(
+                fact(
+                    "AS-FLEX",
+                    driving=False,
+                    periods=(("2026-10-19", "4"),),
+                    planned="4",
+                ),
+            ),
+            activities=activities(),
+            early_activities={},
+            capacities=capacity("AS-FLEX", ("2026-10-19",)),
+        )
 
 
 def test_driving_assignment_reports_zero_assignment_float():

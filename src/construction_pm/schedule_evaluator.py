@@ -16,12 +16,15 @@ from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.leveling_scheduler import schedule_with_resource_leveling
 from .scheduling.leveling_boundary import SchedulerLevelingInput
 from .scheduling.resource_dependent_placement import (
+    PLACEMENT_DIRECTION_EARLY,
+    PLACEMENT_DIRECTION_LATE,
     ResourceDependentPlacementResult,
     demands_at_final_schedule,
     place_resource_dependent_assignments,
 )
 from .scheduling.calendar_resolution import resolve_relationship_lag_resolvers
 from .scheduling.schedule import ScheduleResult, schedule
+from .scheduling.schedule_options import ScheduleMode
 from .scheduling.time_forward_pass import TimeScheduledActivity
 from .scheduling.time_schedule import TimeScheduleOptions, TimeScheduleResult, time_schedule
 
@@ -182,7 +185,10 @@ def _evaluate_materialized(
                     committed_demands=committed_demands,
                     # Assignment early/late windows are derived from the
                     # authoritative CPM early/late dates of this same run; this
-                    # module never recalculates activity dates or float.
+                    # module never recalculates activity dates or float. In
+                    # ALAP mode ``result.activities`` are the scheduled late
+                    # dates, so the CPM early dates are bound explicitly.
+                    early_activities=result.early_activities,
                     late_activities=result.late_activities,
                     # Competing nondriving assignments use the exact activity
                     # priority fields and order that the Shared Core applies to
@@ -192,6 +198,14 @@ def _evaluate_materialized(
                         for activity in leveling_input.forward_activities
                     },
                     priorities=leveling_input.options.priorities,
+                    # An ALAP schedule places the activities themselves at
+                    # their late dates, so the assignment ledger follows the
+                    # same backward direction.
+                    placement_direction=(
+                        PLACEMENT_DIRECTION_LATE
+                        if result.mode is ScheduleMode.ALAP
+                        else PLACEMENT_DIRECTION_EARLY
+                    ),
                 )
             run_identity = _run_identity(
                 snapshot.snapshot_hash,
