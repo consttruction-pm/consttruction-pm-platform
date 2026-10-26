@@ -312,9 +312,90 @@ def test_assistant_turn_is_fail_closed_without_provider_or_runtime():
         status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
             "expected_revision": 2, "message": "Hello", "language": "en",
         })
-        assert status == 404
-        assert json.loads(body)["code"] == "ROUTE_NOT_FOUND"
+        assert status == 503
+        response = json.loads(body)
+        assert response["code"] == "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED"
+        assert response["retryable"] is True
         assert executed == []
+        capabilities, _, capabilities_body = request(
+            routes, "/api/projects/p1/ai/assistant/capabilities", {}, method="GET"
+        )
+        assert capabilities == 200
+        assert json.loads(capabilities_body) == {
+            "contract_version": "ai-assistant-capabilities.v1",
+            "enabled": False,
+            "reason": "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
+        }
+    finally:
+        conn.close()
+
+
+def test_assistant_turn_reports_enabled_capabilities_without_exposing_configuration():
+    provider = FakeAssistantProvider({
+        "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+    })
+    routes, conn, executed = build_routes(assistant_provider=provider)
+    try:
+        status, _, body = request(
+            routes, "/api/projects/p1/ai/assistant/capabilities", {}, method="GET"
+        )
+        assert status == 200
+        assert json.loads(body) == {
+            "contract_version": "ai-assistant-capabilities.v1",
+            "enabled": True,
+            "reason": None,
+        }
+        post_status, _, _ = request(
+            routes, "/api/projects/p1/ai/assistant/capabilities", {}, method="POST"
+        )
+        assert post_status == 405
+    finally:
+        conn.close()
+
+
+def test_assistant_turn_accepts_voice_provenance_without_trusting_it_as_identity():
+    provider = FakeAssistantProvider({
+        "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+    })
+    routes, conn, executed = build_routes(assistant_provider=provider)
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2,
+            "message": "How many activities are critical?",
+            "language": "en",
+            "input": {
+                "channel": "voice",
+                "source": "microphone",
+                "confidence": 0.82,
+            },
+        })
+        assert status == 200
+        assert json.loads(body)["kind"] == "message"
+        assert provider.calls[0]["user_message"] == "How many activities are critical?"
+        metadata = json.loads(conn.execute(
+            "SELECT event_json FROM ai_action_audit_events "
+            "WHERE event_type='assistant_turn_requested' ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()[0])["metadata"]
+        assert metadata["input_channel"] == "voice"
+        assert metadata["input_source"] == "microphone"
+        assert metadata["input_confidence"] == 0.82
+
+        for malformed in (
+            {"channel": "voice", "source": "microphone", "confidence": 2},
+            {"channel": "text", "source": "microphone", "confidence": 0.5},
+            {"channel": "voice", "source": "microphone", "confidence": 0.5, "tenant_id": "t2"},
+        ):
+            rejected, _, rejected_body = request(
+                routes, "/api/projects/p1/ai/assistant/turn", {
+                    "expected_revision": 2,
+                    "message": "Hello",
+                    "language": "en",
+                    "input": malformed,
+                },
+            )
+            assert rejected == 400
+            assert json.loads(rejected_body)["code"] == "AI_ASSISTANT_REQUEST_INVALID"
+        assert len(provider.calls) == 1
     finally:
         conn.close()
 

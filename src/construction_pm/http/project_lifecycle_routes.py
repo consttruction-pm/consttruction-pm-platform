@@ -2369,14 +2369,43 @@ class ProjectLifecycleHttpRoutes:
                     result = self._p6_code_api.create(definition, auth_context=auth)
                 except (TypeError, ValueError): return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            if path.startswith("/api/projects/") and "/ai/assistant/capabilities" in path:
+                parts = path[len("/api/projects/"):].split("/")
+                if len(parts) != 4 or not parts[0] or parts[1:] != ["ai", "assistant", "capabilities"]:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if method != "GET":
+                    return self._error(405, "AI_ASSISTANT_METHOD_NOT_ALLOWED", "error.request.invalid")
+                if self._ai_action_runtime is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = parts[0]
+                try:
+                    self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_READ, now=now
+                    )
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                enabled = self._ai_assistant_orchestrator is not None
+                return self._json(200, {
+                    "contract_version": "ai-assistant-capabilities.v1",
+                    "enabled": enabled,
+                    "reason": None if enabled else "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
+                })
             if path.startswith("/api/projects/") and "/ai/assistant/turn" in path:
                 parts = path[len("/api/projects/"):].split("/")
                 if len(parts) != 4 or not parts[0] or parts[1:] != ["ai", "assistant", "turn"]:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 if method != "POST":
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
-                if self._ai_action_runtime is None or self._ai_assistant_orchestrator is None:
+                if self._ai_action_runtime is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if self._ai_assistant_orchestrator is None:
+                    return self._error(
+                        503,
+                        "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
+                        "error.ai_assistant.provider_not_configured",
+                    )
                 # Bound parsing work before decoding attacker-controlled JSON.
                 if len(body) > 128_000:
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
@@ -2385,12 +2414,45 @@ class ProjectLifecycleHttpRoutes:
                 except (UnicodeDecodeError, json.JSONDecodeError):
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
                 if not isinstance(payload, dict) or set(payload).difference(
-                    {"expected_revision", "message", "language", "history"}
+                    {"expected_revision", "message", "language", "history", "input"}
                 ):
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
                 expected_revision = payload.get("expected_revision")
                 message = payload.get("message")
                 language = payload.get("language")
+                input_raw = payload.get("input")
+                input_provenance = None
+                if input_raw is not None:
+                    # Voice provenance is untrusted client metadata used only for
+                    # audit context. It never supplies identity, scope or revision.
+                    if (
+                        not isinstance(input_raw, dict)
+                        or set(input_raw) != {"channel", "source", "confidence"}
+                        or input_raw.get("channel") != "voice"
+                        or input_raw.get("source") not in {
+                            "microphone", "imported_audio", "manual_transcript"
+                        }
+                    ):
+                        return self._error(
+                            400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid"
+                        )
+                    input_confidence = input_raw.get("confidence")
+                    if (
+                        input_confidence is not None
+                        and (
+                            isinstance(input_confidence, bool)
+                            or not isinstance(input_confidence, (int, float))
+                            or not 0 <= input_confidence <= 1
+                        )
+                    ):
+                        return self._error(
+                            400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid"
+                        )
+                    input_provenance = {
+                        "channel": "voice",
+                        "source": str(input_raw.get("source")),
+                        "confidence": input_confidence,
+                    }
                 history_raw = payload.get("history", [])
                 if not isinstance(history_raw, list) or len(history_raw) > 12:
                     return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
@@ -2473,6 +2535,18 @@ class ProjectLifecycleHttpRoutes:
                         "language": language.strip(),
                         "message_length": len(message.strip()),
                         "can_propose": can_propose,
+                        "input_channel": (
+                            "text" if input_provenance is None
+                            else input_provenance["channel"]
+                        ),
+                        "input_source": (
+                            None if input_provenance is None
+                            else input_provenance["source"]
+                        ),
+                        "input_confidence": (
+                            None if input_provenance is None
+                            else input_provenance["confidence"]
+                        ),
                     },
                 )
                 try:
@@ -2777,6 +2851,7 @@ class ProjectLifecycleHttpRoutes:
                 "AI_ASSISTANT_PROVIDER_UNAVAILABLE",
                 "AI_ASSISTANT_PROVIDER_RATE_LIMITED",
                 "AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID",
+                "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
             }:
                 status = 503
             else:

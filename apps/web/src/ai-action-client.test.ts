@@ -353,3 +353,58 @@ test("rejects assistant turn responses missing required proposal field or valid 
   const emptyMessage = await new AIActionClient(transport).sendAssistantTurn(context, "hello", "en");
   assert.equal(emptyMessage.ok, false);
 });
+
+test("sends recognized voice provenance through the same assistant turn endpoint", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-turn.v1",
+    kind: "message",
+    message: "The project has 14 activities.",
+    proposal: null,
+  }});
+  const result = await new AIActionClient(transport).sendAssistantTurn(
+    context,
+    "How many activities are there?",
+    "en",
+    [],
+    { channel: "voice", source: "microphone", confidence: 0.87 },
+  );
+  assert.equal(result.ok, true);
+  assert.equal(transport.calls[0]?.path, "/api/projects/project-1/ai/assistant/turn");
+  assert.deepEqual(transport.calls[0]?.request, {
+    expected_revision: 7,
+    message: "How many activities are there?",
+    language: "en",
+    history: [],
+    input: { channel: "voice", source: "microphone", confidence: 0.87 },
+  });
+});
+
+test("reads fail-closed assistant capabilities without inventing a provider", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-capabilities.v1",
+    enabled: false,
+    reason: "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED",
+  }});
+  const disabled = await new AIActionClient(transport).getAssistantCapabilities(context);
+  assert.equal(disabled.ok, true);
+  if (disabled.ok) {
+    assert.equal(disabled.data.enabled, false);
+    assert.equal(disabled.data.reason, "AI_ASSISTANT_PROVIDER_NOT_CONFIGURED");
+  }
+  assert.equal(transport.calls[0]?.method, "GET");
+  assert.equal(
+    transport.calls[0]?.path,
+    "/api/projects/project-1/ai/assistant/capabilities",
+  );
+
+  transport.responses.push({ ok: true, data: {
+    contract_version: "ai-assistant-capabilities.v1",
+    enabled: "yes",
+    reason: null,
+  }});
+  const invalid = await new AIActionClient(transport).getAssistantCapabilities(context);
+  assert.equal(invalid.ok, false);
+  if (!invalid.ok) assert.equal(invalid.error.code, "INVALID_AI_ACTION_RESPONSE");
+});

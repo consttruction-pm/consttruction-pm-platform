@@ -2,7 +2,13 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import type { AILanguageContext } from "../../client-sync/src/ai-language-contract.js";
 import { voiceCommandToScheduleQuery } from "../../client-sync/src/voice-command.js";
-import { createWebVoiceAdapters, normalizeWebVoiceCapture, requireWebVoiceOutput } from "./voice-adapters.js";
+import {
+  buildWebAILanguageContext,
+  createWebVoiceAdapters,
+  normalizeWebVoiceCapture,
+  requireWebVoiceOutput,
+  webVoiceLanguage,
+} from "./voice-adapters.js";
 
 const scope = { tenant_id: "tenant-1", project_id: "project-1", project_revision: 7 } as const;
 const aiLanguage: AILanguageContext = {
@@ -76,4 +82,27 @@ test("web voice adapter propagates shared scope and contract validation", async 
 test("web voice adapter enforces output capability", () => {
   const value = adapters(true, false);
   assert.throws(() => requireWebVoiceOutput(value, "fa-IR", scope), /VOICE_OUTPUT_UNAVAILABLE/);
+});
+
+test("speech-service language is derived from the declared locale, not the UI label", () => {
+  assert.equal(webVoiceLanguage("fa"), "fa-IR");
+  assert.equal(webVoiceLanguage("fa-IR"), "fa-IR");
+  assert.equal(webVoiceLanguage("en"), "en-US");
+  assert.equal(webVoiceLanguage("en-GB"), "en-GB");
+  assert.equal(webVoiceLanguage("de"), null);
+});
+
+test("AI language context fails voice closed when the adapter or locale has no speech capability", () => {
+  const english = buildWebAILanguageContext("en-GB", { input: true, output: false });
+  assert.equal(english.voice_language, "en-GB");
+  assert.equal(english.voice_input_capable, true);
+  assert.equal(english.voice_output_capable, false);
+  assert.equal(english.text_capable, true);
+  assert.equal(english.offline_ai_capable, false);
+
+  const unsupported = buildWebAILanguageContext("de-DE", { input: true, output: true });
+  assert.equal(unsupported.voice_language, null);
+  assert.equal(unsupported.voice_input_capable, false);
+  assert.equal(unsupported.voice_output_capable, false);
+  assert.equal(unsupported.output_language, "de-DE");
 });

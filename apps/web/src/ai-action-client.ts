@@ -78,6 +78,18 @@ export type AIAssistantHistoryMessage = Readonly<{
   content: string;
 }>;
 
+export type AIAssistantInputProvenance = Readonly<{
+  channel: "voice";
+  source: "microphone" | "imported_audio" | "manual_transcript";
+  confidence: number | null;
+}>;
+
+export type AIAssistantCapabilities = Readonly<{
+  contract_version: "ai-assistant-capabilities.v1";
+  enabled: boolean;
+  reason: string | null;
+}>;
+
 export type AIAssistantTurn = Readonly<{
   contract_version: "ai-assistant-turn.v1";
   kind: "message" | "clarification" | "action_proposal";
@@ -323,17 +335,43 @@ export class AIActionClient {
     return { ok: true, data: proposal };
   }
 
+  async getAssistantCapabilities(
+    context: ProjectContext,
+  ): Promise<ApiResult<AIAssistantCapabilities>> {
+    const result = await this.transport.get<unknown>(
+      `/api/projects/${encodeURIComponent(context.project_id)}/ai/assistant/capabilities`,
+      context,
+    );
+    if (!result.ok) return result;
+    const value = result.data;
+    if (!isRecord(value) || value.contract_version !== "ai-assistant-capabilities.v1" ||
+        typeof value.enabled !== "boolean" ||
+        (value.reason !== null && (typeof value.reason !== "string" || !value.reason.trim()))) {
+      return invalidResponse<AIAssistantCapabilities>();
+    }
+    return {
+      ok: true,
+      data: Object.freeze({
+        contract_version: "ai-assistant-capabilities.v1",
+        enabled: value.enabled,
+        reason: value.reason === null ? null : value.reason,
+      }),
+    };
+  }
+
   async sendAssistantTurn(
     context: ProjectContext,
     message: string,
     language: string,
     history: readonly AIAssistantHistoryMessage[] = [],
+    input: AIAssistantInputProvenance | null = null,
   ): Promise<ApiResult<AIAssistantTurn>> {
     const result = await this.transport.post<{
       expected_revision: number;
       message: string;
       language: string;
       history: readonly AIAssistantHistoryMessage[];
+      input?: AIAssistantInputProvenance;
     }, unknown>(
       `/api/projects/${encodeURIComponent(context.project_id)}/ai/assistant/turn`,
       {
@@ -341,6 +379,7 @@ export class AIActionClient {
         message,
         language,
         history,
+        ...(input === null ? {} : { input }),
       },
       context,
     );

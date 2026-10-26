@@ -35,6 +35,7 @@ const CHECKS = [];
 const EXCEPTIONS = [];
 const CONSOLE_ERRORS = [];
 const API_FAILURES = [];
+const ASSISTANT_REQUESTS = [];
 const EVIDENCE = {
   contract: "cubi-preview-browser-e2e.v1",
   started_at: new Date().toISOString(),
@@ -46,10 +47,57 @@ const EVIDENCE = {
   exceptions: EXCEPTIONS,
   console_errors: CONSOLE_ERRORS,
   api_failures: API_FAILURES,
+  assistant_requests: ASSISTANT_REQUESTS,
   persistence: {},
   calculation: {},
   permissions: {},
 };
+
+/**
+ * Deterministic browser speech adapters for the E2E only. They exercise the
+ * real chat/voice integration through the browser's Web Speech surface without
+ * claiming that a human microphone or a cloud speech service was used.
+ */
+const SPEECH_FIXTURE_SOURCE = `(() => {
+  class FixtureSpeechRecognition {
+    constructor() {
+      this.lang = "";
+      this.continuous = false;
+      this.interimResults = false;
+      this.onresult = null;
+      this.onerror = null;
+      this.onend = null;
+      this.stopped = false;
+    }
+    start() {
+      setTimeout(() => {
+        if (this.stopped) return;
+        this.onresult?.({ results: { 0: { 0: {
+          transcript: "How is the project schedule performing?",
+          confidence: 0.91,
+        } } } });
+        this.onend?.();
+      }, 10);
+    }
+    stop() { this.stopped = true; this.onend?.(); }
+  }
+  Object.defineProperty(globalThis, "SpeechRecognition", { configurable: true, value: FixtureSpeechRecognition });
+  Object.defineProperty(globalThis, "webkitSpeechRecognition", { configurable: true, value: FixtureSpeechRecognition });
+  const spoken = [];
+  globalThis.__cubiSpokenReplies = spoken;
+  class FixtureUtterance {
+    constructor(text) { this.text = text; this.lang = ""; this.onerror = null; this.onend = null; }
+  }
+  const synthesis = {
+    speak(utterance) {
+      spoken.push({ text: utterance.text, lang: utterance.lang });
+      setTimeout(() => utterance.onend?.(), 5);
+    },
+    cancel() {},
+  };
+  Object.defineProperty(globalThis, "SpeechSynthesisUtterance", { configurable: true, value: FixtureUtterance });
+  Object.defineProperty(globalThis, "speechSynthesis", { configurable: true, value: synthesis });
+})();`;
 
 function log(message) {
   process.stdout.write(`${message}\n`);
@@ -367,6 +415,9 @@ class Page {
     await this.cdp.send("Runtime.enable");
     await this.cdp.send("Network.enable");
     await this.cdp.send("Log.enable");
+    await this.cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: SPEECH_FIXTURE_SOURCE,
+    });
     this.cdp.on("Runtime.exceptionThrown", (params) => {
       const text =
         params.exceptionDetails?.exception?.description ??
@@ -381,6 +432,16 @@ class Page {
         text: (params.args ?? [])
           .map((arg) => arg.value ?? arg.description ?? arg.type)
           .join(" "),
+      });
+    });
+    this.cdp.on("Network.requestWillBeSent", (params) => {
+      const url = params.request?.url ?? "";
+      if (!url.includes("/ai/assistant/turn")) return;
+      const postData = params.request?.postData ?? "";
+      ASSISTANT_REQUESTS.push({
+        at: new Date().toISOString(),
+        url,
+        body: postData.length > 1200 ? `${postData.slice(0, 1200)}…` : postData,
       });
     });
     this.cdp.on("Network.responseReceived", (params) => {
@@ -3125,6 +3186,170 @@ async function main() {
       stale_propose_status: staleProposal.status,
     });
 
+    // Assistant conversation: typed messages and a browser-recognized transcript
+    // use the same authenticated turn endpoint and project revision. This local
+    // runtime has no AI provider configured, so every turn must fail closed with
+    // a stable code and a clear localized message instead of a fabricated reply.
+    await page.waitForSelector("#cp-ai-assistant-chat", "assistant chat panel");
+    if (await page.evaluate(`!document.querySelector("#cp-ai-assistant-chat").open`)) {
+      await page.click("#cp-ai-assistant-chat summary");
+    }
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-provider-notice")?.textContent ?? "").includes("not configured")`,
+      "provider fail-closed notice",
+    );
+    const chatDirection = await page.evaluate(
+      `document.querySelector("#cp-ai-assistant-chat").dir`,
+    );
+    assert(chatDirection === "ltr", `English chat must be LTR, got ${chatDirection}`);
+    assert(
+      (await page.text("#cp-ai-assistant-chat .cp-ai-chat-summary"))?.includes("AI Project Assistant"),
+      "the chat panel must be visible on the authenticated workspace",
+    );
+
+    const typedChatMessage = "Summarize the current project status.";
+    await page.setInput("#cp-ai-assistant-chat textarea.cp-ai-chat-input", typedChatMessage);
+    await page.click("#cp-ai-assistant-chat button.cp-ai-chat-send");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-status")?.dataset.kind === "error" &&
+       (document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-status")?.textContent ?? "").includes("not configured")`,
+      "typed assistant turn fail-closed message",
+    );
+    const typedChatStatus = await page.text("#cp-ai-assistant-chat .cp-ai-chat-status");
+    const typedRestored = await page.evaluate(
+      `document.querySelector("#cp-ai-assistant-chat textarea.cp-ai-chat-input").value`,
+    );
+    assert(
+      typedRestored === typedChatMessage,
+      `the failed typed message must stay editable, got ${JSON.stringify(typedRestored)}`,
+    );
+    assert(
+      (await page.text("#cp-ai-assistant-chat .cp-ai-chat-message-user"))?.includes(typedChatMessage),
+      "the typed message must appear in the conversation",
+    );
+    const typedRequest = JSON.parse(ASSISTANT_REQUESTS.at(-1)?.body ?? "{}");
+    assert(
+      typedRequest.message === typedChatMessage &&
+        typedRequest.language === "en" &&
+        Number.isInteger(typedRequest.expected_revision) &&
+        !("input" in typedRequest),
+      `the typed message must reach the authenticated turn endpoint with current context, got ${JSON.stringify(typedRequest)}`,
+    );
+
+    await page.click("#cp-ai-assistant-chat button.cp-ai-chat-voice");
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-assistant-chat textarea.cp-ai-chat-input")?.value ?? "").includes("How is the project schedule performing?")`,
+      "recognized transcript in the same message field",
+    );
+    const recognizedStatus = await page.text("#cp-ai-assistant-chat .cp-ai-chat-status");
+    assert(
+      (recognizedStatus ?? "").includes("Speech recognized"),
+      `recognized speech must be explained before sending, got ${recognizedStatus}`,
+    );
+    await page.screenshot("13e-ai-chat-voice.png");
+    const requestCountBeforeVoiceSend = ASSISTANT_REQUESTS.length;
+    await page.click("#cp-ai-assistant-chat button.cp-ai-chat-send");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-status")?.dataset.kind === "error"`,
+      "voice-originated assistant turn fail-closed message",
+    );
+    const voiceRequest = JSON.parse(ASSISTANT_REQUESTS.at(-1)?.body ?? "{}");
+    assert(
+      ASSISTANT_REQUESTS.length === requestCountBeforeVoiceSend + 1 &&
+        voiceRequest.message === "How is the project schedule performing?" &&
+        voiceRequest.input?.channel === "voice" &&
+        voiceRequest.input?.source === "microphone" &&
+        voiceRequest.input?.confidence === 0.91,
+      `the recognized transcript must use the same turn endpoint with voice provenance, got ${JSON.stringify(voiceRequest)}`,
+    );
+    const voiceStatus = await page.text("#cp-ai-assistant-chat .cp-ai-chat-status");
+    assert(
+      (voiceStatus ?? "").includes("not configured"),
+      `the voice turn must fail closed visibly, got ${voiceStatus}`,
+    );
+
+    const readAloudButton = "#cp-ai-assistant-chat button.cp-ai-chat-toggle";
+    assert(
+      (await page.evaluate(`document.querySelector("${readAloudButton}")?.getAttribute("aria-pressed")`)) === "false",
+      "spoken replies must be off until the user enables them",
+    );
+    await page.click(readAloudButton);
+    assert(
+      (await page.evaluate(`document.querySelector("${readAloudButton}")?.getAttribute("aria-pressed")`)) === "true",
+      "the read-aloud preference must be visible",
+    );
+    await page.click(readAloudButton);
+    assert(
+      (await page.evaluate(`document.querySelector("${readAloudButton}")?.getAttribute("aria-pressed")`)) === "false",
+      "the read-aloud preference must be reversible",
+    );
+    assert(
+      (await page.evaluate(`document.querySelector("#cp-ai-assistant-chat button.cp-ai-chat-stop-reading")?.disabled`)) === true,
+      "stop-reading must be disabled while nothing is spoken",
+    );
+
+    await page.click("[data-language-toggle]");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-assistant-chat")?.dir === "rtl"`,
+      "Persian RTL assistant chat",
+    );
+    await page.waitFor(
+      `(document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-provider-notice")?.textContent ?? "").includes("پیکربندی نشده")`,
+      "Persian provider fail-closed notice",
+    );
+    assert(
+      (await page.text("#cp-ai-assistant-chat .cp-ai-chat-summary"))?.includes("دستیار هوشمند پروژه"),
+      "the Persian chat must expose translated labels",
+    );
+    const persianChatMessage = "وضعیت زمان‌بندی پروژه را خلاصه کن.";
+    await page.setInput("#cp-ai-assistant-chat textarea.cp-ai-chat-input", persianChatMessage);
+    const requestsBeforePersian = ASSISTANT_REQUESTS.length;
+    await page.click("#cp-ai-assistant-chat button.cp-ai-chat-send");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-assistant-chat .cp-ai-chat-status")?.dataset.kind === "error"`,
+      "Persian assistant turn fail-closed message",
+    );
+    const persianRequest = JSON.parse(ASSISTANT_REQUESTS.at(-1)?.body ?? "{}");
+    assert(
+      ASSISTANT_REQUESTS.length === requestsBeforePersian + 1 &&
+        persianRequest.message === persianChatMessage &&
+        persianRequest.language === "fa",
+      `the Persian turn must carry the selected locale, got ${JSON.stringify(persianRequest)}`,
+    );
+    await page.screenshot("13f-ai-chat-persian.png");
+    await page.click("[data-language-toggle]");
+    await page.waitFor(
+      `document.querySelector("#cp-ai-assistant-chat")?.dir === "ltr"`,
+      "English chat restored before the remaining checks",
+    );
+    EVIDENCE.ai_assistant = {
+      provider_configured: false,
+      capabilities_contract: "ai-assistant-capabilities.v1",
+      typed_request: {
+        message: typedRequest.message,
+        language: typedRequest.language,
+        expected_revision: typedRequest.expected_revision,
+      },
+      typed_status: typedChatStatus,
+      voice_request: {
+        message: voiceRequest.message,
+        language: voiceRequest.language,
+        input: voiceRequest.input,
+      },
+      voice_status: voiceStatus,
+      persian_request: {
+        message: persianRequest.message,
+        language: persianRequest.language,
+      },
+      speech_fixture: "deterministic browser Web Speech adapter",
+      microphone: "not used; deterministic browser speech fixture only",
+    };
+    record("typed and recognized voice turns share the real fail-closed assistant endpoint", {
+      typed_status: typedChatStatus,
+      voice_status: voiceStatus,
+      persian_language: persianRequest.language,
+    });
+
     // The same authenticated browser must not be able to bypass the grant by
     // presenting the proposal to a read-only identity; the panel and the direct
     // route both fail closed.
@@ -3190,11 +3415,24 @@ async function main() {
         `UNCAUGHT_PAGE_EXCEPTIONS: ${JSON.stringify(EXCEPTIONS.slice(0, 5))}`,
       );
     }
-    if (API_FAILURES.length > 0) {
-      throw new Error(`API_5XX_RESPONSES: ${JSON.stringify(API_FAILURES.slice(0, 5))}`);
+    const expectedProviderFailures = API_FAILURES.filter(
+      (failure) => failure.status === 503 && failure.url.includes("/ai/assistant/turn"),
+    );
+    const unexpectedApiFailures = API_FAILURES.filter(
+      (failure) => !(failure.status === 503 && failure.url.includes("/ai/assistant/turn")),
+    );
+    if (unexpectedApiFailures.length > 0) {
+      throw new Error(
+        `API_5XX_RESPONSES: ${JSON.stringify(unexpectedApiFailures.slice(0, 5))}`,
+      );
     }
-    record("no uncaught browser exceptions or API 5xx responses", {
+    assert(
+      expectedProviderFailures.length >= 3,
+      `each fail-closed assistant turn must answer 503, got ${JSON.stringify(expectedProviderFailures)}`,
+    );
+    record("no uncaught browser exceptions or unexpected API 5xx responses", {
       console_error_count: CONSOLE_ERRORS.length,
+      expected_assistant_provider_503: expectedProviderFailures.length,
     });
   } finally {
     page?.cdp.close();
