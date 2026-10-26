@@ -119,3 +119,10 @@ test("assistant avatar is connected to every existing Web assistant surface whil
   assert.match(avatar, /<title id="title">CUBI AI Project Assistant<\/title>/);
   assert.match(index, /<link rel="icon" href="\.\/cubi-platform-logo-primary\.svg" type="image\/svg\+xml"\s*\/>/);
 });
+
+test("homepage header, dashboard and footer use the canonical logo asset only", () => {
+  assert.equal((landing.match(/src="\\.\\/cubi-platform-logo-primary\\.svg"/g) ?? []).length, 3);
+  assert.match(landing, /cubi-exact-brand[^>]*>[\\s\\S]*?cubi-platform-logo-primary\\.svg/);
+  assert.match(landing, /cubi-footer-brand[^>]*>[\\s\\S]*?cubi-platform-logo-primary\\.svg/);
+  assert.doesNotMatch(landing, /cubi-footer-social[^>]*>[\\s\\S]*?<span[^>]*>CUBI<\\/span>/);
+});
