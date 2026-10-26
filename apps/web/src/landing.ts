@@ -1,5 +1,5 @@
 type LandingLocale = string;
-type Feature = { icon: string; title: string; body: string };
+type Feature = { icon: string; title: string; body: string; assistantAvatar?: boolean };
 type LandingCopy = {
   nav: string[]; eyebrow: string; title: string; accent: string; subtitle: string; body: string;
   primary: string; secondary: string; featuresEyebrow: string; featuresTitle: string; featuresBody: string; features: Feature[];
@@ -20,7 +20,7 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     featuresBody: "Connect the work, the numbers and the evidence in one practical workspace built for construction teams.",
     features: [
       { icon: "⌁", title: "Project Controls", body: "Track milestones, progress and performance signals in one project view." },
-      { icon: "✧", title: "AI Assistant", body: "Turn project information into useful summaries, questions and next steps." },
+      { icon: "✧", assistantAvatar: true, title: "AI Assistant", body: "Turn project information into useful summaries, questions and next steps." },
       { icon: "↗", title: "Resources & Cost", body: "Connect resource plans, cost visibility and delivery performance." },
       { icon: "▤", title: "Documents & Contracts", body: "Keep project records and supporting evidence close to the workflow." },
       { icon: "◎", title: "Team Collaboration", body: "Give stakeholders a shared view of project status and actions." },
@@ -53,7 +53,7 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     featuresBody: "کارها، اعداد و مستندات پروژه را در یک فضای کاری کاربردی برای تیم‌های ساخت به هم متصل کنید.",
     features: [
       { icon: "⌁", title: "کنترل پروژه", body: "نقاط عطف، پیشرفت و شاخص‌های عملکرد را در یک نمای پروژه دنبال کنید." },
-      { icon: "✧", title: "دستیار هوشمند", body: "اطلاعات پروژه را به خلاصه‌ها، پرسش‌ها و گام‌های بعدی مفید تبدیل کنید." },
+      { icon: "✧", assistantAvatar: true, title: "دستیار هوشمند", body: "اطلاعات پروژه را به خلاصه‌ها، پرسش‌ها و گام‌های بعدی مفید تبدیل کنید." },
       { icon: "↗", title: "منابع و هزینه", body: "برنامه منابع، شفافیت هزینه و عملکرد اجرا را به هم متصل کنید." },
       { icon: "▤", title: "اسناد و قراردادها", body: "سوابق و شواهد پشتیبان پروژه را در کنار جریان کار نگه دارید." },
       { icon: "◎", title: "همکاری تیمی", body: "نمای مشترک و روشنی از وضعیت پروژه و اقدامات در اختیار ذی‌نفعان قرار دهید." },
@@ -76,6 +76,7 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
   }
 };
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceText } from "./workspace-localization.js";
+import { cubiAssistantAvatarUrl } from "./cubi-brand-assets.js";
 
 const LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale";
 let locale: LandingLocale = "en";
@@ -118,6 +119,7 @@ function getLandingCopy(locale: LandingLocale): LandingCopy {
     featuresTitle: translate("featuresTitle", baseline.featuresTitle),
     featuresBody: translate("featuresBody", baseline.featuresBody),
     features: baseline.features.map((feature, index) => ({
+      assistantAvatar: feature.assistantAvatar,
       icon: translate(`features.${index}.icon`, feature.icon),
       title: translate(`features.${index}.title`, feature.title),
       body: translate(`features.${index}.body`, feature.body),
@@ -179,18 +181,18 @@ function renderLanding(container: HTMLElement): void {
             <aside class="cubi-dash-sidebar"><img src="./cubi-platform-logo-primary.svg" width="110" height="32" alt="CUBI Platform" /><span>Overview</span><span>Schedule</span><span>Cost control</span><span>Resources</span><span>Documents</span></aside>
             <div class="cubi-dash-main"><div class="cubi-dash-title"><strong>Project Control Center</strong><span>PROJECT / 026</span></div>
               <div class="cubi-gantt" aria-hidden="true"><i style="width:76%"></i><i style="width:58%"></i><i style="width:82%"></i><i style="width:49%"></i><i style="width:67%"></i><i style="width:38%"></i></div>
-              <div class="cubi-dash-bottom"><div class="cubi-mini-chart"><b>Progress trend</b><div class="cubi-line-chart"></div></div><div class="cubi-ring-card"><b>Schedule</b><div class="cubi-ring"><strong>78%</strong></div><small>On track</small></div><div class="cubi-ai-card"><b>AI insight</b><div class="cubi-ai-bubble" aria-hidden="true">✧</div><small>Review next milestone</small></div></div>
+              <div class="cubi-dash-bottom"><div class="cubi-mini-chart"><b>Progress trend</b><div class="cubi-line-chart"></div></div><div class="cubi-ring-card"><b>Schedule</b><div class="cubi-ring"><strong>78%</strong></div><small>On track</small></div><div class="cubi-ai-card"><b>AI insight</b><div class="cubi-ai-bubble" aria-hidden="true"><img src="${cubiAssistantAvatarUrl()}" width="31" height="31" alt="" /></div><small>Review next milestone</small></div></div>
             </div>
             <aside class="cubi-progress-card"><div class="cubi-progress-ring"><strong>84%</strong></div><b>Project progress</b><div><span>Plan</span><span>Actual</span></div></aside>
           </div>
         </section>
         <section class="cubi-exact-features" id="capabilities">
           <div class="cubi-exact-section-head"><p class="cubi-kicker">${t.featuresEyebrow}</p><h2>${t.featuresTitle}</h2><p>${t.featuresBody}</p></div>
-          <div class="cubi-exact-feature-grid">${t.features.map((f) => `<article><div class="cubi-feature-icon" aria-hidden="true">${f.icon}</div><h3>${f.title}</h3><p>${f.body}</p></article>`).join("")}</div>
+          <div class="cubi-exact-feature-grid">${t.features.map((f) => `<article><div class="cubi-feature-icon${f.assistantAvatar ? " cubi-feature-icon-assistant" : ""}" aria-hidden="true">${f.assistantAvatar ? `<img src="${cubiAssistantAvatarUrl()}" width="50" height="50" alt="" />` : f.icon}</div><h3>${f.title}</h3><p>${f.body}</p></article>`).join("")}</div>
         </section>
         <section class="cubi-exact-tech" id="technology" aria-labelledby="cubi-tech-title">
           <div class="cubi-tech-copy"><p class="cubi-kicker">${t.techEyebrow}</p><h2 id="cubi-tech-title">${t.techTitle}</h2><p>${t.techBody}</p>
-            <div class="cubi-tech-badges" aria-label="Platform building blocks"><b class="plan">PL</b><span>Planning</span><b class="pg">▦</b><span>Project data</span><b class="ai">✧</b><span>AI</span></div>
+            <div class="cubi-tech-badges" aria-label="Platform building blocks"><b class="plan">PL</b><span>Planning</span><b class="pg">▦</b><span>Project data</span><b class="ai" aria-hidden="true"><img src="${cubiAssistantAvatarUrl()}" width="29" height="29" alt="" /></b><span>AI</span></div>
             <a class="cubi-exact-outline" href="./app/">${t.techLink}</a>
           </div>
           <div class="cubi-tech-diagram" aria-label="Connected platform capabilities"><div class="cubi-stack" aria-hidden="true"><i></i><i></i><i></i><b>C</b></div>
