@@ -98,3 +98,10 @@ test("standalone public pages have unique metadata and expected content", () => 
     assert.ok(html.includes(marker), path + " should have its expected content");
   }
 });
+
+test("homepage header, dashboard and footer use the canonical logo asset only", () => {
+  assert.equal((landing.match(/src="\.\/cubi-platform-logo-primary\.svg"/g) ?? []).length, 3);
+  assert.match(landing, /cubi-exact-brand[^>]*>[\s\S]*?cubi-platform-logo-primary\.svg/);
+  assert.match(landing, /cubi-footer-brand[^>]*>[\s\S]*?cubi-platform-logo-primary\.svg/);
+  assert.doesNotMatch(landing, /cubi-footer-social[^>]*>[\s\S]*?<span[^>]*>CUBI<\/span>/);
+});
