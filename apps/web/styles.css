@@ -2056,3 +2056,80 @@ th {
   .cp-reference-status { grid-column: 2; justify-self: start; text-align: start; }
   .cp-reference-version { text-align: start; }
 }
+
+/* Project interchange: server-generated export and server-mapped import. */
+.cp-interchange-panel { display: grid; gap: .7rem; }
+.cp-interchange-panel > p { margin: .1rem 0; color: var(--cp-muted); line-height: 1.6; }
+.cp-interchange-panel h3 { margin: .9rem 0 .2rem; color: var(--cp-navy); font-size: .95rem; }
+.cp-interchange-panel form { display: grid; gap: .6rem; margin: .35rem 0; }
+.cp-interchange-panel textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--cp-border);
+  border-radius: .4rem;
+  background: #fff;
+  padding: .55rem .6rem;
+  color: var(--cp-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .78rem;
+  direction: ltr;
+  text-align: left;
+}
+.cp-interchange-panel button,
+.cp-interchange-panel a[data-interchange-download] {
+  justify-self: start;
+  border: 1px solid var(--cp-navy);
+  border-radius: .45rem;
+  background: var(--cp-navy);
+  color: #fff;
+  padding: .6rem .9rem;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cp-interchange-panel button:disabled { opacity: .6; cursor: wait; }
+.cp-interchange-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+  border: 1px solid var(--cp-border);
+  border-radius: .45rem;
+  padding: .5rem .65rem;
+  color: var(--cp-navy);
+  font-size: .86rem;
+}
+.cp-interchange-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem 1rem;
+  color: var(--cp-muted);
+  font-size: .82rem;
+}
+.cp-interchange-success { display: grid; gap: .45rem; }
+.cp-interchange-error {
+  border: 1px solid var(--cp-error, #b42318);
+  border-radius: .45rem;
+  background: #fff5f5;
+  padding: .65rem .8rem;
+  color: var(--cp-navy);
+}
+.cp-interchange-error p { margin: .25rem 0; }
+.cp-interchange-table { min-width: 0; width: 100%; }
+.cp-interchange-table th,
+.cp-interchange-table td {
+  white-space: normal;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.cp-interchange-table td div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .2rem .45rem;
+  margin: .1rem 0;
+}
+.cp-interchange-table ul { margin: 0; padding-inline-start: 1rem; }
+@media (max-width: 760px) {
+  .cp-interchange-file { flex-direction: column; align-items: start; }
+}
+#cp-interchange { scroll-margin-top: 7rem; }

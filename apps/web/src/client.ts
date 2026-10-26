@@ -23,6 +23,13 @@ export interface ApiTransport {
     context: ProjectContext,
     idempotencyKey?: string,
   ): Promise<ApiResult<TResponse>>;
+  /** Post a non-JSON body, such as an interchange document, verbatim. */
+  postRaw?<TResponse>(
+    path: string,
+    body: string,
+    contentType: string,
+    context: ProjectContext,
+  ): Promise<ApiResult<TResponse>>;
 }
 
 export class FetchApiTransport implements ApiTransport {
@@ -50,6 +57,22 @@ export class FetchApiTransport implements ApiTransport {
       method: "POST",
       headers,
       body: JSON.stringify(request),
+    });
+  }
+
+  async postRaw<TResponse>(
+    path: string,
+    body: string,
+    contentType: string,
+    context: ProjectContext,
+  ): Promise<ApiResult<TResponse>> {
+    return this.request<TResponse>(path, {
+      method: "POST",
+      headers: {
+        ...this.contextHeaders(context),
+        "Content-Type": contentType,
+      },
+      body,
     });
   }
 
