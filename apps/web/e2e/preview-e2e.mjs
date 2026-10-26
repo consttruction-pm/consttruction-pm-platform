@@ -952,17 +952,21 @@ async function main() {
       /^\d{4}-\d{2}-\d{2}$/.test(isoTooltip ?? ""),
       `Gregorian display must show the canonical ISO date, got ${isoTooltip}`,
     );
+    assert(
+      isoTooltip === "2026-10-12",
+      `A130 remaining early start must begin at the Data Date, got ${isoTooltip}`,
+    );
     await page.click('[data-calendar-mode="jalali"]');
     await page.waitFor(
-      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim() === "۱۴۰۵/۰۷/۱۵"`,
+      `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim() === "۱۴۰۵/۰۷/۲۰"`,
       "Jalali display of the stored early start",
     );
     const jalaliText = await page.evaluate(
       `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim()`,
     );
     assert(
-      jalaliText === "۱۴۰۵/۰۷/۱۵",
-      `Jalali display must convert 2026-10-07 without shifting it, got ${jalaliText}`,
+      jalaliText === "۱۴۰۵/۰۷/۲۰",
+      `Jalali display must convert 2026-10-12 without shifting it, got ${jalaliText}`,
     );
     await page.click('[data-calendar-mode="gregorian"]');
     await page.waitFor(
@@ -2107,6 +2111,470 @@ async function main() {
       a130_finish: calculation.a130?.[2],
     });
 
+    // ── Data Date, progress entry, and out-of-sequence mode cycle ─────────
+    // Everything below drives the visible controls and then reads the same
+    // facts back from the authenticated APIs. No browser-side date calculation
+    // is accepted as evidence.
+    const readActivitiesApi = () => page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/activities", {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`,
+      { awaitPromise: true },
+    );
+    const plannerSession = await page.evaluate(
+      `fetch("/api/session").then((response) => response.json())`,
+      { awaitPromise: true },
+    );
+    assert(
+      typeof plannerSession.user_id === "string" && plannerSession.user_id.length > 0,
+      "planner session identity is required for the authoritative schedule query",
+    );
+    const querySnapshotFacts = (snapshotId) => page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/v1/schedule/query", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+          body: JSON.stringify({
+            contract_version: "schedule-query.v1",
+            query_id: crypto.randomUUID(),
+            scope: {
+              tenant_id: ${JSON.stringify(TENANT_ID)},
+              project_id: ${JSON.stringify(PROJECT_ID)},
+              project_revision: ${PROJECT_REVISION},
+            },
+            requested_by: ${JSON.stringify(plannerSession.user_id)},
+            query_text: "Return authoritative schedule facts for the E2E progress cycle.",
+            kind: "fact",
+            language: "en",
+            constraints: { snapshot_id: ${JSON.stringify(snapshotId)} },
+          }),
+        });
+        const body = await response.json().catch(() => null);
+        const data = body?.answer?.data ?? body?.data ?? body;
+        return { status: response.status, body, activities: data?.activities ?? null };
+      })()`,
+      { awaitPromise: true },
+    );
+    const readActivitySurface = (activityId) => page.evaluate(
+      `(() => {
+        const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id=' + ${JSON.stringify(activityId)} + ']');
+        const cell = (column) => row?.querySelector('[data-column-id="' + column + '"]')?.textContent.trim() ?? null;
+        const bar = document.querySelector('.cp-gantt-row[data-gantt-activity-id=' + ${JSON.stringify(activityId)} + '] .cp-gantt-bar');
+        return {
+          row: row ? {
+            start: cell("activity.early_start"),
+            finish: cell("activity.early_finish"),
+            float: cell("activity.total_float"),
+            critical: cell("activity.critical"),
+          } : null,
+          gantt_style: bar?.getAttribute("style") ?? null,
+        };
+      })()`,
+    );
+
+    await page.waitForSelector(
+      "#cp-progress-entry [data-progress-form]",
+      "progress entry form",
+      30000,
+    );
+    const progressStart = await page.evaluate(`(() => {
+      const settingsForm = document.querySelector("[data-schedule-settings-form]");
+      const dataDate = settingsForm?.querySelector('input[name="data_date"]');
+      const progressDate = document.querySelector("[data-progress-data-date]");
+      const oos = settingsForm?.querySelector('select[data-option="out_of_sequence_schedule_type"]');
+      return {
+        data_date_value: dataDate?.value ?? null,
+        data_date_type: dataDate?.type ?? null,
+        progress_data_date: progressDate?.getAttribute("data-progress-data-date") ?? null,
+        progress_data_date_text: progressDate?.textContent.trim() ?? null,
+        mode: settingsForm?.elements.namedItem("mode")?.value ?? null,
+        oos_choices: oos ? Array.from(oos.options).map((option) => option.value) : [],
+        activities: Array.from(document.querySelectorAll("[data-progress-activity] option")).map((option) => option.value),
+      };
+    })()`);
+    assert(progressStart.mode === "DATE_BASED", "progress entry must require date-based settings");
+    assert(
+      progressStart.data_date_value === "2026-10-12" && progressStart.data_date_type === "date",
+      `the saved Data Date must load into the settings control, got ${JSON.stringify(progressStart)}`,
+    );
+    assert(
+      progressStart.progress_data_date === "2026-10-12",
+      `the progress panel must show the saved Data Date, got ${JSON.stringify(progressStart)}`,
+    );
+    assert(
+      progressStart.oos_choices.join(",") === "RETAINED_LOGIC,PROGRESS_OVERRIDE,ACTUAL_DATES",
+      `all three out-of-sequence options must be offered, got ${JSON.stringify(progressStart.oos_choices)}`,
+    );
+    assert(
+      progressStart.activities.includes("A140"),
+      "the progress activity selector must come from persisted activities",
+    );
+    await page.scrollTo("#cp-progress-entry");
+    await page.screenshot("07g-progress-data-date.png");
+
+    const preDataDateA140 = await page.evaluate(`(() => {
+      const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr"))
+        .map((row) => Array.from(row.children).map((cell) => cell.textContent.trim()));
+      return rows.find((row) => row[0] === "A140") ?? null;
+    })()`);
+    assert(preDataDateA140, "A140 must be present in the baseline authoritative results");
+
+    // Move the Data Date one working day forward through a typed Jalali entry.
+    // The server must store the canonical Gregorian date and the remaining
+    // schedule must move with it.
+    await page.setSelect('select[name="calendar_system"]', "jalali");
+    await page.waitFor(
+      `(() => {
+        const input = document.querySelector('[data-schedule-settings-form] input[name="data_date"]');
+        return input?.type === "text" && input?.value === "1405/07/20";
+      })()`,
+      "typed Jalali Data Date loaded from the canonical value",
+    );
+    await page.setInput(
+      '[data-schedule-settings-form] input[name="data_date"]',
+      "۱۴۰۵/۰۷/۲۱",
+    );
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
+      "Jalali Data Date save status",
+    );
+    const jalaliDataDateSettings = await readSettings();
+    assert(
+      jalaliDataDateSettings.status === 200 &&
+        jalaliDataDateSettings.body?.schedule_options?.data_date === "2026-10-13" &&
+        jalaliDataDateSettings.body?.project_calendar?.system === "jalali",
+      `a typed Jalali Data Date must persist as 2026-10-13, got ${JSON.stringify(jalaliDataDateSettings)}`,
+    );
+    await page.setSelect('select[name="calendar_system"]', "gregorian");
+    await page.waitFor(
+      `(() => {
+        const input = document.querySelector('[data-schedule-settings-form] input[name="data_date"]');
+        return input?.type === "date" && input?.value === "2026-10-13";
+      })()`,
+      "Gregorian Data Date after the Jalali round-trip",
+    );
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
+      "Gregorian Data Date save status",
+    );
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 14`,
+      "schedule result rows after the Data Date change",
+      60000,
+    );
+    const postDataDateA140 = await page.evaluate(`(() => {
+      const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr"))
+        .map((row) => Array.from(row.children).map((cell) => cell.textContent.trim()));
+      return rows.find((row) => row[0] === "A140") ?? null;
+    })()`);
+    assert(postDataDateA140, "A140 must remain in authoritative results after the Data Date change");
+    assert(
+      postDataDateA140[1] === "2026-10-20" && postDataDateA140[1] !== preDataDateA140[1],
+      `a later Data Date must move A140 remaining work from ${preDataDateA140[1]} to 2026-10-20, got ${postDataDateA140[1]}`,
+    );
+    await page.waitFor(
+      `document.querySelector("[data-progress-data-date]")?.getAttribute("data-progress-data-date") === "2026-10-13"`,
+      "progress panel refreshed with the saved Data Date",
+    );
+    EVIDENCE.data_date = {
+      initial: "2026-10-12",
+      saved_iso: jalaliDataDateSettings.body.schedule_options.data_date,
+      saved_jalali_entry: "۱۴۰۵/۰۷/۲۱",
+      persisted_system: jalaliDataDateSettings.body.project_calendar.system,
+      a140_start_before: preDataDateA140[1],
+      a140_start_after: postDataDateA140[1],
+      source: "settings form typed Jalali Data Date -> canonical settings API -> snapshot and Shared Core query",
+    };
+    record("Data Date round-trips through typed Jalali entry and moves remaining schedule", {
+      saved_iso: jalaliDataDateSettings.body.schedule_options.data_date,
+      a140_before: preDataDateA140[1],
+      a140_after: postDataDateA140[1],
+    });
+
+    // Record real out-of-sequence progress for A140 through the visible panel.
+    // A140's actual start precedes A130's remaining finish.
+    await page.setSelect("[data-progress-activity]", "A140");
+    await page.waitFor(
+      `document.querySelector('[data-progress-form] input[name="actual_start"]') !== null`,
+      "A140 progress form",
+    );
+    await page.setInput('[data-progress-form] input[name="actual_start"]', "2026-10-09");
+    await page.setInput('[data-progress-form] input[name="remaining_duration"]', "10");
+    await page.setInput('[data-progress-form] input[name="percent_complete"]', "0");
+    await page.click('[data-progress-form] button[type="submit"]');
+    await page.waitFor(
+      `(document.querySelector("[data-progress-status]")?.textContent ?? "").includes("Progress saved")`,
+      "A140 progress save status",
+      30000,
+    );
+    const activitiesAfterProgress = await readActivitiesApi();
+    const a140Saved = activitiesAfterProgress.body?.activities
+      ?.map((item) => item.activity)
+      .find((item) => item.activity_id === "A140");
+    assert(
+      activitiesAfterProgress.status === 200 &&
+        a140Saved?.actual_start === "2026-10-09" &&
+        a140Saved?.actual_finish === null &&
+        a140Saved?.remaining_duration === 10 &&
+        a140Saved?.percent_complete === 0 &&
+        a140Saved?.status === "In Progress",
+      `A140 progress must persist through the authenticated API, got ${JSON.stringify(a140Saved)}`,
+    );
+
+    // A contradictory finish must be rejected by the server and shown in the
+    // panel without changing the valid row that was just stored.
+    await page.setInput('[data-progress-form] input[name="actual_finish"]', "2026-10-08");
+    await page.click('[data-progress-form] button[type="submit"]');
+    await page.waitFor(
+      `(document.querySelector("[data-progress-status]")?.textContent ?? "").includes("PROGRESS_ACTUAL_FINISH_BEFORE_ACTUAL_START")`,
+      "explicit inconsistent progress error",
+      30000,
+    );
+    const activitiesAfterRejectedProgress = await readActivitiesApi();
+    const a140AfterRejected = activitiesAfterRejectedProgress.body?.activities
+      ?.map((item) => item.activity)
+      .find((item) => item.activity_id === "A140");
+    assert(
+      a140AfterRejected?.actual_finish === null &&
+        a140AfterRejected?.remaining_duration === 10,
+      `a rejected progress edit must not mutate the stored row, got ${JSON.stringify(a140AfterRejected)}`,
+    );
+
+    // A stale expected revision must fail closed rather than overwrite.
+    const staleProgressWrite = await page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/activities/A140/progress", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+          body: JSON.stringify({
+            contract_version: "p6-activity-master-api.v1",
+            expected_revision: ${Number(a140Saved.record_revision) - 1},
+            actual_start: "2026-10-09",
+            actual_finish: null,
+            remaining_duration: 2,
+            percent_complete: 0,
+          }),
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(
+      staleProgressWrite.status === 409 &&
+        staleProgressWrite.body?.code === "REVISION_CONFLICT",
+      `a stale progress revision must be rejected with 409, got ${JSON.stringify(staleProgressWrite)}`,
+    );
+    const activitiesAfterStaleProgress = await readActivitiesApi();
+    const a140AfterStale = activitiesAfterStaleProgress.body?.activities
+      ?.map((item) => item.activity)
+      .find((item) => item.activity_id === "A140");
+    assert(
+      a140AfterStale?.record_revision === a140Saved.record_revision &&
+        a140AfterStale?.remaining_duration === 10,
+      `a stale write must retain the prior valid progress, got ${JSON.stringify(a140AfterStale)}`,
+    );
+    await page.screenshot("07h-progress-saved.png");
+    record("real progress entry validates, persists, rejects contradictions and stale revisions", {
+      activity: "A140",
+      actual_start: a140Saved.actual_start,
+      remaining_duration: a140Saved.remaining_duration,
+      record_revision: a140Saved.record_revision,
+      rejected_error: "PROGRESS_ACTUAL_FINISH_BEFORE_ACTUAL_START",
+      stale_status: staleProgressWrite.status,
+    });
+
+    // Each out-of-sequence option must change the authoritative result, be
+    // recorded in the settings revision, and preserve the actual dates.
+    const outOfSequenceRuns = [];
+    for (const [mode, expectedStart] of [
+      ["RETAINED_LOGIC", "2026-10-20"],
+      ["PROGRESS_OVERRIDE", "2026-10-13"],
+      ["ACTUAL_DATES", "2026-10-09"],
+    ]) {
+      await page.setSelect(
+        '[data-schedule-settings-form] select[data-option="out_of_sequence_schedule_type"]',
+        mode,
+      );
+      await page.click('[data-schedule-settings-form] button[type="submit"]');
+      await page.waitFor(
+        `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
+        `${mode} settings save status`,
+      );
+      const savedModeSettings = await readSettings();
+      assert(
+        savedModeSettings.status === 200 &&
+          savedModeSettings.body?.schedule_options?.out_of_sequence_schedule_type === mode &&
+          savedModeSettings.body?.schedule_options?.data_date === "2026-10-13",
+        `${mode} must persist with the Data Date, got ${JSON.stringify(savedModeSettings)}`,
+      );
+      await page.click("[data-run-schedule]");
+      await page.waitFor(
+        `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 14 &&
+         Boolean(document.querySelector("[data-run-results] .cp-schedule-result-meta")?.getAttribute("data-snapshot-id"))`,
+        `${mode} authoritative results`,
+        60000,
+      );
+      const snapshotId = await page.evaluate(
+        `document.querySelector("[data-run-results] .cp-schedule-result-meta")?.getAttribute("data-snapshot-id")`,
+      );
+      const uiRow = await page.evaluate(`(() => {
+        const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr"))
+          .map((row) => Array.from(row.children).map((cell) => cell.textContent.trim()));
+        return rows.find((row) => row[0] === "A140") ?? null;
+      })()`);
+      assert(uiRow, `${mode} must return A140`);
+      const apiFacts = await querySnapshotFacts(snapshotId);
+      assert(
+        apiFacts.status === 200 && apiFacts.activities?.A140,
+        `${mode} snapshot facts must be queryable, got ${JSON.stringify(apiFacts).slice(0, 500)}`,
+      );
+      const apiA140 = apiFacts.activities.A140;
+      assert(
+        uiRow[1] === apiA140.start && uiRow[2] === apiA140.finish,
+        `${mode} browser row must match the authoritative API facts, got ${JSON.stringify(uiRow)} vs ${JSON.stringify(apiA140)}`,
+      );
+      assert(
+        apiA140.start === expectedStart,
+        `${mode} must schedule A140 at ${expectedStart}, got ${apiA140.start}`,
+      );
+      const afterModeActivities = await readActivitiesApi();
+      const a140AfterMode = afterModeActivities.body?.activities
+        ?.map((item) => item.activity)
+        .find((item) => item.activity_id === "A140");
+      assert(
+        a140AfterMode?.actual_start === "2026-10-09" && a140AfterMode?.actual_finish === null,
+        `${mode} must not rewrite A140 actual dates, got ${JSON.stringify(a140AfterMode)}`,
+      );
+      const gridA140 = await readActivitySurface("A140");
+      assert(
+        gridA140.row?.start === apiA140.start,
+        `${mode} grid must show the same A140 start, got ${JSON.stringify(gridA140)}`,
+      );
+      outOfSequenceRuns.push({
+        mode,
+        snapshot_id: snapshotId,
+        ui_start: uiRow[1],
+        ui_finish: uiRow[2],
+        api_start: apiA140.start,
+        api_finish: apiA140.finish,
+        api_total_float: apiA140.total_float ?? null,
+        api_critical: apiA140.critical ?? null,
+        actual_start_preserved: a140AfterMode.actual_start,
+        grid_start: gridA140.row.start,
+      });
+    }
+    assert(
+      new Set(outOfSequenceRuns.map((run) => run.api_start)).size === 3,
+      `all three out-of-sequence modes must produce distinct A140 starts, got ${JSON.stringify(outOfSequenceRuns.map((run) => run.api_start))}`,
+    );
+    const lastRun = outOfSequenceRuns[outOfSequenceRuns.length - 1];
+    await page.scrollTo("#cp-schedule-run");
+    await page.screenshot("07i-out-of-sequence-modes.png");
+    EVIDENCE.progress_cycle = {
+      activity: "A140",
+      actual_start: a140Saved.actual_start,
+      data_date: "2026-10-13",
+      rejected_error: "PROGRESS_ACTUAL_FINISH_BEFORE_ACTUAL_START",
+      stale_status: staleProgressWrite.status,
+      modes: outOfSequenceRuns,
+      source: "progress panel -> PATCH activities/A140/progress; settings form -> PATCH settings; Run Schedule -> snapshot + Shared Core fact query",
+    };
+    record("all three out-of-sequence options persist and produce distinct authoritative dates", {
+      starts: outOfSequenceRuns.map((run) => `${run.mode}=${run.api_start}`),
+      actual_start_preserved: outOfSequenceRuns.every(
+        (run) => run.actual_start_preserved === "2026-10-09",
+      ),
+    });
+
+    // Re-read the persisted result after a full reload: settings, grid and
+    // Gantt must agree with the last authoritative snapshot.
+    const beforeReloadSurface = await readActivitySurface("A140");
+    const beforeReloadSettings = await readSettings();
+    assert(
+      beforeReloadSettings.status === 200 &&
+        beforeReloadSettings.body?.schedule_options?.out_of_sequence_schedule_type === "ACTUAL_DATES" &&
+        beforeReloadSettings.body?.schedule_options?.data_date === "2026-10-13",
+      "the last selected mode and Data Date must be readable before reload",
+    );
+    await page.reload(".cp-project-selection", "progress cycle reload");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "workspace after progress cycle reload");
+    await page.waitForSelector("[data-schedule-settings-form]", "settings after progress cycle reload");
+    await page.waitForSelector("#cp-progress-entry [data-progress-form]", "progress panel after reload", 30000);
+    const afterReloadSettings = await readSettings();
+    assert(
+      afterReloadSettings.status === 200 &&
+        afterReloadSettings.body?.schedule_options?.out_of_sequence_schedule_type === "ACTUAL_DATES" &&
+        afterReloadSettings.body?.schedule_options?.data_date === "2026-10-13",
+      `settings, Data Date and mode must survive reload, got ${JSON.stringify(afterReloadSettings.body?.schedule_options)}`,
+    );
+    const afterReloadGrid = await page.evaluate(`(() => {
+      const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A140"]');
+      const cell = (column) => row?.querySelector('[data-column-id="' + column + '"]')?.textContent.trim() ?? null;
+      const bar = document.querySelector('.cp-gantt-row[data-gantt-activity-id="A140"] .cp-gantt-bar');
+      return {
+        start: cell("activity.early_start"),
+        finish: cell("activity.early_finish"),
+        gantt_style: bar?.getAttribute("style") ?? null,
+        progress_data_date: document.querySelector("[data-progress-data-date]")?.getAttribute("data-progress-data-date") ?? null,
+      };
+    })()`);
+    assert(
+      afterReloadGrid.start === beforeReloadSurface.row?.start &&
+        afterReloadGrid.finish === beforeReloadSurface.row?.finish,
+      `grid dates must survive reload unchanged, got ${JSON.stringify(afterReloadGrid)} vs ${JSON.stringify(beforeReloadSurface)}`,
+    );
+    assert(
+      afterReloadGrid.gantt_style === beforeReloadSurface.gantt_style,
+      `Gantt geometry must survive reload unchanged, got ${JSON.stringify(afterReloadGrid.gantt_style)} vs ${JSON.stringify(beforeReloadSurface.gantt_style)}`,
+    );
+    assert(
+      afterReloadGrid.progress_data_date === "2026-10-13",
+      `the progress panel must reload the saved Data Date, got ${JSON.stringify(afterReloadGrid)}`,
+    );
+    const reloadedApiFacts = await querySnapshotFacts(lastRun.snapshot_id);
+    assert(
+      reloadedApiFacts.status === 200 &&
+        reloadedApiFacts.activities?.A140?.start === afterReloadGrid.start &&
+        reloadedApiFacts.activities?.A140?.finish === afterReloadGrid.finish,
+      `reloaded grid must match the persisted authoritative snapshot, got ${JSON.stringify(afterReloadGrid)} vs ${JSON.stringify(reloadedApiFacts.activities?.A140)}`,
+    );
+    await page.screenshot("07j-progress-reload.png");
+    EVIDENCE.persistence.progress_cycle = {
+      settings_mode: afterReloadSettings.body.schedule_options.out_of_sequence_schedule_type,
+      settings_data_date: afterReloadSettings.body.schedule_options.data_date,
+      a140_grid_start: afterReloadGrid.start,
+      a140_grid_finish: afterReloadGrid.finish,
+      gantt_style_unchanged: afterReloadGrid.gantt_style === beforeReloadSurface.gantt_style,
+      snapshot_id: lastRun.snapshot_id,
+    };
+    record("settings, progress, grid and Gantt reload consistently with the persisted snapshot", {
+      mode: afterReloadSettings.body.schedule_options.out_of_sequence_schedule_type,
+      data_date: afterReloadSettings.body.schedule_options.data_date,
+      a140_start: afterReloadGrid.start,
+      gantt_unchanged: afterReloadGrid.gantt_style === beforeReloadSurface.gantt_style,
+    });
+
     await page.scrollTo("#cp-formula-editor");
     await page.setSelect(
       "#cp-formula-editor [data-formula-field]",
@@ -2714,6 +3182,31 @@ async function main() {
       return { status: response.status, body };
     })()`, { awaitPromise: true });
     assert(viewerSnapshotPost.status === 403, "viewer snapshot publication must be denied with 403");
+    const viewerProgressWrite = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/p6/activities/A140/progress", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({
+          contract_version: "p6-activity-master-api.v1",
+          expected_revision: 1,
+          actual_start: "2026-10-09",
+          actual_finish: null,
+          remaining_duration: 1,
+          percent_complete: 90,
+        }),
+      });
+      return { status: response.status, body: await response.json().catch(() => null) };
+    })()`, { awaitPromise: true });
+    assert(
+      viewerProgressWrite.status === 403 &&
+        String(viewerProgressWrite.body?.code ?? viewerProgressWrite.body?.error ?? "").includes("authorization denied"),
+      `viewer progress entry must be denied, got ${JSON.stringify(viewerProgressWrite)}`,
+    );
 
     await page.click('[data-menu="project"]');
     await page.scrollTo("#cp-interchange");
@@ -2795,6 +3288,7 @@ async function main() {
       layout_read_status: layoutGet.status,
       layout_write: viewerLayoutPost,
       snapshot_write: viewerSnapshotPost,
+      progress_write: viewerProgressWrite,
       interchange_export: viewerExportStatus,
       interchange_import_denied: viewerImportError,
       capacity_read_resolved: "50",

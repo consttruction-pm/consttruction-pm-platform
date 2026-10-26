@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildProgressRequest,
   buildSettingsRestoreRequest,
   filterScheduleReferences,
+  parseProgressDateInput,
   type ScheduleCodeReferenceCatalog,
   type ScheduleSettingsDTO,
 } from "./schedule-cycle.js";
@@ -121,4 +123,57 @@ test("settings restore posts the selected values at the current revision", () =>
     schedule_options: { mode: "ALAP" },
     project_leveling_priority: 10,
   });
+});
+
+test("progress request carries only validated values and the loaded revision", () => {
+  assert.deepEqual(
+    buildProgressRequest(4, {
+      actual_start: "2026-10-07",
+      actual_finish: null,
+      remaining_duration: 5,
+      percent_complete: 0,
+    }),
+    {
+      contract_version: "p6-activity-master-api.v1",
+      expected_revision: 4,
+      actual_start: "2026-10-07",
+      actual_finish: null,
+      remaining_duration: 5,
+      percent_complete: 0,
+    },
+  );
+  assert.deepEqual(
+    buildProgressRequest(5, {
+      actual_start: null,
+      actual_finish: null,
+      remaining_duration: null,
+      percent_complete: null,
+    }),
+    {
+      contract_version: "p6-activity-master-api.v1",
+      expected_revision: 5,
+      actual_start: null,
+      actual_finish: null,
+      remaining_duration: null,
+      percent_complete: null,
+    },
+  );
+});
+
+test("progress dates accept Gregorian calendar dates and typed Jalali dates", () => {
+  assert.equal(parseProgressDateInput("2026-10-07", false), "2026-10-07");
+  assert.equal(parseProgressDateInput(" 2026-10-07 ", false), "2026-10-07");
+  assert.equal(parseProgressDateInput("۱۴۰۵/۰۷/۱۵", true), "2026-10-07");
+  assert.equal(parseProgressDateInput("1405/07/15", true), "2026-10-07");
+});
+
+test("progress dates reject blank, malformed, and time-bearing values", () => {
+  assert.equal(parseProgressDateInput("", false), null);
+  assert.equal(parseProgressDateInput("   ", false), null);
+  assert.equal(parseProgressDateInput("2026-02-30", false), null);
+  assert.equal(parseProgressDateInput("07/15/2026", false), null);
+  assert.equal(parseProgressDateInput("2026-10-07T08:00", false), null);
+  assert.equal(parseProgressDateInput("not-a-date", false), null);
+  assert.equal(parseProgressDateInput("1405/13/01", true), null);
+  assert.equal(parseProgressDateInput("", true), null);
 });
