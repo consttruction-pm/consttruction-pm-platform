@@ -168,6 +168,10 @@ SQLite database and a real headless browser. It verifies:
   presentation survives, and the lost race appends no revision;
 - filter and numeric sort behavior, including an explicit empty state;
 - project settings/calendar read, save and revision increment;
+- the scheduling-mode option offers both `EARLIEST` and `ALAP`; selecting
+  `ALAP` persists through the settings API, and restoring `EARLIEST` appends a
+  further revision. The Shared Core evaluator regression proves ALAP drives
+  `LATE` resource-dependent placement, while EARLIEST keeps the `EARLY` default;
 - snapshot publication plus Shared Core query results and content hash;
 - formula editor validation through the Shared Core authority: a valid numeric
   expression returns its dependency and result type, a context self-reference
@@ -210,8 +214,8 @@ SQLite database and a real headless browser. It verifies:
   route with no created activity;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **38 checks and 29 screenshots** on
-`7f1116ae`.
+The latest isolated run recorded **39 checks and 29 screenshots** on
+`6f3979d3`.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
