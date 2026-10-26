@@ -5,6 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Mapping
 
+from .activity import ActivityLevelingPriority
 from .calendar import WorkingTimeResolver
 from enum import Enum
 
@@ -204,6 +205,13 @@ class LevelingActivity:
     free_float: int | None = None
     late_start: date | None = None
     late_finish: date | None = None
+    original_planned_duration: Decimal | None = None
+    planned_finish: date | None = None
+    project_planned_start: date | None = None
+    project_priority: int | None = None
+    remaining_duration: Decimal | None = None
+    # Exact categorical P6 Activity.LevelingPriority, separate from legacy numeric input.
+    leveling_priority: ActivityLevelingPriority | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -218,8 +226,14 @@ class LevelingActivity:
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
         if isinstance(self.total_float, bool) or not isinstance(self.total_float, int):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
-        if self.activity_priority is not None and (isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)):
+        if self.activity_priority is not None and (
+            isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)
+        ):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
+        if self.leveling_priority is not None and not isinstance(
+            self.leveling_priority, ActivityLevelingPriority
+        ):
+            raise ResourceLevelingError("INVALID_LEVELING_PRIORITY")
         if self.free_float is not None and (
             isinstance(self.free_float, bool) or not isinstance(self.free_float, int)
         ):
@@ -228,9 +242,23 @@ class LevelingActivity:
             value is not None and (
                 not isinstance(value, date) or isinstance(value, datetime)
             )
-            for value in (self.late_start, self.late_finish)
+            for value in (self.late_start, self.late_finish, self.planned_finish, self.project_planned_start)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
+        for name, value in (
+            ("original_planned_duration", self.original_planned_duration),
+            ("remaining_duration", self.remaining_duration),
+        ):
+            if value is not None and (
+                not isinstance(value, Decimal) or not value.is_finite() or value < 0
+            ):
+                raise ResourceLevelingError(f"INVALID_{name.upper()}")
+        if self.project_priority is not None and (
+            isinstance(self.project_priority, bool)
+            or not isinstance(self.project_priority, int)
+            or not 1 <= self.project_priority <= 100
+        ):
+            raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
         # Late dates may precede early dates when CPM reports negative float
         # (for example, an infeasible imposed finish/constraint). Preserve the
         # authoritative dates; feasibility is handled by CPM/constraint checks.
@@ -273,16 +301,62 @@ def _shift_demands(
     )
 
 
+def _activity_priority_sort_value(value: int | ActivityLevelingPriority | None) -> int | None:
+    """Map P6's categorical activity leveling priority to its ordered rank.
+
+    Lower ranks represent lower priority, so ascending puts Lowest before Top
+    and descending does the reverse. Integer values remain supported for
+    existing typed callers.
+    """
+    if value is None:
+        return None
+    if isinstance(value, ActivityLevelingPriority):
+        return {
+            ActivityLevelingPriority.LOWEST: 1,
+            ActivityLevelingPriority.LOW: 2,
+            ActivityLevelingPriority.NORMAL: 3,
+            ActivityLevelingPriority.HIGH: 4,
+            ActivityLevelingPriority.TOP: 5,
+        }[value]
+    return value
+
+
+def _project_priority_sort_value(value: int | None) -> int | None:
+    """Convert P6's 1=highest .. 100=lowest rank to its leveling order.
+
+    An ascending Project Priority criterion levels lower-priority projects
+    first, so its sort key must reverse the stored ranking. Descending then
+    naturally prioritizes projects whose stored rank is closer to 1.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 100:
+        raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
+    return 101 - value
+
+
 def _priority_value(activity: LevelingActivity, field_name: str):
     """Return the P6 leveling-priority value available in this Shared Core slice."""
-    normalized = field_name.strip().lower().replace(" ", "_")
+    normalized = field_name.strip().lower().replace(" ", "_").replace("/", "_")
     values = {
         "activity_id": activity.activity_id,
-        "activity_priority": activity.activity_priority,
+        "activity_priority": _activity_priority_sort_value(
+            activity.leveling_priority
+            if activity.leveling_priority is not None
+            else activity.activity_priority
+        ),
         "early_start": activity.start,
         "early_finish": activity.finish,
         "late_start": activity.late_start,
         "late_finish": activity.late_finish,
+        "original_planned_duration": activity.original_planned_duration,
+        "original_or_planned_duration": activity.original_planned_duration,
+        "original_duration": activity.original_planned_duration,
+        "planned_duration": activity.original_planned_duration,
+        "planned_finish": activity.planned_finish,
+        "project_planned_start": activity.project_planned_start,
+        "project_priority": _project_priority_sort_value(activity.project_priority),
+        "remaining_duration": activity.remaining_duration,
         "total_float": activity.total_float,
         "free_float": activity.free_float,
     }
@@ -579,6 +653,14 @@ def apply_leveling_shifts(
             ),
             activity_priority=activity.activity_priority,
             free_float=activity.free_float,
+            late_start=activity.late_start,
+            late_finish=activity.late_finish,
+            original_planned_duration=activity.original_planned_duration,
+            planned_finish=activity.planned_finish,
+            project_planned_start=activity.project_planned_start,
+            project_priority=activity.project_priority,
+            remaining_duration=activity.remaining_duration,
+            leveling_priority=activity.leveling_priority,
         ))
     return tuple(result)
 
@@ -597,6 +679,13 @@ class BackwardLevelingActivity:
     activity_priority: int | None = None
     total_float: int | None = None
     free_float: int | None = None
+    original_planned_duration: Decimal | None = None
+    planned_finish: date | None = None
+    project_planned_start: date | None = None
+    project_priority: int | None = None
+    remaining_duration: Decimal | None = None
+    # Exact categorical P6 Activity.LevelingPriority, separate from legacy numeric input.
+    leveling_priority: ActivityLevelingPriority | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -612,10 +701,34 @@ class BackwardLevelingActivity:
             isinstance(self.activity_priority, bool) or not isinstance(self.activity_priority, int)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_PRIORITY")
+        if self.leveling_priority is not None and not isinstance(
+            self.leveling_priority, ActivityLevelingPriority
+        ):
+            raise ResourceLevelingError("INVALID_LEVELING_PRIORITY")
         if self.total_float is not None and (
             isinstance(self.total_float, bool) or not isinstance(self.total_float, int)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
+        if any(
+            not isinstance(value, date) or isinstance(value, datetime)
+            for value in (self.planned_finish, self.project_planned_start)
+            if value is not None
+        ):
+            raise ResourceLevelingError("INVALID_ACTIVITY_WINDOW")
+        for name, value in (
+            ("original_planned_duration", self.original_planned_duration),
+            ("remaining_duration", self.remaining_duration),
+        ):
+            if value is not None and (
+                not isinstance(value, Decimal) or not value.is_finite() or value < 0
+            ):
+                raise ResourceLevelingError(f"INVALID_{name.upper()}")
+        if self.project_priority is not None and (
+            isinstance(self.project_priority, bool)
+            or not isinstance(self.project_priority, int)
+            or not 1 <= self.project_priority <= 100
+        ):
+            raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -665,6 +778,34 @@ def _shift_demands_backward(
         )
         for d in demands
     )
+
+
+def _backward_priority_value(activity: BackwardLevelingActivity, normalized: str):
+    values = {
+        "activity_id": activity.activity_id,
+        "activity_priority": _activity_priority_sort_value(
+            activity.leveling_priority
+            if activity.leveling_priority is not None
+            else activity.activity_priority
+        ),
+        "early_start": activity.early_start,
+        "early_finish": activity.early_finish,
+        "late_start": activity.late_start,
+        "late_finish": activity.late_finish,
+        "total_float": activity.total_float,
+        "free_float": activity.free_float,
+        "original_planned_duration": activity.original_planned_duration,
+        "original_or_planned_duration": activity.original_planned_duration,
+        "planned_duration": activity.original_planned_duration,
+        "original_duration": activity.original_planned_duration,
+        "planned_finish": activity.planned_finish,
+        "project_planned_start": activity.project_planned_start,
+        "project_priority": _project_priority_sort_value(activity.project_priority),
+        "remaining_duration": activity.remaining_duration,
+    }
+    if normalized not in values:
+        raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+    return values[normalized]
 
 
 def propose_backward_leveling(
@@ -723,14 +864,21 @@ def propose_backward_leveling(
     allowed = {
         "activity_id", "activity_priority", "early_start",
         "early_finish", "late_start", "late_finish", "total_float", "free_float",
+        "original_planned_duration", "original_or_planned_duration",
+        "planned_duration", "original_duration", "planned_finish",
+        "project_planned_start", "project_priority", "remaining_duration",
     }
     for priority in priorities:
-        normalized = priority.field_name.strip().lower().replace(" ", "_")
+        normalized = priority.field_name.strip().lower().replace(" ", "_").replace("/", "_")
         if normalized not in allowed:
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         if normalized == "total_float" and any(activity.total_float is None for activity in activity_list):
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
         if normalized == "free_float" and any(activity.free_float is None for activity in activity_list):
+            raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
+        if normalized in {"late_start", "late_finish"} and any(
+            _backward_priority_value(activity, normalized) is None for activity in activity_list
+        ):
             raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
 
     selected_resources = set(
@@ -804,19 +952,10 @@ def propose_backward_leveling(
                 )
                 if units <= 0:
                     continue
-                values = {
-                    "activity_id": activity.activity_id,
-                    "activity_priority": activity.activity_priority,
-                    "early_start": activity.early_start,
-                    "early_finish": activity.early_finish,
-                    "late_start": activity.late_start,
-                    "late_finish": activity.late_finish,
-                    "total_float": activity.total_float,
-                    "free_float": activity.free_float,
-                }
                 key: list[tuple[int, object]] = []
                 for priority in priorities:
-                    value = values[priority.field_name.strip().lower().replace(" ", "_")]
+                    normalized = priority.field_name.strip().lower().replace(" ", "_").replace("/", "_")
+                    value = _backward_priority_value(activity, normalized)
                     if value is None:
                         key.append((1, ""))
                     elif priority.sort_order is SortOrder.ASCENDING:
