@@ -262,8 +262,11 @@ workspace.
   write APIs plus a Web panel. The panel appends effective changes and resolves
   periods; it does not provide bulk capacity import or a separate leveling
   editor, and it never computes capacity client-side.
-- Assignment-level early/late dates and backward placement are not exposed; the
-  placement module documents this contract boundary and the activity-level Shared
-  Core result remains authoritative.
+- Assignment-level early/late windows and assignment float are now returned by
+  the Shared Core placement result and are derived from the authoritative CPM
+  early/late dates of the same run; the placement module never recomputes CPM.
+  Backward assignment placement exists as an explicit Shared Core
+  `placement_direction="LATE"` contract, but no persisted schedule option or Web
+  control selects it yet; the preview uses the documented `EARLY` default.
 - CUBISITE workbook-derived official weights, scoring or completion percentages
   are unavailable and must not be inferred from file counts.
