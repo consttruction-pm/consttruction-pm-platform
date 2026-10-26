@@ -91,7 +91,7 @@ writeFileSync(join(output, ".nojekyll"), "");
 
 for (const file of [
   "index.html", "app/index.html", "styles.css", "dist/web/src/landing-entry.js",
-  "dist/web/src/landing.js", "cubi-platform-logo-primary.svg", "app/cubi-platform-logo-primary.svg",
+  "dist/web/src/landing.js", "cubi-platform-logo-primary.svg", "cubi-assistant-avatar.svg", "app/cubi-platform-logo-primary.svg",
   "platform/index.html", "solutions/index.html", "resources/index.html", "contact/index.html",
   "robots.txt", "sitemap.xml", ".nojekyll",
 ]) assert(existsSync(join(output, file)), "missing " + file);
@@ -119,6 +119,7 @@ assert(!readFileSync(join(output, "robots.txt"), "utf8").includes("/app"), "robo
 assert(!readFileSync(join(output, "sitemap.xml"), "utf8").includes("/app"), "sitemap must not list workspace");
 assert(!listHtml(output).some((file) => readFileSync(file, "utf8").includes("__CUBI_BASE_URL__")), "unresolved base URL placeholder");
 assert(existsSync(join(output, "cubi-platform-logo-primary.svg")), "primary logo missing");
+assert(existsSync(join(output, "cubi-assistant-avatar.svg")), "assistant avatar missing");
 for (const legacy of ["logo.svg", "logo-dark.svg", "cubi-platform-logo-primary-dark.svg"]) {
   assert(!existsSync(join(output, legacy)), "unexpected legacy logo " + legacy);
 }
