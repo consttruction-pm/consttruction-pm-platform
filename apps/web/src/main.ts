@@ -354,7 +354,6 @@ function renderApp(
     onP6LayoutRestore: (revision) => { void restoreLayout(revision); },
     layoutHistory: historyView,
   });
-  if (layoutHistory && !preserveLayoutNotice) layoutHistory.noticeKey = null;
   if (
     state.p6Layout
     && layoutHistory
@@ -371,6 +370,9 @@ function renderApp(
         layoutHistory.revisionLoadFailed = true;
         renderApp(container, currentWorkspaceState ?? state, persistence, true);
       });
+  }
+  if (layoutHistory && !preserveLayoutNotice && !layoutHistory.revisionRequest) {
+    layoutHistory.noticeKey = null;
   }
   void mountScheduleCyclePanels(workspace, aiTransport, state.context, state.locale, (facts) => {
     try {
