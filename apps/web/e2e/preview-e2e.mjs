@@ -1643,6 +1643,76 @@ async function main() {
     await page.scrollTo("#cp-schedule-options");
     await page.screenshot("06-settings-calendar.png");
 
+    // Backward/ALAP selection is a real persisted schedule option. The Shared
+    // Core evaluator regression proves ALAP drives LATE resource-dependent
+    // placement; this browser branch proves the user selection round-trips
+    // through the authoritative settings API and can be restored.
+    const schedulingModes = await page.evaluate(`(() => {
+      const select = document.querySelector('[data-schedule-settings-form] select[data-option="mode"]');
+      return select ? Array.from(select.options).map((option) => option.value) : [];
+    })()`);
+    assert(
+      schedulingModes.includes("EARLIEST") && schedulingModes.includes("ALAP"),
+      `the workspace must offer the backward (ALAP) scheduling option, got ${JSON.stringify(schedulingModes)}`,
+    );
+    const readSettings = () => page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/schedule/settings", {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`,
+      { awaitPromise: true },
+    );
+    await page.setSelect(
+      '[data-schedule-settings-form] select[data-option="mode"]',
+      "ALAP",
+    );
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
+      "ALAP settings save status",
+    );
+    const alapSettings = await readSettings();
+    assert(
+      alapSettings.status === 200 &&
+        alapSettings.body?.schedule_options?.mode === "ALAP",
+      `an ALAP selection must persist through the settings API, got ${JSON.stringify(alapSettings)}`,
+    );
+    await page.setSelect(
+      '[data-schedule-settings-form] select[data-option="mode"]',
+      "EARLIEST",
+    );
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1) > ${Number(alapSettings.body.record_revision)}`,
+      "EARLIEST settings restored",
+    );
+    const earliestSettings = await readSettings();
+    assert(
+      earliestSettings.status === 200 &&
+        earliestSettings.body?.schedule_options?.mode === "EARLIEST",
+      `the earliest scheduling mode must be restorable, got ${JSON.stringify(earliestSettings)}`,
+    );
+    EVIDENCE.backward_placement = {
+      offered_modes: schedulingModes,
+      persisted_mode: alapSettings.body.schedule_options.mode,
+      persisted_revision: alapSettings.body.record_revision,
+      restored_mode: earliestSettings.body.schedule_options.mode,
+      restored_revision: earliestSettings.body.record_revision,
+      source: "schedule settings form -> POST/GET /p6/schedule/settings",
+      placement_evidence: "Shared Core ALAP evaluator test selects LATE placement",
+    };
+    record("the workspace persists the backward (ALAP) scheduling selection", {
+      modes: schedulingModes,
+      persisted: alapSettings.body.schedule_options.mode,
+      restored: earliestSettings.body.schedule_options.mode,
+    });
+
     await page.setSelect('select[name="calendar_system"]', "jalali");
     await page.waitFor(
       `(() => {
