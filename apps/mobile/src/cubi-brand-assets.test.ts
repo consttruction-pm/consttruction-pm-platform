@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { CUBI_BRAND_ASSETS, CUBI_BRAND_ASSET, CUBI_ASSISTANT_AVATAR_ASSET } from "./cubi-brand-assets.js";
 
 test("mobile consumes one canonical CUBI logo for every presentation variant", () => {
@@ -9,4 +10,11 @@ test("mobile consumes one canonical CUBI logo for every presentation variant", (
   });
   assert.equal(CUBI_BRAND_ASSET, "apps/web/public/cubi-platform-logo-primary.svg");
   assert.equal(CUBI_ASSISTANT_AVATAR_ASSET, "apps/web/public/cubi-assistant-avatar.svg");
+});
+
+test("mobile can read the canonical shared assistant avatar asset", () => {
+  assert.equal(CUBI_ASSISTANT_AVATAR_ASSET, "apps/web/public/cubi-assistant-avatar.svg");
+  const svg = readFileSync(new URL("../../web/public/cubi-assistant-avatar.svg", import.meta.url), "utf8");
+  assert.match(svg, /<svg[^>]+viewBox="0 0 256 256"/);
+  assert.match(svg, /CUBI AI Project Assistant/);
 });
