@@ -191,7 +191,8 @@ SQLite database and a real headless browser. It verifies:
   duplicate revision fails closed with `SETTINGS_HISTORY_CONFLICT`, rolling the
   settings write back to a savepoint (including inside a caller-owned
   transaction) so the current row cannot survive without its matching history;
-  revision reads are capped at 50 rows by default;
+  revision reads are capped at 50 rows with no HTTP pagination, so older
+  revisions beyond the newest 50 are not returned;
 - snapshot publication plus Shared Core query results and content hash;
 - formula editor validation through the Shared Core authority: a valid numeric
   expression returns its dependency and result type, a context self-reference
@@ -235,7 +236,7 @@ SQLite database and a real headless browser. It verifies:
 - no uncaught browser exceptions and no API 5xx responses.
 
 The latest isolated run recorded **41 checks and 31 screenshots** on
-`a4718d04`.
+`c328abce`.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
