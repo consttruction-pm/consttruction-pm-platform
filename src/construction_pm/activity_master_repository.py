@@ -102,6 +102,43 @@ class ActivityMaster:
         if self.record_revision > MAX_SAFE_REVISION:
             raise ActivityPersistenceError("INVALID_RECORD_REVISION")
 
+    def validate_progress(self) -> None:
+        """Validate the cross-field progress invariants used by progress entry.
+
+        The general record validation intentionally remains per-field so that
+        historical/imported rows keep loading. User-facing progress writes call
+        this method to reject internally inconsistent progress before storage.
+        """
+        if self.actual_finish is not None:
+            if self.actual_start is None:
+                raise ActivityPersistenceError(
+                    "PROGRESS_ACTUAL_FINISH_REQUIRES_ACTUAL_START"
+                )
+            try:
+                finish_before_start = self.actual_finish < self.actual_start
+            except TypeError as exc:
+                raise ActivityPersistenceError("INVALID_PROGRESS_DATE_TYPES") from exc
+            if finish_before_start:
+                raise ActivityPersistenceError(
+                    "PROGRESS_ACTUAL_FINISH_BEFORE_ACTUAL_START"
+                )
+            if self.remaining_duration not in (None, 0):
+                raise ActivityPersistenceError(
+                    "PROGRESS_COMPLETED_ACTIVITY_REMAINING_DURATION"
+                )
+            if self.remaining_start is not None:
+                raise ActivityPersistenceError(
+                    "PROGRESS_COMPLETED_ACTIVITY_REMAINING_START"
+                )
+            if self.percent_complete is not None and self.percent_complete != 100:
+                raise ActivityPersistenceError(
+                    "PROGRESS_COMPLETED_ACTIVITY_PERCENT_COMPLETE"
+                )
+        if self.remaining_start is not None and self.actual_start is None:
+            raise ActivityPersistenceError(
+                "PROGRESS_REMAINING_START_REQUIRES_ACTUAL_START"
+            )
+
     def payload(self) -> tuple[object, ...]:
         return (
             self.activity_id,

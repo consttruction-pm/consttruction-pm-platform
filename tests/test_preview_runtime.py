@@ -158,13 +158,17 @@ def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision
             if activity["id"] == "A130"
         )
         assert a130["wbs_id"] == "2 Civil works"
-        assert a130["cells"]["activity.early_start"] == "2026-10-07"
-        assert a130["cells"]["activity.early_finish"] == "2026-10-13"
-        assert a130["cells"]["activity.total_float"] == -3
+        # A130 is in progress at the seeded Data Date (2026-10-12). Retained
+        # Logic places its five remaining working days at the Data Date, so the
+        # seeded actual start (2026-10-07) stays recorded but does not pull the
+        # remaining interval back into the past.
+        assert a130["cells"]["activity.early_start"] == "2026-10-12"
+        assert a130["cells"]["activity.early_finish"] == "2026-10-16"
+        assert a130["cells"]["activity.total_float"] == 0
         assert a130["cells"]["activity.is_critical"] is True
         assert a130["gantt"] == {
-            "start": "2026-10-07",
-            "finish": "2026-10-13",
+            "start": "2026-10-12",
+            "finish": "2026-10-16",
             "progressPercent": 37.5,
             "critical": True,
         }

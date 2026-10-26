@@ -1280,8 +1280,10 @@ class ProjectLifecycleHttpRoutes:
                         activity_id = payload.get("activity_id")
                         if not isinstance(activity_id, str) or not activity_id.strip():
                             raise ValueError("INVALID_ACTIVITY_ID")
+                        created = build_activity(activity_id)
+                        created.validate_progress()
                         result = self._p6_activity_master_api.create(
-                            build_activity(activity_id), auth_context=auth
+                            created, auth_context=auth
                         )
                         return self._json(201, result)
                     if method == "GET" and len(parts) == 1 and parts[0]:
@@ -1291,6 +1293,111 @@ class ProjectLifecycleHttpRoutes:
                         if result is None:
                             return self._error(404, "P6_ACTIVITY_MASTER_NOT_FOUND", "error.resource.not_found")
                         return self._json(200, result)
+                    if method == "PATCH" and len(parts) == 2 and parts[0] and parts[1] == "progress":
+                        # Progress entry derives the Data Date from saved project
+                        # settings. It is never taken from the request body, so a
+                        # caller cannot move the observed boundary to hide lateness.
+                        if not self._p6_activity_master_api.authorization_policy.is_allowed(
+                            auth, Permission.PROJECT_WRITE
+                        ):
+                            raise AuthorizationError(
+                                "authorization denied for permission=project.write"
+                            )
+                        allowed_fields = {
+                            "contract_version",
+                            "expected_revision",
+                            "actual_start",
+                            "actual_finish",
+                            "remaining_duration",
+                            "percent_complete",
+                        }
+                        if set(payload) - allowed_fields:
+                            raise ValueError("PROGRESS_REQUEST_FIELDS_INVALID")
+                        expected_revision = payload.get("expected_revision")
+
+                        def progress_date(field_name: str) -> date | None:
+                            if field_name not in payload:
+                                return None
+                            value = payload[field_name]
+                            if value is None:
+                                return None
+                            # Dates are recorded at day precision only. A time
+                            # component would require a timezone assumption that
+                            # the saved date-based settings do not provide.
+                            if not isinstance(value, str) or "T" in value or " " in value:
+                                raise ValueError("INVALID_" + field_name.upper())
+                            try:
+                                return date.fromisoformat(value)
+                            except ValueError as exc:
+                                raise ValueError(
+                                    "INVALID_" + field_name.upper()
+                                ) from exc
+
+                        progress_actual_start = progress_date("actual_start")
+                        progress_actual_finish = progress_date("actual_finish")
+                        snapshot_api = self._p6_schedule_snapshot_api
+                        if snapshot_api is None:
+                            raise ValueError("PROJECT_SCHEDULE_SETTINGS_REQUIRED")
+                        settings = (
+                            snapshot_api.project_schedule_settings_repository.get(scope)
+                        )
+                        if settings is None:
+                            raise ValueError("PROJECT_SCHEDULE_SETTINGS_REQUIRED")
+                        if settings.mode is not AuthoritativeScheduleMode.DATE_BASED:
+                            raise ValueError(
+                                "TIME_AWARE_PROGRESS_ENTRY_NOT_AVAILABLE"
+                            )
+                        data_date = settings.schedule_options.data_date
+                        if data_date is None or (
+                            isinstance(data_date, datetime) or not isinstance(data_date, date)
+                        ):
+                            raise ValueError("DATE_BASED_DATA_DATE_REQUIRED")
+                        existing = self._p6_activity_master_api.repository.get(
+                            scope, parts[0]
+                        )
+                        if existing is None:
+                            return self._error(
+                                404,
+                                "P6_ACTIVITY_MASTER_NOT_FOUND",
+                                "error.resource.not_found",
+                            )
+                        # A PATCH preserves fields it omits, matching the general
+                        # edit route. An omitted actual finish must never silently
+                        # reopen completed work; clearing it requires an explicit
+                        # null together with reopening values.
+                        effective_actual_start = (
+                            progress_actual_start
+                            if "actual_start" in payload
+                            else existing.actual_start
+                        )
+                        effective_actual_finish = (
+                            progress_actual_finish
+                            if "actual_finish" in payload
+                            else existing.actual_finish
+                        )
+                        completed_now = effective_actual_finish is not None
+                        effective_remaining = (
+                            payload.get("remaining_duration")
+                            if "remaining_duration" in payload
+                            else (None if completed_now else existing.remaining_duration)
+                        )
+                        effective_percent = (
+                            payload.get("percent_complete")
+                            if "percent_complete" in payload
+                            else (None if completed_now else existing.percent_complete)
+                        )
+                        result = self._p6_activity_master_api.update_progress(
+                            scope,
+                            parts[0],
+                            expected_revision=expected_revision,
+                            actual_start=effective_actual_start,
+                            actual_finish=effective_actual_finish,
+                            remaining_duration=effective_remaining,
+                            percent_complete=effective_percent,
+                            data_date=data_date,
+                            auth_context=auth,
+                        )
+                        return self._json(200, result)
                     if method == "PATCH" and len(parts) == 1 and parts[0]:
                         expected_revision = payload.get("expected_revision")
                         if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
@@ -1298,8 +1405,47 @@ class ProjectLifecycleHttpRoutes:
                         existing = self._p6_activity_master_api.repository.get(scope, parts[0])
                         if existing is None:
                             return self._error(404, "P6_ACTIVITY_MASTER_NOT_FOUND", "error.resource.not_found")
+                        edited = build_activity(parts[0], existing=existing)
+                        # The general edit route must not be a way around the
+                        # cross-field progress invariants enforced by the
+                        # dedicated progress endpoint.
+                        edited.validate_progress()
+                        # DATE_BASED actuals are day-precision facts bounded by
+                        # the saved Data Date. Without this check the general
+                        # edit route could store progress that the scheduler
+                        # later rejects, making the whole project unpublishable.
+                        if "actual_start" in payload or "actual_finish" in payload:
+                            settings = (
+                                self._p6_schedule_snapshot_api.project_schedule_settings_repository.get(scope)
+                                if self._p6_schedule_snapshot_api is not None
+                                else None
+                            )
+                            if (
+                                settings is not None
+                                and settings.mode is AuthoritativeScheduleMode.DATE_BASED
+                            ):
+                                data_date = settings.schedule_options.data_date
+                                for field_name in ("actual_start", "actual_finish"):
+                                    if field_name not in payload:
+                                        continue
+                                    value = getattr(edited, field_name)
+                                    if isinstance(value, datetime):
+                                        raise ValueError(
+                                            "INVALID_" + field_name.upper()
+                                        )
+                                    if (
+                                        isinstance(value, date)
+                                        and isinstance(data_date, date)
+                                        and not isinstance(data_date, datetime)
+                                        and value > data_date
+                                    ):
+                                        raise ValueError(
+                                            "PROGRESS_"
+                                            + field_name.upper()
+                                            + "_AFTER_DATA_DATE"
+                                        )
                         result = self._p6_activity_master_api.update(
-                            build_activity(parts[0], existing=existing),
+                            edited,
                             expected_revision=expected_revision,
                             auth_context=auth,
                         )
@@ -1310,6 +1456,17 @@ class ProjectLifecycleHttpRoutes:
                     if str(exc) == "REVISION_CONFLICT":
                         return self._error(409, str(exc), "error.revision.conflict")
                     return self._error(400, str(exc), "error.request.invalid")
+                except ProjectScheduleSettingsPersistenceError as exc:
+                    # Progress entry reads the saved settings to derive the Data
+                    # Date. A project-revision mismatch must be a conflict, and a
+                    # tampered settings/history row is an integrity failure, not
+                    # a client input error.
+                    code = str(exc) or "P6_ACTIVITY_MASTER_REQUEST_INVALID"
+                    if code == "REVISION_CONFLICT":
+                        return self._error(409, code, "error.revision.conflict")
+                    if code in {"SETTINGS_HASH_MISMATCH", "SETTINGS_HISTORY_CONFLICT"}:
+                        return self._error(500, code, "error.request.invalid")
+                    return self._error(400, code, "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
                     return self._error(400, str(exc) or "P6_ACTIVITY_MASTER_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/relationships" in path and self._p6_relationship_api is not None:

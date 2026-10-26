@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -165,6 +167,108 @@ class P6ActivityMasterAPI:
 
         updated = replace(existing, **updates)
         updated.validate()
+        return _dto(self.repository.save(updated, expected_revision=expected_revision))
+
+    def update_progress(
+        self,
+        scope: BackendScope,
+        activity_id: str,
+        *,
+        expected_revision: int,
+        actual_start: date | None,
+        actual_finish: date | None,
+        remaining_duration: int | None,
+        percent_complete: float | None,
+        data_date: date,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Persist one consistent progress observation with revision locking.
+
+        The Data Date is supplied by the caller from saved project settings and
+        never from the request transcript. Recorded actuals cannot exceed that
+        boundary, and a completed activity must carry its actual finish, zero
+        remaining duration, full percent complete, and no remaining start.
+        """
+        _require_scope(scope, auth_context)
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+            raise AuthorizationError("authorization denied for permission=project.write")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise ValueError("EXPECTED_REVISION_REQUIRED")
+        if not isinstance(activity_id, str) or not activity_id.strip():
+            raise ValueError("INVALID_ACTIVITY_ID")
+        if not isinstance(data_date, date) or isinstance(data_date, datetime):
+            raise ValueError("DATE_BASED_DATA_DATE_REQUIRED")
+
+        def optional_date(value: object, field_name: str) -> date | None:
+            if value is None:
+                return None
+            if not isinstance(value, date) or isinstance(value, datetime):
+                raise ValueError(f"INVALID_{field_name}")
+            return value
+
+        actual_start = optional_date(actual_start, "ACTUAL_START")
+        actual_finish = optional_date(actual_finish, "ACTUAL_FINISH")
+        if remaining_duration is not None and (
+            isinstance(remaining_duration, bool)
+            or not isinstance(remaining_duration, int)
+            or remaining_duration < 0
+        ):
+            raise ValueError("INVALID_REMAINING_DURATION")
+        if percent_complete is not None:
+            if isinstance(percent_complete, bool) or not isinstance(percent_complete, (int, float)):
+                raise ValueError("INVALID_PERCENT_COMPLETE")
+            if not math.isfinite(float(percent_complete)) or not 0 <= float(percent_complete) <= 100:
+                raise ValueError("INVALID_PERCENT_COMPLETE")
+
+        if actual_finish is not None and actual_start is None:
+            raise ValueError("PROGRESS_ACTUAL_FINISH_REQUIRES_ACTUAL_START")
+        if actual_finish is not None and actual_finish < actual_start:
+            raise ValueError("PROGRESS_ACTUAL_FINISH_BEFORE_ACTUAL_START")
+        if actual_start is not None and actual_start > data_date:
+            raise ValueError("PROGRESS_ACTUAL_START_AFTER_DATA_DATE")
+        if actual_finish is not None and actual_finish > data_date:
+            raise ValueError("PROGRESS_ACTUAL_FINISH_AFTER_DATA_DATE")
+        if actual_start is None and (remaining_duration is not None or percent_complete is not None):
+            raise ValueError("PROGRESS_ACTUAL_START_REQUIRED")
+        if actual_finish is None and (
+            remaining_duration == 0 or percent_complete == 100
+        ):
+            raise ValueError("PROGRESS_ACTUAL_FINISH_REQUIRED_FOR_COMPLETION")
+        if actual_finish is not None:
+            if remaining_duration not in (None, 0):
+                raise ValueError("PROGRESS_COMPLETED_ACTIVITY_REMAINING_DURATION")
+            if percent_complete is not None and percent_complete != 100:
+                raise ValueError("PROGRESS_COMPLETED_ACTIVITY_PERCENT_COMPLETE")
+
+        existing = self.repository.get(scope, activity_id)
+        if existing is None:
+            raise ActivityPersistenceError("ACTIVITY_NOT_FOUND")
+        if existing.record_revision != expected_revision:
+            raise ActivityPersistenceError("REVISION_CONFLICT")
+
+        completed = actual_finish is not None
+        derived_status = (
+            ActivityStatus.COMPLETED
+            if completed
+            else ActivityStatus.IN_PROGRESS
+            if actual_start is not None
+            else ActivityStatus.NOT_STARTED
+        )
+        updated = replace(
+            existing,
+            actual_start=actual_start,
+            actual_finish=actual_finish,
+            remaining_duration=(
+                0 if completed else remaining_duration
+            ),
+            remaining_start=None,
+            percent_complete=(
+                100.0 if completed and percent_complete is None else percent_complete
+            ),
+            status=derived_status,
+        )
+        updated.validate()
+        updated.validate_progress()
         return _dto(self.repository.save(updated, expected_revision=expected_revision))
 
     def get(

@@ -13,7 +13,8 @@ from .constraints import (
     validate_constraint_set,
     validate_upper_bound,
 )
-from .out_of_sequence import ProgressRelationAction, resolve_out_of_sequence_action
+from .out_of_sequence import resolve_out_of_sequence_action
+from .progress_state import ActivityProgressState, resolve_progress_state
 from .relationships import Relationship, RelationshipType
 from .schedule_options import OutOfSequenceScheduleType, StartToStartLagCalculationType
 
@@ -67,21 +68,29 @@ def _successor_start(
 ) -> date:
     lag_resolver = lag_resolver or resolver
     if relationship.type is RelationshipType.SS:
-        if (
-            predecessor_activity is not None
-            and predecessor_activity.actual_start is not None
-            and predecessor_activity.actual_start > predecessor.start
-        ):
+        if predecessor_activity is not None and predecessor_activity.actual_start is not None:
+            actual_start = predecessor_activity.actual_start
             if data_date is None:
-                raise ValueError(
-                    "data_date is required for an out-of-sequence start-to-start relationship"
+                if actual_start > predecessor.start:
+                    raise ValueError(
+                        "data_date is required for an out-of-sequence start-to-start relationship"
+                    )
+                anchor = (
+                    actual_start
+                    if start_to_start_lag_calculation_type
+                    is StartToStartLagCalculationType.ACTUAL_START
+                    else predecessor.start
                 )
-            if data_date < predecessor_activity.actual_start:
+                return _shift_working_date(anchor, relationship.lag, lag_resolver)
+            if data_date < actual_start:
                 raise ValueError(
                     "data_date must not precede actual_start for an out-of-sequence start-to-start relationship"
                 )
+            # Elapsed work since the actual start consumes the predecessor's
+            # start-to-start lag; only the remaining lag constrains the
+            # successor. This is the documented Actual Start behaviour.
             elapsed = (predecessor_resolver or resolver).working_days_between(
-                predecessor_activity.actual_start, data_date
+                actual_start, data_date
             )
             remaining_lag = max(0, relationship.lag - elapsed)
             anchor = (
@@ -145,6 +154,7 @@ def _apply_expected_finish_target(
     activity: Activity,
     resolver: WorkingTimeResolver,
     use_expected_finish_dates: bool,
+    scheduled_duration: int,
 ) -> date:
     """Apply the P6 expected-finish scheduling target without moving before logic."""
     if not use_expected_finish_dates or activity.expected_finish is None:
@@ -152,7 +162,7 @@ def _apply_expected_finish_target(
 
     expected_start = resolver.subtract_working_duration(
         resolver.normalize_finish(activity.expected_finish),
-        activity.duration,
+        scheduled_duration,
     )
     return max(start, expected_start)
 
@@ -198,9 +208,24 @@ def forward_pass(
         constraint_map[constraint.activity_id].append(constraint)
 
     for activity_id, activity_constraints in constraint_map.items():
+        activity = activity_map[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
+        # Validate each constraint set against the duration the activity is
+        # actually scheduled with: completed work occupies no remaining
+        # duration, and in-progress work occupies its remaining duration. The
+        # backward pass uses the same scheduled duration, so both passes must
+        # accept and reject the same constraint windows.
+        progress = resolve_progress_state(
+            activity, resolver=activity_resolver, data_date=data_date
+        )
+        if progress.state is ActivityProgressState.COMPLETE:
+            constraint_duration = 0
+        elif progress.state is ActivityProgressState.NOT_STARTED:
+            constraint_duration = activity.duration
+        else:
+            constraint_duration = progress.remaining.remaining_duration
         validate_constraint_set(
-            activity_constraints, activity_map[activity_id].duration, activity_resolver
+            activity_constraints, constraint_duration, activity_resolver
         )
 
     incoming: dict[str, list[Relationship]] = {
@@ -215,22 +240,42 @@ def forward_pass(
     for activity_id in order:
         activity = activity_map[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
-        progressed = activity.actual_start is not None
-        scheduled_duration = (
-            activity.remaining_duration
-            if progressed and activity.actual_finish is None and activity.remaining_duration is not None
-            else activity.duration
+        progress = resolve_progress_state(
+            activity, resolver=activity_resolver, data_date=data_date
         )
+
+        # Actual dates are recorded facts: completed work keeps its actual
+        # start/finish in every out-of-sequence mode. Only remaining work is
+        # placed by the selected scheduling method.
+        if (
+            progress.state is ActivityProgressState.COMPLETE
+            and activity.actual_start is not None
+        ):
+            if data_date is not None and data_date < activity.actual_start:
+                raise ValueError("data_date must not precede actual_start for progressed activity")
+            start = activity_resolver.normalize_start(activity.actual_start)
+            finish = (
+                activity_resolver.normalize_finish(activity.actual_finish)
+                if activity.actual_finish is not None
+                else start
+            )
+            scheduled_duration = 0
+            for constraint in sorted(
+                constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
+            ):
+                validate_upper_bound(constraint, start, finish, activity_resolver)
+            result[activity_id] = ScheduledActivity(
+                activity_id=activity_id, start=start, finish=finish, duration=0
+            )
+            continue
+
+        if progress.state is ActivityProgressState.NOT_STARTED:
+            scheduled_duration = activity.duration
+        else:
+            scheduled_duration = progress.remaining.remaining_duration
+
         if not incoming[activity_id]:
-            start = activity_resolver.normalize_start(project_start)
-            oos_action = ProgressRelationAction.APPLY_LOGIC
-            if progressed and activity.actual_start is not None:
-                if data_date is not None and data_date < activity.actual_start:
-                    raise ValueError("data_date must not precede actual_start for progressed activity")
-                start = max(
-                    start,
-                    activity_resolver.normalize_start(activity.actual_start),
-                )
+            logic_start = activity_resolver.normalize_start(project_start)
         else:
             start_requirements = [
                 _successor_start(
@@ -255,32 +300,39 @@ def forward_pass(
                     ),
                 )
             ]
-            start = activity_resolver.normalize_start(max(start_requirements))
-            oos_action = ProgressRelationAction.APPLY_LOGIC
-            if progressed and activity.actual_start is not None:
-                if data_date is not None and data_date < activity.actual_start:
-                    raise ValueError("data_date must not precede actual_start for progressed activity")
-                if activity.actual_start >= start:
-                    start = activity_resolver.normalize_start(activity.actual_start)
-                else:
-                    if data_date is None:
-                        raise ValueError("data_date is required for out-of-sequence progress")
-                    oos_action = resolve_out_of_sequence_action(
-                        activity,
-                        relationship_required_start=start,
-                        data_date=data_date,
-                        mode=out_of_sequence_schedule_type,
-                    )
-                    if oos_action is ProgressRelationAction.IGNORE_LOGIC:
-                        if activity.actual_finish is not None:
-                            start = activity_resolver.normalize_start(activity.actual_start)
-                            scheduled_duration = 0
-                        else:
-                            start = activity_resolver.normalize_start(data_date)
-                    elif oos_action is ProgressRelationAction.USE_ACTUAL_DATES:
-                        if activity.actual_finish is not None:
-                            start = activity_resolver.normalize_start(activity.actual_start)
-                            scheduled_duration = 0
+            logic_start = activity_resolver.normalize_start(max(start_requirements))
+
+        if progress.state is ActivityProgressState.IN_PROGRESS:
+            actual_start = activity_resolver.normalize_start(activity.actual_start)
+            if data_date is not None and data_date < activity.actual_start:
+                raise ValueError("data_date must not precede actual_start for progressed activity")
+            if actual_start < logic_start:
+                if data_date is None:
+                    raise ValueError("data_date is required for out-of-sequence progress")
+                # Classify explicitly so an unsupported mode or inconsistent
+                # boundary fails here rather than producing a silent schedule.
+                resolve_out_of_sequence_action(
+                    activity,
+                    relationship_required_start=logic_start,
+                    data_date=data_date,
+                    mode=out_of_sequence_schedule_type,
+                )
+            remaining_start = progress.remaining.remaining_start or activity.actual_start
+            progress_boundary = activity_resolver.normalize_start(remaining_start)
+
+            if out_of_sequence_schedule_type is OutOfSequenceScheduleType.PROGRESS_OVERRIDE:
+                # Progressed work proceeds from its progress boundary; unfinished
+                # predecessor logic no longer holds it back.
+                start = max(actual_start, progress_boundary)
+            elif out_of_sequence_schedule_type is OutOfSequenceScheduleType.ACTUAL_DATES:
+                # The forward pass is anchored on the recorded actual start.
+                start = actual_start
+            else:
+                # Retained Logic keeps remaining work subject to both the
+                # selected progress boundary and unfinished predecessor logic.
+                start = max(logic_start, progress_boundary)
+        else:
+            start = logic_start
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
@@ -289,13 +341,14 @@ def forward_pass(
                 constraint, start, scheduled_duration, activity_resolver
             )
 
-        if not (oos_action is ProgressRelationAction.USE_ACTUAL_DATES and activity.actual_finish is not None):
-            start = _apply_expected_finish_target(
-                start, activity, activity_resolver, use_expected_finish_dates
-            )
-            finish = activity_resolver.add_working_duration(start, scheduled_duration)
-        else:
-            finish = activity_resolver.normalize_finish(activity.actual_finish)
+        start = _apply_expected_finish_target(
+            start,
+            activity,
+            activity_resolver,
+            use_expected_finish_dates,
+            scheduled_duration,
+        )
+        finish = activity_resolver.add_working_duration(start, scheduled_duration)
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)

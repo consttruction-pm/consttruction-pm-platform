@@ -6,6 +6,7 @@ from io import BytesIO
 import hashlib
 import json
 import sqlite3
+from typing import Callable
 
 import pytest
 
@@ -75,6 +76,7 @@ from construction_pm.scheduling.calendar_context import (
 )
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.schedule_options import (
+    OutOfSequenceScheduleType,
     PriorityListItem,
     PrioritySortOrder,
     ScheduleMode,
@@ -130,6 +132,7 @@ def _fixture(
     fail_context_write: bool = False,
     enable_ai: bool = False,
     authorization_policy: AuthorizationPolicy | None = None,
+    snapshot_id_factory: Callable[[], str] | None = None,
 ):
     db_path = str(tmp_path / "schedule-composition.sqlite")
     connection = sqlite3.connect(db_path)
@@ -227,7 +230,7 @@ def _fixture(
         rules_version="rules-test-v1",
         engine_version="engine-test-v1",
         clock=lambda: now,
-        snapshot_id_factory=lambda: "SNAP-PUBLISHED-1",
+        snapshot_id_factory=snapshot_id_factory or (lambda: "SNAP-PUBLISHED-1"),
     )
     snapshot_api = P6ScheduleSnapshotPublicationAPI(publisher, policy, settings_repo)
     registry = CalendarResolverRegistry(
@@ -2802,5 +2805,395 @@ def test_project_schedule_settings_history_is_read_only_and_restore_appends(tmp_
             assert status == "403 Forbidden", denied
         finally:
             viewer_fixture["connection"].close()
+    finally:
+        fixture["connection"].close()
+
+
+# --- Real progress / Data Date / out-of-sequence cycle acceptance -------------
+
+
+CYCLE_PROJECT_START = date(2026, 9, 21)
+CYCLE_DATA_DATE = date(2026, 10, 12)
+
+
+def _create_progress_cycle(app) -> None:
+    for activity_id, name, duration in (
+        ("A", "Excavation", "10"),
+        ("B", "Foundation", "5"),
+        ("C", "Curing", "2"),
+    ):
+        status, created = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/activities",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "activity_id": activity_id,
+                "name": name,
+                "duration_value": duration,
+                "duration_unit": "working-day",
+            },
+        )
+        assert status == "201 Created", created
+    for relationship_id, predecessor, successor in (
+        ("REL-AB", "A", "B"),
+        ("REL-BC", "B", "C"),
+    ):
+        status, created = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/relationships",
+            {
+                "relationship_id": relationship_id,
+                "predecessor_id": predecessor,
+                "successor_id": successor,
+                "relationship_type": "FS",
+                "lag_value": "0",
+                "lag_unit": DurationUnit.WORKING_DAY.value,
+            },
+        )
+        assert status == "200 OK", created
+
+
+def _record_cycle_progress(app) -> None:
+    for activity_id, payload in (
+        (
+            "A",
+            {
+                "expected_revision": 1,
+                "actual_start": "2026-09-28",
+                "remaining_duration": 4,
+                "percent_complete": 60,
+            },
+        ),
+        (
+            "B",
+            {
+                "expected_revision": 1,
+                "actual_start": "2026-10-07",
+                "remaining_duration": 5,
+            },
+        ),
+    ):
+        status, recorded = _request(
+            app,
+            "PATCH",
+            "/api/projects/p1/p6/activities/" + activity_id + "/progress",
+            {"contract_version": "p6-activity-master-api.v1", **payload},
+        )
+        assert status == "200 OK", recorded
+
+
+def _publish_cycle_snapshot(app) -> dict:
+    status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+    )
+    assert status == "201 Created", published
+    return published
+
+
+def _query_cycle_facts(app, snapshot_id: str, query_id: str = "Q-CYCLE") -> dict:
+    status, result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": query_id,
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "show schedule",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": snapshot_id},
+        },
+    )
+    assert status == "200 OK", result
+    return result["data"]
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected_b_start", "expected_b_finish", "expected_c_start"),
+    [
+        (
+            OutOfSequenceScheduleType.RETAINED_LOGIC,
+            "2026-10-16",
+            "2026-10-22",
+            "2026-10-23",
+        ),
+        (
+            OutOfSequenceScheduleType.PROGRESS_OVERRIDE,
+            "2026-10-12",
+            "2026-10-16",
+            "2026-10-19",
+        ),
+        (
+            OutOfSequenceScheduleType.ACTUAL_DATES,
+            "2026-10-07",
+            "2026-10-13",
+            "2026-10-14",
+        ),
+    ],
+)
+def test_real_progress_cycle_records_progress_and_mode_changes_authoritative_dates(
+    tmp_path, mode, expected_b_start, expected_b_finish, expected_c_start
+):
+    directory = tmp_path / mode.value
+    directory.mkdir()
+    counter = iter(range(1, 10))
+    fixture = _fixture(
+        directory,
+        snapshot_id_factory=lambda: f"SNAP-{mode.value}-{next(counter)}",
+    )
+    app = fixture["app"]
+    scope = fixture["scope"]
+    try:
+        _create_progress_cycle(app)
+        status, settings = _save_settings(
+            app,
+            options=ScheduleOptions(
+                data_date=CYCLE_DATA_DATE,
+                out_of_sequence_schedule_type=mode,
+            ),
+            project_start=CYCLE_PROJECT_START,
+        )
+        assert status == "201 Created", settings
+        # Progress entry only becomes available after a Data Date is saved.
+        _record_cycle_progress(app)
+
+        # Reload the saved settings: Data Date and mode must round-trip.
+        status, settings_read = _request(
+            app, "GET", "/api/projects/p1/p6/schedule/settings"
+        )
+        assert status == "200 OK", settings_read
+        assert settings_read["schedule_options"]["data_date"] == "2026-10-12"
+        assert (
+            settings_read["schedule_options"]["out_of_sequence_schedule_type"]
+            == mode.value
+        )
+
+        published = _publish_cycle_snapshot(app)
+        facts = _query_cycle_facts(app, published["snapshot_id"])
+        assert facts["activities"]["B"]["start"] == expected_b_start
+        assert facts["activities"]["B"]["finish"] == expected_b_finish
+        assert facts["activities"]["C"]["start"] == expected_c_start
+        for activity_id in ("A", "B", "C"):
+            fact = facts["activities"][activity_id]
+            for field in (
+                "start",
+                "finish",
+                "duration",
+                "critical",
+                "early_start",
+                "early_finish",
+                "late_start",
+                "late_finish",
+                "total_float",
+                "free_float",
+            ):
+                assert field in fact, (activity_id, field)
+
+        # Calculating must never rewrite the recorded actual dates.
+        for activity_id, expected_start in (("A", "2026-09-28"), ("B", "2026-10-07")):
+            status, loaded = _request(
+                app, "GET", "/api/projects/p1/p6/activities/" + activity_id
+            )
+            assert status == "200 OK", loaded
+            assert loaded["activity"]["actual_start"] == expected_start
+            assert loaded["activity"]["actual_finish"] is None
+
+        # The immutable snapshot binds the exact progress, Data Date, and mode.
+        snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+        assert snapshot is not None
+        payload = json.loads(snapshot.canonical_payload)
+        assert payload["schedule_options"]["data_date"] == "2026-10-12"
+        assert (
+            payload["schedule_options"]["out_of_sequence_schedule_type"]
+            == mode.value
+        )
+        by_id = {item["id"]: item for item in payload["activities"]}
+        assert by_id["A"]["actual_start"] == "2026-09-28"
+        assert by_id["A"]["remaining_duration"] == 4
+        assert by_id["B"]["actual_start"] == "2026-10-07"
+        assert by_id["B"]["remaining_duration"] == 5
+
+        # Reload equality: the same immutable snapshot yields identical facts.
+        reloaded = _query_cycle_facts(
+            app, published["snapshot_id"], query_id="Q-CYCLE-RELOAD"
+        )
+        assert reloaded == facts
+    finally:
+        fixture["connection"].close()
+
+
+def test_data_date_change_and_progress_change_are_bound_to_snapshot_identity(tmp_path):
+    counter = iter(range(1, 10))
+    fixture = _fixture(
+        tmp_path,
+        snapshot_id_factory=lambda: f"SNAP-HASH-{next(counter)}",
+    )
+    app = fixture["app"]
+    try:
+        _create_progress_cycle(app)
+        status, _settings = _save_settings(
+            app,
+            options=ScheduleOptions(
+                data_date=date(2026, 10, 8),
+                out_of_sequence_schedule_type=OutOfSequenceScheduleType.RETAINED_LOGIC,
+            ),
+            project_start=CYCLE_PROJECT_START,
+        )
+        assert status == "201 Created"
+        _record_cycle_progress(app)
+
+        early = _publish_cycle_snapshot(app)
+        early_facts = _query_cycle_facts(app, early["snapshot_id"], "Q-EARLY")
+        assert early_facts["activities"]["A"]["start"] == "2026-10-08"
+        assert early_facts["activities"]["B"]["start"] == "2026-10-14"
+        assert early_facts["activities"]["B"]["finish"] == "2026-10-20"
+        assert early_facts["activities"]["C"]["start"] == "2026-10-21"
+
+        # Re-saving with a later Data Date is a new settings revision.
+        status, settings = _save_settings(
+            app,
+            expected_revision=1,
+            options=ScheduleOptions(
+                data_date=CYCLE_DATA_DATE,
+                out_of_sequence_schedule_type=OutOfSequenceScheduleType.RETAINED_LOGIC,
+            ),
+            project_start=CYCLE_PROJECT_START,
+        )
+        assert status == "200 OK", settings
+        assert settings["record_revision"] == 2
+
+        later = _publish_cycle_snapshot(app)
+        later_facts = _query_cycle_facts(app, later["snapshot_id"], "Q-LATER")
+        assert later_facts["activities"]["A"]["start"] == "2026-10-12"
+        assert later_facts["activities"]["B"]["start"] == "2026-10-16"
+        assert later_facts["activities"]["B"]["finish"] == "2026-10-22"
+        assert later_facts["activities"]["C"]["start"] == "2026-10-23"
+        assert later["snapshot_hash"] != early["snapshot_hash"]
+        assert later["snapshot_id"] != early["snapshot_id"]
+
+        # Identical persisted inputs produce identical bound content. The
+        # snapshot identifier itself is part of the hash preimage, so repeated
+        # publication is compared with that identifier removed.
+        repeated = _publish_cycle_snapshot(app)
+        assert repeated["snapshot_id"] != later["snapshot_id"]
+
+        def bound_content(snapshot_id: str) -> str:
+            stored = fixture["snapshot_repo"].get(fixture["scope"], snapshot_id)
+            assert stored is not None
+            payload = json.loads(stored.canonical_payload)
+            payload.pop("snapshot_id", None)
+            return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+        assert bound_content(repeated["snapshot_id"]) == bound_content(
+            later["snapshot_id"]
+        )
+        assert bound_content(early["snapshot_id"]) != bound_content(
+            later["snapshot_id"]
+        )
+
+        # Changing progress alone also changes the immutable content identity
+        # and is reflected in the recalculated dates.
+        status, recorded = _request(
+            app,
+            "PATCH",
+            "/api/projects/p1/p6/activities/A/progress",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "expected_revision": 2,
+                "actual_start": "2026-09-28",
+                "remaining_duration": 6,
+                "percent_complete": 40,
+            },
+        )
+        assert status == "200 OK", recorded
+        assert recorded["activity"]["record_revision"] == 3
+
+        progressed = _publish_cycle_snapshot(app)
+        progressed_facts = _query_cycle_facts(
+            app, progressed["snapshot_id"], "Q-PROGRESSED"
+        )
+        assert bound_content(progressed["snapshot_id"]) != bound_content(
+            repeated["snapshot_id"]
+        )
+        assert progressed_facts["activities"]["A"]["start"] == "2026-10-12"
+        assert progressed_facts["activities"]["B"]["start"] == "2026-10-20"
+        assert progressed_facts["activities"]["B"]["finish"] == "2026-10-26"
+        assert progressed_facts["activities"]["C"]["start"] == "2026-10-27"
+
+        # A stale progress revision is rejected explicitly and leaves both the
+        # stored activity and the previously published result intact.
+        status, conflict = _request(
+            app,
+            "PATCH",
+            "/api/projects/p1/p6/activities/A/progress",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "expected_revision": 2,
+                "actual_start": "2026-09-28",
+                "remaining_duration": 9,
+                "percent_complete": 10,
+            },
+        )
+        assert status == "409 Conflict", conflict
+        assert conflict["code"] == "REVISION_CONFLICT"
+        status, loaded = _request(
+            app, "GET", "/api/projects/p1/p6/activities/A"
+        )
+        assert status == "200 OK"
+        assert loaded["activity"]["remaining_duration"] == 6
+        assert loaded["activity"]["percent_complete"] == 40
+
+        recomputed = _query_cycle_facts(
+            app, progressed["snapshot_id"], "Q-PROGRESSED-AGAIN"
+        )
+        assert recomputed == progressed_facts
+    finally:
+        fixture["connection"].close()
+
+
+def test_viewer_cannot_record_progress_save_settings_or_publish(tmp_path):
+    fixture = _fixture(tmp_path, role="viewer")
+    app = fixture["app"]
+    try:
+        fixture["activity_repo"].save(
+            ActivityMaster(
+                scope=fixture["scope"],
+                activity_id="A",
+                duration_value=Decimal("10"),
+                duration_unit=DurationUnit("working-day"),
+                name="Excavation",
+            ),
+            expected_revision=0,
+        )
+        status, denied = _request(
+            app,
+            "PATCH",
+            "/api/projects/p1/p6/activities/A/progress",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "expected_revision": 1,
+                "actual_start": "2026-10-07",
+                "remaining_duration": 5,
+            },
+        )
+        assert status == "403 Forbidden", denied
+
+        status, denied = _save_settings(app)
+        assert status == "403 Forbidden", denied
+
+        status, denied = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/schedule/snapshots",
+            {"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+        )
+        assert status == "403 Forbidden", denied
     finally:
         fixture["connection"].close()
