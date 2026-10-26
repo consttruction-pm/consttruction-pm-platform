@@ -1063,6 +1063,8 @@ class ProjectLifecycleHttpRoutes:
                     code = str(exc) or "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
                     if code == "REVISION_CONFLICT":
                         return self._error(409, code, "error.revision.conflict")
+                    if code in {"SETTINGS_HASH_MISMATCH", "SETTINGS_HISTORY_CONFLICT"}:
+                        return self._error(500, code, "error.request.invalid")
                     return self._error(400, code, "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
                     code = str(exc) or "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID"
@@ -2841,6 +2843,8 @@ class ProjectLifecycleHttpRoutes:
             "AI_ACTION_EXECUTION_RESERVATION_FAILED",
             "AI_ACTION_IDEMPOTENCY_RESULT_NOT_PERSISTED",
             "AI_ACTION_IDEMPOTENCY_RESULT_INVALID",
+            "SETTINGS_HASH_MISMATCH",
+            "SETTINGS_HISTORY_CONFLICT",
         }
         retryable = status >= 500 and code not in non_retryable_integrity_errors
         return cls._json(status, {

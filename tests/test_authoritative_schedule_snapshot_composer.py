@@ -2748,9 +2748,26 @@ def test_project_schedule_settings_history_is_read_only_and_restore_appends(tmp_
         )
         assert status == "405 Method Not Allowed"
         status, _ = _request(
-            app, "POST", "/api/projects/p1/p6/schedule/settings//revisions", {}
+            app, "GET", "/api/projects/p1/p6/schedule/settings//revisions"
         )
         assert status == "405 Method Not Allowed"
+        status, _ = _request(
+            app, "GET", "/api/projects/p1/p6/schedule/settings/revisions//"
+        )
+        assert status == "405 Method Not Allowed"
+
+        fixture["connection"].execute(
+            "UPDATE project_schedule_settings_history SET canonical_payload=? "
+            "WHERE tenant_id=? AND project_id=? AND project_revision=? AND record_revision=?",
+            ('{"tampered":true}', "t1", "p1", 2, 1),
+        )
+        fixture["connection"].commit()
+        status, corrupt = _request(
+            app, "GET", "/api/projects/p1/p6/schedule/settings/revisions"
+        )
+        assert status == "500 Internal Server Error", corrupt
+        assert corrupt["code"] == "SETTINGS_HASH_MISMATCH"
+        assert corrupt["retryable"] is False
 
         viewer_dir = tmp_path / "viewer"
         viewer_dir.mkdir()
@@ -2760,6 +2777,27 @@ def test_project_schedule_settings_history_is_read_only_and_restore_appends(tmp_
                 viewer_fixture["app"],
                 "GET",
                 "/api/projects/p1/p6/schedule/settings/revisions",
+            )
+            assert status == "403 Forbidden", denied
+            viewer_payload = {
+                "contract_version": P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
+                "expected_record_revision": 0,
+                "mode": "DATE_BASED",
+                "project_calendar_id": "CAL-1",
+                "project_calendar_version": "1",
+                "project_calendar_system": CalendarSystem.GREGORIAN.value,
+                "project_start": "2026-10-19",
+                "project_finish": None,
+                "schedule_options": _schedule_options_payload(
+                    ScheduleOptions(data_date=date(2026, 10, 19))
+                ),
+                "project_leveling_priority": 10,
+            }
+            status, denied = _request(
+                viewer_fixture["app"],
+                "POST",
+                "/api/projects/p1/p6/schedule/settings",
+                viewer_payload,
             )
             assert status == "403 Forbidden", denied
         finally:

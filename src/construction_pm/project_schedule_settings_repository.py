@@ -331,6 +331,7 @@ class SQLiteProjectScheduleSettingsRepository:
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = self.connection.in_transaction
         self.connection.execute("PRAGMA busy_timeout = 5000")
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS project_schedule_settings (
@@ -358,7 +359,8 @@ class SQLiteProjectScheduleSettingsRepository:
                 PRIMARY KEY (tenant_id, project_id, project_revision, record_revision)
             )"""
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def save(
         self,
@@ -375,10 +377,12 @@ class SQLiteProjectScheduleSettingsRepository:
         try:
             stored = self._save_without_savepoint(settings, expected_revision)
         except BaseException:
-            self.connection.execute("ROLLBACK TO project_schedule_settings_save")
-            self.connection.execute("RELEASE project_schedule_settings_save")
-            if not was_in_transaction:
-                self.connection.rollback()
+            try:
+                self.connection.execute("ROLLBACK TO project_schedule_settings_save")
+                self.connection.execute("RELEASE project_schedule_settings_save")
+            except sqlite3.Error:
+                if not was_in_transaction:
+                    self.connection.rollback()
             raise
         self.connection.execute("RELEASE project_schedule_settings_save")
         if not was_in_transaction:

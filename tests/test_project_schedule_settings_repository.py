@@ -208,6 +208,22 @@ def test_sqlite_settings_history_conflict_rolls_back_the_settings_write():
     assert [item.record_revision for item in repo.list_revisions(scope())] == [1]
 
 
+def test_sqlite_settings_repository_does_not_commit_a_caller_owned_transaction(tmp_path):
+    database = str(tmp_path / "settings-constructor-transaction.sqlite")
+    connection = sqlite3.connect(database)
+    connection.execute("CREATE TABLE marker (value TEXT NOT NULL)")
+    connection.commit()
+    connection.execute("BEGIN")
+    connection.execute("INSERT INTO marker (value) VALUES ('pending')")
+
+    SQLiteProjectScheduleSettingsRepository(connection)
+
+    assert connection.in_transaction is True
+    connection.rollback()
+    assert connection.execute("SELECT COUNT(*) FROM marker").fetchone()[0] == 0
+    connection.close()
+
+
 def test_sqlite_settings_history_conflict_preserves_caller_owned_transaction(tmp_path):
     database = str(tmp_path / "settings-history-conflict.sqlite")
     writer = sqlite3.connect(database)
@@ -218,10 +234,15 @@ def test_sqlite_settings_history_conflict_preserves_caller_owned_transaction(tmp
 
     writer.execute("BEGIN")
     with pytest.raises(ProjectScheduleSettingsPersistenceError, match="SETTINGS_HISTORY_CONFLICT"):
-        repo.save(date_settings(), expected_revision=0)
+        repo.save(
+            replace(date_settings(), project_leveling_priority=99),
+            expected_revision=0,
+        )
     assert writer.in_transaction is True
     assert reader_repo.get(scope()) is None
-    writer.rollback()
+    # Committing after handling the error must not persist a settings row
+    # whose history append failed inside the caller-owned transaction.
+    writer.commit()
     assert reader_repo.get(scope()) is None
     assert [item.record_revision for item in reader_repo.list_revisions(scope())] == [1]
     reader.close()
