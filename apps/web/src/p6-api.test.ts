@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createP6FieldRegistryProvider, createP6LayoutPersistence, loadP6Presentation } from "./p6-api.js";
+import { createP6FieldRegistryProvider, createP6LayoutPersistence, loadP6LayoutRevisions, loadP6Presentation } from "./p6-api.js";
 import { createWorkspaceState } from "./workspace-model.js";
 import type { ApiTransport } from "./client.js";
 
@@ -82,6 +82,48 @@ describe("P6 Web API adapters", () => {
     const saved = await persistence.save(layout);
     assert.equal(saved.revision, 1);
     assert.deepEqual(saved.metadata, { source: "user-layout" });
+  });
+
+  it("loads the append-only layout history newest first", async () => {
+    const historyTransport: ApiTransport = {
+      async get(path) {
+        assert.equal(path, "/api/projects/p1/p6/layouts/project/activity/revisions");
+        return {
+          ok: true,
+          data: {
+            contract_version: "p6-layout-definition-api.v1",
+            kind: "layout_definition_history",
+            scope: { tenant_id: "t1", project_id: "p1", project_revision: 7 },
+            layout_scope: "project",
+            view_id: "activity",
+            revisions: [
+              { schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 3, columns: [], metadata: {} },
+              { schema_version: "p6-layout.v1", scope: "project", view_id: "activity", revision: 2, columns: [], metadata: {} },
+            ],
+          },
+        } as { ok: true; data: any };
+      },
+      async post<TRequest, TResponse>(): Promise<{ ok: true; data: TResponse }> {
+        throw new Error("history read must not write");
+      },
+    };
+    const revisions = await loadP6LayoutRevisions(historyTransport, context);
+    assert.deepEqual(revisions.map((item) => item.revision), [3, 2]);
+  });
+
+  it("fails closed on an invalid layout history envelope", async () => {
+    const invalidTransport: ApiTransport = {
+      async get() {
+        return { ok: true, data: { kind: "layout_definition_history", revisions: "not-a-list" } } as { ok: true; data: any };
+      },
+      async post<TRequest, TResponse>(): Promise<{ ok: true; data: TResponse }> {
+        throw new Error("history read must not write");
+      },
+    };
+    await assert.rejects(
+      () => loadP6LayoutRevisions(invalidTransport, context),
+      /INVALID_P6_LAYOUT_HISTORY_RESPONSE/,
+    );
   });
 });
 

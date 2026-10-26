@@ -1,5 +1,6 @@
-import { FetchApiTransport } from "./client.js";
-import { createP6LayoutPersistence, loadP6Presentation } from "./p6-api.js";
+import { FetchApiTransport, type ProjectContext } from "./client.js";
+import { createP6LayoutPersistence, loadP6LayoutRevisions, loadP6Presentation } from "./p6-api.js";
+import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
 import { FetchSessionApi } from "./session-api.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
@@ -32,6 +33,35 @@ import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
+
+type LayoutHistoryNotice = "undone" | "redone" | "empty" | "failed" | "conflict";
+
+type LayoutHistoryState = {
+  undo: LayoutDefinition[];
+  redo: LayoutDefinition[];
+  noticeKey: LayoutHistoryNotice | null;
+};
+
+const layoutHistoryStore = new Map<string, LayoutHistoryState>();
+
+function layoutHistoryKey(context: ProjectContext, layout: LayoutDefinition): string {
+  return [
+    context.tenant_id,
+    context.project_id,
+    String(context.revision),
+    layout.scope,
+    layout.view_id,
+  ].join("::");
+}
+
+function getLayoutHistory(context: ProjectContext, layout: LayoutDefinition): LayoutHistoryState {
+  const key = layoutHistoryKey(context, layout);
+  const existing = layoutHistoryStore.get(key);
+  if (existing) return existing;
+  const created: LayoutHistoryState = { undo: [], redo: [], noticeKey: null };
+  layoutHistoryStore.set(key, created);
+  return created;
+}
 
 function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
   const shellLabels = getWorkspaceShellLabels(state.locale);
@@ -87,6 +117,118 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
   refreshAIProposals = mountAIActionPanel(
     appShell, aiTransport, state.context, state.locale,
   );
+
+  const layoutHistory = state.p6Layout ? getLayoutHistory(state.context, state.p6Layout) : null;
+  const historyView = state.p6Layout && layoutHistory
+    ? {
+        canUndo: layoutHistory.undo.length > 0 || state.p6Layout.revision > 0,
+        canRedo: layoutHistory.redo.length > 0,
+        noticeKey: layoutHistory.noticeKey,
+      }
+    : undefined;
+
+  const reloadLatestLayout = async (scope: LayoutDefinition["scope"], viewId: string): Promise<boolean> => {
+    const latest = await persistence.load(scope, viewId);
+    if (!latest || !state.p6FieldRegistry) return false;
+    getLayoutHistory(state.context, latest).noticeKey = "conflict";
+    renderApp(container, setP6Presentation(state, state.p6FieldRegistry, latest), persistence);
+    return true;
+  };
+
+  const reportLayoutFailure = async (error: unknown): Promise<void> => {
+    const code = error instanceof Error ? error.message : "";
+    console.error("P6 layout save failed", error);
+    const failedLayout = state.p6Layout;
+    if (failedLayout) {
+      const failedHistory = getLayoutHistory(state.context, failedLayout);
+      failedHistory.undo.length = 0;
+      failedHistory.redo.length = 0;
+      failedHistory.noticeKey = code === "REVISION_CONFLICT" ? "conflict" : "failed";
+      if (code === "REVISION_CONFLICT") {
+        try {
+          if (await reloadLatestLayout(failedLayout.scope, failedLayout.view_id)) return;
+        } catch (reloadError) {
+          console.error("P6 layout reload failed", reloadError);
+        }
+      }
+    }
+    renderApp(container, state, persistence);
+  };
+
+  const commitLayout = async (next: WorkspaceState): Promise<void> => {
+    if (!next.p6Layout || !next.p6FieldRegistry) return;
+    try {
+      const saved = await persistence.save(next.p6Layout);
+      const savedHistory = getLayoutHistory(next.context, saved);
+      if (state.p6Layout) savedHistory.undo.push(state.p6Layout);
+      savedHistory.redo.length = 0;
+      savedHistory.noticeKey = null;
+      renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
+  const mutateLayout = (mutate: () => WorkspaceState): void => {
+    try {
+      void commitLayout(mutate());
+    } catch (error) {
+      void reportLayoutFailure(error);
+    }
+  };
+
+  const undoLayout = async (): Promise<void> => {
+    const layout = state.p6Layout;
+    const registry = state.p6FieldRegistry;
+    if (!layout || !registry) return;
+    const history = getLayoutHistory(state.context, layout);
+    if (!history.undo.length) {
+      try {
+        const revisions = await loadP6LayoutRevisions(aiTransport, state.context, layout.scope, layout.view_id);
+        const currentIndex = revisions.findIndex((revision) => revision.revision === layout.revision);
+        const older = currentIndex < 0 ? [] : revisions.slice(currentIndex + 1);
+        if (!older.length) {
+          history.noticeKey = "empty";
+          renderApp(container, state, persistence);
+          return;
+        }
+        for (const revision of older.slice().reverse()) history.undo.push(revision);
+      } catch (error) {
+        console.error("P6 layout history read failed", error);
+        history.noticeKey = "failed";
+        renderApp(container, state, persistence);
+        return;
+      }
+    }
+    const target = history.undo.pop();
+    if (!target) return;
+    try {
+      const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
+      history.redo.push(layout);
+      history.noticeKey = "undone";
+      renderApp(container, setP6Presentation(state, registry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
+  const redoLayout = async (): Promise<void> => {
+    const layout = state.p6Layout;
+    const registry = state.p6FieldRegistry;
+    if (!layout || !registry) return;
+    const history = getLayoutHistory(state.context, layout);
+    const target = history.redo.pop();
+    if (!target) return;
+    try {
+      const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
+      history.undo.push(layout);
+      history.noticeKey = "redone";
+      renderApp(container, setP6Presentation(state, registry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
   renderMainWorkspace(workspace, state, {
     onMenuSelect: (menu) => {
       renderApp(container, { ...state, activeMenu: menu }, persistence);
@@ -112,67 +254,17 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     onActivitySortDirectionToggle: () => {
       renderApp(container, toggleActivitySortDirection(state), persistence);
     },
-    onP6FieldAdd: async (fieldId) => {
-      try {
-        const next = addP6Field(state, fieldId);
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
-    },
-    onP6FieldReorder: async (orderedFieldIds) => {
-      try {
-        const next = reorderP6Fields(state, orderedFieldIds);
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
-    },
-    onP6FieldWidthChange: async (fieldId, width) => {
-      try {
-        const next = updateP6FieldPresentation(state, fieldId, { width });
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
-    },
-    onP6FieldPresentationChange: async (fieldId, patch) => {
-      try {
-        const next = updateP6FieldPresentation(state, fieldId, patch);
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
-    },
-    onP6FieldVisibilityChange: async (fieldId, visible) => {
-      try {
-        const next = updateP6FieldPresentation(state, fieldId, { visible });
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
-    },
-    onP6FieldRemove: async (fieldId) => {
-      try {
-        const next = removeP6Field(state, fieldId);
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
-    },
+    onP6FieldAdd: (fieldId) => mutateLayout(() => addP6Field(state, fieldId)),
+    onP6FieldReorder: (orderedFieldIds) => mutateLayout(() => reorderP6Fields(state, orderedFieldIds)),
+    onP6FieldWidthChange: (fieldId, width) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, { width })),
+    onP6FieldPresentationChange: (fieldId, patch) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, patch)),
+    onP6FieldVisibilityChange: (fieldId, visible) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, { visible })),
+    onP6FieldRemove: (fieldId) => mutateLayout(() => removeP6Field(state, fieldId)),
+    onP6LayoutUndo: () => { void undoLayout(); },
+    onP6LayoutRedo: () => { void redoLayout(); },
+    layoutHistory: historyView,
   });
+  if (layoutHistory) layoutHistory.noticeKey = null;
   void mountScheduleCyclePanels(workspace, aiTransport, state.context, state.locale, (facts) => {
     try {
       const next = applyAuthoritativeScheduleFacts(state, facts);

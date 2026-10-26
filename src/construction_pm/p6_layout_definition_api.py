@@ -52,4 +52,32 @@ class P6LayoutDefinitionAPI:
         layout = self.repository.get(scope, layout_scope, view_id)
         return None if layout is None else _dto(layout)
 
+    def list_revisions(
+        self,
+        scope: BackendScope,
+        layout_scope: str,
+        view_id: str,
+        *,
+        auth_context: AuthorizationContext,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """Return the append-only layout history for one view, newest first."""
+
+        _require_scope(scope, auth_context)
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+            raise AuthorizationError("authorization denied")
+        revisions = self.repository.list_revisions(scope, layout_scope, view_id, limit)
+        return {
+            "contract_version": P6_LAYOUT_DEFINITION_API_VERSION,
+            "kind": "layout_definition_history",
+            "scope": {
+                "tenant_id": scope.tenant_id,
+                "project_id": scope.project_id,
+                "project_revision": scope.project_revision,
+            },
+            "layout_scope": layout_scope,
+            "view_id": view_id,
+            "revisions": [_dto(layout)["layout"] for layout in revisions],
+        }
+
 __all__ = ["P6_LAYOUT_DEFINITION_API_VERSION", "P6LayoutDefinitionAPI"]

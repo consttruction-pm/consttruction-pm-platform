@@ -76,6 +76,13 @@ class PersistedP6Layout:
 class P6LayoutRepository(Protocol):
     def upsert(self, layout: PersistedP6Layout) -> PersistedP6Layout: ...
     def get(self, scope: BackendScope, layout_scope: str, view_id: str) -> PersistedP6Layout | None: ...
+    def list_revisions(
+        self,
+        scope: BackendScope,
+        layout_scope: str,
+        view_id: str,
+        limit: int = 50,
+    ) -> tuple[PersistedP6Layout, ...]: ...
 
 
 def _encode(layout: PersistedP6Layout) -> tuple[object, ...]:
@@ -210,6 +217,24 @@ class SQLiteP6LayoutRepository:
             return None
         return _from_row(scope, layout_scope, view_id, row)
 
+    def list_revisions(
+        self,
+        scope: BackendScope,
+        layout_scope: str,
+        view_id: str,
+        limit: int = 50,
+    ) -> tuple[PersistedP6Layout, ...]:
+        scope.validate()
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+            raise P6LayoutPersistenceError("INVALID_LAYOUT_HISTORY_LIMIT")
+        rows = self.connection.execute(
+            "SELECT revision, columns_json, metadata_json FROM p6_layout_definition_revisions "
+            "WHERE tenant_id=? AND project_id=? AND project_revision=? AND layout_scope=? AND view_id=? "
+            "ORDER BY revision DESC LIMIT ?",
+            (scope.tenant_id, scope.project_id, scope.project_revision, layout_scope, view_id, limit),
+        ).fetchall()
+        return tuple(_from_row(scope, layout_scope, view_id, row) for row in rows)
+
 
 class PostgresP6LayoutRepository:
     """PostgreSQL twin of the append-only layout revision store."""
@@ -296,6 +321,24 @@ class PostgresP6LayoutRepository:
                 raise P6LayoutPersistenceError("REVISION_CONFLICT")
             return None
         return _from_row(scope, layout_scope, view_id, row)
+
+    def list_revisions(
+        self,
+        scope: BackendScope,
+        layout_scope: str,
+        view_id: str,
+        limit: int = 50,
+    ) -> tuple[PersistedP6Layout, ...]:
+        scope.validate()
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+            raise P6LayoutPersistenceError("INVALID_LAYOUT_HISTORY_LIMIT")
+        rows = self.connection.execute(
+            "SELECT revision, columns_json, metadata_json FROM p6_layout_definition_revisions "
+            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s AND layout_scope=%s AND view_id=%s "
+            "ORDER BY revision DESC LIMIT %s",
+            (scope.tenant_id, scope.project_id, scope.project_revision, layout_scope, view_id, limit),
+        ).fetchall()
+        return tuple(_from_row(scope, layout_scope, view_id, row) for row in rows)
 
 
 __all__ = ["LayoutColumn", "PersistedP6Layout", "P6LayoutPersistenceError", "SQLiteP6LayoutRepository", "PostgresP6LayoutRepository"]
