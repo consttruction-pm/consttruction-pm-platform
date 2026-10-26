@@ -160,7 +160,7 @@ function renderLanding(container: HTMLElement): void {
   container.innerHTML = `
     <div class="cubi-reference-home cubi-exact-home" id="home">
       <header class="cubi-exact-header">
-        <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home"><img src="./cubi-platform-logo-primary.svg" width="108" height="48" alt="CUBI Platform" /></a>
+        <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home"><img src="./cubi-platform-logo-primary.svg" width="150" height="42" alt="CUBI Platform — Plan. Control. Build Smarter." /></a>
         <nav class="cubi-exact-nav" aria-label="Primary navigation">
           <a class="is-active" href="#home">${t.nav[0]}</a><a href="./platform/">${t.nav[1]}</a><a href="./solutions/">${t.nav[2]}</a><a href="./resources/">${t.nav[3]}</a>
         </nav>
@@ -200,9 +200,9 @@ function renderLanding(container: HTMLElement): void {
         <section class="cubi-exact-cta" id="resources"><div><h2>${t.ctaTitle}</h2><p>${t.ctaBody}</p></div><div class="cubi-cta-actions"><a class="cubi-exact-primary" href="./app/">${t.primary}</a><a class="cubi-exact-demo" href="#capabilities">${t.secondary}</a></div></section>
       </main>
       <footer class="cubi-exact-footer">
-        <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary.svg" width="112" height="52" alt="CUBI Platform" /><small>${t.footerNote}</small></div>
+        <div class="cubi-footer-brand"><img src="./cubi-platform-logo-primary.svg" width="160" height="45" alt="CUBI Platform — Plan. Control. Build Smarter." /></div>
         ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}
-        <div class="cubi-footer-social"><span aria-label="CUBI Platform">CUBI</span><small>© 2026 CUBI Platform. All rights reserved.</small></div>
+        <div class="cubi-footer-social"><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>
     </div>`;
   document.getElementById("cubi-language")?.addEventListener("click", () => {
