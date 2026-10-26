@@ -16,7 +16,14 @@ from construction_pm.backend_p0.authoritative_schedule_query import Authoritativ
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
+from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
+from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
+from construction_pm.p6_interchange_api import P6InterchangeAPI
+from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_persisted_resource_leveling_resolver import build_persisted_resource_leveling_input_resolver
+from construction_pm.p6_resource_capacity_read_api import P6ResourceCapacityReadAPI
+from construction_pm.p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
@@ -52,6 +59,11 @@ def build_project_lifecycle_wsgi_app(
     relationship_master_repository: RelationshipMasterRepository | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
+    p6_field_registry_api: P6FieldRegistryAPI | None = None,
+    p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
+    p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
+    p6_calendar_read_api: P6CalendarReadAPI | None = None,
+    p6_interchange_api: P6InterchangeAPI | None = None,
     clock: Clock | None = None,
     ai_action_runtime: AIActionRuntime | None = None,
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
@@ -60,6 +72,8 @@ def build_project_lifecycle_wsgi_app(
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
+    p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
+    p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
     resource_calendar_master_repository: CalendarMasterRepository | None = None,
     resource_calendar_snapshot_repository: CalendarSnapshotRepository | None = None,
     resource_calendar_exception_repository: CalendarExceptionRepository | None = None,
@@ -162,8 +176,15 @@ def build_project_lifecycle_wsgi_app(
         p6_activity_master_api=activity_master_api,
         p6_relationship_api=relationship_api,
         p6_schedule_snapshot_api=schedule_snapshot_publication_api,
+        p6_field_registry_api=p6_field_registry_api,
+        p6_layout_definition_api=p6_layout_definition_api,
+        p6_formula_authority_api=p6_formula_authority_api,
+        p6_calendar_read_api=p6_calendar_read_api,
+        p6_interchange_api=p6_interchange_api,
         p6_resource_read_api=resource_read_api,
         p6_resource_write_api=resource_write_api,
+        p6_resource_capacity_read_api=p6_resource_capacity_read_api,
+        p6_resource_capacity_write_api=p6_resource_capacity_write_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
         ai_action_runtime=ai_action_runtime,

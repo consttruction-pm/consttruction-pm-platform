@@ -1,5 +1,6 @@
-import { FetchApiTransport } from "./client.js";
-import { createP6LayoutPersistence, loadP6Presentation } from "./p6-api.js";
+import { FetchApiTransport, type ProjectContext } from "./client.js";
+import { createP6LayoutPersistence, loadP6LayoutRevisions, loadP6Presentation } from "./p6-api.js";
+import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
 import { FetchSessionApi } from "./session-api.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
@@ -9,11 +10,15 @@ import {
   applyAuthoritativeScheduleFacts,
   removeP6Field,
   reorderP6Fields,
+  setActivityFilter,
+  setActivitySort,
+  toggleActivitySortDirection,
   updateP6FieldPresentation,
   selectActivity,
   selectWbs,
   setP6Presentation,
   setLocale,
+  setCalendarMode,
   type WorkspaceLocale,
   type WorkspaceState,
 } from "./workspace-model.js";
@@ -25,8 +30,59 @@ import { getAvailableWorkspaceLocales, getWorkspaceLocaleDisplayName } from "./w
 import { mountAIActionPanel } from "./ai-action-panel.js";
 import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
+import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
+import { mountInterchangePanel } from "./p6-interchange-panel.js";
+import { mountCapacityPanel } from "./p6-capacity-panel.js";
 
-function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
+type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
+
+type LayoutHistoryState = {
+  undo: LayoutDefinition[];
+  redo: LayoutDefinition[];
+  noticeKey: LayoutHistoryNotice | null;
+  revisions: LayoutDefinition[] | null;
+  revisionRequest: Promise<LayoutDefinition[]> | null;
+  revisionEpoch: number;
+  revisionLoadFailed: boolean;
+};
+
+const layoutHistoryStore = new Map<string, LayoutHistoryState>();
+let currentWorkspaceState: WorkspaceState | null = null;
+
+function layoutHistoryKey(context: ProjectContext, layout: LayoutDefinition): string {
+  return [
+    context.tenant_id,
+    context.project_id,
+    String(context.revision),
+    layout.scope,
+    layout.view_id,
+  ].join("::");
+}
+
+function getLayoutHistory(context: ProjectContext, layout: LayoutDefinition): LayoutHistoryState {
+  const key = layoutHistoryKey(context, layout);
+  const existing = layoutHistoryStore.get(key);
+  if (existing) return existing;
+  const created: LayoutHistoryState = {
+    undo: [],
+    redo: [],
+    noticeKey: null,
+    revisions: null,
+    revisionRequest: null,
+    revisionEpoch: 0,
+    revisionLoadFailed: false,
+  };
+  layoutHistoryStore.set(key, created);
+  return created;
+}
+
+function renderApp(
+  container: HTMLElement,
+  state: WorkspaceState,
+  p6Persistence?: ReturnType<typeof createP6LayoutPersistence>,
+  preserveLayoutNotice = false,
+): void {
+  currentWorkspaceState = state;
   const shellLabels = getWorkspaceShellLabels(state.locale);
   const persistence = p6Persistence ?? createP6LayoutPersistence(new FetchApiTransport(window.location.origin), state.context);
 
@@ -45,6 +101,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
 
   const languageButton = document.createElement("button");
   languageButton.type = "button";
+  languageButton.dataset.languageToggle = "true";
   const availableLocales = getAvailableWorkspaceLocales();
   const currentLocaleIndex = availableLocales.indexOf(state.locale);
   const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? "en";
@@ -55,7 +112,18 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     renderApp(container, setLocale(state, next), persistence);
   };
 
-  status.replaceChildren(document.createTextNode(shellLabels.status), languageButton);
+  const nextCalendarMode = state.calendarMode === "jalali" ? "gregorian" : "jalali";
+  const calendarButton = document.createElement("button");
+  calendarButton.type = "button";
+  calendarButton.dataset.calendarMode = nextCalendarMode;
+  calendarButton.textContent = state.calendarMode === "jalali" ? "Gregorian" : "Jalali";
+  const calendarLabel = nextCalendarMode === "jalali" ? shellLabels.switchToJalali : shellLabels.switchToGregorian;
+  calendarButton.setAttribute("aria-label", calendarLabel);
+  calendarButton.setAttribute("title", calendarLabel);
+  calendarButton.onclick = () => {
+    renderApp(container, setCalendarMode(state, nextCalendarMode), persistence);
+  };
+  status.replaceChildren(document.createTextNode(shellLabels.status), calendarButton, languageButton);
   const aiTransport = new FetchApiTransport(window.location.origin);
   let refreshAIProposals: (() => Promise<void>) | undefined;
   mountAIAssistantChatPanel(
@@ -68,6 +136,192 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
   refreshAIProposals = mountAIActionPanel(
     appShell, aiTransport, state.context, state.locale,
   );
+
+  const layoutHistory = state.p6Layout ? getLayoutHistory(state.context, state.p6Layout) : null;
+  const historyView = state.p6Layout && layoutHistory
+    ? {
+        canUndo: layoutHistory.undo.length > 0 || state.p6Layout.revision > 0,
+        canRedo: layoutHistory.redo.length > 0,
+        noticeKey: layoutHistory.noticeKey,
+        revisions: layoutHistory.revisions?.map((revision) => ({
+          revision: revision.revision,
+          columnCount: revision.columns.length,
+        })),
+      }
+    : undefined;
+
+  const requestLayoutRevisions = (layout: LayoutDefinition): Promise<LayoutDefinition[]> => {
+    const history = getLayoutHistory(state.context, layout);
+    if (history.revisions) return Promise.resolve(history.revisions);
+    if (!history.revisionRequest) {
+      const epoch = history.revisionEpoch;
+      const request = loadP6LayoutRevisions(aiTransport, state.context, layout.scope, layout.view_id)
+        .then((loaded) => {
+          if (history.revisionEpoch === epoch) {
+            history.revisions = loaded;
+            history.revisionLoadFailed = false;
+          }
+          return loaded;
+        });
+      history.revisionRequest = request;
+      const release = () => {
+        if (history.revisionRequest === request) history.revisionRequest = null;
+      };
+      void request.then(release, release);
+    }
+    return history.revisionRequest;
+  };
+
+  const invalidateLayoutRevisions = (history: LayoutHistoryState): void => {
+    history.revisionEpoch += 1;
+    history.revisions = null;
+    history.revisionRequest = null;
+    history.revisionLoadFailed = false;
+  };
+
+  const reloadLatestLayout = async (scope: LayoutDefinition["scope"], viewId: string): Promise<boolean> => {
+    const latest = await persistence.load(scope, viewId);
+    if (!latest || !state.p6FieldRegistry) return false;
+    const latestHistory = getLayoutHistory(state.context, latest);
+    latestHistory.noticeKey = "conflict";
+    invalidateLayoutRevisions(latestHistory);
+    renderApp(container, setP6Presentation(state, state.p6FieldRegistry, latest), persistence);
+    return true;
+  };
+
+  const reportLayoutFailure = async (error: unknown): Promise<void> => {
+    const code = error instanceof Error ? error.message : "";
+    console.error("P6 layout save failed", error);
+    const failedLayout = state.p6Layout;
+    if (failedLayout) {
+      const failedHistory = getLayoutHistory(state.context, failedLayout);
+      failedHistory.undo.length = 0;
+      failedHistory.redo.length = 0;
+      // Both codes mean the client's base no longer matches the stored head:
+      // another writer published this revision (immutable) or moved further
+      // ahead (conflict). Reloading the head is the only safe recovery.
+      const staleBase = code === "REVISION_CONFLICT" || code === "IMMUTABLE_LAYOUT_REVISION";
+      failedHistory.noticeKey = staleBase ? "conflict" : "failed";
+      if (staleBase) {
+        try {
+          if (await reloadLatestLayout(failedLayout.scope, failedLayout.view_id)) return;
+        } catch (reloadError) {
+          console.error("P6 layout reload failed", reloadError);
+        }
+      }
+    }
+    renderApp(container, state, persistence);
+  };
+
+  const commitLayout = async (next: WorkspaceState): Promise<void> => {
+    if (!next.p6Layout || !next.p6FieldRegistry) return;
+    try {
+      const saved = await persistence.save(next.p6Layout);
+      const savedHistory = getLayoutHistory(next.context, saved);
+      if (state.p6Layout) savedHistory.undo.push(state.p6Layout);
+      savedHistory.redo.length = 0;
+      savedHistory.noticeKey = null;
+      invalidateLayoutRevisions(savedHistory);
+      renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
+  const mutateLayout = (mutate: () => WorkspaceState): void => {
+    try {
+      void commitLayout(mutate());
+    } catch (error) {
+      void reportLayoutFailure(error);
+    }
+  };
+
+  const undoLayout = async (): Promise<void> => {
+    const layout = state.p6Layout;
+    const registry = state.p6FieldRegistry;
+    if (!layout || !registry) return;
+    const history = getLayoutHistory(state.context, layout);
+    if (!history.undo.length) {
+      try {
+        const revisions = await requestLayoutRevisions(layout);
+        const currentIndex = revisions.findIndex((revision) => revision.revision === layout.revision);
+        const older = currentIndex < 0 ? [] : revisions.slice(currentIndex + 1);
+        if (!older.length) {
+          history.noticeKey = "empty";
+          renderApp(container, state, persistence);
+          return;
+        }
+        for (const revision of older.slice().reverse()) history.undo.push(revision);
+      } catch (error) {
+        console.error("P6 layout history read failed", error);
+        history.noticeKey = "failed";
+        renderApp(container, state, persistence);
+        return;
+      }
+    }
+    const target = history.undo.pop();
+    if (!target) return;
+    try {
+      const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
+      history.redo.push(layout);
+      history.noticeKey = "undone";
+      invalidateLayoutRevisions(history);
+      renderApp(container, setP6Presentation(state, registry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
+  const redoLayout = async (): Promise<void> => {
+    const layout = state.p6Layout;
+    const registry = state.p6FieldRegistry;
+    if (!layout || !registry) return;
+    const history = getLayoutHistory(state.context, layout);
+    const target = history.redo.pop();
+    if (!target) return;
+    try {
+      const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
+      history.undo.push(layout);
+      history.noticeKey = "redone";
+      invalidateLayoutRevisions(history);
+      renderApp(container, setP6Presentation(state, registry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
+  const restoreLayout = async (revision: number): Promise<void> => {
+    const layout = state.p6Layout;
+    const registry = state.p6FieldRegistry;
+    if (!layout || !registry) return;
+    const history = getLayoutHistory(state.context, layout);
+    let revisions: LayoutDefinition[];
+    try {
+      revisions = await requestLayoutRevisions(layout);
+    } catch (error) {
+      console.error("P6 layout history read failed", error);
+      history.noticeKey = "failed";
+      renderApp(container, state, persistence);
+      return;
+    }
+    const target = revisions.find((item) => item.revision === revision);
+    if (!target || target.revision >= layout.revision) {
+      history.noticeKey = "empty";
+      renderApp(container, state, persistence);
+      return;
+    }
+    try {
+      const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
+      history.undo.push(layout);
+      history.redo.length = 0;
+      history.noticeKey = "restored";
+      invalidateLayoutRevisions(history);
+      renderApp(container, setP6Presentation(state, registry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
   renderMainWorkspace(workspace, state, {
     onMenuSelect: (menu) => {
       renderApp(container, { ...state, activeMenu: menu }, persistence);
@@ -81,67 +335,49 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     onGanttActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId), persistence);
     },
-    onP6FieldAdd: async (fieldId) => {
-      try {
-        const next = addP6Field(state, fieldId);
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
+    onActivityFilterChange: (filterText) => {
+      renderApp(container, setActivityFilter(state, filterText), persistence);
     },
-    onP6FieldReorder: async (orderedFieldIds) => {
-      try {
-        const next = reorderP6Fields(state, orderedFieldIds);
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
+    onActivitySortChange: (columnId) => {
+      const direction = state.activitySort?.columnId === columnId
+        ? state.activitySort.direction
+        : "asc";
+      renderApp(container, setActivitySort(state, columnId, direction), persistence);
     },
-    onP6FieldWidthChange: async (fieldId, width) => {
-      try {
-        const next = updateP6FieldPresentation(state, fieldId, { width });
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
+    onActivitySortDirectionToggle: () => {
+      renderApp(container, toggleActivitySortDirection(state), persistence);
     },
-    onP6FieldPresentationChange: async (fieldId, patch) => {
-      try {
-        const next = updateP6FieldPresentation(state, fieldId, patch);
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
-    },
-    onP6FieldVisibilityChange: async (fieldId, visible) => {
-      try {
-        const next = updateP6FieldPresentation(state, fieldId, { visible });
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
-    },
-    onP6FieldRemove: async (fieldId) => {
-      try {
-        const next = removeP6Field(state, fieldId);
-        if (!next.p6Layout || !next.p6FieldRegistry) return;
-        const saved = await persistence.save(next.p6Layout);
-        renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
-      } catch (error) {
-        console.error("P6 layout save failed", error);
-      }
-    },
+    onP6FieldAdd: (fieldId) => mutateLayout(() => addP6Field(state, fieldId)),
+    onP6FieldReorder: (orderedFieldIds) => mutateLayout(() => reorderP6Fields(state, orderedFieldIds)),
+    onP6FieldWidthChange: (fieldId, width) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, { width })),
+    onP6FieldPresentationChange: (fieldId, patch) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, patch)),
+    onP6FieldVisibilityChange: (fieldId, visible) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, { visible })),
+    onP6FieldRemove: (fieldId) => mutateLayout(() => removeP6Field(state, fieldId)),
+    onP6LayoutUndo: () => { void undoLayout(); },
+    onP6LayoutRedo: () => { void redoLayout(); },
+    onP6LayoutRestore: (revision) => { void restoreLayout(revision); },
+    layoutHistory: historyView,
   });
+  if (
+    state.p6Layout
+    && layoutHistory
+    && layoutHistory.revisions === null
+    && !layoutHistory.revisionRequest
+    && !layoutHistory.revisionLoadFailed
+  ) {
+    void requestLayoutRevisions(state.p6Layout)
+      .then(() => {
+        renderApp(container, currentWorkspaceState ?? state, persistence, true);
+      })
+      .catch((error) => {
+        console.error("P6 layout history read failed", error);
+        layoutHistory.revisionLoadFailed = true;
+        renderApp(container, currentWorkspaceState ?? state, persistence, true);
+      });
+  }
+  if (layoutHistory && !preserveLayoutNotice && !layoutHistory.revisionRequest) {
+    layoutHistory.noticeKey = null;
+  }
   void mountScheduleCyclePanels(workspace, aiTransport, state.context, state.locale, (facts) => {
     try {
       const next = applyAuthoritativeScheduleFacts(state, facts);
@@ -150,6 +386,21 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
       console.error("Authoritative schedule result projection failed", error);
     }
   });
+  mountFormulaEditorPanel(
+    workspace,
+    aiTransport,
+    state.context,
+    state.locale,
+    state.p6FieldRegistry?.fields ?? [],
+  );
+  mountInterchangePanel(
+    workspace,
+    aiTransport,
+    state.context,
+    state.locale,
+    state.activities,
+  );
+  mountCapacityPanel(workspace, aiTransport, state.context, state.locale);
 }
 function renderBootstrapState(
   container: HTMLElement,

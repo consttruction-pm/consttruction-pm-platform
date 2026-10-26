@@ -28,6 +28,7 @@ test("schedule navigation exposes run controls and every reference section", () 
     "Resources & leveling",
     "Progress & baselines",
     "Run Schedule",
+    "Formula editor",
     "Code Reference",
     "Option catalogue",
     "Formula contracts",
@@ -42,6 +43,7 @@ test("schedule navigation exposes run controls and every reference section", () 
     "منابع و تسطیح",
     "پیشرفت و مبناها",
     "اجرای زمان‌بندی",
+    "ویرایشگر فرمول",
     "مرجع کد",
     "فهرست گزینه‌ها",
     "قراردادهای محاسباتی",
@@ -51,7 +53,7 @@ test("schedule navigation exposes run controls and every reference section", () 
 
 test("unsupported V1 surfaces are explicitly marked preview instead of being presented as implemented", () => {
   assert.equal(getWorkspaceNavigation("progress").status, "preview");
-  assert.equal(getWorkspaceNavigation("resources").status, "preview");
+  assert.equal(getWorkspaceNavigation("resources").status, "partial");
   assert.equal(getWorkspaceNavigation("cost").status, "preview");
   assert.equal(getWorkspaceNavigation("reports").status, "preview");
 });

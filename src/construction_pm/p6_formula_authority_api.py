@@ -5,9 +5,9 @@ from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
-from .p6_field_registry_repository import P6FieldRegistryApplicationService
+from .p6_field_registry_repository import P6FieldRegistryApplicationService, PersistedP6Field
 from .p6_formula_engine import FormulaDefinition, FormulaError, FormulaSchemaValue, FormulaType, analyze_dependencies, compile_formula, parse_formula
-from .p6_formula_field_adapter import P6FormulaFieldAdapter
+from .p6_formula_field_adapter import P6FormulaFieldAdapter, P6FormulaFieldTypeError
 
 
 P6_FORMULA_AUTHORITY_API_VERSION = "p6-formula-authority-api.v1"
@@ -28,6 +28,41 @@ def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> N
     auth_context.validate()
     if scope.tenant_id != auth_context.tenant_id or scope.project_id != auth_context.project_id:
         raise AuthorizationError("CROSS_SCOPE_ACCESS")
+
+
+def _invalid_result(code: str) -> dict[str, Any]:
+    return {
+        "contract_version": P6_FORMULA_AUTHORITY_API_VERSION,
+        "validation": {
+            "valid": False,
+            "error_code": code,
+            "message_key": "p6.formula.validation.error",
+        },
+        "dependencies": {"field_ids": []},
+        "result_type": {"data_type": None},
+    }
+
+
+def _formula_schema(
+    fields: tuple[PersistedP6Field, ...],
+) -> tuple[dict[str, FormulaSchemaValue], dict[str, str]]:
+    """Map supported registry fields and retain explicit unsupported reasons.
+
+    A registry can legitimately contain fields that have no safe formula
+    representation yet (for example a calendar-dependent duration). Those
+    fields must not poison validation of unrelated expressions, and a formula
+    that references one must fail closed with its authoritative reason rather
+    than a transport error.
+    """
+    schema: dict[str, FormulaSchemaValue] = {}
+    unsupported: dict[str, str] = {}
+    for record in fields:
+        field = record.field
+        try:
+            schema[field.field_id] = P6FormulaFieldAdapter.schema_for_field(field)
+        except P6FormulaFieldTypeError as exc:
+            unsupported[field.field_id] = str(exc)
+    return schema, unsupported
 
 
 @dataclass(frozen=True)
@@ -51,23 +86,23 @@ class P6FormulaAuthorityAPI:
             raise AuthorizationError("authorization denied")
 
         fields = self.field_service.list_fields(scope, registry_version)
-        schema = {
-            record.field.field_id: P6FormulaFieldAdapter.schema_for_field(record.field)
-            for record in fields
-        }
+        schema, unsupported = _formula_schema(fields)
+        try:
+            dependencies = analyze_dependencies(parse_formula(expression))
+        except FormulaError:
+            dependencies = ()
+        else:
+            if context_field_id and context_field_id in dependencies:
+                return _invalid_result("FORMULA_SELF_REFERENCE")
+            for field_id in dependencies:
+                if field_id in unsupported:
+                    return _invalid_result(unsupported[field_id])
         try:
             compiled = _compile_for_validation(expression, schema, context_field_id)
         except FormulaError as exc:
-            return {
-                "contract_version": P6_FORMULA_AUTHORITY_API_VERSION,
-                "validation": {
-                    "valid": False,
-                    "error_code": str(exc) or exc.__class__.__name__.upper(),
-                    "message_key": "p6.formula.validation.error",
-                },
-                "dependencies": {"field_ids": []},
-                "result_type": {"data_type": None},
-            }
+            return _invalid_result(
+                str(exc) or exc.__class__.__name__.upper()
+            )
 
         return {
             "contract_version": P6_FORMULA_AUTHORITY_API_VERSION,
