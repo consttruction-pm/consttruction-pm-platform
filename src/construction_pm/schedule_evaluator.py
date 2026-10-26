@@ -15,6 +15,11 @@ from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.leveling_scheduler import schedule_with_resource_leveling
 from .scheduling.leveling_boundary import SchedulerLevelingInput
+from .scheduling.resource_dependent_placement import (
+    ResourceDependentPlacementResult,
+    demands_at_final_schedule,
+    place_resource_dependent_assignments,
+)
 from .scheduling.calendar_resolution import resolve_relationship_lag_resolvers
 from .scheduling.schedule import ScheduleResult, schedule
 from .scheduling.time_forward_pass import TimeScheduledActivity
@@ -39,6 +44,7 @@ class ScheduleEvaluationResult:
     date_result: ScheduleResult | None = None
     time_activities: Mapping[str, TimeScheduledActivity] | None = None
     time_result: TimeScheduleResult | None = None
+    resource_dependent_placement: ResourceDependentPlacementResult | None = None
 
     @property
     def project_finish(self) -> date | datetime:
@@ -120,6 +126,7 @@ def _evaluate_materialized(
                 for assignment in source.activity_calendar_assignments
             }
             leveling_requested = _resource_leveling_requested(source.schedule_options)
+            placement_required = bool(source.resource_dependent_assignment_facts)
             if leveling_requested:
                 if leveling_input is None:
                     raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
@@ -137,6 +144,8 @@ def _evaluate_materialized(
                     activity_resolvers=activity_resolvers,
                 )
             else:
+                if placement_required and leveling_input is None:
+                    raise ScheduleEvaluationError("SCHEDULE_RESOURCE_INPUT_REQUIRED")
                 result = schedule(
                     activities=source.activities,
                     relationships=source.relationships,
@@ -149,11 +158,37 @@ def _evaluate_materialized(
                     relationship_lag_resolvers=relationship_lag_resolvers,
                     activity_resolvers=activity_resolvers,
                 )
+            placement = None
+            if placement_required:
+                # Placement is triggerable by immutable RD facts even when no
+                # leveling option is enabled. Capacities and demand are already
+                # bound by the application resolver; no repository is read here.
+                assert leveling_input is not None
+                resource_dependent_activity_ids = frozenset(
+                    fact.activity_id
+                    for fact in source.resource_dependent_assignment_facts
+                )
+                committed_demands = demands_at_final_schedule(
+                    forward_activities=leveling_input.forward_activities,
+                    final_activities=result.activities,
+                    resolver=resolver,
+                    activity_resolvers=activity_resolvers,
+                    excluded_activity_ids=resource_dependent_activity_ids,
+                )
+                placement = place_resource_dependent_assignments(
+                    facts=source.resource_dependent_assignment_facts,
+                    activities=result.activities,
+                    capacities=leveling_input.capacities,
+                    committed_demands=committed_demands,
+                )
             run_identity = _run_identity(
                 snapshot.snapshot_hash,
                 calculation_context.calculation_identity,
                 _canonical_result(result),
                 leveling_input_identity=_leveling_input_identity(leveling_input),
+                resource_dependent_placement=(
+                    None if placement is None else placement.to_payload()
+                ),
             )
             return ScheduleEvaluationResult(
                 snapshot_id=snapshot.snapshot_id,
@@ -164,6 +199,7 @@ def _evaluate_materialized(
                 project_revision=source.project_revision,
                 mode=source.mode.value,
                 date_result=result,
+                resource_dependent_placement=placement,
             )
 
         activities = source.activities
@@ -267,17 +303,23 @@ def _run_identity(
     result: object,
     *,
     leveling_input_identity: Mapping[str, str] | None = None,
+    resource_dependent_placement: Mapping[str, object] | None = None,
 ) -> str:
-    payload = json.dumps(
-        {
-            "snapshot_hash": snapshot_hash,
-            "calculation_identity": calculation_identity,
-            "result": _canonical_result(result),
-            "leveling_input_identity": _canonical_result(leveling_input_identity),
-        },
+    payload: dict[str, object] = {
+        "snapshot_hash": snapshot_hash,
+        "calculation_identity": calculation_identity,
+        "result": _canonical_result(result),
+        "leveling_input_identity": _canonical_result(leveling_input_identity),
+    }
+    if resource_dependent_placement is not None:
+        payload["resource_dependent_placement"] = _canonical_result(
+            resource_dependent_placement
+        )
+    encoded = json.dumps(
+        payload,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
         default=str,
     )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()

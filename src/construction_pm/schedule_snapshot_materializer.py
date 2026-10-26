@@ -33,6 +33,10 @@ from .scheduling.calendar_context import (
 from .scheduling.constraints import ActivityConstraint, ConstraintType
 from .scheduling.calendar_system import CalendarSystem
 from .scheduling.relationships import Relationship, RelationshipType
+from .scheduling.resource_dependent import (
+    ResourceDependentDemandPeriod,
+    ResourceDependentDriverFact,
+)
 from .scheduling.schedule import (
     CriticalActivityPathType,
     ScheduleMode,
@@ -643,6 +647,125 @@ def _materialize_payload(
                 raise
             raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG_ASSIGNMENT") from exc
 
+    raw_resource_facts = payload.get("resource_dependent_assignment_facts", [])
+    if not isinstance(raw_resource_facts, list):
+        raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACTS")
+    resource_facts: list[ResourceDependentDriverFact] = []
+    resource_fact_ids: set[str] = set()
+    activities_by_id = {activity.id: activity for activity in activities_tuple}
+    for item in raw_resource_facts:
+        if not isinstance(item, dict):
+            raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT")
+        assignment_id = _required_string(
+            item, "assignment_id", "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+        )
+        activity_id = _required_string(
+            item, "activity_id", "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+        )
+        resource_id = _required_string(
+            item, "resource_id", "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+        )
+        if any(
+            value != value.strip()
+            for value in (assignment_id, activity_id, resource_id)
+        ):
+            raise SnapshotMaterializationError(
+                "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+            )
+        if assignment_id in resource_fact_ids:
+            raise SnapshotMaterializationError(
+                "DUPLICATE_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+            )
+        resource_fact_ids.add(assignment_id)
+        driving = item.get("is_driving")
+        if driving is not None and not isinstance(driving, bool):
+            raise SnapshotMaterializationError(
+                "INVALID_RESOURCE_DEPENDENT_DRIVING_FLAG"
+            )
+        for field_name in (
+            "calendar_id",
+            "calendar_version",
+            "unit_of_measure",
+            "units_per_time_period",
+        ):
+            field_value = item.get(field_name)
+            if field_value is not None and (
+                not isinstance(field_value, str)
+                or not field_value.strip()
+                or field_value != field_value.strip()
+            ):
+                raise SnapshotMaterializationError(
+                    "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+                )
+        activity = activities_by_id.get(activity_id)
+        if activity is None:
+            raise SnapshotMaterializationError(
+                "resource dependent assignment fact references unknown activity"
+            )
+        if activity.activity_type is not ActivityType.RESOURCE_DEPENDENT:
+            raise SnapshotMaterializationError(
+                "resource dependent assignment facts require Resource Dependent activity type"
+            )
+        raw_demands = item.get("demand_periods", [])
+        if not isinstance(raw_demands, list):
+            raise SnapshotMaterializationError(
+                "INVALID_RESOURCE_DEPENDENT_DEMAND_PERIOD"
+            )
+        demand_periods: list[ResourceDependentDemandPeriod] = []
+        demand_dates: set[date] = set()
+        for demand in raw_demands:
+            if not isinstance(demand, dict):
+                raise SnapshotMaterializationError(
+                    "INVALID_RESOURCE_DEPENDENT_DEMAND_PERIOD"
+                )
+            demand_date = _date(_required(demand, "period_start"))
+            if demand_date in demand_dates:
+                raise SnapshotMaterializationError(
+                    "DUPLICATE_RESOURCE_DEPENDENT_DEMAND_PERIOD"
+                )
+            demand_dates.add(demand_date)
+            demand_periods.append(
+                ResourceDependentDemandPeriod(
+                    demand_date,
+                    _decimal(_required(demand, "units")),
+                )
+            )
+        try:
+            resource_facts.append(
+                ResourceDependentDriverFact(
+                    assignment_id=assignment_id,
+                    activity_id=activity_id,
+                    resource_id=resource_id,
+                    calendar_id=item.get("calendar_id"),
+                    calendar_version=item.get("calendar_version"),
+                    unit_of_measure=item.get("unit_of_measure"),
+                    planned_units=(
+                        None
+                        if item.get("planned_units") is None
+                        else _decimal(item["planned_units"])
+                    ),
+                    is_driving=driving,
+                    units_per_time=(
+                        None
+                        if item.get("units_per_time") is None
+                        else _decimal(item["units_per_time"])
+                    ),
+                    units_per_time_period=item.get("units_per_time_period"),
+                    hours_per_units_time_period=(
+                        None
+                        if item.get("hours_per_units_time_period") is None
+                        else _decimal(item["hours_per_units_time_period"])
+                    ),
+                    demand_periods=tuple(
+                        sorted(demand_periods, key=lambda period: period.period_start)
+                    ),
+                )
+            )
+        except (TypeError, ValueError, InvalidOperation) as exc:
+            raise SnapshotMaterializationError(
+                "INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACT"
+            ) from exc
+
     project_start_value = _required(payload, "project_start")
     project_finish_value = payload.get("project_finish")
     raw_project_leveling_priority = payload.get("project_leveling_priority", 10)
@@ -659,6 +782,9 @@ def _materialize_payload(
         relationships=relationships_tuple,
         activity_calendar_assignments=assignments,
         relationship_lag_calendar_assignments=tuple(relationship_lag_assignments),
+        resource_dependent_assignment_facts=tuple(
+            sorted(resource_facts, key=lambda fact: fact.assignment_id)
+        ),
         constraints=constraints,
         schedule_options=_schedule_options(_required(payload, "schedule_options")),
         project_start=(

@@ -43,7 +43,7 @@ from construction_pm.p6_resource_spread_repository import (
 )
 from construction_pm.schedule_evaluator import evaluate_schedule_snapshot
 from construction_pm.schedule_input_snapshot_repository import build_snapshot
-from construction_pm.scheduling.activity import Activity, ActivityLevelingPriority
+from construction_pm.scheduling.activity import Activity, ActivityLevelingPriority, ActivityType
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
@@ -82,7 +82,13 @@ class TransactionManager:
         yield
 
 
-def make_fixture(*, calendar_version: str = "v1", add_resources: bool = True, schedule_options: ScheduleOptions | None = None):
+def make_fixture(
+    *,
+    calendar_version: str = "v1",
+    add_resources: bool = True,
+    schedule_options: ScheduleOptions | None = None,
+    activities: tuple[Activity, ...] | None = None,
+):
     connection = sqlite3.connect(":memory:")
     scope = BackendScope("T-1", "P-1", 7)
     transaction_manager = TransactionManager(connection)
@@ -119,7 +125,7 @@ def make_fixture(*, calendar_version: str = "v1", add_resources: bool = True, sc
             "CAL-1@1": WorkingTimeResolver(WorkingCalendar()),
         }
     )
-    activities = (
+    activities = activities or (
         Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH),
         Activity("B", 1, leveling_priority=ActivityLevelingPriority.NORMAL),
     )
@@ -405,5 +411,25 @@ def test_resolver_fails_closed_when_authorized_scope_differs_from_snapshot():
             fixture["resolver"](
                 fixture["snapshot"], fixture["context"], fixture["registry"], wrong_auth
             )
+    finally:
+        fixture["connection"].close()
+
+
+def test_resolver_excludes_wbs_summary_and_loe_from_leveling_candidates():
+    fixture = make_fixture(
+        add_resources=False,
+        activities=(
+            Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH),
+            Activity("WBS-1", 1, activity_type=ActivityType.WBS_SUMMARY),
+            Activity("LOE-1", 1, activity_type=ActivityType.LEVEL_OF_EFFORT),
+        ),
+    )
+    try:
+        leveling = fixture["resolver"](
+            fixture["snapshot"], fixture["context"], fixture["registry"], auth()
+        )
+        assert [item.activity_id for item in leveling.forward_activities] == ["A"]
+        assert [item.activity_id for item in leveling.backward_activities] == ["A"]
+        assert leveling.capacities == ()
     finally:
         fixture["connection"].close()

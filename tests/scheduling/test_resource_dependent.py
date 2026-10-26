@@ -1,9 +1,11 @@
+from datetime import date
 from decimal import Decimal
 
 import pytest
 
 from construction_pm.scheduling.resource_dependent import (
     ResourceDependentCalculationError,
+    ResourceDependentDemandPeriod,
     ResourceDependentDriverFact,
     derive_resource_dependent_duration,
 )
@@ -83,12 +85,125 @@ def test_unsupported_or_ambiguous_driving_contract_fails_closed(facts, code):
         derive(*facts)
 
 
-def test_nondriving_assignments_are_not_silently_folded_into_activity_duration():
-    with pytest.raises(
-        ResourceDependentCalculationError,
-        match="RESOURCE_DEPENDENT_NONDRIVING_PLACEMENT_UNSUPPORTED",
-    ):
-        derive(driver("A-1"), driver("A-2", driving=False))
+def test_nondriving_assignments_never_contribute_to_activity_duration():
+    driving_only = derive(driver("A-1", planned="8", rate="4"))
+    mixed = derive(
+        driver("A-1", planned="8", rate="4"),
+        driver("A-2", driving=False, planned="100", rate="1"),
+    )
+
+    assert mixed.duration_working_days == 2
+    assert mixed.duration_source == "driving"
+    assert mixed.driving_assignment_ids == ("A-1",)
+    # The nondriving fact still binds the immutable input, so the hash changes.
+    assert mixed.input_hash != driving_only.input_hash
+
+
+def test_all_nondriving_activity_uses_persisted_duration_without_inventing_driver():
+    result = derive_resource_dependent_duration(
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=7,
+        activity_id="RD-1",
+        assignments=(driver("A-2", driving=False),),
+        fallback_duration_working_days=5,
+        fallback_calendar_id="ACT-CAL",
+        fallback_calendar_version="v9",
+    )
+
+    assert result.duration_working_days == 5
+    assert result.duration_source == "activity"
+    assert result.driving_assignment_ids == ()
+    assert result.calendar_id == "ACT-CAL"
+    assert result.calendar_version == "v9"
+    assert len(result.input_hash) == 64
+
+
+def test_all_nondriving_requires_authoritative_activity_duration_and_calendar():
+    with pytest.raises(ResourceDependentCalculationError, match="RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_REQUIRED"):
+        derive(driver("A-2", driving=False))
+
+    with pytest.raises(ResourceDependentCalculationError, match="RESOURCE_DEPENDENT_ACTIVITY_CALENDAR_REQUIRED"):
+        derive_resource_dependent_duration(
+            tenant_id="T-1",
+            project_id="P-1",
+            project_revision=7,
+            activity_id="RD-1",
+            assignments=(driver("A-2", driving=False),),
+            fallback_duration_working_days=5,
+            fallback_calendar_version="v9",
+        )
+
+    with pytest.raises(ResourceDependentCalculationError, match="RESOURCE_DEPENDENT_ACTIVITY_CALENDAR_VERSION_REQUIRED"):
+        derive_resource_dependent_duration(
+            tenant_id="T-1",
+            project_id="P-1",
+            project_revision=7,
+            activity_id="RD-1",
+            assignments=(driver("A-2", driving=False),),
+            fallback_duration_working_days=5,
+            fallback_calendar_id="ACT-CAL",
+        )
+
+
+def test_all_nondriving_still_requires_versioned_resource_calendar_for_placement():
+    with pytest.raises(ResourceDependentCalculationError, match="RESOURCE_DEPENDENT_NONDRIVING_CALENDAR_VERSION_REQUIRED"):
+        derive_resource_dependent_duration(
+            tenant_id="T-1",
+            project_id="P-1",
+            project_revision=7,
+            activity_id="RD-1",
+            assignments=(driver("A-2", driving=False, calendar_version=None),),
+            fallback_duration_working_days=5,
+            fallback_calendar_id="ACT-CAL",
+            fallback_calendar_version="v9",
+        )
+
+
+def test_demand_periods_are_part_of_the_canonical_hash_and_order_independent():
+    first = driver(
+        "A-1",
+        planned="8",
+        rate="4",
+    )
+    period = ResourceDependentDemandPeriod(date(2026, 10, 19), Decimal("8"))
+    other_period = ResourceDependentDemandPeriod(date(2026, 10, 20), Decimal("4"))
+    with_periods = ResourceDependentDriverFact(
+        **{**first.__dict__, "demand_periods": (other_period, period)}
+    )
+    reordered = ResourceDependentDriverFact(
+        **{**first.__dict__, "demand_periods": (period, other_period)}
+    )
+    without_periods = derive(first)
+
+    assert derive(with_periods) == derive(reordered)
+    assert derive(with_periods).input_hash != without_periods.input_hash
+
+
+def test_invalid_demand_periods_fail_closed():
+    first = driver("A-1", planned="8", rate="4")
+    duplicate = ResourceDependentDriverFact(
+        **{
+            **first.__dict__,
+            "demand_periods": (
+                ResourceDependentDemandPeriod(date(2026, 10, 19), Decimal("1")),
+                ResourceDependentDemandPeriod(date(2026, 10, 19), Decimal("2")),
+            ),
+        }
+    )
+    with pytest.raises(ResourceDependentCalculationError, match="DUPLICATE_RESOURCE_DEPENDENT_DEMAND_PERIOD"):
+        derive(duplicate)
+
+    negative = ResourceDependentDriverFact(
+        **{
+            **first.__dict__,
+            "demand_periods": (
+                ResourceDependentDemandPeriod(date(2026, 10, 19), Decimal("-1")),
+            ),
+        }
+    )
+    with pytest.raises(ResourceDependentCalculationError, match="INVALID_RESOURCE_DEPENDENT_DEMAND_UNITS"):
+        derive(negative)
 
 
 def test_driving_assignments_must_share_exact_calendar_version_and_unit():

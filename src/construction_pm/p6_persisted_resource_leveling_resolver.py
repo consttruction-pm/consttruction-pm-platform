@@ -33,6 +33,7 @@ from .schedule_snapshot_materializer import materialize_schedule_snapshot
 from .scheduling.activity import ActivityLevelingPriority, ActivityType
 from .scheduling.resource_dependent import (
     ResourceDependentCalculationError,
+    ResourceDependentDemandPeriod,
     ResourceDependentDriverFact,
     derive_resource_dependent_duration,
 )
@@ -242,6 +243,18 @@ def build_persisted_resource_leveling_input_resolver(
         source_activities = {activity.id: activity for activity in source.activities}
         for activity_id in sorted(source_activities):
             activity = source_activities[activity_id]
+            raw_activity_type = getattr(
+                activity.activity_type, "value", activity.activity_type
+            )
+            if raw_activity_type in {
+                ActivityType.WBS_SUMMARY.value,
+                ActivityType.LEVEL_OF_EFFORT.value,
+            }:
+                # WBS Summary dates are a rollup and LOE dates are derived from
+                # its supported relationship semantics; neither may be treated
+                # as a level-able task. Resource assignments on these types are
+                # rejected below rather than silently omitted from the ledger.
+                continue
             early = (initial.early_activities or initial.activities).get(activity_id)
             late = (initial.late_activities or initial.activities).get(activity_id)
             floats = initial.floats.get(activity_id)
@@ -305,69 +318,27 @@ def build_persisted_resource_leveling_input_resolver(
                 )
             typed_assignments[assignment_id] = assignment
 
-        # Resource Dependent duration is derived when the immutable schedule
-        # input is composed. Verify the same driving facts are still persisted
-        # before allowing this query to replay that derived duration.
-        activity_calendar_assignments = {
-            item.activity_id: item.calendar for item in source.activity_calendar_assignments
-        }
-        for activity in source.activities:
-            raw_activity_type = getattr(activity.activity_type, "value", activity.activity_type)
-            if raw_activity_type != ActivityType.RESOURCE_DEPENDENT.value:
-                continue
-            if not isinstance(activity.resource_dependent_input_hash, str):
-                raise PersistedResourceLevelingResolverError(
-                    f"RESOURCE_DEPENDENT_INPUT_HASH_REQUIRED:{activity.id}"
-                )
-            assignment_rows = tuple(
-                value for value in typed_assignments.values()
-                if value.get("activity_id") == activity.id
+        for assignment in typed_assignments.values():
+            assigned_activity = source_activities[assignment.get("activity_id")]
+            raw_activity_type = getattr(
+                assigned_activity.activity_type,
+                "value",
+                assigned_activity.activity_type,
             )
-            facts = tuple(
-                ResourceDependentDriverFact(
-                    assignment_id=str(value.get("assignment_id", "")),
-                    activity_id=str(value.get("activity_id", "")),
-                    resource_id=str(value.get("resource_id", "")),
-                    calendar_id=value.get("calendar_id"),
-                    calendar_version=value.get("calendar_version"),
-                    unit_of_measure=value.get("unit"),
-                    planned_units=value.get("units"),
-                    is_driving=value.get("is_driving"),
-                    units_per_time=value.get("units_per_time"),
-                    units_per_time_period=value.get("units_per_time_period"),
-                    hours_per_units_time_period=value.get("hours_per_units_time_period"),
-                )
-                for value in assignment_rows
-            )
-            try:
-                derivation = derive_resource_dependent_duration(
-                    tenant_id=scope.tenant_id,
-                    project_id=scope.project_id,
-                    project_revision=scope.project_revision,
-                    activity_id=activity.id,
-                    assignments=facts,
-                )
-            except ResourceDependentCalculationError as exc:
+            if raw_activity_type == ActivityType.WBS_SUMMARY.value:
                 raise PersistedResourceLevelingResolverError(
-                    f"{exc}:{activity.id}"
-                ) from exc
-            if (
-                derivation.input_hash != activity.resource_dependent_input_hash
-                or derivation.duration_working_days != activity.duration
-            ):
-                raise PersistedResourceLevelingResolverError(
-                    f"RESOURCE_DEPENDENT_SOURCE_CHANGED:{activity.id}"
+                    "RESOURCE_LEVELING_WBS_SUMMARY_ASSIGNMENT_UNSUPPORTED:"
+                    f"{assigned_activity.id}:{assignment.get('assignment_id')}"
                 )
-            calendar_ref = activity_calendar_assignments.get(activity.id)
-            if (
-                calendar_ref is None
-                or calendar_ref.calendar_id != derivation.calendar_id
-                or calendar_ref.calendar_version != derivation.calendar_version
-            ):
+            if raw_activity_type == ActivityType.LEVEL_OF_EFFORT.value:
                 raise PersistedResourceLevelingResolverError(
-                    f"RESOURCE_DEPENDENT_CALENDAR_BINDING_MISMATCH:{activity.id}"
+                    "RESOURCE_LEVELING_LEVEL_OF_EFFORT_UNSUPPORTED:"
+                    f"{assigned_activity.id}:{assignment.get('assignment_id')}"
                 )
 
+        # Index persisted time-phased demand by assignment before verifying the
+        # immutable Resource Dependent assignment facts.
+        periods_by_assignment: dict[str, list[ResourceDependentDemandPeriod]] = {}
         period_dates_by_activity: dict[str, list[date]] = {}
         for item in periods_dto:
             period = _period_from_dto(scope, item)
@@ -386,9 +357,139 @@ def build_persisted_resource_leveling_input_resolver(
             except ValueError as exc:
                 raise PersistedResourceLevelingResolverError("INVALID_RESOURCE_PERIOD_START") from exc
             period_dates_by_activity.setdefault(str(activity_id), []).append(period_date)
+            periods_by_assignment.setdefault(str(assignment_id), []).append(
+                ResourceDependentDemandPeriod(period_date, period.get("units"))
+            )
 
         if typed_assignments and not periods_dto:
             raise PersistedResourceLevelingResolverError("RESOURCE_ASSIGNMENT_PERIODS_REQUIRED")
+
+        # Resource Dependent duration is derived when the immutable schedule
+        # input is composed. Verify that the exact persisted assignment and
+        # time-phased demand facts that produced that duration are still present
+        # before allowing this query to replay it. A changed calendar/rate,
+        # driving flag, unit, or demand row must never silently reuse the old
+        # duration.
+        activity_calendar_assignments = {
+            item.activity_id: item.calendar for item in source.activity_calendar_assignments
+        }
+        snapshot_facts_by_activity: dict[str, list[ResourceDependentDriverFact]] = {}
+        for fact in source.resource_dependent_assignment_facts:
+            snapshot_facts_by_activity.setdefault(fact.activity_id, []).append(fact)
+        excluded_demand_assignment_ids: set[str] = set()
+        for activity in source.activities:
+            raw_activity_type = getattr(activity.activity_type, "value", activity.activity_type)
+            if raw_activity_type != ActivityType.RESOURCE_DEPENDENT.value:
+                continue
+            if not isinstance(activity.resource_dependent_input_hash, str):
+                raise PersistedResourceLevelingResolverError(
+                    f"RESOURCE_DEPENDENT_INPUT_HASH_REQUIRED:{activity.id}"
+                )
+            assignment_rows = tuple(sorted(
+                (
+                    value for value in typed_assignments.values()
+                    if value.get("activity_id") == activity.id
+                ),
+                key=lambda value: str(value.get("assignment_id", "")),
+            ))
+            persisted_facts = tuple(
+                ResourceDependentDriverFact(
+                    assignment_id=str(value.get("assignment_id", "")),
+                    activity_id=str(value.get("activity_id", "")),
+                    resource_id=str(value.get("resource_id", "")),
+                    calendar_id=value.get("calendar_id"),
+                    calendar_version=value.get("calendar_version"),
+                    unit_of_measure=value.get("unit"),
+                    planned_units=value.get("units"),
+                    is_driving=value.get("is_driving"),
+                    units_per_time=value.get("units_per_time"),
+                    units_per_time_period=value.get("units_per_time_period"),
+                    hours_per_units_time_period=value.get("hours_per_units_time_period"),
+                    demand_periods=tuple(sorted(
+                        periods_by_assignment.get(
+                            str(value.get("assignment_id", "")), ()
+                        ),
+                        key=lambda period: period.period_start,
+                    )),
+                )
+                for value in assignment_rows
+            )
+            expected_facts = tuple(sorted(
+                snapshot_facts_by_activity.get(activity.id, ()),
+                key=lambda fact: fact.assignment_id,
+            ))
+            effective_calendar = activity_calendar_assignments.get(
+                activity.id, source.project_calendar
+            )
+            if expected_facts:
+                if persisted_facts != expected_facts:
+                    raise PersistedResourceLevelingResolverError(
+                        f"RESOURCE_DEPENDENT_SNAPSHOT_FACTS_CHANGED:{activity.id}"
+                    )
+                facts_to_derive = expected_facts
+            else:
+                # Legacy snapshots predate immutable assignment facts. Only the
+                # previously supported all-driving contract can be replayed.
+                if any(value.is_driving is not True for value in persisted_facts):
+                    raise PersistedResourceLevelingResolverError(
+                        f"RESOURCE_DEPENDENT_NONDRIVING_SNAPSHOT_FACT_REQUIRED:{activity.id}"
+                    )
+                facts_to_derive = tuple(
+                    ResourceDependentDriverFact(
+                        assignment_id=value.assignment_id,
+                        activity_id=value.activity_id,
+                        resource_id=value.resource_id,
+                        calendar_id=value.calendar_id,
+                        calendar_version=value.calendar_version,
+                        unit_of_measure=value.unit_of_measure,
+                        planned_units=value.planned_units,
+                        is_driving=value.is_driving,
+                        units_per_time=value.units_per_time,
+                        units_per_time_period=value.units_per_time_period,
+                        hours_per_units_time_period=value.hours_per_units_time_period,
+                    )
+                    for value in persisted_facts
+                )
+            try:
+                derivation = derive_resource_dependent_duration(
+                    tenant_id=scope.tenant_id,
+                    project_id=scope.project_id,
+                    project_revision=scope.project_revision,
+                    activity_id=activity.id,
+                    assignments=facts_to_derive,
+                    fallback_duration_working_days=(
+                        activity.duration if expected_facts else None
+                    ),
+                    fallback_calendar_id=(
+                        effective_calendar.calendar_id if expected_facts else None
+                    ),
+                    fallback_calendar_version=(
+                        effective_calendar.calendar_version if expected_facts else None
+                    ),
+                )
+            except ResourceDependentCalculationError as exc:
+                raise PersistedResourceLevelingResolverError(
+                    f"{exc}:{activity.id}"
+                ) from exc
+            if (
+                derivation.input_hash != activity.resource_dependent_input_hash
+                or derivation.duration_working_days != activity.duration
+            ):
+                raise PersistedResourceLevelingResolverError(
+                    f"RESOURCE_DEPENDENT_SOURCE_CHANGED:{activity.id}"
+                )
+            if (
+                effective_calendar.calendar_id != derivation.calendar_id
+                or effective_calendar.calendar_version != derivation.calendar_version
+            ):
+                raise PersistedResourceLevelingResolverError(
+                    f"RESOURCE_DEPENDENT_CALENDAR_BINDING_MISMATCH:{activity.id}"
+                )
+            excluded_demand_assignment_ids.update(
+                fact.assignment_id
+                for fact in expected_facts
+                if fact.is_driving is False
+            )
 
         cached_api = _CapturedResourceReadAPI(
             scope=scope,
@@ -399,6 +500,14 @@ def build_persisted_resource_leveling_input_resolver(
         capacity_periods: tuple[date, ...] = ()
         if typed_assignments:
             shift_bound = _activity_shift_bound(materialized, initial)
+            # Nondriving assignment placement can extend past the activity and
+            # project finish. Reserve one additional positive-capacity date per
+            # persisted demand row on top of the CPM movement bound. This is a
+            # capacity envelope, not a scheduling decision.
+            placement_span = sum(
+                len(values) for values in periods_by_assignment.values()
+            )
+            horizon_bound = min(10_000, shift_bound + placement_span + 1)
             range_starts: list[date] = []
             range_ends: list[date] = []
             for activity_id, demand_periods in period_dates_by_activity.items():
@@ -409,7 +518,38 @@ def build_persisted_resource_leveling_input_resolver(
                     # Compute an exact working-calendar movement envelope first;
                     # then resolve resource capacity for every civil date in it.
                     range_starts.append(activity_resolver.subtract_working_duration(period_date, shift_bound))
-                    range_ends.append(activity_resolver.add_working_duration(period_date, shift_bound))
+                    range_ends.append(activity_resolver.add_working_duration(period_date, horizon_bound))
+            activities_with_assignments = {
+                str(value.get("activity_id")) for value in typed_assignments.values()
+            }
+            for activity_id in sorted(activities_with_assignments):
+                activity = source_activities.get(activity_id)
+                if activity is None:
+                    continue
+                activity_resolver = activity_resolvers.get(activity_id, project_resolver)
+                if not isinstance(activity_resolver, WorkingTimeResolver):
+                    raise PersistedResourceLevelingResolverError("INVALID_ACTIVITY_CALENDAR_RESOLVER")
+                early = (initial.early_activities or initial.activities).get(activity_id)
+                if early is None:
+                    raise PersistedResourceLevelingResolverError(
+                        f"CPM_LEVELING_ACTIVITY_MISSING:{activity_id}"
+                    )
+                range_starts.append(
+                    activity_resolver.subtract_working_duration(early.start, shift_bound)
+                )
+                range_ends.append(
+                    activity_resolver.add_working_duration(early.finish, horizon_bound)
+                )
+            if source.project_start is not None:
+                range_starts.append(source.project_start)
+            if isinstance(source.project_finish, date) and not isinstance(
+                source.project_finish, datetime
+            ):
+                range_ends.append(
+                    project_resolver.add_working_duration(
+                        source.project_finish, horizon_bound
+                    )
+                )
             if not range_starts or not range_ends:
                 raise PersistedResourceLevelingResolverError("RESOURCE_ASSIGNMENT_PERIODS_REQUIRED")
             capacity_periods = _date_range(min(range_starts), max(range_ends))
@@ -439,6 +579,7 @@ def build_persisted_resource_leveling_input_resolver(
             periods=capacity_periods,
             options=source.schedule_options,
             require_calendar_versions=True,
+            excluded_demand_assignment_ids=frozenset(excluded_demand_assignment_ids),
             source_snapshot_id=snapshot.snapshot_id,
             source_snapshot_hash=snapshot.snapshot_hash,
             source_calculation_identity=calculation_context.calculation_identity,

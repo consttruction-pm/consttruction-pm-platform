@@ -1,23 +1,30 @@
 # CUBI Project State Ledger
 
-**Snapshot date:** 2026-10-25
+**Snapshot date:** 2026-10-26
 **Repository:** `consttruction-pm/consttruction-pm-platform`
 **State rule:** Only merged-main behavior counts as implemented completion. PR/branch and documentation-only progress is not product completion.
 
-## Current reconciliation checkpoint — 2026-10-25, after PR #1571 merge
+## Current reconciliation checkpoint — 2026-10-26, after PR #1570 merge
+
+- **Latest verified remote-main HEAD:** `52483e55e19b927cc392b86808d6ff484cb26215`; PR #1570 (limited all-driving Resource Dependent duration derivation) is merged at this SHA. The remote `main` ref was checked on 2026-10-26. This merge does not close Issue #1517: nondriving independent placement, all-nondriving activity behavior, assignment-level placement diagnostics and Level of Effort coverage still require review.
+- **Unmerged candidate on `fix/resource-dependent-nondriving-leveling`** (based on `52483e5...`): adds immutable Resource Dependent assignment/time-phased-demand facts, driving-only duration derivation, all-nondriving activity duration/calendar fallback, shared-core nondriving placement against final activity dates and versioned resource capacity, assignment-level placement outcomes, and fail-closed WBS Summary/Level of Effort assignment handling. Local evidence on 2026-10-26: `py -m pytest -q` -> `2753 passed, 123 skipped`. This is branch evidence only; it is not merged-main completion, does not prove Level of Effort compatibility, and still requires exact-head CI plus independent semantic review.
+- **Calculation gate remains open:** Open drafts #1575, #1577 and #1579 are not a reviewed, merged end-to-end Issue #1517 fix. Passing tests do not replace the mandated independent semantic review. Do not claim full Resource Dependent / resource-calendar compatibility until that review and accepted test evidence are present.
+- **Release deployment remains blocked** by the repository Pages configuration issue recorded below; this branch did not attempt a merge or deployment.
+
+## Previous reconciliation checkpoint — 2026-10-25, after PR #1571 merge
 
 - **Latest code-bearing merge SHA:** `f4b51292e8e61124e64ae11e756e8cbad27f66d9`; PR #1571 is merged at this commit. A subsequent ledger-only commit records this checkpoint; it does not change application code. It integrates the generated public-safe schedule reference catalogue into the existing Web workspace without removing the schedule-cycle mountpoint. The catalogue exposes 72 requirement records, 18 formula contracts and 16 documentation-review tracks; its statuses explicitly distinguish mapped requirements from proven implementation.
 - **Exact PR-head checks on `27b774bc8b2b3dd2dfa2ae2f70976126cb81a600`:** [ConstructionPM CI #40156394018](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40156394018) — PASS on Python 3.11/3.12/3.13; [ConstructionPM Web CI #40156394020](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40156394020) — PASS; [Client Typecheck #40156394102](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40156394102) — PASS. The earlier PR-head generator/catalogue mismatch was corrected and these final-head checks passed before merge.
 - **Post-merge main checks on `f4b51292e8e61124e64ae11e756e8cbad27f66d9`:** Web CI, Client Typecheck and PostgreSQL Sync are PASS; Python 3.12 is PASS; Python 3.11 and 3.13 were still in progress at the last check. Recheck the exact main SHA's final status before making a full-green CI claim.
 - **Release deployment remains blocked:** [Deploy run #40156478651](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40156478651) failed at the Pages preflight because the repository Pages site is not enabled/readable (HTTP 404 and no `PAGES_ADMIN_TOKEN`). The connection available for this task cannot change repository Settings or create repository secrets. An owner/admin must enable Settings → Pages → Build and deployment → Source = GitHub Actions or add the authorized `PAGES_ADMIN_TOKEN`; then rerun deploy and smoke-test the actual published URLs.
-- **Calculation gate remains open:** PR #1570 for the limited Resource Dependent duration subset is not merged. Passing tests do not replace the mandated independent semantic review. Requests are pending from Hasan and Farmj; do not claim full Resource Dependent / resource-calendar compatibility until the required review and accepted test evidence are present.
+- **Calculation gate remains open:** PR #1570 for the limited all-driving Resource Dependent duration subset was merged on 2026-10-25 at `52483e55e19b927cc392b86808d6ff484cb26215`; it did not include nondriving placement. Passing tests do not replace the mandated independent semantic review. Do not claim full Resource Dependent / resource-calendar compatibility until the required review and accepted test evidence are present.
 - **CUBISITE accounting remains evidence-based:** merged reference UI is not scheduling-calculation completion; the Library workbook remains the website schedule of record, all seven AI-C01–AI-C07 activities remain zero earned completion until their own acceptance criteria are proven, and the overall production site E2E/release gate remains open.
 
 ## Current baseline
 
 | Item | Verified state |
 |---|---|
-| Latest source-code SHA inspected at reconciliation | `f4b51292e8e61124e64ae11e756e8cbad27f66d9` (2026-10-25; PR #1571 merged; post-merge Python 3.11/3.13 checks were still running at last inspection) |
+| Latest source-code SHA inspected at reconciliation | `52483e55e19b927cc392b86808d6ff484cb26215` (2026-10-26; PR #1570 merged; Issue #1517 remains open) |
 | Default branch | `main` |
 | CUBISITE schedule of record | Current ChatGPT Library search resolves `cubisite.xlsx` at 123,975 bytes (modified 2026-10-24); the Library result exposes `version_id=1`. The prior ledger's version-6 / 122,288-byte identity is not confirmed by the current Files result; verify whether the Library object/version metadata changed before declaring the mirrored workbook synchronized. |
 | CUBISITE scope | Original T01–T45 retained; AI-C01–AI-C07 additive; risk reserve BUF retained separately |
