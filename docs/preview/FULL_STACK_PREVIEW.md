@@ -186,9 +186,12 @@ SQLite database and a real headless browser. It verifies:
   the panel's history control restores a selected older revision by saving it as
   a new revision at the current expected revision. The E2E asserts revisions
   `3,2,1`, restores revision 1, and re-reads `4,3,2,1` with `EARLIEST` applied;
-  `POST .../revisions` fails closed with `405 Method Not Allowed`, and repository
-  tests cover a tampered history hash failing closed with
-  `SETTINGS_HISTORY_CONFLICT`;
+  `POST .../revisions` fails closed with `405 Method Not Allowed`, a tampered
+  history hash fails closed with `SETTINGS_HASH_MISMATCH`, and an appended
+  duplicate revision fails closed with `SETTINGS_HISTORY_CONFLICT`, rolling the
+  settings write back to a savepoint (including inside a caller-owned
+  transaction) so the current row cannot survive without its matching history;
+  revision reads are capped at 50 rows by default;
 - snapshot publication plus Shared Core query results and content hash;
 - formula editor validation through the Shared Core authority: a valid numeric
   expression returns its dependency and result type, a context self-reference
@@ -232,7 +235,7 @@ SQLite database and a real headless browser. It verifies:
 - no uncaught browser exceptions and no API 5xx responses.
 
 The latest isolated run recorded **41 checks and 31 screenshots** on
-`3c5cf145`.
+`a4718d04`.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
@@ -341,8 +344,10 @@ and replay protection (`12 passed` on `7f1116ae`).
 - Undo/redo and explicit revision restore currently cover the persisted layout
   presentation and schedule settings (append-only revisions plus durable
   history). Settings restore re-saves the selected older settings as a new
-  revision; it is not an in-place rollback. Activity, WBS and commercial
-  undo/redo and a project-wide backup/restore UI are not implemented.
+  revision; it is not an in-place rollback. Schedule-settings history begins
+  when the history table is created: settings persisted before that upgrade have
+  no backfilled revision rows. Activity, WBS and commercial undo/redo and a
+  project-wide backup/restore UI are not implemented.
 - Typed Resource Max Units/Time is implemented as domain + persistence + read and
   write APIs plus a Web panel. The panel appends effective changes and resolves
   periods; it does not provide bulk capacity import or a separate leveling
