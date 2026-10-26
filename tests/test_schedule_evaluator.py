@@ -335,9 +335,9 @@ def test_evaluator_places_alap_assignments_backward_from_cpm_early_and_late_date
     )
     assert placed.assignment_float_working_days == 5
 
-    # The P6 Level Resources preservation option is independent of ScheduleMode.
-    # EARLIEST + resource leveling + preservation disabled triggers a backward
-    # leveling pass and must therefore use the latest feasible nondriving window.
+    # The P6 Level Resources preservation option controls activity-level
+    # backward leveling; it does not force each nondriving assignment into its
+    # late CPM window. Assignment placement direction follows ScheduleMode.
     def evaluate_earliest_with_preservation(*, snapshot_id: str, preserve: bool):
         configured_source = replace(
             source,
@@ -370,11 +370,11 @@ def test_evaluator_places_alap_assignments_backward_from_cpm_early_and_late_date
     backward_placement = backward_levelled.resource_dependent_placement
     assert backward_placement is not None
     assert backward_placement.status == "COMPLETE"
-    assert backward_placement.placement_direction == "LATE"
+    assert backward_placement.placement_direction == "EARLY"
     backward_assignment = backward_placement.assignments[0]
     assert (backward_assignment.start, backward_assignment.finish) == (
-        backward_assignment.late_start,
-        backward_assignment.late_finish,
+        backward_assignment.early_start,
+        backward_assignment.early_finish,
     )
 
     forward_levelled = evaluate_earliest_with_preservation(
