@@ -130,11 +130,13 @@ SQLite database and a real headless browser. It verifies:
 - explicit revision restore: the revision picker offers only older revisions,
   restoring one reapplies its column set as a new head revision while preserving
   every prior revision in newest-first order;
-- stale-write conflict: a competing API writer appends the next layout revision
-  while the page still holds the previous head; the stale in-page column edit
-  fails closed, the page shows the localized conflict notice and reloads the
-  authoritative head, the competing presentation survives, and the lost race
-  appends no revision;
+- stale-write conflicts, both recovery branches: a competing API writer appends
+  the next layout revision while the page still holds the previous head (the
+  stale edit receives `IMMUTABLE_LAYOUT_REVISION`); then a second race advances
+  the head by two revisions before the page writes (the stale edit receives
+  `REVISION_CONFLICT`). In both cases the edit fails closed, the page shows the
+  localized conflict notice and reloads the authoritative head, the competing
+  presentation survives, and the lost race appends no revision;
 - filter and numeric sort behavior, including an explicit empty state;
 - project settings/calendar read, save and revision increment;
 - snapshot publication plus Shared Core query results and content hash;
@@ -158,7 +160,9 @@ SQLite database and a real headless browser. It verifies:
 - typed Jalali entry in DATE_BASED schedule settings: 2026-09-21 renders as
   1405/06/30, a typed `۱۴۰۵/۰۶/۳۰` persists as `2026-09-21`, an impossible
   `1405/13/01` surfaces `INVALID_PROJECT_START` without changing stored data, and
-  switching back to Gregorian restores the date control;
+  the rejected entry does not leave a stale canonical value behind when the
+  calendar system is switched (the control stays unresolved instead of
+  resurrecting the previous Gregorian date);
 - Persian RTL labels/filter with the persisted project;
 - a 1024×768 compact desktop layout with navigation inside the viewport;
 - saved settings/calendar/layout after a full reload;
@@ -168,11 +172,12 @@ SQLite database and a real headless browser. It verifies:
   activity grid and curated layout;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **35 checks and 24 screenshots**.
+The latest isolated run recorded **36 checks and 25 screenshots**.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
-`04b-layout-undo-redo.png`, `04c-layout-restore.png`, `04d-layout-conflict.png`,
+`04b-layout-undo-redo.png`, `04c-layout-restore.png`, `04d-layout-conflict.png`
+(same-revision clash), `04e-layout-conflict-gap.png` (revision-gap conflict),
 `07b`–`07f` (formula and interchange states),
 `08-capacity-effective-change.png`, `10a-capacity-persisted.png`,
 `11a-viewer-interchange.png`, `11b-viewer-capacity.png`, the preview server
