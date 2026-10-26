@@ -1881,10 +1881,12 @@ th {
 @media(max-width:760px){.cubi-public-header{align-items:flex-start;flex-direction:column}.cubi-public-grid{grid-template-columns:1fr}.cubi-public-nav{gap:.75rem}}
 /* Approval-gated AI action panel: all mutation controls are explicit and status remains visible. */
 .cp-ai-action-panel{margin:1rem 0;padding:0;border:1px solid var(--cp-border);border-radius:.85rem;background:var(--cp-panel,#fff);color:var(--cp-text);box-shadow:0 6px 20px rgb(15 39 71 / 5%)}
-.cp-ai-action-summary{cursor:pointer;list-style:none;padding:1rem 1.2rem;font-weight:800;color:var(--cubi-deep-navy);display:flex;align-items:center;gap:.65rem}
+.cp-ai-action-summary{cursor:pointer;list-style:none;padding:.7rem 1rem;font-weight:800;color:var(--cubi-deep-navy);display:flex;align-items:center;gap:.8rem}
 .cp-ai-action-summary::-webkit-details-marker{display:none}
-.cp-ai-action-summary:before{content:"+";display:inline-grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:var(--cubi-copper-orange);color:#1e2732;font-weight:900}
-.cp-ai-action-panel[open]>.cp-ai-action-summary:before{content:"−"}
+.cp-ai-action-avatar{display:block;flex:0 0 44px;width:44px;height:44px;object-fit:cover;border-radius:50%;border:1px solid #B7D7EE;background:#EAF6FF;box-shadow:0 2px 8px rgb(18 52 90 / 14%)}
+.cp-ai-action-summary-title{display:block;line-height:1.35}
+.cp-ai-action-summary:after{content:"+";display:inline-grid;place-items:center;margin-inline-start:auto;width:1.4rem;height:1.4rem;flex:0 0 1.4rem;border-radius:50%;background:var(--cubi-copper-orange);color:#1e2732;font-weight:900}
+.cp-ai-action-panel[open]>.cp-ai-action-summary:after{content:"−"}
 .cp-ai-action-content{border-top:1px solid var(--cp-border);padding:1rem 1.2rem 1.25rem;display:grid;gap:1rem}
 .cp-ai-action-description{margin:0;max-width:80ch;line-height:1.7;color:var(--cp-muted,#596676)}
 .cp-ai-action-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;align-items:end;padding:1rem;border:1px solid var(--cp-border);border-radius:.7rem;background:var(--cp-soft,#f7f9fb)}
