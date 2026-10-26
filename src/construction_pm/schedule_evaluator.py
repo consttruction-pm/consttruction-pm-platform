@@ -198,20 +198,13 @@ def _evaluate_materialized(
                         for activity in leveling_input.forward_activities
                     },
                     priorities=leveling_input.options.priorities,
-                    # Keep assignment placement aligned with the authoritative
-                    # schedule/leveling direction. P6's "Preserve Scheduled Early
-                    # and Late Dates" option is independent of ScheduleMode: when
-                    # resource leveling is requested and preservation is disabled,
-                    # backward leveling runs even in EARLIEST mode.
+                    # ALAP selects the late activity schedule. The separate
+                    # resource-leveling preservation flag controls the activity
+                    # passes; it must not force every nondriving assignment to a
+                    # late window when ScheduleMode remains EARLIEST.
                     placement_direction=(
                         PLACEMENT_DIRECTION_LATE
-                        if (
-                            result.mode is ScheduleMode.ALAP
-                            or (
-                                leveling_requested
-                                and not source.schedule_options.preserve_scheduled_early_and_late_dates
-                            )
-                        )
+                        if result.mode is ScheduleMode.ALAP
                         else PLACEMENT_DIRECTION_EARLY
                     ),
                 )
