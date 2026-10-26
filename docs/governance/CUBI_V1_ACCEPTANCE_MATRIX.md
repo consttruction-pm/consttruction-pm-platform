@@ -29,16 +29,17 @@ This matrix is an evidence index for the approved product scope, not a completio
 
 | Date | Evidence | Result |
 |---|---|---|
-| 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q` (full Python suite, after capacity/calendar/project-creation changes) | **2833 passed, 124 skipped, 1 warning** |
+| 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q` (full Python suite, after typed capacity, calendar/project-creation and formula-authority changes) | **2837 passed, 124 skipped, 1 warning** |
 | 2026-10-26 | `cd apps/web && npm test` / `npm run typecheck` / `npm run build` | See “Web result” below |
-| 2026-10-26 | `cd apps/web && npm run test:e2e:preview` (isolated temporary SQLite + random port) | **24 checks, 12 screenshots passed**; real WSGI/SQLite/Shared-Core read-back, including typed capacity, Jalali display and admin project creation |
+| 2026-10-26 | `cd apps/web && npm run test:e2e:preview` (isolated temporary SQLite + random port) | **25 checks, 14 screenshots passed**; real WSGI/SQLite/Shared-Core read-back, including formula validation, typed capacity, Jalali display and admin project creation |
 | 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q tests/test_preview_runtime.py` | **7 passed** (includes registered-capacity read/restart and admin project creation/restart) |
+| 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q tests/test_p6_formula_authority_api.py tests/test_p6_formula_field_adapter.py tests/test_project_lifecycle_http_routes.py` | **108 passed**; includes unsupported-registry-field isolation, structured duration diagnostic and self-reference precedence |
 | 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q tests/resources/test_max_units_time.py tests/test_p6_resource_capacity_repository.py tests/test_preview_runtime.py` | 18 passed for the typed capacity slice |
 | 2026-10-26 | Focused regression `tests/test_authoritative_schedule_snapshot_composer.py::test_resource_dependent_placement_preserves_relationships_and_constraints` + `tests/test_authoritative_schedule_query.py` | 13 passed after aligning the FACT-contract test with the enriched early/late/float fields |
 
-**Full-suite result:** 2833 passed, 124 skipped, 1 warning. Earlier defects found by full runs were fixed rather than skipped: (1) the authoritative FACT contract test needed to account for the newly exposed early/late/float fields, and (2) formula audit events with tied timestamps could be returned in random UUID order; SQLite now uses insertion order (`rowid`) and PostgreSQL uses an `event_seq` sequence, with a regression test for identical timestamps.
+**Full-suite result:** 2837 passed, 124 skipped, 1 warning. Earlier defects found by full runs were fixed rather than skipped: (1) the authoritative FACT contract test needed to account for the newly exposed early/late/float fields, and (2) formula audit events with tied timestamps could be returned in random UUID order; SQLite now uses insertion order (`rowid`) and PostgreSQL uses an `event_seq` sequence, with a regression test for identical timestamps.
 
-**Web result:** `npm test` passed 287 TypeScript tests plus 7 preview-resolver tests; `npm run typecheck` and `npm run build` passed. The browser E2E is the runtime evidence for the workspace slice. (Counts are from the latest local run; exact-head CI is tracked separately in OPS-04.)
+**Web result:** `npm test` passed 294 TypeScript tests plus 7 preview-resolver tests; `npm run typecheck` and `npm run build` passed. The browser E2E is the runtime evidence for the workspace slice. (Counts are from the latest local run; exact-head CI is tracked separately in OPS-04.)
 
 ## A. Foundation, architecture and security
 
@@ -120,7 +121,7 @@ This matrix is an evidence index for the approved product scope, not a completio
 
 | ID | Requirement | Code path | UI / API path | Test / evidence | Status |
 |---|---|---|---|---|---|
-| WEB-01 | Real session/bootstrap/workspace read against WSGI, not static fixtures. | `apps/web/src/main.ts`, `project-bootstrap.ts`, `workspace-read-api.ts` | `/app`, `/api/session`, workspace read | Preview E2E 24 checks; `test_preview_runtime.py`; `workspace-read-api.test.ts` | implemented-and-verified |
+| WEB-01 | Real session/bootstrap/workspace read against WSGI, not static fixtures. | `apps/web/src/main.ts`, `project-bootstrap.ts`, `workspace-read-api.ts` | `/app`, `/api/session`, workspace read | Preview E2E 25 checks; `test_preview_runtime.py`; `workspace-read-api.test.ts` | implemented-and-verified |
 | WEB-02 | Main menus and submenus with honest status labels. | `workspace-navigation.ts`, `workspace-view.ts` | Project/Schedule/Progress/Resources/Cost/Documents/Reports/Control/Settings | Preview E2E menu/submenu navigation; `workspace-navigation.test.ts`, `workspace-view-submenu-navigation.test.ts` | implemented-and-verified |
 | WEB-03 | Permission-aware dashboard/workspace entry. | `main.ts`, lifecycle API | Viewer/planner/admin states | Preview E2E viewer read-only + denied writes | implemented-and-verified |
 | WEB-04 | WBS hierarchy display/editing. | `workspace-model.ts` exposes distinct `wbs_id` rows only | Project/WBS surface lists flat WBS IDs | No hierarchy repository/editor; navigation marks Project “Partial” | partial |
@@ -132,7 +133,7 @@ This matrix is an evidence index for the approved product scope, not a completio
 | WEB-10 | Layout persists across reload and server restart. | `p6_layout_definition_repository.py` | Layout GET/POST | Preview E2E reload; `test_preview_layout_survives_runtime_restart...`; layout tests | implemented-and-verified |
 | WEB-11 | Schedule settings load/save with revision handling. | `schedule-cycle.ts`, schedule settings repository | Schedule Options panel | Preview E2E save + status; settings tests | implemented-and-verified |
 | WEB-12 | Run Schedule through API, snapshot, query and fresh read-back. | `schedule-cycle.ts`, snapshot/query APIs | Run Schedule panel | Preview E2E run + results; Python preview test | implemented-and-verified |
-| WEB-13 | Formula editor wired to authoritative validation/dependency/type results. | `p6-formula-editor.ts`, `p6-formula-editor-view.ts`, formula API | Components exist; not mounted in the main workspace | `p6-formula-editor*.test.ts`, `p6-api.test.ts`; no browser E2E formula workflow | partial |
+| WEB-13 | Formula editor wired to authoritative validation/dependency/type results. | `apps/web/src/p6-formula-panel.ts`, `p6-formula-api.ts`, `p6-formula-editor.ts`, `src/construction_pm/p6_formula_authority_api.py` | `Schedule → Formula editor`; `POST /api/projects/{p}/p6/formulas/{registry_version}` | `p6-formula-panel.test.ts`, `p6-formula-api.test.ts`, `p6-formula-editor*.test.ts`; `tests/test_p6_formula_authority_api.py`; preview E2E valid, self-reference and unsupported-duration states | implemented-and-verified |
 | WEB-14 | AI assistant chat → missing-input detection → proposal → approval → execution → verification panel. | `ai-assistant-chat.ts`, `ai-action-panel.ts`, `main.ts` | Workspace AI panels | Earlier Web E2E for AI proposal/verification; backend tests; requires configured provider/grants | implemented-and-verified (laboratory path) |
 | WEB-15 | Explicit loading, empty, error, unavailable, rejected and permission states; no success on denial. | `main.ts`, `workspace-view.ts`, `schedule-cycle.ts` | All panels | Preview E2E guards, empty filter, viewer failure; error tests | implemented-and-verified |
 | WEB-16 | English/Persian and LTR/RTL. | `workspace-localization.ts`, `main.ts`, `styles.css` | Language/settings; full workspace | Preview E2E Persian RTL; localization tests | implemented-and-verified (EN/FA) |
@@ -219,9 +220,9 @@ This matrix is an evidence index for the approved product scope, not a completio
 
 | ID | Requirement | Code path | UI / API path | Test / evidence | Status |
 |---|---|---|---|---|---|
-| OPS-01 | Reproducible local full-stack preview with real WSGI, SQLite and Shared Core. | `src/construction_pm/preview/`, `apps/web/preview-full.mjs` | `npm run preview:full`, `http://127.0.0.1:4174` | Preview E2E 24 checks; 7 Python preview tests; manual 4174 run | implemented-and-verified (local) |
+| OPS-01 | Reproducible local full-stack preview with real WSGI, SQLite and Shared Core. | `src/construction_pm/preview/`, `apps/web/preview-full.mjs` | `npm run preview:full`, `http://127.0.0.1:4174` | Preview E2E 25 checks; 7 Python preview tests; manual 4174 run | implemented-and-verified (local) |
 | OPS-02 | A real, external preview URL. | n/a | None | `has_pages=false`; no deploy performed | blocked-external |
-| OPS-03 | In-repo browser E2E covering login, project selection, menus, grid/Gantt, columns, filter/sort, settings/calendar, schedule calculation, persistence, interchange, capacity, project creation, session/permission errors. | `apps/web/e2e/preview-e2e.mjs` | Browser | 24 checks, 12 screenshots; isolated run passed | implemented-and-verified |
+| OPS-03 | In-repo browser E2E covering login, project selection, menus, grid/Gantt, columns, filter/sort, settings/calendar, schedule calculation, formula validation, persistence, interchange, capacity, project creation, session/permission errors. | `apps/web/e2e/preview-e2e.mjs` | Browser | 25 checks, 14 screenshots; isolated run passed | implemented-and-verified |
 | OPS-04 | Exact-head CI on the final branch before merge. | GitHub workflows | n/a | Not yet available for the uncommitted preview/E2E work | implemented-not-verified |
 | OPS-05 | Independent review, PR splitting and merge of complete changes. | PR #1582 | n/a | PR remains open; capacity/backward/independent-review gaps unresolved | partial |
 | OPS-06 | Official CUBISITE weights/scores/completion percentage. | n/a | n/a | Workbook unavailable; not invented | blocked-external |
@@ -231,13 +232,12 @@ This matrix is an evidence index for the approved product scope, not a completio
 ## Highest-priority remaining gaps
 
 1. **RES-07/RES-08 — assignment-level early/late and backward placement.** Activity-level backward leveling exists and is tested. `scheduling/resource_dependent_placement.py` documents a deliberate contract boundary: it consumes only final authoritative activity start/finish and exposes no assignment-level early/late or backward result. This remains an approved gap until a separate, evidence-backed contract is implemented.
-2. **WEB-13 — formula editor mount.** The authority-backed editor components exist but are not connected to the main workspace.
-3. **WEB-20/INT-07 — import/export UI.** Interchange works through the API and browser E2E, but there is no user-facing wizard.
-4. **WEB-21/INT-11 — undo/redo.** No implementation found.
-5. **WEB-04 — WBS hierarchy.** The workspace has a flat WBS list; no hierarchy editor or rollup navigation.
-6. **WEB-17/LOC-04 — Jalali date entry.** Display conversion is implemented and browser-verified; typed Jalali date entry is not implemented.
-7. **LIF-06 — production identity.** Supplied by deployment; the preview personas are not production credentials.
-8. **OPS-02/OPS-06 — external URL and authoritative weights.** Both are external blockers; neither is claimed or faked.
+2. **WEB-20/INT-07 — import/export UI.** Interchange works through the API and browser E2E, but there is no user-facing wizard.
+3. **WEB-21/INT-11 — undo/redo.** No implementation found.
+4. **WEB-04 — WBS hierarchy.** The workspace has a flat WBS list; no hierarchy editor or rollup navigation.
+5. **WEB-17/LOC-04 — Jalali date entry.** Display conversion is implemented and browser-verified; typed Jalali date entry is not implemented.
+6. **LIF-06 — production identity.** Supplied by deployment; the preview personas are not production credentials.
+7. **OPS-02/OPS-06 — external URL and authoritative weights.** Both are external blockers; neither is claimed or faked.
 
 ## Change rule
 
