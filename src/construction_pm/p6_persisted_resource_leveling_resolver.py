@@ -321,7 +321,8 @@ def build_persisted_resource_leveling_input_resolver(
             )
             if raw_activity_type == ActivityType.LEVEL_OF_EFFORT.value:
                 # LOE resource semantics are not implemented in this slice.
-                # Keep the previous fail-closed behavior until they are proven.
+                # Fail closed explicitly instead of inventing LOE levels or
+                # silently treating the assignment as Task Dependent.
                 raise PersistedResourceLevelingResolverError(
                     "RESOURCE_LEVELING_LEVEL_OF_EFFORT_UNSUPPORTED:"
                     f"{assigned_activity.id}:{assignment_id}"
