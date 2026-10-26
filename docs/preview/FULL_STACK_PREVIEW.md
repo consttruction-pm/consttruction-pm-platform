@@ -167,6 +167,14 @@ SQLite database and a real headless browser. It verifies:
   localized conflict notice and reloads the authoritative head, the competing
   presentation survives, and the lost race appends no revision;
 - filter and numeric sort behavior, including an explicit empty state;
+- WBS rollup navigation: the server returns a `wbs_summary` aggregated from the
+  persisted WBS assignment and the schedule facts the read already projects
+  (activity count, critical count, scheduled bounds, minimum total float).
+  Clicking `2 Civil works` filters the grid and Gantt to exactly its 5 activities,
+  shows the Jalali-formatted server bounds and the count `/ 14`, toggles off,
+  re-selects, and clears through the explicit control. The browser derives no
+  schedule value; a malformed summary fails closed with
+  `INVALID_WORKSPACE_WBS_SUMMARY`;
 - project settings/calendar read, save and revision increment;
 - the scheduling-mode option offers both `EARLIEST` and `ALAP`; selecting
   `ALAP` persists through the settings API, and restoring `EARLIEST` appends a
@@ -214,11 +222,12 @@ SQLite database and a real headless browser. It verifies:
   route with no created activity;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **39 checks and 29 screenshots** on
-`6f3979d3`.
+The latest isolated run recorded **40 checks and 30 screenshots** on
+`6b5e56cb`.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
+`03b-wbs-rollup.png` (WBS group selected and grid filtered),
 `04b-layout-undo-redo.png`, `04c-layout-restore.png`, `04d-layout-conflict.png`
 (same-revision clash), `04e-layout-conflict-gap.png` (revision-gap conflict),
 `07b`–`07f` (formula and interchange states),
@@ -247,31 +256,35 @@ and replay protection (`12 passed` on `7f1116ae`).
 
 1. Open `/preview/login` and choose **Planner**.
 2. Select **Riverside Pump Station Upgrade**; inspect the activity grid and Gantt.
-3. Hide, add, reorder, resize, pin or freeze columns; reload and confirm persistence.
+3. In **Project / WBS**, confirm each group shows its server-computed activity and
+   critical counts plus scheduled bounds (or **Not scheduled**). Click
+   `2 Civil works` and confirm the grid/Gantt show exactly its 5 activities and the
+   selected count reads `5 / 14`; click again or press **All activities** to clear.
+4. Hide, add, reorder, resize, pin or freeze columns; reload and confirm persistence.
    Remove a column, press **Undo** and confirm it returns; press **Redo** and confirm
    the removal returns. Choose an older revision in the revision picker and press
    **Restore** to confirm that revision is reapplied. Reload again and press **Undo**
    to confirm the prior persisted revision is restored; the history endpoint must
    show a new revision on top rather than rewritten rows.
-4. Filter by `civil` or `civil completed`; sort by Id or Total Float.
-5. Toggle **Jalali** and confirm dates change for display only; toggle back.
-6. Open **Schedule → Schedule settings**, confirm `CUBI-RPS-CAL` and save. Set the
+5. Filter by `civil` or `civil completed`; sort by Id or Total Float.
+6. Toggle **Jalali** and confirm dates change for display only; toggle back.
+7. Open **Schedule → Schedule settings**, confirm `CUBI-RPS-CAL` and save. Set the
    calendar system to **Jalali**, confirm the start renders as `1405/06/30`, type
    `۱۴۰۵/۰۶/۳۰`, save and confirm the API still stores `2026-09-21`; try
    `1405/13/01` and confirm `INVALID_PROJECT_START`; switch back to Gregorian.
-7. Open **Schedule → Run Schedule** and compare the returned A130 dates, float,
+8. Open **Schedule → Run Schedule** and compare the returned A130 dates, float,
    critical flag and snapshot hash.
-8. Open **Schedule → Formula editor**, enter
+9. Open **Schedule → Formula editor**, enter
    `[activity.duration_percent_complete] / 100`, validate and confirm the
    authoritative dependency and result type. Then make the context field the
    referenced field and confirm `FORMULA_SELF_REFERENCE`; finally use the
    registered duration field and confirm the explicit
    `UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration` diagnostic.
-9. Open **Project → Import / Export**, export the 14 loaded activities, download
-   the server-generated document, paste it back and map it to confirm 14 canonical
-   rows. Submit an invalid document and confirm an explicit `INVALID_XML` error
-   with no rows.
-10. Open **Resources → Max units / time**. Read the seeded 8 → 12 units/day
+10. Open **Project → Import / Export**, export the 14 loaded activities, download
+    the server-generated document, paste it back and map it to confirm 14 canonical
+    rows. Submit an invalid document and confirm an explicit `INVALID_XML` error
+    with no rows.
+11. Open **Resources → Max units / time**. Read the seeded 8 → 12 units/day
     profile, resolve 2026-10-16 as a 40-hour week and confirm 60. Register
     10 units/day from 2026-11-01 with the close option, confirm 2026-10-31 closes
     the prior open segment, and resolve 2026-11-02 as a week to confirm 50.
@@ -279,12 +292,12 @@ and replay protection (`12 passed` on `7f1116ae`).
     through `GET /api/projects/preview-rps-01/p6/resource-capacities/RPS-CIVIL-CREW`
     with a planner session; an unregistered resource returns 404
     `RESOURCE_CAPACITY_NOT_REGISTERED`.
-11. Switch the top-right language control to Persian and confirm RTL labels.
-12. Sign out, sign in as **Viewer**, and confirm exports remain readable while an
+12. Switch the top-right language control to Persian and confirm RTL labels.
+13. Sign out, sign in as **Viewer**, and confirm exports remain readable while an
     import is denied with an explicit permission error.
-13. Sign out, sign in as **Admin**, create a project from the project-selection
+14. Sign out, sign in as **Admin**, create a project from the project-selection
     form, and confirm the new empty workspace, curated layout and persisted name.
-14. Re-select **Riverside Pump Station Upgrade** and open **AI Assistant ·
+15. Re-select **Riverside Pump Station Upgrade** and open **AI Assistant ·
     Actions**. Prepare an activity with a unique ID, a name and a 3 working-day
     duration. Confirm the proposal shows the current project revision and no
     activity exists yet. Press **Approve**, then **Execute approved action**;
