@@ -99,6 +99,35 @@ export type ScheduleSettingsDTO = {
   project_leveling_priority: number;
 };
 
+export type ScheduleSettingsRevisionsDTO = {
+  contract_version: "p6-project-schedule-settings-revisions-api.v1";
+  kind: "project_schedule_settings_revisions";
+  revisions: ScheduleSettingsDTO[];
+};
+
+/**
+ * Build the ordinary save request that restores an older settings revision.
+ * It targets the current record revision, so the server appends a new revision
+ * and retains every older row.
+ */
+export function buildSettingsRestoreRequest(
+  revision: ScheduleSettingsDTO,
+  expectedRevision: number,
+): Record<string, unknown> {
+  return {
+    contract_version: "p6-project-schedule-settings-api.v1",
+    expected_record_revision: expectedRevision,
+    mode: revision.mode,
+    project_calendar_id: revision.project_calendar.calendar_id,
+    project_calendar_version: revision.project_calendar.calendar_version,
+    project_calendar_system: revision.project_calendar.system,
+    project_start: revision.project_start,
+    project_finish: revision.project_finish,
+    schedule_options: revision.schedule_options,
+    project_leveling_priority: revision.project_leveling_priority,
+  };
+}
+
 type SessionInfo = { session_id: string; user_id: string; tenant_id: string; roles: string[] };
 type ProjectCalendarDTO = { calendar_id: string; calendar_version: string; kind: "working-day" | "working-time"; calendar_type: string; name: string; record_revision: number };
 type CalendarCatalogDTO = { contract_version: string; kind: "calendar_catalog"; calendars: ProjectCalendarDTO[] };
@@ -231,6 +260,10 @@ const LABELS = {
     start: "Project start", finish: "Project finish (optional)", mode: "Calculation mode", priority: "Project leveling priority",
     jalaliDateHint: "Type a Jalali date, for example ۱۴۰۵/۰۷/۱۵. It is stored as the canonical Gregorian date.",
     save: "Save settings", calculate: "Calculate and show results", saved: "Settings saved.", saving: "Saving…",
+    settingsHistory: "Settings history", restoreRevision: "Restore revision", restoreSettings: "Restore",
+    restoreSettingsHint: "Restoring saves the selected values as a new revision; older revisions are kept.",
+    settingsRestored: "Settings revision restored.", restoreSettingsFailed: "Settings revision was not restored.",
+    noEarlierSettingsRevision: "No older revision is available.", settingsHistoryUnavailable: "Settings history is not available.",
     running: "Publishing snapshot and retrieving results…", needSession: "An active sign-in is required.",
     settingsError: "Could not load saved settings.", saveFailed: "Settings were not saved.", runFailed: "Schedule calculation did not complete.",
     mustSave: "Save project settings first. Use an existing calendar ID and version from this project.",
@@ -251,6 +284,10 @@ const LABELS = {
     start: "شروع پروژه", finish: "پایان پروژه (اختیاری)", mode: "روش محاسبه", priority: "اولویت تسطیح منابع پروژه",
     jalaliDateHint: "تاریخ شمسی را مانند ۱۴۰۵/۰۷/۱۵ وارد کنید؛ به‌صورت تاریخ میلادی استاندارد ذخیره می‌شود.",
     save: "ذخیرهٔ تنظیمات", calculate: "محاسبه و نمایش نتیجه", saved: "تنظیمات ذخیره شد.", saving: "در حال ذخیره…",
+    settingsHistory: "تاریخچهٔ تنظیمات", restoreRevision: "نسخهٔ بازگردانی", restoreSettings: "بازگردانی",
+    restoreSettingsHint: "بازگردانی، مقادیر نسخهٔ انتخابی را به‌صورت نسخهٔ جدید ذخیره می‌کند؛ نسخه‌های قدیمی حفظ می‌شوند.",
+    settingsRestored: "نسخهٔ تنظیمات بازگردانی شد.", restoreSettingsFailed: "نسخهٔ تنظیمات بازگردانی نشد.",
+    noEarlierSettingsRevision: "نسخهٔ قدیمی‌تری در دسترس نیست.", settingsHistoryUnavailable: "تاریخچهٔ تنظیمات در دسترس نیست.",
     running: "در حال انتشار تصویر و دریافت نتیجه…", needSession: "ورود معتبر به سامانه لازم است.",
     settingsError: "خواندن تنظیمات ذخیره‌شده ممکن نشد.", saveFailed: "تنظیمات ذخیره نشد.", runFailed: "اجرای زمان‌بندی کامل نشد.",
     mustSave: "ابتدا تنظیمات پروژه را ذخیره کنید. از شناسه و نسخهٔ موجود تقویم پروژه استفاده کنید.",
@@ -510,11 +547,14 @@ async function mountSettingsPanel(
   locale: "fa" | "en",
 ): Promise<void> {
   const path = `/api/projects/${encodeURIComponent(context.project_id)}/p6/schedule/settings`;
+  const revisionsPath = `${path}/revisions`;
   const calendarsPath = `/api/projects/${encodeURIComponent(context.project_id)}/p6/calendars`;
-  const [savedResult, calendarsResult] = await Promise.all([
+  const [savedResult, calendarsResult, revisionsResult] = await Promise.all([
     transport.get<ScheduleSettingsDTO>(path, context),
     transport.get<CalendarCatalogDTO>(calendarsPath, context),
+    transport.get<ScheduleSettingsRevisionsDTO>(revisionsPath, context),
   ]);
+  let revisionsState = revisionsResult.ok ? revisionsResult.data.revisions : null;
   const projectCalendars = calendarsResult.ok ? calendarsResult.data.calendars : [];
   const defaultOptions = Object.fromEntries((catalog?.schedule_options_schema ?? []).map((item) => [item.name, item.default]));
   let saved: ScheduleSettingsDTO | null = savedResult.ok ? savedResult.data : null;
@@ -586,7 +626,8 @@ async function mountSettingsPanel(
       <label class="cp-schedule-option"><span>${safe(labels.priority)}</span><input required name="project_leveling_priority" type="number" min="1" max="100" step="1" value="${initial.project_leveling_priority}" /></label>
       ${controls ? `<h3 class="cp-schedule-options-subtitle">${safe(locale === "fa" ? "گزینه‌های هستهٔ محاسبه" : "Calculation engine options")}</h3><div class="cp-schedule-options-grid">${controls}</div>` : ""}
       <div class="cp-schedule-actions"><button type="submit">${safe(labels.save)}</button><span role="status" data-settings-status></span></div>
-    </form>`;
+    </form>
+    <section class="cp-settings-history" data-settings-history></section>`;
   const form = panel.querySelector<HTMLFormElement>("[data-schedule-settings-form]");
   const modeInput = form?.elements.namedItem("mode") as HTMLSelectElement | null;
   const startInput = form?.elements.namedItem("project_start") as HTMLInputElement | null;
@@ -671,6 +712,65 @@ async function mountSettingsPanel(
       // A blank selector is a prompt, not a selectable calendar.
     }
   });
+  const historySection = panel.querySelector<HTMLElement>("[data-settings-history]");
+  const renderHistory = (currentRevision: number): void => {
+    if (!historySection) return;
+    const statusSpan = '<span role="status" data-settings-history-status></span>';
+    if (!revisionsState) {
+      historySection.innerHTML = `<h3>${safe(labels.settingsHistory)}</h3><p class="cp-muted">${safe(labels.settingsHistoryUnavailable)}</p>${statusSpan}`;
+      return;
+    }
+    const older = revisionsState.filter((item) => item.record_revision < currentRevision);
+    if (!older.length) {
+      historySection.innerHTML = `<h3>${safe(labels.settingsHistory)}</h3><p class="cp-muted">${safe(labels.noEarlierSettingsRevision)}</p>${statusSpan}`;
+      return;
+    }
+    historySection.innerHTML = `<h3>${safe(labels.settingsHistory)}</h3>
+      <div class="cp-settings-history-controls">
+        <label class="cp-schedule-option"><span>${safe(labels.restoreRevision)}</span><select data-settings-revision-select>${older.map((item) => `<option value="${item.record_revision}">${safe(`${locale === "fa" ? "نسخه" : "revision"} ${item.record_revision} · ${item.mode} · ${item.project_start}`)}</option>`).join("")}</select></label>
+        <button type="button" data-settings-restore>${safe(labels.restoreSettings)}</button>
+      </div>
+      <p class="cp-muted">${safe(labels.restoreSettingsHint)}</p>${statusSpan}`;
+    const select = historySection.querySelector<HTMLSelectElement>("[data-settings-revision-select]");
+    const button = historySection.querySelector<HTMLButtonElement>("[data-settings-restore]");
+    button?.addEventListener("click", async () => {
+      const hidden = form?.elements.namedItem("record_revision") as HTMLInputElement | null;
+      const status = historySection.querySelector<HTMLElement>("[data-settings-history-status]");
+      const target = older.find((item) => String(item.record_revision) === select?.value);
+      if (!target || !hidden || !status) return;
+      button.disabled = true;
+      if (select) select.disabled = true;
+      status.textContent = labels.saving;
+      try {
+        const result = await transport.post<Record<string, unknown>, ScheduleSettingsDTO>(
+          path,
+          buildSettingsRestoreRequest(target, Number(hidden.value)),
+          context,
+          crypto.randomUUID(),
+        );
+        if (!result.ok) {
+          status.textContent = `${labels.restoreSettingsFailed} (${result.error.code})`;
+          button.disabled = false;
+          if (select) select.disabled = false;
+          return;
+        }
+        scheduleSettingsDrafts.delete(draftKey);
+        await mountSettingsPanel(panel, transport, context, catalog, labels, locale);
+        const restored = panel.querySelector<HTMLElement>("[data-settings-history-status]");
+        if (restored) restored.textContent = labels.settingsRestored;
+      } catch (error) {
+        status.textContent = `${labels.restoreSettingsFailed} (${error instanceof Error ? error.message : "INVALID_SETTINGS"})`;
+        button.disabled = false;
+        if (select) select.disabled = false;
+      }
+    });
+  };
+  const refreshHistory = async (currentRevision: number): Promise<void> => {
+    const result = await transport.get<ScheduleSettingsRevisionsDTO>(revisionsPath, context);
+    revisionsState = result.ok ? result.data.revisions : null;
+    renderHistory(currentRevision);
+  };
+  renderHistory(initial.record_revision);
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const status = panel.querySelector<HTMLElement>("[data-settings-status]");
@@ -750,6 +850,7 @@ async function mountSettingsPanel(
       syncDateTypes();
       scheduleSettingsDrafts.delete(draftKey);
       status.textContent = labels.saved;
+      await refreshHistory(saved.record_revision);
     } catch (error) {
       status.textContent = `${labels.saveFailed} (${error instanceof Error ? error.message : "INVALID_SETTINGS"})`;
     } finally {

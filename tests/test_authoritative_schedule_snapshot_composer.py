@@ -77,6 +77,7 @@ from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.schedule_options import (
     PriorityListItem,
     PrioritySortOrder,
+    ScheduleMode,
     ScheduleOptions,
 )
 from construction_pm.scheduling.time_duration import DurationUnit
@@ -2683,3 +2684,68 @@ def test_ai_execution_reports_failed_recalculation_without_ghost_success(tmp_pat
         assert fixture["snapshot_repo"].list(scope) == ()
     finally:
         connection.close()
+
+
+def test_project_schedule_settings_history_is_read_only_and_restore_appends(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    try:
+        earliest = ScheduleOptions(
+            mode=ScheduleMode.EARLIEST, data_date=date(2026, 10, 19)
+        )
+        alap = ScheduleOptions(mode=ScheduleMode.ALAP, data_date=date(2026, 10, 19))
+        status, first = _save_settings(app, expected_revision=0, options=earliest)
+        assert status == "201 Created", first
+        status, second = _save_settings(app, expected_revision=1, options=alap)
+        assert status == "200 OK", second
+        assert second["record_revision"] == 2
+
+        status, history = _request(
+            app, "GET", "/api/projects/p1/p6/schedule/settings/revisions"
+        )
+        assert status == "200 OK", history
+        assert history["contract_version"] == (
+            "p6-project-schedule-settings-revisions-api.v1"
+        )
+        assert history["kind"] == "project_schedule_settings_revisions"
+        assert [item["record_revision"] for item in history["revisions"]] == [2, 1]
+        assert [
+            item["schedule_options"]["mode"] for item in history["revisions"]
+        ] == ["ALAP", "EARLIEST"]
+
+        # Restoring revision 1 is an ordinary save against the current
+        # revision: it appends revision 3 and never rewrites stored history.
+        restore_payload = {
+            "contract_version": P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
+            "expected_record_revision": second["record_revision"],
+            "mode": first["mode"],
+            "project_calendar_id": first["project_calendar"]["calendar_id"],
+            "project_calendar_version": first["project_calendar"]["calendar_version"],
+            "project_calendar_system": first["project_calendar"]["system"],
+            "project_start": first["project_start"],
+            "project_finish": first["project_finish"],
+            "schedule_options": first["schedule_options"],
+            "project_leveling_priority": first["project_leveling_priority"],
+        }
+        status, restored = _request(
+            app, "POST", "/api/projects/p1/p6/schedule/settings", restore_payload
+        )
+        assert status == "200 OK", restored
+        assert restored["record_revision"] == 3
+        assert restored["schedule_options"]["mode"] == "EARLIEST"
+
+        status, after = _request(
+            app, "GET", "/api/projects/p1/p6/schedule/settings/revisions"
+        )
+        assert status == "200 OK", after
+        assert [item["record_revision"] for item in after["revisions"]] == [3, 2, 1]
+        assert [item["schedule_options"]["mode"] for item in after["revisions"]] == [
+            "EARLIEST", "ALAP", "EARLIEST",
+        ]
+
+        status, _ = _request(
+            app, "POST", "/api/projects/p1/p6/schedule/settings/revisions", {}
+        )
+        assert status == "405 Method Not Allowed"
+    finally:
+        fixture["connection"].close()

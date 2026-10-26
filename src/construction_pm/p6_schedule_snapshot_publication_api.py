@@ -29,6 +29,9 @@ from .schedule_snapshot_publisher import (
 
 P6_SCHEDULE_SNAPSHOT_API_VERSION = "p6-schedule-snapshot-api.v1"
 P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION = "p6-project-schedule-settings-api.v1"
+P6_PROJECT_SCHEDULE_SETTINGS_REVISIONS_API_VERSION = (
+    "p6-project-schedule-settings-revisions-api.v1"
+)
 
 
 def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> None:
@@ -123,6 +126,26 @@ class P6ScheduleSnapshotPublicationAPI:
             return None
         return self._settings_dto(settings)
 
+    def get_settings_revisions(
+        self,
+        scope: BackendScope,
+        *,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Return append-only settings history, newest first.
+
+        The history is read-only. Restoring a revision is an ordinary save that
+        appends a new revision, so no stored row is rewritten.
+        """
+
+        self._require_schedule_permission(scope, auth_context)
+        revisions = self.project_schedule_settings_repository.list_revisions(scope)
+        return {
+            "contract_version": P6_PROJECT_SCHEDULE_SETTINGS_REVISIONS_API_VERSION,
+            "kind": "project_schedule_settings_revisions",
+            "revisions": [self._settings_dto(item) for item in revisions],
+        }
+
     def publish(
         self,
         scope: BackendScope,
@@ -161,5 +184,6 @@ class P6ScheduleSnapshotPublicationAPI:
 __all__ = [
     "P6_SCHEDULE_SNAPSHOT_API_VERSION",
     "P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION",
+    "P6_PROJECT_SCHEDULE_SETTINGS_REVISIONS_API_VERSION",
     "P6ScheduleSnapshotPublicationAPI",
 ]

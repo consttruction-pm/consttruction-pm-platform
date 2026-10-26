@@ -65,7 +65,7 @@ class ProjectLifecycleWsgiApp:
                 status, headers, body = self._routes.handle(
                     method, path, cookies=cookie_values, body=body, headers=request_headers
                 )
-        reason = {200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 409: "Conflict", 413: "Payload Too Large", 502: "Bad Gateway"}.get(status, "Internal Server Error")
+        reason = {200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 405: "Method Not Allowed", 409: "Conflict", 413: "Payload Too Large", 502: "Bad Gateway"}.get(status, "Internal Server Error")
         response_headers = [("Content-Length", str(len(body))), *headers.items(),
                             ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff")]
         start_response(f"{status} {reason}", response_headers)

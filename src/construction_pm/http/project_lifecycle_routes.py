@@ -896,7 +896,8 @@ class ProjectLifecycleHttpRoutes:
                 suffix = path[len("/api/projects/") + len(project_id) + len(prefix):]
                 if not project_id:
                     return self._error(400, "P6_PROJECT_SCHEDULE_SETTINGS_REQUEST_INVALID", "error.request.invalid")
-                if suffix.strip("/"):
+                suffix_parts = [part for part in suffix.strip("/").split("/") if part]
+                if suffix_parts and not (method == "GET" and suffix_parts == ["revisions"]):
                     return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
                 if method not in {"GET", "POST"}:
                     return self._error(405, "P6_PROJECT_SCHEDULE_SETTINGS_METHOD_NOT_ALLOWED", "error.request.invalid")
@@ -915,6 +916,10 @@ class ProjectLifecycleHttpRoutes:
                 )
                 try:
                     if method == "GET":
+                        if suffix_parts == ["revisions"]:
+                            return self._json(200, self._p6_schedule_snapshot_api.get_settings_revisions(
+                                scope, auth_context=auth
+                            ))
                         settings = self._p6_schedule_snapshot_api.get_settings(
                             scope, auth_context=auth
                         )

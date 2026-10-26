@@ -2018,6 +2018,11 @@ th {
 .cp-schedule-actions { grid-column:1/-1; display:flex; align-items:center; flex-wrap:wrap; gap:.8rem; }
 .cp-schedule-actions button, [data-run-schedule] { border:1px solid var(--cp-navy); border-radius:.45rem; background:var(--cp-navy); color:#fff; padding:.65rem .9rem; cursor:pointer; }
 .cp-schedule-actions button:disabled, [data-run-schedule]:disabled { opacity:.6; cursor:wait; }
+.cp-settings-history { display:grid; gap:.55rem; margin-top:.9rem; padding-top:.8rem; border-top:1px solid var(--cp-border); }
+.cp-settings-history h3 { margin:0; color:var(--cp-navy); }
+.cp-settings-history-controls { display:flex; align-items:end; flex-wrap:wrap; gap:.7rem; }
+.cp-settings-history-controls button { border:1px solid var(--cp-navy); border-radius:.45rem; background:var(--cp-navy); color:#fff; padding:.55rem .8rem; cursor:pointer; }
+.cp-settings-history-controls button:disabled { opacity:.6; cursor:not-allowed; }
 .cp-reference-meta, .cp-schedule-result-meta { display:flex; gap:.55rem 1rem; align-items:center; flex-wrap:wrap; color:var(--cp-muted); font-size:.82rem; }
 .cp-reference-filters { display:grid; grid-template-columns:minmax(180px,2fr) repeat(3,minmax(130px,1fr)); gap:.6rem; }
 .cp-reference-filters label { display:grid; gap:.35rem; color:var(--cp-navy); font-size:.82rem; min-width:0; }

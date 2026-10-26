@@ -1787,13 +1787,79 @@ async function main() {
         earliestSettings.body?.schedule_options?.mode === "EARLIEST",
       `the earliest scheduling mode must be restorable, got ${JSON.stringify(earliestSettings)}`,
     );
+    const readSettingsRevisions = () => page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/schedule/settings/revisions", {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`,
+      { awaitPromise: true },
+    );
+    const revisionsBefore = await readSettingsRevisions();
+    assert(
+      revisionsBefore.status === 200 &&
+        revisionsBefore.body?.revisions?.map((item) => item.record_revision).join(",") === "3,2,1",
+      `settings history must list appended revisions newest first, got ${JSON.stringify(revisionsBefore)}`,
+    );
+    const restoreOptions = await page.evaluate(`(() => {
+      const select = document.querySelector("[data-settings-revision-select]");
+      return select ? Array.from(select.options).map((option) => option.value) : [];
+    })()`);
+    assert(
+      restoreOptions.includes("2") && restoreOptions.includes("1"),
+      `settings history must offer older revisions only, got ${JSON.stringify(restoreOptions)}`,
+    );
+    await page.setSelect("[data-settings-revision-select]", "1");
+    await page.click("[data-settings-restore]");
+    await page.waitFor(
+      `document.querySelector("[data-settings-history-status]")?.textContent.trim() === "Settings revision restored."`,
+      "settings history restore status",
+    );
+    const restoredFromHistory = await readSettings();
+    assert(
+      restoredFromHistory.status === 200 &&
+        restoredFromHistory.body?.record_revision === 4 &&
+        restoredFromHistory.body?.schedule_options?.mode === "EARLIEST",
+      `restoring revision 1 must append revision 4 without rewriting history, got ${JSON.stringify(restoredFromHistory)}`,
+    );
+    const revisionsAfter = await readSettingsRevisions();
+    assert(
+      revisionsAfter.status === 200 &&
+        revisionsAfter.body?.revisions?.map((item) => item.record_revision).join(",") === "4,3,2,1",
+      `restored settings must append a new revision, got ${JSON.stringify(revisionsAfter)}`,
+    );
+    await page.screenshot("06b-settings-history.png");
+    EVIDENCE.settings_history = {
+      revisions_before: revisionsBefore.body.revisions.map((item) => ({
+        record_revision: item.record_revision,
+        mode: item.schedule_options.mode,
+      })),
+      restored_from_revision: 1,
+      restored_record_revision: restoredFromHistory.body.record_revision,
+      revisions_after: revisionsAfter.body.revisions.map((item) => ({
+        record_revision: item.record_revision,
+        mode: item.schedule_options.mode,
+      })),
+      source: "schedule settings history -> GET /p6/schedule/settings/revisions; restore posts the selected values with the current expected revision",
+    };
+    record("settings history restores an older revision as a new append-only revision", {
+      offered_older_revisions: restoreOptions,
+      restored_revision: restoredFromHistory.body.record_revision,
+      history: revisionsAfter.body.revisions.map((item) => item.record_revision),
+    });
     EVIDENCE.backward_placement = {
       offered_modes: schedulingModes,
       persisted_mode: alapSettings.body.schedule_options.mode,
       persisted_revision: alapSettings.body.record_revision,
       restored_mode: earliestSettings.body.schedule_options.mode,
       restored_revision: earliestSettings.body.record_revision,
-      source: "schedule settings form -> POST/GET /p6/schedule/settings",
+      history_restored_revision: restoredFromHistory.body.record_revision,
+      source: "schedule settings form and history -> POST/GET /p6/schedule/settings[/revisions]",
       placement_evidence: "Shared Core ALAP evaluator test selects LATE placement",
     };
     record("the workspace persists the backward (ALAP) scheduling selection", {

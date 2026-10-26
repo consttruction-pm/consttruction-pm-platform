@@ -115,6 +115,64 @@ def test_project_schedule_settings_update_requires_exact_record_revision():
         repo.save(changed, expected_revision=1)
 
 
+def test_project_schedule_settings_history_is_append_only_and_newest_first():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteProjectScheduleSettingsRepository(connection)
+    first = repo.save(date_settings(), expected_revision=0)
+    second = repo.save(
+        replace(date_settings(), project_leveling_priority=24),
+        expected_revision=first.record_revision,
+    )
+    third = repo.save(
+        replace(date_settings(), project_leveling_priority=25),
+        expected_revision=second.record_revision,
+    )
+
+    revisions = repo.list_revisions(scope())
+    assert [item.record_revision for item in revisions] == [3, 2, 1]
+    assert [item.project_leveling_priority for item in revisions] == [25, 24, 23]
+    assert revisions[0] == third
+    assert revisions[1] == second
+    assert revisions[2] == first
+    assert repo.get(scope()) == third
+
+    with pytest.raises(ProjectScheduleSettingsPersistenceError, match="REVISION_CONFLICT"):
+        repo.save(replace(date_settings(), project_leveling_priority=26), expected_revision=1)
+    assert [item.record_revision for item in repo.list_revisions(scope())] == [3, 2, 1]
+
+
+def test_sqlite_settings_history_detects_tampering_and_scope_changes():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteProjectScheduleSettingsRepository(connection)
+    repo.save(date_settings(), expected_revision=0)
+
+    assert repo.list_revisions(scope(8)) == []
+    connection.execute(
+        "UPDATE project_schedule_settings_history SET canonical_payload=? "
+        "WHERE tenant_id=? AND project_id=? AND record_revision=1",
+        ('{"tampered":true}', "T-1", "P-1"),
+    )
+    connection.commit()
+    with pytest.raises(ProjectScheduleSettingsPersistenceError, match="SETTINGS_HASH_MISMATCH"):
+        repo.list_revisions(scope())
+
+
+def test_project_schedule_settings_history_preserves_caller_owned_transaction(tmp_path):
+    database = str(tmp_path / "settings-history-transaction.sqlite")
+    writer = sqlite3.connect(database)
+    repo = SQLiteProjectScheduleSettingsRepository(writer)
+    reader = sqlite3.connect(database)
+    reader_repo = SQLiteProjectScheduleSettingsRepository(reader)
+
+    writer.execute("BEGIN")
+    repo.save(date_settings(), expected_revision=0)
+    assert reader_repo.list_revisions(scope()) == []
+    writer.rollback()
+    assert reader_repo.list_revisions(scope()) == []
+    reader.close()
+    writer.close()
+
+
 def test_project_schedule_settings_fails_closed_on_missing_or_stale_project_revision():
     repo = SQLiteProjectScheduleSettingsRepository(sqlite3.connect(":memory:"))
     assert repo.get(scope()) is None
@@ -229,13 +287,28 @@ def test_postgres_project_schedule_settings_round_trip(postgres_dsn):
     connection.commit()
     try:
         connection.execute("DELETE FROM project_schedule_settings WHERE tenant_id=%s AND project_id=%s", ("T-1", "P-1"))
+        connection.execute(
+            "DELETE FROM project_schedule_settings_history WHERE tenant_id=%s AND project_id=%s",
+            ("T-1", "P-1"),
+        )
         connection.commit()
         original = date_settings()
         with connection.transaction():
             stored = repo.save(original, expected_revision=0)
+            updated = repo.save(
+                replace(original, project_leveling_priority=24),
+                expected_revision=stored.record_revision,
+            )
         assert stored.record_revision == 1
-        assert repo.get(scope()) == stored
+        assert repo.get(scope()) == updated
+        revisions = repo.list_revisions(scope())
+        assert [item.record_revision for item in revisions] == [2, 1]
+        assert [item.project_leveling_priority for item in revisions] == [24, 23]
     finally:
         connection.execute("DELETE FROM project_schedule_settings WHERE tenant_id=%s AND project_id=%s", ("T-1", "P-1"))
+        connection.execute(
+            "DELETE FROM project_schedule_settings_history WHERE tenant_id=%s AND project_id=%s",
+            ("T-1", "P-1"),
+        )
         connection.commit()
         connection.close()

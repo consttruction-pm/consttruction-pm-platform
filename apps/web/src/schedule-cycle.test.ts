@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildSettingsRestoreRequest,
   filterScheduleReferences,
   type ScheduleCodeReferenceCatalog,
+  type ScheduleSettingsDTO,
 } from "./schedule-cycle.js";
 
 const catalog: ScheduleCodeReferenceCatalog = {
@@ -88,4 +90,35 @@ test("reference explorer can show formula-only results", () => {
   assert.deepEqual(optionResult.options.map((item) => item.id), ["OPT-SCH-001"]);
   assert.deepEqual(optionResult.requirements, []);
   assert.deepEqual(optionResult.formulas, []);
+});
+
+test("settings restore posts the selected values at the current revision", () => {
+  const revision: ScheduleSettingsDTO = {
+    contract_version: "p6-project-schedule-settings-api.v1",
+    kind: "project_schedule_settings",
+    scope: { tenant_id: "T-1", project_id: "P-1", project_revision: 7 },
+    record_revision: 2,
+    mode: "DATE_BASED",
+    project_calendar: {
+      calendar_id: "CAL-1", calendar_version: "1",
+      kind: "working-day", system: "gregorian",
+    },
+    project_start: "2026-09-21",
+    project_finish: null,
+    schedule_options: { mode: "ALAP" },
+    project_leveling_priority: 10,
+  };
+
+  assert.deepEqual(buildSettingsRestoreRequest(revision, 5), {
+    contract_version: "p6-project-schedule-settings-api.v1",
+    expected_record_revision: 5,
+    mode: "DATE_BASED",
+    project_calendar_id: "CAL-1",
+    project_calendar_version: "1",
+    project_calendar_system: "gregorian",
+    project_start: "2026-09-21",
+    project_finish: null,
+    schedule_options: { mode: "ALAP" },
+    project_leveling_priority: 10,
+  });
 });
