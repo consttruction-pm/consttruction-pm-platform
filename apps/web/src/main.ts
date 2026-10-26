@@ -34,15 +34,20 @@ import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
 
-type LayoutHistoryNotice = "undone" | "redone" | "empty" | "failed" | "conflict";
+type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
 
 type LayoutHistoryState = {
   undo: LayoutDefinition[];
   redo: LayoutDefinition[];
   noticeKey: LayoutHistoryNotice | null;
+  revisions: LayoutDefinition[] | null;
+  revisionRequest: Promise<LayoutDefinition[]> | null;
+  revisionEpoch: number;
+  revisionLoadFailed: boolean;
 };
 
 const layoutHistoryStore = new Map<string, LayoutHistoryState>();
+let currentWorkspaceState: WorkspaceState | null = null;
 
 function layoutHistoryKey(context: ProjectContext, layout: LayoutDefinition): string {
   return [
@@ -58,12 +63,26 @@ function getLayoutHistory(context: ProjectContext, layout: LayoutDefinition): La
   const key = layoutHistoryKey(context, layout);
   const existing = layoutHistoryStore.get(key);
   if (existing) return existing;
-  const created: LayoutHistoryState = { undo: [], redo: [], noticeKey: null };
+  const created: LayoutHistoryState = {
+    undo: [],
+    redo: [],
+    noticeKey: null,
+    revisions: null,
+    revisionRequest: null,
+    revisionEpoch: 0,
+    revisionLoadFailed: false,
+  };
   layoutHistoryStore.set(key, created);
   return created;
 }
 
-function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
+function renderApp(
+  container: HTMLElement,
+  state: WorkspaceState,
+  p6Persistence?: ReturnType<typeof createP6LayoutPersistence>,
+  preserveLayoutNotice = false,
+): void {
+  currentWorkspaceState = state;
   const shellLabels = getWorkspaceShellLabels(state.locale);
   const persistence = p6Persistence ?? createP6LayoutPersistence(new FetchApiTransport(window.location.origin), state.context);
 
@@ -124,13 +143,48 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
         canUndo: layoutHistory.undo.length > 0 || state.p6Layout.revision > 0,
         canRedo: layoutHistory.redo.length > 0,
         noticeKey: layoutHistory.noticeKey,
+        revisions: layoutHistory.revisions?.map((revision) => ({
+          revision: revision.revision,
+          columnCount: revision.columns.length,
+        })),
       }
     : undefined;
+
+  const requestLayoutRevisions = (layout: LayoutDefinition): Promise<LayoutDefinition[]> => {
+    const history = getLayoutHistory(state.context, layout);
+    if (history.revisions) return Promise.resolve(history.revisions);
+    if (!history.revisionRequest) {
+      const epoch = history.revisionEpoch;
+      const request = loadP6LayoutRevisions(aiTransport, state.context, layout.scope, layout.view_id)
+        .then((loaded) => {
+          if (history.revisionEpoch === epoch) {
+            history.revisions = loaded;
+            history.revisionLoadFailed = false;
+          }
+          return loaded;
+        });
+      history.revisionRequest = request;
+      const release = () => {
+        if (history.revisionRequest === request) history.revisionRequest = null;
+      };
+      void request.then(release, release);
+    }
+    return history.revisionRequest;
+  };
+
+  const invalidateLayoutRevisions = (history: LayoutHistoryState): void => {
+    history.revisionEpoch += 1;
+    history.revisions = null;
+    history.revisionRequest = null;
+    history.revisionLoadFailed = false;
+  };
 
   const reloadLatestLayout = async (scope: LayoutDefinition["scope"], viewId: string): Promise<boolean> => {
     const latest = await persistence.load(scope, viewId);
     if (!latest || !state.p6FieldRegistry) return false;
-    getLayoutHistory(state.context, latest).noticeKey = "conflict";
+    const latestHistory = getLayoutHistory(state.context, latest);
+    latestHistory.noticeKey = "conflict";
+    invalidateLayoutRevisions(latestHistory);
     renderApp(container, setP6Presentation(state, state.p6FieldRegistry, latest), persistence);
     return true;
   };
@@ -163,6 +217,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
       if (state.p6Layout) savedHistory.undo.push(state.p6Layout);
       savedHistory.redo.length = 0;
       savedHistory.noticeKey = null;
+      invalidateLayoutRevisions(savedHistory);
       renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
     } catch (error) {
       await reportLayoutFailure(error);
@@ -184,7 +239,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     const history = getLayoutHistory(state.context, layout);
     if (!history.undo.length) {
       try {
-        const revisions = await loadP6LayoutRevisions(aiTransport, state.context, layout.scope, layout.view_id);
+        const revisions = await requestLayoutRevisions(layout);
         const currentIndex = revisions.findIndex((revision) => revision.revision === layout.revision);
         const older = currentIndex < 0 ? [] : revisions.slice(currentIndex + 1);
         if (!older.length) {
@@ -206,6 +261,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
       const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
       history.redo.push(layout);
       history.noticeKey = "undone";
+      invalidateLayoutRevisions(history);
       renderApp(container, setP6Presentation(state, registry, saved), persistence);
     } catch (error) {
       await reportLayoutFailure(error);
@@ -223,6 +279,39 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
       const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
       history.undo.push(layout);
       history.noticeKey = "redone";
+      invalidateLayoutRevisions(history);
+      renderApp(container, setP6Presentation(state, registry, saved), persistence);
+    } catch (error) {
+      await reportLayoutFailure(error);
+    }
+  };
+
+  const restoreLayout = async (revision: number): Promise<void> => {
+    const layout = state.p6Layout;
+    const registry = state.p6FieldRegistry;
+    if (!layout || !registry) return;
+    const history = getLayoutHistory(state.context, layout);
+    let revisions: LayoutDefinition[];
+    try {
+      revisions = await requestLayoutRevisions(layout);
+    } catch (error) {
+      console.error("P6 layout history read failed", error);
+      history.noticeKey = "failed";
+      renderApp(container, state, persistence);
+      return;
+    }
+    const target = revisions.find((item) => item.revision === revision);
+    if (!target || target.revision >= layout.revision) {
+      history.noticeKey = "empty";
+      renderApp(container, state, persistence);
+      return;
+    }
+    try {
+      const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
+      history.undo.push(layout);
+      history.redo.length = 0;
+      history.noticeKey = "restored";
+      invalidateLayoutRevisions(history);
       renderApp(container, setP6Presentation(state, registry, saved), persistence);
     } catch (error) {
       await reportLayoutFailure(error);
@@ -262,9 +351,27 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     onP6FieldRemove: (fieldId) => mutateLayout(() => removeP6Field(state, fieldId)),
     onP6LayoutUndo: () => { void undoLayout(); },
     onP6LayoutRedo: () => { void redoLayout(); },
+    onP6LayoutRestore: (revision) => { void restoreLayout(revision); },
     layoutHistory: historyView,
   });
-  if (layoutHistory) layoutHistory.noticeKey = null;
+  if (layoutHistory && !preserveLayoutNotice) layoutHistory.noticeKey = null;
+  if (
+    state.p6Layout
+    && layoutHistory
+    && layoutHistory.revisions === null
+    && !layoutHistory.revisionRequest
+    && !layoutHistory.revisionLoadFailed
+  ) {
+    void requestLayoutRevisions(state.p6Layout)
+      .then(() => {
+        renderApp(container, currentWorkspaceState ?? state, persistence, true);
+      })
+      .catch((error) => {
+        console.error("P6 layout history read failed", error);
+        layoutHistory.revisionLoadFailed = true;
+        renderApp(container, currentWorkspaceState ?? state, persistence, true);
+      });
+  }
   void mountScheduleCyclePanels(workspace, aiTransport, state.context, state.locale, (facts) => {
     try {
       const next = applyAuthoritativeScheduleFacts(state, facts);
