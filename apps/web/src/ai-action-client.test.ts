@@ -104,6 +104,7 @@ test("execution sends the calculation timezone and parses a computed verificatio
       },
       query_id: "ai-action-execution:prop-1",
     },
+    execution_verification_stored: true,
   }});
   const result = await new AIActionClient(transport).execute(context, "prop-1", "Asia/Tehran");
   assert.deepEqual(transport.calls[0]?.request, {
@@ -116,7 +117,68 @@ test("execution sends the calculation timezone and parses a computed verificatio
     assert.equal(verification?.status, "COMPUTED");
     assert.equal(verification?.activity?.start, "2026-10-19");
     assert.equal(verification?.snapshot?.snapshot_id, "SNAP-1");
+    assert.equal(result.data.execution_verification_stored, true);
   }
+});
+
+test("reads a durable execution verification from the proposal list", async () => {
+  const transport = new FakeTransport();
+  const storedProposal = {
+    ...validProposal,
+    status: "executed",
+    result: { activity: { activity_id: "A-17", name: "Excavation" } },
+    execution_verification: {
+      contract_version: "ai-action-execution-verification.v1",
+      status: "COMPUTED",
+      reason_code: null,
+      activity: {
+        activity_id: "A-17", start: "2026-10-19", finish: "2026-10-20",
+        duration: 2, duration_unit: "working-day", critical: false,
+      },
+      project_finish: "2026-10-20",
+      calculation_run_identity: "run-identity-1",
+      snapshot: {
+        snapshot_id: "SNAP-1",
+        snapshot_hash: "a".repeat(64),
+        calculation_identity: "b".repeat(64),
+      },
+      query_id: "ai-action-execution:prop-1",
+    },
+  };
+  transport.responses.push({ ok: true, data: {
+    contract_version: AI_ACTION_CONTRACT_VERSION,
+    proposals: [storedProposal],
+  }});
+  const result = await new AIActionClient(transport).listProposals(context);
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.data.proposals[0]?.execution_verification?.status, "COMPUTED");
+    assert.equal(result.data.proposals[0]?.execution_verification?.activity?.finish, "2026-10-20");
+  }
+});
+
+test("rejects a malformed durable verification in the proposal list", async () => {
+  const transport = new FakeTransport();
+  transport.responses.push({ ok: true, data: {
+    contract_version: AI_ACTION_CONTRACT_VERSION,
+    proposals: [{
+      ...validProposal,
+      status: "executed",
+      execution_verification: {
+        contract_version: "ai-action-execution-verification.v1",
+        status: "COMPUTED",
+        reason_code: null,
+        activity: null,
+        project_finish: "2026-10-20",
+        calculation_run_identity: "run-identity-1",
+        snapshot: null,
+        query_id: "ai-action-execution:prop-1",
+      },
+    }],
+  }});
+  const result = await new AIActionClient(transport).listProposals(context);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "INVALID_AI_ACTION_RESPONSE");
 });
 
 test("rejects a computed verification that omits calculated activity or snapshot", async () => {

@@ -2277,6 +2277,7 @@ def test_ai_activity_execution_is_persisted_and_recalculated_by_shared_core(tmp_
         assert snapshot["snapshot_id"] == "SNAP-PUBLISHED-1"
         assert len(snapshot["snapshot_hash"]) == 64
         assert len(snapshot["calculation_identity"]) == 64
+        assert executed["execution_verification_stored"] is True
 
         # The calculated result must come from a persisted snapshot containing
         # the freshly persisted activity, not from the executor's return value.
@@ -2294,8 +2295,29 @@ def test_ai_activity_execution_is_persisted_and_recalculated_by_shared_core(tmp_
             assert stored is not None
             assert stored.name == "AI verified activity"
             assert stored.duration_value == Decimal("2")
+            verification_row = fresh_connection.execute(
+                "SELECT verification_json FROM ai_action_execution_verifications "
+                "WHERE proposal_id=?",
+                (proposal_id,),
+            ).fetchone()
+            assert verification_row is not None
+            assert json.loads(verification_row[0]) == verification
         finally:
             fresh_connection.close()
+
+        status, listed = _request(app, "GET", "/api/projects/p1/ai/actions/proposals")
+        assert status == "200 OK"
+        listed_proposal = next(
+            item for item in listed["proposals"] if item["proposal_id"] == proposal_id
+        )
+        assert listed_proposal["execution_verification"] == verification
+        status, detail = _request(
+            app,
+            "GET",
+            f"/api/projects/p1/ai/actions/proposals/{proposal_id}",
+        )
+        assert status == "200 OK"
+        assert detail["proposal"]["execution_verification"] == verification
 
         row = connection.execute(
             "SELECT status, result_json FROM ai_action_proposals WHERE proposal_id=?",
@@ -2383,10 +2405,18 @@ def test_ai_execution_without_schedule_permission_reports_unavailable_and_keeps_
         assert verification["reason_code"] == "PROJECT_SCHEDULE_PERMISSION_REQUIRED"
         assert verification["snapshot"] is None
         assert verification["activity"] is None
+        assert executed["execution_verification_stored"] is True
         stored = fixture["activity_repo"].get(scope, "AI-NO-SCHEDULE")
         assert stored is not None
         assert stored.name == "Written without schedule grant"
         assert fixture["snapshot_repo"].list(scope) == ()
+        status, detail = _request(
+            app,
+            "GET",
+            f"/api/projects/p1/ai/actions/proposals/{proposal_id}",
+        )
+        assert status == "200 OK"
+        assert detail["proposal"]["execution_verification"] == verification
     finally:
         connection.close()
 
@@ -2419,6 +2449,7 @@ def test_ai_execution_reports_failed_recalculation_without_ghost_success(tmp_pat
         assert isinstance(verification["reason_code"], str) and verification["reason_code"]
         assert verification["snapshot"] is None
         assert verification["activity"] is None
+        assert executed["execution_verification_stored"] is True
         assert fixture["activity_repo"].get(scope, "AI-NO-SETTINGS") is not None
         assert fixture["snapshot_repo"].list(scope) == ()
 
@@ -2440,6 +2471,7 @@ def test_ai_execution_reports_failed_recalculation_without_ghost_success(tmp_pat
         verification = executed["execution_verification"]
         assert verification["status"] == "UNAVAILABLE"
         assert verification["reason_code"] == "CALCULATION_TIMEZONE_REQUIRED"
+        assert executed["execution_verification_stored"] is True
         assert fixture["activity_repo"].get(scope, "AI-NO-TIMEZONE") is not None
         assert fixture["snapshot_repo"].list(scope) == ()
     finally:

@@ -22,7 +22,7 @@ type PanelLabels = {
   calculationPermissionMissing: string; calculationNotConfigured: string;
   scheduleStart: string; scheduleFinish: string; calculatedDuration: string;
   critical: string; yes: string; no: string; persistedActivity: string;
-  calculationAtExecution: string; savedResultUnavailable: string;
+  calculationAtExecution: string; savedResultUnavailable: string; verificationNotStored: string;
 };
 
 const labels: Record<"en" | "fa", PanelLabels> = {
@@ -56,6 +56,7 @@ const labels: Record<"en" | "fa", PanelLabels> = {
     persistedActivity: "Saved activity",
     calculationAtExecution: "Schedule dates are verified at execution time; this saved record shows the persisted activity.",
     savedResultUnavailable: "The saved result is not available.",
+    verificationNotStored: "The calculated result could not be saved for later display.",
   },
   fa: {
     title: "دستیار هوشمند · اقدامات",
@@ -87,6 +88,7 @@ const labels: Record<"en" | "fa", PanelLabels> = {
     persistedActivity: "فعالیت ذخیره‌شده",
     calculationAtExecution: "تاریخ‌های زمان‌بندی هنگام اجرا تأیید می‌شوند؛ این رکورد ذخیره‌شده فعالیت را نشان می‌دهد.",
     savedResultUnavailable: "نتیجه ذخیره‌شده در دسترس نیست.",
+    verificationNotStored: "نتیجه محاسبه‌شده برای نمایش بعدی ذخیره نشد.",
   },
 };
 
@@ -375,7 +377,11 @@ export function mountAIActionPanel(
             setMessage(operationError(result.error.code), "error");
           } else if (result.data.status === "executed") {
             const outcome = verificationOutcome(result.data.execution_verification, t);
-            setMessage(outcome.text, outcome.kind);
+            const notStored = result.data.execution_verification_stored === false;
+            setMessage(
+              notStored ? `${outcome.text} ${t.verificationNotStored}` : outcome.text,
+              notStored ? "warning" : outcome.kind,
+            );
           } else {
             setMessage(statusText(result.data.status, t), "warning");
           }
@@ -388,6 +394,14 @@ export function mountAIActionPanel(
           "cp-ai-action-result",
           `${t.result}: ${persistedActivitySummary(proposal.result, t)}`,
         ));
+        if (proposal.execution_verification) {
+          const storedOutcome = verificationOutcome(proposal.execution_verification, t);
+          item.append(element(
+            "p",
+            storedOutcome.kind === "success" ? "cp-ai-action-result" : "cp-ai-action-metadata",
+            storedOutcome.text,
+          ));
+        }
         item.append(element("p", "cp-ai-action-metadata", t.calculationAtExecution));
       }
       list.append(item);

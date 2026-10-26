@@ -2328,6 +2328,11 @@ class ProjectLifecycleHttpRoutes:
                             "resource_domain": record.proposal.resource_domain,
                             "payload": dict(record.payload),
                             "result": None if record.result is None else dict(record.result),
+                            "execution_verification": (
+                                None
+                                if record.execution_verification is None
+                                else dict(record.execution_verification)
+                            ),
                             "created_at": record.created_at.isoformat(),
                             "updated_at": record.updated_at.isoformat(),
                             "decided_by": record.decided_by,
@@ -2445,6 +2450,7 @@ class ProjectLifecycleHttpRoutes:
                     })
                 record = self._ai_action_runtime.execute(runtime_context, proposal_id or "")
                 verification = None
+                verification_stored = False
                 if record.proposal.tool_name == "activity.create":
                     raw_timezone = payload.get("timezone")
                     verification = verify_ai_action_execution(
@@ -2460,6 +2466,17 @@ class ProjectLifecycleHttpRoutes:
                         ),
                         request_id=(headers or {}).get("X-Request-Id"),
                     )
+                    try:
+                        self._ai_action_runtime.record_execution_verification(
+                            runtime_context,
+                            record.proposal.proposal_id,
+                            verification,
+                        )
+                        verification_stored = True
+                    except Exception:
+                        # The committed action and its computed verification stay
+                        # visible; only durable retrieval after reload is unavailable.
+                        verification_stored = False
                 return self._json(200, {
                     "contract_version": "ai-action-runtime.v1",
                     "proposal_id": record.proposal.proposal_id,
@@ -2468,7 +2485,10 @@ class ProjectLifecycleHttpRoutes:
                     **(
                         {}
                         if verification is None
-                        else {"execution_verification": verification}
+                        else {
+                            "execution_verification": verification,
+                            "execution_verification_stored": verification_stored,
+                        }
                     ),
                 })
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/open"):

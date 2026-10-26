@@ -171,9 +171,50 @@ def test_authenticated_project_action_route_runs_propose_approve_execute():
     result = json.loads(body)
     assert result["status"] == "executed"
     assert result["result"] == {"activity_id": "a-1", "name": "Excavation"}
+    assert result["execution_verification"]["status"] == "UNAVAILABLE"
+    assert result["execution_verification"]["reason_code"] == "SCHEDULE_VERIFICATION_NOT_COMPOSED"
+    assert result["execution_verification_stored"] is True
     assert len(executed) == 1
     assert executed[0][2] == proposal_id
-    assert conn.execute("SELECT COUNT(*) FROM ai_action_audit_events").fetchone()[0] == 5
+    assert conn.execute("SELECT COUNT(*) FROM ai_action_audit_events").fetchone()[0] == 6
+    assert conn.execute(
+        "SELECT COUNT(*) FROM ai_action_audit_events WHERE event_type=?",
+        ("execution_verification_recorded",),
+    ).fetchone()[0] == 1
+
+
+def test_execution_verification_persistence_failure_does_not_mask_committed_action():
+    routes, conn, executed = build_routes()
+    status, _, body = request(routes, "/api/projects/p1/ai/actions/proposals", {
+        "expected_revision": 2,
+        "tool_name": "activity.create",
+        "payload": {"name": "Excavation"},
+        "evidence_refs": [],
+    })
+    assert status == 201
+    proposal_id = json.loads(body)["proposal"]["proposal_id"]
+    status, _, _ = request(routes, f"/api/projects/p1/ai/actions/proposals/{proposal_id}/decision", {
+        "expected_revision": 2, "approved": True,
+    })
+    assert status == 200
+
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("verification store unavailable")
+
+    routes._ai_action_runtime.record_execution_verification = unavailable
+    status, _, body = request(routes, f"/api/projects/p1/ai/actions/proposals/{proposal_id}/execute", {
+        "expected_revision": 2,
+    })
+    assert status == 200
+    result = json.loads(body)
+    assert result["status"] == "executed"
+    assert result["execution_verification"]["status"] == "UNAVAILABLE"
+    assert result["execution_verification_stored"] is False
+    assert len(executed) == 1
+    assert conn.execute(
+        "SELECT status FROM ai_action_proposals WHERE proposal_id=?",
+        (proposal_id,),
+    ).fetchone()[0] == "executed"
 
 
 def test_ai_action_route_rejects_and_audits_stale_request_revision():

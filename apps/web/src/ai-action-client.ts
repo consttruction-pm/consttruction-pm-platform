@@ -18,6 +18,7 @@ export type AIActionProposal = Readonly<{
   updated_at: string;
   decided_by: string | null;
   is_stale: boolean;
+  execution_verification?: AIActionExecutionVerification | null;
 }>;
 
 export type AIActionProposalList = Readonly<{
@@ -54,6 +55,7 @@ export type AIActionMutationResult = Readonly<{
   decided_by?: string | null;
   result?: Readonly<Record<string, unknown>> | null;
   execution_verification?: AIActionExecutionVerification | null;
+  execution_verification_stored?: boolean;
 }>;
 
 export type CreateActivityProposal = Readonly<{
@@ -101,6 +103,13 @@ function parseProposal(value: unknown): AIActionProposal | null {
   if (!isRecord(value.payload)) return null;
   if (value.result !== null && !isRecord(value.result)) return null;
   if (value.decided_by !== null && typeof value.decided_by !== "string") return null;
+  let storedVerification: AIActionExecutionVerification | null | undefined;
+  if (value.execution_verification !== undefined) {
+    storedVerification = value.execution_verification === null
+      ? null
+      : parseVerification(value.execution_verification);
+    if (storedVerification === null && value.execution_verification !== null) return null;
+  }
   return Object.freeze({
     proposal_id: value.proposal_id as string,
     tool_name: value.tool_name as string,
@@ -117,6 +126,7 @@ function parseProposal(value: unknown): AIActionProposal | null {
     updated_at: value.updated_at as string,
     decided_by: value.decided_by as string | null,
     is_stale: value.is_stale,
+    ...(storedVerification !== undefined ? { execution_verification: storedVerification } : {}),
   });
 }
 
@@ -379,6 +389,10 @@ export class AIActionClient {
         return invalidResponse<AIActionMutationResult>();
       }
     }
+    if (value.execution_verification_stored !== undefined &&
+        typeof value.execution_verification_stored !== "boolean") {
+      return invalidResponse<AIActionMutationResult>();
+    }
     return {
       ok: true,
       data: Object.freeze({
@@ -393,6 +407,9 @@ export class AIActionClient {
         } : {}),
         ...(includeResult && verification !== undefined
           ? { execution_verification: verification }
+          : {}),
+        ...(includeResult && value.execution_verification_stored !== undefined
+          ? { execution_verification_stored: value.execution_verification_stored }
           : {}),
       }),
     };
