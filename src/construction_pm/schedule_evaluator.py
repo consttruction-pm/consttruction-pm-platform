@@ -180,6 +180,10 @@ def _evaluate_materialized(
                     activities=result.activities,
                     capacities=leveling_input.capacities,
                     committed_demands=committed_demands,
+                    # Assignment early/late windows are derived from the
+                    # authoritative CPM early/late dates of this same run; this
+                    # module never recalculates activity dates or float.
+                    late_activities=result.late_activities,
                     # Competing nondriving assignments use the exact activity
                     # priority fields and order that the Shared Core applies to
                     # activity leveling. No client or parallel ordering is used.

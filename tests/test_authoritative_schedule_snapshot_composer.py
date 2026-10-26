@@ -969,6 +969,7 @@ def test_resource_dependent_driving_and_nondriving_placement_is_bound_to_immutab
 
     placement = query_result["data"]["resource_dependent_placement"]
     assert placement["status"] == "COMPLETE"
+    assert placement["placement_direction"] == "EARLY"
     assert placement["assignment_count"] == 2
     assert placement["failed_assignment_count"] == 0
     assert len(placement["input_hash"]) == 64
@@ -978,6 +979,16 @@ def test_resource_dependent_driving_and_nondriving_placement_is_bound_to_immutab
     assert driving["activity_start"] == "2026-10-19"
     assert driving["start"] == "2026-10-19"
     assert driving["finish"] == "2026-10-20"
+    # A driving assignment is fixed to the authoritative CPM dates in both
+    # directions and carries no assignment-level float.
+    assert driving["early_start"] == "2026-10-19"
+    assert driving["early_finish"] == "2026-10-20"
+    assert driving["late_start"] == "2026-10-19"
+    assert driving["late_finish"] == "2026-10-20"
+    assert driving["assignment_float_working_days"] == 0
+    assert driving["early_window_code"] is None
+    assert driving["late_window_code"] is None
+    assert driving["placement_direction"] == "EARLY"
     assert driving["total_units"] == "8"
     assert driving["calendar_id"] == "RC-1"
     assert driving["calendar_version"] == "v1"
@@ -996,6 +1007,17 @@ def test_resource_dependent_driving_and_nondriving_placement_is_bound_to_immutab
     # Nondriving demand is placed independently and may extend past the
     # activity finish without moving the activity or project finish.
     assert nondriving["finish"] == "2026-10-21"
+    # This activity is critical, so the authoritative late dates equal the
+    # early dates. The assignment windows are derived from those dates, never
+    # from the placed assignment dates.
+    assert nondriving["early_start"] == "2026-10-19"
+    assert nondriving["early_finish"] == "2026-10-21"
+    assert nondriving["late_start"] == "2026-10-19"
+    assert nondriving["late_finish"] == "2026-10-21"
+    assert nondriving["assignment_float_working_days"] == 0
+    assert nondriving["early_window_code"] is None
+    assert nondriving["late_window_code"] is None
+    assert nondriving["placement_direction"] == "EARLY"
     assert nondriving["total_units"] == "12"
     assert [
         item["period_start"] for item in nondriving["demand_periods"]
