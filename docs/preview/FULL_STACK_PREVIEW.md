@@ -130,6 +130,11 @@ SQLite database and a real headless browser. It verifies:
 - explicit revision restore: the revision picker offers only older revisions,
   restoring one reapplies its column set as a new head revision while preserving
   every prior revision in newest-first order;
+- stale-write conflict: a competing API writer appends the next layout revision
+  while the page still holds the previous head; the stale in-page column edit
+  fails closed, the page shows the localized conflict notice and reloads the
+  authoritative head, the competing presentation survives, and the lost race
+  appends no revision;
 - filter and numeric sort behavior, including an explicit empty state;
 - project settings/calendar read, save and revision increment;
 - snapshot publication plus Shared Core query results and content hash;
@@ -163,14 +168,14 @@ SQLite database and a real headless browser. It verifies:
   activity grid and curated layout;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **34 checks and 23 screenshots**.
+The latest isolated run recorded **35 checks and 24 screenshots**.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
-`04b-layout-undo-redo.png`, `04c-layout-restore.png`,
+`04b-layout-undo-redo.png`, `04c-layout-restore.png`, `04d-layout-conflict.png`,
 `07b`–`07f` (formula and interchange states),
 `08-capacity-effective-change.png`, `10a-capacity-persisted.png`,
-`11a-viewer-interchange.png` and `11b-viewer-capacity.png`, the preview server
+`11a-viewer-interchange.png`, `11b-viewer-capacity.png`, the preview server
 log and `evidence.json`.
 
 Fast backend checks for the preview composition:
