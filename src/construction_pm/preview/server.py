@@ -538,17 +538,32 @@ def serve_preview(
     host: str = "127.0.0.1",
     port: int = 4174,
 ) -> None:
-    from wsgiref.simple_server import WSGIRequestHandler, make_server
+    from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
     class RequestHandler(WSGIRequestHandler):
+        # A dropped or idle browser connection must not block the single-threaded
+        # preview server forever while it waits for another request line.
+        timeout = 10
+
         def log_message(self, format: str, *args) -> None:  # noqa: A002
             sys.stderr.write(
                 "%s - [%s] %s\n"
                 % (self.address_string(), self.log_date_time_string(), format % args)
             )
 
+    class PreviewServer(WSGIServer):
+        # The Web client loads a module graph in parallel. The default listen
+        # backlog of five can strand connections when a page reloads.
+        request_queue_size = 64
+
     app = build_preview_application(runtime)
-    server = make_server(host, port, app, handler_class=RequestHandler)
+    server = make_server(
+        host,
+        port,
+        app,
+        server_class=PreviewServer,
+        handler_class=RequestHandler,
+    )
     display_host = host if host not in {"0.0.0.0", "::"} else "localhost"
     print("CUBI local full-stack preview (demo data, not production)")
     print(f"  URL:      http://{display_host}:{port}/")
