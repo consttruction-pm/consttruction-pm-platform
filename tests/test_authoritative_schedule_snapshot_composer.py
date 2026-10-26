@@ -10,7 +10,16 @@ import sqlite3
 import pytest
 
 from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
-from construction_pm.application.authorization import default_project_policy
+from construction_pm.ai_action_boundary import (
+    AIActionPermissionGrant,
+    UserConfiguredAIActionPermissionAdapter,
+)
+from construction_pm.application.authorization import (
+    AuthorizationPolicy,
+    Permission,
+    RoleBasedAuthorizationPolicy,
+    default_project_policy,
+)
 from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectLifecycleService, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.authoritative_schedule_input_composer import AuthoritativeScheduleInputComposer
@@ -110,11 +119,18 @@ def _request(app, method: str, path: str, payload: dict | None = None):
     return status[0], json.loads(b"".join(chunks))
 
 
-def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool = False):
+def _fixture(
+    tmp_path,
+    *,
+    role: str = "project_admin",
+    fail_context_write: bool = False,
+    enable_ai: bool = False,
+    authorization_policy: AuthorizationPolicy | None = None,
+):
     db_path = str(tmp_path / "schedule-composition.sqlite")
     connection = sqlite3.connect(db_path)
     scope = BackendScope("t1", "p1", 2)
-    policy = default_project_policy()
+    policy = authorization_policy or default_project_policy()
     now = datetime(2026, 10, 22, 12, 0, tzinfo=timezone.utc)
     session = AuthenticatedSession(
         "s1", "u1", "t1", frozenset({role}), now + timedelta(hours=1)
@@ -219,6 +235,23 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
             "RC-1@v1": WorkingTimeResolver(WorkingCalendar()),
         }
     )
+    ai_permission_adapter = None
+    ai_transaction_manager = None
+    if enable_ai:
+        ai_permission_adapter = UserConfiguredAIActionPermissionAdapter(
+            lambda: (
+                AIActionPermissionGrant(
+                    subject_id="u1",
+                    tenant_id="t1",
+                    project_id="p1",
+                    project_revision_id="2",
+                    resource_domain="activities",
+                    operation="create",
+                    tool_name="activity.create",
+                ),
+            )
+        )
+        ai_transaction_manager = SQLiteTransactionManager(connection)
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle,
         snapshot_repository=snapshot_repo,
@@ -228,6 +261,8 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         activity_master_repository=activity_repo,
         relationship_master_repository=relationship_repo,
         schedule_snapshot_publication_api=snapshot_api,
+        ai_action_permission_adapter=ai_permission_adapter,
+        ai_action_transaction_manager=ai_transaction_manager,
         clock=type("Clock", (), {"now": lambda self: now})(),
         resource_read_api=resource_read_api,
         resource_calendar_master_repository=calendar_repo,
@@ -2144,3 +2179,268 @@ def test_project_schedule_settings_reject_unknown_fields_and_stale_revision(tmp_
     assert conflict["code"] == "REVISION_CONFLICT"
     assert fixture["settings_repo"].get(fixture["scope"]).record_revision == 1
     fixture["connection"].close()
+
+
+def _ai_propose_activity(app, payload: dict, *, expected_revision: int = 2) -> str:
+    status, value = _request(
+        app,
+        "POST",
+        "/api/projects/p1/ai/actions/proposals",
+        {
+            "expected_revision": expected_revision,
+            "tool_name": "activity.create",
+            "payload": payload,
+            "evidence_refs": [],
+        },
+    )
+    assert status == "201 Created", value
+    assert value["status"] == "proposed"
+    proposal_id = value["proposal"]["proposal_id"]
+    assert isinstance(proposal_id, str) and proposal_id
+    return proposal_id
+
+
+def _ai_decide(app, proposal_id: str, *, approved: bool, expected_revision: int = 2):
+    return _request(
+        app,
+        "POST",
+        f"/api/projects/p1/ai/actions/proposals/{proposal_id}/decision",
+        {"expected_revision": expected_revision, "approved": approved},
+    )
+
+
+def _ai_execute(
+    app,
+    proposal_id: str,
+    *,
+    expected_revision: int = 2,
+    timezone_name: str | None = "UTC",
+):
+    payload: dict = {"expected_revision": expected_revision}
+    if timezone_name is not None:
+        payload["timezone"] = timezone_name
+    return _request(
+        app,
+        "POST",
+        f"/api/projects/p1/ai/actions/proposals/{proposal_id}/execute",
+        payload,
+    )
+
+
+def test_ai_activity_execution_is_persisted_and_recalculated_by_shared_core(tmp_path):
+    fixture = _fixture(tmp_path, enable_ai=True)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+    try:
+        status, _ = _save_settings(app)
+        assert status == "201 Created"
+
+        proposal_id = _ai_propose_activity(
+            app,
+            {
+                "activity_id": "AI-1",
+                "name": "AI verified activity",
+                "duration_value": "2",
+                "duration_unit": "working-day",
+            },
+        )
+
+        # Approval is enforced by the runtime before any project mutation.
+        status, error = _ai_execute(app, proposal_id)
+        assert status == "409 Conflict"
+        assert error["code"] == "AI_ACTION_PROPOSAL_NOT_APPROVED"
+        assert fixture["activity_repo"].list(scope) == ()
+
+        status, decided = _ai_decide(app, proposal_id, approved=True)
+        assert status == "200 OK"
+        assert decided["status"] == "approved"
+
+        status, executed = _ai_execute(app, proposal_id)
+        assert status == "200 OK", executed
+        assert executed["status"] == "executed"
+        assert executed["result"]["activity"]["activity_id"] == "AI-1"
+        verification = executed["execution_verification"]
+        assert verification["contract_version"] == "ai-action-execution-verification.v1"
+        assert verification["status"] == "COMPUTED", verification
+        assert verification["reason_code"] is None
+        assert verification["activity"]["activity_id"] == "AI-1"
+        assert verification["activity"]["start"] == "2026-10-19"
+        assert verification["activity"]["finish"] == "2026-10-20"
+        assert verification["activity"]["duration"] == 2
+        assert verification["activity"]["duration_unit"] == "working-day"
+        assert isinstance(verification["activity"]["critical"], bool)
+        assert verification["project_finish"] == "2026-10-20"
+        assert verification["calculation_run_identity"]
+        assert verification["query_id"].endswith(proposal_id)
+        snapshot = verification["snapshot"]
+        assert snapshot["snapshot_id"] == "SNAP-PUBLISHED-1"
+        assert len(snapshot["snapshot_hash"]) == 64
+        assert len(snapshot["calculation_identity"]) == 64
+
+        # The calculated result must come from a persisted snapshot containing
+        # the freshly persisted activity, not from the executor's return value.
+        snapshot_record = fixture["snapshot_repo"].get(scope, snapshot["snapshot_id"])
+        assert snapshot_record is not None
+        assert snapshot_record.snapshot_hash == snapshot["snapshot_hash"]
+        snapshot_payload = json.loads(snapshot_record.canonical_payload)
+        assert "AI-1" in {item["id"] for item in snapshot_payload["activities"]}
+
+        # A second physical connection proves durable persistence outside the
+        # writer's connection cache.
+        fresh_connection = sqlite3.connect(str(tmp_path / "schedule-composition.sqlite"))
+        try:
+            stored = SQLiteActivityMasterRepository(fresh_connection).get(scope, "AI-1")
+            assert stored is not None
+            assert stored.name == "AI verified activity"
+            assert stored.duration_value == Decimal("2")
+        finally:
+            fresh_connection.close()
+
+        row = connection.execute(
+            "SELECT status, result_json FROM ai_action_proposals WHERE proposal_id=?",
+            (proposal_id,),
+        ).fetchone()
+        assert row is not None
+        assert row[0] == "executed"
+        assert json.loads(row[1])["activity"]["activity_id"] == "AI-1"
+
+        # Replaying the same approved proposal cannot execute the mutation twice.
+        status, duplicate = _ai_execute(app, proposal_id)
+        assert status == "409 Conflict"
+        assert duplicate["code"] == "AI_ACTION_PROPOSAL_NOT_APPROVED"
+        assert len(fixture["activity_repo"].list(scope)) == 1
+        assert connection.execute(
+            "SELECT COUNT(*) FROM schedule_input_snapshot"
+        ).fetchone()[0] == 1
+    finally:
+        connection.close()
+
+
+def test_ai_activity_execution_requires_write_permission(tmp_path):
+    fixture = _fixture(tmp_path, role="viewer", enable_ai=True)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    try:
+        status, error = _request(
+            app,
+            "POST",
+            "/api/projects/p1/ai/actions/proposals",
+            {
+                "expected_revision": 2,
+                "tool_name": "activity.create",
+                "payload": {
+                    "activity_id": "AI-DENIED",
+                    "name": "Denied activity",
+                    "duration_value": "1",
+                    "duration_unit": "working-day",
+                },
+                "evidence_refs": [],
+            },
+        )
+        assert status == "403 Forbidden"
+        assert error["code"].startswith("authorization denied for permission=")
+        assert fixture["activity_repo"].list(fixture["scope"]) == ()
+        assert connection.execute(
+            "SELECT COUNT(*) FROM ai_action_proposals"
+        ).fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+def test_ai_execution_without_schedule_permission_reports_unavailable_and_keeps_mutation(tmp_path):
+    policy = RoleBasedAuthorizationPolicy(
+        {"writer": frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE})}
+    )
+    fixture = _fixture(
+        tmp_path,
+        role="writer",
+        enable_ai=True,
+        authorization_policy=policy,
+    )
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+    try:
+        proposal_id = _ai_propose_activity(
+            app,
+            {
+                "activity_id": "AI-NO-SCHEDULE",
+                "name": "Written without schedule grant",
+                "duration_value": "1",
+                "duration_unit": "working-day",
+            },
+        )
+        status, decided = _ai_decide(app, proposal_id, approved=True)
+        assert status == "200 OK"
+        assert decided["status"] == "approved"
+
+        status, executed = _ai_execute(app, proposal_id)
+        assert status == "200 OK", executed
+        assert executed["status"] == "executed"
+        verification = executed["execution_verification"]
+        assert verification["status"] == "UNAVAILABLE"
+        assert verification["reason_code"] == "PROJECT_SCHEDULE_PERMISSION_REQUIRED"
+        assert verification["snapshot"] is None
+        assert verification["activity"] is None
+        stored = fixture["activity_repo"].get(scope, "AI-NO-SCHEDULE")
+        assert stored is not None
+        assert stored.name == "Written without schedule grant"
+        assert fixture["snapshot_repo"].list(scope) == ()
+    finally:
+        connection.close()
+
+
+def test_ai_execution_reports_failed_recalculation_without_ghost_success(tmp_path):
+    fixture = _fixture(tmp_path, enable_ai=True)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+    try:
+        # No project schedule settings exist, so a real snapshot cannot be
+        # published. The mutation stays committed and the verification is
+        # explicitly FAILED rather than fabricating calculated dates.
+        proposal_id = _ai_propose_activity(
+            app,
+            {
+                "activity_id": "AI-NO-SETTINGS",
+                "name": "Activity without schedule settings",
+                "duration_value": "1",
+                "duration_unit": "working-day",
+            },
+        )
+        status, _ = _ai_decide(app, proposal_id, approved=True)
+        assert status == "200 OK"
+        status, executed = _ai_execute(app, proposal_id)
+        assert status == "200 OK", executed
+        assert executed["status"] == "executed"
+        verification = executed["execution_verification"]
+        assert verification["status"] == "FAILED"
+        assert isinstance(verification["reason_code"], str) and verification["reason_code"]
+        assert verification["snapshot"] is None
+        assert verification["activity"] is None
+        assert fixture["activity_repo"].get(scope, "AI-NO-SETTINGS") is not None
+        assert fixture["snapshot_repo"].list(scope) == ()
+
+        # A missing timezone is a missing verification input, not a fabricated
+        # UTC calculation and not a reason to hide the committed mutation.
+        proposal_id = _ai_propose_activity(
+            app,
+            {
+                "activity_id": "AI-NO-TIMEZONE",
+                "name": "Activity without calculation timezone",
+                "duration_value": "1",
+                "duration_unit": "working-day",
+            },
+        )
+        status, _ = _ai_decide(app, proposal_id, approved=True)
+        assert status == "200 OK"
+        status, executed = _ai_execute(app, proposal_id, timezone_name=None)
+        assert status == "200 OK", executed
+        verification = executed["execution_verification"]
+        assert verification["status"] == "UNAVAILABLE"
+        assert verification["reason_code"] == "CALCULATION_TIMEZONE_REQUIRED"
+        assert fixture["activity_repo"].get(scope, "AI-NO-TIMEZONE") is not None
+        assert fixture["snapshot_repo"].list(scope) == ()
+    finally:
+        connection.close()

@@ -15,6 +15,7 @@ from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, AIActionRuntimeError
+from ..ai_action_execution_verification import verify_ai_action_execution
 from ..ai_assistant_orchestration import (
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
@@ -2443,11 +2444,32 @@ class ProjectLifecycleHttpRoutes:
                         "decided_by": record.decided_by,
                     })
                 record = self._ai_action_runtime.execute(runtime_context, proposal_id or "")
+                verification = None
+                if record.proposal.tool_name == "activity.create":
+                    raw_timezone = payload.get("timezone")
+                    verification = verify_ai_action_execution(
+                        record,
+                        activity_api=self._p6_activity_master_api,
+                        snapshot_api=self._p6_schedule_snapshot_api,
+                        schedule_query_api=self._schedule_query_api,
+                        auth_context=context.authorization_context(session.roles),
+                        timezone_name=(
+                            raw_timezone.strip()
+                            if isinstance(raw_timezone, str)
+                            else None
+                        ),
+                        request_id=(headers or {}).get("X-Request-Id"),
+                    )
                 return self._json(200, {
                     "contract_version": "ai-action-runtime.v1",
                     "proposal_id": record.proposal.proposal_id,
                     "status": record.status,
                     "result": None if record.result is None else dict(record.result),
+                    **(
+                        {}
+                        if verification is None
+                        else {"execution_verification": verification}
+                    ),
                 })
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/open"):
                 project_id = path[len("/api/projects/"):-len("/open")]
