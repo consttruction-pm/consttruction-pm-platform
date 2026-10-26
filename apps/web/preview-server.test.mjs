@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import test from "node:test";
 import { resolveRequestFile } from "./preview-server.mjs";
 
@@ -48,4 +49,10 @@ test("preview resolver serves public marketing pages with and without trailing s
     assert.ok(resolved?.endsWith("/index.html"), "Expected " + route + " to resolve to index.html");
     assert.ok(resolved?.includes("/public/"), "Expected " + route + " to resolve from public assets");
   }
+});
+
+test("preview resolver serves the canonical assistant avatar from the public asset root", () => {
+  const resolved = portable(resolveRequestFile("/cubi-assistant-avatar.svg"));
+  assert.ok(resolved?.endsWith("/apps/web/public/cubi-assistant-avatar.svg"));
+  assert.ok(resolved && existsSync(resolved), "assistant avatar asset must exist at the resolved path");
 });
