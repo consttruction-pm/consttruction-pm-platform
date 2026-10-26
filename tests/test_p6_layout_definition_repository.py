@@ -84,16 +84,47 @@ def test_layout_revision_is_immutable_and_optimistic():
     repo.upsert(layout(revision=2))
     repo.upsert(layout(revision=3, width=180))
 
-    # A stale writer cannot overwrite an already-published revision.
+    # A writer cannot publish different content under an existing revision.
     with pytest.raises(P6LayoutPersistenceError, match="IMMUTABLE_LAYOUT_REVISION"):
         repo.upsert(layout(revision=3, width=240))
-    with pytest.raises(P6LayoutPersistenceError, match="IMMUTABLE_LAYOUT_REVISION"):
+    # A client behind the head is stale, not an attempt to rewrite history.
+    with pytest.raises(P6LayoutPersistenceError, match="REVISION_CONFLICT"):
         repo.upsert(layout(revision=2, width=240))
     # Gaps are rejected so every persisted revision has a linear history.
     with pytest.raises(P6LayoutPersistenceError, match="REVISION_CONFLICT"):
         repo.upsert(layout(revision=5))
     with pytest.raises(P6LayoutPersistenceError, match="REVISION_CONFLICT"):
         repo.get(BackendScope("t1", "p1", 8), "project", "activity")
+
+    # Rejected writes never rewrite or extend the published history.
+    assert repo.get(BackendScope("t1", "p1", 7), "project", "activity") == layout(revision=3, width=180)
+    assert [item.revision for item in repo.list_revisions(
+        BackendScope("t1", "p1", 7), "project", "activity"
+    )] == [3, 2]
+
+
+def test_layout_identical_retry_is_idempotent_and_does_not_append():
+    repo = SQLiteP6LayoutRepository(sqlite3.connect(":memory:"))
+    repo.upsert(layout(revision=2))
+    repo.upsert(layout(revision=3, width=180))
+
+    # Retrying the exact same write must succeed without a second revision.
+    assert repo.upsert(layout(revision=3, width=180)) == layout(revision=3, width=180)
+    revisions = repo.list_revisions(BackendScope("t1", "p1", 7), "project", "activity")
+    assert [item.revision for item in revisions] == [3, 2]
+    assert [item.columns[0].width for item in revisions] == [180, 120]
+
+    # The same content under a different revision is not that retry: the
+    # client's base disagrees with the head and must reload.
+    with pytest.raises(P6LayoutPersistenceError, match="REVISION_CONFLICT"):
+        repo.upsert(layout(revision=2, width=180))
+
+    # The legitimate next revision is appended even when it happens to repeat
+    # the head's content, for example when restoring a revision as a new head.
+    repo.upsert(layout(revision=4, width=180))
+    assert [item.revision for item in repo.list_revisions(
+        BackendScope("t1", "p1", 7), "project", "activity"
+    )] == [4, 3, 2]
 
 
 def test_layout_rejects_non_normalized_columns():

@@ -197,8 +197,12 @@ function renderApp(
       const failedHistory = getLayoutHistory(state.context, failedLayout);
       failedHistory.undo.length = 0;
       failedHistory.redo.length = 0;
-      failedHistory.noticeKey = code === "REVISION_CONFLICT" ? "conflict" : "failed";
-      if (code === "REVISION_CONFLICT") {
+      // Both codes mean the client's base no longer matches the stored head:
+      // another writer published this revision (immutable) or moved further
+      // ahead (conflict). Reloading the head is the only safe recovery.
+      const staleBase = code === "REVISION_CONFLICT" || code === "IMMUTABLE_LAYOUT_REVISION";
+      failedHistory.noticeKey = staleBase ? "conflict" : "failed";
+      if (staleBase) {
         try {
           if (await reloadLatestLayout(failedLayout.scope, failedLayout.view_id)) return;
         } catch (reloadError) {

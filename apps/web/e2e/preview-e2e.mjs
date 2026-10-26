@@ -1290,6 +1290,87 @@ async function main() {
       restored_field: addTarget,
     });
 
+    // A competing writer publishes the next revision while this page still
+    // holds the previous head. The stale in-page edit must fail closed, the
+    // page must reload the authoritative head, and the racing writer's data
+    // must survive untouched.
+    const conflictBase = await readLayoutFromPage(page);
+    assert(conflictBase.status === 200, "layout must be readable before the conflict race");
+    const externalColumns = conflictBase.body.columns.map((column) =>
+      column.field_id === addTarget ? { ...column, width: 333 } : column);
+    const externalWrite = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/p6/layouts/project/activity", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({
+          revision: ${Number(conflictBase.body.revision) + 1},
+          columns: ${JSON.stringify(externalColumns)},
+          metadata: ${JSON.stringify(conflictBase.body.metadata ?? {})},
+        }),
+      });
+      const body = await response.json().catch(() => null);
+      return { status: response.status, body };
+    })()`, { awaitPromise: true });
+    assert(
+      externalWrite.status === 200,
+      `competing writer must publish the next revision, got ${externalWrite.status}`,
+    );
+
+    await page.click(`[data-p6-field-remove="${addTarget}"]`);
+    await page.waitFor(
+      `(() => {
+        const notice = document.querySelector(".cp-p6-history-notice");
+        return Boolean(notice) && /Another session changed|نشست دیگری/.test(notice.textContent || "");
+      })()`,
+      "stale layout edit reports the conflict in the active locale",
+    );
+    const conflictNotice = await page.text(".cp-p6-history-notice");
+    assert(
+      typeof conflictNotice === "string"
+        && /Another session changed this layout|نشست دیگری این چیدمان/.test(conflictNotice),
+      "conflict must surface the localized stale-base message",
+    );
+    await page.waitFor(
+      `(() => {
+        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+        const target = ths.find((th) => th.dataset.columnId === ${JSON.stringify(addTarget)});
+        return ths.length === ${initialHeaders.length}
+          && Boolean(target) && Number.parseFloat(target.style.width) === 333;
+      })()`,
+      "conflict reloads the authoritative head through the layout API",
+    );
+    const serverHeadAfterConflict = await readLayoutFromPage(page);
+    assert(
+      serverHeadAfterConflict.body.revision === conflictBase.body.revision + 1,
+      "the failed stale write must not append a revision",
+    );
+    assert(
+      serverHeadAfterConflict.body.columns.some(
+        (column) => column.field_id === addTarget && column.width === 333,
+      ),
+      "the competing writer's column presentation must survive",
+    );
+    const historyAfterConflict = await readLayoutHistoryFromPage(page);
+    const conflictHistoryRevisions = (historyAfterConflict.body?.revisions ?? [])
+      .map((revision) => revision.revision);
+    assert(
+      conflictHistoryRevisions.length === restoreHistoryRevisions.length + 1
+        && conflictHistoryRevisions[0] === conflictBase.body.revision + 1,
+      "a lost race must preserve history and append nothing",
+    );
+    await page.screenshot("04d-layout-conflict.png");
+    record("stale layout write fails closed, reloads the head and keeps the competing revision", {
+      stale_base_revision: conflictBase.body.revision,
+      authoritative_head: serverHeadAfterConflict.body.revision,
+      localized_conflict_shown: true,
+      competing_width: 333,
+    });
+
     await page.click(`[data-p6-field-remove="${addTarget}"]`);
     await page.waitFor(
       `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
