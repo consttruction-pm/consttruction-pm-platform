@@ -23,6 +23,7 @@ from construction_pm.p6_interchange_api import P6InterchangeAPI
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_persisted_resource_leveling_resolver import build_persisted_resource_leveling_input_resolver
 from construction_pm.p6_resource_capacity_read_api import P6ResourceCapacityReadAPI
+from construction_pm.p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
@@ -72,6 +73,7 @@ def build_project_lifecycle_wsgi_app(
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
     p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
+    p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
     resource_calendar_master_repository: CalendarMasterRepository | None = None,
     resource_calendar_snapshot_repository: CalendarSnapshotRepository | None = None,
     resource_calendar_exception_repository: CalendarExceptionRepository | None = None,
@@ -182,6 +184,7 @@ def build_project_lifecycle_wsgi_app(
         p6_resource_read_api=resource_read_api,
         p6_resource_write_api=resource_write_api,
         p6_resource_capacity_read_api=p6_resource_capacity_read_api,
+        p6_resource_capacity_write_api=p6_resource_capacity_write_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
         ai_action_runtime=ai_action_runtime,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -150,6 +150,108 @@ def test_capacity_read_api_is_scoped_and_does_not_use_assignment_demand() -> Non
 
     with pytest.raises(ResourceCapacityError, match="RESOURCE_CAPACITY_NOT_REGISTERED"):
         api.get_profile(SCOPE, "UNKNOWN", auth_context=_auth("viewer"))
+    connection.close()
+
+
+def test_effective_change_closes_the_open_segment_append_only() -> None:
+    service, _repository, connection = _service()
+    original = _segment(
+        start=date(2026, 10, 1),
+        end=None,
+        source="manual-entry:user-1",
+    )
+    service.save(P6ResourceCapacityRecord(SCOPE, original))
+    change = _segment(
+        max_units="10",
+        start=date(2026, 10, 15),
+        end=None,
+        source="manual-entry:user-1",
+    )
+
+    result = service.save_effective_change(
+        P6ResourceCapacityRecord(SCOPE, change),
+        close_open_segment=True,
+        recorded_at=datetime(2026, 10, 26, 9, 30, tzinfo=timezone.utc),
+    )
+
+    assert result.superseded_identity == original.identity
+    assert result.closed_segment is not None
+    assert result.closed_segment.effective_to == date(2026, 10, 14)
+    assert result.closed_segment.identity != original.identity
+    assert result.record.segment.identity == change.identity
+
+    active = service.list(SCOPE, "CREW-1")
+    assert [(item.segment.max_units, item.segment.effective_from, item.segment.effective_to) for item in active] == [
+        (Decimal("8"), date(2026, 10, 1), date(2026, 10, 14)),
+        (Decimal("10"), date(2026, 10, 15), None),
+    ]
+    profile = service.profile(SCOPE, "CREW-1")
+    assert profile.capacity_on(date(2026, 10, 14)) == Decimal("8")
+    assert profile.capacity_on(date(2026, 10, 15)) == Decimal("10")
+
+    # History is retained: the original open row, the closed copy and the new
+    # segment all remain in the table, and the old identity is no longer active.
+    stored = connection.execute(
+        "SELECT COUNT(*) FROM p6_resource_capacity_segment "
+        "WHERE tenant_id='t1' AND project_id='p1' AND resource_id='CREW-1'"
+    ).fetchone()
+    assert stored is not None and int(stored[0]) == 3
+    supersessions = connection.execute(
+        "SELECT identity,superseded_by_identity,recorded_at "
+        "FROM p6_resource_capacity_supersession"
+    ).fetchall()
+    assert supersessions == [
+        (
+            original.identity,
+            result.closed_segment.identity,
+            "2026-10-26T09:30:00+00:00",
+        )
+    ]
+    assert _repository.get(SCOPE, "CREW-1", original.identity) is None
+    connection.close()
+
+
+def test_effective_change_is_idempotent_and_rejects_bounded_replacement() -> None:
+    service, _repository, connection = _service()
+    original = _segment(start=date(2026, 10, 1), end=None, source="manual")
+    service.save(P6ResourceCapacityRecord(SCOPE, original))
+    change = _segment(
+        max_units="10",
+        start=date(2026, 10, 15),
+        end=None,
+        source="manual",
+    )
+    first = service.save_effective_change(
+        P6ResourceCapacityRecord(SCOPE, change),
+        close_open_segment=True,
+        recorded_at=datetime(2026, 10, 26, tzinfo=timezone.utc),
+    )
+    second = service.save_effective_change(
+        P6ResourceCapacityRecord(SCOPE, change),
+        close_open_segment=True,
+        recorded_at=datetime(2026, 10, 26, tzinfo=timezone.utc),
+    )
+    assert second.record.segment.identity == first.record.segment.identity
+    assert second.superseded_identity is None
+    assert len(service.list(SCOPE, "CREW-1")) == 2
+
+    bounded = _segment(
+        max_units="14",
+        start=date(2026, 11, 1),
+        end=date(2026, 11, 10),
+        source="manual",
+    )
+    with pytest.raises(
+        P6ResourceCapacityRepositoryError,
+        match="CAPACITY_REPLACEMENT_REQUIRES_OPEN_RANGE",
+    ):
+        # A bounded interval that cuts through the open segment is refused
+        # rather than silently leaving a gap after its end.
+        service.save_effective_change(
+            P6ResourceCapacityRecord(SCOPE, bounded),
+            close_open_segment=True,
+            recorded_at=datetime(2026, 10, 26, tzinfo=timezone.utc),
+        )
     connection.close()
 
 

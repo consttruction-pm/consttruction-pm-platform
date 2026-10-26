@@ -31,6 +31,7 @@ import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
+import { mountCapacityPanel } from "./p6-capacity-panel.js";
 
 function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?: ReturnType<typeof createP6LayoutPersistence>): void {
   const shellLabels = getWorkspaceShellLabels(state.locale);
@@ -194,6 +195,7 @@ function renderApp(container: HTMLElement, state: WorkspaceState, p6Persistence?
     state.locale,
     state.activities,
   );
+  mountCapacityPanel(workspace, aiTransport, state.context, state.locale);
 }
 function renderBootstrapState(
   container: HTMLElement,

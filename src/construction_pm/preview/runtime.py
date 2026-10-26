@@ -93,6 +93,7 @@ from construction_pm.p6_mapping_registry import (
 )
 from construction_pm.p6_primavera_xml_codec import P6PrimaveraXmlCodec
 from construction_pm.p6_resource_capacity_read_api import P6ResourceCapacityReadAPI
+from construction_pm.p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
 from construction_pm.p6_resource_capacity_repository import (
     P6ResourceCapacityApplicationService,
     P6ResourceCapacityRecord,
@@ -809,6 +810,11 @@ def open_preview_runtime(
         p6_resource_capacity_read_api=P6ResourceCapacityReadAPI(
             repositories.capacity_service,
             policy,
+        ),
+        p6_resource_capacity_write_api=P6ResourceCapacityWriteAPI(
+            repositories.capacity_service,
+            policy,
+            clock=PreviewClock(),
         ),
         clock=PreviewClock(),
     )

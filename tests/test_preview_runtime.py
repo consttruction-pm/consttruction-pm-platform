@@ -483,6 +483,161 @@ def test_preview_resource_capacity_read_uses_registered_effective_dated_ceilings
         reopened.close()
 
 
+def test_preview_resource_capacity_write_closes_open_segment_and_persists(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview.sqlite3"
+    list_path = f"/api/projects/{RPS_PROJECT}/p6/resource-capacities"
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        viewer = runtime.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
+
+        payload = {
+            "contract_version": "p6-resource-capacity-write-api.v1",
+            "expected_revision": RPS_REVISION,
+            "resource_id": "RPS-CIVIL-CREW",
+            "max_units": "10",
+            "unit_basis": "day",
+            "hours_per_time_period": "8",
+            "effective_from": "2026-11-01",
+            "effective_to": None,
+            "close_open_segment": True,
+        }
+
+        def submit(body: dict, cookie: str):
+            return _request(
+                runtime.app,
+                "POST",
+                list_path,
+                cookie=cookie,
+                headers=_scope_headers(),
+                body=json.dumps(body).encode("utf-8"),
+            )
+
+        status, _, body = submit(payload, viewer.session_id)
+        assert status == 403
+        assert "project.write" in json.loads(body)["code"]
+
+        status, _, body = submit(
+            {**payload, "expected_revision": RPS_REVISION - 1},
+            planner.session_id,
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "REVISION_CONFLICT"
+
+        status, _, body = submit(
+            {
+                **payload,
+                "max_units": "9",
+                "effective_from": "2026-10-20",
+                "close_open_segment": False,
+            },
+            planner.session_id,
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "CAPACITY_SEGMENTS_OVERLAP"
+
+        status, _, body = submit(payload, planner.session_id)
+        assert status == 200
+        written = json.loads(body)
+        assert written["contract_version"] == "p6-resource-capacity-write-api.v1"
+        assert written["kind"] == "resource_capacity_write"
+        assert written["status"] == "REGISTERED"
+        assert written["capacity"]["max_units"] == "10"
+        assert written["capacity"]["effective_from"] == "2026-11-01"
+        assert written["capacity"]["effective_to"] is None
+        assert written["capacity"]["source"] == "manual-entry:preview-planner"
+        assert len(written["capacity"]["identity"]) == 64
+        assert written["superseded"]["effective_to"] == "2026-10-31"
+        assert written["superseded"]["identity"] != written["superseded"][
+            "replacement_identity"
+        ]
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            list_path,
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        active = [item["capacity"] for item in json.loads(body)["capacities"]]
+        assert [
+            (item["max_units"], item["effective_from"], item["effective_to"])
+            for item in active
+        ] == [
+            ("8", "2026-09-21", "2026-10-14"),
+            ("12", "2026-10-15", "2026-10-31"),
+            ("10", "2026-11-01", None),
+        ]
+        assert written["superseded"]["identity"] not in {
+            item["identity"] for item in active
+        }
+
+        resolve_path = f"{list_path}/RPS-CIVIL-CREW/resolve"
+
+        def resolve(period: str, basis: str | None = "week"):
+            return _request(
+                runtime.app,
+                "POST",
+                resolve_path,
+                cookie=planner.session_id,
+                headers=_scope_headers(),
+                body=json.dumps(
+                    {
+                        "contract_version": "p6-resource-capacity-read-api.v1",
+                        "period": period,
+                        "basis": basis,
+                        "hours_per_time_period": None
+                        if basis is None
+                        else "40",
+                    }
+                ).encode("utf-8"),
+            )
+
+        status, _, body = resolve("2026-11-02")
+        assert status == 200
+        resolved = json.loads(body)
+        assert resolved["kind"] == "resource_capacity_value"
+        assert resolved["status"] == "RESOLVED"
+        assert resolved["basis"] == "week"
+        assert resolved["capacity"] == "50"
+        assert resolved["source"] == "manual-entry:preview-planner"
+
+        status, _, body = resolve("2026-10-16")
+        assert status == 200
+        assert json.loads(body)["capacity"] == "60"
+
+        status, _, body = resolve("2026-09-01")
+        assert status == 409
+        assert json.loads(body)["code"] == "CAPACITY_SEGMENT_NOT_EFFECTIVE"
+    finally:
+        runtime.close()
+
+    reopened = open_preview_runtime(database)
+    try:
+        planner = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            reopened.app,
+            "GET",
+            f"/api/projects/{RPS_PROJECT}/p6/resource-capacities/RPS-CIVIL-CREW",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        persisted = json.loads(body)
+        assert [segment["max_units"] for segment in persisted["segments"]] == [
+            "8",
+            "12",
+            "10",
+        ]
+        assert persisted["segments"][1]["effective_to"] == "2026-10-31"
+        assert persisted["segments"][2]["source"] == "manual-entry:preview-planner"
+    finally:
+        reopened.close()
+
+
 def test_preview_project_creation_initializes_real_workspace_and_persists(
     tmp_path: Path,
 ) -> None:
