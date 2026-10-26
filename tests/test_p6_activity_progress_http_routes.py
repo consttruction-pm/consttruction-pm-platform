@@ -547,6 +547,45 @@ def test_generic_activity_patch_cannot_store_date_based_actuals_beyond_data_date
     connection.close()
 
 
+def test_generic_activity_create_cannot_store_date_based_actuals_beyond_data_date(tmp_path):
+    app, _repository, connection = _app(
+        db_path=str(tmp_path / "generic-create-actuals.sqlite"), with_settings=True
+    )
+
+    status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "activity_id": "A-1",
+            "duration_value": "10",
+            "duration_unit": "working-day",
+            "actual_start": "2026-10-13",
+        },
+    )
+    assert status == "400 Bad Request"
+    assert error["code"] == "PROGRESS_ACTUAL_START_AFTER_DATA_DATE"
+
+    status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "activity_id": "A-1",
+            "duration_value": "10",
+            "duration_unit": "working-day",
+            "actual_start": "2026-10-07T09:00:00",
+        },
+    )
+    assert status == "400 Bad Request"
+    assert error["code"] == "INVALID_ACTUAL_START"
+
+    status, listed = _request(app, "GET", "/api/projects/p1/p6/activities")
+    assert status == "200 OK"
+    assert listed["activities"] == []
+    connection.close()
+
+
 def test_progress_entry_maps_saved_settings_revision_conflict_to_409(tmp_path):
     # The project is at revision 3, but its saved schedule settings belong to
     # revision 2. The Data Date read must fail closed with a conflict instead of

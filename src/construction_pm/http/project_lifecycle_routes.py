@@ -1263,6 +1263,45 @@ class ProjectLifecycleHttpRoutes:
                         original_duration=raw_original_duration,
                     )
 
+                def validate_date_based_actuals(activity: ActivityMaster) -> None:
+                    """Enforce DATE_BASED actuals on every activity write path.
+
+                    Actual dates are day-precision facts and cannot exceed the
+                    saved Data Date. The general create/edit routes therefore
+                    apply the same rule as the dedicated progress route; without
+                    it they could store progress that the scheduler rejects.
+                    """
+                    actual_fields = {
+                        "actual_start",
+                        "actual_finish",
+                    } & set(payload)
+                    if not actual_fields:
+                        return
+                    settings = (
+                        self._p6_schedule_snapshot_api.project_schedule_settings_repository.get(scope)
+                        if self._p6_schedule_snapshot_api is not None
+                        else None
+                    )
+                    if (
+                        settings is None
+                        or settings.mode is not AuthoritativeScheduleMode.DATE_BASED
+                    ):
+                        return
+                    data_date = settings.schedule_options.data_date
+                    for field_name in sorted(actual_fields):
+                        value = getattr(activity, field_name)
+                        if isinstance(value, datetime):
+                            raise ValueError("INVALID_" + field_name.upper())
+                        if (
+                            isinstance(value, date)
+                            and isinstance(data_date, date)
+                            and not isinstance(data_date, datetime)
+                            and value > data_date
+                        ):
+                            raise ValueError(
+                                "PROGRESS_" + field_name.upper() + "_AFTER_DATA_DATE"
+                            )
+
                 try:
                     parts = suffix.strip("/").split("/") if suffix.strip("/") else []
                     payload = json.loads(body.decode("utf-8") or "{}") if body else {}
@@ -1282,6 +1321,7 @@ class ProjectLifecycleHttpRoutes:
                             raise ValueError("INVALID_ACTIVITY_ID")
                         created = build_activity(activity_id)
                         created.validate_progress()
+                        validate_date_based_actuals(created)
                         result = self._p6_activity_master_api.create(
                             created, auth_context=auth
                         )
@@ -1414,36 +1454,7 @@ class ProjectLifecycleHttpRoutes:
                         # the saved Data Date. Without this check the general
                         # edit route could store progress that the scheduler
                         # later rejects, making the whole project unpublishable.
-                        if "actual_start" in payload or "actual_finish" in payload:
-                            settings = (
-                                self._p6_schedule_snapshot_api.project_schedule_settings_repository.get(scope)
-                                if self._p6_schedule_snapshot_api is not None
-                                else None
-                            )
-                            if (
-                                settings is not None
-                                and settings.mode is AuthoritativeScheduleMode.DATE_BASED
-                            ):
-                                data_date = settings.schedule_options.data_date
-                                for field_name in ("actual_start", "actual_finish"):
-                                    if field_name not in payload:
-                                        continue
-                                    value = getattr(edited, field_name)
-                                    if isinstance(value, datetime):
-                                        raise ValueError(
-                                            "INVALID_" + field_name.upper()
-                                        )
-                                    if (
-                                        isinstance(value, date)
-                                        and isinstance(data_date, date)
-                                        and not isinstance(data_date, datetime)
-                                        and value > data_date
-                                    ):
-                                        raise ValueError(
-                                            "PROGRESS_"
-                                            + field_name.upper()
-                                            + "_AFTER_DATA_DATE"
-                                        )
+                        validate_date_based_actuals(edited)
                         result = self._p6_activity_master_api.update(
                             edited,
                             expected_revision=expected_revision,
