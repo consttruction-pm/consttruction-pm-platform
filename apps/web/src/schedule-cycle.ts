@@ -112,17 +112,34 @@ function extractAuthoritativeScheduleFacts(value: unknown): AuthoritativeSchedul
   const record = value as Record<string, unknown>;
   const rawActivities = record.activities;
   if (!rawActivities || typeof rawActivities !== "object" || Array.isArray(rawActivities)) return null;
-  const activities: Record<string, { start: string; finish: string; duration?: number; critical?: boolean }> = {};
+  const activities: Record<string, AuthoritativeScheduleFacts["activities"][string]> = {};
   for (const [id, raw] of Object.entries(rawActivities)) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     const activity = raw as Record<string, unknown>;
     if (typeof activity.start !== "string" || typeof activity.finish !== "string") return null;
     if (activity.duration !== undefined && (typeof activity.duration !== "number" || !Number.isFinite(activity.duration))) return null;
+    if (activity.critical !== undefined && typeof activity.critical !== "boolean") return null;
+    const optionalDates: Pick<AuthoritativeScheduleFacts["activities"][string], "early_start" | "early_finish" | "late_start" | "late_finish"> = {};
+    for (const key of ["early_start", "early_finish", "late_start", "late_finish"] as const) {
+      const value = activity[key];
+      if (value === undefined) continue;
+      if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) return null;
+      optionalDates[key] = value;
+    }
+    const optionalNumbers: Pick<AuthoritativeScheduleFacts["activities"][string], "total_float" | "free_float"> = {};
+    for (const key of ["total_float", "free_float"] as const) {
+      const value = activity[key];
+      if (value === undefined) continue;
+      if (typeof value !== "number" || !Number.isFinite(value)) return null;
+      optionalNumbers[key] = value;
+    }
     activities[id] = {
       start: activity.start,
       finish: activity.finish,
       ...(typeof activity.duration === "number" ? { duration: activity.duration } : {}),
       ...(typeof activity.critical === "boolean" ? { critical: activity.critical } : {}),
+      ...optionalDates,
+      ...optionalNumbers,
     };
   }
   return {
@@ -138,12 +155,43 @@ function renderScheduleRunResult(
   cached: ScheduleRunCacheRecord,
   labels: (typeof LABELS)["en"] | (typeof LABELS)["fa"],
 ): void {
+  const facts = extractAuthoritativeScheduleFacts(cached.data);
+  if (!facts) {
+    panel.innerHTML = '<p role="alert">' + safe(labels.runFailed) + '</p>';
+    return;
+  }
+  const entries = Object.entries(facts.activities).sort(([left], [right]) => left.localeCompare(right));
+  const showsFloat = entries.some(([, fact]) => fact.total_float !== undefined);
+  const rows = entries.map(([id, fact]) => {
+    const critical = fact.critical ? labels.yes : labels.no;
+    const cells = [
+      `<td>${safe(id)}</td>`,
+      `<td>${safe(fact.start)}</td>`,
+      `<td>${safe(fact.finish)}</td>`,
+      `<td>${fact.duration === undefined ? safe(labels.empty) : safe(fact.duration)}</td>`,
+      ...(showsFloat ? [`<td>${fact.total_float === undefined ? safe(labels.empty) : safe(fact.total_float)}</td>`] : []),
+      `<td>${safe(critical)}</td>`,
+    ];
+    return `<tr>${cells.join("")}</tr>`;
+  }).join("");
   panel.innerHTML =
     '<p class="cp-muted">' + safe(labels.outputBinding) + '</p>' +
     '<div class="cp-schedule-result-meta"><span><b>' + safe(labels.snapshot) + ':</b> ' + safe(cached.snapshot_id) +
-    '</span><span><b>' + safe(labels.hash) + ':</b> <code>' + safe(cached.snapshot_hash) + '</code></span></div>' +
-    '<h3>' + safe(labels.results) + '</h3><pre class="cp-schedule-result-json">' +
-    safe(JSON.stringify(cached.data, null, 2)) + '</pre>';
+    '</span><span><b>' + safe(labels.hash) + ':</b> <code>' + safe(cached.snapshot_hash) + '</code></span>' +
+    (facts.project_finish ? '<span><b>' + safe(labels.projectFinish) + ':</b> ' + safe(facts.project_finish) + '</span>' : '') +
+    (facts.activity_count !== undefined ? '<span><b>' + safe(labels.activityCount) + ':</b> ' + safe(facts.activity_count) + '</span>' : '') +
+    '</div>' +
+    '<h3>' + safe(labels.results) + '</h3>' +
+    '<table class="cp-schedule-result-table"><thead><tr>' +
+    '<th scope="col">' + safe(labels.columnActivity) + '</th>' +
+    '<th scope="col">' + safe(labels.columnStart) + '</th>' +
+    '<th scope="col">' + safe(labels.columnFinish) + '</th>' +
+    '<th scope="col">' + safe(labels.columnDuration) + '</th>' +
+    (showsFloat ? '<th scope="col">' + safe(labels.columnTotalFloat) + '</th>' : '') +
+    '<th scope="col">' + safe(labels.columnCritical) + '</th>' +
+    '</tr></thead><tbody>' +
+    (rows || `<tr><td colspan="${showsFloat ? 6 : 5}">${safe(labels.empty)}</td></tr>`) +
+    '</tbody></table>';
 }
 const scheduleSettingsDrafts = new Map<string, ScheduleSettingsDraft>();
 type PublishedSnapshot = {
@@ -187,6 +235,7 @@ const LABELS = {
     referenceVersion: "Reference version", sourceDate: "Catalogue date", noSettingsApi: "The settings service is not available in this running environment.",
     noReferenceApi: "The reference catalogue is not available in this running environment.", noRunApi: "The schedule service is not available in this running environment.",
     results: "Calculation output", snapshot: "Snapshot", hash: "Content hash", outputBinding: "Matching loaded activities are updated in the grid and Gantt; critical status is shown only when returned by the scheduling service.", empty: "—",
+    columnActivity: "Activity", columnStart: "Start", columnFinish: "Finish", columnDuration: "Duration", columnTotalFloat: "Total float", columnCritical: "Critical", yes: "Yes", no: "No", projectFinish: "Project finish", activityCount: "Activity count",
   },
   fa: {
     options: "تنظیمات محاسبه", run: "اجرای زمان‌بندی", reference: "مرجع کد زمان‌بندی",
@@ -205,6 +254,7 @@ const LABELS = {
     referenceVersion: "نسخهٔ مرجع", sourceDate: "تاریخ فهرست", noSettingsApi: "سرویس تنظیمات در این محیط اجرا در دسترس نیست.",
     noReferenceApi: "فهرست مرجع در این محیط اجرا در دسترس نیست.", noRunApi: "سرویس زمان‌بندی در این محیط اجرا در دسترس نیست.",
     results: "خروجی محاسبه", snapshot: "تصویر محاسبات", hash: "هش محتوا", outputBinding: "فعالیت‌های منطبق در جدول و گانت به‌روزرسانی می‌شوند؛ وضعیت بحرانی فقط در صورت بازگشت از سرویس زمان‌بندی نمایش داده می‌شود.", empty: "—",
+    columnActivity: "فعالیت", columnStart: "شروع", columnFinish: "پایان", columnDuration: "مدت", columnTotalFloat: "شناوری کل", columnCritical: "بحرانی", yes: "بله", no: "خیر", projectFinish: "پایان پروژه", activityCount: "تعداد فعالیت",
   },
 } as const;
 

@@ -167,7 +167,7 @@ class SQLiteP6FormulaAuditRepository:
                    expression_sha256
             FROM p6_formula_audit_events
             WHERE tenant_id=? AND project_id=? AND project_revision=? AND formula_id=?
-            ORDER BY occurred_at, event_id
+            ORDER BY occurred_at, rowid
             """,
             (
                 scope.tenant_id,
@@ -186,10 +186,17 @@ class PostgresP6FormulaAuditRepository:
     def initialize(self) -> None:
         self.connection.execute(
             "CREATE TABLE IF NOT EXISTS p6_formula_audit_events ("
+            "event_seq BIGSERIAL, "
             "event_id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, "
             "project_revision BIGINT NOT NULL, formula_id TEXT NOT NULL, formula_version TEXT NOT NULL, "
             "action TEXT NOT NULL, actor_id TEXT NOT NULL, occurred_at TEXT NOT NULL, "
             "semantic_version TEXT NOT NULL, expression_sha256 TEXT NOT NULL)"
+        )
+        # Existing tables installed before event_seq was added still need a
+        # deterministic insertion-order tie-breaker for equal timestamps.
+        self.connection.execute(
+            "ALTER TABLE p6_formula_audit_events "
+            "ADD COLUMN IF NOT EXISTS event_seq BIGSERIAL"
         )
         self.connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_p6_formula_audit_scope "
@@ -239,7 +246,7 @@ class PostgresP6FormulaAuditRepository:
             "occurred_at, semantic_version, expression_sha256 "
             "FROM p6_formula_audit_events "
             "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s AND formula_id=%s "
-            "ORDER BY occurred_at, event_id",
+            "ORDER BY occurred_at, event_seq",
             (
                 scope.tenant_id,
                 scope.project_id,

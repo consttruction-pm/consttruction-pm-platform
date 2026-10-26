@@ -2,9 +2,22 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveRequestFile } from "./preview-server.mjs";
 
+// The resolver returns platform-native paths. Normalizing separators keeps the
+// contract assertions meaningful on Windows, Linux and macOS.
+function portable(value) {
+  return value === null ? null : value.replaceAll("\\", "/");
+}
+
 test("preview resolver serves the main HTML entry", () => {
   const resolved = resolveRequestFile("/");
-  assert.ok(resolved?.endsWith("apps/web/index.html"));
+  assert.ok(portable(resolved)?.endsWith("apps/web/index.html"));
+});
+
+test("preview resolver serves the application shell at /app", () => {
+  for (const route of ["/app", "/app/", "/app/index.html", "/app?view=activity"]) {
+    const resolved = resolveRequestFile(route);
+    assert.ok(portable(resolved)?.endsWith("apps/web/app.html"), "Expected " + route + " to resolve to app.html");
+  }
 });
 
 test("preview resolver strips query strings", () => {
@@ -16,12 +29,12 @@ test("preview resolver strips query strings", () => {
 
 test("preview resolver maps built web output under /dist", () => {
   const resolved = resolveRequestFile("/dist/main.js?cache=1");
-  assert.ok(resolved?.endsWith("apps/web/dist/web/src/main.js"));
+  assert.ok(portable(resolved)?.endsWith("apps/web/dist/web/src/main.js"));
 });
 
 test("preview resolver maps built client-sync output explicitly", () => {
   const resolved = resolveRequestFile("/client-sync/src/scheduling-adapter.js");
-  assert.ok(resolved?.endsWith("apps/web/dist/client-sync/src/scheduling-adapter.js"));
+  assert.ok(portable(resolved)?.endsWith("apps/web/dist/client-sync/src/scheduling-adapter.js"));
 });
 
 test("preview resolver rejects path traversal outside the preview roots", () => {
@@ -31,7 +44,7 @@ test("preview resolver rejects path traversal outside the preview roots", () => 
 
 test("preview resolver serves public marketing pages with and without trailing slash", () => {
   for (const route of ["/platform/", "/platform", "/solutions/", "/resources/", "/contact/"]) {
-    const resolved = resolveRequestFile(route);
+    const resolved = portable(resolveRequestFile(route));
     assert.ok(resolved?.endsWith("/index.html"), "Expected " + route + " to resolve to index.html");
     assert.ok(resolved?.includes("/public/"), "Expected " + route + " to resolve from public assets");
   }

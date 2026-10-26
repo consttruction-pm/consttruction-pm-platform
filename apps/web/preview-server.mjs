@@ -47,6 +47,10 @@ export function resolveRequestFile(requestPath) {
 
   if (pathname === "/") {
     candidate = join(root, "index.html");
+  } else if (pathname === "/app" || pathname === "/app/" || pathname === "/app/index.html") {
+    // The workspace entry is a real application shell, not the marketing
+    // landing page. It uses absolute asset URLs so it also works at /app/.
+    candidate = join(root, "app.html");
   } else if (pathname.startsWith("/dist/")) {
     const rest = pathname.slice("/dist/".length);
     candidate = rest.startsWith("web/") || rest.startsWith("client-sync/")

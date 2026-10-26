@@ -86,6 +86,10 @@ from ..p6_financial_period_repository import P6FinancialPeriod
 from ..p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from ..p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
 from ..p6_resource_read_api import P6ResourceReadAPI, P6_RESOURCE_READ_API_VERSION
+from ..p6_resource_capacity_read_api import (
+    P6ResourceCapacityReadAPI,
+    P6_RESOURCE_CAPACITY_READ_API_VERSION,
+)
 from ..p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
 from ..p6_resource_assignment_repository import (
     P6ResourceAssignment,
@@ -97,7 +101,11 @@ from ..p6_code_api import P6CodeAPI, P6_CODE_API_VERSION
 from ..p6_code_repository import P6CodeDefinition, P6CodeValue
 from ..p6_mapping_registry import P6MappingDefinition, P6MappingFormat, P6MappingStatus, PersistedP6Mapping
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI, P6_LAYOUT_DEFINITION_API_VERSION
-from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
+from ..p6_layout_definition_repository import (
+    PersistedP6Layout,
+    P6LayoutPersistenceError,
+    layout_column_from_mapping,
+)
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 
@@ -145,6 +153,7 @@ class ProjectLifecycleHttpRoutes:
         p6_mapping_api: P6MappingAPI | None = None,
         p6_interchange_api: P6InterchangeAPI | None = None,
         p6_resource_read_api: P6ResourceReadAPI | None = None,
+        p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
         p6_resource_write_api: P6ResourceWriteAPI | None = None,
         p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
         p6_code_api: P6CodeAPI | None = None,
@@ -175,6 +184,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_mapping_api = p6_mapping_api
         self._p6_interchange_api = p6_interchange_api
         self._p6_resource_read_api = p6_resource_read_api
+        self._p6_resource_capacity_read_api = p6_resource_capacity_read_api
         self._p6_resource_write_api = p6_resource_write_api
         self._p6_resource_spread_api = p6_resource_spread_api
         self._p6_code_api = p6_code_api
@@ -1554,6 +1564,56 @@ class ProjectLifecycleHttpRoutes:
                 result = self._p6_resource_read_api.get_assignment(BackendScope(context.tenant_id, context.project_id, context.revision), assignment_id, auth_context=auth)
                 if result is None: return self._error(404, "P6_RESOURCE_ASSIGNMENT_NOT_FOUND", "error.p6.resource_assignment.not_found")
                 return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-capacities"):
+                if self._p6_resource_capacity_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-capacities")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    session = self._api.get_session(session_id, now=now)
+                    auth = context.authorization_context(session.roles)
+                    result = self._p6_resource_capacity_read_api.list_segments(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        None,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    return self._error(400, str(exc), "error.request.invalid")
+                return self._json(200, {
+                    "contract_version": P6_RESOURCE_CAPACITY_READ_API_VERSION,
+                    "capacities": list(result),
+                })
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/resource-capacities/" in path:
+                if self._p6_resource_capacity_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, resource_id = path.split("/p6/resource-capacities/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                resource_id = resource_id.rstrip("/")
+                if not project_id or not resource_id or "/" in resource_id:
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    session = self._api.get_session(session_id, now=now)
+                    auth = context.authorization_context(session.roles)
+                    result = self._p6_resource_capacity_read_api.get_profile(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code == "RESOURCE_CAPACITY_NOT_REGISTERED":
+                        return self._error(404, code, "error.p6.resource_capacity.not_registered")
+                    if code in {"CAPACITY_SEGMENT_NOT_EFFECTIVE", "CAPACITY_SEGMENTS_OVERLAP"}:
+                        return self._error(409, code, "error.p6.resource_capacity.conflict")
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignment-periods"):
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 project_id = path[len("/api/projects/"):-len("/p6/resource-assignment-periods")].rstrip("/")
@@ -2020,7 +2080,12 @@ class ProjectLifecycleHttpRoutes:
                 raw_columns = payload.get("columns", [])
                 if not isinstance(raw_columns, list):
                     return self._error(400, "INVALID_LAYOUT_COLUMNS", "error.request.invalid")
-                columns = tuple(LayoutColumn(**item) for item in raw_columns)
+                try:
+                    columns = tuple(
+                        layout_column_from_mapping(item) for item in raw_columns
+                    )
+                except P6LayoutPersistenceError:
+                    return self._error(400, "INVALID_LAYOUT_COLUMNS", "error.request.invalid")
                 metadata = payload.get("metadata", {})
                 if not isinstance(metadata, dict):
                     return self._error(400, "INVALID_LAYOUT_METADATA", "error.request.invalid")
