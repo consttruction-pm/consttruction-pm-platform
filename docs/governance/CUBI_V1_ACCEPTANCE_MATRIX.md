@@ -29,9 +29,9 @@ This matrix is an evidence index for the approved product scope, not a completio
 
 | Date | Evidence | Result |
 |---|---|---|
-| 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q` (full Python suite, after typed capacity, calendar/project-creation and formula-authority changes) | **2837 passed, 124 skipped, 1 warning** |
-| 2026-10-26 | `cd apps/web && npm test` / `npm run typecheck` / `npm run build` | See “Web result” below |
-| 2026-10-26 | `cd apps/web && npm run test:e2e:preview` (isolated temporary SQLite + random port) | **27 checks, 18 screenshots passed**; real WSGI/SQLite/Shared-Core read-back, including formula validation, interchange export/import UI, typed capacity, Jalali display, viewer denial and admin project creation |
+| 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q` (full Python suite, after typed capacity, calendar/project-creation and formula-authority changes) | **2840 passed, 126 skipped, 1 warning** |
+| 2026-10-26 | `cd apps/web && npm test` / `npm run typecheck` / `npm run build` | **329 TypeScript tests + 7 preview-resolver tests passed**; typecheck and build passed |
+| 2026-10-26 | `cd apps/web && npm run test:e2e:preview` (isolated temporary SQLite + random port) | **31 checks, 21 screenshots passed**; real WSGI/SQLite/Shared-Core read-back, including formula validation, interchange export/import UI, typed capacity, typed Jalali entry with fail-closed invalid dates, viewer denial and admin project creation |
 | 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q tests/test_preview_runtime.py` | **7 passed** (includes registered-capacity read/restart and admin project creation/restart) |
 | 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q tests/test_p6_formula_authority_api.py tests/test_p6_formula_field_adapter.py tests/test_project_lifecycle_http_routes.py` | **108 passed**; includes unsupported-registry-field isolation, structured duration diagnostic and self-reference precedence |
 | 2026-10-26 | `PYTHONPATH=src py -3 -m pytest -q tests/resources/test_max_units_time.py tests/test_p6_resource_capacity_repository.py tests/test_preview_runtime.py` | 18 passed for the typed capacity slice |
@@ -138,7 +138,7 @@ This matrix is an evidence index for the approved product scope, not a completio
 | WEB-14 | AI assistant chat → missing-input detection → proposal → approval → execution → verification panel. | `ai-assistant-chat.ts`, `ai-action-panel.ts`, `main.ts` | Workspace AI panels | Earlier Web E2E for AI proposal/verification; backend tests; requires configured provider/grants | implemented-and-verified (laboratory path) |
 | WEB-15 | Explicit loading, empty, error, unavailable, rejected and permission states; no success on denial. | `main.ts`, `workspace-view.ts`, `schedule-cycle.ts` | All panels | Preview E2E guards, empty filter, viewer failure; error tests | implemented-and-verified |
 | WEB-16 | English/Persian and LTR/RTL. | `workspace-localization.ts`, `main.ts`, `styles.css` | Language/settings; full workspace | Preview E2E Persian RTL; localization tests | implemented-and-verified (EN/FA) |
-| WEB-17 | Jalali date display/input in the workspace. | `workspace-calendar-display.ts`, `workspace-view.ts`, `main.ts` | Calendar-mode toggle in the workspace status bar; date cells | `workspace-calendar-display.test.ts`; preview E2E toggle 2026-10-07 ↔ ۱۴۰۵/۰۷/۱۵ with stored ISO unchanged | partial (display verified; Jalali date entry not implemented) |
+| WEB-17 | Jalali date display/input in the workspace. | `workspace-calendar-display.ts`, `workspace-jalali-entry.ts`, `schedule-cycle.ts`, `workspace-view.ts`, `main.ts` | Calendar-mode toggle in the workspace status bar; date cells; Schedule settings start/finish fields when the calendar system is Jalali (DATE_BASED) | `workspace-calendar-display.test.ts`, `workspace-jalali-entry.test.ts` (conversion, leap-day, Persian/Arabic digits, fail-closed invalid dates); preview E2E display toggle plus typed `۱۴۰۵/۰۶/۳۰` → stored `2026-09-21`, invalid `1405/13/01` rejected with no persistence, and Gregorian restore | implemented-and-verified (DATE_BASED schedule settings; time-aware mode remains an ISO datetime-local control) |
 | WEB-18 | Usable smaller/compact layout. | `styles.css`, responsive workspace | 1024 px layout | Preview E2E compact layout screenshot/assertion | implemented-and-verified |
 | WEB-19 | No raw action/proposal JSON or fake calculated dates shown to users. | `ai-action-panel.ts`, `workspace-view.ts` | AI and workspace panels | Web tests; preview E2E | implemented-and-verified |
 | WEB-20 | Import/export panel in the Web UI with server-codec export, mapped import review and explicit errors. | `apps/web/src/p6-interchange-panel.ts`, `p6-interchange-api.ts`, `main.ts`, `workspace-view.ts`; `src/construction_pm/p6_interchange_api.py` | `Project → Import / Export`; `POST /api/projects/{p}/p6/interchange/{format}/export` and `.../import` | `p6-interchange-panel.test.ts`, `p6-interchange-api.test.ts`; preview E2E 14-activity export→download→import round-trip, invalid-document error and viewer denial | implemented-and-verified |
@@ -200,7 +200,7 @@ This matrix is an evidence index for the approved product scope, not a completio
 | LOC-01 | English/Persian workspace strings. | `workspace-localization.ts`, `workspace-view.ts` | Whole workspace | Localization tests; preview E2E Persian | implemented-and-verified |
 | LOC-02 | RTL/LTR direction and mirrored layout. | `main.ts`, `styles.css`, `workspace-view.ts` | Workspace | Preview E2E RTL; layout tests | implemented-and-verified |
 | LOC-03 | Jalali/Gregorian calendar models in the scheduling core and persisted metadata. | `scheduling/calendar.py`, `calendar_master_repository.py`, fixtures | Calendar/settings API | Calendar tests; preview NSE fixture Jalali settings | implemented-and-verified (model/API) |
-| LOC-04 | Jalali dates rendered and entered in the workspace UI. | `workspace-calendar-display.ts` display only | Date cells; workspace toggle | `workspace-calendar-display.test.ts`; preview E2E | partial (render verified; entry missing) |
+| LOC-04 | Jalali dates rendered and entered in the workspace UI. | `workspace-calendar-display.ts`, `workspace-jalali-entry.ts`, `schedule-cycle.ts` | Date cells; workspace toggle; DATE_BASED schedule settings start/finish | `workspace-calendar-display.test.ts`, `workspace-jalali-entry.test.ts`; preview E2E display and typed-entry round-trip with stored ISO unchanged | implemented-and-verified (DATE_BASED; explicit fail-closed conversion) |
 | LOC-05 | Gregorian dates displayed consistently. | Workspace cells/FACT ISO dates | Grid/Gantt | Preview E2E dates | implemented-and-verified |
 | LOC-06 | Timezone-aware date/time handling. | `scheduling/time_calendar.py`, snapshot `timezone` | Schedule snapshot | `tests/scheduling/test_time_calendar*.py` | implemented-and-verified |
 | LOC-07 | Calendar metadata preserved through snapshots, export and portability. | Snapshot composer, portability, interchange | API | Calendar snapshot/portability tests; preview calendar test | implemented-and-verified (API) |
@@ -221,9 +221,9 @@ This matrix is an evidence index for the approved product scope, not a completio
 
 | ID | Requirement | Code path | UI / API path | Test / evidence | Status |
 |---|---|---|---|---|---|
-| OPS-01 | Reproducible local full-stack preview with real WSGI, SQLite and Shared Core. | `src/construction_pm/preview/`, `apps/web/preview-full.mjs` | `npm run preview:full`, `http://127.0.0.1:4174` | Preview E2E 30 checks including the capacity edit/supersession/reload/permission workflow; 7 Python preview tests; manual 4174 run | implemented-and-verified (local) |
+| OPS-01 | Reproducible local full-stack preview with real WSGI, SQLite and Shared Core. | `src/construction_pm/preview/`, `apps/web/preview-full.mjs` | `npm run preview:full`, `http://127.0.0.1:4174` | Preview E2E 31 checks including the capacity and typed Jalali workflows; 7 Python preview tests; manual 4174 run | implemented-and-verified (local) |
 | OPS-02 | A real, external preview URL. | n/a | None | `has_pages=false`; no deploy performed | blocked-external |
-| OPS-03 | In-repo browser E2E covering login, project selection, menus, grid/Gantt, columns, filter/sort, settings/calendar, schedule calculation, formula validation, persistence, interchange round-trip UI, capacity edit/supersession/resolve/reload/permission, project creation, session/permission errors. | `apps/web/e2e/preview-e2e.mjs` | Browser | 30 checks, 21 screenshots; isolated run passed | implemented-and-verified |
+| OPS-03 | In-repo browser E2E covering login, project selection, menus, grid/Gantt, columns, filter/sort, settings/calendar, typed Jalali entry, schedule calculation, formula validation, persistence, interchange round-trip UI, capacity edit/supersession/resolve/reload/permission, project creation, session/permission errors. | `apps/web/e2e/preview-e2e.mjs` | Browser | 31 checks, 21 screenshots; isolated run passed | implemented-and-verified |
 | OPS-04 | Exact-head CI on the final branch before merge. | `.github/workflows/*` | n/a | `0dcad35f`: 9/9 checks success ([Python](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40315561582), [PostgreSQL](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40315561686), [Web](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40315561581), [Client typecheck](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40315561589)) | implemented-and-verified (this head; new commits require new runs) |
 | OPS-05 | Independent review, PR splitting and merge of complete changes. | PR #1582 | n/a | PR remains open; assignment-level backward/early-late and independent-review gaps unresolved | partial |
 | OPS-06 | Official CUBISITE weights/scores/completion percentage. | n/a | n/a | Workbook unavailable; not invented | blocked-external |
@@ -233,11 +233,10 @@ This matrix is an evidence index for the approved product scope, not a completio
 ## Highest-priority remaining gaps
 
 1. **RES-07/RES-08 — assignment-level early/late and backward placement.** Activity-level backward leveling exists and is tested. `scheduling/resource_dependent_placement.py` documents a deliberate contract boundary: it consumes only final authoritative activity start/finish and exposes no assignment-level early/late or backward result. This remains an approved gap until a separate, evidence-backed contract is implemented.
-2. **WEB-21/INT-11 — undo/redo.** No implementation found.
+2. **WEB-21/INT-11 — undo/redo and restore UI.** No implementation found.
 3. **WEB-04 — WBS hierarchy.** The workspace has a flat WBS list; no hierarchy editor or rollup navigation.
-4. **WEB-17/LOC-04 — Jalali date entry.** Display conversion is implemented and browser-verified; typed Jalali date entry is not implemented.
-5. **LIF-06 — production identity.** Supplied by deployment; the preview personas are not production credentials.
-6. **OPS-02/OPS-06 — external URL and authoritative weights.** Both are external blockers; neither is claimed or faked.
+4. **LIF-06 — production identity.** Supplied by deployment; the preview personas are not production credentials.
+5. **OPS-02/OPS-06 — external URL and authoritative weights.** Both are external blockers; neither is claimed or faked.
 
 ## Change rule
 

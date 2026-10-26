@@ -1290,11 +1290,102 @@ async function main() {
     );
     await page.scrollTo("#cp-schedule-options");
     await page.screenshot("06-settings-calendar.png");
+
+    await page.setSelect('select[name="calendar_system"]', "jalali");
+    await page.waitFor(
+      `(() => {
+        const input = document.querySelector('[data-schedule-settings-form] input[name="project_start"]');
+        return input?.type === "text" && input?.value === "1405/06/30";
+      })()`,
+      "typed Jalali project start control",
+    );
+    await page.setInput(
+      '[data-schedule-settings-form] input[name="project_start"]',
+      "1405/13/01",
+    );
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `document.querySelector("[data-settings-status]")?.textContent.includes("INVALID_PROJECT_START")`,
+      "explicit invalid Jalali date error",
+    );
+    const invalidJalaliSettings = await page.evaluate(
+      `(async () => {
+        const headers = {
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        };
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/schedule/settings", { headers });
+        return { status: response.status, body: await response.json() };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(
+      invalidJalaliSettings.status === 200 &&
+        invalidJalaliSettings.body.project_start === "2026-09-21",
+      "an impossible Jalali date must fail closed without changing the stored Gregorian date",
+    );
+    await page.setInput(
+      '[data-schedule-settings-form] input[name="project_start"]',
+      "۱۴۰۵/۰۶/۳۰",
+    );
     await page.click('[data-schedule-settings-form] button[type="submit"]');
     await page.waitFor(
       `document.querySelector("[data-settings-status]")?.textContent.trim() === "Settings saved."`,
-      "settings save status",
+      "Jalali settings save status",
     );
+    const savedJalaliSettings = await page.evaluate(
+      `(async () => {
+        const headers = {
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        };
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/schedule/settings", { headers });
+        return { status: response.status, body: await response.json() };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(
+      savedJalaliSettings.body.project_start === "2026-09-21",
+      "a typed Jalali date must persist as its canonical Gregorian date",
+    );
+    assert(
+      savedJalaliSettings.body.project_calendar.system === "jalali",
+      "the Jalali calendar system must persist with the settings",
+    );
+    const jalaliSavedRevision = Number(savedJalaliSettings.body.record_revision);
+    await page.setSelect('select[name="calendar_system"]', "gregorian");
+    await page.waitFor(
+      `(() => {
+        const input = document.querySelector('[data-schedule-settings-form] input[name="project_start"]');
+        return input?.type === "date" && input?.value === "2026-09-21";
+      })()`,
+      "Gregorian date restored after the Jalali round-trip",
+    );
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1) > ${jalaliSavedRevision}`,
+      "restored settings revision",
+    );
+    const restoredSystem = await page.evaluate(
+      `document.querySelector('[data-schedule-settings-form] select[name="calendar_system"]')?.value`,
+    );
+    assert(restoredSystem === "gregorian", "the Gregorian calendar system must be restorable");
+    EVIDENCE.jalali_entry = {
+      rendered_from_iso: "2026-09-21 → 1405/06/30",
+      invalid_input: "1405/13/01 rejected without persistence",
+      persisted_iso: savedJalaliSettings.body.project_start,
+      persisted_system: savedJalaliSettings.body.project_calendar.system,
+      restored_system: restoredSystem,
+      source: "schedule settings form over the authoritative settings API",
+    };
+    record("typed Jalali date entry converts to the canonical stored date and fails closed", {
+      rendered_jalali: "1405/06/30",
+      invalid_input_error: "INVALID_PROJECT_START",
+      persisted_iso: savedJalaliSettings.body.project_start,
+      restored_system: restoredSystem,
+    });
     const savedRevision = await page.evaluate(
       `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? -1)`,
     );
