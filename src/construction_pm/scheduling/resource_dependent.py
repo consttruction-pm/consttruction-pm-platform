@@ -139,6 +139,66 @@ def _validate_demand_periods(fact: ResourceDependentDriverFact) -> tuple[Resourc
     return ordered
 
 
+def validate_resource_dependent_demand_distribution(
+    fact: ResourceDependentDriverFact,
+) -> tuple[ResourceDependentDemandPeriod, ...]:
+    """Reconcile persisted period rows with planned units and the daily rate.
+
+    A persisted assignment row is interpreted as one demand bucket per
+    assignment working day. That interpretation is only safe when the rows are
+    unambiguous: no zero-unit bucket, one row per ``planned_units /
+    units_per_time`` day, and a total equal to the planned units. A gap between
+    period dates is not rejected here because weekends and holidays are
+    calendar closures; placement verifies the sequence against the versioned
+    resource-capacity calendar.
+
+    The function is used both when the immutable snapshot is composed and when
+    placement replays its facts. Mismatched input therefore fails publication,
+    while a directly supplied inconsistent fact becomes an assignment-level
+    placement diagnostic instead of apparently successful dates.
+    """
+    ordered = _validate_demand_periods(fact)
+    if not ordered:
+        return ordered
+    if any(item.units == 0 for item in ordered):
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_ZERO_DEMAND_PERIOD_UNSUPPORTED"
+        )
+    planned = _require_decimal(
+        fact.planned_units,
+        "RESOURCE_DEPENDENT_PLANNED_UNITS_REQUIRED",
+        allow_zero=True,
+    )
+    if fact.units_per_time_period != "day":
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_NONDAILY_RATE_UNSUPPORTED"
+        )
+    rate = _require_decimal(
+        fact.units_per_time,
+        "RESOURCE_DEPENDENT_UNITS_PER_TIME_REQUIRED",
+        allow_zero=False,
+    )
+    duration = planned / rate
+    if duration != duration.to_integral_value():
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED"
+        )
+    duration_days = int(duration)
+    if duration_days > 10_000:
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_DURATION_OUT_OF_RANGE"
+        )
+    if len(ordered) != duration_days:
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_DEMAND_PERIOD_COUNT_MISMATCH"
+        )
+    if sum((item.units for item in ordered), Decimal("0")) != planned:
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_DEMAND_UNITS_MISMATCH"
+        )
+    return ordered
+
+
 def _legacy_assignment_payload(fact: ResourceDependentDriverFact) -> dict[str, object]:
     """Canonical payload used by already-published all-driving snapshots."""
     payload = fact.canonical_payload()
@@ -205,7 +265,9 @@ def derive_resource_dependent_duration(
 
     canonical_demands: dict[str, tuple[ResourceDependentDemandPeriod, ...]] = {}
     for item in ordered:
-        canonical_demands[item.assignment_id] = _validate_demand_periods(item)
+        canonical_demands[item.assignment_id] = (
+            validate_resource_dependent_demand_distribution(item)
+        )
         for value, field_name in (
             (item.calendar_id, "calendar_id"),
             (item.calendar_version, "calendar_version"),

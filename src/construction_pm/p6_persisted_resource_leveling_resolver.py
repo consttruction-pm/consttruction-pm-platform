@@ -299,50 +299,60 @@ def build_persisted_resource_leveling_input_resolver(
         assignments_dto = resource_read_api.list_assignments(scope, auth_context=auth_context)
         periods_dto = resource_read_api.list_assignment_periods(scope, auth_context=auth_context)
         typed_assignments: dict[str, dict] = {}
+        kept_assignment_dtos: list[dict] = []
+        ignored_wbs_assignment_ids: set[str] = set()
         for item in assignments_dto:
             assignment = _assignment_from_dto(scope, item)
             assignment_id = assignment.get("assignment_id")
             if not isinstance(assignment_id, str) or not assignment_id.strip():
                 raise PersistedResourceLevelingResolverError("INVALID_ASSIGNMENT_ID")
-            if assignment_id in typed_assignments:
+            if assignment_id in typed_assignments or assignment_id in ignored_wbs_assignment_ids:
                 raise PersistedResourceLevelingResolverError("DUPLICATE_ASSIGNMENT_ID")
+            activity_id = assignment.get("activity_id")
+            if activity_id not in source_activities:
+                raise PersistedResourceLevelingResolverError(
+                    f"RESOURCE_ASSIGNMENT_ACTIVITY_NOT_IN_SNAPSHOT:{activity_id}"
+                )
+            assigned_activity = source_activities[activity_id]
+            raw_activity_type = getattr(
+                assigned_activity.activity_type,
+                "value",
+                assigned_activity.activity_type,
+            )
+            if raw_activity_type == ActivityType.LEVEL_OF_EFFORT.value:
+                # LOE resource semantics are not implemented in this slice.
+                # Keep the previous fail-closed behavior until they are proven.
+                raise PersistedResourceLevelingResolverError(
+                    "RESOURCE_LEVELING_LEVEL_OF_EFFORT_UNSUPPORTED:"
+                    f"{assigned_activity.id}:{assignment_id}"
+                )
+            if raw_activity_type == ActivityType.WBS_SUMMARY.value:
+                # WBS Summary activities are ignored by resource leveling. Their
+                # assignments and period rows must not be interpreted as demand
+                # or used to choose a resource calendar, and their mere presence
+                # must not fail the whole schedule query.
+                ignored_wbs_assignment_ids.add(assignment_id)
+                continue
             calendar_id = assignment.get("calendar_id")
             calendar_version = assignment.get("calendar_version")
             if not isinstance(calendar_id, str) or not calendar_id.strip():
                 raise PersistedResourceLevelingResolverError("MISSING_RESOURCE_CALENDAR")
             if not isinstance(calendar_version, str) or not calendar_version.strip():
                 raise PersistedResourceLevelingResolverError("MISSING_RESOURCE_CALENDAR_VERSION")
-            if assignment.get("activity_id") not in source_activities:
-                raise PersistedResourceLevelingResolverError(
-                    f"RESOURCE_ASSIGNMENT_ACTIVITY_NOT_IN_SNAPSHOT:{assignment.get('activity_id')}"
-                )
             typed_assignments[assignment_id] = assignment
-
-        for assignment in typed_assignments.values():
-            assigned_activity = source_activities[assignment.get("activity_id")]
-            raw_activity_type = getattr(
-                assigned_activity.activity_type,
-                "value",
-                assigned_activity.activity_type,
-            )
-            if raw_activity_type == ActivityType.WBS_SUMMARY.value:
-                raise PersistedResourceLevelingResolverError(
-                    "RESOURCE_LEVELING_WBS_SUMMARY_ASSIGNMENT_UNSUPPORTED:"
-                    f"{assigned_activity.id}:{assignment.get('assignment_id')}"
-                )
-            if raw_activity_type == ActivityType.LEVEL_OF_EFFORT.value:
-                raise PersistedResourceLevelingResolverError(
-                    "RESOURCE_LEVELING_LEVEL_OF_EFFORT_UNSUPPORTED:"
-                    f"{assigned_activity.id}:{assignment.get('assignment_id')}"
-                )
+            kept_assignment_dtos.append(item)
 
         # Index persisted time-phased demand by assignment before verifying the
-        # immutable Resource Dependent assignment facts.
+        # immutable Resource Dependent assignment facts. Ignored WBS rows are
+        # excluded here as well so the adapter cannot read them back as capacity.
         periods_by_assignment: dict[str, list[ResourceDependentDemandPeriod]] = {}
         period_dates_by_activity: dict[str, list[date]] = {}
+        kept_period_dtos: list[dict] = []
         for item in periods_dto:
             period = _period_from_dto(scope, item)
             assignment_id = period.get("assignment_id")
+            if assignment_id in ignored_wbs_assignment_ids:
+                continue
             assignment = typed_assignments.get(assignment_id)
             if assignment is None:
                 raise PersistedResourceLevelingResolverError("RESOURCE_PERIOD_ASSIGNMENT_NOT_FOUND")
@@ -360,8 +370,9 @@ def build_persisted_resource_leveling_input_resolver(
             periods_by_assignment.setdefault(str(assignment_id), []).append(
                 ResourceDependentDemandPeriod(period_date, period.get("units"))
             )
+            kept_period_dtos.append(item)
 
-        if typed_assignments and not periods_dto:
+        if typed_assignments and not kept_period_dtos:
             raise PersistedResourceLevelingResolverError("RESOURCE_ASSIGNMENT_PERIODS_REQUIRED")
 
         # Resource Dependent duration is derived when the immutable schedule
@@ -493,8 +504,10 @@ def build_persisted_resource_leveling_input_resolver(
 
         cached_api = _CapturedResourceReadAPI(
             scope=scope,
-            assignments=tuple(assignments_dto),
-            periods=tuple(periods_dto),
+            # The adapter may only see the rows that remain in the leveling
+            # ledger. Ignored WBS Summary rows are not re-read as capacity.
+            assignments=tuple(kept_assignment_dtos),
+            periods=tuple(kept_period_dtos),
         )
         calendars: dict[tuple[str, str], object] = {}
         capacity_periods: tuple[date, ...] = ()

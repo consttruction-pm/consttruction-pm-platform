@@ -433,3 +433,47 @@ def test_resolver_excludes_wbs_summary_and_loe_from_leveling_candidates():
         assert leveling.capacities == ()
     finally:
         fixture["connection"].close()
+
+
+def test_resolver_ignores_wbs_summary_assignments_from_demand_and_capacity():
+    fixture = make_fixture(
+        add_resources=False,
+        activities=(
+            Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH),
+            Activity("WBS-1", 1, activity_type=ActivityType.WBS_SUMMARY),
+        ),
+    )
+    scope = fixture["scope"]
+    assignment_repo = fixture["read_api"].assignment_service.repository
+    period_repo = fixture["read_api"].period_service.repository
+    # The WBS Summary row has no resource calendar and deliberately large units.
+    # It is ignored by leveling, so neither field may be interpreted as demand
+    # or used to build capacity.
+    assignment_repo.upsert(P6ResourceAssignment(
+        scope=scope,
+        assignment_id="AS-WBS",
+        activity_id="WBS-1",
+        resource_id="R-WBS",
+        units=Decimal("80"),
+        calendar_id=None,
+        calendar_version=None,
+    ))
+    period_repo.upsert(P6ResourceAssignmentPeriodValue(
+        scope=scope,
+        assignment_id="AS-WBS",
+        activity_id="WBS-1",
+        resource_id="R-WBS",
+        period_start="2026-10-19",
+        units=Decimal("80"),
+        cost=Decimal("0"),
+    ))
+    try:
+        leveling = fixture["resolver"](
+            fixture["snapshot"], fixture["context"], fixture["registry"], auth()
+        )
+        assert [item.activity_id for item in leveling.forward_activities] == ["A"]
+        assert all(not item.resource_demands for item in leveling.forward_activities)
+        assert leveling.capacities == ()
+        assert len(leveling.resource_facts_hash) == 64
+    finally:
+        fixture["connection"].close()

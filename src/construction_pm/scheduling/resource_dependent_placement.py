@@ -20,6 +20,14 @@ The function never reads mutable repositories and never invents capacity,
 calendar identity, or a driving assignment. Every failure is returned as an
 assignment-level diagnostic so a caller cannot report successful placement for
 an assignment that was not placed.
+
+Contract boundary (unchanged by this implementation): placement consumes only
+the final authoritative activity start/finish and the CPM priority context.
+Assignment-level early/late windows and backward assignment leveling are not
+computed or exposed. The Shared Core schedule result remains the only owner of
+activity early/late dates and floats; callers must not infer assignment late
+dates from a placed start/finish. This gap stays open until a separate,
+evidence-backed backward-placement contract exists.
 """
 
 from dataclasses import dataclass
@@ -30,8 +38,20 @@ import hashlib
 import json
 from typing import Iterable, Mapping
 
-from .resource_dependent import ResourceDependentDemandPeriod, ResourceDependentDriverFact
-from .resource_leveling import ResourceCapacity, ResourceDemand, ResourceLevelingError
+from .resource_dependent import (
+    ResourceDependentCalculationError,
+    ResourceDependentDemandPeriod,
+    ResourceDependentDriverFact,
+    validate_resource_dependent_demand_distribution,
+)
+from .resource_leveling import (
+    LevelingActivity,
+    LevelingPriority,
+    ResourceCapacity,
+    ResourceDemand,
+    ResourceLevelingError,
+    _priority_sort_key,
+)
 
 
 class ResourceDependentPlacementError(ResourceLevelingError):
@@ -48,16 +68,28 @@ ASSIGNMENT_FAILED = "FAILED"
 
 @dataclass(frozen=True)
 class ResourceDependentPlacedDemand:
-    """One placed demand value with the capacity ledger that admitted it."""
+    """One placed demand value with the capacity ledger that admitted it.
+
+    ``source_period_start`` is the immutable persisted period date that carried
+    this unit value. Placement may re-anchor the row to a different
+    resource-calendar date, but the original date remains in the audited
+    output and in the placement input hash.
+    """
 
     period: date
     units: Decimal
     capacity: Decimal
     total_load: Decimal
+    source_period_start: date | None = None
 
     def to_payload(self) -> dict[str, object]:
         return {
             "period_start": self.period.isoformat(),
+            "source_period_start": (
+                None
+                if self.source_period_start is None
+                else self.source_period_start.isoformat()
+            ),
             "units": str(self.units),
             "capacity": str(self.capacity),
             "total_load": str(self.total_load),
@@ -83,6 +115,7 @@ class ResourceDependentAssignmentSchedule:
     demand_periods: tuple[ResourceDependentPlacedDemand, ...] = ()
     diagnostic_code: str | None = None
     diagnostic_message: str | None = None
+    activity_priority_rank: int | None = None
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -101,6 +134,7 @@ class ResourceDependentAssignmentSchedule:
             "demand_periods": [item.to_payload() for item in self.demand_periods],
             "diagnostic_code": self.diagnostic_code,
             "diagnostic_message": self.diagnostic_message,
+            "activity_priority_rank": self.activity_priority_rank,
         }
 
 
@@ -113,6 +147,7 @@ class ResourceDependentPlacementResult:
     horizon_start: date | None
     horizon_end: date | None
     input_hash: str
+    priorities: tuple[LevelingPriority, ...] = ()
 
     @property
     def failed_assignments(self) -> tuple[ResourceDependentAssignmentSchedule, ...]:
@@ -126,6 +161,10 @@ class ResourceDependentPlacementResult:
             "horizon_end": None if self.horizon_end is None else self.horizon_end.isoformat(),
             "assignment_count": len(self.assignments),
             "failed_assignment_count": len(self.failed_assignments),
+            "priority_fields": [
+                {"field_name": item.field_name, "sort_order": item.sort_order.value}
+                for item in self.priorities
+            ],
             "assignments": {
                 item.assignment_id: item.to_payload()
                 for item in sorted(self.assignments, key=lambda value: value.assignment_id)
@@ -203,6 +242,42 @@ def _validated_periods(
                 f"INVALID_RESOURCE_DEPENDENT_DEMAND_UNITS:{fact.assignment_id}"
             )
     return ordered
+
+
+def _distribution_diagnostic(fact: ResourceDependentDriverFact) -> str | None:
+    """Return the explicit code when the persisted distribution is ambiguous."""
+    try:
+        validate_resource_dependent_demand_distribution(fact)
+    except ResourceDependentCalculationError as exc:
+        return str(exc)
+    return None
+
+
+def _source_periods_are_consecutive_resource_days(
+    periods: tuple[ResourceDependentDemandPeriod, ...],
+    *,
+    available_index: Mapping[date, int],
+) -> str | None:
+    """Verify that persisted period rows occupy consecutive capacity days.
+
+    Weekend and holiday closures simply do not appear in the positive-capacity
+    index, so a Friday-to-Monday sequence is accepted. A working day with
+    positive capacity that is skipped by the persisted rows is ambiguous: the
+    rows cannot be safely re-compressed or interpreted as zero demand.
+    """
+    indices: list[int] = []
+    for period in periods:
+        index = available_index.get(period.period_start)
+        if index is None:
+            return (
+                "RESOURCE_DEPENDENT_SOURCE_PERIOD_CAPACITY_NOT_FOUND:"
+                f"{period.period_start.isoformat()}"
+            )
+        indices.append(index)
+    for previous, current in zip(indices, indices[1:]):
+        if current != previous + 1:
+            return "RESOURCE_DEPENDENT_SOURCE_PERIOD_GAP"
+    return None
 
 
 def _capacity_index(
@@ -322,6 +397,7 @@ def _placed_demands(
                 units=demand.units,
                 capacity=available,
                 total_load=current + demand.units,
+                source_period_start=demand.period_start,
             )
         )
     return tuple(result)
@@ -435,13 +511,15 @@ def demands_at_final_schedule(
     ))
 
 
-def _failed_assignment(    fact: ResourceDependentDriverFact,
+def _failed_assignment(
+    fact: ResourceDependentDriverFact,
     *,
     activity_start: date,
     activity_finish: date,
     periods: tuple[ResourceDependentDemandPeriod, ...],
     code: str,
     message: str,
+    activity_priority_rank: int | None = None,
 ) -> ResourceDependentAssignmentSchedule:
     return ResourceDependentAssignmentSchedule(
         assignment_id=fact.assignment_id,
@@ -459,6 +537,7 @@ def _failed_assignment(    fact: ResourceDependentDriverFact,
         demand_periods=(),
         diagnostic_code=code,
         diagnostic_message=message,
+        activity_priority_rank=activity_priority_rank,
     )
 
 
@@ -469,6 +548,8 @@ def place_resource_dependent_assignments(
     capacities: tuple[ResourceCapacity, ...],
     committed_demands: Iterable[ResourceDemand] = (),
     max_candidates: int = 10_000,
+    priority_activities: Mapping[str, LevelingActivity] | None = None,
+    priorities: tuple[LevelingPriority, ...] = (),
 ) -> ResourceDependentPlacementResult:
     """Place every Resource Dependent assignment against final activity dates.
 
@@ -478,6 +559,16 @@ def place_resource_dependent_assignments(
     driving facts are committed by this function. Nondriving units are placed
     in ordered, consecutive resource-capacity dates starting at the earliest
     feasible date on or after the activity start.
+
+    When ``priority_activities`` is supplied, competing nondriving assignments
+    are ordered with the same P6 leveling-priority key used by the Shared Core.
+    P6 levels (delays) the first activity in that order first; an independent
+    assignment placement therefore gives the later-sorted activities the
+    earlier capacity and places the first-sorted activities last. Priorities
+    are activity-level; assignment ID is the deterministic within-activity
+    tie-break and is not a P6 priority field. Without the optional context the
+    legacy deterministic (activity ID, assignment ID) order is retained for
+    direct callers.
     """
     if not isinstance(facts, tuple):
         raise ResourceDependentPlacementError("RESOURCE_DEPENDENT_FACTS_MUST_BE_TUPLE")
@@ -491,6 +582,28 @@ def place_resource_dependent_assignments(
         or max_candidates < 1
     ):
         raise ResourceDependentPlacementError("INVALID_RESOURCE_DEPENDENT_PLACEMENT_LIMIT")
+    if not isinstance(priorities, tuple) or any(
+        not isinstance(priority, LevelingPriority) for priority in priorities
+    ):
+        raise ResourceDependentPlacementError("INVALID_LEVELING_PRIORITIES")
+    if priorities and priority_activities is None:
+        raise ResourceDependentPlacementError(
+            "RESOURCE_DEPENDENT_PRIORITY_CONTEXT_REQUIRED"
+        )
+    if priority_activities is not None:
+        if not isinstance(priority_activities, Mapping):
+            raise ResourceDependentPlacementError(
+                "INVALID_RESOURCE_DEPENDENT_PRIORITY_ACTIVITIES"
+            )
+        for activity_id, activity in priority_activities.items():
+            if (
+                not isinstance(activity, LevelingActivity)
+                or activity.activity_id != activity_id
+            ):
+                raise ResourceDependentPlacementError(
+                    "INVALID_RESOURCE_DEPENDENT_PRIORITY_ACTIVITY:"
+                    f"{activity_id}"
+                )
     committed_demands = tuple(committed_demands)
 
     fact_ids: set[str] = set()
@@ -536,6 +649,60 @@ def place_resource_dependent_assignments(
             )
         periods_by_fact[fact.assignment_id] = _validated_periods(fact)
 
+    nondriving_facts = tuple(item for item in facts if item.is_driving is False)
+    activity_priority_rank: dict[str, int] = {}
+    ordered_activity_ids: tuple[str, ...] = ()
+    if priority_activities is not None:
+        missing_priority_activities = sorted(
+            {fact.activity_id for fact in nondriving_facts}
+            - set(priority_activities)
+        )
+        if missing_priority_activities:
+            raise ResourceDependentPlacementError(
+                "RESOURCE_DEPENDENT_PRIORITY_ACTIVITY_MISSING:"
+                + ",".join(missing_priority_activities)
+            )
+        try:
+            ordered_activity_ids = tuple(
+                activity.activity_id
+                for activity in sorted(
+                    priority_activities.values(),
+                    key=lambda value: _priority_sort_key(value, priorities),
+                )
+            )
+        except ResourceLevelingError as exc:
+            raise ResourceDependentPlacementError(
+                f"RESOURCE_DEPENDENT_PRIORITY_UNAVAILABLE:{exc}"
+            ) from exc
+        activity_priority_rank = {
+            activity_id: index + 1
+            for index, activity_id in enumerate(ordered_activity_ids)
+        }
+
+    if priority_activities is None:
+        # Legacy direct-caller order. Production always supplies the Shared
+        # Core priority context.
+        nondriving_order = tuple(sorted(
+            nondriving_facts,
+            key=lambda value: (value.activity_id, value.assignment_id),
+        ))
+    else:
+        # P6 levels (delays) the first activity in the configured order first.
+        # Place in the inverse order so those activities receive the later
+        # capacity, while assignment ID keeps same-activity facts deterministic.
+        nondriving_order = tuple(
+            fact
+            for activity_id in reversed(ordered_activity_ids)
+            for fact in sorted(
+                (
+                    item
+                    for item in nondriving_facts
+                    if item.activity_id == activity_id
+                ),
+                key=lambda value: value.assignment_id,
+            )
+        )
+
     fact_assignment_ids = frozenset(fact_ids)
     fact_activity_ids = frozenset(fact.activity_id for fact in facts)
     used = _initial_used_load(
@@ -551,6 +718,10 @@ def place_resource_dependent_assignments(
         ))
         for resource_id, periods in capacity.items()
     }
+    available_index = {
+        resource_id: {period: index for index, period in enumerate(dates)}
+        for resource_id, dates in available.items()
+    }
 
     results: dict[str, ResourceDependentAssignmentSchedule] = {}
 
@@ -563,6 +734,7 @@ def place_resource_dependent_assignments(
             periods=periods_by_fact[fact.assignment_id],
             code=code,
             message=message,
+            activity_priority_rank=activity_priority_rank.get(fact.activity_id),
         )
 
     # Driving demand is fixed at the authoritative activity dates. Process it
@@ -623,6 +795,7 @@ def place_resource_dependent_assignments(
                 calendar_id=fact.calendar_id,
                 calendar_version=fact.calendar_version,
                 demand_periods=(),
+                activity_priority_rank=activity_priority_rank.get(fact.activity_id),
             )
             continue
         resource_dates = available.get(fact.resource_id, ())
@@ -634,6 +807,27 @@ def place_resource_dependent_assignments(
                 f"driving resource {fact.resource_id} has no positive capacity "
                 f"from activity start {activity_start.isoformat()} for "
                 f"{len(periods)} demand period(s)",
+            )
+            continue
+        distribution_error = _distribution_diagnostic(fact)
+        if distribution_error is not None:
+            fail(
+                fact,
+                distribution_error,
+                "persisted demand rows do not reconcile planned units, the "
+                "daily rate, and the assignment duration",
+            )
+            continue
+        source_error = _source_periods_are_consecutive_resource_days(
+            periods,
+            available_index=available_index.get(fact.resource_id, {}),
+        )
+        if source_error is not None:
+            fail(
+                fact,
+                source_error,
+                "persisted demand rows are not consecutive assignment "
+                "resource-calendar days and cannot be re-anchored safely",
             )
             continue
         resource_capacity = capacity[fact.resource_id]
@@ -672,13 +866,11 @@ def place_resource_dependent_assignments(
             calendar_id=fact.calendar_id,
             calendar_version=fact.calendar_version,
             demand_periods=placed,
+            activity_priority_rank=activity_priority_rank.get(fact.activity_id),
         )
 
     # Nondriving assignment placement is independent of activity movement.
-    for fact in sorted(
-        (item for item in facts if item.is_driving is False),
-        key=lambda value: (value.activity_id, value.assignment_id),
-    ):
+    for fact in nondriving_order:
         activity_start, activity_finish = activity_dates[fact.activity_id]
         periods = periods_by_fact[fact.assignment_id]
         if not periods:
@@ -686,6 +878,15 @@ def place_resource_dependent_assignments(
                 fact,
                 "RESOURCE_DEPENDENT_ASSIGNMENT_PERIODS_REQUIRED",
                 "nondriving assignment has no time-phased demand periods",
+            )
+            continue
+        distribution_error = _distribution_diagnostic(fact)
+        if distribution_error is not None:
+            fail(
+                fact,
+                distribution_error,
+                "persisted demand rows do not reconcile planned units, the "
+                "daily rate, and the assignment duration",
             )
             continue
         conflict = capacity_conflicts.get(fact.resource_id)
@@ -726,6 +927,18 @@ def place_resource_dependent_assignments(
                 "RESOURCE_DEPENDENT_CAPACITY_HORIZON_EXHAUSTED",
                 f"resource {fact.resource_id} has no positive capacity on or "
                 f"after activity start {activity_start.isoformat()}",
+            )
+            continue
+        source_error = _source_periods_are_consecutive_resource_days(
+            periods,
+            available_index=available_index.get(fact.resource_id, {}),
+        )
+        if source_error is not None:
+            fail(
+                fact,
+                source_error,
+                "persisted demand rows are not consecutive assignment "
+                "resource-calendar days and cannot be re-anchored safely",
             )
             continue
         start_index = bisect.bisect_left(resource_dates, activity_start)
@@ -785,6 +998,7 @@ def place_resource_dependent_assignments(
             calendar_id=fact.calendar_id,
             calendar_version=fact.calendar_version,
             demand_periods=placed,
+            activity_priority_rank=activity_priority_rank.get(fact.activity_id),
         )
 
     ordered_results = tuple(
@@ -848,6 +1062,10 @@ def place_resource_dependent_assignments(
                 )
                 if isinstance(demand, ResourceDemand)
             ],
+            "priority_fields": [
+                {"field_name": item.field_name, "sort_order": item.sort_order.value}
+                for item in priorities
+            ],
             "status": overall,
             "assignments": [item.to_payload() for item in ordered_results],
         }).encode("utf-8")
@@ -858,6 +1076,7 @@ def place_resource_dependent_assignments(
         horizon_start=horizon_start,
         horizon_end=horizon_end,
         input_hash=input_hash,
+        priorities=priorities,
     )
 
 

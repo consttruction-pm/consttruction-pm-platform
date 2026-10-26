@@ -50,6 +50,21 @@ def derive(*assignments: ResourceDependentDriverFact):
     )
 
 
+def with_periods(
+    fact: ResourceDependentDriverFact,
+    periods: tuple[tuple[str, str], ...],
+) -> ResourceDependentDriverFact:
+    return ResourceDependentDriverFact(
+        **{
+            **fact.__dict__,
+            "demand_periods": tuple(
+                ResourceDependentDemandPeriod(date.fromisoformat(day), Decimal(units))
+                for day, units in periods
+            ),
+        }
+    )
+
+
 def test_longest_driving_resource_controls_whole_working_day_duration():
     result = derive(
         driver("A-1", planned="8", rate="4"),
@@ -160,13 +175,109 @@ def test_all_nondriving_still_requires_versioned_resource_calendar_for_placement
         )
 
 
+def test_demand_distribution_reconciles_planned_units_rate_and_row_count():
+    valid = with_periods(
+        driver("A-1", planned="8", rate="4"),
+        (("2026-10-19", "4"), ("2026-10-20", "4")),
+    )
+    assert derive(valid).duration_working_days == 2
+
+    cases = (
+        (
+            with_periods(
+                driver("A-1", planned="8", rate="4"),
+                (("2026-10-19", "4"), ("2026-10-20", "3")),
+            ),
+            "RESOURCE_DEPENDENT_DEMAND_UNITS_MISMATCH",
+        ),
+        (
+            with_periods(
+                driver("A-1", planned="8", rate="4"),
+                (("2026-10-19", "8"),),
+            ),
+            "RESOURCE_DEPENDENT_DEMAND_PERIOD_COUNT_MISMATCH",
+        ),
+        (
+            with_periods(
+                driver("A-1", planned="8", rate="4"),
+                (("2026-10-19", "8"), ("2026-10-20", "0")),
+            ),
+            "RESOURCE_DEPENDENT_ZERO_DEMAND_PERIOD_UNSUPPORTED",
+        ),
+        (
+            with_periods(
+                driver("A-1", planned="8", rate=None),
+                (("2026-10-19", "4"), ("2026-10-20", "4")),
+            ),
+            "RESOURCE_DEPENDENT_UNITS_PER_TIME_REQUIRED",
+        ),
+        (
+            with_periods(
+                driver("A-1", planned="8", rate="4", period="week"),
+                (("2026-10-19", "4"), ("2026-10-20", "4")),
+            ),
+            "RESOURCE_DEPENDENT_NONDAILY_RATE_UNSUPPORTED",
+        ),
+        (
+            with_periods(
+                driver("A-1", planned="9", rate="4"),
+                (("2026-10-19", "5"), ("2026-10-20", "4")),
+            ),
+            "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED",
+        ),
+    )
+    for fact, code in cases:
+        with pytest.raises(ResourceDependentCalculationError, match=code):
+            derive(fact)
+
+
+def test_nondriving_demand_distribution_is_validated_independently_of_activity_duration():
+    valid = with_periods(
+        driver("A-2", driving=False, planned="8", rate="4"),
+        (("2026-10-19", "4"), ("2026-10-20", "4")),
+    )
+    result = derive_resource_dependent_duration(
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=7,
+        activity_id="RD-1",
+        assignments=(valid,),
+        fallback_duration_working_days=5,
+        fallback_calendar_id="ACT-CAL",
+        fallback_calendar_version="v9",
+    )
+    # The assignment spans two demand days while the activity keeps its own
+    # authoritative five-day duration.
+    assert result.duration_working_days == 5
+    assert result.duration_source == "activity"
+
+    invalid = with_periods(
+        driver("A-2", driving=False, planned="8", rate="4"),
+        (("2026-10-19", "8"),),
+    )
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_DEMAND_PERIOD_COUNT_MISMATCH",
+    ):
+        derive_resource_dependent_duration(
+            tenant_id="T-1",
+            project_id="P-1",
+            project_revision=7,
+            activity_id="RD-1",
+            assignments=(invalid,),
+            fallback_duration_working_days=5,
+            fallback_calendar_id="ACT-CAL",
+            fallback_calendar_version="v9",
+        )
+
+
 def test_demand_periods_are_part_of_the_canonical_hash_and_order_independent():
     first = driver(
         "A-1",
         planned="8",
         rate="4",
     )
-    period = ResourceDependentDemandPeriod(date(2026, 10, 19), Decimal("8"))
+    period = ResourceDependentDemandPeriod(date(2026, 10, 19), Decimal("4"))
     other_period = ResourceDependentDemandPeriod(date(2026, 10, 20), Decimal("4"))
     with_periods = ResourceDependentDriverFact(
         **{**first.__dict__, "demand_periods": (other_period, period)}

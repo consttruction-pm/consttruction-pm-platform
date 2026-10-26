@@ -313,6 +313,20 @@ class AuthoritativeScheduleInputComposer:
                         f"RESOURCE_DEPENDENT_IN_PROGRESS_DERIVATION_UNSUPPORTED:{item.activity_id}"
                     )
                 raw_assignments = assignments_by_activity.get(item.activity_id, [])
+                for assignment in raw_assignments:
+                    if (
+                        assignment.remaining_units is not None
+                        and assignment.units is not None
+                        and assignment.remaining_units != assignment.units
+                    ):
+                        # A not-started Resource Dependent assignment derives
+                        # from Planned Units. A divergent Remaining Units value
+                        # makes the time-phased rows ambiguous; do not publish a
+                        # snapshot that would silently choose one of them.
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_REMAINING_UNITS_MISMATCH:"
+                            f"{item.activity_id}:{assignment.assignment_id}"
+                        )
                 facts = tuple(
                     ResourceDependentDriverFact(
                         assignment_id=assignment.assignment_id,

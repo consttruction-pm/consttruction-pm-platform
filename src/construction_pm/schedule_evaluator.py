@@ -180,6 +180,14 @@ def _evaluate_materialized(
                     activities=result.activities,
                     capacities=leveling_input.capacities,
                     committed_demands=committed_demands,
+                    # Competing nondriving assignments use the exact activity
+                    # priority fields and order that the Shared Core applies to
+                    # activity leveling. No client or parallel ordering is used.
+                    priority_activities={
+                        activity.activity_id: activity
+                        for activity in leveling_input.forward_activities
+                    },
+                    priorities=leveling_input.options.priorities,
                 )
             run_identity = _run_identity(
                 snapshot.snapshot_hash,
