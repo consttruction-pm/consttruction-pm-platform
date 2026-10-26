@@ -17,6 +17,7 @@
 import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { createServer } from "node:net";
 import { createWriteStream, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -619,16 +620,25 @@ async function launchChrome() {
 
   const activePortFile = join(userDataDir, "DevToolsActivePort");
   const deadline = Date.now() + 20000;
-  while (!existsSync(activePortFile)) {
+  let activePortText = null;
+  while (activePortText === null) {
     if (exited) {
       throw new Error(`CHROME_EXITED: ${JSON.stringify(exited)} ${stderr.slice(-800)}`);
     }
     if (Date.now() > deadline) {
       throw new Error(`CHROME_DID_NOT_START ${stderr.slice(-800)}`);
     }
-    await sleep(50);
+    try {
+      activePortText = await readFile(activePortFile, "utf8");
+    } catch (error) {
+      // Windows can briefly hold the file while Chrome is still writing it.
+      if (error?.code !== "ENOENT" && error?.code !== "EBUSY" && error?.code !== "EPERM") {
+        throw error;
+      }
+      await sleep(50);
+    }
   }
-  const [debugPort] = (await (await import("node:fs/promises")).readFile(activePortFile, "utf8")).split("\n");
+  const [debugPort] = activePortText.split("\n");
   let target = null;
   for (let attempt = 0; attempt < 50 && !target; attempt += 1) {
     try {
