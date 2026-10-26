@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+<title id="title">CUBI AI Project Assistant</title>
+<desc id="desc">Friendly front-facing 3D-inspired engineering robot with a white face, blue hard hat and project-control details.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#EAF6FF"/><stop offset="1" stop-color="#BBDDF8"/></linearGradient>
+  <linearGradient id="helmet" x1="0" y1="0" x2="0.9" y2="1"><stop stop-color="#47C9FF"/><stop offset=".55" stop-color="#1689FF"/><stop offset="1" stop-color="#0752BD"/></linearGradient>
+  <linearGradient id="face" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE8F3"/></linearGradient>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F8FCFF"/><stop offset="1" stop-color="#AFC5D9"/></linearGradient>
+  <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#103F6E"/><stop offset="1" stop-color="#071F3C"/></linearGradient>
+  <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#153A60" flood-opacity=".22"/></filter>
+</defs>
+<circle cx="128" cy="128" r="124" fill="url(#bg)"/>
+<circle cx="128" cy="128" r="112" fill="#F8FCFF" opacity=".55"/>
+<g filter="url(#shadow)">
+  <path d="M63 229c4-26 23-42 48-47h34c25 5 44 21 48 47" fill="url(#metal)" stroke="#7F9DB7" stroke-width="2.5"/>
+  <path d="M93 193l35 22 35-22-9-14h-52z" fill="#1689FF"/>
+  <path d="M111 190h34l-4 19-13 8-13-8z" fill="#E8F6FF"/>
+  <rect x="54" y="89" width="18" height="43" rx="9" fill="url(#metal)" stroke="#8AA7C0" stroke-width="2"/>
+  <rect x="184" y="89" width="18" height="43" rx="9" fill="url(#metal)" stroke="#8AA7C0" stroke-width="2"/>
+  <rect x="64" y="58" width="128" height="116" rx="39" fill="url(#face)" stroke="#8EA9C1" stroke-width="3"/>
+  <path d="M78 83c4-17 18-27 35-27h30c17 0 31 10 35 27" fill="#fff" opacity=".7"/>
+  <rect x="83" y="100" width="30" height="27" rx="12" fill="#163E65"/>
+  <rect x="143" y="100" width="30" height="27" rx="12" fill="#163E65"/>
+  <ellipse cx="98" cy="108" rx="5" ry="7" fill="#FFFFFF"/>
+  <ellipse cx="158" cy="108" rx="5" ry="7" fill="#FFFFFF"/>
+  <circle cx="111" cy="135" r="3" fill="#5D7E9C" opacity=".65"/>
+  <circle cx="145" cy="135" r="3" fill="#5D7E9C" opacity=".65"/>
+  <path d="M108 143q20 18 40 0" fill="none" stroke="#1689FF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M53 79c0-31 26-54 75-54s75 23 75 54v9H53z" fill="url(#helmet)" stroke="#0752BD" stroke-width="3"/>
+  <path d="M85 38c12-8 25-11 43-11 18 0 31 3 43 11" fill="none" stroke="#9DEBFF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M42 82q0-8 10-8h152q10 0 10 8v8q0 8-10 8H52q-10 0-10-8z" fill="url(#helmet)" stroke="#0752BD" stroke-width="3"/>
+  <rect x="103" y="52" width="50" height="20" rx="7" fill="#F7FCFF" opacity=".97"/>
+  <text x="128" y="66" font-family="Arial,sans-serif" font-size="12" font-weight="800" text-anchor="middle" fill="#12345A">CUBI</text>
+  <rect x="91" y="165" width="74" height="45" rx="10" fill="url(#screen)" stroke="#6E9BBF" stroke-width="2"/>
+  <rect x="99" y="172" width="58" height="30" rx="4" fill="#0D3154"/>
+  <path d="M104 194v-8h8v8m4 0v-14h8v14m4 0v-11h8v11" fill="none" stroke="#37C6F4" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M139 180l4 4 8-8" fill="none" stroke="#69E3C0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M77 205l-12 12m114-12 12 12" stroke="#1689FF" stroke-width="5" stroke-linecap="round"/>
+</g>
+<circle cx="204" cy="48" r="17" fill="#FFFFFF" stroke="#B7D7EE" stroke-width="2"/>
+<path d="M198 48l4 4 8-9" fill="none" stroke="#159A79" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
