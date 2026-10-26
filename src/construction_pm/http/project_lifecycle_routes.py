@@ -2240,6 +2240,39 @@ class ProjectLifecycleHttpRoutes:
                 )
                 result = self._p6_layout_definition_api.save(layout, auth_context=auth)
                 return self._json(200, {"contract_version": P6_LAYOUT_DEFINITION_API_VERSION, **result["layout"]})
+            if (
+                method == "GET"
+                and path.startswith("/api/projects/")
+                and "/p6/layouts/" in path
+                and path.endswith("/revisions")
+            ):
+                if self._p6_layout_definition_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, layout_path = path.split("/p6/layouts/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                layout_path = layout_path[:-len("/revisions")]
+                parts = layout_path.split("/", 1)
+                if not project_id or len(parts) != 2 or not all(parts):
+                    return self._error(400, "P6_LAYOUT_REQUEST_INVALID", "error.request.invalid")
+                layout_scope, view_id = parts
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    result = self._p6_layout_definition_api.list_revisions(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        layout_scope,
+                        view_id,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and "/p6/layouts/" in path:
                 if self._p6_layout_definition_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")

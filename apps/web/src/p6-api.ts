@@ -107,6 +107,39 @@ export function createP6LayoutPersistence(
   return createLayoutPersistence(adapterTransport);
 }
 
+/**
+ * Read the append-only layout history, newest first.
+ *
+ * Undo/redo uses these immutable revisions as its durable baseline. Restoring a
+ * prior revision still goes through the normal save endpoint, which appends a
+ * new revision; no historical row is rewritten.
+ */
+export async function loadP6LayoutRevisions(
+  transport: ApiTransport,
+  context: ProjectContext,
+  scope: LayoutDefinition["scope"] = "project",
+  viewId = "activity",
+): Promise<LayoutDefinition[]> {
+  const result = await transport.get<{
+    contract_version?: string;
+    kind?: string;
+    revisions?: unknown;
+  }>(`${layoutPath(context, scope, viewId)}/revisions`, context);
+  if (!result.ok) {
+    if (result.error.code === "P6_LAYOUT_NOT_FOUND") return [];
+    throw new Error(result.error.code);
+  }
+  const body = result.data;
+  if (
+    body.contract_version !== "p6-layout-definition-api.v1" ||
+    body.kind !== "layout_definition_history" ||
+    !Array.isArray(body.revisions)
+  ) {
+    throw new Error("INVALID_P6_LAYOUT_HISTORY_RESPONSE");
+  }
+  return body.revisions.map(assertLayout);
+}
+
 export async function loadP6Presentation(
   state: import("./workspace-model.js").WorkspaceState,
   transport: ApiTransport,

@@ -42,6 +42,28 @@ def test_layout_edits_append_immutable_revisions_and_survive_reload():
     assert reopened.get(BackendScope("t1", "p1", 7), "project", "activity") == layout(revision=3, width=180)
 
 
+def test_layout_revision_history_is_newest_first_and_scoped():
+    repo = SQLiteP6LayoutRepository(sqlite3.connect(":memory:"))
+    repo.upsert(layout(revision=2))
+    repo.upsert(layout(revision=3, width=180))
+    repo.upsert(layout(revision=4, width=240))
+
+    revisions = repo.list_revisions(BackendScope("t1", "p1", 7), "project", "activity")
+    assert [item.revision for item in revisions] == [4, 3, 2]
+    assert [item.columns[0].width for item in revisions] == [240, 180, 120]
+    assert revisions[0].metadata == {"future": {"enabled": True}}
+
+    assert repo.list_revisions(BackendScope("t1", "p1", 7), "project", "activity", limit=2)[0].revision == 4
+    assert len(repo.list_revisions(BackendScope("t1", "p1", 7), "project", "activity", limit=2)) == 2
+    assert repo.list_revisions(BackendScope("t1", "p1", 8), "project", "activity") == ()
+    assert repo.list_revisions(BackendScope("t1", "p1", 7), "user", "activity") == ()
+
+    with pytest.raises(P6LayoutPersistenceError, match="INVALID_LAYOUT_HISTORY_LIMIT"):
+        repo.list_revisions(BackendScope("t1", "p1", 7), "project", "activity", limit=0)
+    with pytest.raises(P6LayoutPersistenceError, match="INVALID_LAYOUT_HISTORY_LIMIT"):
+        repo.list_revisions(BackendScope("t1", "p1", 7), "project", "activity", limit=101)
+
+
 def test_layout_save_is_committed_for_a_standalone_repository(tmp_path):
     database = tmp_path / "layout.sqlite3"
     writer = sqlite3.connect(database)

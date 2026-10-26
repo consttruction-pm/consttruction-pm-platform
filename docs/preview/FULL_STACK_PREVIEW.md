@@ -123,6 +123,10 @@ SQLite database and a real headless browser. It verifies:
 - menus/submenus, persisted grid rows, Gantt rows and shared grid/Gantt selection;
 - column hide/remove/add/reorder/width/pin/freeze through the real layout API,
   followed by a full reload and read-back;
+- layout undo/redo: removing a column then undoing restores the persisted column
+  set, redo reapplies the removal, every action appends a new revision instead of
+  rewriting the append-only history, and undo remains available after a full
+  reload through `GET .../p6/layouts/project/activity/revisions`;
 - filter and numeric sort behavior, including an explicit empty state;
 - project settings/calendar read, save and revision increment;
 - snapshot publication plus Shared Core query results and content hash;
@@ -156,7 +160,7 @@ SQLite database and a real headless browser. It verifies:
   activity grid and curated layout;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **31 checks and 21 screenshots**.
+The latest isolated run recorded **33 checks and 22 screenshots**.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `12-admin-project-created.png`, including
@@ -183,6 +187,10 @@ workspace.
 1. Open `/preview/login` and choose **Planner**.
 2. Select **Riverside Pump Station Upgrade**; inspect the activity grid and Gantt.
 3. Hide, add, reorder, resize, pin or freeze columns; reload and confirm persistence.
+   Remove a column, press **Undo** and confirm it returns; press **Redo** and confirm
+   the removal returns. Reload again and press **Undo** to confirm the prior persisted
+   revision is restored; the history endpoint must show a new revision on top rather
+   than rewritten rows.
 4. Filter by `civil` or `civil completed`; sort by Id or Total Float.
 5. Toggle **Jalali** and confirm dates change for display only; toggle back.
 6. Open **Schedule → Schedule settings**, confirm `CUBI-RPS-CAL` and save. Set the
@@ -231,6 +239,9 @@ workspace.
   `UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration` because calendar-dependent
   duration arithmetic has no safe formula representation yet.
 - The WBS surface is a flat persisted WBS grouping, not a hierarchy editor.
+- Undo/redo currently covers the persisted layout presentation (append-only
+  revisions plus durable history). It does not yet cover activity, WBS, settings or
+  commercial edits, and there is no project-wide backup/restore UI.
 - Typed Resource Max Units/Time is implemented as domain + persistence + read and
   write APIs plus a Web panel. The panel appends effective changes and resolves
   periods; it does not provide bulk capacity import or a separate leveling

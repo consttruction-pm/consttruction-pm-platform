@@ -1425,6 +1425,39 @@ def test_p6_layout_route_returns_not_found_for_missing_layout():
     assert status == 404
     assert json.loads(body)["code"] == "P6_LAYOUT_NOT_FOUND"
 
+
+def test_p6_layout_history_route_returns_append_only_revisions():
+    r, _, layout_api = p6_routes()
+    layout_api.repository.upsert(PersistedP6Layout(
+        BackendScope("t1", "p1", 2), "project", "activity", 1,
+        (LayoutColumn("activity_id", True, 0, None, 120, "start", False, False),),
+        {"density": "compact"},
+    ))
+    layout_api.repository.upsert(PersistedP6Layout(
+        BackendScope("t1", "p1", 2), "project", "activity", 2,
+        (LayoutColumn("activity_id", True, 0, None, 180, "start", False, False),),
+        {"density": "compact"},
+    ))
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/layouts/project/activity/revisions",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == "p6-layout-definition-api.v1"
+    assert payload["kind"] == "layout_definition_history"
+    assert [item["revision"] for item in payload["revisions"]] == [2, 1]
+    assert payload["revisions"][0]["columns"][0]["width"] == 180
+    assert payload["revisions"][1]["columns"][0]["width"] == 120
+
+    # Reading history must not append or renumber a revision.
+    status, _, current = r.handle(
+        "GET", "/api/projects/p1/p6/layouts/project/activity", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    assert json.loads(current)["revision"] == 2
+
 def test_p6_udf_http_routes_preserve_versioned_api_contract_envelope():
     r, _, _ = p6_routes()
     status, _, body = r.handle(

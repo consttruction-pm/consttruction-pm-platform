@@ -560,6 +560,40 @@ th {
   font-size: var(--cubi-ui-label);
 }
 
+.cp-p6-history-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 32px;
+}
+
+.cp-p6-history-bar button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--cp-border);
+  border-radius: 6px;
+  background: var(--cp-surface);
+  color: var(--cp-navy);
+  font-size: var(--cubi-ui-small);
+  cursor: pointer;
+}
+
+.cp-p6-history-bar button:hover:not(:disabled) {
+  border-color: var(--cp-blue);
+  background: var(--cubi-neutral-subtle);
+}
+
+.cp-p6-history-bar button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cp-p6-history-notice {
+  color: var(--cp-muted);
+  font-size: var(--cubi-ui-small);
+}
+
 .cp-p6-field-list {
   display: flex;
   flex-wrap: wrap;

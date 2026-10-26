@@ -75,3 +75,61 @@ def test_layout_api_save_requires_project_write() -> None:
 
     with pytest.raises(AuthorizationError, match="authorization denied"):
         api.save(_layout(), auth_context=_auth("viewer"))
+
+
+def test_layout_api_history_returns_versioned_append_only_revisions() -> None:
+    api = _api()
+    base = _layout()
+    first = api.save(base, auth_context=_auth("planner"))
+    second = api.save(
+        PersistedP6Layout(
+            scope=base.scope,
+            layout_scope="project",
+            view_id="activity",
+            revision=2,
+            columns=(
+                LayoutColumn("activity.activity_id", True, 0, "Activity ID", 180.0, "start", False, False),
+            ),
+            metadata={"source": "p6"},
+        ),
+        auth_context=_auth("planner"),
+    )
+
+    history = api.list_revisions(
+        base.scope,
+        "project",
+        "activity",
+        auth_context=_auth("viewer"),
+    )
+
+    assert history["contract_version"] == P6_LAYOUT_DEFINITION_API_VERSION
+    assert history["kind"] == "layout_definition_history"
+    assert history["layout_scope"] == "project"
+    assert history["view_id"] == "activity"
+    assert [item["revision"] for item in history["revisions"]] == [2, 1]
+    assert history["revisions"][0] == second["layout"]
+    assert history["revisions"][1] == first["layout"]
+    # History reads must not mutate or renumber the immutable revisions.
+    assert api.get(base.scope, "project", "activity", auth_context=_auth("viewer")) == second
+
+
+def test_layout_api_history_requires_read_and_same_scope() -> None:
+    api = _api()
+    api.save(_layout(), auth_context=_auth("planner"))
+
+    history = api.list_revisions(
+        _layout().scope,
+        "project",
+        "activity",
+        auth_context=_auth("viewer"),
+        limit=1,
+    )
+    assert len(history["revisions"]) == 1
+
+    with pytest.raises(AuthorizationError, match="CROSS_SCOPE_ACCESS"):
+        api.list_revisions(
+            _layout().scope,
+            "project",
+            "activity",
+            auth_context=_auth("viewer", tenant="tenant-b"),
+        )

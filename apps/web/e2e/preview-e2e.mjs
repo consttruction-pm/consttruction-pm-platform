@@ -120,8 +120,35 @@ async function fetchJson(url, init) {
   return { status: response.status, headers: response.headers, body };
 }
 
-async function waitForHttp(url, timeoutMs = 60000) {
-  const deadline = Date.now() + timeoutMs;
+async function readLayoutFromPage(page) {
+  return page.evaluate(`(async () => {
+    const response = await fetch("/api/projects/${PROJECT_ID}/p6/layouts/project/activity", {
+      headers: {
+        "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+        "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+        "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+      },
+    });
+    const body = await response.json().catch(() => null);
+    return { status: response.status, body };
+  })()`, { awaitPromise: true });
+}
+
+async function readLayoutHistoryFromPage(page) {
+  return page.evaluate(`(async () => {
+    const response = await fetch("/api/projects/${PROJECT_ID}/p6/layouts/project/activity/revisions", {
+      headers: {
+        "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+        "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+        "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+      },
+    });
+    const body = await response.json().catch(() => null);
+    return { status: response.status, body };
+  })()`, { awaitPromise: true });
+}
+
+async function waitForHttp(url, timeoutMs = 60000) {  const deadline = Date.now() + timeoutMs;
   let lastError;
   while (Date.now() < deadline) {
     try {
@@ -1125,6 +1152,111 @@ async function main() {
       width: addedPresentation.width,
       pinned: addedPresentation.pinned,
       frozen: addedPresentation.frozen,
+    });
+
+    const layoutBeforeUndo = await readLayoutFromPage(page);
+    assert(layoutBeforeUndo.status === 200, "layout must be readable before undo");
+    const historyBeforeUndo = await readLayoutHistoryFromPage(page);
+    assert(historyBeforeUndo.status === 200, "layout history endpoint must be readable");
+    assert(
+      historyBeforeUndo.body?.kind === "layout_definition_history",
+      "layout history must use the versioned history envelope",
+    );
+    assert(
+      historyBeforeUndo.body?.revisions?.[0]?.revision === layoutBeforeUndo.body.revision,
+      "history must start with the current revision",
+    );
+
+    await page.click(`[data-p6-field-remove="${addTarget}"]`);
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
+      "remove column before undo",
+    );
+
+    await page.click("[data-p6-layout-undo]");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      "undo restores removed column",
+    );
+    const undoNotice = await page.text(".cp-p6-history-notice");
+    assert(
+      typeof undoNotice === "string" && /undone|بازگردانی/.test(undoNotice),
+      "undo must report its outcome in the active locale",
+    );
+    const layoutAfterUndo = await readLayoutFromPage(page);
+    assert(layoutAfterUndo.status === 200, "layout must be readable after undo");
+    assert(
+      layoutAfterUndo.body.revision > layoutBeforeUndo.body.revision,
+      "undo must append a new revision instead of rewriting history",
+    );
+    assert(
+      layoutAfterUndo.body.columns.some((column) => column.field_id === addTarget),
+      "undo must persist the restored column set",
+    );
+
+    await page.click("[data-p6-layout-redo]");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
+      "redo reapplies the removed column",
+    );
+    const layoutAfterRedo = await readLayoutFromPage(page);
+    assert(
+      layoutAfterRedo.body.revision > layoutAfterUndo.body.revision,
+      "redo must append a newer revision",
+    );
+    assert(
+      !layoutAfterRedo.body.columns.some((column) => column.field_id === addTarget),
+      "redo must persist the reapplied column set",
+    );
+    const historyAfterRedo = await readLayoutHistoryFromPage(page);
+    const historyRevisions = (historyAfterRedo.body?.revisions ?? []).map((revision) => revision.revision);
+    assert(
+      historyRevisions[0] === layoutAfterRedo.body.revision &&
+        historyRevisions.every((revision, index) => index === 0 || revision < historyRevisions[index - 1]),
+      "layout history must remain append-only and newest-first",
+    );
+    assert(
+      historyRevisions.length >= 3,
+      "undo/redo must preserve the prior revisions",
+    );
+    await page.screenshot("04b-layout-undo-redo.png");
+    record("layout undo/redo appends revisions and preserves prior history", {
+      revision_before_undo: layoutBeforeUndo.body.revision,
+      revision_after_undo: layoutAfterUndo.body.revision,
+      revision_after_redo: layoutAfterRedo.body.revision,
+      history_revisions: historyRevisions.slice(0, 5),
+      restored_field: addTarget,
+    });
+
+    await page.reload(".cp-project-selection", "reload before durable undo");
+    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
+    await page.waitForSelector(".cp-workspace", "workspace for durable undo");
+    await page.waitFor(
+      `(() => {
+        const button = document.querySelector("[data-p6-layout-undo]");
+        return Boolean(button) && !button.disabled;
+      })()`,
+      "undo remains available after reload",
+    );
+    const layoutBeforeDurableUndo = await readLayoutFromPage(page);
+    await page.click("[data-p6-layout-undo]");
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      "undo after reload restores removed column",
+    );
+    const layoutAfterDurableUndo = await readLayoutFromPage(page);
+    assert(
+      layoutAfterDurableUndo.body.revision > layoutBeforeDurableUndo.body.revision,
+      "durable undo must append a revision on the server",
+    );
+    assert(
+      layoutAfterDurableUndo.body.columns.some((column) => column.field_id === addTarget),
+      "durable undo must restore the prior column set after reload",
+    );
+    record("layout undo remains durable across a full reload", {
+      revision_before: layoutBeforeDurableUndo.body.revision,
+      revision_after: layoutAfterDurableUndo.body.revision,
+      restored_field: addTarget,
     });
 
     await page.click(`[data-p6-field-remove="${addTarget}"]`);
