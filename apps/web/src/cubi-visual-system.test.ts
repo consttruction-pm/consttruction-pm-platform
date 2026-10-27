@@ -27,7 +27,7 @@ test("CUBI homepage is aligned to the supplied Issue #1101 website reference", (
 });
 
 test("CUBI logos use the approved reference palette", () => {
-  const allowed = new Set(["2C9AF4","1474D4","1674D2","0B4EA4","0B66C8","102B4D","263E5A","EAF5FF","DCEEFF","DCE7F2","1689FF", "0752BD", "0D3D91", "19C7D4", "0B4FAE", "1187FF", "12345A", "31577F"]);
+  const allowed = new Set(["0877F9", "09BDE0", "063A9D", "0757C5", "0753B8", "0878E9", "13D2C2", "08AFA9", "0879F3", "0755B9", "0FC7B9", "0875E6", "0AA6D2", "064AAE", "08C4B5", "071A36", "243B5B"]);
   const colors = [...primaryLogoLockup.matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0].slice(1).toUpperCase());
   assert.ok(colors.length > 0);
   for (const color of colors) assert.ok(allowed.has(color), `unexpected logo color #${color}`);
@@ -36,6 +36,6 @@ test("CUBI logos use the approved reference palette", () => {
 
 test("only one canonical CUBI logo file is referenced", () => {
   assert.match(primaryLogoLockup, /CUBI/);
-  assert.match(primaryLogoLockup, /PLAN\. CONTROL\. BUILD SMARTER\./);
-  assert.match(primaryLogoLockup, /M84 3 158 45/);
+  assert.match(primaryLogoLockup, /Plan\. Control\. Build Smarter\./);
+  assert.match(primaryLogoLockup, /M112 0 218 61/);
 });
