@@ -75,3 +75,13 @@ ChatGPT متصل به این Repository باید:
 
 ## اصل مهم
 این Repository مرجع مشترک پروژه است. هیچ ChatGPT متصل نباید فرض کند پروژه از صفر است. ابتدا اسناد را بخوان، وضعیت را بررسی کن و سپس از نقطه ثبت‌شده ادامه بده.
+
+
+## Mandatory CUBI account / team / messaging contract
+Before implementing subscription, account identity, team membership, invitations, messages, storage quotas or related reporting, read:
+- `docs/team/PROJECT_FINALIZED_LOGIC_AND_PREFERENCES.md` — the approved product decision.
+- `docs/requirements/CUBI_SUBSCRIPTIONS_IDENTITY_TEAMS_MESSAGING_AND_STORAGE_V1.md` — detailed requirements and acceptance tests.
+- `shared/contracts/cubi-identity-team-messaging-entitlements.v1.schema.json` — versioned contract shapes.
+- GitHub issue [#1605](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1605) — implementation tracker.
+
+Only Free and Pro monthly exist; there is no annual plan, Team plan, single-project purchase or multi-project purchase. Pro checkout quantity extends the paid monthly entitlement idempotently. Reuse production auth/session, authorization, persistence, storage and localization; preview/demo identity is not production identity. Do not mark the feature complete until the production path and exact-final-SHA CI are verified.
