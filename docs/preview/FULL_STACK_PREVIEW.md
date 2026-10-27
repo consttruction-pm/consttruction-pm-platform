@@ -178,13 +178,21 @@ SQLite database and a real headless browser. It verifies:
   reload through the stored preference and `?project=` deep link;
 - switching the workspace language keeps the current step and persists the
   choice;
+- the global assistant entry resolves a deterministic guide from the live page:
+  the public homepage gets page guidance and no fake action, the multi-project
+  selection gets the real choice steps, the loaded Schedule surface offers
+  `#cp-activity-grid` and the action lands focus inside it, a brand-new Persian
+  project shows the Persian empty-activities guidance, and Cost guidance hides
+  its summary action when the project has no control summary;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **63 checks and 34 screenshots**.
+The latest isolated run recorded **68 checks and 36 screenshots**.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `13-newcomer-first-project.png`, including
-`04b-layout-undo-redo.png`, `04c-layout-restore.png`, `04d-layout-conflict.png`
+`02d-assistant-needs-project.png`, `03a-workspace-context-guide.png`,
+`12a-newcomer-empty-project-guide.png`, `04b-layout-undo-redo.png`,
+`04c-layout-restore.png`, `04d-layout-conflict.png`
 (same-revision clash), `04e-layout-conflict-gap.png` (revision-gap conflict),
 `07b`–`07f` (formula and interchange states),
 `08-capacity-effective-change.png`, `10a-capacity-persisted.png`,

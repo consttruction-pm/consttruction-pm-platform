@@ -2469,6 +2469,67 @@ th {
   font-size: .9rem;
   line-height: 1.8;
 }
+.cubi-assistant-guide {
+  display: grid;
+  gap: .4rem;
+  padding-top: .75rem;
+  border-top: 1px solid #e3ebf3;
+}
+.cubi-assistant-guide h2 {
+  margin: 0;
+  color: #0f2747;
+  font-size: .86rem;
+  line-height: 1.4;
+}
+.cubi-assistant-guide h3 {
+  margin: .1rem 0 0;
+  color: #61748a;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.cubi-assistant-guide p {
+  margin: 0;
+  color: #425b73;
+  font-size: .83rem;
+  line-height: 1.65;
+}
+.cubi-assistant-guide ol {
+  display: grid;
+  gap: .3rem;
+  margin: 0;
+  padding-inline-start: 1.15rem;
+}
+.cubi-assistant-guide li {
+  color: #425b73;
+  font-size: .81rem;
+  line-height: 1.6;
+}
+.cubi-assistant-guide-error {
+  border-radius: .5rem;
+  padding: .5rem .6rem;
+  background: #fff4ec;
+  color: #8a3b1c !important;
+}
+.cubi-assistant-guide-action {
+  justify-self: start;
+  min-height: 36px;
+  padding: .4rem .7rem;
+  border: 1px solid #b8dcfa;
+  border-radius: .6rem;
+  background: #eff8ff;
+  color: #0f2747;
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cubi-assistant-guide-action:hover,
+.cubi-assistant-guide-action:focus-visible {
+  border-color: #7cc0f4;
+  background: #e3f3ff;
+}
 .cubi-assistant-workspace-link {
   display: inline-flex;
   align-items: center;
