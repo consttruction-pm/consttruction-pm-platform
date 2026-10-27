@@ -190,8 +190,8 @@ test("one assistant entry owns keyboard dismissal, artwork failure and viewport 
 test("approved primary logo uses the current canonical cube mark, teal center structure and wordmark", () => {
   assert.match(primaryLogo, /CUBI Platform/);
   assert.match(primaryLogo, /Plan\. Control\. Build Smarter\./);
-  assert.match(primaryLogo, /<path d="M126 0 244 68/);
-  assert.match(primaryLogo, /stop-color="#26E0D0"/);
+  assert.match(primaryLogo, /<path d="M250 109L156 62/);
+  assert.match(primaryLogo, /stop-color="#2CC5EB"/);
   assert.match(primaryLogo, /viewBox="0 0 1000 330"/);
 });
 
