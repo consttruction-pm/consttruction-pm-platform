@@ -15,6 +15,8 @@ const expected = [
   ["http://127.0.0.1:4173/solutions/", "Built around how construction projects are delivered."],
   ["http://127.0.0.1:4173/resources/", "Understand the platform. Find the right next step."],
   ["http://127.0.0.1:4173/contact/", "Get to the right CUBI destination."],
+  ["http://127.0.0.1:4173/pricing/", "Choose your Pro time."],
+  ["http://127.0.0.1:4173/pricing/", "month-quantity"],
   // Persian is served as its own documents and routes, not as a client-only repaint.
   ["http://127.0.0.1:4173/fa/", '<html lang="fa" dir="rtl">'],
   ["http://127.0.0.1:4173/fa/", "نرم‌افزار مدیریت پروژه و کنترل پروژه ساختمانی | کوبی"],
@@ -22,6 +24,8 @@ const expected = [
   ["http://127.0.0.1:4173/fa/solutions/", "بر پایه شیوه تحویل پروژه‌های ساختمانی ساخته شده است."],
   ["http://127.0.0.1:4173/fa/resources/", "پلتفرم را بشناسید و گام بعدی را درست انتخاب کنید."],
   ["http://127.0.0.1:4173/fa/contact/", "به مسیر درست کوبی برسید."],
+  ["http://127.0.0.1:4173/fa/pricing/", "مدت اشتراک Pro را انتخاب کنید."],
+  ["http://127.0.0.1:4173/fa/pricing/", "month-quantity"],
   ["http://127.0.0.1:4173/fa/contact/", "global-assistant-launcher.js"],
 ];
 

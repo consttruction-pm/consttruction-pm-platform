@@ -2589,3 +2589,60 @@ th {
   .cubi-assistant-launcher[data-compact="true"] .cubi-assistant-avatar-fallback { width: 56px; height: 56px; }
   .cubi-assistant-popover { width: calc(100vw - 24px); }
 }
+
+
+/* CUBI Pro monthly checkout — responsive, bilingual and low-distraction. */
+.cubi-checkout-page{background:#f4f7fb}
+.cubi-checkout-layout{width:min(1120px,calc(100% - 40px));margin:0 auto;padding:64px 0 72px;display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,470px);gap:42px 64px;align-items:start}
+.cubi-checkout-intro{padding:22px 0}
+.cubi-checkout-intro .eyebrow{color:var(--cubi-engineering-blue);font-weight:800;letter-spacing:.1em;font-size:.78rem}
+.cubi-checkout-intro h1{max-width:640px;margin:.6rem 0 1rem;color:var(--cubi-deep-navy);font-size:clamp(2.3rem,4vw,3.8rem);line-height:1.12;letter-spacing:-.035em}
+.cubi-checkout-lead{max-width:610px;color:#4f5f72;font-size:1.1rem;line-height:1.85}
+.cubi-checkout-points{display:grid;gap:.35rem;margin:28px 0;color:#30445c}
+.cubi-checkout-points p{margin:0;display:flex;gap:.65rem;align-items:baseline}
+.cubi-checkout-points span{color:#1e7b51;font-weight:900}
+.cubi-checkout-back-link{display:inline-flex;margin-top:22px;color:var(--cubi-engineering-blue);font-weight:750;text-decoration:none}
+.cubi-checkout-back-link:hover{text-decoration:underline}
+.cubi-checkout-card{padding:28px;border:1px solid #dce4ee;border-radius:18px;background:#fff;box-shadow:0 18px 48px rgba(8,26,47,.09);min-width:0}
+.cubi-checkout-card-heading{display:flex;align-items:center;gap:14px}
+.cubi-checkout-plan-icon{display:grid;place-items:center;flex:0 0 48px;height:48px;border-radius:13px;background:linear-gradient(145deg,#0f2747,#1976d2);color:#fff;font-weight:900;font-size:1.3rem}
+.cubi-checkout-kicker{margin:0;color:#66778c;font-size:.7rem;font-weight:850;letter-spacing:.1em}
+.cubi-checkout-card-heading h2{margin:.22rem 0;color:#0f2747;font-size:1.45rem}
+.cubi-checkout-card-heading p:last-child{margin:0;color:#68788c;font-size:.88rem}
+.cubi-checkout-price{display:flex;gap:8px;align-items:baseline;margin:26px 0 18px}
+.cubi-checkout-price strong{color:#0f2747;font-size:2.3rem;letter-spacing:-.04em}
+.cubi-checkout-price span{color:#68788c}
+.cubi-checkout-divider{height:1px;background:#e6ebf2;margin:20px 0}
+#pro-checkout-form{display:grid;gap:10px}
+#pro-checkout-form label{font-weight:800;color:#233a53}
+.cubi-checkout-help{margin:0;color:#66778c;font-size:.9rem;line-height:1.6}
+.cubi-month-control{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;gap:8px;margin-top:4px}
+.cubi-quantity-button{min-height:48px;border:1px solid #d8e1ec;background:#f7faff;color:#0f2747;border-radius:10px;font-size:1.45rem;font-weight:700;cursor:pointer}
+.cubi-quantity-button:hover{border-color:#1976d2;background:#edf6ff}
+#month-quantity{width:100%;min-width:0;min-height:48px;padding:.65rem .8rem;border:1px solid #cbd6e3;border-radius:10px;background:#fff;color:#0f2747;text-align:center;font-size:1.1rem;font-weight:750}
+#month-quantity[aria-invalid="true"]{border-color:#d64545;box-shadow:0 0 0 2px rgba(214,69,69,.12)}
+.cubi-quick-quantities{display:flex;gap:8px;flex-wrap:wrap;margin:3px 0 12px}
+.cubi-quick-quantities button{padding:.42rem .8rem;border:1px solid #d6e1ee;border-radius:999px;background:#f5f9fe;color:#214b75;cursor:pointer;font-weight:750}
+.cubi-quick-quantities button:hover{background:#e8f3ff;border-color:#1976d2}
+.cubi-checkout-total-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 0 8px;border-top:1px solid #e6ebf2;color:#30445c}
+.cubi-checkout-total-row strong{color:#0f2747;font-size:1.7rem;letter-spacing:-.025em}
+.cubi-checkout-tax-note{margin:0;color:#6e7c8e;font-size:.78rem;line-height:1.7}
+.cubi-checkout-submit{width:100%;min-height:50px;margin-top:10px;border:0;border-radius:10px;background:var(--cubi-copper-orange);color:#162b40;font-weight:850;cursor:pointer;box-shadow:0 5px 0 rgba(164,86,17,.12)}
+.cubi-checkout-submit:hover:not(:disabled){filter:brightness(.97);transform:translateY(-1px)}
+.cubi-checkout-submit:disabled{cursor:not-allowed;opacity:.55}
+.cubi-checkout-notice{margin:4px 0 0;padding:.72rem .8rem;min-height:42px;border-radius:9px;background:#f5f8fb;color:#53677e;font-size:.86rem;line-height:1.6}
+.cubi-checkout-notice:empty{display:none}
+.cubi-checkout-notice[data-state="error"]{background:#fff3f1;color:#9a3025}
+.cubi-checkout-notice[data-state="pending"]{background:#eff6ff;color:#214b75}
+.cubi-checkout-policy{grid-column:1/-1;padding-top:12px}
+.cubi-checkout-policy>h2{font-size:1.55rem;color:#0f2747}
+.cubi-checkout-policy-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.cubi-checkout-policy-grid article{padding:20px;border:1px solid #e0e7ef;border-radius:12px;background:#fff}
+.cubi-checkout-policy-grid h3{margin:0 0 .55rem;color:#17385b;font-size:1rem}
+.cubi-checkout-policy-grid p{margin:0;color:#617185;line-height:1.7;font-size:.9rem}
+.cubi-checkout-disclaimer{margin:18px 0 0;padding:14px 16px;border-inline-start:3px solid #d99a00;background:#fffaf0;color:#684f1a;font-size:.9rem;line-height:1.75}
+[dir="rtl"] .cubi-checkout-page{font-family:"Vazirmatn",Inter,system-ui,sans-serif}
+[dir="rtl"] .cubi-checkout-intro h1{letter-spacing:0}
+[dir="rtl"] .cubi-checkout-price strong,[dir="rtl"] .cubi-checkout-total-row strong{letter-spacing:0}
+@media(max-width:850px){.cubi-checkout-layout{grid-template-columns:minmax(0,1fr);width:min(640px,calc(100% - 32px));padding:36px 0 48px;gap:24px}.cubi-checkout-intro{padding:0}.cubi-checkout-policy-grid{grid-template-columns:1fr}.cubi-checkout-policy{grid-column:auto}}
+@media(max-width:520px){.cubi-checkout-layout{width:calc(100% - 24px);padding-top:24px}.cubi-checkout-card{padding:19px;border-radius:14px}.cubi-checkout-intro h1{font-size:2.35rem}.cubi-checkout-lead{font-size:1rem}.cubi-public-nav{gap:.6rem;flex-wrap:wrap}.cubi-checkout-card-heading h2{font-size:1.25rem}.cubi-checkout-price strong{font-size:2rem}}
