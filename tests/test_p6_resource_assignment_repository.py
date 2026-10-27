@@ -18,6 +18,10 @@ def scope(revision=1):
 def assignment(
     s, assignment_id="ra-1", activity_id="act-1", resource_id="res-1",
     calendar_version="cal-v1",
+    is_driving=None,
+    units_per_time=None,
+    units_per_time_period=None,
+    hours_per_units_time_period=None,
 ):
     return P6ResourceAssignment(
         s, assignment_id, activity_id, resource_id, "role-1",
@@ -25,6 +29,10 @@ def assignment(
         Decimal("850.25"), Decimal("250.00"), Decimal("600.25"),
         "h", "USD", "cal-1", "assignment snapshot",
         calendar_version=calendar_version,
+        is_driving=is_driving,
+        units_per_time=units_per_time,
+        units_per_time_period=units_per_time_period,
+        hours_per_units_time_period=hours_per_units_time_period,
     )
 
 
@@ -76,11 +84,52 @@ def test_legacy_sqlite_schema_migrates_without_guessing_calendar_version():
     assert legacy.calendar_id == "cal-1"
     # Old rows remain explicitly unversioned; migrations must never guess latest.
     assert legacy.calendar_version is None
+    assert legacy.is_driving is None
+    assert legacy.units_per_time is None
+    assert legacy.units_per_time_period is None
+    assert legacy.hours_per_units_time_period is None
 
     versioned = assignment(scope(), assignment_id="new", calendar_version="cal-v3")
     repo.upsert(versioned)
     assert repo.get(scope(), "new") == versioned
 
+
+
+def test_driving_assignment_and_explicit_units_per_time_round_trip():
+    repo = SQLiteP6ResourceAssignmentRepository(sqlite3.connect(":memory:"))
+    item = assignment(
+        scope(),
+        is_driving=True,
+        units_per_time=Decimal("2.5"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+    )
+
+    repo.upsert(item)
+    stored = repo.get(scope(), item.assignment_id)
+
+    assert stored == item
+    assert stored.is_driving is True
+    assert stored.units_per_time == Decimal("2.5")
+    assert stored.units_per_time_period == "day"
+    assert stored.hours_per_units_time_period == Decimal("8")
+
+
+def test_driving_rate_contract_fails_closed_when_conversion_is_incomplete():
+    item = assignment(
+        scope(),
+        is_driving=True,
+        units_per_time=Decimal("2.5"),
+        units_per_time_period="day",
+    )
+    with pytest.raises(
+        P6ResourceAssignmentPersistenceError,
+        match="INCOMPLETE_ASSIGNMENT_UNITS_PER_TIME",
+    ):
+        item.validate()
+
+    with pytest.raises(P6ResourceAssignmentPersistenceError, match="INVALID_IS_DRIVING"):
+        assignment(scope(), is_driving="yes").validate()
 
 def test_scope_isolation_and_revision_conflict():
     repo = SQLiteP6ResourceAssignmentRepository(sqlite3.connect(":memory:"))

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   addFormulaColumn,
+  applyAuthoritativeScheduleFacts,
   createWorkspaceState,
   selectActivity,
   selectWbs,
@@ -40,6 +41,49 @@ test("workspace model creates a bilingual Main Workspace state", () => {
   assert.equal(state.columns.find((column) => column.id === "duration")?.dataType, "duration");
   assert.equal(state.columns.find((column) => column.id === "activity_name")?.label, "نام فعالیت");
   assert.equal(state.columns.find((column) => column.id === "progress")?.label, "پیشرفت");
+});
+
+test("authoritative schedule facts update the grid and Gantt without client calculations", () => {
+  let state = createWorkspaceState(context);
+  state = withActivities(state, [
+    {
+      id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation",
+      cells: { progress: 35, start: "2026-10-19", finish: "2026-10-20", duration: 2 },
+    },
+    { id: "A-2", wbsId: "W-1", code: "A-2", name: "Columns" },
+  ]);
+
+  const next = applyAuthoritativeScheduleFacts(state, {
+    calculation_run_identity: "run-1",
+    project_finish: "2026-10-23",
+    activity_count: 2,
+    activities: {
+      "A-1": { start: "2026-10-21", finish: "2026-10-22", duration: 2 },
+      "A-2": { start: "2026-10-22", finish: "2026-10-23", duration: 1 },
+    },
+  });
+
+  assert.notEqual(next, state);
+  assert.equal(next.activities[0].cells?.start, "2026-10-21");
+  assert.equal(next.activities[0].cells?.finish, "2026-10-22");
+  assert.equal(next.activities[0].cells?.duration, 2);
+  assert.deepEqual(next.activities[0].gantt, {
+    start: "2026-10-21",
+    finish: "2026-10-22",
+    progressPercent: 35,
+    critical: false,
+  });
+  assert.equal(next.activities[1].gantt?.start, "2026-10-22");
+  assert.equal(state.activities[0].cells?.start, "2026-10-19");
+});
+
+test("authoritative schedule result rejects invalid date windows", () => {
+  const state = withActivities(createWorkspaceState(context), [
+    { id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation" },
+  ]);
+  assert.throws(() => applyAuthoritativeScheduleFacts(state, {
+    activities: { "A-1": { start: "2026-10-22", finish: "2026-10-21", duration: 2 } },
+  }), /INVALID_AUTHORITATIVE_ACTIVITY_RESULT:A-1/);
 });
 
 test("WBS selection clears Activity selection", () => {

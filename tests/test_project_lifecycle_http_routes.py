@@ -762,7 +762,9 @@ def resource_assignment_routes():
     assignment_service.save(P6ResourceAssignment(BackendScope("t1", "p1", 2), "A-R-1", "ACT-1", "RES-1", role_id="ROLE-1", units=Decimal("8"), planned_cost=Decimal("100")))
     spread_service = P6ResourceSpreadApplicationService(SQLiteP6ResourceSpreadRepository(connection), transaction_manager)
     read_api = P6ResourceReadAPI(assignment_service, period_service, spread_service, default_project_policy())
-    write_api = P6ResourceWriteAPI(period_service, default_project_policy())
+    write_api = P6ResourceWriteAPI(
+        period_service, default_project_policy(), assignment_service=assignment_service
+    )
     return ProjectLifecycleHttpRoutes(ProjectLifecycleAPI(service), clock=type("Clock", (), {"now": lambda self: now})(), p6_resource_read_api=read_api, p6_resource_write_api=write_api)
 
 
@@ -784,6 +786,76 @@ def test_authenticated_resource_assignment_http_boundary_reads_assignment_and_pe
     assert fetched["scope"] == period["scope"]
     assert fetched["period"] == period["period"]
 
+
+
+def test_authenticated_resource_assignment_write_persists_driving_and_rate_fields():
+    r = resource_assignment_routes()
+    payload = {
+        "contract_version": P6_RESOURCE_WRITE_API_VERSION,
+        "assignment_id": "A-R-DRIVING",
+        "activity_id": "ACT-1",
+        "resource_id": "RES-1",
+        "units": "16",
+        "remaining_units": "12",
+        "unit": "labor-unit",
+        "calendar_id": "RES-CAL-1",
+        "calendar_version": "v2",
+        "is_driving": True,
+        "units_per_time": "4",
+        "units_per_time_period": "day",
+        "hours_per_units_time_period": "8",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-assignments",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+
+    assert status == 200
+    saved = json.loads(raw)
+    assert saved["contract_version"] == P6_RESOURCE_WRITE_API_VERSION
+    assert saved["kind"] == "resource_assignment"
+    assert saved["assignment"]["is_driving"] is True
+    assert saved["assignment"]["units_per_time"] == "4"
+    assert saved["assignment"]["units_per_time_period"] == "day"
+    assert saved["assignment"]["hours_per_units_time_period"] == "8"
+
+    status, _, raw = r.handle(
+        "GET", "/api/projects/p1/p6/resource-assignments/A-R-DRIVING",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    reread = json.loads(raw)
+    assert reread["assignment"]["is_driving"] is True
+    assert reread["assignment"]["units_per_time"] == "4"
+    assert reread["assignment"]["hours_per_units_time_period"] == "8"
+
+
+def test_resource_assignment_write_rejects_ambiguous_driving_flag_and_missing_contract():
+    r = resource_assignment_routes()
+    payload = {
+        "contract_version": P6_RESOURCE_WRITE_API_VERSION,
+        "assignment_id": "A-R-INVALID",
+        "activity_id": "ACT-1",
+        "resource_id": "RES-1",
+        "calendar_id": "RES-CAL-1",
+        "calendar_version": "v2",
+        "is_driving": "true",
+    }
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-assignments",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID"
+
+    payload.pop("contract_version")
+    payload["is_driving"] = True
+    status, _, raw = r.handle(
+        "POST", "/api/projects/p1/p6/resource-assignments",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+    assert status == 400
+    assert json.loads(raw)["code"] == "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID"
 
 def test_resource_assignment_http_boundary_enforces_scope_and_payload():
     r = resource_assignment_routes()
@@ -1197,6 +1269,30 @@ def test_p6_formula_route_exposes_authoritative_versioned_validation():
     assert payload["result_type"]["data_type"] == "double"
 
 
+def test_p6_formula_route_returns_structured_unsupported_field_result():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.percent_complete"), auth_context=auth)
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.planned_duration"), auth_context=auth)
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formulas/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"expression": "[activity.planned_duration] * 2"}).encode("utf-8"),
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == P6_FORMULA_AUTHORITY_API_VERSION
+    assert payload["validation"]["valid"] is False
+    assert (
+        payload["validation"]["error_code"]
+        == "UNSUPPORTED_P6_FORMULA_FIELD_TYPE:duration"
+    )
+    assert payload["dependencies"]["field_ids"] == []
+    assert payload["result_type"]["data_type"] is None
+
+
 def test_p6_formula_route_requires_session_and_rejects_invalid_request():
     r, _, _ = p6_routes()
     status, _, body = r.handle(
@@ -1288,6 +1384,94 @@ def test_p6_layout_write_route_persists_authenticated_layout():
     assert json.loads(body) == saved
 
 
+def test_p6_layout_write_route_retry_is_idempotent():
+    r, _, _ = p6_routes()
+    payload = {
+        "revision": 1,
+        "columns": [{
+            "field_id": "activity_id",
+            "visible": True,
+            "order": 0,
+            "label": None,
+            "width": 120.0,
+            "alignment": "start",
+            "pinned": False,
+            "frozen": False,
+        }],
+        "metadata": {"density": "compact"},
+    }
+    for _ in range(2):
+        status, _, body = r.handle(
+            "POST",
+            "/api/projects/p1/p6/layouts/project/activity",
+            cookies={"cp_session": "s1"},
+            body=json.dumps(payload).encode("utf-8"),
+        )
+        assert status == 200
+        assert json.loads(body)["revision"] == 1
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/layouts/project/activity/revisions",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    revisions = json.loads(body)["revisions"]
+    assert [item["revision"] for item in revisions] == [1]
+    assert revisions[0]["columns"][0]["width"] == 120.0
+
+
+def test_p6_layout_write_route_reports_stale_and_immutable_writes_as_409():
+    r, _, _ = p6_routes()
+
+    def write(revision: int, width: float):
+        column = {
+            "field_id": "activity_id",
+            "visible": True,
+            "order": 0,
+            "label": None,
+            "width": width,
+            "alignment": "start",
+            "pinned": False,
+            "frozen": False,
+        }
+        return r.handle(
+            "POST",
+            "/api/projects/p1/p6/layouts/project/activity",
+            cookies={"cp_session": "s1"},
+            body=json.dumps({
+                "revision": revision,
+                "columns": [column],
+                "metadata": {},
+            }).encode("utf-8"),
+        )
+
+    assert write(2, 120.0)[0] == 200
+    assert write(3, 180.0)[0] == 200
+
+    # A client behind the head must reload instead of rewriting history.
+    status, _, body = write(2, 300.0)
+    assert status == 409
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"
+    assert json.loads(body)["message_key"] == "error.p6.layout.conflict"
+
+    # Publishing different content under an existing revision is immutable.
+    status, _, body = write(3, 300.0)
+    assert status == 409
+    assert json.loads(body)["code"] == "IMMUTABLE_LAYOUT_REVISION"
+
+    # Rejected writes leave the published head untouched.
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/layouts/project/activity",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    head = json.loads(body)
+    assert head["revision"] == 3
+    assert head["columns"][0]["width"] == 180.0
+
+
 def test_p6_layout_write_route_rejects_non_object_json():
     r, _, _ = p6_routes()
     status, _, body = r.handle(
@@ -1328,6 +1512,39 @@ def test_p6_layout_route_returns_not_found_for_missing_layout():
     status, _, body = r.handle("GET", "/api/projects/p1/p6/layouts/project/missing", cookies={"cp_session": "s1"})
     assert status == 404
     assert json.loads(body)["code"] == "P6_LAYOUT_NOT_FOUND"
+
+
+def test_p6_layout_history_route_returns_append_only_revisions():
+    r, _, layout_api = p6_routes()
+    layout_api.repository.upsert(PersistedP6Layout(
+        BackendScope("t1", "p1", 2), "project", "activity", 1,
+        (LayoutColumn("activity_id", True, 0, None, 120, "start", False, False),),
+        {"density": "compact"},
+    ))
+    layout_api.repository.upsert(PersistedP6Layout(
+        BackendScope("t1", "p1", 2), "project", "activity", 2,
+        (LayoutColumn("activity_id", True, 0, None, 180, "start", False, False),),
+        {"density": "compact"},
+    ))
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/layouts/project/activity/revisions",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == "p6-layout-definition-api.v1"
+    assert payload["kind"] == "layout_definition_history"
+    assert [item["revision"] for item in payload["revisions"]] == [2, 1]
+    assert payload["revisions"][0]["columns"][0]["width"] == 180
+    assert payload["revisions"][1]["columns"][0]["width"] == 120
+
+    # Reading history must not append or renumber a revision.
+    status, _, current = r.handle(
+        "GET", "/api/projects/p1/p6/layouts/project/activity", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    assert json.loads(current)["revision"] == 2
 
 def test_p6_udf_http_routes_preserve_versioned_api_contract_envelope():
     r, _, _ = p6_routes()
@@ -1989,3 +2206,29 @@ def test_authenticated_sync_mutation_requires_project_write_permission():
     assert json.loads(raw)["code"] == "authorization denied for permission=project.write"
     assert handler.calls == []
     assert handler.endpoint_factory_calls == 0
+
+
+def test_authenticated_schedule_code_reference_endpoint_returns_safe_catalogue():
+    import json
+
+    routes, _, _ = p6_routes()
+    status, headers, body = routes.handle(
+        "GET", "/api/v1/schedule/code-reference", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    assert headers["Content-Type"].startswith("application/json")
+    payload = json.loads(body)
+    assert payload["contract_version"] == "schedule-code-reference.v1"
+    assert payload["requirements"]
+    assert payload["formulas"]
+    assert payload["summary"]["parity_claimed_complete"] is False
+    serialized = body.decode("utf-8").lower()
+    assert "oracle" not in serialized
+    assert "primavera" not in serialized
+    assert "https://" not in serialized
+
+    unauthenticated_status, _, unauthenticated_body = routes.handle(
+        "GET", "/api/v1/schedule/code-reference"
+    )
+    assert unauthenticated_status == 401
+    assert json.loads(unauthenticated_body)["code"] == "SESSION_REQUIRED"

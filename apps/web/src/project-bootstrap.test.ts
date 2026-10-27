@@ -37,9 +37,11 @@ function deps(overrides: Partial<SessionApi> = {}): {
   dependencies: ProjectBootstrapDependencies;
   opened: string[];
   runtimeContexts: ProjectContext[];
+  loadOptions: Array<{ locale?: string } | undefined>;
 } {
   const opened: string[] = [];
   const runtimeContexts: ProjectContext[] = [];
+  const loadOptions: Array<{ locale?: string } | undefined> = [];
 
   const sessionApi: SessionApi = {
     getSession: async () => ok(session),
@@ -74,15 +76,19 @@ function deps(overrides: Partial<SessionApi> = {}): {
   } as ProjectBootstrapDependencies["syncRuntime"];
 
   const workspaceReadClient = {
-    load: async (context: ProjectContext) => ok({
-      context,
-    } as WorkspaceState),
+    load: async (context: ProjectContext, options?: { locale?: string }) => {
+      loadOptions.push(options);
+      return ok({
+        context,
+      } as WorkspaceState);
+    },
   } as unknown as WorkspaceReadClient;
 
   return {
     dependencies: { sessionApi, syncRuntime, workspaceReadClient },
     opened,
     runtimeContexts,
+    loadOptions,
   };
 }
 
@@ -101,6 +107,19 @@ test("one project opens and hydrates using authoritative open context", async ()
   }]);
 });
 
+test("the chosen language is applied when the project is read", async () => {
+  const setup = deps();
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  const opened = await bootstrap.start(null, "fa");
+  assert.equal(opened?.status, "ready");
+  assert.deepEqual(setup.loadOptions, [{ locale: "fa" }]);
+
+  const created = await bootstrap.createProject("new-project", "پروژه تازه", "fa");
+  assert.equal(created?.status, "ready");
+  assert.deepEqual(setup.loadOptions[1], { locale: "fa" });
+});
+
 test("multiple projects stop at selection", async () => {
   const setup = deps({ listProjects: async () => ok({ projects }) });
   const bootstrap = new ProjectBootstrap(setup.dependencies);
@@ -111,14 +130,51 @@ test("multiple projects stop at selection", async () => {
   assert.deepEqual(setup.opened, []);
 });
 
-test("zero projects returns explicit error", async () => {
+test("zero projects is a first-run state, not a dead-end error", async () => {
   const setup = deps({ listProjects: async () => ok({ projects: [] }) });
   const bootstrap = new ProjectBootstrap(setup.dependencies);
 
   const state = await bootstrap.start();
 
-  assert.equal(state?.status, "error");
-  assert.equal(state?.status === "error" ? state.error.code : "", "NO_PROJECTS_AVAILABLE");
+  assert.equal(state?.status, "empty");
+  assert.deepEqual(setup.opened, []);
+});
+
+test("a remembered project opens directly when the session still owns it", async () => {
+  const setup = deps({ listProjects: async () => ok({ projects }) });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  const state = await bootstrap.start("p2");
+
+  assert.equal(state?.status, "ready");
+  assert.deepEqual(setup.opened, ["p2"]);
+});
+
+test("a stale remembered project falls back to the selection", async () => {
+  const setup = deps({ listProjects: async () => ok({ projects }) });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  const state = await bootstrap.start("project-from-another-account");
+
+  assert.equal(state?.status, "selecting");
+  assert.deepEqual(setup.opened, []);
+});
+
+test("the per-user preference is resolved only after the session is known", async () => {
+  const setup = deps({ listProjects: async () => ok({ projects }) });
+  const resolvedUsers: string[] = [];
+  setup.dependencies.preferredProjectIdForUser = (userId) => {
+    resolvedUsers.push(userId);
+    return userId === "u1" ? "p2" : "p1";
+  };
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+
+  const state = await bootstrap.start();
+
+  assert.equal(state?.status, "ready");
+  assert.deepEqual(resolvedUsers, ["u1"]);
+  assert.deepEqual(setup.opened, ["p2"]);
+  assert.equal(state?.status === "ready" ? state.userId : "", "u1");
 });
 
 test("project creation hydrates the authoritative created context without a second open call", async () => {

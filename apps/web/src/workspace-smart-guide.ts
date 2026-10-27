@@ -1,3 +1,4 @@
+import { getWorkspaceLocaleDefinition } from "./workspace-localization.js";
 import {
   projectControlIntelligence,
   type ControlRoomIntelligenceSnapshot,
@@ -18,7 +19,7 @@ export type SmartGuideModule =
   | "commercial"
   | "procurement";
 
-export type SmartGuideLocale = "fa" | "en";
+export type SmartGuideLocale = string;
 
 export type WorkspaceSmartGuide = Readonly<{
   contractVersion: typeof SMART_GUIDE_VERSION;
@@ -67,7 +68,7 @@ export function projectSmartGuide(
   if (!module) {
     throw new Error("INVALID_SMART_GUIDE_MODULE");
   }
-  if (locale !== "fa" && locale !== "en") {
+  if (!getWorkspaceLocaleDefinition(locale)) {
     throw new Error("INVALID_SMART_GUIDE_LOCALE");
   }
 

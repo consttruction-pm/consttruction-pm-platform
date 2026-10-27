@@ -15,6 +15,7 @@ from .scheduling.calculation_context import CalculationContext
 from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.leveling_scheduler import schedule_with_resource_leveling
 from .scheduling.leveling_boundary import SchedulerLevelingInput
+from .scheduling.calendar_resolution import resolve_relationship_lag_resolvers
 from .scheduling.schedule import ScheduleResult, schedule
 from .scheduling.time_forward_pass import TimeScheduledActivity
 from .scheduling.time_schedule import TimeScheduleOptions, TimeScheduleResult, time_schedule
@@ -109,6 +110,15 @@ def _evaluate_materialized(
     try:
         if source.mode.value == "DATE_BASED":
             resolver = materialized.calendar_registry.resolve(source.project_calendar)
+            relationship_lag_resolvers = resolve_relationship_lag_resolvers(
+                source, materialized.calendar_registry
+            )
+            activity_resolvers = {
+                assignment.activity_id: materialized.calendar_registry.resolve(
+                    assignment.calendar
+                )
+                for assignment in source.activity_calendar_assignments
+            }
             leveling_requested = _resource_leveling_requested(source.schedule_options)
             if leveling_requested:
                 if leveling_input is None:
@@ -123,6 +133,8 @@ def _evaluate_materialized(
                     constraints=source.constraints,
                     options=source.schedule_options,
                     calculation_context=calculation_context,
+                    relationship_lag_resolvers=relationship_lag_resolvers,
+                    activity_resolvers=activity_resolvers,
                 )
             else:
                 result = schedule(
@@ -134,11 +146,14 @@ def _evaluate_materialized(
                     constraints=source.constraints,
                     options=source.schedule_options,
                     calculation_context=calculation_context,
+                    relationship_lag_resolvers=relationship_lag_resolvers,
+                    activity_resolvers=activity_resolvers,
                 )
             run_identity = _run_identity(
                 snapshot.snapshot_hash,
                 calculation_context.calculation_identity,
                 _canonical_result(result),
+                leveling_input_identity=_leveling_input_identity(leveling_input),
             )
             return ScheduleEvaluationResult(
                 snapshot_id=snapshot.snapshot_id,
@@ -234,12 +249,31 @@ def _canonical_result(value: object) -> object:
     return value
 
 
-def _run_identity(snapshot_hash: str, calculation_identity: str, result: object) -> str:
+def _leveling_input_identity(leveling_input: SchedulerLevelingInput | None) -> Mapping[str, str] | None:
+    if leveling_input is None or not leveling_input.has_bound_provenance:
+        return None
+    return {
+        "source_snapshot_id": str(leveling_input.source_snapshot_id),
+        "source_snapshot_hash": str(leveling_input.source_snapshot_hash),
+        "source_calculation_identity": str(leveling_input.source_calculation_identity),
+        "resource_facts_hash": str(leveling_input.resource_facts_hash),
+        "calendar_manifest_hash": str(leveling_input.calendar_manifest_hash),
+    }
+
+
+def _run_identity(
+    snapshot_hash: str,
+    calculation_identity: str,
+    result: object,
+    *,
+    leveling_input_identity: Mapping[str, str] | None = None,
+) -> str:
     payload = json.dumps(
         {
             "snapshot_hash": snapshot_hash,
             "calculation_identity": calculation_identity,
             "result": _canonical_result(result),
+            "leveling_input_identity": _canonical_result(leveling_input_identity),
         },
         ensure_ascii=False,
         sort_keys=True,

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
+import json
 from typing import Callable, Mapping
 
 from construction_pm.backend_p0.schedule_query import ScheduleQueryApplicationService
@@ -24,6 +26,7 @@ from construction_pm.schedule_calculation_context_repository import CalculationC
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
+from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 
 
 @dataclass(frozen=True)
@@ -38,12 +41,14 @@ class AuthoritativeScheduleQueryProvider:
     snapshot_repository: ScheduleInputSnapshotRepository
     calendar_registry_factory: Callable[[], CalendarResolverRegistry]
     calculation_context_repository: CalculationContextRepository | None = None
+    leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None
 
     def execute(
         self,
         request: ScheduleQueryRequest,
         *,
         calculation_context: CalculationContext | None = None,
+        auth_context: AuthorizationContext | None = None,
     ) -> ScheduleQueryAnswer:
         scope = BackendScope(
             request.scope.tenant_id,
@@ -86,12 +91,32 @@ class AuthoritativeScheduleQueryProvider:
             )
 
         try:
+            calendar_registry = self.calendar_registry_factory()
+            leveling_input = None
+            if (
+                self.leveling_input_resolver is not None
+                and _snapshot_requests_resource_leveling(snapshot)
+            ):
+                if auth_context is None:
+                    raise ScheduleEvaluationError("LEVELING_AUTHORIZATION_CONTEXT_REQUIRED")
+                if (
+                    auth_context.tenant_id != snapshot.scope.tenant_id
+                    or auth_context.project_id != snapshot.scope.project_id
+                ):
+                    raise ScheduleEvaluationError("LEVELING_AUTHORIZATION_SCOPE_MISMATCH")
+                leveling_input = self.leveling_input_resolver(
+                    snapshot, calculation_context, calendar_registry, auth_context
+                )
+                if leveling_input is None:
+                    raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
+                _validate_leveling_input_binding(snapshot, calculation_context, leveling_input)
             result = evaluate_schedule_snapshot(
                 snapshot,
                 calculation_context,
-                self.calendar_registry_factory(),
+                calendar_registry,
+                leveling_input=leveling_input,
             )
-        except ScheduleEvaluationError as exc:
+        except ValueError as exc:
             # Keep fail-closed calculation behavior while translating a core
             # rejection into the stable Schedule Query validation contract.
             # In particular, missing immutable resource-leveling input must
@@ -119,6 +144,85 @@ class AuthoritativeScheduleQueryProvider:
         )
 
 
+def _date_activity_fact(value, floats) -> dict[str, object]:
+    """Project one calculated activity into the read-only FACT contract.
+
+    Scheduled dates remain the authoritative output used by the Gantt. Early
+    and late dates, float and criticality come from the same Shared Core
+    result; no caller derives them independently.
+    """
+    return {
+        "start": value.start.isoformat(),
+        "finish": value.finish.isoformat(),
+        "duration": value.duration,
+        "critical": floats.critical,
+        "early_start": floats.early_start.isoformat(),
+        "early_finish": floats.early_finish.isoformat(),
+        "late_start": floats.late_start.isoformat(),
+        "late_finish": floats.late_finish.isoformat(),
+        "total_float": floats.total_float,
+        "free_float": floats.free_float,
+    }
+
+
+def _snapshot_requests_resource_leveling(snapshot: ScheduleInputSnapshot) -> bool:
+    try:
+        payload = json.loads(snapshot.canonical_payload)
+        options = payload["schedule_options"]
+        mode = payload["mode"]
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT") from exc
+    if not isinstance(options, dict):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    if mode != "DATE_BASED":
+        return False
+    for name in (
+        "level_all_resources",
+        "level_within_float",
+        "preserve_scheduled_early_and_late_dates",
+    ):
+        if name in options and not isinstance(options[name], bool):
+            raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    try:
+        min_float = Decimal(str(options.get("min_float_to_preserve", "0")))
+        over_allocation = Decimal(str(options.get("over_allocation_percentage", "0")))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT") from exc
+    if not min_float.is_finite() or not over_allocation.is_finite():
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    resource_list = options.get("resource_list")
+    priority_list = options.get("priority_list")
+    if resource_list is not None and not isinstance(resource_list, list):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    if priority_list is not None and not isinstance(priority_list, list):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    return (
+        bool(options.get("level_all_resources", False))
+        or bool(options.get("level_within_float", False))
+        or min_float != Decimal("0")
+        or over_allocation != Decimal("0")
+        or bool(resource_list)
+        or bool(priority_list)
+    )
+
+
+def _validate_leveling_input_binding(
+    snapshot: ScheduleInputSnapshot,
+    calculation_context: CalculationContext,
+    leveling_input: SchedulerLevelingInput,
+) -> None:
+    if not isinstance(leveling_input, SchedulerLevelingInput):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_LEVELING_INPUT")
+    if not leveling_input.has_bound_provenance:
+        raise ScheduleEvaluationError("LEVELING_INPUT_PROVENANCE_REQUIRED")
+    if leveling_input.source_snapshot_id != snapshot.snapshot_id:
+        raise ScheduleEvaluationError("LEVELING_INPUT_SNAPSHOT_ID_MISMATCH")
+    if leveling_input.source_snapshot_hash != snapshot.snapshot_hash:
+        raise ScheduleEvaluationError("LEVELING_INPUT_SNAPSHOT_HASH_MISMATCH")
+    if leveling_input.source_calculation_identity != calculation_context.calculation_identity:
+        raise ScheduleEvaluationError("LEVELING_INPUT_CALCULATION_IDENTITY_MISMATCH")
+
+
 def _project_result(
     request: ScheduleQueryRequest,
     result: ScheduleEvaluationResult | None,
@@ -136,11 +240,7 @@ def _project_result(
                 "project_finish": result.project_finish.isoformat(),
                 "activity_count": len(activities),
                 "activities": {
-                    key: {
-                        "start": value.start.isoformat(),
-                        "finish": value.finish.isoformat(),
-                        "duration": value.duration,
-                    }
+                    key: _date_activity_fact(value, result.date_result.floats[key])
                     for key, value in sorted(activities.items())
                 },
             }
@@ -154,11 +254,7 @@ def _project_result(
             else:
                 raise ValueError("INVALID_SCHEDULE_QUERY_FILTER")
             selected = {
-                key: {
-                    "start": value.start.isoformat(),
-                    "finish": value.finish.isoformat(),
-                    "duration": value.duration,
-                }
+                key: _date_activity_fact(value, result.date_result.floats[key])
                 for key, value in sorted(activities.items())
                 if key in selected_ids
             }
@@ -290,8 +386,14 @@ class _ContextBoundProvider:
     provider: AuthoritativeScheduleQueryProvider
     calculation_context: CalculationContext | None
 
-    def execute(self, request: ScheduleQueryRequest) -> ScheduleQueryAnswer:
+    def execute(
+        self,
+        request: ScheduleQueryRequest,
+        *,
+        auth_context: AuthorizationContext,
+    ) -> ScheduleQueryAnswer:
         return self.provider.execute(
             request,
             calculation_context=self.calculation_context,
+            auth_context=auth_context,
         )

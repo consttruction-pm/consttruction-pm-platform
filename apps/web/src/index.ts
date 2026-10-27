@@ -22,3 +22,5 @@ export * from "./workspace-procurement.js";
 export * from "./workspace-smart-guide.js";
 export * from "./shared-scheduling-adapter.js";
 export * from "./cubi-brand-assets.js";
+export * from "./ai-action-client.js";
+export * from "./ai-action-panel.js";

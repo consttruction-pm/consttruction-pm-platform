@@ -29,8 +29,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+      # Pages configuration is repository-level state. GITHUB_TOKEN cannot
+      # create a missing Pages site; optionally provide PAGES_ADMIN_TOKEN with
+      # Pages write + Administration write (or a classic repo-scoped PAT).
+      - name: Verify GitHub Pages configuration
+        id: pages-preflight
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
+          HAS_PAGES_ADMIN_TOKEN: ${{ secrets.PAGES_ADMIN_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --output "$response_file" --write-out "%{http_code}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/pages")"
+          if [ "$status" = "200" ]; then
+            echo "enablement=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$status" = "404" ] && [ "$HAS_PAGES_ADMIN_TOKEN" = "true" ]; then
+            echo "enablement=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$status" = "404" ]; then
+            echo "::error title=GitHub Pages is not enabled::The repository has no readable GitHub Pages site. Enable Settings → Pages → Build and deployment → Source: GitHub Actions, or add a repository secret named PAGES_ADMIN_TOKEN with permission to create a Pages site. GITHUB_TOKEN cannot enable a missing site."
+          elif [ "$status" = "403" ]; then
+            echo "::error title=GitHub Pages permission denied::The workflow token cannot read Pages configuration. Enable Pages for this repository, or configure PAGES_ADMIN_TOKEN with Pages write and Administration write."
+          else
+            echo "::error title=GitHub Pages preflight failed::GitHub API returned HTTP $status while checking Pages configuration."
+          fi
+          exit 1
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -51,43 +82,17 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Assemble Pages site
-        run: |
-          rm -rf "${{ github.workspace }}/_site"
-          mkdir -p "${{ github.workspace }}/_site/app"
-          cp index.html "${{ github.workspace }}/_site/index.html"
-          cp styles.css "${{ github.workspace }}/_site/styles.css"
-          cp -R public/. "${{ github.workspace }}/_site/"
-          cp -R dist "${{ github.workspace }}/_site/dist"
-          cp index.html "${{ github.workspace }}/_site/app/index.html"
-          # The shared landing component uses document-relative logo paths on both routes.
-          # Copy the same canonical asset into /app so those references resolve there too.
-          cp public/cubi-platform-logo-primary.svg "${{ github.workspace }}/_site/app/cubi-platform-logo-primary.svg"
-          touch "${{ github.workspace }}/_site/.nojekyll"
-          # The TypeScript build writes the commercial entry to dist/web/src/landing-entry.js because
-          # tsconfig.build.json uses rootDir=.. and outDir=dist.
-          # Create correct asset paths for both the root site and /app route.
-          sed -i 's#\./dist/landing-entry\.js#./dist/web/src/landing-entry.js#' "${{ github.workspace }}/_site/index.html"
-          sed -i 's#\./styles\.css#./styles.css#' "${{ github.workspace }}/_site/index.html"
-          sed -i 's#\./styles\.css#../styles.css#' "${{ github.workspace }}/_site/app/index.html"
-          sed -i 's#\./dist/landing-entry\.js#../dist/web/src/landing-entry.js#' "${{ github.workspace }}/_site/app/index.html"
-          test -f "${{ github.workspace }}/_site/index.html"
-          test -f "${{ github.workspace }}/_site/app/index.html"
-          test -f "${{ github.workspace }}/_site/dist/web/src/landing-entry.js"
-          test -f "${{ github.workspace }}/_site/dist/web/src/landing.js"
-          test -f "${{ github.workspace }}/_site/styles.css"
-          test -f "${{ github.workspace }}/_site/cubi-platform-logo-primary.svg"
-          test -f "${{ github.workspace }}/_site/app/cubi-platform-logo-primary.svg"
-          test ! -f "${{ github.workspace }}/_site/logo.svg"
-          test ! -f "${{ github.workspace }}/_site/logo-dark.svg"
-          test ! -f "${{ github.workspace }}/_site/cubi-platform-logo-primary-dark.svg"
-          test -f "${{ github.workspace }}/_site/.nojekyll"
-          grep -q 'dist/web/src/landing-entry.js' "${{ github.workspace }}/_site/index.html"
-          grep -q '../dist/web/src/landing-entry.js' "${{ github.workspace }}/_site/app/index.html"
-          grep -q 'app/' "${{ github.workspace }}/_site/dist/web/src/landing.js"
-          grep -q 'cubi-platform-logo-primary.svg' "${{ github.workspace }}/_site/dist/web/src/landing.js"
-          ! grep -q 'cubi-platform-logo-primary-dark.svg' "${{ github.workspace }}/_site/dist/web/src/landing.js"
-          echo "Pages artifact ready: $(find "${{ github.workspace }}/_site" -type f | wc -l) files"
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          token: ${{ secrets.PAGES_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
+          enablement: ${{ steps.pages-preflight.outputs.enablement }}
+
+      - name: Assemble and validate Pages site
+        env:
+          SITE_BASE_URL: ${{ steps.pages.outputs.base_url }}
+        run: node scripts/assemble-pages-site.mjs "${{ github.workspace }}/_site"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

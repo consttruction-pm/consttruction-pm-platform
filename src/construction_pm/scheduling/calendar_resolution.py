@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Mapping
 
-from .authoritative_schedule import ActivityCalendarAssignment, AuthoritativeScheduleInput
+from .authoritative_schedule import (
+    ActivityCalendarAssignment,
+    AuthoritativeScheduleInput,
+    RelationshipLagCalendarAssignment,
+)
 from .calendar import WorkingTimeResolver
 from .calendar_context import (
     CalendarReference,
@@ -89,11 +93,26 @@ def resolve_relationship_lag_resolvers(
     snapshot: AuthoritativeScheduleInput,
     registry: CalendarResolverRegistry,
 ) -> dict[tuple[str, str], WorkingTimeResolver]:
-    """Build the authoritative per-relationship lag resolver map for CPM."""
-    option = snapshot.schedule_options.relationship_lag_calendar
+    """Build the authoritative per-relationship lag resolver map for CPM.
+
+    A revision-pinned per-relationship assignment overrides the project-wide
+    lag-calendar option. An explicit calendar reference is resolved directly;
+    otherwise the stored option selects predecessor, successor, project, or
+    continuous 24-hour semantics. No mutable repository is consulted here.
+    """
+    default_option = snapshot.schedule_options.relationship_lag_calendar
+    assignments: dict[tuple[str, str], RelationshipLagCalendarAssignment] = {
+        (item.predecessor_id, item.successor_id): item
+        for item in snapshot.relationship_lag_calendar_assignments
+    }
     resolvers: dict[tuple[str, str], WorkingTimeResolver] = {}
     for relationship in snapshot.relationships:
         key = (relationship.predecessor_id, relationship.successor_id)
+        assignment = assignments.get(key)
+        if assignment is not None and assignment.calendar is not None:
+            resolvers[key] = registry.resolve(assignment.calendar)
+            continue
+        option = assignment.option if assignment is not None else default_option
         resolvers[key] = resolve_relationship_lag_calendar(
             snapshot, registry, relationship.predecessor_id, relationship.successor_id, option
         )

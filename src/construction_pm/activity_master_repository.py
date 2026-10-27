@@ -277,6 +277,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ActivityMaster:
 class SQLiteActivityMasterRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = self.connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         SQLiteWBSMasterRepository(self.connection)
@@ -337,7 +338,9 @@ class SQLiteActivityMasterRepository:
             )"""
         )
         self.connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_wbs_assignment_wbs ON activity_wbs_assignment(tenant_id, project_id, wbs_id)")
-        self.connection.commit()
+        # Schema setup must not accidentally commit a transaction owned by the caller.
+        if not was_in_transaction:
+            self.connection.commit()
 
     def _validate_wbs_assignment(self, scope: BackendScope, wbs_id: str | None) -> None:
         if wbs_id is None:
@@ -356,63 +359,92 @@ class SQLiteActivityMasterRepository:
 
     def save(self, activity: ActivityMaster, expected_revision: int | None = None) -> ActivityMaster:
         activity.validate()
-        self._validate_wbs_assignment(activity.scope, activity.wbs_id)
-        if expected_revision is not None and (isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0):
+        if expected_revision is not None and (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 0
+        ):
             raise ActivityPersistenceError("INVALID_EXPECTED_REVISION")
-        row = self.connection.execute(
-            f"SELECT {_ACTIVITY_MASTER_SELECT_COLUMNS},project_revision FROM activity_master WHERE tenant_id=? AND project_id=? AND activity_id=?",
-            (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id)).fetchone()
-        if row is None:
-            if expected_revision not in (None, 0):
-                raise ActivityPersistenceError("REVISION_CONFLICT")
-            stored = replace(activity, record_revision=1)
-            self.connection.execute(
-                "INSERT INTO activity_master (tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (stored.scope.tenant_id, stored.scope.project_id, stored.scope.project_revision, stored.activity_id,
-                 str(stored.duration_value), stored.duration_unit.value,
-                 None if stored.actual_start is None else stored.actual_start.isoformat(),
-                 None if stored.actual_finish is None else stored.actual_finish.isoformat(),
-                 stored.remaining_duration,
-                 None if stored.remaining_start is None else stored.remaining_start.isoformat(),
-                 stored.percent_complete,
-                 stored.percent_complete_type.value,
-                 stored.record_revision,
-                 None if stored.expected_finish is None else stored.expected_finish.isoformat(),
-                 None if stored.planned_finish is None else stored.planned_finish.isoformat(),
-                 stored.leveling_priority.value,
-                 stored.original_duration,
-                 stored.name, stored.activity_type.value, stored.status.value, stored.status_code.value))
+
+        # A standalone write owns its transaction and takes an immediate write lock
+        # before the read/insert-or-update sequence. If the caller already owns a
+        # transaction, all operations stay inside it and its commit/rollback policy.
+        was_in_transaction = self.connection.in_transaction
+        if not was_in_transaction:
+            self.connection.execute("BEGIN IMMEDIATE")
+        try:
+            self._validate_wbs_assignment(activity.scope, activity.wbs_id)
+            row = self.connection.execute(
+                f"SELECT {_ACTIVITY_MASTER_SELECT_COLUMNS},project_revision FROM activity_master "
+                "WHERE tenant_id=? AND project_id=? AND activity_id=?",
+                (activity.scope.tenant_id, activity.scope.project_id, activity.activity_id),
+            ).fetchone()
+            if row is None:
+                if expected_revision not in (None, 0):
+                    raise ActivityPersistenceError("REVISION_CONFLICT")
+                stored = replace(activity, record_revision=1)
+                self.connection.execute(
+                    "INSERT INTO activity_master "
+                    "(tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,"
+                    "actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,"
+                    "percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,"
+                    "original_duration,name,activity_type,status,status_code) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        stored.scope.tenant_id, stored.scope.project_id,
+                        stored.scope.project_revision, stored.activity_id,
+                        str(stored.duration_value), stored.duration_unit.value,
+                        None if stored.actual_start is None else stored.actual_start.isoformat(),
+                        None if stored.actual_finish is None else stored.actual_finish.isoformat(),
+                        stored.remaining_duration,
+                        None if stored.remaining_start is None else stored.remaining_start.isoformat(),
+                        stored.percent_complete, stored.percent_complete_type.value,
+                        stored.record_revision,
+                        None if stored.expected_finish is None else stored.expected_finish.isoformat(),
+                        None if stored.planned_finish is None else stored.planned_finish.isoformat(),
+                        stored.leveling_priority.value, stored.original_duration,
+                        stored.name, stored.activity_type.value, stored.status.value,
+                        stored.status_code.value,
+                    ),
+                )
+            else:
+                current = _from_row(activity.scope, row[:19])
+                if int(row[19]) != activity.scope.project_revision:
+                    raise ActivityPersistenceError("REVISION_CONFLICT")
+                if expected_revision is None or expected_revision != current.record_revision:
+                    raise ActivityPersistenceError("REVISION_CONFLICT")
+                stored = replace(activity, record_revision=current.record_revision + 1)
+                update_cursor = self.connection.execute(
+                    "UPDATE activity_master SET project_revision=?,duration_value=?,duration_unit=?,"
+                    "actual_start=?,actual_finish=?,remaining_duration=?,remaining_start=?,percent_complete=?,"
+                    "percent_complete_type=?,record_revision=?,expected_finish=?,planned_finish=?,"
+                    "leveling_priority=?,original_duration=?,name=?,activity_type=?,status=?,status_code=? "
+                    "WHERE tenant_id=? AND project_id=? AND activity_id=? AND record_revision=?",
+                    (
+                        stored.scope.project_revision, str(stored.duration_value), stored.duration_unit.value,
+                        None if stored.actual_start is None else stored.actual_start.isoformat(),
+                        None if stored.actual_finish is None else stored.actual_finish.isoformat(),
+                        stored.remaining_duration, None if stored.remaining_start is None else stored.remaining_start.isoformat(),
+                        stored.percent_complete, stored.percent_complete_type.value, stored.record_revision,
+                        None if stored.expected_finish is None else stored.expected_finish.isoformat(),
+                        None if stored.planned_finish is None else stored.planned_finish.isoformat(),
+                        stored.leveling_priority.value, stored.original_duration, stored.name,
+                        stored.activity_type.value, stored.status.value, stored.status_code.value,
+                        stored.scope.tenant_id, stored.scope.project_id, stored.activity_id,
+                        current.record_revision,
+                    ),
+                )
+                if update_cursor.rowcount != 1:
+                    raise ActivityPersistenceError("REVISION_CONFLICT")
             self._sync_wbs_assignment(stored)
-            self.connection.commit()
+
+            if not was_in_transaction:
+                self.connection.commit()
             return stored
-        current = _from_row(activity.scope, row[:19])
-        if int(row[19]) != activity.scope.project_revision:
-            raise ActivityPersistenceError("REVISION_CONFLICT")
-        if expected_revision is None or expected_revision != current.record_revision:
-            raise ActivityPersistenceError("REVISION_CONFLICT")
-        stored = replace(activity, record_revision=current.record_revision + 1)
-        update_cursor = self.connection.execute(
-            "UPDATE activity_master SET project_revision=?,duration_value=?,duration_unit=?,actual_start=?,actual_finish=?,remaining_duration=?,remaining_start=?,percent_complete=?,percent_complete_type=?,record_revision=?,expected_finish=?,planned_finish=?,leveling_priority=?,original_duration=?,name=?,activity_type=?,status=?,status_code=? WHERE tenant_id=? AND project_id=? AND activity_id=? AND record_revision=?",
-            (stored.scope.project_revision, str(stored.duration_value), stored.duration_unit.value,
-             None if stored.actual_start is None else stored.actual_start.isoformat(),
-             None if stored.actual_finish is None else stored.actual_finish.isoformat(),
-             stored.remaining_duration,
-             None if stored.remaining_start is None else stored.remaining_start.isoformat(),
-             stored.percent_complete,
-             stored.percent_complete_type.value,
-             stored.record_revision,
-             None if stored.expected_finish is None else stored.expected_finish.isoformat(),
-             None if stored.planned_finish is None else stored.planned_finish.isoformat(),
-             stored.leveling_priority.value,
-             stored.original_duration,
-             stored.name, stored.activity_type.value, stored.status.value, stored.status_code.value,
-             stored.scope.tenant_id, stored.scope.project_id, stored.activity_id, current.record_revision))
-        if update_cursor.rowcount != 1:
-            self.connection.rollback()
-            raise ActivityPersistenceError("REVISION_CONFLICT")
-        self._sync_wbs_assignment(stored)
-        self.connection.commit()
-        return stored
+        except Exception:
+            if not was_in_transaction and self.connection.in_transaction:
+                self.connection.rollback()
+            raise
 
     def get(self, scope: BackendScope, activity_id: str) -> ActivityMaster | None:
         scope.validate()

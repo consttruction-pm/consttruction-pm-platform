@@ -77,9 +77,19 @@
 |---|---|---|
 | Shared language-pack infrastructure | Client-sync language manifest/resource/activation infrastructure exists. | Verified |
 | Web language-manager route | `apps/web/src/language-manager-route.ts` supports active pack, offline activation, update, rollback and error state. | Verified |
-| Workspace locale coverage | Current workspace navigation and rendering provide Persian/English plus RTL/LTR coverage; the product-wide all-language requirement remains a separate localization gap. | Gap |
+| Workspace locale coverage | `workspace-model.ts`, `workspace-view.ts`, `workspace-navigation.ts` and `landing.ts` use hard-coded `fa`/`en` locale unions/maps. Verified language-pack lifecycle is not yet the source of all rendered workspace strings. Issue #1531 tracks extensible resource integration. | Gap — hard-coded two-language surface |
 | All-language requirement | Product requirement is all-language UI/data with offline downloadable packs, RTL/LTR and typography support. Current workspace does not yet satisfy the all-language surface. | Gap |
 | README terminology | README still says “bilingual Persian/English”; this is stale relative to the current all-language requirement and should be corrected in a documentation-only follow-up. | Gap |
+
+## Multilingual and AI permission contract — corrected disposition
+
+| Area | Current evidence / required disposition | Status |
+|---|---|---|
+| Binding multilingual scope | `docs/requirements/CUBI_MULTILINGUAL_AND_AI_PERMISSION_REQUIREMENTS.md` defines all declared supported languages, per-surface coverage, RTL/LTR, language packs, offline and release evidence. Persian/English are initial baselines, not a two-language ceiling. | Requirement recorded; implementation gap remains |
+| Language-pack infrastructure vs product translation | Manifest/resource/activation and Web language-manager infrastructure exist, but do not prove every language is integrated across every workspace surface, report/help output or AI capability. | Partial / Gap |
+| Assistant operation-level permissions | PR #1529 introduced exact-scope grants; PR #1536 prevents requester spoofing; PR #1538 rejects missing/blank authenticated subjects. PR #1547 adds optional authenticated Web proposal/decision/execute routes and SQLite/PostgreSQL-compatible durable proposal/audit storage. Exact head `9778b02eb286dd62818bd508fff95c24c9ad38d9` passed ConstructionPM CI (Python 3.11/3.12/3.13), Client Typecheck, and PostgreSQL Integration on 2026-10-23. Runtime still requires deployment-supplied current grants and real handlers, so issue #1530 remains open. | Authenticated action and proposal-review slice passes exact-head CI; deployed grants and real mutation handlers remain open |
+| Assistant end-to-end execution | PR #1547 adds a versioned proposal/approval/execution runtime, current-scope and revision checks, replay guards, persistent proposal/audit schemas, and authenticated HTTP wiring. It does not yet register real project creation/editing handlers, model/provider orchestration, file/voice intake, authoritative calculated-result grounding, report output, or the admin research/review/publish learning workflow. Real-use-case fresh-connection read-back, transactional integration, optimistic locking, and full regression over all registered tools remain release gates. The current runtime/route slice passes CI but is not end-to-end V1. | Incremental runtime seam; end-to-end V1 remains a gap |
+| Language and permission regression matrix | Add tests for each declared language/surface and operation × grant × scope, including RTL/mixed script, fallback, default deny, revocation, stale proposal, cross-tenant rejection and audit. | Gap |
 
 ## Help / documentation
 

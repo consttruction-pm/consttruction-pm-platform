@@ -32,11 +32,18 @@ from .project_schedule_settings_repository import (
     ProjectScheduleSettingsPersistenceError,
     ProjectScheduleSettingsRepository,
 )
-from .scheduling.activity import Activity
+from .scheduling.activity import Activity, ActivityStatus, ActivityType
+from .scheduling.resource_dependent import (
+    ResourceDependentCalculationError,
+    ResourceDependentDriverFact,
+    ResourceDependentDuration,
+    derive_resource_dependent_duration,
+)
 from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
+    RelationshipLagCalendarAssignment,
 )
 from .scheduling.calendar_context import CalendarReference
 from .scheduling.calendar_system import CalendarSystem
@@ -191,28 +198,76 @@ class AuthoritativeScheduleInputComposer:
             or isinstance(project_settings.schedule_options.data_date, datetime)
         ):
             raise ScheduleInputCompositionError("DATE_BASED_DATA_DATE_MUST_BE_DATE")
+        # Resource leveling is bound by the authoritative Schedule Query's
+        # hash-bound companion input. Do not reject valid persisted options here;
+        # the query resolver will read exact-version resource/calendar facts and
+        # fail closed if those facts are unavailable.
         options = project_settings.schedule_options
-        if any((
-            options.level_all_resources,
-            options.level_within_float,
-            options.resource_list is not None,
-            options.priority_list is not None,
-            options.min_float_to_preserve != 0,
-            options.over_allocation_percentage != 0,
-            options.preserve_scheduled_early_and_late_dates,
-        )):
-            raise ScheduleInputCompositionError("RESOURCE_LEVELING_REQUIRES_HASH_BOUND_INPUT")
 
         if not persisted_activities:
             raise ScheduleInputCompositionError("SCHEDULE_ACTIVITIES_EMPTY")
-        if resource_assignments or resource_periods:
-            raise ScheduleInputCompositionError("RESOURCE_ASSIGNMENTS_NOT_BOUND_TO_SNAPSHOT")
-        if relationship_lag_assignments:
-            raise ScheduleInputCompositionError("RELATIONSHIP_LAG_CALENDAR_ASSIGNMENTS_NOT_BOUND_TO_SNAPSHOT")
-
         activity_ids = {item.activity_id for item in persisted_activities}
         if len(activity_ids) != len(persisted_activities):
             raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_ACTIVITY_ID")
+
+        # Resource assignments and period values remain in their own immutable,
+        # revision-scoped repositories and are bound by the leveler's companion
+        # input/hash. Validate the cross-record references here so the snapshot
+        # publisher cannot silently bless orphaned or mis-scoped resource data.
+        assignments_by_id = {}
+        for assignment in resource_assignments:
+            if assignment.scope != scope:
+                raise ScheduleInputCompositionError(
+                    f"RESOURCE_ASSIGNMENT_SCOPE_MISMATCH:{assignment.assignment_id}"
+                )
+            try:
+                assignment.validate()
+            except (TypeError, ValueError) as exc:
+                raise ScheduleInputCompositionError(
+                    f"INVALID_RESOURCE_ASSIGNMENT:{assignment.assignment_id}:{exc}"
+                ) from exc
+            if assignment.assignment_id in assignments_by_id:
+                raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_RESOURCE_ASSIGNMENT_ID")
+            if assignment.activity_id not in activity_ids:
+                raise ScheduleInputCompositionError(
+                    f"RESOURCE_ASSIGNMENT_UNKNOWN_ACTIVITY:{assignment.assignment_id}:{assignment.activity_id}"
+                )
+            assignments_by_id[assignment.assignment_id] = assignment
+
+        seen_resource_periods = set()
+        for period in resource_periods:
+            if period.scope != scope:
+                raise ScheduleInputCompositionError(
+                    f"RESOURCE_PERIOD_SCOPE_MISMATCH:{period.assignment_id}:{period.period_start}"
+                )
+            try:
+                period.validate()
+            except (TypeError, ValueError) as exc:
+                raise ScheduleInputCompositionError(
+                    f"INVALID_RESOURCE_PERIOD:{period.assignment_id}:{period.period_start}:{exc}"
+                ) from exc
+            assignment = assignments_by_id.get(period.assignment_id)
+            if assignment is None:
+                raise ScheduleInputCompositionError(
+                    f"RESOURCE_PERIOD_ASSIGNMENT_NOT_FOUND:{period.assignment_id}"
+                )
+            if (
+                period.activity_id != assignment.activity_id
+                or period.resource_id != assignment.resource_id
+            ):
+                raise ScheduleInputCompositionError(
+                    f"RESOURCE_PERIOD_ASSIGNMENT_MISMATCH:{period.assignment_id}:{period.period_start}"
+                )
+            try:
+                date.fromisoformat(period.period_start)
+            except (TypeError, ValueError) as exc:
+                raise ScheduleInputCompositionError(
+                    f"INVALID_RESOURCE_PERIOD_START:{period.assignment_id}:{period.period_start}"
+                ) from exc
+            period_key = (period.assignment_id, period.period_start)
+            if period_key in seen_resource_periods:
+                raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_RESOURCE_PERIOD")
+            seen_resource_periods.add(period_key)
 
         configured_calendar = project_settings.project_calendar
         project_calendar = self._load_calendar_reference(
@@ -225,6 +280,11 @@ class AuthoritativeScheduleInputComposer:
             raise ScheduleInputCompositionError("PROJECT_CALENDAR_REFERENCE_MISMATCH")
 
         activities: list[Activity] = []
+        resource_dependent_durations: dict[str, ResourceDependentDuration] = {}
+        assignments_by_activity: dict[str, list[object]] = {}
+        for assignment in assignments_by_id.values():
+            assignments_by_activity.setdefault(assignment.activity_id, []).append(assignment)
+
         for item in sorted(persisted_activities, key=lambda value: value.activity_id):
             if item.scope != scope:
                 raise ScheduleInputCompositionError(f"ACTIVITY_SCOPE_MISMATCH:{item.activity_id}")
@@ -232,9 +292,56 @@ class AuthoritativeScheduleInputComposer:
                 raise ScheduleInputCompositionError(
                     f"UNSUPPORTED_DURATION_UNIT:{item.activity_id}:{item.duration_unit.value}"
                 )
-            value = item.duration_value
-            if not isinstance(value, Decimal) or not value.is_finite() or value != value.to_integral_value():
-                raise ScheduleInputCompositionError(f"NON_INTEGRAL_WORKING_DAY_DURATION:{item.activity_id}")
+
+            raw_activity_type = getattr(item.activity_type, "value", item.activity_type)
+            resource_dependent = raw_activity_type == ActivityType.RESOURCE_DEPENDENT.value
+            derived = None
+            if resource_dependent:
+                raw_status = getattr(item.status, "value", item.status)
+                if (
+                    raw_status != ActivityStatus.NOT_STARTED.value
+                    or item.actual_start is not None
+                    or item.actual_finish is not None
+                ):
+                    raise ScheduleInputCompositionError(
+                        f"RESOURCE_DEPENDENT_IN_PROGRESS_DERIVATION_UNSUPPORTED:{item.activity_id}"
+                    )
+                raw_assignments = assignments_by_activity.get(item.activity_id, [])
+                facts = tuple(
+                    ResourceDependentDriverFact(
+                        assignment_id=assignment.assignment_id,
+                        activity_id=assignment.activity_id,
+                        resource_id=assignment.resource_id,
+                        calendar_id=assignment.calendar_id,
+                        calendar_version=assignment.calendar_version,
+                        unit_of_measure=assignment.unit,
+                        planned_units=assignment.units,
+                        is_driving=assignment.is_driving,
+                        units_per_time=assignment.units_per_time,
+                        units_per_time_period=assignment.units_per_time_period,
+                        hours_per_units_time_period=assignment.hours_per_units_time_period,
+                    )
+                    for assignment in raw_assignments
+                )
+                try:
+                    derived = derive_resource_dependent_duration(
+                        tenant_id=scope.tenant_id,
+                        project_id=scope.project_id,
+                        project_revision=scope.project_revision,
+                        activity_id=item.activity_id,
+                        assignments=facts,
+                    )
+                except ResourceDependentCalculationError as exc:
+                    raise ScheduleInputCompositionError(
+                        f"{exc}:{item.activity_id}"
+                    ) from exc
+                resource_dependent_durations[item.activity_id] = derived
+                value = Decimal(derived.duration_working_days)
+            else:
+                value = item.duration_value
+                if not isinstance(value, Decimal) or not value.is_finite() or value != value.to_integral_value():
+                    raise ScheduleInputCompositionError(f"NON_INTEGRAL_WORKING_DAY_DURATION:{item.activity_id}")
+
             try:
                 activities.append(
                     Activity(
@@ -254,12 +361,19 @@ class AuthoritativeScheduleInputComposer:
                         original_duration=item.original_duration,
                         planned_finish=self._date_value(item.planned_finish, field_name="planned_finish", activity_id=item.activity_id),
                         leveling_priority=item.leveling_priority,
+                        resource_dependent_input_hash=None if derived is None else derived.input_hash,
                     )
                 )
             except (TypeError, ValueError, ArithmeticError) as exc:
                 raise ScheduleInputCompositionError(
                     f"INVALID_PERSISTED_ACTIVITY:{item.activity_id}:{exc}"
                 ) from exc
+
+        relationship_records_by_id = {
+            item.relationship_id: item for item in persisted_relationships
+        }
+        if len(relationship_records_by_id) != len(persisted_relationships):
+            raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_RELATIONSHIP_ID")
 
         relationships: list[Relationship] = []
         for item in sorted(persisted_relationships, key=lambda value: value.relationship_id):
@@ -332,6 +446,62 @@ class AuthoritativeScheduleInputComposer:
                     assignment.activity_id, reference
                 )
 
+        # Resource Dependent activities follow their driving resource calendar,
+        # pinned to the exact master version used to derive the duration.
+        for activity_id, derived in resource_dependent_durations.items():
+            reference = self._load_calendar_reference(
+                scope, derived.calendar_id, derived.calendar_version,
+                expected_kind="working-day",
+            )
+            known_calendar_assignments[activity_id] = ActivityCalendarAssignment(
+                activity_id, reference
+            )
+
+        relationship_lag_calendar_items: list[RelationshipLagCalendarAssignment] = []
+        for assignment in sorted(
+            relationship_lag_assignments, key=lambda item: item.relationship_id
+        ):
+            assignment.validate()
+            if assignment.scope != scope:
+                raise ScheduleInputCompositionError(
+                    f"RELATIONSHIP_LAG_ASSIGNMENT_SCOPE_MISMATCH:{assignment.relationship_id}"
+                )
+            relationship = relationship_records_by_id.get(assignment.relationship_id)
+            if relationship is None:
+                raise ScheduleInputCompositionError(
+                    f"RELATIONSHIP_LAG_ASSIGNMENT_UNKNOWN_RELATIONSHIP:{assignment.relationship_id}"
+                )
+            lag_calendar = None
+            if assignment.calendar_id is not None:
+                if assignment.calendar_version is None:
+                    raise ScheduleInputCompositionError(
+                        f"RELATIONSHIP_LAG_CALENDAR_VERSION_REQUIRED:{assignment.relationship_id}"
+                    )
+                lag_calendar = self._load_calendar_reference(
+                    scope,
+                    assignment.calendar_id,
+                    assignment.calendar_version,
+                    expected_kind=(
+                        "working-day"
+                        if project_settings.mode is AuthoritativeScheduleMode.DATE_BASED
+                        else "working-time"
+                    ),
+                )
+            try:
+                relationship_lag_calendar_items.append(
+                    RelationshipLagCalendarAssignment(
+                        relationship_id=assignment.relationship_id,
+                        predecessor_id=relationship.predecessor_id,
+                        successor_id=relationship.successor_id,
+                        option=assignment.option,
+                        calendar=lag_calendar,
+                    )
+                )
+            except (TypeError, ValueError) as exc:
+                raise ScheduleInputCompositionError(
+                    f"INVALID_RELATIONSHIP_LAG_ASSIGNMENT:{assignment.relationship_id}:{exc}"
+                ) from exc
+
         return AuthoritativeScheduleInput(
             snapshot_id=snapshot_id,
             tenant_id=scope.tenant_id,
@@ -344,6 +514,7 @@ class AuthoritativeScheduleInputComposer:
             activity_calendar_assignments=tuple(
                 known_calendar_assignments[key] for key in sorted(known_calendar_assignments)
             ),
+            relationship_lag_calendar_assignments=tuple(relationship_lag_calendar_items),
             constraints=tuple(constraints),
             schedule_options=project_settings.schedule_options,
             project_start=project_settings.project_start,

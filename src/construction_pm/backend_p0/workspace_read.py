@@ -27,7 +27,12 @@ WORKSPACE_CONTROL_ROOM_V2_VERSION = "workspace-control-room.v2"
 
 
 class WorkspaceReadProvider(Protocol):
-    def read(self, scope: BackendScope) -> Mapping[str, object] | None: ...
+    def read(
+        self,
+        scope: BackendScope,
+        *,
+        auth_context: AuthorizationContext | None = None,
+    ) -> Mapping[str, object] | None: ...
 
 
 class InMemoryWorkspaceReadProvider:
@@ -36,7 +41,15 @@ class InMemoryWorkspaceReadProvider:
     def __init__(self, snapshots: Mapping[tuple[str, str, int], Mapping[str, object]] | None = None) -> None:
         self._snapshots = dict(snapshots or {})
 
-    def read(self, scope: BackendScope) -> Mapping[str, object] | None:
+    def read(
+        self,
+        scope: BackendScope,
+        *,
+        auth_context: AuthorizationContext | None = None,
+    ) -> Mapping[str, object] | None:
+        # The reference adapter carries no calculated facts, so it does not
+        # consume the authorized caller identity.
+        _ = auth_context
         return self._snapshots.get((scope.tenant_id, scope.project_id, scope.project_revision))
 
 
@@ -189,7 +202,10 @@ class WorkspaceControlRoomReadService:
                 "Operation is not authorized",
             )
 
-        snapshot = self.provider.read(scope)
+        # The provider may need the authenticated identity to execute
+        # read-only Shared Core projections (for example resource-leveling
+        # authorization). Authorization has already been enforced above.
+        snapshot = self.provider.read(scope, auth_context=auth_context)
         if snapshot is None:
             return None
         self._validate_snapshot(snapshot, scope)

@@ -14,10 +14,17 @@ from ..change_claim_api import (
 from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
+from ..ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, AIActionRuntimeError
+from ..ai_assistant_orchestration import (
+    AIAssistantProviderError,
+    AIAssistantTurnOrchestrator,
+    is_valid_language_tag,
+)
 from ..backend_p0.api import BackendP0API
 from ..backend_p0.errors import BackendApplicationError
 from ..backend_p0.workspace_read import WorkspaceControlRoomReadService
 from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
+from ..scheduling_code_reference_api import build_scheduling_code_reference_payload
 from ..control_intelligence.contracts import ControlScope
 from ..control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
 from ..backend_p0.models import BackendScope
@@ -83,15 +90,31 @@ from ..p6_financial_period_repository import P6FinancialPeriod
 from ..p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from ..p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
 from ..p6_resource_read_api import P6ResourceReadAPI, P6_RESOURCE_READ_API_VERSION
+from ..p6_resource_capacity_read_api import (
+    P6ResourceCapacityReadAPI,
+    P6_RESOURCE_CAPACITY_READ_API_VERSION,
+)
+from ..p6_resource_capacity_write_api import (
+    P6ResourceCapacityWriteAPI,
+    P6_RESOURCE_CAPACITY_WRITE_API_VERSION,
+)
+from ..resources.max_units_time import ResourceCapacityBasis
 from ..p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
-from ..p6_resource_assignment_repository import P6ResourceAssignmentPeriodValue
+from ..p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    P6ResourceAssignmentPeriodValue,
+)
 from ..p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from ..p6_resource_spread_repository import P6ResourceSpreadBucket
 from ..p6_code_api import P6CodeAPI, P6_CODE_API_VERSION
 from ..p6_code_repository import P6CodeDefinition, P6CodeValue
 from ..p6_mapping_registry import P6MappingDefinition, P6MappingFormat, P6MappingStatus, PersistedP6Mapping
 from ..p6_layout_definition_api import P6LayoutDefinitionAPI, P6_LAYOUT_DEFINITION_API_VERSION
-from ..p6_layout_definition_repository import LayoutColumn, PersistedP6Layout
+from ..p6_layout_definition_repository import (
+    PersistedP6Layout,
+    P6LayoutPersistenceError,
+    layout_column_from_mapping,
+)
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 
@@ -140,6 +163,8 @@ class ProjectLifecycleHttpRoutes:
         p6_mapping_api: P6MappingAPI | None = None,
         p6_interchange_api: P6InterchangeAPI | None = None,
         p6_resource_read_api: P6ResourceReadAPI | None = None,
+        p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
+        p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
         p6_resource_write_api: P6ResourceWriteAPI | None = None,
         p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
         p6_code_api: P6CodeAPI | None = None,
@@ -148,6 +173,8 @@ class ProjectLifecycleHttpRoutes:
         backend_p0_api: BackendP0API | None = None,
         workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
         schedule_query_api: ScheduleQueryAPI | None = None,
+        ai_action_runtime: AIActionRuntime | None = None,
+        ai_assistant_orchestrator: AIAssistantTurnOrchestrator | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -170,6 +197,8 @@ class ProjectLifecycleHttpRoutes:
         self._p6_mapping_api = p6_mapping_api
         self._p6_interchange_api = p6_interchange_api
         self._p6_resource_read_api = p6_resource_read_api
+        self._p6_resource_capacity_read_api = p6_resource_capacity_read_api
+        self._p6_resource_capacity_write_api = p6_resource_capacity_write_api
         self._p6_resource_write_api = p6_resource_write_api
         self._p6_resource_spread_api = p6_resource_spread_api
         self._p6_code_api = p6_code_api
@@ -178,6 +207,8 @@ class ProjectLifecycleHttpRoutes:
         self._backend_p0_api = backend_p0_api
         self._workspace_read_v2_service = workspace_read_v2_service
         self._schedule_query_api = schedule_query_api
+        self._ai_action_runtime = ai_action_runtime
+        self._ai_assistant_orchestrator = ai_assistant_orchestrator
 
     def handle(
         self,
@@ -195,6 +226,10 @@ class ProjectLifecycleHttpRoutes:
 
         try:
             now = self._clock.now()
+            if method == "GET" and path == "/api/v1/schedule/code-reference":
+                # The catalogue contains no project records, but a valid active session is required.
+                self._api.get_session(session_id, now=now)
+                return self._json(200, build_scheduling_code_reference_payload())
             if method == "GET" and path == "/api/session":
                 response = self._api.get_session(session_id, now=now)
                 return self._json(200, {
@@ -1564,6 +1599,70 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(403, str(exc), "error.authorization.denied")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_ACTIVITY_PERIOD_ACTUAL_REQUEST_INVALID", "error.request.invalid")
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignments"):
+                if self._p6_resource_write_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-assignments")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict) or payload.get("contract_version") != P6_RESOURCE_WRITE_API_VERSION:
+                    return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                    assignment = P6ResourceAssignment(
+                        scope=scope,
+                        assignment_id=payload.get("assignment_id", ""),
+                        activity_id=payload.get("activity_id", ""),
+                        resource_id=payload.get("resource_id", ""),
+                        role_id=payload.get("role_id"),
+                        units=None if payload.get("units") is None else Decimal(str(payload["units"])),
+                        actual_units=None if payload.get("actual_units") is None else Decimal(str(payload["actual_units"])),
+                        remaining_units=None if payload.get("remaining_units") is None else Decimal(str(payload["remaining_units"])),
+                        planned_cost=None if payload.get("planned_cost") is None else Decimal(str(payload["planned_cost"])),
+                        actual_cost=None if payload.get("actual_cost") is None else Decimal(str(payload["actual_cost"])),
+                        remaining_cost=None if payload.get("remaining_cost") is None else Decimal(str(payload["remaining_cost"])),
+                        unit=payload.get("unit"),
+                        currency=payload.get("currency"),
+                        calendar_id=payload.get("calendar_id"),
+                        calendar_version=payload.get("calendar_version"),
+                        note=payload.get("note"),
+                        # Never coerce strings or numbers into an explicit driving flag.
+                        is_driving=payload.get("is_driving"),
+                        units_per_time=(
+                            None if payload.get("units_per_time") is None
+                            else Decimal(str(payload["units_per_time"]))
+                        ),
+                        units_per_time_period=payload.get("units_per_time_period"),
+                        hours_per_units_time_period=(
+                            None if payload.get("hours_per_units_time_period") is None
+                            else Decimal(str(payload["hours_per_units_time_period"]))
+                        ),
+                    )
+                    result = self._p6_resource_write_api.save_assignment(assignment, auth_context=auth)
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code == "IMMUTABLE_RESOURCE_ASSIGNMENT":
+                        return self._error(409, code, "error.resource_assignment.immutable_conflict")
+                    if code == "RESOURCE_ASSIGNMENT_WRITE_SERVICE_NOT_CONFIGURED":
+                        return self._error(503, code, "error.resource_assignment.unavailable")
+                    return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_ASSIGNMENT_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignments"):
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 project_id = path[len("/api/projects/"):-len("/p6/resource-assignments")].rstrip("/")
@@ -1590,6 +1689,189 @@ class ProjectLifecycleHttpRoutes:
                 session = self._api.get_session(session_id, now=now); auth = context.authorization_context(session.roles)
                 result = self._p6_resource_read_api.get_assignment(BackendScope(context.tenant_id, context.project_id, context.revision), assignment_id, auth_context=auth)
                 if result is None: return self._error(404, "P6_RESOURCE_ASSIGNMENT_NOT_FOUND", "error.p6.resource_assignment.not_found")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-capacities"):
+                if self._p6_resource_capacity_write_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-capacities")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("contract_version") != P6_RESOURCE_CAPACITY_WRITE_API_VERSION
+                ):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    result = self._p6_resource_capacity_write_api.save_effective_change(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id=payload.get("resource_id"),
+                        max_units=payload.get("max_units"),
+                        unit_basis=payload.get("unit_basis"),
+                        hours_per_time_period=payload.get("hours_per_time_period"),
+                        effective_from=payload.get("effective_from"),
+                        effective_to=payload.get("effective_to"),
+                        expected_revision=payload.get("expected_revision"),
+                        close_open_segment=payload.get("close_open_segment", False),
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code in {
+                        "REVISION_CONFLICT",
+                        "CAPACITY_SEGMENTS_OVERLAP",
+                        "IMMUTABLE_RESOURCE_CAPACITY_SEGMENT",
+                        "RESOURCE_CAPACITY_INSERT_CONFLICT",
+                    }:
+                        return self._error(409, code, "error.p6.resource_capacity.conflict")
+                    if code == "RESOURCE_CAPACITY_WRITE_SERVICE_NOT_CONFIGURED":
+                        return self._error(503, code, "error.p6.resource_capacity.unavailable")
+                    if code.startswith("INVALID_") or code.startswith("CAPACITY_"):
+                        return self._error(400, code, "error.request.invalid")
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and "/p6/resource-capacities/" in path and path.endswith("/resolve"):
+                if self._p6_resource_capacity_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, suffix = path.split("/p6/resource-capacities/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                resource_id = suffix[: -len("/resolve")].rstrip("/")
+                if not project_id or not resource_id or "/" in resource_id:
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("contract_version") != P6_RESOURCE_CAPACITY_READ_API_VERSION
+                ):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    period_raw = payload.get("period")
+                    if not isinstance(period_raw, str) or not period_raw.strip():
+                        raise ValueError("INVALID_EFFECTIVE_DATE")
+                    period = date.fromisoformat(period_raw)
+                    basis_raw = payload.get("basis")
+                    hours_raw = payload.get("hours_per_time_period")
+                    if (basis_raw is None) != (hours_raw is None):
+                        raise ValueError("CAPACITY_CONVERSION_INCOMPLETE")
+                    basis = (
+                        None
+                        if basis_raw is None
+                        else ResourceCapacityBasis(str(basis_raw))
+                    )
+                    hours = (
+                        None
+                        if hours_raw is None
+                        else Decimal(str(hours_raw))
+                    )
+                    result = self._p6_resource_capacity_read_api.capacity_on(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id,
+                        period,
+                        basis=basis,
+                        hours_per_time_period=hours,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code == "RESOURCE_CAPACITY_NOT_REGISTERED":
+                        return self._error(404, code, "error.p6.resource_capacity.not_registered")
+                    if code in {
+                        "CAPACITY_SEGMENT_NOT_EFFECTIVE",
+                        "CAPACITY_SEGMENTS_OVERLAP",
+                    }:
+                        return self._error(409, code, "error.p6.resource_capacity.conflict")
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                capacity = result.get("capacity")
+                if isinstance(capacity, Decimal):
+                    # Serialize the authoritative server-side conversion as a
+                    # canonical decimal string (no client-side arithmetic).
+                    canonical = capacity.normalize()
+                    result = {
+                        **result,
+                        "capacity": f"{canonical:f}"
+                        if capacity.is_finite()
+                        else str(capacity),
+                    }
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-capacities"):
+                if self._p6_resource_capacity_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-capacities")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    session = self._api.get_session(session_id, now=now)
+                    auth = context.authorization_context(session.roles)
+                    result = self._p6_resource_capacity_read_api.list_segments(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        None,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    return self._error(400, str(exc), "error.request.invalid")
+                return self._json(200, {
+                    "contract_version": P6_RESOURCE_CAPACITY_READ_API_VERSION,
+                    "capacities": list(result),
+                })
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/resource-capacities/" in path:
+                if self._p6_resource_capacity_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, resource_id = path.split("/p6/resource-capacities/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                resource_id = resource_id.rstrip("/")
+                if not project_id or not resource_id or "/" in resource_id:
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    session = self._api.get_session(session_id, now=now)
+                    auth = context.authorization_context(session.roles)
+                    result = self._p6_resource_capacity_read_api.get_profile(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code == "RESOURCE_CAPACITY_NOT_REGISTERED":
+                        return self._error(404, code, "error.p6.resource_capacity.not_registered")
+                    if code in {"CAPACITY_SEGMENT_NOT_EFFECTIVE", "CAPACITY_SEGMENTS_OVERLAP"}:
+                        return self._error(409, code, "error.p6.resource_capacity.conflict")
+                    return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignment-periods"):
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
@@ -2057,7 +2339,12 @@ class ProjectLifecycleHttpRoutes:
                 raw_columns = payload.get("columns", [])
                 if not isinstance(raw_columns, list):
                     return self._error(400, "INVALID_LAYOUT_COLUMNS", "error.request.invalid")
-                columns = tuple(LayoutColumn(**item) for item in raw_columns)
+                try:
+                    columns = tuple(
+                        layout_column_from_mapping(item) for item in raw_columns
+                    )
+                except P6LayoutPersistenceError:
+                    return self._error(400, "INVALID_LAYOUT_COLUMNS", "error.request.invalid")
                 metadata = payload.get("metadata", {})
                 if not isinstance(metadata, dict):
                     return self._error(400, "INVALID_LAYOUT_METADATA", "error.request.invalid")
@@ -2069,8 +2356,47 @@ class ProjectLifecycleHttpRoutes:
                     columns,
                     metadata,
                 )
-                result = self._p6_layout_definition_api.save(layout, auth_context=auth)
+                try:
+                    result = self._p6_layout_definition_api.save(layout, auth_context=auth)
+                except P6LayoutPersistenceError as exc:
+                    code = str(exc)
+                    if code in {"REVISION_CONFLICT", "IMMUTABLE_LAYOUT_REVISION"}:
+                        return self._error(409, code, "error.p6.layout.conflict")
+                    return self._error(400, code or "INVALID_LAYOUT_REQUEST", "error.request.invalid")
                 return self._json(200, {"contract_version": P6_LAYOUT_DEFINITION_API_VERSION, **result["layout"]})
+            if (
+                method == "GET"
+                and path.startswith("/api/projects/")
+                and "/p6/layouts/" in path
+                and path.endswith("/revisions")
+            ):
+                if self._p6_layout_definition_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, layout_path = path.split("/p6/layouts/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                layout_path = layout_path[:-len("/revisions")]
+                parts = layout_path.split("/", 1)
+                if not project_id or len(parts) != 2 or not all(parts):
+                    return self._error(400, "P6_LAYOUT_REQUEST_INVALID", "error.request.invalid")
+                layout_scope, view_id = parts
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    result = self._p6_layout_definition_api.list_revisions(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        layout_scope,
+                        view_id,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and "/p6/layouts/" in path:
                 if self._p6_layout_definition_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
@@ -2152,6 +2478,340 @@ class ProjectLifecycleHttpRoutes:
                     result = self._p6_code_api.create(definition, auth_context=auth)
                 except (TypeError, ValueError): return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            if path.startswith("/api/projects/") and "/ai/assistant/turn" in path:
+                parts = path[len("/api/projects/"):].split("/")
+                if len(parts) != 4 or not parts[0] or parts[1:] != ["ai", "assistant", "turn"]:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if method != "POST":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if self._ai_action_runtime is None or self._ai_assistant_orchestrator is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                # Bound parsing work before decoding attacker-controlled JSON.
+                if len(body) > 128_000:
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict) or set(payload).difference(
+                    {"expected_revision", "message", "language", "history"}
+                ):
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                expected_revision = payload.get("expected_revision")
+                message = payload.get("message")
+                language = payload.get("language")
+                history_raw = payload.get("history", [])
+                if not isinstance(history_raw, list) or len(history_raw) > 12:
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                history = []
+                history_chars = 0
+                for entry in history_raw:
+                    if (
+                        not isinstance(entry, dict)
+                        or set(entry) != {"role", "content"}
+                        or not isinstance(entry.get("role"), str)
+                        or entry.get("role") not in {"user", "assistant"}
+                        or not isinstance(entry.get("content"), str)
+                        or not entry["content"].strip()
+                        or len(entry["content"]) > 4000
+                    ):
+                        return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                    history_content = entry["content"].strip()
+                    history_chars += len(history_content)
+                    if history_chars > 12000:
+                        return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                    history.append({"role": entry["role"], "content": history_content})
+                if (
+                    isinstance(expected_revision, bool)
+                    or not isinstance(expected_revision, int)
+                    or expected_revision < 0
+                    or not isinstance(message, str)
+                    or not 1 <= len(message.strip()) <= 6000
+                    or not is_valid_language_tag(language)
+                    or len(language) > 64
+                ):
+                    return self._error(400, "AI_ASSISTANT_REQUEST_INVALID", "error.request.invalid")
+                project_id = parts[0]
+                try:
+                    # Conversation is available to readers; proposal creation is a
+                    # separate write capability and is exposed only after write authorization.
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_READ, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                context = authorized.context
+                can_propose = True
+                try:
+                    self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                except AuthorizationError:
+                    can_propose = False
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                runtime_context = AIActionRuntimeContext(
+                    subject_id=session.user_id,
+                    tenant_id=context.tenant_id,
+                    project_id=context.project_id,
+                    project_revision_id=str(context.revision),
+                    roles=session.roles,
+                )
+                if expected_revision != context.revision:
+                    self._ai_action_runtime.record_request_event(
+                        runtime_context,
+                        "assistant_turn_stale_revision",
+                        metadata={
+                            "expected_revision": expected_revision,
+                            "current_revision": context.revision,
+                        },
+                    )
+                    return self._error(
+                        409, "AI_ASSISTANT_STALE_REVISION", "error.conflict.stale_revision"
+                    )
+                # Audit metadata only; never persist the user's prompt as part of an audit event.
+                self._ai_action_runtime.record_request_event(
+                    runtime_context,
+                    "assistant_turn_requested",
+                    metadata={
+                        "language": language.strip(),
+                        "message_length": len(message.strip()),
+                        "can_propose": can_propose,
+                    },
+                )
+                try:
+                    turn = self._ai_assistant_orchestrator.turn(
+                        runtime_context,
+                        user_message=message.strip(),
+                        language=language.strip(),
+                        history=tuple(history),
+                        allow_mutations=can_propose,
+                    )
+                except AIAssistantProviderError as exc:
+                    self._ai_action_runtime.record_request_event(
+                        runtime_context,
+                        "assistant_turn_failed",
+                        metadata={"reason_code": exc.code},
+                    )
+                    raise
+                proposal = turn.proposal
+                proposal_payload = None
+                if proposal is not None:
+                    proposal_payload = {
+                        "proposal_id": proposal.proposal.proposal_id,
+                        "tool_name": proposal.proposal.tool_name,
+                        "action": proposal.proposal.action,
+                        "status": proposal.status,
+                        "requires_human_approval": proposal.proposal.requires_human_approval,
+                        "requested_by": proposal.proposal.requested_by,
+                        "evidence_refs": list(proposal.proposal.evidence_refs),
+                        "project_revision_id": proposal.proposal.project_revision_id,
+                        "resource_domain": proposal.proposal.resource_domain,
+                        "payload": dict(proposal.payload),
+                        "result": None if proposal.result is None else dict(proposal.result),
+                        "created_at": proposal.created_at.isoformat(),
+                        "updated_at": proposal.updated_at.isoformat(),
+                        "decided_by": proposal.decided_by,
+                        "is_stale": proposal.proposal.project_revision_id != runtime_context.project_revision_id,
+                    }
+                self._ai_action_runtime.record_request_event(
+                    runtime_context,
+                    "assistant_turn_completed",
+                    proposal_id=None if proposal is None else proposal.proposal.proposal_id,
+                    metadata={
+                        "kind": turn.kind,
+                        "proposal_created": proposal is not None,
+                    },
+                )
+                return self._json(200, {
+                    "contract_version": "ai-assistant-turn.v1",
+                    "kind": turn.kind,
+                    "message": turn.message,
+                    "proposal": proposal_payload,
+                })
+            if path.startswith("/api/projects/") and "/ai/actions/" in path:
+                if self._ai_action_runtime is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if method not in {"GET", "POST"}:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                parts = path[len("/api/projects/"):].split("/")
+                if not parts or not parts[0] or parts[1:3] != ["ai", "actions"]:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = parts[0]
+                if method == "GET":
+                    if len(parts) == 4 and parts[3] == "proposals":
+                        read_operation = "list"
+                        read_proposal_id = None
+                    elif len(parts) == 5 and parts[3] == "proposals" and parts[4]:
+                        read_operation = "get"
+                        read_proposal_id = parts[4]
+                    else:
+                        return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                    # Proposal payloads may contain actionable or sensitive project changes.
+                    # Only project editors can inspect them; execution still rechecks the
+                    # exact AI tool grant and the current revision independently.
+                    try:
+                        authorized = self._api.authorize_project(
+                            session_id, project_id, Permission.PROJECT_WRITE, now=now
+                        )
+                        session = self._api.get_session(session_id, now=now)
+                    except ProjectLifecycleError as exc:
+                        if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                            return self._error(403, str(exc), "error.authorization.denied")
+                        raise
+                    context = authorized.context
+                    runtime_context = AIActionRuntimeContext(
+                        subject_id=session.user_id,
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        project_revision_id=str(context.revision),
+                        roles=session.roles,
+                    )
+                    if read_operation == "list":
+                        records = self._ai_action_runtime.list_proposals(runtime_context)
+                    else:
+                        records = (self._ai_action_runtime.get_proposal(runtime_context, read_proposal_id or ""),)
+                    proposals = []
+                    for record in records:
+                        proposals.append({
+                            "proposal_id": record.proposal.proposal_id,
+                            "tool_name": record.proposal.tool_name,
+                            "action": record.proposal.action,
+                            "status": record.status,
+                            "requires_human_approval": record.proposal.requires_human_approval,
+                            "requested_by": record.proposal.requested_by,
+                            "evidence_refs": list(record.proposal.evidence_refs),
+                            "project_revision_id": record.proposal.project_revision_id,
+                            "resource_domain": record.proposal.resource_domain,
+                            "payload": dict(record.payload),
+                            "result": None if record.result is None else dict(record.result),
+                            "created_at": record.created_at.isoformat(),
+                            "updated_at": record.updated_at.isoformat(),
+                            "decided_by": record.decided_by,
+                            "is_stale": record.proposal.project_revision_id != runtime_context.project_revision_id,
+                        })
+                    if read_operation == "get":
+                        return self._json(200, {
+                            "contract_version": "ai-action-runtime.v1",
+                            "proposal": proposals[0],
+                        })
+                    return self._json(200, {
+                        "contract_version": "ai-action-runtime.v1",
+                        "proposals": proposals,
+                    })
+                operation = None
+                proposal_id = None
+                if len(parts) == 4 and parts[3] == "proposals":
+                    operation = "propose"
+                elif len(parts) == 6 and parts[3] == "proposals" and parts[4] and parts[5] in {"decision", "execute"}:
+                    operation = parts[5]
+                    proposal_id = parts[4]
+                else:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except json.JSONDecodeError:
+                    return self._error(400, "AI_ACTION_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict):
+                    return self._error(400, "AI_ACTION_REQUEST_INVALID", "error.request.invalid")
+                expected_revision = payload.get("expected_revision")
+                if (
+                    isinstance(expected_revision, bool)
+                    or not isinstance(expected_revision, int)
+                    or expected_revision < 0
+                ):
+                    return self._error(400, "AI_ACTION_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                context = authorized.context
+                runtime_context = AIActionRuntimeContext(
+                    subject_id=session.user_id,
+                    tenant_id=context.tenant_id,
+                    project_id=context.project_id,
+                    project_revision_id=str(context.revision),
+                    roles=session.roles,
+                )
+                if expected_revision != context.revision:
+                    self._ai_action_runtime.record_request_event(
+                        runtime_context,
+                        "stale_expected_revision",
+                        proposal_id=proposal_id,
+                        metadata={
+                            "operation": operation,
+                            "expected_revision": expected_revision,
+                            "current_revision": context.revision,
+                        },
+                    )
+                    return self._error(409, "AI_ACTION_PROPOSAL_STALE_REVISION", "error.conflict.stale_revision")
+                if operation == "propose":
+                    tool_name = payload.get("tool_name")
+                    action_payload = payload.get("payload")
+                    evidence_refs = payload.get("evidence_refs", [])
+                    if (
+                        not isinstance(tool_name, str)
+                        or not tool_name.strip()
+                        or not isinstance(action_payload, dict)
+                        or not isinstance(evidence_refs, list)
+                        or any(not isinstance(ref, str) or not ref.strip() for ref in evidence_refs)
+                    ):
+                        return self._error(400, "AI_ACTION_REQUEST_INVALID", "error.request.invalid")
+                    record = self._ai_action_runtime.propose(
+                        runtime_context,
+                        tool_name=tool_name,
+                        payload=action_payload,
+                        evidence_refs=tuple(evidence_refs),
+                    )
+                    return self._json(201, {
+                        "contract_version": "ai-action-runtime.v1",
+                        "status": record.status,
+                        "proposal": {
+                            "proposal_id": record.proposal.proposal_id,
+                            "tool_name": record.proposal.tool_name,
+                            "action": record.proposal.action,
+                            "requires_human_approval": record.proposal.requires_human_approval,
+                            "requested_by": record.proposal.requested_by,
+                            "evidence_refs": list(record.proposal.evidence_refs),
+                            "project_revision_id": record.proposal.project_revision_id,
+                            "resource_domain": record.proposal.resource_domain,
+                            "payload": dict(record.payload),
+                            "created_at": record.created_at.isoformat(),
+                            "updated_at": record.updated_at.isoformat(),
+                            "decided_by": record.decided_by,
+                            "is_stale": False,
+                        },
+                    })
+                if operation == "decision":
+                    approved = payload.get("approved")
+                    if not isinstance(approved, bool):
+                        return self._error(400, "AI_ACTION_REQUEST_INVALID", "error.request.invalid")
+                    record = self._ai_action_runtime.decide(
+                        runtime_context, proposal_id or "", approved=approved
+                    )
+                    return self._json(200, {
+                        "contract_version": "ai-action-runtime.v1",
+                        "proposal_id": record.proposal.proposal_id,
+                        "status": record.status,
+                        "decided_by": record.decided_by,
+                    })
+                record = self._ai_action_runtime.execute(runtime_context, proposal_id or "")
+                return self._json(200, {
+                    "contract_version": "ai-action-runtime.v1",
+                    "proposal_id": record.proposal.proposal_id,
+                    "status": record.status,
+                    "result": None if record.result is None else dict(record.result),
+                })
             if method == "POST" and path.startswith("/api/projects/") and path.endswith("/open"):
                 project_id = path[len("/api/projects/"):-len("/open")]
                 if not project_id:
@@ -2172,6 +2832,51 @@ class ProjectLifecycleHttpRoutes:
             return self._error(401, str(exc), "error.session.invalid")
         except AuthorizationError as exc:
             return self._error(403, str(exc), "error.authorization.denied")
+        except AIAssistantProviderError as exc:
+            code = exc.code
+            if code == "AI_ASSISTANT_ACTION_NOT_ALLOWED":
+                status = 403
+            elif code == "AI_ASSISTANT_REQUEST_INVALID":
+                status = 400
+            elif code in {
+                "AI_ASSISTANT_PROVIDER_UNAVAILABLE",
+                "AI_ASSISTANT_PROVIDER_RATE_LIMITED",
+                "AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID",
+            }:
+                status = 503
+            else:
+                status = 502
+            return self._error(status, code, "error.ai_assistant.request_failed")
+        except AIActionRuntimeError as exc:
+            code = str(exc)
+            status = 400
+            if code in {"AI_TOOL_NOT_PERMITTED", "AI_ACTION_PERMISSION_CHECK_FAILED"}:
+                status = 403
+            elif code == "AI_ACTION_PROPOSAL_NOT_FOUND":
+                status = 404
+            elif code in {
+                "AI_ACTION_PROPOSAL_STALE_REVISION",
+                "AI_ACTION_PROPOSAL_NOT_PENDING",
+                "AI_ACTION_PROPOSAL_NOT_APPROVED",
+                "AI_ACTION_PROPOSAL_ID_CONFLICT",
+                "AI_ACTION_IDEMPOTENCY_KEY_REUSE",
+                "AI_ACTION_EXECUTION_OUTCOME_UNCERTAIN",
+                "AI_ACTION_EXECUTION_PRECONDITION_FAILED",
+            }:
+                status = 409
+            elif code == "AI_ACTION_EXECUTION_FAILED":
+                status = 502
+            elif code.startswith("AI_ACTION_AUDIT_") or code in {
+                "AI_ACTION_PROPOSAL_PERSISTENCE_FAILED",
+                "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED",
+                "AI_ACTION_EXECUTION_STATE_NOT_PERSISTED",
+                "AI_ACTION_EXECUTION_RESERVATION_FAILED",
+                "AI_ACTION_IDEMPOTENCY_RESULT_NOT_PERSISTED",
+                "AI_ACTION_IDEMPOTENCY_RESULT_INVALID",
+                "AI_ACTION_TRANSACTION_FAILED",
+            }:
+                status = 500
+            return self._error(status, code, "error.ai_action.request_failed")
         except ProjectLifecycleError as exc:
             return self._error(400, str(exc), "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -2189,9 +2894,17 @@ class ProjectLifecycleHttpRoutes:
     def _error(
         cls, status: int, code: str, message_key: str
     ) -> tuple[int, dict[str, str], bytes]:
+        non_retryable_integrity_errors = {
+            "AI_ACTION_EXECUTION_RESULT_NOT_PERSISTED",
+            "AI_ACTION_EXECUTION_STATE_NOT_PERSISTED",
+            "AI_ACTION_EXECUTION_RESERVATION_FAILED",
+            "AI_ACTION_IDEMPOTENCY_RESULT_NOT_PERSISTED",
+            "AI_ACTION_IDEMPOTENCY_RESULT_INVALID",
+        }
+        retryable = status >= 500 and code not in non_retryable_integrity_errors
         return cls._json(status, {
             "code": code,
-            "retryable": status >= 500,
+            "retryable": retryable,
             "message_key": message_key,
-            "available_actions": ["retry"] if status >= 500 else [],
+            "available_actions": ["retry"] if retryable else [],
         })

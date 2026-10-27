@@ -41,7 +41,7 @@ const manifest = (version: string): LanguagePackManifest => ({
 });
 
 const resources = () => [
-  { path: "translation.json", bytes: new Uint8Array([1]) },
+  { path: "translation.json", bytes: new TextEncoder().encode(JSON.stringify({ schema_version: "cubi-ui-translations.v1", display_name: "English", direction: "ltr", translations: {} })) },
   { path: "glossary.json", bytes: new Uint8Array([2]) },
   { path: "help.json", bytes: new Uint8Array([3]) },
   { path: "reports.json", bytes: new Uint8Array([4]) },

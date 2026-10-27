@@ -24,6 +24,10 @@ A web-ready construction project management platform designed as a structured re
 8. **GitHub/Codex is the canonical development, code-execution and test environment. ChatGPT is a coordination/review/support environment. The temporary rule that moved full development and testing into ChatGPT is revoked.**
 9. Database-backed and runtime verification must use the intended SQL/PostgreSQL-capable GitHub/Codex environment.
 
+## Mandatory continuity entrypoint
+
+Before starting any implementation, read [PROJECT_CONTINUITY_PROTOCOL.md](docs/governance/PROJECT_CONTINUITY_PROTOCOL.md) and [PROJECT_STATE_LEDGER.md](docs/governance/PROJECT_STATE_LEDGER.md). The protocol requires a current-main/exact-SHA check, the correct workstream schedule, evidence-based status, no scope reduction, and a ledger update at handoff. For website-only CUBISITE work use the standalone `cubisite.xlsx` Library schedule; do not substitute Jalal 5 or infer whole-product completion from the website plan.
+
 ## Team responsibility model
 The current three-person development ownership model is documented in [`docs/team-responsibilities.md`](docs/team-responsibilities.md):
 - **Jalal** — Lead Developer / Architect / Integration; Shared Core, scheduling/calculation, P6 parity, integration and final technical acceptance.
@@ -69,7 +73,7 @@ Recent completed gates:
 - Stage 33.2.6 — Cross-module regression suite: Resource/Cost → EVM bridge, revision conflict, project isolation and deterministic portability reload; integrated through PR #233 with Python and client CI green.
 - Stage 34.3 typed dependency contract hardening — known dependency resource/type validation and explicit RFI/document relation mapping; integrated through PR #238 with Python and client CI green.
 - Stage 32.7 reporting typed dataset foundation — authoritative read-only typed report dataset boundary with separate numeric/date/duration/Boolean fields; integrated through PR #239 with Python and client CI green.
-- Web Main Workspace foundation — shared Web workspace state model and framework-neutral renderer for bilingual RTL/LTR, Jalali/Gregorian mode, Project/WBS, Activity Grid, Gantt and Details panels; integrated through PR #240 with Python and client CI green.
+- Web Main Workspace foundation — shared Web workspace state model and framework-neutral renderer for multilingual RTL/LTR (Persian/English are initial baselines; broader language support is acceptance-gated), Jalali/Gregorian mode, Project/WBS, Activity Grid, Gantt and Details panels; integrated through PR #240 with Python and client CI green.
 
 Current Stage 34 focus:
 - Continue construction control backend with the next Portfolio decision/approval implementation and cross-project control actions.

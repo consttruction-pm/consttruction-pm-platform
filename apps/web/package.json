@@ -6,6 +6,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "preview": "npm run build && node preview-server.mjs",
+    "preview:full": "npm run build && node preview-full.mjs",
+    "preview:smoke": "node preview-smoke.mjs",
+    "test:e2e:preview": "npm run build && node e2e/preview-e2e.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && tsx --test src/*.test.ts && node --test preview-server.test.mjs"
   },

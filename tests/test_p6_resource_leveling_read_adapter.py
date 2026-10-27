@@ -239,12 +239,18 @@ def test_strict_adapter_resolves_exact_calendar_id_and_version_pair():
         periods=(date(2026, 10, 2),),
         options=ResourceLevelingOptions(),
         require_calendar_versions=True,
+        source_snapshot_id="S-RESOURCE",
+        source_snapshot_hash="d" * 64,
+        source_calculation_identity="e" * 64,
     )
 
     assert result.capacities[0].units == Decimal("7.5")
     assert result.capacities[0].calendar_id == "calendar-1"
     assert result.capacities[0].calendar_version == "cal-v7"
     assert result.capacities[0].calendar_snapshot_hash == "a" * 64
+    assert result.has_bound_provenance
+    assert len(result.resource_facts_hash) == 64
+    assert len(result.calendar_manifest_hash) == 64
 
 
 def test_strict_adapter_requires_calendar_snapshot_hash_and_period_capacity_slices():

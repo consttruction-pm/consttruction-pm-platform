@@ -22,6 +22,7 @@ from .scheduling.authoritative_schedule import (
     ActivityCalendarAssignment,
     AuthoritativeScheduleInput,
     AuthoritativeScheduleMode,
+    RelationshipLagCalendarAssignment,
 )
 from .scheduling.calendar_context import (
     CalendarReference,
@@ -454,6 +455,13 @@ def _materialize_payload(
                 raise SnapshotMaterializationError(
                     "INVALID_ACTIVITY_LEVELING_PRIORITY"
                 ) from exc
+            raw_resource_dependent_hash = item.get("resource_dependent_input_hash")
+            if raw_resource_dependent_hash is not None and (
+                not isinstance(raw_resource_dependent_hash, str)
+                or len(raw_resource_dependent_hash) != 64
+                or any(character not in "0123456789abcdef" for character in raw_resource_dependent_hash)
+            ):
+                raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_INPUT_HASH")
 
             activities.append(
                 Activity(
@@ -473,6 +481,7 @@ def _materialize_payload(
                     original_duration,
                     planned_finish,
                     leveling_priority,
+                    raw_resource_dependent_hash,
                 )
             )
         else:
@@ -602,6 +611,38 @@ def _materialize_payload(
         for activity_id, reference in sorted(assignment_refs.items())
     )
 
+    raw_relationship_lag_assignments = payload.get("relationship_lag_calendar_assignments", [])
+    if not isinstance(raw_relationship_lag_assignments, list):
+        raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG_CALENDAR_ASSIGNMENTS")
+    relationship_lag_assignments: list[RelationshipLagCalendarAssignment] = []
+    for item in raw_relationship_lag_assignments:
+        if not isinstance(item, dict):
+            raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG_ASSIGNMENT")
+        try:
+            raw_option = _required_string(item, "option", "INVALID_RELATIONSHIP_LAG_ASSIGNMENT")
+            option = RelationshipLagCalendar(raw_option)
+            raw_calendar = item.get("calendar")
+            calendar = None if raw_calendar is None else _calendar(raw_calendar)
+            relationship_lag_assignments.append(
+                RelationshipLagCalendarAssignment(
+                    relationship_id=_required_string(
+                        item, "relationship_id", "INVALID_RELATIONSHIP_LAG_ASSIGNMENT"
+                    ),
+                    predecessor_id=_required_string(
+                        item, "predecessor_id", "INVALID_RELATIONSHIP_LAG_ASSIGNMENT"
+                    ),
+                    successor_id=_required_string(
+                        item, "successor_id", "INVALID_RELATIONSHIP_LAG_ASSIGNMENT"
+                    ),
+                    option=option,
+                    calendar=calendar,
+                )
+            )
+        except (TypeError, ValueError) as exc:
+            if isinstance(exc, SnapshotMaterializationError):
+                raise
+            raise SnapshotMaterializationError("INVALID_RELATIONSHIP_LAG_ASSIGNMENT") from exc
+
     project_start_value = _required(payload, "project_start")
     project_finish_value = payload.get("project_finish")
     raw_project_leveling_priority = payload.get("project_leveling_priority", 10)
@@ -617,6 +658,7 @@ def _materialize_payload(
         activities=activities_tuple,
         relationships=relationships_tuple,
         activity_calendar_assignments=assignments,
+        relationship_lag_calendar_assignments=tuple(relationship_lag_assignments),
         constraints=constraints,
         schedule_options=_schedule_options(_required(payload, "schedule_options")),
         project_start=(

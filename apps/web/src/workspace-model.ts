@@ -10,8 +10,9 @@ import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObserv
 import type { WorkspaceSmartGuide } from "./workspace-smart-guide.js";
 import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { addField, removeField, reorderFields, updateFieldPresentation } from "./p6-field-layout-foundation.js";
+import { getWorkspaceLocaleDirection, translateWorkspaceText } from "./workspace-localization.js";
 
-export type WorkspaceLocale = "fa" | "en";
+export type WorkspaceLocale = string;
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
 export type WorkspaceMenuKey =
@@ -88,6 +89,32 @@ export type WorkspaceWbsNode = {
   recordRevision: number;
 };
 
+/** Read-only result facts returned by the authoritative shared scheduling service. */
+export type AuthoritativeScheduledActivity = {
+  start: string;
+  finish: string;
+  duration?: number;
+  critical?: boolean;
+  early_start?: string;
+  early_finish?: string;
+  late_start?: string;
+  late_finish?: string;
+  total_float?: number;
+  free_float?: number;
+};
+
+export type AuthoritativeScheduleFacts = {
+  calculation_run_identity?: string;
+  project_finish?: string;
+  activity_count?: number;
+  activities: Readonly<Record<string, AuthoritativeScheduledActivity>>;
+};
+
+export type WorkspaceActivitySort = {
+  readonly columnId: string;
+  readonly direction: "asc" | "desc";
+};
+
 export type WorkspaceState = {
   context: ProjectContext;
   locale: WorkspaceLocale;
@@ -100,6 +127,8 @@ export type WorkspaceState = {
   columns: readonly WorkspaceColumn[];
   activities: readonly WorkspaceActivityRow[];
   wbsNodes: readonly WorkspaceWbsNode[];
+  activityFilter: string;
+  activitySort: WorkspaceActivitySort | null;
   controlSummary: WorkspaceControlSummary | null;
   smartGuide: WorkspaceSmartGuide | null;
   siteDailyLogs: readonly WorkspaceSiteDailyLog[];
@@ -138,7 +167,7 @@ const DEFAULT_WORKSPACE_COLUMN_LABELS: Record<WorkspaceLocale, Record<string, st
 };
 
 export function getDefaultWorkspaceColumns(locale: WorkspaceLocale = "en"): readonly WorkspaceColumn[] {
-  return DEFAULT_WORKSPACE_COLUMNS.map((column) => Object.freeze({ ...column, label: DEFAULT_WORKSPACE_COLUMN_LABELS[locale][column.id] ?? column.label }));
+  return DEFAULT_WORKSPACE_COLUMNS.map((column) => Object.freeze({ ...column, label: translateWorkspaceText(locale, `column.${column.id}`, DEFAULT_WORKSPACE_COLUMN_LABELS[locale.split("-")[0] as "en" | "fa"]?.[column.id] ?? column.label) }));
 }
 
 export function createWorkspaceState(
@@ -150,7 +179,7 @@ export function createWorkspaceState(
   return {
     context: Object.freeze({ ...context }),
     locale,
-    direction: locale === "fa" ? "rtl" : "ltr",
+    direction: getWorkspaceLocaleDirection(locale),
     calendarMode,
     activeMenu: "schedule",
     visiblePanels: {
@@ -164,6 +193,8 @@ export function createWorkspaceState(
     columns: getDefaultWorkspaceColumns(locale),
     activities: [],
     wbsNodes: [],
+    activityFilter: "",
+    activitySort: null,
     controlSummary: null,
     smartGuide: null,
     siteDailyLogs: [],
@@ -204,11 +235,49 @@ export function selectActivity(state: WorkspaceState, activityId: string | null)
   };
 }
 
+export function setActivityFilter(state: WorkspaceState, filterText: string): WorkspaceState {
+  const normalized = filterText.slice(0, 200);
+  if (normalized === state.activityFilter) return state;
+  return { ...state, activityFilter: normalized };
+}
+
+export function setActivitySort(
+  state: WorkspaceState,
+  columnId: string | null,
+  direction: "asc" | "desc" = "asc",
+): WorkspaceState {
+  if (columnId === null) {
+    return state.activitySort === null ? state : { ...state, activitySort: null };
+  }
+  if (!state.columns.some((column) => column.id === columnId)) {
+    throw new Error("SORT_COLUMN_NOT_FOUND");
+  }
+  const next = Object.freeze({ columnId, direction });
+  if (
+    state.activitySort?.columnId === next.columnId &&
+    state.activitySort.direction === next.direction
+  ) {
+    return state;
+  }
+  return { ...state, activitySort: next };
+}
+
+export function toggleActivitySortDirection(state: WorkspaceState): WorkspaceState {
+  if (!state.activitySort) return state;
+  return {
+    ...state,
+    activitySort: Object.freeze({
+      columnId: state.activitySort.columnId,
+      direction: state.activitySort.direction === "asc" ? "desc" : "asc",
+    }),
+  };
+}
+
 export function setLocale(state: WorkspaceState, locale: WorkspaceLocale): WorkspaceState {
   return {
     ...state,
     locale,
-    direction: locale === "fa" ? "rtl" : "ltr",
+    direction: getWorkspaceLocaleDirection(locale),
     columns: state.p6Layout ? state.columns : getDefaultWorkspaceColumns(locale),
   };
 }
@@ -500,6 +569,78 @@ export function withWbsNodes(
       ? state.selectedWbsId
       : null,
   };
+}
+
+/**
+ * Projects authoritative date results into the activity grid and Gantt view.
+ * It does not calculate or infer schedule values in the client.
+ */
+export function applyAuthoritativeScheduleFacts(
+  state: WorkspaceState,
+  facts: AuthoritativeScheduleFacts,
+): WorkspaceState {
+  if (!facts || typeof facts.activities !== "object" || facts.activities === null || Array.isArray(facts.activities)) {
+    throw new Error("INVALID_AUTHORITATIVE_SCHEDULE_FACTS");
+  }
+  const rows = state.activities.map((activity) => {
+    const scheduled = facts.activities[activity.id];
+    if (!scheduled) return activity;
+    if (
+      typeof scheduled.start !== "string" ||
+      typeof scheduled.finish !== "string" ||
+      !Number.isFinite(Date.parse(scheduled.start)) ||
+      !Number.isFinite(Date.parse(scheduled.finish)) ||
+      Date.parse(scheduled.finish) < Date.parse(scheduled.start) ||
+      (scheduled.duration !== undefined && (typeof scheduled.duration !== "number" || !Number.isFinite(scheduled.duration) || scheduled.duration < 0)) ||
+      (scheduled.critical !== undefined && typeof scheduled.critical !== "boolean")
+    ) {
+      throw new Error("INVALID_AUTHORITATIVE_ACTIVITY_RESULT:" + activity.id);
+    }
+    for (const key of ["early_start", "early_finish", "late_start", "late_finish"] as const) {
+      const value = scheduled[key];
+      if (value !== undefined && (typeof value !== "string" || !Number.isFinite(Date.parse(value)))) {
+        throw new Error("INVALID_AUTHORITATIVE_ACTIVITY_RESULT:" + activity.id);
+      }
+    }
+    for (const key of ["total_float", "free_float"] as const) {
+      const value = scheduled[key];
+      if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
+        throw new Error("INVALID_AUTHORITATIVE_ACTIVITY_RESULT:" + activity.id);
+      }
+    }
+    const progressCell = activity.cells?.progress;
+    const progressPercent = activity.gantt?.progressPercent ??
+      (typeof progressCell === "number" && Number.isFinite(progressCell) ? Math.max(0, Math.min(100, progressCell)) : 0);
+    const gantt = Object.freeze({
+      start: scheduled.start,
+      finish: scheduled.finish,
+      progressPercent,
+      critical: scheduled.critical ?? false,
+    });
+    const cells: Record<string, WorkspaceCellValue> = {
+      ...(activity.cells ?? {}),
+      start: scheduled.start,
+      finish: scheduled.finish,
+    };
+    if (scheduled.duration !== undefined) cells.duration = scheduled.duration;
+    // Persisted P6 presentation columns are keyed by registry field IDs. The
+    // same authoritative facts therefore populate those cells too; the browser
+    // neither recalculates nor renames schedule results.
+    if (scheduled.early_start !== undefined) cells["activity.early_start"] = scheduled.early_start;
+    if (scheduled.early_finish !== undefined) cells["activity.early_finish"] = scheduled.early_finish;
+    if (scheduled.late_start !== undefined) cells["activity.late_start"] = scheduled.late_start;
+    if (scheduled.late_finish !== undefined) cells["activity.late_finish"] = scheduled.late_finish;
+    if (scheduled.total_float !== undefined) cells["activity.total_float"] = scheduled.total_float;
+    if (scheduled.free_float !== undefined) cells["activity.free_float"] = scheduled.free_float;
+    if (scheduled.critical !== undefined) cells["activity.is_critical"] = scheduled.critical;
+    return Object.freeze({
+      ...activity,
+      cells: Object.freeze(cells),
+      gantt,
+    });
+  });
+  if (rows.every((activity, index) => activity === state.activities[index])) return state;
+  return { ...state, activities: Object.freeze(rows) };
 }
 
 export function withActivities(

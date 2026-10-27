@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from io import BytesIO
 import json
 import sqlite3
@@ -18,6 +19,14 @@ from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.resource_leveling import (
+    BackwardLevelingActivity,
+    LevelingActivity,
+    ResourceCapacity,
+    ResourceDemand,
+    ResourceLevelingOptions,
+)
 
 
 class Sessions:
@@ -137,6 +146,77 @@ def test_production_composition_wires_persisted_context_into_schedule_query_rout
     assert payload_out["scope"] == {"tenant_id": "T-1", "project_id": "P-1", "project_revision": 9}
     assert payload_out["data"]["project_finish"] == "2026-09-22"
     assert payload_out["data"]["calculation_run_identity"]
+
+def test_production_composition_executes_snapshot_bound_resource_leveling():
+    conn = sqlite3.connect(":memory:")
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
+    context_repo = SQLiteCalculationContextRepository(conn)
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    start = date(2026, 9, 21)
+    end = date(2026, 9, 22)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-PROD-LEVEL", tenant_id="T-1", project_id="P-1", project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED, project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 2),), relationships=(), activity_calendar_assignments=(),
+        schedule_options=ScheduleOptions(level_all_resources=True), project_start=start,
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=9, calendar_id="CAL-1", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp=now.isoformat(), input_snapshot_id="S-PROD-LEVEL",
+        tenant_id="T-1", actor_id="authoritative-actor",
+    )
+    snapshot = build_snapshot(source, context, now)
+    snapshot_repo.save(snapshot)
+    context_repo.save(build_persisted_context(BackendScope("T-1", "P-1", 9), context))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    demand = ResourceDemand("R-1", start, Decimal("4"), "A")
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(LevelingActivity("A", start, end, 0, (demand,)),),
+        backward_activities=(BackwardLevelingActivity("A", start, end, start, end, (demand,)),),
+        capacities=(ResourceCapacity("R-1", start, Decimal("8"), "RC-1", "v1", "a" * 64),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+        source_snapshot_id=snapshot.snapshot_id, source_snapshot_hash=snapshot.snapshot_hash,
+        source_calculation_identity=context.calculation_identity,
+        resource_facts_hash="b" * 64, calendar_manifest_hash="c" * 64,
+    )
+    resolver_calls = []
+    def resolve_leveling(loaded_snapshot, loaded_context, loaded_registry, loaded_auth_context):
+        resolver_calls.append((loaded_snapshot.snapshot_hash, loaded_auth_context.tenant_id, loaded_auth_context.project_id, loaded_auth_context.user_id))
+        return leveling_input
+
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now), snapshot_repository=snapshot_repo,
+        calendar_registry_factory=lambda: registry,
+        calculation_context_repository=context_repo,
+        authorization_policy=default_project_policy(),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+        leveling_input_resolver=resolve_leveling,
+    )
+    payload = {
+        "contract_version": "schedule-query.v1", "query_id": "Q-PROD-LEVEL",
+        "scope": {"tenant_id": "T-1", "project_id": "P-1", "project_revision": 9},
+        "requested_by": "u1", "query_text": "level resources", "kind": "fact",
+        "language": "en", "constraints": {"snapshot_id": "S-PROD-LEVEL"},
+    }
+    body = json.dumps(payload).encode()
+    status_line, result = [], []
+    environ = {
+        "REQUEST_METHOD": "POST", "PATH_INFO": "/api/v1/schedule/query",
+        "HTTP_COOKIE": "cp_session=s1", "CONTENT_LENGTH": str(len(body)),
+        "wsgi.input": BytesIO(body),
+    }
+    def start_response(status, headers):
+        status_line.append(status)
+    result.extend(app(environ, start_response))
+    output = json.loads(b"".join(result))
+    assert status_line == ["200 OK"]
+    assert resolver_calls == [(snapshot.snapshot_hash, "T-1", "P-1", "u1")]
+    assert output["data"]["project_finish"] == "2026-09-22"
+    assert output["data"]["calculation_run_identity"]
+
 
 class FakeBackendP0API:
     def read_workspace_control_room(self, *, tenant_id, project_id, revision, auth_context):
