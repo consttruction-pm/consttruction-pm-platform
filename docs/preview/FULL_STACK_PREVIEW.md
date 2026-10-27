@@ -182,17 +182,19 @@ SQLite database and a real headless browser. It verifies:
   the public homepage gets page guidance and no fake action, the multi-project
   selection gets the real choice steps, the loaded Schedule surface offers
   `#cp-activity-grid` and the action lands focus inside it, a brand-new Persian
-  project shows the Persian empty-activities guidance, and Cost guidance hides
-  its summary action when the project has no control summary;
+  project shows the Persian empty-activities guidance, Cost guidance hides
+  its summary action when the project has no control summary, and a failed
+  workspace request explains the failure and repeats the reference code the
+  page already shows;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **68 checks and 36 screenshots**.
+The latest isolated run recorded **69 checks and 37 screenshots**.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `13-newcomer-first-project.png`, including
 `02d-assistant-needs-project.png`, `03a-workspace-context-guide.png`,
-`12a-newcomer-empty-project-guide.png`, `04b-layout-undo-redo.png`,
-`04c-layout-restore.png`, `04d-layout-conflict.png`
+`10b-assistant-workspace-error.png`, `12a-newcomer-empty-project-guide.png`,
+`04b-layout-undo-redo.png`, `04c-layout-restore.png`, `04d-layout-conflict.png`
 (same-revision clash), `04e-layout-conflict-gap.png` (revision-gap conflict),
 `07b`–`07f` (formula and interchange states),
 `08-capacity-effective-change.png`, `10a-capacity-persisted.png`,

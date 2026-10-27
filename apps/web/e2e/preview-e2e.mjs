@@ -3269,6 +3269,63 @@ async function main() {
     await page.screenshot("10-reload-persisted.png");
     record("saved settings, calendar and layout survive a full reload", finalSettings);
 
+    // A failure page is a real workspace state. The guide must say that access
+    // failed, repeat the code the page already shows, and never imply that
+    // project data or a summary was loaded. This needs an authenticated session
+    // because the preview server guards /app before it serves the shell.
+    const failingWorkspaceApi = await page.cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: `
+        window.fetch = () => Promise.reject(new Error("PREVIEW_API_UNAVAILABLE"));
+      `,
+    });
+    await page.navigate(`${baseUrl}/app`, ".cp-shell-error", "workspace failure page");
+    const workspaceErrorGuide = await page.evaluate(`(async () => {
+      const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const errorPanel = document.querySelector(".cp-shell-error");
+      const referenceCode = errorPanel?.querySelector(".cp-error-reference code")?.textContent?.trim() ?? null;
+      const launcher = document.querySelector("#cubi-assistant-launcher");
+      launcher.click();
+      await frames();
+      const guide = document.querySelector("#cubi-assistant-guide");
+      const action = guide?.querySelector(".cubi-assistant-guide-action");
+      const result = {
+        referenceCode,
+        guidePage: guide?.dataset.page ?? null,
+        guideState: guide?.dataset.state ?? null,
+        heading: guide?.querySelector("#cubi-assistant-guide-heading")?.textContent?.trim() ?? "",
+        steps: Array.from(guide?.querySelectorAll(".cubi-assistant-guide-steps li") ?? [])
+          .map((item) => item.textContent.trim()),
+        errorText: guide?.querySelector(".cubi-assistant-guide-error")?.textContent?.trim() ?? "",
+        actionVisible: Boolean(action && !action.hidden),
+        retryControl: Boolean(errorPanel?.querySelector(".cp-error-actions button")),
+      };
+      launcher.click();
+      return result;
+    })()`, { awaitPromise: true });
+    await page.cdp.send("Page.removeScriptToEvaluateOnNewDocument", {
+      identifier: failingWorkspaceApi.identifier,
+    });
+    assert(
+      workspaceErrorGuide.referenceCode &&
+        workspaceErrorGuide.guidePage === "workspace" &&
+        workspaceErrorGuide.guideState === "error" &&
+        workspaceErrorGuide.steps.length >= 3 &&
+        workspaceErrorGuide.steps.every((step) => step.length > 10) &&
+        workspaceErrorGuide.errorText.includes(workspaceErrorGuide.referenceCode) &&
+        !workspaceErrorGuide.actionVisible &&
+        workspaceErrorGuide.retryControl,
+      "the guide on a failed workspace must repeat the real reference and offer no fake data: " +
+        JSON.stringify(workspaceErrorGuide),
+    );
+    await page.screenshot("10b-assistant-workspace-error.png");
+    record("assistant guide explains a failed workspace with the real reference code", workspaceErrorGuide);
+    // Restore a working document before the session is signed out below.
+    await page.navigate(
+      `${baseUrl}/app`,
+      ".cp-workspace",
+      "workspace restored after the failure check",
+    );
+
     await page.click("#cubi-preview-banner button");
     await page.waitForSelector('form[action="/preview/login"]', "logout returns to login");
     await page.navigate(

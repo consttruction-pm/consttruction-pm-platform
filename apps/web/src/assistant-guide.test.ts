@@ -140,6 +140,34 @@ test("page resolution understands Pages bases, language routes and unknown addre
   );
 });
 
+test("loading, error and unknown workspace states stay honest", () => {
+  const loading = guideFor({ page: "workspace", state: "loading" });
+  assert.match(loading.steps.join(" "), /Retry|reference/i);
+
+  const failed = guideFor({
+    page: "workspace",
+    state: "error",
+    reference: "API_ERROR",
+  });
+  assert.match(failed.purpose, /could not open|request failed/i);
+  assert.match(failed.steps.join(" "), /Retry|No project data was loaded/i);
+  assert.equal(failed.action, null);
+  assert.match(failed.commonError ?? "", /API_ERROR/);
+
+  const persianFailure = guideFor({
+    page: "workspace",
+    state: "error",
+    reference: "API_ERROR",
+    locale: "fa",
+  });
+  assert.match(persianFailure.purpose, /[\u0600-\u06FF]/);
+  assert.match(persianFailure.commonError ?? "", /API_ERROR/);
+
+  // Without a code the guide does not invent one.
+  const failedWithoutCode = guideFor({ page: "workspace", state: "error" });
+  assert.doesNotMatch(failedWithoutCode.commonError ?? "", /Reference:/);
+});
+
 test("unknown addresses return a typed recovery guide", () => {
   const guide = guideFor({ page: "unknown", state: "unknown" });
   assert.equal(guide.page, "unknown");

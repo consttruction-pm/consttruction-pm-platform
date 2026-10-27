@@ -30,6 +30,7 @@ export type AssistantGuideState =
   | "empty-wbs"
   | "empty-activities"
   | "ready"
+  | "error"
   | "unknown";
 
 export type AssistantGuideQuery = {
@@ -37,6 +38,8 @@ export type AssistantGuideQuery = {
   state: AssistantGuideState;
   menu?: WorkspaceMenuKey;
   locale: WorkspaceLocale;
+  /** The reference code the failure page already shows to the user. */
+  reference?: string | null;
 };
 
 export type AssistantGuideAction = {
@@ -223,7 +226,7 @@ const PUBLIC_GUIDES: Record<
 };
 
 const WORKSPACE_STATE_GUIDES: Record<
-  "loading" | "no-project" | "multiple-projects" | "unknown",
+  "loading" | "no-project" | "multiple-projects" | "error" | "unknown",
   GuideShape
 > = {
   loading: {
@@ -292,6 +295,30 @@ const WORKSPACE_STATE_GUIDES: Record<
     commonError: {
       en: "A project that the account no longer owns is not opened; choose another project.",
       fa: "پروژه‌ای که حساب دیگر به آن دسترسی ندارد باز نمی‌شود؛ پروژهٔ دیگری انتخاب کنید.",
+    },
+  },
+  error: {
+    purpose: {
+      en: "The workspace could not open because the server request failed.",
+      fa: "محیط کار باز نشد چون درخواست سرور ناموفق بود.",
+    },
+    steps: [
+      {
+        en: "Use Retry on the page to request the session and project list again.",
+        fa: "با «تلاش مجدد» در همین صفحه، نشست و فهرست پروژه‌ها را دوباره درخواست کنید.",
+      },
+      {
+        en: "No project data was loaded, so nothing is shown as a result of this failure.",
+        fa: "هیچ دادهٔ پروژه‌ای بارگذاری نشد؛ بنابراین چیزی به‌عنوان نتیجهٔ این خطا نمایش داده نمی‌شود.",
+      },
+      {
+        en: "If Retry keeps failing, give the reference code below to the workspace administrator.",
+        fa: "اگر تلاش مجدد ناموفق ماند، کد مرجع زیر را به مدیر محیط کار بدهید.",
+      },
+    ],
+    commonError: {
+      en: "The page shows a reference code; it identifies this failure without exposing project data.",
+      fa: "صفحه یک کد مرجع نشان می‌دهد؛ این کد خطا را بدون افشای دادهٔ پروژه مشخص می‌کند.",
     },
   },
   unknown: {
@@ -646,12 +673,30 @@ export function resolveAssistantGuide(query: AssistantGuideQuery): AssistantGuid
       );
       return { ...guide, heading: `${guide.heading} · ${label}` };
     }
-    if (state === "no-project" || state === "multiple-projects" || state === "loading" || state === "unknown") {
-      return shapeToGuide(
+    if (
+      state === "no-project" ||
+      state === "multiple-projects" ||
+      state === "loading" ||
+      state === "error" ||
+      state === "unknown"
+    ) {
+      const guide = shapeToGuide(
         WORKSPACE_STATE_GUIDES[state],
         query,
         `state.${state}`,
       );
+      if (state !== "error") return guide;
+      // The failure page already owns the code; repeat it verbatim so the guide
+      // stays a pointer to the same evidence instead of inventing a reason.
+      const reference = query.reference?.trim() ?? "";
+      if (!reference) return guide;
+      return {
+        ...guide,
+        commonError: localized(query.locale, "state.error.reference", {
+          en: `Reference: ${reference}`,
+          fa: `مرجع: ${reference}`,
+        }),
+      };
     }
     return shapeToGuide(WORKSPACE_STATE_GUIDES.unknown, query, "state.unknown");
   }
@@ -729,6 +774,7 @@ export function readAssistantGuideQuery(
   const page = resolveAssistantPage(doc.location?.pathname ?? "", basePath);
   const workspace = doc.querySelector(".cp-workspace[data-project]");
   const selection = doc.querySelector(".cp-project-selection");
+  const shellError = doc.querySelector(".cp-shell-error");
   const loading = doc.querySelector(".cp-shell-loading");
   const menuElement = doc.querySelector<HTMLElement>(
     '.cp-menu [data-menu][aria-current="page"]',
@@ -743,6 +789,10 @@ export function readAssistantGuideQuery(
   const selectionCount = doc.querySelectorAll(
     ".cp-project-selection button[data-project-id]",
   ).length;
+  // The failure page already renders the support reference as page text, so the
+  // guide repeats that exact code and never derives one of its own.
+  const reference =
+    doc.querySelector(".cp-error-reference code")?.textContent?.trim() ?? null;
 
   let state: AssistantGuideState;
   if (workspace) {
@@ -753,11 +803,13 @@ export function readAssistantGuideQuery(
         : "ready";
   } else if (selection) {
     state = selectionCount > 1 ? "multiple-projects" : "no-project";
+  } else if (shellError) {
+    state = "error";
   } else if (loading) {
     state = "loading";
   } else {
     state = page === "workspace" ? "unknown" : "visitor";
   }
 
-  return { page, state, menu, locale };
+  return { page, state, menu, locale, reference };
 }
