@@ -4,7 +4,7 @@ import hashlib
 import json
 import re
 from collections import deque
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Callable, Mapping
 
@@ -32,6 +32,7 @@ from construction_pm.scheduling.activity import (
     ActivityType,
     PercentCompleteType,
 )
+from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleMode
 from construction_pm.scheduling.calendar import WorkingCalendar
 from construction_pm.scheduling.calendar_context import CalendarReference
 from construction_pm.scheduling.calendar_system import CalendarSystem
@@ -181,11 +182,7 @@ def _validated_plan(payload: Mapping[str, object]) -> dict[str, object]:
             raise ValueError("PROJECT_PLAN_RELATIONSHIP_TYPE_INVALID")
         lag = _integer(row.get("lag_working_days"), minimum=-365, maximum=365, field="relationship_lag")
         if predecessor_id not in activity_ids or successor_id not in activity_ids:
-            # A forward reference is valid as long as both IDs exist in the complete activity set.
-            valid_ids = {_text(item.get("activity_id"), minimum=1, maximum=32, field="activity_id")
-                         for item in activities}
-            if predecessor_id not in valid_ids or successor_id not in valid_ids:
-                raise ValueError("PROJECT_PLAN_RELATIONSHIP_ENDPOINT_UNKNOWN")
+            raise ValueError("PROJECT_PLAN_RELATIONSHIP_ENDPOINT_UNKNOWN")
         if predecessor_id == successor_id:
             raise ValueError("PROJECT_PLAN_RELATIONSHIP_SELF_LINK")
         relationship_ids.add(relationship_id)
@@ -257,12 +254,11 @@ def build_project_plan_create_tool(
         if proposal.project_id == new_project_id:
             raise ValueError("PROJECT_PLAN_CANNOT_REPLACE_SOURCE_PROJECT")
 
-        now = date.today()
         created = lifecycle_api.create_project(
             session.session_id,
             new_project_id,
             str(plan["name"]),
-            now=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+            now=datetime.now(timezone.utc),
         ).context
         scope = BackendScope(created.tenant_id, created.project_id, created.revision)
         auth = AuthorizationContext(
@@ -303,10 +299,7 @@ def build_project_plan_create_tool(
         )
         settings = ProjectScheduleSettings(
             scope=scope,
-            mode=__import__(
-                "construction_pm.scheduling.authoritative_schedule",
-                fromlist=["AuthoritativeScheduleMode"],
-            ).AuthoritativeScheduleMode.DATE_BASED,
+            mode=AuthoritativeScheduleMode.DATE_BASED,
             project_calendar=calendar_ref,
             project_start=date.fromisoformat(str(plan["project_start"])),
             schedule_options=ScheduleOptions(),
