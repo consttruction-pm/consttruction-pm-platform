@@ -7,6 +7,7 @@ const root = process.cwd();
 const landing = readFileSync(join(root, "src/landing.ts"), "utf8");
 const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
+const primaryLogo = readFileSync(join(root, "public/cubi-platform-logo-primary.svg"), "utf8");
 
 test("CUBI homepage follows the registered full commercial structure", () => {
   for (const pattern of [
@@ -118,6 +119,14 @@ test("assistant avatar is connected to every existing Web assistant surface whil
   assert.match(mobileAssets, /CUBI_ASSISTANT_AVATAR_ASSET/);
   assert.match(avatar, /<title id="title">CUBI AI Project Assistant<\/title>/);
   assert.match(index, /<link rel="icon" href="\.\/cubi-platform-logo-primary\.svg" type="image\/svg\+xml"\s*\/>/);
+});
+
+test("approved primary logo uses the C-shaped cube mark, teal center cube and canonical wordmark", () => {
+  assert.match(primaryLogo, /CUBI Platform/);
+  assert.match(primaryLogo, /PLAN\. CONTROL\. BUILD SMARTER\./);
+  assert.match(primaryLogo, /<path d="M84 3 158 45/);
+  assert.match(primaryLogo, /fill="url\(#cubeTop\)"/);
+  assert.match(primaryLogo, /viewBox="0 0 640 180"/);
 });
 
 test("homepage header, dashboard and footer use the canonical logo asset only", () => {
