@@ -47,6 +47,7 @@ jobs:
       - name: Assemble and validate production-shaped Pages artifact
         env:
           SITE_BASE_URL: https://cubi.example.test
+          CUBI_WORKSPACE_URL: https://cubi-workspace-preview.example.test/preview/login
         run: node scripts/assemble-pages-site.mjs "$RUNNER_TEMP/cubi-pages-site"
 
       - name: Preview runtime smoke test
