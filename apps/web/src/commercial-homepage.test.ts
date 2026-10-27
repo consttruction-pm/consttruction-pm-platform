@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 
 const root = process.cwd();
 const landing = readFileSync(join(root, "src/landing.ts"), "utf8");
+const assistant = readFileSync(join(root, "src/global-assistant-launcher.ts"), "utf8");
 const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 const primaryLogo = readFileSync(join(root, "public/cubi-platform-logo-primary.svg"), "utf8");
@@ -121,20 +122,22 @@ test("assistant avatar is connected to every existing Web assistant surface whil
   assert.match(index, /<link rel="icon" href="\.\/cubi-platform-logo-primary\.svg" type="image\/svg\+xml"\s*\/>/);
 });
 
-test("public homepage exposes an accessible, interactive assistant entry point in Persian and English", () => {
-  assert.match(landing, /id="cubi-assistant-launcher"/);
-  assert.match(landing, /id="cubi-assistant-popover"/);
-  assert.match(landing, /aria-expanded="false"/);
-  assert.match(landing, /aria-controls="cubi-assistant-popover"/);
-  assert.match(landing, /setAssistantPopoverOpen\(assistantLauncher\?\.getAttribute\("aria-expanded"\) !== "true"\)/);
-  assert.match(landing, /assistantTitle: "CUBI AI Assistant"/);
-  assert.match(landing, /assistantTitle: "دستیار هوشمند کوبی"/);
-  assert.match(landing, /assistantWorkspaceAction: "Open project workspace/);
-  assert.match(landing, /assistantWorkspaceAction: "ورود به فضای کاری پروژه/);
-  assert.match(landing, /href="\.\/app\/">\$\{t\.assistantWorkspaceAction\}/);
+test("public homepage exposes the shared accessible floating assistant in Persian and English", () => {
+  assert.match(landing, /cubi-reference-home/);
+  assert.match(assistant, /launcher\.id = "cubi-assistant-launcher"/);
+  assert.match(assistant, /popover\.id = "cubi-assistant-popover"/);
+  assert.match(assistant, /setAttribute\("aria-expanded", "false"\)/);
+  assert.match(assistant, /setAttribute\("aria-controls", popover\.id\)/);
+  assert.match(assistant, /setPopoverOpen\(!isOpen\)/);
+  assert.match(assistant, /CUBI AI Assistant/);
+  assert.match(assistant, /دستیار هوشمند کوبی/);
+  assert.match(assistant, /Open project workspace →/);
+  assert.match(assistant, /ورود به فضای کاری پروژه ←/);
+  assert.match(assistant, /new URL\("app\/", siteRoot\)/);
   assert.match(styles, /\.cubi-assistant-launcher \{[^}]*position:\s*fixed/);
   assert.match(styles, /\.cubi-assistant-popover\[hidden\] \{[^}]*display:\s*none !important/);
 });
+
 
 test("approved primary logo uses the C-shaped cube mark, teal center cube and canonical wordmark", () => {
   assert.match(primaryLogo, /CUBI Platform/);
