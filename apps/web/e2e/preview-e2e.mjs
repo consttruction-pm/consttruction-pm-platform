@@ -691,6 +691,62 @@ async function main() {
       avatars: landingAvatarState,
     });
 
+
+    const launcherStateBeforeOpen = await page.evaluate(`(() => {
+      const button = document.querySelector("#cubi-assistant-launcher");
+      const avatar = button?.querySelector("img");
+      const panel = document.querySelector("#cubi-assistant-popover");
+      const action = panel?.querySelector("a.cubi-assistant-workspace-link");
+      return {
+        buttonFound: Boolean(button),
+        avatarLoaded: Boolean(avatar?.complete && avatar.naturalWidth > 0),
+        panelHidden: Boolean(panel?.hidden),
+        expanded: button?.getAttribute("aria-expanded") ?? null,
+        actionPath: action ? new URL(action.href).pathname : null,
+      };
+    })()`);
+    assert(
+      launcherStateBeforeOpen.buttonFound &&
+      launcherStateBeforeOpen.avatarLoaded &&
+      launcherStateBeforeOpen.panelHidden &&
+      launcherStateBeforeOpen.expanded === "false" &&
+      launcherStateBeforeOpen.actionPath?.endsWith("/app/"),
+      "homepage assistant launcher initial state is invalid: " + JSON.stringify(launcherStateBeforeOpen),
+    );
+    await page.click("#cubi-assistant-launcher");
+    const launcherStateAfterOpen = await page.evaluate(`(() => {
+      const button = document.querySelector("#cubi-assistant-launcher");
+      const panel = document.querySelector("#cubi-assistant-popover");
+      return {
+        visible: Boolean(panel && !panel.hidden),
+        expanded: button?.getAttribute("aria-expanded") ?? null,
+        title: panel?.querySelector("#cubi-assistant-title")?.textContent?.trim() ?? null,
+        description: panel?.querySelector("#cubi-assistant-description")?.textContent?.trim() ?? null,
+      };
+    })()`);
+    assert(
+      launcherStateAfterOpen.visible &&
+      launcherStateAfterOpen.expanded === "true" &&
+      launcherStateAfterOpen.title &&
+      launcherStateAfterOpen.description,
+      "homepage assistant launcher did not open access panel: " + JSON.stringify(launcherStateAfterOpen),
+    );
+    await page.click("#cubi-assistant-close");
+    const launcherStateAfterClose = await page.evaluate(`(() => {
+      const button = document.querySelector("#cubi-assistant-launcher");
+      const panel = document.querySelector("#cubi-assistant-popover");
+      return { hidden: Boolean(panel?.hidden), expanded: button?.getAttribute("aria-expanded") ?? null };
+    })()`);
+    assert(
+      launcherStateAfterClose.hidden && launcherStateAfterClose.expanded === "false",
+      "homepage assistant launcher did not close access panel: " + JSON.stringify(launcherStateAfterClose),
+    );
+    record("homepage assistant launcher opens and closes its accessible workspace entry panel", {
+      before: launcherStateBeforeOpen,
+      open: launcherStateAfterOpen,
+      closed: launcherStateAfterClose,
+    });
+
     await page.navigate(
       `${baseUrl}/preview/login`,
       'form[action="/preview/login"]',

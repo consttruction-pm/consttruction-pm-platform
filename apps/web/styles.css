@@ -2274,3 +2274,124 @@ th {
 }
 .cp-capacity-error p { margin: .25rem 0; }
 #cp-resource-capacity { scroll-margin-top: 7rem; }
+
+
+/* Public homepage assistant entry point — visible on desktop and mobile. */
+.cubi-assistant-launcher {
+  position: fixed;
+  inset-inline-end: clamp(1rem, 2.8vw, 2rem);
+  bottom: clamp(1rem, 2.8vw, 2rem);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: end;
+  gap: .75rem;
+  font-family: "Vazirmatn", Inter, "Segoe UI", system-ui, sans-serif;
+}
+.cubi-assistant-launcher-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .65rem;
+  min-height: 68px;
+  max-width: min(360px, calc(100vw - 2rem));
+  padding: 7px 1.15rem 7px 7px;
+  border: 1px solid #b8dcfa;
+  border-radius: 999px;
+  background: #fff;
+  color: #0f2747;
+  box-shadow: 0 10px 34px rgba(8, 26, 47, .24);
+  font: inherit;
+  font-size: .95rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.cubi-assistant-launcher-button img {
+  display: block;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.cubi-assistant-launcher-button:focus-visible,
+.cubi-assistant-close:focus-visible,
+.cubi-assistant-workspace-link:focus-visible {
+  outline: 3px solid #f28c28;
+  outline-offset: 3px;
+}
+.cubi-assistant-popover {
+  display: grid;
+  gap: .85rem;
+  width: min(360px, calc(100vw - 2rem));
+  box-sizing: border-box;
+  padding: 1rem;
+  border: 1px solid #d8e4ef;
+  border-radius: 1rem;
+  background: #fff;
+  color: #233d59;
+  box-shadow: 0 16px 48px rgba(8, 26, 47, .25);
+  text-align: start;
+}
+.cubi-assistant-popover[hidden] { display: none !important; }
+.cubi-assistant-popover-header {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: .7rem;
+}
+.cubi-assistant-popover-header > img {
+  display: block;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.cubi-assistant-popover-heading { display: grid; gap: .15rem; min-width: 0; }
+.cubi-assistant-popover-heading strong { color: #0f2747; font-size: 1rem; line-height: 1.35; }
+.cubi-assistant-popover-heading span { color: #61748a; font-size: .78rem; line-height: 1.45; }
+.cubi-assistant-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #dbe5ef;
+  border-radius: 50%;
+  background: #f7fafc;
+  color: #183755;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.cubi-assistant-popover > p {
+  margin: 0;
+  color: #425b73;
+  font-size: .9rem;
+  line-height: 1.8;
+}
+.cubi-assistant-workspace-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 46px;
+  padding: .65rem .9rem;
+  border: 1px solid #0f2747;
+  border-radius: .7rem;
+  background: #0f2747;
+  color: #fff;
+  font: inherit;
+  font-size: .9rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+.cubi-assistant-workspace-link:hover { background: #184b7e; border-color: #184b7e; }
+[dir="rtl"] .cubi-assistant-launcher-button { padding: 7px 7px 7px 1.15rem; }
+@media (max-width: 520px) {
+  .cubi-assistant-launcher { inset-inline-end: 12px; bottom: 12px; gap: .6rem; }
+  .cubi-assistant-launcher-button { min-height: 60px; padding-inline: .85rem .6rem; font-size: .82rem; }
+  .cubi-assistant-launcher-button img { width: 46px; height: 46px; flex-basis: 46px; }
+  [dir="rtl"] .cubi-assistant-launcher-button { padding-inline: .6rem .85rem; }
+}
