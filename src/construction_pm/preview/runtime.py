@@ -152,7 +152,7 @@ from .fixtures import (
     DemoProjectFixture,
 )
 from .storage import (
-    DEMO_USER_IDS,
+    DEMO_PROJECT_MEMBER_USER_IDS,
     PREVIEW_SEED_VERSION,
     PREVIEW_TENANT_ID,
     PreviewDatabaseError,
@@ -533,7 +533,7 @@ def seed_demo_project(
         demo=True,
         created_at=fixture.snapshot_clock,
     )
-    store.add_members(PREVIEW_TENANT_ID, fixture.project_id, DEMO_USER_IDS)
+    store.add_members(PREVIEW_TENANT_ID, fixture.project_id, DEMO_PROJECT_MEMBER_USER_IDS)
 
 
 def _date_based_mode():
@@ -725,7 +725,7 @@ def open_preview_runtime(
     project_repository = PreviewProjectRepository(
         store,
         initializer=PreviewProjectInitializer(repositories),
-        member_user_ids=DEMO_USER_IDS,
+        member_user_ids=DEMO_PROJECT_MEMBER_USER_IDS,
     )
     lifecycle_service = ProjectLifecycleService(sessions, project_repository, policy)
     lifecycle_api = ProjectLifecycleAPI(lifecycle_service)

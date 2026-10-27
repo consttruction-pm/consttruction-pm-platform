@@ -214,6 +214,73 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 }
 .cp-project-create-form button:hover { background:var(--cp-blue); border-color:var(--cp-blue); }
 .cp-project-create-form button:disabled { cursor:wait; opacity:.65; }
+.cp-bootstrap-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  padding-bottom:.5rem;
+  border-bottom:1px solid var(--cp-border);
+}
+.cp-bootstrap-brand {
+  color:var(--cp-navy);
+  font-weight:800;
+  letter-spacing:.14em;
+  text-decoration:none;
+}
+.cp-bootstrap-language {
+  border:1px solid var(--cp-border);
+  background:var(--cp-surface);
+  color:var(--cp-navy);
+  border-radius:999px;
+  padding:.4rem .85rem;
+  font:inherit;
+  cursor:pointer;
+}
+.cp-bootstrap-language:hover,
+.cp-bootstrap-language:focus-visible { border-color:var(--cp-blue); color:var(--cp-blue); }
+.cp-project-list { display:grid; gap:.6rem; }
+.cp-project-option {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  width:100%;
+  border:1px solid var(--cp-border);
+  background:var(--cp-surface);
+  padding:.7rem .85rem;
+  border-radius:.45rem;
+  font:inherit;
+  color:inherit;
+  cursor:pointer;
+  text-align:start;
+}
+.cp-project-option:hover,
+.cp-project-option:focus-visible { border-color:var(--cp-blue); }
+.cp-project-option span { color:var(--cp-muted); font-size:.8rem; }
+.cp-project-option:disabled { cursor:progress; opacity:.7; }
+.cp-form-hint { color:var(--cp-muted); font-size:.82rem; }
+.cp-form-error {
+  margin:0;
+  color:var(--cp-error);
+  font-weight:600;
+  flex-basis:100%;
+}
+.cp-project-create-form input[aria-invalid="true"] { border-color:var(--cp-error); }
+.cp-error-message { line-height:1.7; }
+.cp-error-reference { color:var(--cp-muted); font-size:.82rem; }
+.cp-error-reference code { font-size:.85em; }
+.cp-error-actions { display:flex; gap:.6rem; flex-wrap:wrap; }
+.cp-error-actions button {
+  border:1px solid var(--cp-navy);
+  background:var(--cp-navy);
+  color:#fff;
+  padding:.55rem .9rem;
+  border-radius:.45rem;
+  font:inherit;
+  cursor:pointer;
+}
+.cp-shell-loading .cp-bootstrap-bar { width:min(720px, 100%); }
 @media (prefers-reduced-motion: no-preference) {
   .cp-panel, .cp-header, .cp-project-selection { transition: box-shadow .18s ease, border-color .18s ease; }
 }

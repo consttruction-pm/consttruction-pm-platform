@@ -71,11 +71,26 @@ DEMO_USERS: tuple[DemoUser, ...] = (
         "admin",
         frozenset({"project_admin"}),
     ),
+    # A real account with no project membership. It exercises the first-run
+    # creation path against the same authorization policy and project store;
+    # it is never added to the seeded fixtures or to other users' projects.
+    DemoUser(
+        "preview-newcomer",
+        "New account (no projects)",
+        "حساب تازه (بدون پروژه)",
+        "newcomer",
+        frozenset({"project_admin"}),
+    ),
 )
 DEMO_USERS_BY_ROLE: Mapping[str, DemoUser] = {
     user.role: user for user in DEMO_USERS
 }
 DEMO_USER_IDS: tuple[str, ...] = tuple(user.user_id for user in DEMO_USERS)
+# Membership of the demo fixtures and of projects created by other demo roles.
+# The newcomer stays outside so its first-run state is genuine.
+DEMO_PROJECT_MEMBER_USER_IDS: tuple[str, ...] = tuple(
+    user.user_id for user in DEMO_USERS if user.role != "newcomer"
+)
 
 
 def utc_now() -> datetime:
@@ -526,6 +541,7 @@ class PreviewProjectRepository:
 
 
 __all__ = [
+    "DEMO_PROJECT_MEMBER_USER_IDS",
     "DEMO_USERS",
     "DEMO_USERS_BY_ROLE",
     "DEMO_USER_IDS",

@@ -119,7 +119,8 @@ The script starts an isolated preview on a random loopback port with a temporary
 SQLite database and a real headless browser. It verifies:
 
 - health identity, landing page, unauthenticated `/app` redirect and session 401;
-- the three demo personas and planner project selection;
+- the four demo personas, including a newcomer account with no project
+  membership, and planner project selection;
 - menus/submenus, persisted grid rows, Gantt rows and shared grid/Gantt selection;
 - column hide/remove/add/reorder/width/pin/freeze through the real layout API,
   followed by a full reload and read-back;
@@ -170,12 +171,19 @@ SQLite database and a real headless browser. It verifies:
   failed-calculation message with zero fabricated result rows;
 - admin-only project creation from the Web form, persisted project name, empty
   activity grid and curated layout;
+- first-run journey on the newcomer account with no project membership: the
+  empty state is a creation page rather than an error, an empty name is rejected
+  inline in the selected language, the created project is returned by
+  `GET /api/projects`, and the project, language and active menu survive a full
+  reload through the stored preference and `?project=` deep link;
+- switching the workspace language keeps the current step and persists the
+  choice;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **36 checks and 25 screenshots**.
+The latest isolated run recorded **63 checks and 34 screenshots**.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
-`01-login.png` through `12-admin-project-created.png`, including
+`01-login.png` through `13-newcomer-first-project.png`, including
 `04b-layout-undo-redo.png`, `04c-layout-restore.png`, `04d-layout-conflict.png`
 (same-revision clash), `04e-layout-conflict-gap.png` (revision-gap conflict),
 `07b`–`07f` (formula and interchange states),
