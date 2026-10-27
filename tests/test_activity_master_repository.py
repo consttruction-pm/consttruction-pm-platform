@@ -336,10 +336,11 @@ def test_activity_master_persists_and_reassigns_canonical_wbs():
     assert repo.get(scope(), "A-1") == reassigned
     assert repo.list(scope()) == (reassigned,)
 
-    cleared = repo.save(replace(reassigned, wbs_id=None), expected_revision=2)
-    assert cleared.record_revision == 3
-    assert cleared.wbs_id is None
-    assert repo.get(scope(), "A-1") == cleared
+    # A canonical project must not lose its hierarchy link; the failed write
+    # leaves the previously committed assignment untouched.
+    with pytest.raises(ActivityPersistenceError, match="WBS_REQUIRED"):
+        repo.save(replace(reassigned, wbs_id=None), expected_revision=2)
+    assert repo.get(scope(), "A-1") == reassigned
     connection.close()
 
 

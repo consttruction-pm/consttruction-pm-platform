@@ -325,6 +325,21 @@ def test_authenticated_wbs_routes_preserve_parent_identity_and_revision():
 
 def test_authenticated_activity_create_requires_existing_wbs_assignment():
     app, _repository, connection = _app()
+    wbs_status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/wbs",
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-ROOT",
+            "parent_kind": "project",
+            "parent_wbs_id": None,
+            "code": "1",
+            "name": "Project Root",
+            "sequence_number": 0,
+        },
+    )
+    assert wbs_status == "201 Created"
     status, response = _request(
         app,
         "POST",

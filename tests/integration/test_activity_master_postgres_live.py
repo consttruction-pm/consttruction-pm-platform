@@ -161,6 +161,11 @@ def test_postgres_activity_master_updates_all_progress_state():
 def test_postgres_activity_master_persists_canonical_wbs_assignment():
     suffix = uuid4().hex
     scope = BackendScope(f"tenant-activity-wbs-{suffix}", f"project-activity-wbs-{suffix}", 7)
+    foreign_scope = BackendScope(
+        f"tenant-activity-wbs-foreign-{suffix}",
+        f"project-activity-wbs-foreign-{suffix}",
+        7,
+    )
 
     with connect() as connection:
         wbs_repo = PostgresWBSMasterRepository(connection)
@@ -174,6 +179,18 @@ def test_postgres_activity_master_persists_canonical_wbs_assignment():
             connection.commit()
             child = wbs_repo.save(
                 WBSMaster(scope, "W-CHILD", WBSParentKind.WBS, "W-ROOT", "2", "Package", 1)
+            )
+            connection.commit()
+            wbs_repo.save(
+                WBSMaster(
+                    foreign_scope,
+                    "W-FOREIGN-ROOT",
+                    WBSParentKind.PROJECT,
+                    None,
+                    "1",
+                    "Foreign Root",
+                    0,
+                )
             )
             connection.commit()
 
@@ -199,6 +216,19 @@ def test_postgres_activity_master_persists_canonical_wbs_assignment():
                 )
             connection.rollback()
             assert activity_repo.get(scope, stored.activity_id) == updated
+
+            with pytest.raises(ValueError, match="WBS_NOT_FOUND_OR_SCOPE_MISMATCH"):
+                activity_repo.save(
+                    replace(updated, wbs_id="W-FOREIGN-ROOT"),
+                    expected_revision=2,
+                )
+            connection.rollback()
+            assert activity_repo.get(scope, stored.activity_id).wbs_id == "W-CHILD"
+
+            with pytest.raises(ValueError, match="WBS_REQUIRED"):
+                activity_repo.save(replace(updated, wbs_id=None), expected_revision=2)
+            connection.rollback()
+            assert activity_repo.get(scope, stored.activity_id).wbs_id == "W-CHILD"
         finally:
             connection.execute(
                 "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
@@ -211,5 +241,9 @@ def test_postgres_activity_master_persists_canonical_wbs_assignment():
             connection.execute(
                 "DELETE FROM wbs_master WHERE tenant_id=%s AND project_id=%s",
                 (scope.tenant_id, scope.project_id),
+            )
+            connection.execute(
+                "DELETE FROM wbs_master WHERE tenant_id=%s AND project_id=%s",
+                (foreign_scope.tenant_id, foreign_scope.project_id),
             )
             connection.commit()

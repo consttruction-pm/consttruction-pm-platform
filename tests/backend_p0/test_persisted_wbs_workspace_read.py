@@ -10,11 +10,11 @@ from construction_pm.application.authorization import AuthorizationContext, Perm
 from construction_pm.backend_p0.errors import BackendApplicationError
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.workspace_read import (
-    PersistedWBSWorkspaceReadProvider,
     WORKSPACE_CONTROL_ROOM_READ_V2_VERSION,
     WORKSPACE_CONTROL_ROOM_V2_VERSION,
     WorkspaceControlRoomReadService,
 )
+from construction_pm.backend_p0.workspace_read_provider import PersistedWorkspaceReadProvider
 from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.wbs_master_repository import SQLiteWBSMasterRepository, WBSMaster, WBSParentKind
 
@@ -36,7 +36,7 @@ def _service(connection: sqlite3.Connection):
         "planner": frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE}),
     })
     service = WorkspaceControlRoomReadService(
-        PersistedWBSWorkspaceReadProvider(activity_repository, wbs_repository), policy
+        PersistedWorkspaceReadProvider(activity_repository=activity_repository, wbs_repository=wbs_repository), policy
     )
     return service, activity_repository, wbs_repository
 
@@ -80,11 +80,14 @@ def test_persisted_workspace_fails_closed_when_legacy_activity_has_no_wbs():
     try:
         service, activities, wbs = _service(connection)
         scope = _scope()
-        wbs.save(WBSMaster(scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project", 0))
+        # Simulate data written before the canonical WBS tree existed: the
+        # activity row is persisted without an assignment. New writes into a
+        # project that already has canonical WBS nodes are rejected instead.
         activities.save(ActivityMaster(
             scope=scope, activity_id="A-LEGACY", duration_value=Decimal("1"),
             duration_unit=DurationUnit.WORKING_DAY, name="Legacy without assignment",
         ))
+        wbs.save(WBSMaster(scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project", 0))
         with pytest.raises(BackendApplicationError) as exc:
             service.read(scope, auth_context=_auth())
         assert exc.value.code == "ACTIVITY_WBS_REQUIRED"

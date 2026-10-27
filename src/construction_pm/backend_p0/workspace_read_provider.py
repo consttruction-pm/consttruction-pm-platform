@@ -31,9 +31,19 @@ from construction_pm.p6_layout_definition_repository import (
     PersistedP6Layout,
     P6LayoutRepository,
 )
+from construction_pm.wbs_master_repository import (
+    WBSMaster,
+    WBSMasterRepository,
+    WBSPersistenceError,
+)
 
+from .errors import BackendApplicationError, ErrorCategory
 from .models import BackendScope
-from .workspace_read import WORKSPACE_CONTROL_ROOM_READ_VERSION
+from .workspace_read import (
+    WORKSPACE_CONTROL_ROOM_READ_V2_VERSION,
+    WORKSPACE_CONTROL_ROOM_READ_VERSION,
+    WORKSPACE_CONTROL_ROOM_V2_VERSION,
+)
 
 
 WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION = "workspace-control-room.v1"
@@ -120,6 +130,7 @@ class PersistedWorkspaceReadProvider:
     field_service: P6FieldRegistryApplicationService | None = None
     layout_repository: P6LayoutRepository | None = None
     schedule_facts_provider: WorkspaceScheduleFactsProvider | None = None
+    wbs_repository: WBSMasterRepository | None = None
     wbs_by_activity: Mapping[str, str] = field(default_factory=dict)
     registry_version: str = "p6-field-registry.v1"
     layout_scope: str = "project"
@@ -137,18 +148,57 @@ class PersistedWorkspaceReadProvider:
         layout = self._layout(scope)
         columns = _columns(fields, layout)
         facts = self._facts(scope, auth_context)
-        return {
-            "contract_version": WORKSPACE_CONTROL_ROOM_READ_VERSION,
+        wbs_records = self._wbs_records(scope)
+        canonical_wbs = self.wbs_repository is not None
+        wbs_by_id = {node.wbs_id: node for node in wbs_records}
+        if canonical_wbs:
+            if len(wbs_by_id) != len(wbs_records):
+                raise BackendApplicationError(
+                    ErrorCategory.VALIDATION,
+                    "DUPLICATE_WORKSPACE_WBS_ID",
+                    "Persisted WBS IDs must be unique within the requested scope",
+                )
+            for activity in activities:
+                if not activity.wbs_id:
+                    raise BackendApplicationError(
+                        ErrorCategory.VALIDATION,
+                        "ACTIVITY_WBS_REQUIRED",
+                        "An activity without a canonical WBS assignment cannot be published to the workspace",
+                    )
+                if activity.wbs_id not in wbs_by_id:
+                    raise BackendApplicationError(
+                        ErrorCategory.VALIDATION,
+                        "ACTIVITY_WBS_REFERENCE_INVALID",
+                        "Activity WBS must resolve inside the requested project revision",
+                    )
+        workspace: dict[str, object] = {
+            "contract_version": (
+                WORKSPACE_CONTROL_ROOM_V2_VERSION
+                if canonical_wbs
+                else WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION
+            ),
             "context": _scope_payload(scope),
-            "workspace": {
-                "contract_version": WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION,
-                "context": _scope_payload(scope),
-                "columns": columns,
-                "activities": [
-                    _activity_payload(activity, facts, self.wbs_by_activity)
-                    for activity in activities
-                ],
-            },
+            "columns": columns,
+            "activities": [
+                _activity_payload(
+                    activity,
+                    facts,
+                    self.wbs_by_activity,
+                    wbs_by_id if canonical_wbs else None,
+                )
+                for activity in activities
+            ],
+        }
+        if canonical_wbs:
+            workspace["wbs_nodes"] = [_wbs_node_payload(node) for node in wbs_records]
+        return {
+            "contract_version": (
+                WORKSPACE_CONTROL_ROOM_READ_V2_VERSION
+                if canonical_wbs
+                else WORKSPACE_CONTROL_ROOM_READ_VERSION
+            ),
+            "context": _scope_payload(scope),
+            "workspace": workspace,
             "field_daily_logs": [],
             "field_issues": [],
             "field_timecards": [],
@@ -169,6 +219,25 @@ class PersistedWorkspaceReadProvider:
             "procurement_commitments": [],
             "procurement_deliveries": [],
         }
+
+    def _wbs_records(self, scope: BackendScope) -> tuple[WBSMaster, ...]:
+        if self.wbs_repository is None:
+            return ()
+        try:
+            return self.wbs_repository.list(scope)
+        except WBSPersistenceError as exc:
+            code = str(exc) or "WORKSPACE_WBS_READ_FAILED"
+            category = (
+                ErrorCategory.CONFLICT
+                if code == "REVISION_CONFLICT"
+                else ErrorCategory.VALIDATION
+            )
+            raise BackendApplicationError(
+                category,
+                code,
+                "Persisted WBS data could not be read consistently for this project revision",
+                retryable=category is ErrorCategory.CONFLICT,
+            ) from exc
 
     def _fields(self, scope: BackendScope) -> tuple[PersistedP6Field, ...]:
         if self.field_service is None:
@@ -255,13 +324,39 @@ def _column_from_field(definition, order: int) -> dict[str, object]:
     }
 
 
+def _wbs_node_payload(node: WBSMaster) -> dict[str, object]:
+    return {
+        "wbs_id": node.wbs_id,
+        "parent_kind": node.parent_kind.value,
+        "parent_wbs_id": node.parent_wbs_id,
+        "local_code": node.code,
+        "name": node.name,
+        "sequence_number": node.sequence_number,
+        "record_revision": node.record_revision,
+    }
+
+
 def _activity_payload(
     activity: ActivityMaster,
     facts: Mapping[str, object],
     wbs_by_activity: Mapping[str, str],
+    wbs_nodes: Mapping[str, WBSMaster] | None = None,
 ) -> dict[str, object]:
     display_name = activity.name.strip() or activity.activity_id
-    wbs = wbs_by_activity.get(activity.activity_id, "UNASSIGNED")
+    if wbs_nodes is not None:
+        node = wbs_nodes.get(activity.wbs_id or "")
+        if node is None:
+            # Canonical mode validates the assignment before this projection.
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                "ACTIVITY_WBS_REFERENCE_INVALID",
+                "Activity WBS must resolve inside the requested project revision",
+            )
+        wbs_id = node.wbs_id
+        wbs_display = f"{node.code} {node.name}"
+    else:
+        wbs_id = wbs_by_activity.get(activity.activity_id, "UNASSIGNED")
+        wbs_display = wbs_by_activity.get(activity.activity_id, "UNASSIGNED")
     cells: dict[str, object] = {
         # Canonical field-registry IDs drive the persisted layout. Legacy
         # activity.activity_* IDs remain populated for older saved layouts.
@@ -271,12 +366,17 @@ def _activity_payload(
         "activity.type": _enum_text(activity.activity_type),
         "activity.status_code": _enum_text(activity.status_code),
         "activity.leveling_priority": _enum_text(activity.leveling_priority),
-        "activity.wbs": wbs,
+        "activity.wbs": wbs_display,
         "activity.activity_id": activity.activity_id,
         "activity.activity_name": display_name,
         "activity.activity_status": _enum_text(activity.status),
         "activity.activity_type": _enum_text(activity.activity_type),
+        # Generic grid aliases expose persisted values only; no schedule result
+        # is inferred when no authoritative snapshot has been published.
+        "duration": _decimal_text(activity.duration_value),
     }
+    if activity.percent_complete is not None:
+        cells["progress"] = activity.percent_complete
     for field_id, value in (
         ("activity.planned_finish", _optional_iso(activity.planned_finish)),
         ("activity.actual_start", _optional_iso(activity.actual_start)),
@@ -337,7 +437,7 @@ def _activity_payload(
             cells["duration"] = duration
     return {
         "id": activity.activity_id,
-        "wbs_id": wbs_by_activity.get(activity.activity_id, "UNASSIGNED"),
+        "wbs_id": wbs_id,
         "code": activity.activity_id,
         "name": activity.name.strip() or activity.activity_id,
         "cells": cells,

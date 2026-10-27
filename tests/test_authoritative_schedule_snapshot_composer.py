@@ -466,6 +466,7 @@ def test_activity_snapshot_publication_and_query_use_persisted_resource_leveling
                 "status_code": "Planned",
                 "leveling_priority": priority,
                 "original_duration": 1,
+                "wbs_id": "W-ROOT",
             },
         )
         assert status == "201 Created"
@@ -603,6 +604,7 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
             "status_code": ActivityStatusCode.PLANNED.value,
             "leveling_priority": ActivityLevelingPriority.HIGH.value,
             "original_duration": 1,
+            "wbs_id": "W-ROOT",
         },
     )
     assert status == "201 Created"
@@ -719,6 +721,7 @@ def test_resource_dependent_activity_publication_fails_closed_for_unknown_drivin
             "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
             "status": ActivityStatus.NOT_STARTED.value,
             "status_code": ActivityStatusCode.PLANNED.value,
+            "wbs_id": "W-ROOT",
         },
     )
     fixture["resource_assignments"].upsert(

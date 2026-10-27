@@ -272,6 +272,14 @@ class ProjectLifecycleHttpRoutes:
                     raise
                 if tenant_id != context.tenant_id:
                     return self._error(403, "CROSS_SCOPE_ACCESS", "error.authorization.denied")
+                if revision != context.revision and is_v2_workspace_read:
+                    # The v2 scope must match the authoritative project revision;
+                    # a stale client never reads a different revision.
+                    return self._error(
+                        409,
+                        "STALE_WORKSPACE_READ_SCOPE",
+                        "error.workspace_read.stale_scope",
+                    )
                 session = self._api.get_session(session_id, now=now)
                 auth = context.authorization_context(session.roles)
                 if is_v2_workspace_read:

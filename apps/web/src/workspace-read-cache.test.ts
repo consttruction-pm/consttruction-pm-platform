@@ -15,10 +15,10 @@ const context: ProjectContext = {
 
 function readSnapshot(revision = context.revision): Record<string, unknown> {
   return {
-    contract_version: "workspace-control-room-read.v1",
+    contract_version: "workspace-control-room-read.v2",
     context: { ...context, revision },
     workspace: {
-      contract_version: "workspace-control-room.v1",
+      contract_version: "workspace-control-room.v2",
       context: { ...context, revision },
       columns: [{
         id: "activity_id",
@@ -27,6 +27,15 @@ function readSnapshot(revision = context.revision): Record<string, unknown> {
         editable: false,
         formula: null,
         width: 120,
+      }],
+      wbs_nodes: [{
+        wbs_id: "WBS-1",
+        parent_kind: "project",
+        parent_wbs_id: null,
+        local_code: "1",
+        name: "Project",
+        sequence_number: 0,
+        record_revision: 1,
       }],
       activities: [{
         id: "A-101",

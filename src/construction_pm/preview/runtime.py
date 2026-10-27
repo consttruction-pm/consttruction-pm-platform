@@ -139,6 +139,11 @@ from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import DurationUnit
+from construction_pm.wbs_master_repository import (
+    SQLiteWBSMasterRepository,
+    WBSMaster,
+    WBSParentKind,
+)
 
 from .fixtures import (
     CURATED_FIELD_IDS,
@@ -185,6 +190,7 @@ class PreviewClock:
 @dataclass
 class PreviewRepositories:
     activities: SQLiteActivityMasterRepository
+    wbs: SQLiteWBSMasterRepository
     relationships: SQLiteRelationshipMasterRepository
     constraints: SQLiteConstraintMasterRepository
     calendars: SQLiteCalendarMasterRepository
@@ -210,6 +216,7 @@ class PreviewRepositories:
     def create(cls, connection: sqlite3.Connection) -> "PreviewRepositories":
         transaction_manager = SQLiteTransactionManager(connection)
         activities = SQLiteActivityMasterRepository(connection)
+        wbs = SQLiteWBSMasterRepository(connection)
         relationships = SQLiteRelationshipMasterRepository(connection)
         constraints = SQLiteConstraintMasterRepository(connection)
         calendars = SQLiteCalendarMasterRepository(connection)
@@ -235,6 +242,7 @@ class PreviewRepositories:
         contexts = SQLiteCalculationContextRepository(connection)
         return cls(
             activities=activities,
+            wbs=wbs,
             relationships=relationships,
             constraints=constraints,
             calendars=calendars,
@@ -362,6 +370,78 @@ def seed_resource_capacities(
         )
 
 
+def seed_wbs_nodes(
+    repositories: PreviewRepositories,
+    fixture: DemoProjectFixture,
+    scope: BackendScope,
+) -> dict[str, str]:
+    """Persist the fixture WBS tree, then resolve every activity assignment.
+
+    Nodes come from the explicit fixture, never from activity rows. The
+    assignment map is a seed-time join; the runtime read path uses the persisted
+    ``activity_wbs_assignment`` rows instead.
+    """
+
+    display_by_node: dict[str, str] = {}
+    ordered = sorted(
+        fixture.wbs_nodes,
+        key=lambda node: 0 if node.parent_wbs_id is None else 1,
+    )
+    for node in ordered:
+        stored = repositories.wbs.save(
+            WBSMaster(
+                scope=scope,
+                wbs_id=node.wbs_id,
+                parent_kind=(
+                    WBSParentKind.PROJECT
+                    if node.parent_wbs_id is None
+                    else WBSParentKind.WBS
+                ),
+                parent_wbs_id=node.parent_wbs_id,
+                code=node.local_code,
+                name=node.name,
+                sequence_number=node.sequence_number,
+            )
+        )
+        display_by_node[f"{stored.code} {stored.name}"] = stored.wbs_id
+
+    assignments: dict[str, str] = {}
+    for activity_id, display in fixture.wbs.items():
+        wbs_id = display_by_node.get(display)
+        if wbs_id is None:
+            raise PreviewRuntimeError(
+                "PREVIEW_FIXTURE_WBS_REFERENCE_INVALID",
+                f"Activity {activity_id} references unknown WBS node {display!r}.",
+            )
+        assignments[activity_id] = wbs_id
+    return assignments
+
+
+def project_root_wbs_id(project_id: str) -> str:
+    return f"WBS-{project_id}"
+
+
+def seed_project_root_wbs(
+    repositories: PreviewRepositories,
+    *,
+    scope: BackendScope,
+    name: str,
+) -> None:
+    """Create the single project-parent WBS node for a new project."""
+
+    repositories.wbs.save(
+        WBSMaster(
+            scope=scope,
+            wbs_id=project_root_wbs_id(scope.project_id),
+            parent_kind=WBSParentKind.PROJECT,
+            parent_wbs_id=None,
+            code="1",
+            name=name,
+            sequence_number=0,
+        )
+    )
+
+
 def seed_default_calendar(
     repositories: PreviewRepositories,
     *,
@@ -395,12 +475,13 @@ def seed_default_calendar(
 
 
 class PreviewProjectInitializer:
-    """Initialise a newly-created project with real presentation metadata."""
+    """Initialise a newly-created project with real structured metadata."""
 
     def __init__(self, repositories: PreviewRepositories) -> None:
         self.repositories = repositories
 
-    def __call__(self, scope: BackendScope) -> None:
+    def __call__(self, scope: BackendScope, name: str) -> None:
+        seed_project_root_wbs(self.repositories, scope=scope, name=name)
         seed_presentation(self.repositories, scope)
         seed_interchange_mappings(self.repositories, scope)
         seed_default_calendar(
@@ -413,7 +494,7 @@ class PreviewProjectInitializer:
         )
 
 
-def _to_activity(scope: BackendScope, item) -> ActivityMaster:
+def _to_activity(scope: BackendScope, item, wbs_id: str) -> ActivityMaster:
     return ActivityMaster(
         scope=scope,
         activity_id=item.activity_id,
@@ -430,6 +511,7 @@ def _to_activity(scope: BackendScope, item) -> ActivityMaster:
         activity_type=item.activity_type,
         status=item.status,
         status_code=item.status_code,
+        wbs_id=wbs_id,
     )
 
 
@@ -518,8 +600,11 @@ def seed_demo_project(
     )
     repositories.settings.save(settings, expected_revision=0)
 
+    wbs_by_activity = seed_wbs_nodes(repositories, fixture, scope)
     for item in fixture.activities:
-        repositories.activities.save(_to_activity(scope, item))
+        repositories.activities.save(
+            _to_activity(scope, item, wbs_by_activity[item.activity_id])
+        )
     for item in fixture.relationships:
         repositories.relationships.save(_to_relationship(scope, item))
     publish_fixture_snapshot(repositories, fixture, scope)
@@ -625,13 +710,19 @@ def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverR
 
 @dataclass(frozen=True)
 class PreviewWorkspaceReadProvider:
-    """Build the authorized workspace envelope from persisted preview state."""
+    """Build the authorized workspace envelope from persisted preview state.
+
+    ``wbs_repository`` switches the projection to the canonical WBS contract
+    (v2). Without it the adapter keeps the legacy v1 display mapping that is
+    still stored in preview project metadata.
+    """
 
     activity_repository: object
     field_service: object
     layout_repository: object
     schedule_facts_provider: WorkspaceScheduleFactsProvider
     store: PreviewStore
+    wbs_repository: object | None = None
 
     def read(
         self,
@@ -650,13 +741,21 @@ class PreviewWorkspaceReadProvider:
             raise PreviewRuntimeError("PREVIEW_FIELD_SERVICE_INVALID")
         if not isinstance(self.layout_repository, SQLiteP6LayoutRepository):
             raise PreviewRuntimeError("PREVIEW_LAYOUT_REPOSITORY_INVALID")
-        wbs = self.store.wbs_for(scope.tenant_id, scope.project_id)
+        if self.wbs_repository is not None:
+            provider = PersistedWorkspaceReadProvider(
+                activity_repository=self.activity_repository,  # type: ignore[arg-type]
+                field_service=self.field_service,
+                layout_repository=self.layout_repository,
+                schedule_facts_provider=self.schedule_facts_provider,
+                wbs_repository=self.wbs_repository,  # type: ignore[arg-type]
+            )
+            return provider.read(scope, auth_context=auth_context)
         provider = PersistedWorkspaceReadProvider(
             activity_repository=self.activity_repository,  # type: ignore[arg-type]
             field_service=self.field_service,
             layout_repository=self.layout_repository,
             schedule_facts_provider=self.schedule_facts_provider,
-            wbs_by_activity=wbs,
+            wbs_by_activity=self.store.wbs_for(scope.tenant_id, scope.project_id),
         )
         return provider.read(scope, auth_context=auth_context)
 
@@ -686,6 +785,10 @@ class PreviewRuntime:
             "SELECT COUNT(*) FROM p6_resource_capacity_segment WHERE tenant_id=?",
             (PREVIEW_TENANT_ID,),
         ).fetchone()
+        wbs_count = self.connection.execute(
+            "SELECT COUNT(*) FROM wbs_master WHERE tenant_id=?",
+            (PREVIEW_TENANT_ID,),
+        ).fetchone()
         return {
             "status": "ok",
             "mode": "local-full-stack-preview",
@@ -694,6 +797,7 @@ class PreviewRuntime:
             "project_count": len(projects),
             "demo_project_count": sum(1 for item in projects if item["demo"]),
             "activity_count": int(activity_count[0]) if activity_count else 0,
+            "wbs_node_count": int(wbs_count[0]) if wbs_count else 0,
             "capacity_segment_count": int(capacity_count[0]) if capacity_count else 0,
             "session_count": self.sessions.count(),
         }
@@ -736,14 +840,27 @@ def open_preview_runtime(
         calculation_context_repository=repositories.contexts,
     )
     facts_provider = PublishedScheduleFactsProvider(repositories.snapshots, query_provider)
-    workspace_provider = PreviewWorkspaceReadProvider(
+    legacy_workspace_provider = PreviewWorkspaceReadProvider(
         activity_repository=repositories.activities,
         field_service=repositories.field_service,
         layout_repository=repositories.layouts,
         schedule_facts_provider=facts_provider,
         store=store,
     )
-    workspace_service = WorkspaceControlRoomReadService(workspace_provider, policy)
+    workspace_service = WorkspaceControlRoomReadService(
+        legacy_workspace_provider, policy
+    )
+    canonical_workspace_provider = PreviewWorkspaceReadProvider(
+        activity_repository=repositories.activities,
+        field_service=repositories.field_service,
+        layout_repository=repositories.layouts,
+        schedule_facts_provider=facts_provider,
+        store=store,
+        wbs_repository=repositories.wbs,
+    )
+    workspace_v2_service = WorkspaceControlRoomReadService(
+        canonical_workspace_provider, policy
+    )
     backend_api = BackendP0API(
         BackendP0ApplicationService(
             repository=InMemoryBackendP0Repository(),
@@ -784,6 +901,8 @@ def open_preview_runtime(
         calculation_context_repository=repositories.contexts,
         authorization_policy=policy,
         activity_master_repository=repositories.activities,
+        wbs_master_repository=repositories.wbs,
+        workspace_read_v2_service=workspace_v2_service,
         relationship_master_repository=repositories.relationships,
         schedule_snapshot_publication_api=snapshot_api,
         backend_p0_api=backend_api,

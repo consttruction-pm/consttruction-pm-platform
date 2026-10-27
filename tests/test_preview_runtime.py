@@ -113,7 +113,7 @@ def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision
     try:
         health = runtime.health()
         assert health["mode"] == "local-full-stack-preview"
-        assert health["seed_version"] == "cubi-preview-seed.v1"
+        assert health["seed_version"] == "cubi-preview-seed.v2"
         assert health["project_count"] == 2
         assert health["demo_project_count"] == 2
         assert health["activity_count"] == 20
@@ -172,6 +172,371 @@ def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision
         assert json.loads(body)["code"] == "REVISION_CONFLICT"
     finally:
         runtime.close()
+
+
+def test_preview_v2_workspace_read_projects_persisted_wbs_tree(
+    tmp_path: Path,
+) -> None:
+    runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        assert runtime.health()["wbs_node_count"] == 10
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            "/api/v2/workspace/control-room/read",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        envelope = json.loads(body)
+        assert envelope["contract_version"] == "workspace-control-room-read.v2"
+        workspace = envelope["workspace"]
+        assert workspace["contract_version"] == "workspace-control-room.v2"
+        assert workspace["context"] == {
+            "tenant_id": RPS_TENANT,
+            "project_id": RPS_PROJECT,
+            "revision": RPS_REVISION,
+        }
+
+        nodes = workspace["wbs_nodes"]
+        assert [node["wbs_id"] for node in nodes] == [
+            "WBS-RPS-ROOT",
+            "WBS-RPS-PM",
+            "WBS-RPS-CIVIL",
+            "WBS-RPS-PROC",
+            "WBS-RPS-ENV",
+            "WBS-RPS-MEP",
+            "WBS-RPS-COM",
+        ]
+        root = nodes[0]
+        assert root["parent_kind"] == "project"
+        assert root["parent_wbs_id"] is None
+        assert root["local_code"] == "1"
+        civil = next(node for node in nodes if node["wbs_id"] == "WBS-RPS-CIVIL")
+        assert civil["parent_kind"] == "wbs"
+        assert civil["parent_wbs_id"] == "WBS-RPS-ROOT"
+        assert civil["local_code"] == "2"
+        assert civil["name"] == "Civil works"
+        assert civil["record_revision"] == 1
+
+        activities = workspace["activities"]
+        assert len(activities) == 14
+        a130 = next(item for item in activities if item["id"] == "A130")
+        assert a130["wbs_id"] == "WBS-RPS-CIVIL"
+        assert a130["cells"]["activity.wbs"] == "2 Civil works"
+        assert a130["cells"]["activity.early_start"] == "2026-10-07"
+
+        # The second demo project in the same tenant must keep its own tree.
+        nse_headers = {
+            "X-Tenant-Id": RPS_TENANT,
+            "X-Project-Id": "preview-nse-02",
+            "X-Project-Revision": "2",
+        }
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            "/api/v2/workspace/control-room/read",
+            cookie=planner.session_id,
+            headers=nse_headers,
+        )
+        assert status == 200
+        nse = json.loads(body)["workspace"]
+        assert [node["wbs_id"] for node in nse["wbs_nodes"]] == [
+            "WBS-NSE-ROOT",
+            "WBS-NSE-DESIGN",
+            "WBS-NSE-PROC",
+        ]
+        assert all(
+            not item["wbs_id"].startswith("WBS-RPS-") for item in nse["activities"]
+        )
+
+        # Stale revision fails closed instead of serving a different revision.
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            "/api/v2/workspace/control-room/read",
+            cookie=planner.session_id,
+            headers={**_scope_headers(), "X-Project-Revision": "8"},
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "STALE_WORKSPACE_READ_SCOPE"
+    finally:
+        runtime.close()
+
+
+def test_preview_wbs_and_activity_write_path_persists_and_rejects_invalid_links(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview.sqlite3"
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        admin = runtime.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            "/api/projects",
+            cookie=admin.session_id,
+            body=json.dumps(
+                {"project_id": "preview-wbs-01", "name": "WBS acceptance project"}
+            ).encode("utf-8"),
+        )
+        assert status == 201
+        context = json.loads(body)["context"]
+        headers = {
+            "X-Tenant-Id": context["tenant_id"],
+            "X-Project-Id": context["project_id"],
+            "X-Project-Revision": str(context["revision"]),
+        }
+        root_id = "WBS-preview-wbs-01"
+        wbs_path = "/api/projects/preview-wbs-01/p6/wbs"
+        activity_path = "/api/projects/preview-wbs-01/p6/activities"
+
+        def wbs_create(payload: dict, cookie: str = admin.session_id):
+            return _request(
+                runtime.app,
+                "POST",
+                wbs_path,
+                cookie=cookie,
+                headers=headers,
+                body=json.dumps(
+                    {"contract_version": "p6-wbs-master-api.v1", **payload}
+                ).encode("utf-8"),
+            )
+
+        def wbs_update(wbs_id: str, payload: dict):
+            return _request(
+                runtime.app,
+                "PATCH",
+                f"{wbs_path}/{wbs_id}",
+                cookie=admin.session_id,
+                headers=headers,
+                body=json.dumps(
+                    {"contract_version": "p6-wbs-master-api.v1", **payload}
+                ).encode("utf-8"),
+            )
+
+        def activity_create(payload: dict, cookie: str = admin.session_id):
+            return _request(
+                runtime.app,
+                "POST",
+                activity_path,
+                cookie=cookie,
+                headers=headers,
+                body=json.dumps(
+                    {"contract_version": "p6-activity-master-api.v1", **payload}
+                ).encode("utf-8"),
+            )
+
+        # A new project starts with exactly one project-parent WBS root.
+        status, _, body = _request(
+            runtime.app, "GET", wbs_path, cookie=admin.session_id, headers=headers
+        )
+        assert status == 200
+        nodes = json.loads(body)["wbs_nodes"]
+        assert [node["wbs"]["wbs_id"] for node in nodes] == [root_id]
+        assert nodes[0]["wbs"]["parent_kind"] == "project"
+
+        status, _, body = wbs_create(
+            {
+                "wbs_id": "WBS-WBS01-DESIGN",
+                "parent_kind": "wbs",
+                "parent_wbs_id": root_id,
+                "code": "2",
+                "name": "Design",
+                "sequence_number": 10,
+            }
+        )
+        assert status == 201
+        assert json.loads(body)["wbs"]["record_revision"] == 1
+
+        status, _, body = wbs_create(
+            {
+                "wbs_id": "WBS-WBS01-SITE",
+                "parent_kind": "wbs",
+                "parent_wbs_id": root_id,
+                "code": "3",
+                "name": "Site preparation",
+                "sequence_number": 20,
+            }
+        )
+        assert status == 201
+
+        # Sibling codes are unique, parents must exist, and cycles are rejected.
+        status, _, body = wbs_create(
+            {
+                "wbs_id": "WBS-WBS01-DUP",
+                "parent_kind": "wbs",
+                "parent_wbs_id": root_id,
+                "code": "2",
+                "name": "Duplicate code",
+                "sequence_number": 30,
+            }
+        )
+        assert status == 400
+        assert json.loads(body)["code"] == "WBS_SIBLING_CODE_CONFLICT"
+
+        status, _, body = wbs_create(
+            {
+                "wbs_id": "WBS-WBS01-ORPHAN",
+                "parent_kind": "wbs",
+                "parent_wbs_id": "WBS-RPS-CIVIL",
+                "code": "9",
+                "name": "Foreign parent",
+                "sequence_number": 40,
+            }
+        )
+        assert status == 400
+        assert json.loads(body)["code"] == "WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH"
+
+        status, _, body = wbs_update(
+            root_id,
+            {
+                "parent_kind": "wbs",
+                "parent_wbs_id": "WBS-WBS01-DESIGN",
+                "expected_revision": 1,
+            },
+        )
+        assert status == 400
+        assert json.loads(body)["code"] == "WBS_HIERARCHY_CYCLE"
+
+        status, _, body = wbs_update(
+            "WBS-WBS01-DESIGN", {"name": "Detailed design", "expected_revision": 1}
+        )
+        assert status == 200
+        assert json.loads(body)["wbs"]["record_revision"] == 2
+        status, _, body = wbs_update(
+            "WBS-WBS01-DESIGN", {"name": "Stale write", "expected_revision": 1}
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "REVISION_CONFLICT"
+
+        # Activities require a canonical WBS and reject a foreign-project node.
+        status, _, body = activity_create(
+            {
+                "activity_id": "NEW-101",
+                "name": "No hierarchy link",
+                "duration_value": 2,
+                "duration_unit": "working-day",
+            }
+        )
+        assert status == 400
+        assert json.loads(body)["code"] == "WBS_REQUIRED"
+
+        status, _, body = activity_create(
+            {
+                "activity_id": "NEW-102",
+                "name": "Foreign WBS",
+                "duration_value": 2,
+                "duration_unit": "working-day",
+                "wbs_id": "WBS-RPS-CIVIL",
+            }
+        )
+        assert status == 400
+        assert json.loads(body)["code"] == "WBS_NOT_FOUND_OR_SCOPE_MISMATCH"
+
+        status, _, body = activity_create(
+            {
+                "activity_id": "NEW-100",
+                "name": "Concept design",
+                "duration_value": 5,
+                "duration_unit": "working-day",
+                "wbs_id": "WBS-WBS01-DESIGN",
+            }
+        )
+        assert status == 201
+        assert json.loads(body)["activity"]["wbs_id"] == "WBS-WBS01-DESIGN"
+
+        # The write is visible through the real read service, including a WBS
+        # node that intentionally has no activity.
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            "/api/v2/workspace/control-room/read",
+            cookie=admin.session_id,
+            headers=headers,
+        )
+        assert status == 200
+        workspace = json.loads(body)["workspace"]
+        assert [node["wbs_id"] for node in workspace["wbs_nodes"]] == [
+            root_id,
+            "WBS-WBS01-DESIGN",
+            "WBS-WBS01-SITE",
+        ]
+        assert [(item["id"], item["wbs_id"]) for item in workspace["activities"]] == [
+            ("NEW-100", "WBS-WBS01-DESIGN")
+        ]
+        assert all(
+            item["wbs_id"] != "WBS-WBS01-SITE" for item in workspace["activities"]
+        )
+
+        # Independently verify the persisted rows, not only the HTTP projection.
+        stored_nodes = runtime.connection.execute(
+            "SELECT wbs_id,parent_wbs_id,code,sequence_number FROM wbs_master "
+            "WHERE tenant_id=? AND project_id=? ORDER BY sequence_number",
+            (RPS_TENANT, "preview-wbs-01"),
+        ).fetchall()
+        assert [tuple(row) for row in stored_nodes] == [
+            (root_id, None, "1", 0),
+            ("WBS-WBS01-DESIGN", root_id, "2", 10),
+            ("WBS-WBS01-SITE", root_id, "3", 20),
+        ]
+        stored_assignment = runtime.connection.execute(
+            "SELECT wbs_id FROM activity_wbs_assignment "
+            "WHERE tenant_id=? AND project_id=? AND activity_id=?",
+            (RPS_TENANT, "preview-wbs-01", "NEW-100"),
+        ).fetchone()
+        assert stored_assignment == ("WBS-WBS01-DESIGN",)
+
+        # Unauthorized principals and foreign tenant scopes fail closed.
+        newcomer = runtime.sessions.create(DEMO_USERS_BY_ROLE["newcomer"])
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            wbs_path,
+            cookie=newcomer.session_id,
+            headers=headers,
+        )
+        assert status == 403
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            "/api/v2/workspace/control-room/read",
+            cookie=admin.session_id,
+            headers={**headers, "X-Tenant-Id": "another-tenant"},
+        )
+        assert status == 403
+        assert json.loads(body)["code"] == "CROSS_SCOPE_ACCESS"
+    finally:
+        runtime.close()
+
+    # A service restart re-reads the same persisted tree from SQLite.
+    reopened = open_preview_runtime(database)
+    try:
+        admin = reopened.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+        headers = {
+            "X-Tenant-Id": RPS_TENANT,
+            "X-Project-Id": "preview-wbs-01",
+            "X-Project-Revision": "0",
+        }
+        status, _, body = _request(
+            reopened.app,
+            "GET",
+            "/api/v2/workspace/control-room/read",
+            cookie=admin.session_id,
+            headers=headers,
+        )
+        assert status == 200
+        workspace = json.loads(body)["workspace"]
+        assert [node["wbs_id"] for node in workspace["wbs_nodes"]] == [
+            "WBS-preview-wbs-01",
+            "WBS-WBS01-DESIGN",
+            "WBS-WBS01-SITE",
+        ]
+        assert workspace["activities"][0]["wbs_id"] == "WBS-WBS01-DESIGN"
+        assert workspace["activities"][0]["cells"]["activity.wbs"] == "2 Detailed design"
+    finally:
+        reopened.close()
 
 
 def test_preview_server_guards_login_banner_static_files_and_logout(

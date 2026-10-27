@@ -109,6 +109,7 @@ class SQLiteWBSMasterRepository:
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = self.connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         self.connection.execute(
@@ -149,7 +150,8 @@ class SQLiteWBSMasterRepository:
                  (tenant_id, project_id, project_revision, parent_kind,
                   parent_wbs_id, sequence_number, wbs_id)"""
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def _row(self, scope: BackendScope, wbs_id: str) -> tuple[object, ...] | None:
         return self.connection.execute(

@@ -342,8 +342,24 @@ class SQLiteActivityMasterRepository:
         if not was_in_transaction:
             self.connection.commit()
 
-    def _validate_wbs_assignment(self, scope: BackendScope, wbs_id: str | None) -> None:
+    def _validate_wbs_assignment(
+        self, scope: BackendScope, wbs_id: str | None, *, require_assignment: bool = True
+    ) -> None:
         if wbs_id is None:
+            if not require_assignment:
+                # Reads must still surface legacy rows that predate the
+                # canonical WBS tree so the Workspace provider can fail closed
+                # with an explicit contract error instead of hiding data.
+                return
+            # A project that has a canonical WBS tree must not gain an activity
+            # without a hierarchy link. Projects with no WBS rows keep the
+            # legacy unassigned behaviour so existing data remains writable.
+            exists = self.connection.execute(
+                "SELECT 1 FROM wbs_master WHERE tenant_id=? AND project_id=? LIMIT 1",
+                (scope.tenant_id, scope.project_id),
+            ).fetchone()
+            if exists is not None:
+                raise ActivityPersistenceError("WBS_REQUIRED")
             return
         row = self.connection.execute("SELECT project_revision FROM wbs_master WHERE tenant_id=? AND project_id=? AND wbs_id=?", (scope.tenant_id, scope.project_id, wbs_id)).fetchone()
         if row is None:
@@ -458,7 +474,7 @@ class SQLiteActivityMasterRepository:
         if int(row[19]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         result = _from_row(scope, row[:19])
-        self._validate_wbs_assignment(scope, result.wbs_id)
+        self._validate_wbs_assignment(scope, result.wbs_id, require_assignment=False)
         return result
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
@@ -468,7 +484,7 @@ class SQLiteActivityMasterRepository:
             (scope.tenant_id, scope.project_id, scope.project_revision)).fetchall()
         result = tuple(_from_row(scope, row) for row in rows)
         for item in result:
-            self._validate_wbs_assignment(scope, item.wbs_id)
+            self._validate_wbs_assignment(scope, item.wbs_id, require_assignment=False)
         return result
 
 
@@ -522,8 +538,18 @@ class PostgresActivityMasterRepository:
         )""")
         self.connection.execute("CREATE INDEX IF NOT EXISTS idx_activity_wbs_assignment_wbs ON activity_wbs_assignment(tenant_id, project_id, wbs_id)")
 
-    def _validate_wbs_assignment(self, scope: BackendScope, wbs_id: str | None) -> None:
+    def _validate_wbs_assignment(
+        self, scope: BackendScope, wbs_id: str | None, *, require_assignment: bool = True
+    ) -> None:
         if wbs_id is None:
+            if not require_assignment:
+                return
+            exists = self.connection.execute(
+                "SELECT 1 FROM wbs_master WHERE tenant_id=%s AND project_id=%s LIMIT 1",
+                (scope.tenant_id, scope.project_id),
+            ).fetchone()
+            if exists is not None:
+                raise ActivityPersistenceError("WBS_REQUIRED")
             return
         row = self.connection.execute("SELECT project_revision FROM wbs_master WHERE tenant_id=%s AND project_id=%s AND wbs_id=%s", (scope.tenant_id, scope.project_id, wbs_id)).fetchone()
         if row is None:
@@ -602,7 +628,7 @@ class PostgresActivityMasterRepository:
         if int(row[19]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         result = _from_row(scope, row[:19])
-        self._validate_wbs_assignment(scope, result.wbs_id)
+        self._validate_wbs_assignment(scope, result.wbs_id, require_assignment=False)
         return result
 
     def list(self, scope: BackendScope) -> tuple[ActivityMaster, ...]:
@@ -612,5 +638,5 @@ class PostgresActivityMasterRepository:
             (scope.tenant_id, scope.project_id, scope.project_revision)).fetchall()
         result = tuple(_from_row(scope, row) for row in rows)
         for item in result:
-            self._validate_wbs_assignment(scope, item.wbs_id)
+            self._validate_wbs_assignment(scope, item.wbs_id, require_assignment=False)
         return result

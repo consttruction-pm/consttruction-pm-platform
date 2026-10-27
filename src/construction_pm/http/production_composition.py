@@ -43,7 +43,8 @@ from construction_pm.ai_assistant_orchestration import (
     OpenAICompatibleChatProvider,
 )
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
-from construction_pm.backend_p0.workspace_read import PersistedWBSWorkspaceReadProvider, WorkspaceControlRoomReadService
+from construction_pm.backend_p0.workspace_read import WorkspaceControlRoomReadService
+from construction_pm.backend_p0.workspace_read_provider import PersistedWorkspaceReadProvider
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
@@ -60,6 +61,7 @@ def build_project_lifecycle_wsgi_app(
     authorization_policy: AuthorizationPolicy,
     activity_master_repository: ActivityMasterRepository | None = None,
     wbs_master_repository: WBSMasterRepository | None = None,
+    workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
     relationship_master_repository: RelationshipMasterRepository | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
@@ -179,16 +181,18 @@ def build_project_lifecycle_wsgi_app(
         if relationship_master_repository is None
         else P6RelationshipAPI(relationship_master_repository, authorization_policy)
     )
-    workspace_read_v2_service = (
-        None
-        if activity_master_repository is None or wbs_master_repository is None
-        else WorkspaceControlRoomReadService(
-            provider=PersistedWBSWorkspaceReadProvider(
-                activity_master_repository, wbs_master_repository
+    if (
+        workspace_read_v2_service is None
+        and activity_master_repository is not None
+        and wbs_master_repository is not None
+    ):
+        workspace_read_v2_service = WorkspaceControlRoomReadService(
+            provider=PersistedWorkspaceReadProvider(
+                activity_repository=activity_master_repository,
+                wbs_repository=wbs_master_repository,
             ),
             authorization_policy=authorization_policy,
         )
-    )
     routes = ProjectLifecycleHttpRoutes(
         lifecycle_api,
         clock=clock,
