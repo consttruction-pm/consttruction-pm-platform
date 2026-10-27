@@ -28,7 +28,7 @@ test("assistant chat accepts a language only when every required label has a tra
   const keys = [
     "title", "description", "messageLabel", "placeholder", "send", "sending",
     "you", "assistant", "proposalNotice", "requestFailed", "serverUnavailable",
-    "assistantNotConfigured", "staleRevision", "empty", "privacyNotice", "translationsUnavailable",
+    "staleRevision", "empty", "privacyNotice", "translationsUnavailable",
   ];
   registerWorkspaceLocale({
     locale: "de-DE",
