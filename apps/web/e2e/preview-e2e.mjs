@@ -747,6 +747,55 @@ async function main() {
       closed: launcherStateAfterClose,
     });
 
+    const homepageFixedState = await page.evaluate(`(async () => {
+      const root = document.querySelector("#cubi-global-assistant");
+      const button = document.querySelector("#cubi-assistant-launcher");
+      if (!root || !button) return { found: false };
+      document.body.style.minHeight = "180vh";
+      window.scrollTo(0, 0);
+      const before = root.getBoundingClientRect();
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const after = root.getBoundingClientRect();
+      window.scrollTo(0, 0);
+      return {
+        found: true,
+        mountedOnBody: root.parentElement === document.body,
+        position: getComputedStyle(root).position,
+        avatarLoaded: Boolean(button.querySelector("img")?.complete && button.querySelector("img")?.naturalWidth > 0),
+        staysVisible: after.bottom <= window.innerHeight && after.top >= 0,
+        staysPinned: Math.abs(before.bottom - after.bottom) < 1 && Math.abs(before.right - after.right) < 1,
+      };
+    })()`, { awaitPromise: true });
+    assert(
+      homepageFixedState.found && homepageFixedState.mountedOnBody &&
+      homepageFixedState.position === "fixed" && homepageFixedState.avatarLoaded &&
+      homepageFixedState.staysVisible && homepageFixedState.staysPinned,
+      "homepage assistant must remain visible while scrolling: " + JSON.stringify(homepageFixedState),
+    );
+    record("homepage assistant stays visible while scrolling", homepageFixedState);
+
+    for (const route of ["/platform/", "/solutions/", "/resources/", "/contact/"]) {
+      await page.navigate(`${baseUrl}${route}`, ".cubi-public-page", "public page " + route);
+      await page.waitFor('Boolean(document.querySelector("#cubi-assistant-launcher"))', "assistant launcher on " + route);
+      const routeState = await page.evaluate(`(() => {
+        const root = document.querySelector("#cubi-global-assistant");
+        const button = document.querySelector("#cubi-assistant-launcher");
+        const image = button?.querySelector("img");
+        const bounds = button?.getBoundingClientRect();
+        return {
+          rootFound: Boolean(root),
+          mountedOnBody: root?.parentElement === document.body,
+          visible: Boolean(bounds && bounds.width > 0 && bounds.height > 0 && bounds.bottom <= window.innerHeight),
+          fixed: root ? getComputedStyle(root).position === "fixed" : false,
+          avatarLoaded: Boolean(image?.complete && image.naturalWidth > 0),
+        };
+      })()`);
+      assert(routeState.rootFound && routeState.mountedOnBody && routeState.visible && routeState.fixed && routeState.avatarLoaded,
+        "assistant not visible on " + route + ": " + JSON.stringify(routeState));
+      record("floating assistant visible on " + route, routeState);
+    }
+
     await page.navigate(
       `${baseUrl}/preview/login`,
       'form[action="/preview/login"]',
