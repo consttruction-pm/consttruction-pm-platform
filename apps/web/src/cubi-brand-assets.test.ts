@@ -33,4 +33,7 @@ test("assistant avatar URL resolves from compiled Web assets and preserves GitHu
   const svg = readFileSync(asset, "utf8");
   assert.match(svg, /data:image\/jpeg;base64,/);
   assert.match(svg, /<image[^>]+preserveAspectRatio="xMidYMid slice"/);
+  assert.match(svg, /class="day"/);
+  assert.match(svg, /class="night"/);
+  assert.match(svg, /prefers-color-scheme:\s*dark/);
 });
