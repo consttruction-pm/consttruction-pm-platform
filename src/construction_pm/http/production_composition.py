@@ -39,6 +39,7 @@ from construction_pm.ai_assistant_orchestration import (
     AIChatProvider,
     AIAssistantTurnOrchestrator,
     OpenAICompatibleChatProvider,
+    build_ai_chat_provider_from_environment,
 )
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
@@ -95,7 +96,7 @@ def build_project_lifecycle_wsgi_app(
         "1", "true", "yes"
     }
     if ai_assistant_provider is None and assistant_enabled:
-        ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
+        ai_assistant_provider = build_ai_chat_provider_from_environment()
 
     resource_resolver_dependencies = (
         resource_read_api,
