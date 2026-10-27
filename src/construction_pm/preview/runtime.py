@@ -28,7 +28,7 @@ from construction_pm.ai_action_activity_tools import (
 )
 from construction_pm.ai_action_project_plan_tools import build_project_plan_create_tool
 from construction_pm.ai_action_runtime import AIActionProposal, AIActionRuntime, SQLiteAIActionRuntimeStore
-from construction_pm.ai_assistant_orchestration import OpenAICompatibleChatProvider
+from construction_pm.ai_assistant_orchestration import build_ai_chat_provider_from_environment
 from construction_pm.application.authorization import (
     AuthorizationContext,
     RoleBasedAuthorizationPolicy,
@@ -740,10 +740,8 @@ class PreviewRuntime:
             "assistant": {
                 "enabled": self.ai_assistant_enabled,
                 "provider_configured": self.ai_assistant_enabled,
-                "provider_environment_complete": all(
-                    os.environ.get(key, "").strip()
-                    for key in ("CUBI_AI_API_KEY", "CUBI_AI_BASE_URL", "CUBI_AI_MODEL")
-                ),
+                "provider_kind": os.environ.get("CUBI_AI_PROVIDER", "local-ollama"),
+                "provider_environment_complete": bool(os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip()),
                 "available_tools": list(self.ai_tool_names),
             },
             "private_owner_login_enabled": bool(
@@ -844,7 +842,7 @@ def open_preview_runtime(
     if ai_assistant_enabled:
         # Provider and tools are only composed from explicit server-side configuration.
         # Missing/invalid credentials fail closed; there is no fake provider fallback.
-        ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
+        ai_assistant_provider = build_ai_chat_provider_from_environment()
         action_store = SQLiteAIActionRuntimeStore(connection)
         idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
         permission_adapter = PreviewAIPermissionAdapter(sessions, store)
