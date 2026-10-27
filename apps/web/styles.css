@@ -2281,7 +2281,7 @@ th {
   position: fixed;
   inset-inline-end: clamp(1rem, 2.8vw, 2rem);
   bottom: clamp(1rem, 2.8vw, 2rem);
-  z-index: 2147483000;
+  z-index: 1000;
   isolation: isolate;
   display: flex;
   flex-direction: column;
