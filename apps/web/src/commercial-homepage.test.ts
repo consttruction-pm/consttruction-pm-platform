@@ -126,3 +126,24 @@ test("homepage header, dashboard and footer use the canonical logo asset only", 
   assert.match(landing, /cubi-footer-brand[^>]*>[\s\S]*?cubi-platform-logo-primary\.svg/);
   assert.doesNotMatch(landing, /cubi-footer-social[^>]*>[\s\S]*?<span[^>]*>CUBI<\/span>/);
 });
+
+
+test("canonical CUBI logo is used by every public page, workspace favicon and social preview", () => {
+  const app = readFileSync(join(root, "app.html"), "utf8");
+  const publicPages = ["platform", "solutions", "resources", "contact"].map((name) =>
+    readFileSync(join(root, "public", name, "index.html"), "utf8"),
+  );
+  const logoPath = "cubi-platform-logo-primary\\.svg";
+  assert.match(styles, /cubi-exact-brand\\{[^}]*flex:0 0 150px/);
+  assert.match(styles, /cubi-exact-brand img\\{display:block;width:150px;height:42px/);
+  assert.match(index, new RegExp('property="og:image" content="\\./' + logoPath + '"'));
+  assert.match(index, new RegExp('name="twitter:image" content="\\./' + logoPath + '"'));
+  assert.match(index, new RegExp('rel="icon" href="\\./' + logoPath + '"'));
+  assert.match(app, new RegExp('rel="icon" href="/' + logoPath + '"'));
+  for (const html of publicPages) {
+    assert.match(html, new RegExp('src="[^"]*' + logoPath + '"'));
+    assert.match(html, new RegExp('rel="icon" href="[^"]*' + logoPath + '"'));
+    assert.match(html, new RegExp('property="og:image" content="__CUBI_BASE_URL__/' + logoPath + '"'));
+    assert.match(html, new RegExp('name="twitter:image" content="__CUBI_BASE_URL__/' + logoPath + '"'));
+  }
+});
