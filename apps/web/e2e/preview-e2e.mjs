@@ -1007,10 +1007,13 @@ async function main() {
       const rootStyle = getComputedStyle(root);
       // "inline end" is a physical edge only once the direction is known: right
       // for LTR, left for RTL. The pin gap must equal the declared inset in both,
-      // which is what proves the widget mirrors instead of being hardcoded.
+      // which is what proves the widget mirrors instead of being hardcoded. A
+      // fixed element is positioned against the layout viewport, which excludes a
+      // classic scrollbar, so the right edge is clientWidth and not innerWidth.
+      const layoutWidth = document.documentElement.clientWidth;
       const inlineEndGap = rootStyle.direction === "rtl"
         ? rect.left
-        : window.innerWidth - rect.right;
+        : layoutWidth - rect.right;
       const coverTargets = [
         ["language", "#cubi-language"],
         ["primary CTA", ".cubi-exact-hero-actions .cubi-exact-primary"],
@@ -1032,8 +1035,9 @@ async function main() {
         compactMode: root.dataset.compact === "true",
         compactMediaMatches: window.matchMedia("(max-width: 520px)").matches,
         viewportWidth: window.innerWidth,
+        layoutWidth,
         launcherWidth: Math.round(rect.width),
-        insideViewport: rect.left >= -1 && rect.right <= window.innerWidth + 1 &&
+        insideViewport: rect.left >= -1 && rect.right <= layoutWidth + 1 &&
           rect.top >= -1 && rect.bottom <= window.innerHeight + 1,
         labelHidden: label.getBoundingClientRect().width <= 1,
         labelWidth: Math.round(label.getBoundingClientRect().width),
@@ -1041,7 +1045,7 @@ async function main() {
         declaredInlineEndInset: Math.round(parseFloat(rootStyle.insetInlineEnd) || 0),
         inlineEndGap: Math.round(inlineEndGap),
         accessibleName: launcher.getAttribute("aria-label"),
-        horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
+        horizontalOverflow: document.documentElement.scrollWidth - layoutWidth,
         coverTargets,
       };
     })()`;
@@ -1161,7 +1165,8 @@ async function main() {
       // physical left edge must equal the declared logical inset, and the entry
       // must sit further from the right edge than from the left one.
       const declaredInlineEndInset = parseFloat(rootStyle.insetInlineEnd) || 0;
-      const inlineEndGap = rootStyle.direction === "rtl" ? rect.left : window.innerWidth - rect.right;
+      const layoutWidth = document.documentElement.clientWidth;
+      const inlineEndGap = rootStyle.direction === "rtl" ? rect.left : layoutWidth - rect.right;
       const panel = document.querySelector("#cubi-assistant-popover");
       launcher.click();
       const panelRect = panel.getBoundingClientRect();
@@ -1177,13 +1182,13 @@ async function main() {
         declaredInlineEndInset: Math.round(declaredInlineEndInset),
         inlineEndGap: Math.round(inlineEndGap),
         leftGap: Math.round(rect.left),
-        rightGap: Math.round(window.innerWidth - rect.right),
+        rightGap: Math.round(layoutWidth - rect.right),
         pinnedToInlineEnd:
           rootStyle.direction === "rtl" &&
           Math.abs(inlineEndGap - declaredInlineEndInset) <= 1 &&
-          rect.left < window.innerWidth - rect.right,
-        insideViewport: rect.left >= -1 && rect.right <= window.innerWidth + 1,
-        panelInsideViewport: panelRect.left >= -1 && panelRect.right <= window.innerWidth + 1,
+          rect.left < layoutWidth - rect.right,
+        insideViewport: rect.left >= -1 && rect.right <= layoutWidth + 1,
+        panelInsideViewport: panelRect.left >= -1 && panelRect.right <= layoutWidth + 1,
         persianTitle,
         persianAction,
         workspacePath,
