@@ -1,0 +1,14 @@
+.git
+**/node_modules
+**/dist
+.preview
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/*.pyc
+**/*.sqlite
+**/*.sqlite3
+**/*.sqlite3-*
+apps/web/e2e/artifacts
+coverage
+.coverage

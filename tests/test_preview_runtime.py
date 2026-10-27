@@ -736,3 +736,63 @@ def test_preview_project_creation_initializes_real_workspace_and_persists(
         assert created.name == "New preview project"
     finally:
         reopened.close()
+
+
+def test_public_demo_login_is_read_only_and_warns_about_shared_fixture_data(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CUBI_PREVIEW_PUBLIC_DEMO", "1")
+    runtime = open_preview_runtime(
+        tmp_path / "public-preview.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+
+        status, _, body = _request(app, "GET", "/preview/login")
+        assert status == 200
+        assert b"PUBLIC READ-ONLY DEMO" in body
+        assert b"shared fixture data" in body.lower()
+        assert b"confidential information" in body.lower()
+        assert b'value="viewer"' in body
+        assert b'value="planner"' not in body
+        assert b'value="admin"' not in body
+
+        status, headers, body = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=planner&next=%2Fapp",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 403
+        assert "set-cookie" not in headers
+        assert b"read-only" in body.lower()
+
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=viewer&next=%2Fapp",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        cookie = _session_cookie(headers)
+
+        status, _, body = _request(app, "GET", "/app", cookie=cookie)
+        assert status == 200
+        assert b"PUBLIC DEMO" in body
+        assert b"preview-viewer" in body
+
+        status, _, body = _request(app, "GET", "/preview/health")
+        assert status == 200
+        health = json.loads(body)
+        assert health["public_demo"] is True
+        assert health["read_only"] is True
+
+        status, _, body = _request(app, "GET", "/api/session", cookie=cookie)
+        assert status == 200
+        assert json.loads(body)["roles"] == ["viewer"]
+    finally:
+        runtime.close()
