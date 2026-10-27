@@ -2,20 +2,20 @@
   <title id="title">CUBI Platform</title>
   <desc id="desc">Approved CUBI Platform logo: an open C-shaped isometric cube mark with a teal center cube, wordmark and Plan. Control. Build Smarter. tagline.</desc>
   <defs>
-    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08C8F5"/><stop offset="1" stop-color="#1689FF"/></linearGradient>
-    <linearGradient id="side" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0752BD"/><stop offset="1" stop-color="#123A8A"/></linearGradient>
-    <linearGradient id="bottom" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#147BFA"/><stop offset="1" stop-color="#18D3C5"/></linearGradient>
-    <linearGradient id="cubeTop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#39E0D0"/><stop offset="1" stop-color="#12B8B1"/></linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1689FF"/><stop offset="1" stop-color="#1689FF"/></linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0752BD"/><stop offset="1" stop-color="#0D3D91"/></linearGradient>
+    <linearGradient id="bottom" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1474D4"/><stop offset="1" stop-color="#19C7D4"/></linearGradient>
+    <linearGradient id="cubeTop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#19C7D4"/><stop offset="1" stop-color="#19C7D4"/></linearGradient>
   </defs>
   <g transform="translate(8 4)">
     <path d="M84 3 158 45 130 62 84 36 48 57 16 39Z" fill="url(#top)"/>
     <path d="M16 39 48 57 48 111 16 93Z" fill="url(#side)"/>
     <path d="M16 93 48 111 84 132 130 106 158 123 84 166 16 127Z" fill="url(#bottom)"/>
-    <path d="M48 57 84 36 84 66 48 87Z" fill="#0876DB"/>
+    <path d="M48 57 84 36 84 66 48 87Z" fill="#1474D4"/>
     <path d="M48 87 84 66 84 132 48 111Z" fill="#0B4FAE"/>
-    <path d="M48 111 84 132 130 106 130 123 84 150 48 129Z" fill="#0B5CCB"/>
+    <path d="M48 111 84 132 130 106 130 123 84 150 48 129Z" fill="#0B66C8"/>
     <path d="M72 73 98 58 124 73 98 88Z" fill="url(#cubeTop)"/>
-    <path d="M72 73 98 88 98 119 72 104Z" fill="#0A8FBC"/>
+    <path d="M72 73 98 88 98 119 72 104Z" fill="#0B66C8"/>
     <path d="M98 88 124 73 124 104 98 119Z" fill="#1187FF"/>
   </g>
   <text x="198" y="76" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="66" font-weight="800" letter-spacing="1" fill="#12345A">CUBI</text>
