@@ -37,5 +37,5 @@ test("CUBI logos use the approved reference palette", () => {
 test("only one canonical CUBI logo file is referenced", () => {
   assert.match(primaryLogoLockup, /CUBI/);
   assert.match(primaryLogoLockup, /PLAN\. CONTROL\. BUILD SMARTER\./);
-  assert.match(primaryLogoLockup, /M 100 0|M100 0/);
+  assert.match(primaryLogoLockup, /M84 3 158 45/);
 });
