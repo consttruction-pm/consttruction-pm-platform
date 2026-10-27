@@ -179,7 +179,7 @@ function renderLanding(container: HTMLElement): void {
   container.innerHTML = `
     <div class="cubi-reference-home cubi-exact-home" id="home">
       <header class="cubi-exact-header">
-        <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home"><img src="./cubi-platform-logo-primary.svg" width="150" height="42" alt="CUBI Platform — Plan. Control. Build Smarter." /></a>
+        <a class="cubi-exact-brand" href="./" aria-label="CUBI Platform home"><img src="./cubi-platform-logo-primary.svg" width="180" height="60" alt="CUBI Platform — Plan. Control. Build Smarter." /></a>
         <nav class="cubi-exact-nav" aria-label="Primary navigation">
           <a class="is-active" href="#home">${t.nav[0]}</a><a href="./platform/">${t.nav[1]}</a><a href="./solutions/">${t.nav[2]}</a><a href="./resources/">${t.nav[3]}</a>
         </nav>
