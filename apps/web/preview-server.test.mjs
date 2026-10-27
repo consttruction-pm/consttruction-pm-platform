@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { resolveRequestFile } from "./preview-server.mjs";
 
@@ -55,4 +55,22 @@ test("preview resolver serves the canonical assistant avatar from the public ass
   const resolved = portable(resolveRequestFile("/cubi-assistant-avatar.svg"));
   assert.ok(resolved?.endsWith("/apps/web/public/cubi-assistant-avatar.svg"));
   assert.ok(resolved && existsSync(resolved), "assistant avatar asset must exist at the resolved path");
+});
+
+
+test("every public page and the workspace shell load the shared floating assistant", () => {
+  for (const route of ["/", "/platform/", "/solutions/", "/resources/", "/contact/", "/app"]) {
+    const resolved = resolveRequestFile(route);
+    assert.ok(resolved && existsSync(resolved), "Expected a page for " + route);
+    assert.match(
+      readFileSync(resolved, "utf8"),
+      /global-assistant-launcher\\.js/,
+      "Missing assistant launcher script on " + route,
+    );
+  }
+});
+
+test("preview resolver maps the shared floating assistant bundle to the compiled Web module", () => {
+  const resolved = portable(resolveRequestFile("/dist/global-assistant-launcher.js"));
+  assert.ok(resolved?.endsWith("/apps/web/dist/web/src/global-assistant-launcher.js"));
 });
