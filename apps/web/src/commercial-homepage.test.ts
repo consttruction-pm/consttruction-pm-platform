@@ -98,6 +98,8 @@ test("homepage navigation and footer connect to real public routes", () => {
   assert.match(landing, /\.\/platform\/#project-controls/);
   assert.match(landing, /\.\/solutions\/#construction-teams/);
   assert.match(landing, /\.\/resources\/#documentation/);
+  assert.match(landing, /pricingHref = locale === "fa"/);
+  assert.match(landing, /href="\$\{pricingHref\}"/);
 });
 
 test("standalone public pages have unique metadata and expected content", () => {
@@ -106,6 +108,8 @@ test("standalone public pages have unique metadata and expected content", () => 
     ["public/solutions/index.html", "CUBI Solutions | Construction Project Delivery", "construction-teams"],
     ["public/resources/index.html", "CUBI Resources | Product Overview and Documentation", "documentation"],
     ["public/contact/index.html", "Contact CUBI | Account Access and Product Information", "Direct contact channel"],
+    ["public/pricing/index.html", "CUBI Pro Monthly | Pricing and Checkout", "month-quantity"],
+    ["public/fa/pricing/index.html", "اشتراک ماهانه Pro کوبی | قیمت و پرداخت", "month-quantity"],
   ];
   for (const [path, title, marker] of pages) {
     const html = readFileSync(join(root, path), "utf8");
@@ -186,8 +190,8 @@ test("one assistant entry owns keyboard dismissal, artwork failure and viewport 
 test("approved primary logo uses the current canonical cube mark, teal center structure and wordmark", () => {
   assert.match(primaryLogo, /CUBI Platform/);
   assert.match(primaryLogo, /Plan\. Control\. Build Smarter\./);
-  assert.match(primaryLogo, /<path d="M126 0 244 68/);
-  assert.match(primaryLogo, /stop-color="#26E0D0"/);
+  assert.match(primaryLogo, /<path d="M250 109L156 62/);
+  assert.match(primaryLogo, /stop-color="#2CC5EB"/);
   assert.match(primaryLogo, /viewBox="0 0 1000 330"/);
 });
 

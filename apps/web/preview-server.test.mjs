@@ -28,6 +28,11 @@ test("preview resolver strips query strings", () => {
   );
 });
 
+test("preview resolver maps the checkout module into the built web output", () => {
+  const resolved = portable(resolveRequestFile("/dist/pro-checkout.js"));
+  assert.ok(resolved?.endsWith("/apps/web/dist/web/src/pro-checkout.js"));
+});
+
 test("preview resolver maps built web output under /dist", () => {
   const resolved = resolveRequestFile("/dist/main.js?cache=1");
   assert.ok(portable(resolved)?.endsWith("apps/web/dist/web/src/main.js"));
@@ -44,7 +49,7 @@ test("preview resolver rejects path traversal outside the preview roots", () => 
 });
 
 test("preview resolver serves public marketing pages with and without trailing slash", () => {
-  for (const route of ["/platform/", "/platform", "/solutions/", "/resources/", "/contact/"]) {
+  for (const route of ["/platform/", "/platform", "/solutions/", "/pricing/", "/pricing", "/resources/", "/contact/"]) {
     const resolved = portable(resolveRequestFile(route));
     assert.ok(resolved?.endsWith("/index.html"), "Expected " + route + " to resolve to index.html");
     assert.ok(resolved?.includes("/public/"), "Expected " + route + " to resolve from public assets");
@@ -59,7 +64,7 @@ test("preview resolver serves the canonical assistant avatar from the public ass
 
 
 test("preview resolver serves the Persian language routes as real documents", () => {
-  for (const route of ["/fa/", "/fa", "/fa/index.html", "/fa/platform/", "/fa/solutions/", "/fa/resources/", "/fa/contact/"]) {
+  for (const route of ["/fa/", "/fa", "/fa/index.html", "/fa/platform/", "/fa/solutions/", "/fa/pricing/", "/fa/pricing", "/fa/resources/", "/fa/contact/"]) {
     const resolved = portable(resolveRequestFile(route));
     assert.ok(resolved?.endsWith("/index.html"), "Expected " + route + " to resolve to index.html");
     assert.ok(resolved?.includes("/public/fa/"), "Expected " + route + " to resolve from the Persian documents");
@@ -71,6 +76,7 @@ test("the language twins describe themselves and link to each other", () => {
   const pairs = [
     ["/platform/", "/fa/platform/"],
     ["/solutions/", "/fa/solutions/"],
+    ["/pricing/", "/fa/pricing/"],
     ["/resources/", "/fa/resources/"],
     ["/contact/", "/fa/contact/"],
   ];
@@ -93,8 +99,8 @@ test("the language twins describe themselves and link to each other", () => {
 
 test("every public page and the workspace shell load the shared floating assistant", () => {
   for (const route of [
-    "/", "/platform/", "/solutions/", "/resources/", "/contact/",
-    "/fa/", "/fa/platform/", "/fa/solutions/", "/fa/resources/", "/fa/contact/",
+    "/", "/platform/", "/solutions/", "/pricing/", "/resources/", "/contact/",
+    "/fa/", "/fa/platform/", "/fa/solutions/", "/fa/pricing/", "/fa/resources/", "/fa/contact/",
     "/app",
   ]) {
     const resolved = resolveRequestFile(route);
