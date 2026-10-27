@@ -157,8 +157,8 @@ def test_real_preview_assistant_proposes_then_approves_creates_and_calculates_pr
     monkeypatch.delenv("CUBI_PREVIEW_PRIVATE_ACCESS_TOKEN", raising=False)
     monkeypatch.setattr(
         preview_runtime_module,
-        "OpenAICompatibleChatProvider",
-        ProviderFactory,
+        "build_ai_chat_provider_from_environment",
+        ProviderFactory.from_environment,
     )
 
     runtime = open_preview_runtime(
