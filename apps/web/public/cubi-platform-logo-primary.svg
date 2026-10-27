@@ -1,22 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 330" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" role="img" aria-labelledby="title desc">
   <title id="title">CUBI Platform — Construction &amp; Building Intelligence</title>
-  <desc id="desc">Primary CUBI logo: connected geometric blue cube-C mark with a distinct teal inner structure, wordmark, descriptor, and tagline.</desc>
-  <g transform="translate(24 20)">
-    <path d="M84 3 158 45 119 67 84 47 45 69 7 47Z" fill="#1689FF"/>
+  <desc id="desc">CUBI Platform primary logo with a blue C-shaped cube mark, teal center cube, wordmark, descriptor and tagline.</desc>
+  <defs>
+    <linearGradient id="cubeTop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1689FF"/><stop offset="1" stop-color="#0B4EA4"/></linearGradient>
+    <linearGradient id="cubeSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#19C7D4"/><stop offset="1" stop-color="#087F8C"/></linearGradient>
+  </defs>
+  <g transform="translate(8 5) scale(.64)">
+    <path d="M84 3 158 45 119 67 84 47 45 69 7 47Z" fill="url(#cubeTop)"/>
     <path d="M7 47 45 69 45 158 7 136Z" fill="#0B4EA4"/>
     <path d="M7 136 45 158 84 181 84 225 7 180Z" fill="#0B4EA4"/>
     <path d="M45 69 84 47 84 92 59 107 59 166 45 158Z" fill="#1474D4"/>
     <path d="M84 47 119 67 119 108 84 129 84 181 59 166 59 107 84 92Z" fill="#2C9AF4"/>
-    <path d="M119 67 158 45 158 86 119 108Z" fill="#19C7D4"/>
-    <path d="M119 108 142 95 142 170 119 183Z" fill="#19C7D4"/>
+    <path d="M119 67 158 45 158 86 119 108Z" fill="url(#cubeSide)"/>
+    <path d="M119 108 142 95 142 170 119 183Z" fill="url(#cubeSide)"/>
     <path d="M84 181 119 160 119 183 84 204Z" fill="#0B66C8"/>
-    <path d="M84 204 119 183 158 160 158 204 84 247 84 225 7 180 7 136 45 158Z" fill="#0B4EA4" opacity=".98"/>
+    <path d="M84 204 119 183 158 160 158 204 84 247 84 225 7 180 7 136 45 158Z" fill="#0B4EA4"/>
     <path d="M84 92 100 101 100 143 84 153Z" fill="#102B4D"/>
   </g>
   <g fill="#102B4D" font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif">
-    <text x="230" y="120" font-size="108" font-weight="800" letter-spacing="1.5">CUBI</text>
-    <text x="233" y="183" font-size="58" font-weight="300" letter-spacing="5">Platform</text>
-    <text x="236" y="225" font-size="21" font-weight="400" letter-spacing="2.1">Construction &amp; Building Intelligence</text>
-    <text x="236" y="277" font-size="24" font-weight="400" letter-spacing="2.1">PLAN. CONTROL. BUILD SMARTER.</text>
+    <text x="142" y="63" font-size="52" font-weight="800" letter-spacing=".5">CUBI</text>
+    <text x="144" y="96" font-size="27" font-weight="300" letter-spacing="2.2">Platform</text>
+    <text x="145" y="119" font-size="10.2" font-weight="400" letter-spacing=".35">Construction &amp; Building Intelligence</text>
+    <text x="145" y="145" font-size="11.5" font-weight="600" letter-spacing=".5">PLAN. CONTROL. BUILD SMARTER.</text>
   </g>
 </svg>
