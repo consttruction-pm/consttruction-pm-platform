@@ -223,42 +223,7 @@ function renderLanding(container: HTMLElement): void {
         ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}
         <div class="cubi-footer-social"><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>
-      <div class="cubi-assistant-launcher" data-cubi-assistant-entry>
-        <section class="cubi-assistant-popover" id="cubi-assistant-popover" role="dialog" aria-modal="false" aria-labelledby="cubi-assistant-title" aria-describedby="cubi-assistant-description" hidden>
-          <header class="cubi-assistant-popover-header">
-            <img src="${cubiAssistantAvatarUrl()}" width="52" height="52" alt="" aria-hidden="true" />
-            <div class="cubi-assistant-popover-heading">
-              <strong id="cubi-assistant-title">${t.assistantTitle}</strong>
-              <span>${t.assistantSubtitle}</span>
-            </div>
-            <button class="cubi-assistant-close" id="cubi-assistant-close" type="button" aria-label="${t.assistantClose}">×</button>
-          </header>
-          <p id="cubi-assistant-description">${t.assistantDescription}</p>
-          <a class="cubi-assistant-workspace-link" href="./app/">${t.assistantWorkspaceAction}</a>
-        </section>
-        <button class="cubi-assistant-launcher-button" id="cubi-assistant-launcher" type="button" aria-controls="cubi-assistant-popover" aria-expanded="false" aria-label="${t.assistantTitle}">
-          <img src="${cubiAssistantAvatarUrl()}" width="52" height="52" alt="" aria-hidden="true" />
-          <span>${t.assistantTitle}</span>
-        </button>
-      </div>
-    </div>`;
-  const assistantLauncher = document.getElementById("cubi-assistant-launcher");
-  const assistantPopover = document.getElementById("cubi-assistant-popover");
-  const assistantClose = document.getElementById("cubi-assistant-close");
-  const setAssistantPopoverOpen = (open: boolean): void => {
-    if (!assistantLauncher || !assistantPopover) return;
-    assistantPopover.hidden = !open;
-    assistantLauncher.setAttribute("aria-expanded", String(open));
-    if (open) assistantClose?.focus();
-    else assistantLauncher.focus();
-  };
-  assistantLauncher?.addEventListener("click", () => {
-    setAssistantPopoverOpen(assistantLauncher?.getAttribute("aria-expanded") !== "true");
-  });
-  assistantClose?.addEventListener("click", () => setAssistantPopoverOpen(false));
-  assistantPopover?.addEventListener("keydown", (event: KeyboardEvent) => {
-    if (event.key === "Escape") setAssistantPopoverOpen(false);
-  });
+      </div>`;
   document.getElementById("cubi-language")?.addEventListener("click", () => {
     const available = getAvailableWorkspaceLocales();
     const index = available.indexOf(locale);
