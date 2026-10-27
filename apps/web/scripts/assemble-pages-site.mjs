@@ -43,6 +43,7 @@ cpSync(join(root, "public/cubi-platform-logo-primary.svg"), join(output, "app/cu
 // Fix the TypeScript build paths for the root and workspace entry points.
 let homepage = readFileSync(join(output, "index.html"), "utf8")
   .replaceAll("./dist/landing-entry.js", "./dist/web/src/landing-entry.js")
+  .replaceAll("./dist/global-assistant-launcher.js", "./dist/web/src/global-assistant-launcher.js")
   .replaceAll("./styles.css", "./styles.css");
 homepage = homepage.replace(/<link rel="canonical" href="\.\/"\s*\/>/, '<link rel="canonical" href="' + baseUrl + '/" />');
 homepage = homepage.replace(/<meta property="og:url" content="\.\/"\s*\/>/, '<meta property="og:url" content="' + baseUrl + '/" />');
@@ -53,6 +54,7 @@ writeFileSync(join(output, "index.html"), homepage);
 
 let workspace = readFileSync(join(output, "app/index.html"), "utf8")
   .replaceAll("./dist/landing-entry.js", "../dist/web/src/landing-entry.js")
+  .replaceAll("./dist/global-assistant-launcher.js", "../dist/web/src/global-assistant-launcher.js")
   .replaceAll("./styles.css", "../styles.css")
   .replace(/<title>.*<\/title>/, "<title>CUBI Platform | Workspace</title>")
   .replace(/<meta name="description" content="[^"]*"\s*\/>/, '<meta name="description" content="CUBI Platform workspace." />')
@@ -66,7 +68,9 @@ writeFileSync(join(output, "app/index.html"), workspace);
 // Resolve deployment-specific URL placeholders in all public HTML documents.
 for (const file of listHtml(output)) {
   if (file.startsWith(join(output, "app") + "/")) continue;
-  const html = readFileSync(file, "utf8").replaceAll("__CUBI_BASE_URL__", baseUrl);
+  const html = readFileSync(file, "utf8")
+    .replaceAll("../dist/global-assistant-launcher.js", "../dist/web/src/global-assistant-launcher.js")
+    .replaceAll("__CUBI_BASE_URL__", baseUrl);
   writeFileSync(file, html);
 }
 
@@ -91,7 +95,7 @@ writeFileSync(join(output, ".nojekyll"), "");
 
 for (const file of [
   "index.html", "app/index.html", "styles.css", "dist/web/src/landing-entry.js",
-  "dist/web/src/landing.js", "cubi-platform-logo-primary.svg", "cubi-assistant-avatar.svg", "app/cubi-platform-logo-primary.svg",
+  "dist/web/src/landing.js", "dist/web/src/global-assistant-launcher.js", "cubi-platform-logo-primary.svg", "cubi-assistant-avatar.svg", "app/cubi-platform-logo-primary.svg",
   "platform/index.html", "solutions/index.html", "resources/index.html", "contact/index.html",
   "robots.txt", "sitemap.xml", ".nojekyll",
 ]) assert(existsSync(join(output, file)), "missing " + file);
@@ -102,6 +106,12 @@ const expectedTitles = new Map([
   ["resources/index.html", "CUBI Resources | Product Overview and Documentation"],
   ["contact/index.html", "Contact CUBI | Account Access and Product Information"],
 ]);
+for (const file of listHtml(output)) {
+  assert(
+    readFileSync(file, "utf8").includes("global-assistant-launcher.js"),
+    "global floating assistant launcher missing from " + file,
+  );
+}
 for (const [path, title] of expectedTitles) {
   const html = readFileSync(join(output, path), "utf8");
   assert(html.includes("<title>" + title + "</title>"), path + " title mismatch");
