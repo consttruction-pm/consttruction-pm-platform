@@ -1,0 +1,709 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/consttruction-pm/consttruction-pm-platform/blob/main/shared/contracts/cubi-identity-team-messaging-entitlements.v1.schema.json",
+  "title": "CUBI Identity, Entitlement, Team and Messaging Contracts",
+  "description": "Versioned cross-client contract definitions. This schema does not by itself establish that production persistence or endpoints exist.",
+  "type": "object",
+  "$defs": {
+    "cubiPublicId": {
+      "type": "string",
+      "pattern": "^CUBI-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$",
+      "description": "Immutable, random, non-sequential public identifier; internal database IDs must remain separate."
+    },
+    "username": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "description": "Display spelling of the unique username. Canonical Unicode normalization, case folding, disallowed characters and reserved names are enforced by the application contract and database."
+    },
+    "plan": {
+      "type": "string",
+      "enum": [
+        "free",
+        "pro_monthly"
+      ],
+      "description": "Only supported subscription plans. Annual, Team, single-project and multi-project purchase tiers are intentionally excluded."
+    },
+    "subscriptionStatus": {
+      "type": "string",
+      "enum": [
+        "inactive",
+        "pending_payment",
+        "active",
+        "past_due",
+        "grace",
+        "cancelled",
+        "expired"
+      ]
+    },
+    "entitlement": {
+      "type": "object",
+      "required": [
+        "account_id",
+        "plan",
+        "status",
+        "effective_at"
+      ],
+      "properties": {
+        "account_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plan": {
+          "$ref": "#/$defs/plan"
+        },
+        "status": {
+          "$ref": "#/$defs/subscriptionStatus"
+        },
+        "monthly_unit_price_minor": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Configured price in the smallest currency unit; current working price is USD 9.99/month."
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "effective_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "team_creation_allowed": {
+          "type": "boolean",
+          "description": "Derived from active entitlement plus server-side authorization; never trusted from a client."
+        },
+        "policy_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "monthPurchaseRequest": {
+      "type": "object",
+      "required": [
+        "plan",
+        "month_quantity",
+        "idempotency_key"
+      ],
+      "properties": {
+        "plan": {
+          "const": "pro_monthly"
+        },
+        "month_quantity": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of monthly units in a single checkout. This is a quantity, not an annual tier."
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "paymentEvent": {
+      "type": "object",
+      "required": [
+        "payment_event_id",
+        "account_id",
+        "provider_transaction_id",
+        "plan",
+        "month_quantity",
+        "status",
+        "received_at"
+      ],
+      "properties": {
+        "payment_event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "account_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider_transaction_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plan": {
+          "const": "pro_monthly"
+        },
+        "month_quantity": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "succeeded",
+            "failed",
+            "cancelled",
+            "rejected_duplicate"
+          ]
+        },
+        "amount_minor": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "previous_expiry": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "resulting_expiry": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "received_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "team": {
+      "type": "object",
+      "required": [
+        "team_id",
+        "name",
+        "owner_user_id",
+        "status",
+        "revision",
+        "created_at"
+      ],
+      "properties": {
+        "team_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "owner_user_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "suspended",
+            "archived"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "teamRole": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "admin",
+        "project_manager",
+        "approver",
+        "field_worker",
+        "member",
+        "viewer"
+      ]
+    },
+    "membership": {
+      "type": "object",
+      "required": [
+        "membership_id",
+        "team_id",
+        "user_id",
+        "role",
+        "status",
+        "created_at"
+      ],
+      "properties": {
+        "membership_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "team_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "user_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "$ref": "#/$defs/teamRole"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "suspended",
+            "removed"
+          ]
+        },
+        "scope_project_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "revoked_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "invitation": {
+      "type": "object",
+      "required": [
+        "invitation_id",
+        "team_id",
+        "target_cubi_id",
+        "invited_by_user_id",
+        "role",
+        "status",
+        "expires_at",
+        "created_at"
+      ],
+      "properties": {
+        "invitation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "team_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_cubi_id": {
+          "$ref": "#/$defs/cubiPublicId"
+        },
+        "invited_by_user_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "$ref": "#/$defs/teamRole"
+        },
+        "scope_project_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "accepted",
+            "declined",
+            "revoked",
+            "expired"
+          ]
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decided_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "conversation": {
+      "type": "object",
+      "required": [
+        "conversation_id",
+        "team_id",
+        "kind",
+        "created_by_user_id",
+        "created_at"
+      ],
+      "properties": {
+        "conversation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "team_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "direct",
+            "group"
+          ]
+        },
+        "member_user_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 2,
+          "uniqueItems": true
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "created_by_user_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_message_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "message": {
+      "type": "object",
+      "required": [
+        "message_id",
+        "conversation_id",
+        "team_id",
+        "sender_user_id",
+        "body",
+        "created_at",
+        "revision",
+        "status"
+      ],
+      "properties": {
+        "message_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "conversation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "team_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sender_user_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attachment_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "edited_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "sent",
+            "edited",
+            "tombstoned"
+          ]
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": false
+    },
+    "readCursor": {
+      "type": "object",
+      "required": [
+        "conversation_id",
+        "user_id",
+        "last_read_at"
+      ],
+      "properties": {
+        "conversation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "user_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "last_read_message_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_read_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "storageUsage": {
+      "type": "object",
+      "required": [
+        "scope_type",
+        "scope_id",
+        "used_bytes",
+        "quota_bytes",
+        "measured_at",
+        "policy_version"
+      ],
+      "properties": {
+        "scope_type": {
+          "type": "string",
+          "enum": [
+            "account",
+            "team",
+            "project"
+          ]
+        },
+        "scope_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "used_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "quota_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Null means no numeric quota has been configured; it must not be presented as unlimited unless policy explicitly says so."
+        },
+        "reserved_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "measured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "policy_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "formSubmissionDecision": {
+      "type": "object",
+      "required": [
+        "submission_id",
+        "project_id",
+        "form_id",
+        "submitted_by_user_id",
+        "status",
+        "revision",
+        "updated_at"
+      ],
+      "properties": {
+        "submission_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "form_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "submitted_by_user_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "submitted",
+            "approved",
+            "rejected",
+            "changes_requested"
+          ]
+        },
+        "decided_by_user_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decision_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "auditEvent": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "actor_user_id",
+        "action",
+        "scope_type",
+        "scope_id",
+        "occurred_at",
+        "outcome"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_user_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope_type": {
+          "type": "string",
+          "enum": [
+            "account",
+            "team",
+            "project",
+            "conversation",
+            "subscription",
+            "storage"
+          ]
+        },
+        "scope_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "allowed",
+            "denied",
+            "success",
+            "failure"
+          ]
+        },
+        "correlation_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
