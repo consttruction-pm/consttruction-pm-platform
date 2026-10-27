@@ -1816,8 +1816,8 @@ th {
 
 /* Exact CUBI homepage reference — 2026-10-07 */
 .cubi-reference-home{min-height:100vh;background:#fff;color:#132B4A;font-family:"Vazirmatn",Inter,"Segoe UI",system-ui,sans-serif}
-.cubi-exact-header{height:72px;display:flex;align-items:center;padding:0 7.1%;gap:2.6rem;background:#fff;border-bottom:1px solid #e6ebf1;position:relative;z-index:20}
-.cubi-exact-brand{display:flex;align-items:center;flex:0 0 108px;text-decoration:none}.cubi-exact-brand img{width:150px;height:42px;object-fit:contain}
+.cubi-exact-header{height:82px;display:flex;align-items:center;padding:0 7.1%;gap:2.1rem;background:#fff;border-bottom:1px solid #e6ebf1;position:relative;z-index:20}
+.cubi-exact-brand{display:flex;align-items:center;flex:0 0 180px;text-decoration:none}.cubi-exact-brand img{display:block;width:180px;height:60px;object-fit:contain}
 .cubi-exact-nav{display:flex;align-items:center;gap:2.6rem;height:100%;margin-left:2rem}.cubi-exact-nav a{height:100%;display:flex;align-items:center;color:#34445A;text-decoration:none;font-size:12px;font-weight:600;position:relative}.cubi-exact-nav a.is-active{color:#1976D2}.cubi-exact-nav a.is-active:after{content:"";position:absolute;bottom:0;left:0;right:0;height:2px;background:#1976D2}
 .cubi-exact-actions{margin-left:auto;display:flex;align-items:center;gap:.9rem}.cubi-exact-language{border:0;background:transparent;color:#34445A;font-size:12px;cursor:pointer;padding:.45rem}.cubi-exact-language b{margin-left:.25rem}.cubi-exact-signin,.cubi-exact-start{font-size:12px;font-weight:700;text-decoration:none;padding:.72rem 1.15rem;border-radius:7px}.cubi-exact-signin{color:#253A52;background:#fff;border:1px solid #D9E1EA}.cubi-exact-start{color:#fff;background:#1976D2;border:1px solid #1976D2;box-shadow:0 4px 12px rgba(25,118,210,.18)}
 .cubi-exact-hero{min-height:500px;display:grid;grid-template-columns:45% 55%;align-items:center;gap:0;padding:0 7.1%;position:relative;overflow:hidden;background:linear-gradient(90deg,rgba(5,33,63,.92) 0%,rgba(5,33,63,.78) 38%,rgba(5,33,63,.16) 72%),url("./cubi-hero-field.svg") center 40%/cover no-repeat;color:#fff}
