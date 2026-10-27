@@ -199,6 +199,10 @@ const expectedTitles = new Map([
   ["fa/pricing/index.html", "اشتراک ماهانه Pro کوبی | قیمت و پرداخت"],
 ]);
 for (const file of listHtml(output)) {
+  // When a separate API-backed demo is configured, /app/ is only a redirect
+  // document; it is intentionally not the workspace shell and should not mount
+  // the assistant while the browser navigates away.
+  if (workspaceUrl && file === join(output, "app/index.html")) continue;
   assert(
     readFileSync(file, "utf8").includes("global-assistant-launcher.js"),
     "global floating assistant launcher missing from " + file,
