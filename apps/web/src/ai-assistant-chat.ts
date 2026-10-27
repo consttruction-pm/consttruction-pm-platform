@@ -15,6 +15,7 @@ type ChatLabels = {
   proposalNotice: string;
   requestFailed: string;
   serverUnavailable: string;
+  assistantNotConfigured: string;
   staleRevision: string;
   empty: string;
   privacyNotice: string;
@@ -65,6 +66,7 @@ const fallbackLabels: Record<"en" | "fa", ChatLabels> = {
     proposalNotice: "A proposal was saved. Review it in the Actions panel below before approving or executing it.",
     requestFailed: "The request failed. Check the proposal list before sending the same request again.",
     serverUnavailable: "The assistant provider is not configured or is temporarily unavailable.",
+    assistantNotConfigured: "The assistant is not enabled in this environment. The server-side provider and authorized action runtime must be configured before retrying.",
     staleRevision: "The project changed. Refresh the workspace before sending this request again.",
     empty: "Your conversation appears here.",
     privacyNotice: "When enabled, your message and recent conversation context are sent to the server-configured AI provider. Do not include passwords, access tokens, or unrelated sensitive details.",
@@ -82,6 +84,7 @@ const fallbackLabels: Record<"en" | "fa", ChatLabels> = {
     proposalNotice: "پیشنهاد ذخیره شد. پیش از تأیید یا اجرا، آن را در پنل اقدامات بررسی کنید.",
     requestFailed: "درخواست ناموفق بود. پیش از ارسال دوباره، فهرست پیشنهادها را بررسی کنید.",
     serverUnavailable: "ارائه‌دهنده دستیار پیکربندی نشده یا موقتاً در دسترس نیست.",
+    assistantNotConfigured: "دستیار در این محیط فعال نشده است. ابتدا ارائه‌دهنده هوش مصنوعی و محیط اجرای مجاز عملیات را در سمت سرور پیکربندی کنید.",
     staleRevision: "پروژه تغییر کرده است. فضای کار را تازه‌سازی کنید و سپس درخواست را دوباره بفرستید.",
     empty: "گفت‌وگو در این قسمت نمایش داده می‌شود.",
     privacyNotice: "در صورت فعال بودن، پیام شما و بخش اخیر گفت‌وگو به ارائه‌دهنده هوش مصنوعی پیکربندی‌شده در سرور ارسال می‌شود. گذرواژه، کلید دسترسی یا اطلاعات حساس نامرتبط را وارد نکنید.",
@@ -237,8 +240,8 @@ export function mountAIAssistantChatPanel(
   };
 
   const friendlyError = (code: string): string => {
-    if (code === "ROUTE_NOT_FOUND" ||
-        code === "AI_ASSISTANT_PROVIDER_UNAVAILABLE" ||
+    if (code === "AI_ASSISTANT_NOT_CONFIGURED") return t.assistantNotConfigured;
+    if (code === "AI_ASSISTANT_PROVIDER_UNAVAILABLE" ||
         code === "AI_ASSISTANT_PROVIDER_RATE_LIMITED" ||
         code === "AI_ASSISTANT_PROVIDER_CONFIGURATION_INVALID") return t.serverUnavailable;
     if (code === "AI_ASSISTANT_STALE_REVISION") return t.staleRevision;
