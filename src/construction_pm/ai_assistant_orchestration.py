@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import re
@@ -238,6 +239,155 @@ class OpenAICompatibleChatProvider:
         return result
 
 
+
+
+class LocalOllamaChatProvider:
+    """Local-only Ollama chat adapter. Prompts never leave a loopback endpoint."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str = "http://127.0.0.1:11434",
+        model: str,
+        timeout_seconds: float = 120.0,
+        opener: Callable[..., object] | None = None,
+    ) -> None:
+        if not isinstance(base_url, str) or not base_url.strip():
+            raise AIAssistantProviderError("AI_ASSISTANT_LOCAL_CONFIGURATION_INVALID")
+        try:
+            parsed = urlparse(base_url.strip())
+            hostname = parsed.hostname
+            local_host = hostname == "localhost" or (
+                hostname is not None and ipaddress.ip_address(hostname).is_loopback
+            )
+        except (ValueError, TypeError):
+            local_host = False
+            parsed = None
+        if (
+            parsed is None
+            or parsed.scheme not in {"http", "https"}
+            or not parsed.netloc
+            or not local_host
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise AIAssistantProviderError("AI_ASSISTANT_LOCAL_ENDPOINT_MUST_BE_LOOPBACK")
+        if not isinstance(model, str) or not model.strip() or len(model.strip()) > 200:
+            raise AIAssistantProviderError("AI_ASSISTANT_LOCAL_MODEL_REQUIRED")
+        if (
+            isinstance(timeout_seconds, bool)
+            or not isinstance(timeout_seconds, (int, float))
+            or not 1 <= timeout_seconds <= 300
+        ):
+            raise AIAssistantProviderError("AI_ASSISTANT_LOCAL_CONFIGURATION_INVALID")
+        self._endpoint = base_url.strip().rstrip("/") + "/api/chat"
+        self._model = model.strip()
+        self._timeout_seconds = float(timeout_seconds)
+        self._opener = opener if opener is not None else build_opener(_RejectProviderRedirects()).open
+
+    @classmethod
+    def from_environment(
+        cls,
+        *,
+        prefix: str = "CUBI_AI_LOCAL_",
+        opener: Callable[..., object] | None = None,
+    ) -> "LocalOllamaChatProvider":
+        timeout_raw = os.environ.get(f"{prefix}TIMEOUT_SECONDS", "120")
+        try:
+            timeout_seconds = float(timeout_raw)
+        except (TypeError, ValueError) as exc:
+            raise AIAssistantProviderError("AI_ASSISTANT_LOCAL_CONFIGURATION_INVALID") from exc
+        return cls(
+            base_url=os.environ.get(f"{prefix}BASE_URL", "http://127.0.0.1:11434"),
+            model=os.environ.get(f"{prefix}MODEL", ""),
+            timeout_seconds=timeout_seconds,
+            opener=opener,
+        )
+
+    def complete_json(
+        self,
+        *,
+        system_prompt: str,
+        user_message: str,
+        language: str,
+        history: tuple[Mapping[str, str], ...] = (),
+    ) -> Mapping[str, object]:
+        if (
+            not isinstance(system_prompt, str)
+            or not system_prompt.strip()
+            or not isinstance(user_message, str)
+            or not 1 <= len(user_message.strip()) <= MAX_ASSISTANT_MESSAGE_CHARS
+            or not is_valid_language_tag(language)
+            or len(language) > 64
+        ):
+            raise AIAssistantProviderError("AI_ASSISTANT_REQUEST_INVALID")
+        normalized_history = _normalize_history(history)
+        messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
+        messages.extend(dict(entry) for entry in normalized_history)
+        messages.append({
+            "role": "user",
+            "content": json.dumps(
+                {"language": language.strip(), "request": user_message.strip()},
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
+        })
+        body = {
+            "model": self._model,
+            "stream": False,
+            "format": "json",
+            "options": {"temperature": 0, "num_predict": MAX_PROVIDER_OUTPUT_TOKENS},
+            "messages": messages,
+        }
+        request = Request(
+            self._endpoint,
+            data=json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            method="POST",
+        )
+        try:
+            response_context = self._opener(request, timeout=self._timeout_seconds)
+            with response_context as response:  # type: ignore[attr-defined]
+                raw = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
+        except HTTPError as exc:
+            if exc.code in {400, 404}:
+                raise AIAssistantProviderError("AI_ASSISTANT_LOCAL_MODEL_UNAVAILABLE") from exc
+            raise AIAssistantProviderError("AI_ASSISTANT_LOCAL_RUNTIME_UNAVAILABLE") from exc
+        except (URLError, TimeoutError, OSError) as exc:
+            raise AIAssistantProviderError("AI_ASSISTANT_LOCAL_RUNTIME_UNAVAILABLE") from exc
+        except Exception as exc:
+            raise AIAssistantProviderError("AI_ASSISTANT_LOCAL_RUNTIME_UNAVAILABLE") from exc
+        if not isinstance(raw, (bytes, bytearray)) or len(raw) > MAX_PROVIDER_RESPONSE_BYTES:
+            raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_RESPONSE_INVALID")
+        try:
+            envelope = json.loads(bytes(raw).decode("utf-8"))
+            content = envelope["message"]["content"]
+            result = json.loads(content)
+        except (UnicodeDecodeError, json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
+            raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_RESPONSE_INVALID") from exc
+        if not isinstance(result, dict):
+            raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_RESPONSE_INVALID")
+        return result
+
+
+def build_ai_chat_provider_from_environment(
+    *,
+    opener: Callable[..., object] | None = None,
+) -> AIChatProvider:
+    """Build CUBI's local-only assistant provider; never fall back to a cloud service.
+
+    The remote provider adapter remains available only to explicit legacy callers and is
+    not selected by this factory or by CUBI's production/preview composition.
+    """
+    selected = os.environ.get("CUBI_AI_PROVIDER", "local-ollama").strip().lower()
+    if selected != "local-ollama":
+        raise AIAssistantProviderError("AI_ASSISTANT_PROVIDER_MUST_BE_LOCAL")
+    return LocalOllamaChatProvider.from_environment(opener=opener)
+
+
 class AIAssistantTurnOrchestrator:
     """Turns one natural-language request into a reply or a validated action proposal only."""
 
@@ -391,5 +541,7 @@ __all__ = [
     "AIAssistantTurnResult",
     "is_valid_language_tag",
     "OpenAICompatibleChatProvider",
+    "LocalOllamaChatProvider",
+    "build_ai_chat_provider_from_environment",
     "AIAssistantTurnOrchestrator",
 ]
