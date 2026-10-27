@@ -138,7 +138,6 @@ def _validated_plan(payload: Mapping[str, object]) -> dict[str, object]:
         raise ValueError("PROJECT_PLAN_ACTIVITIES_INVALID")
     activities: list[dict[str, object]] = []
     activity_ids: set[str] = set()
-    wbs_by_activity: dict[str, str] = {}
     for row in activities_raw:
         if not isinstance(row, Mapping) or set(row) != {
             "activity_id", "name", "wbs", "duration_working_days"
@@ -153,7 +152,6 @@ def _validated_plan(payload: Mapping[str, object]) -> dict[str, object]:
             row.get("duration_working_days"), minimum=0, maximum=730, field="activity_duration"
         )
         activity_ids.add(activity_id)
-        wbs_by_activity[activity_id] = wbs
         activities.append({
             "activity_id": activity_id,
             "name": activity_name,
@@ -393,7 +391,7 @@ def build_project_plan_create_tool(
             "project_id": created.project_id,
             "project_name": str(plan["name"]),
             "project_revision": created.revision,
-            "wbs_group_count": len(set(str(value) for value in dict(plan["wbs_by_activity"]).values())),
+            "wbs_group_count": len(set(str(row["wbs"]) for row in plan["activities"])),
             "activity_count": len(plan["activities"]),
             "relationship_count": len(plan["relationships"]),
             "calendar_id": calendar_id,
