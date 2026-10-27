@@ -27,8 +27,8 @@ Do not design CUBI so that every assistant capability stops working when an exte
 | Deterministic daily/weekly/monthly/yearly reports and chart data | Yes | Authenticated query services, report templates, and typed chart/report contracts based on persisted data |
 | Persistent lessons, memory, provenance, full-text search, backup/restore | Yes | Versioned database/repositories and portable bundle tooling |
 | Public article fetch/ingestion | No AI key required for ordinary accessible public pages | Explicitly authorized network fetcher, source/copyright metadata, safe extraction and review workflow; internet access is still required |
-| Flexible multilingual understanding, free-form project interpretation, WBS/activity proposals, nuanced recommendations | Needs a language model or deliberately limited deterministic dialogue | Prefer a pluggable local model/runtime when no external key is desired; a remote model is optional and must be explicitly configured |
-| Semantic summarization of articles or ambiguous files | Model needed for high-quality flexible reasoning | Local model without a provider API key, or an explicitly approved remote provider |
+| Flexible multilingual understanding, free-form project interpretation, WBS/activity proposals, nuanced recommendations | Needs a language model or deliberately limited deterministic dialogue | CUBI product profile uses the local-only model/runtime; the provider factory rejects remote-provider selection |
+| Semantic summarization of articles or ambiguous files | Model needed for high-quality flexible reasoning | Local model only; if not provisioned, mark semantic summarization unavailable rather than using a remote fallback |
 
 **Important distinction:** “No external API key” does not mean “no model needed.” Strong, flexible natural-language understanding requires a model. CUBI's product profile must use a genuine local inference runtime for semantic reasoning; a local runtime requires pinned model assets, compatible resources and explicit installation. The product must not depend on an external AI API key, send prompts to a remote model or silently fall back to the cloud. If local inference is unavailable, deterministic tools must still work and semantic limitations must be explained.
 
@@ -164,7 +164,7 @@ All work below is P0 for the complete Engineering Intelligence Assistant release
 
 | Work package | Deliverable | Dependency / evidence gate |
 |---|---|---|
-| EI-01 Provider abstraction | Explicit capabilities, remote adapter, local-inference adapter, no-key behaviour, no cloud fallback, safe diagnostics and cost/resource controls | Model-provider contract tests, secret checks, capability matrix |
+| EI-01 Local provider abstraction | Local-only inference adapter, no-key behaviour, no cloud fallback, safe diagnostics and compute/resource controls | Model-provider contract tests, secret checks, capability matrix |
 | EI-02 Voice input | Click-to-record multilingual STT, transcript preview/edit, clear browser/local privacy behaviour | Persian/English and other declared-language audio fixtures, browser coverage, offline tests |
 | EI-03 File/document intake | Isolated upload/parsers, source provenance, normalized typed staging, mapping preview and errors | XLS/XLSX/DOCX/PDF/scan golden files, malformed/oversized/security fixtures |
 | EI-04 Schedule-file adapter | MPP/MPX/MSPDI import mapping through validated parser adapter | Version-specific fixture matrix, full field mapping/loss report, Java/package test, import reconciliation |
@@ -199,7 +199,7 @@ The Engineering Intelligence Assistant is not complete until a single integrated
 
 ## 9. Implementation status and anti-overclaim rule
 
-At the time this plan is added, the repo has a remote OpenAI-compatible assistant adapter, a browser SpeechRecognition adapter, a conversational chat panel, spreadsheet libraries, a domain-level learning-record contract and partial project-plan action tooling. This does **not** prove a complete no-key semantic assistant, wired speech UI, complete Word/PDF/OCR/MPP intake, complete project-wizard toolset, durable learning/research/publish loop, portable knowledge backup, or report/chart recommendation end to end.
+At the original plan baseline, the repo had a remote OpenAI-compatible assistant adapter, a browser SpeechRecognition adapter, a conversational chat panel, spreadsheet libraries, a domain-level learning-record contract and partial project-plan action tooling. The 2026-10-28 feature branch adds a loopback-only local Ollama adapter to the product factory, but this does **not** prove model/runtime provisioning, a full no-key semantic assistant, wired speech UI, complete Word/PDF/OCR/MPP intake, complete project-wizard toolset, durable learning/research/publish loop, portable knowledge backup, or report/chart recommendation end to end.
 
 Do not add all large optional runtimes or model weights to the default install merely to make a checklist look complete. Build the adapters and small vertical slices first, review dependency/license/supply-chain and offline packaging, pin supported versions, install into the intended target image, and run the actual integration tests. Every completion claim must cite the changed paths, exact commit, tests, real persisted read-back and any remaining restrictions.
 
