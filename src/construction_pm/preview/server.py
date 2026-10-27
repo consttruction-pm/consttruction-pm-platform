@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import hmac
 import json
 import os
 import sys
@@ -32,6 +33,7 @@ from .storage import (
 SESSION_COOKIE = "cp_session"
 LOGIN_PATH = "/preview/login"
 LOGOUT_PATH = "/preview/logout"
+PRIVATE_LOGIN_PATH = "/preview/private-login"
 HEALTH_PATH = "/preview/health"
 
 _ALLOWED_ROOT_FILES = {
@@ -78,12 +80,16 @@ def _safe_next(raw: object) -> str:
     return "/app"
 
 
-def _cookie_header(session: AuthenticatedSession) -> tuple[str, str]:
+def _cookie_header(
+    session: AuthenticatedSession,
+    *,
+    secure: bool = False,
+) -> tuple[str, str]:
     max_age = int(PREVIEW_SESSION_TTL.total_seconds())
-    value = (
-        f"{SESSION_COOKIE}={session.session_id}; Path=/; HttpOnly; SameSite=Lax; "
-        f"Max-Age={max_age}"
-    )
+    attributes = ["Path=/", "HttpOnly", "SameSite=Lax", f"Max-Age={max_age}"]
+    if secure:
+        attributes.append("Secure")
+    value = f"{SESSION_COOKIE}={session.session_id}; " + "; ".join(attributes)
     return "Set-Cookie", value
 
 
@@ -206,6 +212,8 @@ class PreviewApplication:
                 status, headers, body = _json(200, self._health())
             elif path == LOGIN_PATH:
                 status, headers, body = self._login(method, environ, session)
+            elif path == PRIVATE_LOGIN_PATH:
+                status, headers, body = self._private_login(method, environ)
             elif path == LOGOUT_PATH:
                 status, headers, body = self._logout(method, environ, session)
             elif path.startswith("/api/"):
@@ -296,9 +304,76 @@ class PreviewApplication:
         headers = {
             "Content-Type": "text/html; charset=utf-8",
             "Location": next_path,
-            "Set-Cookie": _cookie_header(created)[1],
+            "Set-Cookie": _cookie_header(created, secure=self._secure_request(environ))[1],
         }
         return 303, headers, b""
+
+    @staticmethod
+    def _secure_request(environ: Mapping[str, object]) -> bool:
+        forwarded = str(environ.get("HTTP_X_FORWARDED_PROTO", "") or "").strip().lower()
+        scheme = str(environ.get("wsgi.url_scheme", "") or "").strip().lower()
+        return forwarded == "https" or scheme == "https"
+
+    def _private_login(
+        self,
+        method: str,
+        environ: Mapping[str, object],
+    ) -> tuple[int, dict[str, str], bytes]:
+        expected = os.environ.get("CUBI_PREVIEW_PRIVATE_ACCESS_TOKEN", "").strip()
+        if not expected:
+            return _html(
+                404,
+                "<!doctype html><html><body><h1>Not found</h1>"
+                "<p>Private staging access is not configured.</p></body></html>",
+            )
+        if method == "GET":
+            return _html(200, self._private_login_page())
+        if method != "POST":
+            return _json(405, {"code": "METHOD_NOT_ALLOWED"})
+        length = _content_length(environ)
+        if length is None or length > 4096:
+            return _json(400, {"code": "PREVIEW_PRIVATE_LOGIN_REQUEST_INVALID"})
+        stream = environ.get("wsgi.input")
+        raw = stream.read(length) if length and hasattr(stream, "read") else b""
+        try:
+            values = parse_qs(raw.decode("utf-8"), keep_blank_values=True)
+        except UnicodeDecodeError:
+            return _json(400, {"code": "PREVIEW_PRIVATE_LOGIN_REQUEST_INVALID"})
+        candidate = str((values.get("access_token") or [""])[0])
+        if not candidate or not hmac.compare_digest(candidate, expected):
+            return _html(403, self._private_login_page(error="Access token is invalid."))
+        # The token is a staging owner gate, not a production identity system.
+        # Public visitors still receive Viewer-only sessions on the ordinary login route.
+        session = self.runtime.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+        _, cookie = _cookie_header(session, secure=self._secure_request(environ))
+        return 303, {
+            "Content-Type": "text/html; charset=utf-8",
+            "Location": "/app",
+            "Set-Cookie": cookie,
+        }, b""
+
+    @staticmethod
+    def _private_login_page(*, error: str | None = None) -> str:
+        error_block = (
+            f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
+        )
+        return f"""<!doctype html>
+<html lang="en" dir="ltr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CUBI private staging access</title><style>{_LOGIN_CSS}</style></head>
+<body><main class="card">
+<p class="eyebrow">CUBI · PRIVATE STAGING</p>
+<h1>Owner access</h1>
+<p class="lede">This is a protected test session for demo data, not a production account. Do not enter confidential or live project data.</p>
+{error_block}
+<form method="post" action="{PRIVATE_LOGIN_PATH}">
+<label for="access_token">Private access token</label>
+<input id="access_token" name="access_token" type="password" required maxlength="256" autocomplete="current-password">
+<button class="primary" type="submit">Open private workspace</button>
+</form>
+<p class="notice fa-note" lang="fa" dir="rtl">دسترسی خصوصی محیط آزمایشی؛ این ورود، حساب تولیدی نیست. اطلاعات محرمانه وارد نکنید.</p>
+<p class="meta"><a href="{LOGIN_PATH}">Return to public read-only demo</a></p>
+</main></body></html>"""
 
     def _logout(
         self,
@@ -452,6 +527,7 @@ class PreviewApplication:
 {error_block}
 <div class="personas">{''.join(cards)}</div>
 <p class="notice">{data_notice}</p>
+{('<p class="notice"><a href="' + PRIVATE_LOGIN_PATH + '">Owner access · private staging</a></p>') if os.environ.get("CUBI_PREVIEW_PRIVATE_ACCESS_TOKEN", "").strip() else ""}
 <p class="notice fa-note" lang="fa" dir="rtl">{fa_notice}</p>
 <p class="meta">Seed: cubi-preview-seed.v1 · <a href="/preview/health">health</a> · <a href="/">landing page</a></p>
 </main></body></html>"""
@@ -516,6 +592,7 @@ class PreviewApplication:
             413: "Payload Too Large",
             500: "Internal Server Error",
             502: "Bad Gateway",
+            503: "Service Unavailable",
         }
         return f"{status} {reasons.get(status, 'Response')}"
 
