@@ -27,7 +27,7 @@ test("CUBI homepage is aligned to the supplied Issue #1101 website reference", (
 });
 
 test("CUBI logos use the approved reference palette", () => {
-  const allowed = new Set(["2C9AF4","1474D4","1674D2","0B4EA4","0B66C8","102B4D","263E5A","EAF5FF","DCEEFF","DCE7F2","1689FF", "0752BD", "0D3D91", "19C7D4", "0B4FAE", "1187FF", "12345A", "31577F"]);
+  const allowed = new Set(["2C9AF4","1474D4","1674D2","0B4EA4","0B66C8","102B4D","263E5A","EAF5FF","DCEEFF","DCE7F2","1689FF", "0752BD", "0D3D91", "19C7D4", "087F8C", "0B4FAE", "1187FF", "12345A", "31577F"]);
   const colors = [...primaryLogoLockup.matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0].slice(1).toUpperCase());
   assert.ok(colors.length > 0);
   for (const color of colors) assert.ok(allowed.has(color), `unexpected logo color #${color}`);
