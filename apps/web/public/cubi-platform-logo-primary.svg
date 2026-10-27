@@ -1,30 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 330" role="img" aria-labelledby="title desc">
   <title id="title">CUBI Platform — Construction &amp; Building Intelligence</title>
-  <desc id="desc">Primary CUBI Platform brand lockup: faceted isometric cube-C emblem in blue, cyan and teal, CUBI wordmark, Platform descriptor, Construction &amp; Building Intelligence, and Plan. Control. Build Smarter.</desc>
+  <desc id="desc">CUBI Platform primary logo based on the supplied brand board: angular open cube-C symbol in blue and teal, wordmark, descriptor, and tagline.</desc>
   <defs>
-    <linearGradient id="topBlue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0877F9"/><stop offset="1" stop-color="#09BDE0"/></linearGradient>
-    <linearGradient id="leftBlue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#063A9D"/><stop offset="1" stop-color="#0757C5"/></linearGradient>
-    <linearGradient id="lowerBlue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0753B8"/><stop offset="1" stop-color="#0878E9"/></linearGradient>
-    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#13D2C2"/><stop offset="1" stop-color="#08AFA9"/></linearGradient>
+    <linearGradient id="blueTop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#087BFA"/><stop offset="1" stop-color="#06BDE3"/></linearGradient>
+    <linearGradient id="blueSide" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07358F"/><stop offset="1" stop-color="#0757BD"/></linearGradient>
+    <linearGradient id="blueFront" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0876E8"/><stop offset="1" stop-color="#0645A7"/></linearGradient>
+    <linearGradient id="tealSide" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0DD6C6"/><stop offset="1" stop-color="#08AFA7"/></linearGradient>
   </defs>
-  <!-- Faceted C/cube mark, reconstructed from the approved primary lockup -->
-  <g transform="translate(24 28)">
-    <path d="M112 0 218 61 173 87 112 52 52 87 7 61Z" fill="url(#topBlue)"/>
-    <path d="M112 0 112 52 52 87 7 61Z" fill="#0879F3"/>
-    <path d="M7 61 52 87 52 190 7 164Z" fill="url(#leftBlue)"/>
-    <path d="M7 164 52 190 112 225 173 190 218 216 112 277 7 216Z" fill="url(#lowerBlue)"/>
-    <path d="M52 190 112 225 112 277 52 242Z" fill="#0755B9"/>
-    <path d="M112 225 173 190 173 139 218 113 218 216 112 277Z" fill="url(#teal)"/>
-    <path d="M112 52 152 75 152 120 112 143 112 225 72 202 72 121 112 98Z" fill="#0875E6"/>
-    <path d="M152 75 173 87 173 190 133 213 133 120 152 109Z" fill="#0FC7B9"/>
-    <path d="M112 98 152 120 133 131 93 109Z" fill="#0AA6D2"/>
-    <path d="M112 143 133 131 133 213 112 225Z" fill="#064AAE"/>
-    <path d="M173 87 218 61 218 113 173 139Z" fill="#08C4B5"/>
+  <!-- Angular open-cube C mark, following the supplied primary-logo reference -->
+  <g transform="translate(35 28)">
+    <path d="M132 0 244 64 197 91 132 53 67 91 20 64Z" fill="url(#blueTop)"/>
+    <path d="M132 0 132 53 67 91 20 64Z" fill="#087BF1"/>
+    <path d="M20 64 67 91 67 198 20 171Z" fill="url(#blueSide)"/>
+    <path d="M20 171 67 198 132 236 132 289 20 224Z" fill="#0748A7"/>
+    <path d="M67 198 132 236 197 198 244 225 132 289 132 236Z" fill="url(#blueFront)"/>
+    <path d="M67 91 132 53 132 106 88 132 88 211 67 198Z" fill="#0755B9"/>
+    <path d="M132 53 174 77 174 121 132 146 132 236 88 211 88 132 132 106Z" fill="#0879EA"/>
+    <path d="M174 77 197 91 197 198 155 222 155 122 174 111Z" fill="url(#tealSide)"/>
+    <path d="M197 91 244 64 244 117 197 145Z" fill="#0AC5B8"/>
+    <path d="M132 106 174 121 155 133 113 118Z" fill="#08BBD4"/>
   </g>
-  <g fill="#071A36">
-    <text x="300" y="128" font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif" font-size="112" font-weight="800" letter-spacing="2">CUBI</text>
-    <text x="304" y="192" font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif" font-size="62" font-weight="300" letter-spacing="5">Platform</text>
-    <text x="306" y="237" font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif" font-size="23" font-weight="400" letter-spacing="2.5" fill="#243B5B">Construction &amp; Building Intelligence</text>
-    <text x="306" y="287" font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif" font-size="25" font-weight="400" letter-spacing="2.1" fill="#243B5B">Plan. Control. Build Smarter.</text>
+  <g>
+    <text x="340" y="128" font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif" font-size="108" font-weight="800" letter-spacing="1" fill="#071A36">CUBI</text>
+    <text x="344" y="192" font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif" font-size="61" font-weight="300" letter-spacing="5" fill="#071A36">Platform</text>
+    <text x="347" y="237" font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif" font-size="22" font-weight="400" letter-spacing="2.2" fill="#172F52">Construction &amp; Building Intelligence</text>
+    <text x="347" y="287" font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif" font-size="24" font-weight="400" letter-spacing="2.1" fill="#172F52">Plan. Control. Build Smarter.</text>
   </g>
 </svg>
