@@ -264,7 +264,7 @@ def test_openai_compatible_provider_uses_server_authorization_and_json_contract(
     assert seen["authorization"] == "Bearer server-secret"
     assert seen["timeout"] == 8
     assert seen["body"]["response_format"] == {"type": "json_object"}
-    assert seen["body"]["max_tokens"] == 1200
+    assert seen["body"]["max_tokens"] == 3200
     assert seen["body"]["messages"][0] == {"role": "system", "content": "system contract"}
     assert json.loads(seen["body"]["messages"][1]["content"]) == {
         "language": "fa", "request": "question"
