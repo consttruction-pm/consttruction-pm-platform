@@ -1308,29 +1308,37 @@ async function main() {
       languageBeforeSwitch.options === 2,
       "the selection step must still be rendered before the language switch",
     );
-    if (languageBeforeSwitch.lang !== "en") {
-      await page.click('[data-bootstrap-language="en"]');
+    const switchWorkspaceLanguage = async (target) => {
+      await page.click(`[data-bootstrap-language="${target}"]`);
       await page.waitFor(
-        `document.documentElement.lang === "en" && document.documentElement.dir === "ltr"`,
-        "English selection page",
+        `document.documentElement.lang === "${target}" &&
+         document.documentElement.dir === "${target === "fa" ? "rtl" : "ltr"}"`,
+        `${target} project-selection page`,
       );
-    }
-    const languageAfterSwitch = await page.evaluate(`(() => ({
-      lang: document.documentElement.lang,
-      dir: document.documentElement.dir,
-      options: document.querySelectorAll("button[data-project-id]").length,
-      stored: (() => { try { return localStorage.getItem("cubi:workspace-locale"); } catch { return null; } })(),
-    }))()`);
-    assert(
-      languageAfterSwitch.lang === "en" &&
-        languageAfterSwitch.dir === "ltr" &&
-        languageAfterSwitch.options === 2 &&
-        languageAfterSwitch.stored === "en",
-      "switching language must keep the project-selection step and persist the choice: " +
-        JSON.stringify({ before: languageBeforeSwitch, after: languageAfterSwitch }),
-    );
+      const probe = await page.evaluate(`(() => ({
+        lang: document.documentElement.lang,
+        dir: document.documentElement.dir,
+        options: document.querySelectorAll("button[data-project-id]").length,
+        stored: (() => { try { return localStorage.getItem("cubi:workspace-locale"); } catch { return null; } })(),
+      }))()`);
+      assert(
+        probe.lang === target &&
+          probe.dir === (target === "fa" ? "rtl" : "ltr") &&
+          probe.options === 2 &&
+          probe.stored === target,
+        `switching to ${target} must keep the project-selection step and persist the choice: ` +
+          JSON.stringify(probe),
+      );
+      return probe;
+    };
+    // Exercise both directions so the check does not depend on the runner locale,
+    // and finish on English so the rest of the scenario is deterministic.
+    if (languageBeforeSwitch.lang !== "en") await switchWorkspaceLanguage("en");
+    const switchedToPersian = await switchWorkspaceLanguage("fa");
+    const languageAfterSwitch = await switchWorkspaceLanguage("en");
     record("workspace language switch keeps the first step and persists the choice", {
       before: languageBeforeSwitch,
+      persian: switchedToPersian,
       after: languageAfterSwitch,
     });
 
