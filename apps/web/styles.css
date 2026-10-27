@@ -2276,12 +2276,13 @@ th {
 #cp-resource-capacity { scroll-margin-top: 7rem; }
 
 
-/* Public homepage assistant entry point — visible on desktop and mobile. */
+/* Global assistant entry point — remains with the user while scrolling. */
 .cubi-assistant-launcher {
   position: fixed;
   inset-inline-end: clamp(1rem, 2.8vw, 2rem);
   bottom: clamp(1rem, 2.8vw, 2rem);
   z-index: 1000;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: end;
