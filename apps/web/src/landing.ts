@@ -6,6 +6,8 @@ type LandingCopy = {
   techEyebrow: string; techTitle: string; techBody: string; techLink: string; techNodes: string[];
   ctaTitle: string; ctaBody: string; signIn: string; start: string; language: string;
   footerColumns: Array<{ title: string; links: string[] }>; footerNote: string;
+  assistantTitle: string; assistantSubtitle: string; assistantDescription: string;
+  assistantWorkspaceAction: string; assistantClose: string;
 };
 const copy: Partial<Record<LandingLocale, LandingCopy>> = {
   en: {
@@ -33,6 +35,11 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     techNodes: ["Project controls", "AI assistance", "Connected data", "Secure workflow"],
     ctaTitle: "Bring your project into focus.",
     ctaBody: "Start with one connected view of schedules, costs, progress and decisions.",
+    assistantTitle: "CUBI AI Assistant",
+    assistantSubtitle: "Project help, one step away",
+    assistantDescription: "For project-specific answers or schedule support, open your workspace and select a project. Your assistant is available inside the workspace.",
+    assistantWorkspaceAction: "Open project workspace →",
+    assistantClose: "Close assistant panel",
     signIn: "Sign In", start: "Get Started", language: "فارسی",
     footerColumns: [
       { title: "Platform", links: ["Project Controls", "Planning & Scheduling", "Resources & Cost"] },
@@ -66,6 +73,11 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
     techNodes: ["کنترل پروژه", "دستیار هوشمند", "داده یکپارچه", "جریان کاری امن"],
     ctaTitle: "تصویر روشنی از پروژه بسازید.",
     ctaBody: "با نمایی یکپارچه از زمان‌بندی، هزینه، پیشرفت و تصمیم‌ها شروع کنید.",
+    assistantTitle: "دستیار هوشمند کوبی",
+    assistantSubtitle: "راهنمای پروژه، همیشه در دسترس",
+    assistantDescription: "برای دریافت پاسخ درباره پروژه یا کمک در زمان‌بندی، وارد فضای کاری شوید و یک پروژه انتخاب کنید. دستیار در محیط پروژه در دسترس است.",
+    assistantWorkspaceAction: "ورود به فضای کاری پروژه ←",
+    assistantClose: "بستن پنل دستیار",
     signIn: "ورود", start: "شروع کنید", language: "EN",
     footerColumns: [
       { title: "پلتفرم", links: ["کنترل پروژه", "برنامه‌ریزی و زمان‌بندی", "منابع و هزینه"] },
@@ -139,6 +151,11 @@ function getLandingCopy(locale: LandingLocale): LandingCopy {
       links: column.links.map((value, linkIndex) => translate(`footerColumns.${columnIndex}.links.${linkIndex}`, value)),
     })),
     footerNote: translate("footerNote", baseline.footerNote),
+    assistantTitle: translate("assistant.title", baseline.assistantTitle),
+    assistantSubtitle: translate("assistant.subtitle", baseline.assistantSubtitle),
+    assistantDescription: translate("assistant.description", baseline.assistantDescription),
+    assistantWorkspaceAction: translate("assistant.workspaceAction", baseline.assistantWorkspaceAction),
+    assistantClose: translate("assistant.close", baseline.assistantClose),
   };
   return escapeLandingCopy(localized);
 }
@@ -206,7 +223,42 @@ function renderLanding(container: HTMLElement): void {
         ${t.footerColumns.map((col, columnIndex) => { const targets = [["./platform/#project-controls", "./platform/#scheduling", "./platform/#resources-cost"], ["./solutions/#construction-teams", "./solutions/#project-leadership", "./solutions/#project-delivery"], ["./resources/#documentation", "./resources/#overview", "./contact/"]]; return `<div class="cubi-footer-col"><b>${col.title}</b>${col.links.map((link, linkIndex) => `<a href="${targets[columnIndex]?.[linkIndex] ?? "./"}">${link}</a>`).join("")}</div>`; }).join("")}
         <div class="cubi-footer-social"><small>© 2026 CUBI Platform. All rights reserved.</small></div>
       </footer>
+      <div class="cubi-assistant-launcher" data-cubi-assistant-entry>
+        <section class="cubi-assistant-popover" id="cubi-assistant-popover" role="dialog" aria-modal="false" aria-labelledby="cubi-assistant-title" aria-describedby="cubi-assistant-description" hidden>
+          <header class="cubi-assistant-popover-header">
+            <img src="${cubiAssistantAvatarUrl()}" width="52" height="52" alt="" aria-hidden="true" />
+            <div class="cubi-assistant-popover-heading">
+              <strong id="cubi-assistant-title">${t.assistantTitle}</strong>
+              <span>${t.assistantSubtitle}</span>
+            </div>
+            <button class="cubi-assistant-close" id="cubi-assistant-close" type="button" aria-label="${t.assistantClose}">×</button>
+          </header>
+          <p id="cubi-assistant-description">${t.assistantDescription}</p>
+          <a class="cubi-assistant-workspace-link" href="./app/">${t.assistantWorkspaceAction}</a>
+        </section>
+        <button class="cubi-assistant-launcher-button" id="cubi-assistant-launcher" type="button" aria-controls="cubi-assistant-popover" aria-expanded="false" aria-label="${t.assistantTitle}">
+          <img src="${cubiAssistantAvatarUrl()}" width="52" height="52" alt="" aria-hidden="true" />
+          <span>${t.assistantTitle}</span>
+        </button>
+      </div>
     </div>`;
+  const assistantLauncher = document.getElementById("cubi-assistant-launcher");
+  const assistantPopover = document.getElementById("cubi-assistant-popover");
+  const assistantClose = document.getElementById("cubi-assistant-close");
+  const setAssistantPopoverOpen = (open: boolean): void => {
+    if (!assistantLauncher || !assistantPopover) return;
+    assistantPopover.hidden = !open;
+    assistantLauncher.setAttribute("aria-expanded", String(open));
+    if (open) assistantClose?.focus();
+    else assistantLauncher.focus();
+  };
+  assistantLauncher?.addEventListener("click", () => {
+    setAssistantPopoverOpen(assistantLauncher.getAttribute("aria-expanded") !== "true");
+  });
+  assistantClose?.addEventListener("click", () => setAssistantPopoverOpen(false));
+  assistantPopover?.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Escape") setAssistantPopoverOpen(false);
+  });
   document.getElementById("cubi-language")?.addEventListener("click", () => {
     const available = getAvailableWorkspaceLocales();
     const index = available.indexOf(locale);
