@@ -88,6 +88,9 @@ export function mountProCheckout(): void {
   const notice = document.querySelector<HTMLElement>("#checkout-notice");
   const submit = document.querySelector<HTMLButtonElement>("#checkout-submit");
   const unitPrice = document.querySelector<HTMLElement>("#checkout-unit-price");
+  const decrease = document.querySelector<HTMLButtonElement>("#month-decrease");
+  const increase = document.querySelector<HTMLButtonElement>("#month-increase");
+  const quickQuantities = [...document.querySelectorAll<HTMLButtonElement>("[data-month-quantity]")];
   if (!form || !quantityInput || !totalOutput || !notice || !submit || !unitPrice) return;
 
   const locale = document.documentElement.lang.toLowerCase().startsWith("fa") ? "fa" : "en";
@@ -111,6 +114,24 @@ export function mountProCheckout(): void {
 
   unitPrice.textContent = formatProAmount(PRO_MONTHLY_UNIT_PRICE_MINOR, locale);
   quantityInput.addEventListener("input", updateSummary);
+  decrease?.addEventListener("click", () => {
+    const current = isValidProMonthQuantity(quantityInput.valueAsNumber) ? quantityInput.valueAsNumber : 1;
+    quantityInput.value = String(Math.max(1, current - 1));
+    updateSummary();
+  });
+  increase?.addEventListener("click", () => {
+    const current = isValidProMonthQuantity(quantityInput.valueAsNumber) ? quantityInput.valueAsNumber : 0;
+    quantityInput.value = String(current + 1);
+    updateSummary();
+  });
+  for (const button of quickQuantities) {
+    button.addEventListener("click", () => {
+      const quantity = Number(button.dataset.monthQuantity);
+      quantityInput.value = String(quantity);
+      updateSummary();
+      quantityInput.focus();
+    });
+  }
   updateSummary();
 
   form.addEventListener("submit", async (event) => {
