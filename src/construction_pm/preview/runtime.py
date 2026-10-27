@@ -740,6 +740,10 @@ class PreviewRuntime:
             "assistant": {
                 "enabled": self.ai_assistant_enabled,
                 "provider_configured": self.ai_assistant_enabled,
+                "provider_environment_complete": all(
+                    os.environ.get(key, "").strip()
+                    for key in ("CUBI_AI_API_KEY", "CUBI_AI_BASE_URL", "CUBI_AI_MODEL")
+                ),
                 "available_tools": list(self.ai_tool_names),
             },
             "private_owner_login_enabled": bool(
