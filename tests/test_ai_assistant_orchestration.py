@@ -455,6 +455,7 @@ def test_local_provider_uses_loopback_ollama_without_authorization_or_api_key(mo
         return response
 
     monkeypatch.delenv("CUBI_AI_API_KEY", raising=False)
+    monkeypatch.setenv("CUBI_AI_LOCAL_BASE_URL", "http://127.0.0.1:11434")
     monkeypatch.setenv("CUBI_AI_LOCAL_MODEL", "cubi-engineering-test")
     monkeypatch.delenv("CUBI_AI_PROVIDER", raising=False)
     provider = build_ai_chat_provider_from_environment(opener=opener)
@@ -490,7 +491,9 @@ def test_local_provider_rejects_non_loopback_or_ambiguous_endpoints(base_url):
 
 def test_local_provider_requires_local_model_and_never_selects_remote_provider(monkeypatch):
     monkeypatch.delenv("CUBI_AI_LOCAL_MODEL", raising=False)
+    monkeypatch.delenv("CUBI_AI_LOCAL_BASE_URL", raising=False)
     monkeypatch.delenv("CUBI_AI_API_KEY", raising=False)
+    monkeypatch.delenv("CUBI_AI_PROVIDER", raising=False)
     with pytest.raises(AIAssistantProviderError, match="AI_ASSISTANT_LOCAL_MODEL_REQUIRED"):
         build_ai_chat_provider_from_environment()
     monkeypatch.setenv("CUBI_AI_PROVIDER", "openai-compatible")
