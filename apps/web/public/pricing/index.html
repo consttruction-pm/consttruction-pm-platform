@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="cubi-base-url" content="__CUBI_BASE_URL__">
+<meta name="description" content="Choose the number of CUBI Pro monthly units you need. Pay for the selected quantity in one checkout; no separate annual plan.">
+<link rel="canonical" href="__CUBI_BASE_URL__/pricing/">
+<link rel="alternate" hreflang="en" href="__CUBI_BASE_URL__/pricing/">
+<link rel="alternate" hreflang="fa" href="__CUBI_BASE_URL__/fa/pricing/">
+<link rel="alternate" hreflang="x-default" href="__CUBI_BASE_URL__/pricing/">
+<meta property="og:type" content="website"><meta property="og:site_name" content="CUBI Platform">
+<meta property="og:locale" content="en_US"><meta property="og:locale:alternate" content="fa_IR">
+<meta property="og:title" content="CUBI Pro Monthly | Pricing and Checkout">
+<meta property="og:description" content="Choose how many Pro monthly units to add to your account.">
+<meta property="og:url" content="__CUBI_BASE_URL__/pricing/">
+<meta property="og:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="CUBI Pro Monthly | Pricing and Checkout">
+<meta name="twitter:description" content="Choose how many Pro monthly units to add to your account.">
+<meta name="twitter:image" content="__CUBI_BASE_URL__/cubi-platform-logo-primary.svg">
+<meta name="robots" content="index,follow"><meta name="theme-color" content="#081A2F">
+<title>CUBI Pro Monthly | Pricing and Checkout</title>
+<link rel="stylesheet" href="../styles.css"><link rel="icon" href="../cubi-platform-logo-primary.svg" type="image/svg+xml">
+</head>
+<body class="cubi-public-page cubi-checkout-page">
+<header class="cubi-public-header">
+<a href="../index.html" aria-label="CUBI Platform home"><img src="../cubi-platform-logo-primary.svg" alt="CUBI Platform" width="132" height="48"></a>
+<nav class="cubi-public-nav" aria-label="Primary navigation"><a href="../index.html">Home</a><a href="../platform/">Platform</a><a href="../solutions/">Solutions</a><a href="../pricing/" aria-current="page">Pricing</a><a href="../resources/">Resources</a><a href="../contact/">Contact</a></nav>
+<a class="cubi-public-language" hreflang="fa" href="../fa/pricing/" lang="fa">فارسی</a>
+</header>
+<main class="cubi-checkout-layout">
+<section class="cubi-checkout-intro">
+<p class="eyebrow">CUBI PRO · MONTHLY ACCESS</p>
+<h1>Choose your Pro time.</h1>
+<p class="cubi-checkout-lead">Select how many monthly units you want to purchase in one checkout. Each paid unit adds one calendar month to your Pro entitlement after the payment provider confirms success.</p>
+<div class="cubi-checkout-points"><p><span aria-hidden="true">✓</span> 1, 5, 12 or another positive whole-number quantity</p><p><span aria-hidden="true">✓</span> No separate annual plan or Team subscription</p><p><span aria-hidden="true">✓</span> A repeated payment event must never add time twice</p></div>
+<a class="cubi-checkout-back-link" href="../index.html">← Back to CUBI home</a>
+</section>
+<section class="cubi-checkout-card" aria-labelledby="checkout-heading">
+<div class="cubi-checkout-card-heading"><span class="cubi-checkout-plan-icon" aria-hidden="true">C</span><div><p class="cubi-checkout-kicker">SUBSCRIPTION</p><h2 id="checkout-heading">Pro monthly</h2><p>One monthly unit · Account subscription</p></div></div>
+<div class="cubi-checkout-price"><strong id="checkout-unit-price">$9.99</strong><span>per month</span></div>
+<div class="cubi-checkout-divider"></div>
+<form id="pro-checkout-form" novalidate>
+<label for="month-quantity">Number of months</label>
+<p class="cubi-checkout-help" id="month-quantity-help">Choose the quantity to pay for in one transaction.</p>
+<div class="cubi-month-control"><button type="button" id="month-decrease" class="cubi-quantity-button" aria-label="Decrease months">−</button><input id="month-quantity" name="month_quantity" type="number" min="1" step="1" value="1" inputmode="numeric" required aria-describedby="month-quantity-help" aria-invalid="false"><button type="button" id="month-increase" class="cubi-quantity-button" aria-label="Increase months">+</button></div>
+<div class="cubi-quick-quantities" aria-label="Quick month quantities"><button type="button" data-month-quantity="1">1 month</button><button type="button" data-month-quantity="5">5 months</button><button type="button" data-month-quantity="12">12 months</button></div>
+<div class="cubi-checkout-total-row"><span>Estimated total</span><strong id="checkout-total">$9.99</strong></div>
+<p class="cubi-checkout-tax-note">Total uses the current configured working price of USD 9.99 per month. The payment service must confirm the final amount before charging.</p>
+<button class="cubi-checkout-submit" id="checkout-submit" type="submit">Continue to checkout</button>
+<p class="cubi-checkout-notice" id="checkout-notice" role="status" aria-live="polite">Select the quantity. No payment is taken by this page itself.</p>
+</form>
+</section>
+<section class="cubi-checkout-policy">
+<h2>How monthly extensions work</h2>
+<div class="cubi-checkout-policy-grid"><article><h3>Already have Pro?</h3><p>A confirmed purchase adds the selected months to your existing future expiry date. The server, not this page, decides and records the entitlement.</p></article><article><h3>Selecting 12 months</h3><p>12 months is twelve monthly units purchased together, not a separate annual plan or an annual discount tier.</p></article><article><h3>Teams</h3><p>Team creation is governed by the active Pro entitlement and configured access limits; there is no separate Team subscription.</p></article></div>
+<p class="cubi-checkout-disclaimer">Payment processing is not enabled until a verified payment provider is configured on the server. If checkout cannot be started, no payment has been made and no subscription time is added.</p>
+</section>
+</main>
+<footer class="cubi-public-footer"><span>© 2026 CUBI Platform · Plan. Control. Build Smarter.</span><nav aria-label="Footer navigation"><a href="../platform/">Platform</a> · <a href="../pricing/">Pricing</a> · <a href="../resources/">Resources</a> · <a href="../contact/">Contact</a></nav></footer>
+<script type="module" src="../dist/pro-checkout.js"></script>
+<script type="module" src="../dist/global-assistant-launcher.js"></script>
+</body></html>
