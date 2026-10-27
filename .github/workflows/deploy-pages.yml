@@ -92,6 +92,9 @@ jobs:
       - name: Assemble and validate Pages site
         env:
           SITE_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          # The static GitHub Pages site cannot host the WSGI API. Send /app/
+          # to the live, explicitly read-only demo runtime instead.
+          CUBI_WORKSPACE_URL: https://cubi-workspace-preview-2026.onrender.com/preview/login
         run: node scripts/assemble-pages-site.mjs "${{ github.workspace }}/_site"
 
       - name: Upload Pages artifact
