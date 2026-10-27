@@ -1,30 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 330" role="img" aria-labelledby="title desc">
   <title id="title">CUBI Platform — Construction &amp; Building Intelligence</title>
-  <desc id="desc">CUBI Platform logo with an open angular blue and cyan C mark enclosing a teal cube, wordmark and tagline.</desc>
+  <desc id="desc">CUBI Platform logo with an open isometric hexagonal C mark in blue and cyan gradients enclosing a teal cube, wordmark and tagline.</desc>
   <defs>
-    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1689FF"/><stop offset="1" stop-color="#00C8E8"/></linearGradient>
-    <linearGradient id="side" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0752BD"/><stop offset="1" stop-color="#0A3B91"/></linearGradient>
-    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#26E0D0"/><stop offset="1" stop-color="#08A99F"/></linearGradient>
+    <linearGradient id="markTop" gradientUnits="userSpaceOnUse" x1="62" y1="109" x2="250" y2="109"><stop stop-color="#1468D6"/><stop offset="1" stop-color="#2CC5EB"/></linearGradient>
+    <linearGradient id="markSide" gradientUnits="userSpaceOnUse" x1="62" y1="109" x2="62" y2="203"><stop stop-color="#0A3B91"/><stop offset="1" stop-color="#1153B8"/></linearGradient>
+    <linearGradient id="markBottom" gradientUnits="userSpaceOnUse" x1="62" y1="203" x2="250" y2="203"><stop stop-color="#0E5CC9"/><stop offset="1" stop-color="#21B7E2"/></linearGradient>
   </defs>
-  <g transform="translate(32 27)">
-    <path d="M126 0 244 68 198 95 126 53 54 95 8 68Z" fill="url(#top)"/>
-    <path d="M8 68 54 95 54 194 8 167Z" fill="#0B4EA4"/>
-    <path d="M8 167 54 194 126 236 126 289 8 221Z" fill="url(#side)"/>
-    <path d="M126 236 198 194 244 221 126 289Z" fill="#0752BD"/>
-    <path d="M54 95 126 53 126 105 83 130 83 210 54 194Z" fill="#1474D4"/>
-    <path d="M126 53 168 77 168 120 126 145 126 236 83 210 83 130 126 105Z" fill="#1689FF"/>
-    <path d="M198 95 244 68 244 119 198 146Z" fill="#08C8D5"/>
-    <path d="M198 95 198 194 156 218 156 122 177 110Z" fill="url(#teal)"/>
-    <path d="M126 105 168 120 148 133 106 118Z" fill="#12C9D4"/>
-    <path d="M126 236 156 218 198 194 198 221 126 263Z" fill="#0B66C8"/>
-    <path d="M103 143 126 130 149 143 149 169 126 183 103 169Z" fill="url(#teal)"/>
-    <path d="M103 143 126 156 126 183 103 169Z" fill="#079C98"/>
-    <path d="M126 156 149 143 149 169 126 183Z" fill="#17C7B8"/>
+  <g fill="none" stroke-width="44" stroke-linejoin="miter" stroke-linecap="butt">
+    <path d="M250 109L156 62L62 109L62 203L156 250L250 203" stroke="url(#markSide)"/>
+    <path d="M62 109L156 62L250 109" stroke="url(#markTop)"/>
+    <path d="M62 203L156 250L250 203" stroke="url(#markBottom)"/>
   </g>
-  <g fill="#102B4D" font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif">
-    <text x="330" y="125" font-size="108" font-weight="800" letter-spacing="1.5">CUBI</text>
-    <text x="334" y="190" font-size="60" font-weight="300" letter-spacing="5">Platform</text>
-    <text x="337" y="237" font-size="22" font-weight="400" letter-spacing="2">Construction &amp; Building Intelligence</text>
-    <text x="337" y="287" font-size="24" font-weight="500" letter-spacing="2">Plan. Control. Build Smarter.</text>
+  <g>
+    <path d="M156 138L192 147L156 156L120 147Z" fill="#3ED3B8"/>
+    <path d="M120 147L156 156L156 174L120 165Z" fill="#1C9E85"/>
+    <path d="M156 156L192 147L192 165L156 174Z" fill="#2CC1A8"/>
+  </g>
+  <g font-family="Montserrat, Inter, 'Segoe UI', Arial, sans-serif">
+    <text x="330" y="128" font-size="108" font-weight="800" letter-spacing="1.5" fill="#0B1C30">CUBI</text>
+    <text x="334" y="192" font-size="60" font-weight="300" letter-spacing="5" fill="#5E7183">Platform</text>
+    <text x="337" y="238" font-size="22" font-weight="400" letter-spacing="2" fill="#7E8FA0">Construction &amp; Building Intelligence</text>
+    <text x="337" y="288" font-size="24" font-weight="500" letter-spacing="2" fill="#7E8FA0">Plan. Control. Build Smarter.</text>
   </g>
 </svg>
