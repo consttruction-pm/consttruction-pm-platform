@@ -35,5 +35,5 @@ test("assistant avatar URL resolves from compiled Web assets and preserves GitHu
   assert.match(svg, /class="day"/);
   assert.match(svg, /class="night"/);
   assert.match(svg, /prefers-color-scheme: dark/);
-  assert.equal((svg.match(/data:image\\/jpeg;base64,/g) ?? []).length, 2, "approved day and night artwork must both be embedded");
+  assert.equal(svg.split("data:image/jpeg;base64,").length - 1, 2, "approved day and night artwork must both be embedded");
 });
