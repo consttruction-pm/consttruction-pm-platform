@@ -165,3 +165,39 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 3. **Code slice completed:** PR #1553 adds the proposal-only server-side provider orchestration and authenticated conversation endpoint. Next, wire it into a real deployed backend with production session/project selection, current grant provider, transaction manager and approved server-side `CUBI_AI_*` configuration; verify the live conversation → proposal → approve → execute → fresh-read path.
 4. Implement authoritative reconciliation for interrupted/uncertain actions, then add WBS/relationship/calendar/resource/cost tools and Shared Core run/result grounding.
 5. Keep #1423/#1530/#1540 and #82 open until the complete release acceptance suite, multilingual and Jalali/Gregorian coverage, import/export round-trip, and exact-main end-to-end gates pass.
+
+
+## Engineering Intelligence owner decision and implementation checkpoint — 2026-10-28
+
+**Audit baseline:** `main` at `91274b13eadea0512e26a07b0b836a28a837ebb8`.  
+**Implementation branch:** `feat/cubi-internal-engineering-intelligence-2026-10-28`.  
+**New P0 issue:** [#1617 — takeoff/estimating, resources/equipment, risk mitigation, Form Builder and PMBOK reports](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1617).  
+**Companion blockers:** #1423 (assistant V1), #1530 (real action authorization/execution), #1540 (learning/memory), #1546 (website scope/schedule).
+
+### Findings confirmed on the audit baseline
+- The assistant V1 and toolchain documents already specify a professional project-controls assistant, project build/edit recommendations, resource/equipment recommendations with provenance, risk/reporting guidance, controlled learning, a single calculation authority and no universal remote API-key dependency.
+- The implemented provider path was nevertheless remote-only in production/preview environment composition: `CUBI_AI_ENABLED` selected `OpenAICompatibleChatProvider`, which requires `CUBI_AI_API_KEY`, `CUBI_AI_BASE_URL` and `CUBI_AI_MODEL`. There was no local inference adapter wired by the product environment factory.
+- The actual production composition exposes an incomplete assistant tool/runtime surface; the documented assistant-turn capability is proposal-only, with `activity.create` the only standard registered model-facing production tool at this point. A project-plan builder exists in preview/local composition, not as complete production WBS/relationship/calendar/resource/report orchestration.
+- Risk indicator/domain code, learning-memory record/repository contracts, resource/cost/schedule cores and report infrastructure exist; their existence does not prove an assistant workflow that retrieves those results, proposes mitigations, persists lessons from real interactions, researches and publishes authorized sources, or supports all required report/form workflows.
+- Repository paths and code search did not identify an implemented quantity-takeoff/BOQ workflow or an actual persisted/versioned Form Builder UI/domain. PMBOK is present as a governance baseline but an assistant-report tailoring/evidence workflow remains an implementation requirement. These absences are tracked in #1617 rather than guessed to be complete.
+- Existing learning records and SQLite repository tests are only a foundational slice. The full interaction capture/review/research/publication/retrieval/backup/restore/migration/benchmark lifecycle remains open in #1540.
+
+### Work committed on this branch (not yet merged or release-certified)
+- Added `LocalOllamaChatProvider` and `build_ai_chat_provider_from_environment` with loopback-only endpoint validation, bounded JSON requests/responses, no Authorization/API key header, sanitized local-runtime errors and no automatic remote fallback.
+- Updated production and preview composition to select the local-only provider factory.
+- Added focused tests for the local provider contract, loopback restriction, no-API-key usage, missing model/runtime and remote-provider selection rejection; adapted the preview project-plan integration test to patch the new factory.
+- Updated provider configuration and assistant requirements to make the owner's new takeoff/BOQ, resource/equipment, risk/corrective action, Form Builder and PMBOK-report requests explicit and testable.
+- Updated the toolchain contract so the CUBI product profile is local-only rather than selecting an external AI API key by default.
+
+### What this does not claim
+- The required local model runtime/model assets have not been proven provisioned in any production/hosted environment.
+- The new local provider adapter does not itself prove model quality, full WBS/relationship/calendar/resource/risk/BOQ/form/report tool integration, durable cross-session learning, admin-authorized web research, Desktop offline packaging or the full Mobile/Web/Desktop acceptance gate.
+- Quantity estimating/BOQ and Form Builder are tracked as required implementation scope in #1617 but are not claimed implemented by this documentation and provider slice.
+- No hosted deployment or merge to `main` was performed by this checkpoint. Record actual exact-head CI URLs/results and final branch/PR SHAs in the follow-up once checks complete.
+
+### Acceptance next steps
+1. Run focused tests plus ConstructionPM CI, Web CI, PostgreSQL Integration and Client Typecheck against the exact branch head.
+2. Resolve any regressions before calling the provider slice ready.
+3. Continue #1530 to wire current grants/revisions/persistent audit and fresh-read tool execution in the real production composition.
+4. Implement #1617 as staged vertical slices with typed contracts, DB persistence, real UI, golden fixtures, approval, audit and E2E read-back.
+5. Finish #1540's real learning/research/retrieval/retention/backup/migration/rollback path and reconcile accepted activities into CUBISITE and Jalal 5 without changing denominators silently.
