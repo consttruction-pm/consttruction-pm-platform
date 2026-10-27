@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/consttruction-pm/consttruction-pm-platform/blob/main/shared/contracts/cubi-identity-team-messaging-entitlements.v1.schema.json",
+  "$id": "https://schemas.cubi.dev/identity-team-messaging-entitlements/v1",
   "title": "CUBI Identity, Entitlement, Team and Messaging Contracts",
   "description": "Versioned cross-client contract definitions. This schema does not by itself establish that production persistence or endpoints exist.",
   "type": "object",
