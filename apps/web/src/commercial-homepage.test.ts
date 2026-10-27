@@ -141,9 +141,9 @@ test("public homepage exposes the shared accessible floating assistant in Persia
 
 test("approved primary logo uses the current canonical cube mark, teal center structure and wordmark", () => {
   assert.match(primaryLogo, /CUBI Platform/);
-  assert.match(primaryLogo, /PLAN\. CONTROL\. BUILD SMARTER\./);
-  assert.match(primaryLogo, /<path d="M84 3 158 45/);
-  assert.match(primaryLogo, /fill="#19C7D4"/);
+  assert.match(primaryLogo, /Plan\. Control\. Build Smarter\./);
+  assert.match(primaryLogo, /<path d="M126 0 244 68/);
+  assert.match(primaryLogo, /stop-color="#26E0D0"/);
   assert.match(primaryLogo, /viewBox="0 0 1000 330"/);
 });
 
