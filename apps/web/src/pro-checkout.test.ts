@@ -15,14 +15,14 @@ test("Pro checkout price is one monthly unit and the only paid plan", () => {
   assert.equal(PRO_MONTHLY_PLAN, "pro_monthly");
 });
 
-test("monthly quantity totals are exact for one, five and twelve units", () => {
+test("monthly quantity totals are exact for one, six and twelve units", () => {
   assert.equal(calculateProMonthlyTotal(1), 999);
-  assert.equal(calculateProMonthlyTotal(5), 4995);
+  assert.equal(calculateProMonthlyTotal(6), 5994);
   assert.equal(calculateProMonthlyTotal(12), 11988);
 });
 
 test("checkout quantity accepts only safe positive whole numbers", () => {
-  for (const value of [1, 5, 12, 120]) assert.equal(isValidProMonthQuantity(value), true);
+  for (const value of [1, 5, 6, 12, 120]) assert.equal(isValidProMonthQuantity(value), true);
   for (const value of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER]) {
     assert.equal(isValidProMonthQuantity(value), false, String(value));
   }
@@ -32,6 +32,6 @@ test("checkout quantity accepts only safe positive whole numbers", () => {
 
 test("checkout amount formatting is locale-aware", () => {
   assert.equal(formatProAmount(999, "en"), "$9.99");
-  assert.match(formatProAmount(4995, "en"), /49\.95/);
+  assert.match(formatProAmount(5994, "en"), /59\.94/);
   assert.ok(formatProAmount(11988, "fa").length > 0);
 });
