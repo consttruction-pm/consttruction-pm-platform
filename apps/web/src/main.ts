@@ -23,7 +23,17 @@ import {
   type WorkspaceState,
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
-import { getBootstrapLabels } from "./bootstrap-labels.js";
+import { getBootstrapLabels, getBootstrapErrorCopy } from "./bootstrap-labels.js";
+import {
+  readRequestedProjectId,
+  readWorkspaceLocalePreference,
+  readWorkspaceMenuPreference,
+  readWorkspaceProjectPreference,
+  rememberWorkspaceLocale,
+  rememberWorkspaceMenu,
+  rememberWorkspaceProject,
+  requestedProjectHref,
+} from "./workspace-preferences.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName } from "./workspace-localization.js";
@@ -48,6 +58,62 @@ type LayoutHistoryState = {
 
 const layoutHistoryStore = new Map<string, LayoutHistoryState>();
 let currentWorkspaceState: WorkspaceState | null = null;
+
+/** The next locale the shell can actually serve, never a route that does not exist. */
+function nextWorkspaceLocale(locale: WorkspaceLocale): WorkspaceLocale {
+  const available = getAvailableWorkspaceLocales();
+  const index = available.indexOf(locale);
+  return available[(index + 1) % available.length] ?? "en";
+}
+
+function applyDocumentLocale(locale: WorkspaceLocale, title?: string): void {
+  document.documentElement.lang = locale;
+  document.documentElement.dir = getWorkspaceLocaleDirection(locale);
+  document.title = title ?? getBootstrapLabels(locale).workspaceTitle;
+}
+
+/**
+ * A project choice becomes part of the address only after the server has
+ * confirmed it. The address then reopens the same workspace without asking the
+ * visitor to choose again, while a stale link still falls back to the project
+ * selection instead of opening data the user cannot access.
+ */
+function rememberOpenedProject(userId: string, projectId: string): void {
+  rememberWorkspaceProject(userId, projectId);
+  try {
+    const href = requestedProjectHref(window.location.href, projectId);
+    const next = new URL(href);
+    if (next.href !== window.location.href) {
+      window.history.replaceState(null, "", next.href);
+    }
+  } catch {
+    // History may be unavailable in a sandboxed frame; storage still keeps the choice.
+  }
+}
+
+function applyRememberedMenu(workspace: WorkspaceState): WorkspaceState {
+  const menu = readWorkspaceMenuPreference();
+  return menu ? { ...workspace, activeMenu: menu } : workspace;
+}
+
+function createLanguageSwitch(
+  locale: WorkspaceLocale,
+  onSelect: (locale: WorkspaceLocale) => void,
+): HTMLButtonElement {
+  const t = getBootstrapLabels(locale);
+  const next = nextWorkspaceLocale(locale);
+  const nextName = getWorkspaceLocaleDisplayName(next);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "cp-bootstrap-language";
+  button.dataset.bootstrapLanguage = next;
+  button.lang = next;
+  button.dir = getWorkspaceLocaleDirection(next);
+  button.textContent = nextName;
+  button.setAttribute("aria-label", t.switchLanguage.replace("{language}", nextName));
+  button.addEventListener("click", () => onSelect(next));
+  return button;
+}
 
 function layoutHistoryKey(context: ProjectContext, layout: LayoutDefinition): string {
   return [
@@ -86,8 +152,7 @@ function renderApp(
   // The workspace language belongs to the document, not only to the panels:
   // assistive technology, the floating assistant and every CSS logical direction
   // read it from the root element.
-  document.documentElement.lang = state.locale;
-  document.documentElement.dir = getWorkspaceLocaleDirection(state.locale);
+  applyDocumentLocale(state.locale);
   const shellLabels = getWorkspaceShellLabels(state.locale);
   const persistence = p6Persistence ?? createP6LayoutPersistence(new FetchApiTransport(window.location.origin), state.context);
 
@@ -111,9 +176,16 @@ function renderApp(
   const currentLocaleIndex = availableLocales.indexOf(state.locale);
   const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? "en";
   languageButton.textContent = getWorkspaceLocaleDisplayName(nextLocale);
-  languageButton.setAttribute("aria-label", `Switch language to ${getWorkspaceLocaleDisplayName(nextLocale)}`);
+  languageButton.setAttribute(
+    "aria-label",
+    getBootstrapLabels(state.locale).switchLanguage.replace(
+      "{language}",
+      getWorkspaceLocaleDisplayName(nextLocale),
+    ),
+  );
   languageButton.onclick = () => {
     const next: WorkspaceLocale = nextLocale;
+    rememberWorkspaceLocale(next, availableLocales);
     renderApp(container, setLocale(state, next), persistence);
   };
 
@@ -329,6 +401,7 @@ function renderApp(
 
   renderMainWorkspace(workspace, state, {
     onMenuSelect: (menu) => {
+      rememberWorkspaceMenu(menu);
       renderApp(container, { ...state, activeMenu: menu }, persistence);
     },
     onWbsSelect: (wbsId) => {
@@ -413,9 +486,13 @@ function renderBootstrapState(
   bootstrap: ProjectBootstrap,
   locale: WorkspaceLocale = getInitialLocale(),
 ): void {
+  applyDocumentLocale(locale);
   const t = getBootstrapLabels(locale);
   if (state.status === "ready") {
-    renderApp(container, state.workspace);
+    // The server confirmed this context, so it is safe to remember it and to
+    // reopen the same project and menu after a refresh.
+    rememberOpenedProject(state.userId, state.context.project_id);
+    renderApp(container, applyRememberedMenu(state.workspace));
     return;
   }
 
@@ -429,15 +506,39 @@ function renderBootstrapState(
         : t.loading;
     const loading = document.createElement("main");
     loading.className = "cp-shell-loading";
-    loading.textContent = message;
+    loading.setAttribute("role", "status");
+    loading.setAttribute("aria-live", "polite");
+    loading.append(createBootstrapHeader(locale, (next) => {
+      rememberWorkspaceLocale(next, getAvailableWorkspaceLocales());
+      renderBootstrapState(container, state, bootstrap, next);
+    }, t.workspaceTitle));
+    const text = document.createElement("p");
+    text.textContent = message;
+    loading.append(text);
     container.append(loading);
     return;
   }
 
-  const appendCreateProjectForm = (main: HTMLElement): void => {
+  const renderWithLocale = (next: WorkspaceLocale): void => {
+    const available = getAvailableWorkspaceLocales();
+    rememberWorkspaceLocale(next, available);
+    renderBootstrapState(container, state, bootstrap, next);
+  };
+
+  const page = document.createElement("main");
+  page.dir = getWorkspaceLocaleDirection(locale);
+  page.className = state.status === "empty" || state.status === "selecting"
+    ? "cp-project-selection"
+    : "cp-shell-error";
+  page.append(createBootstrapHeader(locale, renderWithLocale, t.workspaceTitle));
+
+  const appendCreateProjectForm = (): void => {
+    const idSuffix = state.status;
+    const hintId = `cp-project-name-hint-${idSuffix}`;
+    const errorId = `cp-project-name-error-${idSuffix}`;
+
     const section = document.createElement("section");
     section.className = "cp-project-create";
-    section.dir = locale === "fa" ? "rtl" : "ltr";
 
     const heading = document.createElement("h2");
     heading.textContent = t.createProject;
@@ -445,17 +546,45 @@ function renderBootstrapState(
 
     const form = document.createElement("form");
     form.className = "cp-project-create-form";
+    form.noValidate = true;
 
     const label = document.createElement("label");
     label.textContent = t.projectName;
     const input = document.createElement("input");
     input.name = "projectName";
+    input.id = "cp-project-name";
     input.type = "text";
     input.required = true;
+    input.minLength = 2;
+    input.maxLength = 120;
     input.autocomplete = "organization";
     input.placeholder = t.projectNamePlaceholder;
+    input.setAttribute("aria-describedby", `${hintId} ${errorId}`);
     label.append(input);
-    form.append(label);
+
+    const hint = document.createElement("small");
+    hint.id = hintId;
+    hint.className = "cp-form-hint";
+    hint.textContent = t.projectNameHint;
+
+    const errorMessage = document.createElement("p");
+    errorMessage.id = errorId;
+    errorMessage.className = "cp-form-error";
+    errorMessage.setAttribute("role", "alert");
+    errorMessage.hidden = true;
+
+    const showError = (message: string): void => {
+      errorMessage.textContent = message;
+      errorMessage.hidden = false;
+      input.setAttribute("aria-invalid", "true");
+    };
+    const clearError = (): void => {
+      errorMessage.hidden = true;
+      errorMessage.textContent = "";
+      input.removeAttribute("aria-invalid");
+    };
+
+    form.append(label, hint, errorMessage);
 
     const submit = document.createElement("button");
     submit.type = "submit";
@@ -464,103 +593,191 @@ function renderBootstrapState(
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      clearError();
       const name = input.value.trim();
       if (!name) {
+        showError(t.validationNameRequired);
+        input.focus();
+        return;
+      }
+      if (name.length < 2 || name.length > 120) {
+        showError(t.validationNameLength);
         input.focus();
         return;
       }
       submit.disabled = true;
-      renderBootstrapState(container, { status: "creating", projectId: "pending" }, bootstrap, locale);
-      const next = await bootstrap.createProject(crypto.randomUUID(), name);
-      if (next) renderBootstrapState(container, next, bootstrap);
+      input.disabled = true;
+      submit.textContent = t.creating;
+      form.setAttribute("aria-busy", "true");
+      const next = await bootstrap.createProject(createProjectId(), name, locale);
+      form.removeAttribute("aria-busy");
+      if (!next) return;
+      if (next.status === "ready") {
+        renderBootstrapState(container, next, bootstrap, locale);
+        return;
+      }
+      submit.disabled = false;
+      input.disabled = false;
+      submit.textContent = t.createAndOpen;
+      if (next.status === "error") {
+        const copy = getBootstrapErrorCopy(locale, next.error);
+        showError(`${t.createFailed} (${copy.reference})`);
+        input.focus();
+        return;
+      }
+      renderBootstrapState(container, next, bootstrap, locale);
     });
 
     section.append(form);
-    main.append(section);
+    page.append(section);
   };
 
-  if (state.status === "selecting") {
-    const main = document.createElement("main");
-    main.className = "cp-project-selection";
-    main.dir = locale === "fa" ? "rtl" : "ltr";
+  if (state.status === "empty" || (state.status === "error" && state.error.code === "NO_PROJECTS_AVAILABLE")) {
+    const heading = document.createElement("h1");
+    heading.textContent = t.createFirstProject;
+    page.append(heading);
 
+    const message = document.createElement("p");
+    message.textContent = t.noProjects;
+    page.append(message);
+
+    appendCreateProjectForm();
+    container.append(page);
+    return;
+  }
+
+  if (state.status === "selecting") {
     const heading = document.createElement("h1");
     heading.textContent = t.selectProject;
-    main.append(heading);
+    page.append(heading);
+
+    const description = document.createElement("p");
+    description.textContent = t.selectProjectDescription;
+    page.append(description);
+
+    const list = document.createElement("div");
+    list.className = "cp-project-list";
+    list.setAttribute("role", "list");
+    list.setAttribute("aria-label", t.projectListAria);
 
     for (const project of state.projects) {
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = project.name;
+      button.setAttribute("role", "listitem");
+      button.className = "cp-project-option";
       button.dataset.projectId = project.project_id;
+      const name = document.createElement("strong");
+      name.textContent = project.name;
+      const revision = document.createElement("span");
+      revision.textContent = `R${project.revision}`;
+      button.append(name, revision);
       button.addEventListener("click", async () => {
-        renderBootstrapState(container, { status: "opening", projectId: project.project_id }, bootstrap, locale);
-        const next = await bootstrap.selectProject(project.project_id);
-        if (next) renderBootstrapState(container, next, bootstrap);
+        list.querySelectorAll("button").forEach((item) => { item.disabled = true; });
+        button.setAttribute("aria-busy", "true");
+        const next = await bootstrap.selectProject(project.project_id, locale);
+        if (next) renderBootstrapState(container, next, bootstrap, locale);
       });
-      main.append(button);
+      list.append(button);
     }
 
-    appendCreateProjectForm(main);
-    container.append(main);
+    page.append(list);
+    appendCreateProjectForm();
+    container.append(page);
     return;
   }
 
-  const error = document.createElement("main");
-  error.className = "cp-shell-error";
-  error.dir = locale === "fa" ? "rtl" : "ltr";
-
-  if (state.error.code === "NO_PROJECTS_AVAILABLE") {
-    const main = document.createElement("main");
-    main.className = "cp-project-selection";
-    main.dir = locale === "fa" ? "rtl" : "ltr";
-    const heading = document.createElement("h1");
-    heading.textContent = t.createFirstProject;
-    main.append(heading);
-    const message = document.createElement("p");
-    message.textContent = t.noProjects;
-    main.append(message);
-    appendCreateProjectForm(main);
-    container.append(main);
+  const error = state.status === "error" ? state.error : null;
+  if (!error) {
+    container.append(page);
     return;
   }
+  const copy = getBootstrapErrorCopy(locale, error);
 
   const heading = document.createElement("h1");
-  heading.textContent = t.constructionPm;
-  error.append(heading);
+  heading.textContent = copy.title;
+  page.append(heading);
 
   const message = document.createElement("p");
-  message.textContent = state.error.message_key;
-  error.append(message);
+  message.className = "cp-error-message";
+  message.textContent = copy.message;
+  page.append(message);
 
-  if (state.error.available_actions.includes("retry") || state.error.retryable) {
+  const reference = document.createElement("p");
+  reference.className = "cp-error-reference";
+  reference.append(document.createTextNode(`${t.errorReference}: `));
+  const code = document.createElement("code");
+  code.textContent = copy.reference;
+  reference.append(code);
+  page.append(reference);
+
+  const actions = document.createElement("div");
+  actions.className = "cp-error-actions";
+
+  const retryStart = async (): Promise<void> => {
+    renderBootstrapState(container, { status: "loading" }, bootstrap, locale);
+    const next = await bootstrap.start(readRequestedProjectId(window.location.search), locale);
+    if (next) renderBootstrapState(container, next, bootstrap, locale);
+  };
+
+  if (error.available_actions.includes("retry") || error.retryable) {
     const retry = document.createElement("button");
     retry.type = "button";
     retry.textContent = t.retry;
-    retry.addEventListener("click", async () => {
-      renderBootstrapState(container, { status: "loading" }, bootstrap, locale);
-      const next = await bootstrap.start();
-      if (next) renderBootstrapState(container, next, bootstrap);
-    });
-    error.append(retry);
+    retry.addEventListener("click", () => { void retryStart(); });
+    actions.append(retry);
   }
 
-  if (state.error.available_actions.includes("refresh")) {
+  if (error.available_actions.includes("refresh")) {
     const refresh = document.createElement("button");
     refresh.type = "button";
     refresh.textContent = t.refresh;
-    refresh.addEventListener("click", async () => {
-      renderBootstrapState(container, { status: "loading" }, bootstrap, getInitialLocale());
-      const next = await bootstrap.start();
-      if (next) renderBootstrapState(container, next, bootstrap);
-    });
-    error.append(refresh);
+    refresh.addEventListener("click", () => { void retryStart(); });
+    actions.append(refresh);
   }
 
-  container.append(error);
+  page.append(actions);
+  container.append(page);
+}
+
+function createBootstrapHeader(
+  locale: WorkspaceLocale,
+  onLocaleChange: (locale: WorkspaceLocale) => void,
+  title: string,
+): HTMLElement {
+  const header = document.createElement("header");
+  header.className = "cp-bootstrap-bar";
+
+  const brand = document.createElement("a");
+  brand.className = "cp-bootstrap-brand";
+  brand.href = publicHomeHref();
+  brand.textContent = "CUBI";
+  brand.setAttribute("aria-label", "CUBI Platform");
+  brand.title = title;
+
+  header.append(brand, createLanguageSwitch(locale, onLocaleChange));
+  return header;
+}
+
+function publicHomeHref(): string {
+  const path = window.location.pathname.replace(/\/?app(?:\/index\.html)?\/?$/, "/");
+  return path || "/";
+}
+
+function createProjectId(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // Fall through to a time-based id when the crypto API is unavailable.
+  }
+  return `project-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function getInitialLocale(): WorkspaceLocale {
+  const available = getAvailableWorkspaceLocales();
+  const remembered = readWorkspaceLocalePreference(available);
+  if (remembered) return remembered;
   return navigator.language.toLowerCase().startsWith("fa") ? "fa" : "en";
 }
 
@@ -584,16 +801,23 @@ async function boot(): Promise<void> {
     workspaceReadClient,
     p6PresentationLoader: (state, context) =>
       loadP6Presentation(state, new FetchApiTransport(window.location.origin), context),
+    preferredProjectIdForUser: (userId) => readWorkspaceProjectPreference(userId),
   });
 
-  renderBootstrapState(container, { status: "loading" }, bootstrap);
+  const initialLocale = getInitialLocale();
+  renderBootstrapState(container, { status: "loading" }, bootstrap, initialLocale);
 
   try {
-    const state = await bootstrap.start();
-    if (state) renderBootstrapState(container, state, bootstrap);
+    const state = await bootstrap.start(
+      readRequestedProjectId(window.location.search),
+      initialLocale,
+    );
+    if (state) renderBootstrapState(container, state, bootstrap, initialLocale);
   } catch (error) {
-    const t = getBootstrapLabels(getInitialLocale());
-    container.innerHTML = `<main class="cp-shell-error" dir="${getInitialLocale() === "fa" ? "rtl" : "ltr"}"><h1>${t.constructionPm}</h1><p>${t.unableToInitialize}</p></main>`;
+    const locale = getInitialLocale();
+    const t = getBootstrapLabels(locale);
+    applyDocumentLocale(locale);
+    container.innerHTML = `<main class="cp-shell-error" dir="${getWorkspaceLocaleDirection(locale)}"><h1>${t.errorTitle}</h1><p>${t.unableToInitialize}</p></main>`;
     console.error(error);
   }
 }

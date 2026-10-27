@@ -89,8 +89,7 @@ const copy: Partial<Record<LandingLocale, LandingCopy>> = {
 };
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceText } from "./workspace-localization.js";
 import { cubiAssistantAvatarUrl, cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
-
-const LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale";
+import { LANDING_LOCALE_STORAGE_KEY } from "./workspace-preferences.js";
 /** The un-prefixed landing document is the default language route. */
 export const DEFAULT_LANDING_LOCALE = "en";
 /**

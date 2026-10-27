@@ -1260,13 +1260,13 @@ async function main() {
     const personaCount = await page.count(
       'form[action="/preview/login"] button[name="role"]',
     );
-    assert(personaCount === 3, "three demo personas must be offered");
+    assert(personaCount === 4, "four demo personas must be offered");
     assert(
       (await page.text(".eyebrow"))?.includes("local full-stack preview"),
       "login page must declare local preview",
     );
     await page.screenshot("01-login.png");
-    record("demo login exposes exactly three fixture-only personas", {
+    record("demo login exposes fixture-only personas including a real first-run account", {
       personas: personaCount,
     });
 
@@ -1292,6 +1292,46 @@ async function main() {
     await page.screenshot("02-project-selection.png");
     record("planner session lists the two persisted fixture projects", {
       projects: projectButtons,
+    });
+
+    // The workspace language is a real preference and the root document must
+    // declare it. A CI runner and a developer machine can have different OS
+    // locales, so this run picks English explicitly and proves the switch
+    // re-renders the same first step instead of dropping the selection.
+    const languageBeforeSwitch = await page.evaluate(`(() => ({
+      lang: document.documentElement.lang,
+      dir: document.documentElement.dir,
+      next: document.querySelector("[data-bootstrap-language]")?.dataset.bootstrapLanguage ?? null,
+      options: document.querySelectorAll("button[data-project-id]").length,
+    }))()`);
+    assert(
+      languageBeforeSwitch.options === 2,
+      "the selection step must still be rendered before the language switch",
+    );
+    if (languageBeforeSwitch.lang !== "en") {
+      await page.click('[data-bootstrap-language="en"]');
+      await page.waitFor(
+        `document.documentElement.lang === "en" && document.documentElement.dir === "ltr"`,
+        "English selection page",
+      );
+    }
+    const languageAfterSwitch = await page.evaluate(`(() => ({
+      lang: document.documentElement.lang,
+      dir: document.documentElement.dir,
+      options: document.querySelectorAll("button[data-project-id]").length,
+      stored: (() => { try { return localStorage.getItem("cubi:workspace-locale"); } catch { return null; } })(),
+    }))()`);
+    assert(
+      languageAfterSwitch.lang === "en" &&
+        languageAfterSwitch.dir === "ltr" &&
+        languageAfterSwitch.options === 2 &&
+        languageAfterSwitch.stored === "en",
+      "switching language must keep the project-selection step and persist the choice: " +
+        JSON.stringify({ before: languageBeforeSwitch, after: languageAfterSwitch }),
+    );
+    record("workspace language switch keeps the first step and persists the choice", {
+      before: languageBeforeSwitch,
+      after: languageAfterSwitch,
     });
 
     // Before a project is open the floating entry must stay honest: it is visible,
@@ -1864,9 +1904,7 @@ async function main() {
       width_after: widthAfter,
     });
 
-    await page.reload(".cp-project-selection", "reload to project selection");
-    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
-    await page.waitForSelector(".cp-workspace", "workspace after reload");
+    await page.reload(".cp-workspace", "reload reopens the same project");
     await page.waitFor(
       `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
       "persisted column count after reload",
@@ -2190,9 +2228,7 @@ async function main() {
       "remove restored column before durable undo",
     );
 
-    await page.reload(".cp-project-selection", "reload before durable undo");
-    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
-    await page.waitForSelector(".cp-workspace", "workspace for durable undo");
+    await page.reload(".cp-workspace", "reload reopens the same project before durable undo");
     await page.waitFor(
       `(() => {
         const button = document.querySelector("[data-p6-layout-undo]");
@@ -3007,9 +3043,7 @@ async function main() {
       mobile: false,
     });
 
-    await page.reload(".cp-project-selection", "final reload");
-    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
-    await page.waitForSelector(".cp-workspace", "workspace after final reload");
+    await page.reload(".cp-workspace", "final reload reopens the same project");
     await page.waitFor(
       `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
       "persisted rows after final reload",
@@ -3359,6 +3393,130 @@ async function main() {
       name: createdProjectName,
       rows: createdProject.rows,
       columns: createdProject.columns,
+    });
+
+    // First-run journey on a real account with no project membership. This is
+    // not a mocked state: the newcomer session, the empty project list and the
+    // created project all go through the same preview API and SQLite store.
+    await page.click("#cubi-preview-banner button");
+    await page.waitForSelector('form[action="/preview/login"]', "newcomer login");
+    await page.click('button[name="role"][value="newcomer"]');
+    await page.waitForSelector(".cp-project-selection", "newcomer first-run page");
+    // The stored workspace language is English from the earlier explicit
+    // choice; select it again only if a different profile locale won.
+    if ((await page.evaluate(`document.documentElement.lang`)) !== "en") {
+      await page.click('[data-bootstrap-language="en"]');
+      await page.waitFor(
+        `document.documentElement.lang === "en" && document.documentElement.dir === "ltr"`,
+        "English first-run page",
+      );
+    }
+    const firstRun = await page.evaluate(`(() => ({
+      heading: document.querySelector(".cp-project-selection h1")?.textContent?.trim() ?? "",
+      description: document.querySelector(".cp-project-selection > p")?.textContent?.trim() ?? "",
+      projectOptions: document.querySelectorAll(".cp-project-option").length,
+      hasCreateForm: Boolean(document.querySelector('.cp-project-create-form input[name="projectName"]')),
+      hasErrorPage: Boolean(document.querySelector(".cp-shell-error")),
+      rawMessageKey: /error\\.[a-z0-9._-]+/i.test(document.body.textContent ?? ""),
+      documentLang: document.documentElement.lang,
+      documentDir: document.documentElement.dir,
+    }))()`);
+    assert(firstRun.projectOptions === 0, "the first-run account must not receive fixture projects");
+    assert(firstRun.hasCreateForm, "the first-run page must offer the real create-project form");
+    assert(!firstRun.hasErrorPage, "zero projects must not render as a dead-end error page");
+    assert(!firstRun.rawMessageKey, "no raw error message key may be shown to the user");
+    assert(firstRun.heading === "Create your first project", "the first-run heading must explain the next step");
+
+    await page.click('[data-bootstrap-language="fa"]');
+    await page.waitFor(
+      `document.documentElement.lang === "fa" && document.documentElement.dir === "rtl" &&
+       (document.querySelector(".cp-project-selection h1")?.textContent ?? "").includes("اولین پروژه")`,
+      "Persian first-run page",
+    );
+
+    await page.evaluate(`(() => {
+      const form = document.querySelector(".cp-project-create-form");
+      if (!form) throw new Error("FIRST_RUN_FORM_MISSING");
+      form.requestSubmit();
+      return true;
+    })()`);
+    await page.waitFor(
+      `(() => {
+        const error = document.querySelector(".cp-form-error");
+        return Boolean(error) && !error.hidden && error.textContent.trim().length > 0;
+      })()`,
+      "empty project name is rejected inline",
+    );
+    const emptyNameError = await page.text(".cp-form-error");
+    assert(/[\u0600-\u06FF]/.test(emptyNameError), "inline validation must be localized");
+
+    const firstProjectName = `پروژه نخست ${Date.now()}`;
+    await page.evaluate(
+      `(() => {
+        const input = document.querySelector('.cp-project-create-form input[name="projectName"]');
+        const form = document.querySelector(".cp-project-create-form");
+        if (!input || !form) throw new Error("FIRST_RUN_FORM_MISSING");
+        input.value = ${JSON.stringify(firstProjectName)};
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        form.requestSubmit();
+        return true;
+      })()`,
+    );
+    await page.waitForSelector(".cp-workspace", "first project workspace");
+    const firstProject = await page.evaluate(`(() => ({
+      url: window.location.href,
+      project: document.querySelector(".cp-project")?.textContent?.trim() ?? "",
+      lang: document.documentElement.lang,
+      dir: document.documentElement.dir,
+      menu: document.querySelector('.cp-menu button[aria-current="page"]')?.dataset.menu ?? "",
+    }))()`);
+    assert(firstProject.lang === "fa" && firstProject.dir === "rtl", "the chosen language must survive project creation");
+    assert(firstProject.project.length > 0, "the created project must be opened");
+    assert(/[?&]project=/.test(firstProject.url), "the confirmed project must be reflected in the address");
+
+    await page.click('[data-menu="control"]');
+    await page.waitFor(
+      `document.querySelector('.cp-menu button[data-menu="control"]')?.getAttribute("aria-current") === "page"`,
+      "control menu selected",
+    );
+    const urlBeforeReload = firstProject.url;
+    await page.reload(".cp-workspace", "first-run project reload");
+    const afterFirstReload = await page.evaluate(`(() => ({
+      url: window.location.href,
+      lang: document.documentElement.lang,
+      dir: document.documentElement.dir,
+      project: document.querySelector(".cp-project")?.textContent?.trim() ?? "",
+      menu: document.querySelector('.cp-menu button[aria-current="page"]')?.dataset.menu ?? "",
+      selectionVisible: Boolean(document.querySelector(".cp-project-selection")),
+    }))()`);
+    assert(!afterFirstReload.selectionVisible, "refresh must not drop the user back to project selection");
+    assert(afterFirstReload.project === firstProject.project, "refresh must reopen the same project");
+    assert(afterFirstReload.url === urlBeforeReload, "refresh must keep the project deep link");
+    assert(afterFirstReload.lang === "fa" && afterFirstReload.dir === "rtl", "refresh must keep the selected language");
+    assert(afterFirstReload.menu === "control", "refresh must keep the active workspace menu");
+
+    const projectsForNewcomer = await page.evaluate(
+      `fetch("/api/projects").then((response) => response.json())`,
+      { awaitPromise: true },
+    );
+    assert(
+      projectsForNewcomer.projects?.some((project) => project.name === firstProjectName),
+      "the first project must be persisted and returned by the real project API",
+    );
+    await page.screenshot("13-newcomer-first-project.png");
+    EVIDENCE.first_run = {
+      project_name: firstProjectName,
+      project_id: firstProject.project,
+      address: afterFirstReload.url,
+      language: afterFirstReload.lang,
+      menu: afterFirstReload.menu,
+      source: "preview-newcomer session -> GET /api/projects (empty) -> POST /api/projects -> GET /api/projects",
+    };
+    record("a user without projects creates the first real project, and language, project and menu survive reload", {
+      project_id: firstProject.project,
+      language: afterFirstReload.lang,
+      menu: afterFirstReload.menu,
+      persisted_projects: projectsForNewcomer.projects?.length ?? 0,
     });
 
     if (EXCEPTIONS.length > 0) {

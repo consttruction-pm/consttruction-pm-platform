@@ -392,6 +392,7 @@ class PreviewApplication:
                 "planner": "Read projects, edit activities, save layouts and publish schedule snapshots.",
                 "viewer": "Read-only project access. Writes are denied by the server.",
                 "admin": "Planner capabilities plus project creation.",
+                "newcomer": "A new account with no project yet. Use it to create and open the first project.",
             }[user.role]
             cards.append(
                 f"""<form method="post" action="{LOGIN_PATH}" class="persona">

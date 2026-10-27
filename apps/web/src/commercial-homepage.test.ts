@@ -51,7 +51,12 @@ test("commercial surface stays independent of external product provenance", () =
 
 
 test("the landing language follows its route and persists the accepted preference", () => {
-  assert.match(landing, /LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale"/);
+  const preferences = readFileSync(join(root, "src/workspace-preferences.ts"), "utf8");
+  assert.match(preferences, /LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale"/);
+  // One storage key, one owner: the landing page must consume the shared key
+  // instead of declaring a second constant that could silently diverge.
+  assert.match(landing, /import \{ LANDING_LOCALE_STORAGE_KEY \} from "\.\/workspace-preferences\.js"/);
+  assert.doesNotMatch(landing, /const LANDING_LOCALE_STORAGE_KEY/);
   // A language route, not storage, owns the document language and its metadata.
   assert.match(landing, /function restoreLandingLocale\(\): string \| null/);
   assert.match(landing, /function readSavedLandingLocale\(\): LandingLocale \| null/);
