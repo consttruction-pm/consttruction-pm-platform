@@ -126,7 +126,7 @@ test("public homepage exposes an accessible, interactive assistant entry point i
   assert.match(landing, /id="cubi-assistant-popover"/);
   assert.match(landing, /aria-expanded="false"/);
   assert.match(landing, /aria-controls="cubi-assistant-popover"/);
-  assert.match(landing, /setAssistantPopoverOpen\(assistantLauncher\.getAttribute\("aria-expanded"\) !== "true"\)/);
+  assert.match(landing, /setAssistantPopoverOpen\(assistantLauncher\?\.getAttribute\("aria-expanded"\) !== "true"\)/);
   assert.match(landing, /assistantTitle: "CUBI AI Assistant"/);
   assert.match(landing, /assistantTitle: "دستیار هوشمند کوبی"/);
   assert.match(landing, /assistantWorkspaceAction: "Open project workspace/);
