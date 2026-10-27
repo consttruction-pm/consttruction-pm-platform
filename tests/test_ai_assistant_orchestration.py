@@ -21,6 +21,8 @@ from construction_pm.ai_assistant_orchestration import (
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
     OpenAICompatibleChatProvider,
+    LocalOllamaChatProvider,
+    build_ai_chat_provider_from_environment,
     _RejectProviderRedirects,
 )
 
@@ -423,3 +425,84 @@ def test_provider_malformed_https_url_is_a_sanitized_configuration_error():
             api_key="key",
             model="model-test",
         )
+
+
+class LocalFakeResponse:
+    def __init__(self, raw: bytes):
+        self.raw = raw
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc, tb):
+        return False
+    def read(self, limit=-1):
+        return self.raw if limit < 0 else self.raw[:limit]
+
+
+def test_local_provider_uses_loopback_ollama_without_authorization_or_api_key(monkeypatch):
+    content = json.dumps({
+        "kind": "message", "message": "سلام", "tool_name": None, "payload": {}
+    })
+    response = LocalFakeResponse(json.dumps({
+        "message": {"content": content}
+    }).encode("utf-8"))
+    seen = {}
+
+    def opener(request, *, timeout):
+        seen["url"] = request.full_url
+        seen["authorization"] = request.get_header("Authorization")
+        seen["timeout"] = timeout
+        seen["body"] = json.loads(request.data.decode("utf-8"))
+        return response
+
+    monkeypatch.delenv("CUBI_AI_API_KEY", raising=False)
+    monkeypatch.setenv("CUBI_AI_LOCAL_MODEL", "cubi-engineering-test")
+    monkeypatch.delenv("CUBI_AI_PROVIDER", raising=False)
+    provider = build_ai_chat_provider_from_environment(opener=opener)
+    result = provider.complete_json(
+        system_prompt="system contract",
+        user_message="گزارش ماهانه را آماده کن",
+        language="fa",
+        history=({"role": "user", "content": "سلام"},),
+    )
+    assert result["kind"] == "message"
+    assert seen["url"] == "http://127.0.0.1:11434/api/chat"
+    assert seen["authorization"] is None
+    assert seen["timeout"] == 120
+    assert seen["body"]["model"] == "cubi-engineering-test"
+    assert seen["body"]["stream"] is False
+    assert seen["body"]["format"] == "json"
+    assert seen["body"]["options"]["temperature"] == 0
+    assert json.loads(seen["body"]["messages"][-1]["content"]) == {
+        "language": "fa", "request": "گزارش ماهانه را آماده کن"
+    }
+
+
+@pytest.mark.parametrize("base_url", [
+    "https://provider.example/v1",
+    "http://192.168.1.10:11434",
+    "http://127.0.0.1:11434/path",
+    "http://user:secret@localhost:11434",
+])
+def test_local_provider_rejects_non_loopback_or_ambiguous_endpoints(base_url):
+    with pytest.raises(AIAssistantProviderError):
+        LocalOllamaChatProvider(base_url=base_url, model="cubi-test")
+
+
+def test_local_provider_requires_local_model_and_never_selects_remote_provider(monkeypatch):
+    monkeypatch.delenv("CUBI_AI_LOCAL_MODEL", raising=False)
+    monkeypatch.delenv("CUBI_AI_API_KEY", raising=False)
+    with pytest.raises(AIAssistantProviderError, match="AI_ASSISTANT_LOCAL_MODEL_REQUIRED"):
+        build_ai_chat_provider_from_environment()
+    monkeypatch.setenv("CUBI_AI_PROVIDER", "openai-compatible")
+    with pytest.raises(AIAssistantProviderError, match="AI_ASSISTANT_PROVIDER_MUST_BE_LOCAL"):
+        build_ai_chat_provider_from_environment()
+
+
+def test_local_provider_reports_missing_runtime_with_stable_error_code():
+    provider = LocalOllamaChatProvider(
+        model="cubi-test",
+        opener=lambda request, *, timeout: (_ for _ in ()).throw(OSError("private detail")),
+    )
+    with pytest.raises(AIAssistantProviderError, match="AI_ASSISTANT_LOCAL_RUNTIME_UNAVAILABLE") as error:
+        provider.complete_json(system_prompt="system", user_message="hello", language="en")
+    assert "private detail" not in str(error.value)
