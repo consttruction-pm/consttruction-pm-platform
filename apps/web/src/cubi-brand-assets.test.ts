@@ -30,4 +30,10 @@ test("assistant avatar URL resolves from compiled Web assets and preserves GitHu
   const asset = new URL("../public/cubi-assistant-avatar.svg", import.meta.url);
   assert.ok(existsSync(asset), "shared avatar SVG must be present in the Web public directory");
   assert.match(readFileSync(asset, "utf8"), /<title id="title">CUBI AI Project Assistant<\/title>/);
+  const svg = readFileSync(asset, "utf8");
+  assert.match(svg, /data:image\/jpeg;base64,/);
+  assert.match(svg, /<image[^>]+preserveAspectRatio="xMidYMid slice"/);
+  assert.match(svg, /class="day"/);
+  assert.match(svg, /class="night"/);
+  assert.match(svg, /prefers-color-scheme:\s*dark/);
 });

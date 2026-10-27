@@ -1,55 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
 <title id="title">CUBI AI Project Assistant</title>
-<desc id="desc">Front-facing, friendly ivory-faced engineering AI assistant in a white hard hat, shown from the chest up with a project schedule display and engineering details.</desc>
-<defs>
- <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eaf7ff"/><stop offset="1" stop-color="#c6e5f5"/></linearGradient>
- <linearGradient id="helmet" x1="0" y1="0" x2="0.9" y2="1"><stop stop-color="#fff"/><stop offset=".62" stop-color="#e8f0f5"/><stop offset="1" stop-color="#c5d6e2"/></linearGradient>
- <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fffdf7"/><stop offset="1" stop-color="#e6edf2"/></linearGradient>
- <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dceaf2"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#9fb8c8"/></linearGradient>
- <linearGradient id="jacket" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2879a9"/><stop offset="1" stop-color="#123c64"/></linearGradient>
- <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#174366" flood-opacity=".22"/></filter>
- <style>
- @media(prefers-color-scheme:dark){#backdrop{fill:#12243d}#halo{fill:#1b4260}#orbit{stroke:#48d7e8}#spark{fill:#7ae8f0}}
- </style>
-</defs>
-<circle id="backdrop" cx="128" cy="128" r="126" fill="url(#bg)"/>
-<circle id="halo" cx="128" cy="111" r="91" fill="#f8fdff" opacity=".78"/>
-<g id="orbit" fill="none" stroke="#7eb9d4" stroke-width="1.5" opacity=".65"><path d="M20 151 Q128 211 236 151"/><path d="M34 67 Q128 22 222 67"/></g>
-<g id="spark" fill="#399ac0"><path d="M36 91l3 8 8 3-8 3-3 8-3-8-8-3 8-3z"/><path d="M218 91l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></g>
-<g filter="url(#shadow)">
- <!-- shoulders and torso: half-body avatar -->
- <path d="M45 256c3-39 21-62 53-72h60c32 10 50 33 53 72z" fill="url(#jacket)"/>
- <path d="M96 183l32 27 32-27 12 12-15 61H99l-15-61z" fill="#f7fbfd"/>
- <path d="M114 206h28l-5 50h-18z" fill="#19a8bd"/>
- <path d="M52 241l25-35 17 12-10 38H47z" fill="url(#metal)"/>
- <path d="M204 241l-25-35-17 12 10 38h37z" fill="url(#metal)"/>
- <!-- neck -->
- <path d="M108 151h40v36c-7 12-33 12-40 0z" fill="url(#face)" stroke="#b7cbd8" stroke-width="2"/>
- <!-- head shell -->
- <rect x="58" y="63" width="140" height="117" rx="48" fill="url(#metal)" stroke="#91b0c2" stroke-width="2"/>
- <rect x="67" y="71" width="122" height="100" rx="40" fill="url(#face)" stroke="#d1e0e8" stroke-width="1.5"/>
- <!-- ear modules -->
- <rect x="48" y="105" width="18" height="40" rx="8" fill="#c9dce7" stroke="#86aabd" stroke-width="2"/>
- <rect x="190" y="105" width="18" height="40" rx="8" fill="#c9dce7" stroke="#86aabd" stroke-width="2"/>
- <circle cx="57" cy="125" r="4" fill="#25b7c8"/><circle cx="199" cy="125" r="4" fill="#25b7c8"/>
- <!-- smart, bright face -->
- <path d="M88 113q13-12 27 0" fill="none" stroke="#9aaebc" stroke-width="3" stroke-linecap="round"/>
- <path d="M141 113q13-12 27 0" fill="none" stroke="#9aaebc" stroke-width="3" stroke-linecap="round"/>
- <ellipse cx="104" cy="126" rx="10" ry="13" fill="#193f5e"/><ellipse cx="152" cy="126" rx="10" ry="13" fill="#193f5e"/>
- <ellipse cx="107" cy="122" rx="3.5" ry="4.5" fill="#fff"/><ellipse cx="155" cy="122" rx="3.5" ry="4.5" fill="#fff"/>
- <circle cx="96" cy="137" r="4" fill="#f2a7a0" opacity=".6"/><circle cx="161" cy="137" r="4" fill="#f2a7a0" opacity=".6"/>
- <path d="M111 146q17 15 34 0" fill="none" stroke="#2e8298" stroke-width="3.5" stroke-linecap="round"/>
- <!-- helmet -->
- <path d="M66 83c0-32 26-53 62-53s62 21 62 53v9H66z" fill="url(#helmet)" stroke="#9eb9c8" stroke-width="2.5"/>
- <path d="M58 84q70-17 140 0l-7 14q-63 12-126 0z" fill="#d9e8f0" stroke="#8faebe" stroke-width="2"/>
- <path d="M83 67q45-22 90 0" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
- <!-- simple engineering mark on helmet -->
- <path d="M119 48h18v4h-7v15h-4V52h-7z" fill="#1b91aa"/>
- <circle cx="128" cy="59" r="13" fill="none" stroke="#1b91aa" stroke-width="2" opacity=".8"/>
- <!-- project dashboard on chest -->
- <rect x="94" y="218" width="68" height="26" rx="5" fill="#0c2b49" stroke="#65dce4" stroke-width="1.5"/>
- <path d="M102 225h17v3h-17zM102 231h25v3h-25zM102 237h12v3h-12z" fill="#d9f7ff"/>
- <path d="M130 226h24v3h-24z" fill="#52d5e3"/><path d="M130 232h18v3h-18z" fill="#83b8ff"/><path d="M130 238h22v3h-22z" fill="#52d5e3"/>
- <circle cx="176" cy="211" r="10" fill="#e4fbff" stroke="#39b9c9" stroke-width="2"/><path d="m171 211 4 4 7-8" fill="none" stroke="#178b9c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
+<desc id="desc">Cubi, the friendly construction project assistant from the approved CUBI avatar artwork: fair face, glasses, white hard hat with the blue C cube mark, high-visibility vest and tablet. Light and dark avatar artwork adapts to the system appearance.</desc>
+<style>
+  .night { display: none; }
+  @media (prefers-color-scheme: dark) {
+    .day { display: none; }
+    .night { display: inline; }
+  }
+</style>
+<image class="day" x="0" y="0" width="256" height="256" preserveAspectRatio="xMidYMid slice" href="data:image/jpeg;base64,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"/>
+<image class="night" x="0" y="0" width="256" height="256" preserveAspectRatio="xMidYMid slice" href="data:image/jpeg;base64,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"/>
 </svg>
