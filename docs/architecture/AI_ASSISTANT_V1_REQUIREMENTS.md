@@ -83,6 +83,14 @@ The assistant must implement the learning lifecycle specified in `docs/architect
 - Preserve original user-authored content and distinguish display locale, language, timezone and calculation/calendar settings.
 - Do not advertise a language, voice or offline feature as supported until end-to-end acceptance evidence exists.
 
+### 2.11 Provider-key and toolchain rule
+
+An external AI API key is **not** a universal prerequisite for the CUBI assistant. Keep the currently supported remote provider adapter, but design deterministic application capabilities to work without an external model call: project/WBS/activity ID allocation, file parsing for known formats, local OCR/speech-to-text when packaged, persistence and approved-scope retrieval, Shared Core calculations, and deterministic reports/chart datasets.
+
+Flexible natural-language understanding and semantic synthesis require a language model (or a deliberately limited deterministic dialogue). When the user/deployment does not configure an external model, support a genuine local inference adapter for the declared local capabilities. A local runtime needs model assets, compatible resources and explicit installation; it is not a promise of unlimited inference. If neither local nor remote inference is available, deterministic tools must still work and semantic limitations must be explained. Never silently fall back to a cloud service or send user/project data to an unapproved provider.
+
+The implementation shortlist, package boundaries, security requirements, file/MPP conversion limitations, local STT/OCR options, work-package order and acceptance tests are maintained in [CUBI Engineering Intelligence — Toolchain, No-Key Architecture and Acceptance Plan](CUBI_ENGINEERING_INTELLIGENCE_TOOLCHAIN_AND_ACCEPTANCE.md). That plan complements rather than replaces #1423, #1530, #1540, #1546 and Principle 11. Provider credentials must remain server-side, and no feature is complete until the real runtime, permission boundary, persistence and exact-head tests prove it.
+
 ## 3. Hard architecture boundaries
 
 1. **Shared Core authority:** the deterministic Shared Domain/Calculation Core remains the only authority for schedule, calendar, resource, cost, progress and EVM calculations.
