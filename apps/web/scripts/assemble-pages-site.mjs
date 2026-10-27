@@ -74,6 +74,7 @@ for (const file of listHtml(output)) {
   const html = readFileSync(file, "utf8")
     .replaceAll("dist/landing-entry.js", "dist/web/src/landing-entry.js")
     .replaceAll("dist/global-assistant-launcher.js", "dist/web/src/global-assistant-launcher.js")
+    .replaceAll("dist/pro-checkout.js", "dist/web/src/pro-checkout.js")
     .replaceAll("__CUBI_BASE_URL__", baseUrl);
   writeFileSync(file, html);
 }
@@ -92,6 +93,7 @@ writeFileSync(join(output, "sitemap.xml"), [
   "  <url><loc>" + baseUrl + "/solutions/</loc></url>",
   "  <url><loc>" + baseUrl + "/resources/</loc></url>",
   "  <url><loc>" + baseUrl + "/contact/</loc></url>",
+  "  <url><loc>" + baseUrl + "/pricing/</loc></url>",
   "</urlset>",
   "",
 ].join("\n"));
@@ -104,6 +106,7 @@ const languageRoutes = [
   { en: "/solutions/", fa: "/fa/solutions/" },
   { en: "/resources/", fa: "/fa/resources/" },
   { en: "/contact/", fa: "/fa/contact/" },
+  { en: "/pricing/", fa: "/fa/pricing/" },
 ];
 const documentForRoute = (route) => join(output, route === "/" ? "index.html" : route.slice(1) + "index.html");
 
@@ -134,9 +137,10 @@ writeFileSync(join(output, "sitemap.xml"), [
 
 for (const file of [
   "index.html", "app/index.html", "styles.css", "dist/web/src/landing-entry.js",
-  "dist/web/src/landing.js", "dist/web/src/global-assistant-launcher.js", "cubi-platform-logo-primary.svg", "cubi-assistant-avatar.svg", "app/cubi-platform-logo-primary.svg",
+  "dist/web/src/landing.js", "dist/web/src/global-assistant-launcher.js", "dist/web/src/pro-checkout.js", "cubi-platform-logo-primary.svg", "cubi-assistant-avatar.svg", "app/cubi-platform-logo-primary.svg",
   "platform/index.html", "solutions/index.html", "resources/index.html", "contact/index.html",
   "fa/index.html", "fa/platform/index.html", "fa/solutions/index.html", "fa/resources/index.html", "fa/contact/index.html",
+  "pricing/index.html", "fa/pricing/index.html",
   "robots.txt", "sitemap.xml", ".nojekyll",
 ]) assert(existsSync(join(output, file)), "missing " + file);
 assert(!existsSync(join(output, "app.html")), "the preview-only app.html must not be shipped");
@@ -150,6 +154,8 @@ const expectedTitles = new Map([
   ["fa/solutions/index.html", "راهکارهای کوبی | تحویل پروژه ساختمانی"],
   ["fa/resources/index.html", "منابع کوبی | معرفی محصول و راهنما"],
   ["fa/contact/index.html", "تماس با کوبی | دسترسی به حساب و اطلاعات محصول"],
+  ["pricing/index.html", "CUBI Pro Monthly | Pricing and Checkout"],
+  ["fa/pricing/index.html", "اشتراک ماهانه Pro کوبی | قیمت و پرداخت"],
 ]);
 for (const file of listHtml(output)) {
   assert(
