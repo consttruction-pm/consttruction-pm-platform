@@ -50,40 +50,7 @@ jobs:
         run: node scripts/assemble-pages-site.mjs "$RUNNER_TEMP/cubi-pages-site"
 
       - name: Preview runtime smoke test
-        run: |
-          node --input-type=module <<'NODE'
-          import { startPreviewServer } from "./preview-server.mjs";
-
-          const server = startPreviewServer();
-          await new Promise((resolve, reject) => {
-            server.once("listening", resolve);
-            server.once("error", reject);
-          });
-
-          try {
-            const checks = [
-              ["http://127.0.0.1:4173/", "CUBI Platform"],
-              ["http://127.0.0.1:4173/styles.css", "prefers-reduced-motion"],
-              ["http://127.0.0.1:4173/cubi-assistant-avatar.svg", "CUBI AI Project Assistant"],
-              ["http://127.0.0.1:4173/client-sync/src/scheduling-adapter.js", "SCHEDULING_CONTRACT_VERSION"],
-              ["http://127.0.0.1:4173/platform/", "Project planning and controls, connected."],
-              ["http://127.0.0.1:4173/solutions/", "Built around how construction projects are delivered."],
-              ["http://127.0.0.1:4173/resources/", "Understand the platform. Find the right next step."],
-              ["http://127.0.0.1:4173/contact/", "Get to the right CUBI destination."],
-            ];
-
-            for (const [url, expected] of checks) {
-              const response = await fetch(url);
-              if (!response.ok) throw new Error("HTTP " + response.status + " for " + url);
-              const body = await response.text();
-              if (!body.includes(expected)) {
-                throw new Error("Expected " + expected + " in " + url);
-              }
-            }
-          } finally {
-            await new Promise((resolve) => server.close(resolve));
-          }
-          NODE
+        run: npm run preview:smoke
 
       - name: Set up Python for full-stack preview E2E
         uses: actions/setup-python@v7

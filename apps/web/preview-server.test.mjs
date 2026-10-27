@@ -58,8 +58,45 @@ test("preview resolver serves the canonical assistant avatar from the public ass
 });
 
 
+test("preview resolver serves the Persian language routes as real documents", () => {
+  for (const route of ["/fa/", "/fa", "/fa/index.html", "/fa/platform/", "/fa/solutions/", "/fa/resources/", "/fa/contact/"]) {
+    const resolved = portable(resolveRequestFile(route));
+    assert.ok(resolved?.endsWith("/index.html"), "Expected " + route + " to resolve to index.html");
+    assert.ok(resolved?.includes("/public/fa/"), "Expected " + route + " to resolve from the Persian documents");
+    assert.ok(resolved && existsSync(resolved), "Expected a shipped document for " + route);
+  }
+});
+
+test("the language twins describe themselves and link to each other", () => {
+  const pairs = [
+    ["/platform/", "/fa/platform/"],
+    ["/solutions/", "/fa/solutions/"],
+    ["/resources/", "/fa/resources/"],
+    ["/contact/", "/fa/contact/"],
+  ];
+  const switchHref = (html) => html.match(/<a class="cubi-public-language"[^>]*?href="([^"]+)"/)?.[1];
+  for (const [english, persian] of pairs) {
+    const englishHtml = readFileSync(resolveRequestFile(english), "utf8");
+    const persianHtml = readFileSync(resolveRequestFile(persian), "utf8");
+    assert.match(englishHtml, /<html lang="en" dir="ltr">/);
+    assert.match(persianHtml, /<html lang="fa" dir="rtl">/);
+    const forward = switchHref(englishHtml);
+    const backward = switchHref(persianHtml);
+    assert.ok(forward, `${english} has no language switch link`);
+    assert.ok(backward, `${persian} has no language switch link`);
+    // Directory URLs make a wrong "./" prefix resolve to a dead route, so the
+    // switch is verified as a real URL rather than as a string.
+    assert.equal(new URL(forward, "https://preview.test" + english).pathname, persian);
+    assert.equal(new URL(backward, "https://preview.test" + persian).pathname, english);
+  }
+});
+
 test("every public page and the workspace shell load the shared floating assistant", () => {
-  for (const route of ["/", "/platform/", "/solutions/", "/resources/", "/contact/", "/app"]) {
+  for (const route of [
+    "/", "/platform/", "/solutions/", "/resources/", "/contact/",
+    "/fa/", "/fa/platform/", "/fa/solutions/", "/fa/resources/", "/fa/contact/",
+    "/app",
+  ]) {
     const resolved = resolveRequestFile(route);
     assert.ok(resolved && existsSync(resolved), "Expected a page for " + route);
     assert.match(readFileSync(resolved, "utf8"), /global-assistant-launcher\.js/, "Missing assistant launcher script on " + route);

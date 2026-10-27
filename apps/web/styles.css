@@ -2280,7 +2280,7 @@ th {
 .cubi-assistant-launcher {
   position: fixed;
   inset-inline-end: clamp(1rem, 2.8vw, 2rem);
-  bottom: clamp(1rem, 2.8vw, 2rem);
+  bottom: max(clamp(1rem, 2.8vw, 2rem), env(safe-area-inset-bottom, 0px));
   z-index: 1000;
   isolation: isolate;
   display: flex;
@@ -2307,14 +2307,37 @@ th {
   font-weight: 750;
   cursor: pointer;
 }
-.cubi-assistant-launcher-button img {
-  display: block;
+.cubi-assistant-avatar-slot {
+  display: grid;
+  place-items: center;
+  flex: 0 0 52px;
   width: 52px;
   height: 52px;
-  flex: 0 0 52px;
+}
+.cubi-assistant-avatar-slot img {
+  display: block;
+  grid-area: 1 / 1;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   object-fit: cover;
 }
+.cubi-assistant-avatar-fallback {
+  display: none;
+  grid-area: 1 / 1;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #0f2747;
+  color: #7fe8dd;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+/* A failed artwork load keeps the entry point: the badge replaces the image. */
+.cubi-assistant-avatar-slot[data-avatar-failed="true"] img { display: none; }
+.cubi-assistant-avatar-slot[data-avatar-failed="true"] .cubi-assistant-avatar-fallback { display: grid; }
 .cubi-assistant-launcher-button:focus-visible,
 .cubi-assistant-close:focus-visible,
 .cubi-assistant-workspace-link:focus-visible {
@@ -2325,6 +2348,8 @@ th {
   display: grid;
   gap: .85rem;
   width: min(360px, calc(100vw - 2rem));
+  max-height: min(70vh, 430px);
+  overflow: auto;
   box-sizing: border-box;
   padding: 1rem;
   border: 1px solid #d8e4ef;
@@ -2341,7 +2366,13 @@ th {
   align-items: center;
   gap: .7rem;
 }
-.cubi-assistant-popover-header > img {
+.cubi-assistant-popover-header > .cubi-assistant-avatar-slot {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+}
+.cubi-assistant-popover-header > .cubi-assistant-avatar-slot img {
   display: block;
   width: 52px;
   height: 52px;
@@ -2390,9 +2421,43 @@ th {
 }
 .cubi-assistant-workspace-link:hover { background: #184b7e; border-color: #184b7e; }
 [dir="rtl"] .cubi-assistant-launcher-button { padding: 7px 7px 7px 1.15rem; }
+/* Narrow viewports keep a circular icon-only entry so the fixed assistant can
+   never sit on top of page controls; the accessible name stays on the button. */
+.cubi-assistant-launcher[data-compact="true"] .cubi-assistant-launcher-button > span:last-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
 @media (max-width: 520px) {
-  .cubi-assistant-launcher { inset-inline-end: 12px; bottom: 12px; gap: .6rem; }
-  .cubi-assistant-launcher-button { min-height: 60px; padding-inline: .85rem .6rem; font-size: .82rem; }
-  .cubi-assistant-launcher-button img { width: 46px; height: 46px; flex-basis: 46px; }
-  [dir="rtl"] .cubi-assistant-launcher-button { padding-inline: .6rem .85rem; }
+  .cubi-assistant-launcher { inset-inline-end: 12px; bottom: max(12px, env(safe-area-inset-bottom, 0px)); gap: .6rem; }
+  .cubi-assistant-launcher-button {
+    min-height: 56px;
+    width: 56px;
+    padding: 0;
+    justify-content: center;
+    font-size: .82rem;
+  }
+  .cubi-assistant-launcher-button > span:last-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .cubi-assistant-launcher[data-compact="true"] .cubi-assistant-avatar-slot { flex-basis: 56px; width: 56px; height: 56px; }
+  .cubi-assistant-launcher[data-compact="true"] .cubi-assistant-avatar-slot img,
+  .cubi-assistant-launcher[data-compact="true"] .cubi-assistant-avatar-fallback { width: 56px; height: 56px; }
+  .cubi-assistant-popover { width: calc(100vw - 24px); }
 }

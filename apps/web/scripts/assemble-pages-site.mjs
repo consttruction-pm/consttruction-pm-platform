@@ -1,5 +1,5 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -60,16 +60,20 @@ let workspace = readFileSync(join(output, "app/index.html"), "utf8")
   .replace(/<meta name="description" content="[^"]*"\s*\/>/, '<meta name="description" content="CUBI Platform workspace." />')
   .replace(/<meta name="robots" content="[^"]*"\s*\/>/, '<meta name="robots" content="noindex,nofollow" />')
   .replace(/\s*<link rel="canonical"[^>]*\/?\s*>/g, "")
+  .replace(/\s*<link rel="alternate" hreflang=[^>]*\/?\s*>/g, "")
   .replace(/\s*<meta property="og:[^"]*"[^>]*\/?\s*>/g, "")
   .replace(/\s*<meta name="twitter:[^"]*"[^>]*\/?\s*>/g, "")
   .replace(/\s*<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "");
 writeFileSync(join(output, "app/index.html"), workspace);
 
 // Resolve deployment-specific URL placeholders in all public HTML documents.
+// The dist rewrites are prefix-agnostic so documents nested below the site
+// root (for example the Persian language routes) load the compiled modules.
 for (const file of listHtml(output)) {
   if (file.startsWith(join(output, "app") + "/")) continue;
   const html = readFileSync(file, "utf8")
-    .replaceAll("../dist/global-assistant-launcher.js", "../dist/web/src/global-assistant-launcher.js")
+    .replaceAll("dist/landing-entry.js", "dist/web/src/landing-entry.js")
+    .replaceAll("dist/global-assistant-launcher.js", "dist/web/src/global-assistant-launcher.js")
     .replaceAll("__CUBI_BASE_URL__", baseUrl);
   writeFileSync(file, html);
 }
@@ -93,18 +97,59 @@ writeFileSync(join(output, "sitemap.xml"), [
 ].join("\n"));
 writeFileSync(join(output, ".nojekyll"), "");
 
+// Every marketing route exists in both baseline languages, with hreflang pairs.
+const languageRoutes = [
+  { en: "/", fa: "/fa/" },
+  { en: "/platform/", fa: "/fa/platform/" },
+  { en: "/solutions/", fa: "/fa/solutions/" },
+  { en: "/resources/", fa: "/fa/resources/" },
+  { en: "/contact/", fa: "/fa/contact/" },
+];
+const documentForRoute = (route) => join(output, route === "/" ? "index.html" : route.slice(1) + "index.html");
+
+// Language-aware sitemap: every URL declares both language alternates.
+const sitemapUrls = [];
+for (const { en, fa } of languageRoutes) {
+  sitemapUrls.push(
+    "  <url>",
+    "    <loc>" + baseUrl + en + "</loc>",
+    '    <xhtml:link rel="alternate" hreflang="en" href="' + baseUrl + en + '"/>',
+    '    <xhtml:link rel="alternate" hreflang="fa" href="' + baseUrl + fa + '"/>',
+    '    <xhtml:link rel="alternate" hreflang="x-default" href="' + baseUrl + en + '"/>',
+    "  </url>",
+    "  <url>",
+    "    <loc>" + baseUrl + fa + "</loc>",
+    '    <xhtml:link rel="alternate" hreflang="en" href="' + baseUrl + en + '"/>',
+    '    <xhtml:link rel="alternate" hreflang="fa" href="' + baseUrl + fa + '"/>',
+    "  </url>",
+  );
+}
+writeFileSync(join(output, "sitemap.xml"), [
+  '<?xml version="1.0" encoding="UTF-8"?>',
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
+  ...sitemapUrls,
+  "</urlset>",
+  "",
+].join("\n"));
+
 for (const file of [
   "index.html", "app/index.html", "styles.css", "dist/web/src/landing-entry.js",
   "dist/web/src/landing.js", "dist/web/src/global-assistant-launcher.js", "cubi-platform-logo-primary.svg", "cubi-assistant-avatar.svg", "app/cubi-platform-logo-primary.svg",
   "platform/index.html", "solutions/index.html", "resources/index.html", "contact/index.html",
+  "fa/index.html", "fa/platform/index.html", "fa/solutions/index.html", "fa/resources/index.html", "fa/contact/index.html",
   "robots.txt", "sitemap.xml", ".nojekyll",
 ]) assert(existsSync(join(output, file)), "missing " + file);
+assert(!existsSync(join(output, "app.html")), "the preview-only app.html must not be shipped");
 
 const expectedTitles = new Map([
   ["platform/index.html", "CUBI Platform | Construction Project Controls"],
   ["solutions/index.html", "CUBI Solutions | Construction Project Delivery"],
   ["resources/index.html", "CUBI Resources | Product Overview and Documentation"],
   ["contact/index.html", "Contact CUBI | Account Access and Product Information"],
+  ["fa/platform/index.html", "پلتفرم کوبی | کنترل پروژه ساختمانی"],
+  ["fa/solutions/index.html", "راهکارهای کوبی | تحویل پروژه ساختمانی"],
+  ["fa/resources/index.html", "منابع کوبی | معرفی محصول و راهنما"],
+  ["fa/contact/index.html", "تماس با کوبی | دسترسی به حساب و اطلاعات محصول"],
 ]);
 for (const file of listHtml(output)) {
   assert(
@@ -114,9 +159,19 @@ for (const file of listHtml(output)) {
 }
 for (const [path, title] of expectedTitles) {
   const html = readFileSync(join(output, path), "utf8");
+  const route = "/" + path.split("/").slice(0, -1).join("/");
   assert(html.includes("<title>" + title + "</title>"), path + " title mismatch");
-  assert(html.includes('<link rel="canonical" href="' + baseUrl + "/" + path.split("/")[0] + '/">'), path + " canonical mismatch");
-  assert(html.includes('property="og:url" content="' + baseUrl + "/" + path.split("/")[0] + '/">'), path + " social URL mismatch");
+  assert(html.includes('<link rel="canonical" href="' + baseUrl + route + '/">'), path + " canonical mismatch");
+  assert(html.includes('property="og:url" content="' + baseUrl + route + '/">'), path + " social URL mismatch");
+}
+for (const { en, fa } of languageRoutes) {
+  const enDocument = readFileSync(documentForRoute(en), "utf8");
+  const faDocument = readFileSync(documentForRoute(fa), "utf8");
+  assert(enDocument.includes('<link rel="alternate" hreflang="fa" href="' + baseUrl + fa + '"'), en + " must offer " + fa);
+  assert(faDocument.includes('<link rel="alternate" hreflang="en" href="' + baseUrl + en + '"'), fa + " must offer " + en);
+  assert(faDocument.includes('lang="fa"') && faDocument.includes('dir="rtl"'), fa + " must be a Persian RTL document");
+  assert(/[\u0600-\u06FF]/.test(faDocument), fa + " must carry real Persian content");
+  assert(faDocument.includes("global-assistant-launcher.js"), fa + " must mount the shared assistant entry");
 }
 const finalHome = readFileSync(join(output, "index.html"), "utf8");
 const finalApp = readFileSync(join(output, "app/index.html"), "utf8");
@@ -132,5 +187,47 @@ assert(existsSync(join(output, "cubi-platform-logo-primary.svg")), "primary logo
 assert(existsSync(join(output, "cubi-assistant-avatar.svg")), "assistant avatar missing");
 for (const legacy of ["logo.svg", "logo-dark.svg", "cubi-platform-logo-primary-dark.svg"]) {
   assert(!existsSync(join(output, legacy)), "unexpected legacy logo " + legacy);
+}
+
+// Link integrity: every internal href/src in a shipped document must resolve to
+// a real artifact file, so no empty link or dead route can reach production.
+function toArtifactPath(rawTarget) {
+  const withoutFragment = rawTarget.split("#")[0].split("?")[0];
+  if (/^[a-z][a-z0-9+.-]*:/i.test(withoutFragment)) {
+    if (!withoutFragment.startsWith(baseUrl + "/")) return null;
+    return withoutFragment.slice(baseUrl.length);
+  }
+  return withoutFragment;
+}
+
+function resolveArtifactTarget(file, rawTarget) {
+  const route = toArtifactPath(rawTarget);
+  if (route === null) return null;
+  const decoded = decodeURIComponent(route).replace(/^\/+/, "");
+  const absolute = route.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(rawTarget.split("#")[0])
+    ? join(output, decoded)
+    : resolve(dirname(file), decoded.split("#")[0].split("?")[0]);
+  if (existsSync(absolute) && statSync(absolute).isDirectory()) return join(absolute, "index.html");
+  return absolute;
+}
+
+const internalLinks = [];
+for (const file of listHtml(output)) {
+  const html = readFileSync(file, "utf8");
+  for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
+    const target = match[1];
+    if (target.startsWith("mailto:") || target.startsWith("tel:") || target.startsWith("data:")) continue;
+    internalLinks.push({ file, target });
+  }
+}
+for (const { file, target } of internalLinks) {
+  const resolved = resolveArtifactTarget(file, target);
+  if (resolved === null) continue;
+  const relativeTarget = relative(output, resolved).split(sep).join("/");
+  const documentName = relative(output, file).split(sep).join("/");
+  assert(
+    !relativeTarget.startsWith("..") && existsSync(resolved),
+    "broken link in " + documentName + ": " + target + " does not resolve to a shipped file",
+  );
 }
 console.log("CUBI Pages artifact validated at " + output + " (" + listHtml(output).length + " HTML files)");

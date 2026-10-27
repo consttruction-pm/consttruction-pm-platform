@@ -775,8 +775,22 @@ async function main() {
     );
     record("homepage assistant stays visible while scrolling", homepageFixedState);
 
-    for (const route of ["/platform/", "/solutions/", "/resources/", "/contact/"]) {
-      await page.navigate(`${baseUrl}${route}`, ".cubi-public-page", "public page " + route);
+    const publicAssistantRoutes = [
+      { route: "/platform/", shell: ".cubi-public-page", lang: "en", dir: "ltr" },
+      { route: "/solutions/", shell: ".cubi-public-page", lang: "en", dir: "ltr" },
+      { route: "/resources/", shell: ".cubi-public-page", lang: "en", dir: "ltr" },
+      { route: "/contact/", shell: ".cubi-public-page", lang: "en", dir: "ltr" },
+      { route: "/fa/", shell: ".cubi-reference-home", lang: "fa", dir: "rtl" },
+      { route: "/fa/platform/", shell: ".cubi-public-page", lang: "fa", dir: "rtl" },
+      { route: "/fa/solutions/", shell: ".cubi-public-page", lang: "fa", dir: "rtl" },
+      { route: "/fa/resources/", shell: ".cubi-public-page", lang: "fa", dir: "rtl" },
+      { route: "/fa/contact/", shell: ".cubi-public-page", lang: "fa", dir: "rtl" },
+    ];
+    for (const publicRoute of publicAssistantRoutes) {
+      const route = publicRoute.route;
+      // A browser refresh of the direct URL must land on the same page, in the
+      // same language, with the same floating assistant entry.
+      await page.navigate(`${baseUrl}${route}`, publicRoute.shell, "public page " + route);
       await page.waitFor('Boolean(document.querySelector("#cubi-assistant-launcher"))', "assistant launcher on " + route);
       const routeState = await page.evaluate(`(() => {
         const root = document.querySelector("#cubi-global-assistant");
@@ -789,12 +803,449 @@ async function main() {
           visible: Boolean(bounds && bounds.width > 0 && bounds.height > 0 && bounds.bottom <= window.innerHeight),
           fixed: root ? getComputedStyle(root).position === "fixed" : false,
           avatarLoaded: Boolean(image?.complete && image.naturalWidth > 0),
+          documentLang: document.documentElement.lang,
+          documentDir: document.documentElement.dir,
+          launcherDir: root?.dir ?? null,
+          launcherLabel: button?.getAttribute("aria-label") ?? "",
+          workspaceHref: document.querySelector("#cubi-assistant-popover a")?.getAttribute("href") ?? "",
         };
       })()`);
       assert(routeState.rootFound && routeState.mountedOnBody && routeState.visible && routeState.fixed && routeState.avatarLoaded,
         "assistant not visible on " + route + ": " + JSON.stringify(routeState));
+      assert(
+        routeState.documentLang === publicRoute.lang && routeState.documentDir === publicRoute.dir,
+        `${route} must render as ${publicRoute.lang}/${publicRoute.dir}: ` + JSON.stringify(routeState),
+      );
+      assert(
+        routeState.launcherDir === publicRoute.dir,
+        `${route} assistant entry must follow the document direction: ` + JSON.stringify(routeState),
+      );
+      assert(
+        publicRoute.lang === "en"
+          ? routeState.launcherLabel.includes("CUBI AI Assistant")
+          : routeState.launcherLabel.includes("دستیار هوشمند کوبی"),
+        `${route} assistant entry label is not in ${publicRoute.lang}: ` + JSON.stringify(routeState),
+      );
+      // The Persian landing is a language route, so its workspace link must climb
+      // back to the single application shell instead of /fa/app/.
+      assert(
+        new URL(routeState.workspaceHref, `${baseUrl}${route}`).pathname.endsWith("/app/"),
+        `${route} assistant workspace link must target the real app route: ` + JSON.stringify(routeState),
+      );
       record("floating assistant visible on " + route, routeState);
     }
+
+    // The assistant entry must stay a single, self-contained widget that works
+    // without any backend call: one root, one panel, zero network requests.
+    await page.navigate(`${baseUrl}/platform/`, ".cubi-public-page", "platform page for assistant isolation");
+    await page.waitForSelector("#cubi-assistant-launcher", "assistant launcher on platform page");
+    const assistantIsolation = await page.evaluate(`(() => {
+      const networkEntries = performance.getEntriesByType("resource");
+      return {
+        roots: document.querySelectorAll("#cubi-global-assistant").length,
+        panels: document.querySelectorAll("#cubi-assistant-popover").length,
+        launcherButtons: document.querySelectorAll("#cubi-assistant-launcher").length,
+        requestInitiators: networkEntries
+          .filter((entry) => entry.initiatorType === "fetch" || entry.initiatorType === "xmlhttprequest")
+          .map((entry) => entry.name),
+      };
+    })()`);
+    assert(
+      assistantIsolation.roots === 1 &&
+        assistantIsolation.panels === 1 &&
+        assistantIsolation.launcherButtons === 1 &&
+        assistantIsolation.requestInitiators.length === 0,
+      "assistant entry must be a single instance without network coupling: " +
+        JSON.stringify(assistantIsolation),
+    );
+    record("floating assistant mounts once with one panel and zero API requests", assistantIsolation);
+
+    const assistantEscapeAndOutside = await page.evaluate(`(async () => {
+      const launcher = document.querySelector("#cubi-assistant-launcher");
+      const panel = document.querySelector("#cubi-assistant-popover");
+      const press = (key) => document.body.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+      );
+      const before = { openByClick: false, closedByEscape: false, closedByOutsideClick: false, focusAfterEscape: null };
+
+      launcher.click();
+      before.openByClick = !panel.hidden && launcher.getAttribute("aria-expanded") === "true";
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      before.focusAfterOpen = document.activeElement?.id ?? null;
+      press("Escape");
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      before.closedByEscape = panel.hidden && launcher.getAttribute("aria-expanded") === "false";
+      before.focusAfterEscape = document.activeElement?.id ?? null;
+
+      launcher.click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      document.querySelector("main").dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, cancelable: true }),
+      );
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      before.closedByOutsideClick = panel.hidden && launcher.getAttribute("aria-expanded") === "false";
+      before.stillMounted = Boolean(document.querySelector("#cubi-global-assistant"));
+      before.pageStillInteractive = document.querySelector(".cubi-public-hero h1") !== null;
+      return before;
+    })()`, { awaitPromise: true });
+    assert(
+      assistantEscapeAndOutside.openByClick &&
+        assistantEscapeAndOutside.closedByEscape &&
+        assistantEscapeAndOutside.focusAfterEscape === "cubi-assistant-launcher" &&
+        assistantEscapeAndOutside.closedByOutsideClick &&
+        assistantEscapeAndOutside.stillMounted &&
+        assistantEscapeAndOutside.pageStillInteractive,
+      "assistant panel keyboard and dismissal contract failed: " +
+        JSON.stringify(assistantEscapeAndOutside),
+    );
+    record("assistant panel closes on Escape anywhere and on outside pointer down", assistantEscapeAndOutside);
+
+    const assistantArtworkFailure = await page.evaluate(`(async () => {
+      const root = document.querySelector("#cubi-global-assistant");
+      const launcher = document.querySelector("#cubi-assistant-launcher");
+      const slots = Array.from(root.querySelectorAll(".cubi-assistant-avatar-slot"));
+      slots.forEach((slot) => slot.querySelector("img")?.dispatchEvent(new Event("error")));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const rect = launcher.getBoundingClientRect();
+      const badge = root.querySelector(".cubi-assistant-avatar-fallback");
+      const before = {
+        slotCount: slots.length,
+        everySlotFlaggedFailed: slots.every((slot) => slot.dataset.avatarFailed === "true"),
+        entryRemovedFromDom: !document.querySelector("#cubi-global-assistant"),
+        entryStillVisible: rect.width > 0 && rect.height > 0,
+        fallbackBadgeShown: getComputedStyle(badge).display !== "none",
+        panelStillOpens: false,
+      };
+      launcher.click();
+      before.panelStillOpens = !document.querySelector("#cubi-assistant-popover").hidden;
+      launcher.click();
+      return before;
+    })()`, { awaitPromise: true });
+    assert(
+      assistantArtworkFailure.slotCount >= 1 &&
+        assistantArtworkFailure.everySlotFlaggedFailed &&
+        !assistantArtworkFailure.entryRemovedFromDom &&
+        assistantArtworkFailure.entryStillVisible &&
+        assistantArtworkFailure.fallbackBadgeShown &&
+        assistantArtworkFailure.panelStillOpens,
+      "assistant entry must survive a failed avatar artwork load: " +
+        JSON.stringify(assistantArtworkFailure),
+    );
+    record("failed assistant artwork keeps a working labelled entry point", assistantArtworkFailure);
+
+    // The entry point must not depend on any transport: give the document an
+    // API layer that always fails and confirm the assistant still mounts.
+    const failingTransport = await page.cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: `
+        window.__cubiAssistantTransportCalls = 0;
+        window.fetch = () => {
+          window.__cubiAssistantTransportCalls += 1;
+          return Promise.reject(new Error("ASSISTANT_SERVICE_UNAVAILABLE"));
+        };
+        window.XMLHttpRequest = function CubiBlockedXHR() {
+          window.__cubiAssistantTransportCalls += 1;
+          throw new Error("ASSISTANT_SERVICE_UNAVAILABLE");
+        };
+      `,
+    });
+    await page.navigate(
+      `${baseUrl}/platform/`,
+      "#cubi-assistant-launcher",
+      "public page with an unavailable assistant transport",
+    );
+    const assistantWithoutTransport = await page.evaluate(`(() => {
+      const launcher = document.querySelector("#cubi-assistant-launcher");
+      const panel = document.querySelector("#cubi-assistant-popover");
+      const rect = launcher.getBoundingClientRect();
+      launcher.click();
+      const opened = !panel.hidden;
+      const title = panel.querySelector("#cubi-assistant-title")?.textContent?.trim() ?? null;
+      launcher.click();
+      return {
+        launcherFound: Boolean(launcher),
+        singleRoot: document.querySelectorAll("#cubi-global-assistant").length,
+        entryVisible: rect.width > 0 && rect.height > 0,
+        openedWithoutSession: opened,
+        title,
+        transportCalls: window.__cubiAssistantTransportCalls,
+        pageContentIntact: document.querySelector(".cubi-public-hero h1") !== null,
+      };
+    })()`);
+    await page.cdp.send("Page.removeScriptToEvaluateOnNewDocument", {
+      identifier: failingTransport.identifier,
+    });
+    assert(
+      assistantWithoutTransport.launcherFound &&
+        assistantWithoutTransport.singleRoot === 1 &&
+        assistantWithoutTransport.entryVisible &&
+        assistantWithoutTransport.openedWithoutSession &&
+        assistantWithoutTransport.title &&
+        assistantWithoutTransport.transportCalls === 0 &&
+        assistantWithoutTransport.pageContentIntact,
+      "assistant entry must stay usable when the workspace backend is unavailable: " +
+        JSON.stringify(assistantWithoutTransport),
+    );
+    record("assistant entry mounts with a failing transport and issues zero transport calls", assistantWithoutTransport);
+
+    // The route is authoritative for the document language, and visiting the
+    // Persian routes above persists that preference, so the English landing would
+    // legitimately redirect. Geometry evidence has to be language-deterministic:
+    // drop the stored preference and prove the document under test is English.
+    await page.evaluate(`(() => {
+      try { localStorage.removeItem("cubi:landing-locale"); } catch { /* storage is optional */ }
+      return true;
+    })()`);
+    await page.navigate(`${baseUrl}/`, ".cubi-reference-home", "homepage for assistant geometry checks");
+    const assistantGeometryProbe = `(() => {
+      const root = document.querySelector("#cubi-global-assistant");
+      const launcher = document.querySelector("#cubi-assistant-launcher");
+      // The button holds two spans: the avatar slot and the visible label. Only
+      // the label may be hidden by the compact rules, so select by type, not by
+      // ":last-child", which also matches the fallback badge inside the slot.
+      const label = launcher.querySelector(":scope > span:last-of-type");
+      const rect = launcher.getBoundingClientRect();
+      const rootStyle = getComputedStyle(root);
+      // "inline end" is a physical edge only once the direction is known: right
+      // for LTR, left for RTL. The pin gap must equal the declared inset in both,
+      // which is what proves the widget mirrors instead of being hardcoded.
+      const inlineEndGap = rootStyle.direction === "rtl"
+        ? rect.left
+        : window.innerWidth - rect.right;
+      const coverTargets = [
+        ["language", "#cubi-language"],
+        ["primary CTA", ".cubi-exact-hero-actions .cubi-exact-primary"],
+        ["sign in", ".cubi-exact-signin"],
+        ["get started", ".cubi-exact-start"],
+        ...Array.from(document.querySelectorAll(".cubi-exact-nav a")).map((_, index) => ["nav link " + index, ".cubi-exact-nav a:nth-of-type(" + (index + 1) + ")"]),
+      ].map(([name, selector]) => {
+        const element = document.querySelector(selector);
+        if (!element) return { name, present: false, overlaps: false };
+        const target = element.getBoundingClientRect();
+        const overlaps =
+          rect.left < target.right && rect.right > target.left &&
+          rect.top < target.bottom && rect.bottom > target.top;
+        return { name, present: true, overlaps };
+      });
+      return {
+        documentLang: document.documentElement.lang,
+        documentDir: document.documentElement.dir,
+        compactMode: root.dataset.compact === "true",
+        compactMediaMatches: window.matchMedia("(max-width: 520px)").matches,
+        viewportWidth: window.innerWidth,
+        launcherWidth: Math.round(rect.width),
+        insideViewport: rect.left >= -1 && rect.right <= window.innerWidth + 1 &&
+          rect.top >= -1 && rect.bottom <= window.innerHeight + 1,
+        labelHidden: label.getBoundingClientRect().width <= 1,
+        labelWidth: Math.round(label.getBoundingClientRect().width),
+        rootDirection: rootStyle.direction,
+        declaredInlineEndInset: Math.round(parseFloat(rootStyle.insetInlineEnd) || 0),
+        inlineEndGap: Math.round(inlineEndGap),
+        accessibleName: launcher.getAttribute("aria-label"),
+        horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
+        coverTargets,
+      };
+    })()`;
+    for (const viewport of [
+      { width: 390, height: 844, mobile: true, compact: true, screenshot: "02a-mobile-assistant-launcher.png", label: "mobile 390px" },
+      { width: 820, height: 1180, mobile: true, compact: false, screenshot: "02a2-tablet-assistant-launcher.png", label: "tablet 820px" },
+      { width: 1440, height: 900, mobile: false, compact: false, screenshot: "02a3-desktop-assistant-launcher.png", label: "desktop 1440px" },
+    ]) {
+      await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+        width: viewport.width,
+        height: viewport.height,
+        deviceScaleFactor: viewport.mobile ? 2 : 1,
+        mobile: viewport.mobile,
+      });
+      // The compact flag is driven by a matchMedia listener, so wait until the
+      // emulated width, the media query and the widget state agree instead of
+      // trusting a fixed delay that can measure a mid-resize layout.
+      await page.waitFor(
+        `(() => {
+          const root = document.querySelector("#cubi-global-assistant");
+          if (!root) return false;
+          const matches = window.matchMedia("(max-width: 520px)").matches;
+          return Math.abs(window.innerWidth - ${viewport.width}) <= 1 &&
+            root.dataset.compact === String(${viewport.compact}) &&
+            root.dataset.compact === String(matches);
+        })()`,
+        `${viewport.label} assistant entry settles its compact state`,
+        4000,
+      );
+      const geometry = await page.evaluate(assistantGeometryProbe);
+      assert(
+        geometry.documentLang === "en" && geometry.documentDir === "ltr",
+        `${viewport.label} geometry must be measured on the English landing route: ` +
+          JSON.stringify(geometry),
+      );
+      assert(
+        geometry.insideViewport &&
+          geometry.horizontalOverflow <= 1 &&
+          Boolean(geometry.accessibleName) &&
+          geometry.compactMode === viewport.compact &&
+          geometry.compactMediaMatches === viewport.compact &&
+          geometry.labelHidden === viewport.compact &&
+          geometry.launcherWidth <= (viewport.compact ? 64 : 340) &&
+          geometry.rootDirection === "ltr" &&
+          Math.abs(geometry.inlineEndGap - geometry.declaredInlineEndInset) <= 1 &&
+          geometry.coverTargets.every((target) => !target.overlaps),
+        `${viewport.label} assistant entry must stay pinned, correctly labelled and clear of page controls: ` +
+          JSON.stringify(geometry),
+      );
+      await page.screenshot(viewport.screenshot);
+      record(`${viewport.label} assistant entry is pinned and overlaps no control`, geometry);
+    }
+
+    // The panel itself is verified on the narrowest supported viewport. The
+    // geometry loop ends on desktop, so re-apply the mobile metrics and wait for
+    // them instead of measuring a desktop popover under a mobile label.
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 390,
+      height: 844,
+      deviceScaleFactor: 2,
+      mobile: true,
+    });
+    await page.waitFor(
+      `Math.abs(window.innerWidth - 390) <= 1 &&
+        document.querySelector("#cubi-global-assistant")?.dataset.compact === "true"`,
+      "mobile metrics before the assistant panel check",
+      4000,
+    );
+
+    const mobileAssistantPanel = await page.evaluate(`(() => {
+      const launcher = document.querySelector("#cubi-assistant-launcher");
+      launcher.click();
+      const panel = document.querySelector("#cubi-assistant-popover");
+      const rect = panel.getBoundingClientRect();
+      const close = document.querySelector("#cubi-assistant-close");
+      const closeRect = close.getBoundingClientRect();
+      return {
+        opened: !panel.hidden,
+        insideViewport: rect.left >= -1 && rect.right <= window.innerWidth + 1 &&
+          rect.top >= -1 && rect.bottom <= window.innerHeight + 1,
+        panelWidth: Math.round(rect.width),
+        closeReachable: closeRect.width >= 24 && closeRect.height >= 24 &&
+          closeRect.top >= 0 && closeRect.bottom <= window.innerHeight,
+      };
+    })()`);
+    assert(
+      mobileAssistantPanel.opened &&
+        mobileAssistantPanel.insideViewport &&
+        mobileAssistantPanel.closeReachable,
+      "assistant panel must fit a 390px viewport with a reachable close control: " +
+        JSON.stringify(mobileAssistantPanel),
+    );
+    await page.screenshot("02b-mobile-assistant-panel.png");
+    record("assistant panel fits the mobile viewport with a reachable close control", mobileAssistantPanel);
+
+    // Persian is a real route with its own document, not a client-only repaint of
+    // the English page: load /fa/ directly and verify the mirrored assistant entry.
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await page.waitFor(
+      `Math.abs(window.innerWidth - 1440) <= 1 &&
+        document.querySelector("#cubi-global-assistant")?.dataset.compact === "false"`,
+      "desktop metrics before the Persian route check",
+      4000,
+    );
+    await page.navigate(`${baseUrl}/fa/`, ".cubi-reference-home", "Persian landing route");
+    const rtlAssistant = await page.evaluate(`(() => {
+      const root = document.querySelector("#cubi-global-assistant");
+      const launcher = document.querySelector("#cubi-assistant-launcher");
+      const rect = launcher.getBoundingClientRect();
+      const rootStyle = getComputedStyle(root);
+      // RTL pinning is proven by geometry, not by a pixel guess: the gap to the
+      // physical left edge must equal the declared logical inset, and the entry
+      // must sit further from the right edge than from the left one.
+      const declaredInlineEndInset = parseFloat(rootStyle.insetInlineEnd) || 0;
+      const inlineEndGap = rootStyle.direction === "rtl" ? rect.left : window.innerWidth - rect.right;
+      const panel = document.querySelector("#cubi-assistant-popover");
+      launcher.click();
+      const panelRect = panel.getBoundingClientRect();
+      const persianTitle = panel.querySelector("#cubi-assistant-title")?.textContent?.trim() ?? "";
+      const persianAction = panel.querySelector("a.cubi-assistant-workspace-link")?.textContent?.trim() ?? "";
+      const workspacePath = new URL(panel.querySelector("a.cubi-assistant-workspace-link").href).pathname;
+      launcher.click();
+      const result = {
+        documentDir: document.documentElement.dir,
+        documentLang: document.documentElement.lang,
+        launcherDir: root.dir,
+        rootDirection: rootStyle.direction,
+        declaredInlineEndInset: Math.round(declaredInlineEndInset),
+        inlineEndGap: Math.round(inlineEndGap),
+        leftGap: Math.round(rect.left),
+        rightGap: Math.round(window.innerWidth - rect.right),
+        pinnedToInlineEnd:
+          rootStyle.direction === "rtl" &&
+          Math.abs(inlineEndGap - declaredInlineEndInset) <= 1 &&
+          rect.left < window.innerWidth - rect.right,
+        insideViewport: rect.left >= -1 && rect.right <= window.innerWidth + 1,
+        panelInsideViewport: panelRect.left >= -1 && panelRect.right <= window.innerWidth + 1,
+        persianTitle,
+        persianAction,
+        workspacePath,
+        panelClosesOnEscape: (() => {
+          launcher.click();
+          document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+          const closed = panel.hidden;
+          return closed;
+        })(),
+      };
+      return result;
+    })()`, { awaitPromise: true });
+    assert(
+      rtlAssistant.documentDir === "rtl" &&
+        rtlAssistant.launcherDir === "rtl" &&
+        rtlAssistant.pinnedToInlineEnd &&
+        rtlAssistant.insideViewport &&
+        rtlAssistant.panelInsideViewport &&
+        rtlAssistant.persianTitle.includes("دستیار هوشمند کوبی") &&
+        rtlAssistant.persianAction.includes("فضای کاری") &&
+        rtlAssistant.workspacePath.endsWith("/app/") &&
+        rtlAssistant.panelClosesOnEscape,
+      "Persian RTL assistant entry must mirror to the inline end, stay labelled and remain operable: " +
+        JSON.stringify(rtlAssistant),
+    );
+    await page.screenshot("02c-persian-rtl-assistant.png");
+    record("Persian RTL assistant entry mirrors, translates and stays operable", rtlAssistant);
+
+    // The header switch must move between the two language routes for a real URL.
+    await page.click("#cubi-language");
+    await page.waitFor(
+      `document.readyState === "complete" && document.documentElement.dir === "ltr" && Boolean(document.querySelector(".cubi-reference-home"))`,
+      "English landing after the language switch",
+    );
+    const switchToEnglish = await page.evaluate(`(() => ({
+      pathname: location.pathname,
+      lang: document.documentElement.lang,
+      dir: document.documentElement.dir,
+      assistantLabel: document.querySelector("#cubi-assistant-launcher")?.getAttribute("aria-label") ?? "",
+      savedLocale: (() => { try { return localStorage.getItem("cubi:landing-locale"); } catch { return null; } })(),
+    }))()`);
+    assert(
+      switchToEnglish.lang === "en" &&
+        switchToEnglish.dir === "ltr" &&
+        switchToEnglish.assistantLabel.includes("CUBI AI Assistant") &&
+        switchToEnglish.savedLocale === "en",
+      "language switch must land on the English route with English assistant copy: " +
+        JSON.stringify(switchToEnglish),
+    );
+    record("header language switch navigates from /fa/ to the English route", switchToEnglish);
+
+    await page.evaluate(`(() => {
+      try { localStorage.removeItem("cubi:landing-locale"); } catch { /* storage is optional */ }
+      return true;
+    })()`);
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await sleep(200);
 
     await page.navigate(
       `${baseUrl}/preview/login`,
@@ -838,6 +1289,46 @@ async function main() {
       projects: projectButtons,
     });
 
+    // Before a project is open the floating entry must stay honest: it is visible,
+    // it does not fabricate a second assistant panel, and it says what the user has
+    // to do next instead of appearing to do nothing.
+    const assistantNeedsProject = await page.evaluate(`(async () => {
+      const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const launcher = document.querySelector("#cubi-assistant-launcher");
+      const panel = document.querySelector("#cubi-assistant-popover");
+      const description = panel.querySelector("#cubi-assistant-description");
+      const action = panel.querySelector("a.cubi-assistant-workspace-link");
+      const state = {
+        launcherVisible: launcher.getBoundingClientRect().width > 0,
+        chatPanelsBeforeProject: document.querySelectorAll("#cp-ai-assistant-chat").length,
+      };
+      launcher.click();
+      await frames();
+      state.openedByClick = !panel.hidden;
+      action.click();
+      await frames();
+      state.guidanceText = description.textContent ?? "";
+      state.guidanceFocused = document.activeElement === description;
+      state.stillOnePanel = document.querySelectorAll("#cubi-assistant-popover").length === 1;
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      await frames();
+      state.closedOnEscape = panel.hidden;
+      return state;
+    })()`, { awaitPromise: true });
+    assert(
+      assistantNeedsProject.launcherVisible &&
+        assistantNeedsProject.chatPanelsBeforeProject === 0 &&
+        assistantNeedsProject.openedByClick &&
+        /open (a|or create a) project/i.test(assistantNeedsProject.guidanceText) &&
+        assistantNeedsProject.guidanceFocused &&
+        assistantNeedsProject.stillOnePanel &&
+        assistantNeedsProject.closedOnEscape,
+      "assistant entry must state the missing-project guidance without faking a panel: " +
+        JSON.stringify(assistantNeedsProject),
+    );
+    await page.screenshot("02d-assistant-needs-project.png");
+    record("assistant entry guides the user when no project is open", assistantNeedsProject);
+
     await page.click(`button[data-project-id="${PROJECT_ID}"]`);
     await page.waitForSelector(".cp-workspace", "workspace shell");
     await page.waitFor(
@@ -877,6 +1368,90 @@ async function main() {
     record("authenticated workspace renders loaded chat and action-panel assistant avatars", {
       avatars: workspaceAvatarState,
     });
+
+    // Inside the workspace the floating entry must route to the real assistant
+    // panel, stay a single instance and never spawn a second independent panel.
+    const workspaceLauncherRouting = await page.evaluate(`(() => {
+      const launcher = document.querySelector("#cubi-assistant-launcher");
+      const panel = document.querySelector("#cubi-assistant-popover");
+      const action = panel.querySelector("a.cubi-assistant-workspace-link");
+      const chat = document.querySelector("#cp-ai-assistant-chat");
+      // Start from a known closed state so the open/close assertions cannot be
+      // satisfied by a panel an earlier step happened to leave open.
+      if (!panel.hidden) {
+        document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      }
+      const before = {
+        startedClosed: panel.hidden,
+        launcherSingle: document.querySelectorAll("#cubi-global-assistant").length,
+        panelSingle: document.querySelectorAll("#cubi-assistant-popover").length,
+        chatSingle: document.querySelectorAll("#cp-ai-assistant-chat").length,
+        actionLabel: action?.textContent?.trim() ?? null,
+        chatOpenBefore: chat?.open ?? null,
+      };
+      launcher.click();
+      before.opened = !panel.hidden && launcher.getAttribute("aria-expanded") === "true";
+      if (chat) chat.dataset.e2eLauncherTarget = "routing";
+      action.click();
+      before.chatOpenAfterAction = chat?.open ?? null;
+      before.panelClosedAfterAction = panel.hidden;
+      before.focusOnChatSummary = document.activeElement === chat?.querySelector("summary");
+      return before;
+    })()`);
+    // The routed panel scrolls itself into view with the platform scroll
+    // behaviour, so reachability is waited for instead of trusting a fixed delay.
+    // A chat taller than the viewport counts as reachable when its own header is
+    // on screen. The stamp proves whether the workspace re-rendered (and therefore
+    // replaced) the panel the launcher routed to.
+    const chatReachProbe = `(() => {
+      const chat = document.querySelector("#cp-ai-assistant-chat");
+      if (!chat) return { onScreen: false, found: false };
+      const rect = chat.getBoundingClientRect();
+      const summaryRect = chat.querySelector("summary")?.getBoundingClientRect();
+      return {
+        onScreen: rect.height > 0 && rect.top < window.innerHeight && rect.bottom > 0 &&
+          Boolean(summaryRect) && summaryRect.top < window.innerHeight && summaryRect.bottom > 0,
+        found: true,
+        samePanelAfterRouting: chat.dataset.e2eLauncherTarget === "routing",
+        panelHeight: Math.round(rect.height),
+        panelTop: Math.round(rect.top),
+        panelBottom: Math.round(rect.bottom),
+        summaryTop: summaryRect ? Math.round(summaryRect.top) : null,
+        summaryHeight: summaryRect ? Math.round(summaryRect.height) : null,
+        viewportHeight: window.innerHeight,
+        scrollY: Math.round(window.scrollY),
+      };
+    })`;
+    let chatReachedTheViewport = true;
+    try {
+      await page.waitFor(
+        `(${chatReachProbe})().onScreen`,
+        "assistant chat panel reachable after launcher routing",
+        6000,
+      );
+    } catch {
+      chatReachedTheViewport = false;
+    }
+    const workspaceChatVisibility = await page.evaluate(`(${chatReachProbe})()`);
+    assert(
+      workspaceLauncherRouting.startedClosed &&
+        workspaceLauncherRouting.launcherSingle === 1 &&
+        workspaceLauncherRouting.panelSingle === 1 &&
+        workspaceLauncherRouting.chatSingle === 1 &&
+        workspaceLauncherRouting.opened &&
+        /assistant panel|پنل دستیار/.test(workspaceLauncherRouting.actionLabel ?? "") &&
+        workspaceLauncherRouting.chatOpenAfterAction === true &&
+        workspaceLauncherRouting.panelClosedAfterAction === true &&
+        workspaceLauncherRouting.focusOnChatSummary &&
+        chatReachedTheViewport &&
+        workspaceChatVisibility.found &&
+        workspaceChatVisibility.onScreen &&
+        workspaceChatVisibility.samePanelAfterRouting,
+      "workspace assistant entry must route to the single real chat panel: " +
+        JSON.stringify({ ...workspaceLauncherRouting, ...workspaceChatVisibility, chatReachedTheViewport }),
+    );
+    await page.screenshot("03-workspace-assistant-launcher-routing.png");
+    record("workspace assistant entry routes to the single real assistant panel", workspaceLauncherRouting);
 
     assert(
       (await page.text(".cp-project"))?.includes(PROJECT_ID),

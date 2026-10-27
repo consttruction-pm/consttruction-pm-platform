@@ -9,6 +9,7 @@ const assistant = readFileSync(join(root, "src/global-assistant-launcher.ts"), "
 const index = readFileSync(join(root, "index.html"), "utf8");
 const styles = readFileSync(join(root, "styles.css"), "utf8");
 const primaryLogo = readFileSync(join(root, "public/cubi-platform-logo-primary.svg"), "utf8");
+const brandAssets = readFileSync(join(root, "src/cubi-brand-assets.ts"), "utf8");
 
 test("CUBI homepage follows the registered full commercial structure", () => {
   for (const pattern of [
@@ -23,7 +24,12 @@ test("CUBI homepage follows the registered full commercial structure", () => {
     /cubi-exact-footer/,
     /cubi-platform-logo-primary\.svg/,
     /cubi-hero-field\.svg/,
-  ]) assert.match(landing + styles, pattern);
+  ]) assert.match(landing + styles + brandAssets, pattern);
+  // The homepage must resolve the brand mark through the shared asset helper so
+  // nested routes and GitHub Pages base paths still reach the public root.
+  assert.match(landing, /import \{[^}]*cubiPlatformLogoUrl[^}]*\} from "\.\/cubi-brand-assets\.js"/);
+  assert.match(brandAssets, /export function cubiPlatformLogoUrl\(\s*moduleUrl: string = import\.meta\.url/);
+  assert.match(brandAssets, /new URL\("\.\.\/\.\.\/\.\.\/cubi-platform-logo-primary\.svg", moduleUrl\)/);
   assert.doesNotMatch(landing + styles + index, /cubi-platform-logo-primary-dark\.svg|logo-dark\.svg/);
 });
 
@@ -44,14 +50,19 @@ test("commercial surface stays independent of external product provenance", () =
 });
 
 
-test("landing language preference is restored and persisted safely", () => {
+test("the landing language follows its route and persists the accepted preference", () => {
   assert.match(landing, /LANDING_LOCALE_STORAGE_KEY = "cubi:landing-locale"/);
-  assert.match(landing, /function restoreLandingLocale\(\): void/);
-  assert.match(landing, /getAvailableWorkspaceLocales\(\)\.includes\(saved\)/);
+  // A language route, not storage, owns the document language and its metadata.
+  assert.match(landing, /function restoreLandingLocale\(\): string \| null/);
+  assert.match(landing, /function readSavedLandingLocale\(\): LandingLocale \| null/);
+  assert.match(landing, /getLandingLanguageRoutes\(\)\.includes\(saved\)/);
   assert.match(landing, /function persistLandingLocale\(\): void/);
-  assert.match(landing, /restoreLandingLocale\(\);/);
+  assert.match(landing, /preferredLanguageRoute = restoreLandingLocale\(\);/);
   assert.match(landing, /persistLandingLocale\(\);/);
   assert.match(landing, /container\.dataset\.localeInitialized !== "true"/);
+  // The stored preference is honoured by moving to the document that describes it.
+  assert.match(landing, /window\.location\.replace\(preferredLanguageRoute\)/);
+  assert.match(landing, /window\.location\.assign\(languageHref\)/);
 });
 
 test("full homepage keeps bilingual control and the six capability areas", () => {
@@ -138,6 +149,34 @@ test("public homepage exposes the shared accessible floating assistant in Persia
   assert.match(styles, /\.cubi-assistant-popover\[hidden\] \{[^}]*display:\s*none !important/);
 });
 
+test("one assistant entry owns keyboard dismissal, artwork failure and viewport safety", () => {
+  // A single mounted instance: no duplicate avatars or independent panels.
+  assert.match(assistant, /if \(document\.getElementById\(ROOT_ID\)\) return;/);
+  assert.match(assistant, /document\.body\.append\(root\)/);
+  // Escape works wherever the focus is, and an outside pointer dismisses the panel.
+  assert.match(assistant, /event\.key === "Escape"/);
+  assert.match(assistant, /addEventListener\("pointerdown"/);
+  assert.match(assistant, /root\.contains\(event\.target as Node \| null\)/);
+  // Focus is taken into the dialog and returned to the launcher it came from.
+  assert.match(assistant, /closeButton\.focus\(\)/);
+  assert.match(assistant, /launcher\.focus\(\)/);
+  assert.match(assistant, /setAttribute\("aria-haspopup", "dialog"\)/);
+  // Broken artwork must not remove the labelled entry point.
+  assert.match(assistant, /addEventListener\("error"/);
+  assert.match(assistant, /dataset\.avatarFailed = "true"/);
+  assert.match(assistant, /cubi-assistant-avatar-fallback/);
+  assert.match(styles, /\.cubi-assistant-avatar-slot\[data-avatar-failed="true"\] img/);
+  assert.match(styles, /env\(safe-area-inset-bottom/);
+  // Narrow viewports get an icon-only circle so the entry cannot cover controls.
+  assert.match(assistant, /COMPACT_MEDIA_QUERY = "\(max-width: 520px\)"/);
+  assert.match(assistant, /dataset\.compact/);
+  assert.match(styles, /@media \(max-width: 520px\)[\s\S]*\.cubi-assistant-launcher-button/);
+  // The document language governs the assistant; a stored preference may not mix
+  // two languages inside one page.
+  assert.doesNotMatch(assistant, /cubi:landing-locale/);
+  assert.match(assistant, /getLanguageRouteLocale/);
+});
+
 
 test("approved primary logo uses the current canonical cube mark, teal center structure and wordmark", () => {
   assert.match(primaryLogo, /CUBI Platform/);
@@ -148,8 +187,9 @@ test("approved primary logo uses the current canonical cube mark, teal center st
 });
 
 test("homepage header, dashboard and footer use the canonical logo asset only", () => {
-  assert.equal((landing.match(/src="\.\/cubi-platform-logo-primary\.svg"/g) ?? []).length, 3);
-  assert.match(landing, /cubi-exact-brand[^>]*>[\s\S]*?cubi-platform-logo-primary\.svg/);
-  assert.match(landing, /cubi-footer-brand[^>]*>[\s\S]*?cubi-platform-logo-primary\.svg/);
+  assert.equal((landing.match(/\$\{cubiPlatformLogoUrl\(\)\}/g) ?? []).length, 3);
+  assert.equal((landing.match(/src="\.\/cubi-platform-logo-primary\.svg"/g) ?? []).length, 0);
+  assert.match(landing, /cubi-exact-brand[^>]*>[\s\S]*?cubiPlatformLogoUrl\(\)/);
+  assert.match(landing, /cubi-footer-brand[^>]*>[\s\S]*?cubiPlatformLogoUrl\(\)/);
   assert.doesNotMatch(landing, /cubi-footer-social[^>]*>[\s\S]*?<span[^>]*>CUBI<\/span>/);
 });
