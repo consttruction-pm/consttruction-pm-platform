@@ -253,7 +253,7 @@ function renderLanding(container: HTMLElement): void {
     else assistantLauncher.focus();
   };
   assistantLauncher?.addEventListener("click", () => {
-    setAssistantPopoverOpen(assistantLauncher.getAttribute("aria-expanded") !== "true");
+    setAssistantPopoverOpen(assistantLauncher?.getAttribute("aria-expanded") !== "true");
   });
   assistantClose?.addEventListener("click", () => setAssistantPopoverOpen(false));
   assistantPopover?.addEventListener("keydown", (event: KeyboardEvent) => {
