@@ -4,6 +4,10 @@ import {
   translateWorkspaceText,
 } from "./workspace-localization.js";
 import { cubiAssistantAvatarUrl } from "./cubi-brand-assets.js";
+import {
+  readAssistantGuideQuery,
+  resolveAssistantGuide,
+} from "./assistant-guide.js";
 
 const ROOT_ID = "cubi-global-assistant";
 const AVATAR_ALT = "";
@@ -127,9 +131,41 @@ export function mountGlobalAssistantLauncher(): void {
   const description = document.createElement("p");
   description.id = "cubi-assistant-description";
 
+  // Page-aware operational guidance. The content comes from a deterministic
+  // registry of pages and workspace states, and every action is only offered
+  // when its target control actually exists in this document.
+  const guide = document.createElement("section");
+  guide.className = "cubi-assistant-guide";
+  guide.id = "cubi-assistant-guide";
+  guide.setAttribute("aria-labelledby", "cubi-assistant-guide-heading");
+
+  const guideHeading = document.createElement("h2");
+  guideHeading.id = "cubi-assistant-guide-heading";
+  const guidePurpose = document.createElement("p");
+  guidePurpose.className = "cubi-assistant-guide-purpose";
+  const guideStepsLabel = document.createElement("h3");
+  const guideSteps = document.createElement("ol");
+  guideSteps.className = "cubi-assistant-guide-steps";
+  const guideError = document.createElement("p");
+  guideError.className = "cubi-assistant-guide-error";
+  guideError.hidden = true;
+  const guideAction = document.createElement("button");
+  guideAction.type = "button";
+  guideAction.className = "cubi-assistant-guide-action";
+  guideAction.hidden = true;
+  guide.append(
+    guideHeading,
+    guidePurpose,
+    guideStepsLabel,
+    guideSteps,
+    guideError,
+    guideAction,
+  );
+
   const action = document.createElement("a");
   action.className = "cubi-assistant-workspace-link";
   const siteRoot = new URL("../../../", import.meta.url);
+  const siteBasePath = siteRoot.pathname;
   const workspaceUrl = new URL("app/", siteRoot);
   action.href = workspaceUrl.href;
 
@@ -145,7 +181,7 @@ export function mountGlobalAssistantLauncher(): void {
   const launcherLabel = document.createElement("span");
   launcher.append(launcherLabel);
 
-  popover.append(header, description, action);
+  popover.append(header, description, guide, action);
   root.append(popover, launcher);
   document.body.append(root);
 
@@ -160,11 +196,77 @@ export function mountGlobalAssistantLauncher(): void {
     root.dataset.open = String(open);
     launcher.setAttribute("aria-expanded", String(open));
     if (open) {
+      // State can change while the panel is closed (project opened, menu
+      // switched, workspace loaded), so guidance is resolved from the live page
+      // every time the panel becomes visible.
+      renderGuide();
       closeButton.focus();
       return;
     }
     if (options.restoreFocus !== false && hadFocusInsidePopover) launcher.focus();
   };
+
+  const renderGuide = (): void => {
+    const query = readAssistantGuideQuery(document, siteBasePath);
+    const entry = resolveAssistantGuide({ ...query, locale });
+    guideHeading.textContent = entry.heading;
+    guidePurpose.textContent = entry.purpose;
+    guideStepsLabel.textContent = translateWorkspaceText(
+      locale,
+      "assistant.guide.stepsLabel",
+      locale === "fa" ? "گام‌های بعدی" : "Next steps",
+    );
+    guideSteps.replaceChildren(
+      ...entry.steps.map((step) => {
+        const item = document.createElement("li");
+        item.textContent = step;
+        return item;
+      }),
+    );
+    if (entry.commonError) {
+      guideError.textContent = entry.commonError;
+      guideError.hidden = false;
+    } else {
+      guideError.textContent = "";
+      guideError.hidden = true;
+    }
+    // A target that is absent in this state (for example a control summary with
+    // no generated data) must not produce a button that does nothing.
+    if (entry.action && document.querySelector(entry.action.target)) {
+      guideAction.textContent = entry.action.label;
+      guideAction.dataset.guideTarget = entry.action.target;
+      guideAction.hidden = false;
+    } else {
+      guideAction.hidden = true;
+      guideAction.textContent = "";
+      delete guideAction.dataset.guideTarget;
+    }
+    guide.dataset.page = entry.page;
+    guide.dataset.state = entry.state;
+    if (entry.menu) guide.dataset.menu = entry.menu;
+    else delete guide.dataset.menu;
+  };
+
+  guideAction.addEventListener("click", () => {
+    const targetSelector = guideAction.dataset.guideTarget;
+    if (!targetSelector) return;
+    const target = document.querySelector<HTMLElement>(targetSelector);
+    if (!target) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: "center",
+    });
+    const focusTarget = target.matches(
+      "button,a,input,select,textarea,[tabindex]",
+    )
+      ? target
+      : target.querySelector<HTMLElement>(
+          "button,a,input,select,textarea,[tabindex]",
+        );
+    focusTarget?.focus({ preventScroll: true });
+    setPopoverOpen(false, { restoreFocus: false });
+  });
 
   const renderCopy = (): void => {
     locale = getAssistantLocale();
@@ -218,6 +320,7 @@ export function mountGlobalAssistantLauncher(): void {
           "workspaceAction",
           locale === "fa" ? "ورود به فضای کاری پروژه ←" : "Open project workspace →",
         );
+    renderGuide();
   };
 
   launcher.addEventListener("click", () => setPopoverOpen(!isOpen));
@@ -297,6 +400,11 @@ export function mountGlobalAssistantLauncher(): void {
     attributes: true,
     attributeFilter: ["lang", "dir"],
   });
+
+  // Back/forward and hash navigation change the page without reloading, so the
+  // guidance must be recomputed for the step the user actually landed on.
+  window.addEventListener("popstate", renderGuide);
+  window.addEventListener("hashchange", renderGuide);
 
   renderCopy();
 }

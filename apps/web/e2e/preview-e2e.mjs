@@ -731,6 +731,39 @@ async function main() {
       launcherStateAfterOpen.description,
       "homepage assistant launcher did not open access panel: " + JSON.stringify(launcherStateAfterOpen),
     );
+    // Guidance is resolved from the page the user is actually on, not from a
+    // static script. A public page has no workspace control to jump to, so the
+    // guide must offer real steps and no action button at all.
+    const homepageGuide = await page.evaluate(`(() => {
+      const guide = document.querySelector("#cubi-assistant-guide");
+      const action = guide?.querySelector(".cubi-assistant-guide-action");
+      return {
+        found: Boolean(guide),
+        page: guide?.dataset.page ?? null,
+        state: guide?.dataset.state ?? null,
+        heading: guide?.querySelector("#cubi-assistant-guide-heading")?.textContent?.trim() ?? "",
+        purpose: guide?.querySelector(".cubi-assistant-guide-purpose")?.textContent?.trim() ?? "",
+        steps: Array.from(guide?.querySelectorAll(".cubi-assistant-guide-steps li") ?? [])
+          .map((item) => item.textContent.trim()),
+        stepsLabel: guide?.querySelector("h3")?.textContent?.trim() ?? "",
+        actionVisible: Boolean(action && !action.hidden),
+        emptyList: Boolean(guide?.querySelector(".cubi-assistant-guide-steps")?.children.length === 0),
+      };
+    })()`);
+    assert(
+      homepageGuide.found &&
+        homepageGuide.page === "home" &&
+        homepageGuide.state === "visitor" &&
+        /CUBI/.test(homepageGuide.purpose) &&
+        /On this page|Next steps/.test(homepageGuide.heading + " " + homepageGuide.stepsLabel) &&
+        homepageGuide.steps.length === 3 &&
+        homepageGuide.steps.every((step) => step.length > 20) &&
+        !homepageGuide.actionVisible &&
+        !homepageGuide.emptyList,
+      "homepage assistant guide must describe this page with real steps and no fake action: " +
+        JSON.stringify(homepageGuide),
+    );
+    record("assistant guide resolves the public homepage without inventing an action", homepageGuide);
     await page.click("#cubi-assistant-close");
     const launcherStateAfterClose = await page.evaluate(`(() => {
       const button = document.querySelector("#cubi-assistant-launcher");
@@ -1358,11 +1391,18 @@ async function main() {
       launcher.click();
       await frames();
       state.openedByClick = !panel.hidden;
+      const guide = panel.querySelector("#cubi-assistant-guide");
+      const guideAction = guide?.querySelector(".cubi-assistant-guide-action");
+      state.guidePage = guide?.dataset.page ?? null;
+      state.guideState = guide?.dataset.state ?? null;
+      state.guideSteps = guide?.querySelectorAll(".cubi-assistant-guide-steps li").length ?? 0;
+      state.guideActionVisible = Boolean(guideAction && !guideAction.hidden);
       action.click();
       await frames();
       state.guidanceText = description.textContent ?? "";
       state.guidanceFocused = document.activeElement === description;
       state.stillOnePanel = document.querySelectorAll("#cubi-assistant-popover").length === 1;
+      state.guideStillResolved = guide?.dataset.state ?? null;
       document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
       await frames();
       state.closedOnEscape = panel.hidden;
@@ -1375,6 +1415,13 @@ async function main() {
         /open (a|or create a) project/i.test(assistantNeedsProject.guidanceText) &&
         assistantNeedsProject.guidanceFocused &&
         assistantNeedsProject.stillOnePanel &&
+        // The planner owns two projects, so the detected state is the real
+        // multi-project choice, with concrete steps and no fabricated control.
+        assistantNeedsProject.guidePage === "workspace" &&
+        assistantNeedsProject.guideState === "multiple-projects" &&
+        assistantNeedsProject.guideSteps >= 2 &&
+        assistantNeedsProject.guideActionVisible === false &&
+        assistantNeedsProject.guideStillResolved === "multiple-projects" &&
         assistantNeedsProject.closedOnEscape,
       "assistant entry must state the missing-project guidance without faking a panel: " +
         JSON.stringify(assistantNeedsProject),
@@ -1505,6 +1552,97 @@ async function main() {
     );
     await page.screenshot("03-workspace-assistant-launcher-routing.png");
     record("workspace assistant entry routes to the single real assistant panel", workspaceLauncherRouting);
+
+    // Inside a loaded project the same entry becomes a context-aware guide. The
+    // requested surface comes from the live navigation state, and the action is
+    // offered only because its target exists and is then actually reached.
+    await page.click('[data-menu="schedule"]');
+    await page.waitFor(
+      `document.querySelector('.cp-menu button[data-menu="schedule"]')?.getAttribute("aria-current") === "page"`,
+      "schedule surface for the workspace guide",
+    );
+    await page.evaluate(`(() => {
+      const panel = document.querySelector("#cubi-assistant-popover");
+      if (panel && !panel.hidden) {
+        document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      }
+      return true;
+    })()`);
+    await page.click("#cubi-assistant-launcher");
+    const workspaceGuide = await page.evaluate(`(() => {
+      const panel = document.querySelector("#cubi-assistant-popover");
+      const guide = panel.querySelector("#cubi-assistant-guide");
+      const action = guide?.querySelector(".cubi-assistant-guide-action");
+      return {
+        panelOpen: Boolean(panel && !panel.hidden),
+        page: guide?.dataset.page ?? null,
+        state: guide?.dataset.state ?? null,
+        menu: guide?.dataset.menu ?? null,
+        heading: guide?.querySelector("#cubi-assistant-guide-heading")?.textContent?.trim() ?? "",
+        purpose: guide?.querySelector(".cubi-assistant-guide-purpose")?.textContent?.trim() ?? "",
+        steps: Array.from(guide?.querySelectorAll(".cubi-assistant-guide-steps li") ?? [])
+          .map((item) => item.textContent.trim()),
+        error: guide?.querySelector(".cubi-assistant-guide-error")?.textContent?.trim() ?? "",
+        actionLabel: action && !action.hidden ? action.textContent.trim() : null,
+        actionTarget: action && !action.hidden ? action.dataset.guideTarget ?? null : null,
+        targetResolves: (() => {
+          const target = action && !action.hidden ? action.dataset.guideTarget : null;
+          return target ? Boolean(document.querySelector(target)) : false;
+        })(),
+        gridRows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+      };
+    })()`);
+    assert(
+      workspaceGuide.panelOpen &&
+        workspaceGuide.page === "workspace" &&
+        workspaceGuide.state === "ready" &&
+        workspaceGuide.menu === "schedule" &&
+        workspaceGuide.heading.includes("Schedule") &&
+        workspaceGuide.purpose.length > 20 &&
+        workspaceGuide.steps.length >= 2 &&
+        workspaceGuide.actionTarget === "#cp-activity-grid" &&
+        workspaceGuide.actionLabel &&
+        workspaceGuide.targetResolves &&
+        workspaceGuide.gridRows === 14,
+      "workspace guide must describe the active schedule surface with a live action target: " +
+        JSON.stringify(workspaceGuide),
+    );
+    await page.click(".cubi-assistant-guide-action");
+    await page.waitFor(
+      `document.querySelector("#cubi-assistant-popover").hidden === true`,
+      "assistant panel closed after the guide action",
+    );
+    await page.waitFor(
+      `(() => {
+        const grid = document.querySelector("#cp-activity-grid").getBoundingClientRect();
+        return grid.height > 0 && grid.top < window.innerHeight && grid.bottom > 0;
+      })()`,
+      "activity grid reachable from the guide action",
+    );
+    const guideActionOutcome = await page.evaluate(`(() => {
+      const grid = document.querySelector("#cp-activity-grid");
+      const rect = grid.getBoundingClientRect();
+      return {
+        panelClosed: document.querySelector("#cubi-assistant-popover").hidden,
+        gridOnScreen: rect.height > 0 && rect.top < window.innerHeight && rect.bottom > 0,
+        focusInsideGrid: Boolean(grid.contains(document.activeElement)),
+        focusedTag: document.activeElement?.tagName ?? null,
+        stillOneGuide: document.querySelectorAll("#cubi-assistant-guide").length === 1,
+      };
+    })()`);
+    assert(
+      guideActionOutcome.panelClosed &&
+        guideActionOutcome.gridOnScreen &&
+        guideActionOutcome.focusInsideGrid &&
+        guideActionOutcome.stillOneGuide,
+      "guide action must close the panel and land on the real control: " +
+        JSON.stringify(guideActionOutcome),
+    );
+    await page.screenshot("03a-workspace-context-guide.png");
+    record("workspace guide follows the active menu and its action reaches the live control", {
+      guide: workspaceGuide,
+      outcome: guideActionOutcome,
+    });
 
     assert(
       (await page.text(".cp-project"))?.includes(PROJECT_ID),
@@ -3482,11 +3620,95 @@ async function main() {
     assert(firstProject.project.length > 0, "the created project must be opened");
     assert(/[?&]project=/.test(firstProject.url), "the confirmed project must be reflected in the address");
 
+    // A brand-new project has no activities, so the guide must say that honestly
+    // instead of describing work that does not exist, and it must speak Persian
+    // because the document does.
+    await page.click('[data-menu="schedule"]');
+    await page.waitFor(
+      `document.querySelector('.cp-menu button[data-menu="schedule"]')?.getAttribute("aria-current") === "page"`,
+      "schedule surface on the empty project",
+    );
+    await page.click("#cubi-assistant-launcher");
+    const emptyProjectGuide = await page.evaluate(`(() => {
+      const panel = document.querySelector("#cubi-assistant-popover");
+      const guide = panel.querySelector("#cubi-assistant-guide");
+      const action = guide?.querySelector(".cubi-assistant-guide-action");
+      const grid = document.querySelector("#cp-activity-grid");
+      return {
+        lang: document.documentElement.lang,
+        panelDirection: getComputedStyle(panel).direction,
+        page: guide?.dataset.page ?? null,
+        state: guide?.dataset.state ?? null,
+        menu: guide?.dataset.menu ?? null,
+        heading: guide?.querySelector("#cubi-assistant-guide-heading")?.textContent?.trim() ?? "",
+        steps: Array.from(guide?.querySelectorAll(".cubi-assistant-guide-steps li") ?? [])
+          .map((item) => item.textContent.trim()),
+        actionVisible: Boolean(action && !action.hidden),
+        actionLabel: action && !action.hidden ? action.textContent.trim() : null,
+        actionTarget: action && !action.hidden ? action.dataset.guideTarget ?? null : null,
+        activityRows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+        gridPresent: Boolean(grid),
+      };
+    })()`);
+    assert(
+      emptyProjectGuide.lang === "fa" &&
+        emptyProjectGuide.panelDirection === "rtl" &&
+        emptyProjectGuide.page === "workspace" &&
+        emptyProjectGuide.state === "empty-activities" &&
+        emptyProjectGuide.menu === "schedule" &&
+        emptyProjectGuide.activityRows === 0 &&
+        emptyProjectGuide.steps.length >= 3 &&
+        emptyProjectGuide.steps.every((step) => /[\u0600-\u06FF]/.test(step)) &&
+        /[\u0600-\u06FF]/.test(emptyProjectGuide.heading) &&
+        emptyProjectGuide.actionVisible &&
+        emptyProjectGuide.actionTarget === "#cp-activity-grid" &&
+        emptyProjectGuide.gridPresent &&
+        /[\u0600-\u06FF]/.test(emptyProjectGuide.actionLabel ?? ""),
+      "the guide on a new Persian project must disclose the empty activity grid and stay actionable: " +
+        JSON.stringify(emptyProjectGuide),
+    );
+    await page.click("#cubi-assistant-close");
+    await page.screenshot("12a-newcomer-empty-project-guide.png");
+    record("new project guide states that no activities exist and points at the real grid", emptyProjectGuide);
+
     await page.click('[data-menu="control"]');
     await page.waitFor(
       `document.querySelector('.cp-menu button[data-menu="control"]')?.getAttribute("aria-current") === "page"`,
       "control menu selected",
     );
+    // Cost/control guidance is only allowed to offer the summary action when a
+    // generated summary actually exists. This project has none, so the button
+    // must be absent rather than dead.
+    await page.click("#cubi-assistant-launcher");
+    const controlGuideWithoutSummary = await page.evaluate(`(() => {
+      const panel = document.querySelector("#cubi-assistant-popover");
+      const guide = panel.querySelector("#cubi-assistant-guide");
+      const action = guide?.querySelector(".cubi-assistant-guide-action");
+      return {
+        menu: guide?.dataset.menu ?? null,
+        state: guide?.dataset.state ?? null,
+        heading: guide?.querySelector("#cubi-assistant-guide-heading")?.textContent?.trim() ?? "",
+        summaryPresent: Boolean(document.querySelector(".cp-control-summary")),
+        actionVisible: Boolean(action && !action.hidden),
+        actionTarget: action?.dataset.guideTarget ?? null,
+        stepsLocalized: Array.from(guide?.querySelectorAll(".cubi-assistant-guide-steps li") ?? [])
+          .every((item) => /[\u0600-\u06FF]/.test(item.textContent ?? "")),
+      };
+    })()`);
+    assert(
+      controlGuideWithoutSummary.menu === "control" &&
+        controlGuideWithoutSummary.state === "empty-activities" &&
+        /[\u0600-\u06FF]/.test(controlGuideWithoutSummary.heading) &&
+        !controlGuideWithoutSummary.summaryPresent &&
+        !controlGuideWithoutSummary.actionVisible &&
+        controlGuideWithoutSummary.actionTarget === null &&
+        controlGuideWithoutSummary.stepsLocalized,
+      "control guidance must not offer an action whose summary is absent: " +
+        JSON.stringify(controlGuideWithoutSummary),
+    );
+    await page.click("#cubi-assistant-close");
+    record("control guide hides its summary action when the project has no summary", controlGuideWithoutSummary);
+
     const urlBeforeReload = firstProject.url;
     await page.reload(".cp-workspace", "first-run project reload");
     const afterFirstReload = await page.evaluate(`(() => ({
@@ -3502,6 +3724,36 @@ async function main() {
     assert(afterFirstReload.url === urlBeforeReload, "refresh must keep the project deep link");
     assert(afterFirstReload.lang === "fa" && afterFirstReload.dir === "rtl", "refresh must keep the selected language");
     assert(afterFirstReload.menu === "control", "refresh must keep the active workspace menu");
+
+    // The guide is recomputed from the reloaded page rather than cached from the
+    // previous document, so it must still match the restored menu and language.
+    await page.click("#cubi-assistant-launcher");
+    const guideAfterReload = await page.evaluate(`(() => {
+      const guide = document.querySelector("#cubi-assistant-guide");
+      const action = guide?.querySelector(".cubi-assistant-guide-action");
+      return {
+        lang: document.documentElement.lang,
+        page: guide?.dataset.page ?? null,
+        state: guide?.dataset.state ?? null,
+        menu: guide?.dataset.menu ?? null,
+        headingLocalized: /[\u0600-\u06FF]/.test(
+          guide?.querySelector("#cubi-assistant-guide-heading")?.textContent ?? "",
+        ),
+        actionVisible: Boolean(action && !action.hidden),
+      };
+    })()`);
+    assert(
+      guideAfterReload.lang === "fa" &&
+        guideAfterReload.page === "workspace" &&
+        guideAfterReload.state === "empty-activities" &&
+        guideAfterReload.menu === "control" &&
+        guideAfterReload.headingLocalized &&
+        !guideAfterReload.actionVisible,
+      "the guide must be recomputed for the persisted project, language and menu after reload: " +
+        JSON.stringify(guideAfterReload),
+    );
+    await page.click("#cubi-assistant-close");
+    record("assistant guide is recomputed after reload from the persisted workspace state", guideAfterReload);
 
     const projectsForNewcomer = await page.evaluate(
       `fetch("/api/projects").then((response) => response.json())`,
