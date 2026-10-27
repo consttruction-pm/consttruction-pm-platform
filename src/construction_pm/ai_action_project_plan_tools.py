@@ -203,7 +203,6 @@ def _validated_plan(payload: Mapping[str, object]) -> dict[str, object]:
         "working_weekdays": weekdays,
         "activities": activities,
         "relationships": relationships,
-        "wbs_by_activity": wbs_by_activity,
     }
 
 
@@ -349,7 +348,10 @@ def build_project_plan_create_tool(
         set_wbs(
             created.tenant_id,
             created.project_id,
-            dict(plan["wbs_by_activity"]),
+            {
+                str(row["activity_id"]): str(row["wbs"])
+                for row in plan["activities"]
+            },
         )
 
         publication = schedule_snapshot_api.publish(
