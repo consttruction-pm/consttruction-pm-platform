@@ -192,6 +192,9 @@ class PreviewApplication:
             )
         self.runtime = runtime
         self.frontend = PreviewFrontend(runtime.web_root)
+        self.public_demo = os.environ.get("CUBI_PREVIEW_PUBLIC_DEMO", "").strip().lower() in {
+            "1", "true", "yes",
+        }
 
     def __call__(self, environ: dict[str, object], start_response):
         method = str(environ.get("REQUEST_METHOD", "GET")).upper()
@@ -251,6 +254,8 @@ class PreviewApplication:
                 "demo_data": True,
                 "database": str(self.runtime.database),
                 "web_root": str(self.runtime.web_root),
+                "public_demo": self.public_demo,
+                "read_only": self.public_demo,
             }
         )
         return health
@@ -278,11 +283,14 @@ class PreviewApplication:
             return _json(400, {"code": "PREVIEW_LOGIN_REQUEST_INVALID"})
         role = str((values.get("role") or [""])[0]).strip()
         user = DEMO_USERS_BY_ROLE.get(role)
-        if user is None:
-            return _html(
-                400,
-                self._login_page(error="Select one of the demo roles below."),
+        if user is None or (self.public_demo and user.role != "viewer"):
+            status = 403 if self.public_demo else 400
+            message = (
+                "The public demo is read-only. Choose the Viewer role."
+                if self.public_demo
+                else "Select one of the demo roles below."
             )
+            return _html(status, self._login_page(error=message))
         next_path = _safe_next((values.get("next") or [""])[0])
         created = self.runtime.sessions.create(user)
         headers = {
@@ -371,20 +379,28 @@ class PreviewApplication:
     ) -> str:
         if session is not None:
             user_id = html.escape(session.user_id)
+            eyebrow = "Public read-only demo" if self.public_demo else "Local full-stack preview"
+            session_copy = (
+                "The shared demo Viewer session is active for this browser. "
+                "Only fixture data is available; do not enter confidential or production data."
+                if self.public_demo
+                else "Demo identity is active for this browser tab. The session lasts eight hours and is not a production credential."
+            )
             return f"""<!doctype html>
 <html lang="en" dir="ltr">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CUBI preview session</title>
 <style>{_LOGIN_CSS}</style></head>
 <body><main class="card">
-<p class="eyebrow">Local full-stack preview</p>
+<p class="eyebrow">{eyebrow}</p>
 <h1>You are signed in</h1>
-<p>Demo identity <code>{user_id}</code> is active for this browser tab. The session lasts eight hours and is not a production credential.</p>
+<p>{session_copy} <code>{user_id}</code></p>
 <p><a class="primary" href="/app">Open the CUBI workspace</a></p>
 <form method="post" action="{LOGOUT_PATH}"><button class="secondary" type="submit">Sign out</button></form>
 </main></body></html>"""
         cards = []
-        for user in DEMO_USERS:
+        users = (user for user in DEMO_USERS if not self.public_demo or user.role == "viewer")
+        for user in users:
             label = html.escape(user.label_en)
             fa = html.escape(user.label_fa)
             role = html.escape(user.role)
@@ -404,19 +420,39 @@ class PreviewApplication:
         error_block = (
             f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
         )
+        page_title = "CUBI public demo workspace" if self.public_demo else "CUBI local full-stack preview"
+        eyebrow = "CUBI · PUBLIC READ-ONLY DEMO" if self.public_demo else "CUBI · local full-stack preview"
+        lead = (
+            "This is a public, read-only demonstration using shared fixture data. "
+            "Do not enter real credentials, confidential information or production project data. "
+            "Demo content may be reset. No production account or project is connected."
+            if self.public_demo
+            else "This page exists only on the local preview server. There is no password and no production identity. Each role is enforced by the real CUBI authorization policy after login."
+        )
+        data_notice = (
+            "<strong>Shared demo data:</strong> all visitors see the same fixture projects in read-only mode. "
+            "The real CUBI WSGI API and Shared Domain/Calculation Core power the workspace; no production data is used."
+            if self.public_demo
+            else "<strong>Demo data:</strong> two fixture projects are seeded into a guarded local SQLite database. The workspace reads and recalculates through the real WSGI API and Shared Domain/Calculation Core. No production system is contacted."
+        )
+        fa_notice = (
+            "این یک پیش‌نمایش عمومی و فقط‌خواندنی با داده‌های آزمایشی مشترک است. اطلاعات محرمانه یا واقعی پروژه را وارد نکنید؛ داده‌ها ممکن است بازنشانی شوند."
+            if self.public_demo
+            else "این صفحه فقط برای پیش‌نمایش محلی است؛ دادهٔ نمایشی و نقش‌های آزمایشی است و به محیط تولید متصل نیست."
+        )
         return f"""<!doctype html>
 <html lang="en" dir="ltr">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CUBI local full-stack preview</title>
+<title>{page_title}</title>
 <style>{_LOGIN_CSS}</style></head>
 <body><main class="card">
-<p class="eyebrow">CUBI · local full-stack preview</p>
+<p class="eyebrow">{eyebrow}</p>
 <h1>Choose a demo identity</h1>
-<p class="lede">This page exists only on the local preview server. There is no password and no production identity. Each role is enforced by the real CUBI authorization policy after login.</p>
+<p class="lede">{lead}</p>
 {error_block}
 <div class="personas">{''.join(cards)}</div>
-<p class="notice"><strong>Demo data:</strong> two fixture projects are seeded into a guarded local SQLite database. The workspace reads and recalculates through the real WSGI API and Shared Domain/Calculation Core. No production system is contacted.</p>
-<p class="notice fa-note" lang="fa" dir="rtl">این صفحه فقط برای پیش‌نمایش محلی است؛ دادهٔ نمایشی و نقش‌های آزمایشی است و به محیط تولید متصل نیست.</p>
+<p class="notice">{data_notice}</p>
+<p class="notice fa-note" lang="fa" dir="rtl">{fa_notice}</p>
 <p class="meta">Seed: cubi-preview-seed.v1 · <a href="/preview/health">health</a> · <a href="/">landing page</a></p>
 </main></body></html>"""
 
@@ -428,6 +464,16 @@ class PreviewApplication:
                 break
         user_id = html.escape(session.user_id)
         role = html.escape(role)
+        banner_title = (
+            "PUBLIC DEMO · SHARED READ-ONLY DATA · NOT PRODUCTION"
+            if self.public_demo
+            else "LOCAL PREVIEW · DEMO DATA · NOT PRODUCTION"
+        )
+        banner_fa = (
+            "پیش‌نمایش عمومی — دادهٔ مشترک فقط‌خواندنی — محیط تولید نیست"
+            if self.public_demo
+            else "پیش‌نمایش محلی — دادهٔ نمایشی — محیط تولید نیست"
+        )
         return f"""<style>
   #cubi-preview-banner {{
     position: fixed; inset: auto 0 0 0; z-index: 2147483000;
@@ -446,8 +492,8 @@ class PreviewApplication:
   }}
 </style>
 <div id="cubi-preview-banner" role="status">
-  <strong>LOCAL PREVIEW · DEMO DATA · NOT PRODUCTION</strong>
-  <span class="fa">پیش‌نمایش محلی — دادهٔ نمایشی — محیط تولید نیست</span>
+  <strong>{banner_title}</strong>
+  <span class="fa">{banner_fa}</span>
   <span class="grow">Signed in as <b>{user_id}</b> ({role})</span>
   <form method="post" action="{LOGOUT_PATH}"><button type="submit">Sign out</button></form>
 </div>
