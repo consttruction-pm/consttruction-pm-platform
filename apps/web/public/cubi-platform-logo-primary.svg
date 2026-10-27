@@ -1,5 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" role="img" aria-labelledby="title desc">
-<title id="title">CUBI Platform</title><desc id="desc">CUBI connected-cube C mark, Platform wordmark and Plan. Control. Build Smarter. tagline.</desc>
-<defs><linearGradient id="cTop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1689FF"/><stop offset="1" stop-color="#19C7D4"/></linearGradient><linearGradient id="cLeft" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0752BD"/><stop offset="1" stop-color="#0D3D91"/></linearGradient></defs>
-<g transform="translate(15 15)"><path d="M100 0 165 38 130 58 100 41 58 65 58 112 100 136 130 119 165 140 100 178 0 120 0 58Z" fill="url(#cTop)"/><path d="M0 58 58 92 58 150 0 116Z" fill="url(#cLeft)"/><path d="M58 92 100 68 100 126 58 150Z" fill="#0B4FAE"/><path d="M58 92 100 68 142 92 100 116Z" fill="#19C7D4"/><path d="M58 92 100 116 100 164 58 140Z" fill="#0B4FAE"/><path d="M100 116 142 92 142 140 100 164Z" fill="#1187FF"/></g>
-<text x="195" y="76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="66" font-weight="800" letter-spacing="1" fill="#12345A">CUBI</text><text x="198" y="119" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="36" font-weight="400" letter-spacing="1" fill="#31577F">Platform</text><text x="199" y="151" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="600" letter-spacing="1.3" fill="#31577F">PLAN. CONTROL. BUILD SMARTER.</text></svg>
+  <title id="title">CUBI Platform</title>
+  <desc id="desc">Approved CUBI Platform logo: an open C-shaped isometric cube mark with a teal center cube, wordmark and Plan. Control. Build Smarter. tagline.</desc>
+  <defs>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08C8F5"/><stop offset="1" stop-color="#1689FF"/></linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0752BD"/><stop offset="1" stop-color="#123A8A"/></linearGradient>
+    <linearGradient id="bottom" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#147BFA"/><stop offset="1" stop-color="#18D3C5"/></linearGradient>
+    <linearGradient id="cubeTop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#39E0D0"/><stop offset="1" stop-color="#12B8B1"/></linearGradient>
+  </defs>
+  <g transform="translate(8 4)">
+    <path d="M84 3 158 45 130 62 84 36 48 57 16 39Z" fill="url(#top)"/>
+    <path d="M16 39 48 57 48 111 16 93Z" fill="url(#side)"/>
+    <path d="M16 93 48 111 84 132 130 106 158 123 84 166 16 127Z" fill="url(#bottom)"/>
+    <path d="M48 57 84 36 84 66 48 87Z" fill="#0876DB"/>
+    <path d="M48 87 84 66 84 132 48 111Z" fill="#0B4FAE"/>
+    <path d="M48 111 84 132 130 106 130 123 84 150 48 129Z" fill="#0B5CCB"/>
+    <path d="M72 73 98 58 124 73 98 88Z" fill="url(#cubeTop)"/>
+    <path d="M72 73 98 88 98 119 72 104Z" fill="#0A8FBC"/>
+    <path d="M98 88 124 73 124 104 98 119Z" fill="#1187FF"/>
+  </g>
+  <text x="198" y="76" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="66" font-weight="800" letter-spacing="1" fill="#12345A">CUBI</text>
+  <text x="201" y="119" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="36" font-weight="400" letter-spacing="1" fill="#31577F">Platform</text>
+  <text x="202" y="151" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="17" font-weight="600" letter-spacing="1.3" fill="#31577F">PLAN. CONTROL. BUILD SMARTER.</text>
+</svg>
