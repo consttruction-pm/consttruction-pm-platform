@@ -26,7 +26,7 @@ import { renderMainWorkspace } from "./workspace-view.js";
 import { getBootstrapLabels } from "./bootstrap-labels.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
-import { getAvailableWorkspaceLocales, getWorkspaceLocaleDisplayName } from "./workspace-localization.js";
+import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName } from "./workspace-localization.js";
 import { mountAIActionPanel } from "./ai-action-panel.js";
 import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
@@ -83,6 +83,11 @@ function renderApp(
   preserveLayoutNotice = false,
 ): void {
   currentWorkspaceState = state;
+  // The workspace language belongs to the document, not only to the panels:
+  // assistive technology, the floating assistant and every CSS logical direction
+  // read it from the root element.
+  document.documentElement.lang = state.locale;
+  document.documentElement.dir = getWorkspaceLocaleDirection(state.locale);
   const shellLabels = getWorkspaceShellLabels(state.locale);
   const persistence = p6Persistence ?? createP6LayoutPersistence(new FetchApiTransport(window.location.origin), state.context);
 

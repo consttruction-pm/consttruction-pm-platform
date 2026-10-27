@@ -7,6 +7,7 @@ import { cubiAssistantAvatarUrl } from "./cubi-brand-assets.js";
 
 const ROOT_ID = "cubi-global-assistant";
 const AVATAR_ALT = "";
+const COMPACT_MEDIA_QUERY = "(max-width: 520px)";
 
 function isWorkspaceRoute(): boolean {
   return /(?:^|\/)app(?:\/|$)/.test(window.location.pathname);
@@ -15,29 +16,44 @@ function isWorkspaceRoute(): boolean {
 function getAssistantLocale(): string {
   const supported = getAvailableWorkspaceLocales();
   const htmlLocale = document.documentElement.lang.trim().toLowerCase();
-  const workspaceRoute = isWorkspaceRoute();
 
-  if (workspaceRoute && supported.includes(htmlLocale)) return htmlLocale;
-
-  try {
-    const saved = window.localStorage.getItem("cubi:landing-locale");
-    if (saved && supported.includes(saved)) return saved;
-  } catch {
-    // The launcher still works when storage is unavailable.
-  }
-
+  // The assistant speaks the language of the document it is mounted on: either
+  // the locale the workspace selected on the root element, or the language route
+  // served for this document. A stored landing preference deliberately does not
+  // apply, because Persian assistant copy on an English document would contradict
+  // the page itself and its localized metadata.
   if (supported.includes(htmlLocale)) return htmlLocale;
+  const routeLocale = getLanguageRouteLocale(supported);
+  if (routeLocale) return routeLocale;
 
   const browserLocale = navigator.language.toLowerCase().split("-")[0] ?? "en";
   if (supported.includes(browserLocale)) return browserLocale;
   return supported.includes("en") ? "en" : (supported[0] ?? "en");
 }
 
+function getLanguageRouteLocale(supported: readonly string[]): string | null {
+  const lastSegment = window.location.pathname
+    .replace(/index\.html$/, "")
+    .replace(/\/+$/, "")
+    .split("/")
+    .filter(Boolean)
+    .pop();
+  return lastSegment && supported.includes(lastSegment) ? lastSegment : null;
+}
+
 function translated(locale: string, key: string, fallback: string): string {
   return translateWorkspaceText(locale, `landing.assistant.${key}`, fallback);
 }
 
-function createAvatar(): HTMLImageElement {
+/**
+ * The avatar image is decorative; the entry point itself is labelled by the
+ * button. A failed image load must never hide or break the assistant entry,
+ * so the artwork is swapped for a text badge instead of being removed.
+ */
+function createAvatarSlot(): { slot: HTMLElement; image: HTMLImageElement } {
+  const slot = document.createElement("span");
+  slot.className = "cubi-assistant-avatar-slot";
+
   const image = document.createElement("img");
   image.src = cubiAssistantAvatarUrl();
   image.alt = AVATAR_ALT;
@@ -45,13 +61,31 @@ function createAvatar(): HTMLImageElement {
   image.height = 52;
   image.setAttribute("aria-hidden", "true");
   image.decoding = "async";
-  return image;
+
+  const fallback = document.createElement("span");
+  fallback.className = "cubi-assistant-avatar-fallback";
+  fallback.setAttribute("aria-hidden", "true");
+  fallback.textContent = "CUBI";
+
+  image.addEventListener("error", () => {
+    slot.dataset.avatarFailed = "true";
+  });
+  image.addEventListener("load", () => {
+    delete slot.dataset.avatarFailed;
+  });
+
+  slot.append(image, fallback);
+  return { slot, image };
 }
 
 /**
  * Add the same fixed assistant entry point to every public page and workspace
  * shell. Mounting directly under <body> avoids clipping by page-level overflow
  * containers and keeps the launcher pinned to the viewport while scrolling.
+ *
+ * The launcher is intentionally presentation-only: it never calls an API, never
+ * waits for a model response and never depends on project data, so an assistant
+ * service failure cannot remove the entry point or block the page.
  */
 export function mountGlobalAssistantLauncher(): void {
   if (typeof document === "undefined" || !document.body) return;
@@ -73,7 +107,7 @@ export function mountGlobalAssistantLauncher(): void {
 
   const header = document.createElement("header");
   header.className = "cubi-assistant-popover-header";
-  header.append(createAvatar());
+  header.append(createAvatarSlot().slot);
 
   const heading = document.createElement("div");
   heading.className = "cubi-assistant-popover-heading";
@@ -105,7 +139,9 @@ export function mountGlobalAssistantLauncher(): void {
   launcher.type = "button";
   launcher.setAttribute("aria-controls", popover.id);
   launcher.setAttribute("aria-expanded", "false");
-  launcher.append(createAvatar());
+  launcher.setAttribute("aria-haspopup", "dialog");
+  const launcherAvatar = createAvatarSlot();
+  launcher.append(launcherAvatar.slot);
   const launcherLabel = document.createElement("span");
   launcher.append(launcherLabel);
 
@@ -116,12 +152,18 @@ export function mountGlobalAssistantLauncher(): void {
   let isOpen = false;
   let locale = getAssistantLocale();
 
-  const setPopoverOpen = (open: boolean): void => {
+  const setPopoverOpen = (open: boolean, options: { restoreFocus?: boolean } = {}): void => {
+    if (isOpen === open) return;
+    const hadFocusInsidePopover = open ? false : popover.contains(document.activeElement);
     isOpen = open;
     popover.hidden = !open;
+    root.dataset.open = String(open);
     launcher.setAttribute("aria-expanded", String(open));
-    if (open) closeButton.focus();
-    else launcher.focus();
+    if (open) {
+      closeButton.focus();
+      return;
+    }
+    if (options.restoreFocus !== false && hadFocusInsidePopover) launcher.focus();
   };
 
   const renderCopy = (): void => {
@@ -179,10 +221,37 @@ export function mountGlobalAssistantLauncher(): void {
   };
 
   launcher.addEventListener("click", () => setPopoverOpen(!isOpen));
-  closeButton.addEventListener("click", () => setPopoverOpen(false));
-  popover.addEventListener("keydown", (event: KeyboardEvent) => {
-    if (event.key === "Escape") setPopoverOpen(false);
+  closeButton.addEventListener("click", () => {
+    setPopoverOpen(false);
+    launcher.focus();
   });
+
+  // Escape closes from anywhere on the page, not only while the panel holds
+  // focus, so the assistant can never trap the keyboard.
+  document.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Escape" && isOpen) {
+      event.preventDefault();
+      setPopoverOpen(false);
+    }
+  });
+
+  // A click outside the entry point dismisses the panel without navigating.
+  document.addEventListener("pointerdown", (event: PointerEvent) => {
+    if (!isOpen) return;
+    if (root.contains(event.target as Node | null)) return;
+    setPopoverOpen(false, { restoreFocus: false });
+  });
+
+  // Narrow viewports switch to the icon-only entry so the fixed button cannot
+  // cover page controls; the accessible name stays on the button.
+  const compactMedia = window.matchMedia(COMPACT_MEDIA_QUERY);
+  const applyCompactMode = (): void => {
+    root.dataset.compact = compactMedia.matches ? "true" : "false";
+  };
+  applyCompactMode();
+  if (typeof compactMedia.addEventListener === "function") {
+    compactMedia.addEventListener("change", applyCompactMode);
+  }
 
   action.addEventListener("click", (event: MouseEvent) => {
     if (!isWorkspaceRoute()) return;
@@ -192,12 +261,19 @@ export function mountGlobalAssistantLauncher(): void {
     if (assistantPanel) {
       assistantPanel.open = true;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      assistantPanel.scrollIntoView({
-        behavior: reducedMotion ? "auto" : "smooth",
-        block: "center",
-      });
+      const scrollToPanel = (): void => {
+        assistantPanel.scrollIntoView({
+          behavior: reducedMotion ? "auto" : "smooth",
+          block: "center",
+        });
+      };
+      scrollToPanel();
+      // Opening the panel changes its own height, so the first centring can be
+      // measured against the collapsed box. Re-assert it once the expanded layout
+      // is known, otherwise the routed panel can stay below the fold.
+      window.requestAnimationFrame(() => window.requestAnimationFrame(scrollToPanel));
       assistantPanel.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
-      setPopoverOpen(false);
+      setPopoverOpen(false, { restoreFocus: false });
       return;
     }
 
@@ -220,9 +296,6 @@ export function mountGlobalAssistantLauncher(): void {
   localeObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ["lang", "dir"],
-  });
-  window.addEventListener("storage", (event: StorageEvent) => {
-    if (event.key === "cubi:landing-locale") renderCopy();
   });
 
   renderCopy();
