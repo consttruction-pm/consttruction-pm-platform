@@ -780,7 +780,7 @@ async function main() {
 
     for (const route of ["/platform/", "/solutions/", "/resources/", "/contact/"]) {
       await page.navigate(`${baseUrl}${route}`, ".cubi-public-page", "public page " + route);
-      await page.waitFor("#cubi-assistant-launcher", "global assistant launcher on " + route);
+      await page.waitFor('Boolean(document.querySelector("#cubi-assistant-launcher"))', "global assistant launcher on " + route);
       const routeState = await page.evaluate(`(() => {
         const root = document.querySelector("#cubi-global-assistant");
         const button = document.querySelector("#cubi-assistant-launcher");
