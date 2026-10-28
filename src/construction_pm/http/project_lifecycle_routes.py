@@ -1419,12 +1419,29 @@ class ProjectLifecycleHttpRoutes:
                                 auth_context=auth,
                             ),
                         )
+                    if method == "DELETE" and len(parts) == 1 and parts[0]:
+                        expected_revision = payload.get("expected_revision")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+                            raise ValueError("EXPECTED_REVISION_REQUIRED")
+                        return self._json(
+                            200,
+                            self._p6_wbs_master_api.delete(
+                                scope,
+                                parts[0],
+                                expected_revision=expected_revision,
+                                auth_context=auth,
+                            ),
+                        )
                     return self._error(405, "P6_WBS_MASTER_METHOD_OR_PATH_UNSUPPORTED", "error.request.invalid")
                 except AuthorizationError as exc:
                     return self._error(403, str(exc), "error.authorization.denied")
                 except WBSPersistenceError as exc:
                     if str(exc) == "REVISION_CONFLICT":
                         return self._error(409, str(exc), "error.revision.conflict")
+                    if str(exc) == "WBS_NOT_FOUND":
+                        return self._error(404, str(exc), "error.resource.not_found")
+                    if str(exc) == "WBS_IN_USE":
+                        return self._error(409, str(exc), "error.resource.in_use")
                     return self._error(400, str(exc), "error.request.invalid")
                 except (TypeError, ValueError, KeyError) as exc:
                     return self._error(400, str(exc) or "P6_WBS_MASTER_REQUEST_INVALID", "error.request.invalid")
