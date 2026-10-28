@@ -70,6 +70,7 @@ class WBSMaster:
 
 class WBSMasterRepository(Protocol):
     def save(self, wbs: WBSMaster, expected_revision: int | None = None) -> WBSMaster: ...
+    def delete(self, scope: BackendScope, wbs_id: str, *, expected_revision: int) -> None: ...
     def get(self, scope: BackendScope, wbs_id: str) -> WBSMaster | None: ...
     def list(self, scope: BackendScope) -> tuple[WBSMaster, ...]: ...
 
@@ -329,6 +330,69 @@ class SQLiteWBSMasterRepository:
                 self.connection.rollback()
             raise
 
+    def delete(self, scope: BackendScope, wbs_id: str, *, expected_revision: int) -> None:
+        """Delete an unused WBS node using an optimistic revision check.
+
+        Nodes with children or assigned activities cannot be deleted. The
+        database foreign key remains the final guard against concurrent writes.
+        """
+        scope.validate()
+        if not isinstance(wbs_id, str) or not wbs_id.strip():
+            raise WBSPersistenceError("INVALID_WBS_ID")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise WBSPersistenceError("EXPECTED_REVISION_REQUIRED")
+
+        was_in_transaction = self.connection.in_transaction
+        if not was_in_transaction:
+            self.connection.execute("BEGIN IMMEDIATE")
+        try:
+            row = self._row(scope, wbs_id)
+            if row is None:
+                raise WBSPersistenceError("WBS_NOT_FOUND")
+            if int(row[7]) != scope.project_revision:
+                raise WBSPersistenceError("REVISION_CONFLICT")
+            current = _decode_row(scope, row[:7])
+            if current.record_revision != expected_revision:
+                raise WBSPersistenceError("REVISION_CONFLICT")
+
+            child = self.connection.execute(
+                "SELECT 1 FROM wbs_master WHERE tenant_id=? AND project_id=? "
+                "AND parent_kind='wbs' AND parent_wbs_id=? LIMIT 1",
+                (scope.tenant_id, scope.project_id, wbs_id),
+            ).fetchone()
+            if child is not None:
+                raise WBSPersistenceError("WBS_IN_USE")
+
+            assignment_table = self.connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='activity_wbs_assignment'"
+            ).fetchone()
+            if assignment_table is not None:
+                assigned = self.connection.execute(
+                    "SELECT 1 FROM activity_wbs_assignment "
+                    "WHERE tenant_id=? AND project_id=? AND wbs_id=? LIMIT 1",
+                    (scope.tenant_id, scope.project_id, wbs_id),
+                ).fetchone()
+                if assigned is not None:
+                    raise WBSPersistenceError("WBS_IN_USE")
+
+            cursor = self.connection.execute(
+                "DELETE FROM wbs_master WHERE tenant_id=? AND project_id=? "
+                "AND wbs_id=? AND record_revision=?",
+                (scope.tenant_id, scope.project_id, wbs_id, expected_revision),
+            )
+            if cursor.rowcount != 1:
+                raise WBSPersistenceError("REVISION_CONFLICT")
+            if not was_in_transaction:
+                self.connection.commit()
+        except sqlite3.IntegrityError as exc:
+            if not was_in_transaction and self.connection.in_transaction:
+                self.connection.rollback()
+            raise WBSPersistenceError("WBS_IN_USE") from exc
+        except Exception:
+            if not was_in_transaction and self.connection.in_transaction:
+                self.connection.rollback()
+            raise
+
     def get(self, scope: BackendScope, wbs_id: str) -> WBSMaster | None:
         scope.validate()
         if not isinstance(wbs_id, str) or not wbs_id.strip():
@@ -557,6 +621,49 @@ class PostgresWBSMasterRepository:
         if cursor.rowcount != 1:
             raise WBSPersistenceError("REVISION_CONFLICT")
         return stored
+
+    def delete(self, scope: BackendScope, wbs_id: str, *, expected_revision: int) -> None:
+        """Delete an unused WBS node with optimistic concurrency protection."""
+        scope.validate()
+        if not isinstance(wbs_id, str) or not wbs_id.strip():
+            raise WBSPersistenceError("INVALID_WBS_ID")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise WBSPersistenceError("EXPECTED_REVISION_REQUIRED")
+
+        row = self._row(scope, wbs_id, lock=True)
+        if row is None:
+            raise WBSPersistenceError("WBS_NOT_FOUND")
+        if int(row[7]) != scope.project_revision:
+            raise WBSPersistenceError("REVISION_CONFLICT")
+        current = _decode_row(scope, row[:7])
+        if current.record_revision != expected_revision:
+            raise WBSPersistenceError("REVISION_CONFLICT")
+
+        child = self.connection.execute(
+            "SELECT 1 FROM wbs_master WHERE tenant_id=%s AND project_id=%s "
+            "AND parent_kind='wbs' AND parent_wbs_id=%s LIMIT 1",
+            (scope.tenant_id, scope.project_id, wbs_id),
+        ).fetchone()
+        if child is not None:
+            raise WBSPersistenceError("WBS_IN_USE")
+
+        table = self.connection.execute("SELECT to_regclass('activity_wbs_assignment')").fetchone()
+        if table is not None and table[0] is not None:
+            assigned = self.connection.execute(
+                "SELECT 1 FROM activity_wbs_assignment WHERE tenant_id=%s AND project_id=%s "
+                "AND wbs_id=%s LIMIT 1",
+                (scope.tenant_id, scope.project_id, wbs_id),
+            ).fetchone()
+            if assigned is not None:
+                raise WBSPersistenceError("WBS_IN_USE")
+
+        cursor = self.connection.execute(
+            "DELETE FROM wbs_master WHERE tenant_id=%s AND project_id=%s "
+            "AND wbs_id=%s AND record_revision=%s",
+            (scope.tenant_id, scope.project_id, wbs_id, expected_revision),
+        )
+        if getattr(cursor, "rowcount", 1) != 1:
+            raise WBSPersistenceError("REVISION_CONFLICT")
 
     def get(self, scope: BackendScope, wbs_id: str) -> WBSMaster | None:
         scope.validate()
