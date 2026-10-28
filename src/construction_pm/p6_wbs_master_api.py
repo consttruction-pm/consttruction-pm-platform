@@ -79,6 +79,33 @@ class P6WBSMasterAPI:
             raise AuthorizationError("authorization denied for permission=project.write")
         return _dto(self.repository.save(item, expected_revision=expected_revision))
 
+    def delete(
+        self,
+        scope: BackendScope,
+        wbs_id: str,
+        *,
+        expected_revision: int,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Delete an unused WBS node only for a current, authorized revision."""
+        _require_scope(scope, auth_context)
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 1
+        ):
+            raise ValueError("EXPECTED_REVISION_REQUIRED")
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
+            raise AuthorizationError("authorization denied for permission=project.write")
+        self.repository.delete(scope, wbs_id, expected_revision=expected_revision)
+        return {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "kind": "p6_wbs_master_delete",
+            "scope": _scope_dto(scope),
+            "wbs_id": wbs_id,
+            "deleted": True,
+        }
+
     def get(
         self,
         scope: BackendScope,
