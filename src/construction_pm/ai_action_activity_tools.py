@@ -196,9 +196,9 @@ def build_activity_create_runtime(
         repository=takeoff_repository,
         idempotency_store=idempotency_store,
     )
-    if (resource_write_api is None) != (resource_read_api is None):
-        raise AIActionRuntimeError("AI_RESOURCE_ASSIGNMENT_RUNTIME_DEPENDENCIES_INCOMPLETE")
     tools = [tool, quantity_takeoff_tool]
+    # Assignment write is optional in legacy deployments. Register the new action
+    # only when both authenticated read/write boundaries are actually available.
     if resource_write_api is not None and resource_read_api is not None:
         from .ai_action_resource_tools import build_resource_assignment_create_tool
 
