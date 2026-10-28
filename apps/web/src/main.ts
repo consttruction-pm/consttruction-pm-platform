@@ -435,12 +435,12 @@ function renderApp(
     },
     onWbsCreate: async (input) => {
       try {
-        const parent = input.parentWbsId ? state.wbsNodes.find((node) => node.id === input.parentWbsId) : null;
+        const parent = input.parentWbsId && input.parentWbsId !== "__project__" ? state.wbsNodes.find((node) => node.id === input.parentWbsId) : null;
         const response = await aiTransport.post<
           { wbs_id: string; parent_kind: "project" | "wbs"; parent_wbs_id: string | null; code: string; name: string; sequence_number: number },
           unknown
         >(projectWbsPath(), {
-          wbs_id: `WBS-${Date.now().toString(36).toUpperCase()}`,
+          wbs_id: `WBS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
           parent_kind: parent ? "wbs" : "project",
           parent_wbs_id: parent?.id ?? null,
           code: input.code,
