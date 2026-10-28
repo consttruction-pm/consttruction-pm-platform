@@ -530,3 +530,181 @@ def test_preview_assistant_proposes_resource_assignment_then_approves_and_reads_
         assert persisted == ("A130", "RPS-CIVIL-CREW", "4")
     finally:
         runtime.close()
+
+
+def test_preview_form_builder_shared_worker_submits_without_opening_project_and_owner_approves(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    runtime = open_preview_runtime(
+        tmp_path / "preview-form-e2e.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+        status, headers, _ = _request(app, "POST", "/preview/login", body=b"role=admin")
+        assert status == 303
+        owner_cookie = _cookie(headers)
+
+        form_payload = {
+            "form_id": "DAILY-LOG-01",
+            "name": "Daily field log",
+            "description": "Record performed work for the owner to review.",
+            "sections": [{
+                "section_id": "WORK",
+                "title": "Work performed",
+                "localized_titles": {"fa": "کار انجام‌شده"},
+            }],
+            "fields": [
+                {
+                    "field_id": "ACTIVITY-ID",
+                    "section_id": "WORK",
+                    "field_type": "text",
+                    "label": "Activity ID",
+                    "required": True,
+                    "options": [],
+                    "localized_labels": {"fa": "شناسه فعالیت"},
+                    "minimum": None,
+                    "maximum": None,
+                    "min_length": 3,
+                    "max_length": 64,
+                },
+                {
+                    "field_id": "QUANTITY",
+                    "section_id": "WORK",
+                    "field_type": "number",
+                    "label": "Quantity completed",
+                    "required": True,
+                    "options": [],
+                    "localized_labels": {},
+                    "minimum": 0,
+                    "maximum": 100000,
+                    "min_length": None,
+                    "max_length": None,
+                },
+                {
+                    "field_id": "SHIFT",
+                    "section_id": "WORK",
+                    "field_type": "select",
+                    "label": "Shift",
+                    "required": True,
+                    "options": ["Day", "Night"],
+                    "localized_labels": {},
+                    "minimum": None,
+                    "maximum": None,
+                    "min_length": None,
+                    "max_length": None,
+                },
+            ],
+            "shared_with_user_ids": ["preview-viewer"],
+            "shared_with_roles": [],
+            "approver_user_ids": ["preview-admin"],
+            "approver_roles": ["project_admin"],
+            "output_mappings": [{
+                "field_id": "QUANTITY",
+                "target_domain": "daily_field_log",
+                "target_field": "quantity_completed",
+            }],
+            "requires_approval": True,
+            "expected_latest_version": None,
+        }
+        status, _, body = _request(
+            app,
+            "POST",
+            "/api/projects/preview-rps-01/forms",
+            cookie=owner_cookie,
+            body=json.dumps(form_payload, ensure_ascii=False).encode("utf-8"),
+        )
+        assert status == 201, body.decode("utf-8")
+        draft = json.loads(body)
+        assert draft["status"] == "draft"
+        assert draft["version"] == 1
+
+        status, _, body = _request(
+            app,
+            "POST",
+            "/api/projects/preview-rps-01/forms/DAILY-LOG-01/1/publish",
+            cookie=owner_cookie,
+            body=b"{}",
+        )
+        assert status == 200, body.decode("utf-8")
+        published = json.loads(body)
+        assert published["status"] == "published"
+        assert published["version"] == 2
+        assert published["published_by"] == "preview-admin"
+
+        status, headers, _ = _request(app, "POST", "/preview/login", body=b"role=viewer")
+        assert status == 303
+        worker_cookie = _cookie(headers)
+
+        # A form-only route must never resolve/open the whole project. Share access is
+        # checked against the authenticated session identity and the exact published form.
+        routes_api = runtime.app.routes._api
+        original_open_project = routes_api.open_project
+
+        def forbid_open_project(*args, **kwargs):
+            raise AssertionError("shared-form access must not open or authorize the whole project")
+
+        monkeypatch.setattr(routes_api, "open_project", forbid_open_project)
+        status, _, body = _request(
+            app,
+            "GET",
+            "/api/projects/preview-rps-01/forms/shared",
+            cookie=worker_cookie,
+        )
+        assert status == 200, body.decode("utf-8")
+        shared = json.loads(body)["forms"]
+        assert len(shared) == 1
+        assert shared[0]["form_id"] == "DAILY-LOG-01"
+        assert shared[0]["status"] == "published"
+
+        status, _, body = _request(
+            app,
+            "GET",
+            "/api/projects/preview-rps-01/forms/shared/DAILY-LOG-01/2",
+            cookie=worker_cookie,
+        )
+        assert status == 200, body.decode("utf-8")
+        assert json.loads(body)["version"] == 2
+
+        status, _, body = _request(
+            app,
+            "POST",
+            "/api/projects/preview-rps-01/forms/shared/DAILY-LOG-01/2/submissions",
+            cookie=worker_cookie,
+            body=json.dumps({
+                "submission_id": "SUBMIT-PREVIEW-001",
+                "answers": {"ACTIVITY-ID": "A130", "QUANTITY": 18.75, "SHIFT": "Day"},
+            }, ensure_ascii=False).encode("utf-8"),
+        )
+        assert status == 201, body.decode("utf-8")
+        submission = json.loads(body)
+        assert submission["status"] == "pending_approval"
+        assert submission["submitted_by"] == "preview-viewer"
+        assert submission["answers"]["QUANTITY"] == "18.75"
+        assert runtime.connection.execute(
+            "SELECT COUNT(*) FROM project_form_submissions WHERE tenant_id=? AND project_id=?",
+            (PREVIEW_TENANT_ID, "preview-rps-01"),
+        ).fetchone()[0] == 1
+
+        monkeypatch.setattr(routes_api, "open_project", original_open_project)
+        status, _, body = _request(
+            app,
+            "POST",
+            "/api/projects/preview-rps-01/forms/DAILY-LOG-01/submissions/SUBMIT-PREVIEW-001/review",
+            cookie=owner_cookie,
+            body=json.dumps({
+                "approved": True,
+                "review_note": "Reconciled against the daily report.",
+            }).encode("utf-8"),
+        )
+        assert status == 200, body.decode("utf-8")
+        reviewed = json.loads(body)
+        assert reviewed["status"] == "approved"
+        assert reviewed["reviewed_by"] == "preview-admin"
+        assert runtime.connection.execute(
+            "SELECT COUNT(*) FROM project_form_audit_events WHERE tenant_id=? AND project_id=?",
+            (PREVIEW_TENANT_ID, "preview-rps-01"),
+        ).fetchone()[0] == 4
+    finally:
+        runtime.close()
