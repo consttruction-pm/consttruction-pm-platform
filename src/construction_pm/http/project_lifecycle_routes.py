@@ -26,6 +26,7 @@ from ..ai_learning_memory import (
     LearningStatus,
 )
 from ..ai_learning_memory_repository import AILearningMemoryRepository
+from ..ai_learning_research import AILearningResearchError, AILearningResearchService
 from ..ai_assistant_orchestration import (
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
@@ -190,6 +191,7 @@ class ProjectLifecycleHttpRoutes:
         form_builder_api: FormBuilderAPI | None = None,
         ai_learning_memory_repository: AILearningMemoryRepository | None = None,
         ai_learning_memory_transaction_manager: AIActionTransactionManager | None = None,
+        ai_learning_research_service: AILearningResearchService | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -225,6 +227,7 @@ class ProjectLifecycleHttpRoutes:
         self._form_builder_api = form_builder_api
         self._ai_learning_memory_repository = ai_learning_memory_repository
         self._ai_learning_memory_transaction_manager = ai_learning_memory_transaction_manager
+        self._ai_learning_research_service = ai_learning_research_service
 
     def handle(
         self,
@@ -2610,6 +2613,7 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 if (
                     self._ai_learning_memory_repository is None
+                    and self._ai_learning_research_service is None
                     and (self._ai_action_runtime is None or self._ai_assistant_orchestrator is None)
                 ):
                     return self._error(503, "AI_ASSISTANT_NOT_CONFIGURED", "error.ai_assistant.not_configured")
@@ -2705,6 +2709,71 @@ class ProjectLifecycleHttpRoutes:
 
                 # A deliberate /remember command stores only lesson text, not the transcript.
                 # Private memory capture is deterministic and works without an inference provider.
+                research_prefixes = ("/research", "/پژوهش")
+                research_command = next(
+                    (
+                        prefix for prefix in research_prefixes
+                        if message.strip().casefold() == prefix.casefold()
+                        or message.strip().casefold().startswith(prefix.casefold() + " ")
+                    ),
+                    None,
+                )
+                if research_command is not None:
+                    if not can_propose:
+                        return self._error(403, "AI_RESEARCH_NOT_AUTHORIZED", "error.authorization.denied")
+                    if self._ai_learning_research_service is None:
+                        return self._error(503, "AI_RESEARCH_NOT_CONFIGURED", "error.ai_learning.research_not_configured")
+                    article_url = message.strip()[len(research_command):].strip()
+                    if not article_url:
+                        hint = (
+                            "Use /research followed by one public HTTPS article URL. The extracted lesson is saved as a review-only candidate and is not used as approved knowledge."
+                            if language.strip().lower().startswith("en")
+                            else "برای پژوهش، دستور /research را همراه یک نشانی عمومی HTTPS بنویسید. نتیجه فقط به‌صورت نامزدِ نیازمند بازبینی ذخیره می‌شود و هنوز دانش تأییدشده نیست."
+                        )
+                        return self._json(200, {
+                            "contract_version": "ai-assistant-turn.v1",
+                            "kind": "clarification",
+                            "message": hint,
+                            "proposal": None,
+                        })
+                    try:
+                        candidate = self._ai_learning_research_service.ingest(article_url)
+                    except AILearningResearchError as exc:
+                        if exc.code in {
+                            "AI_RESEARCH_MODEL_UNAVAILABLE",
+                            "AI_RESEARCH_TRANSACTION_CONNECTION_MISMATCH",
+                            "AI_RESEARCH_TRANSACTION_NOT_CONFIGURED",
+                        }:
+                            error_status = 503
+                        elif exc.code == "AI_RESEARCH_SOURCE_UNAVAILABLE":
+                            error_status = 502
+                        elif exc.code.endswith("PERSISTENCE_FAILED"):
+                            error_status = 500
+                        else:
+                            error_status = 400
+                        return self._error(error_status, exc.code, "error.ai_learning.research_failed")
+                    if self._ai_action_runtime is not None:
+                        self._ai_action_runtime.record_request_event(
+                            runtime_context,
+                            "assistant_public_research_candidate_created",
+                            metadata={
+                                "record_id": candidate.record_id,
+                                "status": candidate.status,
+                                "source_host": urlsplit(candidate.source_url).hostname or "",
+                            },
+                        )
+                    response_message = (
+                        f"Read “{candidate.title}” and saved a review-only knowledge candidate ({candidate.record_id}). It will not guide other answers until it is validated, copyright/privacy-reviewed and approved."
+                        if language.strip().lower().startswith("en")
+                        else f"مقالهٔ «{candidate.title}» خوانده شد و به‌صورت نامزدِ نیازمند بازبینی ذخیره شد ({candidate.record_id}). تا اعتبارسنجی، بررسی حقوق نشر/حریم خصوصی و تأیید انسانی، در پاسخ‌های دیگر استفاده نمی‌شود."
+                    )
+                    return self._json(200, {
+                        "contract_version": "ai-assistant-turn.v1",
+                        "kind": "message",
+                        "message": response_message,
+                        "proposal": None,
+                    })
+
                 memory_prefixes = ("/remember", "/یادبگیر")
                 memory_command = next(
                     (
