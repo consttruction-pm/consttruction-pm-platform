@@ -252,3 +252,16 @@ def test_context_marks_signal_list_truncated_when_project_has_many_triggers():
     assert context["signals_truncated"] is True
     assert context["truncated"] is True
     assert context["engineering_signal_counts"]["negative_total_float"] == 10
+
+
+def test_context_rejects_boolean_revision_even_when_python_compares_it_equal_to_one():
+    snapshot = workspace_snapshot(revision=1)
+    snapshot["context"]["revision"] = True
+    snapshot["workspace"]["context"]["revision"] = True
+    with pytest.raises(AIProjectContextError, match="AI_PROJECT_CONTEXT_SCOPE_MISMATCH"):
+        build_assistant_project_context(
+            snapshot,
+            tenant_id="tenant-1",
+            project_id="project-1",
+            project_revision=1,
+        )
