@@ -960,7 +960,7 @@ class FormBuilderAPI:
             scope=scope, submission_id=submission_id, form_id=form_id,
             form_version=form_version, submitted_by=submitted_by, answers=normalized_answers,
             status=status, submitted_at=self.clock(),
-            reviewed_by=None if status == "pending_approval" else submitted_by,
+            reviewed_by=None if status == "pending_approval" else "system:auto-approved",
             reviewed_at=None if status == "pending_approval" else self.clock(),
             review_note=None if status == "pending_approval" else "No approval required by form definition.",
         ).normalized()
