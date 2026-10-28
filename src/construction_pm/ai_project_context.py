@@ -182,7 +182,13 @@ def build_assistant_project_context(
 ) -> dict[str, object]:
     """Build an allowlisted project read context after strict contract and scope checks."""
     expected = (tenant_id, project_id, project_revision)
-    if not tenant_id or not project_id or isinstance(project_revision, bool) or project_revision < 0:
+    if (
+        not isinstance(tenant_id, str) or not tenant_id.strip()
+        or not isinstance(project_id, str) or not project_id.strip()
+        or isinstance(project_revision, bool)
+        or not isinstance(project_revision, int)
+        or project_revision < 0
+    ):
         raise AIProjectContextError("AI_PROJECT_CONTEXT_SCOPE_INVALID")
     if snapshot.get("contract_version") != WORKSPACE_READ_CONTRACT:
         raise AIProjectContextError("AI_PROJECT_CONTEXT_READ_CONTRACT_UNSUPPORTED")
