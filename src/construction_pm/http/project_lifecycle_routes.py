@@ -112,6 +112,13 @@ from ..p6_layout_definition_repository import (
     layout_column_from_mapping,
 )
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
+from ..project_forms import (
+    FormBuilderAPI,
+    FormFieldDefinition,
+    FormOutputMapping,
+    FormSectionDefinition,
+    ProjectFormError,
+)
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 
 
@@ -169,6 +176,7 @@ class ProjectLifecycleHttpRoutes:
         schedule_query_api: ScheduleQueryAPI | None = None,
         ai_action_runtime: AIActionRuntime | None = None,
         ai_assistant_orchestrator: AIAssistantTurnOrchestrator | None = None,
+        form_builder_api: FormBuilderAPI | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -201,6 +209,7 @@ class ProjectLifecycleHttpRoutes:
         self._schedule_query_api = schedule_query_api
         self._ai_action_runtime = ai_action_runtime
         self._ai_assistant_orchestrator = ai_assistant_orchestrator
+        self._form_builder_api = form_builder_api
 
     def handle(
         self,
