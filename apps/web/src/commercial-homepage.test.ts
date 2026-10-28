@@ -29,7 +29,7 @@ test("CUBI homepage follows the registered full commercial structure", () => {
   // nested routes and GitHub Pages base paths still reach the public root.
   assert.match(landing, /import \{[^}]*cubiPlatformLogoUrl[^}]*\} from "\.\/cubi-brand-assets\.js"/);
   assert.match(brandAssets, /export function cubiPlatformLogoUrl\(\s*moduleUrl: string = import\.meta\.url/);
-  assert.match(brandAssets, /new URL\("\.\.\/\.\.\/\.\.\/cubi-platform-logo-primary\.svg", moduleUrl\)/);
+  assert.match(brandAssets, /new URL\("\.\.\/cubi-platform-logo-primary\.svg", moduleUrl\)/);
   assert.doesNotMatch(landing + styles + index, /cubi-platform-logo-primary-dark\.svg|logo-dark\.svg/);
 });
 
@@ -143,7 +143,7 @@ test("assistant avatar is connected to every existing Web assistant surface whil
   assert.match(chat, /avatar\.src = cubiAssistantAvatarUrl\(\)/);
   assert.match(chat, /messageAvatar\.src = cubiAssistantAvatarUrl\(\)/);
   assert.match(actions, /avatar\.src = cubiAssistantAvatarUrl\(\)/);
-  assert.match(brandAssets, /new URL\("\.\.\/\.\.\/\.\.\/cubi-assistant-avatar\.svg", moduleUrl\)/);
+  assert.match(brandAssets, /new URL\("\.\.\/cubi-assistant-avatar\.svg", moduleUrl\)/);
   assert.match(desktopAssets, /CUBI_ASSISTANT_AVATAR_ASSET/);
   assert.match(mobileAssets, /CUBI_ASSISTANT_AVATAR_ASSET/);
   assert.match(avatar, /<title id="title">CUBI AI Project Assistant<\/title>/);
