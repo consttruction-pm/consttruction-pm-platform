@@ -69,6 +69,7 @@ def build_project_lifecycle_wsgi_app(
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
     ai_assistant_provider: AIChatProvider | None = None,
+    form_builder_api: object | None = None,
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
@@ -155,6 +156,7 @@ def build_project_lifecycle_wsgi_app(
             clock=None if clock is None else clock.now,
             resource_write_api=resource_write_api,
             resource_read_api=resource_read_api,
+            form_builder_api=form_builder_api,
         )
 
     ai_assistant_orchestrator = None
