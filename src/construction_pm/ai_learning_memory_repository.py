@@ -24,6 +24,8 @@ class AILearningMemoryRepository(Protocol):
     def append(self, record: AILearningMemoryRecord) -> AILearningMemoryRecord: ...
     def get(self, record_id: str, record_version: int, scope: LearningRetrievalScope) -> AILearningMemoryRecord | None: ...
     def list_retrievable(self, scope: LearningRetrievalScope) -> tuple[AILearningMemoryRecord, ...]: ...
+    def list_general_candidates(self) -> tuple[AILearningMemoryRecord, ...]: ...
+    def get_general_candidate(self, record_id: str, record_version: int) -> AILearningMemoryRecord | None: ...
 
 
 def _encode(record: AILearningMemoryRecord) -> str:
@@ -159,6 +161,41 @@ class _RepositoryBase:
             if record.record_id == record_id and record.record_version == record_version:
                 return record
         return None
+
+
+    def list_general_candidates(self) -> tuple[AILearningMemoryRecord, ...]:
+        """List only latest reviewable candidates; never expose private records."""
+        p = self.placeholder
+        rows = self.connection.execute(
+            "SELECT current.payload_json FROM ai_learning_memory_records AS current "
+            "WHERE current.scope='general_candidate' AND current.status='candidate' "
+            "AND current.record_version=("
+            "SELECT MAX(history.record_version) FROM ai_learning_memory_records AS history "
+            "WHERE history.record_id=current.record_id"
+            ") ORDER BY current.record_id",
+            (),
+        ).fetchall()
+        return tuple(_decode(row[0]) for row in rows)
+
+    def get_general_candidate(
+        self, record_id: str, record_version: int
+    ) -> AILearningMemoryRecord | None:
+        if not isinstance(record_id, str) or not record_id.strip() or len(record_id) > 128:
+            raise AILearningMemoryPersistenceError("INVALID_AI_LEARNING_RECORD_ID")
+        if isinstance(record_version, bool) or not isinstance(record_version, int) or record_version < 1:
+            raise AILearningMemoryPersistenceError("INVALID_AI_LEARNING_RECORD_VERSION")
+        p = self.placeholder
+        row = self.connection.execute(
+            "SELECT current.payload_json FROM ai_learning_memory_records AS current "
+            f"WHERE current.record_id={p} AND current.record_version={p} "
+            "AND current.scope='general_candidate' AND current.status='candidate' "
+            "AND current.record_version=("
+            "SELECT MAX(history.record_version) FROM ai_learning_memory_records AS history "
+            "WHERE history.record_id=current.record_id"
+            ")",
+            (record_id, record_version),
+        ).fetchone()
+        return None if row is None else _decode(row[0])
 
 
 class SQLiteAILearningMemoryRepository(_RepositoryBase):
