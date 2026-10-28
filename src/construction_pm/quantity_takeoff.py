@@ -98,6 +98,8 @@ class QuantityTakeoffLine:
         )
         if status == "measured" and source_ref is None:
             raise QuantityTakeoffError("QUANTITY_TAKEOFF_MEASURED_SOURCE_REQUIRED")
+        if status == "calculated" and source_ref is None:
+            raise QuantityTakeoffError("QUANTITY_TAKEOFF_CALCULATED_SOURCE_REQUIRED")
         classification = None if self.classification_code is None else _text(
             self.classification_code, field="classification_code", maximum=64
         )
@@ -162,10 +164,16 @@ class QuantityTakeoffLine:
             "measurement_status": line.measurement_status,
             "measurement_basis": line.measurement_basis,
             "source_ref": line.source_ref,
+            # This slice captures references but has no connected source/rate registry yet.
+            # Never represent model-supplied free text as verified engineering evidence.
+            "source_verification_status": "unverified_reference",
             "unit_rate": None if line.unit_rate is None else str(line.unit_rate),
             "currency": line.currency,
             "currency_minor_units": line.currency_minor_units,
             "rate_basis": line.rate_basis,
+            "rate_verification_status": (
+                "unverified_rate_basis" if line.unit_rate is not None else "not_applicable"
+            ),
             "extended_cost": None if line.extended_cost is None else str(line.extended_cost),
         }
 
@@ -276,6 +284,8 @@ class QuantityTakeoffEstimate:
                 "priced_line_count": len(estimate.lines) - missing_rates,
                 "unpriced_line_count": missing_rates,
                 "cost_complete": missing_rates == 0,
+                "source_verification_performed": False,
+                "rate_verification_performed": False,
                 "totals_by_currency": [
                     {
                         "currency": currency,
