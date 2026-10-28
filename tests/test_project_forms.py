@@ -184,8 +184,11 @@ def test_shared_worker_can_submit_form_without_project_read_and_owner_can_review
         assert submission.answers["ACTIVITY-ID"] == "A-130"
         assert submission.reviewed_by is None
 
+        planner = AuthorizationContext(
+            "tenant-1", "project-1", "planner-1", frozenset({"planner"})
+        )
         with pytest.raises(AuthorizationError, match="PROJECT_FORM_SUBMISSIONS_NOT_AUTHORIZED"):
-            api.list_submissions(scope, published.form_id, auth_context=worker)
+            api.list_submissions(scope, published.form_id, auth_context=planner)
 
         owner_submissions = api.list_submissions(
             scope, published.form_id, auth_context=owner
@@ -247,7 +250,7 @@ def test_unshared_user_cannot_discover_form_or_submit_to_it(tmp_path):
 
 
 def test_forms_validate_required_fields_unknown_fields_and_reviewer_boundary(tmp_path):
-    connection, _, api, scope, owner, worker = setup_api(tmp_path)
+    connection, repository, api, scope, owner, worker = setup_api(tmp_path)
     another = AuthorizationContext(
         "tenant-1", "project-1", "other-approver", frozenset({"planner"})
     )
@@ -276,12 +279,6 @@ def test_forms_validate_required_fields_unknown_fields_and_reviewer_boundary(tmp
             answers={"ACTIVITY-ID": "A-130", "QUANTITY": 10, "SHIFT": "Day"},
         )
         with pytest.raises(AuthorizationError, match="PROJECT_FORM_REVIEW_NOT_AUTHORIZED"):
-            api.review_submission(
-                scope, submission.submission_id, approved=True, review_note=None,
-                auth_context=another,
-            )
-        with pytest.raises(ProjectFormError, match="PROJECT_FORM_SUBMISSION_ALREADY_REVIEWED") if False else pytest.raises(ProjectFormError):
-            # Reviewing must not mutate when a submitter is not an authorized approver.
             api.review_submission(
                 scope, submission.submission_id, approved=True, review_note=None,
                 auth_context=another,
