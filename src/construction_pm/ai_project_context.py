@@ -220,10 +220,14 @@ def _engineering_signals(
 ) -> tuple[list[dict[str, object]], dict[str, int], bool]:
     """Detect explicit review triggers only; never assigns probability or impact."""
     signals: list[dict[str, object]] = []
+    signals_truncated = False
 
     def add(signal: dict[str, object]) -> None:
+        nonlocal signals_truncated
         if len(signals) < 20:
             signals.append(signal)
+        else:
+            signals_truncated = True
 
     for activity in activities:
         activity_id = str(activity["id"])
@@ -268,7 +272,6 @@ def _engineering_signals(
         ("inspections", _QUALITY_FAILURE_STATUSES, "inspection_followup", "inspection_followup_candidate"),
         ("punch_items", _OPEN_STATUSES, "open_punch_item", "punch_followup_candidate"),
     )
-    any_truncated = False
     for collection_name, statuses, signal_type, classification in category_rules:
         raw_records = snapshot.get(collection_name, [])
         if not isinstance(raw_records, (list, tuple)):
@@ -280,7 +283,7 @@ def _engineering_signals(
             if not isinstance(status, str) or status.strip().casefold() not in statuses:
                 continue
             if len(signals) >= 20:
-                any_truncated = True
+                signals_truncated = True
                 break
             evidence_id = _record_id(record)
             activity_id = record.get("activity_id")
@@ -308,13 +311,13 @@ def _engineering_signals(
                 }
             add(evidence)
         if len(signals) >= 20 and raw_records:
-            any_truncated = True
+            signals_truncated = True
 
     counts: dict[str, int] = {}
     for signal in signals:
         signal_type = str(signal["signal_type"])
         counts[signal_type] = counts.get(signal_type, 0) + 1
-    return signals, counts, any_truncated
+    return signals, counts, signals_truncated
 
 
 def _encode(value: Mapping[str, object]) -> str:
