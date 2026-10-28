@@ -154,6 +154,7 @@ def build_activity_create_runtime(
     clock: Callable[[], datetime] | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
+    form_builder_api: object | None = None,
 ) -> AIActionRuntime:
     """Compose the first production typed tool only when real dependencies are supplied.
 
@@ -207,6 +208,16 @@ def build_activity_create_runtime(
                 activity_api=P6ActivityMasterAPI(activity_master_repository, authorization_policy),
                 resource_write_api=resource_write_api,
                 resource_read_api=resource_read_api,
+                idempotency_store=idempotency_store,
+                transaction_manager=transaction_manager,
+            )
+        )
+    if form_builder_api is not None:
+        from .ai_action_form_tools import build_form_definition_create_tool
+
+        tools.append(
+            build_form_definition_create_tool(
+                form_api=form_builder_api,
                 idempotency_store=idempotency_store,
                 transaction_manager=transaction_manager,
             )
