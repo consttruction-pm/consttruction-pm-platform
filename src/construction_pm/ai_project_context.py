@@ -13,8 +13,8 @@ from decimal import Decimal, InvalidOperation
 
 
 PROJECT_CONTEXT_CONTRACT = "cubi-assistant-project-context.v1"
-WORKSPACE_READ_CONTRACT = "workspace-control-room-read.v1"
-WORKSPACE_CONTRACT = "workspace-control-room.v1"
+WORKSPACE_READ_CONTRACT = "workspace-control-room-read.v2"
+WORKSPACE_CONTRACT = "workspace-control-room.v2"
 MAX_CONTEXT_CHARS = 12_000
 MAX_ACTIVITY_ROWS = 40
 MAX_RECORDS_PER_COLLECTION = 3
