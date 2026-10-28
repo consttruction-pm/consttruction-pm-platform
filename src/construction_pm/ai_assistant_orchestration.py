@@ -563,6 +563,8 @@ class AIAssistantTurnOrchestrator:
         project_context_json = ""
         if project_context is not None:
             try:
+                if not isinstance(project_context, Mapping):
+                    raise ValueError("AI_ASSISTANT_PROJECT_CONTEXT_INVALID")
                 if project_context.get("contract_version") != PROJECT_CONTEXT_CONTRACT:
                     raise ValueError("AI_ASSISTANT_PROJECT_CONTEXT_CONTRACT_UNSUPPORTED")
                 scope = project_context.get("scope")
