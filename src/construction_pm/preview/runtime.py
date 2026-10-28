@@ -966,6 +966,7 @@ def open_preview_runtime(
         relationship_master_repository=repositories.relationships,
         schedule_snapshot_publication_api=snapshot_api,
         backend_p0_api=backend_api,
+        form_builder_api=form_builder_api if ai_assistant_enabled and os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip() else None,
         p6_field_registry_api=P6FieldRegistryAPI(
             repositories.field_service,
             repositories.udf_service,
