@@ -972,6 +972,7 @@ def open_preview_runtime(
         backend_p0_api=backend_api,
         form_builder_api=form_builder_api,
         ai_learning_memory_repository=learning_memory_repository,
+        ai_learning_memory_transaction_manager=repositories.transaction_manager,
         p6_field_registry_api=P6FieldRegistryAPI(
             repositories.field_service,
             repositories.udf_service,
