@@ -55,7 +55,7 @@ export function boundedAIAssistantHistory(
 const fallbackLabels: Record<"en" | "fa", ChatLabels> = {
   en: {
     title: "AI Project Assistant",
-    description: "Ask a project-controls question or request a supported change. Project actions are prepared as proposals and are never executed without your explicit approval.",
+    description: "Ask a project-controls question or request a supported change. Actions require approval. Send /remember followed by a private preference or lesson to save it for your own future chats.",
     messageLabel: "Your message",
     placeholder: "Describe the project question or requested change…",
     send: "Send",
@@ -72,7 +72,7 @@ const fallbackLabels: Record<"en" | "fa", ChatLabels> = {
   },
   fa: {
     title: "دستیار هوشمند پروژه",
-    description: "پرسش کنترل پروژه را مطرح کنید یا تغییر پشتیبانی‌شده‌ای بخواهید. اقدامات فقط به‌صورت پیشنهاد آماده می‌شوند و بدون تأیید صریح شما اجرا نخواهند شد.",
+    description: "پرسش کنترل پروژه را مطرح کنید یا تغییر پشتیبانی‌شده‌ای بخواهید. اقدامات به تأیید نیاز دارند. برای ذخیرهٔ یک ترجیح یا درس خصوصی برای گفت‌وگوهای آیندهٔ خودتان، دستور /remember را همراه متن بنویسید.",
     messageLabel: "پیام شما",
     placeholder: "پرسش پروژه یا تغییر درخواستی را توضیح دهید…",
     send: "ارسال",
