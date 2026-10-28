@@ -162,14 +162,24 @@ def build_activity_create_runtime(
     if connection is None or repository_connection is not connection:
         raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_TRANSACTION_CONNECTION_MISMATCH")
 
+    # Import lazily: quantity_takeoff reuses this module's idempotency-store contract.
+    from .quantity_takeoff import (
+        PostgresQuantityTakeoffRepository,
+        SQLiteQuantityTakeoffRepository,
+        build_quantity_takeoff_create_tool,
+    )
+
     if isinstance(activity_master_repository, SQLiteActivityMasterRepository):
         if not isinstance(connection, sqlite3.Connection):
             raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_STORAGE_ADAPTER_MISMATCH")
         runtime_store = SQLiteAIActionRuntimeStore(connection)
         idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
+        takeoff_repository = SQLiteQuantityTakeoffRepository(connection)
     elif isinstance(activity_master_repository, PostgresActivityMasterRepository):
         runtime_store = PostgresAIActionRuntimeStore(connection)
         idempotency_store = PostgresAIActionExecutionIdempotencyStore(connection)
+        takeoff_repository = PostgresQuantityTakeoffRepository(connection)
+        takeoff_repository.initialize()
     else:
         raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_STORAGE_ADAPTER_UNSUPPORTED")
 
@@ -178,11 +188,15 @@ def build_activity_create_runtime(
         idempotency_store=idempotency_store,
         transaction_manager=transaction_manager,
     )
+    quantity_takeoff_tool = build_quantity_takeoff_create_tool(
+        repository=takeoff_repository,
+        idempotency_store=idempotency_store,
+    )
     return AIActionRuntime(
         store=runtime_store,
         permission_adapter=permission_adapter,
         audit_sink=runtime_store,
-        tools=(tool,),
+        tools=(tool, quantity_takeoff_tool),
         clock=clock,
         transaction_manager=transaction_manager,
     )
