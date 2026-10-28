@@ -78,6 +78,19 @@ _RECORD_FIELDS = frozenset({
     "approved", "note", "notes", "observation", "action", "recommendation", "cause",
     "responsible_role", "owner_role", "location",
 })
+_RECORD_FIELD_ORDER = (
+    "id", "record_id", "issue_id", "log_id", "inspection_id", "observation_id",
+    "report_id", "claim_id", "notice_id", "case_id", "document_id", "item_id",
+    "rfq_id", "quote_id", "comparison_id", "po_id", "commitment_id", "delivery_id",
+    "code", "title", "name", "status", "category", "severity", "priority",
+    "risk_type", "issue_type", "activity_id", "activity_ids", "wbs_id", "wbs",
+    "description", "summary", "observation", "consequence", "trigger",
+    "corrective_action", "mitigation", "recommendation", "action", "cause",
+    "due_date", "observed_at", "reported_at", "date", "start_date", "finish_date",
+    "planned_finish", "actual_finish", "resource_id", "equipment_id", "quantity",
+    "unit", "source_ref", "revision", "approved", "responsible_role", "owner_role",
+    "location", "created_at", "note", "notes", "likelihood", "impact",
+)
 
 
 class AIProjectContextError(ValueError):
@@ -155,10 +168,10 @@ def _record_rows(raw: object) -> list[dict[str, object]]:
         if not isinstance(source, Mapping):
             continue
         record: dict[str, object] = {}
-        for key, value in source.items():
-            if key not in _RECORD_FIELDS:
+        for key in _RECORD_FIELD_ORDER:
+            if key not in source or key not in _RECORD_FIELDS or len(record) >= 16:
                 continue
-            safe = _safe_value(value)
+            safe = _safe_value(source[key])
             if safe is not None:
                 record[key] = safe
         if record:
@@ -243,7 +256,9 @@ def build_assistant_project_context(
             "with_schedule_facts": len(schedule_available),
             "without_complete_schedule_facts": len(all_rows) - len(schedule_available),
             "critical_flag_known_count": len(critical_known),
-            "critical_true_count": sum(row.get("critical") is True for row in critical_known),
+            "critical_true_count_among_known_flags": sum(
+                row.get("critical") is True for row in critical_known
+            ),
         },
         "activities": all_rows[:MAX_ACTIVITY_ROWS],
         "record_counts": record_counts,
@@ -264,7 +279,7 @@ def build_assistant_project_context(
             context["truncated"] = True
             continue
         activities = context["activities"]
-        if isinstance(activities, list) and len(activities) > 10:
+        if isinstance(activities, list) and len(activities) > 1:
             activities.pop()
             context["truncated"] = True
             continue
