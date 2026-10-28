@@ -197,7 +197,12 @@ def test_resource_assignment_rejects_missing_activity_and_invalid_cost_currency(
         with pytest.raises(AIActionRuntimeError):
             runtime.execute(context, proposed.proposal.proposal_id)
         assert assignment_service.list(scope) == ()
-        persisted = runtime.get_proposal(context, proposed.proposal.proposal_id)
+        persisted = runtime.store.get(
+            proposed.proposal.proposal_id,
+            tenant_id="tenant-1",
+            project_id="project-1",
+        )
+        assert persisted is not None
         assert persisted.status == "uncertain"
     finally:
         connection.close()
