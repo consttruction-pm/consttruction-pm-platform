@@ -6,12 +6,17 @@ from decimal import Decimal
 
 import pytest
 
-from construction_pm.ai_action_activity_tools import SQLiteAIActionExecutionIdempotencyStore
+from construction_pm.ai_action_activity_tools import (
+    SQLiteAIActionExecutionIdempotencyStore,
+    build_activity_create_runtime,
+)
 from construction_pm.ai_action_boundary import (
     AIActionPermissionGrant,
     UserConfiguredAIActionPermissionAdapter,
 )
 from construction_pm.ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, SQLiteAIActionRuntimeStore
+from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
+from construction_pm.application.authorization import default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.quantity_takeoff import (
@@ -249,5 +254,36 @@ def test_ai_tool_persists_only_after_approval_and_returns_verified_readback():
         assert connection.execute(
             "SELECT COUNT(*) FROM quantity_takeoff_estimates"
         ).fetchone()[0] == 1
+    finally:
+        connection.close()
+
+
+def test_production_runtime_factory_registers_takeoff_alongside_activity_tool(tmp_path):
+    connection = sqlite3.connect(str(tmp_path / "production-runtime.sqlite3"))
+    transaction_manager = SQLiteTransactionManager(connection)
+    activity_repository = SQLiteActivityMasterRepository(connection)
+    grants = (
+        AIActionPermissionGrant(
+            subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
+            project_revision_id="12", resource_domain="activities", operation="create",
+            tool_name="activity.create",
+        ),
+        AIActionPermissionGrant(
+            subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
+            project_revision_id="12", resource_domain="quantity_takeoff", operation="create",
+            tool_name="quantity.takeoff.create",
+        ),
+    )
+    runtime = build_activity_create_runtime(
+        activity_master_repository=activity_repository,
+        authorization_policy=default_project_policy(),
+        permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: grants),
+        transaction_manager=transaction_manager,
+    )
+    try:
+        assert "activity.create" in runtime.tools
+        assert "quantity.takeoff.create" in runtime.tools
+        assert runtime.tools["quantity.takeoff.create"].requires_human_approval is True
+        assert runtime.tools["quantity.takeoff.create"].resource_domain == "quantity_takeoff"
     finally:
         connection.close()
