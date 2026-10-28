@@ -2986,6 +2986,17 @@ class ProjectLifecycleHttpRoutes:
             }:
                 status = 500
             return self._error(status, code, "error.ai_action.request_failed")
+        except ProjectFormError as exc:
+            code = str(exc)
+            if code in {"PROJECT_FORM_NOT_FOUND", "PROJECT_FORM_SUBMISSION_NOT_FOUND"}:
+                status = 404
+            elif code.startswith("PROJECT_FORM_STALE") or code.endswith("_CONFLICT") or code.endswith("_ALREADY_REVIEWED"):
+                status = 409
+            elif "NOT_AUTHORIZED" in code:
+                status = 403
+            else:
+                status = 400
+            return self._error(status, code, "error.form.request_failed")
         except ProjectLifecycleError as exc:
             return self._error(400, str(exc), "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
