@@ -100,10 +100,24 @@ class AIProjectContextError(ValueError):
 def _scope_matches(value: object, *, tenant_id: str, project_id: str, revision: int) -> bool:
     if not isinstance(value, Mapping):
         return False
+    stored_tenant = value.get("tenant_id")
+    stored_project = value.get("project_id")
+    stored_revision = value.get("revision")
+    # Avoid Python's bool-is-an-int equality (True == 1) at the authorization boundary.
+    if (
+        not isinstance(stored_tenant, str)
+        or not stored_tenant.strip()
+        or not isinstance(stored_project, str)
+        or not stored_project.strip()
+        or isinstance(stored_revision, bool)
+        or not isinstance(stored_revision, int)
+        or stored_revision < 0
+    ):
+        return False
     return (
-        value.get("tenant_id") == tenant_id
-        and value.get("project_id") == project_id
-        and value.get("revision") == revision
+        stored_tenant == tenant_id
+        and stored_project == project_id
+        and stored_revision == revision
     )
 
 
