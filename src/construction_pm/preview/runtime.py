@@ -28,6 +28,7 @@ from construction_pm.ai_action_activity_tools import (
 )
 from construction_pm.ai_action_project_plan_tools import build_project_plan_create_tool
 from construction_pm.project_forms import FormBuilderAPI, SQLiteFormBuilderRepository
+from construction_pm.ai_learning_memory_repository import SQLiteAILearningMemoryRepository
 from construction_pm.ai_action_runtime import AIActionProposal, AIActionRuntime, SQLiteAIActionRuntimeStore
 from construction_pm.ai_assistant_orchestration import build_ai_chat_provider_from_environment
 from construction_pm.quantity_takeoff import (
@@ -870,6 +871,7 @@ def open_preview_runtime(
     # Form Builder APIs and persistence are deterministic CUBI capabilities and must
     # remain available when semantic model inference is disabled or unprovisioned.
     form_repository = SQLiteFormBuilderRepository(connection)
+    learning_memory_repository = SQLiteAILearningMemoryRepository(connection)
     form_builder_api = FormBuilderAPI(
         form_repository,
         policy,
@@ -969,6 +971,7 @@ def open_preview_runtime(
         schedule_snapshot_publication_api=snapshot_api,
         backend_p0_api=backend_api,
         form_builder_api=form_builder_api,
+        ai_learning_memory_repository=learning_memory_repository,
         p6_field_registry_api=P6FieldRegistryAPI(
             repositories.field_service,
             repositories.udf_service,
