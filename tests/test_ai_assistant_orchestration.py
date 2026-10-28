@@ -17,6 +17,14 @@ from construction_pm.ai_action_runtime import (
     AIActionToolDefinition,
     SQLiteAIActionRuntimeStore,
 )
+from construction_pm.ai_learning_memory import (
+    AILearningMemoryRecord,
+    LearningRetrievalScope,
+    LearningScope,
+    LearningSignalKind,
+    LearningStatus,
+)
+from construction_pm.ai_learning_memory_repository import SQLiteAILearningMemoryRepository
 from construction_pm.ai_assistant_orchestration import (
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
@@ -509,3 +517,136 @@ def test_local_provider_reports_missing_runtime_with_stable_error_code():
     with pytest.raises(AIAssistantProviderError, match="AI_ASSISTANT_LOCAL_RUNTIME_UNAVAILABLE") as error:
         provider.complete_json(system_prompt="system", user_message="hello", language="en")
     assert "private detail" not in str(error.value)
+
+
+def _memory_record(
+    *,
+    record_id="lesson-productivity-1",
+    owner_user_id="user-1",
+    scope=LearningScope.USER_PRIVATE,
+    status=LearningStatus.CAPTURED,
+    lesson="For resource productivity estimates, state the production-rate basis and never invent a measured site rate.",
+    conditions="Early planning where verified site productivity measurements are unavailable.",
+    limitations="Do not present generic productivity as a project-specific fact.",
+):
+    from datetime import datetime, timezone
+
+    now = datetime(2026, 10, 26, 12, 0, tzinfo=timezone.utc)
+    return AILearningMemoryRecord(
+        record_id=record_id,
+        record_version=1,
+        scope=scope,
+        status=status,
+        signal_kind=LearningSignalKind.USER_CORRECTION,
+        lesson=lesson,
+        conditions=conditions,
+        limitations=limitations,
+        evidence_refs=("explicit-user-memory-capture:" + record_id,),
+        captured_at=now,
+        updated_at=now,
+        owner_user_id=owner_user_id,
+        tenant_id="tenant-1" if scope is LearningScope.PROJECT_PRIVATE else None,
+        project_id="project-1" if scope is LearningScope.PROJECT_PRIVATE else None,
+    )
+
+
+def test_assistant_retrieves_only_scoped_and_usable_durable_lessons():
+    connection, runtime, context, _ = build_runtime()
+    repository = SQLiteAILearningMemoryRepository(connection)
+    own = _memory_record()
+    other_user = _memory_record(record_id="private-other-user", owner_user_id="user-2")
+    candidate = _memory_record(
+        record_id="unvalidated-general-candidate",
+        owner_user_id=None,
+        scope=LearningScope.GENERAL_CANDIDATE,
+        status=LearningStatus.CANDIDATE,
+        lesson="Resource productivity needs a candidate lesson that must not be active knowledge.",
+    )
+    repository.append(own)
+    repository.append(other_user)
+    repository.append(candidate)
+    connection.commit()
+
+    provider = FakeProvider({
+        "kind": "message", "message": "I will state assumptions and ask for measured rates.",
+        "tool_name": None, "payload": {},
+    })
+    try:
+        turn = AIAssistantTurnOrchestrator(
+            provider=provider,
+            action_runtime=runtime,
+            learning_memory_repository=repository,
+        ).turn(
+            context,
+            user_message="Help estimate resource productivity for my construction project",
+            language="en",
+        )
+        prompt = provider.calls[0]["system_prompt"]
+        assert turn.kind == "message"
+        assert "production-rate basis" in prompt
+        assert "never invent a measured site rate" in prompt
+        assert "private-other-user" not in prompt
+        assert "unvalidated-general-candidate" not in prompt
+        assert "project-1" not in prompt
+        assert "Retrieved durable learning records" in prompt
+    finally:
+        connection.close()
+
+
+def test_assistant_learning_context_is_relevance_ranked_and_bounded():
+    connection, runtime, context, _ = build_runtime()
+    repository = SQLiteAILearningMemoryRepository(connection)
+    relevant = _memory_record(
+        record_id="matching-schedule-lesson",
+        lesson="Critical path recommendations must cite total float and logic ties.",
+        conditions="Schedule analysis when validated calculation outputs exist.",
+        limitations="Never infer criticality in the browser.",
+    )
+    irrelevant = _memory_record(
+        record_id="unrelated-formwork-lesson",
+        lesson="Formwork stripping sequence depends on concrete strength and engineer approval.",
+        conditions="Concrete construction operations.",
+        limitations="Use approved specifications.",
+    )
+    repository.append(relevant)
+    repository.append(irrelevant)
+    connection.commit()
+    provider = FakeProvider({
+        "kind": "message", "message": "I will use the calculated critical path outputs.",
+        "tool_name": None, "payload": {},
+    })
+    try:
+        AIAssistantTurnOrchestrator(
+            provider=provider,
+            action_runtime=runtime,
+            learning_memory_repository=repository,
+        ).turn(context, user_message="Explain the critical path and total float", language="en")
+        prompt = provider.calls[0]["system_prompt"]
+        assert "matching-schedule-lesson" in prompt
+        assert "unrelated-formwork-lesson" not in prompt
+        assert len(prompt) < 20_000
+    finally:
+        connection.close()
+
+
+def test_assistant_learning_repository_failure_fails_closed_with_stable_error():
+    connection, runtime, context, _ = build_runtime()
+
+    class BrokenRepository:
+        def list_retrievable(self, scope):
+            raise RuntimeError("must not leak database details")
+
+    provider = FakeProvider({
+        "kind": "message", "message": "Hello", "tool_name": None, "payload": {},
+    })
+    try:
+        with pytest.raises(AIAssistantProviderError, match="AI_ASSISTANT_LEARNING_RETRIEVAL_FAILED") as error:
+            AIAssistantTurnOrchestrator(
+                provider=provider,
+                action_runtime=runtime,
+                learning_memory_repository=BrokenRepository(),
+            ).turn(context, user_message="hello", language="en")
+        assert "database details" not in str(error.value)
+        assert provider.calls == []
+    finally:
+        connection.close()
