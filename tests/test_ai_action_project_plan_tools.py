@@ -403,7 +403,7 @@ def test_preview_assistant_creates_and_persists_boq_only_after_approval(
         result = executed["result"]
         assert result["summary"]["line_count"] == 1
         assert result["summary"]["cost_complete"] is True
-        assert result["lines"][0]["billable_quantity"] == "120"
+        assert result["lines"][0]["billable_quantity"] == "120.0"
         assert result["lines"][0]["extended_cost"] == "6030.00"
         assert result["summary"]["totals_by_currency"] == [
             {"currency": "EUR", "minor_units": 2, "subtotal": "6030.00"}
