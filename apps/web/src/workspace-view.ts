@@ -73,7 +73,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (empty) empty.hidden = visible > 0;
   });
   container.addEventListener("submit", (event) => {
-    const form = event.target instanceof HTMLFormElement ? event.target : null;
+    const form = event.target && typeof (event.target as { matches?: unknown }).matches === "function" ? event.target as HTMLFormElement : null;
     if (!form) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
