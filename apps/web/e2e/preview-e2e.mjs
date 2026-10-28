@@ -21,6 +21,7 @@ import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { exerciseProjectFormsPanel } from "./project-forms-flow.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(webRoot, "..", "..");
@@ -1800,6 +1801,9 @@ async function main() {
     record("menus and submenus expose their real implementation status", {
       surfaces: ["Project", "Resources", "Control", "Schedule"],
     });
+
+    const projectFormsEvidence = await exerciseProjectFormsPanel(page);
+    record("Form Builder creates, publishes, shares, accepts typed values, and records an approved submission", projectFormsEvidence);
 
     await page.click('[data-menu="resources"]');
     await page.waitFor(
