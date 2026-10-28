@@ -21,6 +21,13 @@ from construction_pm.application.project_lifecycle import (
     ProjectSummary,
 )
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
+from construction_pm.ai_learning_memory import (
+    LearningRetrievalScope,
+    LearningScope,
+    LearningStatus,
+)
+from construction_pm.ai_learning_memory_repository import SQLiteAILearningMemoryRepository
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 
 
@@ -61,7 +68,7 @@ class FakeAssistantProvider:
         return self.result
 
 
-def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), assistant_provider=None):
+def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), assistant_provider=None, memory_enabled=True):
     now = datetime(2026, 10, 23, 12, 0, tzinfo=timezone.utc)
     session = AuthenticatedSession("session-1", "u1", "t1", frozenset(roles), now + timedelta(hours=1))
     api = ProjectLifecycleAPI(ProjectLifecycleService(Sessions(session), Projects(), default_project_policy()))
@@ -84,6 +91,8 @@ def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), as
         executed.append((dict(payload), proposal.project_revision_id, idempotency_key))
         return {"activity_id": "a-1", "name": payload["name"]}
 
+    memory_repository = SQLiteAILearningMemoryRepository(conn) if memory_enabled else None
+    memory_transactions = SQLiteTransactionManager(conn) if memory_enabled else None
     runtime = AIActionRuntime(
         store=store,
         permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: (grant,)),
@@ -111,6 +120,8 @@ def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), as
         clock=type("Clock", (), {"now": lambda self: now})(),
         ai_action_runtime=runtime if runtime_enabled else None,
         ai_assistant_orchestrator=assistant,
+        ai_learning_memory_repository=memory_repository,
+        ai_learning_memory_transaction_manager=memory_transactions,
     )
     return routes, conn, executed
 
@@ -420,5 +431,68 @@ def test_assistant_turn_returns_400_for_invalid_utf8_body():
         assert json.loads(body)["code"] == "AI_ASSISTANT_REQUEST_INVALID"
         assert provider.calls == []
         assert executed == []
+    finally:
+        conn.close()
+
+
+def test_remember_command_persists_only_the_explicit_private_lesson_without_a_model():
+    routes, conn, executed = build_routes(runtime_enabled=False, memory_enabled=True)
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2,
+            "message": "/remember Explain schedule variance step by step and ask before assuming missing data.",
+            "language": "en",
+        })
+        assert status == 200, body.decode("utf-8")
+        response = json.loads(body)
+        assert response["kind"] == "message"
+        assert "private assistant memory" in response["message"]
+        assert response["proposal"] is None
+        repository = SQLiteAILearningMemoryRepository(conn)
+        own_scope = LearningRetrievalScope(user_id="u1", tenant_id="t1", project_id="p1")
+        records = repository.list_retrievable(own_scope)
+        assert len(records) == 1
+        assert records[0].scope is LearningScope.USER_PRIVATE
+        assert records[0].status is LearningStatus.CAPTURED
+        assert records[0].lesson == "Explain schedule variance step by step and ask before assuming missing data."
+        assert records[0].tenant_id is None and records[0].project_id is None
+        assert "/remember" not in records[0].lesson
+        assert repository.list_retrievable(
+            LearningRetrievalScope(user_id="other-user", tenant_id="t1", project_id="p1")
+        ) == ()
+        assert executed == []
+    finally:
+        conn.close()
+
+
+def test_remember_command_rejects_credentials_and_bad_length_without_persisting():
+    routes, conn, _ = build_routes(runtime_enabled=False, memory_enabled=True)
+    try:
+        for lesson in (
+            "/remember password=do-not-store-this",
+            "/remember short",
+        ):
+            status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+                "expected_revision": 2,
+                "message": lesson,
+                "language": "en",
+            })
+            assert status == 400, body.decode("utf-8")
+        repository = SQLiteAILearningMemoryRepository(conn)
+        assert repository.list_retrievable(LearningRetrievalScope(user_id="u1")) == ()
+    finally:
+        conn.close()
+
+
+def test_remember_command_does_not_make_normal_assistant_messages_available_without_model():
+    routes, conn, _ = build_routes(runtime_enabled=False, memory_enabled=True)
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2,
+            "message": "Please calculate my project schedule.",
+            "language": "en",
+        })
+        assert status == 503
+        assert json.loads(body)["code"] == "AI_ASSISTANT_NOT_CONFIGURED"
     finally:
         conn.close()
