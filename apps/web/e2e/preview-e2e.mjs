@@ -1786,7 +1786,12 @@ async function main() {
       );
       assert(current === "page", `${surface.label} menu must be current`);
     }
-        const formBuilderMenuLink = await page.count('.cp-navigation-surface a[href="#cp-project-forms"]');
+    await page.click('[data-menu="project"]');
+    await page.waitFor(
+      'document.querySelector(".cp-navigation-surface strong")?.textContent.trim() === "Project"',
+      "project surface before Form Builder assertion",
+    );
+    const formBuilderMenuLink = await page.count('.cp-navigation-surface a[href="#cp-project-forms"]');
     assert(formBuilderMenuLink === 1, "Project must link to its working Form Builder panel");
     assert(
       await page.count("#cp-project-forms [data-form-builder-panel]") === 1,
