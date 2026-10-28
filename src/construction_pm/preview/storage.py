@@ -295,6 +295,24 @@ class PreviewSessionRepository:
                 return None
             return session
 
+    def active_for_user(self, user_id: str) -> AuthenticatedSession | None:
+        """Return a current server-held session for this exact demo user, if any."""
+        if not isinstance(user_id, str) or not user_id.strip():
+            return None
+        now = utc_now()
+        with self._lock:
+            expired = [
+                session_id for session_id, session in self._sessions.items()
+                if session.expires_at <= now
+            ]
+            for session_id in expired:
+                self._sessions.pop(session_id, None)
+            candidates = [
+                session for session in self._sessions.values()
+                if session.user_id == user_id and session.expires_at > now
+            ]
+            return max(candidates, key=lambda session: session.expires_at, default=None)
+
     def revoke(self, session_id: str) -> None:
         with self._lock:
             self._sessions.pop(session_id, None)
@@ -364,6 +382,7 @@ class PreviewStore:
             for key, value in wbs_by_activity.items()
             if isinstance(key, str) and key.strip() and isinstance(value, str)
         }
+        owns_transaction = not self.connection.in_transaction
         self.connection.execute(
             "INSERT INTO preview_project "
             "(tenant_id, project_id, name, project_revision, wbs_json, demo, created_at) "
@@ -378,7 +397,7 @@ class PreviewStore:
                 created_at.isoformat(),
             ),
         )
-        if commit:
+        if owns_transaction:
             self.connection.commit()
 
     def add_members(
@@ -389,6 +408,7 @@ class PreviewStore:
         *,
         commit: bool = True,
     ) -> None:
+        owns_transaction = not self.connection.in_transaction
         for user_id in sorted(set(user_ids)):
             if not isinstance(user_id, str) or not user_id.strip():
                 continue
@@ -397,7 +417,7 @@ class PreviewStore:
                 "(tenant_id, project_id, user_id) VALUES (?,?,?)",
                 (tenant_id, project_id, user_id),
             )
-        if commit:
+        if owns_transaction:
             self.connection.commit()
 
     def list_for_user(
@@ -478,6 +498,39 @@ class PreviewStore:
                 raise ValueError("PREVIEW_WBS_INVALID")
             result[key] = value
         return result
+
+    def set_wbs_for(
+        self,
+        tenant_id: str,
+        project_id: str,
+        wbs_by_activity: Mapping[str, str],
+    ) -> None:
+        if not tenant_id.strip() or not project_id.strip():
+            raise ValueError("PREVIEW_WBS_SCOPE_REQUIRED")
+        if not isinstance(wbs_by_activity, Mapping):
+            raise ValueError("PREVIEW_WBS_INVALID")
+        normalized: dict[str, str] = {}
+        for activity_id, wbs in wbs_by_activity.items():
+            if (
+                not isinstance(activity_id, str) or not activity_id.strip()
+                or not isinstance(wbs, str) or not wbs.strip()
+            ):
+                raise ValueError("PREVIEW_WBS_INVALID")
+            normalized[activity_id.strip()] = wbs.strip()
+        encoded = json.dumps(normalized, ensure_ascii=False, sort_keys=True)
+        owns_transaction = not self.connection.in_transaction
+        cursor = self.connection.execute(
+            "UPDATE preview_project SET wbs_json=? WHERE tenant_id=? AND project_id=?",
+            (encoded, tenant_id, project_id),
+        )
+        if cursor.rowcount != 1:
+            if owns_transaction:
+                self.connection.rollback()
+            raise ValueError("PREVIEW_PROJECT_NOT_FOUND")
+        if owns_transaction:
+            self.connection.commit()
+        if self.wbs_for(tenant_id, project_id) != normalized:
+            raise ValueError("PREVIEW_WBS_READBACK_MISMATCH")
 
     def counts(self, tenant_id: str, project_id: str) -> int:
         row = self.connection.execute(

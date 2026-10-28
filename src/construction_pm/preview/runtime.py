@@ -9,6 +9,7 @@ curated fixture data. No scheduling is reimplemented here.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -21,6 +22,13 @@ from construction_pm.activity_master_repository import (
     ActivityMaster,
     SQLiteActivityMasterRepository,
 )
+from construction_pm.ai_action_activity_tools import (
+    SQLiteAIActionExecutionIdempotencyStore,
+    build_activity_create_tool,
+)
+from construction_pm.ai_action_project_plan_tools import build_project_plan_create_tool
+from construction_pm.ai_action_runtime import AIActionProposal, AIActionRuntime, SQLiteAIActionRuntimeStore
+from construction_pm.ai_assistant_orchestration import OpenAICompatibleChatProvider
 from construction_pm.application.authorization import (
     AuthorizationContext,
     RoleBasedAuthorizationPolicy,
@@ -760,6 +768,37 @@ class PreviewWorkspaceReadProvider:
         return provider.read(scope, auth_context=auth_context)
 
 
+class PreviewAIPermissionAdapter:
+    """Default-deny preview grant adapter bound to an active server-side session."""
+
+    def __init__(self, sessions: object, store: PreviewStore) -> None:
+        self.sessions = sessions
+        self.store = store
+
+    def allowed(self, proposal: AIActionProposal, *, subject_id: str | None = None) -> bool:
+        if not isinstance(subject_id, str) or not subject_id.strip():
+            return False
+        active_session = getattr(self.sessions, "active_for_user", lambda _user: None)(subject_id)
+        if (
+            active_session is None
+            or active_session.user_id != subject_id
+            or active_session.tenant_id != proposal.tenant_id
+        ):
+            return False
+        project = self.store.get_for_user(proposal.tenant_id, proposal.project_id, subject_id)
+        if project is None or str(project.revision) != proposal.project_revision_id:
+            return False
+        if proposal.action != "create" or not proposal.requires_human_approval:
+            return False
+        if proposal.tool_name == "activity.create":
+            return proposal.resource_domain == "activities" and bool(
+                {"planner", "project_admin"} & set(active_session.roles)
+            )
+        if proposal.tool_name == "project.plan.create":
+            return proposal.resource_domain == "projects" and "project_admin" in active_session.roles
+        return False
+
+
 @dataclass
 class PreviewRuntime:
     database: Path
@@ -771,6 +810,8 @@ class PreviewRuntime:
     policy: RoleBasedAuthorizationPolicy
     app: ProjectLifecycleWsgiApp
     clock: PreviewClock
+    ai_assistant_enabled: bool = False
+    ai_tool_names: tuple[str, ...] = ()
 
     def close(self) -> None:
         self.connection.close()
@@ -800,6 +841,18 @@ class PreviewRuntime:
             "wbs_node_count": int(wbs_count[0]) if wbs_count else 0,
             "capacity_segment_count": int(capacity_count[0]) if capacity_count else 0,
             "session_count": self.sessions.count(),
+            "assistant": {
+                "enabled": self.ai_assistant_enabled,
+                "provider_configured": self.ai_assistant_enabled,
+                "provider_environment_complete": all(
+                    os.environ.get(key, "").strip()
+                    for key in ("CUBI_AI_API_KEY", "CUBI_AI_BASE_URL", "CUBI_AI_MODEL")
+                ),
+                "available_tools": list(self.ai_tool_names),
+            },
+            "private_owner_login_enabled": bool(
+                os.environ.get("CUBI_PREVIEW_PRIVATE_ACCESS_TOKEN", "").strip()
+            ),
         }
 
     def projects_for_user(self, user_id: str) -> tuple[ProjectSummary, ...]:
@@ -826,10 +879,15 @@ def open_preview_runtime(
     store = PreviewStore(connection)
     sessions = PreviewSessionRepository()
     policy = default_project_policy()
+    public_demo = os.environ.get("CUBI_PREVIEW_PUBLIC_DEMO", "").strip().lower() in {
+        "1", "true", "yes",
+    }
     project_repository = PreviewProjectRepository(
         store,
         initializer=PreviewProjectInitializer(repositories),
-        member_user_ids=DEMO_PROJECT_MEMBER_USER_IDS,
+        # On the hosted public demo, newly-created projects belong only to their
+        # creator. The seeded fixture projects remain shared and read-only.
+        member_user_ids=() if public_demo else DEMO_PROJECT_MEMBER_USER_IDS,
     )
     lifecycle_service = ProjectLifecycleService(sessions, project_repository, policy)
     lifecycle_api = ProjectLifecycleAPI(lifecycle_service)
@@ -894,6 +952,49 @@ def open_preview_runtime(
         repositories.settings,
     )
 
+    ai_assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
+        "1", "true", "yes",
+    }
+    ai_assistant_provider = None
+    ai_action_runtime = None
+    ai_tool_names: tuple[str, ...] = ()
+    if ai_assistant_enabled:
+        # Provider and tools are only composed from explicit server-side configuration.
+        # Missing/invalid credentials fail closed; there is no fake provider fallback.
+        ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
+        action_store = SQLiteAIActionRuntimeStore(connection)
+        idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
+        permission_adapter = PreviewAIPermissionAdapter(sessions, store)
+        activity_api = P6ActivityMasterAPI(repositories.activities, policy)
+        relationship_api = P6RelationshipAPI(repositories.relationships, policy)
+        activity_tool = build_activity_create_tool(
+            activity_api=activity_api,
+            idempotency_store=idempotency_store,
+            transaction_manager=repositories.transaction_manager,
+        )
+        project_plan_tool = build_project_plan_create_tool(
+            lifecycle_api=lifecycle_api,
+            get_active_session_for_user=sessions.active_for_user,
+            project_store=store,
+            repositories=repositories,
+            activity_api=activity_api,
+            relationship_api=relationship_api,
+            schedule_snapshot_api=snapshot_api,
+            backend_api=backend_api,
+            idempotency_store=idempotency_store,
+            authorization_policy=policy,
+            timezone_name="Asia/Tehran",
+        )
+        ai_action_runtime = AIActionRuntime(
+            store=action_store,
+            permission_adapter=permission_adapter,
+            audit_sink=action_store,
+            tools=(activity_tool, project_plan_tool),
+            clock=lambda: datetime.now(timezone.utc),
+            transaction_manager=repositories.transaction_manager,
+        )
+        ai_tool_names = ("activity.create", "project.plan.create")
+
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,
         snapshot_repository=repositories.snapshots,
@@ -936,6 +1037,8 @@ def open_preview_runtime(
             clock=PreviewClock(),
         ),
         clock=PreviewClock(),
+        ai_action_runtime=ai_action_runtime,
+        ai_assistant_provider=ai_assistant_provider,
     )
     return PreviewRuntime(
         database=database,
@@ -947,6 +1050,8 @@ def open_preview_runtime(
         policy=policy,
         app=app,
         clock=PreviewClock(),
+        ai_assistant_enabled=ai_assistant_enabled,
+        ai_tool_names=ai_tool_names,
     )
 
 

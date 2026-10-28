@@ -265,14 +265,14 @@ def test_assistant_turn_rejects_stale_revision_before_calling_provider():
         conn.close()
 
 
-def test_assistant_turn_is_fail_closed_without_provider_or_runtime():
+def test_assistant_turn_reports_missing_provider_or_runtime_as_service_unavailable():
     routes, conn, executed = build_routes()
     try:
         status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
             "expected_revision": 2, "message": "Hello", "language": "en",
         })
-        assert status == 404
-        assert json.loads(body)["code"] == "ROUTE_NOT_FOUND"
+        assert status == 503
+        assert json.loads(body)["code"] == "AI_ASSISTANT_NOT_CONFIGURED"
         assert executed == []
     finally:
         conn.close()
