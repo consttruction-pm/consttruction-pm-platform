@@ -1759,7 +1759,7 @@ async function main() {
     });
 
     for (const surface of [
-      { menu: "project", label: "Project", status: "Partial", submenus: 3 },
+      { menu: "project", label: "Project", status: "Partial", submenus: 4 },
       { menu: "resources", label: "Resources", status: "Partial", submenus: 2 },
       { menu: "control", label: "Control", status: "Partial", submenus: 2 },
       { menu: "schedule", label: "Schedule", status: "Implemented", submenus: 13 },
@@ -1786,6 +1786,12 @@ async function main() {
       );
       assert(current === "page", `${surface.label} menu must be current`);
     }
+        const formBuilderMenuLink = await page.count('.cp-navigation-surface a[href="#cp-project-forms"]');
+    assert(formBuilderMenuLink === 1, "Project must link to its working Form Builder panel");
+    assert(
+      await page.count("#cp-project-forms [data-form-builder-panel]") === 1,
+      "Form Builder must mount inside the real project workspace",
+    );
     record("menus and submenus expose their real implementation status", {
       surfaces: ["Project", "Resources", "Control", "Schedule"],
     });
