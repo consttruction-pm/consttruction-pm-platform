@@ -10,7 +10,6 @@ import json
 import math
 from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
-from typing import Any
 
 
 PROJECT_CONTEXT_CONTRACT = "cubi-assistant-project-context.v1"
@@ -310,7 +309,7 @@ def _engineering_signals(
                     "severity": severity.strip()[:80],
                 }
             add(evidence)
-        
+
     counts: dict[str, int] = {}
     for signal in signals:
         signal_type = str(signal["signal_type"])
