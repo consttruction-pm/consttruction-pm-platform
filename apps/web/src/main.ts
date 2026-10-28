@@ -438,7 +438,7 @@ function renderApp(
         const parent = input.parentWbsId && input.parentWbsId !== "__project__" ? state.wbsNodes.find((node) => node.id === input.parentWbsId) : null;
         const response = await aiTransport.post<
           { wbs_id: string; parent_kind: "project" | "wbs"; parent_wbs_id: string | null; code: string; name: string; sequence_number: number },
-          unknown
+          { wbs: { wbs_id: string } }
         >(projectWbsPath(), {
           wbs_id: `WBS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
           parent_kind: parent ? "wbs" : "project",
@@ -448,7 +448,7 @@ function renderApp(
           sequence_number: input.sequenceNumber,
         }, state.context);
         if (!response.ok) throw new Error(response.error.code);
-        await refreshWorkspaceAfterWbsMutation(null);
+        await refreshWorkspaceAfterWbsMutation(response.data.wbs.wbs_id);
       } catch (error) {
         reportWbsMutationError(error);
       }
