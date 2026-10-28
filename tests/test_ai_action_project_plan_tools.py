@@ -296,3 +296,124 @@ def test_public_demo_stays_viewer_only_while_private_owner_gate_can_create_admin
         assert json.loads(body)["roles"] == ["project_admin"]
     finally:
         runtime.close()
+
+
+def test_preview_assistant_creates_and_persists_boq_only_after_approval(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from construction_pm.backend_p0.models import BackendScope
+    from construction_pm.quantity_takeoff import SQLiteQuantityTakeoffRepository
+
+    class FakeTakeoffProvider:
+        def complete_json(self, *, system_prompt, user_message, language, history=()):
+            return {
+                "kind": "action_proposal",
+                "message": "این برآورد پیشنهادی است؛ پیش از ثبت نهایی، متره، پرت، نرخ و منبع آن را بررسی و تأیید کنید.",
+                "tool_name": "quantity.takeoff.create",
+                "payload": {
+                    "estimate_id": "BOQ-PREVIEW-01",
+                    "name": "برآورد بتن فونداسیون",
+                    "lines": [{
+                        "line_id": "CONC-01",
+                        "description": "بتن کلاهک شمع",
+                        "unit": "m3",
+                        "base_quantity": 100,
+                        "waste_percent": 20,
+                        "measurement_status": "measured",
+                        "measurement_basis": "طول × عرض × ضخامت از نقشه تأییدشده",
+                        "source_ref": "drawing:S-101/pile-cap-PC01",
+                        "classification_code": "03.30.00",
+                        "unit_rate": 50.25,
+                        "currency": "EUR",
+                        "currency_minor_units": 2,
+                        "rate_basis": "approved-quotation:Q-2026-104",
+                    }],
+                },
+            }
+
+    provider = FakeTakeoffProvider()
+
+    class ProviderFactory:
+        @staticmethod
+        def from_environment():
+            return provider
+
+    monkeypatch.setenv("CUBI_AI_ENABLED", "true")
+    monkeypatch.setenv("CUBI_AI_LOCAL_MODEL", "test-local-model")
+    monkeypatch.delenv("CUBI_PREVIEW_PUBLIC_DEMO", raising=False)
+    monkeypatch.delenv("CUBI_PREVIEW_PRIVATE_ACCESS_TOKEN", raising=False)
+    monkeypatch.setattr(
+        preview_runtime_module,
+        "build_ai_chat_provider_from_environment",
+        ProviderFactory.from_environment,
+    )
+
+    runtime = open_preview_runtime(
+        tmp_path / "preview-boq.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+        status, headers, _ = _request(app, "POST", "/preview/login", body=b"role=admin")
+        assert status == 303
+        cookie = _cookie(headers)
+
+        status, _, body = _request(
+            app,
+            "POST",
+            "/api/projects/preview-rps-01/ai/assistant/turn",
+            cookie=cookie,
+            body=json.dumps({
+                "expected_revision": 7,
+                "message": "یک برآورد متره برای بتن فونداسیون بساز، مقادیر را با منبع نشان بده و قبل از ثبت از من تأیید بگیر.",
+                "language": "fa",
+            }, ensure_ascii=False).encode("utf-8"),
+        )
+        assert status == 200, body.decode("utf-8")
+        turn = json.loads(body)
+        assert turn["kind"] == "action_proposal"
+        proposal_id = turn["proposal"]["proposal_id"]
+
+        repository = SQLiteQuantityTakeoffRepository(runtime.connection)
+        persisted_scope = BackendScope(PREVIEW_TENANT_ID, "preview-rps-01", 7)
+        assert repository.get(persisted_scope, "BOQ-PREVIEW-01") is None
+        assert "quantity.takeoff.create" in runtime.ai_tool_names
+
+        status, _, body = _request(
+            app,
+            "POST",
+            f"/api/projects/preview-rps-01/ai/actions/proposals/{proposal_id}/decision",
+            cookie=cookie,
+            body=json.dumps({"expected_revision": 7, "approved": True}).encode("utf-8"),
+        )
+        assert status == 200, body.decode("utf-8")
+        assert json.loads(body)["status"] == "approved"
+
+        status, _, body = _request(
+            app,
+            "POST",
+            f"/api/projects/preview-rps-01/ai/actions/proposals/{proposal_id}/execute",
+            cookie=cookie,
+            body=json.dumps({"expected_revision": 7}).encode("utf-8"),
+        )
+        assert status == 200, body.decode("utf-8")
+        executed = json.loads(body)
+        assert executed["status"] == "executed"
+        result = executed["result"]
+        assert result["summary"]["line_count"] == 1
+        assert result["summary"]["cost_complete"] is True
+        assert result["lines"][0]["billable_quantity"] == "120"
+        assert result["lines"][0]["extended_cost"] == "6030.00"
+        assert result["summary"]["totals_by_currency"] == [
+            {"currency": "EUR", "minor_units": 2, "subtotal": "6030.00"}
+        ]
+
+        saved = repository.get(persisted_scope, "BOQ-PREVIEW-01")
+        assert saved is not None
+        assert saved.to_payload() == result
+        assert runtime.connection.execute(
+            "SELECT COUNT(*) FROM quantity_takeoff_estimates"
+        ).fetchone()[0] == 1
+    finally:
+        runtime.close()
