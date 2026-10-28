@@ -11,8 +11,8 @@ import {
 
 type Labels = {
   title: string; intro: string; createTitle: string; formId: string; formName: string;
-  description: string; shareRoles: string; approverRoles: string; fields: string;
-  fieldId: string; fieldLabel: string; fieldType: string; required: string; options: string;
+  description: string; shareRoles: string; shareUsers: string; approverRoles: string; approverUsers: string; fields: string;
+  fieldId: string; fieldLabel: string; fieldType: string; typeText: string; typeNumber: string; typeDate: string; typeBoolean: string; typeSelect: string; yes: string; no: string; required: string; options: string;
   addField: string; remove: string; createDraft: string; creating: string; ownerForms: string;
   sharedForms: string; submissions: string; noForms: string; noSharedForms: string;
   noSubmissions: string; refresh: string; publish: string; open: string; viewSubmissions: string;
@@ -28,8 +28,8 @@ const LABELS: Record<"en" | "fa", Labels> = {
   en: {
     title: "Project Forms", intro: "Create versioned field forms, publish them to project roles, and review submissions. This workflow does not require the AI assistant.",
     createTitle: "Create a form draft", formId: "Form ID", formName: "Form name", description: "Purpose / description",
-    shareRoles: "Share with roles (comma-separated)", approverRoles: "Approver roles (comma-separated)",
-    fields: "Fields", fieldId: "Field ID", fieldLabel: "Field label", fieldType: "Type", required: "Required",
+    shareRoles: "Share with roles (comma-separated)", shareUsers: "Share with user IDs (comma-separated)", approverRoles: "Approver roles (comma-separated)", approverUsers: "Approver user IDs (comma-separated)",
+    fields: "Fields", fieldId: "Field ID", fieldLabel: "Field label", fieldType: "Type", typeText: "Text", typeNumber: "Number", typeDate: "Date", typeBoolean: "Yes / No", typeSelect: "Select", yes: "Yes", no: "No", required: "Required",
     options: "Options (comma-separated for select)", addField: "Add field", remove: "Remove",
     createDraft: "Save draft", creating: "Saving…", ownerForms: "Project forms", sharedForms: "Forms shared with me",
     submissions: "Submissions", noForms: "No forms yet. Create a draft to start.", noSharedForms: "No published forms are shared with this account or role.",
@@ -48,8 +48,8 @@ const LABELS: Record<"en" | "fa", Labels> = {
   fa: {
     title: "فرم‌های پروژه", intro: "فرم‌های نسخه‌بندی‌شده بسازید، برای نقش‌های پروژه منتشر کنید و پاسخ‌ها را بررسی کنید. این گردش کار به دستیار هوش مصنوعی نیاز ندارد.",
     createTitle: "ساخت پیش‌نویس فرم", formId: "شناسه فرم", formName: "نام فرم", description: "هدف / توضیحات",
-    shareRoles: "اشتراک با نقش‌ها (با ویرگول جدا شود)", approverRoles: "نقش‌های تأییدکننده (با ویرگول جدا شود)",
-    fields: "فیلدها", fieldId: "شناسه فیلد", fieldLabel: "عنوان فیلد", fieldType: "نوع", required: "الزامی",
+    shareRoles: "اشتراک با نقش‌ها (با ویرگول جدا شود)", shareUsers: "اشتراک با شناسه کاربران (با ویرگول جدا شود)", approverRoles: "نقش‌های تأییدکننده (با ویرگول جدا شود)", approverUsers: "شناسه کاربران تأییدکننده (با ویرگول جدا شود)",
+    fields: "فیلدها", fieldId: "شناسه فیلد", fieldLabel: "عنوان فیلد", fieldType: "نوع", typeText: "متن", typeNumber: "عدد", typeDate: "تاریخ", typeBoolean: "بله / خیر", typeSelect: "انتخابی", yes: "بله", no: "خیر", required: "الزامی",
     options: "گزینه‌ها (برای انتخابی با ویرگول جدا شود)", addField: "افزودن فیلد", remove: "حذف",
     createDraft: "ذخیره پیش‌نویس", creating: "در حال ذخیره…", ownerForms: "فرم‌های پروژه",
     sharedForms: "فرم‌های به‌اشتراک‌گذاشته‌شده با من", submissions: "پاسخ‌ها", noForms: "هنوز فرمی وجود ندارد. یک پیش‌نویس بسازید.",
@@ -95,9 +95,11 @@ function fieldRow(labels: Labels, fieldId: string, label: string, type: ProjectF
     "<label><span>" + e(labels.fieldId) + "</span><input data-field-id value=\"" + e(fieldId) + "\" maxlength=\"64\" required></label>" +
     "<label><span>" + e(labels.fieldLabel) + "</span><input data-field-label value=\"" + e(label) + "\" maxlength=\"160\" required></label>" +
     "<label><span>" + e(labels.fieldType) + "</span><select data-field-type>" +
-      "<option value=\"text\"" + (type === "text" ? " selected" : "") + ">Text</option>" +
-      "<option value=\"number\"" + (type === "number" ? " selected" : "") + ">Number</option>" +
-      "<option value=\"select\"" + (type === "select" ? " selected" : "") + ">Select</option>" +
+      "<option value=\"text\"" + (type === "text" ? " selected" : "") + ">" + e(labels.typeText) + "</option>" +
+      "<option value=\"number\"" + (type === "number" ? " selected" : "") + ">" + e(labels.typeNumber) + "</option>" +
+      "<option value=\"date\"" + (type === "date" ? " selected" : "") + ">" + e(labels.typeDate) + "</option>" +
+      "<option value=\"boolean\"" + (type === "boolean" ? " selected" : "") + ">" + e(labels.typeBoolean) + "</option>" +
+      "<option value=\"select\"" + (type === "select" ? " selected" : "") + ">" + e(labels.typeSelect) + "</option>" +
     "</select></label>" +
     "<label class=\"cp-form-required\"><input type=\"checkbox\" data-field-required" + (required ? " checked" : "") + "><span>" + e(labels.required) + "</span></label>" +
     "<label class=\"cp-form-options\"><span>" + e(labels.options) + "</span><input data-field-options value=\"" + e(options) + "\"></label>" +
@@ -125,7 +127,7 @@ function submissionsHtml(formId: string, items: readonly ProjectFormSubmission[]
   const rows = items.map((item) => "<article class=\"cp-form-submission\"><div class=\"cp-form-card-heading\"><strong>" +
     e(item.submission_id) + "</strong><span class=\"cp-form-status is-" + e(item.status) + "\">" + e(statusText(item.status, labels)) +
     "</span></div><p>Submitted by " + e(item.submitted_by) + " · " + e(item.submitted_at) + "</p><dl>" +
-    Object.entries(item.answers).map(([key, value]) => "<div><dt>" + e(key) + "</dt><dd>" + e(value) + "</dd></div>").join("") +
+    Object.entries(item.answers).map(([key, value]) => "<div><dt>" + e(key) + "</dt><dd>" + e(value === true ? labels.yes : value === false ? labels.no : value === null ? "—" : String(value)) + "</dd></div>").join("") +
     "</dl>" + (item.status === "pending_approval" ?
       "<label><span>" + e(labels.reviewNote) + "</span><input data-review-note=\"" + e(item.submission_id) + "\" maxlength=\"1000\"></label>" +
       "<div class=\"cp-form-actions\"><button type=\"button\" data-review-submission=\"" + e(item.submission_id) + "\" data-review-approved=\"true\" data-review-form=\"" + e(formId) + "\">" + e(labels.approve) +
@@ -142,6 +144,11 @@ function workerFormHtml(form: ProjectFormDefinition, labels: Labels, locale: str
     if (field.field_type === "select") {
       input = "<select id=\"" + e(id) + "\" data-answer-field=\"" + e(field.field_id) + "\"" + (field.required ? " required" : "") + "><option value=\"\">—</option>" +
         field.options.map((option) => "<option value=\"" + e(option) + "\">" + e(option) + "</option>").join("") + "</select>";
+    } else if (field.field_type === "boolean") {
+      input = "<select id=\"" + e(id) + "\" data-answer-field=\"" + e(field.field_id) + "\" data-answer-kind=\"boolean\"" + (field.required ? " required" : "") + "><option value=\"\">—</option>" +
+        "<option value=\"true\">" + e(labels.yes) + "</option><option value=\"false\">" + e(labels.no) + "</option></select>";
+    } else if (field.field_type === "date") {
+      input = "<input id=\"" + e(id) + "\" type=\"date\" data-answer-field=\"" + e(field.field_id) + "\"" + (field.required ? " required" : "") + ">";
     } else if (field.field_type === "number") {
       input = "<input id=\"" + e(id) + "\" type=\"number\" data-answer-field=\"" + e(field.field_id) + "\"" +
         (field.minimum !== null ? " min=\"" + e(field.minimum) + "\"" : "") +
@@ -173,7 +180,7 @@ function makeDraftInput(root: HTMLElement, labels: Labels): ProjectFormDraftInpu
     const options = csv(row.querySelector<HTMLInputElement>("[data-field-options]")?.value || "");
     if (!safeIdentifier(fieldId)) throw new Error(labels.fieldIdInvalid);
     if (!fieldLabel) throw new Error(labels.fieldRequired);
-    if (fieldType !== "text" && fieldType !== "number" && fieldType !== "select") throw new Error(labels.fieldRequired);
+    if (fieldType !== "text" && fieldType !== "number" && fieldType !== "date" && fieldType !== "boolean" && fieldType !== "select") throw new Error(labels.fieldRequired);
     if (fieldType === "select" && options.length === 0) throw new Error(labels.selectOptionsRequired);
     return {
       field_id: fieldId, section_id: "GENERAL", field_type: fieldType as ProjectFormFieldType,
@@ -187,9 +194,9 @@ function makeDraftInput(root: HTMLElement, labels: Labels): ProjectFormDraftInpu
     form_id: formId, name, description,
     sections: [{ section_id: "GENERAL", title: "General", localized_titles: { fa: "عمومی" } }],
     fields,
-    shared_with_user_ids: [],
+    shared_with_user_ids: csv(root.querySelector<HTMLInputElement>("[data-form-shared-users]")?.value || ""),
     shared_with_roles: csv(root.querySelector<HTMLInputElement>("[data-form-shared-roles]")?.value || ""),
-    approver_user_ids: [],
+    approver_user_ids: csv(root.querySelector<HTMLInputElement>("[data-form-approver-users]")?.value || ""),
     approver_roles: csv(root.querySelector<HTMLInputElement>("[data-form-approver-roles]")?.value || ""),
     output_mappings: [], requires_approval: true, expected_latest_version: null,
   };
@@ -220,7 +227,9 @@ function renderPanel(root: HTMLElement, state: PanelState, labels: Labels, local
     "<label><span>" + e(labels.formId) + "</span><input data-new-form-id required maxlength=\"64\" value=\"" + e(formIdentifier("Daily field log")) + "\"></label>" +
     "<label class=\"cp-form-wide\"><span>" + e(labels.description) + "</span><textarea data-new-form-description rows=\"2\" maxlength=\"3000\"></textarea></label>" +
     "<label><span>" + e(labels.shareRoles) + "</span><input data-form-shared-roles value=\"field_worker\"></label>" +
-    "<label><span>" + e(labels.approverRoles) + "</span><input data-form-approver-roles value=\"project_admin\"></label></div>" +
+    "<label><span>" + e(labels.shareUsers) + "</span><input data-form-shared-users value=\"\"></label>" +
+    "<label><span>" + e(labels.approverRoles) + "</span><input data-form-approver-roles value=\"project_admin\"></label>" +
+    "<label><span>" + e(labels.approverUsers) + "</span><input data-form-approver-users value=\"\"></label></div>" +
     "<div class=\"cp-form-fields-heading\"><h4>" + e(labels.fields) + "</h4><button type=\"button\" data-add-form-field>" + e(labels.addField) + "</button></div>" +
     "<div data-form-fields>" + fieldRow(labels, "ACTIVITY-ID", "Activity ID", "text", true) + fieldRow(labels, "QUANTITY", "Quantity completed", "number", true) + "</div>" +
     "<p class=\"cp-form-help\">" + e(labels.approvalNotice) + "</p><button type=\"submit\">" + e(labels.createDraft) + "</button></form></section>" +
@@ -353,10 +362,12 @@ export function mountProjectFormsPanel(workspace: HTMLElement, transport: ApiTra
       }
       if (form.dataset.submitSharedForm && state.workerForm) {
         event.preventDefault();
-        const answers: Record<string, string> = {};
+        const answers: Record<string, string | boolean> = {};
         form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("[data-answer-field]").forEach((input) => {
           const value = input.value.trim();
-          if (value) answers[input.dataset.answerField!] = value;
+          const fieldId = input.dataset.answerField;
+          if (!fieldId || !value) return;
+          answers[fieldId] = input.dataset.answerKind === "boolean" ? value === "true" : value;
         });
         const submissionId = "SUB-" + Date.now().toString(36).toUpperCase();
         const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
