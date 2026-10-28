@@ -9,6 +9,7 @@ risk, cost, quantities, progress, or capacity values.
 import json
 import math
 from collections.abc import Mapping
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 
@@ -179,6 +180,143 @@ def _record_rows(raw: object) -> list[dict[str, object]]:
     return rows
 
 
+_OPEN_STATUSES = frozenset({
+    "open", "new", "unresolved", "in_progress", "pending", "requires_action",
+})
+_EQUIPMENT_FAILURE_STATUSES = frozenset({
+    "down", "failed", "broken", "out_of_service", "unavailable",
+    "maintenance_required",
+})
+_QUALITY_FAILURE_STATUSES = frozenset({
+    "failed", "rejected", "nonconforming", "defect", "open", "requires_action",
+})
+
+
+def _finite_decimal(value: object) -> Decimal | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        parsed = value if isinstance(value, Decimal) else Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    return parsed if parsed.is_finite() else None
+
+
+def _record_id(record: Mapping[str, object]) -> str | None:
+    for key in (
+        "issue_id", "record_id", "log_id", "inspection_id", "observation_id",
+        "report_id", "claim_id", "notice_id", "case_id", "item_id", "id",
+    ):
+        value = record.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()[:128]
+    return None
+
+
+def _engineering_signals(
+    activities: list[dict[str, object]],
+    snapshot: Mapping[str, object],
+    project_revision: int,
+) -> tuple[list[dict[str, object]], dict[str, int], bool]:
+    """Detect explicit review triggers only; never assigns probability or impact."""
+    signals: list[dict[str, object]] = []
+
+    def add(signal: dict[str, object]) -> None:
+        if len(signals) < 20:
+            signals.append(signal)
+
+    for activity in activities:
+        activity_id = str(activity["id"])
+        float_value = activity.get("total_float")
+        float_number = _finite_decimal(float_value)
+        if float_number is not None and float_number < 0:
+            add({
+                "signal_type": "negative_total_float",
+                "classification": "schedule_warning_candidate",
+                "status": "needs_review",
+                "project_revision": project_revision,
+                "activity_id": activity_id,
+                "basis_fields": {"activity.total_float": float_value},
+                "evidence_contract": WORKSPACE_READ_CONTRACT,
+            })
+        percent = _finite_decimal(activity.get("duration_percent_complete"))
+        if (
+            activity.get("critical") is True
+            and activity.get("schedule_facts_available") is True
+            and percent is not None
+            and Decimal("0") <= percent < Decimal("100")
+            and not activity.get("actual_finish")
+        ):
+            add({
+                "signal_type": "unfinished_critical_activity",
+                "classification": "schedule_watch_candidate",
+                "status": "needs_review",
+                "project_revision": project_revision,
+                "activity_id": activity_id,
+                "basis_fields": {
+                    "activity.is_critical": True,
+                    "activity.duration_percent_complete": activity.get("duration_percent_complete"),
+                },
+                "evidence_contract": WORKSPACE_READ_CONTRACT,
+            })
+
+    category_rules = (
+        ("field_issues", _OPEN_STATUSES, "open_field_issue", "field_issue_followup_candidate"),
+        ("safety_observations", _OPEN_STATUSES, "open_safety_observation", "safety_followup_candidate"),
+        ("equipment_status_reports", _EQUIPMENT_FAILURE_STATUSES, "equipment_unavailable", "equipment_followup_candidate"),
+        ("quality_records", _QUALITY_FAILURE_STATUSES, "quality_record_followup", "quality_followup_candidate"),
+        ("inspections", _QUALITY_FAILURE_STATUSES, "inspection_followup", "inspection_followup_candidate"),
+        ("punch_items", _OPEN_STATUSES, "open_punch_item", "punch_followup_candidate"),
+    )
+    any_truncated = False
+    for collection_name, statuses, signal_type, classification in category_rules:
+        raw_records = snapshot.get(collection_name, [])
+        if not isinstance(raw_records, (list, tuple)):
+            continue
+        for record in raw_records:
+            if not isinstance(record, Mapping):
+                continue
+            status = record.get("status")
+            if not isinstance(status, str) or status.strip().casefold() not in statuses:
+                continue
+            if len(signals) >= 20:
+                any_truncated = True
+                break
+            evidence_id = _record_id(record)
+            activity_id = record.get("activity_id")
+            evidence: dict[str, object] = {
+                "signal_type": signal_type,
+                "classification": classification,
+                "status": "needs_review",
+                "project_revision": project_revision,
+                "record_collection": collection_name,
+                "record_id": evidence_id,
+                "basis_fields": {"status": status.strip()},
+                "evidence_contract": WORKSPACE_READ_CONTRACT,
+            }
+            if isinstance(activity_id, str) and activity_id.strip():
+                evidence["activity_id"] = activity_id.strip()[:128]
+                evidence["basis_fields"] = {
+                    **evidence["basis_fields"],
+                    "activity_id": activity_id.strip()[:128],
+                }
+            severity = record.get("severity")
+            if isinstance(severity, str) and severity.strip():
+                evidence["basis_fields"] = {
+                    **evidence["basis_fields"],
+                    "severity": severity.strip()[:80],
+                }
+            add(evidence)
+        if len(signals) >= 20 and raw_records:
+            any_truncated = True
+
+    counts: dict[str, int] = {}
+    for signal in signals:
+        signal_type = str(signal["signal_type"])
+        counts[signal_type] = counts.get(signal_type, 0) + 1
+    return signals, counts, any_truncated
+
+
 def _encode(value: Mapping[str, object]) -> str:
     try:
         return json.dumps(value, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
@@ -234,6 +372,9 @@ def build_assistant_project_context(
     truncated = len(all_rows) > MAX_ACTIVITY_ROWS or any(
         record_counts[key] > len(collections.get(key, [])) for key in record_counts
     )
+    engineering_signals, signal_counts, signals_truncated = _engineering_signals(
+        all_rows, snapshot, project_revision
+    )
     context: dict[str, object] = {
         "contract_version": PROJECT_CONTEXT_CONTRACT,
         "availability": "available",
@@ -263,7 +404,10 @@ def build_assistant_project_context(
         "activities": all_rows[:MAX_ACTIVITY_ROWS],
         "record_counts": record_counts,
         "records": collections,
-        "truncated": truncated,
+        "engineering_signals": engineering_signals,
+        "engineering_signal_counts": signal_counts,
+        "signals_truncated": signals_truncated,
+        "truncated": truncated or signals_truncated,
     }
 
     # Keep the model input bounded while retaining source counts and the highest
