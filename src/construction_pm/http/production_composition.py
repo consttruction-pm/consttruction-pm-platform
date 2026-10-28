@@ -153,6 +153,8 @@ def build_project_lifecycle_wsgi_app(
             permission_adapter=ai_action_permission_adapter,
             transaction_manager=ai_action_transaction_manager,
             clock=None if clock is None else clock.now,
+            resource_write_api=resource_write_api,
+            resource_read_api=resource_read_api,
         )
 
     ai_assistant_orchestrator = None
