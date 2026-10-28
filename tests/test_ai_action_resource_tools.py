@@ -6,20 +6,12 @@ from datetime import datetime, timezone
 
 import pytest
 
-from construction_pm.ai_action_activity_tools import (
-    SQLiteAIActionExecutionIdempotencyStore,
-)
+from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.ai_action_boundary import (
     AIActionPermissionGrant,
     UserConfiguredAIActionPermissionAdapter,
 )
-from construction_pm.ai_action_resource_tools import build_resource_assignment_create_tool
-from construction_pm.ai_action_runtime import (
-    AIActionRuntime,
-    AIActionRuntimeContext,
-    AIActionRuntimeError,
-    SQLiteAIActionRuntimeStore,
-)
+from construction_pm.ai_action_runtime import AIActionRuntimeContext, AIActionRuntimeError
 from construction_pm.activity_master_repository import (
     ActivityMaster,
     SQLiteActivityMasterRepository,
@@ -77,32 +69,31 @@ def setup_runtime(database_path):
     resource_write_api = P6ResourceWriteAPI(
         period_service, policy, assignment_service
     )
-    action_store = SQLiteAIActionRuntimeStore(connection)
-    idempotency = SQLiteAIActionExecutionIdempotencyStore(connection)
-    grant = AIActionPermissionGrant(
-        subject_id="user-1",
-        tenant_id="tenant-1",
-        project_id="project-1",
-        project_revision_id="12",
-        resource_domain="resources",
-        operation="create",
-        tool_name="resource.assignment.create",
+    grants = (
+        AIActionPermissionGrant(
+            subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
+            project_revision_id="12", resource_domain="activities", operation="create",
+            tool_name="activity.create",
+        ),
+        AIActionPermissionGrant(
+            subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
+            project_revision_id="12", resource_domain="quantity_takeoff", operation="create",
+            tool_name="quantity.takeoff.create",
+        ),
+        AIActionPermissionGrant(
+            subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
+            project_revision_id="12", resource_domain="resources", operation="create",
+            tool_name="resource.assignment.create",
+        ),
     )
-    activity_api = P6ActivityMasterAPI(activities, policy)
-    tool = build_resource_assignment_create_tool(
-        activity_api=activity_api,
+    runtime = build_activity_create_runtime(
+        activity_master_repository=activities,
+        authorization_policy=policy,
+        permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: grants),
+        transaction_manager=transaction_manager,
         resource_write_api=resource_write_api,
         resource_read_api=resource_read_api,
-        idempotency_store=idempotency,
-        transaction_manager=transaction_manager,
-    )
-    runtime = AIActionRuntime(
-        store=action_store,
-        permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: (grant,)),
-        audit_sink=action_store,
-        tools=(tool,),
         clock=lambda: datetime(2026, 10, 28, 12, tzinfo=timezone.utc),
-        transaction_manager=transaction_manager,
     )
     context = AIActionRuntimeContext(
         subject_id="user-1",
@@ -112,7 +103,6 @@ def setup_runtime(database_path):
         roles=frozenset({"project_admin"}),
     )
     return connection, scope, assignment_service, runtime, context
-
 
 def payload(**overrides):
     value = {
