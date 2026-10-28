@@ -215,3 +215,28 @@ def test_wbs_master_orders_siblings_deterministically():
         "W-EARLY",
         "W-LATE",
     ]
+
+
+def test_wbs_master_delete_requires_current_revision_and_removes_leaf():
+    repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(root())
+    stored = repo.save(child("W-LEAF", "W-ROOT", code="2"))
+
+    with pytest.raises(WBSPersistenceError, match="REVISION_CONFLICT"):
+        repo.delete(scope(), "W-LEAF", expected_revision=stored.record_revision + 1)
+
+    repo.delete(scope(), "W-LEAF", expected_revision=stored.record_revision)
+    assert repo.get(scope(), "W-LEAF") is None
+    assert [item.wbs_id for item in repo.list(scope())] == ["W-ROOT"]
+
+
+def test_wbs_master_delete_rejects_nodes_with_children():
+    repo = SQLiteWBSMasterRepository(sqlite3.connect(":memory:"))
+    repo.save(root())
+    parent = repo.save(child("W-PARENT", "W-ROOT", code="2"))
+    repo.save(child("W-CHILD", "W-PARENT", code="3"))
+
+    with pytest.raises(WBSPersistenceError, match="WBS_IN_USE"):
+        repo.delete(scope(), parent.wbs_id, expected_revision=parent.record_revision)
+
+    assert repo.get(scope(), parent.wbs_id) == parent
