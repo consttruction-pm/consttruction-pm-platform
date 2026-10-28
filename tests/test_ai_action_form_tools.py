@@ -5,18 +5,13 @@ from datetime import datetime, timezone
 
 import pytest
 
-from construction_pm.ai_action_activity_tools import SQLiteAIActionExecutionIdempotencyStore
+from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.ai_action_boundary import (
     AIActionPermissionGrant,
     UserConfiguredAIActionPermissionAdapter,
 )
-from construction_pm.ai_action_form_tools import build_form_definition_create_tool
-from construction_pm.ai_action_runtime import (
-    AIActionRuntime,
-    AIActionRuntimeContext,
-    AIActionRuntimeError,
-    SQLiteAIActionRuntimeStore,
-)
+from construction_pm.ai_action_runtime import AIActionRuntimeContext, AIActionRuntimeError
+from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
 from construction_pm.application.authorization import AuthorizationContext, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
@@ -40,8 +35,7 @@ def setup_runtime(database_path):
         transaction_manager,
         clock=lambda: NOW,
     )
-    store = SQLiteAIActionRuntimeStore(connection)
-    idempotency = SQLiteAIActionExecutionIdempotencyStore(connection)
+    activity_repository = SQLiteActivityMasterRepository(connection)
     grant = AIActionPermissionGrant(
         subject_id="owner-1",
         tenant_id="tenant-1",
@@ -51,19 +45,16 @@ def setup_runtime(database_path):
         operation="create",
         tool_name="form.definition.create",
     )
-    tool = build_form_definition_create_tool(
-        form_api=form_api,
-        idempotency_store=idempotency,
-        transaction_manager=transaction_manager,
-    )
-    runtime = AIActionRuntime(
-        store=store,
+    runtime = build_activity_create_runtime(
+        activity_master_repository=activity_repository,
+        authorization_policy=policy,
         permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: (grant,)),
-        audit_sink=store,
-        tools=(tool,),
-        clock=lambda: NOW,
         transaction_manager=transaction_manager,
+        form_builder_api=form_api,
+        clock=lambda: NOW,
     )
+    assert "form.definition.create" in runtime.tools
+    assert runtime.tools["form.definition.create"].requires_human_approval is True
     context = AIActionRuntimeContext(
         subject_id="owner-1",
         tenant_id="tenant-1",
