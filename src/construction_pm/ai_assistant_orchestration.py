@@ -36,7 +36,7 @@ MAX_TOOL_PAYLOAD_BYTES = 64_000
 
 MAX_ASSISTANT_LEARNING_RECORDS = 8
 MAX_ASSISTANT_LEARNING_CONTEXT_CHARS = 6_500
-_LEARNING_WORD = re.compile(r"[^\\W_]{2,}", re.UNICODE)
+_LEARNING_WORD = re.compile(r"[^\W_]{2,}", re.UNICODE)
 _LEARNING_STOP_WORDS = frozenset({
     "about", "after", "again", "also", "and", "are", "can", "could", "did",
     "does", "for", "from", "have", "how", "into", "its", "just", "more",
