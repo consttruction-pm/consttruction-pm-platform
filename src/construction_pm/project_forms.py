@@ -567,6 +567,18 @@ class _FormRepositoryBase:
         self.connection.execute(_DEFINITION_SCHEMA)
         self.connection.execute(_SUBMISSION_SCHEMA)
         self.connection.execute(_AUDIT_SCHEMA)
+        # PostgreSQL needs a durable insertion sequence: UUID event IDs are random
+        # and timestamps can legitimately tie at the clock's configured precision.
+        # ADD COLUMN IF NOT EXISTS also upgrades databases created by the first schema.
+        if self.placeholder == "%s":
+            self.connection.execute(
+                "ALTER TABLE project_form_audit_events "
+                "ADD COLUMN IF NOT EXISTS sequence_id BIGSERIAL"
+            )
+            self.connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_project_form_audit_sequence "
+                "ON project_form_audit_events(tenant_id, project_id, sequence_id)"
+            )
         self.connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_project_form_status "
             "ON project_form_definitions(tenant_id, project_id, status, form_id, version)"
@@ -709,9 +721,12 @@ class _FormRepositoryBase:
 
     def list_audit_events(self, tenant_id: str, project_id: str) -> tuple[Mapping[str, object], ...]:
         p = self.placeholder
+        # SQLite rowid and the Postgres identity sequence preserve insertion
+        # order. Random event UUIDs are identifiers, not chronological sort keys.
+        order_expression = "sequence_id" if self.placeholder == "%s" else "rowid"
         rows = self.connection.execute(
             "SELECT event_json FROM project_form_audit_events "
-            f"WHERE tenant_id={p} AND project_id={p} ORDER BY event_id",
+            f"WHERE tenant_id={p} AND project_id={p} ORDER BY {order_expression}",
             (tenant_id, project_id),
         ).fetchall()
         return tuple(json.loads(str(row[0])) for row in rows)
