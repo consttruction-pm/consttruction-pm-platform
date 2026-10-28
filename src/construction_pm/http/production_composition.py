@@ -156,9 +156,7 @@ def build_project_lifecycle_wsgi_app(
         )
 
     ai_assistant_orchestrator = None
-    if ai_assistant_provider is not None:
-        if ai_action_runtime is None:
-            raise AIActionRuntimeError("AI_ASSISTANT_ACTION_RUNTIME_REQUIRED")
+    if ai_assistant_provider is not None and ai_action_runtime is not None:
         ai_assistant_orchestrator = AIAssistantTurnOrchestrator(
             provider=ai_assistant_provider,
             action_runtime=ai_action_runtime,
