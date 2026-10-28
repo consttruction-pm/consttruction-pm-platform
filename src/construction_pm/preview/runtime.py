@@ -739,7 +739,7 @@ class PreviewRuntime:
             "session_count": self.sessions.count(),
             "assistant": {
                 "enabled": self.ai_assistant_enabled,
-                "provider_configured": self.ai_assistant_enabled,
+                "provider_configured": self.ai_assistant_enabled and bool(os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip()),
                 "provider_kind": os.environ.get("CUBI_AI_PROVIDER", "local-ollama"),
                 "provider_environment_complete": bool(os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip()),
                 "available_tools": list(self.ai_tool_names),
@@ -839,10 +839,9 @@ def open_preview_runtime(
     ai_assistant_provider = None
     ai_action_runtime = None
     ai_tool_names: tuple[str, ...] = ()
-    if ai_assistant_enabled:
-        # Provider and tools are only composed from explicit server-side configuration.
-        # Missing/invalid credentials fail closed; there is no fake provider fallback.
-        ai_assistant_provider = build_ai_chat_provider_from_environment()
+    if ai_assistant_enabled and os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip():
+        # Compose real tools only when the local model is configured; no remote fallback.
+        # An enabled flag without model assets leaves assistant turns unavailable, not the site.
         action_store = SQLiteAIActionRuntimeStore(connection)
         idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
         permission_adapter = PreviewAIPermissionAdapter(sessions, store)
