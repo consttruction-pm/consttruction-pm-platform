@@ -19,6 +19,8 @@ from .application.authorization import AuthorizationContext, AuthorizationPolicy
 from .backend_p0.idempotency import fingerprint
 from .backend_p0.models import BackendScope
 from .p6_activity_master_api import P6ActivityMasterAPI
+from .p6_resource_read_api import P6ResourceReadAPI
+from .p6_resource_write_api import P6ResourceWriteAPI
 from .activity_master_repository import (
     ActivityMaster,
     ActivityMasterRepository,
@@ -150,6 +152,8 @@ def build_activity_create_runtime(
     permission_adapter: AIToolPermissionAdapter,
     transaction_manager: object,
     clock: Callable[[], datetime] | None = None,
+    resource_write_api: P6ResourceWriteAPI | None = None,
+    resource_read_api: P6ResourceReadAPI | None = None,
 ) -> AIActionRuntime:
     """Compose the first production typed tool only when real dependencies are supplied.
 
@@ -192,11 +196,26 @@ def build_activity_create_runtime(
         repository=takeoff_repository,
         idempotency_store=idempotency_store,
     )
+    if (resource_write_api is None) != (resource_read_api is None):
+        raise AIActionRuntimeError("AI_RESOURCE_ASSIGNMENT_RUNTIME_DEPENDENCIES_INCOMPLETE")
+    tools = [tool, quantity_takeoff_tool]
+    if resource_write_api is not None and resource_read_api is not None:
+        from .ai_action_resource_tools import build_resource_assignment_create_tool
+
+        tools.append(
+            build_resource_assignment_create_tool(
+                activity_api=P6ActivityMasterAPI(activity_master_repository, authorization_policy),
+                resource_write_api=resource_write_api,
+                resource_read_api=resource_read_api,
+                idempotency_store=idempotency_store,
+                transaction_manager=transaction_manager,
+            )
+        )
     return AIActionRuntime(
         store=runtime_store,
         permission_adapter=permission_adapter,
         audit_sink=runtime_store,
-        tools=(tool, quantity_takeoff_tool),
+        tools=tuple(tools),
         clock=clock,
         transaction_manager=transaction_manager,
     )
