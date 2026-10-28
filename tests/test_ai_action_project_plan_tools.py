@@ -488,11 +488,12 @@ def test_preview_assistant_proposes_resource_assignment_then_approves_and_reads_
         assert response["kind"] == "action_proposal"
         proposal_id = response["proposal"]["proposal_id"]
 
-        assignment_service = runtime.app.routes._p6_resource_read_api.assignment_service
-        scope = __import__(
-            "construction_pm.backend_p0.models", fromlist=["BackendScope"]
-        ).BackendScope(PREVIEW_TENANT_ID, "preview-rps-01", 7)
-        assert assignment_service.read(scope, "RA-RPS-A130-EXC") is None
+        before_count = runtime.connection.execute(
+            "SELECT COUNT(*) FROM p6_resource_assignment "
+            "WHERE tenant_id=? AND project_id=? AND assignment_id=?",
+            (PREVIEW_TENANT_ID, "preview-rps-01", "RA-RPS-A130-EXC"),
+        ).fetchone()[0]
+        assert before_count == 0
 
         status, _, body = _request(
             app,
@@ -521,9 +522,11 @@ def test_preview_assistant_proposes_resource_assignment_then_approves_and_reads_
         assert result["assignment"]["activity_id"] == "A130"
         assert result["assignment"]["resource_id"] == "RPS-CIVIL-CREW"
         assert result["assignment"]["units"] == "4"
-        persisted = assignment_service.read(scope, "RA-RPS-A130-EXC")
-        assert persisted is not None
-        assert persisted.resource_id == "RPS-CIVIL-CREW"
-        assert persisted.units == __import__("decimal").Decimal("4")
+        persisted = runtime.connection.execute(
+            "SELECT activity_id,resource_id,units FROM p6_resource_assignment "
+            "WHERE tenant_id=? AND project_id=? AND assignment_id=?",
+            (PREVIEW_TENANT_ID, "preview-rps-01", "RA-RPS-A130-EXC"),
+        ).fetchone()
+        assert persisted == ("A130", "RPS-CIVIL-CREW", "4")
     finally:
         runtime.close()
