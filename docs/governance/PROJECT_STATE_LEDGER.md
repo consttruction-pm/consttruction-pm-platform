@@ -213,3 +213,26 @@ An earlier run correctly caught a missing explicit model setup in the preview in
 3. Implement #1617 as staged vertical slices with typed contracts, persistence/migrations, real UI, source-backed golden fixtures, authorization/approval, audit and end-to-end read-back.
 4. Complete #1540's real learning/research/retrieval/retention/backup/migration/rollback lifecycle.
 5. Reconcile accepted work into CUBISITE and Jalal 5 without silently changing either 100.00-point denominator. Documentation and open PRs alone receive no implementation completion credit.
+
+
+## Follow-on implementation: executable BOQ/takeoff slice — 2026-10-28
+
+**Feature status:** first code-backed takeoff/BOQ vertical slice implemented on this feature branch.  
+**Exact code head with green CI:** `5dd00c6d2e469676d6c009b4a0d4d206442a1f43`.  
+**Specification:** [QUANTITY_TAKEOFF_BOQ_IMPLEMENTATION_V1.md](../architecture/QUANTITY_TAKEOFF_BOQ_IMPLEMENTATION_V1.md).  
+**Tracking:** [#1617](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1617).
+
+Implemented:
+- `src/construction_pm/quantity_takeoff.py`: Decimal-based quantities and waste, currency-precision-aware line costs, unpriced-line semantics, strict validation, estimate/line payload contracts and SQLite/PostgreSQL scoped immutable repository adapters.
+- `quantity.takeoff.create`: an AI action tool that requires explicit approval, uses authenticated actor/project/revision context, shares the idempotency/transaction boundary and returns a fresh persisted read-back.
+- Private preview registration and role checks for the new action.
+- `tests/test_quantity_takeoff.py` domain/repository/action tests and `tests/test_ai_action_project_plan_tools.py` preview HTTP end-to-end test for proposal → approval → execution → stored estimate/read-back.
+- Source references and rate basis are explicitly labelled unverified until a source/rate-card registry is connected; the implementation does not claim a reference string is proof of engineering evidence.
+
+Exact-head CI passed:
+- [ConstructionPM CI — Python 3.11/3.12/3.13](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40608679751)
+- [PostgreSQL Integration](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40608679770)
+- [Client Typecheck — Web/Desktop/Mobile/Client-Sync](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40608679913)
+
+This is not full BOQ V1 and is not merged to main. The new repository exists for SQLite and PostgreSQL, but the new action is currently wired into the authenticated private preview; production composition, document/source validation, approved rate cards, file/drawing intake, project/WBS/activity linkage, BOQ UI and import/export reconciliation remain open. Resource/equipment planning, risk corrective actions, Form Builder, PMBOK report workflow and the complete knowledge-learning lifecycle remain separate P0 work under #1617/#1423/#1530/#1540. The public read-only demo must not be weakened to test these operations.
+
