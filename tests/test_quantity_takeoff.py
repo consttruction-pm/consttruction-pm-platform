@@ -80,6 +80,8 @@ def test_quantity_and_money_calculation_are_decimal_deterministic():
     assert item.extended_cost == Decimal("316.66")
     assert item.to_payload()["billable_quantity"] == "13.500"
     assert item.to_payload()["extended_cost"] == "316.66"
+    assert item.to_payload()["source_verification_status"] == "unverified_reference"
+    assert item.to_payload()["rate_verification_status"] == "unverified_rate_basis"
 
 
 def test_unpriced_line_is_explicit_and_does_not_become_zero_cost():
@@ -100,6 +102,8 @@ def test_unpriced_line_is_explicit_and_does_not_become_zero_cost():
         "priced_line_count": 0,
         "unpriced_line_count": 1,
         "cost_complete": False,
+        "source_verification_performed": False,
+        "rate_verification_performed": False,
         "totals_by_currency": [],
     }
     assert payload["lines"][0]["extended_cost"] is None
