@@ -17,7 +17,7 @@ from construction_pm.ai_action_runtime import (
     AIActionRuntimeError,
     SQLiteAIActionRuntimeStore,
 )
-from construction_pm.application.authorization import default_project_policy
+from construction_pm.application.authorization import AuthorizationContext, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.project_forms import (
@@ -200,10 +200,10 @@ def test_ai_form_tool_requires_approval_persists_draft_and_verifies_readback(tmp
         ]
 
         fresh = form_api.get_definition(
-            scope, "DAILY-LOG-01", 1,
-            auth_context=__import__(
-                "construction_pm.application.authorization", fromlist=["AuthorizationContext"]
-            ).AuthorizationContext(
+            scope,
+            "DAILY-LOG-01",
+            1,
+            auth_context=AuthorizationContext(
                 "tenant-1", "project-1", "owner-1", frozenset({"project_admin"})
             ),
         )
