@@ -235,8 +235,46 @@ def _engineering_signals(
     signals: list[dict[str, object]] = []
     signals_truncated = False
 
+    follow_up_actions: dict[str, tuple[str, ...]] = {
+        "negative_total_float": (
+            "Recheck predecessor/successor logic, constraints, calendars and the current data date.",
+            "Run the authoritative schedule and compare feasible recovery options before changing the plan.",
+        ),
+        "unfinished_critical_activity": (
+            "Verify actual progress and remaining duration against current field evidence.",
+            "Review driving relationships and prepare recovery options for authorized approval.",
+        ),
+        "open_field_issue": (
+            "Confirm containment, assign an accountable owner and due date, and record closure evidence.",
+        ),
+        "open_safety_observation": (
+            "Confirm immediate safety controls and escalation to the authorized safety owner.",
+            "Require verified closure evidence before marking the observation resolved.",
+        ),
+        "equipment_unavailable": (
+            "Verify equipment status and maintenance/return-to-service information with the responsible team.",
+            "Check authorized alternatives and their schedule/capacity impact before reassignment.",
+        ),
+        "quality_record_followup": (
+            "Confirm the required containment or hold point under the approved quality procedure.",
+            "Assign corrective work and require inspection evidence before closure.",
+        ),
+        "inspection_followup": (
+            "Confirm the inspection disposition and list any missing acceptance evidence.",
+            "Keep acceptance pending until the authorized reviewer records the outcome.",
+        ),
+        "punch_followup": (
+            "Assign a closeout owner and due date using the project's approved process.",
+            "Record verified correction and acceptance evidence before closing the item.",
+        ),
+    }
+
     def add(signal: dict[str, object]) -> None:
         nonlocal signals_truncated
+        signal_type = signal.get("signal_type")
+        if isinstance(signal_type, str) and signal_type in follow_up_actions:
+            signal["recommended_review_actions"] = list(follow_up_actions[signal_type])
+            signal["recommendation_status"] = "review_only_not_executed"
         if len(signals) < 10:
             signals.append(signal)
         else:
