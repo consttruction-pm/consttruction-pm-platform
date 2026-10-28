@@ -842,6 +842,7 @@ def open_preview_runtime(
     if ai_assistant_enabled and os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip():
         # Compose real tools only when the local model is configured; no remote fallback.
         # An enabled flag without model assets leaves assistant turns unavailable, not the site.
+        ai_assistant_provider = build_ai_chat_provider_from_environment()
         action_store = SQLiteAIActionRuntimeStore(connection)
         idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
         permission_adapter = PreviewAIPermissionAdapter(sessions, store)
