@@ -417,3 +417,113 @@ def test_preview_assistant_creates_and_persists_boq_only_after_approval(
         ).fetchone()[0] == 1
     finally:
         runtime.close()
+
+
+def test_preview_assistant_proposes_resource_assignment_then_approves_and_reads_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    class FakeResourceProvider:
+        def complete_json(self, *, system_prompt, user_message, language, history=()):
+            assert '"resource.assignment.create"' in system_prompt
+            return {
+                "kind": "action_proposal",
+                "message": "این تخصیص پیشنهادی است. شناسه منبع و ظرفیت زمانی در این مرحله به‌طور مستقل تأیید نشده‌اند؛ پیش از اتکا به برنامه، ظرفیت و تداخل‌ها را بررسی کنید.",
+                "tool_name": "resource.assignment.create",
+                "payload": {
+                    "assignment_id": "RA-RPS-A130-EXC",
+                    "activity_id": "A130",
+                    "resource_id": "RPS-CIVIL-CREW",
+                    "units": 4,
+                    "unit": "crew-member",
+                    "role_id": "civil-crew",
+                    "note": "Proposal only; check time-phased availability before relying on this assignment.",
+                },
+            }
+
+    provider = FakeResourceProvider()
+
+    class ProviderFactory:
+        @staticmethod
+        def from_environment():
+            return provider
+
+    monkeypatch.setenv("CUBI_AI_ENABLED", "true")
+    monkeypatch.setenv("CUBI_AI_LOCAL_MODEL", "test-local-model")
+    monkeypatch.delenv("CUBI_PREVIEW_PUBLIC_DEMO", raising=False)
+    monkeypatch.delenv("CUBI_PREVIEW_PRIVATE_ACCESS_TOKEN", raising=False)
+    monkeypatch.setattr(
+        preview_runtime_module,
+        "build_ai_chat_provider_from_environment",
+        ProviderFactory.from_environment,
+    )
+
+    runtime = open_preview_runtime(
+        tmp_path / "preview-resource-assignment.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+        status, headers, _ = _request(app, "POST", "/preview/login", body=b"role=admin")
+        assert status == 303
+        cookie = _cookie(headers)
+        assert "resource.assignment.create" in runtime.ai_tool_names
+
+        status, _, body = _request(
+            app,
+            "POST",
+            "/api/projects/preview-rps-01/ai/assistant/turn",
+            cookie=cookie,
+            body=json.dumps({
+                "expected_revision": 7,
+                "message": (
+                    "برای فعالیت A130 یک تخصیص پیشنهادی از منبع RPS-CIVIL-CREW "
+                    "با ۴ عضو گروه بساز؛ پیش از ذخیره از من تأیید بگیر."
+                ),
+                "language": "fa",
+            }, ensure_ascii=False).encode("utf-8"),
+        )
+        assert status == 200, body.decode("utf-8")
+        response = json.loads(body)
+        assert response["kind"] == "action_proposal"
+        proposal_id = response["proposal"]["proposal_id"]
+
+        assignment_service = runtime.app.routes._p6_resource_read_api.assignment_service
+        scope = __import__(
+            "construction_pm.backend_p0.models", fromlist=["BackendScope"]
+        ).BackendScope(PREVIEW_TENANT_ID, "preview-rps-01", 7)
+        assert assignment_service.read(scope, "RA-RPS-A130-EXC") is None
+
+        status, _, body = _request(
+            app,
+            "POST",
+            f"/api/projects/preview-rps-01/ai/actions/proposals/{proposal_id}/decision",
+            cookie=cookie,
+            body=json.dumps({"expected_revision": 7, "approved": True}).encode("utf-8"),
+        )
+        assert status == 200, body.decode("utf-8")
+        assert json.loads(body)["status"] == "approved"
+
+        status, _, body = _request(
+            app,
+            "POST",
+            f"/api/projects/preview-rps-01/ai/actions/proposals/{proposal_id}/execute",
+            cookie=cookie,
+            body=json.dumps({"expected_revision": 7}).encode("utf-8"),
+        )
+        assert status == 200, body.decode("utf-8")
+        executed = json.loads(body)
+        assert executed["status"] == "executed"
+        result = executed["result"]
+        assert result["persisted_readback_verified"] is True
+        assert result["resource_reference_status"] == "unverified_reference"
+        assert result["capacity_check_status"] == "not_performed"
+        assert result["assignment"]["activity_id"] == "A130"
+        assert result["assignment"]["resource_id"] == "RPS-CIVIL-CREW"
+        assert result["assignment"]["units"] == "4"
+        persisted = assignment_service.read(scope, "RA-RPS-A130-EXC")
+        assert persisted is not None
+        assert persisted.resource_id == "RPS-CIVIL-CREW"
+        assert persisted.units == __import__("decimal").Decimal("4")
+    finally:
+        runtime.close()
