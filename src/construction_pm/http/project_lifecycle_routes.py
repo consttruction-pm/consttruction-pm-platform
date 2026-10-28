@@ -2368,6 +2368,225 @@ class ProjectLifecycleHttpRoutes:
                     result = self._p6_code_api.create(definition, auth_context=auth)
                 except (TypeError, ValueError): return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            # Shared-form endpoints deliberately derive tenant/user/roles only from the
+            # authenticated session. They must not call open_project or require project.read.
+            if path.startswith("/api/projects/") and "/forms/shared" in path:
+                parts = path[len("/api/projects/"):].split("/")
+                if not parts[0] or len(parts) < 3 or parts[1] != "forms" or parts[2] != "shared":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if self._form_builder_api is None:
+                    return self._error(503, "FORM_BUILDER_NOT_CONFIGURED", "error.form.not_configured")
+                session = self._api.get_session(session_id, now=now)
+                tenant_id = session.tenant_id
+                user_id = session.user_id
+                roles = session.roles
+
+                if method == "GET" and len(parts) == 3:
+                    forms = self._form_builder_api.list_shared_forms(
+                        tenant_id, parts[0], user_id, roles
+                    )
+                    return self._json(200, {
+                        "contract_version": "project-form.shared-list.v1",
+                        "project_id": parts[0],
+                        "forms": [item.to_payload() for item in forms],
+                    })
+
+                if method == "GET" and len(parts) == 5:
+                    _, _, _, form_id, version_raw = parts
+                    if not version_raw.isdigit() or int(version_raw) < 1:
+                        return self._error(400, "PROJECT_FORM_VERSION_INVALID", "error.request.invalid")
+                    form = self._form_builder_api.get_shared_form(
+                        tenant_id, parts[0], user_id, roles, form_id, int(version_raw)
+                    )
+                    return self._json(200, form.to_payload())
+
+                if method == "POST" and len(parts) == 6 and parts[5] == "submissions":
+                    _, _, _, form_id, version_raw, _ = parts
+                    if not version_raw.isdigit() or int(version_raw) < 1:
+                        return self._error(400, "PROJECT_FORM_VERSION_INVALID", "error.request.invalid")
+                    try:
+                        payload = json.loads(body.decode("utf-8") or "{}")
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        return self._error(400, "PROJECT_FORM_SUBMISSION_REQUEST_INVALID", "error.request.invalid")
+                    if (
+                        not isinstance(payload, dict)
+                        or set(payload) != {"submission_id", "answers"}
+                        or not isinstance(payload.get("submission_id"), str)
+                        or not isinstance(payload.get("answers"), dict)
+                    ):
+                        return self._error(400, "PROJECT_FORM_SUBMISSION_REQUEST_INVALID", "error.request.invalid")
+                    form = self._form_builder_api.get_shared_form(
+                        tenant_id, parts[0], user_id, roles, form_id, int(version_raw)
+                    )
+                    submission = self._form_builder_api.submit_shared_form(
+                        form.scope,
+                        form_id=form.form_id,
+                        form_version=form.version,
+                        submission_id=payload["submission_id"],
+                        submitted_by=user_id,
+                        roles=roles,
+                        answers=payload["answers"],
+                    )
+                    return self._json(201, submission.to_payload())
+
+                return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+
+            if path.startswith("/api/projects/") and "/forms" in path:
+                parts = path[len("/api/projects/"):].split("/")
+                project_id = parts[0] if parts else ""
+                if not project_id or len(parts) < 2 or parts[1] != "forms":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if self._form_builder_api is None:
+                    return self._error(503, "FORM_BUILDER_NOT_CONFIGURED", "error.form.not_configured")
+                if method == "GET" and len(parts) == 2:
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_READ, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                    context = authorized.context
+                    auth = context.authorization_context(session.roles)
+                    forms = self._form_builder_api.list_definitions(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        auth_context=auth,
+                    )
+                    return self._json(200, {
+                        "contract_version": "project-form.list.v1",
+                        "project_id": context.project_id,
+                        "forms": [item.to_payload() for item in forms],
+                    })
+
+                if method == "POST" and len(parts) == 2:
+                    try:
+                        payload = json.loads(body.decode("utf-8") or "{}")
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        return self._error(400, "PROJECT_FORM_REQUEST_INVALID", "error.request.invalid")
+                    allowed = {
+                        "form_id", "name", "description", "sections", "fields",
+                        "shared_with_user_ids", "shared_with_roles", "approver_user_ids",
+                        "approver_roles", "output_mappings", "requires_approval",
+                        "expected_latest_version",
+                    }
+                    if not isinstance(payload, dict) or set(payload) != allowed:
+                        return self._error(400, "PROJECT_FORM_REQUEST_INVALID", "error.request.invalid")
+                    try:
+                        authorized = self._api.authorize_project(
+                            session_id, project_id, Permission.PROJECT_WRITE, now=now
+                        )
+                        session = self._api.get_session(session_id, now=now)
+                        context = authorized.context
+                        auth = context.authorization_context(session.roles)
+                        sections_raw = payload["sections"]
+                        fields_raw = payload["fields"]
+                        mappings_raw = payload["output_mappings"]
+                        arrays = (
+                            payload["shared_with_user_ids"], payload["shared_with_roles"],
+                            payload["approver_user_ids"], payload["approver_roles"],
+                        )
+                        if (
+                            not isinstance(sections_raw, list)
+                            or not isinstance(fields_raw, list)
+                            or not isinstance(mappings_raw, list)
+                            or any(not isinstance(value, list) for value in arrays)
+                            or not isinstance(payload["description"], str)
+                        ):
+                            return self._error(400, "PROJECT_FORM_REQUEST_INVALID", "error.request.invalid")
+                        sections = []
+                        for item in sections_raw:
+                            if not isinstance(item, dict) or set(item) != {"section_id", "title", "localized_titles"}:
+                                return self._error(400, "PROJECT_FORM_REQUEST_INVALID", "error.request.invalid")
+                            labels = item["localized_titles"]
+                            if not isinstance(labels, dict):
+                                return self._error(400, "PROJECT_FORM_REQUEST_INVALID", "error.request.invalid")
+                            sections.append(FormSectionDefinition(
+                                section_id=item["section_id"],
+                                title=item["title"],
+                                localized_titles=tuple(sorted(labels.items())),
+                            ))
+                        fields = tuple(FormFieldDefinition.from_mapping(item) for item in fields_raw)
+                        mappings = tuple(FormOutputMapping(**item) for item in mappings_raw)
+                        result = self._form_builder_api.create_draft(
+                            BackendScope(context.tenant_id, context.project_id, context.revision),
+                            form_id=payload["form_id"],
+                            name=payload["name"],
+                            description=payload["description"],
+                            sections=tuple(sections),
+                            fields=fields,
+                            shared_with_user_ids=tuple(payload["shared_with_user_ids"]),
+                            shared_with_roles=tuple(payload["shared_with_roles"]),
+                            approver_user_ids=tuple(payload["approver_user_ids"]),
+                            approver_roles=tuple(payload["approver_roles"]),
+                            output_mappings=mappings,
+                            requires_approval=payload["requires_approval"],
+                            actor_id=session.user_id,
+                            auth_context=auth,
+                            expected_latest_version=payload["expected_latest_version"],
+                        )
+                        return self._json(201, result.to_payload())
+                    except (ProjectFormError, TypeError, ValueError):
+                        raise
+
+                if method == "POST" and len(parts) == 5 and parts[4] == "publish":
+                    form_id, version_raw = parts[2], parts[3]
+                    if not version_raw.isdigit() or int(version_raw) < 1:
+                        return self._error(400, "PROJECT_FORM_VERSION_INVALID", "error.request.invalid")
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                    context = authorized.context
+                    form = self._form_builder_api.publish_form(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        form_id, int(version_raw),
+                        auth_context=context.authorization_context(session.roles),
+                    )
+                    return self._json(200, form.to_payload())
+
+                if method == "GET" and len(parts) == 4 and parts[3] == "submissions":
+                    form_id = parts[2]
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                    context = authorized.context
+                    submissions = self._form_builder_api.list_submissions(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        form_id,
+                        auth_context=context.authorization_context(session.roles),
+                    )
+                    return self._json(200, {
+                        "contract_version": "project-form.submission-list.v1",
+                        "submissions": [item.to_payload() for item in submissions],
+                    })
+
+                if method == "POST" and len(parts) == 6 and parts[3] == "submissions" and parts[5] == "review":
+                    form_id, submission_id = parts[2], parts[4]
+                    try:
+                        payload = json.loads(body.decode("utf-8") or "{}")
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        return self._error(400, "PROJECT_FORM_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                    if (
+                        not isinstance(payload, dict)
+                        or set(payload) != {"approved", "review_note"}
+                        or not isinstance(payload.get("approved"), bool)
+                        or (payload.get("review_note") is not None and not isinstance(payload.get("review_note"), str))
+                    ):
+                        return self._error(400, "PROJECT_FORM_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                    context = authorized.context
+                    reviewed = self._form_builder_api.review_submission(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        submission_id,
+                        approved=payload["approved"],
+                        review_note=payload["review_note"],
+                        auth_context=context.authorization_context(session.roles),
+                    )
+                    return self._json(200, reviewed.to_payload())
+
+                return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+
             if path.startswith("/api/projects/") and "/ai/assistant/turn" in path:
                 parts = path[len("/api/projects/"):].split("/")
                 if len(parts) != 4 or not parts[0] or parts[1:] != ["ai", "assistant", "turn"]:
