@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 from decimal import Decimal
 from dataclasses import asdict, fields as dataclass_fields
 from datetime import date, datetime, time, timezone
 from typing import Callable, Mapping, Protocol
+from uuid import uuid4
 
 from ..application.authorization import AuthorizationError, Permission
 from ..change_claim_api import (
@@ -15,6 +17,15 @@ from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, AIActionRuntimeError
+from ..ai_action_runtime import AIActionTransactionManager
+from ..ai_learning_memory import (
+    AILearningMemoryRecord,
+    LearningRetrievalScope,
+    LearningScope,
+    LearningSignalKind,
+    LearningStatus,
+)
+from ..ai_learning_memory_repository import AILearningMemoryRepository
 from ..ai_assistant_orchestration import (
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
@@ -177,6 +188,8 @@ class ProjectLifecycleHttpRoutes:
         ai_action_runtime: AIActionRuntime | None = None,
         ai_assistant_orchestrator: AIAssistantTurnOrchestrator | None = None,
         form_builder_api: FormBuilderAPI | None = None,
+        ai_learning_memory_repository: AILearningMemoryRepository | None = None,
+        ai_learning_memory_transaction_manager: AIActionTransactionManager | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -210,6 +223,8 @@ class ProjectLifecycleHttpRoutes:
         self._ai_action_runtime = ai_action_runtime
         self._ai_assistant_orchestrator = ai_assistant_orchestrator
         self._form_builder_api = form_builder_api
+        self._ai_learning_memory_repository = ai_learning_memory_repository
+        self._ai_learning_memory_transaction_manager = ai_learning_memory_transaction_manager
 
     def handle(
         self,
@@ -2593,7 +2608,10 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 if method != "POST":
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
-                if self._ai_action_runtime is None or self._ai_assistant_orchestrator is None:
+                if (
+                    self._ai_learning_memory_repository is None
+                    and (self._ai_action_runtime is None or self._ai_assistant_orchestrator is None)
+                ):
                     return self._error(503, "AI_ASSISTANT_NOT_CONFIGURED", "error.ai_assistant.not_configured")
                 # Bound parsing work before decoding attacker-controlled JSON.
                 if len(body) > 128_000:
@@ -2672,17 +2690,111 @@ class ProjectLifecycleHttpRoutes:
                     roles=session.roles,
                 )
                 if expected_revision != context.revision:
-                    self._ai_action_runtime.record_request_event(
-                        runtime_context,
-                        "assistant_turn_stale_revision",
-                        metadata={
-                            "expected_revision": expected_revision,
-                            "current_revision": context.revision,
-                        },
-                    )
+                    if self._ai_action_runtime is not None:
+                        self._ai_action_runtime.record_request_event(
+                            runtime_context,
+                            "assistant_turn_stale_revision",
+                            metadata={
+                                "expected_revision": expected_revision,
+                                "current_revision": context.revision,
+                            },
+                        )
                     return self._error(
                         409, "AI_ASSISTANT_STALE_REVISION", "error.conflict.stale_revision"
                     )
+
+                # A deliberate /remember command stores only lesson text, not the transcript.
+                # Private memory capture is deterministic and works without an inference provider.
+                memory_prefixes = ("/remember", "/یادبگیر")
+                memory_command = next(
+                    (
+                        prefix for prefix in memory_prefixes
+                        if message.strip().casefold() == prefix.casefold()
+                        or message.strip().casefold().startswith(prefix.casefold() + " ")
+                    ),
+                    None,
+                )
+                if memory_command is not None:
+                    if self._ai_learning_memory_repository is None:
+                        return self._error(503, "AI_LEARNING_MEMORY_NOT_CONFIGURED", "error.ai_learning.not_configured")
+                    lesson = message.strip()[len(memory_command):].strip()
+                    if not lesson:
+                        hint = (
+                            "Use /remember followed by the private lesson to save, for example: /remember Explain scheduling concepts step by step."
+                            if language.strip().lower().startswith("en")
+                            else "برای ذخیره، دستور /remember را همراه متن درس خصوصی بنویسید؛ مثلاً: /remember مفاهیم زمان‌بندی را مرحله‌به‌مرحله توضیح بده."
+                        )
+                        return self._json(200, {
+                            "contract_version": "ai-assistant-turn.v1",
+                            "kind": "clarification",
+                            "message": hint,
+                            "proposal": None,
+                        })
+                    if len(lesson) < 8 or len(lesson) > 1200:
+                        return self._error(400, "AI_LEARNING_MEMORY_TEXT_INVALID", "error.request.invalid")
+                    if re.search(
+                        r"(?i)(?:\b(?:password|passwd|secret|api[_ -]?key|access[_ -]?token)\s*[:=]\s*\S+|\bbearer\s+[A-Za-z0-9._~-]{16,}|\bsk-[A-Za-z0-9]{16,})",
+                        lesson,
+                    ):
+                        return self._error(400, "AI_LEARNING_MEMORY_MUST_NOT_CONTAIN_CREDENTIALS", "error.request.invalid")
+                    manager = self._ai_learning_memory_transaction_manager
+                    if manager is None:
+                        return self._error(503, "AI_LEARNING_TRANSACTION_NOT_CONFIGURED", "error.ai_learning.not_configured")
+                    repository_connection = getattr(self._ai_learning_memory_repository, "connection", None)
+                    manager_connection = getattr(manager, "connection", None)
+                    if (
+                        repository_connection is not None
+                        and manager_connection is not None
+                        and repository_connection is not manager_connection
+                    ):
+                        return self._error(503, "AI_LEARNING_TRANSACTION_CONNECTION_MISMATCH", "error.ai_learning.not_configured")
+                    record_id = str(uuid4())
+                    happened_at = now.astimezone(timezone.utc)
+                    memory_record = AILearningMemoryRecord(
+                        record_id=record_id,
+                        record_version=1,
+                        scope=LearningScope.USER_PRIVATE,
+                        status=LearningStatus.CAPTURED,
+                        signal_kind=LearningSignalKind.USER_FEEDBACK,
+                        lesson=lesson,
+                        conditions="Explicitly saved by the authenticated user through the /remember command.",
+                        limitations="Private preference/lesson only; not a verified project fact or general engineering standard. Revalidate when context changes.",
+                        evidence_refs=(f"explicit-user-memory-capture:{record_id}",),
+                        captured_at=happened_at,
+                        updated_at=happened_at,
+                        owner_user_id=session.user_id,
+                    )
+                    try:
+                        with manager.transaction():
+                            self._ai_learning_memory_repository.append(memory_record)
+                            if self._ai_action_runtime is not None:
+                                self._ai_action_runtime.record_request_event(
+                                    runtime_context,
+                                    "assistant_learning_memory_captured",
+                                    metadata={
+                                        "record_id": record_id,
+                                        "record_version": 1,
+                                        "scope": LearningScope.USER_PRIVATE.value,
+                                        "lesson_length": len(lesson),
+                                    },
+                                )
+                    except Exception:
+                        return self._error(500, "AI_LEARNING_MEMORY_CAPTURE_FAILED", "error.ai_learning.capture_failed")
+                    response_message = (
+                        "Saved to your private assistant memory. It will be reused for your own future conversations only; it was not shared as general knowledge."
+                        if language.strip().lower().startswith("en")
+                        else "در حافظهٔ خصوصی دستیار شما ذخیره شد و فقط در گفت‌وگوهای آیندهٔ خودتان استفاده می‌شود؛ به دانش عمومی یا کاربران دیگر منتشر نشد."
+                    )
+                    return self._json(200, {
+                        "contract_version": "ai-assistant-turn.v1",
+                        "kind": "message",
+                        "message": response_message,
+                        "proposal": None,
+                    })
+
+                if self._ai_action_runtime is None or self._ai_assistant_orchestrator is None:
+                    return self._error(503, "AI_ASSISTANT_NOT_CONFIGURED", "error.ai_assistant.not_configured")
+
                 # Audit metadata only; never persist the user's prompt as part of an audit event.
                 self._ai_action_runtime.record_request_event(
                     runtime_context,
