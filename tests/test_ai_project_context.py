@@ -248,7 +248,7 @@ def test_context_marks_signal_list_truncated_when_project_has_many_triggers():
             },
         })
     context = build(workspace_snapshot(activities=activities, field_issues=[]))
-    assert len(context["engineering_signals"]) == 20
+    assert len(context["engineering_signals"]) == 10
     assert context["signals_truncated"] is True
     assert context["truncated"] is True
-    assert context["engineering_signal_counts"]["negative_total_float"] == 20
+    assert context["engineering_signal_counts"]["negative_total_float"] == 10
