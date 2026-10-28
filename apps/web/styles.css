@@ -2777,7 +2777,11 @@ th {
   object-position: center;
   opacity: 1;
   visibility: visible;
-  filter: none;
+  /* The supplied raster logo has a black matte baked into the image.
+     Screen blending suppresses that matte against light/dark site surfaces;
+     brightness lifts the dark wordmark so it remains legible. */
+  mix-blend-mode: screen;
+  filter: brightness(2.35) contrast(1.08);
 }
 .cubi-reference-footer .cubi-reference-brand img {
   width: clamp(118px, 14vw, 150px);
