@@ -355,3 +355,57 @@ def test_authenticated_activity_create_requires_existing_wbs_assignment():
     assert status == "400 Bad Request"
     assert response["code"] == "WBS_REQUIRED"
     connection.close()
+
+
+def test_authenticated_wbs_delete_rejects_stale_revision_and_assigned_activity():
+    app, _repository, connection = _app()
+    wbs_path = "/api/projects/p1/p6/wbs"
+    root_status, root_response = _request(
+        app,
+        "POST",
+        wbs_path,
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-ROOT",
+            "parent_kind": "project",
+            "parent_wbs_id": None,
+            "code": "1",
+            "name": "Project Root",
+            "sequence_number": 0,
+        },
+    )
+    assert root_status == "201 Created"
+    activity_status, activity_response = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "A-1",
+            "name": "Assigned Activity",
+            "duration_value": "1",
+            "duration_unit": "working-day",
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert activity_status == "201 Created"
+    assert activity_response["activity"]["wbs_id"] == "W-ROOT"
+
+    stale_status, stale_response = _request(
+        app,
+        "DELETE",
+        wbs_path + "/W-ROOT",
+        {"contract_version": P6_WBS_MASTER_API_VERSION, "expected_revision": 2},
+    )
+    assert stale_status == "409 Conflict"
+    assert stale_response["code"] == "REVISION_CONFLICT"
+
+    in_use_status, in_use_response = _request(
+        app,
+        "DELETE",
+        wbs_path + "/W-ROOT",
+        {"contract_version": P6_WBS_MASTER_API_VERSION, "expected_revision": 1},
+    )
+    assert in_use_status == "409 Conflict"
+    assert in_use_response["code"] == "WBS_IN_USE"
+    connection.close()
