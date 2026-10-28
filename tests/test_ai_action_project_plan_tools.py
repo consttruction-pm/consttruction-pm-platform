@@ -639,7 +639,7 @@ def test_preview_form_builder_shared_worker_submits_without_opening_project_and_
 
         # A form-only route must never resolve/open the whole project. Share access is
         # checked against the authenticated session identity and the exact published form.
-        routes_api = runtime.app.routes._api
+        routes_api = runtime.app._routes._api
         original_open_project = routes_api.open_project
 
         def forbid_open_project(*args, **kwargs):
