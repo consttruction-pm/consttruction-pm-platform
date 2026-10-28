@@ -1,7 +1,7 @@
 import type { ApiTransport, ApiResult, ProjectContext } from "./client.js";
 
 export const PROJECT_FORM_CONTRACT_VERSION = "project-form.v1";
-export type ProjectFormFieldType = "text" | "number" | "select";
+export type ProjectFormFieldType = "text" | "number" | "date" | "boolean" | "select";
 
 export type ProjectFormField = {
   field_id: string;
@@ -56,7 +56,7 @@ export type ProjectFormSubmission = {
   form_id: string;
   form_version: number;
   submitted_by: string;
-  answers: Readonly<Record<string, string>>;
+  answers: Readonly<Record<string, string | boolean | null>>;
   status: "pending_approval" | "approved" | "rejected";
   submitted_at: string;
   reviewed_by: string | null;
@@ -138,7 +138,7 @@ function scope(value: unknown, context: ProjectContext): ProjectFormDefinition["
 function projectField(value: unknown): ProjectFormField {
   const raw = record(value, "PROJECT_FORM_FIELD_INVALID");
   const fieldType = text(raw.field_type, "PROJECT_FORM_FIELD_TYPE_INVALID");
-  if (fieldType !== "text" && fieldType !== "number" && fieldType !== "select") {
+  if (fieldType !== "text" && fieldType !== "number" && fieldType !== "date" && fieldType !== "boolean" && fieldType !== "select") {
     invalid("PROJECT_FORM_FIELD_TYPE_UNSUPPORTED");
   }
   const optionalInteger = (item: unknown, code: string): number | null => {
@@ -229,7 +229,7 @@ function projectSubmission(value: unknown, context: ProjectContext): ProjectForm
     invalid("PROJECT_FORM_SUBMISSION_STATUS_INVALID");
   }
   const answersRaw = record(raw.answers, "PROJECT_FORM_ANSWERS_INVALID");
-  if (Object.values(answersRaw).some((answer) => typeof answer !== "string")) invalid("PROJECT_FORM_ANSWERS_INVALID");
+  if (Object.values(answersRaw).some((answer) => answer !== null && typeof answer !== "string" && typeof answer !== "boolean")) invalid("PROJECT_FORM_ANSWERS_INVALID");
   if (typeof raw.form_version !== "number" || !Number.isSafeInteger(raw.form_version) || raw.form_version < 1) {
     invalid("PROJECT_FORM_VERSION_INVALID");
   }
@@ -240,7 +240,7 @@ function projectSubmission(value: unknown, context: ProjectContext): ProjectForm
     form_id: text(raw.form_id, "PROJECT_FORM_ID_INVALID"),
     form_version: raw.form_version,
     submitted_by: text(raw.submitted_by, "PROJECT_FORM_SUBMITTED_BY_INVALID"),
-    answers: answersRaw as Record<string, string>,
+    answers: answersRaw as Record<string, string | boolean | null>,
     status,
     submitted_at: text(raw.submitted_at, "PROJECT_FORM_SUBMITTED_AT_INVALID"),
     reviewed_by: optionalText(raw.reviewed_by, "PROJECT_FORM_REVIEWED_BY_INVALID"),
@@ -263,7 +263,7 @@ export type ProjectFormsClient = {
   listSubmissions(formId: string): Promise<readonly ProjectFormSubmission[]>;
   reviewSubmission(formId: string, submissionId: string, approved: boolean, reviewNote: string | null): Promise<ProjectFormSubmission>;
   getSharedForm(formId: string, version: number): Promise<ProjectFormDefinition>;
-  submitSharedForm(formId: string, version: number, submissionId: string, answers: Readonly<Record<string, string>>): Promise<ProjectFormSubmission>;
+  submitSharedForm(formId: string, version: number, submissionId: string, answers: Readonly<Record<string, string | boolean>>): Promise<ProjectFormSubmission>;
 };
 
 export function createProjectFormsClient(transport: ApiTransport, context: ProjectContext): ProjectFormsClient {
