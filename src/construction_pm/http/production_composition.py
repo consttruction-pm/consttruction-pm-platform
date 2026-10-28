@@ -31,6 +31,7 @@ from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnaps
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
 from construction_pm.project_forms import FormBuilderAPI
+from construction_pm.ai_learning_memory_repository import AILearningMemoryRepository
 from construction_pm.ai_action_runtime import (
     AIActionRuntime,
     AIActionRuntimeError,
@@ -71,6 +72,7 @@ def build_project_lifecycle_wsgi_app(
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
     ai_assistant_provider: AIChatProvider | None = None,
     form_builder_api: FormBuilderAPI | None = None,
+    ai_learning_memory_repository: AILearningMemoryRepository | None = None,
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
@@ -165,6 +167,7 @@ def build_project_lifecycle_wsgi_app(
         ai_assistant_orchestrator = AIAssistantTurnOrchestrator(
             provider=ai_assistant_provider,
             action_runtime=ai_action_runtime,
+            learning_memory_repository=ai_learning_memory_repository,
         )
 
     activity_master_api = (
