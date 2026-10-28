@@ -224,7 +224,7 @@ def _engineering_signals(
 
     def add(signal: dict[str, object]) -> None:
         nonlocal signals_truncated
-        if len(signals) < 20:
+        if len(signals) < 10:
             signals.append(signal)
         else:
             signals_truncated = True
@@ -282,7 +282,7 @@ def _engineering_signals(
             status = record.get("status")
             if not isinstance(status, str) or status.strip().casefold() not in statuses:
                 continue
-            if len(signals) >= 20:
+            if len(signals) >= 10:
                 signals_truncated = True
                 break
             evidence_id = _record_id(record)
@@ -310,9 +310,7 @@ def _engineering_signals(
                     "severity": severity.strip()[:80],
                 }
             add(evidence)
-        if len(signals) >= 20 and raw_records:
-            signals_truncated = True
-
+        
     counts: dict[str, int] = {}
     for signal in signals:
         signal_type = str(signal["signal_type"])
