@@ -68,7 +68,7 @@ class FakeAssistantProvider:
         return self.result
 
 
-def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), assistant_provider=None, memory_enabled=True):
+def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), assistant_provider=None, memory_enabled=True, research_service=None):
     now = datetime(2026, 10, 23, 12, 0, tzinfo=timezone.utc)
     session = AuthenticatedSession("session-1", "u1", "t1", frozenset(roles), now + timedelta(hours=1))
     api = ProjectLifecycleAPI(ProjectLifecycleService(Sessions(session), Projects(), default_project_policy()))
@@ -122,6 +122,7 @@ def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), as
         ai_assistant_orchestrator=assistant,
         ai_learning_memory_repository=memory_repository,
         ai_learning_memory_transaction_manager=memory_transactions,
+        ai_learning_research_service=research_service,
     )
     return routes, conn, executed
 
@@ -494,5 +495,58 @@ def test_remember_command_does_not_make_normal_assistant_messages_available_with
         })
         assert status == 503
         assert json.loads(body)["code"] == "AI_ASSISTANT_NOT_CONFIGURED"
+    finally:
+        conn.close()
+
+
+def test_research_command_saves_review_candidate_only_and_requires_project_write():
+    class FakeResearchService:
+        def __init__(self):
+            self.urls = []
+
+        def ingest(self, url):
+            self.urls.append(url)
+            return type("Candidate", (), {
+                "record_id": "research-test-001",
+                "title": "Construction schedule risk",
+                "source_url": url,
+                "status": "candidate",
+            })()
+
+    service = FakeResearchService()
+    routes, conn, executed = build_routes(
+        runtime_enabled=False, memory_enabled=True, research_service=service
+    )
+    try:
+        url = "https://example.com/construction-schedule-risk"
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2,
+            "message": "/research " + url,
+            "language": "en",
+        })
+        assert status == 200, body.decode("utf-8")
+        response = json.loads(body)
+        assert response["kind"] == "message"
+        assert "review-only knowledge candidate" in response["message"]
+        assert service.urls == [url]
+        assert executed == []
+    finally:
+        conn.close()
+
+    readonly_service = FakeResearchService()
+    routes, conn, _ = build_routes(
+        runtime_enabled=False,
+        roles=frozenset({"viewer"}),
+        memory_enabled=True,
+        research_service=readonly_service,
+    )
+    try:
+        status, _, body = request(routes, "/api/projects/p1/ai/assistant/turn", {
+            "expected_revision": 2,
+            "message": "/research https://example.com/article",
+            "language": "en",
+        })
+        assert status == 403
+        assert readonly_service.urls == []
     finally:
         conn.close()
