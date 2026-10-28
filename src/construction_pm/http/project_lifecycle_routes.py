@@ -27,6 +27,7 @@ from ..ai_learning_memory import (
 )
 from ..ai_learning_memory_repository import AILearningMemoryRepository
 from ..ai_learning_research import AILearningResearchError, AILearningResearchService
+from ..ai_learning_knowledge_admin import AILearningKnowledgeAdminError, AILearningKnowledgeAdminService
 from ..ai_assistant_orchestration import (
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
@@ -192,6 +193,7 @@ class ProjectLifecycleHttpRoutes:
         ai_learning_memory_repository: AILearningMemoryRepository | None = None,
         ai_learning_memory_transaction_manager: AIActionTransactionManager | None = None,
         ai_learning_research_service: AILearningResearchService | None = None,
+        ai_learning_knowledge_admin_service: AILearningKnowledgeAdminService | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -228,6 +230,7 @@ class ProjectLifecycleHttpRoutes:
         self._ai_learning_memory_repository = ai_learning_memory_repository
         self._ai_learning_memory_transaction_manager = ai_learning_memory_transaction_manager
         self._ai_learning_research_service = ai_learning_research_service
+        self._ai_learning_knowledge_admin_service = ai_learning_knowledge_admin_service
 
     def handle(
         self,
@@ -258,6 +261,95 @@ class ProjectLifecycleHttpRoutes:
                     "roles": sorted(response.roles),
                     "expires_at": response.expires_at.isoformat(),
                 })
+            if path == "/api/ai/learning/candidates":
+                if method != "GET":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                session = self._api.get_session(session_id, now=now)
+                if not ({"ai_knowledge_admin", "system_admin"} & set(session.roles)):
+                    return self._error(403, "AI_LEARNING_ADMIN_NOT_AUTHORIZED", "error.authorization.denied")
+                if self._ai_learning_knowledge_admin_service is None:
+                    return self._error(503, "AI_LEARNING_ADMIN_NOT_CONFIGURED", "error.ai_learning.admin_not_configured")
+                try:
+                    records = self._ai_learning_knowledge_admin_service.list_candidates()
+                except AILearningKnowledgeAdminError as exc:
+                    return self._error(500, exc.code, "error.ai_learning.candidate_list_failed")
+                return self._json(200, {
+                    "contract_version": "ai-learning-candidates.v1",
+                    "candidates": [self._ai_learning_record_payload(record) for record in records],
+                    "count": len(records),
+                })
+
+            if path.startswith("/api/ai/learning/candidates/"):
+                parts = path.strip("/").split("/")
+                if len(parts) != 7 or parts[:4] != ["api", "ai", "learning", "candidates"] or parts[6] != "decision":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if method != "POST":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                session = self._api.get_session(session_id, now=now)
+                if not ({"ai_knowledge_admin", "system_admin"} & set(session.roles)):
+                    return self._error(403, "AI_LEARNING_ADMIN_NOT_AUTHORIZED", "error.authorization.denied")
+                if self._ai_learning_knowledge_admin_service is None:
+                    return self._error(503, "AI_LEARNING_ADMIN_NOT_CONFIGURED", "error.ai_learning.admin_not_configured")
+                if len(body) > 32_000:
+                    return self._error(400, "AI_LEARNING_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "AI_LEARNING_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict) or not isinstance(payload.get("decision"), str):
+                    return self._error(400, "AI_LEARNING_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                decision = payload["decision"]
+                if decision == "approve":
+                    expected = {
+                        "decision", "privacy_review_passed", "consent_for_generalization",
+                        "validation_evidence_refs",
+                    }
+                    refs = payload.get("validation_evidence_refs")
+                    if (
+                        set(payload) != expected
+                        or payload.get("privacy_review_passed") is not True
+                        or payload.get("consent_for_generalization") is not True
+                        or not isinstance(refs, list)
+                        or any(not isinstance(item, str) for item in refs)
+                    ):
+                        return self._error(400, "AI_LEARNING_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                    privacy_review_passed = True
+                    consent_for_generalization = True
+                    validation_refs = tuple(refs)
+                elif decision == "reject":
+                    if set(payload) != {"decision"}:
+                        return self._error(400, "AI_LEARNING_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                    privacy_review_passed = False
+                    consent_for_generalization = False
+                    validation_refs = ()
+                else:
+                    return self._error(400, "AI_LEARNING_REVIEW_DECISION_INVALID", "error.request.invalid")
+                version_raw = parts[5]
+                if not version_raw.isdigit() or int(version_raw) < 1:
+                    return self._error(400, "AI_LEARNING_RECORD_VERSION_INVALID", "error.request.invalid")
+                record_id = parts[4]
+                try:
+                    record = self._ai_learning_knowledge_admin_service.decide(
+                        record_id,
+                        int(version_raw),
+                        decision=decision,
+                        actor_user_id=session.user_id,
+                        privacy_review_passed=privacy_review_passed,
+                        consent_for_generalization=consent_for_generalization,
+                        validation_evidence_refs=validation_refs,
+                    )
+                except AILearningKnowledgeAdminError as exc:
+                    status = (
+                        409 if exc.code == "AI_LEARNING_CANDIDATE_NOT_FOUND_OR_STALE"
+                        else 500 if any(token in exc.code for token in ("PERSISTENCE", "READBACK", "FAILED"))
+                        else 400
+                    )
+                    return self._error(status, exc.code, "error.ai_learning.review_failed")
+                return self._json(200, {
+                    "contract_version": "ai-learning-review-decision.v1",
+                    "record": self._ai_learning_record_payload(record),
+                })
+
             if method == "GET" and path == "/api/projects":
                 response = self._api.list_projects(session_id, now=now)
                 return self._json(200, {
@@ -3182,6 +3274,35 @@ class ProjectLifecycleHttpRoutes:
             return self._error(400, str(exc), "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return self._error(400, str(exc) or "INVALID_REQUEST", "error.request.invalid")
+
+    @staticmethod
+    def _ai_learning_record_payload(record: AILearningMemoryRecord) -> dict[str, object]:
+        conditions = record.conditions
+        title = record.record_id
+        title_marker = "Source title: "
+        fetched_marker = ". Source fetched at "
+        if title_marker in conditions:
+            candidate_title = conditions.split(title_marker, 1)[1]
+            title = candidate_title.split(fetched_marker, 1)[0].strip() or title
+        return {
+            "record_id": record.record_id,
+            "record_version": record.record_version,
+            "title": title[:180],
+            "scope": record.scope.value,
+            "status": record.status.value,
+            "signal_kind": record.signal_kind.value,
+            "lesson": record.lesson,
+            "conditions": record.conditions,
+            "limitations": record.limitations,
+            "evidence_refs": list(record.evidence_refs),
+            "validation_evidence_refs": list(record.validation_evidence_refs),
+            "captured_at": record.captured_at.isoformat(),
+            "updated_at": record.updated_at.isoformat(),
+            "privacy_review_passed": record.privacy_review_passed,
+            "consent_for_generalization": record.consent_for_generalization,
+            "approved_by": record.approved_by,
+            "approved_at": None if record.approved_at is None else record.approved_at.isoformat(),
+        }
 
     @staticmethod
     def _json(status: int, payload: object) -> tuple[int, dict[str, str], bytes]:
