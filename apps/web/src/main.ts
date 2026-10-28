@@ -43,6 +43,7 @@ import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
+import { mountProjectFormsPanel } from "./project-forms-panel.js";
 
 type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
 
@@ -479,6 +480,7 @@ function renderApp(
     state.activities,
   );
   mountCapacityPanel(workspace, aiTransport, state.context, state.locale);
+  mountProjectFormsPanel(workspace, aiTransport, state.context, state.locale);
 }
 function renderBootstrapState(
   container: HTMLElement,
