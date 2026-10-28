@@ -200,9 +200,9 @@ test("approved primary logo preserves the canonical vector mark or the exact sup
   // The approved original user-provided artwork is intentionally embedded as an
   // image in SVG so it remains visually unchanged. Older vector lockups remain
   // supported, but the test must not require a redraw into SVG paths.
-  const preservesOriginalArtwork = /<image\\b/.test(primaryLogo) && /href="data:image\\/(?:jpeg|png);base64,/.test(primaryLogo);
+  const preservesOriginalArtwork = /<image\b/.test(primaryLogo) && /href="data:image\/(?:jpeg|png);base64,/.test(primaryLogo);
   const isLegacyVectorLockup =
-    /Plan\\. Control\\. Build Smarter\\./.test(primaryLogo) &&
+    /Plan\. Control\. Build Smarter\./.test(primaryLogo) &&
     /<path d="M250 109L156 62/.test(primaryLogo) &&
     /stop-color="#2CC5EB"/.test(primaryLogo) &&
     /viewBox="0 0 1000 330"/.test(primaryLogo);
