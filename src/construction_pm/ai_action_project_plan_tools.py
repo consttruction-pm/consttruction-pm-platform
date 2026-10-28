@@ -40,7 +40,6 @@ from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.relationship_master_repository import RelationshipMaster
-from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
 
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$")
@@ -310,44 +309,10 @@ def build_project_plan_create_tool(
             auth_context=auth,
         )
 
-        root_wbs_id = f"WBS-{new_project_id}"
-        root_wbs = repositories.wbs.get(scope, root_wbs_id)
-        if root_wbs is None:
-            root_wbs = repositories.wbs.save(
-                WBSMaster(
-                    scope=scope,
-                    wbs_id=root_wbs_id,
-                    parent_kind=WBSParentKind.PROJECT,
-                    parent_wbs_id=None,
-                    code="1",
-                    name=str(plan["name"]),
-                    sequence_number=0,
-                ),
-                expected_revision=0,
-            )
-        wbs_by_label: dict[str, str] = {}
-        for sequence, label in enumerate(dict.fromkeys(str(row["wbs"]) for row in plan["activities"]), start=1):
-            slug = re.sub(r"[^A-Za-z0-9]+", "-", label).strip("-").upper()[:24] or "GROUP"
-            wbs_id = f"WBS-{new_project_id}-{sequence}"
-            stored_wbs = repositories.wbs.save(
-                WBSMaster(
-                    scope=scope,
-                    wbs_id=wbs_id,
-                    parent_kind=WBSParentKind.WBS,
-                    parent_wbs_id=root_wbs.wbs_id,
-                    code=f"{sequence:02d}-{slug}",
-                    name=label,
-                    sequence_number=sequence,
-                ),
-                expected_revision=0,
-            )
-            wbs_by_label[label] = stored_wbs.wbs_id
-
         for row in plan["activities"]:
             activity = ActivityMaster(
                 scope=scope,
                 activity_id=str(row["activity_id"]),
-                wbs_id=wbs_by_label[str(row["wbs"])],
                 duration_value=Decimal(int(row["duration_working_days"])),
                 duration_unit=DurationUnit.WORKING_DAY,
                 original_duration=int(row["duration_working_days"]),
