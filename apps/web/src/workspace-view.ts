@@ -100,7 +100,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.menu) return void options.onMenuSelect?.(target.dataset.menu as WorkspaceState["activeMenu"]);
     if (target.dataset.activitySortDirection !== undefined) return void options.onActivitySortDirectionToggle?.();
     if (target.dataset.wbsId) return void options.onWbsSelect?.(target.dataset.wbsId);
-    if ("wbsDelete" in target.dataset) return void options.onWbsDelete?.(state.selectedWbsId ?? "");
+    if ("wbsDelete" in target.dataset) { const selectedId = state.selectedWbsId ?? ""; if (selectedId && window.confirm(getWorkspaceLabels(state.locale).wbsDeleteConfirm)) void options.onWbsDelete?.(selectedId); return; }
     if ("p6LayoutUndo" in target.dataset) return void options.onP6LayoutUndo?.();
     if ("p6LayoutRedo" in target.dataset) return void options.onP6LayoutRedo?.();
     if ("p6LayoutRestore" in target.dataset) {
