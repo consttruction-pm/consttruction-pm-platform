@@ -15,6 +15,13 @@ test("workspace navigation exposes every V1 main menu surface", () => {
   );
 });
 
+test("project navigation exposes the actual project Form Builder surface", () => {
+  const item = getWorkspaceNavigation("project");
+  assert.equal(item.status, "partial");
+  assert.equal(item.submenus.at(-1)?.en, "Form Builder");
+  assert.equal(item.submenus.at(-1)?.fa, "فرم‌ساز");
+});
+
 test("schedule navigation exposes run controls and every reference section", () => {
   const item = getWorkspaceNavigation("schedule");
 
