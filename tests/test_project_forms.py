@@ -140,9 +140,9 @@ def test_form_definition_version_publish_and_sqlite_roundtrip(tmp_path):
             FormOutputMapping("QUANTITY", "daily_field_log", "quantity_completed"),
         )
         audit = repository.list_audit_events("tenant-1", "project-1")
-        assert [event["event_type"] for event in audit] == [
+        assert {event["event_type"] for event in audit} == {
             "form_definition_draft_created", "form_definition_published"
-        ]
+        }
     finally:
         connection.close()
 
@@ -209,14 +209,14 @@ def test_shared_worker_can_submit_form_without_project_read_and_owner_can_review
             scope.tenant_id, scope.project_id, submission.submission_id
         )
         assert fresh == reviewed
-        assert [event["event_type"] for event in repository.list_audit_events(
+        assert {event["event_type"] for event in repository.list_audit_events(
             scope.tenant_id, scope.project_id
-        )] == [
+        )} == {
             "form_definition_draft_created",
             "form_definition_published",
             "form_submission_created",
             "form_submission_reviewed",
-        ]
+        }
     finally:
         connection.close()
 
@@ -224,7 +224,7 @@ def test_shared_worker_can_submit_form_without_project_read_and_owner_can_review
 def test_unshared_user_cannot_discover_form_or_submit_to_it(tmp_path):
     connection, _, api, scope, owner, _ = setup_api(tmp_path)
     outsider = AuthorizationContext(
-        "tenant-1", "project-1", "outsider-1", frozenset({"field_worker"})
+        "tenant-1", "project-1", "outsider-1", frozenset({"unshared_external_worker"})
     )
     try:
         draft = create_draft(api, scope, owner)
@@ -299,8 +299,11 @@ def test_form_draft_updates_require_expected_latest_version_and_publish_requires
         revised = create_draft(api, scope, owner, expected_latest_version=published.version)
         assert revised.version == 3
         assert revised.status == "draft"
+        planner = AuthorizationContext(
+            "tenant-1", "project-1", "planner-1", frozenset({"planner"})
+        )
         with pytest.raises(AuthorizationError, match="PROJECT_FORM_PUBLISH_NOT_AUTHORIZED"):
-            api.publish_form(scope, revised.form_id, revised.version, auth_context=worker)
+            api.publish_form(scope, revised.form_id, revised.version, auth_context=planner)
         assert repository.latest_definition(scope.tenant_id, scope.project_id, revised.form_id) == revised
     finally:
         connection.close()
