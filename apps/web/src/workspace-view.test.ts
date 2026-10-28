@@ -37,6 +37,40 @@ test("WBS panel renders localized create controls and permits creating a project
   assert.match(persian, /ریشهٔ پروژه/);
 });
 
+test("WBS create form dispatches validated fields to its workspace callback", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  let created: { code: string; name: string; sequenceNumber: number; parentWbsId: string | null } | null = null;
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    { onWbsCreate: (input) => { created = input; } },
+  );
+  const values: Record<string, { value: string }> = {
+    '[name="code"]': { value: "  STR-01 " },
+    '[name="name"]': { value: " Structure " },
+    '[name="sequence_number"]': { value: "4" },
+    '[name="parent_wbs_id"]': { value: "WBS-ROOT" },
+  };
+  const form = {
+    matches: (selector: string) => selector === "[data-wbs-create-form]",
+    querySelector: (selector: string) => values[selector] ?? null,
+  };
+  let prevented = false;
+  listeners.get("submit")?.({ target: form, preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.deepEqual(created, {
+    code: "STR-01",
+    name: "Structure",
+    sequenceNumber: 4,
+    parentWbsId: "WBS-ROOT",
+  });
+});
+
 test("rendered schedule surface exposes localized label and implemented status", () => {
   const html = render("en", "schedule");
 
