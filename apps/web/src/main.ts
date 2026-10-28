@@ -206,6 +206,12 @@ function renderApp(
     console.error("WBS mutation failed", error);
     const message = error instanceof Error ? error.message : "WBS_MUTATION_FAILED";
     const currentStatus = container.querySelector<HTMLElement>(".cp-app-status");
+    const panel = container.querySelector<HTMLElement>("#cp-project-wbs");
+    if (panel) {
+      let notice = panel.querySelector<HTMLElement>("[data-wbs-error]");
+      if (!notice) { notice = document.createElement("p"); notice.dataset.wbsError = "true"; notice.setAttribute("role", "alert"); panel.append(notice); }
+      notice.textContent = message;
+    }
     if (currentStatus) currentStatus.dataset.wbsError = message;
   };
   const refreshWorkspaceAfterWbsMutation = async (selectedWbsId: string | null): Promise<void> => {
@@ -470,7 +476,7 @@ function renderApp(
       }
     },
     onWbsDelete: async (wbsId) => {
-      if (!wbsId || !window.confirm("Delete this WBS node? Nodes with children or assigned activities cannot be deleted.")) return;
+      if (!wbsId) return;
       try {
         const node = state.wbsNodes.find((item) => item.id === wbsId);
         if (!node) throw new Error("WBS_NOT_FOUND");
