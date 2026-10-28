@@ -51,7 +51,8 @@ the process restarts.
 | --- | --- |
 | Web client | Built CUBI Web assets (`apps/web/dist/...`) served by the preview. |
 | HTTP | Real `ProjectLifecycleWsgiApp` routes, not a mock server. |
-| Persistence | Real SQLite repositories for activities, relationships, calendars, settings, layouts, field registry, UDFs, snapshots and the mapping registry. |
+| Persistence | Real SQLite repositories for activities, canonical WBS nodes, activity→WBS assignments, relationships, calendars, settings, layouts, field registry, UDFs, snapshots and the mapping registry. |
+| WBS / Activity hierarchy | `wbs_master` stores stable node IDs, parent kind/ID, local code, name, sibling order, optimization revision and record revision; `activity_wbs_assignment` stores the activity link in the same transaction as the activity write. The v2 Workspace Read projects persisted `wbs_nodes` and the linked activity; the browser renders that server tree instead of deriving hierarchy from activity strings. |
 | Calculation | Published immutable snapshot + `POST /api/v1/schedule/query` through the Shared Domain/Calculation Core. Dates, float and critical flags are not computed in the browser. |
 | Presentation | Persisted `p6-layout.v1` revisions and `p6-field-registry.v1` fields; optimistic layout revisions. |
 | Formulas | The workspace formula editor posts expressions to `POST /api/projects/{project}/p6/formulas/{registry_version}`. Parsing, dependency analysis, type inference and fail-closed field-type diagnostics come from the Shared Core; the browser does not evaluate formulas. |
@@ -171,6 +172,20 @@ SQLite database and a real headless browser. It verifies:
   failed-calculation message with zero fabricated result rows;
 - admin-only project creation from the Web form, persisted project name, empty
   activity grid and curated layout;
+- the created project's real WBS tree: a parent and child node created through
+  `POST /api/projects/{project}/p6/wbs`, an activity created through the Activity
+  Master route linked to the child, and a third WBS node with no activities. The
+  v2 Workspace Read and a full browser reload show the same server-returned
+  nodes and link; direct SQLite rows and assignments match the API response;
+- fail-closed writes: a duplicate sibling code, an activity without WBS, an
+  activity pointing at a missing WBS, a WBS parent from another project, a
+  foreign tenant header, a stale revision and an unknown project ID are all
+  rejected without creating records;
+- project isolation: the second fixture project does not expose the created
+  project's WBS IDs or activity;
+- service restart: the WSGI process stops, a new process opens the same SQLite
+  file without `--reset`, the project is reopened from the persisted list after
+  login and the same WBS tree/activity are re-read in the browser and v2 API;
 - first-run journey on the newcomer account with no project membership: the
   empty state is a creation page rather than an error, an empty name is rejected
   inline in the selected language, the created project is returned by
@@ -188,7 +203,7 @@ SQLite database and a real headless browser. It verifies:
   page already shows;
 - no uncaught browser exceptions and no API 5xx responses.
 
-The latest isolated run recorded **69 checks and 37 screenshots**.
+The latest isolated run recorded **72 checks and 40 screenshots**.
 
 Artifacts are written to `apps/web/e2e/artifacts/` (gitignored):
 `01-login.png` through `13-newcomer-first-project.png`, including

@@ -18,7 +18,7 @@ import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { createServer } from "node:net";
 import { createWriteStream, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
@@ -169,6 +169,248 @@ async function writeLayoutFromPage(page, revision, columns, metadata = {}) {
   })()`, { awaitPromise: true });
 }
 
+async function waitForRuntimeStop(url, timeoutMs = 20000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      await fetch(`${url}/preview/health`);
+    } catch {
+      return;
+    }
+    await sleep(200);
+  }
+  throw new Error(`PREVIEW_RUNTIME_DID_NOT_STOP: ${url}`);
+}
+
+async function runWbsActivityJourney(page, projectName) {
+  return page.evaluate(`(async () => {
+    const request = async (url, options = {}) => {
+      const response = await fetch(url, options);
+      const body = await response.json().catch(() => null);
+      return { status: response.status, body };
+    };
+    const session = (await request("/api/session")).body;
+    const projectList = (await request("/api/projects")).body;
+    const project = (projectList.projects || []).find(
+      (item) => item.name === ${JSON.stringify(projectName)},
+    );
+    if (!project) throw new Error("CREATED_PROJECT_NOT_LISTED");
+    const projectBase = "/api/projects/" + encodeURIComponent(project.project_id);
+    const headers = {
+      "Content-Type": "application/json",
+      "X-Tenant-Id": session.tenant_id,
+      "X-Project-Id": project.project_id,
+      "X-Project-Revision": String(project.revision),
+    };
+    const read = (revision = project.revision, tenant = session.tenant_id) =>
+      request("/api/v2/workspace/control-room/read", {
+        headers: {
+          ...headers,
+          "X-Tenant-Id": tenant,
+          "X-Project-Revision": String(revision),
+        },
+      });
+    const initial = await read();
+    if (initial.status !== 200) throw new Error("INITIAL_WORKSPACE_READ_" + initial.status);
+    const initialNodes = initial.body.workspace.wbs_nodes || [];
+    if (initialNodes.length !== 1) throw new Error("INITIAL_ROOT_COUNT_" + initialNodes.length);
+    const root = initialNodes[0];
+    const createWbs = (payload) =>
+      request(projectBase + "/p6/wbs", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+    const site = await createWbs({
+      contract_version: "p6-wbs-master-api.v1",
+      wbs_id: "E2E-WBS-SITE",
+      parent_kind: "wbs",
+      parent_wbs_id: root.wbs_id,
+      code: "2",
+      name: "Site works",
+      sequence_number: 10,
+    });
+    const design = await createWbs({
+      contract_version: "p6-wbs-master-api.v1",
+      wbs_id: "E2E-WBS-DESIGN",
+      parent_kind: "wbs",
+      parent_wbs_id: "E2E-WBS-SITE",
+      code: "2.1",
+      name: "Detailed design",
+      sequence_number: 10,
+    });
+    const noActivity = await createWbs({
+      contract_version: "p6-wbs-master-api.v1",
+      wbs_id: "E2E-WBS-NOACT",
+      parent_kind: "wbs",
+      parent_wbs_id: root.wbs_id,
+      code: "3",
+      name: "No activity package",
+      sequence_number: 20,
+    });
+    const duplicate = await createWbs({
+      contract_version: "p6-wbs-master-api.v1",
+      wbs_id: "E2E-WBS-DUP",
+      parent_kind: "wbs",
+      parent_wbs_id: root.wbs_id,
+      code: "2",
+      name: "Duplicate code",
+      sequence_number: 30,
+    });
+    const activityPayload = {
+      contract_version: "p6-activity-master-api.v1",
+      activity_id: "NEW-100",
+      name: "E2E linked activity",
+      duration_value: "2",
+      duration_unit: "working-day",
+      percent_complete_type: "DURATION",
+      activity_type: "Task Dependent",
+      status: "Not Started",
+      status_code: "Planned",
+      wbs_id: "E2E-WBS-DESIGN",
+      original_duration: 2,
+    };
+    const createdActivity = await request(projectBase + "/p6/activities", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(activityPayload),
+    });
+    const missingWbs = await request(projectBase + "/p6/activities", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...activityPayload, activity_id: "NEW-NO-WBS", wbs_id: null }),
+    });
+    const foreignWbs = await request(projectBase + "/p6/activities", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...activityPayload, activity_id: "NEW-FOREIGN-WBS", wbs_id: "W-MISSING" }),
+    });
+    const list = await request(projectBase + "/p6/wbs", { headers });
+    const after = await read();
+    const other = (projectList.projects || []).find(
+      (item) => item.project_id === "preview-nse-02",
+    );
+    const otherHeaders = {
+      ...headers,
+      "X-Project-Id": other.project_id,
+      "X-Project-Revision": String(other.revision),
+    };
+    const crossProjectParent = await request(
+      "/api/projects/" + encodeURIComponent(other.project_id) + "/p6/wbs",
+      {
+        method: "POST",
+        headers: otherHeaders,
+        body: JSON.stringify({
+          contract_version: "p6-wbs-master-api.v1",
+          wbs_id: "E2E-CROSS-PROJECT",
+          parent_kind: "wbs",
+          parent_wbs_id: "E2E-WBS-SITE",
+          code: "9",
+          name: "Cross project",
+          sequence_number: 90,
+        }),
+      },
+    );
+    const otherRead = await request("/api/v2/workspace/control-room/read", {
+      headers: otherHeaders,
+    });
+    const crossTenant = await read(project.revision, "foreign-tenant");
+    const stale = await read(project.revision + 1);
+    const missingProject = await request(
+      "/api/projects/project-does-not-exist/p6/wbs",
+      { headers },
+    );
+    return {
+      project_id: project.project_id,
+      tenant_id: session.tenant_id,
+      revision: project.revision,
+      root: {
+        wbs_id: root.wbs_id,
+        local_code: root.local_code,
+        name: root.name,
+        record_revision: root.record_revision,
+      },
+      site,
+      design,
+      no_activity: noActivity,
+      duplicate,
+      created_activity: createdActivity,
+      missing_wbs: missingWbs,
+      foreign_wbs: foreignWbs,
+      list_status: list.status,
+      list_wbs_ids: (list.body.wbs_nodes || []).map(
+        (node) => node.wbs?.wbs_id ?? node.wbs_id ?? null,
+      ),
+      after_status: after.status,
+      after_nodes: (after.body.workspace.wbs_nodes || []).map((node) => ({
+        wbs_id: node.wbs_id,
+        parent_wbs_id: node.parent_wbs_id,
+        parent_kind: node.parent_kind,
+        local_code: node.local_code,
+        name: node.name,
+        sequence_number: node.sequence_number,
+      })),
+      after_activities: (after.body.workspace.activities || []).map((activity) => ({
+        id: activity.id,
+        wbs_id: activity.wbs_id,
+        name: activity.name,
+        cells: activity.cells,
+      })),
+      after_columns: (after.body.workspace.columns || []).map((column) => column.id),
+      cross_project_parent: crossProjectParent,
+      other_store: {
+        wbs_ids: (otherRead.body?.workspace?.wbs_nodes || []).map((node) => node.wbs_id),
+        activity_ids: (otherRead.body?.workspace?.activities || []).map(
+          (activity) => activity.id,
+        ),
+      },
+      cross_tenant: crossTenant,
+      stale,
+      missing_project: missingProject,
+    };
+  })()`, { awaitPromise: true });
+}
+
+function readPersistedWbsEvidence(managed, projectId) {
+  if (!managed?.database) return null;
+  const command = pythonCommand();
+  const script = [
+    "import json, sqlite3, sys",
+    "connection = sqlite3.connect(sys.argv[1])",
+    "project_id = sys.argv[2]",
+    "payload = {",
+    "  'wbs': [",
+    "    {'wbs_id': row[0], 'parent_kind': row[1], 'parent_wbs_id': row[2], 'code': row[3], 'name': row[4]}",
+    "    for row in connection.execute(",
+    "      'SELECT wbs_id, parent_kind, parent_wbs_id, code, name FROM wbs_master WHERE project_id=? ORDER BY wbs_id',",
+    "      (project_id,),",
+    "    )",
+    "  ],",
+    "  'activities': [",
+    "    {'activity_id': row[0], 'name': row[1], 'project_revision': row[2]}",
+    "    for row in connection.execute(",
+    "      'SELECT activity_id, name, project_revision FROM activity_master WHERE project_id=? ORDER BY activity_id',",
+    "      (project_id,),",
+    "    )",
+    "  ],",
+    "  'assignments': [",
+    "    {'activity_id': row[0], 'wbs_id': row[1]}",
+    "    for row in connection.execute(",
+    "      'SELECT activity_id, wbs_id FROM activity_wbs_assignment WHERE project_id=? ORDER BY activity_id',",
+    "      (project_id,),",
+    "    )",
+    "  ],",
+    "}",
+    "print(json.dumps(payload))",
+  ].join("\n");
+  const output = execFileSync(
+    command.executable,
+    [...command.prefix, "-c", script, managed.database, projectId],
+    { encoding: "utf-8" },
+  );
+  return JSON.parse(output);
+}
+
 async function waitForHttp(url, timeoutMs = 60000) {  const deadline = Date.now() + timeoutMs;
   let lastError;
   while (Date.now() < deadline) {
@@ -191,31 +433,34 @@ function pythonCommand() {
   return { executable: "python3", prefix: [] };
 }
 
-async function startManagedRuntime() {
-  const runtimeDir = mkdtempSync(join(tmpdir(), "cubi-preview-e2e-"));
-  const database = join(runtimeDir, "preview-e2e.sqlite3");
+async function startManagedRuntime({ database: existingDatabase = null, reset = true } = {}) {
+  const runtimeDir = existingDatabase
+    ? dirname(existingDatabase)
+    : mkdtempSync(join(tmpdir(), "cubi-preview-e2e-"));
+  const database = existingDatabase ?? join(runtimeDir, "preview-e2e.sqlite3");
   const port = await freePort();
   const baseUrl = `http://127.0.0.1:${port}`;
-  const logFile = join(artifactsDir, "preview-server.log");
+  const logFile = join(artifactsDir, reset ? "preview-server.log" : "preview-server-restart.log");
   const logStream = createWriteStream(logFile, { flags: "w" });
   const command = pythonCommand();
   const pythonPath = [join(repoRoot, "src"), process.env.PYTHONPATH]
     .filter((value) => value && value.length > 0)
     .join(delimiter);
+  const args = [
+    ...command.prefix,
+    "-m",
+    "construction_pm.preview",
+    "--web-root",
+    webRoot,
+    "--database",
+    database,
+    "--port",
+    String(port),
+  ];
+  if (reset) args.push("--reset");
   const child = spawn(
     command.executable,
-    [
-      ...command.prefix,
-      "-m",
-      "construction_pm.preview",
-      "--web-root",
-      webRoot,
-      "--database",
-      database,
-      "--port",
-      String(port),
-      "--reset",
-    ],
+    args,
     {
       cwd: repoRoot,
       env: {
@@ -248,6 +493,7 @@ async function startManagedRuntime() {
     health,
     logFile,
     runtimeDir,
+    database,
     stop: () => stopProcessTree(child),
   };
 }
@@ -3407,6 +3653,54 @@ async function main() {
       return { status: response.status, body };
     })()`, { awaitPromise: true });
     assert(viewerSnapshotPost.status === 403, "viewer snapshot publication must be denied with 403");
+    const viewerWbsWrite = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/p6/wbs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({
+          contract_version: "p6-wbs-master-api.v1",
+          wbs_id: "VIEWER-DENIED-WBS",
+          parent_kind: "wbs",
+          parent_wbs_id: "WBS-RPS-ROOT",
+          code: "99",
+          name: "Viewer must not write",
+          sequence_number: 99,
+        }),
+      });
+      const body = await response.json().catch(() => null);
+      return { status: response.status, body };
+    })()`, { awaitPromise: true });
+    const viewerActivityWrite = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/${PROJECT_ID}/p6/activities", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+          "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+          "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+        },
+        body: JSON.stringify({
+          contract_version: "p6-activity-master-api.v1",
+          activity_id: "VIEWER-DENIED-ACT",
+          name: "Viewer must not write",
+          duration_value: "1",
+          duration_unit: "working-day",
+          wbs_id: "WBS-RPS-CIVIL",
+        }),
+      });
+      const body = await response.json().catch(() => null);
+      return { status: response.status, body };
+    })()`, { awaitPromise: true });
+    assert(
+      viewerWbsWrite.status === 403 && viewerActivityWrite.status === 403,
+      "viewer WBS and activity writes must be denied with 403: " +
+        JSON.stringify({ wbs: viewerWbsWrite, activity: viewerActivityWrite }),
+    );
 
     await page.click('[data-menu="project"]');
     await page.scrollTo("#cp-interchange");
@@ -3596,6 +3890,200 @@ async function main() {
       name: createdProjectName,
       rows: createdProject.rows,
       columns: createdProject.columns,
+    });
+
+    // Section F: the minimal persisted Project -> WBS -> Activity connection.
+    // The project was created by the Web form; the hierarchy and the activity
+    // are then written through the same authenticated HTTP routes the product
+    // owns, and the browser must render the server's persisted answer.
+    const wbsJourney = await runWbsActivityJourney(page, createdProjectName);
+    for (const [label, response, expected] of [
+      ["site", wbsJourney.site, 201],
+      ["design", wbsJourney.design, 201],
+      ["no-activity node", wbsJourney.no_activity, 201],
+      ["activity", wbsJourney.created_activity, 201],
+    ]) {
+      assert(
+        response.status === expected,
+        `${label} write must return ${expected}, got ${response.status}: ${JSON.stringify(response.body)}`,
+      );
+    }
+    assert(
+      wbsJourney.root.wbs_id && wbsJourney.root.local_code && wbsJourney.root.name,
+      "the created project must expose its persisted WBS root",
+    );
+    assert(
+      wbsJourney.site.body.wbs.parent_wbs_id === wbsJourney.root.wbs_id,
+      "the parent WBS node must reference the project root",
+    );
+    assert(
+      wbsJourney.design.body.wbs.parent_wbs_id === "E2E-WBS-SITE",
+      "the child WBS node must reference its persisted parent",
+    );
+    assert(
+      wbsJourney.created_activity.body.activity.wbs_id === "E2E-WBS-DESIGN",
+      "the activity must keep its canonical WBS assignment",
+    );
+    assert(
+      wbsJourney.list_status === 200 &&
+        wbsJourney.list_wbs_ids.length === 4 &&
+        wbsJourney.list_wbs_ids.includes("E2E-WBS-NOACT"),
+      `the WBS endpoint must return the persisted tree, got ${JSON.stringify(wbsJourney.list_wbs_ids)}`,
+    );
+    assert(
+      wbsJourney.duplicate.status === 400 &&
+        wbsJourney.duplicate.body.code === "WBS_SIBLING_CODE_CONFLICT",
+      `a duplicate sibling code must be rejected: ${JSON.stringify(wbsJourney.duplicate)}`,
+    );
+    assert(
+      wbsJourney.missing_wbs.status === 400 &&
+        wbsJourney.missing_wbs.body.code === "WBS_REQUIRED",
+      `an activity without WBS must be rejected: ${JSON.stringify(wbsJourney.missing_wbs)}`,
+    );
+    assert(
+      wbsJourney.foreign_wbs.status === 400 &&
+        wbsJourney.foreign_wbs.body.code === "WBS_NOT_FOUND_OR_SCOPE_MISMATCH",
+      `an activity must not bind to a missing WBS: ${JSON.stringify(wbsJourney.foreign_wbs)}`,
+    );
+    assert(
+      wbsJourney.other_store.wbs_ids.length > 0 &&
+        !wbsJourney.other_store.wbs_ids.some((id) => id.startsWith("E2E-WBS")) &&
+        !wbsJourney.other_store.activity_ids.includes("NEW-100"),
+      `the second project must not expose this project's records: ${JSON.stringify(wbsJourney.other_store)}`,
+    );
+    assert(
+      wbsJourney.cross_project_parent.status === 400 &&
+        wbsJourney.cross_project_parent.body.code ===
+          "WBS_PARENT_NOT_FOUND_OR_SCOPE_MISMATCH",
+      `a WBS parent from another project must be rejected: ${JSON.stringify(wbsJourney.cross_project_parent)}`,
+    );
+    assert(
+      wbsJourney.cross_tenant.status === 403 &&
+        wbsJourney.cross_tenant.body.code === "CROSS_SCOPE_ACCESS",
+      `a foreign tenant header must be rejected: ${JSON.stringify(wbsJourney.cross_tenant)}`,
+    );
+    assert(
+      wbsJourney.stale.status === 409 &&
+        wbsJourney.stale.body.code === "STALE_WORKSPACE_READ_SCOPE",
+      `a stale revision must fail closed: ${JSON.stringify(wbsJourney.stale)}`,
+    );
+    assert(
+      wbsJourney.missing_project.status === 403,
+      `an unknown project id must not grant access: ${JSON.stringify(wbsJourney.missing_project)}`,
+    );
+    assert(
+      wbsJourney.after_status === 200 &&
+        wbsJourney.after_nodes.length === 4 &&
+        wbsJourney.after_nodes.some(
+          (node) => node.wbs_id === "E2E-WBS-NOACT" && node.parent_wbs_id === wbsJourney.root.wbs_id,
+        ) &&
+        wbsJourney.after_activities.length === 1 &&
+        wbsJourney.after_activities[0].id === "NEW-100" &&
+        wbsJourney.after_activities[0].wbs_id === "E2E-WBS-DESIGN" &&
+        !wbsJourney.after_activities.some((activity) => activity.wbs_id === "E2E-WBS-NOACT"),
+      "the v2 Workspace Read must return the persisted WBS tree and the linked activity: " +
+        JSON.stringify({
+          nodes: wbsJourney.after_nodes,
+          activities: wbsJourney.after_activities,
+        }),
+    );
+    assert(
+      wbsJourney.after_columns.length >= 10 &&
+        wbsJourney.after_columns.includes("activity.wbs") &&
+        wbsJourney.after_columns.includes("activity.name"),
+      `the created project must keep its typed field catalogue, got ${JSON.stringify(wbsJourney.after_columns)}`,
+    );
+    const persistedWbs = readPersistedWbsEvidence(managed, wbsJourney.project_id);
+    if (persistedWbs) {
+      assert(
+        persistedWbs.wbs.length === 4 &&
+          persistedWbs.wbs.some((node) => node.wbs_id === "E2E-WBS-SITE") &&
+          persistedWbs.wbs.some(
+            (node) => node.wbs_id === "E2E-WBS-DESIGN" && node.parent_wbs_id === "E2E-WBS-SITE",
+          ) &&
+          persistedWbs.activities.length === 1 &&
+          persistedWbs.activities[0].activity_id === "NEW-100" &&
+          persistedWbs.assignments.length === 1 &&
+          persistedWbs.assignments[0].wbs_id === "E2E-WBS-DESIGN",
+        "SQLite must hold the same WBS tree and activity assignment: " +
+          JSON.stringify(persistedWbs),
+      );
+    }
+    EVIDENCE.wbs_activity = {
+      project_id: wbsJourney.project_id,
+      tenant_id: wbsJourney.tenant_id,
+      revision: wbsJourney.revision,
+      root: wbsJourney.root,
+      persisted_api_nodes: wbsJourney.after_nodes,
+      persisted_api_activities: wbsJourney.after_activities,
+      columns: wbsJourney.after_columns,
+      sqlite: persistedWbs,
+      rejections: {
+        duplicate_code: wbsJourney.duplicate.body?.code ?? null,
+        activity_without_wbs: wbsJourney.missing_wbs.body?.code ?? null,
+        foreign_wbs: wbsJourney.foreign_wbs.body?.code ?? null,
+        cross_project_parent: wbsJourney.cross_project_parent.body?.code ?? null,
+        cross_tenant: wbsJourney.cross_tenant.body?.code ?? null,
+        stale_revision: wbsJourney.stale.body?.code ?? null,
+        unknown_project: wbsJourney.missing_project.status,
+      },
+      source:
+        "Web create-project form -> POST /api/projects -> POST /p6/wbs -> POST /p6/activities -> GET /api/v2/workspace/control-room/read -> SQLite",
+    };
+    await page.screenshot("12b-admin-wbs-activity-database.png");
+    record("WBS parent/child writes, activity link, zero-activity node and fail-closed rules are persisted", {
+      project_id: wbsJourney.project_id,
+      wbs_nodes: wbsJourney.after_nodes.length,
+      activities: wbsJourney.after_activities.length,
+      sqlite: Boolean(persistedWbs),
+      rejections: EVIDENCE.wbs_activity.rejections,
+    });
+
+    await page.navigate(
+      `${baseUrl}/app?project=${encodeURIComponent(wbsJourney.project_id)}`,
+      ".cp-workspace",
+      "reload created project after WBS/activity writes",
+    );
+    await page.waitForSelector(
+      '.cp-wbs-node[data-wbs-id="E2E-WBS-DESIGN"]',
+      "persisted child WBS node",
+    );
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 1`,
+      "one persisted activity row",
+    );
+    const renderedAfterWrites = await page.evaluate(`(() => ({
+      wbsIds: Array.from(document.querySelectorAll(".cp-wbs-node")).map((node) => node.dataset.wbsId),
+      wbsText: document.querySelector("#cp-project-wbs")?.textContent ?? "",
+      rows: Array.from(
+        document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]"),
+      ).map((row) => ({
+        id: row.dataset.activityId,
+        text: row.textContent ?? "",
+      })),
+      columns: document.querySelectorAll("#cp-activity-grid thead th").length,
+    }))()`);
+    assert(
+      renderedAfterWrites.wbsIds.length === 4 &&
+        ["E2E-WBS-SITE", "E2E-WBS-DESIGN", "E2E-WBS-NOACT"].every((id) =>
+          renderedAfterWrites.wbsIds.includes(id),
+        ) &&
+        renderedAfterWrites.wbsText.includes("2.1") &&
+        renderedAfterWrites.wbsText.includes("Detailed design") &&
+        renderedAfterWrites.wbsText.includes("No activity package") &&
+        renderedAfterWrites.rows.length === 1 &&
+        renderedAfterWrites.rows[0].id === "NEW-100" &&
+        renderedAfterWrites.rows[0].text.includes("E2E linked activity") &&
+        renderedAfterWrites.columns === 10,
+      "the browser must render the server's persisted WBS tree and linked activity: " +
+        JSON.stringify(renderedAfterWrites),
+    );
+    await page.screenshot("12c-admin-wbs-activity-reload.png");
+    EVIDENCE.wbs_activity.browser = renderedAfterWrites;
+    record("full browser reload renders the persisted WBS tree and linked activity from the v2 read", {
+      wbs_nodes: renderedAfterWrites.wbsIds.length,
+      activity_rows: renderedAfterWrites.rows.length,
+      columns: renderedAfterWrites.columns,
     });
 
     // First-run journey on a real account with no project membership. This is
@@ -3835,6 +4323,103 @@ async function main() {
       menu: afterFirstReload.menu,
       persisted_projects: projectsForNewcomer.projects?.length ?? 0,
     });
+
+    // Restart proof: stop the real WSGI process and start a new one on the same
+    // SQLite file without --reset. In-memory sessions disappear, so the test
+    // signs in again, opens the project from the persisted list and re-reads the
+    // same WBS tree and activity through the browser and the v2 API.
+    if (managed && wbsJourney) {
+      const database = managed.database;
+      const previousBaseUrl = baseUrl;
+      managed.stop();
+      await waitForRuntimeStop(previousBaseUrl);
+      const restarted = await startManagedRuntime({ database, reset: false });
+      managed = restarted;
+      await page.navigate(
+        `${restarted.baseUrl}/preview/login`,
+        'form[action="/preview/login"]',
+        "login after service restart",
+      );
+      await page.click('button[name="role"][value="admin"]');
+      await page.waitForSelector(".cp-project-selection", "project list after restart");
+      await page.waitForSelector(
+        `button[data-project-id="${wbsJourney.project_id}"]`,
+        "persisted project in the list after restart",
+      );
+      await page.click(`button[data-project-id="${wbsJourney.project_id}"]`);
+      await page.waitForSelector(
+        '.cp-wbs-node[data-wbs-id="E2E-WBS-DESIGN"]',
+        "persisted WBS child after restart",
+      );
+      await page.waitFor(
+        `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 1`,
+        "persisted activity row after restart",
+      );
+      const afterRestart = await page.evaluate(`(async () => {
+        const session = await fetch("/api/session").then((response) => response.json());
+        const projects = await fetch("/api/projects").then((response) => response.json());
+        const project = (projects.projects || []).find(
+          (item) => item.project_id === ${JSON.stringify(wbsJourney.project_id)},
+        );
+        const response = await fetch("/api/v2/workspace/control-room/read", {
+          headers: {
+            "X-Tenant-Id": session.tenant_id,
+            "X-Project-Id": project.project_id,
+            "X-Project-Revision": String(project.revision),
+          },
+        });
+        const body = await response.json();
+        return {
+          status: response.status,
+          wbsIds: Array.from(document.querySelectorAll(".cp-wbs-node")).map(
+            (node) => node.dataset.wbsId,
+          ),
+          wbsText: document.querySelector("#cp-project-wbs")?.textContent ?? "",
+          rowIds: Array.from(
+            document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]"),
+          ).map((row) => row.dataset.activityId),
+          apiNodes: (body.workspace?.wbs_nodes || []).map((node) => node.wbs_id),
+          apiActivities: (body.workspace?.activities || []).map((activity) => ({
+            id: activity.id,
+            wbs_id: activity.wbs_id,
+          })),
+        };
+      })()`, { awaitPromise: true });
+      assert(
+        afterRestart.status === 200 &&
+          afterRestart.wbsIds.length === 4 &&
+          afterRestart.wbsIds.includes("E2E-WBS-DESIGN") &&
+          afterRestart.wbsText.includes("No activity package") &&
+          afterRestart.rowIds.length === 1 &&
+          afterRestart.rowIds[0] === "NEW-100" &&
+          afterRestart.apiNodes.length === 4 &&
+          afterRestart.apiActivities.length === 1 &&
+          afterRestart.apiActivities[0].wbs_id === "E2E-WBS-DESIGN",
+        "the restarted runtime must re-read the same persisted WBS tree and activity: " +
+          JSON.stringify(afterRestart),
+      );
+      await page.screenshot("12d-admin-wbs-activity-restart.png");
+      EVIDENCE.restart = {
+        database,
+        previous_base_url: previousBaseUrl,
+        base_url: restarted.baseUrl,
+        health: restarted.health,
+        browser: afterRestart,
+        source: "stop WSGI -> same SQLite without --reset -> login -> project list -> v2 read",
+      };
+      record("service restart keeps the WBS tree and activity readable from the same SQLite source", {
+        database,
+        base_url: restarted.baseUrl,
+        wbs_nodes: afterRestart.wbsIds.length,
+        activities: afterRestart.apiActivities.length,
+      });
+    } else {
+      EVIDENCE.restart = {
+        available: false,
+        reason:
+          "external CUBI_PREVIEW_URL cannot be restarted by this process; run the managed preview to prove restart persistence",
+      };
+    }
 
     if (EXCEPTIONS.length > 0) {
       throw new Error(

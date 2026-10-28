@@ -14,6 +14,8 @@ from construction_pm.backend_p0.models import BackendScope
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_wbs_master_api import P6WBSMasterAPI, P6_WBS_MASTER_API_VERSION
+from construction_pm.wbs_master_repository import SQLiteWBSMasterRepository
 from construction_pm.scheduling.activity import ActivityLevelingPriority
 
 
@@ -57,10 +59,12 @@ def _app(*, role: str = "project_admin", db_path: str = ":memory:"):
     )
     connection = sqlite3.connect(db_path)
     repository = SQLiteActivityMasterRepository(connection)
+    wbs_repository = SQLiteWBSMasterRepository(connection)
     routes = ProjectLifecycleHttpRoutes(
         lifecycle,
         clock=type("Clock", (), {"now": lambda self: now})(),
         p6_activity_master_api=P6ActivityMasterAPI(repository, policy),
+        p6_wbs_master_api=P6WBSMasterAPI(wbs_repository, policy),
     )
     return ProjectLifecycleWsgiApp(routes), repository, connection
 
@@ -87,6 +91,22 @@ def _request(app, method: str, path: str, payload: dict | None = None):
 def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tmp_path):
     db_path = str(tmp_path / "cubi-activity-master.sqlite")
     app, _repository, connection = _app(db_path=db_path)
+    wbs_status, wbs_root = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/wbs",
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-ROOT",
+            "parent_kind": "project",
+            "parent_wbs_id": None,
+            "code": "1",
+            "name": "Project Root",
+            "sequence_number": 0,
+        },
+    )
+    assert wbs_status == "201 Created"
+    assert wbs_root["wbs"]["wbs_id"] == "W-ROOT"
     path = "/api/projects/p1/p6/activities"
     actual_start = "2026-10-01T09:15:30.123456+00:00"
     create_payload = {
@@ -108,6 +128,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
         "planned_finish": "2026-10-23",
         "leveling_priority": "High",
         "original_duration": 15,
+        "wbs_id": "W-ROOT",
     }
 
     status, created = _request(app, "POST", path, create_payload)
@@ -122,6 +143,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert created["activity"]["planned_finish"] == "2026-10-23"
     assert created["activity"]["leveling_priority"] == "High"
     assert created["activity"]["original_duration"] == 15
+    assert created["activity"]["wbs_id"] == "W-ROOT"
 
     # A separate connection proves the route persisted and committed real data.
     fresh_connection = sqlite3.connect(db_path)
@@ -136,11 +158,13 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert persisted.activity_type.value == "Resource Dependent"
     assert persisted.status.value == "In Progress"
     assert persisted.status_code.value == "Active"
+    assert persisted.wbs_id == "W-ROOT"
     fresh_connection.close()
 
     status, loaded = _request(app, "GET", path + "/A-1")
     assert status == "200 OK"
     assert loaded["activity"]["actual_start"] == actual_start
+    assert loaded["activity"]["wbs_id"] == "W-ROOT"
     status, listed = _request(app, "GET", path)
     assert status == "200 OK"
     assert [item["activity"]["activity_id"] for item in listed["activities"]] == ["A-1"]
@@ -222,4 +246,166 @@ def test_activity_master_route_enforces_read_write_permission():
     status, error = _request(viewer_app, "POST", "/api/projects/p1/p6/activities", payload)
     assert status == "403 Forbidden"
     assert error["code"] == "authorization denied for permission=project.write"
+    connection.close()
+
+
+
+def test_authenticated_wbs_routes_preserve_parent_identity_and_revision():
+    app, _repository, connection = _app()
+    path = "/api/projects/p1/p6/wbs"
+    root_status, root_response = _request(
+        app,
+        "POST",
+        path,
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-ROOT",
+            "parent_kind": "project",
+            "parent_wbs_id": None,
+            "code": "1",
+            "name": "Project Root",
+            "sequence_number": 0,
+        },
+    )
+    assert root_status == "201 Created"
+    assert root_response["wbs"]["parent_kind"] == "project"
+    assert root_response["wbs"]["parent_wbs_id"] is None
+    assert root_response["wbs"]["record_revision"] == 1
+
+    child_status, child_response = _request(
+        app,
+        "POST",
+        path,
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-CHILD",
+            "parent_kind": "wbs",
+            "parent_wbs_id": "W-ROOT",
+            "code": "2",
+            "name": "Concrete",
+            "sequence_number": 10,
+        },
+    )
+    assert child_status == "201 Created"
+    assert child_response["wbs"]["parent_wbs_id"] == "W-ROOT"
+
+    list_status, listed = _request(app, "GET", path)
+    assert list_status == "200 OK"
+    assert [item["wbs"]["wbs_id"] for item in listed["wbs_nodes"]] == ["W-ROOT", "W-CHILD"]
+
+    patch_status, updated = _request(
+        app,
+        "PATCH",
+        path + "/W-CHILD",
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "expected_revision": 1,
+            "name": "Concrete Works",
+        },
+    )
+    assert patch_status == "200 OK"
+    assert updated["wbs"]["record_revision"] == 2
+    assert updated["wbs"]["name"] == "Concrete Works"
+    assert updated["wbs"]["parent_wbs_id"] == "W-ROOT"
+
+    stale_status, _ = _request(
+        app,
+        "PATCH",
+        path + "/W-CHILD",
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "expected_revision": 1,
+            "name": "Stale write",
+        },
+    )
+    assert stale_status == "409 Conflict"
+    connection.close()
+
+
+
+def test_authenticated_activity_create_requires_existing_wbs_assignment():
+    app, _repository, connection = _app()
+    wbs_status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/wbs",
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-ROOT",
+            "parent_kind": "project",
+            "parent_wbs_id": None,
+            "code": "1",
+            "name": "Project Root",
+            "sequence_number": 0,
+        },
+    )
+    assert wbs_status == "201 Created"
+    status, response = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "A-NO-WBS",
+            "name": "Unassigned Activity",
+            "duration_value": "1",
+            "duration_unit": "working-day",
+        },
+    )
+    assert status == "400 Bad Request"
+    assert response["code"] == "WBS_REQUIRED"
+    connection.close()
+
+
+def test_authenticated_wbs_delete_rejects_stale_revision_and_assigned_activity():
+    app, _repository, connection = _app()
+    wbs_path = "/api/projects/p1/p6/wbs"
+    root_status, root_response = _request(
+        app,
+        "POST",
+        wbs_path,
+        {
+            "contract_version": P6_WBS_MASTER_API_VERSION,
+            "wbs_id": "W-ROOT",
+            "parent_kind": "project",
+            "parent_wbs_id": None,
+            "code": "1",
+            "name": "Project Root",
+            "sequence_number": 0,
+        },
+    )
+    assert root_status == "201 Created"
+    activity_status, activity_response = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "A-1",
+            "name": "Assigned Activity",
+            "duration_value": "1",
+            "duration_unit": "working-day",
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert activity_status == "201 Created"
+    assert activity_response["activity"]["wbs_id"] == "W-ROOT"
+
+    stale_status, stale_response = _request(
+        app,
+        "DELETE",
+        wbs_path + "/W-ROOT",
+        {"contract_version": P6_WBS_MASTER_API_VERSION, "expected_revision": 2},
+    )
+    assert stale_status == "409 Conflict"
+    assert stale_response["code"] == "REVISION_CONFLICT"
+
+    in_use_status, in_use_response = _request(
+        app,
+        "DELETE",
+        wbs_path + "/W-ROOT",
+        {"contract_version": P6_WBS_MASTER_API_VERSION, "expected_revision": 1},
+    )
+    assert in_use_status == "409 Conflict"
+    assert in_use_response["code"] == "WBS_IN_USE"
     connection.close()

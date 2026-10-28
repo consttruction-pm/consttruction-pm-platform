@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
-import { createWorkspaceState, setP6Presentation } from "./workspace-model.js";
+import { createWorkspaceState, setP6Presentation, withWbsNodes } from "./workspace-model.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -25,6 +25,51 @@ function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
   renderMainWorkspace(container as unknown as HTMLElement, state);
   return container.innerHTML;
 }
+
+test("WBS panel renders localized create controls and permits creating a project root", () => {
+  const english = render("en", "project");
+  assert.match(english, /data-wbs-create-form/);
+  assert.match(english, /Project root/);
+  assert.match(english, /name="sequence_number"/);
+
+  const persian = render("fa", "project");
+  assert.match(persian, /افزودن ساختار شکست/);
+  assert.match(persian, /ریشهٔ پروژه/);
+});
+
+test("WBS create form dispatches validated fields to its workspace callback", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  let created: { code: string; name: string; sequenceNumber: number; parentWbsId: string | null } | null = null;
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    { onWbsCreate: (input) => { created = input; } },
+  );
+  const values: Record<string, { value: string }> = {
+    '[name="code"]': { value: "  STR-01 " },
+    '[name="name"]': { value: " Structure " },
+    '[name="sequence_number"]': { value: "4" },
+    '[name="parent_wbs_id"]': { value: "WBS-ROOT" },
+  };
+  const form = {
+    matches: (selector: string) => selector === "[data-wbs-create-form]",
+    querySelector: (selector: string) => values[selector] ?? null,
+  };
+  let prevented = false;
+  listeners.get("submit")?.({ target: form, preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.deepEqual(created, {
+    code: "STR-01",
+    name: "Structure",
+    sequenceNumber: 4,
+    parentWbsId: "WBS-ROOT",
+  });
+});
 
 test("rendered schedule surface exposes localized label and implemented status", () => {
   const html = render("en", "schedule");
@@ -171,7 +216,7 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["input", "click", "keydown", "change"]);
+  assert.deepEqual(registrations, ["input", "submit", "click", "keydown", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -939,6 +984,37 @@ test("Activity Grid offsets multiple pinned/frozen columns without overlap", () 
   assert.match(container.innerHTML, /data-column-frozen="true"[^>]*style="[^"]*--cp-p6-sticky-offset:340px/);
   assert.match(container.innerHTML, /<td role="gridcell"[^>]*data-column-pinned="true"[^>]*style="[^"]*--cp-p6-sticky-offset:140px/);
   assert.match(container.innerHTML, /<td role="gridcell"[^>]*data-column-frozen="true"[^>]*style="[^"]*--cp-p6-sticky-offset:340px/);
+});
+
+test("WBS panel renders the persisted hierarchy including nodes with no activities", () => {
+  let state = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  state = withWbsNodes(state, [
+    {
+      id: "W-ROOT", parentKind: "project", parentWbsId: null,
+      localCode: "1", name: "Project <Root>", sequenceNumber: 0, recordRevision: 1,
+    },
+    {
+      id: "W-FOUNDATION", parentKind: "wbs", parentWbsId: "W-ROOT",
+      localCode: "2", name: "Foundation", sequenceNumber: 10, recordRevision: 1,
+    },
+    {
+      id: "W-EMPTY", parentKind: "wbs", parentWbsId: "W-ROOT",
+      localCode: "3", name: "Package with no activities", sequenceNumber: 20, recordRevision: 1,
+    },
+  ]);
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /class="cp-wbs-tree" role="tree"/);
+  assert.match(container.innerHTML, /data-wbs-id="W-ROOT"/);
+  assert.match(container.innerHTML, /data-wbs-id="W-FOUNDATION"/);
+  assert.match(container.innerHTML, /data-wbs-id="W-EMPTY"/);
+  assert.match(container.innerHTML, /aria-level="2"/);
+  assert.match(container.innerHTML, /Project &lt;Root&gt;/);
+  assert.ok(container.innerHTML.indexOf("Foundation") < container.innerHTML.indexOf("Package with no activities"));
+  assert.doesNotMatch(container.innerHTML, /data-wbs-id="A-/);
 });
 
 test("activity grid date cells follow the selected display calendar without changing stored values", () => {

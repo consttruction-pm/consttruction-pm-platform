@@ -235,6 +235,14 @@ def test_real_preview_assistant_proposes_then_approves_creates_and_calculates_pr
         )
         assert project is not None
         assert runtime.store.counts(PREVIEW_TENANT_ID, "CUBI-TEST-001") == 3
+        assert runtime.connection.execute(
+            "SELECT COUNT(*) FROM wbs_master WHERE tenant_id=? AND project_id=?",
+            (PREVIEW_TENANT_ID, "CUBI-TEST-001"),
+        ).fetchone()[0] == 3
+        assert runtime.connection.execute(
+            "SELECT COUNT(*) FROM activity_wbs_assignment WHERE tenant_id=? AND project_id=?",
+            (PREVIEW_TENANT_ID, "CUBI-TEST-001"),
+        ).fetchone()[0] == 3
         assert runtime.store.wbs_for(PREVIEW_TENANT_ID, "CUBI-TEST-001") == {
             "A001": "01 Mobilization",
             "A002": "02 Substructure",

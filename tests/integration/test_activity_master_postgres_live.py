@@ -1,12 +1,19 @@
 import os
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 
 from construction_pm.activity_master_repository import (
     ActivityMaster,
     PostgresActivityMasterRepository,
+)
+from construction_pm.wbs_master_repository import (
+    PostgresWBSMasterRepository,
+    WBSMaster,
+    WBSParentKind,
 )
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.scheduling.activity import (
@@ -85,7 +92,7 @@ def test_postgres_activity_master_preserves_all_progress_state():
         assert restored.name == "Concrete Pour"
         assert restored.activity_type is ActivityType.RESOURCE_DEPENDENT
         assert restored.status is ActivityStatus.IN_PROGRESS
-        assert restored.status_code is ActivityStatus.ACTIVE
+        assert restored.status_code is ActivityStatusCode.ACTIVE
 
         connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
@@ -148,3 +155,95 @@ def test_postgres_activity_master_updates_all_progress_state():
             (scope.tenant_id, scope.project_id),
         )
         connection.commit()
+
+
+
+def test_postgres_activity_master_persists_canonical_wbs_assignment():
+    suffix = uuid4().hex
+    scope = BackendScope(f"tenant-activity-wbs-{suffix}", f"project-activity-wbs-{suffix}", 7)
+    foreign_scope = BackendScope(
+        f"tenant-activity-wbs-foreign-{suffix}",
+        f"project-activity-wbs-foreign-{suffix}",
+        7,
+    )
+
+    with connect() as connection:
+        wbs_repo = PostgresWBSMasterRepository(connection)
+        wbs_repo.initialize()
+        activity_repo = PostgresActivityMasterRepository(connection)
+        activity_repo.initialize()
+        try:
+            root = wbs_repo.save(
+                WBSMaster(scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project Root", 0)
+            )
+            connection.commit()
+            child = wbs_repo.save(
+                WBSMaster(scope, "W-CHILD", WBSParentKind.WBS, "W-ROOT", "2", "Package", 1)
+            )
+            connection.commit()
+            wbs_repo.save(
+                WBSMaster(
+                    foreign_scope,
+                    "W-FOREIGN-ROOT",
+                    WBSParentKind.PROJECT,
+                    None,
+                    "1",
+                    "Foreign Root",
+                    0,
+                )
+            )
+            connection.commit()
+
+            stored = activity_repo.save(replace(_source_activity(scope), wbs_id=root.wbs_id))
+            connection.commit()
+            assert stored.wbs_id == "W-ROOT"
+            assert activity_repo.get(scope, stored.activity_id) == stored
+            assert activity_repo.list(scope) == (stored,)
+
+            updated = activity_repo.save(
+                replace(stored, wbs_id=child.wbs_id, name="Concrete Pour Updated"),
+                expected_revision=1,
+            )
+            connection.commit()
+            assert updated.record_revision == 2
+            assert updated.wbs_id == "W-CHILD"
+            assert activity_repo.get(scope, stored.activity_id) == updated
+
+            with pytest.raises(ValueError, match="WBS_NOT_FOUND_OR_SCOPE_MISMATCH"):
+                activity_repo.save(
+                    replace(updated, wbs_id="W-MISSING"),
+                    expected_revision=2,
+                )
+            connection.rollback()
+            assert activity_repo.get(scope, stored.activity_id) == updated
+
+            with pytest.raises(ValueError, match="WBS_NOT_FOUND_OR_SCOPE_MISMATCH"):
+                activity_repo.save(
+                    replace(updated, wbs_id="W-FOREIGN-ROOT"),
+                    expected_revision=2,
+                )
+            connection.rollback()
+            assert activity_repo.get(scope, stored.activity_id).wbs_id == "W-CHILD"
+
+            with pytest.raises(ValueError, match="WBS_REQUIRED"):
+                activity_repo.save(replace(updated, wbs_id=None), expected_revision=2)
+            connection.rollback()
+            assert activity_repo.get(scope, stored.activity_id).wbs_id == "W-CHILD"
+        finally:
+            connection.execute(
+                "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
+                (scope.tenant_id, scope.project_id),
+            )
+            connection.execute(
+                "DELETE FROM wbs_master WHERE tenant_id=%s AND project_id=%s AND parent_kind='wbs'",
+                (scope.tenant_id, scope.project_id),
+            )
+            connection.execute(
+                "DELETE FROM wbs_master WHERE tenant_id=%s AND project_id=%s",
+                (scope.tenant_id, scope.project_id),
+            )
+            connection.execute(
+                "DELETE FROM wbs_master WHERE tenant_id=%s AND project_id=%s",
+                (foreign_scope.tenant_id, foreign_scope.project_id),
+            )
+            connection.commit()

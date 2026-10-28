@@ -16,6 +16,7 @@ from construction_pm.backend_p0.authoritative_schedule_query import Authoritativ
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
@@ -29,6 +30,7 @@ from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
+from construction_pm.wbs_master_repository import WBSMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
 from construction_pm.ai_action_runtime import (
     AIActionRuntime,
@@ -41,6 +43,8 @@ from construction_pm.ai_assistant_orchestration import (
     OpenAICompatibleChatProvider,
 )
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
+from construction_pm.backend_p0.workspace_read import WorkspaceControlRoomReadService
+from construction_pm.backend_p0.workspace_read_provider import PersistedWorkspaceReadProvider
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnapshot, ScheduleInputSnapshotRepository
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
@@ -56,6 +60,8 @@ def build_project_lifecycle_wsgi_app(
     calculation_context_repository: CalculationContextRepository,
     authorization_policy: AuthorizationPolicy,
     activity_master_repository: ActivityMasterRepository | None = None,
+    wbs_master_repository: WBSMasterRepository | None = None,
+    workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
     relationship_master_repository: RelationshipMasterRepository | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
@@ -165,15 +171,34 @@ def build_project_lifecycle_wsgi_app(
         if activity_master_repository is None
         else P6ActivityMasterAPI(activity_master_repository, authorization_policy)
     )
+    wbs_master_api = (
+        None
+        if wbs_master_repository is None
+        else P6WBSMasterAPI(wbs_master_repository, authorization_policy)
+    )
     relationship_api = (
         None
         if relationship_master_repository is None
         else P6RelationshipAPI(relationship_master_repository, authorization_policy)
     )
+    if (
+        workspace_read_v2_service is None
+        and activity_master_repository is not None
+        and wbs_master_repository is not None
+    ):
+        workspace_read_v2_service = WorkspaceControlRoomReadService(
+            provider=PersistedWorkspaceReadProvider(
+                activity_repository=activity_master_repository,
+                wbs_repository=wbs_master_repository,
+            ),
+            authorization_policy=authorization_policy,
+        )
     routes = ProjectLifecycleHttpRoutes(
         lifecycle_api,
         clock=clock,
         p6_activity_master_api=activity_master_api,
+        p6_wbs_master_api=wbs_master_api,
+        workspace_read_v2_service=workspace_read_v2_service,
         p6_relationship_api=relationship_api,
         p6_schedule_snapshot_api=schedule_snapshot_publication_api,
         p6_field_registry_api=p6_field_registry_api,

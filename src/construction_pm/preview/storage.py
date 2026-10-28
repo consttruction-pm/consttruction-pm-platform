@@ -26,7 +26,7 @@ from construction_pm.backend_p0.models import BackendScope
 
 PREVIEW_APPLICATION_ID = 0x43554249  # "CUBI"
 PREVIEW_SCHEMA_VERSION = 1
-PREVIEW_SEED_VERSION = "cubi-preview-seed.v1"
+PREVIEW_SEED_VERSION = "cubi-preview-seed.v2"
 PREVIEW_APPLICATION_MARKER = "cubi-local-preview"
 PREVIEW_TENANT_ID = "cubi-preview-tenant"
 PREVIEW_SESSION_TTL = timedelta(hours=8)
@@ -369,6 +369,7 @@ class PreviewStore:
         wbs_by_activity: Mapping[str, str],
         demo: bool,
         created_at: datetime,
+        commit: bool = True,
     ) -> None:
         if not tenant_id.strip() or not project_id.strip() or not name.strip():
             raise ValueError("PREVIEW_PROJECT_IDENTITY_REQUIRED")
@@ -404,6 +405,8 @@ class PreviewStore:
         tenant_id: str,
         project_id: str,
         user_ids: Iterable[str],
+        *,
+        commit: bool = True,
     ) -> None:
         owns_transaction = not self.connection.in_transaction
         for user_id in sorted(set(user_ids)):
@@ -545,7 +548,7 @@ class PreviewProjectRepository:
         self,
         store: PreviewStore,
         *,
-        initializer: Callable[[BackendScope], None],
+        initializer: Callable[[BackendScope, str], None],
         member_user_ids: Iterable[str] = DEMO_USER_IDS,
     ) -> None:
         self.store = store
@@ -568,25 +571,39 @@ class PreviewProjectRepository:
         if self.store.project_exists(tenant_id, project_id):
             raise ValueError("PROJECT_ALREADY_EXISTS")
         scope = BackendScope(tenant_id, project_id, 0)
-        # Initialise presentation and calendar metadata before publishing the
-        # project to the lifecycle boundary. A failure therefore never exposes a
-        # half-created project in the browser.
-        self.initializer(scope)
-        created_at = utc_now()
-        self.store.insert_project(
-            tenant_id=tenant_id,
-            project_id=project_id,
-            name=name,
-            revision=0,
-            wbs_by_activity={},
-            demo=False,
-            created_at=created_at,
-        )
-        self.store.add_members(
-            tenant_id,
-            project_id,
-            (user_id, *self.member_user_ids),
-        )
+        connection = self.store.connection
+        # Initialise WBS root, presentation and calendar metadata before
+        # publishing the project to the lifecycle boundary. One transaction
+        # means a failure never exposes a half-created project or an orphan
+        # WBS root in the browser.
+        was_in_transaction = connection.in_transaction
+        if not was_in_transaction:
+            connection.execute("BEGIN IMMEDIATE")
+        try:
+            self.initializer(scope, name)
+            created_at = utc_now()
+            self.store.insert_project(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                name=name,
+                revision=0,
+                wbs_by_activity={},
+                demo=False,
+                created_at=created_at,
+                commit=False,
+            )
+            self.store.add_members(
+                tenant_id,
+                project_id,
+                (user_id, *self.member_user_ids),
+                commit=False,
+            )
+            if not was_in_transaction:
+                connection.commit()
+        except Exception:
+            if not was_in_transaction and connection.in_transaction:
+                connection.rollback()
+            raise
         return ProjectSummary(
             project_id=project_id,
             tenant_id=tenant_id,

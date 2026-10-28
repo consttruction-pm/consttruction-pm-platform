@@ -134,6 +134,17 @@ class DemoCapacitySegment:
 
 
 @dataclass(frozen=True)
+class DemoWbsNode:
+    """Explicit WBS fixture node; never derived from activity rows at read time."""
+
+    wbs_id: str
+    parent_wbs_id: str | None
+    local_code: str
+    name: str
+    sequence_number: int
+
+
+@dataclass(frozen=True)
 class DemoProjectFixture:
     project_id: str
     name: str
@@ -150,6 +161,7 @@ class DemoProjectFixture:
     activities: tuple[DemoActivity, ...]
     relationships: tuple[DemoRelationship, ...]
     wbs: Mapping[str, str] = field(default_factory=dict)
+    wbs_nodes: tuple[DemoWbsNode, ...] = ()
     data_date: date | None = None
     capacities: tuple[DemoCapacitySegment, ...] = ()
 
@@ -248,6 +260,16 @@ RPS_WBS: Mapping[str, str] = {
     activity.activity_id: activity.wbs for activity in RPS_ACTIVITIES
 }
 
+RPS_WBS_NODES: tuple[DemoWbsNode, ...] = (
+    DemoWbsNode("WBS-RPS-ROOT", None, "1", "Riverside Pump Station Upgrade", 0),
+    DemoWbsNode("WBS-RPS-PM", "WBS-RPS-ROOT", "1", "Project management", 10),
+    DemoWbsNode("WBS-RPS-CIVIL", "WBS-RPS-ROOT", "2", "Civil works", 20),
+    DemoWbsNode("WBS-RPS-PROC", "WBS-RPS-ROOT", "3", "Procurement", 30),
+    DemoWbsNode("WBS-RPS-ENV", "WBS-RPS-ROOT", "4", "Envelope works", 40),
+    DemoWbsNode("WBS-RPS-MEP", "WBS-RPS-ROOT", "5", "MEP works", 50),
+    DemoWbsNode("WBS-RPS-COM", "WBS-RPS-ROOT", "6", "Commissioning and handover", 60),
+)
+
 
 NSE_ACTIVITIES: tuple[DemoActivity, ...] = (
     DemoActivity("N100", "آغاز طراحی", 2, "۱ طراحی و مهندسی"),
@@ -279,6 +301,12 @@ NSE_WBS: Mapping[str, str] = {
     activity.activity_id: activity.wbs for activity in NSE_ACTIVITIES
 }
 
+NSE_WBS_NODES: tuple[DemoWbsNode, ...] = (
+    DemoWbsNode("WBS-NSE-ROOT", None, "1", "نوسازی سامانه شرقی", 0),
+    DemoWbsNode("WBS-NSE-DESIGN", "WBS-NSE-ROOT", "۱", "طراحی و مهندسی", 10),
+    DemoWbsNode("WBS-NSE-PROC", "WBS-NSE-ROOT", "۲", "تدارکات و قرارداد", 20),
+)
+
 
 # 2027-02-08 is recorded through the Shared Core Jalali conversion so the
 # holiday is demonstrably a Jalali calendar exception, not an ad hoc date.
@@ -303,6 +331,7 @@ DEMO_PROJECTS: tuple[DemoProjectFixture, ...] = (
         activities=RPS_ACTIVITIES,
         relationships=RPS_RELATIONSHIPS,
         wbs=RPS_WBS,
+        wbs_nodes=RPS_WBS_NODES,
         capacities=(
             DemoCapacitySegment(
                 resource_id="RPS-CIVIL-CREW",
@@ -337,6 +366,7 @@ DEMO_PROJECTS: tuple[DemoProjectFixture, ...] = (
         activities=NSE_ACTIVITIES,
         relationships=NSE_RELATIONSHIPS,
         wbs=NSE_WBS,
+        wbs_nodes=NSE_WBS_NODES,
         capacities=(
             DemoCapacitySegment(
                 resource_id="NSE-DESIGN-TEAM",
@@ -375,6 +405,7 @@ __all__ = [
     "DemoCapacitySegment",
     "DemoProjectFixture",
     "DemoRelationship",
+    "DemoWbsNode",
     "LAYOUT_COLUMNS",
     "LAYOUT_SCOPE",
     "LAYOUT_VIEW",

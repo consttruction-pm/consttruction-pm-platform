@@ -6,12 +6,16 @@ import {
   workspaceActivitiesFromSnapshot,
   WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION,
 } from "./workspace-contract.js";
-import { createWorkspaceState, withActivities } from "./workspace-model.js";
+import { createWorkspaceState, withActivities, withWbsNodes } from "./workspace-model.js";
 
 const context = { tenant_id: "tenant-1", project_id: "project-1", revision: 8 };
 
 test("control-room snapshot is versioned and round-trips typed activity data", () => {
   let state = createWorkspaceState(context, "fa", "jalali");
+  state = withWbsNodes(state, [{
+    id: "W-1", parentKind: "project", parentWbsId: null,
+    localCode: "1", name: "Project", sequenceNumber: 0, recordRevision: 1,
+  }]);
   state = withActivities(state, [{
     id: "A-1",
     wbsId: "W-1",
@@ -36,7 +40,11 @@ test("control-room snapshot is versioned and round-trips typed activity data", (
 });
 
 test("contract adapter rejects duplicate activity identities", () => {
-  const snapshot = createWorkspaceControlRoomSnapshot(createWorkspaceState(context));
+  const state = withWbsNodes(createWorkspaceState(context), [{
+    id: "W-1", parentKind: "project", parentWbsId: null,
+    localCode: "1", name: "Project", sequenceNumber: 0, recordRevision: 1,
+  }]);
+  const snapshot = createWorkspaceControlRoomSnapshot(state);
   const broken = {
     ...snapshot,
     activities: [

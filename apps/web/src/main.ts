@@ -202,6 +202,32 @@ function renderApp(
   };
   status.replaceChildren(document.createTextNode(shellLabels.status), calendarButton, languageButton);
   const aiTransport = new FetchApiTransport(window.location.origin);
+  const reportWbsMutationError = (error: unknown): void => {
+    console.error("WBS mutation failed", error);
+    const message = error instanceof Error ? error.message : "WBS_MUTATION_FAILED";
+    const currentStatus = container.querySelector<HTMLElement>(".cp-app-status");
+    const panel = container.querySelector<HTMLElement>("#cp-project-wbs");
+    if (panel) {
+      let notice = panel.querySelector<HTMLElement>("[data-wbs-error]");
+      if (!notice) { notice = document.createElement("p"); notice.dataset.wbsError = "true"; notice.setAttribute("role", "alert"); panel.append(notice); }
+      notice.textContent = message;
+    }
+    if (currentStatus) currentStatus.dataset.wbsError = message;
+  };
+  const refreshWorkspaceAfterWbsMutation = async (selectedWbsId: string | null): Promise<void> => {
+    const refreshed = await new WorkspaceReadClient(aiTransport).load(state.context, {
+      locale: state.locale,
+      calendarMode: state.calendarMode,
+    });
+    if (!refreshed.ok) throw new Error(refreshed.error.code);
+    let nextState = await loadP6Presentation(refreshed.data, aiTransport, state.context);
+    if (selectedWbsId && nextState.wbsNodes.some((node) => node.id === selectedWbsId)) {
+      nextState = selectWbs(nextState, selectedWbsId);
+    }
+    renderApp(container, nextState, persistence);
+  };
+  const projectWbsPath = (wbsId?: string): string =>
+    `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/wbs${wbsId ? `/${encodeURIComponent(wbsId)}` : ""}`;
   let refreshAIProposals: (() => Promise<void>) | undefined;
   mountAIAssistantChatPanel(
     appShell,
@@ -406,6 +432,63 @@ function renderApp(
     },
     onWbsSelect: (wbsId) => {
       renderApp(container, selectWbs(state, wbsId), persistence);
+    },
+    onWbsCreate: async (input) => {
+      try {
+        const parent = input.parentWbsId && input.parentWbsId !== "__project__" ? state.wbsNodes.find((node) => node.id === input.parentWbsId) : null;
+        const response = await aiTransport.post<
+          { wbs_id: string; parent_kind: "project" | "wbs"; parent_wbs_id: string | null; code: string; name: string; sequence_number: number },
+          { wbs: { wbs_id: string } }
+        >(projectWbsPath(), {
+          wbs_id: `WBS-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+          parent_kind: parent ? "wbs" : "project",
+          parent_wbs_id: parent?.id ?? null,
+          code: input.code,
+          name: input.name,
+          sequence_number: input.sequenceNumber,
+        }, state.context);
+        if (!response.ok) throw new Error(response.error.code);
+        await refreshWorkspaceAfterWbsMutation(response.data.wbs.wbs_id);
+      } catch (error) {
+        reportWbsMutationError(error);
+      }
+    },
+    onWbsUpdate: async (wbsId, input) => {
+      try {
+        const node = state.wbsNodes.find((item) => item.id === wbsId);
+        if (!node) throw new Error("WBS_NOT_FOUND");
+        if (!aiTransport.patch) throw new Error("PATCH_TRANSPORT_UNAVAILABLE");
+        const response = await aiTransport.patch<
+          { expected_revision: number; parent_kind: "project" | "wbs"; parent_wbs_id: string | null; code: string; name: string; sequence_number: number },
+          unknown
+        >(projectWbsPath(wbsId), {
+          expected_revision: node.recordRevision,
+          parent_kind: node.parentKind,
+          parent_wbs_id: node.parentWbsId,
+          code: input.code,
+          name: input.name,
+          sequence_number: input.sequenceNumber,
+        }, state.context);
+        if (!response.ok) throw new Error(response.error.code);
+        await refreshWorkspaceAfterWbsMutation(wbsId);
+      } catch (error) {
+        reportWbsMutationError(error);
+      }
+    },
+    onWbsDelete: async (wbsId) => {
+      if (!wbsId) return;
+      try {
+        const node = state.wbsNodes.find((item) => item.id === wbsId);
+        if (!node) throw new Error("WBS_NOT_FOUND");
+        if (!aiTransport.delete) throw new Error("DELETE_TRANSPORT_UNAVAILABLE");
+        const response = await aiTransport.delete<{ expected_revision: number }, unknown>(
+          projectWbsPath(wbsId), { expected_revision: node.recordRevision }, state.context,
+        );
+        if (!response.ok) throw new Error(response.error.code);
+        await refreshWorkspaceAfterWbsMutation(null);
+      } catch (error) {
+        reportWbsMutationError(error);
+      }
     },
     onActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId), persistence);

@@ -67,6 +67,7 @@ def _dto(item: ActivityMaster) -> dict[str, Any]:
             "planned_finish": _optional_iso(item.planned_finish),
             "leveling_priority": item.leveling_priority.value,
             "original_duration": item.original_duration,
+            "wbs_id": item.wbs_id,
             "record_revision": item.record_revision,
         },
     }
@@ -98,7 +99,11 @@ class P6ActivityMasterAPI:
         auth_context: AuthorizationContext,
     ) -> dict[str, Any]:
         _require_scope(activity.scope, auth_context)
-        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 1
+        ):
             raise ValueError("EXPECTED_REVISION_REQUIRED")
         if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_WRITE):
             raise AuthorizationError("authorization denied for permission=project.write")
