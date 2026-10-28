@@ -113,8 +113,16 @@ from construction_pm.p6_resource_capacity_repository import (
 )
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignmentApplicationService,
+    P6ResourceAssignmentPeriodApplicationService,
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
+)
+from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
+from construction_pm.p6_resource_spread_repository import (
+    P6ResourceSpreadApplicationService,
+    SQLiteP6ResourceSpreadRepository,
 )
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6ScheduleSnapshotPublicationAPI,
@@ -204,6 +212,7 @@ class PreviewRepositories:
     calendar_snapshots: SQLiteCalendarSnapshotRepository
     resource_assignments: SQLiteP6ResourceAssignmentRepository
     resource_periods: SQLiteP6ResourceAssignmentPeriodRepository
+    resource_spreads: SQLiteP6ResourceSpreadRepository
     capacities: SQLiteP6ResourceCapacityRepository
     capacity_service: P6ResourceCapacityApplicationService
     settings: SQLiteProjectScheduleSettingsRepository
@@ -229,6 +238,7 @@ class PreviewRepositories:
         calendar_snapshots = SQLiteCalendarSnapshotRepository(connection)
         resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
         resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
+        resource_spreads = SQLiteP6ResourceSpreadRepository(connection)
         capacities = SQLiteP6ResourceCapacityRepository(connection)
         capacity_service = P6ResourceCapacityApplicationService(
             capacities, transaction_manager
@@ -254,6 +264,7 @@ class PreviewRepositories:
             calendar_snapshots=calendar_snapshots,
             resource_assignments=resource_assignments,
             resource_periods=resource_periods,
+            resource_spreads=resource_spreads,
             capacities=capacities,
             capacity_service=capacity_service,
             settings=settings,
@@ -705,6 +716,10 @@ class PreviewAIPermissionAdapter:
             return proposal.resource_domain == "quantity_takeoff" and bool(
                 {"planner", "project_admin"} & set(active_session.roles)
             )
+        if proposal.tool_name == "resource.assignment.create":
+            return proposal.resource_domain == "resources" and bool(
+                {"planner", "project_admin"} & set(active_session.roles)
+            )
         return False
 
 
@@ -879,11 +894,37 @@ def open_preview_runtime(
             repository=takeoff_repository,
             idempotency_store=idempotency_store,
         )
+        tools = [activity_tool, project_plan_tool, quantity_takeoff_tool]
+        assignment_service = P6ResourceAssignmentApplicationService(
+            repositories.resource_assignments, repositories.transaction_manager
+        )
+        assignment_period_service = P6ResourceAssignmentPeriodApplicationService(
+            repositories.resource_periods, repositories.transaction_manager
+        )
+        spread_service = P6ResourceSpreadApplicationService(
+            repositories.resource_spreads, repositories.transaction_manager
+        )
+        resource_read_api = P6ResourceReadAPI(
+            assignment_service, assignment_period_service, spread_service, policy
+        )
+        resource_write_api = P6ResourceWriteAPI(
+            assignment_period_service, policy, assignment_service
+        )
+        from construction_pm.ai_action_resource_tools import build_resource_assignment_create_tool
+
+        resource_assignment_tool = build_resource_assignment_create_tool(
+            activity_api=activity_api,
+            resource_write_api=resource_write_api,
+            resource_read_api=resource_read_api,
+            idempotency_store=idempotency_store,
+            transaction_manager=repositories.transaction_manager,
+        )
+        tools.append(resource_assignment_tool)
         ai_action_runtime = AIActionRuntime(
             store=action_store,
             permission_adapter=permission_adapter,
             audit_sink=action_store,
-            tools=(activity_tool, project_plan_tool, quantity_takeoff_tool),
+            tools=tuple(tools),
             clock=lambda: datetime.now(timezone.utc),
             transaction_manager=repositories.transaction_manager,
         )
@@ -891,6 +932,7 @@ def open_preview_runtime(
             "activity.create",
             "project.plan.create",
             "quantity.takeoff.create",
+            "resource.assignment.create",
         )
 
     app = build_project_lifecycle_wsgi_app(
