@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import ipaddress
 import json
 import os
 import re
 import socket
+import ssl
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -124,7 +126,7 @@ class _ArticleHTMLText(HTMLParser):
             self.text_parts.append(cleaned + " ")
 
 
-def _canonical_public_url(value: str) -> tuple[str, str]:
+def _canonical_public_url(value: str) -> tuple[str, str, object]:
     if not isinstance(value, str) or not value.strip() or len(value.strip()) > MAX_RESEARCH_URL_CHARS:
         raise AILearningResearchError("AI_RESEARCH_URL_INVALID")
     parts = urlsplit(value.strip())
@@ -132,21 +134,30 @@ def _canonical_public_url(value: str) -> tuple[str, str]:
         raise AILearningResearchError("AI_RESEARCH_HTTPS_URL_REQUIRED")
     if parts.username or parts.password:
         raise AILearningResearchError("AI_RESEARCH_URL_CREDENTIALS_FORBIDDEN")
-    if parts.port not in (None, 443):
-        raise AILearningResearchError("AI_RESEARCH_URL_PORT_FORBIDDEN")
+    try:
+        if parts.port not in (None, 443):
+            raise AILearningResearchError("AI_RESEARCH_URL_PORT_FORBIDDEN")
+    except ValueError as exc:
+        raise AILearningResearchError("AI_RESEARCH_URL_PORT_FORBIDDEN") from exc
     host = parts.hostname.rstrip(".").lower()
     if (
         host in {"localhost", "localhost.localdomain"}
         or host.endswith(".localhost")
         or host.endswith(".local")
         or host.endswith(".internal")
-        or "." not in host and ":" not in host
+        or ("." not in host and ":" not in host)
     ):
         raise AILearningResearchError("AI_RESEARCH_HOST_NOT_PUBLIC")
     if any(_FORBIDDEN_QUERY_KEY.match(key) for key, _ in parse_qsl(parts.query, keep_blank_values=True)):
         raise AILearningResearchError("AI_RESEARCH_URL_CREDENTIAL_QUERY_FORBIDDEN")
-    canonical = urlunsplit(("https", parts.netloc, parts.path or "/", parts.query, ""))
-    return canonical, host
+    try:
+        ipaddress.ip_address(host)
+        is_ip = True
+    except ValueError:
+        is_ip = False
+    authority_host = f"[{host}]" if ":" in host else host
+    canonical = urlunsplit(("https", authority_host, parts.path or "/", parts.query, ""))
+    return canonical, host, is_ip
 
 
 def _default_resolver(host: str) -> tuple[str, ...]:
@@ -156,8 +167,29 @@ def _default_resolver(host: str) -> tuple[str, ...]:
         raise AILearningResearchError("AI_RESEARCH_HOST_RESOLUTION_FAILED") from exc
 
 
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """Connect to a vetted IP while retaining hostname-based TLS verification/SNI."""
+
+    def __init__(self, hostname: str, pinned_ip: str, timeout_seconds: float) -> None:
+        super().__init__(
+            host=hostname,
+            port=443,
+            timeout=timeout_seconds,
+            context=ssl.create_default_context(),
+        )
+        self._pinned_ip = pinned_ip
+
+    def connect(self) -> None:
+        raw_socket = socket.create_connection((self._pinned_ip, self.port), self.timeout)
+        try:
+            self.sock = self._context.wrap_socket(raw_socket, server_hostname=self.host)
+        except Exception:
+            raw_socket.close()
+            raise
+
+
 class SafePublicArticleFetcher:
-    """Fetch one public HTTPS HTML/text article without credentials or redirects."""
+    """Fetch one allowlisted public HTTPS article without redirects or DNS rebinding."""
 
     def __init__(
         self,
@@ -169,7 +201,9 @@ class SafePublicArticleFetcher:
     ) -> None:
         if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float)) or not 1 <= timeout_seconds <= 30:
             raise AILearningResearchError("AI_RESEARCH_CONFIGURATION_INVALID")
-        self._opener = opener or build_opener(_RejectArticleRedirects()).open
+        # Supplying an opener is intentionally limited to deterministic tests.
+        # Production uses a pinned direct TLS connection below, not URLopen's second DNS lookup.
+        self._test_opener = opener
         self._resolver = resolver
         configured = allowed_domains
         if configured is None:
@@ -181,9 +215,11 @@ class SafePublicArticleFetcher:
         self._allowed_domains = tuple(configured)
         self._timeout_seconds = float(timeout_seconds)
 
-    def _validate_host(self, host: str) -> None:
-        if self._allowed_domains and not any(
-            host == allowed or host.endswith("." + allowed)
+    def _validate_host(self, host: str, is_ip: bool) -> tuple[str, ...]:
+        if not self._allowed_domains:
+            raise AILearningResearchError("AI_RESEARCH_DOMAIN_ALLOWLIST_REQUIRED")
+        if not any(
+            host == allowed or (not is_ip and host.endswith("." + allowed))
             for allowed in self._allowed_domains
         ):
             raise AILearningResearchError("AI_RESEARCH_DOMAIN_NOT_ALLOWLISTED")
@@ -201,43 +237,72 @@ class SafePublicArticleFetcher:
                 raise AILearningResearchError("AI_RESEARCH_HOST_RESOLUTION_FAILED") from exc
             if not parsed.is_global:
                 raise AILearningResearchError("AI_RESEARCH_HOST_NOT_PUBLIC")
+        return addresses
 
     def fetch(self, url: str) -> PublicArticleSource:
-        canonical_url, host = _canonical_public_url(url)
-        self._validate_host(host)
-        request = Request(
-            canonical_url,
-            headers={
-                "Accept": "text/html, text/plain;q=0.9",
-                "User-Agent": "CUBI-Engineering-Research/1.0",
-            },
-            method="GET",
-        )
+        canonical_url, host, is_ip = _canonical_public_url(url)
+        addresses = self._validate_host(host, is_ip)
+        parts = urlsplit(canonical_url)
+        request_path = parts.path or "/"
+        if parts.query:
+            request_path += "?" + parts.query
         try:
-            response_context = self._opener(request, timeout=self._timeout_seconds)
-            with response_context as response:  # type: ignore[attr-defined]
-                final_url = str(response.geturl())
-                final_canonical, final_host = _canonical_public_url(final_url)
-                if final_canonical != canonical_url or final_host != host:
-                    raise AILearningResearchError("AI_RESEARCH_REDIRECT_FORBIDDEN")
-                headers = response.headers
-                content_type = str(headers.get("Content-Type", "text/html")).split(";", 1)[0].strip().lower()
-                if content_type not in {"text/html", "text/plain"}:
-                    raise AILearningResearchError("AI_RESEARCH_CONTENT_TYPE_UNSUPPORTED")
+            if self._test_opener is not None:
+                # Unit-test seam only; production always uses the pinned connection path.
+                request = Request(
+                    canonical_url,
+                    headers={
+                        "Accept": "text/html, text/plain;q=0.9",
+                        "User-Agent": "CUBI-Engineering-Research/1.0",
+                    },
+                    method="GET",
+                )
+                response_context = self._test_opener(request, timeout=self._timeout_seconds)
+                with response_context as response:  # type: ignore[attr-defined]
+                    final_url = str(response.geturl())
+                    if final_url != canonical_url:
+                        raise AILearningResearchError("AI_RESEARCH_REDIRECT_FORBIDDEN")
+                    headers = response.headers
+                    status = int(getattr(response, "status", 200))
+                    content_type = str(headers.get("Content-Type", "text/html")).split(";", 1)[0].strip().lower()
+                    try:
+                        size_header = int(headers.get("Content-Length", "0") or "0")
+                    except (TypeError, ValueError):
+                        size_header = 0
+                    if size_header > MAX_ARTICLE_RESPONSE_BYTES:
+                        raise AILearningResearchError("AI_RESEARCH_RESPONSE_TOO_LARGE")
+                    raw = response.read(MAX_ARTICLE_RESPONSE_BYTES + 1)
+            else:
+                connection = _PinnedHTTPSConnection(host, addresses[0], self._timeout_seconds)
                 try:
-                    size_header = int(headers.get("Content-Length", "0") or "0")
-                except (TypeError, ValueError):
-                    size_header = 0
-                if size_header > MAX_ARTICLE_RESPONSE_BYTES:
-                    raise AILearningResearchError("AI_RESEARCH_RESPONSE_TOO_LARGE")
-                raw = response.read(MAX_ARTICLE_RESPONSE_BYTES + 1)
+                    connection.putrequest("GET", request_path, skip_host=True, skip_accept_encoding=True)
+                    connection.putheader("Host", parts.netloc)
+                    connection.putheader("Accept", "text/html, text/plain;q=0.9")
+                    connection.putheader("User-Agent", "CUBI-Engineering-Research/1.0")
+                    connection.putheader("Connection", "close")
+                    connection.endheaders()
+                    response = connection.getresponse()
+                    status = response.status
+                    headers = response.headers
+                    content_type = str(headers.get("Content-Type", "text/html")).split(";", 1)[0].strip().lower()
+                    try:
+                        size_header = int(headers.get("Content-Length", "0") or "0")
+                    except (TypeError, ValueError):
+                        size_header = 0
+                    if size_header > MAX_ARTICLE_RESPONSE_BYTES:
+                        raise AILearningResearchError("AI_RESEARCH_RESPONSE_TOO_LARGE")
+                    raw = response.read(MAX_ARTICLE_RESPONSE_BYTES + 1)
+                finally:
+                    connection.close()
+            if status in {301, 302, 303, 307, 308}:
+                raise AILearningResearchError("AI_RESEARCH_REDIRECT_FORBIDDEN")
+            if status != 200:
+                raise AILearningResearchError("AI_RESEARCH_SOURCE_UNAVAILABLE")
+            if content_type not in {"text/html", "text/plain"}:
+                raise AILearningResearchError("AI_RESEARCH_CONTENT_TYPE_UNSUPPORTED")
         except AILearningResearchError:
             raise
-        except HTTPError as exc:
-            if exc.code in {301, 302, 303, 307, 308}:
-                raise AILearningResearchError("AI_RESEARCH_REDIRECT_FORBIDDEN") from exc
-            raise AILearningResearchError("AI_RESEARCH_SOURCE_UNAVAILABLE") from exc
-        except (URLError, TimeoutError, OSError) as exc:
+        except (HTTPError, URLError, TimeoutError, OSError, ssl.SSLError, http.client.HTTPException) as exc:
             raise AILearningResearchError("AI_RESEARCH_SOURCE_UNAVAILABLE") from exc
         except Exception as exc:
             raise AILearningResearchError("AI_RESEARCH_SOURCE_UNAVAILABLE") from exc
