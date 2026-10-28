@@ -23,10 +23,13 @@ from construction_pm.application.project_lifecycle import (
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.ai_learning_memory import (
     LearningRetrievalScope,
+    AILearningMemoryRecord,
     LearningScope,
+    LearningSignalKind,
     LearningStatus,
 )
 from construction_pm.ai_learning_memory_repository import SQLiteAILearningMemoryRepository
+from construction_pm.ai_learning_knowledge_admin import AILearningKnowledgeAdminService
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 
@@ -93,6 +96,15 @@ def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), as
 
     memory_repository = SQLiteAILearningMemoryRepository(conn) if memory_enabled else None
     memory_transactions = SQLiteTransactionManager(conn) if memory_enabled else None
+    knowledge_admin_service = (
+        AILearningKnowledgeAdminService(
+            repository=memory_repository,
+            transaction_manager=memory_transactions,
+            clock=lambda: now,
+        )
+        if memory_repository is not None and memory_transactions is not None
+        else None
+    )
     runtime = AIActionRuntime(
         store=store,
         permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: (grant,)),
@@ -123,6 +135,7 @@ def build_routes(*, runtime_enabled=True, roles=frozenset({"project_admin"}), as
         ai_learning_memory_repository=memory_repository,
         ai_learning_memory_transaction_manager=memory_transactions,
         ai_learning_research_service=research_service,
+        ai_learning_knowledge_admin_service=knowledge_admin_service,
     )
     return routes, conn, executed
 
@@ -550,3 +563,135 @@ def test_research_command_saves_review_candidate_only_and_requires_project_write
         assert readonly_service.urls == []
     finally:
         conn.close()
+
+
+def _append_review_candidate(conn, *, record_id="research-route-001", version=1):
+    repository = SQLiteAILearningMemoryRepository(conn)
+    record = AILearningMemoryRecord(
+        record_id=record_id,
+        record_version=version,
+        scope=LearningScope.GENERAL_CANDIDATE,
+        status=LearningStatus.CANDIDATE,
+        signal_kind=LearningSignalKind.PUBLIC_RESEARCH,
+        lesson="When reviewing schedule risk, state uncertainty and cite the evidence supporting each risk driver.",
+        conditions="Source title: Construction schedule risk. Source fetched at 2026-10-28T12:00:00+00:00. For quantitative schedule risk review.",
+        limitations="This is an unapproved candidate; do not treat it as an authoritative project result.",
+        evidence_refs=("https://example.com/schedule-risk", "sha256:" + ("a" * 64)),
+        captured_at=datetime(2026, 10, 28, 12, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 10, 28, 12, 0, tzinfo=timezone.utc),
+    )
+    repository.append(record)
+    conn.commit()
+    return record
+
+
+def test_general_knowledge_candidate_list_and_publication_require_global_ai_knowledge_admin():
+    routes, conn, _ = build_routes(
+        runtime_enabled=False, roles=frozenset({"ai_knowledge_admin"}), memory_enabled=True
+    )
+    try:
+        candidate = _append_review_candidate(conn)
+        status, _, body = request(routes, "/api/ai/learning/candidates", None, method="GET")
+        assert status == 200, body.decode("utf-8")
+        response = json.loads(body)
+        assert response["contract_version"] == "ai-learning-candidates.v1"
+        assert response["count"] == 1
+        item = response["candidates"][0]
+        assert item["record_id"] == candidate.record_id
+        assert item["title"] == "Construction schedule risk"
+        assert "This is an unapproved candidate" in item["limitations"]
+        assert "source_text" not in item
+        assert item["evidence_refs"][0] == "https://example.com/schedule-risk"
+
+        status, _, body = request(routes, "/api/ai/learning/candidates/research-route-001/1/decision", {
+            "decision": "approve",
+            "privacy_review_passed": True,
+            "consent_for_generalization": True,
+            "validation_evidence_refs": ["manual-review:source-and-rights", "test:schedule-risk-checks"],
+        })
+        assert status == 200, body.decode("utf-8")
+        reviewed = json.loads(body)["record"]
+        assert reviewed["status"] == "published"
+        assert reviewed["scope"] == "general_published"
+        assert reviewed["record_version"] == 2
+        assert reviewed["approved_by"] == "u1"
+        assert len(reviewed["validation_evidence_refs"]) == 2
+
+        status, _, body = request(routes, "/api/ai/learning/candidates", None, method="GET")
+        assert status == 200
+        assert json.loads(body)["count"] == 0
+
+        repository = SQLiteAILearningMemoryRepository(conn)
+        globally_retrieved = repository.list_retrievable(
+            LearningRetrievalScope(user_id="any-user", tenant_id="any-tenant")
+        )
+        assert len(globally_retrieved) == 1
+        assert globally_retrieved[0].scope is LearningScope.GENERAL_PUBLISHED
+        assert globally_retrieved[0].approved_by == "u1"
+    finally:
+        conn.close()
+
+
+def test_global_knowledge_publisher_cannot_approve_without_explicit_privacy_and_evidence_checks():
+    routes, conn, _ = build_routes(
+        runtime_enabled=False, roles=frozenset({"ai_knowledge_admin"}), memory_enabled=True
+    )
+    try:
+        _append_review_candidate(conn)
+        status, _, body = request(routes, "/api/ai/learning/candidates/research-route-001/1/decision", {
+            "decision": "approve",
+            "privacy_review_passed": False,
+            "consent_for_generalization": True,
+            "validation_evidence_refs": [],
+        })
+        assert status == 400
+        assert json.loads(body)["code"] == "AI_LEARNING_REVIEW_REQUEST_INVALID"
+        assert SQLiteAILearningMemoryRepository(conn).list_retrievable(
+            LearningRetrievalScope(user_id="any-user", tenant_id="any-tenant")
+        ) == ()
+    finally:
+        conn.close()
+
+
+def test_rejecting_candidate_appends_rejected_version_and_hides_candidate_from_review_queue():
+    routes, conn, _ = build_routes(
+        runtime_enabled=False, roles=frozenset({"system_admin"}), memory_enabled=True
+    )
+    try:
+        _append_review_candidate(conn)
+        status, _, body = request(routes, "/api/ai/learning/candidates/research-route-001/1/decision", {
+            "decision": "reject",
+        })
+        assert status == 200, body.decode("utf-8")
+        rejected = json.loads(body)["record"]
+        assert rejected["status"] == "rejected"
+        assert rejected["scope"] == "general_candidate"
+        assert rejected["record_version"] == 2
+        status, _, body = request(routes, "/api/ai/learning/candidates", None, method="GET")
+        assert status == 200
+        assert json.loads(body)["count"] == 0
+        status, _, body = request(routes, "/api/ai/learning/candidates/research-route-001/1/decision", {
+            "decision": "reject",
+        })
+        assert status == 409
+        assert json.loads(body)["code"] == "AI_LEARNING_CANDIDATE_NOT_FOUND_OR_STALE"
+    finally:
+        conn.close()
+
+
+def test_project_admin_and_viewer_cannot_manage_global_knowledge_candidates():
+    for role in ("project_admin", "viewer", "planner"):
+        routes, conn, _ = build_routes(
+            runtime_enabled=False, roles=frozenset({role}), memory_enabled=True
+        )
+        try:
+            _append_review_candidate(conn, record_id="research-role-check")
+            status, _, body = request(routes, "/api/ai/learning/candidates", None, method="GET")
+            assert status == 403
+            assert json.loads(body)["code"] == "AI_LEARNING_ADMIN_NOT_AUTHORIZED"
+            status, _, body = request(routes, "/api/ai/learning/candidates/research-role-check/1/decision", {
+                "decision": "reject",
+            })
+            assert status == 403
+        finally:
+            conn.close()
