@@ -29,6 +29,10 @@ from construction_pm.ai_action_activity_tools import (
 from construction_pm.ai_action_project_plan_tools import build_project_plan_create_tool
 from construction_pm.ai_action_runtime import AIActionProposal, AIActionRuntime, SQLiteAIActionRuntimeStore
 from construction_pm.ai_assistant_orchestration import build_ai_chat_provider_from_environment
+from construction_pm.quantity_takeoff import (
+    SQLiteQuantityTakeoffRepository,
+    build_quantity_takeoff_create_tool,
+)
 from construction_pm.application.authorization import (
     AuthorizationContext,
     RoleBasedAuthorizationPolicy,
@@ -697,6 +701,10 @@ class PreviewAIPermissionAdapter:
             )
         if proposal.tool_name == "project.plan.create":
             return proposal.resource_domain == "projects" and "project_admin" in active_session.roles
+        if proposal.tool_name == "quantity.takeoff.create":
+            return proposal.resource_domain == "quantity_takeoff" and bool(
+                {"planner", "project_admin"} & set(active_session.roles)
+            )
         return False
 
 
@@ -866,15 +874,24 @@ def open_preview_runtime(
             authorization_policy=policy,
             timezone_name="Asia/Tehran",
         )
+        takeoff_repository = SQLiteQuantityTakeoffRepository(connection)
+        quantity_takeoff_tool = build_quantity_takeoff_create_tool(
+            repository=takeoff_repository,
+            idempotency_store=idempotency_store,
+        )
         ai_action_runtime = AIActionRuntime(
             store=action_store,
             permission_adapter=permission_adapter,
             audit_sink=action_store,
-            tools=(activity_tool, project_plan_tool),
+            tools=(activity_tool, project_plan_tool, quantity_takeoff_tool),
             clock=lambda: datetime.now(timezone.utc),
             transaction_manager=repositories.transaction_manager,
         )
-        ai_tool_names = ("activity.create", "project.plan.create")
+        ai_tool_names = (
+            "activity.create",
+            "project.plan.create",
+            "quantity.takeoff.create",
+        )
 
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,
