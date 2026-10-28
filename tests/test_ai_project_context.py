@@ -113,7 +113,7 @@ def test_context_contains_only_authorized_revision_and_workspace_facts():
         "with_schedule_facts": 1,
         "without_complete_schedule_facts": 1,
         "critical_flag_known_count": 1,
-        "critical_true_count": 1,
+        "critical_true_count_among_known_flags": 1,
     }
     first, second = context["activities"]
     assert first["id"] == "A-100"
