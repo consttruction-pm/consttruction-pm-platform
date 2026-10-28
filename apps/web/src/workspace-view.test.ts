@@ -26,6 +26,17 @@ function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
   return container.innerHTML;
 }
 
+test("WBS panel renders localized create controls and permits creating a project root", () => {
+  const english = render("en", "project");
+  assert.match(english, /data-wbs-create-form/);
+  assert.match(english, /Project root/);
+  assert.match(english, /name="sequence_number"/);
+
+  const persian = render("fa", "project");
+  assert.match(persian, /افزودن ساختار شکست/);
+  assert.match(persian, /ریشهٔ پروژه/);
+});
+
 test("rendered schedule surface exposes localized label and implemented status", () => {
   const html = render("en", "schedule");
 
