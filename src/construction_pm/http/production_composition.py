@@ -32,6 +32,7 @@ from construction_pm.relationship_master_repository import RelationshipMasterRep
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
 from construction_pm.project_forms import FormBuilderAPI
 from construction_pm.ai_learning_memory_repository import AILearningMemoryRepository
+from construction_pm.ai_learning_research import AILearningResearchService
 from construction_pm.ai_action_runtime import (
     AIActionRuntime,
     AIActionRuntimeError,
@@ -162,6 +163,23 @@ def build_project_lifecycle_wsgi_app(
             form_builder_api=form_builder_api,
         )
 
+    ai_learning_memory_transaction_manager = (
+        ai_action_transaction_manager
+        or getattr(ai_action_runtime, "transaction_manager", None)
+    )
+    ai_learning_research_service = None
+    if (
+        ai_assistant_provider is not None
+        and ai_learning_memory_repository is not None
+        and ai_learning_memory_transaction_manager is not None
+    ):
+        ai_learning_research_service = AILearningResearchService(
+            provider=ai_assistant_provider,
+            repository=ai_learning_memory_repository,
+            transaction_manager=ai_learning_memory_transaction_manager,
+            clock=None if clock is None else clock.now,
+        )
+
     ai_assistant_orchestrator = None
     if ai_assistant_provider is not None and ai_action_runtime is not None:
         ai_assistant_orchestrator = AIAssistantTurnOrchestrator(
@@ -201,10 +219,8 @@ def build_project_lifecycle_wsgi_app(
         ai_assistant_orchestrator=ai_assistant_orchestrator,
         form_builder_api=form_builder_api,
         ai_learning_memory_repository=ai_learning_memory_repository,
-        ai_learning_memory_transaction_manager=(
-            ai_action_transaction_manager
-            or getattr(ai_action_runtime, "transaction_manager", None)
-        ),
+        ai_learning_memory_transaction_manager=ai_learning_memory_transaction_manager,
+        ai_learning_research_service=ai_learning_research_service,
     )
     return ProjectLifecycleWsgiApp(routes)
 
