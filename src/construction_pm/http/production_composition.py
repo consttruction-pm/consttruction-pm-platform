@@ -200,6 +200,11 @@ def build_project_lifecycle_wsgi_app(
         ai_action_runtime=ai_action_runtime,
         ai_assistant_orchestrator=ai_assistant_orchestrator,
         form_builder_api=form_builder_api,
+        ai_learning_memory_repository=ai_learning_memory_repository,
+        ai_learning_memory_transaction_manager=(
+            ai_action_transaction_manager
+            or getattr(ai_action_runtime, "transaction_manager", None)
+        ),
     )
     return ProjectLifecycleWsgiApp(routes)
 
