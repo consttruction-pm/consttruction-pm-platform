@@ -867,6 +867,15 @@ def open_preview_runtime(
     ai_assistant_provider = None
     ai_action_runtime = None
     ai_tool_names: tuple[str, ...] = ()
+    # Form Builder APIs and persistence are deterministic CUBI capabilities and must
+    # remain available when semantic model inference is disabled or unprovisioned.
+    form_repository = SQLiteFormBuilderRepository(connection)
+    form_builder_api = FormBuilderAPI(
+        form_repository,
+        policy,
+        repositories.transaction_manager,
+        clock=lambda: datetime.now(timezone.utc),
+    )
     if ai_assistant_enabled and os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip():
         # Compose real tools only when the local model is configured; no remote fallback.
         # An enabled flag without model assets leaves assistant turns unavailable, not the site.
@@ -925,13 +934,6 @@ def open_preview_runtime(
             transaction_manager=repositories.transaction_manager,
         )
         tools.append(resource_assignment_tool)
-        form_repository = SQLiteFormBuilderRepository(connection)
-        form_builder_api = FormBuilderAPI(
-            form_repository,
-            policy,
-            repositories.transaction_manager,
-            clock=lambda: datetime.now(timezone.utc),
-        )
         from construction_pm.ai_action_form_tools import build_form_definition_create_tool
 
         form_definition_tool = build_form_definition_create_tool(
@@ -966,7 +968,7 @@ def open_preview_runtime(
         relationship_master_repository=repositories.relationships,
         schedule_snapshot_publication_api=snapshot_api,
         backend_p0_api=backend_api,
-        form_builder_api=form_builder_api if ai_assistant_enabled and os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip() else None,
+        form_builder_api=form_builder_api,
         p6_field_registry_api=P6FieldRegistryAPI(
             repositories.field_service,
             repositories.udf_service,
