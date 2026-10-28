@@ -153,6 +153,8 @@ def test_real_preview_assistant_proposes_then_approves_creates_and_calculates_pr
             return provider
 
     monkeypatch.setenv("CUBI_AI_ENABLED", "true")
+    # This test injects a fake local provider factory; model presence is still explicit.
+    monkeypatch.setenv("CUBI_AI_LOCAL_MODEL", "test-local-model")
     monkeypatch.delenv("CUBI_PREVIEW_PUBLIC_DEMO", raising=False)
     monkeypatch.delenv("CUBI_PREVIEW_PRIVATE_ACCESS_TOKEN", raising=False)
     monkeypatch.setattr(
