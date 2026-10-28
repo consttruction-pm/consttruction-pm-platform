@@ -29,10 +29,10 @@ test("CUBI homepage is aligned to the supplied Issue #1101 website reference", (
 test("CUBI logos use the approved reference palette or preserve the supplied original artwork", () => {
   const allowed = new Set(["0A3B91","1153B8","1468D6","2CC5EB","0E5CC9","21B7E2","3ED3B8","1C9E85","2CC1A8","0B1C30","5E7183","7E8FA0"]);
   const colors = [...primaryLogoLockup.matchAll(/#[0-9A-Fa-f]{6}/g)].map((m) => m[0].slice(1).toUpperCase());
-  if (/<image\\b/.test(primaryLogoLockup) && /href="data:image\\/(?:jpeg|png);base64,/.test(primaryLogoLockup)) {
+  if (/<image\b/.test(primaryLogoLockup) && /href="data:image\/(?:jpeg|png);base64,/.test(primaryLogoLockup)) {
     // Embedded original artwork cannot expose its pixels as SVG color tokens.
     // Its exact payload is intentionally preserved rather than recolored/redrawn.
-    assert.match(primaryLogoLockup, /<desc[^>]*>Original user-provided CUBI Platform logo image preserved without redraw or alteration\\.<\\/desc>/);
+    assert.match(primaryLogoLockup, /<desc[^>]*>Original user-provided CUBI Platform logo image preserved without redraw or alteration\.<\/desc>/);
     return;
   }
   assert.ok(colors.length > 0);
@@ -42,8 +42,8 @@ test("CUBI logos use the approved reference palette or preserve the supplied ori
 
 test("only one canonical CUBI logo file is referenced", () => {
   assert.match(primaryLogoLockup, /CUBI/);
-  const embeddedOriginal = /<image\\b/.test(primaryLogoLockup) && /href="data:image\\/(?:jpeg|png);base64,/.test(primaryLogoLockup);
-  const legacyVector = /Plan\\. Control\\. Build Smarter\\./.test(primaryLogoLockup) && /M250 109L156 62/.test(primaryLogoLockup);
+  const embeddedOriginal = /<image\b/.test(primaryLogoLockup) && /href="data:image\/(?:jpeg|png);base64,/.test(primaryLogoLockup);
+  const legacyVector = /Plan\. Control\. Build Smarter\./.test(primaryLogoLockup) && /M250 109L156 62/.test(primaryLogoLockup);
   assert.ok(embeddedOriginal || legacyVector,
     "canonical logo must be the supplied original artwork or the registered vector lockup");
 });
