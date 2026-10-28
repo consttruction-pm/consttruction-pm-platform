@@ -7,7 +7,6 @@ never silently treated as zero-cost items.
 from __future__ import annotations
 
 import hashlib
-import ipaddress
 import json
 import re
 import sqlite3
