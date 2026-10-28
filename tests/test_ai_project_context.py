@@ -13,14 +13,14 @@ from construction_pm.ai_project_context import (
 
 def workspace_snapshot(*, revision=12, activities=None, field_issues=None):
     return {
-        "contract_version": "workspace-control-room-read.v1",
+        "contract_version": "workspace-control-room-read.v2",
         "context": {
             "tenant_id": "tenant-1",
             "project_id": "project-1",
             "revision": revision,
         },
         "workspace": {
-            "contract_version": "workspace-control-room.v1",
+            "contract_version": "workspace-control-room.v2",
             "context": {
                 "tenant_id": "tenant-1",
                 "project_id": "project-1",
@@ -227,7 +227,7 @@ def test_context_emits_evidence_linked_review_signals_without_invented_risk_scor
         assert "probability" not in signal
         assert "likelihood" not in signal
         assert "impact" not in signal
-        assert signal["evidence_contract"] == "workspace-control-room-read.v1"
+        assert signal["evidence_contract"] == "workspace-control-room-read.v2"
     assert context["engineering_signal_counts"]["negative_total_float"] == 1
     assert context["engineering_signal_counts"]["unfinished_critical_activity"] == 1
     assert context["engineering_signal_counts"]["open_field_issue"] == 1
