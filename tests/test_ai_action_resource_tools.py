@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sqlite3
 from decimal import Decimal
 from datetime import datetime, timezone
@@ -14,13 +13,11 @@ from construction_pm.ai_action_boundary import (
     AIActionPermissionGrant,
     UserConfiguredAIActionPermissionAdapter,
 )
-from construction_pm.ai_action_resource_tools import (
-    AIResourceAssignmentToolError,
-    build_resource_assignment_create_tool,
-)
+from construction_pm.ai_action_resource_tools import build_resource_assignment_create_tool
 from construction_pm.ai_action_runtime import (
     AIActionRuntime,
     AIActionRuntimeContext,
+    AIActionRuntimeError,
     SQLiteAIActionRuntimeStore,
 )
 from construction_pm.activity_master_repository import (
@@ -187,15 +184,21 @@ def test_resource_assignment_rejects_missing_activity_and_invalid_cost_currency(
             runtime.propose(
                 context,
                 tool_name="resource.assignment.create",
-                payload=payload(activity_id="ACT-DOES-NOT-EXIST", planned_cost=12),
-            )
-        with pytest.raises(ValueError, match="AI_ACTION_TOOL_PAYLOAD_INVALID"):
-            runtime.propose(
-                context,
-                tool_name="resource.assignment.create",
                 payload=payload(currency=None),
             )
+        proposed = runtime.propose(
+            context,
+            tool_name="resource.assignment.create",
+            payload=payload(activity_id="ACT-DOES-NOT-EXIST", assignment_id="RA-MISSING-ACTIVITY"),
+        )
+        runtime.decide(context, proposed.proposal.proposal_id, approved=True)
+        # The execution handler rechecks the live activity and records a non-replayable
+        # uncertain result; no resource assignment may be written for an unknown activity.
+        with pytest.raises(AIActionRuntimeError):
+            runtime.execute(context, proposed.proposal.proposal_id)
         assert assignment_service.list(scope) == ()
+        persisted = runtime.get_proposal(context, proposed.proposal.proposal_id)
+        assert persisted.status == "uncertain"
     finally:
         connection.close()
 
