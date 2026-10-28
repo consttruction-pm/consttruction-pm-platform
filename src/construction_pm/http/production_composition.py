@@ -94,7 +94,11 @@ def build_project_lifecycle_wsgi_app(
     assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
         "1", "true", "yes"
     }
-    if ai_assistant_provider is None and assistant_enabled:
+    if (
+        ai_assistant_provider is None
+        and assistant_enabled
+        and os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip()
+    ):
         ai_assistant_provider = build_ai_chat_provider_from_environment()
 
     resource_resolver_dependencies = (
