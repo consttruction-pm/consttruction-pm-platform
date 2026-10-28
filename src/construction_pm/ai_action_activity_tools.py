@@ -19,6 +19,8 @@ from .application.authorization import AuthorizationContext, AuthorizationPolicy
 from .backend_p0.idempotency import fingerprint
 from .backend_p0.models import BackendScope
 from .p6_activity_master_api import P6ActivityMasterAPI
+from .p6_resource_read_api import P6ResourceReadAPI
+from .p6_resource_write_api import P6ResourceWriteAPI
 from .activity_master_repository import (
     ActivityMaster,
     ActivityMasterRepository,
@@ -150,6 +152,9 @@ def build_activity_create_runtime(
     permission_adapter: AIToolPermissionAdapter,
     transaction_manager: object,
     clock: Callable[[], datetime] | None = None,
+    resource_write_api: P6ResourceWriteAPI | None = None,
+    resource_read_api: P6ResourceReadAPI | None = None,
+    form_builder_api: object | None = None,
 ) -> AIActionRuntime:
     """Compose the first production typed tool only when real dependencies are supplied.
 
@@ -162,14 +167,24 @@ def build_activity_create_runtime(
     if connection is None or repository_connection is not connection:
         raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_TRANSACTION_CONNECTION_MISMATCH")
 
+    # Import lazily: quantity_takeoff reuses this module's idempotency-store contract.
+    from .quantity_takeoff import (
+        PostgresQuantityTakeoffRepository,
+        SQLiteQuantityTakeoffRepository,
+        build_quantity_takeoff_create_tool,
+    )
+
     if isinstance(activity_master_repository, SQLiteActivityMasterRepository):
         if not isinstance(connection, sqlite3.Connection):
             raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_STORAGE_ADAPTER_MISMATCH")
         runtime_store = SQLiteAIActionRuntimeStore(connection)
         idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
+        takeoff_repository = SQLiteQuantityTakeoffRepository(connection)
     elif isinstance(activity_master_repository, PostgresActivityMasterRepository):
         runtime_store = PostgresAIActionRuntimeStore(connection)
         idempotency_store = PostgresAIActionExecutionIdempotencyStore(connection)
+        takeoff_repository = PostgresQuantityTakeoffRepository(connection)
+        takeoff_repository.initialize()
     else:
         raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_STORAGE_ADAPTER_UNSUPPORTED")
 
@@ -178,11 +193,40 @@ def build_activity_create_runtime(
         idempotency_store=idempotency_store,
         transaction_manager=transaction_manager,
     )
+    quantity_takeoff_tool = build_quantity_takeoff_create_tool(
+        repository=takeoff_repository,
+        idempotency_store=idempotency_store,
+    )
+    tools = [tool, quantity_takeoff_tool]
+    # Assignment write is optional in legacy deployments. Register the new action
+    # only when both authenticated read/write boundaries are actually available.
+    if resource_write_api is not None and resource_read_api is not None:
+        from .ai_action_resource_tools import build_resource_assignment_create_tool
+
+        tools.append(
+            build_resource_assignment_create_tool(
+                activity_api=P6ActivityMasterAPI(activity_master_repository, authorization_policy),
+                resource_write_api=resource_write_api,
+                resource_read_api=resource_read_api,
+                idempotency_store=idempotency_store,
+                transaction_manager=transaction_manager,
+            )
+        )
+    if form_builder_api is not None:
+        from .ai_action_form_tools import build_form_definition_create_tool
+
+        tools.append(
+            build_form_definition_create_tool(
+                form_api=form_builder_api,
+                idempotency_store=idempotency_store,
+                transaction_manager=transaction_manager,
+            )
+        )
     return AIActionRuntime(
         store=runtime_store,
         permission_adapter=permission_adapter,
         audit_sink=runtime_store,
-        tools=(tool,),
+        tools=tuple(tools),
         clock=clock,
         transaction_manager=transaction_manager,
     )

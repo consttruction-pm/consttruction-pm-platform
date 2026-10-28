@@ -21,6 +21,7 @@ import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { exerciseProjectFormsPanel } from "./project-forms-flow.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(webRoot, "..", "..");
@@ -1759,7 +1760,7 @@ async function main() {
     });
 
     for (const surface of [
-      { menu: "project", label: "Project", status: "Partial", submenus: 3 },
+      { menu: "project", label: "Project", status: "Partial", submenus: 4 },
       { menu: "resources", label: "Resources", status: "Partial", submenus: 2 },
       { menu: "control", label: "Control", status: "Partial", submenus: 2 },
       { menu: "schedule", label: "Schedule", status: "Implemented", submenus: 13 },
@@ -1786,9 +1787,23 @@ async function main() {
       );
       assert(current === "page", `${surface.label} menu must be current`);
     }
+    await page.click('[data-menu="project"]');
+    await page.waitFor(
+      'document.querySelector(".cp-navigation-surface strong")?.textContent.trim() === "Project"',
+      "project surface before Form Builder assertion",
+    );
+    const formBuilderMenuLink = await page.count('.cp-navigation-surface a[href="#cp-project-forms"]');
+    assert(formBuilderMenuLink === 1, "Project must link to its working Form Builder panel");
+    assert(
+      await page.count("#cp-project-forms [data-form-builder-panel]") === 1,
+      "Form Builder must mount inside the real project workspace",
+    );
     record("menus and submenus expose their real implementation status", {
       surfaces: ["Project", "Resources", "Control", "Schedule"],
     });
+
+    const projectFormsEvidence = await exerciseProjectFormsPanel(page);
+    record("Form Builder creates, publishes, shares, accepts typed values, and records an approved submission", projectFormsEvidence);
 
     await page.click('[data-menu="resources"]');
     await page.waitFor(

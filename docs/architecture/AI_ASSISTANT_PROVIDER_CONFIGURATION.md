@@ -1,47 +1,61 @@
-# AI Assistant Provider Configuration
+# CUBI Assistant Provider Configuration — Local-Only Product Profile
 
-**Status:** Initial server-side natural-language turn path; not certification of complete assistant V1.
+**Effective product decision:** 2026-10-28  
+**Status:** Local-inference adapter implemented on the Engineering Intelligence feature branch; runtime/model provisioning and end-to-end product acceptance remain open.  
+**Canonical implementation gate:** [#1423](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1423).  
+**No-key architecture:** [CUBI Engineering Intelligence Toolchain and Acceptance Plan](CUBI_ENGINEERING_INTELLIGENCE_TOOLCHAIN_AND_ACCEPTANCE.md).
 
-## Explicit opt-in
+## 1. Product rule: no external AI provider key
 
-The assistant provider is disabled by default. In the server's secret/environment configuration, set:
+The CUBI product profile uses local inference. A user/operator must not need to connect CUBI to another company's AI API, paste an external AI key, or configure a remote model URL to use the assistant. CUBI must not make an outbound model request or silently switch to a cloud provider when the local model is missing, slow or unavailable.
+
+Deterministic CUBI capabilities—project persistence, structured file parsing, input validation, ID allocation, approved calculation services, typed report datasets, authorization and audit—must remain available without a language model where their relevant services are implemented. Flexible natural-language synthesis is available only when the configured local model/runtime is actually provisioned.
+
+The legacy `OpenAICompatibleChatProvider` class is not selected by CUBI's product environment factory. `build_ai_chat_provider_from_environment()` accepts only `local-ollama`; any other provider selection fails closed. CUBI's production and local preview composition must use that factory. There is no remote fallback.
+
+## 2. Local runtime configuration
+
+For a private authenticated deployment that intentionally enables assistant turns, configure these server-side environment variables:
 
 - `CUBI_AI_ENABLED=true`
-- `CUBI_AI_API_KEY` — secret credential for the selected provider
-- `CUBI_AI_BASE_URL` — HTTPS base URL for an OpenAI-compatible Chat Completions API, normally including its version path (for example, `https://provider.example/v1`)
-- `CUBI_AI_MODEL` — model identifier supported by that endpoint
-- `CUBI_AI_TIMEOUT_SECONDS` — optional; defaults to `20`, valid range `1..60`
+- `CUBI_AI_PROVIDER=local-ollama` (optional; this is the default and only accepted product provider)
+- `CUBI_AI_LOCAL_MODEL` — exact model name already installed in the local Ollama runtime; required
+- `CUBI_AI_LOCAL_BASE_URL` — optional; defaults to `http://127.0.0.1:11434`
+- `CUBI_AI_LOCAL_TIMEOUT_SECONDS` — optional; defaults to `120`, valid range `1..300`
 
-The server appends `/chat/completions` to the configured base URL. The base URL must use HTTPS and cannot include user information, a query, or a fragment. Do not place API keys in source control, static files, browser storage, HTML, or client-side environment variables.
+No `CUBI_AI_API_KEY`, external provider URL, or remote-model credential is required. The implementation only permits loopback hosts (`localhost`, `127.0.0.1`, or `::1`) and rejects path/query/user-info changes in the configured base URL. It uses the local `/api/chat` endpoint without an Authorization header and rejects HTTP redirects.
 
-When `CUBI_AI_ENABLED` is not explicitly true/1/yes, this provider is not initialized and the assistant route fails closed. When it is enabled, production composition requires an already configured authenticated AI action runtime with real current-grant, repository, and transaction dependencies. Missing configuration does not create a mock runtime or auto-allow grant.
+Before enabling the assistant, install and provision Ollama (or a compatible local service that implements this endpoint) in the same trusted host/network namespace, download the exact model assets, verify the model starts, and run the Persian/English construction-domain golden test set. Model weights, memory, CPU/GPU needs, license, startup health, concurrency and upgrade/rollback must be covered by deployment operations; this code does not download model assets or prove a model is already installed.
 
-## Request and data boundary
+If model configuration is absent, an enabled deployment leaves the assistant route unavailable (HTTP 503 with a stable not-configured error) while the rest of the site continues running; it does not contact any external service. If the configured local endpoint/model is unavailable, the assistant turn returns a sanitized stable runtime/model error. Do not enable the assistant in a public demo or bypass the demo's read-only guard to test it.
 
-The authenticated endpoint is:
+## 3. Current implementation boundary
 
-`POST /api/projects/{project_id}/ai/assistant/turn`
+The versioned adapter supports local JSON chat inference and plugs into the existing proposal-only orchestrator. Existing tool calls still require the authenticated application context, current grants and project revision, real typed handlers, explicit approval, persistent audit and fresh read-back. The model cannot approve or execute a proposal by itself.
 
-The request includes the current project revision, message, language, and up to 12 prior user/assistant messages (12,000 total history characters). System/tool roles, unknown history fields, stale revisions, and oversized input are rejected. The request is scoped from the authenticated session; client-supplied history is conversational context, never identity, permission, approval, or engineering evidence.
+The current production composition's real AI action runtime and tool registration remain incomplete for full assistant V1. If a model is configured before the authenticated action runtime and typed handlers exist, the site remains available but the assistant route stays unconfigured and returns 503; it does not crash the site or execute an unguarded action. In the documented provider slice, supported actions are limited; full WBS/activity/relationship/calendar construction, resource/equipment and quantity estimation tools, risk mitigation, Form Builder, file/Excel/document/voice intake, report/chart grounding, memory retrieval/research/publishing, backup/restore and golden benchmarks must not be claimed complete until independently implemented and verified.
 
-The selected provider receives the user's current message and the supplied conversation history. Configure only a provider endpoint approved to process that information. The conversation text is not written to the action audit log; the server records request length/language, status, failure code, and any proposal ID.
+The current local adapter does not by itself certify Desktop offline operation. Desktop must package/provision a real local inference runtime and model assets, run without Internet for its declared offline capabilities, and have no hidden cloud fallback under the separate offline AI release gate.
 
-## Safety and current capability
+## 4. Security and data boundaries
 
-- Only server-registered tools that expose a JSON schema are described to the model.
-- The initial registered model-facing action is `activity.create`; missing/ambiguous required data should be answered with a clarification.
-- Tool payloads pass through the existing authoritative runtime validator and exact-scope grant checks. Model-generated evidence references are discarded.
-- A model response can create a persisted proposal only. Human approval and explicit execution remain separate authenticated requests; the model cannot set identity, grants, approval policy, or execute an action.
-- Model/provider errors return stable sanitized codes, without echoing API keys or raw provider response bodies. Request size, response size, timeout and provider failure handling are bounded.
+- Model credentials, if an application-local service ever requires local authentication, remain server-side; do not place them in browser code, browser storage, source control, exports or knowledge bundles.
+- The configured model URL must be loopback. Do not weaken that rule to allow a public host or route prompts to a public endpoint.
+- Retrieved files, project notes and source pages remain untrusted instructions/data; they cannot grant permissions or change the tool policy.
+- No raw prompt or project content is promoted to shared/general learning by default.
+- All mutations go through typed CUBI application use cases and Shared Core; no model-side calculation engine is allowed.
+- A missing provider, unsupported action, unavailable model or rejected proposal must fail clearly. Never display a successful mutation unless a fresh authoritative read-back confirms it.
 
-This configuration does not yet provide persisted conversation transcripts, voice/document/Excel intake, WBS/relationship/calendar/resource/cost tools, authoritative Shared Core recalculation and report grounding, full result reconciliation, local Desktop inference, or full end-to-end V1 acceptance. Those release criteria remain open in #1423, #1530 and #1540.
+## 5. Required exact-head verification
 
-## Hosted preview limitation and activation checklist
+Before release, test on one exact commit:
 
-The shared Render workspace preview (`cubi-workspace-preview-2026`) is a public demo and is intentionally read-only. Its current composition does not provide an AI assistant provider or action runtime, so the assistant-turn endpoint is unavailable there. Do not disable the public-demo read-only guard or expose planner/admin demo identities to make this endpoint work.
+1. Local chat works with `CUBI_AI_API_KEY` absent and with no outbound network access.
+2. A request uses only the configured loopback endpoint; no Authorization header is sent and redirects are rejected.
+3. Missing model, missing runtime, malformed JSON, oversized input/output and timeout return sanitized stable errors.
+4. Non-mutating turns work; mutations create persisted proposals only; approving/executing remains a separate authenticated action.
+5. Read-only user, revoked grant, cross-project/tenant request, stale revision, duplicate execution and uncertain partial failure are denied/reconciled and audited.
+6. Local inference does not start in the public read-only preview unless the private authenticated configuration explicitly permits it.
+7. ConstructionPM CI, Web CI, PostgreSQL Integration, Client Typecheck and applicable browser/E2E tests pass on the exact tested SHA.
 
-Setting only `CUBI_AI_ENABLED=true` is not a complete fix. The server also requires a configured AI action runtime with current-grant checks, durable proposal/audit storage, transaction handling, and real application-tool handlers. Enabling the provider without that runtime can prevent this preview composition from starting. Do not add credentials until those dependencies are wired and tested in a private, authenticated staging deployment.
-
-The currently documented model-facing mutation is `activity.create`; a complete project-creation workflow (`project.create`, WBS/activity/relationship/calendar construction, and authoritative schedule recalculation) is not yet exposed as one supported assistant action. Do not expect the assistant to build an entire project on this preview until that end-to-end capability has been implemented and verified.
-
-Once a private deployment has the provider and runtime wired, configure the five server-side variables described above in its hosting dashboard. Keep the API key in the host secret store, never in source control or browser variables. Then verify a non-mutating assistant turn, a persisted proposal, explicit approval/execution, permission denial for a Viewer, stale-revision rejection, and fresh read-back before using it for real project data.
+Do not treat a model adapter, passing unit test, documentation or open PR as proof of the complete production assistant.

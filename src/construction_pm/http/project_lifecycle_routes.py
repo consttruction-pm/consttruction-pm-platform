@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 from decimal import Decimal
 from dataclasses import asdict, fields as dataclass_fields
 from datetime import date, datetime, time, timezone
 from typing import Callable, Mapping, Protocol
+from uuid import uuid4
 
 from ..application.authorization import AuthorizationError, Permission
 from ..change_claim_api import (
@@ -15,10 +17,26 @@ from ..change_claims import ChangeClaimStatus, ChangeClaimType
 from ..application.project_lifecycle import ProjectLifecycleError, SessionError
 from ..application.project_lifecycle_api import ProjectLifecycleAPI
 from ..ai_action_runtime import AIActionRuntime, AIActionRuntimeContext, AIActionRuntimeError
+from ..ai_action_runtime import AIActionTransactionManager
+from ..ai_learning_memory import (
+    AILearningMemoryRecord,
+    LearningRetrievalScope,
+    LearningScope,
+    LearningSignalKind,
+    LearningStatus,
+)
+from ..ai_learning_memory_repository import AILearningMemoryRepository
+from ..ai_learning_research import AILearningResearchError, AILearningResearchService
+from ..ai_learning_knowledge_admin import AILearningKnowledgeAdminError, AILearningKnowledgeAdminService
 from ..ai_assistant_orchestration import (
     AIAssistantProviderError,
     AIAssistantTurnOrchestrator,
     is_valid_language_tag,
+)
+from ..ai_project_context import (
+    AIProjectContextError,
+    build_assistant_project_context,
+    unavailable_assistant_project_context,
 )
 from ..backend_p0.api import BackendP0API
 from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
@@ -112,6 +130,13 @@ from ..p6_layout_definition_repository import (
     layout_column_from_mapping,
 )
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
+from ..project_forms import (
+    FormBuilderAPI,
+    FormFieldDefinition,
+    FormOutputMapping,
+    FormSectionDefinition,
+    ProjectFormError,
+)
 from ..p6_user_defined_fields_repository import P6UserDefinedFieldDefinition
 
 
@@ -169,6 +194,11 @@ class ProjectLifecycleHttpRoutes:
         schedule_query_api: ScheduleQueryAPI | None = None,
         ai_action_runtime: AIActionRuntime | None = None,
         ai_assistant_orchestrator: AIAssistantTurnOrchestrator | None = None,
+        form_builder_api: FormBuilderAPI | None = None,
+        ai_learning_memory_repository: AILearningMemoryRepository | None = None,
+        ai_learning_memory_transaction_manager: AIActionTransactionManager | None = None,
+        ai_learning_research_service: AILearningResearchService | None = None,
+        ai_learning_knowledge_admin_service: AILearningKnowledgeAdminService | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -201,6 +231,11 @@ class ProjectLifecycleHttpRoutes:
         self._schedule_query_api = schedule_query_api
         self._ai_action_runtime = ai_action_runtime
         self._ai_assistant_orchestrator = ai_assistant_orchestrator
+        self._form_builder_api = form_builder_api
+        self._ai_learning_memory_repository = ai_learning_memory_repository
+        self._ai_learning_memory_transaction_manager = ai_learning_memory_transaction_manager
+        self._ai_learning_research_service = ai_learning_research_service
+        self._ai_learning_knowledge_admin_service = ai_learning_knowledge_admin_service
 
     def handle(
         self,
@@ -231,6 +266,95 @@ class ProjectLifecycleHttpRoutes:
                     "roles": sorted(response.roles),
                     "expires_at": response.expires_at.isoformat(),
                 })
+            if path == "/api/ai/learning/candidates":
+                if method != "GET":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                session = self._api.get_session(session_id, now=now)
+                if not ({"ai_knowledge_admin", "system_admin"} & set(session.roles)):
+                    return self._error(403, "AI_LEARNING_ADMIN_NOT_AUTHORIZED", "error.authorization.denied")
+                if self._ai_learning_knowledge_admin_service is None:
+                    return self._error(503, "AI_LEARNING_ADMIN_NOT_CONFIGURED", "error.ai_learning.admin_not_configured")
+                try:
+                    records = self._ai_learning_knowledge_admin_service.list_candidates()
+                except AILearningKnowledgeAdminError as exc:
+                    return self._error(500, exc.code, "error.ai_learning.candidate_list_failed")
+                return self._json(200, {
+                    "contract_version": "ai-learning-candidates.v1",
+                    "candidates": [self._ai_learning_record_payload(record) for record in records],
+                    "count": len(records),
+                })
+
+            if path.startswith("/api/ai/learning/candidates/"):
+                parts = path.strip("/").split("/")
+                if len(parts) != 7 or parts[:4] != ["api", "ai", "learning", "candidates"] or parts[6] != "decision":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if method != "POST":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                session = self._api.get_session(session_id, now=now)
+                if not ({"ai_knowledge_admin", "system_admin"} & set(session.roles)):
+                    return self._error(403, "AI_LEARNING_ADMIN_NOT_AUTHORIZED", "error.authorization.denied")
+                if self._ai_learning_knowledge_admin_service is None:
+                    return self._error(503, "AI_LEARNING_ADMIN_NOT_CONFIGURED", "error.ai_learning.admin_not_configured")
+                if len(body) > 32_000:
+                    return self._error(400, "AI_LEARNING_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "AI_LEARNING_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                if not isinstance(payload, dict) or not isinstance(payload.get("decision"), str):
+                    return self._error(400, "AI_LEARNING_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                decision = payload["decision"]
+                if decision == "approve":
+                    expected = {
+                        "decision", "privacy_review_passed", "consent_for_generalization",
+                        "validation_evidence_refs",
+                    }
+                    refs = payload.get("validation_evidence_refs")
+                    if (
+                        set(payload) != expected
+                        or payload.get("privacy_review_passed") is not True
+                        or payload.get("consent_for_generalization") is not True
+                        or not isinstance(refs, list)
+                        or any(not isinstance(item, str) for item in refs)
+                    ):
+                        return self._error(400, "AI_LEARNING_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                    privacy_review_passed = True
+                    consent_for_generalization = True
+                    validation_refs = tuple(refs)
+                elif decision == "reject":
+                    if set(payload) != {"decision"}:
+                        return self._error(400, "AI_LEARNING_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                    privacy_review_passed = False
+                    consent_for_generalization = False
+                    validation_refs = ()
+                else:
+                    return self._error(400, "AI_LEARNING_REVIEW_DECISION_INVALID", "error.request.invalid")
+                version_raw = parts[5]
+                if not version_raw.isdigit() or int(version_raw) < 1:
+                    return self._error(400, "AI_LEARNING_RECORD_VERSION_INVALID", "error.request.invalid")
+                record_id = parts[4]
+                try:
+                    record = self._ai_learning_knowledge_admin_service.decide(
+                        record_id,
+                        int(version_raw),
+                        decision=decision,
+                        actor_user_id=session.user_id,
+                        privacy_review_passed=privacy_review_passed,
+                        consent_for_generalization=consent_for_generalization,
+                        validation_evidence_refs=validation_refs,
+                    )
+                except AILearningKnowledgeAdminError as exc:
+                    status = (
+                        409 if exc.code == "AI_LEARNING_CANDIDATE_NOT_FOUND_OR_STALE"
+                        else 500 if any(token in exc.code for token in ("PERSISTENCE", "READBACK", "FAILED"))
+                        else 400
+                    )
+                    return self._error(status, exc.code, "error.ai_learning.review_failed")
+                return self._json(200, {
+                    "contract_version": "ai-learning-review-decision.v1",
+                    "record": self._ai_learning_record_payload(record),
+                })
+
             if method == "GET" and path == "/api/projects":
                 response = self._api.list_projects(session_id, now=now)
                 return self._json(200, {
@@ -2359,13 +2483,236 @@ class ProjectLifecycleHttpRoutes:
                     result = self._p6_code_api.create(definition, auth_context=auth)
                 except (TypeError, ValueError): return self._error(400, "P6_CODE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            # Shared-form endpoints deliberately derive tenant/user/roles only from the
+            # authenticated session. They must not call open_project or require project.read.
+            if path.startswith("/api/projects/") and "/forms/shared" in path:
+                parts = path[len("/api/projects/"):].split("/")
+                if not parts[0] or len(parts) < 3 or parts[1] != "forms" or parts[2] != "shared":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if self._form_builder_api is None:
+                    return self._error(503, "FORM_BUILDER_NOT_CONFIGURED", "error.form.not_configured")
+                session = self._api.get_session(session_id, now=now)
+                tenant_id = session.tenant_id
+                user_id = session.user_id
+                roles = session.roles
+
+                if method == "GET" and len(parts) == 3:
+                    forms = self._form_builder_api.list_shared_forms(
+                        tenant_id, parts[0], user_id, roles
+                    )
+                    return self._json(200, {
+                        "contract_version": "project-form.shared-list.v1",
+                        "project_id": parts[0],
+                        "forms": [item.to_payload() for item in forms],
+                    })
+
+                if method == "GET" and len(parts) == 5:
+                    _, _, _, form_id, version_raw = parts
+                    if not version_raw.isdigit() or int(version_raw) < 1:
+                        return self._error(400, "PROJECT_FORM_VERSION_INVALID", "error.request.invalid")
+                    form = self._form_builder_api.get_shared_form(
+                        tenant_id, parts[0], user_id, roles, form_id, int(version_raw)
+                    )
+                    return self._json(200, form.to_payload())
+
+                if method == "POST" and len(parts) == 6 and parts[5] == "submissions":
+                    _, _, _, form_id, version_raw, _ = parts
+                    if not version_raw.isdigit() or int(version_raw) < 1:
+                        return self._error(400, "PROJECT_FORM_VERSION_INVALID", "error.request.invalid")
+                    try:
+                        payload = json.loads(body.decode("utf-8") or "{}")
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        return self._error(400, "PROJECT_FORM_SUBMISSION_REQUEST_INVALID", "error.request.invalid")
+                    if (
+                        not isinstance(payload, dict)
+                        or set(payload) != {"submission_id", "answers"}
+                        or not isinstance(payload.get("submission_id"), str)
+                        or not isinstance(payload.get("answers"), dict)
+                    ):
+                        return self._error(400, "PROJECT_FORM_SUBMISSION_REQUEST_INVALID", "error.request.invalid")
+                    form = self._form_builder_api.get_shared_form(
+                        tenant_id, parts[0], user_id, roles, form_id, int(version_raw)
+                    )
+                    submission = self._form_builder_api.submit_shared_form(
+                        form.scope,
+                        form_id=form.form_id,
+                        form_version=form.version,
+                        submission_id=payload["submission_id"],
+                        submitted_by=user_id,
+                        roles=roles,
+                        answers=payload["answers"],
+                    )
+                    return self._json(201, submission.to_payload())
+
+                return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+
+            if path.startswith("/api/projects/") and "/forms" in path:
+                parts = path[len("/api/projects/"):].split("/")
+                project_id = parts[0] if parts else ""
+                if not project_id or len(parts) < 2 or parts[1] != "forms":
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                if self._form_builder_api is None:
+                    return self._error(503, "FORM_BUILDER_NOT_CONFIGURED", "error.form.not_configured")
+                if method == "GET" and len(parts) == 2:
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_READ, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                    context = authorized.context
+                    auth = context.authorization_context(session.roles)
+                    forms = self._form_builder_api.list_definitions(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        auth_context=auth,
+                    )
+                    return self._json(200, {
+                        "contract_version": "project-form.list.v1",
+                        "project_id": context.project_id,
+                        "forms": [item.to_payload() for item in forms],
+                    })
+
+                if method == "POST" and len(parts) == 2:
+                    try:
+                        payload = json.loads(body.decode("utf-8") or "{}")
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        return self._error(400, "PROJECT_FORM_REQUEST_INVALID", "error.request.invalid")
+                    allowed = {
+                        "form_id", "name", "description", "sections", "fields",
+                        "shared_with_user_ids", "shared_with_roles", "approver_user_ids",
+                        "approver_roles", "output_mappings", "requires_approval",
+                        "expected_latest_version",
+                    }
+                    if not isinstance(payload, dict) or set(payload) != allowed:
+                        return self._error(400, "PROJECT_FORM_REQUEST_INVALID", "error.request.invalid")
+                    try:
+                        authorized = self._api.authorize_project(
+                            session_id, project_id, Permission.PROJECT_WRITE, now=now
+                        )
+                        session = self._api.get_session(session_id, now=now)
+                        context = authorized.context
+                        auth = context.authorization_context(session.roles)
+                        sections_raw = payload["sections"]
+                        fields_raw = payload["fields"]
+                        mappings_raw = payload["output_mappings"]
+                        arrays = (
+                            payload["shared_with_user_ids"], payload["shared_with_roles"],
+                            payload["approver_user_ids"], payload["approver_roles"],
+                        )
+                        if (
+                            not isinstance(sections_raw, list)
+                            or not isinstance(fields_raw, list)
+                            or not isinstance(mappings_raw, list)
+                            or any(not isinstance(value, list) for value in arrays)
+                            or not isinstance(payload["description"], str)
+                        ):
+                            return self._error(400, "PROJECT_FORM_REQUEST_INVALID", "error.request.invalid")
+                        sections = []
+                        for item in sections_raw:
+                            if not isinstance(item, dict) or set(item) != {"section_id", "title", "localized_titles"}:
+                                return self._error(400, "PROJECT_FORM_REQUEST_INVALID", "error.request.invalid")
+                            labels = item["localized_titles"]
+                            if not isinstance(labels, dict):
+                                return self._error(400, "PROJECT_FORM_REQUEST_INVALID", "error.request.invalid")
+                            sections.append(FormSectionDefinition(
+                                section_id=item["section_id"],
+                                title=item["title"],
+                                localized_titles=tuple(sorted(labels.items())),
+                            ))
+                        fields = tuple(FormFieldDefinition.from_mapping(item) for item in fields_raw)
+                        mappings = tuple(FormOutputMapping(**item) for item in mappings_raw)
+                        result = self._form_builder_api.create_draft(
+                            BackendScope(context.tenant_id, context.project_id, context.revision),
+                            form_id=payload["form_id"],
+                            name=payload["name"],
+                            description=payload["description"],
+                            sections=tuple(sections),
+                            fields=fields,
+                            shared_with_user_ids=tuple(payload["shared_with_user_ids"]),
+                            shared_with_roles=tuple(payload["shared_with_roles"]),
+                            approver_user_ids=tuple(payload["approver_user_ids"]),
+                            approver_roles=tuple(payload["approver_roles"]),
+                            output_mappings=mappings,
+                            requires_approval=payload["requires_approval"],
+                            actor_id=session.user_id,
+                            auth_context=auth,
+                            expected_latest_version=payload["expected_latest_version"],
+                        )
+                        return self._json(201, result.to_payload())
+                    except (ProjectFormError, TypeError, ValueError):
+                        raise
+
+                if method == "POST" and len(parts) == 5 and parts[4] == "publish":
+                    form_id, version_raw = parts[2], parts[3]
+                    if not version_raw.isdigit() or int(version_raw) < 1:
+                        return self._error(400, "PROJECT_FORM_VERSION_INVALID", "error.request.invalid")
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                    context = authorized.context
+                    form = self._form_builder_api.publish_form(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        form_id, int(version_raw),
+                        auth_context=context.authorization_context(session.roles),
+                    )
+                    return self._json(200, form.to_payload())
+
+                if method == "GET" and len(parts) == 4 and parts[3] == "submissions":
+                    form_id = parts[2]
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                    context = authorized.context
+                    submissions = self._form_builder_api.list_submissions(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        form_id,
+                        auth_context=context.authorization_context(session.roles),
+                    )
+                    return self._json(200, {
+                        "contract_version": "project-form.submission-list.v1",
+                        "submissions": [item.to_payload() for item in submissions],
+                    })
+
+                if method == "POST" and len(parts) == 6 and parts[3] == "submissions" and parts[5] == "review":
+                    form_id, submission_id = parts[2], parts[4]
+                    try:
+                        payload = json.loads(body.decode("utf-8") or "{}")
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        return self._error(400, "PROJECT_FORM_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                    if (
+                        not isinstance(payload, dict)
+                        or set(payload) != {"approved", "review_note"}
+                        or not isinstance(payload.get("approved"), bool)
+                        or (payload.get("review_note") is not None and not isinstance(payload.get("review_note"), str))
+                    ):
+                        return self._error(400, "PROJECT_FORM_REVIEW_REQUEST_INVALID", "error.request.invalid")
+                    authorized = self._api.authorize_project(
+                        session_id, project_id, Permission.PROJECT_WRITE, now=now
+                    )
+                    session = self._api.get_session(session_id, now=now)
+                    context = authorized.context
+                    reviewed = self._form_builder_api.review_submission(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        submission_id,
+                        approved=payload["approved"],
+                        review_note=payload["review_note"],
+                        auth_context=context.authorization_context(session.roles),
+                    )
+                    return self._json(200, reviewed.to_payload())
+
+                return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+
             if path.startswith("/api/projects/") and "/ai/assistant/turn" in path:
                 parts = path[len("/api/projects/"):].split("/")
                 if len(parts) != 4 or not parts[0] or parts[1:] != ["ai", "assistant", "turn"]:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
                 if method != "POST":
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
-                if self._ai_action_runtime is None or self._ai_assistant_orchestrator is None:
+                if (
+                    self._ai_learning_memory_repository is None
+                    and self._ai_learning_research_service is None
+                    and (self._ai_action_runtime is None or self._ai_assistant_orchestrator is None)
+                ):
                     return self._error(503, "AI_ASSISTANT_NOT_CONFIGURED", "error.ai_assistant.not_configured")
                 # Bound parsing work before decoding attacker-controlled JSON.
                 if len(body) > 128_000:
@@ -2444,17 +2791,176 @@ class ProjectLifecycleHttpRoutes:
                     roles=session.roles,
                 )
                 if expected_revision != context.revision:
-                    self._ai_action_runtime.record_request_event(
-                        runtime_context,
-                        "assistant_turn_stale_revision",
-                        metadata={
-                            "expected_revision": expected_revision,
-                            "current_revision": context.revision,
-                        },
-                    )
+                    if self._ai_action_runtime is not None:
+                        self._ai_action_runtime.record_request_event(
+                            runtime_context,
+                            "assistant_turn_stale_revision",
+                            metadata={
+                                "expected_revision": expected_revision,
+                                "current_revision": context.revision,
+                            },
+                        )
                     return self._error(
                         409, "AI_ASSISTANT_STALE_REVISION", "error.conflict.stale_revision"
                     )
+
+                # A deliberate /remember command stores only lesson text, not the transcript.
+                # Private memory capture is deterministic and works without an inference provider.
+                research_prefixes = ("/research", "/پژوهش")
+                research_command = next(
+                    (
+                        prefix for prefix in research_prefixes
+                        if message.strip().casefold() == prefix.casefold()
+                        or message.strip().casefold().startswith(prefix.casefold() + " ")
+                    ),
+                    None,
+                )
+                if research_command is not None:
+                    if not can_propose:
+                        return self._error(403, "AI_RESEARCH_NOT_AUTHORIZED", "error.authorization.denied")
+                    if self._ai_learning_research_service is None:
+                        return self._error(503, "AI_RESEARCH_NOT_CONFIGURED", "error.ai_learning.research_not_configured")
+                    article_url = message.strip()[len(research_command):].strip()
+                    if not article_url:
+                        hint = (
+                            "Use /research followed by one public HTTPS article URL. The extracted lesson is saved as a review-only candidate and is not used as approved knowledge."
+                            if language.strip().lower().startswith("en")
+                            else "برای پژوهش، دستور /research را همراه یک نشانی عمومی HTTPS بنویسید. نتیجه فقط به‌صورت نامزدِ نیازمند بازبینی ذخیره می‌شود و هنوز دانش تأییدشده نیست."
+                        )
+                        return self._json(200, {
+                            "contract_version": "ai-assistant-turn.v1",
+                            "kind": "clarification",
+                            "message": hint,
+                            "proposal": None,
+                        })
+                    try:
+                        candidate = self._ai_learning_research_service.ingest(article_url)
+                    except AILearningResearchError as exc:
+                        if exc.code in {
+                            "AI_RESEARCH_MODEL_UNAVAILABLE",
+                            "AI_RESEARCH_TRANSACTION_CONNECTION_MISMATCH",
+                            "AI_RESEARCH_TRANSACTION_NOT_CONFIGURED",
+                        }:
+                            error_status = 503
+                        elif exc.code == "AI_RESEARCH_SOURCE_UNAVAILABLE":
+                            error_status = 502
+                        elif exc.code.endswith("PERSISTENCE_FAILED"):
+                            error_status = 500
+                        else:
+                            error_status = 400
+                        return self._error(error_status, exc.code, "error.ai_learning.research_failed")
+                    if self._ai_action_runtime is not None:
+                        self._ai_action_runtime.record_request_event(
+                            runtime_context,
+                            "assistant_public_research_candidate_created",
+                            metadata={
+                                "record_id": candidate.record_id,
+                                "status": candidate.status,
+                                "source_host": urlsplit(candidate.source_url).hostname or "",
+                            },
+                        )
+                    response_message = (
+                        f"Read “{candidate.title}” and saved a review-only knowledge candidate ({candidate.record_id}). It will not guide other answers until it is validated, copyright/privacy-reviewed and approved."
+                        if language.strip().lower().startswith("en")
+                        else f"مقالهٔ «{candidate.title}» خوانده شد و به‌صورت نامزدِ نیازمند بازبینی ذخیره شد ({candidate.record_id}). تا اعتبارسنجی، بررسی حقوق نشر/حریم خصوصی و تأیید انسانی، در پاسخ‌های دیگر استفاده نمی‌شود."
+                    )
+                    return self._json(200, {
+                        "contract_version": "ai-assistant-turn.v1",
+                        "kind": "message",
+                        "message": response_message,
+                        "proposal": None,
+                    })
+
+                memory_prefixes = ("/remember", "/یادبگیر")
+                memory_command = next(
+                    (
+                        prefix for prefix in memory_prefixes
+                        if message.strip().casefold() == prefix.casefold()
+                        or message.strip().casefold().startswith(prefix.casefold() + " ")
+                    ),
+                    None,
+                )
+                if memory_command is not None:
+                    if self._ai_learning_memory_repository is None:
+                        return self._error(503, "AI_LEARNING_MEMORY_NOT_CONFIGURED", "error.ai_learning.not_configured")
+                    lesson = message.strip()[len(memory_command):].strip()
+                    if not lesson:
+                        hint = (
+                            "Use /remember followed by the private lesson to save, for example: /remember Explain scheduling concepts step by step."
+                            if language.strip().lower().startswith("en")
+                            else "برای ذخیره، دستور /remember را همراه متن درس خصوصی بنویسید؛ مثلاً: /remember مفاهیم زمان‌بندی را مرحله‌به‌مرحله توضیح بده."
+                        )
+                        return self._json(200, {
+                            "contract_version": "ai-assistant-turn.v1",
+                            "kind": "clarification",
+                            "message": hint,
+                            "proposal": None,
+                        })
+                    if len(lesson) < 8 or len(lesson) > 1200:
+                        return self._error(400, "AI_LEARNING_MEMORY_TEXT_INVALID", "error.request.invalid")
+                    if re.search(
+                        r"(?i)(?:\b(?:password|passwd|secret|api[_ -]?key|access[_ -]?token)\s*[:=]\s*\S+|\bbearer\s+[A-Za-z0-9._~-]{16,}|\bsk-[A-Za-z0-9]{16,})",
+                        lesson,
+                    ):
+                        return self._error(400, "AI_LEARNING_MEMORY_MUST_NOT_CONTAIN_CREDENTIALS", "error.request.invalid")
+                    manager = self._ai_learning_memory_transaction_manager
+                    if manager is None:
+                        return self._error(503, "AI_LEARNING_TRANSACTION_NOT_CONFIGURED", "error.ai_learning.not_configured")
+                    repository_connection = getattr(self._ai_learning_memory_repository, "connection", None)
+                    manager_connection = getattr(manager, "connection", None)
+                    if (
+                        repository_connection is not None
+                        and manager_connection is not None
+                        and repository_connection is not manager_connection
+                    ):
+                        return self._error(503, "AI_LEARNING_TRANSACTION_CONNECTION_MISMATCH", "error.ai_learning.not_configured")
+                    record_id = str(uuid4())
+                    happened_at = now.astimezone(timezone.utc)
+                    memory_record = AILearningMemoryRecord(
+                        record_id=record_id,
+                        record_version=1,
+                        scope=LearningScope.USER_PRIVATE,
+                        status=LearningStatus.CAPTURED,
+                        signal_kind=LearningSignalKind.USER_FEEDBACK,
+                        lesson=lesson,
+                        conditions="Explicitly saved by the authenticated user through the /remember command.",
+                        limitations="Private preference/lesson only; not a verified project fact or general engineering standard. Revalidate when context changes.",
+                        evidence_refs=(f"explicit-user-memory-capture:{record_id}",),
+                        captured_at=happened_at,
+                        updated_at=happened_at,
+                        owner_user_id=session.user_id,
+                    )
+                    try:
+                        with manager.transaction():
+                            self._ai_learning_memory_repository.append(memory_record)
+                            if self._ai_action_runtime is not None:
+                                self._ai_action_runtime.record_request_event(
+                                    runtime_context,
+                                    "assistant_learning_memory_captured",
+                                    metadata={
+                                        "record_id": record_id,
+                                        "record_version": 1,
+                                        "scope": LearningScope.USER_PRIVATE.value,
+                                        "lesson_length": len(lesson),
+                                    },
+                                )
+                    except Exception:
+                        return self._error(500, "AI_LEARNING_MEMORY_CAPTURE_FAILED", "error.ai_learning.capture_failed")
+                    response_message = (
+                        "Saved to your private assistant memory. It will be reused for your own future conversations only; it was not shared as general knowledge."
+                        if language.strip().lower().startswith("en")
+                        else "در حافظهٔ خصوصی دستیار شما ذخیره شد و فقط در گفت‌وگوهای آیندهٔ خودتان استفاده می‌شود؛ به دانش عمومی یا کاربران دیگر منتشر نشد."
+                    )
+                    return self._json(200, {
+                        "contract_version": "ai-assistant-turn.v1",
+                        "kind": "message",
+                        "message": response_message,
+                        "proposal": None,
+                    })
+
+                if self._ai_action_runtime is None or self._ai_assistant_orchestrator is None:
+                    return self._error(503, "AI_ASSISTANT_NOT_CONFIGURED", "error.ai_assistant.not_configured")
+
                 # Audit metadata only; never persist the user's prompt as part of an audit event.
                 self._ai_action_runtime.record_request_event(
                     runtime_context,
@@ -2465,6 +2971,61 @@ class ProjectLifecycleHttpRoutes:
                         "can_propose": can_propose,
                     },
                 )
+                project_context = None
+                if self._backend_p0_api is None:
+                    project_context = unavailable_assistant_project_context(
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        project_revision=context.revision,
+                        reason_code="WORKSPACE_READ_UNAVAILABLE",
+                    )
+                else:
+                    auth_context = context.authorization_context(session.roles)
+                    workspace_read = self._backend_p0_api.read_workspace_control_room(
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        revision=context.revision,
+                        auth_context=auth_context,
+                    )
+                    if workspace_read is None:
+                        project_context = unavailable_assistant_project_context(
+                            tenant_id=context.tenant_id,
+                            project_id=context.project_id,
+                            project_revision=context.revision,
+                            reason_code="WORKSPACE_READ_NOT_FOUND",
+                        )
+                    elif isinstance(workspace_read, dict) and isinstance(workspace_read.get("error"), dict):
+                        workspace_error = workspace_read["error"]
+                        category = workspace_error.get("category")
+                        if category == "authorization":
+                            return self._error(403, "AI_ASSISTANT_PROJECT_CONTEXT_FORBIDDEN", "error.authorization.denied")
+                        if category == "conflict":
+                            return self._error(409, "AI_ASSISTANT_PROJECT_CONTEXT_STALE", "error.conflict.stale_revision")
+                        project_context = unavailable_assistant_project_context(
+                            tenant_id=context.tenant_id,
+                            project_id=context.project_id,
+                            project_revision=context.revision,
+                            reason_code=str(workspace_error.get("code", "WORKSPACE_READ_UNAVAILABLE")),
+                        )
+                    else:
+                        try:
+                            project_context = build_assistant_project_context(
+                                workspace_read,
+                                tenant_id=context.tenant_id,
+                                project_id=context.project_id,
+                                project_revision=context.revision,
+                            )
+                        except AIProjectContextError as exc:
+                            self._ai_action_runtime.record_request_event(
+                                runtime_context,
+                                "assistant_project_context_rejected",
+                                metadata={"reason_code": str(exc)},
+                            )
+                            return self._error(
+                                503,
+                                "AI_ASSISTANT_PROJECT_CONTEXT_UNAVAILABLE",
+                                "error.ai_assistant.project_context_unavailable",
+                            )
                 try:
                     turn = self._ai_assistant_orchestrator.turn(
                         runtime_context,
@@ -2472,6 +3033,7 @@ class ProjectLifecycleHttpRoutes:
                         language=language.strip(),
                         history=tuple(history),
                         allow_mutations=can_propose,
+                        project_context=project_context,
                     )
                 except AIAssistantProviderError as exc:
                     self._ai_action_runtime.record_request_event(
@@ -2758,10 +3320,50 @@ class ProjectLifecycleHttpRoutes:
             }:
                 status = 500
             return self._error(status, code, "error.ai_action.request_failed")
+        except ProjectFormError as exc:
+            code = str(exc)
+            if code in {"PROJECT_FORM_NOT_FOUND", "PROJECT_FORM_SUBMISSION_NOT_FOUND"}:
+                status = 404
+            elif code.startswith("PROJECT_FORM_STALE") or code.endswith("_CONFLICT") or code.endswith("_ALREADY_REVIEWED"):
+                status = 409
+            elif "NOT_AUTHORIZED" in code:
+                status = 403
+            else:
+                status = 400
+            return self._error(status, code, "error.form.request_failed")
         except ProjectLifecycleError as exc:
             return self._error(400, str(exc), "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return self._error(400, str(exc) or "INVALID_REQUEST", "error.request.invalid")
+
+    @staticmethod
+    def _ai_learning_record_payload(record: AILearningMemoryRecord) -> dict[str, object]:
+        conditions = record.conditions
+        title = record.record_id
+        title_marker = "Source title: "
+        fetched_marker = ". Source fetched at "
+        if title_marker in conditions:
+            candidate_title = conditions.split(title_marker, 1)[1]
+            title = candidate_title.split(fetched_marker, 1)[0].strip() or title
+        return {
+            "record_id": record.record_id,
+            "record_version": record.record_version,
+            "title": title[:180],
+            "scope": record.scope.value,
+            "status": record.status.value,
+            "signal_kind": record.signal_kind.value,
+            "lesson": record.lesson,
+            "conditions": record.conditions,
+            "limitations": record.limitations,
+            "evidence_refs": list(record.evidence_refs),
+            "validation_evidence_refs": list(record.validation_evidence_refs),
+            "captured_at": record.captured_at.isoformat(),
+            "updated_at": record.updated_at.isoformat(),
+            "privacy_review_passed": record.privacy_review_passed,
+            "consent_for_generalization": record.consent_for_generalization,
+            "approved_by": record.approved_by,
+            "approved_at": None if record.approved_at is None else record.approved_at.isoformat(),
+        }
 
     @staticmethod
     def _json(status: int, payload: object) -> tuple[int, dict[str, str], bytes]:

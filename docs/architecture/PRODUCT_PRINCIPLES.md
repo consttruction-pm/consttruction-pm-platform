@@ -210,7 +210,7 @@ The assistant's learning improves explanation, retrieval, analysis and recommend
 
 ### 11.6 Required traceability, schedule and release gate
 
-This principle is linked to GitHub Issue #1540 and extends, rather than replaces, the mandatory production assistant in #1423 and production authorization/audit integration in #1530. Every capability must be traced to a schedule activity, implementation path, tests, owner, exact commit/CI evidence and release gate. The Jalal 5 schedule must be re-baselined from accepted estimates and dependencies; the complete plan must remain exactly 100.00 weighted points. Until the authoritative workbook and its formulas/dependencies/owner-lane forecast are updated and verified, new activity weights/dates are **Pending re-baseline**, and this learning scope receives zero earned completion credit. Do not count this principle or a documentation-only change as implementation completion.
+This principle is linked to GitHub Issues #1540 and #1617 and extends, rather than replaces, the mandatory production assistant in #1423 and production authorization/audit integration in #1530. Every capability must be traced to a schedule activity, implementation path, tests, owner, exact commit/CI evidence and release gate. The Jalal 5 schedule must be re-baselined from accepted estimates and dependencies; the complete plan must remain exactly 100.00 weighted points. Until the authoritative workbook and its formulas/dependencies/owner-lane forecast are updated and verified, new activity weights/dates are **Pending re-baseline**, and this learning scope receives zero earned completion credit. Do not count this principle or a documentation-only change as implementation completion.
 
 Release acceptance requires:
 - interactive critique/revision loops with explanations;
@@ -221,3 +221,24 @@ Release acceptance requires:
 - provenance, deletion/retention, export, tested backup/restore and V2 migration;
 - golden engineering/interaction/privacy benchmarks and demonstrated regression rollback;
 - no regression to existing P6 compatibility, project capabilities, localization, offline behavior, permissions, audit, desktop/web/mobile scope or any previously approved requirement.
+
+
+### 11.7 Quantity takeoff, estimating, resource/equipment planning, risk and forms
+
+The assistant must support the complete engineering workflows tracked in [Issue #1617](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1617), beyond conversational recommendations:
+
+- **Quantity takeoff and BOQ:** store measured/extracted quantities, unit and conversion, formula/basis, waste/allowance, item code, rate/currency source and date, assumptions, estimate range, source evidence, review and approval. Arithmetic and totals must be computed by deterministic CUBI services; missing quantities, market rates and productivity values must never be invented.
+- **Resource and equipment planning:** propose crew composition, person-days/hours, machines, production basis, work calendars, capacity and assignments for activities. Include provenance, units, assumptions and uncertainty; compare against existing authorized assignments/capacity using the Shared Core and resource services.
+- **Risk and corrective action:** identify data-supported risk signals, their affected WBS/activity, evidence/revision, likelihood/impact/confidence, triggers and consequences; propose preventive/mitigating/corrective actions with owners, dependencies and measurable outcomes. Do not treat an unverified inference as an established fact or mutate the project without approval.
+- **Form Builder:** create persisted, validated, localized and versioned form definitions with typed fields, conditional rules, attachments, role visibility, sharing/submissions, output mappings and approval routes. A chat-generated HTML fragment is not a builder; all submission and approval operations must use trusted access controls and persistent application services.
+- **PMBOK-aligned report guidance:** tailor reports/deliverables and decision records to the project lifecycle and audience using the repository's approved PMBOK baseline. Explain purpose, source data, as-of/revision, assumptions and evidence gaps; never imply certification or force irrelevant deliverables. Report numbers and chart series must come from authorized persisted records and authoritative calculation outputs.
+
+All five workflows must use typed, versioned contracts and real application handlers, validation, persistence, authorization, approval, audit and fresh-read verification. These work packages are P0 release requirements, not proof of implementation. Reconcile them into both the CUBISITE website schedule and whole-product schedule while keeping each accepted 100.00-point denominator intact.
+
+### 11.8 Local-only assistant inference — no external AI key
+
+The CUBI product profile must use a locally provisioned model/runtime for flexible natural-language reasoning. Users must not need an external AI API key or connect CUBI to another AI provider. There must be no hidden cloud fallback and no prompt/project data sent to a remote model. Deterministic project functions and Shared Core calculations must continue to operate without inference wherever their tools are implemented.
+
+The local runtime and model assets must be explicitly provisioned, version-pinned, license-reviewed, security-tested and benchmarked for supported languages and construction-domain tasks. A local provider adapter or configuration flag alone does not prove that the model is installed, performant or available in a deployed environment. If local inference is unavailable, disclose the semantic limitation and never claim the task succeeded.
+
+This local-only policy changes provider selection, not calculation authority: the Shared Domain/Calculation Core remains the sole authority for scheduling, calendar, resource, cost, progress and EVM calculation semantics. Any project action still requires trusted identity, current grants, proposal-bound approval, revision checks, transaction/idempotency safeguards, durable audit and fresh read-back.

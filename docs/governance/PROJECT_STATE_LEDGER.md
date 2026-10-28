@@ -165,3 +165,74 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 3. **Code slice completed:** PR #1553 adds the proposal-only server-side provider orchestration and authenticated conversation endpoint. Next, wire it into a real deployed backend with production session/project selection, current grant provider, transaction manager and approved server-side `CUBI_AI_*` configuration; verify the live conversation → proposal → approve → execute → fresh-read path.
 4. Implement authoritative reconciliation for interrupted/uncertain actions, then add WBS/relationship/calendar/resource/cost tools and Shared Core run/result grounding.
 5. Keep #1423/#1530/#1540 and #82 open until the complete release acceptance suite, multilingual and Jalali/Gregorian coverage, import/export round-trip, and exact-main end-to-end gates pass.
+
+
+## Engineering Intelligence owner decision and implementation checkpoint — 2026-10-28
+
+**Audit baseline:** `main` at `91274b13eadea0512e26a07b0b836a28a837ebb8`.  
+**Implementation branch:** `feat/cubi-internal-engineering-intelligence-2026-10-28`.  
+**Latest tested branch head:** `e6cee61478c9af690027fbf90be3f46def66161d`.  
+**Draft PR:** [#1618 — local-only inference and traceable engineering-intelligence gaps](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1618).  
+**New P0 issue:** [#1617 — takeoff/estimating, resources/equipment, risk mitigation, Form Builder and PMBOK reports](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1617).  
+**Companion blockers:** #1423 (assistant V1), #1530 (real action authorization/execution), #1540 (learning/memory), #1546 (website scope/schedule).
+
+### Findings confirmed on the audit baseline
+- The assistant V1 and toolchain documents already specify a professional project-controls assistant, project build/edit recommendations, resource/equipment recommendations with provenance, risk/reporting guidance, controlled learning, a single calculation authority and no universal remote API-key dependency.
+- Despite that architecture intent, the previous production/preview provider composition was remote-only: `CUBI_AI_ENABLED` selected `OpenAICompatibleChatProvider`, requiring `CUBI_AI_API_KEY`, `CUBI_AI_BASE_URL` and `CUBI_AI_MODEL`. There was no local inference adapter wired through the product's environment factory.
+- The production assistant still has a narrow real tool/runtime surface. The standard model-facing action slice is limited; a preview project-plan builder exists, but full production WBS/relationship/calendar/resource/equipment/cost integration is not complete.
+- Risk engine, learning-memory record/repository contracts, resource/cost/schedule cores and report infrastructure exist. Their existence does not prove a connected assistant workflow to retrieve those results, propose mitigation, persist and retrieve vetted lessons, conduct owner-authorized source research or run the required reporting workflows.
+- Repository code search did not identify an implemented quantity-takeoff/BOQ workflow or a persisted/versioned Form Builder domain and UI. PMBOK is present as a governance baseline, but assistant-led report tailoring with data/source evidence still needs implementation. These gaps are tracked in #1617 rather than treated as complete.
+- Existing learning-record persistence is only a foundation. Automatic candidate-lesson capture, approved retrieval/promotion, authorized research and publication, deletion/retention, persistent deployment wiring, backup/restore/migration, golden evaluations and rollback remain open under #1540.
+
+### Changes in PR #1618
+- Added `LocalOllamaChatProvider` and `build_ai_chat_provider_from_environment`. Product selection accepts only `local-ollama`; the adapter restricts the configured endpoint to loopback, sends no API key/Authorization header, bounds JSON input/output, rejects redirects and returns sanitized local-runtime errors without a remote fallback.
+- Changed production and local preview composition to select the local-only provider factory. Missing local model configuration leaves the assistant route unavailable rather than crashing the site or weakening authorization.
+- Added tests for the local provider contract, no external API key, loopback restriction, remote-provider selection rejection, missing model/runtime and the preview proposal → approval → execution → calculation/read-back path. The preview test explicitly configures its test model.
+- Updated the assistant requirements, provider configuration, toolchain plan, product principles and this ledger to preserve the owner's scope, local-only model policy and explicit implementation/acceptance gaps.
+- Created #1617 with verifiable scope and Definition of Done for quantity takeoff/BOQ and estimating; resource/labor/equipment planning and approval; evidenced risk detection and corrective action; a real persisted/versioned Form Builder; and PMBOK-tailored, evidence-grounded reporting.
+
+### Exact-head CI evidence
+The following checks passed for branch head `e6cee61478c9af690027fbf90be3f46def66161d`:
+- [ConstructionPM CI](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40606533326): Python test suites on 3.11, 3.12 and 3.13 all passed.
+- [PostgreSQL Integration](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40606533310): passed.
+- [Client Typecheck](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40606533335): Web, Desktop, Mobile and Client-Sync typechecks passed.
+
+An earlier run correctly caught a missing explicit model setup in the preview integration test and then a missing local-provider assignment in the guarded preview composition. Both issues were corrected; the matrix above is from the later exact branch head, not those failed attempts.
+
+### What this does not claim
+- The PR remains a **draft** and is not merged to `main`; existing merged-main behavior is unchanged.
+- The local Ollama runtime and approved model weights have not been provisioned or proven in a production/hosted environment. A green adapter test does not prove deployed model availability, construction-domain quality or true Desktop offline packaging.
+- Full production project construction and action wiring still need #1530: current authenticated grants, exact-revision proposal approval, real typed handlers, transaction/idempotency protections, durable audit and authoritative fresh read-back.
+- #1617 remains open: quantity takeoff/BOQ, cost estimating, resource/equipment recommendations that can be accepted into real activities, risk-action workflows, persisted Form Builder and PMBOK-tailored reports are not delivered by the provider slice.
+- #1540 remains open for automatic experience-to-candidate-lesson capture, authorized article research, provenance/review/approval/publishing, scoped durable retrieval, retention/deletion, backup/restore, migration and benchmark/rollback.
+- No hosted site deployment was performed. Do not enable the public read-only preview's assistant by weakening its guard.
+
+### Required next steps
+1. Keep PR #1618 in draft until local model provisioning and assistant/tool runtime wiring are verified for the intended deployment; review exact-head checks before any merge.
+2. Complete #1530's production integration and test non-mutating turns, proposal persistence, explicit approval/execution, revoked/read-only permissions, stale revisions, replay/partial-failure handling and fresh authoritative read-back.
+3. Implement #1617 as staged vertical slices with typed contracts, persistence/migrations, real UI, source-backed golden fixtures, authorization/approval, audit and end-to-end read-back.
+4. Complete #1540's real learning/research/retrieval/retention/backup/migration/rollback lifecycle.
+5. Reconcile accepted work into CUBISITE and Jalal 5 without silently changing either 100.00-point denominator. Documentation and open PRs alone receive no implementation completion credit.
+
+
+## Follow-on implementation: executable BOQ/takeoff slice — 2026-10-28
+
+**Feature status:** first code-backed takeoff/BOQ vertical slice implemented on this feature branch.  
+**Exact code head with green CI:** `5dd00c6d2e469676d6c009b4a0d4d206442a1f43`.  
+**Specification:** [QUANTITY_TAKEOFF_BOQ_IMPLEMENTATION_V1.md](../architecture/QUANTITY_TAKEOFF_BOQ_IMPLEMENTATION_V1.md).  
+**Tracking:** [#1617](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1617).
+
+Implemented:
+- `src/construction_pm/quantity_takeoff.py`: Decimal-based quantities and waste, currency-precision-aware line costs, unpriced-line semantics, strict validation, estimate/line payload contracts and SQLite/PostgreSQL scoped immutable repository adapters.
+- `quantity.takeoff.create`: an AI action tool that requires explicit approval, uses authenticated actor/project/revision context, shares the idempotency/transaction boundary and returns a fresh persisted read-back.
+- Private preview registration and role checks for the new action.
+- `tests/test_quantity_takeoff.py` domain/repository/action tests and `tests/test_ai_action_project_plan_tools.py` preview HTTP end-to-end test for proposal → approval → execution → stored estimate/read-back.
+- Source references and rate basis are explicitly labelled unverified until a source/rate-card registry is connected; the implementation does not claim a reference string is proof of engineering evidence.
+
+Exact-head CI passed:
+- [ConstructionPM CI — Python 3.11/3.12/3.13](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40608679751)
+- [PostgreSQL Integration](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40608679770)
+- [Client Typecheck — Web/Desktop/Mobile/Client-Sync](https://github.com/consttruction-pm/consttruction-pm-platform/actions/runs/40608679913)
+
+This is not full BOQ V1 and is not merged to main. The new repository exists for SQLite and PostgreSQL, but the new action is currently wired into the authenticated private preview; production composition, document/source validation, approved rate cards, file/drawing intake, project/WBS/activity linkage, BOQ UI and import/export reconciliation remain open. Resource/equipment planning, risk corrective actions, Form Builder, PMBOK report workflow and the complete knowledge-learning lifecycle remain separate P0 work under #1617/#1423/#1530/#1540. The public read-only demo must not be weakened to test these operations.
+

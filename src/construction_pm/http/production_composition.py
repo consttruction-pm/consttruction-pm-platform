@@ -30,6 +30,10 @@ from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
+from construction_pm.project_forms import FormBuilderAPI
+from construction_pm.ai_learning_memory_repository import AILearningMemoryRepository
+from construction_pm.ai_learning_knowledge_admin import AILearningKnowledgeAdminService
+from construction_pm.ai_learning_research import AILearningResearchService
 from construction_pm.ai_action_runtime import (
     AIActionRuntime,
     AIActionRuntimeError,
@@ -38,7 +42,7 @@ from construction_pm.ai_action_runtime import (
 from construction_pm.ai_assistant_orchestration import (
     AIChatProvider,
     AIAssistantTurnOrchestrator,
-    OpenAICompatibleChatProvider,
+    build_ai_chat_provider_from_environment,
 )
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.schedule_calculation_context_repository import CalculationContextRepository
@@ -69,6 +73,9 @@ def build_project_lifecycle_wsgi_app(
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
     ai_assistant_provider: AIChatProvider | None = None,
+    form_builder_api: FormBuilderAPI | None = None,
+    ai_learning_memory_repository: AILearningMemoryRepository | None = None,
+    ai_learning_memory_transaction_manager: AIActionTransactionManager | None = None,
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
@@ -89,13 +96,17 @@ def build_project_lifecycle_wsgi_app(
     deployment supplies its current grant provider, durable store, and real
     application-tool handlers. There is deliberately no permissive fallback.
     The assistant provider is wired only through an explicit dependency or
-    CUBI_AI_ENABLED=true with server-only CUBI_AI_* environment configuration.
+    CUBI_AI_ENABLED=true with the local-only CUBI_AI_LOCAL_* runtime configuration.
     """
     assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
         "1", "true", "yes"
     }
-    if ai_assistant_provider is None and assistant_enabled:
-        ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
+    if (
+        ai_assistant_provider is None
+        and assistant_enabled
+        and os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip()
+    ):
+        ai_assistant_provider = build_ai_chat_provider_from_environment()
 
     resource_resolver_dependencies = (
         resource_read_api,
@@ -149,15 +160,45 @@ def build_project_lifecycle_wsgi_app(
             permission_adapter=ai_action_permission_adapter,
             transaction_manager=ai_action_transaction_manager,
             clock=None if clock is None else clock.now,
+            resource_write_api=resource_write_api,
+            resource_read_api=resource_read_api,
+            form_builder_api=form_builder_api,
+        )
+
+    resolved_learning_memory_transaction_manager = (
+        ai_learning_memory_transaction_manager
+        or ai_action_transaction_manager
+        or getattr(ai_action_runtime, "transaction_manager", None)
+    )
+    ai_learning_research_service = None
+    if (
+        ai_assistant_provider is not None
+        and ai_learning_memory_repository is not None
+        and resolved_learning_memory_transaction_manager is not None
+    ):
+        ai_learning_research_service = AILearningResearchService(
+            provider=ai_assistant_provider,
+            repository=ai_learning_memory_repository,
+            transaction_manager=resolved_learning_memory_transaction_manager,
+            clock=None if clock is None else clock.now,
+        )
+    ai_learning_knowledge_admin_service = None
+    if (
+        ai_learning_memory_repository is not None
+        and resolved_learning_memory_transaction_manager is not None
+    ):
+        ai_learning_knowledge_admin_service = AILearningKnowledgeAdminService(
+            repository=ai_learning_memory_repository,
+            transaction_manager=resolved_learning_memory_transaction_manager,
+            clock=None if clock is None else clock.now,
         )
 
     ai_assistant_orchestrator = None
-    if ai_assistant_provider is not None:
-        if ai_action_runtime is None:
-            raise AIActionRuntimeError("AI_ASSISTANT_ACTION_RUNTIME_REQUIRED")
+    if ai_assistant_provider is not None and ai_action_runtime is not None:
         ai_assistant_orchestrator = AIAssistantTurnOrchestrator(
             provider=ai_assistant_provider,
             action_runtime=ai_action_runtime,
+            learning_memory_repository=ai_learning_memory_repository,
         )
 
     activity_master_api = (
@@ -189,6 +230,11 @@ def build_project_lifecycle_wsgi_app(
         schedule_query_api=schedule_query_api,
         ai_action_runtime=ai_action_runtime,
         ai_assistant_orchestrator=ai_assistant_orchestrator,
+        form_builder_api=form_builder_api,
+        ai_learning_memory_repository=ai_learning_memory_repository,
+        ai_learning_memory_transaction_manager=resolved_learning_memory_transaction_manager,
+        ai_learning_research_service=ai_learning_research_service,
+        ai_learning_knowledge_admin_service=ai_learning_knowledge_admin_service,
     )
     return ProjectLifecycleWsgiApp(routes)
 

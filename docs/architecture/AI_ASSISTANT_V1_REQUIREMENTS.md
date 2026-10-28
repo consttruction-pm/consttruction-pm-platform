@@ -85,11 +85,45 @@ The assistant must implement the learning lifecycle specified in `docs/architect
 
 ### 2.11 Provider-key and toolchain rule
 
-An external AI API key is **not** a universal prerequisite for the CUBI assistant. Keep the currently supported remote provider adapter, but design deterministic application capabilities to work without an external model call: project/WBS/activity ID allocation, file parsing for known formats, local OCR/speech-to-text when packaged, persistence and approved-scope retrieval, Shared Core calculations, and deterministic reports/chart datasets.
+An external AI API key is **not** a universal prerequisite for CUBI; for the product profile it is not a dependency at all. The supported product path uses a local model/runtime, with no remote provider selection, no external model URL, and no hidden cloud fallback. Deterministic application capabilities must continue to work without a model where the relevant tools are implemented: project/WBS/activity ID allocation, known-format file parsing, local OCR/speech-to-text when packaged, persistence and approved-scope retrieval, Shared Core calculations, and deterministic reports/chart datasets.
 
-Flexible natural-language understanding and semantic synthesis require a language model (or a deliberately limited deterministic dialogue). When the user/deployment does not configure an external model, support a genuine local inference adapter for the declared local capabilities. A local runtime needs model assets, compatible resources and explicit installation; it is not a promise of unlimited inference. If neither local nor remote inference is available, deterministic tools must still work and semantic limitations must be explained. Never silently fall back to a cloud service or send user/project data to an unapproved provider.
+Flexible natural-language understanding and semantic synthesis require a language model (or a deliberately limited deterministic dialogue). The local runtime needs installed model assets, compatible resources and explicit provisioning; it is not a promise of unlimited inference. If the local runtime/model is unavailable, deterministic tools must still work and semantic limitations must be explained. The product runtime factory must reject non-local provider selections and must never send user/project data to an external model.
 
-The implementation shortlist, package boundaries, security requirements, file/MPP conversion limitations, local STT/OCR options, work-package order and acceptance tests are maintained in [CUBI Engineering Intelligence — Toolchain, No-Key Architecture and Acceptance Plan](CUBI_ENGINEERING_INTELLIGENCE_TOOLCHAIN_AND_ACCEPTANCE.md). That plan complements rather than replaces #1423, #1530, #1540, #1546 and Principle 11. Provider credentials must remain server-side, and no feature is complete until the real runtime, permission boundary, persistence and exact-head tests prove it.
+The legacy remote adapter remains an isolated compatibility artifact in source and tests only; the CUBI production and preview compositions must use the local-only provider factory. The implementation shortlist, package boundaries, security requirements, file/MPP conversion limitations, local STT/OCR options, work-package order and acceptance tests are maintained in [CUBI Engineering Intelligence — Toolchain, No-Key Architecture and Acceptance Plan](CUBI_ENGINEERING_INTELLIGENCE_TOOLCHAIN_AND_ACCEPTANCE.md). That plan complements rather than replaces #1423, #1530, #1540, #1546 and #1617. No feature is complete until the real runtime, permission boundary, persistence and exact-head tests prove it.
+
+
+### 2.12 Quantity takeoff, estimating, resources/equipment, risk, Form Builder and PMBOK reports
+
+The product-owner-confirmed capabilities below are mandatory V1 scope and are tracked as a separate implementation work package in [#1617](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1617). This list is additive to the capabilities above; a conversational answer or mock form does not satisfy implementation.
+
+**Quantity takeoff, BOQ and cost estimate**
+- Provide an auditable quantity/measurement and bill-of-quantities workflow for explicitly supported source types. Keep source measure, formula/basis, unit, classification, waste/allowance, quantity, rate/currency, source/date/version, assumptions, inclusions/exclusions, estimate range, reviewer and approval state.
+- Preserve the distinction between extracted/measured source values, deterministic calculated quantities, provisional assumptions and user-approved estimates. Reconcile source document/page/row/cell/object and mapping status wherever available.
+- Deterministic CUBI application/calculation services must calculate unit conversions, quantities, waste, subtotals and financial totals. AI may interpret/organize evidence and suggest assumptions for review; it must not fabricate quantity, rate, productivity or price values.
+- Link accepted quantity lines to WBS/work packages, activities, resources, procurement and cost records only through supported typed services. Show unsupported or ambiguous mappings and prevent a lossy import from appearing complete.
+
+**Crew, resource and equipment recommendations**
+- Propose role/crew composition, person-hours/person-days, equipment type/count, production basis, shifts, calendars and resource assignments only when sufficient scope/quantity and a defensible productivity basis exist.
+- Every estimate includes units, source/version/date, assumptions, project/work-method applicability, uncertainty/range, evidence completeness and limitations. Unknown rates and capacities must remain unknown; do not fill gaps with invented market facts.
+- Check current assignments, availability, capacity and calendars through CUBI's authoritative resource/scheduling services. Offer alternatives when overloaded; never duplicate or replace the Shared Domain/Calculation Core.
+- Add or revise project data only as a versioned proposal bound to the authenticated actor, exact project revision and current grants. Require explicit user approval, transaction/idempotency protection, durable audit and fresh read-back.
+
+**Risk identification and corrective action**
+- Correlate only authorized, persisted project data with authoritative control indicators and supported field, safety, quality, equipment, issue, change and dependency records.
+- A risk finding carries its category, affected WBS/activity/domain, likelihood, impact, confidence, horizon, source/revision references, trigger, consequence, owner, due date and uncertainty. Clearly label inferred risk versus an existing recorded issue.
+- Suggest preventive, mitigation, corrective and contingency actions with rationale, sequence/dependencies, owner role, expected outcome and measurable follow-up. Actions remain recommendations until accepted through the application's permissioned, auditable workflow.
+
+**Real Form Builder**
+- Provide a persisted, versioned form-definition domain and interactive Form Builder. Generate typed sections/fields, requiredness, validation, conditions, attachments, localized labels, role visibility, responsible reviewer, approval route, layout and output mappings from a user brief or approved procedure.
+- Provide preview, validation, version history, publish/share controls, submission capture, approval workflow, audit and fresh read-back. Connect responses to daily logs, quantities, resource consumption, inspections, issues or progress only using explicit mappings to real application services.
+- Preserve submitted-data integrity when form definitions change, and test viewer/role denials, stale revisions, malformed/duplicate submissions, required fields and approval boundaries. A response that merely returns HTML or a suggested JSON form is not a Form Builder implementation.
+
+**PMBOK-aligned report guidance**
+- Tailor reporting suggestions to project context, lifecycle stage, audience and the repository's approved PMBOK baseline. Recommend appropriate deliverables, registers, decision records, report sections, KPIs and chart types without forcing irrelevant artifacts or implying certification.
+- State each section's purpose, source data, as-of date, revision, evidence gaps, required/optional status and assumptions. Distinguish actuals, forecasts, estimates and recommendations.
+- Reports and chart series must be built from authorized persisted datasets and authoritative calculation outputs; use only charts with valid underlying data. Provide localized, editable report output and A4 layout where the report infrastructure supports it.
+
+**Acceptance rule:** #1617 remains an open P0 implementation gate until the source modules, contracts, repositories/migrations, UI, golden fixtures, authorization and approval paths, persistence/read-back, local-inference tests and exact-head CI/E2E evidence all pass. It must be reconciled into both CUBISITE and whole-product planning without silently changing either 100-point denominator. No documentation-only or open-PR progress counts as delivered functionality.
 
 ## 3. Hard architecture boundaries
 

@@ -27,8 +27,14 @@ from construction_pm.ai_action_activity_tools import (
     build_activity_create_tool,
 )
 from construction_pm.ai_action_project_plan_tools import build_project_plan_create_tool
+from construction_pm.project_forms import FormBuilderAPI, SQLiteFormBuilderRepository
+from construction_pm.ai_learning_memory_repository import SQLiteAILearningMemoryRepository
 from construction_pm.ai_action_runtime import AIActionProposal, AIActionRuntime, SQLiteAIActionRuntimeStore
-from construction_pm.ai_assistant_orchestration import OpenAICompatibleChatProvider
+from construction_pm.ai_assistant_orchestration import build_ai_chat_provider_from_environment
+from construction_pm.quantity_takeoff import (
+    SQLiteQuantityTakeoffRepository,
+    build_quantity_takeoff_create_tool,
+)
 from construction_pm.application.authorization import (
     AuthorizationContext,
     RoleBasedAuthorizationPolicy,
@@ -109,8 +115,16 @@ from construction_pm.p6_resource_capacity_repository import (
 )
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignmentApplicationService,
+    P6ResourceAssignmentPeriodApplicationService,
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
+)
+from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
+from construction_pm.p6_resource_spread_repository import (
+    P6ResourceSpreadApplicationService,
+    SQLiteP6ResourceSpreadRepository,
 )
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6ScheduleSnapshotPublicationAPI,
@@ -200,6 +214,7 @@ class PreviewRepositories:
     calendar_snapshots: SQLiteCalendarSnapshotRepository
     resource_assignments: SQLiteP6ResourceAssignmentRepository
     resource_periods: SQLiteP6ResourceAssignmentPeriodRepository
+    resource_spreads: SQLiteP6ResourceSpreadRepository
     capacities: SQLiteP6ResourceCapacityRepository
     capacity_service: P6ResourceCapacityApplicationService
     settings: SQLiteProjectScheduleSettingsRepository
@@ -225,6 +240,7 @@ class PreviewRepositories:
         calendar_snapshots = SQLiteCalendarSnapshotRepository(connection)
         resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
         resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
+        resource_spreads = SQLiteP6ResourceSpreadRepository(connection)
         capacities = SQLiteP6ResourceCapacityRepository(connection)
         capacity_service = P6ResourceCapacityApplicationService(
             capacities, transaction_manager
@@ -250,6 +266,7 @@ class PreviewRepositories:
             calendar_snapshots=calendar_snapshots,
             resource_assignments=resource_assignments,
             resource_periods=resource_periods,
+            resource_spreads=resource_spreads,
             capacities=capacities,
             capacity_service=capacity_service,
             settings=settings,
@@ -697,6 +714,18 @@ class PreviewAIPermissionAdapter:
             )
         if proposal.tool_name == "project.plan.create":
             return proposal.resource_domain == "projects" and "project_admin" in active_session.roles
+        if proposal.tool_name == "quantity.takeoff.create":
+            return proposal.resource_domain == "quantity_takeoff" and bool(
+                {"planner", "project_admin"} & set(active_session.roles)
+            )
+        if proposal.tool_name == "resource.assignment.create":
+            return proposal.resource_domain == "resources" and bool(
+                {"planner", "project_admin"} & set(active_session.roles)
+            )
+        if proposal.tool_name == "form.definition.create":
+            return proposal.resource_domain == "forms" and bool(
+                {"planner", "project_admin"} & set(active_session.roles)
+            )
         return False
 
 
@@ -739,11 +768,9 @@ class PreviewRuntime:
             "session_count": self.sessions.count(),
             "assistant": {
                 "enabled": self.ai_assistant_enabled,
-                "provider_configured": self.ai_assistant_enabled,
-                "provider_environment_complete": all(
-                    os.environ.get(key, "").strip()
-                    for key in ("CUBI_AI_API_KEY", "CUBI_AI_BASE_URL", "CUBI_AI_MODEL")
-                ),
+                "provider_configured": self.ai_assistant_enabled and bool(os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip()),
+                "provider_kind": os.environ.get("CUBI_AI_PROVIDER", "local-ollama"),
+                "provider_environment_complete": bool(os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip()),
                 "available_tools": list(self.ai_tool_names),
             },
             "private_owner_login_enabled": bool(
@@ -841,10 +868,20 @@ def open_preview_runtime(
     ai_assistant_provider = None
     ai_action_runtime = None
     ai_tool_names: tuple[str, ...] = ()
-    if ai_assistant_enabled:
-        # Provider and tools are only composed from explicit server-side configuration.
-        # Missing/invalid credentials fail closed; there is no fake provider fallback.
-        ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
+    # Form Builder APIs and persistence are deterministic CUBI capabilities and must
+    # remain available when semantic model inference is disabled or unprovisioned.
+    form_repository = SQLiteFormBuilderRepository(connection)
+    learning_memory_repository = SQLiteAILearningMemoryRepository(connection)
+    form_builder_api = FormBuilderAPI(
+        form_repository,
+        policy,
+        repositories.transaction_manager,
+        clock=lambda: datetime.now(timezone.utc),
+    )
+    if ai_assistant_enabled and os.environ.get("CUBI_AI_LOCAL_MODEL", "").strip():
+        # Compose real tools only when the local model is configured; no remote fallback.
+        # An enabled flag without model assets leaves assistant turns unavailable, not the site.
+        ai_assistant_provider = build_ai_chat_provider_from_environment()
         action_store = SQLiteAIActionRuntimeStore(connection)
         idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
         permission_adapter = PreviewAIPermissionAdapter(sessions, store)
@@ -868,15 +905,60 @@ def open_preview_runtime(
             authorization_policy=policy,
             timezone_name="Asia/Tehran",
         )
+        takeoff_repository = SQLiteQuantityTakeoffRepository(connection)
+        quantity_takeoff_tool = build_quantity_takeoff_create_tool(
+            repository=takeoff_repository,
+            idempotency_store=idempotency_store,
+        )
+        tools = [activity_tool, project_plan_tool, quantity_takeoff_tool]
+        assignment_service = P6ResourceAssignmentApplicationService(
+            repositories.resource_assignments, repositories.transaction_manager
+        )
+        assignment_period_service = P6ResourceAssignmentPeriodApplicationService(
+            repositories.resource_periods, repositories.transaction_manager
+        )
+        spread_service = P6ResourceSpreadApplicationService(
+            repositories.resource_spreads, repositories.transaction_manager
+        )
+        resource_read_api = P6ResourceReadAPI(
+            assignment_service, assignment_period_service, spread_service, policy
+        )
+        resource_write_api = P6ResourceWriteAPI(
+            assignment_period_service, policy, assignment_service
+        )
+        from construction_pm.ai_action_resource_tools import build_resource_assignment_create_tool
+
+        resource_assignment_tool = build_resource_assignment_create_tool(
+            activity_api=activity_api,
+            resource_write_api=resource_write_api,
+            resource_read_api=resource_read_api,
+            idempotency_store=idempotency_store,
+            transaction_manager=repositories.transaction_manager,
+        )
+        tools.append(resource_assignment_tool)
+        from construction_pm.ai_action_form_tools import build_form_definition_create_tool
+
+        form_definition_tool = build_form_definition_create_tool(
+            form_api=form_builder_api,
+            idempotency_store=idempotency_store,
+            transaction_manager=repositories.transaction_manager,
+        )
+        tools.append(form_definition_tool)
         ai_action_runtime = AIActionRuntime(
             store=action_store,
             permission_adapter=permission_adapter,
             audit_sink=action_store,
-            tools=(activity_tool, project_plan_tool),
+            tools=tuple(tools),
             clock=lambda: datetime.now(timezone.utc),
             transaction_manager=repositories.transaction_manager,
         )
-        ai_tool_names = ("activity.create", "project.plan.create")
+        ai_tool_names = (
+            "activity.create",
+            "project.plan.create",
+            "quantity.takeoff.create",
+            "resource.assignment.create",
+            "form.definition.create",
+        )
 
     app = build_project_lifecycle_wsgi_app(
         lifecycle_api=lifecycle_api,
@@ -888,6 +970,9 @@ def open_preview_runtime(
         relationship_master_repository=repositories.relationships,
         schedule_snapshot_publication_api=snapshot_api,
         backend_p0_api=backend_api,
+        form_builder_api=form_builder_api,
+        ai_learning_memory_repository=learning_memory_repository,
+        ai_learning_memory_transaction_manager=repositories.transaction_manager,
         p6_field_registry_api=P6FieldRegistryAPI(
             repositories.field_service,
             repositories.udf_service,

@@ -24,6 +24,8 @@ class AILearningMemoryRepository(Protocol):
     def append(self, record: AILearningMemoryRecord) -> AILearningMemoryRecord: ...
     def get(self, record_id: str, record_version: int, scope: LearningRetrievalScope) -> AILearningMemoryRecord | None: ...
     def list_retrievable(self, scope: LearningRetrievalScope) -> tuple[AILearningMemoryRecord, ...]: ...
+    def list_general_candidates(self) -> tuple[AILearningMemoryRecord, ...]: ...
+    def get_general_candidate(self, record_id: str, record_version: int) -> AILearningMemoryRecord | None: ...
 
 
 def _encode(record: AILearningMemoryRecord) -> str:
@@ -159,6 +161,40 @@ class _RepositoryBase:
             if record.record_id == record_id and record.record_version == record_version:
                 return record
         return None
+
+
+    def list_general_candidates(self) -> tuple[AILearningMemoryRecord, ...]:
+        """List only latest reviewable candidates; never expose private records."""
+        rows = self.connection.execute(
+            "SELECT candidate_record.payload_json FROM ai_learning_memory_records AS candidate_record "
+            "WHERE candidate_record.scope='general_candidate' AND candidate_record.status='candidate' "
+            "AND candidate_record.record_version=("
+            "SELECT MAX(history_record.record_version) FROM ai_learning_memory_records AS history_record "
+            "WHERE history_record.record_id=candidate_record.record_id"
+            ") ORDER BY candidate_record.record_id",
+            (),
+        ).fetchall()
+        return tuple(_decode(row[0]) for row in rows)
+
+    def get_general_candidate(
+        self, record_id: str, record_version: int
+    ) -> AILearningMemoryRecord | None:
+        if not isinstance(record_id, str) or not record_id.strip() or len(record_id) > 128:
+            raise AILearningMemoryPersistenceError("INVALID_AI_LEARNING_RECORD_ID")
+        if isinstance(record_version, bool) or not isinstance(record_version, int) or record_version < 1:
+            raise AILearningMemoryPersistenceError("INVALID_AI_LEARNING_RECORD_VERSION")
+        p = self.placeholder
+        row = self.connection.execute(
+            "SELECT candidate_record.payload_json FROM ai_learning_memory_records AS candidate_record "
+            f"WHERE candidate_record.record_id={p} AND candidate_record.record_version={p} "
+            "AND candidate_record.scope='general_candidate' AND candidate_record.status='candidate' "
+            "AND candidate_record.record_version=("
+            "SELECT MAX(history_record.record_version) FROM ai_learning_memory_records AS history_record "
+            "WHERE history_record.record_id=candidate_record.record_id"
+            ")",
+            (record_id, record_version),
+        ).fetchone()
+        return None if row is None else _decode(row[0])
 
 
 class SQLiteAILearningMemoryRepository(_RepositoryBase):
