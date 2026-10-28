@@ -699,7 +699,7 @@ class AIAssistantTurnOrchestrator:
                 "schedule facts are only facts present in the workspace's schedule-facts projection; never "
                 "infer missing dates, float, criticality, resource capacity, quantities, prices, productivity, "
                 "or risk probability. The engineering_signals collection contains deterministic review triggers, "
-                "not validated risk records; label them as candidates and never invent likelihood, impact, or severity. "
+                "not validated risk records; label them as candidates and never invent likelihood, impact, or severity. Their recommended_review_actions are review-only checklists, not persisted tasks or proof of mitigation; never claim an owner, due date, corrective action or closure exists unless the project data says so. "
                 "The context does not expose a schedule snapshot ID, so never invent one. "
                 "For project-specific findings, refer to the affected activity/record IDs, field names and "
                 "project revision; distinguish observed facts, possible risks, assumptions, and recommendations. "
