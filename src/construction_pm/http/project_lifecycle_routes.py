@@ -33,6 +33,11 @@ from ..ai_assistant_orchestration import (
     AIAssistantTurnOrchestrator,
     is_valid_language_tag,
 )
+from ..ai_project_context import (
+    AIProjectContextError,
+    build_assistant_project_context,
+    unavailable_assistant_project_context,
+)
 from ..backend_p0.api import BackendP0API
 from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
 from ..scheduling_code_reference_api import build_scheduling_code_reference_payload
@@ -2966,6 +2971,61 @@ class ProjectLifecycleHttpRoutes:
                         "can_propose": can_propose,
                     },
                 )
+                project_context = None
+                if self._backend_p0_api is None:
+                    project_context = unavailable_assistant_project_context(
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        project_revision=context.revision,
+                        reason_code="WORKSPACE_READ_UNAVAILABLE",
+                    )
+                else:
+                    auth_context = context.authorization_context(session.roles)
+                    workspace_read = self._backend_p0_api.read_workspace_control_room(
+                        tenant_id=context.tenant_id,
+                        project_id=context.project_id,
+                        revision=context.revision,
+                        auth_context=auth_context,
+                    )
+                    if workspace_read is None:
+                        project_context = unavailable_assistant_project_context(
+                            tenant_id=context.tenant_id,
+                            project_id=context.project_id,
+                            project_revision=context.revision,
+                            reason_code="WORKSPACE_READ_NOT_FOUND",
+                        )
+                    elif isinstance(workspace_read, dict) and isinstance(workspace_read.get("error"), dict):
+                        workspace_error = workspace_read["error"]
+                        category = workspace_error.get("category")
+                        if category == "authorization":
+                            return self._error(403, "AI_ASSISTANT_PROJECT_CONTEXT_FORBIDDEN", "error.authorization.denied")
+                        if category == "conflict":
+                            return self._error(409, "AI_ASSISTANT_PROJECT_CONTEXT_STALE", "error.conflict.stale_revision")
+                        project_context = unavailable_assistant_project_context(
+                            tenant_id=context.tenant_id,
+                            project_id=context.project_id,
+                            project_revision=context.revision,
+                            reason_code=str(workspace_error.get("code", "WORKSPACE_READ_UNAVAILABLE")),
+                        )
+                    else:
+                        try:
+                            project_context = build_assistant_project_context(
+                                workspace_read,
+                                tenant_id=context.tenant_id,
+                                project_id=context.project_id,
+                                project_revision=context.revision,
+                            )
+                        except AIProjectContextError as exc:
+                            self._ai_action_runtime.record_request_event(
+                                runtime_context,
+                                "assistant_project_context_rejected",
+                                metadata={"reason_code": str(exc)},
+                            )
+                            return self._error(
+                                503,
+                                "AI_ASSISTANT_PROJECT_CONTEXT_UNAVAILABLE",
+                                "error.ai_assistant.project_context_unavailable",
+                            )
                 try:
                     turn = self._ai_assistant_orchestrator.turn(
                         runtime_context,
@@ -2973,6 +3033,7 @@ class ProjectLifecycleHttpRoutes:
                         language=language.strip(),
                         history=tuple(history),
                         allow_mutations=can_propose,
+                        project_context=project_context,
                     )
                 except AIAssistantProviderError as exc:
                     self._ai_action_runtime.record_request_event(
