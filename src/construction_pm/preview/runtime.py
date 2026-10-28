@@ -27,6 +27,7 @@ from construction_pm.ai_action_activity_tools import (
     build_activity_create_tool,
 )
 from construction_pm.ai_action_project_plan_tools import build_project_plan_create_tool
+from construction_pm.project_forms import FormBuilderAPI, SQLiteFormBuilderRepository
 from construction_pm.ai_action_runtime import AIActionProposal, AIActionRuntime, SQLiteAIActionRuntimeStore
 from construction_pm.ai_assistant_orchestration import build_ai_chat_provider_from_environment
 from construction_pm.quantity_takeoff import (
@@ -720,6 +721,10 @@ class PreviewAIPermissionAdapter:
             return proposal.resource_domain == "resources" and bool(
                 {"planner", "project_admin"} & set(active_session.roles)
             )
+        if proposal.tool_name == "form.definition.create":
+            return proposal.resource_domain == "forms" and bool(
+                {"planner", "project_admin"} & set(active_session.roles)
+            )
         return False
 
 
@@ -920,6 +925,21 @@ def open_preview_runtime(
             transaction_manager=repositories.transaction_manager,
         )
         tools.append(resource_assignment_tool)
+        form_repository = SQLiteFormBuilderRepository(connection)
+        form_builder_api = FormBuilderAPI(
+            form_repository,
+            policy,
+            repositories.transaction_manager,
+            clock=lambda: datetime.now(timezone.utc),
+        )
+        from construction_pm.ai_action_form_tools import build_form_definition_create_tool
+
+        form_definition_tool = build_form_definition_create_tool(
+            form_api=form_builder_api,
+            idempotency_store=idempotency_store,
+            transaction_manager=repositories.transaction_manager,
+        )
+        tools.append(form_definition_tool)
         ai_action_runtime = AIActionRuntime(
             store=action_store,
             permission_adapter=permission_adapter,
@@ -933,6 +953,7 @@ def open_preview_runtime(
             "project.plan.create",
             "quantity.takeoff.create",
             "resource.assignment.create",
+            "form.definition.create",
         )
 
     app = build_project_lifecycle_wsgi_app(
