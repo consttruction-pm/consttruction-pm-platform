@@ -12,7 +12,7 @@ export async function exerciseProjectFormsPanel(page) {
   const session = await page.evaluate(`fetch("/api/session").then(async (response) => {
     if (!response.ok) throw new Error("FORM_E2E_SESSION_UNAVAILABLE");
     return response.json();
-  })()`, { awaitPromise: true });
+  })`, { awaitPromise: true });
   assert(typeof session.user_id === "string" && session.user_id.length > 0, "Form Builder E2E needs the authenticated session user");
 
   const formId = "FORM-E2E-" + Date.now().toString(36).toUpperCase();
