@@ -27,7 +27,7 @@ No `CUBI_AI_API_KEY`, external provider URL, or remote-model credential is requi
 
 Before enabling the assistant, install and provision Ollama (or a compatible local service that implements this endpoint) in the same trusted host/network namespace, download the exact model assets, verify the model starts, and run the Persian/English construction-domain golden test set. Model weights, memory, CPU/GPU needs, license, startup health, concurrency and upgrade/rollback must be covered by deployment operations; this code does not download model assets or prove a model is already installed.
 
-If model configuration is absent, invalid, or the local endpoint/model is unavailable, the assistant turn returns a stable error and does not contact any external service. Do not enable the assistant in a public demo or bypass the demo's read-only guard to test it.
+If model configuration is absent, an enabled deployment leaves the assistant route unavailable (HTTP 503 with a stable not-configured error) while the rest of the site continues running; it does not contact any external service. If the configured local endpoint/model is unavailable, the assistant turn returns a sanitized stable runtime/model error. Do not enable the assistant in a public demo or bypass the demo's read-only guard to test it.
 
 ## 3. Current implementation boundary
 
