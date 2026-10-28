@@ -123,6 +123,7 @@ def test_public_article_fetcher_rejects_private_dns_results_before_network_reque
     calls = []
     fetcher = SafePublicArticleFetcher(
         resolver=lambda host: ("10.10.0.2",),
+        allowed_domains=("example.com",),
         opener=lambda request, timeout: calls.append(request.full_url),
     )
     with pytest.raises(AILearningResearchError, match="AI_RESEARCH_HOST_NOT_PUBLIC"):
@@ -216,3 +217,14 @@ def test_research_service_fails_closed_if_local_model_is_unavailable():
         assert connection.execute("SELECT COUNT(*) FROM ai_learning_memory_records").fetchone()[0] == 0
     finally:
         connection.close()
+
+
+def test_public_article_fetcher_requires_explicit_domain_allowlist_before_network():
+    calls = []
+    fetcher = SafePublicArticleFetcher(
+        resolver=lambda host: ("93.184.216.34",),
+        opener=lambda request, timeout: calls.append(request.full_url),
+    )
+    with pytest.raises(AILearningResearchError, match="AI_RESEARCH_DOMAIN_ALLOWLIST_REQUIRED"):
+        fetcher.fetch(ARTICLE_URL)
+    assert calls == []
