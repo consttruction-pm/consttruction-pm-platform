@@ -2794,3 +2794,48 @@ th {
     max-height: 46px;
   }
 }
+
+
+/* CUBI logo contrast correction for the published Persian landing page.
+   Header: visually suppress the baked-in black matte without adding a plate.
+   Footer: provide a clean white logo field so the mark stays readable. */
+.cubi-exact-header .cubi-exact-brand,
+.cubi-reference-header .cubi-reference-brand,
+.cubi-public-header .cubi-public-brand {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.cubi-exact-header .cubi-exact-brand img,
+.cubi-reference-header .cubi-reference-brand img,
+.cubi-public-header .cubi-public-brand img {
+  background: transparent !important;
+  mix-blend-mode: screen !important;
+  filter: drop-shadow(0 1px 2px rgba(8, 26, 47, .24)) !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+.cubi-exact-footer .cubi-footer-brand img,
+.cubi-reference-footer .cubi-reference-brand,
+.cubi-public-footer .cubi-public-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff !important;
+  padding: 8px 12px !important;
+  border: 1px solid rgba(255,255,255,.82) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18) !important;
+  box-sizing: border-box;
+}
+.cubi-exact-footer .cubi-footer-brand img {
+  mix-blend-mode: multiply !important;
+  filter: drop-shadow(0 1px 1px rgba(8,26,47,.12)) !important;
+}
+.cubi-reference-footer .cubi-reference-brand img,
+.cubi-public-footer .cubi-public-brand img {
+  background: #fff !important;
+  mix-blend-mode: multiply !important;
+  filter: drop-shadow(0 1px 1px rgba(8,26,47,.12)) !important;
+  border-radius: 0 !important;
+}
