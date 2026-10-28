@@ -222,6 +222,11 @@ def test_context_emits_evidence_linked_review_signals_without_invented_risk_scor
     assert issue["record_id"] == "ISS-1"
     assert issue["activity_id"] == "A-100"
     assert issue["basis_fields"]["status"] == "open"
+    assert issue["recommendation_status"] == "review_only_not_executed"
+    assert issue["recommended_review_actions"]
+    assert "Assign an accountable owner and due date" in issue["recommended_review_actions"][0]
+    assert by_type["negative_total_float"]["recommended_review_actions"]
+    assert by_type["unfinished_critical_activity"]["recommended_review_actions"]
 
     for signal in signals:
         assert "probability" not in signal
