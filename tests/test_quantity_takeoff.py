@@ -181,7 +181,7 @@ def test_sqlite_repository_round_trip_is_scoped_immutable_and_idempotent():
 def test_ai_tool_persists_only_after_approval_and_returns_verified_readback():
     connection = sqlite3.connect(":memory:")
     store = SQLiteAIActionRuntimeStore(connection)
-    idempotency = SQLiteAIActionExecutionIdempotencyStore(connection, placeholder="?")
+    idempotency = SQLiteAIActionExecutionIdempotencyStore(connection)
     repository = SQLiteQuantityTakeoffRepository(connection)
     transaction_manager = SQLiteTransactionManager(connection)
     grant = AIActionPermissionGrant(
