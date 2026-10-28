@@ -195,3 +195,60 @@ def test_context_never_mutates_source_workspace_data():
     original = copy.deepcopy(snapshot)
     build(snapshot)
     assert snapshot == original
+
+
+def test_context_emits_evidence_linked_review_signals_without_invented_risk_scores():
+    context = build(workspace_snapshot())
+    signals = context["engineering_signals"]
+    by_type = {item["signal_type"]: item for item in signals}
+
+    assert "negative_total_float" in by_type
+    negative_float = by_type["negative_total_float"]
+    assert negative_float["classification"] == "schedule_warning_candidate"
+    assert negative_float["status"] == "needs_review"
+    assert negative_float["project_revision"] == 12
+    assert negative_float["activity_id"] == "A-100"
+    assert negative_float["basis_fields"] == {"activity.total_float": -2}
+
+    assert "unfinished_critical_activity" in by_type
+    unfinished = by_type["unfinished_critical_activity"]
+    assert unfinished["activity_id"] == "A-100"
+    assert unfinished["basis_fields"]["activity.is_critical"] is True
+    assert unfinished["basis_fields"]["activity.duration_percent_complete"] == 40
+
+    assert "open_field_issue" in by_type
+    issue = by_type["open_field_issue"]
+    assert issue["record_collection"] == "field_issues"
+    assert issue["record_id"] == "ISS-1"
+    assert issue["activity_id"] == "A-100"
+    assert issue["basis_fields"]["status"] == "open"
+
+    for signal in signals:
+        assert "probability" not in signal
+        assert "likelihood" not in signal
+        assert "impact" not in signal
+        assert signal["evidence_contract"] == "workspace-control-room-read.v1"
+    assert context["engineering_signal_counts"]["negative_total_float"] == 1
+    assert context["engineering_signal_counts"]["unfinished_critical_activity"] == 1
+    assert context["engineering_signal_counts"]["open_field_issue"] == 1
+
+
+def test_context_marks_signal_list_truncated_when_project_has_many_triggers():
+    activities = []
+    for index in range(50):
+        activities.append({
+            "id": f"A-{index:03d}",
+            "cells": {
+                "activity.id": f"A-{index:03d}",
+                "activity.name": f"Activity {index}",
+                "activity.total_float": -index - 1,
+                "activity.is_critical": True,
+                "start": "2026-10-20",
+                "finish": "2026-10-28",
+            },
+        })
+    context = build(workspace_snapshot(activities=activities, field_issues=[]))
+    assert len(context["engineering_signals"]) == 20
+    assert context["signals_truncated"] is True
+    assert context["truncated"] is True
+    assert context["engineering_signal_counts"]["negative_total_float"] == 20
