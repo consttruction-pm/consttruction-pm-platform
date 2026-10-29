@@ -385,7 +385,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance, t)}
         ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, state.documents, t)}
         ${renderProcurement(state.procurementRecords, t.procurement, t)}
-        <aside id="cp-project-wbs" class="cp-panel cp-wbs" data-workspace-menu="project schedule" ${!state.visiblePanels.project_wbs ? "hidden" : ""} aria-label="${escapeAttribute(t.wbs)}">
+        <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${escapeHtml(t.wbs)}</h2>
           ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
           <form class="cp-wbs-editor" data-wbs-create-form>
@@ -414,7 +414,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           })() : `<p class="cp-empty">${escapeHtml(t.wbsSelectPrompt)}</p>`}
         </aside>
         <section class="cp-center">
-          <section id="cp-activity-grid" class="cp-panel cp-grid" data-workspace-menu="schedule" ${!state.visiblePanels.activity_grid ? "hidden" : ""}>
+          <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
             <h2>${escapeHtml(t.activities)}</h2>
             <form class="cp-activity-editor" data-activity-create-form>
               <h3>${escapeHtml(t.activityCreate)}</h3>
@@ -435,7 +435,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               </table>
             </div>
           </section>
-          <section id="cp-gantt" class="cp-panel cp-gantt" data-workspace-menu="schedule" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${escapeHtml(t.gantt)}</h2>${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId)}</section>
+          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule"><h2>${escapeHtml(t.gantt)}</h2>${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId)}</section>
             <section id="cp-schedule-options" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.scheduleOptions)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
             <section id="cp-schedule-run" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.runSchedule)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
             <section id="cp-logic" class="cp-panel cp-logic" data-workspace-menu="schedule"><h2>${escapeHtml(t.logic)}</h2>${renderRelationships(state, t)}</section>
@@ -444,7 +444,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <section id="cp-interchange" class="cp-panel cp-interchange-panel" data-workspace-menu="project"><h2>${escapeHtml(t.interchange)}</h2><div data-interchange-panel><p class="cp-empty">—</p></div></section>
             <section id="cp-resource-capacity" class="cp-panel cp-capacity-panel" data-workspace-menu="resources"><h2>${escapeHtml(t.resourceCapacity)}</h2><div data-capacity-panel><p class="cp-empty">—</p></div></section>
         </section>
-        <aside id="cp-details" class="cp-panel cp-details" data-workspace-menu="project schedule" ${!state.visiblePanels.details ? "hidden" : ""} aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule" aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+        <section id="cp-settings-panel" class="cp-panel" data-workspace-menu="settings" aria-label="${escapeAttribute(t.settings)}">
+          <h2>${escapeHtml(t.settings)}</h2>
+          <p>${escapeHtml(t.projectSettings)}</p>
+          <button type="button" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
+        </section>
       </main>
     </section>
   `;
@@ -466,7 +471,7 @@ function renderNavigationSurface(state: WorkspaceState): string {
       ${item.submenus.map((submenu, index) => {
         const anchor = links[index];
         return anchor
-          ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>`
+          ? navigationTargetAvailable(state, anchor) ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>` : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`
           : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`;
       }).join("")}
     </nav>
@@ -488,11 +493,41 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "documents":
       return ["#cp-documents", null];
     case "reports":
-      return ["#cp-control-summary", "#cp-smart-guide"];
+      return [];
     case "control":
       return ["#cp-control-summary", "#cp-change-claim"];
     case "settings":
-      return ["#cp-project-settings-open", null];
+      return ["#cp-project-settings-open", "#cp-settings-panel"];
+
+  }
+}
+
+function navigationTargetAvailable(state: WorkspaceState, anchor: string): boolean {
+  switch (anchor) {
+    case "#cp-site-logs":
+      return state.siteDailyLogs.length > 0;
+    case "#cp-field-operations":
+      return state.fieldIssues.length > 0 || state.timecards.length > 0 || state.equipmentReports.length > 0;
+    case "#cp-procurement":
+      return state.procurementRecords.length > 0;
+    case "#cp-change-claim":
+      return state.changeNotices.length > 0 || state.changeCases.length > 0 || state.claims.length > 0 || state.changeClaimImpacts.length > 0 || state.documents.length > 0;
+    case "#cp-documents":
+      return state.documents.length > 0;
+    case "#cp-control-summary":
+      return state.controlSummary !== null;
+    case "#cp-smart-guide":
+      return state.smartGuide !== null;
+    case "#cp-project-wbs":
+      return state.visiblePanels.project_wbs;
+    case "#cp-details":
+      return state.visiblePanels.details;
+    case "#cp-activity-grid":
+      return state.visiblePanels.activity_grid;
+    case "#cp-gantt":
+      return state.visiblePanels.gantt;
+    default:
+      return true;
   }
 }
 
