@@ -4112,6 +4112,7 @@ async function main() {
           renderedAfterWrites.wbsIds.includes(id),
         ) &&
         renderedAfterWrites.wbsText.includes("2.1") &&
+        renderedAfterWrites.wbsText.includes("Site works revised") &&
         renderedAfterWrites.wbsText.includes("Detailed design") &&
         renderedAfterWrites.wbsText.includes("No activity package") &&
         renderedAfterWrites.rows.length === 1 &&
