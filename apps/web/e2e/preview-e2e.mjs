@@ -4150,9 +4150,19 @@ async function main() {
       if (editReadBack.rowText.includes("E2E linked activity revised") && !editReadBack.editForm) break;
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+    const updatedActivityApi = await request(projectBase + "/p6/activities/NEW-100", {
+      method: "GET",
+      headers,
+    });
+    assert(
+      updatedActivityApi.status === 200 &&
+        updatedActivityApi.body.activity?.name === "E2E linked activity revised",
+      "the activity PATCH must persist the revised name in Activity Master: " + JSON.stringify(updatedActivityApi),
+    );
     assert(
       editReadBack.rowText.includes("E2E linked activity revised") && !editReadBack.editForm,
-      "editing an activity in the workspace must PATCH the authoritative record and refresh the read model: " + JSON.stringify(editReadBack),
+      "editing an activity in the workspace must refresh the authoritative read model after persistence: " +
+        JSON.stringify({ editReadBack, activityMaster: updatedActivityApi.body.activity }),
     );
     EVIDENCE.wbs_activity.activity_edit = editReadBack;
     record("workspace activity edit persists and refreshes the activity grid", editReadBack);
