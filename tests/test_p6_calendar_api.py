@@ -307,3 +307,45 @@ def test_calendar_delete_removes_persisted_work_hours():
     api.save_work_hours(rule, auth_context=_auth())
     assert api.delete(_scope(), "CAL-DEL", "1", expected_revision=created["record_revision"], auth_context=_auth())
     assert api.calendar_repository.get(_scope(), "CAL-DEL", "1") is None
+
+
+def test_delete_requires_transaction_manager_before_mutating():
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-DEL-UNSAFE"), auth_context=_auth())
+    unsafe_api = P6CalendarAPI(
+        api.calendar_repository,
+        api.snapshot_repository,
+        api.exception_repository,
+        api.authorization_policy,
+        api.work_hours_repository,
+    )
+
+    with pytest.raises(ValueError, match="TRANSACTION_MANAGER_REQUIRED"):
+        unsafe_api.delete(
+            _scope(), "CAL-DEL-UNSAFE", "1", expected_revision=1, auth_context=_auth()
+        )
+
+    assert api.calendar_repository.get(_scope(), "CAL-DEL-UNSAFE", "1") is not None
+
+
+def test_delete_rolls_back_calendar_children_when_repository_cleanup_fails(monkeypatch):
+    api, _ = _api()
+    api.create(_scope(), _request("CAL-DEL-ROLLBACK"), auth_context=_auth())
+    stored = api.calendar_repository.get(_scope(), "CAL-DEL-ROLLBACK", "1")
+    api.snapshot_repository.save(stored, _definition())
+
+    def fail_after_child_delete(repository, scope, calendar_id, calendar_version, *, expected_revision):
+        repository.connection.execute(
+            "DELETE FROM calendar_master_snapshot WHERE tenant_id=? AND project_id=? AND calendar_id=? AND calendar_version=?",
+            (scope.tenant_id, scope.project_id, calendar_id, calendar_version),
+        )
+        raise RuntimeError("injected calendar delete cleanup failure")
+
+    monkeypatch.setattr(SQLiteCalendarMasterRepository, "delete", fail_after_child_delete)
+    with pytest.raises(RuntimeError, match="injected calendar delete cleanup failure"):
+        api.delete(
+            _scope(), "CAL-DEL-ROLLBACK", "1", expected_revision=1, auth_context=_auth()
+        )
+
+    assert api.calendar_repository.get(_scope(), "CAL-DEL-ROLLBACK", "1") == stored
+    assert api.snapshot_repository.get(stored) is not None
