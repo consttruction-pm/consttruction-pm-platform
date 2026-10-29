@@ -5849,6 +5849,41 @@ async function main() {
       };
     }
 
+
+    await page.waitFor(
+      'Boolean(document.querySelector("[data-calendar-work-week]"))',
+      "standard working-week editor",
+      15000,
+    );
+    const workWeekBefore = await page.evaluate('((async () => { const form = document.querySelector("[data-schedule-settings-form]"); const selector = form && form.elements.namedItem("calendar_ref"); const editor = document.querySelector("[data-calendar-work-week]"); if (!form || !selector || !editor) throw new Error("WORK_WEEK_EDITOR_OR_CALENDAR_SELECTOR_MISSING"); const selected = JSON.parse(selector.value); const project = new URL(location.href).searchParams.get("project") || ""; const path = "/api/projects/" + encodeURIComponent(project) + "/p6/calendars/" + encodeURIComponent(selected.id) + "/" + encodeURIComponent(selected.version) + "/snapshot"; const response = await fetch(path, { credentials: "same-origin" }); const body = await response.json(); if (!response.ok || !Array.isArray(body.snapshot && body.snapshot.working_weekdays)) throw new Error("WORK_WEEK_SOURCE_SNAPSHOT_UNAVAILABLE"); const oldWeekdays = body.snapshot.working_weekdays; const targetDay = oldWeekdays.length < 7 ? [0,1,2,3,4,5,6].find(day => !oldWeekdays.includes(day)) : oldWeekdays[0]; if (targetDay === undefined) throw new Error("WORK_WEEK_TARGET_DAY_UNAVAILABLE"); const wasWorking = oldWeekdays.includes(targetDay); const dayInput = editor.querySelector("[data-calendar-working-weekday=\\" + targetDay + "\\"]"); const saveForm = editor.querySelector("[data-work-week-form]"); if (!dayInput || !saveForm) throw new Error("WORK_WEEK_DAY_CONTROL_MISSING"); dayInput.checked = !wasWorking; dayInput.dispatchEvent(new Event("change", { bubbles: true })); saveForm.requestSubmit(); return { sourceCalendarId: selected.id, sourceVersion: selected.version, originalWeekdays: oldWeekdays, targetDay, expectedWeekdays: wasWorking ? oldWeekdays.filter(day => day !== targetDay).sort((a,b) => a-b) : [...oldWeekdays, targetDay].sort((a,b) => a-b) }; })())');
+    await page.waitFor(
+      '(() => { const status = document.querySelector("[data-work-week-status]"); const selector = document.querySelector("[data-schedule-settings-form] select[name=\\"calendar_ref\\"]"); return Boolean(status && status.dataset.state === "info" && selector && JSON.parse(selector.value).version !== "' + workWeekBefore.sourceVersion + '"); })()',
+      "versioned working-week save",
+      20000,
+    );
+    const workWeekAfter = await page.evaluate('((async () => { const form = document.querySelector("[data-schedule-settings-form]"); const selector = form && form.elements.namedItem("calendar_ref"); const status = document.querySelector("[data-work-week-status]"); if (!selector || !status) throw new Error("WORK_WEEK_RESULT_CONTROLS_MISSING"); const selected = JSON.parse(selector.value); const project = new URL(location.href).searchParams.get("project") || ""; const sourceVersion = "' + workWeekBefore.sourceVersion + '"; const currentId = selected.id; const oldPath = "/api/projects/" + encodeURIComponent(project) + "/p6/calendars/" + encodeURIComponent(currentId) + "/" + encodeURIComponent(sourceVersion) + "/snapshot"; const newPath = "/api/projects/" + encodeURIComponent(project) + "/p6/calendars/" + encodeURIComponent(currentId) + "/" + encodeURIComponent(selected.version) + "/snapshot"; const responses = await Promise.all([fetch(oldPath, { credentials: "same-origin" }), fetch(newPath, { credentials: "same-origin" })]); const bodies = await Promise.all(responses.map(response => response.json())); if (!responses[0].ok || !responses[1].ok) throw new Error("WORK_WEEK_VERSION_SNAPSHOT_READ_FAILED"); return { selected, sourceVersion, oldWeekdays: bodies[0].snapshot.working_weekdays, newWeekdays: bodies[1].snapshot.working_weekdays, newRecordRevision: bodies[1].calendar.record_revision, status: status.textContent, statusState: status.dataset.state }; })())');
+    assert(
+      workWeekAfter.selected.version !== workWeekBefore.sourceVersion &&
+        JSON.stringify(workWeekAfter.oldWeekdays) === JSON.stringify(workWeekBefore.originalWeekdays) &&
+        JSON.stringify(workWeekAfter.newWeekdays) === JSON.stringify(workWeekBefore.expectedWeekdays) &&
+        workWeekAfter.statusState === "info" &&
+        workWeekAfter.newRecordRevision >= 1,
+      "work-week edit must create a new calendar version and preserve the previous snapshot",
+    );
+    EVIDENCE.calendar_work_week = {
+      source_version: workWeekBefore.sourceVersion,
+      new_version: workWeekAfter.selected.version,
+      target_weekday: workWeekBefore.targetDay,
+      original_weekdays: workWeekAfter.oldWeekdays,
+      new_weekdays: workWeekAfter.newWeekdays,
+      note: "new version is selected in the unsaved settings form; save settings to activate it",
+    };
+    record("working week changes persist to a new immutable calendar version", {
+      source_version: workWeekBefore.sourceVersion,
+      new_version: workWeekAfter.selected.version,
+      new_weekdays: workWeekAfter.newWeekdays,
+    });
+
     if (EXCEPTIONS.length > 0) {
       throw new Error(
         `UNCAUGHT_PAGE_EXCEPTIONS: ${JSON.stringify(EXCEPTIONS.slice(0, 5))}`,
