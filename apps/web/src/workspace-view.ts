@@ -385,6 +385,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance, t)}
         ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, state.documents, t)}
         ${renderProcurement(state.procurementRecords, t.procurement, t)}
+        ${renderModuleEmptyState(state)}
         <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${escapeHtml(t.wbs)}</h2>
           ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
@@ -456,6 +457,49 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 
   workspaceRenderRecords.set(container, { state, options });
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
+}
+
+function renderModuleEmptyState(state: WorkspaceState): string {
+  const locale = state.locale.split("-")[0] === "fa" ? "fa" : "en";
+  const hasControlRecords = Boolean(state.controlSummary || state.smartGuide)
+    || state.siteDailyLogs.length > 0
+    || state.fieldIssues.length > 0
+    || state.timecards.length > 0
+    || state.equipmentReports.length > 0
+    || state.changeNotices.length > 0
+    || state.changeCases.length > 0
+    || state.claims.length > 0
+    || state.changeClaimImpacts.length > 0
+    || state.inspections.length > 0
+    || state.qualityRecords.length > 0
+    || state.safetyObservations.length > 0
+    || state.punchItems.length > 0;
+  let copy: { title: string; message: string } | null = null;
+
+  if (state.activeMenu === "reports") {
+    copy = locale === "fa"
+      ? { title: "گزارش‌ها و چاپ", message: "ساخت گزارش و قالب چاپ در این پیش‌نمایش هنوز فعال نیست. این صفحه گزارشی تولید یا ادعایی درباره کامل بودن گزارش‌ها نمی‌کند." }
+      : { title: "Reports & print", message: "Report generation and print layouts are not available in this preview yet. This page has not generated a report or claimed that reporting is complete." };
+  } else if (state.activeMenu === "progress") {
+    copy = locale === "fa"
+      ? { title: "نمای پیشرفت پروژه", message: "داشبورد و نمودارهای اختصاصی پیشرفت هنوز در مرحله پیش‌نمایش هستند. داده‌های ثبت‌شده را از جدول فعالیت‌ها و سوابق کارگاه بررسی کنید؛ در این صفحه شاخص یا درصد ساختگی نمایش داده نمی‌شود." }
+      : { title: "Project progress", message: "The dedicated progress dashboard and charts are still in preview. Review recorded data in the activity grid and field records; this page does not invent metrics or percentages." };
+  } else if (state.activeMenu === "cost") {
+    copy = locale === "fa"
+      ? { title: "هزینه و جریان مالی", message: "نمای کامل هزینه، پیش‌بینی و نمودارهای مالی هنوز در این پیش‌نمایش تکمیل نشده است. سوابق موجودِ تدارکات، تغییرات و ادعاها فقط در بخش‌های مربوط به خود نمایش داده می‌شوند." }
+      : { title: "Cost & financial control", message: "The full cost view, forecast and financial charts are not complete in this preview. Existing procurement, change and claim records remain available only in their respective panels." };
+  } else if (state.activeMenu === "documents" && state.documents.length === 0) {
+    copy = locale === "fa"
+      ? { title: "اسناد پروژه", message: "هنوز سندی برای این پروژه ثبت یا پیوند داده نشده است. وقتی سندی افزوده شود، در این بخش نمایش داده خواهد شد." }
+      : { title: "Project documents", message: "No project documents have been added or linked yet. Documents will appear here after they are recorded." };
+  } else if (state.activeMenu === "control" && !hasControlRecords) {
+    copy = locale === "fa"
+      ? { title: "کنترل پروژه", message: "هنوز سابقه‌ای برای خلاصه کنترل، گزارش روزانه، بازرسی، مسئله، تغییر یا ادعا در دسترس نیست. با ثبت داده‌های معتبر، این بخش پر می‌شود." }
+      : { title: "Project controls", message: "No control summary, daily log, inspection, issue, change or claim records are available yet. This area will populate when authoritative records are saved." };
+  }
+
+  if (!copy) return "";
+  return `<section class="cp-panel cp-module-empty-state" data-workspace-menu="${state.activeMenu}" aria-live="polite"><h2>${escapeHtml(copy.title)}</h2><p>${escapeHtml(copy.message)}</p></section>`;
 }
 
 function renderNavigationSurface(state: WorkspaceState): string {
