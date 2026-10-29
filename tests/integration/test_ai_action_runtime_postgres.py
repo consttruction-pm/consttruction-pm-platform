@@ -107,7 +107,11 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
     scope = BackendScope(tenant_id, project_id, 12)
     transaction_manager = PostgresTransactionManager(postgres_connection)
     wbs_repository = PostgresWBSMasterRepository(postgres_connection)
-    wbs_repository.initialize()
+    activity_repository = PostgresActivityMasterRepository(postgres_connection)
+    # Every schema write must finish before any row exists: PostgreSQL refuses
+    # CREATE INDEX on a table whose just-inserted rows have pending trigger
+    # events, and the activity schema also initializes the WBS schema.
+    activity_repository.initialize()
     wbs_repository.save(
         WBSMaster(
             scope=scope,
@@ -120,8 +124,8 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
         ),
         expected_revision=0,
     )
-    activity_repository = PostgresActivityMasterRepository(postgres_connection)
-    activity_repository.initialize()
+    # Commit the seeded WBS before the request-level transaction lifecycle.
+    postgres_connection.commit()
 
     grant = AIActionPermissionGrant(
         subject_id="user-1",
@@ -138,8 +142,6 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
         permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: (grant,)),
         transaction_manager=transaction_manager,
     )
-    # Commit schema initialization before the request-level transaction lifecycle.
-    postgres_connection.commit()
 
     context = AIActionRuntimeContext(
         subject_id="user-1",
