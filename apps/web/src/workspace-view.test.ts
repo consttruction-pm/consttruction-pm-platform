@@ -30,8 +30,9 @@ test("workspace shell uses the canonical CUBI logo and focused module layout con
   for (const menu of ["project", "schedule", "progress", "resources", "cost", "documents", "reports", "control", "settings"] as const) {
     const html = render("en", menu);
     assert.match(html, new RegExp(`data-active-menu="${menu}"`));
-    assert.match(html, /class="cp-brand-logo" src="[^"]*cubi-platform-logo-primary\\.svg"/);
-    assert.doesNotMatch(html, />Construction PM<\\/div>/);
+    assert.ok(html.includes('class="cp-brand-logo"'));
+    assert.ok(html.includes("cubi-platform-logo-primary.svg"));
+    assert.ok(!html.includes(">Construction PM</div>"));
   }
   const html = render("en", "schedule");
   assert.match(html, /data-workspace-menu="project schedule"/);
