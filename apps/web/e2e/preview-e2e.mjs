@@ -4130,6 +4130,28 @@ async function main() {
       columns: renderedAfterWrites.columns,
     });
 
+    await page.click('button[data-activity-edit="NEW-100"]');
+    await page.waitForSelector('form[data-activity-update-form="NEW-100"]', "activity edit form");
+    await page.evaluate(`() => {
+      const form = document.querySelector('form[data-activity-update-form="NEW-100"]');
+      const input = form?.querySelector('input[name="name"]');
+      if (!(input instanceof HTMLInputElement)) throw new Error("activity edit name input missing");
+      input.value = "E2E linked activity revised";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }`);
+    await page.click('form[data-activity-update-form="NEW-100"] button[type="submit"]');
+    const editReadBack = await page.evaluate(`(() => {
+      const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="NEW-100"]');
+      return { rowText: row?.textContent ?? "", editForm: Boolean(document.querySelector('form[data-activity-update-form="NEW-100"]')) };
+    })()`);
+    assert(
+      editReadBack.rowText.includes("E2E linked activity revised") && !editReadBack.editForm,
+      "editing an activity in the workspace must PATCH the authoritative record and refresh the read model: " + JSON.stringify(editReadBack),
+    );
+    EVIDENCE.wbs_activity.activity_edit = editReadBack;
+    record("workspace activity edit persists and refreshes the activity grid", editReadBack);
+
     // First-run journey on a real account with no project membership. This is
     // not a mocked state: the newcomer session, the empty project list and the
     // created project all go through the same preview API and SQLite store.
