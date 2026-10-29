@@ -435,6 +435,13 @@ class PreviewApplication:
     def _static(self, path: str, method: str) -> tuple[int, dict[str, str], bytes]:
         if method not in {"GET", "HEAD"}:
             return _json(405, {"code": "METHOD_NOT_ALLOWED"})
+        # Browsers conventionally probe /favicon.ico even when the page declares
+        # an SVG favicon. Serve the canonical CUBI artwork at that compatibility
+        # path so the hosted preview does not emit a noisy 404 for every visit.
+        if path == "/favicon.ico":
+            logo = self.frontend.resolve("/cubi-platform-logo-primary.svg")
+            if logo is not None:
+                return 200, {"Content-Type": "image/svg+xml"}, logo.read_bytes()
         file = self.frontend.resolve(path)
         if file is None:
             return _html(
