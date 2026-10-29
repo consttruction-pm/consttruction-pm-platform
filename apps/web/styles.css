@@ -3190,3 +3190,10 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-gantt-relationships-toggle.is-active strong{color:var(--cubi-engineering-blue)}
 .cp-gantt-relationships-toggle:focus-visible,.cp-gantt-scale-button:focus-visible{outline:2px solid var(--cubi-engineering-blue);outline-offset:2px}
 @media(max-width:600px){.cp-gantt-toolbar{align-items:stretch}.cp-gantt-scale-controls{width:100%}.cp-gantt-scale-button{flex:1;padding-inline:6px}.cp-gantt-relationships-toggle{align-self:flex-start;max-width:100%}}
+
+/* Activity Group and Sort controls: keep the WBS-first default visible in the workbench. */
+.cp-activity-group{display:flex;align-items:center;gap:6px;min-width:140px}
+.cp-activity-group>span{font-size:12px;font-weight:600;color:var(--cubi-neutral-muted,#596779);white-space:nowrap}
+.cp-activity-group select{min-width:118px;min-height:32px;padding:4px 8px;border:1px solid var(--cubi-neutral-border,#c8d1dc);border-radius:5px;background:#fff;color:var(--cubi-deep-navy,#14283f);font:inherit;font-size:12px}
+.cp-activity-group select:focus-visible,.cp-activity-sort select:focus-visible{outline:2px solid var(--cubi-engineering-blue,#1769aa);outline-offset:2px}
+@media(max-width:700px){.cp-activity-group{min-width:0;flex-wrap:wrap}.cp-activity-group select{max-width:100%}}
