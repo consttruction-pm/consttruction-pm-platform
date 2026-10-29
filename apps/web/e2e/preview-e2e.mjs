@@ -2300,6 +2300,31 @@ async function main() {
     await page.setInput("[data-capacity-resolve-period]", "2026-10-16");
     await page.setSelect("[data-capacity-resolve-basis]", "week");
     await page.setInput("[data-capacity-resolve-hours]", "40");
+    const capacityResolutionBeforeSubmit = await page.evaluate(`(() => {
+      const form = document.querySelector("[data-capacity-resolve-form]");
+      const button = document.querySelector("[data-capacity-resolve]");
+      return {
+        period: document.querySelector("[data-capacity-resolve-period]")?.value ?? null,
+        resource: document.querySelector("[data-capacity-resolve-resource]")?.value ?? null,
+        basis: document.querySelector("[data-capacity-resolve-basis]")?.value ?? null,
+        hours: document.querySelector("[data-capacity-resolve-hours]")?.value ?? null,
+        hoursDisabled: document.querySelector("[data-capacity-resolve-hours]")?.disabled ?? null,
+        formConnected: form?.isConnected ?? false,
+        buttonFormMatches: Boolean(form && button && button.form === form),
+        formContainsButton: Boolean(form && button && form.contains(button)),
+      };
+    })()`);
+    assert(
+      capacityResolutionBeforeSubmit.period === "2026-10-16" &&
+        capacityResolutionBeforeSubmit.resource === "RPS-CIVIL-CREW" &&
+        capacityResolutionBeforeSubmit.basis === "week" &&
+        capacityResolutionBeforeSubmit.hours === "40" &&
+        capacityResolutionBeforeSubmit.hoursDisabled === false &&
+        capacityResolutionBeforeSubmit.buttonFormMatches &&
+        capacityResolutionBeforeSubmit.formContainsButton,
+      "capacity resolver controls must be filled and associated with their form before submit: " +
+        JSON.stringify(capacityResolutionBeforeSubmit),
+    );
     await page.click("[data-capacity-resolve]");
     let capacityResolutionWaitError = null;
     try {
