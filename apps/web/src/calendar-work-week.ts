@@ -135,9 +135,7 @@ export function createCalendarWorkWeekEditor(options: {
   legend.textContent = labels.weekdays;
   fieldset.append(legend);
   const days = new Map<number, HTMLInputElement>();
-  const dayOrder = options.context && labels.dayNames.length === 7
-    ? (labels.dayNames[0] === "Monday" ? [0, 1, 2, 3, 4, 5, 6] : [5, 6, 0, 1, 2, 3, 4])
-    : [0, 1, 2, 3, 4, 5, 6];
+  const dayOrder = labels.dayNames[0] === "Monday" ? [0, 1, 2, 3, 4, 5, 6] : [5, 6, 0, 1, 2, 3, 4];
   for (const weekday of dayOrder) {
     const label = document.createElement("label");
     label.className = "cp-calendar-work-week-day";
@@ -237,19 +235,28 @@ export function createCalendarWorkWeekEditor(options: {
     submit.textContent = labels.saving;
     const available = options.availableVersions();
     const targetVersion = nextVersion(calendarVersion, available);
-    const result = await transport.post<
-      { target_calendar_version: string; working_weekdays: number[]; expected_revision: number },
-      CalendarWorkWeekRevision
-    >(
-      revisionPath(context, calendarId, calendarVersion),
-      {
-        target_calendar_version: targetVersion,
-        working_weekdays: [...workingWeekdays].sort((a, b) => a - b),
-        expected_revision: sourceRevision,
-      },
-      context,
-      crypto.randomUUID(),
-    );
+    let result: ApiResult<CalendarWorkWeekRevision>;
+    try {
+      result = await transport.post<
+        { target_calendar_version: string; working_weekdays: number[]; expected_revision: number },
+        CalendarWorkWeekRevision
+      >(
+        revisionPath(context, calendarId, calendarVersion),
+        {
+          target_calendar_version: targetVersion,
+          working_weekdays: [...workingWeekdays].sort((a, b) => a - b),
+          expected_revision: sourceRevision,
+        },
+        context,
+        crypto.randomUUID(),
+      );
+    } catch (error) {
+      saving = false;
+      submit.textContent = labels.save;
+      setBusy(false);
+      setStatus(`${labels.failed} (${error instanceof Error ? error.message : "NETWORK_ERROR"})`, true);
+      return;
+    }
     saving = false;
     submit.textContent = labels.save;
     if (!result.ok) {
