@@ -1748,7 +1748,7 @@ async function main() {
     } finally {
       if (deepLinkPage) deepLinkPage.cdp.close();
       deepLinkChrome.stop();
-      rmSync(deepLinkChrome.userDataDir, { recursive: true, force: true });
+      rmSync(deepLinkChrome.userDataDir, { recursive: true, force: true, maxRetries: 12, retryDelay: 100 });
     }
 
     await page.navigate(
