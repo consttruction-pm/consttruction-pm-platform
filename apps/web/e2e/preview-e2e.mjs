@@ -601,6 +601,10 @@ async function startManagedRuntime({ database: existingDatabase = null, reset = 
         ...process.env,
         PYTHONPATH: pythonPath,
         PYTHONIOENCODING: "utf-8",
+        // The proposal/approve/execute surface is deterministic and needs no chat
+        // provider. Enabling it here keeps the browser journey on the real HTTP
+        // routes while the conversational assistant still fails closed.
+        CUBI_AI_ACTIONS_ENABLED: "true",
       },
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -3837,6 +3841,38 @@ async function main() {
       "viewer WBS and activity writes must be denied with 403: " +
         JSON.stringify({ wbs: viewerWbsWrite, activity: viewerActivityWrite }),
     );
+    // The assistant action surface must inherit the same authorization: a viewer
+    // cannot even create a proposal, let alone approve or execute one.
+    const viewerAiProposal = health?.assistant?.actions_enabled === true
+      ? await page.evaluate(`(async () => {
+          const response = await fetch("/api/projects/${PROJECT_ID}/ai/actions/proposals", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contract_version: "ai-action-runtime.v1",
+              expected_revision: ${PROJECT_REVISION},
+              tool_name: "activity.create",
+              payload: {
+                activity_id: "VIEWER-DENIED-AI",
+                name: "Viewer must not propose",
+                duration_value: "1",
+                duration_unit: "working-day",
+                wbs_id: "WBS-RPS-CIVIL",
+              },
+              evidence_refs: [],
+            }),
+          });
+          const body = await response.json().catch(() => null);
+          return { status: response.status, body };
+        })()`, { awaitPromise: true })
+      : null;
+    if (viewerAiProposal) {
+      assert(
+        viewerAiProposal.status === 403,
+        "viewer assistant proposal must be denied with 403: " +
+          JSON.stringify(viewerAiProposal),
+      );
+    }
 
     await page.click('[data-menu="project"]');
     await page.scrollTo("#cp-interchange");
@@ -3918,6 +3954,7 @@ async function main() {
       layout_read_status: layoutGet.status,
       layout_write: viewerLayoutPost,
       snapshot_write: viewerSnapshotPost,
+      ai_action_proposal: viewerAiProposal,
       interchange_export: viewerExportStatus,
       interchange_import_denied: viewerImportError,
       capacity_read_resolved: "50",
@@ -5065,6 +5102,249 @@ async function main() {
       final_revision: reloadedSave.revision,
     });
 
+    // Section H5: the assistant action surface is approval-gated end to end. A
+    // proposal must leave the persisted workspace untouched, approval must still
+    // not write, and only explicit execution may create the WBS-bound activity.
+    // The grid, Gantt and read-back must then come from the server, not from an
+    // optimistic local row.
+    let aiCreatedActivityId = null;
+    if (health?.assistant?.actions_enabled === true) {
+      const rowsBeforeProposal = await page.count('#cp-activity-grid tbody tr[data-activity-id]');
+      assert(
+        rowsBeforeProposal === 4,
+        "the assistant journey must start from the four persisted activities",
+      );
+      await page.evaluate(`(() => {
+        const panel = document.querySelector("#cp-ai-action-panel");
+        if (!panel) throw new Error("AI_ACTION_PANEL_MISSING");
+        panel.open = true;
+        const refresh = panel.querySelector(".cp-ai-action-list-header button");
+        if (!refresh) throw new Error("AI_ACTION_REFRESH_MISSING");
+        refresh.click();
+        return true;
+      })()`);
+      await page.waitFor(
+        `(() => {
+          const select = document.querySelector('#cp-ai-action-panel select[name="wbs_id"]');
+          return Boolean(select && !select.disabled &&
+            Array.from(select.options).some((option) => option.value === "E2E-WBS-DESIGN"));
+        })()`,
+        "assistant WBS options loaded from the persisted tree",
+      );
+      await page.evaluate(`(() => {
+        const panel = document.querySelector("#cp-ai-action-panel");
+        const form = panel?.querySelector("form.cp-ai-action-form");
+        if (!panel || !form) throw new Error("AI_ACTION_FORM_MISSING");
+        const set = (name, value) => {
+          const field = form.querySelector('[name="' + name + '"]');
+          if (!field) throw new Error("AI_ACTION_FIELD_MISSING_" + name);
+          field.value = value;
+          field.dispatchEvent(new Event("input", { bubbles: true }));
+          field.dispatchEvent(new Event("change", { bubbles: true }));
+        };
+        set("wbs_id", "E2E-WBS-DESIGN");
+        set("activity_id", "AI-100");
+        set("name", "Assistant proposed activity");
+        set("duration_value", "2");
+        set("duration_unit", "working-day");
+        form.requestSubmit();
+        return true;
+      })()`);
+      await page.waitFor(
+        `(() => {
+          const items = Array.from(document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal"));
+          return items.some((item) => (item.textContent || "").includes("AI-100") &&
+            Boolean(item.querySelector(".cp-ai-action-controls")));
+        })()`,
+        "assistant proposal awaiting explicit approval",
+      );
+      const proposedState = await page.evaluate(`(async () => {
+        const proposals = await fetch(
+          "/api/projects/" + encodeURIComponent(${JSON.stringify(wbsJourney.project_id)}) + "/ai/actions/proposals",
+        ).then((response) => response.json());
+        const workspace = await fetch("/api/v2/workspace/control-room/read", {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(wbsJourney.tenant_id)},
+            "X-Project-Id": ${JSON.stringify(wbsJourney.project_id)},
+            "X-Project-Revision": ${JSON.stringify(String(wbsJourney.revision))},
+          },
+        }).then((response) => response.json());
+        return {
+          rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+          proposals: (proposals.proposals || []).map((proposal) => ({
+            id: proposal.proposal_id,
+            status: proposal.status,
+            activity_id: proposal.payload?.activity_id ?? null,
+            wbs_id: proposal.payload?.wbs_id ?? null,
+          })),
+          activityIds: (workspace.workspace?.activities || []).map((activity) => activity.id),
+        };
+      })()`, { awaitPromise: true });
+      assert(
+        proposedState.rows === 4 &&
+          proposedState.proposals.length === 1 &&
+          proposedState.proposals[0].status === "proposed" &&
+          proposedState.proposals[0].activity_id === "AI-100" &&
+          proposedState.proposals[0].wbs_id === "E2E-WBS-DESIGN" &&
+          !proposedState.activityIds.includes("AI-100"),
+        "a proposal must not create the activity or change the persisted workspace: " +
+          JSON.stringify(proposedState),
+      );
+      const aiProposalId = proposedState.proposals[0].id;
+
+      await page.evaluate(`(() => {
+        const items = Array.from(document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal"));
+        const item = items.find((candidate) => (candidate.textContent || "").includes("AI-100"));
+        const approve = item?.querySelector(".cp-ai-action-controls button.cp-ai-action-primary");
+        if (!approve) throw new Error("AI_ACTION_APPROVE_MISSING");
+        approve.click();
+        return true;
+      })()`);
+      await page.waitFor(
+        `(() => {
+          const items = Array.from(document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal"));
+          const item = items.find((candidate) => (candidate.textContent || "").includes("AI-100"));
+          return Boolean(item) && (item.textContent || "").includes("Proposal approved");
+        })()`,
+        "assistant proposal approved explicitly",
+      );
+      const afterApproval = await page.evaluate(`(async () => {
+        const proposals = await fetch(
+          "/api/projects/" + encodeURIComponent(${JSON.stringify(wbsJourney.project_id)}) + "/ai/actions/proposals",
+        ).then((response) => response.json());
+        return {
+          rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+          statuses: (proposals.proposals || []).map((proposal) => proposal.status),
+        };
+      })()`, { awaitPromise: true });
+      assert(
+        afterApproval.rows === 4 &&
+          afterApproval.statuses.length === 1 &&
+          afterApproval.statuses[0] === "approved",
+        "approval alone must not create the activity: " + JSON.stringify(afterApproval),
+      );
+
+      await page.evaluate(`(() => {
+        const items = Array.from(document.querySelectorAll("#cp-ai-action-panel .cp-ai-action-proposal"));
+        const item = items.find((candidate) => (candidate.textContent || "").includes("AI-100"));
+        const execute = item?.querySelector("button.cp-ai-action-primary");
+        if (!execute) throw new Error("AI_ACTION_EXECUTE_MISSING");
+        execute.click();
+        return true;
+      })()`);
+      // Execution writes through the authoritative API and the panel asks the
+      // workspace to reload. The new row must appear because the server now
+      // returns it, not because the browser appended anything optimistically.
+      await page.waitFor(
+        `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 5`,
+        "assistant-created activity read back from the workspace",
+        30000,
+      );
+      await page.waitFor(
+        `(() => {
+          const result = document.querySelector("#cp-ai-action-panel .cp-ai-action-result");
+          const text = result?.textContent ?? "";
+          return text.includes("AI-100") && text.includes("E2E-WBS-DESIGN");
+        })()`,
+        "executed proposal result read back from the server",
+        30000,
+      );
+      const executedState = await page.evaluate(`(async () => {
+        const proposals = await fetch(
+          "/api/projects/" + encodeURIComponent(${JSON.stringify(wbsJourney.project_id)}) + "/ai/actions/proposals",
+        ).then((response) => response.json());
+        const workspace = await fetch("/api/v2/workspace/control-room/read", {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(wbsJourney.tenant_id)},
+            "X-Project-Id": ${JSON.stringify(wbsJourney.project_id)},
+            "X-Project-Revision": ${JSON.stringify(String(wbsJourney.revision))},
+          },
+        }).then((response) => response.json());
+        const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="AI-100"]');
+        return {
+          rows: Array.from(
+            document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]"),
+          ).map((item) => item.dataset.activityId),
+          rowText: row?.textContent ?? "",
+          proposal: (proposals.proposals || [])[0] ?? null,
+          activity: (workspace.workspace?.activities || []).find(
+            (item) => item.id === "AI-100",
+          ) ?? null,
+        };
+      })()`, { awaitPromise: true });
+      assert(
+        executedState.rows.length === 5 &&
+          executedState.rows.includes("AI-100") &&
+          executedState.rowText.includes("Assistant proposed activity") &&
+          executedState.proposal?.status === "executed" &&
+          executedState.proposal?.result?.activity?.activity_id === "AI-100" &&
+          executedState.proposal?.result?.activity?.wbs_id === "E2E-WBS-DESIGN" &&
+          executedState.activity?.wbs_id === "E2E-WBS-DESIGN",
+        "execution must persist the WBS-bound activity and expose it through the workspace read: " +
+          JSON.stringify(executedState),
+      );
+      aiCreatedActivityId = "AI-100";
+
+      // The new activity must also enter the shared scheduling core; otherwise
+      // the Gantt would be showing a different dataset than the grid.
+      await page.click("[data-run-schedule]");
+      await page.waitFor(
+        `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 5`,
+        "assistant-created activity included in the authoritative schedule",
+        60000,
+      );
+      const assistantSchedule = await page.evaluate(`(() => {
+        const rows = Array.from(
+          document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr"),
+        ).map((row) => Array.from(row.children).map((cell) => cell.textContent.trim()));
+        return {
+          rows,
+          aiRow: rows.find((row) => row[0] === "AI-100") ?? null,
+          ganttRows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
+          ganttAi: Boolean(document.querySelector('[data-gantt-activity-id="AI-100"] .cp-gantt-bar')),
+        };
+      })()`);
+      assert(
+        assistantSchedule.aiRow &&
+          assistantSchedule.aiRow.every((value) => value.length > 0) &&
+          assistantSchedule.ganttRows === 5 &&
+          assistantSchedule.ganttAi,
+        "the AI-created activity must receive authoritative dates and a Gantt bar: " +
+          JSON.stringify(assistantSchedule),
+      );
+      await page.screenshot("12c-admin-assistant-action.png");
+      EVIDENCE.assistant_action = {
+        proposal_id: aiProposalId,
+        before_proposal: proposedState,
+        after_approval: afterApproval,
+        executed: {
+          rows: executedState.rows,
+          proposal_status: executedState.proposal?.status ?? null,
+          result: executedState.proposal?.result ?? null,
+          activity: executedState.activity,
+        },
+        schedule: { rows: assistantSchedule.rows, gantt: assistantSchedule.ganttRows },
+        viewer_denied: viewerAiProposal,
+        source:
+          "panel form -> POST /ai/actions/proposals (no write) -> POST .../decision -> POST .../execute -> GET proposals + v2 workspace read -> schedule query + Gantt",
+      };
+      record("assistant proposes without writing, then approval and execution persist a WBS-bound activity", {
+        proposal_id: aiProposalId,
+        rows_after_execution: executedState.rows.length,
+        scheduled_rows: assistantSchedule.rows.length,
+        wbs_id: executedState.activity?.wbs_id ?? null,
+      });
+    } else {
+      EVIDENCE.assistant_action = {
+        available: false,
+        reason:
+          "the preview runtime did not enable CUBI_AI_ACTIONS_ENABLED, so the proposal surface is honestly reported as unavailable",
+      };
+      record("assistant action surface is disabled on this runtime and not simulated", {
+        actions_enabled: false,
+      });
+    }
+
     // First-run journey on a real account with no project membership. This is
     // not a mocked state: the newcomer session, the empty project list and the
     // created project all go through the same preview API and SQLite store.
@@ -5331,7 +5611,7 @@ async function main() {
         "persisted WBS child after restart",
       );
       await page.waitFor(
-        `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 4`,
+        `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === ${aiCreatedActivityId ? 5 : 4}`,
         "persisted activity rows after restart",
       );
       const afterRestart = await page.evaluate(`(async () => {
@@ -5361,10 +5641,21 @@ async function main() {
           },
         );
         const calendarBody = await calendarResponse.json().catch(() => null);
+        const proposalsResponse = await fetch(
+          "/api/projects/" + encodeURIComponent(project.project_id) + "/ai/actions/proposals",
+        );
+        const proposalsBody = await proposalsResponse.json().catch(() => null);
         return {
           status: response.status,
           calendarStatus: calendarResponse.status,
           calendarExceptions: (calendarBody?.exceptions || []).map((item) => item.date),
+          proposalStatus: proposalsResponse.status,
+          proposals: (proposalsBody?.proposals || []).map((proposal) => ({
+            id: proposal.proposal_id,
+            status: proposal.status,
+            activity_id: proposal.result?.activity?.activity_id ?? proposal.payload?.activity_id ?? null,
+            wbs_id: proposal.result?.activity?.wbs_id ?? proposal.payload?.wbs_id ?? null,
+          })),
           projectMeta: project
             ? {
                 name: project.name,
@@ -5394,15 +5685,22 @@ async function main() {
           })),
         };
       })()`, { awaitPromise: true });
+      const expectedActivityIds = [
+        "NEW-100", "NEW-200", "NEW-300", "NEW-400",
+        ...(aiCreatedActivityId ? [aiCreatedActivityId] : []),
+      ];
       assert(
         afterRestart.status === 200 &&
           afterRestart.wbsIds.length === 4 &&
           afterRestart.wbsIds.includes("E2E-WBS-DESIGN") &&
           afterRestart.wbsText.includes("No activity package") &&
-          afterRestart.rowIds.length === 4 &&
-          ["NEW-100", "NEW-200", "NEW-300", "NEW-400"].every((id) => afterRestart.rowIds.includes(id)) &&
+          afterRestart.rowIds.length === expectedActivityIds.length &&
+          expectedActivityIds.every((id) => afterRestart.rowIds.includes(id)) &&
           afterRestart.apiNodes.length === 4 &&
-          afterRestart.apiActivities.length === 4 &&
+          afterRestart.apiActivities.length === expectedActivityIds.length &&
+          expectedActivityIds.every((id) =>
+            afterRestart.apiActivities.some((activity) => activity.id === id),
+          ) &&
           afterRestart.apiActivities.every((activity) => activity.wbs_id === "E2E-WBS-DESIGN") &&
           afterRestart.apiRelationships.length === 2 &&
           afterRestart.apiRelationships.some(
@@ -5413,6 +5711,21 @@ async function main() {
         "the restarted runtime must re-read the same persisted WBS tree, activities, logic and calendar holiday: " +
           JSON.stringify(afterRestart),
       );
+      if (aiCreatedActivityId) {
+        assert(
+          afterRestart.proposalStatus === 200 &&
+            afterRestart.proposals.length === 1 &&
+            afterRestart.proposals[0].status === "executed" &&
+            afterRestart.proposals[0].activity_id === aiCreatedActivityId &&
+            afterRestart.proposals[0].wbs_id === "E2E-WBS-DESIGN" &&
+            afterRestart.apiActivities.some(
+              (activity) => activity.id === aiCreatedActivityId &&
+                activity.wbs_id === "E2E-WBS-DESIGN",
+            ),
+          "the assistant proposal state and its WBS-bound activity must survive the restart: " +
+            JSON.stringify(afterRestart.proposals),
+        );
+      }
       assert(
         afterRestart.projectMeta?.name === finalProjectName &&
           afterRestart.projectMeta?.description === "Reloaded and saved" &&

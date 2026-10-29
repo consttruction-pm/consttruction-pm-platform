@@ -47,12 +47,16 @@ test("creates activity proposal with expected revision and registered tool", asy
   }});
   const result = await new AIActionClient(transport).proposeActivity(context, {
     activity_id: "A-17", name: "Excavation", duration_value: "2", duration_unit: "working-day",
+    wbs_id: "WBS-ROOT",
   });
   assert.equal(result.ok, true);
   assert.equal(transport.calls[0]?.path, "/api/projects/project-1/ai/actions/proposals");
   assert.deepEqual(transport.calls[0]?.request, {
     expected_revision: 7, tool_name: "activity.create",
-    payload: { activity_id: "A-17", name: "Excavation", duration_value: "2", duration_unit: "working-day" },
+    payload: {
+      activity_id: "A-17", name: "Excavation", duration_value: "2",
+      duration_unit: "working-day", wbs_id: "WBS-ROOT",
+    },
     evidence_refs: [],
   });
 });

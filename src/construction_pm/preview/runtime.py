@@ -874,6 +874,7 @@ class PreviewRuntime:
     app: ProjectLifecycleWsgiApp
     clock: PreviewClock
     ai_assistant_enabled: bool = False
+    ai_actions_enabled: bool = False
     ai_tool_names: tuple[str, ...] = ()
 
     def close(self) -> None:
@@ -906,6 +907,7 @@ class PreviewRuntime:
             "session_count": self.sessions.count(),
             "assistant": {
                 "enabled": self.ai_assistant_enabled,
+                "actions_enabled": self.ai_actions_enabled,
                 "provider_configured": self.ai_assistant_enabled,
                 "provider_environment_complete": all(
                     os.environ.get(key, "").strip()
@@ -1019,13 +1021,21 @@ def open_preview_runtime(
     ai_assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
         "1", "true", "yes",
     }
+    # The proposal/approve/execute surface is deterministic and does not need a
+    # chat provider. It can therefore be enabled on its own for managed preview
+    # and CI without inventing provider credentials; the conversational endpoint
+    # still fails closed unless CUBI_AI_ENABLED composes a real provider.
+    ai_actions_enabled = ai_assistant_enabled or os.environ.get(
+        "CUBI_AI_ACTIONS_ENABLED", ""
+    ).strip().lower() in {"1", "true", "yes"}
     ai_assistant_provider = None
     ai_action_runtime = None
     ai_tool_names: tuple[str, ...] = ()
     if ai_assistant_enabled:
-        # Provider and tools are only composed from explicit server-side configuration.
-        # Missing/invalid credentials fail closed; there is no fake provider fallback.
+        # Provider credentials are only read from the server environment. Missing
+        # or invalid configuration fails closed; there is no fake provider.
         ai_assistant_provider = OpenAICompatibleChatProvider.from_environment()
+    if ai_actions_enabled:
         action_store = SQLiteAIActionRuntimeStore(connection)
         idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
         permission_adapter = PreviewAIPermissionAdapter(sessions, store)
@@ -1124,6 +1134,7 @@ def open_preview_runtime(
         app=app,
         clock=PreviewClock(),
         ai_assistant_enabled=ai_assistant_enabled,
+        ai_actions_enabled=ai_actions_enabled,
         ai_tool_names=ai_tool_names,
     )
 

@@ -23,6 +23,11 @@ from construction_pm.application.authorization import default_project_policy
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
+from construction_pm.wbs_master_repository import (
+    SQLiteWBSMasterRepository,
+    WBSMaster,
+    WBSParentKind,
+)
 from construction_pm.application.project_lifecycle import (
     AuthenticatedSession,
     ProjectLifecycleService,
@@ -32,10 +37,28 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
 
 
+def seed_root_wbs(connection, *, revision: int = 12, wbs_id: str = "WBS-ROOT") -> None:
+    repository = SQLiteWBSMasterRepository(connection)
+    repository.save(
+        WBSMaster(
+            scope=BackendScope("tenant-1", "project-1", revision),
+            wbs_id=wbs_id,
+            parent_kind=WBSParentKind.PROJECT,
+            parent_wbs_id=None,
+            code="1",
+            name="Root",
+            sequence_number=0,
+        ),
+        expected_revision=0,
+    )
+    connection.commit()
+
+
 def build_runtime(database_path):
     connection = sqlite3.connect(str(database_path))
     transaction_manager = SQLiteTransactionManager(connection)
     activity_repository = SQLiteActivityMasterRepository(connection)
+    seed_root_wbs(connection)
     grants = [
         AIActionPermissionGrant(
             subject_id="user-1",
@@ -70,6 +93,7 @@ def activity_payload(**overrides):
         "name": "Excavation",
         "duration_value": "3.5",
         "duration_unit": "working-day",
+        "wbs_id": "WBS-ROOT",
     }
     result.update(overrides)
     return result
@@ -95,6 +119,7 @@ def test_activity_create_tool_uses_authenticated_api_and_shared_transaction(tmp_
         assert executed.result["contract_version"] == "p6-activity-master-api.v1"
         assert executed.result["activity"]["activity_id"] == "A-100"
         assert executed.result["activity"]["duration_value"] == "3.5"
+        assert executed.result["activity"]["wbs_id"] == "WBS-ROOT"
 
         # A second physical connection proves both the project mutation and the
         # execution result were committed, not merely visible in the writer's cache.
@@ -105,6 +130,13 @@ def test_activity_create_tool_uses_authenticated_api_and_shared_transaction(tmp_
             assert stored is not None
             assert stored.name == "Excavation"
             assert stored.duration_value == Decimal("3.5")
+            assert stored.wbs_id == "WBS-ROOT"
+            assignment = fresh_connection.execute(
+                "SELECT wbs_id FROM activity_wbs_assignment "
+                "WHERE tenant_id=? AND project_id=? AND activity_id=?",
+                ("tenant-1", "project-1", "A-100"),
+            ).fetchone()
+            assert assignment == ("WBS-ROOT",)
             fresh_store = SQLiteAIActionRuntimeStore(fresh_connection)
             fresh_proposal = fresh_store.get(
                 proposed.proposal.proposal_id,
@@ -162,6 +194,7 @@ def test_activity_create_rechecks_revoked_grant_after_execution_reservation(tmp_
     connection = sqlite3.connect(str(database_path))
     manager = SQLiteTransactionManager(connection)
     repo = SQLiteActivityMasterRepository(connection)
+    seed_root_wbs(connection)
     grants = [
         AIActionPermissionGrant(
             subject_id="user-1", tenant_id="tenant-1", project_id="project-1",
@@ -227,6 +260,53 @@ def test_activity_create_payload_rejects_invalid_duration_and_unknown_fields(tmp
                 payload=activity_payload(tenant_id="attacker-tenant"),
             )
         assert connection.execute("SELECT COUNT(*) FROM activity_master").fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+def test_activity_create_payload_requires_an_existing_same_project_wbs(tmp_path):
+    database_path = tmp_path / "activity-tool-wbs.sqlite"
+    connection, _, _, _, runtime, context, _ = build_runtime(database_path)
+    try:
+        with pytest.raises(
+            AIActionRuntimeError, match="AI_ACTION_TOOL_PAYLOAD_INVALID"
+        ):
+            runtime.propose(
+                context, tool_name="activity.create", payload=activity_payload(wbs_id="")
+            )
+        missing = activity_payload(activity_id="A-NO-WBS")
+        missing.pop("wbs_id")
+        with pytest.raises(
+            AIActionRuntimeError, match="AI_ACTION_TOOL_PAYLOAD_INVALID"
+        ):
+            runtime.propose(context, tool_name="activity.create", payload=missing)
+        with pytest.raises(
+            AIActionRuntimeError, match="AI_ACTION_ACTIVITY_WBS_INVALID"
+        ):
+            runtime.propose(
+                context, tool_name="activity.create",
+                payload=activity_payload(wbs_id="WBS-FROM-ANOTHER-PROJECT"),
+            )
+        other_revision = sqlite3.connect(str(database_path))
+        try:
+            other_revision.execute(
+                "INSERT INTO wbs_master (tenant_id,project_id,project_revision,wbs_id,"
+                "parent_kind,parent_wbs_id,code,name,sequence_number,record_revision) "
+                "VALUES ('tenant-1','project-1',11,'WBS-STALE-REVISION','wbs','WBS-ROOT',"
+                "'1.1','Stale revision node',1,1)"
+            )
+            other_revision.commit()
+        finally:
+            other_revision.close()
+        with pytest.raises(
+            AIActionRuntimeError, match="AI_ACTION_ACTIVITY_WBS_INVALID"
+        ):
+            runtime.propose(
+                context, tool_name="activity.create",
+                payload=activity_payload(wbs_id="WBS-STALE-REVISION"),
+            )
+        assert connection.execute("SELECT COUNT(*) FROM activity_master").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM ai_action_proposals").fetchone()[0] == 0
     finally:
         connection.close()
 
@@ -354,6 +434,7 @@ def test_authenticated_http_route_executes_real_activity_create_and_fresh_readba
     connection = sqlite3.connect(str(database_path))
     manager = SQLiteTransactionManager(connection)
     activity_repository = SQLiteActivityMasterRepository(connection)
+    seed_root_wbs(connection)
     now = datetime(2026, 10, 25, 12, 0, tzinfo=timezone.utc)
     session = AuthenticatedSession(
         "session-1", "user-1", "tenant-1", frozenset({"project_admin"}),
@@ -400,6 +481,7 @@ def test_authenticated_http_route_executes_real_activity_create_and_fresh_readba
                 "name": "Blinding concrete",
                 "duration_value": "1.5",
                 "duration_unit": "working-day",
+                "wbs_id": "WBS-ROOT",
             },
             "tenant_id": "client-spoofed-tenant",
             "requested_by": "client-spoofed-user",
@@ -425,6 +507,7 @@ def test_authenticated_http_route_executes_real_activity_create_and_fresh_readba
         outcome = json.loads(body)
         assert outcome["status"] == "executed"
         assert outcome["result"]["activity"]["activity_id"] == "A-HTTP-1"
+        assert outcome["result"]["activity"]["wbs_id"] == "WBS-ROOT"
 
         fresh = sqlite3.connect(str(database_path))
         try:
@@ -432,6 +515,7 @@ def test_authenticated_http_route_executes_real_activity_create_and_fresh_readba
             persisted = fresh_repo.get(BackendScope("tenant-1", "project-1", 12), "A-HTTP-1")
             assert persisted is not None
             assert persisted.name == "Blinding concrete"
+            assert persisted.wbs_id == "WBS-ROOT"
             fresh_store = SQLiteAIActionRuntimeStore(fresh)
             final_proposal = fresh_store.get(
                 proposal_id, tenant_id="tenant-1", project_id="project-1"

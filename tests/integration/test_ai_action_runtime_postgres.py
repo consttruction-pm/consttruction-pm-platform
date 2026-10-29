@@ -17,6 +17,11 @@ from construction_pm.ai_action_boundary import (
 )
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.activity_master_repository import PostgresActivityMasterRepository
+from construction_pm.wbs_master_repository import (
+    PostgresWBSMasterRepository,
+    WBSMaster,
+    WBSParentKind,
+)
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.client_sync.postgres_transaction import PostgresTransactionManager
 from construction_pm.ai_action_runtime import (
@@ -101,8 +106,26 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
     project_id = f"project-ai-act-{suffix}"
     scope = BackendScope(tenant_id, project_id, 12)
     transaction_manager = PostgresTransactionManager(postgres_connection)
+    wbs_repository = PostgresWBSMasterRepository(postgres_connection)
     activity_repository = PostgresActivityMasterRepository(postgres_connection)
+    # Every schema write must finish before any row exists: PostgreSQL refuses
+    # CREATE INDEX on a table whose just-inserted rows have pending trigger
+    # events, and the activity schema also initializes the WBS schema.
     activity_repository.initialize()
+    wbs_repository.save(
+        WBSMaster(
+            scope=scope,
+            wbs_id="WBS-POSTGRES-ROOT",
+            parent_kind=WBSParentKind.PROJECT,
+            parent_wbs_id=None,
+            code="1",
+            name="Root",
+            sequence_number=0,
+        ),
+        expected_revision=0,
+    )
+    # Commit the seeded WBS before the request-level transaction lifecycle.
+    postgres_connection.commit()
 
     grant = AIActionPermissionGrant(
         subject_id="user-1",
@@ -119,8 +142,6 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
         permission_adapter=UserConfiguredAIActionPermissionAdapter(lambda: (grant,)),
         transaction_manager=transaction_manager,
     )
-    # Commit schema initialization before the request-level transaction lifecycle.
-    postgres_connection.commit()
 
     context = AIActionRuntimeContext(
         subject_id="user-1",
@@ -137,6 +158,7 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
             "name": "Foundation excavation",
             "duration_value": "2.5",
             "duration_unit": "working-day",
+            "wbs_id": "WBS-POSTGRES-ROOT",
         },
         evidence_refs=("import-row-3",),
     )
@@ -148,6 +170,7 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
     assert result.status == "executed"
     assert result.result is not None
     assert result.result["activity"]["activity_id"] == "A-POSTGRES-1"
+    assert result.result["activity"]["wbs_id"] == "WBS-POSTGRES-ROOT"
 
     fresh_connection = psycopg.connect(
         os.getenv("P6_TEST_POSTGRES_DSN") or os.environ["CONSTRUCTION_PM_POSTGRES_DSN"]
@@ -158,6 +181,7 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
         assert persisted_activity is not None
         assert str(persisted_activity.duration_value) == "2.5"
         assert persisted_activity.name == "Foundation excavation"
+        assert persisted_activity.wbs_id == "WBS-POSTGRES-ROOT"
 
         fresh_store = PostgresAIActionRuntimeStore(fresh_connection)
         persisted_proposal = fresh_store.get(
@@ -181,7 +205,15 @@ def test_postgres_authenticated_activity_create_uses_shared_transaction_and_fres
 
     with transaction_manager.transaction():
         postgres_connection.execute(
+            "DELETE FROM activity_wbs_assignment WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id, project_id),
+        )
+        postgres_connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
+            (tenant_id, project_id),
+        )
+        postgres_connection.execute(
+            "DELETE FROM wbs_master WHERE tenant_id=%s AND project_id=%s",
             (tenant_id, project_id),
         )
         postgres_connection.execute(

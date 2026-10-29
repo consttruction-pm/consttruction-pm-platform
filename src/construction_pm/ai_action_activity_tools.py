@@ -205,9 +205,10 @@ def build_activity_create_tool(
     idempotency_connection = getattr(idempotency_store, "connection", None)
     if connection is None or repository_connection is not connection or idempotency_connection is not connection:
         raise AIActionRuntimeError("AI_ACTION_ACTIVITY_TOOL_TRANSACTION_CONNECTION_MISMATCH")
+    placeholder = "?" if isinstance(connection, sqlite3.Connection) else "%s"
 
     allowed_keys = {
-        "activity_id", "name", "duration_value", "duration_unit",
+        "activity_id", "name", "duration_value", "duration_unit", "wbs_id",
         "activity_type", "status", "status_code",
         "percent_complete_type", "leveling_priority",
     }
@@ -215,11 +216,11 @@ def build_activity_create_tool(
     def validate_payload(payload: Mapping[str, object]) -> Mapping[str, object]:
         if not isinstance(payload, Mapping) or not set(payload).issubset(allowed_keys):
             raise ValueError("ACTIVITY_CREATE_PAYLOAD_INVALID")
-        required = ("activity_id", "name", "duration_value", "duration_unit")
+        required = ("activity_id", "name", "duration_value", "duration_unit", "wbs_id")
         if any(key not in payload for key in required):
             raise ValueError("ACTIVITY_CREATE_REQUIRED_FIELD_MISSING")
         if any(not isinstance(payload.get(key), str) or not str(payload.get(key)).strip()
-               for key in ("activity_id", "name", "duration_unit")):
+               for key in ("activity_id", "name", "duration_unit", "wbs_id")):
             raise ValueError("ACTIVITY_CREATE_TEXT_FIELD_INVALID")
         raw_duration = payload.get("duration_value")
         if isinstance(raw_duration, bool):
@@ -252,12 +253,36 @@ def build_activity_create_tool(
             "name": str(payload["name"]).strip(),
             "duration_value": str(duration),
             "duration_unit": duration_unit.value,
+            "wbs_id": str(payload["wbs_id"]).strip(),
             "activity_type": activity_type.value,
             "status": status.value,
             "status_code": status_code.value,
             "percent_complete_type": percent_type.value,
             "leveling_priority": leveling_priority.value,
         }
+
+    def validate_scope(payload: Mapping[str, object], context: AIActionRuntimeContext) -> None:
+        """Reject a WBS reference that is missing or belongs to another scope.
+
+        Every activity write must name a canonical WBS node in the same tenant,
+        project and revision. The repository re-checks the same invariant when it
+        saves, so this guard only turns an invalid proposal into an explicit
+        rejection instead of a post-approval failure.
+        """
+        context.validate()
+        try:
+            revision = int(context.project_revision_id, 10)
+        except (TypeError, ValueError) as exc:
+            raise AIActionRuntimeError("AI_ACTION_ACTIVITY_PROJECT_REVISION_INVALID") from exc
+        if revision < 0 or str(revision) != context.project_revision_id:
+            raise AIActionRuntimeError("AI_ACTION_ACTIVITY_PROJECT_REVISION_INVALID")
+        row = connection.execute(
+            "SELECT project_revision FROM wbs_master WHERE tenant_id=" + placeholder
+            + " AND project_id=" + placeholder + " AND wbs_id=" + placeholder,
+            (context.tenant_id, context.project_id, str(payload["wbs_id"])),
+        ).fetchone()
+        if row is None or int(row[0]) != revision:
+            raise AIActionRuntimeError("AI_ACTION_ACTIVITY_WBS_INVALID")
 
     def execute(
         payload: Mapping[str, object],
@@ -288,6 +313,7 @@ def build_activity_create_tool(
             duration_value=Decimal(str(payload["duration_value"])),
             duration_unit=DurationUnit(str(payload["duration_unit"])),
             name=str(payload["name"]),
+            wbs_id=str(payload["wbs_id"]),
             activity_type=ActivityType.from_p6_value(str(payload["activity_type"])),
             status=ActivityStatus.from_p6_value(str(payload["status"])),
             status_code=ActivityStatusCode.from_p6_value(str(payload["status_code"])),
@@ -323,15 +349,17 @@ def build_activity_create_tool(
         resource_domain="activities",
         requires_human_approval=True,
         validate_payload=validate_payload,
+        validate_scope=validate_scope,
         execute=execute,
         description=(
-            "Prepare a proposal to create one activity. The user must provide an activity ID, "
-            "activity name, duration value, and duration unit; never invent missing project values."
+            "Prepare a proposal to create one activity inside an existing WBS node. The user must "
+            "provide an activity ID, activity name, duration value, duration unit, and the exact "
+            "WBS ID the activity belongs to; never invent missing project values."
         ),
         input_schema={
             "type": "object",
             "additionalProperties": False,
-            "required": ["activity_id", "name", "duration_value", "duration_unit"],
+            "required": ["activity_id", "name", "duration_value", "duration_unit", "wbs_id"],
             "properties": {
                 "activity_id": {
                     "type": "string",
@@ -352,6 +380,14 @@ def build_activity_create_tool(
                     "type": "string",
                     "enum": ["working-day", "working-hour"],
                     "description": "The duration unit explicitly supplied or confirmed by the user.",
+                },
+                "wbs_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": (
+                        "The exact WBS node ID from this project's persisted WBS tree that will "
+                        "own the activity. The server rejects a missing or foreign WBS."
+                    ),
                 },
             },
         },
