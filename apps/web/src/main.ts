@@ -754,7 +754,7 @@ function renderApp(
     onActivityCreate: async (input) => {
       try {
         const response = await aiTransport.post<
-          { contract_version: string; activity_id: string; name: string; duration_value: number; duration_unit: string; wbs_id: string },
+          { contract_version: string; activity_id: string; name: string; duration_value: number; duration_unit: string; wbs_id: string; activity_type: string; status: string; status_code: string; percent_complete_type: string; leveling_priority: string },
           { activity: { activity_id: string } }
         >(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities`, {
           contract_version: "p6-activity-master-api.v1",
@@ -763,6 +763,11 @@ function renderApp(
           duration_value: input.durationValue,
           duration_unit: input.durationUnit,
           wbs_id: input.wbsId,
+          activity_type: input.activityType,
+          status: input.status,
+          status_code: input.statusCode,
+          percent_complete_type: input.percentCompleteType,
+          leveling_priority: input.levelingPriority,
         }, state.context);
         if (!response.ok) throw new Error(response.error.code);
         await refreshWorkspaceAfterWbsMutation(input.wbsId);
