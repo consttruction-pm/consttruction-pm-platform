@@ -24,6 +24,78 @@ const labels = {
   },
 } as const;
 
+const ACTIVITY_CREATE_FIELDS = {
+  activity_type: {
+    label: { en: "Activity type", fa: "نوع فعالیت" },
+    defaultValue: "Task Dependent",
+    options: [
+      { value: "Task Dependent", en: "Task Dependent", fa: "وابسته به فعالیت" },
+      { value: "Resource Dependent", en: "Resource Dependent", fa: "وابسته به منابع" },
+      { value: "Level of Effort", en: "Level of Effort", fa: "سطح تلاش" },
+      { value: "Start Milestone", en: "Start Milestone", fa: "نقطه عطف شروع" },
+      { value: "Finish Milestone", en: "Finish Milestone", fa: "نقطه عطف پایان" },
+      { value: "WBS Summary", en: "WBS Summary", fa: "خلاصه WBS" },
+    ],
+  },
+  status: {
+    label: { en: "Status", fa: "وضعیت" },
+    defaultValue: "Not Started",
+    options: [
+      { value: "Not Started", en: "Not Started", fa: "شروع‌نشده" },
+      { value: "In Progress", en: "In Progress", fa: "در حال اجرا" },
+      { value: "Completed", en: "Completed", fa: "تکمیل‌شده" },
+    ],
+  },
+  status_code: {
+    label: { en: "Status code", fa: "کد وضعیت" },
+    defaultValue: "Planned",
+    options: [
+      { value: "Planned", en: "Planned", fa: "برنامه‌ریزی‌شده" },
+      { value: "Active", en: "Active", fa: "فعال" },
+      { value: "Inactive", en: "Inactive", fa: "غیرفعال" },
+      { value: "What-If", en: "What-If", fa: "فرضی" },
+      { value: "Requested", en: "Requested", fa: "درخواست‌شده" },
+      { value: "Template", en: "Template", fa: "الگو" },
+    ],
+  },
+  percent_complete_type: {
+    label: { en: "Percent complete type", fa: "نوع درصد تکمیل" },
+    defaultValue: "DURATION",
+    options: [
+      { value: "DURATION", en: "Duration", fa: "مدت" },
+      { value: "UNITS", en: "Units", fa: "واحد" },
+      { value: "PHYSICAL", en: "Physical", fa: "فیزیکی" },
+      { value: "SCOPE", en: "Scope", fa: "دامنه" },
+    ],
+  },
+  leveling_priority: {
+    label: { en: "Leveling priority", fa: "اولویت تسطیح منابع" },
+    defaultValue: "Normal",
+    options: [
+      { value: "Top", en: "Top", fa: "بالاترین" },
+      { value: "High", en: "High", fa: "زیاد" },
+      { value: "Normal", en: "Normal", fa: "عادی" },
+      { value: "Low", en: "Low", fa: "کم" },
+      { value: "Lowest", en: "Lowest", fa: "پایین‌ترین" },
+    ],
+  },
+} as const;
+
+type ActivityCreateChoiceField = keyof typeof ACTIVITY_CREATE_FIELDS;
+
+function getActivityCreateFieldLabel(locale: string, field: ActivityCreateChoiceField): string {
+  const language = locale.split("-")[0] === "fa" ? "fa" : "en";
+  return ACTIVITY_CREATE_FIELDS[field].label[language];
+}
+
+function renderActivityCreateOptions(locale: string, field: ActivityCreateChoiceField): string {
+  const language = locale.split("-")[0] === "fa" ? "fa" : "en";
+  const config = ACTIVITY_CREATE_FIELDS[field];
+  return config.options.map((option) =>
+    `<option value="${escapeAttribute(option.value)}" ${option.value === config.defaultValue ? "selected" : ""}>${escapeHtml(option[language])}</option>`
+  ).join("");
+}
+
 type WorkspaceLabels = Record<keyof typeof labels.en, string>;
 
 function getWorkspaceLabels(locale: string): WorkspaceLabels {
@@ -89,7 +161,19 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const durationValue = Number(form.querySelector<HTMLInputElement>('[name="duration_value"]')?.value ?? "");
       const wbsId = form.querySelector<HTMLSelectElement>('[name="wbs_id"]')?.value ?? "";
       if (!readText("activity_id") || !readText("name") || !Number.isFinite(durationValue) || durationValue < 0 || !wbsId) return;
-      void record.options.onActivityCreate?.({ activityId: readText("activity_id"), name: readText("name"), durationValue, durationUnit: form.querySelector<HTMLSelectElement>('[name="duration_unit"]')?.value ?? "working-day", wbsId });
+      const selected = (name: string, fallback: string): string => form.querySelector<HTMLSelectElement>(`[name="${name}"]`)?.value ?? fallback;
+      void record.options.onActivityCreate?.({
+        activityId: readText("activity_id"),
+        name: readText("name"),
+        durationValue,
+        durationUnit: selected("duration_unit", "working-day"),
+        wbsId,
+        activityType: selected("activity_type", "Task Dependent"),
+        status: selected("status", "Not Started"),
+        statusCode: selected("status_code", "Planned"),
+        percentCompleteType: selected("percent_complete_type", "DURATION"),
+        levelingPriority: selected("leveling_priority", "Normal"),
+      });
     } else if (form.matches("[data-relationship-create-form]")) {
       event.preventDefault();
       const predecessorId = form.querySelector<HTMLSelectElement>('[name="predecessor_id"]')?.value ?? "";
@@ -310,7 +394,7 @@ export type WorkspaceRendererOptions = {
   onWbsCreate?: (input: { code: string; name: string; sequenceNumber: number; parentWbsId: string | null }) => void | Promise<void>;
   onWbsUpdate?: (wbsId: string, input: { code: string; name: string; sequenceNumber: number }) => void | Promise<void>;
   onWbsDelete?: (wbsId: string) => void | Promise<void>;
-  onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string }) => void | Promise<void>;
+  onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; levelingPriority: string }) => void | Promise<void>;
   onActivityEdit?: (activityId: string) => void | Promise<void>;
   onRelationshipCreate?: (input: { predecessorId: string; successorId: string; type: WorkspaceRelationshipType; lagValue: string; lagUnit: string }) => void | Promise<void>;
   onRelationshipDelete?: (relationshipId: string, recordRevision: number) => void | Promise<void>;
@@ -385,6 +469,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance, t)}
         ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, state.documents, t)}
         ${renderProcurement(state.procurementRecords, t.procurement, t)}
+        ${renderModuleEmptyState(state)}
         <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${escapeHtml(t.wbs)}</h2>
           ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
@@ -421,8 +506,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               <label>${escapeHtml(t.activityId)} <input name="activity_id" required maxlength="80" autocomplete="off"></label>
               <label>${escapeHtml(t.activityName)} <input name="name" required maxlength="180" autocomplete="off"></label>
               <label>${escapeHtml(t.activityDuration)} <input name="duration_value" type="number" min="0" step="any" value="1" required></label>
-              <label>${escapeHtml(t.activityDurationUnit)} <select name="duration_unit"><option value="working-day">Working day</option><option value="working-hour">Working hour</option></select></label>
+              <label>${escapeHtml(t.activityDurationUnit)} <select name="duration_unit"><option value="working-day">${escapeHtml(t.workingDay)}</option><option value="working-hour">${escapeHtml(t.workingHour)}</option></select></label>
               <label>${escapeHtml(t.activityWbs)} <select name="wbs_id" required ${state.wbsNodes.length ? "" : "disabled"}>${state.wbsNodes.map((node) => `<option value="${escapeAttribute(node.id)}" ${node.id === state.selectedWbsId ? "selected" : ""}>${escapeHtml(node.localCode)} — ${escapeHtml(node.name)}</option>`).join("")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "activity_type"))} <select name="activity_type">${renderActivityCreateOptions(state.locale, "activity_type")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "status"))} <select name="status">${renderActivityCreateOptions(state.locale, "status")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "status_code"))} <select name="status_code">${renderActivityCreateOptions(state.locale, "status_code")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "percent_complete_type"))} <select name="percent_complete_type">${renderActivityCreateOptions(state.locale, "percent_complete_type")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "leveling_priority"))} <select name="leveling_priority">${renderActivityCreateOptions(state.locale, "leveling_priority")}</select></label>
               <button type="submit" ${state.wbsNodes.length ? "" : "disabled"}>${escapeHtml(t.activityCreate)}</button>
               ${state.wbsNodes.length ? "" : `<p class="cp-empty">${escapeHtml(t.noWbs)}</p>`}
             </form>
@@ -456,6 +546,49 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 
   workspaceRenderRecords.set(container, { state, options });
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
+}
+
+function renderModuleEmptyState(state: WorkspaceState): string {
+  const locale = state.locale.split("-")[0] === "fa" ? "fa" : "en";
+  const hasControlRecords = Boolean(state.controlSummary || state.smartGuide)
+    || state.siteDailyLogs.length > 0
+    || state.fieldIssues.length > 0
+    || state.timecards.length > 0
+    || state.equipmentReports.length > 0
+    || state.changeNotices.length > 0
+    || state.changeCases.length > 0
+    || state.claims.length > 0
+    || state.changeClaimImpacts.length > 0
+    || state.inspections.length > 0
+    || state.qualityRecords.length > 0
+    || state.safetyObservations.length > 0
+    || state.punchItems.length > 0;
+  let copy: { title: string; message: string } | null = null;
+
+  if (state.activeMenu === "reports") {
+    copy = locale === "fa"
+      ? { title: "گزارش‌ها و چاپ", message: "ساخت گزارش و قالب چاپ در این پیش‌نمایش هنوز فعال نیست. این صفحه گزارشی تولید یا ادعایی درباره کامل بودن گزارش‌ها نمی‌کند." }
+      : { title: "Reports & print", message: "Report generation and print layouts are not available in this preview yet. This page has not generated a report or claimed that reporting is complete." };
+  } else if (state.activeMenu === "progress") {
+    copy = locale === "fa"
+      ? { title: "نمای پیشرفت پروژه", message: "داشبورد و نمودارهای اختصاصی پیشرفت هنوز در مرحله پیش‌نمایش هستند. داده‌های ثبت‌شده را از جدول فعالیت‌ها و سوابق کارگاه بررسی کنید؛ در این صفحه شاخص یا درصد ساختگی نمایش داده نمی‌شود." }
+      : { title: "Project progress", message: "The dedicated progress dashboard and charts are still in preview. Review recorded data in the activity grid and field records; this page does not invent metrics or percentages." };
+  } else if (state.activeMenu === "cost") {
+    copy = locale === "fa"
+      ? { title: "هزینه و جریان مالی", message: "نمای کامل هزینه، پیش‌بینی و نمودارهای مالی هنوز در این پیش‌نمایش تکمیل نشده است. سوابق موجودِ تدارکات، تغییرات و ادعاها فقط در بخش‌های مربوط به خود نمایش داده می‌شوند." }
+      : { title: "Cost & financial control", message: "The full cost view, forecast and financial charts are not complete in this preview. Existing procurement, change and claim records remain available only in their respective panels." };
+  } else if (state.activeMenu === "documents" && state.documents.length === 0) {
+    copy = locale === "fa"
+      ? { title: "اسناد پروژه", message: "هنوز سندی برای این پروژه ثبت یا پیوند داده نشده است. وقتی سندی افزوده شود، در این بخش نمایش داده خواهد شد." }
+      : { title: "Project documents", message: "No project documents have been added or linked yet. Documents will appear here after they are recorded." };
+  } else if (state.activeMenu === "control" && !hasControlRecords) {
+    copy = locale === "fa"
+      ? { title: "کنترل پروژه", message: "هنوز سابقه‌ای برای خلاصه کنترل، گزارش روزانه، بازرسی، مسئله، تغییر یا ادعا در دسترس نیست. با ثبت داده‌های معتبر، این بخش پر می‌شود." }
+      : { title: "Project controls", message: "No control summary, daily log, inspection, issue, change or claim records are available yet. This area will populate when authoritative records are saved." };
+  }
+
+  if (!copy) return "";
+  return `<section class="cp-panel cp-module-empty-state" data-workspace-menu="${state.activeMenu}" aria-live="polite"><h2>${escapeHtml(copy.title)}</h2><p>${escapeHtml(copy.message)}</p></section>`;
 }
 
 function renderNavigationSurface(state: WorkspaceState): string {
