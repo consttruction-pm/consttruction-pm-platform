@@ -799,6 +799,28 @@ async function mountSettingsPanel(
     }
   });
 
+  // Shared calendar readers are used by both the exception editor and the
+  // versioned working-week editor, so keep them in this panel's common scope.
+  const readSystem = (): "gregorian" | "jalali" =>
+    calendarSystemInput?.value === "jalali" ? "jalali" : "gregorian";
+  const readCalendar = (): { id: string; version: string } => {
+    const raw = calendarRefInput?.value ?? "";
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as { id?: string; version?: string };
+        if (parsed.id && parsed.version) return { id: parsed.id, version: parsed.version };
+      } catch {
+        // A blank or malformed selector falls back to the manual fields.
+      }
+    }
+    const idField = form?.elements.namedItem("calendar_id") as HTMLInputElement | null;
+    const versionField = form?.elements.namedItem("calendar_version") as HTMLInputElement | null;
+    return {
+      id: (idField?.value ?? initial.calendar_id).trim(),
+      version: (versionField?.value ?? initial.calendar_version).trim(),
+    };
+  };
+
   // Calendar exceptions are project data, not presentation state: the editor
   // writes through the calendar API and then re-reads the stored rows. A saved
   // holiday invalidates any cached calculation because the authoritative CPM
@@ -826,25 +848,6 @@ async function mountSettingsPanel(
       detailedHours: labels.holidayModeDetailedHours,
       resetStandard: labels.holidayModeResetStandard,
       canonicalDate: labels.holidayCanonicalDate,
-    };
-    const readSystem = (): "gregorian" | "jalali" =>
-      calendarSystemInput?.value === "jalali" ? "jalali" : "gregorian";
-    const readCalendar = (): { id: string; version: string } => {
-      const raw = calendarRefInput?.value ?? "";
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as { id?: string; version?: string };
-          if (parsed.id && parsed.version) return { id: parsed.id, version: parsed.version };
-        } catch {
-          // A blank or malformed selector falls back to the manual fields.
-        }
-      }
-      const idField = form?.elements.namedItem("calendar_id") as HTMLInputElement | null;
-      const versionField = form?.elements.namedItem("calendar_version") as HTMLInputElement | null;
-      return {
-        id: (idField?.value ?? initial.calendar_id).trim(),
-        version: (versionField?.value ?? initial.calendar_version).trim(),
-      };
     };
     const selected = readCalendar();
     holidaysEditor = createCalendarHolidayEditor({
