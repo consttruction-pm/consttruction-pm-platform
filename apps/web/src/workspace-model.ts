@@ -128,6 +128,9 @@ export type WorkspaceActivitySort = {
   readonly direction: "asc" | "desc";
 };
 
+/** Activity-table grouping; WBS is the professional default for schedule views. */
+export type WorkspaceActivityGroupBy = "wbs" | "none";
+
 /** Presentation-only zoom of the Gantt time axis; schedule dates never change. */
 export type WorkspaceGanttScale = "day" | "week" | "month" | "quarter" | "year";
 
@@ -147,6 +150,7 @@ export type WorkspaceState = {
   wbsNodes: readonly WorkspaceWbsNode[];
   relationships: readonly WorkspaceRelationshipRow[];
   activityFilter: string;
+  activityGroupBy: WorkspaceActivityGroupBy;
   activitySort: WorkspaceActivitySort | null;
   controlSummary: WorkspaceControlSummary | null;
   smartGuide: WorkspaceSmartGuide | null;
@@ -216,7 +220,8 @@ export function createWorkspaceState(
     wbsNodes: [],
     relationships: [],
     activityFilter: "",
-    activitySort: null,
+    activityGroupBy: "wbs",
+    activitySort: Object.freeze({ columnId: "wbs", direction: "asc" }),
     controlSummary: null,
     smartGuide: null,
     siteDailyLogs: [],
@@ -271,7 +276,8 @@ export function setActivitySort(
   if (columnId === null) {
     return state.activitySort === null ? state : { ...state, activitySort: null };
   }
-  if (!state.columns.some((column) => column.id === columnId)) {
+  // WBS is a grouping/sorting key even when the WBS field is not a visible table column.
+  if (columnId !== "wbs" && !state.columns.some((column) => column.id === columnId)) {
     throw new Error("SORT_COLUMN_NOT_FOUND");
   }
   const next = Object.freeze({ columnId, direction });
@@ -282,6 +288,15 @@ export function setActivitySort(
     return state;
   }
   return { ...state, activitySort: next };
+}
+
+export function setActivityGroupBy(
+  state: WorkspaceState,
+  groupBy: WorkspaceActivityGroupBy,
+): WorkspaceState {
+  if (groupBy !== "wbs" && groupBy !== "none") throw new Error("INVALID_ACTIVITY_GROUP_BY");
+  if (state.activityGroupBy === groupBy) return state;
+  return { ...state, activityGroupBy: groupBy };
 }
 
 export function toggleActivitySortDirection(state: WorkspaceState): WorkspaceState {

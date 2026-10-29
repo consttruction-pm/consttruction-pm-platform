@@ -2936,6 +2936,16 @@ async function main() {
       "clear activity filter",
     );
 
+    const initialGroupSort = await page.evaluate(`(() => ({
+      groupBy: document.querySelector("[data-activity-group]")?.value ?? null,
+      sortBy: document.querySelector("[data-activity-sort]")?.value ?? null,
+    }))()`);
+    assert(
+      initialGroupSort.groupBy === "wbs" && initialGroupSort.sortBy === "wbs",
+      `Activity Group and Sort should default to WBS, got ${JSON.stringify(initialGroupSort)}`,
+    );
+    // This section verifies a global numeric sort independent of grouping.
+    await page.setSelect("[data-activity-group]", "none");
     await page.setSelect("[data-activity-sort]", "activity.id");
     await page.waitFor(
       `document.querySelector('#cp-activity-grid tbody tr[data-activity-id]')?.dataset.activityId === "A100"`,
@@ -2999,6 +3009,12 @@ async function main() {
     await page.waitFor(
       `document.querySelector('#cp-activity-grid tbody tr[data-activity-id]')?.dataset.activityId === "A100"`,
       "reset activity sort",
+    );
+    await page.setSelect("[data-activity-group]", "wbs");
+    await page.setSelect("[data-activity-sort]", "wbs");
+    await page.waitFor(
+      `document.querySelector("[data-activity-group]").value === "wbs" && document.querySelector("[data-activity-sort]").value === "wbs"`,
+      "restore default WBS Group and Sort",
     );
     record("filter and numeric sort operate on persisted activity facts", {
       civil_rows: civilIds,
