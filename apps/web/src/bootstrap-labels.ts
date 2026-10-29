@@ -18,6 +18,7 @@ export type BootstrapLabels = {
   projectDescription: string;
   projectDescriptionPlaceholder: string;
   projectStartDate: string;
+  projectStartDateJalaliPlaceholder: string;
   projectDateSystem: string;
   dateSystemGregorian: string;
   dateSystemJalali: string;
@@ -43,6 +44,7 @@ export type BootstrapLabels = {
   switchLanguage: string;
   projectListAria: string;
   validationNameRequired: string;
+  validationStartDateInvalid: string;
   validationNameLength: string;
   createFailed: string;
   errorTitle: string;
@@ -73,6 +75,7 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectDescription: "Description",
     projectDescriptionPlaceholder: "Optional scope, client or contract note",
     projectStartDate: "Start date",
+    projectStartDateJalaliPlaceholder: "1405/07/15",
     projectDateSystem: "Date system",
     dateSystemGregorian: "Gregorian",
     dateSystemJalali: "Jalali",
@@ -98,6 +101,7 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     switchLanguage: "Switch language to {language}",
     projectListAria: "Projects available to your account",
     validationNameRequired: "Enter a project name.",
+    validationStartDateInvalid: "Enter a valid date in the selected calendar.",
     validationNameLength: "Use a project name between 2 and 120 characters.",
     createFailed: "The project was not created. Check the name and try again.",
     errorTitle: "The workspace could not open",
@@ -126,6 +130,7 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectDescription: "توضیحات",
     projectDescriptionPlaceholder: "دامنه، کارفرما یا یادداشت قرارداد (اختیاری)",
     projectStartDate: "تاریخ شروع",
+    projectStartDateJalaliPlaceholder: "۱۴۰۵/۰۷/۱۵",
     projectDateSystem: "تقویم نمایشی",
     dateSystemGregorian: "میلادی",
     dateSystemJalali: "شمسی",
@@ -151,6 +156,7 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     switchLanguage: "تغییر زبان به {language}",
     projectListAria: "پروژه‌های در دسترس حساب شما",
     validationNameRequired: "نام پروژه را وارد کنید.",
+    validationStartDateInvalid: "تاریخ معتبری مطابق تقویم انتخاب‌شده وارد کنید.",
     validationNameLength: "نام پروژه باید بین ۲ تا ۱۲۰ نویسه باشد.",
     createFailed: "پروژه ایجاد نشد. نام را بررسی کنید و دوباره تلاش کنید.",
     errorTitle: "محیط کار باز نشد",

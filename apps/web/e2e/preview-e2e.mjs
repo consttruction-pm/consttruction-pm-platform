@@ -4100,8 +4100,16 @@ async function main() {
         input.value = ${JSON.stringify(createdProjectName)};
         input.dispatchEvent(new Event("input", { bubbles: true }));
         description.value = ${JSON.stringify(createdProjectDescription)};
-        startDate.value = "2026-11-02";
-        dateSystem.value = "gregorian";
+        dateSystem.value = "jalali";
+        dateSystem.dispatchEvent(new Event("change", { bubbles: true }));
+        if (startDate.type !== "text") throw new Error("PROJECT_JALALI_DATE_INPUT_NOT_SWITCHED");
+        startDate.value = "1404/12/30";
+        form.requestSubmit();
+        const dateError = form.querySelector('[id^="cp-project-start-date-error-"]');
+        if (!dateError || dateError.hidden) throw new Error("PROJECT_JALALI_INVALID_DATE_NOT_REJECTED");
+        if (input.hasAttribute("aria-invalid")) throw new Error("PROJECT_DATE_ERROR_WRONG_FIELD");
+        startDate.value = "1405/07/15";
+        startDate.dispatchEvent(new Event("input", { bubbles: true }));
         form.requestSubmit();
         return true;
       })()`,
@@ -4134,8 +4142,8 @@ async function main() {
     );
     assert(
       createdMetadata?.description === createdProjectDescription &&
-        createdMetadata?.start_date === "2026-11-02" &&
-        createdMetadata?.date_system === "gregorian" &&
+        createdMetadata?.start_date === "2026-10-07" &&
+        createdMetadata?.date_system === "jalali" &&
         createdMetadata?.revision === 0,
       "creation metadata must be persisted and returned by the project API: " +
         JSON.stringify(createdMetadata),
@@ -5000,8 +5008,8 @@ async function main() {
     assert(
       settingsLoaded.name === createdProjectName &&
         settingsLoaded.description === createdProjectDescription &&
-        settingsLoaded.start_date === "2026-11-02" &&
-        settingsLoaded.date_system === "gregorian",
+        settingsLoaded.start_date === "2026-10-07" &&
+        settingsLoaded.date_system === "jalali",
       "the settings panel must load the persisted project metadata: " +
         JSON.stringify(settingsLoaded),
     );
@@ -5474,12 +5482,12 @@ async function main() {
     })()`);
     await page.waitFor(
       `(() => {
-        const error = document.querySelector(".cp-form-error");
+        const error = document.querySelector('[id^="cp-project-name-error-"]');
         return Boolean(error) && !error.hidden && error.textContent.trim().length > 0;
       })()`,
       "empty project name is rejected inline",
     );
-    const emptyNameError = await page.text(".cp-form-error");
+    const emptyNameError = await page.text('[id^="cp-project-name-error-"]');
     assert(/[\u0600-\u06FF]/.test(emptyNameError), "inline validation must be localized");
 
     const firstProjectName = `پروژه نخست ${Date.now()}`;
