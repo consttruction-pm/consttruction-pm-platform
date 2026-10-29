@@ -929,7 +929,7 @@ async function launchChrome() {
       "--hide-scrollbars",
       "about:blank",
     ],
-    { stdio: ["ignore", "pipe", "pipe"] },
+    { stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" },
   );
   let stderr = "";
   child.stderr.on("data", (chunk) => {
@@ -974,8 +974,44 @@ async function launchChrome() {
     child,
     userDataDir,
     cdp: await Cdp.connect(target.webSocketDebuggerUrl),
-    stop: () => stopProcessTree(child),
+    stop: () => stopChromeProcess(child),
   };
+}
+
+async function stopChromeProcess(child) {
+  if (!child) return;
+  const hasExited = () => child.exitCode !== null || child.signalCode !== null;
+  const waitForExit = async (timeoutMs) => {
+    if (hasExited()) return;
+    await Promise.race([
+      new Promise((resolve) => child.once("exit", resolve)),
+      sleep(timeoutMs),
+    ]);
+  };
+  if (!hasExited()) {
+    try {
+      if (process.platform === "win32") {
+        stopProcessTree(child);
+      } else if (child.pid) {
+        // Chrome creates renderer/utility children; stop its dedicated process group.
+        process.kill(-child.pid, "SIGTERM");
+      } else {
+        child.kill("SIGTERM");
+      }
+    } catch {
+      if (!child.killed) child.kill("SIGTERM");
+    }
+    await waitForExit(2500);
+  }
+  if (!hasExited()) {
+    try {
+      if (process.platform !== "win32" && child.pid) process.kill(-child.pid, "SIGKILL");
+      else child.kill("SIGKILL");
+    } catch {
+      // The process may have exited between the state check and signal.
+    }
+    await waitForExit(1500);
+  }
 }
 
 async function main() {
@@ -1747,8 +1783,8 @@ async function main() {
       );
     } finally {
       if (deepLinkPage) deepLinkPage.cdp.close();
-      deepLinkChrome.stop();
-      rmSync(deepLinkChrome.userDataDir, { recursive: true, force: true, maxRetries: 12, retryDelay: 100 });
+      await deepLinkChrome.stop();
+      rmSync(deepLinkChrome.userDataDir, { recursive: true, force: true, maxRetries: 30, retryDelay: 100 });
     }
 
     await page.navigate(
@@ -5917,7 +5953,7 @@ async function main() {
   } finally {
     page?.cdp.close();
     chrome.cdp.close();
-    chrome.stop();
+    await chrome.stop();
     if (managed) managed.stop();
   }
 }
