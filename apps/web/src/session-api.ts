@@ -102,11 +102,14 @@ export class FetchSessionApi implements SessionApi {
   private async request<T>(
     path: string, method: "GET" | "POST" | "PATCH" = "GET", body?: unknown,
   ): Promise<ApiResult<T>> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
     try {
       const response = await fetch(new URL(path, this.baseUrl), {
         method, credentials: "include",
         headers: body === undefined ? {} : { "Content-Type": "application/json" },
         body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
       });
       const payload = await response.json().catch(() => null);
       if (response.ok) return { ok: true, data: payload as T };
@@ -122,10 +125,13 @@ export class FetchSessionApi implements SessionApi {
       };
     } catch {
       const error: ClientError = {
-        code: "NETWORK_ERROR", retryable: true,
+        code: controller.signal.aborted ? "NETWORK_TIMEOUT" : "NETWORK_ERROR",
+        retryable: true,
         message_key: "error.network", available_actions: ["retry"],
       };
       return { ok: false, error };
+    } finally {
+      clearTimeout(timeout);
     }
   }
 }
