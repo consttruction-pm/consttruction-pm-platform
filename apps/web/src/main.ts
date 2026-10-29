@@ -11,6 +11,7 @@ import {
   removeP6Field,
   reorderP6Fields,
   setActivityFilter,
+  setActivityGroupBy,
   setActivitySort,
   toggleActivitySortDirection,
   updateP6FieldPresentation,
@@ -949,6 +950,9 @@ function renderApp(
     },
     onActivityFilterChange: (filterText) => {
       renderApp(container, setActivityFilter(state, filterText), persistence);
+    },
+    onActivityGroupByChange: (groupBy) => {
+      renderApp(container, setActivityGroupBy(state, groupBy), persistence);
     },
     onActivitySortChange: (columnId) => {
       const direction = state.activitySort?.columnId === columnId
