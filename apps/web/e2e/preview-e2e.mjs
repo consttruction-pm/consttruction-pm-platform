@@ -2302,13 +2302,23 @@ async function main() {
     await page.setInput("[data-capacity-resolve-hours]", "40");
     await page.click("[data-capacity-resolve]");
     await page.waitFor(
-      `Boolean(document.querySelector("[data-capacity-resolve-value]") || document.querySelector("[data-capacity-resolve-result]")?.textContent.trim())`,
+      `(() => {
+        const value = document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value");
+        const status = document.querySelector("[data-capacity-resolve-status]")?.textContent.trim() ?? "";
+        const result = document.querySelector("[data-capacity-resolve-result]")?.textContent.trim() ?? "";
+        return Boolean(value || result || (status && status !== "Resolving through the server…"));
+      })()`,
       "server capacity resolution response",
     );
     const capacityResolutionOutcome = await page.evaluate(`(() => ({
       value: document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") ?? null,
       status: document.querySelector("[data-capacity-resolve-status]")?.textContent.trim() ?? null,
       result: document.querySelector("[data-capacity-resolve-result]")?.textContent.trim() ?? null,
+      period: document.querySelector("[data-capacity-resolve-period]")?.value ?? null,
+      resource: document.querySelector("[data-capacity-resolve-resource]")?.value ?? null,
+      basis: document.querySelector("[data-capacity-resolve-basis]")?.value ?? null,
+      hours: document.querySelector("[data-capacity-resolve-hours]")?.value ?? null,
+      hoursDisabled: document.querySelector("[data-capacity-resolve-hours]")?.disabled ?? null,
     }))()`);
     assert(
       capacityResolutionOutcome.value === "60",
