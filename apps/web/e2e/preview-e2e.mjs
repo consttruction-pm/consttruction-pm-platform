@@ -5487,7 +5487,7 @@ async function main() {
       })()`,
       "empty project name is rejected inline",
     );
-    const emptyNameError = await page.text(".cp-form-error");
+    const emptyNameError = await page.text('[id^="cp-project-name-error-"]');
     assert(/[\u0600-\u06FF]/.test(emptyNameError), "inline validation must be localized");
 
     const firstProjectName = `پروژه نخست ${Date.now()}`;
