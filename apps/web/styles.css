@@ -3166,3 +3166,17 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 @keyframes cp-startup-progress-rtl{0%{transform:translateX(270%)}100%{transform:translateX(-120%)}}
 @media(prefers-reduced-motion:reduce){.cp-startup-progress span{animation:none;width:100%}}
 @media(max-width:520px){.cp-startup-card{padding:20px}.cp-startup-brand-caption{font-size:8px}.cp-startup-card h1{margin-top:22px}.cp-startup-message{font-size:14px}}
+
+/* Activity creation is a first-class form, with controls aligned to the workspace grid. */
+.cp-activity-editor{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;padding:14px;border:1px solid var(--cubi-neutral-border);border-radius:9px;background:linear-gradient(135deg,#fff,#f8fafc)}
+.cp-activity-editor h3{grid-column:1/-1;margin:0 0 2px;color:var(--cubi-deep-navy);font-size:14px;font-weight:800}
+.cp-activity-editor label{display:grid;align-content:start;gap:5px;min-width:0;color:#536274;font-size:12px;font-weight:700;line-height:1.45}
+.cp-activity-editor input,.cp-activity-editor select{width:100%;min-width:0;min-height:36px;padding:7px 9px;border:1px solid var(--cubi-neutral-border);border-radius:6px;background:#fff;color:var(--cubi-deep-navy);font:inherit;font-size:13px}
+.cp-activity-editor input:focus-visible,.cp-activity-editor select:focus-visible{outline:2px solid var(--cubi-engineering-blue);outline-offset:2px;border-color:var(--cubi-engineering-blue)}
+.cp-activity-editor button[type="submit"]{grid-column:1/-1;justify-self:start;min-height:38px;padding:8px 16px;border:1px solid var(--cubi-engineering-blue);border-radius:6px;background:var(--cubi-engineering-blue);color:#fff;font-weight:800;cursor:pointer}
+.cp-activity-editor button[type="submit"]:hover{background:#125da7}
+.cp-activity-editor button[type="submit"]:disabled{opacity:.5;cursor:not-allowed}
+.cp-activity-editor .cp-empty{grid-column:1/-1;margin:0}
+.cp-module-empty-state{display:grid}
+@media(max-width:900px){.cp-activity-editor{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.cp-activity-editor{grid-template-columns:minmax(0,1fr);padding:12px}.cp-activity-editor button[type="submit"]{grid-column:1}}
