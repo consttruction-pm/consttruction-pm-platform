@@ -248,6 +248,32 @@ async function runWbsActivityJourney(page, projectName) {
       name: "No activity package",
       sequence_number: 20,
     });
+    const updatedSite = await request(projectBase + "/p6/wbs/E2E-WBS-SITE", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        contract_version: "p6-wbs-master-api.v1",
+        expected_revision: site.body?.wbs?.record_revision,
+        parent_kind: "wbs",
+        parent_wbs_id: root.wbs_id,
+        code: "2",
+        name: "Site works revised",
+        sequence_number: 10,
+      }),
+    });
+    const staleSiteUpdate = await request(projectBase + "/p6/wbs/E2E-WBS-SITE", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        contract_version: "p6-wbs-master-api.v1",
+        expected_revision: site.body?.wbs?.record_revision,
+        parent_kind: "wbs",
+        parent_wbs_id: root.wbs_id,
+        code: "2",
+        name: "Stale overwrite must fail",
+        sequence_number: 10,
+      }),
+    });
     const duplicate = await createWbs({
       contract_version: "p6-wbs-master-api.v1",
       wbs_id: "E2E-WBS-DUP",
@@ -331,6 +357,8 @@ async function runWbsActivityJourney(page, projectName) {
         record_revision: root.record_revision,
       },
       site,
+      updated_site: updatedSite,
+      stale_site_update: staleSiteUpdate,
       design,
       no_activity: noActivity,
       duplicate,
@@ -3899,6 +3927,7 @@ async function main() {
     const wbsJourney = await runWbsActivityJourney(page, createdProjectName);
     for (const [label, response, expected] of [
       ["site", wbsJourney.site, 201],
+      ["WBS edit", wbsJourney.updated_site, 200],
       ["design", wbsJourney.design, 201],
       ["no-activity node", wbsJourney.no_activity, 201],
       ["activity", wbsJourney.created_activity, 201],
@@ -3915,6 +3944,15 @@ async function main() {
     assert(
       wbsJourney.site.body.wbs.parent_wbs_id === wbsJourney.root.wbs_id,
       "the parent WBS node must reference the project root",
+    );
+    assert(
+      wbsJourney.updated_site.body.wbs.name === "Site works revised",
+      "the WBS edit must return the updated persisted node",
+    );
+    assert(
+      wbsJourney.stale_site_update.status === 409 &&
+        wbsJourney.stale_site_update.body.code === "REVISION_CONFLICT",
+      `a stale WBS edit must be rejected without overwriting the newer value: ${JSON.stringify(wbsJourney.stale_site_update)}`,
     );
     assert(
       wbsJourney.design.body.wbs.parent_wbs_id === "E2E-WBS-SITE",
@@ -3975,6 +4013,9 @@ async function main() {
       wbsJourney.after_status === 200 &&
         wbsJourney.after_nodes.length === 4 &&
         wbsJourney.after_nodes.some(
+          (node) => node.wbs_id === "E2E-WBS-SITE" && node.name === "Site works revised",
+        ) &&
+        wbsJourney.after_nodes.some(
           (node) => node.wbs_id === "E2E-WBS-NOACT" && node.parent_wbs_id === wbsJourney.root.wbs_id,
         ) &&
         wbsJourney.after_activities.length === 1 &&
@@ -3997,7 +4038,7 @@ async function main() {
     if (persistedWbs) {
       assert(
         persistedWbs.wbs.length === 4 &&
-          persistedWbs.wbs.some((node) => node.wbs_id === "E2E-WBS-SITE") &&
+          persistedWbs.wbs.some((node) => node.wbs_id === "E2E-WBS-SITE" && node.name === "Site works revised") &&
           persistedWbs.wbs.some(
             (node) => node.wbs_id === "E2E-WBS-DESIGN" && node.parent_wbs_id === "E2E-WBS-SITE",
           ) &&
@@ -4020,6 +4061,8 @@ async function main() {
       sqlite: persistedWbs,
       rejections: {
         duplicate_code: wbsJourney.duplicate.body?.code ?? null,
+        wbs_edit_status: wbsJourney.updated_site.status,
+        stale_wbs_edit: wbsJourney.stale_site_update.body?.code ?? null,
         activity_without_wbs: wbsJourney.missing_wbs.body?.code ?? null,
         foreign_wbs: wbsJourney.foreign_wbs.body?.code ?? null,
         cross_project_parent: wbsJourney.cross_project_parent.body?.code ?? null,
@@ -4069,6 +4112,7 @@ async function main() {
           renderedAfterWrites.wbsIds.includes(id),
         ) &&
         renderedAfterWrites.wbsText.includes("2.1") &&
+        renderedAfterWrites.wbsText.includes("Site works revised") &&
         renderedAfterWrites.wbsText.includes("Detailed design") &&
         renderedAfterWrites.wbsText.includes("No activity package") &&
         renderedAfterWrites.rows.length === 1 &&
