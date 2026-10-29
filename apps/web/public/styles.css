@@ -3068,6 +3068,7 @@ th {
 [dir="rtl"] .cubi-exact-nav,[dir="rtl"] .cubi-public-nav{direction:rtl}
 [dir="rtl"] .cubi-exact-nav a::after,[dir="rtl"] .cubi-public-nav a::after{transform-origin:right center}
 
+.cubi-footer-brand img{display:block;width:180px;height:auto;max-width:100%;object-fit:contain;object-position:left center;background:transparent;padding:0;border:0;border-radius:0;box-shadow:none;box-sizing:border-box;mix-blend-mode:normal;filter:none}
 /* Workspace layout: identity → module navigation → module submenu → focused work surface. */
 .cp-workspace [hidden]{display:none!important}
 .cp-workspace [data-workspace-menu]{min-width:0}
