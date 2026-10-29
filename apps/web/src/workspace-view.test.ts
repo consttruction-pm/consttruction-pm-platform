@@ -86,6 +86,16 @@ test("WBS create form dispatches validated fields to its workspace callback", ()
   });
 });
 
+test("Activity Group and Sort defaults to WBS in English and Persian", () => {
+  const english = render("en", "schedule");
+  assert.match(english, /<select data-activity-group aria-label="Group by">\s*<option value="wbs" selected>WBS<\/option>/);
+  assert.match(english, /<select data-activity-sort aria-label="Sort by">\s*<option value="">Original order<\/option>\s*<option value="wbs" selected>WBS<\/option>/);
+
+  const persian = render("fa", "schedule");
+  assert.match(persian, /گروه‌بندی بر اساس/);
+  assert.match(persian, /<option value="wbs" selected>ساختار شکست<\/option>/);
+});
+
 test("Activity entry is localized and requires an authoritative WBS selection", () => {
   const empty = render("en", "schedule");
   assert.match(empty, /data-activity-create-form/);
