@@ -214,6 +214,74 @@ tr.is-selected { outline:2px solid var(--cp-blue); outline-offset:-2px; }
 }
 .cp-project-create-form button:hover { background:var(--cp-blue); border-color:var(--cp-blue); }
 .cp-project-create-form button:disabled { cursor:wait; opacity:.65; }
+.cp-project-create-form textarea,
+.cp-project-settings-panel textarea {
+  border:1px solid var(--cp-border);
+  border-radius:.45rem;
+  padding:.6rem .7rem;
+  font:inherit;
+  background:#fff;
+  resize:vertical;
+}
+.cp-project-settings-open {
+  margin-inline-start:auto;
+  border:1px solid var(--cp-border);
+  background:#fff;
+  color:var(--cp-navy);
+  border-radius:.45rem;
+  padding:.35rem .6rem;
+  font:inherit;
+  cursor:pointer;
+}
+.cp-project-settings-open:hover { border-color:var(--cp-blue); color:var(--cp-blue); }
+.cp-project-settings-panel {
+  position:fixed;
+  inset-inline-end:1rem;
+  inset-block-start:4.5rem;
+  z-index:40;
+  width:min(420px, calc(100vw - 2rem));
+  max-height:calc(100vh - 6rem);
+  overflow:auto;
+  display:grid;
+  gap:.75rem;
+  padding:1rem;
+  border:1px solid var(--cp-border);
+  border-radius:.6rem;
+  background:#fff;
+  box-shadow:0 18px 48px rgba(15, 35, 60, .22);
+}
+.cp-project-settings-panel h2 { margin:0; font-size:1rem; color:var(--cp-navy); }
+.cp-project-settings-panel form { display:grid; gap:.6rem; }
+.cp-project-settings-field { display:grid; gap:.3rem; }
+.cp-project-settings-field label { display:grid; gap:.3rem; font-size:.9rem; }
+.cp-project-settings-field input,
+.cp-project-settings-field select {
+  border:1px solid var(--cp-border);
+  border-radius:.45rem;
+  padding:.5rem .6rem;
+  font:inherit;
+  background:#fff;
+}
+.cp-project-settings-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+.cp-project-settings-actions button {
+  border:1px solid var(--cp-navy);
+  background:var(--cp-navy);
+  color:#fff;
+  border-radius:.45rem;
+  padding:.45rem .7rem;
+  font:inherit;
+  cursor:pointer;
+}
+.cp-project-settings-actions button[data-project-settings-close] {
+  background:#fff;
+  color:var(--cp-navy);
+}
+.cp-project-settings-actions button:disabled { cursor:wait; opacity:.65; }
+.cp-project-settings-status { margin:0; font-size:.88rem; }
+.cp-project-settings-status[data-state="success"] { color:#1f7a45; }
+.cp-project-settings-status[data-state="error"] { color:var(--cp-error); }
+.cp-project-settings-status[data-state="conflict"] { color:#8a5a00; }
+.cp-project-settings-revision { margin:0; color:var(--cp-muted); font-size:.82rem; }
 .cp-bootstrap-bar {
   display:flex;
   align-items:center;

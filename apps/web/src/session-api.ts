@@ -13,6 +13,26 @@ export type ProjectSummary = {
   tenant_id: string;
   name: string;
   revision: number;
+  description?: string;
+  start_date?: string | null;
+  date_system?: "gregorian" | "jalali" | string;
+  primary_calendar_id?: string | null;
+  /** Optimistic token for metadata edits; never the workspace data revision. */
+  settings_revision?: number;
+};
+
+export type ProjectMetadataInput = {
+  name: string;
+  description: string;
+  start_date: string | null;
+  date_system: "gregorian" | "jalali";
+  primary_calendar_id?: string | null;
+};
+
+export type ProjectCreateMetadata = {
+  description?: string;
+  start_date?: string | null;
+  date_system?: "gregorian" | "jalali";
 };
 
 export type ProjectContext = {
@@ -26,7 +46,17 @@ export type SessionApi = {
   getSession(): Promise<ApiResult<Session>>;
   listProjects(): Promise<ApiResult<{ projects: ProjectSummary[] }>>;
   openProject(projectId: string): Promise<ApiResult<{ context: ProjectContext }>>;
-  createProject(projectId: string, name: string): Promise<ApiResult<{ context: ProjectContext }>>;
+  createProject(
+    projectId: string,
+    name: string,
+    metadata?: ProjectCreateMetadata,
+  ): Promise<ApiResult<{ context: ProjectContext }>>;
+  getProject?(projectId: string): Promise<ApiResult<{ project: ProjectSummary }>>;
+  updateProject?(
+    projectId: string,
+    metadata: ProjectMetadataInput,
+    expectedRevision: number,
+  ): Promise<ApiResult<{ project: ProjectSummary }>>;
 };
 
 export class FetchSessionApi implements SessionApi {
@@ -41,14 +71,36 @@ export class FetchSessionApi implements SessionApi {
     );
   }
 
-  createProject(projectId: string, name: string) {
+  createProject(
+    projectId: string,
+    name: string,
+    metadata?: ProjectCreateMetadata,
+  ) {
     return this.request<{ context: ProjectContext }>("/api/projects", "POST", {
-      project_id: projectId, name,
+      project_id: projectId, name, ...metadata,
     });
   }
 
+  getProject(projectId: string) {
+    return this.request<{ project: ProjectSummary }>(
+      `/api/projects/${encodeURIComponent(projectId)}`,
+    );
+  }
+
+  updateProject(
+    projectId: string,
+    metadata: ProjectMetadataInput,
+    expectedRevision: number,
+  ) {
+    return this.request<{ project: ProjectSummary }>(
+      `/api/projects/${encodeURIComponent(projectId)}`,
+      "PATCH",
+      { ...metadata, expected_revision: expectedRevision },
+    );
+  }
+
   private async request<T>(
-    path: string, method: "GET" | "POST" = "GET", body?: unknown,
+    path: string, method: "GET" | "POST" | "PATCH" = "GET", body?: unknown,
   ): Promise<ApiResult<T>> {
     try {
       const response = await fetch(new URL(path, this.baseUrl), {

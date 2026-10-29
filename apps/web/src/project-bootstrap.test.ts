@@ -360,3 +360,60 @@ test("P6 network loader failure remains retryable", async () => {
   assert.equal(state?.status === "error" ? state.error.retryable : false, true);
   assert.deepEqual(state?.status === "error" ? state.error.available_actions : [], ["retry"]);
 });
+
+test("creation passes metadata through to the session API", async () => {
+  let received: unknown;
+  const setup = deps({
+    createProject: async (_projectId, _name, metadata) => {
+      received = metadata;
+      return ok({
+        context: { tenant_id: "t1", project_id: "new", revision: 0, user_id: "u1" },
+      });
+    },
+  });
+  await new ProjectBootstrap(setup.dependencies).createProject(
+    "new", "New", "fa",
+    { description: "Scope", start_date: "2026-11-02", date_system: "jalali" },
+  );
+  assert.deepEqual(received, {
+    description: "Scope", start_date: "2026-11-02", date_system: "jalali",
+  });
+});
+
+test("metadata load and save delegate to the session API without caching", async () => {
+  const saved: Array<{ metadata: unknown; revision: number }> = [];
+  const setup = deps({
+    getProject: async (projectId) => ok({
+      project: {
+        project_id: projectId, tenant_id: "t1", name: "P", revision: 3,
+        description: "Loaded", start_date: null, date_system: "gregorian",
+        primary_calendar_id: null,
+      },
+    }),
+    updateProject: async (_projectId, metadata, revision) => {
+      saved.push({ metadata, revision });
+      return ok({
+        project: {
+          project_id: "p1", tenant_id: "t1", name: metadata.name, revision: revision + 1,
+          description: metadata.description, start_date: metadata.start_date,
+          date_system: metadata.date_system, primary_calendar_id: null,
+        },
+      });
+    },
+  });
+  const bootstrap = new ProjectBootstrap(setup.dependencies);
+  const loaded = await bootstrap.loadProjectSummary("p1");
+  assert.equal(loaded.ok ? loaded.data.project.description : "", "Loaded");
+
+  const result = await bootstrap.saveProjectMetadata(
+    "p1",
+    {
+      name: "P renamed", description: "New", start_date: "2026-12-01",
+      date_system: "jalali",
+    },
+    3,
+  );
+  assert.equal(result.ok ? result.data.project.revision : 0, 4);
+  assert.deepEqual(saved[0]?.revision, 3);
+  assert.equal(saved[0]?.metadata && (saved[0].metadata as { name: string }).name, "P renamed");
+});

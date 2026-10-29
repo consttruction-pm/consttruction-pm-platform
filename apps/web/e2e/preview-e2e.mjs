@@ -3969,13 +3969,20 @@ async function main() {
     await page.click('button[name="role"][value="admin"]');
     await page.waitForSelector(".cp-project-selection", "admin project selection");
     const createdProjectName = `E2E project ${Date.now()}`;
+    const createdProjectDescription = "CUBI E2E persisted scope";
     await page.evaluate(
       `(() => {
         const input = document.querySelector('.cp-project-create-form input[name="projectName"]');
+        const description = document.querySelector('.cp-project-create-form textarea[name="projectDescription"]');
+        const startDate = document.querySelector('.cp-project-create-form input[name="projectStartDate"]');
+        const dateSystem = document.querySelector('.cp-project-create-form select[name="projectDateSystem"]');
         const form = document.querySelector('.cp-project-create-form');
-        if (!input || !form) throw new Error("PROJECT_CREATE_FORM_MISSING");
+        if (!input || !form || !description || !startDate || !dateSystem) throw new Error("PROJECT_CREATE_FORM_MISSING");
         input.value = ${JSON.stringify(createdProjectName)};
         input.dispatchEvent(new Event("input", { bubbles: true }));
+        description.value = ${JSON.stringify(createdProjectDescription)};
+        startDate.value = "2026-11-02";
+        dateSystem.value = "gregorian";
         form.requestSubmit();
         return true;
       })()`,
@@ -4003,6 +4010,17 @@ async function main() {
         ),
       "the created project name must be returned by the persisted project list",
     );
+    const createdMetadata = projectsAfterCreate.projects.find(
+      (project) => project.name === createdProjectName,
+    );
+    assert(
+      createdMetadata?.description === createdProjectDescription &&
+        createdMetadata?.start_date === "2026-11-02" &&
+        createdMetadata?.date_system === "gregorian" &&
+        createdMetadata?.revision === 0,
+      "creation metadata must be persisted and returned by the project API: " +
+        JSON.stringify(createdMetadata),
+    );
     assert(
       createdProject.name.length > 0 && createdProject.revision.startsWith("R"),
       "the newly created project must be opened in the workspace",
@@ -4016,11 +4034,14 @@ async function main() {
     await page.screenshot("12-admin-project-created.png");
     EVIDENCE.project_creation = {
       name: createdProjectName,
+      description: createdMetadata?.description,
+      start_date: createdMetadata?.start_date,
+      date_system: createdMetadata?.date_system,
       revision: createdProject.revision,
       rows: createdProject.rows,
       columns: createdProject.columns,
       calendar_toggle: createdProject.calendar_toggle,
-      source: "Web create-project form -> POST /api/projects -> preview initializer",
+      source: "Web create-project form -> POST /api/projects (metadata) -> preview initializer -> GET /api/projects",
     };
     record("authorized project creation initializes an empty persisted workspace", {
       name: createdProjectName,
@@ -4709,6 +4730,213 @@ async function main() {
       month_ticks: monthGraph.ticks.length,
     });
 
+    // Section H3: project settings edit against the real API. The panel loads
+    // the authoritative row, saves under its revision, refuses a stale save
+    // after another writer bumped the project, and only then accepts a reloaded
+    // save. Nothing is computed or stored in the browser.
+    await page.click("[data-project-settings]");
+    await page.waitFor(
+      `(() => {
+        const name = document.querySelector('[data-project-settings-panel] [data-project-settings-form] [name="name"]');
+        const revision = document.querySelector('[data-project-settings-panel] [data-project-settings-revision]');
+        return Boolean(name && name.value && revision && /R\\d+/.test(revision.textContent || ""));
+      })()`,
+      "project settings panel loaded from the API",
+    );
+    const settingsLoaded = await page.evaluate(`(() => ({
+      name: document.querySelector('[data-project-settings-form] [name="name"]')?.value ?? "",
+      description: document.querySelector('[data-project-settings-form] [name="description"]')?.value ?? "",
+      start_date: document.querySelector('[data-project-settings-form] [name="start_date"]')?.value ?? "",
+      date_system: document.querySelector('[data-project-settings-form] [name="date_system"]')?.value ?? "",
+      revision: document.querySelector('[data-project-settings-revision]')?.textContent?.trim() ?? "",
+    }))()`);
+    assert(
+      settingsLoaded.name === createdProjectName &&
+        settingsLoaded.description === createdProjectDescription &&
+        settingsLoaded.start_date === "2026-11-02" &&
+        settingsLoaded.date_system === "gregorian",
+      "the settings panel must load the persisted project metadata: " +
+        JSON.stringify(settingsLoaded),
+    );
+
+    // The lifecycle revision is driven by the server; assert relative to the
+    // revision the panel actually loaded instead of assuming a fixed number.
+    const revisionOf = (text) => {
+      const match = /R(\d+)/.exec(text || "");
+      return match ? Number(match[1]) : -1;
+    };
+    const baseRevision = revisionOf(settingsLoaded.revision);
+    assert(baseRevision === 0, "the freshly created project must load at revision 0: " + JSON.stringify(settingsLoaded));
+
+    const editedProjectName = `${createdProjectName} edited`;
+    const submitSettings = async (name, description, startDate, dateSystem) => {
+      await page.evaluate(
+        `(() => {
+          const form = document.querySelector('[data-project-settings-form]');
+          const name = document.querySelector('[data-project-settings-form] [name="name"]');
+          const description = document.querySelector('[data-project-settings-form] [name="description"]');
+          const startDate = document.querySelector('[data-project-settings-form] [name="start_date"]');
+          const dateSystem = document.querySelector('[data-project-settings-form] [name="date_system"]');
+          if (!form || !name || !description || !startDate || !dateSystem) throw new Error("PROJECT_SETTINGS_FORM_MISSING");
+          name.value = ${JSON.stringify(name)};
+          description.value = ${JSON.stringify(description)};
+          startDate.value = ${JSON.stringify(startDate)};
+          dateSystem.value = ${JSON.stringify(dateSystem)};
+          form.requestSubmit();
+          return true;
+        })()`,
+      );
+      await page.waitFor(
+        `document.querySelector('[data-project-settings-status]')?.getAttribute('data-state') !== "info"`,
+        "project settings save result",
+      );
+      return page.evaluate(`(() => ({
+        state: document.querySelector('[data-project-settings-status]')?.getAttribute('data-state') ?? "",
+        text: document.querySelector('[data-project-settings-status]')?.textContent?.trim() ?? "",
+        revision: document.querySelector('.cp-revision')?.textContent?.trim() ?? "",
+        panelRevision: document.querySelector('[data-project-settings-revision]')?.textContent?.trim() ?? "",
+      }))()`);
+    };
+
+    const savedSettings = await submitSettings(
+      editedProjectName, "Edited in the project settings panel", "2026-12-01", "jalali",
+    );
+    assert(
+      savedSettings.state === "success" &&
+        revisionOf(savedSettings.revision) === 0 &&
+        revisionOf(savedSettings.panelRevision) === baseRevision + 1,
+      "a successful save must advance only the configuration revision and leave the " +
+        "workspace data revision untouched: " + JSON.stringify(savedSettings),
+    );
+    const projectAfterEdit = await page.evaluate(
+      `(async () => {
+        const projects = await fetch("/api/projects").then((response) => response.json());
+        const project = projects.projects.find(
+          (item) => item.name === ${JSON.stringify(editedProjectName)},
+        );
+        const response = await fetch("/api/projects/" + encodeURIComponent(project.project_id));
+        return { project: (await response.json()).project, status: response.status };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(
+      projectAfterEdit.status === 200 &&
+        projectAfterEdit.project.description === "Edited in the project settings panel" &&
+        projectAfterEdit.project.start_date === "2026-12-01" &&
+        projectAfterEdit.project.date_system === "jalali" &&
+        projectAfterEdit.project.settings_revision === baseRevision + 1 &&
+        projectAfterEdit.project.revision === 0,
+      "the saved metadata must be re-readable from the project API: " +
+        JSON.stringify(projectAfterEdit),
+    );
+
+    // Another writer advances the project revision while this panel still holds
+    // the previous one. The next save must be rejected as a conflict, never
+    // silently overwrite the newer row.
+    const concurrentEdit = await page.evaluate(
+      `(async () => {
+        const projects = await fetch("/api/projects").then((response) => response.json());
+        const project = projects.projects.find(
+          (item) => item.project_id === ${JSON.stringify(wbsJourney.project_id)},
+        );
+        const response = await fetch("/api/projects/" + encodeURIComponent(project.project_id), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: project.name,
+            description: "Concurrent editor value",
+            start_date: project.start_date,
+            date_system: project.date_system,
+            primary_calendar_id: project.primary_calendar_id,
+            expected_revision: project.settings_revision,
+          }),
+        });
+        return { status: response.status, body: await response.json() };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(
+      concurrentEdit.status === 200 &&
+        concurrentEdit.body.project?.settings_revision === baseRevision + 2 &&
+        concurrentEdit.body.project?.revision === 0,
+      "the concurrent writer must advance the configuration revision: " +
+        JSON.stringify(concurrentEdit),
+    );
+    const staleSave = await submitSettings(
+      "Stale overwrite attempt", "must not persist", "2026-12-01", "jalali",
+    );
+    assert(
+      staleSave.state === "conflict" &&
+        staleSave.text.length > 0 &&
+        (await page.evaluate(
+          `Boolean(document.querySelector('[data-project-settings-reload]') && !document.querySelector('[data-project-settings-reload]').hidden)`,
+        )),
+      "a stale save must show a conflict and offer an explicit reload: " +
+        JSON.stringify(staleSave),
+    );
+    const afterStale = await page.evaluate(
+      `fetch("/api/projects/" + encodeURIComponent(${JSON.stringify(wbsJourney.project_id)})).then((response) => response.json())`,
+      { awaitPromise: true },
+    );
+    assert(
+      afterStale.project.name === editedProjectName &&
+        afterStale.project.description === "Concurrent editor value" &&
+        afterStale.project.settings_revision === baseRevision + 2,
+      "a rejected stale save must not overwrite the newer project row: " +
+        JSON.stringify(afterStale),
+    );
+
+    await page.click("[data-project-settings-reload]");
+    await page.waitFor(
+      `document.querySelector('[data-project-settings-form] [name="description"]')?.value === "Concurrent editor value"`,
+      "project settings reload latest values",
+    );
+    const finalProjectName = `${editedProjectName} final`;
+    const reloadedSave = await submitSettings(
+      finalProjectName, "Reloaded and saved", "2026-12-07", "gregorian",
+    );
+    assert(
+      reloadedSave.state === "success" &&
+        revisionOf(reloadedSave.panelRevision) === baseRevision + 3 &&
+        revisionOf(reloadedSave.revision) === 0,
+      "saving after reload must succeed against the latest revision: " +
+        JSON.stringify(reloadedSave),
+    );
+    const finalProject = await page.evaluate(
+      `fetch("/api/projects/" + encodeURIComponent(${JSON.stringify(wbsJourney.project_id)})).then((response) => response.json())`,
+      { awaitPromise: true },
+    );
+    assert(
+      finalProject.project?.name === finalProjectName &&
+        finalProject.project?.description === "Reloaded and saved" &&
+        finalProject.project?.start_date === "2026-12-07" &&
+        finalProject.project?.date_system === "gregorian" &&
+        finalProject.project?.settings_revision === baseRevision + 3 &&
+        finalProject.project?.revision === 0,
+      "the reloaded save must persist the full edited metadata: " +
+        JSON.stringify(finalProject),
+    );
+    await page.click("[data-project-settings-close]");
+    await page.waitFor(
+      `!document.querySelector('[data-project-settings-panel]')`,
+      "project settings panel closes",
+    );
+    EVIDENCE.project_settings = {
+      loaded: settingsLoaded,
+      saved: savedSettings,
+      stale_conflict: staleSave,
+      reloaded_save: reloadedSave,
+      after_stale: afterStale.project,
+      after_first_save: projectAfterEdit.project,
+      final_project: finalProject.project,
+      source: "settings button -> GET /api/projects/{id} -> PATCH with expected_revision -> 200/201 success, 409 conflict, reload, save",
+    };
+    record("project settings edit is revision-guarded and refuses stale overwrites", {
+      saved_revision: savedSettings.revision,
+      stale_state: staleSave.state,
+      final_revision: reloadedSave.revision,
+    });
+
     // First-run journey on a real account with no project membership. This is
     // not a mocked state: the newcomer session, the empty project list and the
     // created project all go through the same preview API and SQLite store.
@@ -4994,6 +5222,16 @@ async function main() {
         const body = await response.json();
         return {
           status: response.status,
+          projectMeta: project
+            ? {
+                name: project.name,
+                description: project.description,
+                start_date: project.start_date,
+                date_system: project.date_system,
+                revision: project.revision,
+                settings_revision: project.settings_revision,
+              }
+            : null,
           wbsIds: Array.from(document.querySelectorAll(".cp-wbs-node")).map(
             (node) => node.dataset.wbsId,
           ),
@@ -5029,6 +5267,16 @@ async function main() {
           ),
         "the restarted runtime must re-read the same persisted WBS tree, activities and logic: " +
           JSON.stringify(afterRestart),
+      );
+      assert(
+        afterRestart.projectMeta?.name === finalProjectName &&
+          afterRestart.projectMeta?.description === "Reloaded and saved" &&
+          afterRestart.projectMeta?.start_date === "2026-12-07" &&
+          afterRestart.projectMeta?.date_system === "gregorian" &&
+          afterRestart.projectMeta?.settings_revision === baseRevision + 3 &&
+          afterRestart.projectMeta?.revision === 0,
+        "the restarted runtime must re-read the edited project metadata: " +
+          JSON.stringify(afterRestart.projectMeta),
       );
       await page.screenshot("12d-admin-wbs-activity-restart.png");
       EVIDENCE.restart = {

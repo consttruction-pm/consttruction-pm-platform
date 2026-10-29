@@ -15,6 +15,26 @@ export type BootstrapLabels = {
   projectName: string;
   projectNamePlaceholder: string;
   projectNameHint: string;
+  projectDescription: string;
+  projectDescriptionPlaceholder: string;
+  projectStartDate: string;
+  projectDateSystem: string;
+  dateSystemGregorian: string;
+  dateSystemJalali: string;
+  projectSettings: string;
+  settingsTitle: string;
+  settingsClose: string;
+  settingsSave: string;
+  settingsSaving: string;
+  settingsSaved: string;
+  settingsRetry: string;
+  settingsFailed: string;
+  settingsConflict: string;
+  settingsForbidden: string;
+  settingsPrimaryCalendar: string;
+  settingsPrimaryCalendarHint: string;
+  settingsRevision: string;
+  settingsReloadLatest: string;
   createAndOpen: string;
   constructionPm: string;
   unableToInitialize: string;
@@ -50,6 +70,26 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectName: "Project name",
     projectNamePlaceholder: "e.g. Riverside Tower",
     projectNameHint: "Use a recognizable name of 2 to 120 characters.",
+    projectDescription: "Description",
+    projectDescriptionPlaceholder: "Optional scope, client or contract note",
+    projectStartDate: "Start date",
+    projectDateSystem: "Date system",
+    dateSystemGregorian: "Gregorian",
+    dateSystemJalali: "Jalali",
+    projectSettings: "Project settings",
+    settingsTitle: "Project settings",
+    settingsClose: "Close",
+    settingsSave: "Save changes",
+    settingsSaving: "Saving…",
+    settingsSaved: "Saved. The project configuration now has revision",
+    settingsRetry: "Retry",
+    settingsFailed: "The changes were not saved. The stored project was not changed.",
+    settingsConflict: "This project changed in another session. Reload the latest values before saving again.",
+    settingsForbidden: "Your account does not have permission to edit this project.",
+    settingsPrimaryCalendar: "Primary calendar",
+    settingsPrimaryCalendarHint: "Leave empty to keep the calendar created with the project.",
+    settingsRevision: "Configuration revision",
+    settingsReloadLatest: "Reload latest values",
     createAndOpen: "Create and open",
     constructionPm: "CUBI Workspace",
     unableToInitialize: "Unable to initialize the web workspace.",
@@ -83,6 +123,26 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     projectName: "نام پروژه",
     projectNamePlaceholder: "مثلاً برج ریورساید",
     projectNameHint: "نامی روشن و قابل‌تشخیص بین ۲ تا ۱۲۰ نویسه وارد کنید.",
+    projectDescription: "توضیحات",
+    projectDescriptionPlaceholder: "دامنه، کارفرما یا یادداشت قرارداد (اختیاری)",
+    projectStartDate: "تاریخ شروع",
+    projectDateSystem: "تقویم نمایشی",
+    dateSystemGregorian: "میلادی",
+    dateSystemJalali: "شمسی",
+    projectSettings: "تنظیمات پروژه",
+    settingsTitle: "تنظیمات پروژه",
+    settingsClose: "بستن",
+    settingsSave: "ذخیرهٔ تغییرات",
+    settingsSaving: "در حال ذخیره…",
+    settingsSaved: "ذخیره شد. شمارهٔ بازبینی پیکربندی پروژه اکنون",
+    settingsRetry: "تلاش مجدد",
+    settingsFailed: "تغییرات ذخیره نشد. پروژهٔ ذخیره‌شده تغییری نکرده است.",
+    settingsConflict: "این پروژه در نشست دیگری تغییر کرده است. پیش از ذخیرهٔ دوباره، آخرین مقادیر را بازخوانی کنید.",
+    settingsForbidden: "حساب شما اجازهٔ ویرایش این پروژه را ندارد.",
+    settingsPrimaryCalendar: "تقویم اصلی",
+    settingsPrimaryCalendarHint: "برای نگه‌داشتن تقویمی که همراه پروژه ساخته شد، خالی بگذارید.",
+    settingsRevision: "بازبینی پیکربندی",
+    settingsReloadLatest: "بازخوانی آخرین مقادیر",
     createAndOpen: "ایجاد و باز کردن",
     constructionPm: "فضای کاری کوبی",
     unableToInitialize: "راه‌اندازی محیط کار وب امکان‌پذیر نیست.",
