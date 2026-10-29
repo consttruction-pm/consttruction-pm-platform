@@ -115,6 +115,20 @@ const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], Read
 function bindWorkspaceEvents(container: HTMLElement): void {
   if (typeof container.addEventListener !== "function" || workspaceEventDelegation.has(container)) return;
   workspaceEventDelegation.add(container);
+  // Keep the activity grid and timeline vertically aligned, like a classic scheduling layout.
+  // Horizontal scrolling remains independent because the table and chart have different widths.
+  container.addEventListener("scroll", (event) => {
+    const source = event.target;
+    if (!(source instanceof HTMLElement)) return;
+    const destination = source.matches(".cp-table-wrap")
+      ? container.querySelector<HTMLElement>("#cp-gantt .cp-gantt-chart")
+      : source.matches("#cp-gantt .cp-gantt-chart")
+        ? container.querySelector<HTMLElement>("#cp-activity-grid .cp-table-wrap")
+        : null;
+    if (destination && Math.abs(destination.scrollTop - source.scrollTop) > 1) {
+      destination.scrollTop = source.scrollTop;
+    }
+  }, true);
   container.addEventListener("input", (event) => {
     const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
       ? event.target as HTMLElement
@@ -478,6 +492,8 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${escapeHtml(t.wbs)}</h2>
           ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
+          <details class="cp-editor-details cp-wbs-entry-details">
+            <summary>${escapeHtml(t.wbsCreate)}</summary>
           <form class="cp-wbs-editor" data-wbs-create-form>
             <h3>${escapeHtml(t.wbsCreate)}</h3>
             <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" autocomplete="off"></label>
@@ -490,22 +506,29 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <label>${escapeHtml(t.wbsSequence)} <input name="sequence_number" type="number" min="0" step="1" value="0" required></label>
             <button type="submit">${escapeHtml(t.wbsCreate)}</button>
           </form>
+          </details>
           ${state.selectedWbsId ? (() => {
             const selected = state.wbsNodes.find((node) => node.id === state.selectedWbsId);
             if (!selected) return "";
-            return `<form class="cp-wbs-editor" data-wbs-edit-form="${escapeAttribute(selected.id)}">
+            return `<details class="cp-editor-details cp-wbs-edit-details">
+              <summary>${escapeHtml(t.wbsEdit)}</summary>
+              <form class="cp-wbs-editor" data-wbs-edit-form="${escapeAttribute(selected.id)}">
               <h3>${escapeHtml(t.wbsEdit)}</h3>
               <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" value="${escapeAttribute(selected.localCode)}"></label>
               <label>${escapeHtml(t.wbsName)} <input name="name" required maxlength="180" value="${escapeAttribute(selected.name)}"></label>
               <label>${escapeHtml(t.wbsSequence)} <input name="sequence_number" type="number" min="0" step="1" value="${selected.sequenceNumber}" required></label>
               <button type="submit">${escapeHtml(t.wbsSave)}</button>
               <button type="button" data-wbs-delete>${escapeHtml(t.wbsDelete)}</button>
-            </form>`;
+              </form>
+            </details>`;
           })() : `<p class="cp-empty">${escapeHtml(t.wbsSelectPrompt)}</p>`}
         </aside>
         <section class="cp-center">
+          <section class="cp-schedule-split" data-workspace-menu="schedule" aria-label="${escapeAttribute(t.schedule)}">
           <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
             <h2>${escapeHtml(t.activities)}</h2>
+            <details class="cp-editor-details cp-activity-entry-details">
+              <summary>${escapeHtml(t.activityCreate)}</summary>
             <form class="cp-activity-editor" data-activity-create-form>
               <h3>${escapeHtml(t.activityCreate)}</h3>
               <label>${escapeHtml(t.activityId)} <input name="activity_id" required maxlength="80" autocomplete="off"></label>
@@ -521,6 +544,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               <button type="submit" ${state.wbsNodes.length ? "" : "disabled"}>${escapeHtml(t.activityCreate)}</button>
               ${state.wbsNodes.length ? "" : `<p class="cp-empty">${escapeHtml(t.noWbs)}</p>`}
             </form>
+            </details>
             ${renderActivityFilterSort(state, visibleActivities.length, t)}
             ${renderP6FieldChooser(state, options.layoutHistory)}
             <div class="cp-table-wrap">
@@ -531,6 +555,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             </div>
           </section>
           <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule"><h2>${escapeHtml(t.gantt)}</h2>${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}</section>
+          </section>
             <section id="cp-schedule-options" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.scheduleOptions)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
             <section id="cp-schedule-run" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.runSchedule)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
             <section id="cp-logic" class="cp-panel cp-logic" data-workspace-menu="schedule"><h2>${escapeHtml(t.logic)}</h2>${renderRelationships(state, t)}</section>
