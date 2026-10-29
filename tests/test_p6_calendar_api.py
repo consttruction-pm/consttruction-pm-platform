@@ -357,7 +357,7 @@ def test_revise_work_week_creates_immutable_version_and_reconciles_weekly_rules(
     source = api.calendar_repository.get(_scope(), "CAL-WEEK", "1")
     api.snapshot_repository.save(source, _definition())
     api.save_exception(
-        CalendarException(_scope(), "CAL-WEEK", "1", date(2026, 4, 3), "NONWORK", None, ()),
+        CalendarException(_scope(), "CAL-WEEK", "1", date(2026, 4, 3), EXCEPTION_NONWORK, None, ()),
         auth_context=_auth(),
     )
     for weekday in range(7):
