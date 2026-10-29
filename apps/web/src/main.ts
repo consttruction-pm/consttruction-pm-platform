@@ -25,6 +25,7 @@ import {
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
 import { getBootstrapLabels, getBootstrapErrorCopy } from "./bootstrap-labels.js";
+import { formatJalaliDateInput, isValidCanonicalIsoDate, parseJalaliDateInput } from "./workspace-jalali-entry.js";
 import {
   readRequestedProjectId,
   readWorkspaceLocalePreference,
@@ -1125,6 +1126,56 @@ function renderBootstrapState(
     }
     dateSystemLabel.append(dateSystemSelect);
 
+    const dateErrorId = `cp-project-start-date-error-${idSuffix}`;
+    startDateInput.setAttribute("aria-describedby", dateErrorId);
+    const dateError = document.createElement("p");
+    dateError.id = dateErrorId;
+    dateError.className = "cp-form-error";
+    dateError.setAttribute("role", "alert");
+    dateError.hidden = true;
+    const showDateError = (): void => {
+      dateError.textContent = t.validationStartDateInvalid;
+      dateError.hidden = false;
+      startDateInput.setAttribute("aria-invalid", "true");
+    };
+    const clearDateError = (): void => {
+      dateError.hidden = true;
+      dateError.textContent = "";
+      startDateInput.removeAttribute("aria-invalid");
+    };
+    const syncStartDateInput = (): void => {
+      const raw = startDateInput.value.trim();
+      if (dateSystemSelect.value === "jalali") {
+        const canonical = isValidCanonicalIsoDate(raw) ? raw : null;
+        startDateInput.type = "text";
+        startDateInput.inputMode = "numeric";
+        startDateInput.placeholder = t.projectStartDateJalaliPlaceholder;
+        startDateInput.value = canonical ? formatJalaliDateInput(canonical) : raw;
+        clearDateError();
+        return;
+      }
+
+      let canonical = raw;
+      if (raw) {
+        canonical = parseJalaliDateInput(raw)
+          ?? (isValidCanonicalIsoDate(raw) ? raw : "");
+        if (!canonical) {
+          // Never discard invalid typed input by coercing it to a native date
+          // field. Keep the user's value and the selected Jalali mode instead.
+          dateSystemSelect.value = "jalali";
+          showDateError();
+          return;
+        }
+      }
+      startDateInput.type = "date";
+      startDateInput.inputMode = "";
+      startDateInput.placeholder = "";
+      startDateInput.value = canonical;
+      clearDateError();
+    };
+    dateSystemSelect.addEventListener("change", syncStartDateInput);
+    startDateInput.addEventListener("input", clearDateError);
+
     const errorMessage = document.createElement("p");
     errorMessage.id = errorId;
     errorMessage.className = "cp-form-error";
@@ -1142,7 +1193,7 @@ function renderBootstrapState(
       input.removeAttribute("aria-invalid");
     };
 
-    form.append(label, hint, descriptionLabel, startDateLabel, dateSystemLabel, errorMessage);
+    form.append(label, hint, descriptionLabel, startDateLabel, dateSystemLabel, dateError, errorMessage);
 
     const submit = document.createElement("button");
     submit.type = "submit";
@@ -1163,6 +1214,19 @@ function renderBootstrapState(
         input.focus();
         return;
       }
+      const rawStartDate = startDateInput.value.trim();
+      const selectedDateSystem = dateSystemSelect.value === "jalali" ? "jalali" : "gregorian";
+      const canonicalStartDate = rawStartDate
+        ? selectedDateSystem === "jalali"
+          ? parseJalaliDateInput(rawStartDate)
+          : isValidCanonicalIsoDate(rawStartDate) ? rawStartDate : null
+        : null;
+      if (rawStartDate && !canonicalStartDate) {
+        showDateError();
+        startDateInput.focus();
+        return;
+      }
+
       submit.disabled = true;
       input.disabled = true;
       descriptionInput.disabled = true;
@@ -1172,8 +1236,8 @@ function renderBootstrapState(
       form.setAttribute("aria-busy", "true");
       const next = await bootstrap.createProject(createProjectId(), name, locale, {
         description: descriptionInput.value.trim(),
-        start_date: startDateInput.value.trim() || null,
-        date_system: dateSystemSelect.value === "jalali" ? "jalali" : "gregorian",
+        start_date: canonicalStartDate,
+        date_system: selectedDateSystem,
       });
       form.removeAttribute("aria-busy");
       if (!next) return;
