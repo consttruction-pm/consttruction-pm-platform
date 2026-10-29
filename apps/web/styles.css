@@ -3141,5 +3141,5 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
   .cubi-exact-nav,.cubi-public-nav{gap:18px}
   .cubi-exact-nav a,.cubi-public-nav a{font-size:12px}
   .cubi-exact-nav a:nth-child(n+4){display:inline-flex}
-  .cubi-exact-signin{display:inline-flex}
+  .cubi-exact-signin{display:none}
 }
