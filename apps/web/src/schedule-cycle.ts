@@ -896,9 +896,12 @@ async function mountSettingsPanel(
       labels: workWeekLabels,
       calendarId: selected.id,
       calendarVersion: selected.version,
-      availableVersions: () => projectCalendars
-        .filter((calendar) => calendar.calendar_id === selected.id)
-        .map((calendar) => calendar.calendar_version),
+      availableVersions: () => {
+        const current = readCalendar();
+        return projectCalendars
+          .filter((calendar) => calendar.calendar_id === current.id)
+          .map((calendar) => calendar.calendar_version);
+      },
       onSaved: (record: CalendarWorkWeekRevision) => {
         const existing = projectCalendars.find((calendar) =>
           calendar.calendar_id === record.calendar_id && calendar.calendar_version === record.calendar_version);
@@ -938,6 +941,7 @@ async function mountSettingsPanel(
       },
     });
     workWeekHost.append(workWeekEditor.element);
+    void workWeekEditor.reload();
     const syncWorkWeekCalendar = () => {
       const next = readCalendar();
       workWeekEditor?.setCalendar(next.id, next.version);
