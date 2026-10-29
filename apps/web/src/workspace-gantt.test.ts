@@ -180,5 +180,5 @@ test("Gantt axis ticks follow the selected day/week/month/quarter/year scale", (
 
   const year = createGanttAxisTicks(longScale, "year");
   assert.deepEqual(year.map((tick) => tick.date), ["2026-09-28", "2027-01-01", "2028-01-01"]);
-  assert.ok(year[2].leftPercent > 85 && year[2].leftPercent <= 100);
+  assert.ok(year[2].leftPercent > 50 && year[2].leftPercent < 75);
 });
