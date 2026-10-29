@@ -3,6 +3,8 @@ import type {
   WorkspaceCellValue,
   WorkspaceColumn,
   WorkspaceGanttData,
+  WorkspaceRelationshipRow,
+  WorkspaceRelationshipType,
   WorkspaceState,
   WorkspaceWbsNode,
 } from "./workspace-model.js";
@@ -19,6 +21,7 @@ export type WorkspaceControlRoomSnapshot = {
   columns: readonly WorkspaceControlRoomColumn[];
   activities: readonly WorkspaceControlRoomActivity[];
   wbs_nodes: readonly WorkspaceControlRoomWbsNode[];
+  relationships?: readonly WorkspaceControlRoomRelationship[];
 };
 
 export type WorkspaceControlRoomColumn = {
@@ -46,6 +49,16 @@ export type WorkspaceControlRoomWbsNode = {
   local_code: string;
   name: string;
   sequence_number: number;
+  record_revision: number;
+};
+
+export type WorkspaceControlRoomRelationship = {
+  relationship_id: string;
+  predecessor_id: string;
+  successor_id: string;
+  relationship_type: WorkspaceRelationshipType;
+  lag_value: string;
+  lag_unit: string;
   record_revision: number;
 };
 
@@ -90,6 +103,15 @@ export function createWorkspaceControlRoomSnapshot(
       name: node.name,
       sequence_number: node.sequenceNumber,
       record_revision: node.recordRevision,
+    })),
+    relationships: state.relationships.map((relationship) => ({
+      relationship_id: relationship.id,
+      predecessor_id: relationship.predecessorId,
+      successor_id: relationship.successorId,
+      relationship_type: relationship.type,
+      lag_value: relationship.lagValue,
+      lag_unit: relationship.lagUnit,
+      record_revision: relationship.recordRevision,
     })),
   };
 }
@@ -142,6 +164,24 @@ export function workspaceActivitiesFromSnapshot(
           critical: activity.gantt.critical,
         })
       : undefined,
+  }));
+}
+
+export function workspaceRelationshipsFromSnapshot(
+  snapshot: WorkspaceControlRoomSnapshot,
+): readonly WorkspaceRelationshipRow[] {
+  if (snapshot.contract_version !== WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION) {
+    throw new Error("UNSUPPORTED_WORKSPACE_CONTRACT");
+  }
+  validateSnapshotIdentity(snapshot);
+  return (snapshot.relationships ?? []).map((relationship) => ({
+    id: relationship.relationship_id,
+    predecessorId: relationship.predecessor_id,
+    successorId: relationship.successor_id,
+    type: relationship.relationship_type,
+    lagValue: relationship.lag_value,
+    lagUnit: relationship.lag_unit,
+    recordRevision: relationship.record_revision,
   }));
 }
 
@@ -228,5 +268,32 @@ function validateSnapshotIdentity(snapshot: WorkspaceControlRoomSnapshot): void 
       throw new Error("DUPLICATE_WORKSPACE_ACTIVITY");
     }
     activityIds.add(activity.id);
+  }
+
+  if (snapshot.relationships !== undefined) {
+    if (!Array.isArray(snapshot.relationships)) {
+      throw new Error("INVALID_WORKSPACE_COLLECTION");
+    }
+    const relationshipIds = new Set<string>();
+    for (const relationship of snapshot.relationships) {
+      if (
+        !relationship ||
+        typeof relationship !== "object" ||
+        !relationship.relationship_id ||
+        relationshipIds.has(relationship.relationship_id) ||
+        !relationship.predecessor_id ||
+        !relationship.successor_id ||
+        relationship.predecessor_id === relationship.successor_id ||
+        !["FS", "SS", "FF", "SF"].includes(relationship.relationship_type) ||
+        typeof relationship.lag_value !== "string" ||
+        !/^-?\d+(\.\d+)?$/.test(relationship.lag_value) ||
+        !relationship.lag_unit ||
+        !Number.isSafeInteger(relationship.record_revision) ||
+        relationship.record_revision < 1
+      ) {
+        throw new Error("INVALID_WORKSPACE_RELATIONSHIP");
+      }
+      relationshipIds.add(relationship.relationship_id);
+    }
   }
 }

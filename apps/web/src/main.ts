@@ -214,8 +214,19 @@ function renderApp(
     }
     if (currentStatus) currentStatus.dataset.wbsError = message;
   };
-  const refreshWorkspaceAfterWbsMutation = async (selectedWbsId: string | null): Promise<void> => {
-    const refreshed = await new WorkspaceReadClient(aiTransport).load(state.context, {
+  const reportRelationshipError = (error: unknown): void => {
+    console.error("Relationship mutation failed", error);
+    const message = error instanceof Error ? error.message : "RELATIONSHIP_MUTATION_FAILED";
+    const panel = container.querySelector<HTMLElement>("#cp-logic");
+    if (panel) {
+      let notice = panel.querySelector<HTMLElement>("[data-relationship-error]");
+      if (!notice) { notice = document.createElement("p"); notice.dataset.relationshipError = "true"; notice.setAttribute("role", "alert"); panel.prepend(notice); }
+      notice.textContent = message;
+    }
+    const currentStatus = container.querySelector<HTMLElement>(".cp-app-status");
+    if (currentStatus) currentStatus.dataset.relationshipError = message;
+  };
+  const refreshWorkspaceAfterWbsMutation = async (selectedWbsId: string | null): Promise<void> => {    const refreshed = await new WorkspaceReadClient(aiTransport).load(state.context, {
       locale: state.locale,
       calendarMode: state.calendarMode,
     });
@@ -514,6 +525,38 @@ function renderApp(
           if (!notice) { notice = document.createElement("p"); notice.dataset.activityError = "true"; notice.setAttribute("role", "alert"); panel.prepend(notice); }
           notice.textContent = message;
         }
+      }
+    },
+    onRelationshipCreate: async (input) => {
+      try {
+        const response = await aiTransport.post<
+          { relationship_id: string; predecessor_id: string; successor_id: string; relationship_type: string; lag_value: string; lag_unit: string },
+          { relationship: { relationship_id: string } }
+        >(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/relationships`, {
+          relationship_id: `REL-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+          predecessor_id: input.predecessorId,
+          successor_id: input.successorId,
+          relationship_type: input.type,
+          lag_value: input.lagValue,
+          lag_unit: input.lagUnit,
+        }, state.context);
+        if (!response.ok) throw new Error(response.error.code);
+        await refreshWorkspaceAfterWbsMutation(state.selectedWbsId);
+      } catch (error) {
+        reportRelationshipError(error);
+      }
+    },
+    onRelationshipDelete: async (relationshipId, recordRevision) => {
+      try {
+        if (!aiTransport.delete) throw new Error("DELETE_TRANSPORT_UNAVAILABLE");
+        const response = await aiTransport.delete<{ expected_revision: number }, unknown>(
+          `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/relationships/${encodeURIComponent(relationshipId)}`,
+          { expected_revision: recordRevision }, state.context,
+        );
+        if (!response.ok) throw new Error(response.error.code);
+        await refreshWorkspaceAfterWbsMutation(state.selectedWbsId);
+      } catch (error) {
+        reportRelationshipError(error);
       }
     },
     onActivityEdit: async (activityId) => {

@@ -1,6 +1,6 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
-import { createWorkspaceState, setSmartGuide, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, withWbsNodes, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
-import { workspaceActivitiesFromSnapshot, workspaceWbsNodesFromSnapshot, type WorkspaceControlRoomSnapshot } from "./workspace-contract.js";
+import { createWorkspaceState, setSmartGuide, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, withRelationships, withWbsNodes, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
+import { workspaceActivitiesFromSnapshot, workspaceRelationshipsFromSnapshot, workspaceWbsNodesFromSnapshot, type WorkspaceControlRoomSnapshot } from "./workspace-contract.js";
 import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from "./workspace-control-intelligence.js";
 import { projectSmartGuide } from "./workspace-smart-guide.js";
 import { projectSiteDailyLog, type SiteDailyLogSnapshot } from "./workspace-site-log.js";
@@ -96,6 +96,10 @@ export class WorkspaceReadClient {
       const activities = workspaceActivitiesFromSnapshot(result.data.workspace);
       state = withActivities(state, activities);
       state = withWbsNodes(state, workspaceWbsNodesFromSnapshot(result.data.workspace));
+      state = withRelationships(
+        state,
+        workspaceRelationshipsFromSnapshot(result.data.workspace),
+      );
 
       const summary = result.data.control_intelligence
         ? projectControlIntelligence(result.data.control_intelligence, context)

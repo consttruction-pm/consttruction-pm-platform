@@ -89,6 +89,19 @@ export type WorkspaceWbsNode = {
   recordRevision: number;
 };
 
+export type WorkspaceRelationshipType = "FS" | "SS" | "FF" | "SF";
+
+export type WorkspaceRelationshipRow = {
+  id: string;
+  predecessorId: string;
+  successorId: string;
+  type: WorkspaceRelationshipType;
+  /** Canonical decimal text persisted for the lag; the client never recalculates it. */
+  lagValue: string;
+  lagUnit: string;
+  recordRevision: number;
+};
+
 /** Read-only result facts returned by the authoritative shared scheduling service. */
 export type AuthoritativeScheduledActivity = {
   start: string;
@@ -127,6 +140,7 @@ export type WorkspaceState = {
   columns: readonly WorkspaceColumn[];
   activities: readonly WorkspaceActivityRow[];
   wbsNodes: readonly WorkspaceWbsNode[];
+  relationships: readonly WorkspaceRelationshipRow[];
   activityFilter: string;
   activitySort: WorkspaceActivitySort | null;
   controlSummary: WorkspaceControlSummary | null;
@@ -193,6 +207,7 @@ export function createWorkspaceState(
     columns: getDefaultWorkspaceColumns(locale),
     activities: [],
     wbsNodes: [],
+    relationships: [],
     activityFilter: "",
     activitySort: null,
     controlSummary: null,
@@ -676,6 +691,37 @@ export function withActivities(
       }),
     ),
     selectedActivityId,
+  };
+}
+
+export function withRelationships(
+  state: WorkspaceState,
+  relationships: readonly WorkspaceRelationshipRow[],
+): WorkspaceState {
+  const activityIds = new Set(state.activities.map((activity) => activity.id));
+  const ids = new Set<string>();
+  for (const relationship of relationships) {
+    if (
+      !relationship.id ||
+      ids.has(relationship.id) ||
+      !relationship.predecessorId ||
+      !relationship.successorId ||
+      relationship.predecessorId === relationship.successorId ||
+      !activityIds.has(relationship.predecessorId) ||
+      !activityIds.has(relationship.successorId) ||
+      !["FS", "SS", "FF", "SF"].includes(relationship.type) ||
+      !/^-?\d+(\.\d+)?$/.test(relationship.lagValue) ||
+      !relationship.lagUnit ||
+      !Number.isSafeInteger(relationship.recordRevision) ||
+      relationship.recordRevision < 1
+    ) {
+      throw new Error("INVALID_WORKSPACE_RELATIONSHIPS");
+    }
+    ids.add(relationship.id);
+  }
+  return {
+    ...state,
+    relationships: relationships.map((relationship) => Object.freeze({ ...relationship })),
   };
 }
 

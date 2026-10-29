@@ -18,6 +18,7 @@ import {
   setFieldAssurance,
   setSiteDailyLogs,
   withActivities,
+  withRelationships,
   setP6Presentation,
   addP6Field,
   removeP6Field,
@@ -587,4 +588,51 @@ test("P6 chooser can restore a hidden authoritative field", () => {
   state = addP6Field(state, "code");
   assert.equal(state.columns.length, 1);
   assert.equal(state.p6Layout?.columns[0]?.visible, true);
+});
+
+test("persisted relationships attach only when both endpoints are loaded activities", () => {
+  let state = withActivities(createWorkspaceState(context), [
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Excavate", cells: {} },
+    { id: "A-2", wbsId: "W-1", code: "02", name: "Concrete", cells: {} },
+  ]);
+  state = withRelationships(state, [{
+    id: "R-1",
+    predecessorId: "A-1",
+    successorId: "A-2",
+    type: "SS",
+    lagValue: "1",
+    lagUnit: "working-day",
+    recordRevision: 1,
+  }]);
+  assert.equal(state.relationships.length, 1);
+  assert.equal(state.relationships[0]?.type, "SS");
+  assert.equal(Object.isFrozen(state.relationships[0]), true);
+
+  assert.throws(() => withRelationships(state, [{
+    id: "R-2",
+    predecessorId: "A-404",
+    successorId: "A-2",
+    type: "FS",
+    lagValue: "0",
+    lagUnit: "working-day",
+    recordRevision: 1,
+  }]), /INVALID_WORKSPACE_RELATIONSHIPS/);
+  assert.throws(() => withRelationships(state, [{
+    id: "R-3",
+    predecessorId: "A-1",
+    successorId: "A-2",
+    type: "XX" as never,
+    lagValue: "0",
+    lagUnit: "working-day",
+    recordRevision: 1,
+  }]), /INVALID_WORKSPACE_RELATIONSHIPS/);
+  assert.throws(() => withRelationships(state, [{
+    id: "R-4",
+    predecessorId: "A-1",
+    successorId: "A-2",
+    type: "FS",
+    lagValue: "one",
+    lagUnit: "working-day",
+    recordRevision: 1,
+  }]), /INVALID_WORKSPACE_RELATIONSHIPS/);
 });
