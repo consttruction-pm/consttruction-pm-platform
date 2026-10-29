@@ -1342,3 +1342,18 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
   const settings = render("en", "settings");
   assert.match(settings, /id="cp-settings-panel"[^>]*data-workspace-menu="settings"/);
 });
+
+test("schedule surface places the activity grid beside the Gantt in a shared classic split", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /class="cp-schedule-split"[^>]*data-workspace-menu="schedule"/);
+  const splitStart = html.indexOf('class="cp-schedule-split"');
+  const gridStart = html.indexOf('id="cp-activity-grid"', splitStart);
+  const ganttStart = html.indexOf('id="cp-gantt"', gridStart);
+  const optionsStart = html.indexOf('id="cp-schedule-options"', ganttStart);
+  assert.ok(splitStart >= 0 && gridStart > splitStart && ganttStart > gridStart && optionsStart > ganttStart);
+  assert.match(html, /<details class="cp-editor-details cp-activity-entry-details">/);
+  assert.match(html, /<summary>Add activity<\/summary>/);
+  assert.match(html, /data-activity-create-form/);
+  assert.match(html, /<details class="cp-editor-details cp-wbs-entry-details">/);
+});
+
