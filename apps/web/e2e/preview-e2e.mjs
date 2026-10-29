@@ -4132,15 +4132,15 @@ async function main() {
 
     await page.click('button[data-activity-edit="NEW-100"]');
     await page.waitForSelector('form[data-activity-update-form="NEW-100"]', "activity edit form");
-    await page.evaluate(`() => {
+    await page.evaluate(`(() => {
       const form = document.querySelector('form[data-activity-update-form="NEW-100"]');
       const input = form?.querySelector('input[name="name"]');
       if (!(input instanceof HTMLInputElement)) throw new Error("activity edit name input missing");
       input.value = "E2E linked activity revised";
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
-    }`);
-    const editInputValue = await page.evaluate(`() => document.querySelector('form[data-activity-update-form="NEW-100"] input[name="name"]')?.value ?? null`);
+    })()`);
+    const editInputValue = await page.evaluate(`(() => document.querySelector('form[data-activity-update-form="NEW-100"] input[name="name"]')?.value ?? null)()`);
     assert(
       editInputValue === "E2E linked activity revised",
       "the browser must hold the revised activity name before submit: " + JSON.stringify(editInputValue),
