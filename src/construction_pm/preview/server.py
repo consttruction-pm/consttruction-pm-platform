@@ -256,14 +256,26 @@ class PreviewApplication:
 
     def _health(self) -> dict[str, object]:
         health = self.runtime.health()
+        if self.public_demo:
+            # Public readiness is deliberately minimal. The internal runtime
+            # health contains filesystem paths, tenant identifiers, fixture
+            # counts, and assistant/provider configuration; none of those are
+            # needed by an anonymous readiness probe.
+            return {
+                "status": str(health.get("status", "ok")),
+                "production": False,
+                "demo_data": True,
+                "public_demo": True,
+                "read_only": True,
+            }
         health.update(
             {
                 "production": False,
                 "demo_data": True,
                 "database": str(self.runtime.database),
                 "web_root": str(self.runtime.web_root),
-                "public_demo": self.public_demo,
-                "read_only": self.public_demo,
+                "public_demo": False,
+                "read_only": False,
             }
         )
         return health
