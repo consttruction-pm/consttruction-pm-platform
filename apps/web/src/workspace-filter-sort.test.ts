@@ -5,6 +5,7 @@ import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   createWorkspaceState,
   setActivityFilter,
+  setActivityGroupBy,
   setActivitySort,
   toggleActivitySortDirection,
   withActivities,
@@ -44,6 +45,29 @@ test("activity filter matches ID, WBS, status and multiple tokens", () => {
     ["A-100"],
   );
   assert.equal(filterAndSortActivities(rows, "", null), rows);
+});
+
+test("activity page defaults Group and Sort to WBS and keeps each WBS block together", () => {
+  const state = createWorkspaceState(context);
+  assert.equal(state.activityGroupBy, "wbs");
+  assert.deepEqual(state.activitySort, { columnId: "wbs", direction: "asc" });
+
+  const wbsNodes = [
+    { id: "1 Project management", parentKind: "project" as const, parentWbsId: null, localCode: "1", name: "Project management", sequenceNumber: 0, recordRevision: 1 },
+    { id: "2 Civil", parentKind: "project" as const, parentWbsId: null, localCode: "2", name: "Civil", sequenceNumber: 1, recordRevision: 1 },
+  ];
+  const rows = activities();
+  const grouped = filterAndSortActivities(rows, "", state.activitySort, state.activityGroupBy, wbsNodes);
+  assert.deepEqual(grouped.map((row) => row.id), ["A-2", "A-10", "A-100"]);
+
+  const groupedAndSorted = filterAndSortActivities(
+    rows, "", { columnId: "activity_name", direction: "desc" }, "wbs", wbsNodes,
+  );
+  assert.deepEqual(groupedAndSorted.map((row) => row.id), ["A-2", "A-100", "A-10"]);
+
+  const ungrouped = setActivityGroupBy(state, "none");
+  assert.equal(ungrouped.activityGroupBy, "none");
+  assert.throws(() => setActivityGroupBy(state, "unknown" as never), /INVALID_ACTIVITY_GROUP_BY/);
 });
 
 test("activity sort is numeric when possible, pushes blanks last and is stable", () => {
