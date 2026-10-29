@@ -48,6 +48,7 @@ class AIActionRuntimeContext:
 
 
 PayloadValidator = Callable[[Mapping[str, object]], Mapping[str, object]]
+ScopeValidator = Callable[[Mapping[str, object], AIActionRuntimeContext], None]
 ToolExecutor = Callable[
     [Mapping[str, object], AIActionProposal, str, AIActionRuntimeContext],
     Mapping[str, object],
@@ -66,6 +67,10 @@ class AIActionToolDefinition:
     execute: ToolExecutor
     description: str = ""
     input_schema: Mapping[str, object] | None = None
+    # Optional authoritative check against the authenticated scope. It runs when
+    # the proposal is created and again before the handler can mutate anything,
+    # so a reference to a foreign or missing record never becomes a proposal.
+    validate_scope: ScopeValidator | None = None
 
     def validate(self) -> None:
         for name, value in (
@@ -97,6 +102,8 @@ class AIActionToolDefinition:
                 raise AIActionRuntimeError("AI_ACTION_TOOL_INPUT_SCHEMA_INVALID") from exc
         if not callable(self.validate_payload) or not callable(self.execute):
             raise AIActionRuntimeError("AI_ACTION_TOOL_HANDLER_REQUIRED")
+        if self.validate_scope is not None and not callable(self.validate_scope):
+            raise AIActionRuntimeError("AI_ACTION_TOOL_SCOPE_VALIDATOR_INVALID")
 
 
 @dataclass(frozen=True)
@@ -507,6 +514,10 @@ class AIActionRuntime:
                 raise TypeError("payload validator must return a mapping")
             # Validate serializability before creating a record or calling a tool.
             _json_object(validated_payload, "AI_ACTION_TOOL_PAYLOAD_INVALID")
+            # A reference to a foreign or missing record must never become a
+            # proposal; the check runs against the authenticated scope only.
+            if definition.validate_scope is not None:
+                definition.validate_scope(dict(validated_payload), context)
         except (TypeError, ValueError) as exc:
             if isinstance(exc, AIActionRuntimeError):
                 raise
@@ -687,6 +698,8 @@ class AIActionRuntime:
                 metadata={"current_status": record.status}, happened_at=self._now(),
             )
             raise AIActionRuntimeError("AI_ACTION_PROPOSAL_NOT_APPROVED")
+        if definition.validate_scope is not None:
+            definition.validate_scope(dict(record.payload), context)
         # Re-check the exact grant immediately before claiming the action for execution.
         self._require_permission(proposal, context.subject_id, actor_id=context.subject_id)
         now = self._now()
@@ -781,6 +794,10 @@ class AIActionRuntime:
                     raise AIActionRuntimeError("AI_ACTION_TOOL_NOT_REGISTERED")
                 if record.status != "approved":
                     raise AIActionRuntimeError("AI_ACTION_PROPOSAL_NOT_APPROVED")
+                if definition.validate_scope is not None:
+                    # The referenced scope may have changed since the proposal was
+                    # created; re-check before the durable reservation is claimed.
+                    definition.validate_scope(dict(record.payload), context)
                 self._require_permission(
                     proposal, context.subject_id, actor_id=context.subject_id, record_audit=False
                 )

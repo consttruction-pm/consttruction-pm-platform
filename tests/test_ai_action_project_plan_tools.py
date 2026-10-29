@@ -96,7 +96,15 @@ def _web_root(tmp_path: Path) -> Path:
     return root
 
 
-def _request(app, method: str, path: str, *, body: bytes = b"", cookie: str | None = None):
+def _request(
+    app,
+    method: str,
+    path: str,
+    *,
+    body: bytes = b"",
+    cookie: str | None = None,
+    headers: dict[str, str] | None = None,
+):
     environ: dict[str, object] = {
         "REQUEST_METHOD": method,
         "PATH_INFO": path,
@@ -108,6 +116,8 @@ def _request(app, method: str, path: str, *, body: bytes = b"", cookie: str | No
         environ["CONTENT_TYPE"] = "application/json"
     if cookie:
         environ["HTTP_COOKIE"] = f"cp_session={cookie}"
+    for key, value in (headers or {}).items():
+        environ["HTTP_" + key.upper().replace("-", "_")] = value
     captured: dict[str, object] = {}
 
     def start_response(status, headers):
@@ -300,5 +310,180 @@ def test_public_demo_stays_viewer_only_while_private_owner_gate_can_create_admin
         status, _, body = _request(app, "GET", "/api/session", cookie=cookie)
         assert status == 200
         assert json.loads(body)["roles"] == ["project_admin"]
+    finally:
+        runtime.close()
+
+
+def test_preview_actions_enable_propose_approve_execute_without_chat_provider(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.delenv("CUBI_AI_ENABLED", raising=False)
+    monkeypatch.setenv("CUBI_AI_ACTIONS_ENABLED", "true")
+    for key in ("CUBI_AI_API_KEY", "CUBI_AI_BASE_URL", "CUBI_AI_MODEL"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv("CUBI_PREVIEW_PUBLIC_DEMO", raising=False)
+    monkeypatch.delenv("CUBI_PREVIEW_PRIVATE_ACCESS_TOKEN", raising=False)
+
+    runtime = open_preview_runtime(
+        tmp_path / "preview.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        assert runtime.ai_actions_enabled is True
+        assert runtime.ai_assistant_enabled is False
+        assistant_health = runtime.health()["assistant"]
+        assert assistant_health["actions_enabled"] is True
+        assert assistant_health["enabled"] is False
+        assert "activity.create" in assistant_health["available_tools"]
+
+        app = build_preview_application(runtime)
+        status, headers, _ = _request(app, "POST", "/preview/login", body=b"role=admin")
+        assert status == 303
+        cookie = _cookie(headers)
+
+        status, _, body = _request(
+            app,
+            "POST",
+            "/api/projects",
+            cookie=cookie,
+            body=json.dumps({
+                "project_id": "CUBI-AI-ACTIONS",
+                "name": "Assistant actions",
+                "description": "proposal flow",
+                "start_date": "2026-11-02",
+                "date_system": "gregorian",
+            }).encode("utf-8"),
+        )
+        assert status == 201, body
+        assert json.loads(body)["context"]["revision"] == 0
+
+        status, _, body = _request(
+            app,
+            "GET",
+            "/api/projects/CUBI-AI-ACTIONS/p6/wbs",
+            cookie=cookie,
+        )
+        assert status == 200, body
+        wbs_nodes = json.loads(body)["wbs_nodes"]
+        assert len(wbs_nodes) == 1
+        wbs_id = wbs_nodes[0]["wbs"]["wbs_id"]
+
+        # The conversational endpoint still fails closed without a provider.
+        status, _, body = _request(
+            app,
+            "POST",
+            "/api/projects/CUBI-AI-ACTIONS/ai/assistant/turn",
+            cookie=cookie,
+            body=json.dumps({
+                "expected_revision": 0,
+                "message": "add work",
+                "language": "en",
+                "history": [],
+            }).encode("utf-8"),
+        )
+        assert status == 503
+        assert json.loads(body)["code"] == "AI_ASSISTANT_NOT_CONFIGURED"
+
+        proposal_payload = {
+            "activity_id": "AI-100",
+            "name": "Assistant created activity",
+            "duration_value": "2",
+            "duration_unit": "working-day",
+            "wbs_id": wbs_id,
+        }
+        status, _, body = _request(
+            app,
+            "POST",
+            "/api/projects/CUBI-AI-ACTIONS/ai/actions/proposals",
+            cookie=cookie,
+            body=json.dumps({
+                "expected_revision": 0,
+                "tool_name": "activity.create",
+                "payload": proposal_payload,
+                "evidence_refs": [],
+            }).encode("utf-8"),
+        )
+        assert status == 201, body
+        proposed_body = json.loads(body)
+        proposal = proposed_body["proposal"]
+        assert proposed_body["status"] == "proposed"
+        assert proposal["requires_human_approval"] is True
+        proposal_id = proposal["proposal_id"]
+
+        # A proposal is not a mutation.
+        assert runtime.connection.execute(
+            "SELECT COUNT(*) FROM activity_master WHERE project_id=?",
+            ("CUBI-AI-ACTIONS",),
+        ).fetchone()[0] == 0
+
+        # A foreign WBS reference is rejected before a proposal exists.
+        status, _, body = _request(
+            app,
+            "POST",
+            "/api/projects/CUBI-AI-ACTIONS/ai/actions/proposals",
+            cookie=cookie,
+            body=json.dumps({
+                "expected_revision": 0,
+                "tool_name": "activity.create",
+                "payload": {**proposal_payload, "activity_id": "AI-FOREIGN", "wbs_id": "WBS-OTHER"},
+                "evidence_refs": [],
+            }).encode("utf-8"),
+        )
+        assert status == 400
+        assert json.loads(body)["code"] == "AI_ACTION_ACTIVITY_WBS_INVALID"
+
+        status, _, body = _request(
+            app,
+            "POST",
+            f"/api/projects/CUBI-AI-ACTIONS/ai/actions/proposals/{proposal_id}/decision",
+            cookie=cookie,
+            body=json.dumps({"expected_revision": 0, "approved": True}).encode("utf-8"),
+        )
+        assert status == 200, body
+        assert json.loads(body)["status"] == "approved"
+
+        status, _, body = _request(
+            app,
+            "POST",
+            f"/api/projects/CUBI-AI-ACTIONS/ai/actions/proposals/{proposal_id}/execute",
+            cookie=cookie,
+            body=json.dumps({"expected_revision": 0}).encode("utf-8"),
+        )
+        assert status == 200, body
+        outcome = json.loads(body)
+        assert outcome["status"] == "executed"
+        assert outcome["result"]["activity"]["activity_id"] == "AI-100"
+        assert outcome["result"]["activity"]["wbs_id"] == wbs_id
+
+        read_headers = {
+            "X-Tenant-Id": PREVIEW_TENANT_ID,
+            "X-Project-Id": "CUBI-AI-ACTIONS",
+            "X-Project-Revision": "0",
+        }
+        status, _, body = _request(
+            app,
+            "GET",
+            "/api/v2/workspace/control-room/read",
+            cookie=cookie,
+            headers=read_headers,
+        )
+        assert status == 200, body
+        activities = json.loads(body)["workspace"]["activities"]
+        created = next((item for item in activities if item["id"] == "AI-100"), None)
+        assert created is not None
+        assert created["wbs_id"] == wbs_id
+
+        # The executed proposal is readable after the fact with its result.
+        status, _, body = _request(
+            app,
+            "GET",
+            f"/api/projects/CUBI-AI-ACTIONS/ai/actions/proposals/{proposal_id}",
+            cookie=cookie,
+        )
+        assert status == 200
+        read_back = json.loads(body)["proposal"]
+        assert read_back["status"] == "executed"
+        assert read_back["result"]["activity"]["wbs_id"] == wbs_id
     finally:
         runtime.close()

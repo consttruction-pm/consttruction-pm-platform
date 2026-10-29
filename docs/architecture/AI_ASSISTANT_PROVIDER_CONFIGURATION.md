@@ -16,6 +16,12 @@ The server appends `/chat/completions` to the configured base URL. The base URL 
 
 When `CUBI_AI_ENABLED` is not explicitly true/1/yes, this provider is not initialized and the assistant route fails closed. When it is enabled, production composition requires an already configured authenticated AI action runtime with real current-grant, repository, and transaction dependencies. Missing configuration does not create a mock runtime or auto-allow grant.
 
+## Deterministic action surface without a chat provider
+
+`CUBI_AI_ACTIONS_ENABLED=true` enables only the persisted, approval-gated action surface (`POST/GET /api/projects/{project_id}/ai/actions/...`) with the registered `activity.create` and `project.plan.create` tools. It does not initialize a chat provider: `POST /api/projects/{project_id}/ai/assistant/turn` still fails closed with `AI_ASSISTANT_NOT_CONFIGURED` unless `CUBI_AI_ENABLED` composes one.
+
+This flag exists so the real proposal/approve/execute path can run in the managed preview and CI without inventing provider credentials. It is not a mock: proposals are stored in the runtime's durable SQLite store, every request is checked against the authenticated session, project membership and exact revision, and `activity.create` requires and re-validates an existing same-project WBS node before proposal and before execution. `GET /preview/health` reports `assistant.actions_enabled` so a preview cannot silently claim an unavailable surface. Never enable it on a public read-only deployment.
+
 ## Request and data boundary
 
 The authenticated endpoint is:
