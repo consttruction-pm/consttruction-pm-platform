@@ -4,6 +4,7 @@ import json
 import sqlite3
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -43,9 +44,11 @@ def _request(
     headers: dict[str, str] | None = None,
     content_type: str = "application/json",
 ):
+    parsed_path = urlsplit(path)
     environ: dict[str, object] = {
         "REQUEST_METHOD": method,
-        "PATH_INFO": path,
+        "PATH_INFO": parsed_path.path or "/",
+        "QUERY_STRING": parsed_path.query,
         "CONTENT_LENGTH": str(len(body)),
         "wsgi.input": BytesIO(body),
     }
@@ -541,6 +544,60 @@ def test_preview_wbs_and_activity_write_path_persists_and_rejects_invalid_links(
         assert workspace["activities"][0]["cells"]["activity.wbs"] == "2 Detailed design"
     finally:
         reopened.close()
+
+
+def test_preview_project_deep_link_survives_login_and_rejects_external_redirects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CUBI_PREVIEW_PUBLIC_DEMO", "1")
+    runtime = open_preview_runtime(
+        tmp_path / "deep-link-preview.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+
+        status, headers, _ = _request(
+            app, "GET", "/app?project=preview-rps-01"
+        )
+        assert status == 302
+        assert headers["location"] == (
+            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01"
+        )
+
+        status, _, body = _request(
+            app,
+            "GET",
+            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01",
+        )
+        assert status == 200
+        assert (
+            b'<input type="hidden" name="next" '
+            b'value="/app?project=preview-rps-01">'
+        ) in body
+
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=viewer&next=%2Fapp%3Fproject%3Dpreview-rps-01",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        assert headers["location"] == "/app?project=preview-rps-01"
+
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=viewer&next=https%3A%2F%2Fevil.example%2F",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        assert headers["location"] == "/app"
+    finally:
+        runtime.close()
 
 
 def test_preview_server_guards_login_banner_static_files_and_logout(
