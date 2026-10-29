@@ -169,7 +169,7 @@ test("Gantt axis ticks follow the selected day/week/month/quarter/year scale", (
   assert.deepEqual(month.slice(0, 4).map((tick) => tick.date), ["2026-09-28", "2026-10-01", "2026-11-01", "2026-12-01"]);
 
   const quarter = createGanttAxisTicks(scale, "quarter");
-  assert.deepEqual(quarter.slice(0, 5).map((tick) => tick.date), ["2026-09-28", "2027-01-01", "2027-04-01", "2027-07-01", "2027-10-01"]);
+  assert.deepEqual(quarter.slice(0, 5).map((tick) => tick.date), ["2026-09-28", "2026-10-01", "2027-01-01", "2027-04-01", "2027-07-01"]);
 
   const year = createGanttAxisTicks(scale, "year");
   assert.deepEqual(year.map((tick) => tick.date), ["2026-09-28", "2027-01-01", "2028-01-01"]);
