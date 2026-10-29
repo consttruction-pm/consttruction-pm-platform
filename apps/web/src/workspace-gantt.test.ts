@@ -151,23 +151,34 @@ test("Gantt links skip relationships whose endpoints are filtered out", () => {
   assert.deepEqual(links, []);
 });
 
-test("Gantt axis ticks follow the selected day, week and month scale", () => {
-  const scale = {
+test("Gantt axis ticks follow the selected day/week/month/quarter/year scale", () => {
+  const shortScale = {
     startMs: Date.parse("2026-09-28T00:00:00Z"),
     endMs: Date.parse("2026-11-05T00:00:00Z"),
     rangeMs: Date.parse("2026-11-05T00:00:00Z") - Date.parse("2026-09-28T00:00:00Z"),
   };
-  const day = createGanttAxisTicks(scale, "day");
+  const longScale = {
+    startMs: shortScale.startMs,
+    endMs: Date.parse("2028-11-05T00:00:00Z"),
+    rangeMs: Date.parse("2028-11-05T00:00:00Z") - shortScale.startMs,
+  };
+  const day = createGanttAxisTicks(shortScale, "day");
   assert.equal(day[0].date, "2026-09-28");
   assert.equal(day[0].leftPercent, 0);
   assert.equal(day[1].date, "2026-09-29");
 
-  const week = createGanttAxisTicks(scale, "week");
+  const week = createGanttAxisTicks(shortScale, "week");
   assert.deepEqual(week.map((tick) => tick.date), [
     "2026-09-28", "2026-10-05", "2026-10-12", "2026-10-19", "2026-10-26", "2026-11-02",
   ]);
 
-  const month = createGanttAxisTicks(scale, "month");
+  const month = createGanttAxisTicks(shortScale, "month");
   assert.deepEqual(month.map((tick) => tick.date), ["2026-09-28", "2026-10-01", "2026-11-01"]);
-  assert.ok(month[2].leftPercent > 85 && month[2].leftPercent <= 100);
+
+  const quarter = createGanttAxisTicks(longScale, "quarter");
+  assert.deepEqual(quarter.slice(0, 5).map((tick) => tick.date), ["2026-09-28", "2026-10-01", "2027-01-01", "2027-04-01", "2027-07-01"]);
+
+  const year = createGanttAxisTicks(longScale, "year");
+  assert.deepEqual(year.map((tick) => tick.date), ["2026-09-28", "2027-01-01", "2028-01-01"]);
+  assert.ok(year[2].leftPercent > 50 && year[2].leftPercent < 75);
 });

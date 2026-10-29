@@ -3180,3 +3180,13 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-module-empty-state{display:grid}
 @media(max-width:900px){.cp-activity-editor{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.cp-activity-editor{grid-template-columns:minmax(0,1fr);padding:12px}.cp-activity-editor button[type="submit"]{grid-column:1}}
+
+/* Timeline presentation controls follow the workspace toolbar and remain usable in RTL. */
+.cp-gantt-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;border-bottom:1px solid var(--cubi-neutral-divider);background:#fbfcfe}
+.cp-gantt-scale-controls{display:flex;flex-wrap:wrap;gap:4px}
+.cp-gantt-relationships-toggle{display:inline-flex;align-items:center;gap:7px;min-height:30px;padding:4px 9px;border:1px solid var(--cubi-neutral-border);border-radius:5px;background:#fff;color:var(--cubi-deep-navy);font:inherit;font-size:12px;cursor:pointer;transition:border-color .18s ease,background-color .18s ease}
+.cp-gantt-relationships-toggle strong{font-size:11px;color:#536274}
+.cp-gantt-relationships-toggle.is-active{border-color:#bad5f4;background:#f0f6ff}
+.cp-gantt-relationships-toggle.is-active strong{color:var(--cubi-engineering-blue)}
+.cp-gantt-relationships-toggle:focus-visible,.cp-gantt-scale-button:focus-visible{outline:2px solid var(--cubi-engineering-blue);outline-offset:2px}
+@media(max-width:600px){.cp-gantt-toolbar{align-items:stretch}.cp-gantt-scale-controls{width:100%}.cp-gantt-scale-button{flex:1;padding-inline:6px}.cp-gantt-relationships-toggle{align-self:flex-start;max-width:100%}}

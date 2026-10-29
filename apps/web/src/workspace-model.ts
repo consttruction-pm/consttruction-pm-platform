@@ -129,7 +129,7 @@ export type WorkspaceActivitySort = {
 };
 
 /** Presentation-only zoom of the Gantt time axis; schedule dates never change. */
-export type WorkspaceGanttScale = "day" | "week" | "month";
+export type WorkspaceGanttScale = "day" | "week" | "month" | "quarter" | "year";
 
 export type WorkspaceState = {
   context: ProjectContext;
@@ -137,6 +137,7 @@ export type WorkspaceState = {
   direction: "rtl" | "ltr";
   calendarMode: WorkspaceCalendarMode;
   ganttScale: WorkspaceGanttScale;
+  showGanttRelationships: boolean;
   activeMenu: WorkspaceMenuKey;
   visiblePanels: Record<WorkspacePanel, boolean>;
   selectedWbsId: string | null;
@@ -200,6 +201,7 @@ export function createWorkspaceState(
     direction: getWorkspaceLocaleDirection(locale),
     calendarMode,
     ganttScale: "day",
+    showGanttRelationships: true,
     activeMenu: "schedule",
     visiblePanels: {
       project_wbs: true,
@@ -313,11 +315,18 @@ export function setGanttScale(
   state: WorkspaceState,
   ganttScale: WorkspaceGanttScale,
 ): WorkspaceState {
-  if (ganttScale !== "day" && ganttScale !== "week" && ganttScale !== "month") {
+  if (ganttScale !== "day" && ganttScale !== "week" && ganttScale !== "month" && ganttScale !== "quarter" && ganttScale !== "year") {
     throw new Error("INVALID_GANTT_SCALE");
   }
   if (state.ganttScale === ganttScale) return state;
   return { ...state, ganttScale };
+}
+
+/** Toggles relationship-link drawing only; it never alters schedule relationships. */
+export function setGanttRelationshipsVisible(state: WorkspaceState, visible: boolean): WorkspaceState {
+  if (typeof visible !== "boolean") throw new Error("INVALID_GANTT_RELATIONSHIP_VISIBILITY");
+  if (state.showGanttRelationships === visible) return state;
+  return { ...state, showGanttRelationships: visible };
 }
 
 export function setSmartGuide(

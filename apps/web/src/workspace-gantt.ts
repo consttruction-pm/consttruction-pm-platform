@@ -155,12 +155,27 @@ export function createGanttAxisTicks(
     for (; at <= scale.endMs; at += 7 * DAY_MS) {
       ticks.push(at);
     }
-  } else {
+  } else if (mode === "month") {
     const start = new Date(scale.startMs);
     for (let at = Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1); at <= scale.endMs;) {
       ticks.push(at);
       const current = new Date(at);
       at = Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + 1, 1);
+    }
+  } else if (mode === "quarter") {
+    const start = new Date(scale.startMs);
+    const nextQuarterMonth = Math.floor(start.getUTCMonth() / 3) * 3 + 3;
+    for (let at = Date.UTC(start.getUTCFullYear(), nextQuarterMonth, 1); at <= scale.endMs;) {
+      ticks.push(at);
+      const current = new Date(at);
+      at = Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + 3, 1);
+    }
+  } else {
+    const start = new Date(scale.startMs);
+    for (let at = Date.UTC(start.getUTCFullYear() + 1, 0, 1); at <= scale.endMs;) {
+      ticks.push(at);
+      const current = new Date(at);
+      at = Date.UTC(current.getUTCFullYear() + 1, 0, 1);
     }
   }
 
