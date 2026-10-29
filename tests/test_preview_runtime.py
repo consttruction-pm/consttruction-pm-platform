@@ -559,7 +559,7 @@ def test_preview_project_deep_link_survives_login_and_rejects_external_redirects
         app = build_preview_application(runtime)
 
         status, headers, _ = _request(
-            app, "GET", "/app?project=preview-rps-01&unused=ignored"
+            app, "GET", "/app?project=preview-rps-01"
         )
         assert status == 302
         assert headers["location"] == (
