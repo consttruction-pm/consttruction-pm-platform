@@ -1282,3 +1282,20 @@ test("project settings button dispatches a single open request", () => {
   listeners.get("click")?.({ target: button } as unknown as Event);
   assert.equal(opened, 1);
 });
+
+test("empty and preview-only modules show an explicit truthful surface", () => {
+  const reports = render("en", "reports");
+  assert.match(reports, /data-workspace-menu="reports"/);
+  assert.match(reports, /Reports &amp; print/);
+  assert.match(reports, /not available in this preview yet/);
+
+  const progress = render("fa", "progress");
+  assert.match(progress, /data-workspace-menu="progress"/);
+  assert.match(progress, /داشبورد و نمودارهای اختصاصی پیشرفت/);
+
+  const documents = render("en", "documents");
+  assert.match(documents, /No project documents have been added or linked yet/);
+
+  const settings = render("en", "settings");
+  assert.match(settings, /id="cp-settings-panel"[^>]*data-workspace-menu="settings"/);
+});
