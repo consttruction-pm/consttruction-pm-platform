@@ -10,9 +10,10 @@ export type WorkspaceStartupCopy = {
 };
 
 export function getWorkspaceStartupCopy(
-  locale: WorkspaceStartupLocale,
+  locale: string,
   mode: WorkspaceStartupMode,
 ): WorkspaceStartupCopy {
+  const language: WorkspaceStartupLocale = locale.split("-")[0] === "fa" ? "fa" : "en";
   const copy = {
     en: {
       loading: {
@@ -61,15 +62,16 @@ export function getWorkspaceStartupCopy(
       },
     },
   } as const;
-  return copy[locale][mode];
+  return copy[language][mode];
 }
 
 export function renderWorkspaceStartupMarkup(
-  locale: WorkspaceStartupLocale,
+  locale: string,
   mode: WorkspaceStartupMode,
 ): string {
-  const copy = getWorkspaceStartupCopy(locale, mode);
-  const direction = locale === "fa" ? "rtl" : "ltr";
+  const language: WorkspaceStartupLocale = locale.split("-")[0] === "fa" ? "fa" : "en";
+  const copy = getWorkspaceStartupCopy(language, mode);
+  const direction = language === "fa" ? "rtl" : "ltr";
   const role = mode === "failed" ? "alert" : "status";
   const live = mode === "failed" ? "assertive" : "polite";
   const progress = mode === "loading"
@@ -81,7 +83,7 @@ export function renderWorkspaceStartupMarkup(
   const action = mode === "loading"
     ? ""
     : `<button type="button" class="cp-startup-reload" data-workspace-startup-reload>${copy.action}</button>`;
-  return `<main class="cp-startup cp-startup--${mode}" data-workspace-startup="${mode}" lang="${locale}" dir="${direction}" role="${role}" aria-live="${live}">
+  return `<main class="cp-startup cp-startup--${mode}" data-workspace-startup="${mode}" lang="${language}" dir="${direction}" role="${role}" aria-live="${live}">
     <section class="cp-startup-card" aria-labelledby="cp-startup-title">
       <div class="cp-startup-brand" aria-label="CUBI Platform"><span class="cp-startup-mark" aria-hidden="true">C</span><span>CUBI</span><span class="cp-startup-brand-caption">PROJECT WORKSPACE</span></div>
       <h1 id="cp-startup-title">${copy.title}</h1>
@@ -95,7 +97,7 @@ export function renderWorkspaceStartupMarkup(
 
 export function renderWorkspaceStartup(
   container: HTMLElement,
-  locale: WorkspaceStartupLocale,
+  locale: string,
   mode: WorkspaceStartupMode,
 ): void {
   container.innerHTML = renderWorkspaceStartupMarkup(locale, mode);
