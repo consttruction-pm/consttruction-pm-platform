@@ -1342,3 +1342,45 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
   const settings = render("en", "settings");
   assert.match(settings, /id="cp-settings-panel"[^>]*data-workspace-menu="settings"/);
 });
+
+test("schedule workbench renders a Primavera-style command ribbon and split/grid/Gantt choices", () => {
+  const english = render("en", "schedule");
+  assert.match(english, /class="cp-command-ribbon" role="toolbar"/);
+  assert.match(english, /data-workspace-layout="split" aria-pressed="true"/);
+  assert.match(english, /data-workspace-layout="grid" aria-pressed="false"/);
+  assert.match(english, /data-workspace-layout="gantt" aria-pressed="false"/);
+  assert.match(english, /data-workspace-command="run-schedule"/);
+  assert.match(english, /data-workspace-command="relationships"/);
+  assert.match(english, /class="cp-activity-create-disclosure"/);
+  const persian = render("fa", "schedule");
+  assert.match(persian, /ابزارهای زمان‌بندی/);
+  assert.match(persian, /جدول \+ گانت/);
+  assert.match(persian, /افزودن فعالیت/);
+});
+
+test("layout and toolbar commands dispatch behavior through delegated events", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    querySelector: (selector: string) => {
+      if (selector === ".cp-activity-create-disclosure") return { open: false };
+      return { scrollIntoView: () => {}, focus: () => {}, querySelector: () => ({ focus: () => {} }) };
+    },
+  };
+  const layouts: string[] = [];
+  const visibleRelationships: boolean[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState(), {
+    onWorkspaceLayoutChange: (layout) => layouts.push(layout),
+    onGanttRelationshipsChange: (visible) => visibleRelationships.push(visible),
+  });
+  const gridButton = { dataset: { workspaceLayout: "grid" }, closest: () => gridButton };
+  listeners.get("click")?.({ target: gridButton } as unknown as Event);
+  const activityButton = { dataset: { workspaceCommand: "new-activity" }, closest: () => activityButton };
+  listeners.get("click")?.({ target: activityButton } as unknown as Event);
+  const lineButton = { dataset: { workspaceCommand: "toggle-relationships" }, closest: () => lineButton };
+  listeners.get("click")?.({ target: lineButton } as unknown as Event);
+  assert.deepEqual(layouts, ["grid", "split"]);
+  assert.deepEqual(visibleRelationships, [false]);
+});
