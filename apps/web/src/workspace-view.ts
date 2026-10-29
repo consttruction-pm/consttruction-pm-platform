@@ -377,7 +377,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               <label>${escapeHtml(t.activityId)} <input name="activity_id" required maxlength="80" autocomplete="off"></label>
               <label>${escapeHtml(t.activityName)} <input name="name" required maxlength="180" autocomplete="off"></label>
               <label>${escapeHtml(t.activityDuration)} <input name="duration_value" type="number" min="0" step="any" value="1" required></label>
-              <label>${escapeHtml(t.activityDurationUnit)} <select name="duration_unit"><option value="working-day">Working day</option><option value="hour">Hour</option><option value="day">Day</option><option value="week">Week</option></select></label>
+              <label>${escapeHtml(t.activityDurationUnit)} <select name="duration_unit"><option value="working-day">Working day</option><option value="working-hour">Working hour</option></select></label>
               <label>${escapeHtml(t.activityWbs)} <select name="wbs_id" required ${state.wbsNodes.length ? "" : "disabled"}>${state.wbsNodes.map((node) => `<option value="${escapeAttribute(node.id)}" ${node.id === state.selectedWbsId ? "selected" : ""}>${escapeHtml(node.localCode)} — ${escapeHtml(node.name)}</option>`).join("")}</select></label>
               <button type="submit" ${state.wbsNodes.length ? "" : "disabled"}>${escapeHtml(t.activityCreate)}</button>
               ${state.wbsNodes.length ? "" : `<p class="cp-empty">${escapeHtml(t.noWbs)}</p>`}
