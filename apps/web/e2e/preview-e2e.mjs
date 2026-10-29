@@ -2302,8 +2302,17 @@ async function main() {
     await page.setInput("[data-capacity-resolve-hours]", "40");
     await page.click("[data-capacity-resolve]");
     await page.waitFor(
-      `document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") === "60"`,
-      "server-resolved weekly capacity before the change",
+      `Boolean(document.querySelector("[data-capacity-resolve-value]") || document.querySelector("[data-capacity-resolve-result]")?.textContent.trim())`,
+      "server capacity resolution response",
+    );
+    const capacityResolutionOutcome = await page.evaluate(`(() => ({
+      value: document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") ?? null,
+      status: document.querySelector("[data-capacity-resolve-status]")?.textContent.trim() ?? null,
+      result: document.querySelector("[data-capacity-resolve-result]")?.textContent.trim() ?? null,
+    }))()`);
+    assert(
+      capacityResolutionOutcome.value === "60",
+      "server-resolved weekly capacity before the change: " + JSON.stringify(capacityResolutionOutcome),
     );
 
     await page.setInput("[data-capacity-resource]", "RPS-CIVIL-CREW");
