@@ -5482,7 +5482,7 @@ async function main() {
     })()`);
     await page.waitFor(
       `(() => {
-        const error = document.querySelector(".cp-form-error");
+        const error = document.querySelector('[id^="cp-project-name-error-"]');
         return Boolean(error) && !error.hidden && error.textContent.trim().length > 0;
       })()`,
       "empty project name is rejected inline",
