@@ -20,6 +20,7 @@ import {
   setLocale,
   setCalendarMode,
   setGanttScale,
+  setGanttRelationshipsVisible,
   type WorkspaceLocale,
   type WorkspaceState,
 } from "./workspace-model.js";
@@ -939,6 +940,9 @@ function renderApp(
     },
     onGanttScaleChange: (ganttScale) => {
       renderApp(container, setGanttScale(state, ganttScale), persistence);
+    },
+    onGanttRelationshipsChange: (visible) => {
+      renderApp(container, setGanttRelationshipsVisible(state, visible), persistence);
     },
     onProjectSettings: () => {
       openProjectSettings(container, state, persistence);
