@@ -128,11 +128,15 @@ export type WorkspaceActivitySort = {
   readonly direction: "asc" | "desc";
 };
 
+/** Presentation-only zoom of the Gantt time axis; schedule dates never change. */
+export type WorkspaceGanttScale = "day" | "week" | "month";
+
 export type WorkspaceState = {
   context: ProjectContext;
   locale: WorkspaceLocale;
   direction: "rtl" | "ltr";
   calendarMode: WorkspaceCalendarMode;
+  ganttScale: WorkspaceGanttScale;
   activeMenu: WorkspaceMenuKey;
   visiblePanels: Record<WorkspacePanel, boolean>;
   selectedWbsId: string | null;
@@ -195,6 +199,7 @@ export function createWorkspaceState(
     locale,
     direction: getWorkspaceLocaleDirection(locale),
     calendarMode,
+    ganttScale: "day",
     activeMenu: "schedule",
     visiblePanels: {
       project_wbs: true,
@@ -302,6 +307,17 @@ export function setCalendarMode(
   calendarMode: WorkspaceCalendarMode,
 ): WorkspaceState {
   return { ...state, calendarMode };
+}
+
+export function setGanttScale(
+  state: WorkspaceState,
+  ganttScale: WorkspaceGanttScale,
+): WorkspaceState {
+  if (ganttScale !== "day" && ganttScale !== "week" && ganttScale !== "month") {
+    throw new Error("INVALID_GANTT_SCALE");
+  }
+  if (state.ganttScale === ganttScale) return state;
+  return { ...state, ganttScale };
 }
 
 export function setSmartGuide(

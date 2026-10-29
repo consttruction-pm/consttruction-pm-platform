@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createGanttBarGeometry, createGanttScale } from "./workspace-gantt.js";
+import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttScale } from "./workspace-gantt.js";
 
 const activities = [
   {
@@ -100,4 +100,74 @@ test("missing scheduled dates produce no Gantt geometry", () => {
     scale,
   );
   assert.equal(bar, null);
+});
+
+test("zero-duration activities are reported as milestones", () => {
+  const scheduled = [
+    { id: "M-1", wbsId: "W-1", code: "M1", name: "Start milestone", gantt: { start: "2026-09-01T00:00:00Z", finish: "2026-09-01T00:00:00Z", progressPercent: 0, critical: true } },
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Work", gantt: { start: "2026-09-01T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 0, critical: true } },
+  ];
+  const scale = createGanttScale(scheduled);
+  assert.ok(scale);
+  assert.equal(createGanttBarGeometry(scheduled[0], scale)?.milestone, true);
+  assert.equal(createGanttBarGeometry(scheduled[1], scale)?.milestone, false);
+});
+
+test("Gantt links keep the persisted FS and SS semantics without conversion", () => {
+  const scheduled = [
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Excavate", gantt: { start: "2026-09-02T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 0, critical: true } },
+    { id: "A-2", wbsId: "W-1", code: "02", name: "Concrete", gantt: { start: "2026-09-03T00:00:00Z", finish: "2026-09-05T00:00:00Z", progressPercent: 0, critical: true } },
+  ];
+  const scale = createGanttScale(scheduled);
+  assert.ok(scale);
+  const bars = scheduled
+    .map((activity) => createGanttBarGeometry(activity, scale))
+    .filter((bar): bar is NonNullable<typeof bar> => bar !== null);
+  const links = createGanttLinkGeometry([
+    { id: "R-FS", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+    { id: "R-SS", predecessorId: "A-1", successorId: "A-2", type: "SS", lagValue: "1", lagUnit: "working-day", recordRevision: 1 },
+  ], bars);
+  assert.equal(links.length, 2);
+  const fs = links.find((link) => link.relationshipId === "R-FS");
+  const ss = links.find((link) => link.relationshipId === "R-SS");
+  assert.equal(fs?.type, "FS");
+  assert.equal(ss?.type, "SS");
+  assert.equal(fs?.predecessorId, "A-1");
+  assert.equal(fs?.successorId, "A-2");
+  assert.equal(fs?.critical, true);
+  // A-1 finishes at 33.33%, A-2 starts at 33.33% of the shared 3-day scale.
+  assert.match(fs?.path ?? "", /^M 33\.33 50 H 34\.83 V 150 H 33\.33$/);
+  // SS departs from the predecessor start (0%) and enters the successor start (33.33%).
+  assert.match(ss?.path ?? "", /^M 0 50 H 0 V 150 H 33\.33$/);
+});
+
+test("Gantt links skip relationships whose endpoints are filtered out", () => {
+  const scale = createGanttScale(activities);
+  assert.ok(scale);
+  const bars = [createGanttBarGeometry(activities[0], scale)].filter((bar) => bar !== null);
+  const links = createGanttLinkGeometry([
+    { id: "R-1", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+  ], bars);
+  assert.deepEqual(links, []);
+});
+
+test("Gantt axis ticks follow the selected day, week and month scale", () => {
+  const scale = {
+    startMs: Date.parse("2026-09-28T00:00:00Z"),
+    endMs: Date.parse("2026-11-05T00:00:00Z"),
+    rangeMs: Date.parse("2026-11-05T00:00:00Z") - Date.parse("2026-09-28T00:00:00Z"),
+  };
+  const day = createGanttAxisTicks(scale, "day");
+  assert.equal(day[0].date, "2026-09-28");
+  assert.equal(day[0].leftPercent, 0);
+  assert.equal(day[1].date, "2026-09-29");
+
+  const week = createGanttAxisTicks(scale, "week");
+  assert.deepEqual(week.map((tick) => tick.date), [
+    "2026-09-28", "2026-10-05", "2026-10-12", "2026-10-19", "2026-10-26", "2026-11-02",
+  ]);
+
+  const month = createGanttAxisTicks(scale, "month");
+  assert.deepEqual(month.map((tick) => tick.date), ["2026-09-28", "2026-10-01", "2026-11-01"]);
+  assert.ok(month[2].leftPercent > 85 && month[2].leftPercent <= 100);
 });

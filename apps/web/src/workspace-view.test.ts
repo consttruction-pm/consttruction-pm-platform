@@ -1183,3 +1183,68 @@ test("relationship create form dispatches the exact predecessor, successor, type
     lagUnit: "working-day",
   });
 });
+
+function scheduledGanttState(locale: "en" | "fa" = "en", calendarMode: "gregorian" | "jalali" = "gregorian") {
+  let state = createWorkspaceState({ tenant_id: "t", project_id: "p", revision: 1 }, locale, calendarMode);
+  state = withActivities(state, [
+    {
+      id: "A-1", wbsId: "W-1", code: "01", name: "Excavate",
+      gantt: { start: "2026-09-01T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 0, critical: true },
+    },
+    {
+      id: "A-2", wbsId: "W-1", code: "02", name: "Concrete",
+      gantt: { start: "2026-09-03T00:00:00Z", finish: "2026-09-05T00:00:00Z", progressPercent: 0, critical: true },
+    },
+    {
+      id: "M-1", wbsId: "W-1", code: "M1", name: "Inspection milestone",
+      gantt: { start: "2026-09-05T00:00:00Z", finish: "2026-09-05T00:00:00Z", progressPercent: 0, critical: true },
+    },
+  ]);
+  return withRelationships(state, [
+    { id: "R-FS", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+    { id: "R-SS", predecessorId: "A-1", successorId: "A-2", type: "SS", lagValue: "1", lagUnit: "working-day", recordRevision: 1 },
+  ]);
+}
+
+test("Gantt renders persisted dependency arrows, a dated axis and milestone markers", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState());
+  assert.match(container.innerHTML, /data-gantt-link="R-FS"/);
+  assert.match(container.innerHTML, /data-link-type="FS"[^>]*data-link-from="A-1"[^>]*data-link-to="A-2"/);
+  assert.match(container.innerHTML, /data-gantt-link="R-SS"/);
+  assert.match(container.innerHTML, /data-link-type="SS"/);
+  assert.match(container.innerHTML, /class="cp-gantt-link is-critical"[^>]*data-gantt-link="R-FS"/);
+  assert.match(container.innerHTML, /marker-end="url\(#cp-gantt-arrow-critical\)"/);
+  assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"/);
+  assert.match(container.innerHTML, />2026-09-02</);
+  assert.match(container.innerHTML, /data-gantt-scale-mode="day"/);
+  assert.match(container.innerHTML, /data-gantt-scale="day" aria-pressed="true"/);
+  assert.match(container.innerHTML, /data-gantt-scale="week" aria-pressed="false"/);
+  assert.match(container.innerHTML, /class="cp-gantt-bar is-critical is-milestone"/);
+});
+
+test("Gantt axis shows the Jalali display date while keeping canonical tick dates", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState("fa", "jalali"));
+  assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"[^>]*>۱۴۰۵/);
+});
+
+test("Gantt scale buttons dispatch the exact day/week/month mode", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const chosen: string[] = [];
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    scheduledGanttState(),
+    { onGanttScaleChange: (mode) => chosen.push(mode) },
+  );
+  const weekButton = { dataset: { ganttScale: "week" }, closest: () => weekButton };
+  listeners.get("click")?.({ target: weekButton } as unknown as Event);
+  const invalidButton = { dataset: { ganttScale: "quarter" }, closest: () => invalidButton };
+  listeners.get("click")?.({ target: invalidButton } as unknown as Event);
+  assert.deepEqual(chosen, ["week"]);
+});
