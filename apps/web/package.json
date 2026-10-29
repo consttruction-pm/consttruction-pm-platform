@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && npx --yes esbuild@0.28.2 src/main.ts --bundle --format=esm --target=es2022 --outfile=dist/web/src/main.bundle.js",
     "preview": "npm run build && node preview-server.mjs",
     "preview:full": "npm run build && node preview-full.mjs",
     "preview:smoke": "node preview-smoke.mjs",
