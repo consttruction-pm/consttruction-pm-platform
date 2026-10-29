@@ -9,6 +9,7 @@ import {
   selectWbs,
   setCalendarMode,
   setGanttScale,
+  setGanttRelationshipsVisible,
   setLocale,
   setControlSummary,
   setSmartGuide,
@@ -638,13 +639,27 @@ test("persisted relationships attach only when both endpoints are loaded activit
   }]), /INVALID_WORKSPACE_RELATIONSHIPS/);
 });
 
-test("Gantt scale is presentation state with a validated day/week/month domain", () => {
+test("Gantt scale is presentation state with validated day/week/month/quarter/year choices", () => {
   const state = createWorkspaceState(context, "en");
   assert.equal(state.ganttScale, "day");
 
   const weekly = setGanttScale(state, "week");
   assert.equal(weekly.ganttScale, "week");
   assert.equal(weekly.activities, state.activities);
-  assert.strictEqual(setGanttScale(weekly, "week"), weekly);
-  assert.throws(() => setGanttScale(state, "quarter" as never), /INVALID_GANTT_SCALE/);
+  const quarterly = setGanttScale(weekly, "quarter");
+  assert.equal(quarterly.ganttScale, "quarter");
+  const yearly = setGanttScale(quarterly, "year");
+  assert.equal(yearly.ganttScale, "year");
+  assert.strictEqual(setGanttScale(yearly, "year"), yearly);
+  assert.throws(() => setGanttScale(state, "financial-period" as never), /INVALID_GANTT_SCALE/);
+});
+
+test("Gantt relationship visibility toggles presentation only and defaults on", () => {
+  const state = createWorkspaceState(context, "en");
+  assert.equal(state.showGanttRelationships, true);
+  const hidden = setGanttRelationshipsVisible(state, false);
+  assert.equal(hidden.showGanttRelationships, false);
+  assert.equal(hidden.relationships, state.relationships);
+  assert.strictEqual(setGanttRelationshipsVisible(hidden, false), hidden);
+  assert.equal(setGanttRelationshipsVisible(hidden, true).showGanttRelationships, true);
 });
