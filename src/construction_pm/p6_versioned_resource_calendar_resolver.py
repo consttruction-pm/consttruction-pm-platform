@@ -15,13 +15,13 @@ from decimal import Decimal
 from typing import Iterable
 
 from .backend_p0.models import BackendScope
+from .calendar_exception_kernel import (
+    CalendarExceptionKernelError,
+    persisted_exception_to_kernel,
+)
 from .calendar_exception_repository import (
     CalendarException as PersistedCalendarException,
     CalendarExceptionRepository,
-    EXCEPTION_DETAILED_WORK_HOURS,
-    EXCEPTION_NONWORK,
-    EXCEPTION_RESET_STANDARD,
-    EXCEPTION_TOTAL_WORK_HOURS,
 )
 from .calendar_master_repository import CalendarMaster, CalendarMasterRepository, CalendarPersistenceError
 from .calendar_snapshot_repository import CalendarDefinition, CalendarSnapshotRepository
@@ -30,10 +30,7 @@ from .resources.calendar import ResourceCalendar
 from .scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from .scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from .scheduling.calendar_exception_overlay import CalendarExceptionLayers
-from .scheduling.calendar_exceptions import (
-    CalendarException as CoreCalendarException,
-    CalendarExceptionType,
-)
+from .scheduling.calendar_exceptions import CalendarExceptionType
 from .scheduling.calendar_system import CalendarSystem
 from .scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 
@@ -61,29 +58,11 @@ def _interval_hours(intervals: Iterable[tuple[time, time]]) -> Decimal:
     return Decimal(micros) / Decimal("3600000000")
 
 
-def _persisted_exception_to_core(item: PersistedCalendarException) -> CoreCalendarException:
-    mapping = {
-        EXCEPTION_NONWORK: CalendarExceptionType.NONWORK,
-        EXCEPTION_TOTAL_WORK_HOURS: CalendarExceptionType.TOTAL_WORK_HOURS,
-        EXCEPTION_DETAILED_WORK_HOURS: CalendarExceptionType.DETAILED_WORK_HOURS,
-        EXCEPTION_RESET_STANDARD: CalendarExceptionType.RESET_TO_STANDARD,
-    }
-    kind = mapping.get(item.mode)
-    if kind is None:
-        raise P6ResourceCalendarResolutionError("UNSUPPORTED_CALENDAR_EXCEPTION_MODE")
+def _persisted_exception_to_core(item: PersistedCalendarException):
     try:
-        return CoreCalendarException(
-            date=item.exception_date,
-            kind=kind,
-            calendar_system=item.system,
-            total_work_hours=(
-                None if kind is not CalendarExceptionType.TOTAL_WORK_HOURS
-                else Decimal(str(item.total_work_hours))
-            ),
-            intervals=tuple(item.intervals) if kind is CalendarExceptionType.DETAILED_WORK_HOURS else (),
-        )
-    except (TypeError, ValueError) as exc:
-        raise P6ResourceCalendarResolutionError("INVALID_PERSISTED_CALENDAR_EXCEPTION") from exc
+        return persisted_exception_to_kernel(item)
+    except CalendarExceptionKernelError as exc:
+        raise P6ResourceCalendarResolutionError(str(exc)) from exc
 
 
 def _load_work_rules(

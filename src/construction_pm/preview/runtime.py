@@ -58,6 +58,13 @@ from construction_pm.backend_p0.workspace_read_provider import (
     PersistedWorkspaceReadProvider,
     WorkspaceScheduleFactsProvider,
 )
+from construction_pm.calendar_exception_kernel import (
+    CalendarExceptionKernelError,
+    persisted_exception_to_kernel,
+)
+from construction_pm.calendar_exception_repository import (
+    SQLiteCalendarExceptionRepository,
+)
 from construction_pm.calendar_master_repository import (
     CalendarMaster,
     SQLiteCalendarAssignmentRepository,
@@ -75,6 +82,7 @@ from construction_pm.http.production_composition import (
 from construction_pm.http.project_lifecycle_routes import Clock
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_calendar_api import P6CalendarAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
 from construction_pm.p6_field_registry import get_field
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
@@ -142,6 +150,7 @@ from construction_pm.scheduling.calendar_context import (
     CalendarReference,
     CalendarResolverRegistry,
 )
+from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
 from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.relationships import RelationshipType
@@ -204,6 +213,7 @@ class PreviewRepositories:
     calendars: SQLiteCalendarMasterRepository
     calendar_assignments: SQLiteCalendarAssignmentRepository
     calendar_snapshots: SQLiteCalendarSnapshotRepository
+    calendar_exceptions: SQLiteCalendarExceptionRepository
     resource_assignments: SQLiteP6ResourceAssignmentRepository
     resource_periods: SQLiteP6ResourceAssignmentPeriodRepository
     capacities: SQLiteP6ResourceCapacityRepository
@@ -230,6 +240,7 @@ class PreviewRepositories:
         calendars = SQLiteCalendarMasterRepository(connection)
         calendar_assignments = SQLiteCalendarAssignmentRepository(connection)
         calendar_snapshots = SQLiteCalendarSnapshotRepository(connection)
+        calendar_exceptions = SQLiteCalendarExceptionRepository(connection)
         resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
         resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
         capacities = SQLiteP6ResourceCapacityRepository(connection)
@@ -256,6 +267,7 @@ class PreviewRepositories:
             calendars=calendars,
             calendar_assignments=calendar_assignments,
             calendar_snapshots=calendar_snapshots,
+            calendar_exceptions=calendar_exceptions,
             resource_assignments=resource_assignments,
             resource_periods=resource_periods,
             capacities=capacities,
@@ -648,21 +660,39 @@ def seed_database(connection: sqlite3.Connection) -> None:
 
 
 def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverRegistry:
-    """Read every persisted calendar snapshot into one fail-closed registry."""
+    """Read every persisted calendar snapshot into one fail-closed registry.
 
-    for table in ("calendar_exception", "calendar_work_hour_rule"):
-        exists = connection.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-            (table,),
+    Calendar exceptions persisted through the P6 calendar API become local
+    exception layers keyed by ``calendar_id@calendar_version``. The scheduling
+    core owns the overlay arithmetic; this function only binds stored records
+    to the same immutable calendar snapshot the schedule already references.
+    Work-hour rules remain explicitly unsupported instead of being ignored.
+    """
+
+    work_hour_table = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+        ("calendar_work_hour_rule",),
+    ).fetchone()
+    if work_hour_table is not None:
+        count = connection.execute(
+            "SELECT COUNT(*) FROM calendar_work_hour_rule"
         ).fetchone()
-        if exists is not None:
-            count = connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
-            if count is not None and int(count[0]) > 0:
-                raise PreviewRuntimeError(
-                    "PREVIEW_CALENDAR_OVERRIDES_UNSUPPORTED",
-                    "The preview registry does not silently ignore persisted "
-                    "calendar exceptions or work-hour rules.",
-                )
+        if count is not None and int(count[0]) > 0:
+            raise PreviewRuntimeError(
+                "PREVIEW_CALENDAR_WORK_HOURS_UNSUPPORTED",
+                "The preview registry does not silently ignore persisted "
+                "calendar work-hour rules.",
+            )
+
+    exception_table = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+        ("calendar_exception",),
+    ).fetchone()
+    exception_repository = (
+        SQLiteCalendarExceptionRepository(connection)
+        if exception_table is not None
+        else None
+    )
 
     scopes = connection.execute(
         "SELECT DISTINCT tenant_id, project_id, project_revision FROM calendar_master "
@@ -672,6 +702,8 @@ def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverR
     snapshot_repository = SQLiteCalendarSnapshotRepository(connection)
     day_resolvers: dict[str, WorkingTimeResolver] = {}
     canonical_by_key: dict[str, dict[str, object]] = {}
+    exception_layers: dict[str, CalendarExceptionLayers] = {}
+    exception_signature_by_key: dict[str, tuple[dict[str, object], ...]] = {}
 
     for tenant_id, project_id, revision in scopes:
         scope = BackendScope(str(tenant_id), str(project_id), int(revision))
@@ -713,7 +745,36 @@ def build_calendar_registry(connection: sqlite3.Connection) -> CalendarResolverR
             canonical_by_key[key] = canonical
             day_resolvers[key] = WorkingTimeResolver(working)
 
-    return CalendarResolverRegistry(day_resolvers=day_resolvers)
+            if exception_repository is None:
+                continue
+            persisted = exception_repository.list(
+                scope, calendar.calendar_id, calendar.calendar_version
+            )
+            if not persisted:
+                continue
+            try:
+                local_exceptions = tuple(
+                    persisted_exception_to_kernel(item) for item in persisted
+                )
+            except CalendarExceptionKernelError as exc:
+                raise PreviewRuntimeError(
+                    "PREVIEW_CALENDAR_EXCEPTION_INVALID",
+                    f"Calendar exception for {key} cannot be consumed: {exc}.",
+                ) from exc
+            signature = tuple(item.canonical_snapshot() for item in persisted)
+            previous = exception_signature_by_key.get(key)
+            if previous is not None and previous != signature:
+                raise PreviewRuntimeError(
+                    "PREVIEW_CALENDAR_EXCEPTION_CONFLICT",
+                    f"Calendar key {key} has different exception layers in two scopes.",
+                )
+            exception_signature_by_key[key] = signature
+            exception_layers[key] = CalendarExceptionLayers(local=local_exceptions)
+
+    return CalendarResolverRegistry(
+        day_resolvers=day_resolvers,
+        exception_layers=exception_layers,
+    )
 
 
 @dataclass(frozen=True)
@@ -1026,6 +1087,13 @@ def open_preview_runtime(
             repositories.calendars,
             repositories.calendar_snapshots,
             policy,
+        ),
+        p6_calendar_api=P6CalendarAPI(
+            repositories.calendars,
+            repositories.calendar_snapshots,
+            repositories.calendar_exceptions,
+            policy,
+            transaction_manager=repositories.transaction_manager,
         ),
         p6_interchange_api=P6InterchangeAPI(
             mapping_service=repositories.mapping_service,
