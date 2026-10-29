@@ -4130,6 +4130,58 @@ async function main() {
       columns: renderedAfterWrites.columns,
     });
 
+    await page.click('button[data-activity-edit="NEW-100"]');
+    await page.waitForSelector('form[data-activity-update-form="NEW-100"]', "activity edit form");
+    await page.evaluate(`(() => {
+      const form = document.querySelector('form[data-activity-update-form="NEW-100"]');
+      const input = form?.querySelector('input[name="name"]');
+      if (!(input instanceof HTMLInputElement)) throw new Error("activity edit name input missing");
+      input.value = "E2E linked activity revised";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    const editInputValue = await page.evaluate(`(() => document.querySelector('form[data-activity-update-form="NEW-100"] input[name="name"]')?.value ?? null)()`);
+    assert(
+      editInputValue === "E2E linked activity revised",
+      "the browser must hold the revised activity name before submit: " + JSON.stringify(editInputValue),
+    );
+    await page.click('form[data-activity-update-form="NEW-100"] button[type="submit"]');
+    let editReadBack = { rowText: "", editForm: true };
+    for (let attempt = 0; attempt < 50; attempt++) {
+      editReadBack = await page.evaluate(`(() => {
+        const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="NEW-100"]');
+        return { rowText: row?.textContent ?? "", editForm: Boolean(document.querySelector('form[data-activity-update-form="NEW-100"]')) };
+      })()`);
+      if (editReadBack.rowText.includes("E2E linked activity revised") && !editReadBack.editForm) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const activityApiPath = `/api/projects/${encodeURIComponent(wbsJourney.project_id)}/p6/activities/NEW-100`;
+    const updatedActivityApi = await page.evaluate(
+      `(async () => {
+        const response = await fetch(${JSON.stringify(activityApiPath)}, {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(wbsJourney.tenant_id)},
+            "X-Project-Id": ${JSON.stringify(wbsJourney.project_id)},
+            "X-Project-Revision": ${JSON.stringify(String(wbsJourney.revision))},
+          },
+        });
+        return { status: response.status, body: await response.json().catch(() => null) };
+      })()`,
+      { awaitPromise: true },
+    );
+    assert(
+      updatedActivityApi.status === 200 &&
+        updatedActivityApi.body.activity?.name === "E2E linked activity revised",
+      "the activity PATCH must persist the revised name in Activity Master: " + JSON.stringify(updatedActivityApi),
+    );
+    assert(
+      editReadBack.rowText.includes("E2E linked activity revised") && !editReadBack.editForm,
+      "editing an activity in the workspace must refresh the authoritative read model after persistence: " +
+        JSON.stringify({ editReadBack, activityMaster: updatedActivityApi.body.activity }),
+    );
+    EVIDENCE.wbs_activity.activity_edit = editReadBack;
+    record("workspace activity edit persists and refreshes the activity grid", editReadBack);
+
     // First-run journey on a real account with no project membership. This is
     // not a mocked state: the newcomer session, the empty project list and the
     // created project all go through the same preview API and SQLite store.

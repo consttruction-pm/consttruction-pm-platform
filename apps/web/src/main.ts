@@ -516,6 +516,123 @@ function renderApp(
         }
       }
     },
+    onActivityEdit: async (activityId) => {
+      const panel = container.querySelector<HTMLElement>("#cp-activity-grid");
+      if (!panel) return;
+      try {
+        const response = await aiTransport.get<{
+          activity: {
+            activity_id: string;
+            name: string;
+            duration_value: string | number;
+            duration_unit: string;
+            wbs_id: string | null;
+            record_revision: number;
+          };
+        }>(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities/${encodeURIComponent(activityId)}`, state.context);
+        if (!response.ok) throw new Error(response.error.code);
+        const activity = response.data.activity;
+        const old = panel.querySelector<HTMLElement>("[data-activity-update-form]");
+        old?.remove();
+        const form = document.createElement("form");
+        form.dataset.activityUpdateForm = activity.activity_id;
+        form.setAttribute("aria-label", state.locale === "fa" ? "ویرایش فعالیت" : "Edit activity");
+        form.innerHTML = "";
+        const heading = document.createElement("h3");
+        heading.textContent = state.locale === "fa" ? "ویرایش فعالیت" : "Edit activity";
+        form.append(heading);
+        const addInput = (name: string, labelText: string, value: string, type = "text") => {
+          const label = document.createElement("label");
+          label.append(document.createTextNode(labelText + " "));
+          const input = document.createElement("input");
+          input.name = name;
+          input.type = type;
+          input.value = value;
+          input.required = true;
+          if (name === "duration_value") { input.min = "0"; input.step = "any"; }
+          if (name === "name") input.maxLength = 180;
+          label.append(input);
+          form.append(label);
+        };
+        const isFa = state.locale === "fa";
+        addInput("name", isFa ? "نام فعالیت" : "Activity name", activity.name);
+        addInput("duration_value", isFa ? "مدت" : "Duration", String(activity.duration_value), "number");
+        const unitLabel = document.createElement("label");
+        unitLabel.append(document.createTextNode((isFa ? "واحد مدت" : "Duration unit") + " "));
+        const unit = document.createElement("select");
+        unit.name = "duration_unit";
+        for (const [value, labelText] of [["working-day", isFa ? "روز کاری" : "Working day"], ["working-hour", isFa ? "ساعت کاری" : "Working hour"]] as const) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = labelText;
+          option.selected = activity.duration_unit === value;
+          unit.append(option);
+        }
+        unitLabel.append(unit);
+        form.append(unitLabel);
+        const wbsLabel = document.createElement("label");
+        wbsLabel.append(document.createTextNode("WBS "));
+        const wbsSelect = document.createElement("select");
+        wbsSelect.name = "wbs_id";
+        wbsSelect.required = true;
+        for (const node of state.wbsNodes) {
+          const option = document.createElement("option");
+          option.value = node.id;
+          option.textContent = node.localCode + " — " + node.name;
+          option.selected = node.id === activity.wbs_id;
+          wbsSelect.append(option);
+        }
+        wbsLabel.append(wbsSelect);
+        form.append(wbsLabel);
+        const save = document.createElement("button");
+        save.type = "submit";
+        save.textContent = isFa ? "ذخیره تغییرات" : "Save changes";
+        form.append(save);
+        panel.querySelector("[data-activity-create-form]")?.after(form);
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const name = (form.elements.namedItem("name") as HTMLInputElement).value.trim();
+          const durationValue = Number((form.elements.namedItem("duration_value") as HTMLInputElement).value);
+          const wbsId = (form.elements.namedItem("wbs_id") as HTMLSelectElement).value;
+          if (!name || !Number.isFinite(durationValue) || durationValue < 0 || !wbsId) return;
+          try {
+            if (!aiTransport.patch) throw new Error("PATCH_TRANSPORT_UNAVAILABLE");
+            const updated = await aiTransport.patch<
+              { contract_version: string; expected_revision: number; name: string; duration_value: number; duration_unit: string; wbs_id: string },
+              { activity: { activity_id: string } }
+            >(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities/${encodeURIComponent(activity.activity_id)}`, {
+              contract_version: "p6-activity-master-api.v1",
+              expected_revision: activity.record_revision,
+              name,
+              duration_value: durationValue,
+              duration_unit: unit.value,
+              wbs_id: wbsId,
+            }, state.context);
+            if (!updated.ok) throw new Error(updated.error.code);
+            await refreshWorkspaceAfterWbsMutation(wbsId);
+          } catch (error) {
+            let notice = form.querySelector<HTMLElement>("[data-activity-error]");
+            if (!notice) {
+              notice = document.createElement("p");
+              notice.dataset.activityError = "true";
+              notice.setAttribute("role", "alert");
+              form.prepend(notice);
+            }
+            notice.textContent = error instanceof Error ? error.message : "ACTIVITY_UPDATE_FAILED";
+          }
+        });
+        form.querySelector<HTMLInputElement>('[name="name"]')?.focus();
+      } catch (error) {
+        let notice = panel.querySelector<HTMLElement>("[data-activity-error]");
+        if (!notice) {
+          notice = document.createElement("p");
+          notice.dataset.activityError = "true";
+          notice.setAttribute("role", "alert");
+          panel.prepend(notice);
+        }
+        notice.textContent = error instanceof Error ? error.message : "ACTIVITY_LOAD_FAILED";
+      }
+    },
     onActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId), persistence);
     },
