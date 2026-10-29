@@ -244,6 +244,12 @@ class ProjectLifecycleHttpRoutes:
                 return self._json(200, {
                     "projects": [asdict(project) for project in response.projects]
                 })
+            if method == "GET" and path.startswith("/api/projects/") and path.count("/") == 3:
+                project_id = path[len("/api/projects/"):]
+                if not project_id:
+                    return self._error(400, "PROJECT_ID_REQUIRED", "error.project.id_required")
+                project = self._api.get_project(session_id, project_id, now=now)
+                return self._json(200, {"project": asdict(project)})
             if method == "GET" and path in (
                 "/api/v1/workspace/control-room/read",
                 "/api/v2/workspace/control-room/read",
@@ -2845,13 +2851,38 @@ class ProjectLifecycleHttpRoutes:
                 return self._json(200, {"context": asdict(response.context)})
             if method == "POST" and path == "/api/projects":
                 payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict):
+                    return self._error(400, "PROJECT_REQUEST_INVALID", "error.request.invalid")
                 response = self._api.create_project(
                     session_id,
                     str(payload.get("project_id", "")),
                     str(payload.get("name", "")),
+                    description=payload.get("description", ""),
+                    start_date=payload.get("start_date"),
+                    date_system=payload.get("date_system", "gregorian"),
+                    primary_calendar_id=payload.get("primary_calendar_id"),
                     now=now,
                 )
                 return self._json(201, {"context": asdict(response.context)})
+            if method == "PATCH" and path.startswith("/api/projects/") and path.count("/") == 3:
+                project_id = path[len("/api/projects/"):]
+                if not project_id:
+                    return self._error(400, "PROJECT_ID_REQUIRED", "error.project.id_required")
+                payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict):
+                    return self._error(400, "PROJECT_REQUEST_INVALID", "error.request.invalid")
+                project = self._api.update_project(
+                    session_id,
+                    project_id,
+                    name=payload.get("name", ""),
+                    description=payload.get("description", ""),
+                    start_date=payload.get("start_date"),
+                    date_system=payload.get("date_system", "gregorian"),
+                    primary_calendar_id=payload.get("primary_calendar_id"),
+                    expected_revision=payload.get("expected_revision"),
+                    now=now,
+                )
+                return self._json(200, {"project": asdict(project)})
             return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
         except SessionError as exc:
             return self._error(401, str(exc), "error.session.invalid")
@@ -2903,7 +2934,12 @@ class ProjectLifecycleHttpRoutes:
                 status = 500
             return self._error(status, code, "error.ai_action.request_failed")
         except ProjectLifecycleError as exc:
-            return self._error(400, str(exc), "error.project.lifecycle")
+            code = str(exc)
+            if code == "PROJECT_REVISION_CONFLICT":
+                return self._error(409, code, "error.project.revision_conflict")
+            if code == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                return self._error(403, code, "error.authorization.denied")
+            return self._error(400, code, "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return self._error(400, str(exc) or "INVALID_REQUEST", "error.request.invalid")
 

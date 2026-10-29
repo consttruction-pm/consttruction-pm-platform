@@ -68,8 +68,56 @@ class ProjectLifecycleAPI:
         )
 
     def create_project(
-        self, session_id: str, project_id: str, name: str, *, now: datetime
+        self,
+        session_id: str,
+        project_id: str,
+        name: str,
+        *,
+        description: str = "",
+        start_date: str | None = None,
+        date_system: str = "gregorian",
+        primary_calendar_id: str | None = None,
+        now: datetime,
     ) -> ProjectContextResponse:
         return ProjectContextResponse(
-            self._service.create_project(session_id, project_id, name, now=now)
+            self._service.create_project(
+                session_id,
+                project_id,
+                name,
+                description=description,
+                start_date=start_date,
+                date_system=date_system,
+                primary_calendar_id=primary_calendar_id,
+                now=now,
+            )
+        )
+
+    def get_project(
+        self, session_id: str, project_id: str, *, now: datetime
+    ) -> ProjectSummary:
+        return self._service.get_project(session_id, project_id, now=now)
+
+    def update_project(
+        self,
+        session_id: str,
+        project_id: str,
+        *,
+        name: str,
+        description: str = "",
+        start_date: str | None = None,
+        date_system: str = "gregorian",
+        primary_calendar_id: str | None = None,
+        expected_revision: int,
+        now: datetime,
+    ) -> ProjectSummary:
+        return self._service.update_project(
+            session_id,
+            project_id,
+            name=name,
+            description=description,
+            start_date=start_date,
+            date_system=date_system,
+            primary_calendar_id=primary_calendar_id,
+            expected_revision=expected_revision,
+            now=now,
         )

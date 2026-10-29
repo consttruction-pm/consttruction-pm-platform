@@ -22,7 +22,7 @@ class Projects:
     def get_for_user(self, tenant_id, project_id, user_id):
         return ProjectSummary("p1", tenant_id, "Project One", 2) if project_id == "p1" else None
 
-    def create_for_user(self, tenant_id, user_id, project_id, name):
+    def create_for_user(self, tenant_id, user_id, project_id, name, **_):
         return ProjectSummary(project_id, tenant_id, name, 0)
 
 

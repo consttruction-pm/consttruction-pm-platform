@@ -345,7 +345,7 @@ class _RouteProjects:
             return None
         return ProjectSummary("project-1", tenant_id, "Route test project", 12)
 
-    def create_for_user(self, tenant_id, user_id, project_id, name):
+    def create_for_user(self, tenant_id, user_id, project_id, name, **_):
         return ProjectSummary(project_id, tenant_id, name, 0)
 
 

@@ -38,10 +38,59 @@ class Projects:
     def get_for_user(self, tenant_id, project_id, user_id):
         return self.items.get((tenant_id, user_id, project_id))
 
-    def create_for_user(self, tenant_id, user_id, project_id, name):
-        project = ProjectSummary(project_id, tenant_id, name, 0)
+    def create_for_user(
+        self,
+        tenant_id,
+        user_id,
+        project_id,
+        name,
+        *,
+        description="",
+        start_date=None,
+        date_system="gregorian",
+        primary_calendar_id=None,
+    ):
+        project = ProjectSummary(
+            project_id,
+            tenant_id,
+            name,
+            0,
+            description=description,
+            start_date=start_date,
+            date_system=date_system,
+            primary_calendar_id=primary_calendar_id,
+        )
         self.items[(tenant_id, user_id, project_id)] = project
         return project
+
+    def update_for_user(
+        self,
+        tenant_id,
+        user_id,
+        project_id,
+        *,
+        expected_revision,
+        name,
+        description="",
+        start_date=None,
+        date_system="gregorian",
+        primary_calendar_id=None,
+    ):
+        current = self.items.get((tenant_id, user_id, project_id))
+        if current is None or current.revision != expected_revision:
+            return None
+        updated = ProjectSummary(
+            project_id,
+            tenant_id,
+            name,
+            current.revision + 1,
+            description=description,
+            start_date=start_date,
+            date_system=date_system,
+            primary_calendar_id=primary_calendar_id,
+        )
+        self.items[(tenant_id, user_id, project_id)] = updated
+        return updated
 
 
 def make_session(*, roles=frozenset({"planner"}), expired=False):
@@ -134,3 +183,100 @@ def test_authorize_project_uses_one_validated_session_snapshot():
         )
 
     assert sessions.calls == 1
+
+
+def test_project_admin_can_create_project_with_persisted_metadata():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    projects = Projects()
+    service = ProjectLifecycleService(
+        Sessions(session), projects, default_project_policy()
+    )
+    context = service.create_project(
+        "session-a",
+        "project-new",
+        "New Project",
+        description="  Highway package  ",
+        start_date="2026-10-05",
+        date_system="jalali",
+        primary_calendar_id="CAL-1",
+        now=now,
+    )
+    assert context.revision == 0
+
+    created = service.get_project("session-a", "project-new", now=now)
+    assert created.description == "Highway package"
+    assert created.start_date == "2026-10-05"
+    assert created.date_system == "jalali"
+    assert created.primary_calendar_id == "CAL-1"
+
+
+def test_create_project_rejects_invalid_metadata():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    service = make_service(session)
+
+    for kwargs, code in (
+        ({"start_date": "05/10/2026"}, "PROJECT_START_DATE_INVALID"),
+        ({"start_date": "2026-02-30"}, "PROJECT_START_DATE_INVALID"),
+        ({"date_system": "hijri"}, "PROJECT_DATE_SYSTEM_INVALID"),
+        ({"description": "x" * 2001}, "PROJECT_DESCRIPTION_TOO_LONG"),
+        ({"primary_calendar_id": " "}, "PROJECT_PRIMARY_CALENDAR_ID_INVALID"),
+    ):
+        with pytest.raises(ProjectLifecycleError, match=code):
+            service.create_project(
+                "session-a", "project-new", "New Project", now=now, **kwargs
+            )
+
+
+def test_update_project_increments_revision_and_replaces_metadata():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    projects = Projects()
+    service = ProjectLifecycleService(
+        Sessions(session), projects, default_project_policy()
+    )
+
+    updated = service.update_project(
+        "session-a",
+        "project-a",
+        name="Project A Renamed",
+        description="Updated scope",
+        start_date="2026-11-01",
+        date_system="gregorian",
+        primary_calendar_id="CAL-2",
+        expected_revision=7,
+        now=now,
+    )
+    assert updated.revision == 8
+    assert updated.name == "Project A Renamed"
+    assert updated.description == "Updated scope"
+    assert updated.start_date == "2026-11-01"
+    assert updated.primary_calendar_id == "CAL-2"
+
+
+def test_update_project_rejects_stale_revision_without_overwriting():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    projects = Projects()
+    service = ProjectLifecycleService(
+        Sessions(session), projects, default_project_policy()
+    )
+
+    with pytest.raises(ProjectLifecycleError, match="PROJECT_REVISION_CONFLICT"):
+        service.update_project(
+            "session-a",
+            "project-a",
+            name="Stale Rename",
+            expected_revision=6,
+            now=now,
+        )
+    assert projects.get_for_user("tenant-a", "project-a", "user-a").name == "Project A"
+
+
+def test_viewer_cannot_update_project_metadata():
+    now, session = make_session(roles=frozenset({"viewer"}))
+    with pytest.raises(AuthorizationError, match="project.admin"):
+        make_service(session).update_project(
+            "session-a",
+            "project-a",
+            name="Viewer Rename",
+            expected_revision=7,
+            now=now,
+        )

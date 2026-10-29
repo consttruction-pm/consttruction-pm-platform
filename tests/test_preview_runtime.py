@@ -1161,3 +1161,105 @@ def test_public_demo_login_is_read_only_and_warns_about_shared_fixture_data(
         assert json.loads(body)["roles"] == ["viewer"]
     finally:
         runtime.close()
+
+
+def test_preview_project_metadata_edit_is_revision_guarded_and_survives_restart(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview.sqlite3"
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        admin = runtime.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            "/api/projects",
+            cookie=admin.session_id,
+            body=json.dumps(
+                {
+                    "project_id": "preview-meta-01",
+                    "name": "Metadata project",
+                    "description": "Original scope",
+                    "start_date": "2026-11-02",
+                    "date_system": "jalali",
+                }
+            ).encode("utf-8"),
+        )
+        assert status == 201
+        assert json.loads(body)["context"]["revision"] == 0
+
+        status, _, body = _request(
+            runtime.app, "GET", "/api/projects/preview-meta-01",
+            cookie=admin.session_id,
+        )
+        assert status == 200
+        created = json.loads(body)["project"]
+        assert created["description"] == "Original scope"
+        assert created["start_date"] == "2026-11-02"
+        assert created["date_system"] == "jalali"
+
+        status, _, body = _request(
+            runtime.app,
+            "PATCH",
+            "/api/projects/preview-meta-01",
+            cookie=admin.session_id,
+            body=json.dumps(
+                {
+                    "name": "Metadata project renamed",
+                    "description": "Revised scope",
+                    "start_date": "2026-11-09",
+                    "date_system": "gregorian",
+                    "primary_calendar_id": "CAL-EDIT",
+                    "expected_revision": 0,
+                }
+            ).encode("utf-8"),
+        )
+        assert status == 200
+        updated = json.loads(body)["project"]
+        assert updated["revision"] == 1
+        assert updated["name"] == "Metadata project renamed"
+        assert updated["primary_calendar_id"] == "CAL-EDIT"
+
+        status, _, body = _request(
+            runtime.app,
+            "PATCH",
+            "/api/projects/preview-meta-01",
+            cookie=admin.session_id,
+            body=json.dumps(
+                {"name": "Stale overwrite", "expected_revision": 0}
+            ).encode("utf-8"),
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "PROJECT_REVISION_CONFLICT"
+
+        viewer = runtime.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
+        status, _, _ = _request(
+            runtime.app,
+            "PATCH",
+            "/api/projects/preview-meta-01",
+            cookie=viewer.session_id,
+            body=json.dumps(
+                {"name": "Viewer edit", "expected_revision": 1}
+            ).encode("utf-8"),
+        )
+        assert status == 403
+    finally:
+        runtime.close()
+
+    reopened = open_preview_runtime(database)
+    try:
+        planner = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            reopened.app, "GET", "/api/projects/preview-meta-01",
+            cookie=planner.session_id,
+        )
+        assert status == 200
+        persisted = json.loads(body)["project"]
+        assert persisted["name"] == "Metadata project renamed"
+        assert persisted["description"] == "Revised scope"
+        assert persisted["start_date"] == "2026-11-09"
+        assert persisted["date_system"] == "gregorian"
+        assert persisted["primary_calendar_id"] == "CAL-EDIT"
+        assert persisted["revision"] == 1
+    finally:
+        reopened.close()

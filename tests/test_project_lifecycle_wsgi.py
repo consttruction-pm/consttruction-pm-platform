@@ -14,7 +14,7 @@ class Sessions:
 class Projects:
     def list_for_user(self,t,u): return (ProjectSummary("p1",t,"P1",0),)
     def get_for_user(self,t,p,u): return ProjectSummary(p,t,"P1",0) if p=="p1" else None
-    def create_for_user(self,t,u,p,n): return ProjectSummary(p,t,n,0)
+    def create_for_user(self,t,u,p,n,**_): return ProjectSummary(p,t,n,0)
 class Clock:
     def now(self): return datetime(2026,1,1,tzinfo=timezone.utc)
 
