@@ -1164,8 +1164,30 @@ def test_public_demo_login_is_read_only_and_warns_about_shared_fixture_data(
         status, _, body = _request(app, "GET", "/preview/health")
         assert status == 200
         health = json.loads(body)
-        assert health["public_demo"] is True
-        assert health["read_only"] is True
+        assert health == {
+            "status": "ok",
+            "production": False,
+            "demo_data": True,
+            "public_demo": True,
+            "read_only": True,
+        }
+        # Anonymous readiness probes must not disclose internal deployment or
+        # tenant details that are present in the runtime's private health data.
+        for internal_key in (
+            "database",
+            "web_root",
+            "tenant_id",
+            "project_count",
+            "demo_project_count",
+            "activity_count",
+            "wbs_node_count",
+            "capacity_segment_count",
+            "session_count",
+            "assistant",
+        ):
+            assert internal_key not in health
+        assert str(tmp_path) not in body.decode("utf-8")
+        assert RPS_TENANT not in body.decode("utf-8")
 
         status, _, body = _request(app, "GET", "/api/session", cookie=cookie)
         assert status == 200
