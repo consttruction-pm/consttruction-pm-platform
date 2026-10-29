@@ -5008,8 +5008,8 @@ async function main() {
     assert(
       settingsLoaded.name === createdProjectName &&
         settingsLoaded.description === createdProjectDescription &&
-        settingsLoaded.start_date === "2026-11-02" &&
-        settingsLoaded.date_system === "gregorian",
+        settingsLoaded.start_date === "2026-10-07" &&
+        settingsLoaded.date_system === "jalali",
       "the settings panel must load the persisted project metadata: " +
         JSON.stringify(settingsLoaded),
     );
