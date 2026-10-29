@@ -2301,15 +2301,20 @@ async function main() {
     await page.setSelect("[data-capacity-resolve-basis]", "week");
     await page.setInput("[data-capacity-resolve-hours]", "40");
     await page.click("[data-capacity-resolve]");
-    await page.waitFor(
-      `(() => {
-        const value = document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value");
-        const status = document.querySelector("[data-capacity-resolve-status]")?.textContent.trim() ?? "";
-        const result = document.querySelector("[data-capacity-resolve-result]")?.textContent.trim() ?? "";
-        return Boolean(value || result || (status && status !== "Resolving through the server…"));
-      })()`,
-      "server capacity resolution response",
-    );
+    let capacityResolutionWaitError = null;
+    try {
+      await page.waitFor(
+        `(() => {
+          const value = document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value");
+          const status = document.querySelector("[data-capacity-resolve-status]")?.textContent.trim() ?? "";
+          const result = document.querySelector("[data-capacity-resolve-result]")?.textContent.trim() ?? "";
+          return Boolean(value || result || (status && status !== "Resolving through the server…"));
+        })()`,
+        "server capacity resolution response",
+      );
+    } catch (error) {
+      capacityResolutionWaitError = error instanceof Error ? error.message : String(error);
+    }
     const capacityResolutionOutcome = await page.evaluate(`(() => ({
       value: document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") ?? null,
       status: document.querySelector("[data-capacity-resolve-status]")?.textContent.trim() ?? null,
@@ -2319,10 +2324,15 @@ async function main() {
       basis: document.querySelector("[data-capacity-resolve-basis]")?.value ?? null,
       hours: document.querySelector("[data-capacity-resolve-hours]")?.value ?? null,
       hoursDisabled: document.querySelector("[data-capacity-resolve-hours]")?.disabled ?? null,
+      buttonDisabled: document.querySelector("[data-capacity-resolve]")?.disabled ?? null,
+      panelBusy: document.querySelector("#cp-resource-capacity [data-capacity-panel]")?.getAttribute("aria-busy") ?? null,
     }))()`);
     assert(
       capacityResolutionOutcome.value === "60",
-      "server-resolved weekly capacity before the change: " + JSON.stringify(capacityResolutionOutcome),
+      "server-resolved weekly capacity before the change: " + JSON.stringify({
+        ...capacityResolutionOutcome,
+        waitError: capacityResolutionWaitError,
+      }),
     );
 
     await page.setInput("[data-capacity-resource]", "RPS-CIVIL-CREW");
