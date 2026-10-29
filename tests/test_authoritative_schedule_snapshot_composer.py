@@ -788,6 +788,7 @@ def test_resource_dependent_publication_fails_closed_for_persisted_nondriving_as
             "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
             "status": ActivityStatus.NOT_STARTED.value,
             "status_code": ActivityStatusCode.PLANNED.value,
+            "wbs_id": "W-ROOT",
         },
     )
     assert status == "201 Created"
