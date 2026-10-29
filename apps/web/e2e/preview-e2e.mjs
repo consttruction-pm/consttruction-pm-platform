@@ -1669,73 +1669,89 @@ async function main() {
     });
     await sleep(200);
 
-    // A first visit through a project-specific link must survive the preview
-    // login redirect. This covers the actual browser flow, not only the WSGI
-    // helper: the project query chooses the workspace after authentication.
-    const requestedProjectUrl = `${baseUrl}/app?project=${encodeURIComponent(PROJECT_ID)}`;
-    await page.navigate(
-      requestedProjectUrl,
-      'form[action="/preview/login"]',
-      "first visit through project deep link",
-      `${baseUrl}/preview/login`,
-    );
-    const deepLinkLogin = await page.evaluate(`(() => ({
-      pathname: location.pathname,
-      next: document.querySelector('form[action="/preview/login"] input[name="next"]')?.value ?? null,
-      project: new URLSearchParams(location.search).get("project"),
-    }))()`);
-    assert(
-      deepLinkLogin.pathname === "/preview/login" &&
-        deepLinkLogin.next === `/app?project=${PROJECT_ID}` &&
-        deepLinkLogin.project === null,
-      "login must preserve the requested project in its validated next path: " +
-        JSON.stringify(deepLinkLogin),
-    );
-    await page.click('button[name="role"][value="planner"]');
-    await page.waitFor(
-      `location.pathname === "/app" && new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)}`,
-      "login returns to the requested project deep link",
-    );
-    await page.waitForSelector("#cp-activity-grid", "deep-linked project activity grid");
-    const deepLinkWorkspace = await page.evaluate(`(async () => {
-      const sessionResponse = await fetch("/api/session");
-      const session = await sessionResponse.json();
-      const projectsResponse = await fetch("/api/projects");
-      const projects = await projectsResponse.json();
-      const project = (projects.projects || []).find((item) => item.project_id === ${JSON.stringify(PROJECT_ID)});
-      const table = document.querySelector("#cp-activity-grid");
-      return {
+    // Run this first-visit flow in a dedicated browser profile so its
+    // remembered-project preference cannot leak into the independent legacy
+    // project-selection journey below.
+    const deepLinkChrome = await launchChrome();
+    let deepLinkPage;
+    try {
+      deepLinkPage = new Page(deepLinkChrome.cdp);
+      await deepLinkPage.initialize();
+      await deepLinkPage.cdp.send("Emulation.setDeviceMetricsOverride", {
+        width: 1440,
+        height: 900,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      const requestedProjectUrl = `${baseUrl}/app?project=${encodeURIComponent(PROJECT_ID)}`;
+      await deepLinkPage.navigate(
+        requestedProjectUrl,
+        'form[action="/preview/login"]',
+        "first visit through project deep link",
+        `${baseUrl}/preview/login`,
+      );
+      const deepLinkLogin = await deepLinkPage.evaluate(`(() => ({
         pathname: location.pathname,
-        requested_project: new URLSearchParams(location.search).get("project"),
-        project_found_in_session_list: Boolean(project),
-        project_name: project?.name ?? null,
-        grid_visible: Boolean(table),
-        rendered_rows: table?.querySelectorAll("tbody tr").length ?? 0,
-        session_authenticated: sessionResponse.status === 200,
-      };
-    })()`, { awaitPromise: true });
-    assert(
-      deepLinkWorkspace.requested_project === PROJECT_ID &&
-        deepLinkWorkspace.project_found_in_session_list &&
-        deepLinkWorkspace.grid_visible &&
-        deepLinkWorkspace.session_authenticated &&
-        deepLinkWorkspace.rendered_rows > 0,
-      "browser must open the requested authorized project after login: " +
-        JSON.stringify(deepLinkWorkspace),
-    );
-    record("first-visit project deep link survives login and opens the requested workspace", {
-      ...deepLinkWorkspace,
-    });
-    await page.click('#cubi-preview-banner form[action="/preview/logout"] button');
-    await page.waitFor(
-      `location.pathname === "/preview/login"`,
-      "logout after project deep-link roundtrip",
-    );
-    await page.waitForSelector('form[action="/preview/login"] button[name="role"]', "clean login after deep-link logout");
-    await page.evaluate(`() => {
-      try { localStorage.removeItem("cubi:workspace-project"); } catch { /* storage is optional */ }
-      return true;
-    }`);
+        next: document.querySelector('form[action="/preview/login"] input[name="next"]')?.value ?? null,
+        project: new URLSearchParams(location.search).get("project"),
+      }))()`);
+      assert(
+        deepLinkLogin.pathname === "/preview/login" &&
+          deepLinkLogin.next === `/app?project=${PROJECT_ID}` &&
+          deepLinkLogin.project === null,
+        "login must preserve the requested project in its validated next path: " +
+          JSON.stringify(deepLinkLogin),
+      );
+      await deepLinkPage.click('button[name="role"][value="planner"]');
+      await deepLinkPage.waitFor(
+        `location.pathname === "/app" && new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)}`,
+        "login returns to the requested project deep link",
+      );
+      await deepLinkPage.waitForSelector("#cp-activity-grid", "deep-linked project activity grid");
+      const deepLinkWorkspace = await deepLinkPage.evaluate(`(async () => {
+        const sessionResponse = await fetch("/api/session");
+        const session = await sessionResponse.json();
+        const projectsResponse = await fetch("/api/projects");
+        const projects = await projectsResponse.json();
+        const project = (projects.projects || []).find((item) => item.project_id === ${JSON.stringify(PROJECT_ID)});
+        const table = document.querySelector("#cp-activity-grid");
+        return {
+          pathname: location.pathname,
+          requested_project: new URLSearchParams(location.search).get("project"),
+          project_found_in_session_list: Boolean(project),
+          project_name: project?.name ?? null,
+          grid_visible: Boolean(table),
+          rendered_rows: table?.querySelectorAll("tbody tr").length ?? 0,
+          session_authenticated: sessionResponse.status === 200,
+          tenant_matches_session: project ? session.tenant_id !== undefined : false,
+        };
+      })()`, { awaitPromise: true });
+      assert(
+        deepLinkWorkspace.requested_project === PROJECT_ID &&
+          deepLinkWorkspace.project_found_in_session_list &&
+          deepLinkWorkspace.grid_visible &&
+          deepLinkWorkspace.session_authenticated &&
+          deepLinkWorkspace.rendered_rows > 0,
+        "browser must open the requested authorized project after login: " +
+          JSON.stringify(deepLinkWorkspace),
+      );
+      record("first-visit project deep link survives login and opens the requested workspace", {
+        ...deepLinkWorkspace,
+      });
+      await deepLinkPage.click('#cubi-preview-banner form[action="/preview/logout"] button');
+      await deepLinkPage.waitFor(
+        `location.pathname === "/preview/login"`,
+        "logout after project deep-link roundtrip",
+      );
+      await deepLinkPage.waitForSelector(
+        'form[action="/preview/login"] button[name="role"]',
+        "clean login after deep-link logout",
+      );
+    } finally {
+      if (deepLinkPage) deepLinkPage.cdp.close();
+      deepLinkChrome.stop();
+      rmSync(deepLinkChrome.userDataDir, { recursive: true, force: true });
+    }
 
     await page.navigate(
       `${baseUrl}/preview/login`,
