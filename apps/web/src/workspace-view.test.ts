@@ -71,6 +71,55 @@ test("WBS create form dispatches validated fields to its workspace callback", ()
   });
 });
 
+test("Activity entry is localized and requires an authoritative WBS selection", () => {
+  const empty = render("en", "schedule");
+  assert.match(empty, /data-activity-create-form/);
+  assert.match(empty, /name="activity_id"/);
+  assert.match(empty, /name="duration_value"/);
+  assert.match(empty, /name="wbs_id" required disabled/);
+  const persian = render("fa", "schedule");
+  assert.match(persian, /افزودن فعالیت/);
+  assert.match(persian, /واحد مدت/);
+});
+
+test("Activity create form dispatches typed fields and selected WBS to its callback", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = withWbsNodes(
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    [{ id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Root", sequenceNumber: 0, recordRevision: 1 }],
+  );
+  let created: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string } | null = null;
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onActivityCreate: (input) => { created = input; },
+  });
+  const values: Record<string, { value: string }> = {
+    '[name="activity_id"]': { value: " A-101 " },
+    '[name="name"]': { value: " Foundation " },
+    '[name="duration_value"]': { value: "2.5" },
+    '[name="duration_unit"]': { value: "working-day" },
+    '[name="wbs_id"]': { value: "WBS-1" },
+  };
+  const form = {
+    matches: (selector: string) => selector === "[data-activity-create-form]",
+    querySelector: (selector: string) => values[selector] ?? null,
+  };
+  let prevented = false;
+  listeners.get("submit")?.({ target: form, preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.deepEqual(created, {
+    activityId: "A-101",
+    name: "Foundation",
+    durationValue: 2.5,
+    durationUnit: "working-day",
+    wbsId: "WBS-1",
+  });
+});
+
 test("rendered schedule surface exposes localized label and implemented status", () => {
   const html = render("en", "schedule");
 

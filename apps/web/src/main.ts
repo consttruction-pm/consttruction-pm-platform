@@ -490,6 +490,32 @@ function renderApp(
         reportWbsMutationError(error);
       }
     },
+    onActivityCreate: async (input) => {
+      try {
+        const response = await aiTransport.post<
+          { contract_version: string; activity_id: string; name: string; duration_value: number; duration_unit: string; wbs_id: string },
+          { activity: { activity_id: string } }
+        >(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities`, {
+          contract_version: "p6-activity-master-api.v1",
+          activity_id: input.activityId,
+          name: input.name,
+          duration_value: input.durationValue,
+          duration_unit: input.durationUnit,
+          wbs_id: input.wbsId,
+        }, state.context);
+        if (!response.ok) throw new Error(response.error.code);
+        await refreshWorkspaceAfterWbsMutation(input.wbsId);
+      } catch (error) {
+        console.error("Activity creation failed", error);
+        const message = error instanceof Error ? error.message : "ACTIVITY_CREATE_FAILED";
+        const panel = container.querySelector<HTMLElement>("#cp-activity-grid");
+        if (panel) {
+          let notice = panel.querySelector<HTMLElement>("[data-activity-error]");
+          if (!notice) { notice = document.createElement("p"); notice.dataset.activityError = "true"; notice.setAttribute("role", "alert"); panel.prepend(notice); }
+          notice.textContent = message;
+        }
+      }
+    },
     onActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId), persistence);
     },
