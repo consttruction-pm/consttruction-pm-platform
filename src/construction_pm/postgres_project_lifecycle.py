@@ -47,7 +47,7 @@ class PostgresProjectRepository(ProjectRepository):
 
     _SELECT = (
         "SELECT p.project_id, p.tenant_id, p.name, p.revision, p.description, "
-        "p.start_date, p.date_system, p.primary_calendar_id "
+        "p.start_date, p.date_system, p.primary_calendar_id, p.settings_revision "
         "FROM project_lifecycle_projects p "
     )
 
@@ -86,8 +86,9 @@ class PostgresProjectRepository(ProjectRepository):
     ) -> ProjectSummary:
         self._connection.execute(
             "INSERT INTO project_lifecycle_projects "
-            "(tenant_id, project_id, name, revision, description, start_date, date_system, primary_calendar_id) "
-            "VALUES (%s,%s,%s,0,%s,%s,%s,%s)",
+            "(tenant_id, project_id, name, revision, description, start_date, date_system, "
+            "primary_calendar_id, settings_revision) "
+            "VALUES (%s,%s,%s,0,%s,%s,%s,%s,0)",
             (tenant_id, project_id, name, description, start_date, date_system, primary_calendar_id),
         )
         self._connection.execute(
@@ -121,13 +122,14 @@ class PostgresProjectRepository(ProjectRepository):
     ) -> ProjectSummary | None:
         row = self._connection.execute(
             "UPDATE project_lifecycle_projects SET name=%s, description=%s, "
-            "start_date=%s, date_system=%s, primary_calendar_id=%s, revision=revision+1 "
-            "WHERE tenant_id=%s AND project_id=%s AND revision=%s AND EXISTS ("
+            "start_date=%s, date_system=%s, primary_calendar_id=%s, "
+            "settings_revision=settings_revision+1 "
+            "WHERE tenant_id=%s AND project_id=%s AND settings_revision=%s AND EXISTS ("
             "SELECT 1 FROM project_lifecycle_memberships m "
             "WHERE m.tenant_id=project_lifecycle_projects.tenant_id "
             "AND m.project_id=project_lifecycle_projects.project_id AND m.user_id=%s) "
             "RETURNING project_id, tenant_id, name, revision, description, "
-            "start_date, date_system, primary_calendar_id",
+            "start_date, date_system, primary_calendar_id, settings_revision",
             (
                 name,
                 description,
@@ -157,6 +159,7 @@ def _summary(row: Any) -> ProjectSummary:
         start_date=start_date,
         date_system=str(row[6] or "gregorian"),
         primary_calendar_id=None if row[7] is None else str(row[7]),
+        settings_revision=int(row[8]) if len(row) > 8 and row[8] is not None else 0,
     )
 
 

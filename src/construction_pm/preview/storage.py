@@ -107,6 +107,7 @@ def _project_summary(row: tuple[object, ...]) -> ProjectSummary:
         start_date=None if row[5] is None else str(row[5]),
         date_system=str(row[6] or "gregorian"),
         primary_calendar_id=None if row[7] is None else str(row[7]),
+        settings_revision=int(row[8]) if len(row) > 8 else 0,
     )
 
 
@@ -354,6 +355,7 @@ class PreviewStore:
                 start_date TEXT,
                 date_system TEXT NOT NULL DEFAULT 'gregorian',
                 primary_calendar_id TEXT,
+                settings_revision INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (tenant_id, project_id)
             );
             CREATE TABLE IF NOT EXISTS preview_project_member (
@@ -386,6 +388,10 @@ class PreviewStore:
             (
                 "primary_calendar_id",
                 "ALTER TABLE preview_project ADD COLUMN primary_calendar_id TEXT",
+            ),
+            (
+                "settings_revision",
+                "ALTER TABLE preview_project ADD COLUMN settings_revision INTEGER NOT NULL DEFAULT 0",
             ),
         ):
             if column not in existing_columns:
@@ -430,8 +436,8 @@ class PreviewStore:
         self.connection.execute(
             "INSERT INTO preview_project "
             "(tenant_id, project_id, name, project_revision, wbs_json, demo, created_at, "
-            "description, start_date, date_system, primary_calendar_id) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "description, start_date, date_system, primary_calendar_id, settings_revision) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 tenant_id,
                 project_id,
@@ -444,6 +450,7 @@ class PreviewStore:
                 start_date,
                 date_system,
                 primary_calendar_id,
+                0,
             ),
         )
         if owns_transaction:
@@ -474,7 +481,8 @@ class PreviewStore:
     ) -> tuple[ProjectSummary, ...]:
         rows = self.connection.execute(
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
-            "p.description, p.start_date, p.date_system, p.primary_calendar_id "
+            "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
+            "p.settings_revision "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -489,7 +497,8 @@ class PreviewStore:
     ) -> ProjectSummary | None:
         row = self.connection.execute(
             "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
-            "p.description, p.start_date, p.date_system, p.primary_calendar_id "
+            "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
+            "p.settings_revision "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -513,11 +522,16 @@ class PreviewStore:
         date_system: str,
         primary_calendar_id: str | None,
     ) -> bool:
-        """Apply a revision-guarded metadata update scoped to a member.
+        """Apply a configuration-revision-guarded metadata update.
+
+        ``expected_revision`` compares against ``settings_revision`` so that
+        renaming a project never invalidates the workspace data revision that
+        WBS, activity and relationship rows are stamped with.
 
         Returns ``False`` when the row is missing, the caller is not a member,
-        or the stored revision no longer matches ``expected_revision``. The
-        caller distinguishes the cases by re-reading the project.
+        or the stored configuration revision no longer matches
+        ``expected_revision``. The caller distinguishes the cases by re-reading
+        the project.
         """
         if not tenant_id.strip() or not project_id.strip() or not name.strip():
             raise ValueError("PREVIEW_PROJECT_IDENTITY_REQUIRED")
@@ -530,8 +544,8 @@ class PreviewStore:
         owns_transaction = not self.connection.in_transaction
         cursor = self.connection.execute(
             "UPDATE preview_project SET name=?, description=?, start_date=?, "
-            "date_system=?, primary_calendar_id=?, project_revision=project_revision+1 "
-            "WHERE tenant_id=? AND project_id=? AND project_revision=? AND EXISTS ("
+            "date_system=?, primary_calendar_id=?, settings_revision=settings_revision+1 "
+            "WHERE tenant_id=? AND project_id=? AND settings_revision=? AND EXISTS ("
             "SELECT 1 FROM preview_project_member m "
             "WHERE m.tenant_id=preview_project.tenant_id "
             "AND m.project_id=preview_project.project_id AND m.user_id=?)",

@@ -53,6 +53,11 @@ class ProjectSummary:
     start_date: str | None = None
     date_system: str = "gregorian"
     primary_calendar_id: str | None = None
+    # Configuration edits are guarded by their own optimistic token. The
+    # ``revision`` column identifies the workspace data version every
+    # activity/WBS/relationship row is stamped with; reusing it for metadata
+    # edits would make existing workspace data unreadable after a rename.
+    settings_revision: int = 0
 
 
 DATE_SYSTEMS = frozenset({"gregorian", "jalali"})
@@ -314,9 +319,11 @@ class ProjectLifecycleService:
     ) -> ProjectSummary:
         """Replace project metadata under optimistic-concurrency control.
 
-        A stale ``expected_revision`` never overwrites newer data: the repository
-        performs a conditional update and the service reports a conflict for the
-        caller to resolve by reloading.
+        ``expected_revision`` is the configuration revision the editor loaded
+        (``ProjectSummary.settings_revision``), not the workspace data revision.
+        A stale value never overwrites newer metadata: the repository performs a
+        conditional update and the service reports a conflict for the caller to
+        resolve by reloading.
         """
         session = self.session(session_id, now=now)
         existing = self._projects.get_for_user(

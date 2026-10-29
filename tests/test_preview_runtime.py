@@ -1216,7 +1216,11 @@ def test_preview_project_metadata_edit_is_revision_guarded_and_survives_restart(
         )
         assert status == 200
         updated = json.loads(body)["project"]
-        assert updated["revision"] == 1
+        assert updated["settings_revision"] == 1
+        assert updated["revision"] == 0, (
+            "a metadata edit must not move the workspace data revision that "
+            "persisted WBS/activity rows are stamped with"
+        )
         assert updated["name"] == "Metadata project renamed"
         assert updated["primary_calendar_id"] == "CAL-EDIT"
 
@@ -1260,6 +1264,7 @@ def test_preview_project_metadata_edit_is_revision_guarded_and_survives_restart(
         assert persisted["start_date"] == "2026-11-09"
         assert persisted["date_system"] == "gregorian"
         assert persisted["primary_calendar_id"] == "CAL-EDIT"
-        assert persisted["revision"] == 1
+        assert persisted["settings_revision"] == 1
+        assert persisted["revision"] == 0
     finally:
         reopened.close()

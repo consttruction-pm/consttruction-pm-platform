@@ -71,20 +71,24 @@ def test_project_creation_persists_metadata_columns():
 
 def test_project_update_is_guarded_by_expected_revision_and_returns_fresh_row():
     c = FakeConnection()
-    c.next_rows = [("p2", "t1", "Renamed", 5, "Updated", "2026-12-01", "gregorian", "CAL-2")]
+    c.next_rows = [
+        ("p2", "t1", "Renamed", 5, "Updated", "2026-12-01", "gregorian", "CAL-2", 3)
+    ]
     p = PostgresProjectRepository(c).update_for_user(
         "t1", "u1", "p2",
-        expected_revision=4, name="Renamed", description="Updated",
+        expected_revision=2, name="Renamed", description="Updated",
         start_date="2026-12-01", date_system="gregorian",
         primary_calendar_id="CAL-2",
     )
-    assert p is not None and p.revision == 5 and p.name == "Renamed"
+    assert p is not None and p.settings_revision == 3 and p.name == "Renamed"
+    assert p.revision == 5, "a metadata edit must not change the workspace data revision"
     sql, params = c.calls[0]
-    assert "revision=revision+1" in sql and "revision=%s" in sql and "RETURNING" in sql
+    assert "settings_revision=settings_revision+1" in sql
+    assert "settings_revision=%s" in sql and "RETURNING" in sql
     assert "EXISTS (SELECT 1 FROM project_lifecycle_memberships" in sql
     assert params == (
         "Renamed", "Updated", "2026-12-01", "gregorian", "CAL-2",
-        "t1", "p2", 4, "u1",
+        "t1", "p2", 2, "u1",
     )
 
 

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS project_lifecycle_projects (
     date_system TEXT NOT NULL DEFAULT 'gregorian'
         CHECK (date_system IN ('gregorian', 'jalali')),
     primary_calendar_id TEXT,
+    settings_revision INTEGER NOT NULL DEFAULT 0 CHECK (settings_revision >= 0),
     PRIMARY KEY (tenant_id, project_id)
 );
 
@@ -30,6 +31,8 @@ ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS date_system TEXT NOT NULL DEFAULT 'gregorian';
 ALTER TABLE project_lifecycle_projects
     ADD COLUMN IF NOT EXISTS primary_calendar_id TEXT;
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS settings_revision INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
     tenant_id TEXT NOT NULL,

@@ -47,12 +47,13 @@ def test_preview_store_migrates_legacy_project_table_without_data_loss():
         assert project.start_date is None
         assert project.date_system == "gregorian"
         assert project.primary_calendar_id is None
+        assert project.settings_revision == 0
 
         assert store.update_project(
             "t1",
             "p1",
             "u1",
-            expected_revision=3,
+            expected_revision=0,
             name="Legacy renamed",
             description="Migrated",
             start_date="2026-11-02",
@@ -60,7 +61,8 @@ def test_preview_store_migrates_legacy_project_table_without_data_loss():
             primary_calendar_id="CAL-1",
         )
         migrated = store.get_for_user("t1", "p1", "u1")
-        assert migrated.revision == 4
+        assert migrated.settings_revision == 1
+        assert migrated.revision == 3, "metadata edits keep the workspace data revision"
         assert migrated.description == "Migrated"
         assert migrated.date_system == "jalali"
     finally:
@@ -89,26 +91,28 @@ def test_preview_store_update_is_scoped_to_revision_membership_and_tenant():
             date_system="gregorian", primary_calendar_id=None,
         )
         assert not store.update_project(
-            "t1", "p1", "u2", expected_revision=2,
+            "t1", "p1", "u2", expected_revision=0,
             name="Outsider", description="", start_date=None,
             date_system="gregorian", primary_calendar_id=None,
         )
         assert not store.update_project(
-            "t2", "p1", "u1", expected_revision=2,
+            "t2", "p1", "u1", expected_revision=0,
             name="Cross tenant", description="", start_date=None,
             date_system="gregorian", primary_calendar_id=None,
         )
         unchanged = store.get_for_user("t1", "p1", "u1")
         assert unchanged.revision == 2 and unchanged.name == "Project"
+        assert unchanged.settings_revision == 0
 
         assert store.update_project(
-            "t1", "p1", "u1", expected_revision=2,
+            "t1", "p1", "u1", expected_revision=0,
             name="Project renamed", description="Scope",
             start_date="2026-12-01", date_system="jalali",
             primary_calendar_id="CAL-9",
         )
         updated = store.get_for_user("t1", "p1", "u1")
-        assert updated.revision == 3
+        assert updated.revision == 2, "the workspace data revision must not move"
+        assert updated.settings_revision == 1
         assert updated.name == "Project renamed"
         assert updated.start_date == "2026-12-01"
         assert updated.primary_calendar_id == "CAL-9"

@@ -75,6 +75,7 @@ class Projects:
                 description=p.description, start_date=p.start_date,
                 date_system=p.date_system,
                 primary_calendar_id=p.primary_calendar_id,
+                settings_revision=p.settings_revision,
             )
             for p in self.items.values()
         )
@@ -87,6 +88,7 @@ class Projects:
             description=project.description, start_date=project.start_date,
             date_system=project.date_system,
             primary_calendar_id=project.primary_calendar_id,
+            settings_revision=project.settings_revision,
         )
 
     def create_for_user(
@@ -108,11 +110,12 @@ class Projects:
         primary_calendar_id=None,
     ):
         project = self.items.get(project_id)
-        if project is None or project.revision != expected_revision: return None
+        if project is None or project.settings_revision != expected_revision: return None
         updated = ProjectSummary(
-            project_id, tenant_id, name, expected_revision + 1,
+            project_id, tenant_id, name, project.revision,
             description=description, start_date=start_date,
             date_system=date_system, primary_calendar_id=primary_calendar_id,
+            settings_revision=project.settings_revision + 1,
         )
         self.items[project_id] = updated
         return updated
@@ -2316,13 +2319,16 @@ def test_project_http_patch_updates_metadata_under_expected_revision():
             "start_date": "2026-12-01",
             "date_system": "gregorian",
             "primary_calendar_id": "CAL-9",
-            "expected_revision": 2,
+            "expected_revision": 0,
         }).encode(),
     )
     assert status == 200
     project = json.loads(body)["project"]
     assert project["name"] == "Project One Renamed"
-    assert project["revision"] == 3
+    assert project["settings_revision"] == 1
+    assert project["revision"] == 2, (
+        "editing metadata must not invalidate the workspace data revision"
+    )
     assert project["primary_calendar_id"] == "CAL-9"
 
 

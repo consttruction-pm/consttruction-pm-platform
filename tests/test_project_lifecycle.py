@@ -77,17 +77,18 @@ class Projects:
         primary_calendar_id=None,
     ):
         current = self.items.get((tenant_id, user_id, project_id))
-        if current is None or current.revision != expected_revision:
+        if current is None or current.settings_revision != expected_revision:
             return None
         updated = ProjectSummary(
             project_id,
             tenant_id,
             name,
-            current.revision + 1,
+            current.revision,
             description=description,
             start_date=start_date,
             date_system=date_system,
             primary_calendar_id=primary_calendar_id,
+            settings_revision=current.settings_revision + 1,
         )
         self.items[(tenant_id, user_id, project_id)] = updated
         return updated
@@ -227,7 +228,7 @@ def test_create_project_rejects_invalid_metadata():
             )
 
 
-def test_update_project_increments_revision_and_replaces_metadata():
+def test_update_project_increments_configuration_revision_and_replaces_metadata():
     now, session = make_session(roles=frozenset({"project_admin"}))
     projects = Projects()
     service = ProjectLifecycleService(
@@ -242,10 +243,11 @@ def test_update_project_increments_revision_and_replaces_metadata():
         start_date="2026-11-01",
         date_system="gregorian",
         primary_calendar_id="CAL-2",
-        expected_revision=7,
+        expected_revision=0,
         now=now,
     )
-    assert updated.revision == 8
+    assert updated.settings_revision == 1
+    assert updated.revision == 7, "the workspace data revision must stay stable"
     assert updated.name == "Project A Renamed"
     assert updated.description == "Updated scope"
     assert updated.start_date == "2026-11-01"
@@ -264,7 +266,25 @@ def test_update_project_rejects_stale_revision_without_overwriting():
             "session-a",
             "project-a",
             name="Stale Rename",
-            expected_revision=6,
+            expected_revision=1,
+            now=now,
+        )
+    assert projects.get_for_user("tenant-a", "project-a", "user-a").name == "Project A"
+
+
+def test_update_project_rejects_the_workspace_data_revision_as_a_stale_token():
+    now, session = make_session(roles=frozenset({"project_admin"}))
+    projects = Projects()
+    service = ProjectLifecycleService(
+        Sessions(session), projects, default_project_policy()
+    )
+
+    with pytest.raises(ProjectLifecycleError, match="PROJECT_REVISION_CONFLICT"):
+        service.update_project(
+            "session-a",
+            "project-a",
+            name="Data revision token",
+            expected_revision=7,
             now=now,
         )
     assert projects.get_for_user("tenant-a", "project-a", "user-a").name == "Project A"
