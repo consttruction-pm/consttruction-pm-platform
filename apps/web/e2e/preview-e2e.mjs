@@ -4150,9 +4150,10 @@ async function main() {
       if (editReadBack.rowText.includes("E2E linked activity revised") && !editReadBack.editForm) break;
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+    const activityApiPath = `/api/projects/${encodeURIComponent(wbsJourney.project_id)}/p6/activities/NEW-100`;
     const updatedActivityApi = await page.evaluate(
       `(async () => {
-        const response = await fetch("/api/projects/${encodeURIComponent(${JSON.stringify(wbsJourney.project_id)})}/p6/activities/NEW-100", {
+        const response = await fetch(${JSON.stringify(activityApiPath)}, {
           headers: {
             "X-Tenant-Id": ${JSON.stringify(wbsJourney.tenant_id)},
             "X-Project-Id": ${JSON.stringify(wbsJourney.project_id)},
