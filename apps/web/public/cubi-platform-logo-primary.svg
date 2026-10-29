@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1536" height="664" viewBox="0 0 1536 664" role="img" aria-labelledby="title desc">
   <title id="title">CUBI Platform</title>
-  <desc id="desc">CUBI Platform logo with a transparent background.</desc>
+  <desc id="desc">Original user-provided CUBI Platform logo image preserved without redraw or alteration.</desc>
   <defs>
     <filter id="remove-black-matte" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
       <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0.2126 0.7152 0.0722 0 0"/>
