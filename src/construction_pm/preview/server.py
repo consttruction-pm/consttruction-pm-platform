@@ -467,6 +467,7 @@ class PreviewApplication:
         session: AuthenticatedSession | None,
     ) -> tuple[int, dict[str, str], bytes]:
         if session is None:
+            path = urlsplit(str(environ.get("PATH_INFO", "/"))).path
             query = str(environ.get("QUERY_STRING", "") or "")
             requested_next = path + ("?" + query if query else "")
             next_path = _safe_next(requested_next)
