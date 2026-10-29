@@ -19,6 +19,7 @@ import {
   setP6Presentation,
   setLocale,
   setCalendarMode,
+  setGanttScale,
   type WorkspaceLocale,
   type WorkspaceState,
 } from "./workspace-model.js";
@@ -681,6 +682,9 @@ function renderApp(
     },
     onGanttActivitySelect: (activityId) => {
       renderApp(container, selectActivity(state, activityId), persistence);
+    },
+    onGanttScaleChange: (ganttScale) => {
+      renderApp(container, setGanttScale(state, ganttScale), persistence);
     },
     onActivityFilterChange: (filterText) => {
       renderApp(container, setActivityFilter(state, filterText), persistence);

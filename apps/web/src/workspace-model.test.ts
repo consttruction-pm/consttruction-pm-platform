@@ -8,6 +8,7 @@ import {
   selectActivity,
   selectWbs,
   setCalendarMode,
+  setGanttScale,
   setLocale,
   setControlSummary,
   setSmartGuide,
@@ -635,4 +636,15 @@ test("persisted relationships attach only when both endpoints are loaded activit
     lagUnit: "working-day",
     recordRevision: 1,
   }]), /INVALID_WORKSPACE_RELATIONSHIPS/);
+});
+
+test("Gantt scale is presentation state with a validated day/week/month domain", () => {
+  const state = createWorkspaceState(context, "en");
+  assert.equal(state.ganttScale, "day");
+
+  const weekly = setGanttScale(state, "week");
+  assert.equal(weekly.ganttScale, "week");
+  assert.equal(weekly.activities, state.activities);
+  assert.strictEqual(setGanttScale(weekly, "week"), weekly);
+  assert.throws(() => setGanttScale(state, "quarter" as never), /INVALID_GANTT_SCALE/);
 });

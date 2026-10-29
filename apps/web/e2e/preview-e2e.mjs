@@ -4623,6 +4623,92 @@ async function main() {
       second_hash: loggedSecondRun.hash.slice(0, 12),
     });
 
+    // Section H2: the Gantt is a real presentation of the same persisted logic.
+    // Dependency arrows must keep the stored FS/SS semantics, the axis must show
+    // canonical schedule dates, and the day/week/month control must only change
+    // the rendered tick density.
+    const readGanttGraph = () => page.evaluate(`(() => {
+      const links = Array.from(document.querySelectorAll("#cp-gantt path[data-gantt-link]")).map((path) => ({
+        id: path.getAttribute("data-gantt-link"),
+        type: path.getAttribute("data-link-type"),
+        from: path.getAttribute("data-link-from"),
+        to: path.getAttribute("data-link-to"),
+        d: path.getAttribute("d"),
+      }));
+      const ticks = Array.from(document.querySelectorAll("#cp-gantt [data-gantt-tick]")).map((tick) => ({
+        date: tick.getAttribute("data-gantt-tick"),
+        label: tick.textContent.trim(),
+        left: Number.parseFloat(tick.style.left),
+      }));
+      return {
+        mode: document.querySelector("#cp-gantt [data-gantt-scale-mode]")?.getAttribute("data-gantt-scale-mode") ?? "",
+        links,
+        ticks,
+        rows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
+      };
+    })()`);
+    const validTicks = (ticks) =>
+      ticks.length > 0 &&
+      ticks.every((tick) => /^\d{4}-\d{2}-\d{2}$/.test(tick.date) && tick.label.length > 0 && Number.isFinite(tick.left) && tick.left >= 0 && tick.left <= 100) &&
+      ticks.every((tick, index) => index === 0 || tick.left >= ticks[index - 1].left);
+    const dayGraph = await readGanttGraph();
+    assert(
+      dayGraph.mode === "day" &&
+        dayGraph.rows === 4 &&
+        dayGraph.links.length === 2 &&
+        dayGraph.links.some((link) => link.type === "FS" && link.from === "NEW-100" && link.to === "NEW-200" && /^M [\d.]+ [\d.]+ H /.test(link.d)) &&
+        dayGraph.links.some((link) => link.type === "SS" && link.from === "NEW-200" && link.to === "NEW-300" && /^M [\d.]+ [\d.]+ H /.test(link.d)) &&
+        validTicks(dayGraph.ticks),
+      "the Gantt must draw persisted FS/SS arrows on a dated day axis: " + JSON.stringify(dayGraph),
+    );
+    await page.click('#cp-gantt [data-gantt-scale="week"]');
+    await page.waitFor(
+      `document.querySelector('#cp-gantt [data-gantt-scale-mode]')?.getAttribute('data-gantt-scale-mode') === "week"`,
+      "weekly Gantt axis",
+    );
+    const weekGraph = await readGanttGraph();
+    await page.click('#cp-gantt [data-gantt-scale="month"]');
+    await page.waitFor(
+      `document.querySelector('#cp-gantt [data-gantt-scale-mode]')?.getAttribute('data-gantt-scale-mode') === "month"`,
+      "monthly Gantt axis",
+    );
+    const monthGraph = await readGanttGraph();
+    assert(
+      weekGraph.mode === "week" &&
+        monthGraph.mode === "month" &&
+        validTicks(weekGraph.ticks) &&
+        validTicks(monthGraph.ticks) &&
+        dayGraph.ticks.length > weekGraph.ticks.length &&
+        weekGraph.ticks[0].date === dayGraph.ticks[0].date &&
+        monthGraph.ticks[0].date === dayGraph.ticks[0].date &&
+        weekGraph.ticks.some((tick) => tick.date.endsWith("-02")) &&
+        monthGraph.ticks.some((tick) => tick.date.endsWith("-01")),
+      "changing the Gantt scale must change only the rendered axis density: " +
+        JSON.stringify({ day: dayGraph.ticks, week: weekGraph.ticks, month: monthGraph.ticks }),
+    );
+    await page.click('#cp-gantt [data-gantt-scale="day"]');
+    await page.waitFor(
+      `document.querySelector('#cp-gantt [data-gantt-scale-mode]')?.getAttribute('data-gantt-scale-mode') === "day"`,
+      "restored daily Gantt axis",
+    );
+    const restoredGraph = await readGanttGraph();
+    assert(
+      restoredGraph.mode === "day" && restoredGraph.rows === 4 && restoredGraph.links.length === 2,
+      "returning to the day scale must keep the same rows and arrows: " + JSON.stringify(restoredGraph),
+    );
+    EVIDENCE.relationships.gantt = {
+      day: { ticks: dayGraph.ticks.length, links: dayGraph.links },
+      week: { ticks: weekGraph.ticks.length, dates: weekGraph.ticks.map((tick) => tick.date) },
+      month: { ticks: monthGraph.ticks.length, dates: monthGraph.ticks.map((tick) => tick.date) },
+      source: "persisted relationships + authoritative schedule facts -> #cp-gantt axis, arrows and scale control",
+    };
+    record("Gantt draws persisted FS/SS arrows, a dated axis and day/week/month scales", {
+      links: dayGraph.links.map((link) => link.type).join(","),
+      day_ticks: dayGraph.ticks.length,
+      week_ticks: weekGraph.ticks.length,
+      month_ticks: monthGraph.ticks.length,
+    });
+
     // First-run journey on a real account with no project membership. This is
     // not a mocked state: the newcomer session, the empty project list and the
     // created project all go through the same preview API and SQLite store.
