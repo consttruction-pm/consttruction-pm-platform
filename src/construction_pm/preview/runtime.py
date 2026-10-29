@@ -731,6 +731,7 @@ class PreviewWorkspaceReadProvider:
     schedule_facts_provider: WorkspaceScheduleFactsProvider
     store: PreviewStore
     wbs_repository: object | None = None
+    relationship_repository: object | None = None
 
     def read(
         self,
@@ -756,6 +757,7 @@ class PreviewWorkspaceReadProvider:
                 layout_repository=self.layout_repository,
                 schedule_facts_provider=self.schedule_facts_provider,
                 wbs_repository=self.wbs_repository,  # type: ignore[arg-type]
+                relationship_repository=self.relationship_repository,  # type: ignore[arg-type]
             )
             return provider.read(scope, auth_context=auth_context)
         provider = PersistedWorkspaceReadProvider(
@@ -915,6 +917,7 @@ def open_preview_runtime(
         schedule_facts_provider=facts_provider,
         store=store,
         wbs_repository=repositories.wbs,
+        relationship_repository=repositories.relationships,
     )
     workspace_v2_service = WorkspaceControlRoomReadService(
         canonical_workspace_provider, policy
@@ -966,7 +969,9 @@ def open_preview_runtime(
         idempotency_store = SQLiteAIActionExecutionIdempotencyStore(connection)
         permission_adapter = PreviewAIPermissionAdapter(sessions, store)
         activity_api = P6ActivityMasterAPI(repositories.activities, policy)
-        relationship_api = P6RelationshipAPI(repositories.relationships, policy)
+        relationship_api = P6RelationshipAPI(
+            repositories.relationships, policy, repositories.activities,
+        )
         activity_tool = build_activity_create_tool(
             activity_api=activity_api,
             idempotency_store=idempotency_store,

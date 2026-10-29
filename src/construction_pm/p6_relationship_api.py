@@ -4,8 +4,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
+from .activity_master_repository import ActivityMasterRepository
 from .backend_p0.models import BackendScope
-from .relationship_master_repository import RelationshipMaster, RelationshipMasterRepository
+from .relationship_master_repository import (
+    RelationshipMaster,
+    RelationshipMasterRepository,
+    RelationshipPersistenceError,
+)
 
 
 P6_RELATIONSHIP_API_VERSION = "p6-relationship-api.v1"
@@ -50,16 +55,51 @@ class P6RelationshipAPI:
 
     repository: RelationshipMasterRepository
     authorization_policy: AuthorizationPolicy
+    activity_repository: ActivityMasterRepository | None = None
 
     def create(self, relationship: RelationshipMaster, *, auth_context: AuthorizationContext, expected_revision: int | None = None) -> dict[str, Any]:
         _require_scope(relationship.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        self._validate_network(relationship, previous_id=None)
         return _dto(self.repository.save(relationship, expected_revision=expected_revision))
 
     def update(self, relationship: RelationshipMaster, *, expected_revision: int, auth_context: AuthorizationContext) -> dict[str, Any]:
         _require_scope(relationship.scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_WRITE)
+        self._validate_network(relationship, previous_id=relationship.relationship_id)
         return _dto(self.repository.save(relationship, expected_revision=expected_revision))
+
+    def _validate_network(
+        self,
+        relationship: RelationshipMaster,
+        *,
+        previous_id: str | None,
+    ) -> None:
+        """Reject invalid endpoints, duplicate logic links and cycles before save.
+
+        The scheduling core still detects cycles defensively; this boundary
+        prevents storing a network that can never be scheduled.
+        """
+        scope = relationship.scope
+        if self.activity_repository is not None:
+            for activity_id in (relationship.predecessor_id, relationship.successor_id):
+                if self.activity_repository.get(scope, activity_id) is None:
+                    raise RelationshipPersistenceError("ACTIVITY_NOT_FOUND_OR_SCOPE_MISMATCH")
+        existing = self.repository.list(scope)
+        edges: list[tuple[str, str]] = []
+        for item in existing:
+            if previous_id is not None and item.relationship_id == previous_id:
+                continue
+            if (
+                item.predecessor_id == relationship.predecessor_id
+                and item.successor_id == relationship.successor_id
+                and item.relationship_type is relationship.relationship_type
+            ):
+                raise RelationshipPersistenceError("DUPLICATE_RELATIONSHIP")
+            edges.append((item.predecessor_id, item.successor_id))
+        edges.append((relationship.predecessor_id, relationship.successor_id))
+        if _has_cycle(edges):
+            raise RelationshipPersistenceError("RELATIONSHIP_CYCLE")
 
     def get(self, scope: BackendScope, relationship_id: str, *, auth_context: AuthorizationContext) -> dict[str, Any] | None:
         _require_scope(scope, auth_context)
@@ -86,3 +126,27 @@ class P6RelationshipAPI:
 
 
 __all__ = ["P6_RELATIONSHIP_API_VERSION", "P6RelationshipAPI"]
+
+
+def _has_cycle(edges: list[tuple[str, str]]) -> bool:
+    """Depth-first cycle detection over the directed predecessor→successor graph."""
+    adjacency: dict[str, list[str]] = {}
+    for predecessor, successor in edges:
+        adjacency.setdefault(predecessor, []).append(successor)
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(node: str) -> bool:
+        if node in visiting:
+            return True
+        if node in visited:
+            return False
+        visiting.add(node)
+        for neighbour in adjacency.get(node, ()):
+            if visit(neighbour):
+                return True
+        visiting.remove(node)
+        visited.add(node)
+        return False
+
+    return any(visit(node) for node in list(adjacency))

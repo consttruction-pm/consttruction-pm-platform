@@ -31,6 +31,11 @@ from construction_pm.p6_layout_definition_repository import (
     PersistedP6Layout,
     P6LayoutRepository,
 )
+from construction_pm.relationship_master_repository import (
+    RelationshipMaster,
+    RelationshipMasterRepository,
+    RelationshipPersistenceError,
+)
 from construction_pm.wbs_master_repository import (
     WBSMaster,
     WBSMasterRepository,
@@ -131,6 +136,7 @@ class PersistedWorkspaceReadProvider:
     layout_repository: P6LayoutRepository | None = None
     schedule_facts_provider: WorkspaceScheduleFactsProvider | None = None
     wbs_repository: WBSMasterRepository | None = None
+    relationship_repository: RelationshipMasterRepository | None = None
     wbs_by_activity: Mapping[str, str] = field(default_factory=dict)
     registry_version: str = "p6-field-registry.v1"
     layout_scope: str = "project"
@@ -151,6 +157,7 @@ class PersistedWorkspaceReadProvider:
         wbs_records = self._wbs_records(scope)
         canonical_wbs = self.wbs_repository is not None
         wbs_by_id = {node.wbs_id: node for node in wbs_records}
+        activity_ids = {activity.activity_id for activity in activities}
         if canonical_wbs:
             if len(wbs_by_id) != len(wbs_records):
                 raise BackendApplicationError(
@@ -191,6 +198,8 @@ class PersistedWorkspaceReadProvider:
         }
         if canonical_wbs:
             workspace["wbs_nodes"] = [_wbs_node_payload(node) for node in wbs_records]
+            if self.relationship_repository is not None:
+                workspace["relationships"] = self._relationship_records(scope, activity_ids)
         return {
             "contract_version": (
                 WORKSPACE_CONTROL_ROOM_READ_V2_VERSION
@@ -238,6 +247,44 @@ class PersistedWorkspaceReadProvider:
                 "Persisted WBS data could not be read consistently for this project revision",
                 retryable=category is ErrorCategory.CONFLICT,
             ) from exc
+
+    def _relationship_records(
+        self,
+        scope: BackendScope,
+        activity_ids: set[str],
+    ) -> list[dict[str, object]]:
+        """Project persisted logic links without calculating anything.
+
+        A link whose endpoint is not an activity of this exact project
+        revision fails closed: the workspace never hides orphaned logic.
+        """
+        if self.relationship_repository is None:
+            return []
+        try:
+            records = self.relationship_repository.list(scope)
+        except RelationshipPersistenceError as exc:
+            code = str(exc) or "WORKSPACE_RELATIONSHIP_READ_FAILED"
+            category = (
+                ErrorCategory.CONFLICT
+                if code == "REVISION_CONFLICT"
+                else ErrorCategory.VALIDATION
+            )
+            raise BackendApplicationError(
+                category,
+                code,
+                "Persisted relationships could not be read consistently for this project revision",
+                retryable=category is ErrorCategory.CONFLICT,
+            ) from exc
+        payload: list[dict[str, object]] = []
+        for record in records:
+            if record.predecessor_id not in activity_ids or record.successor_id not in activity_ids:
+                raise BackendApplicationError(
+                    ErrorCategory.VALIDATION,
+                    "RELATIONSHIP_REFERENCE_INVALID",
+                    "A relationship endpoint must resolve inside the requested project revision",
+                )
+            payload.append(_relationship_payload(record))
+        return payload
 
     def _fields(self, scope: BackendScope) -> tuple[PersistedP6Field, ...]:
         if self.field_service is None:
@@ -333,6 +380,18 @@ def _wbs_node_payload(node: WBSMaster) -> dict[str, object]:
         "name": node.name,
         "sequence_number": node.sequence_number,
         "record_revision": node.record_revision,
+    }
+
+
+def _relationship_payload(record: RelationshipMaster) -> dict[str, object]:
+    return {
+        "relationship_id": record.relationship_id,
+        "predecessor_id": record.predecessor_id,
+        "successor_id": record.successor_id,
+        "relationship_type": record.relationship_type.value,
+        "lag_value": format(record.lag_value, "f"),
+        "lag_unit": record.lag_unit.value,
+        "record_revision": record.record_revision,
     }
 
 
