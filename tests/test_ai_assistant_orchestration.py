@@ -423,3 +423,16 @@ def test_provider_malformed_https_url_is_a_sanitized_configuration_error():
             api_key="key",
             model="model-test",
         )
+
+
+def test_new_project_intake_asks_sector_eps_then_name_then_unique_id():
+    prompt = AIAssistantTurnOrchestrator._system_prompt("fa", ())
+    sector = prompt.index("project sector or EPS parent category FIRST")
+    project_name = prompt.index("Then ask for the project name.")
+    project_id = prompt.index("Then ask for the unique project ID/code.")
+    assert sector < project_name < project_id
+    assert "one question per turn" in prompt
+    assert "never repeat a value the user has already supplied" in prompt
+    assert "neither is the project WBS" in prompt
+    assert "must be checked for uniqueness by a registered authoritative tool before saving" in prompt
+    assert "do not restart the intake" in prompt

@@ -69,8 +69,9 @@ The table below is an implementation shortlist, not a claim that all dependencie
 
 The assistant must lead the user through a complete, resumable project-creation workflow. It should ask only questions needed at the current stage and use known/verified source data where available. At minimum, the workflow covers:
 
-1. Project name, unique project code, type, scope, description and the intended output.
-2. Project start/data date, selected display calendar and the canonical calculation/calendar configuration.
+1. **Initial intake, in this order:** first ask the project sector/business domain or EPS parent category (for example building/construction, oil and gas, infrastructure/transport, energy/power, water/environment, industrial, or other/custom); next ask the project name; next ask the unique project ID/code. Ask one currently-missing item per turn in the user’s language, preserve already supplied values, and do not repeat them. Sector/domain describes the project’s work area; EPS is the enterprise/portfolio parent grouping; neither is the project WBS. A proposed project ID must be validated for uniqueness by an authoritative tool before saving.
+2. Project type, scope, description and intended output.
+3. Project start/data date, selected display calendar and the canonical calculation/calendar configuration.
 3. Working days, hours per day, shift/calendar selection, weekends, exceptions, holidays and the treatment of lag.
 4. WBS hierarchy, numbering/code policy, levels and work packages.
 5. Activity names, stable IDs/codes, activity types, duration estimates and relevant dates/constraints.
