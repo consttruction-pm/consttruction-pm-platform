@@ -63,22 +63,62 @@ class Sessions:
 
 
 class Projects:
-    def __init__(self): self.items = {"p1": ("p1", "Project One", 2)}
+    def __init__(self):
+        self.items = {
+            "p1": ProjectSummary("p1", "t1", "Project One", 2)
+        }
 
     def list_for_user(self, tenant_id, user_id):
         return tuple(
-            ProjectSummary(pid, tenant_id, name, rev)
-            for pid, (pid, name, rev) in self.items.items()
+            ProjectSummary(
+                p.project_id, tenant_id, p.name, p.revision,
+                description=p.description, start_date=p.start_date,
+                date_system=p.date_system,
+                primary_calendar_id=p.primary_calendar_id,
+                settings_revision=p.settings_revision,
+            )
+            for p in self.items.values()
         )
 
     def get_for_user(self, tenant_id, project_id, user_id):
-        item = self.items.get(project_id)
-        if not item: return None
-        return ProjectSummary(item[0], tenant_id, item[1], item[2])
+        project = self.items.get(project_id)
+        if project is None: return None
+        return ProjectSummary(
+            project.project_id, tenant_id, project.name, project.revision,
+            description=project.description, start_date=project.start_date,
+            date_system=project.date_system,
+            primary_calendar_id=project.primary_calendar_id,
+            settings_revision=project.settings_revision,
+        )
 
-    def create_for_user(self, tenant_id, user_id, project_id, name):
-        self.items[project_id] = (project_id, name, 0)
-        return ProjectSummary(project_id, tenant_id, name, 0)
+    def create_for_user(
+        self, tenant_id, user_id, project_id, name, *,
+        description="", start_date=None, date_system="gregorian",
+        primary_calendar_id=None,
+    ):
+        project = ProjectSummary(
+            project_id, tenant_id, name, 0,
+            description=description, start_date=start_date,
+            date_system=date_system, primary_calendar_id=primary_calendar_id,
+        )
+        self.items[project_id] = project
+        return project
+
+    def update_for_user(
+        self, tenant_id, user_id, project_id, *, expected_revision, name,
+        description="", start_date=None, date_system="gregorian",
+        primary_calendar_id=None,
+    ):
+        project = self.items.get(project_id)
+        if project is None or project.settings_revision != expected_revision: return None
+        updated = ProjectSummary(
+            project_id, tenant_id, name, project.revision,
+            description=description, start_date=start_date,
+            date_system=date_system, primary_calendar_id=primary_calendar_id,
+            settings_revision=project.settings_revision + 1,
+        )
+        self.items[project_id] = updated
+        return updated
 
 
 def routes():
@@ -2232,3 +2272,129 @@ def test_authenticated_schedule_code_reference_endpoint_returns_safe_catalogue()
     )
     assert unauthenticated_status == 401
     assert json.loads(unauthenticated_body)["code"] == "SESSION_REQUIRED"
+
+
+def test_project_http_create_persists_metadata_and_reads_it_back():
+    r = routes()
+    status, _, body = r.handle(
+        "POST", "/api/projects",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "project_id": "p7",
+            "name": "CUBI Project",
+            "description": "Bridge package",
+            "start_date": "2026-11-02",
+            "date_system": "jalali",
+        }).encode(),
+    )
+    assert status == 201
+    assert json.loads(body)["context"]["project_id"] == "p7"
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p7", cookies={"cp_session": "s1"}
+    )
+    assert status == 200
+    project = json.loads(body)["project"]
+    assert project["name"] == "CUBI Project"
+    assert project["description"] == "Bridge package"
+    assert project["start_date"] == "2026-11-02"
+    assert project["date_system"] == "jalali"
+    assert project["revision"] == 0
+
+    status, _, body = r.handle(
+        "GET", "/api/projects", cookies={"cp_session": "s1"}
+    )
+    listed = {item["project_id"]: item for item in json.loads(body)["projects"]}
+    assert listed["p7"]["date_system"] == "jalali"
+
+
+def test_project_http_patch_updates_metadata_under_expected_revision():
+    r = routes()
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "name": "Project One Renamed",
+            "description": "Updated",
+            "start_date": "2026-12-01",
+            "date_system": "gregorian",
+            "primary_calendar_id": "CAL-9",
+            "expected_revision": 0,
+        }).encode(),
+    )
+    assert status == 200
+    project = json.loads(body)["project"]
+    assert project["name"] == "Project One Renamed"
+    assert project["settings_revision"] == 1
+    assert project["revision"] == 2, (
+        "editing metadata must not invalidate the workspace data revision"
+    )
+    assert project["primary_calendar_id"] == "CAL-9"
+
+
+def test_project_http_patch_rejects_stale_revision_with_409():
+    r = routes()
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"name": "Stale", "expected_revision": 1}).encode(),
+    )
+    assert status == 409
+    assert json.loads(body)["code"] == "PROJECT_REVISION_CONFLICT"
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1", cookies={"cp_session": "s1"}
+    )
+    assert json.loads(body)["project"]["name"] == "Project One"
+
+
+def test_project_http_patch_rejects_missing_revision_and_invalid_metadata():
+    r = routes()
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"name": "No Revision"}).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "PROJECT_REVISION_INVALID"
+
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"name": "Bad Date", "start_date": "2026-13-01", "expected_revision": 2}).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "PROJECT_START_DATE_INVALID"
+
+
+def test_viewer_cannot_patch_project_metadata():
+    now = datetime(2026, 9, 30, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "s1", "u1", "t1", frozenset({"viewer"}), now + timedelta(hours=1)
+    )
+    service = __import__(
+        "construction_pm.application.project_lifecycle",
+        fromlist=["ProjectLifecycleService"],
+    ).ProjectLifecycleService(
+        Sessions(session), Projects(), default_project_policy()
+    )
+    r = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(service),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+    )
+    status, _, body = r.handle(
+        "PATCH", "/api/projects/p1",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"name": "Viewer Rename", "expected_revision": 2}).encode(),
+    )
+    assert status == 403
+    assert "project.admin" in json.loads(body)["code"]
+
+
+def test_project_http_get_unknown_project_is_forbidden():
+    r = routes()
+    status, _, body = r.handle(
+        "GET", "/api/projects/p-missing", cookies={"cp_session": "s1"}
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"

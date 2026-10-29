@@ -37,7 +37,7 @@ class Projects:
         project = self.get_for_user(tenant_id, "project-a", user_id)
         return (project,) if project else ()
 
-    def create_for_user(self, tenant_id, user_id, project_id, name):
+    def create_for_user(self, tenant_id, user_id, project_id, name, **_):
         return ProjectSummary(project_id, tenant_id, name, 0)
 
 

@@ -1248,3 +1248,22 @@ test("Gantt scale buttons dispatch the exact day/week/month mode", () => {
   listeners.get("click")?.({ target: invalidButton } as unknown as Event);
   assert.deepEqual(chosen, ["week"]);
 });
+
+test("project settings button dispatches a single open request", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  let opened = 0;
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    scheduledGanttState(),
+    { onProjectSettings: () => { opened += 1; } },
+  );
+  assert.match(container.innerHTML, /data-project-settings/);
+  const button = { dataset: { projectSettings: "true" }, closest: () => button };
+  listeners.get("click")?.({ target: button } as unknown as Event);
+  assert.equal(opened, 1);
+});

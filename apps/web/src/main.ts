@@ -2,7 +2,7 @@ import { FetchApiTransport, type ProjectContext } from "./client.js";
 import { createP6LayoutPersistence, loadP6LayoutRevisions, loadP6Presentation } from "./p6-api.js";
 import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
-import { FetchSessionApi } from "./session-api.js";
+import { FetchSessionApi, type ProjectSummary } from "./session-api.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
 import { WorkspaceReadClient } from "./workspace-read-api.js";
 import {
@@ -59,6 +59,7 @@ type LayoutHistoryState = {
 
 const layoutHistoryStore = new Map<string, LayoutHistoryState>();
 let currentWorkspaceState: WorkspaceState | null = null;
+let currentBootstrap: ProjectBootstrap | null = null;
 
 /** The next locale the shell can actually serve, never a route that does not exist. */
 function nextWorkspaceLocale(locale: WorkspaceLocale): WorkspaceLocale {
@@ -141,6 +142,247 @@ function getLayoutHistory(context: ProjectContext, layout: LayoutDefinition): La
   };
   layoutHistoryStore.set(key, created);
   return created;
+}
+
+function openProjectSettings(
+  container: HTMLElement,
+  state: WorkspaceState,
+  persistence: ReturnType<typeof createP6LayoutPersistence> | undefined,
+): void {
+  const bootstrap = currentBootstrap;
+  if (!bootstrap) return;
+  const labels = getBootstrapLabels(state.locale);
+  container.querySelector<HTMLElement>("[data-project-settings-panel]")?.remove();
+
+  const panel = document.createElement("section");
+  panel.className = "cp-project-settings-panel";
+  panel.dataset.projectSettingsPanel = "true";
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-modal", "true");
+  panel.setAttribute("aria-label", labels.settingsTitle);
+
+  const heading = document.createElement("h2");
+  heading.textContent = labels.settingsTitle;
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "cp-project-settings-close";
+  close.dataset.projectSettingsClose = "true";
+  close.textContent = labels.settingsClose;
+  close.addEventListener("click", () => panel.remove());
+
+  const revision = document.createElement("p");
+  revision.className = "cp-project-settings-revision";
+  revision.dataset.projectSettingsRevision = "true";
+
+  const status = document.createElement("p");
+  status.className = "cp-project-settings-status";
+  status.dataset.projectSettingsStatus = "true";
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+
+  const setStatus = (text: string, kind: "info" | "success" | "error" | "conflict"): void => {
+    status.textContent = text;
+    status.dataset.state = kind;
+  };
+
+  const form = document.createElement("form");
+  form.dataset.projectSettingsForm = "true";
+  form.noValidate = true;
+
+  const labelled = (
+    text: string,
+    control: HTMLElement,
+    hint?: string,
+  ): HTMLElement => {
+    const label = document.createElement("label");
+    label.textContent = text;
+    label.append(control);
+    const wrapper = document.createElement("div");
+    wrapper.className = "cp-project-settings-field";
+    wrapper.append(label);
+    if (hint) {
+      const small = document.createElement("small");
+      small.className = "cp-form-hint";
+      small.textContent = hint;
+      wrapper.append(small);
+    }
+    return wrapper;
+  };
+
+  const nameInput = document.createElement("input");
+  nameInput.name = "name";
+  nameInput.required = true;
+  nameInput.minLength = 2;
+  nameInput.maxLength = 120;
+  nameInput.autocomplete = "organization";
+
+  const descriptionInput = document.createElement("textarea");
+  descriptionInput.name = "description";
+  descriptionInput.rows = 3;
+  descriptionInput.maxLength = 2000;
+  descriptionInput.placeholder = labels.projectDescriptionPlaceholder;
+
+  const startDateInput = document.createElement("input");
+  startDateInput.name = "start_date";
+  startDateInput.type = "date";
+
+  const dateSystemSelect = document.createElement("select");
+  dateSystemSelect.name = "date_system";
+  for (const [value, text] of [
+    ["gregorian", labels.dateSystemGregorian],
+    ["jalali", labels.dateSystemJalali],
+  ] as const) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text;
+    dateSystemSelect.append(option);
+  }
+
+  const calendarInput = document.createElement("input");
+  calendarInput.name = "primary_calendar_id";
+  calendarInput.maxLength = 200;
+  calendarInput.autocomplete = "off";
+
+  const save = document.createElement("button");
+  save.type = "submit";
+  save.dataset.projectSettingsSave = "true";
+  save.textContent = labels.settingsSave;
+
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.dataset.projectSettingsRetry = "true";
+  retry.textContent = labels.settingsRetry;
+  retry.hidden = true;
+
+  const reloadLatest = document.createElement("button");
+  reloadLatest.type = "button";
+  reloadLatest.dataset.projectSettingsReload = "true";
+  reloadLatest.textContent = labels.settingsReloadLatest;
+  reloadLatest.hidden = true;
+
+  form.append(
+    labelled(labels.projectName, nameInput),
+    labelled(labels.projectDescription, descriptionInput, labels.projectDescriptionPlaceholder),
+    labelled(labels.projectStartDate, startDateInput),
+    labelled(labels.projectDateSystem, dateSystemSelect),
+    labelled(labels.settingsPrimaryCalendar, calendarInput, labels.settingsPrimaryCalendarHint),
+  );
+  const actions = document.createElement("div");
+  actions.className = "cp-project-settings-actions";
+  actions.append(save, retry, reloadLatest, close);
+
+  panel.append(heading, revision, status, form, actions);
+  const shell = container.querySelector<HTMLElement>(".cp-app-shell");
+  (shell ?? container).append(panel);
+
+  let loadedRevision = state.context.revision;
+  let saving = false;
+
+  const applyLoaded = (project: ProjectSummary): void => {
+    // Metadata edits use their own optimistic token; ``project.revision`` is
+    // the workspace data revision that persisted rows are stamped with.
+    loadedRevision = project.settings_revision ?? 0;
+    nameInput.value = project.name ?? "";
+    descriptionInput.value = project.description ?? "";
+    startDateInput.value = project.start_date ?? "";
+    dateSystemSelect.value = project.date_system === "jalali" ? "jalali" : "gregorian";
+    calendarInput.value = project.primary_calendar_id ?? "";
+    revision.textContent = `${labels.settingsRevision} R${loadedRevision}`;
+  };
+
+  const load = async (): Promise<void> => {
+    setStatus(labels.loading, "info");
+    const result = await bootstrap.loadProjectSummary(state.context.project_id);
+    if (!result.ok) {
+      setStatus(`${labels.settingsFailed} (${result.error.code})`, "error");
+      retry.hidden = false;
+      return;
+    }
+    applyLoaded(result.data.project);
+    setStatus("", "info");
+    retry.hidden = true;
+  };
+
+  const submit = async (): Promise<void> => {
+    if (saving) return;
+    const name = nameInput.value.trim();
+    if (name.length < 2 || name.length > 120) {
+      setStatus(labels.validationNameLength, "error");
+      nameInput.focus();
+      return;
+    }
+    if (descriptionInput.value.length > 2000) {
+      setStatus(labels.settingsFailed, "error");
+      descriptionInput.focus();
+      return;
+    }
+    const startDate = startDateInput.value.trim();
+    if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+      setStatus(labels.settingsFailed, "error");
+      startDateInput.focus();
+      return;
+    }
+    saving = true;
+    save.disabled = true;
+    retry.hidden = true;
+    reloadLatest.hidden = true;
+    save.textContent = labels.settingsSaving;
+    setStatus(labels.settingsSaving, "info");
+    const result = await bootstrap.saveProjectMetadata(
+      state.context.project_id,
+      {
+        name,
+        description: descriptionInput.value.trim(),
+        start_date: startDate || null,
+        date_system: dateSystemSelect.value === "jalali" ? "jalali" : "gregorian",
+        primary_calendar_id: calendarInput.value.trim() || null,
+      },
+      loadedRevision,
+    );
+    saving = false;
+    save.disabled = false;
+    save.textContent = labels.settingsSave;
+    if (result.ok) {
+      applyLoaded(result.data.project);
+      setStatus(
+        `${labels.settingsSaved} R${result.data.project.settings_revision ?? 0}.`,
+        "success",
+      );
+      const latest = currentWorkspaceState;
+      if (latest) {
+        const next = {
+          ...latest,
+          context: { ...latest.context, revision: result.data.project.revision },
+        };
+        renderApp(container, next, persistence);
+      }
+      return;
+    }
+    if (result.error.code === "PROJECT_REVISION_CONFLICT") {
+      setStatus(labels.settingsConflict, "conflict");
+      reloadLatest.hidden = false;
+      return;
+    }
+    if (result.error.code.includes("project.admin")) {
+      setStatus(labels.settingsForbidden, "error");
+      return;
+    }
+    if (result.error.code === "PROJECT_START_DATE_INVALID" || result.error.code === "PROJECT_DESCRIPTION_TOO_LONG") {
+      setStatus(labels.settingsFailed, "error");
+      return;
+    }
+    setStatus(`${labels.settingsFailed} (${result.error.code})`, "error");
+    retry.hidden = false;
+  };
+
+  retry.addEventListener("click", () => { void submit(); });
+  reloadLatest.addEventListener("click", () => { void load(); });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void submit();
+  });
+
+  void load();
 }
 
 function renderApp(
@@ -686,6 +928,9 @@ function renderApp(
     onGanttScaleChange: (ganttScale) => {
       renderApp(container, setGanttScale(state, ganttScale), persistence);
     },
+    onProjectSettings: () => {
+      openProjectSettings(container, state, persistence);
+    },
     onActivityFilterChange: (filterText) => {
       renderApp(container, setActivityFilter(state, filterText), persistence);
     },
@@ -764,6 +1009,7 @@ function renderBootstrapState(
   if (state.status === "ready") {
     // The server confirmed this context, so it is safe to remember it and to
     // reopen the same project and menu after a refresh.
+    currentBootstrap = bootstrap;
     rememberOpenedProject(state.userId, state.context.project_id);
     renderApp(container, applyRememberedMenu(state.workspace));
     return;
@@ -840,6 +1086,40 @@ function renderBootstrapState(
     hint.className = "cp-form-hint";
     hint.textContent = t.projectNameHint;
 
+    const descriptionLabel = document.createElement("label");
+    descriptionLabel.textContent = t.projectDescription;
+    const descriptionInput = document.createElement("textarea");
+    descriptionInput.name = "projectDescription";
+    descriptionInput.id = "cp-project-description";
+    descriptionInput.rows = 3;
+    descriptionInput.maxLength = 2000;
+    descriptionInput.placeholder = t.projectDescriptionPlaceholder;
+    descriptionLabel.append(descriptionInput);
+
+    const startDateLabel = document.createElement("label");
+    startDateLabel.textContent = t.projectStartDate;
+    const startDateInput = document.createElement("input");
+    startDateInput.name = "projectStartDate";
+    startDateInput.id = "cp-project-start-date";
+    startDateInput.type = "date";
+    startDateLabel.append(startDateInput);
+
+    const dateSystemLabel = document.createElement("label");
+    dateSystemLabel.textContent = t.projectDateSystem;
+    const dateSystemSelect = document.createElement("select");
+    dateSystemSelect.name = "projectDateSystem";
+    dateSystemSelect.id = "cp-project-date-system";
+    for (const [value, text] of [
+      ["gregorian", t.dateSystemGregorian],
+      ["jalali", t.dateSystemJalali],
+    ] as const) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      dateSystemSelect.append(option);
+    }
+    dateSystemLabel.append(dateSystemSelect);
+
     const errorMessage = document.createElement("p");
     errorMessage.id = errorId;
     errorMessage.className = "cp-form-error";
@@ -857,7 +1137,7 @@ function renderBootstrapState(
       input.removeAttribute("aria-invalid");
     };
 
-    form.append(label, hint, errorMessage);
+    form.append(label, hint, descriptionLabel, startDateLabel, dateSystemLabel, errorMessage);
 
     const submit = document.createElement("button");
     submit.type = "submit";
@@ -880,9 +1160,16 @@ function renderBootstrapState(
       }
       submit.disabled = true;
       input.disabled = true;
+      descriptionInput.disabled = true;
+      startDateInput.disabled = true;
+      dateSystemSelect.disabled = true;
       submit.textContent = t.creating;
       form.setAttribute("aria-busy", "true");
-      const next = await bootstrap.createProject(createProjectId(), name, locale);
+      const next = await bootstrap.createProject(createProjectId(), name, locale, {
+        description: descriptionInput.value.trim(),
+        start_date: startDateInput.value.trim() || null,
+        date_system: dateSystemSelect.value === "jalali" ? "jalali" : "gregorian",
+      });
       form.removeAttribute("aria-busy");
       if (!next) return;
       if (next.status === "ready") {
@@ -891,6 +1178,9 @@ function renderBootstrapState(
       }
       submit.disabled = false;
       input.disabled = false;
+      descriptionInput.disabled = false;
+      startDateInput.disabled = false;
+      dateSystemSelect.disabled = false;
       submit.textContent = t.createAndOpen;
       if (next.status === "error") {
         const copy = getBootstrapErrorCopy(locale, next.error);

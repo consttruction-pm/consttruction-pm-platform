@@ -97,6 +97,20 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _project_summary(row: tuple[object, ...]) -> ProjectSummary:
+    return ProjectSummary(
+        project_id=str(row[0]),
+        tenant_id=str(row[1]),
+        name=str(row[2]),
+        revision=int(row[3]),
+        description=str(row[4] or ""),
+        start_date=None if row[5] is None else str(row[5]),
+        date_system=str(row[6] or "gregorian"),
+        primary_calendar_id=None if row[7] is None else str(row[7]),
+        settings_revision=int(row[8]) if len(row) > 8 else 0,
+    )
+
+
 def _connect(database: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(
         database,
@@ -337,6 +351,11 @@ class PreviewStore:
                 wbs_json TEXT NOT NULL,
                 demo INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                start_date TEXT,
+                date_system TEXT NOT NULL DEFAULT 'gregorian',
+                primary_calendar_id TEXT,
+                settings_revision INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (tenant_id, project_id)
             );
             CREATE TABLE IF NOT EXISTS preview_project_member (
@@ -350,6 +369,33 @@ class PreviewStore:
             );
             """
         )
+        # Existing preview databases predate project metadata; add the columns in
+        # place instead of discarding user-created projects.
+        existing_columns = {
+            str(row[1])
+            for row in self.connection.execute("PRAGMA table_info(preview_project)")
+        }
+        for column, ddl in (
+            (
+                "description",
+                "ALTER TABLE preview_project ADD COLUMN description TEXT NOT NULL DEFAULT ''",
+            ),
+            ("start_date", "ALTER TABLE preview_project ADD COLUMN start_date TEXT"),
+            (
+                "date_system",
+                "ALTER TABLE preview_project ADD COLUMN date_system TEXT NOT NULL DEFAULT 'gregorian'",
+            ),
+            (
+                "primary_calendar_id",
+                "ALTER TABLE preview_project ADD COLUMN primary_calendar_id TEXT",
+            ),
+            (
+                "settings_revision",
+                "ALTER TABLE preview_project ADD COLUMN settings_revision INTEGER NOT NULL DEFAULT 0",
+            ),
+        ):
+            if column not in existing_columns:
+                self.connection.execute(ddl)
         self.connection.commit()
 
     def project_exists(self, tenant_id: str, project_id: str) -> bool:
@@ -369,6 +415,10 @@ class PreviewStore:
         wbs_by_activity: Mapping[str, str],
         demo: bool,
         created_at: datetime,
+        description: str = "",
+        start_date: str | None = None,
+        date_system: str = "gregorian",
+        primary_calendar_id: str | None = None,
         commit: bool = True,
     ) -> None:
         if not tenant_id.strip() or not project_id.strip() or not name.strip():
@@ -385,8 +435,9 @@ class PreviewStore:
         owns_transaction = not self.connection.in_transaction
         self.connection.execute(
             "INSERT INTO preview_project "
-            "(tenant_id, project_id, name, project_revision, wbs_json, demo, created_at) "
-            "VALUES (?,?,?,?,?,?,?)",
+            "(tenant_id, project_id, name, project_revision, wbs_json, demo, created_at, "
+            "description, start_date, date_system, primary_calendar_id, settings_revision) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 tenant_id,
                 project_id,
@@ -395,6 +446,11 @@ class PreviewStore:
                 json.dumps(wbs, ensure_ascii=False, sort_keys=True),
                 1 if demo else 0,
                 created_at.isoformat(),
+                description,
+                start_date,
+                date_system,
+                primary_calendar_id,
+                0,
             ),
         )
         if owns_transaction:
@@ -424,7 +480,9 @@ class PreviewStore:
         self, tenant_id: str, user_id: str
     ) -> tuple[ProjectSummary, ...]:
         rows = self.connection.execute(
-            "SELECT p.project_id, p.tenant_id, p.name, p.project_revision "
+            "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
+            "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
+            "p.settings_revision "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -432,21 +490,15 @@ class PreviewStore:
             "ORDER BY p.name COLLATE NOCASE, p.project_id",
             (tenant_id, user_id),
         ).fetchall()
-        return tuple(
-            ProjectSummary(
-                project_id=str(row[0]),
-                tenant_id=str(row[1]),
-                name=str(row[2]),
-                revision=int(row[3]),
-            )
-            for row in rows
-        )
+        return tuple(_project_summary(row) for row in rows)
 
     def get_for_user(
         self, tenant_id: str, project_id: str, user_id: str
     ) -> ProjectSummary | None:
         row = self.connection.execute(
-            "SELECT p.project_id, p.tenant_id, p.name, p.project_revision "
+            "SELECT p.project_id, p.tenant_id, p.name, p.project_revision, "
+            "p.description, p.start_date, p.date_system, p.primary_calendar_id, "
+            "p.settings_revision "
             "FROM preview_project p "
             "JOIN preview_project_member m "
             "ON m.tenant_id=p.tenant_id AND m.project_id=p.project_id "
@@ -455,12 +507,64 @@ class PreviewStore:
         ).fetchone()
         if row is None:
             return None
-        return ProjectSummary(
-            project_id=str(row[0]),
-            tenant_id=str(row[1]),
-            name=str(row[2]),
-            revision=int(row[3]),
+        return _project_summary(row)
+
+    def update_project(
+        self,
+        tenant_id: str,
+        project_id: str,
+        user_id: str,
+        *,
+        expected_revision: int,
+        name: str,
+        description: str,
+        start_date: str | None,
+        date_system: str,
+        primary_calendar_id: str | None,
+    ) -> bool:
+        """Apply a configuration-revision-guarded metadata update.
+
+        ``expected_revision`` compares against ``settings_revision`` so that
+        renaming a project never invalidates the workspace data revision that
+        WBS, activity and relationship rows are stamped with.
+
+        Returns ``False`` when the row is missing, the caller is not a member,
+        or the stored configuration revision no longer matches
+        ``expected_revision``. The caller distinguishes the cases by re-reading
+        the project.
+        """
+        if not tenant_id.strip() or not project_id.strip() or not name.strip():
+            raise ValueError("PREVIEW_PROJECT_IDENTITY_REQUIRED")
+        if (
+            isinstance(expected_revision, bool)
+            or not isinstance(expected_revision, int)
+            or expected_revision < 0
+        ):
+            raise ValueError("PREVIEW_PROJECT_REVISION_INVALID")
+        owns_transaction = not self.connection.in_transaction
+        cursor = self.connection.execute(
+            "UPDATE preview_project SET name=?, description=?, start_date=?, "
+            "date_system=?, primary_calendar_id=?, settings_revision=settings_revision+1 "
+            "WHERE tenant_id=? AND project_id=? AND settings_revision=? AND EXISTS ("
+            "SELECT 1 FROM preview_project_member m "
+            "WHERE m.tenant_id=preview_project.tenant_id "
+            "AND m.project_id=preview_project.project_id AND m.user_id=?)",
+            (
+                name,
+                description,
+                start_date,
+                date_system,
+                primary_calendar_id,
+                tenant_id,
+                project_id,
+                expected_revision,
+                user_id,
+            ),
         )
+        updated = cursor.rowcount == 1
+        if owns_transaction:
+            self.connection.commit()
+        return updated
 
     def project_rows(self) -> tuple[dict[str, object], ...]:
         rows = self.connection.execute(
@@ -566,7 +670,16 @@ class PreviewProjectRepository:
         return self.store.get_for_user(tenant_id, project_id, user_id)
 
     def create_for_user(
-        self, tenant_id: str, user_id: str, project_id: str, name: str
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        name: str,
+        *,
+        description: str = "",
+        start_date: str | None = None,
+        date_system: str = "gregorian",
+        primary_calendar_id: str | None = None,
     ) -> ProjectSummary:
         if self.store.project_exists(tenant_id, project_id):
             raise ValueError("PROJECT_ALREADY_EXISTS")
@@ -590,6 +703,10 @@ class PreviewProjectRepository:
                 wbs_by_activity={},
                 demo=False,
                 created_at=created_at,
+                description=description,
+                start_date=start_date,
+                date_system=date_system,
+                primary_calendar_id=primary_calendar_id,
                 commit=False,
             )
             self.store.add_members(
@@ -609,7 +726,39 @@ class PreviewProjectRepository:
             tenant_id=tenant_id,
             name=name,
             revision=0,
+            description=description,
+            start_date=start_date,
+            date_system=date_system,
+            primary_calendar_id=primary_calendar_id,
         )
+
+    def update_for_user(
+        self,
+        tenant_id: str,
+        user_id: str,
+        project_id: str,
+        *,
+        expected_revision: int,
+        name: str,
+        description: str = "",
+        start_date: str | None = None,
+        date_system: str = "gregorian",
+        primary_calendar_id: str | None = None,
+    ) -> ProjectSummary | None:
+        updated = self.store.update_project(
+            tenant_id,
+            project_id,
+            user_id,
+            expected_revision=expected_revision,
+            name=name,
+            description=description,
+            start_date=start_date,
+            date_system=date_system,
+            primary_calendar_id=primary_calendar_id,
+        )
+        if not updated:
+            return None
+        return self.store.get_for_user(tenant_id, project_id, user_id)
 
 
 __all__ = [

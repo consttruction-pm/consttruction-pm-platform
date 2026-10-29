@@ -103,12 +103,51 @@ export class ProjectBootstrap {
     projectId: string,
     name: string,
     locale: WorkspaceLocale = "en",
+    metadata: {
+      description?: string;
+      start_date?: string | null;
+      date_system?: "gregorian" | "jalali";
+    } = {},
   ): Promise<ProjectBootstrapState | null> {
     const generation = ++this.generation;
-    const result = await this.dependencies.sessionApi.createProject(projectId, name);
+    const result = await this.dependencies.sessionApi.createProject(
+      projectId, name, metadata,
+    );
     if (!this.isCurrent(generation)) return null;
     if (!result.ok) return { status: "error", error: result.error };
     return this.hydrateProject(result.data.context, generation, locale);
+  }
+
+  /** Read the authoritative project row, including metadata, for the editor. */
+  async loadProjectSummary(projectId: string): Promise<ApiResult<{ project: ProjectSummary }>> {
+    if (!this.dependencies.sessionApi.getProject) {
+      return {
+        ok: false,
+        error: localError("PROJECT_METADATA_UNAVAILABLE", "error.project.metadata_unavailable", ["refresh"]),
+      };
+    }
+    return this.dependencies.sessionApi.getProject(projectId);
+  }
+
+  /** Save metadata under the revision the editor loaded; a 409 means reload. */
+  async saveProjectMetadata(
+    projectId: string,
+    metadata: {
+      name: string;
+      description: string;
+      start_date: string | null;
+      date_system: "gregorian" | "jalali";
+      primary_calendar_id?: string | null;
+    },
+    expectedRevision: number,
+  ): Promise<ApiResult<{ project: ProjectSummary }>> {
+    if (!this.dependencies.sessionApi.updateProject) {
+      return {
+        ok: false,
+        error: localError("PROJECT_METADATA_UNAVAILABLE", "error.project.metadata_unavailable", ["refresh"]),
+      };
+    }
+    return this.dependencies.sessionApi.updateProject(projectId, metadata, expectedRevision);
   }
 
   async selectProject(

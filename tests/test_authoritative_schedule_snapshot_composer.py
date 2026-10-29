@@ -83,7 +83,7 @@ class Projects:
             return None
         return ProjectSummary("p1", tenant_id, "Project One", 2)
 
-    def create_for_user(self, tenant_id: str, user_id: str, project_id: str, name: str):
+    def create_for_user(self, tenant_id: str, user_id: str, project_id: str, name: str, **_):
         return ProjectSummary(project_id, tenant_id, name, 2)
 
 

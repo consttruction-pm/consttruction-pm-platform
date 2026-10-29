@@ -13,8 +13,26 @@ CREATE TABLE IF NOT EXISTS project_lifecycle_projects (
     project_id TEXT NOT NULL,
     name TEXT NOT NULL,
     revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+    description TEXT NOT NULL DEFAULT '',
+    start_date DATE,
+    date_system TEXT NOT NULL DEFAULT 'gregorian'
+        CHECK (date_system IN ('gregorian', 'jalali')),
+    primary_calendar_id TEXT,
+    settings_revision INTEGER NOT NULL DEFAULT 0 CHECK (settings_revision >= 0),
     PRIMARY KEY (tenant_id, project_id)
 );
+
+-- Existing installations predate project metadata; upgrade in place.
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS start_date DATE;
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS date_system TEXT NOT NULL DEFAULT 'gregorian';
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS primary_calendar_id TEXT;
+ALTER TABLE project_lifecycle_projects
+    ADD COLUMN IF NOT EXISTS settings_revision INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
     tenant_id TEXT NOT NULL,
