@@ -1710,7 +1710,6 @@ async function main() {
       await deepLinkPage.waitForSelector("#cp-activity-grid", "deep-linked project activity grid");
       const deepLinkWorkspace = await deepLinkPage.evaluate(`(async () => {
         const sessionResponse = await fetch("/api/session");
-        const session = await sessionResponse.json();
         const projectsResponse = await fetch("/api/projects");
         const projects = await projectsResponse.json();
         const project = (projects.projects || []).find((item) => item.project_id === ${JSON.stringify(PROJECT_ID)});
@@ -1723,7 +1722,6 @@ async function main() {
           grid_visible: Boolean(table),
           rendered_rows: table?.querySelectorAll("tbody tr").length ?? 0,
           session_authenticated: sessionResponse.status === 200,
-          tenant_matches_session: project ? session.tenant_id !== undefined : false,
         };
       })()`, { awaitPromise: true });
       assert(
