@@ -179,7 +179,11 @@ def build_project_lifecycle_wsgi_app(
     relationship_api = (
         None
         if relationship_master_repository is None
-        else P6RelationshipAPI(relationship_master_repository, authorization_policy)
+        else P6RelationshipAPI(
+            relationship_master_repository,
+            authorization_policy,
+            activity_master_repository,
+        )
     )
     if (
         workspace_read_v2_service is None
@@ -190,6 +194,7 @@ def build_project_lifecycle_wsgi_app(
             provider=PersistedWorkspaceReadProvider(
                 activity_repository=activity_master_repository,
                 wbs_repository=wbs_master_repository,
+                relationship_repository=relationship_master_repository,
             ),
             authorization_policy=authorization_policy,
         )

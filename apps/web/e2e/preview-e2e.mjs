@@ -399,8 +399,114 @@ async function runWbsActivityJourney(page, projectName) {
   })()`, { awaitPromise: true });
 }
 
-function readPersistedWbsEvidence(managed, projectId) {
-  if (!managed?.database) return null;
+async function runRelationshipJourney(page, project) {
+  return page.evaluate(`(async () => {
+    const request = async (url, options = {}) => {
+      const response = await fetch(url, options);
+      const body = await response.json().catch(() => null);
+      return { status: response.status, body };
+    };
+    const session = (await request("/api/session")).body;
+    const projectId = ${JSON.stringify(project.project_id)};
+    const projectBase = "/api/projects/" + encodeURIComponent(projectId);
+    const headers = {
+      "Content-Type": "application/json",
+      "X-Tenant-Id": session.tenant_id,
+      "X-Project-Id": projectId,
+      "X-Project-Revision": ${JSON.stringify(String(project.revision))},
+    };
+    const createActivity = (payload) =>
+      request(projectBase + "/p6/activities", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          contract_version: "p6-activity-master-api.v1",
+          duration_unit: "working-day",
+          percent_complete_type: "DURATION",
+          activity_type: "Task Dependent",
+          status: "Not Started",
+          status_code: "Planned",
+          wbs_id: "E2E-WBS-DESIGN",
+          ...payload,
+        }),
+      });
+    const activities = [];
+    for (const item of [
+      { activity_id: "NEW-200", name: "E2E structure", duration_value: "3", original_duration: 3 },
+      { activity_id: "NEW-300", name: "E2E envelope", duration_value: "2", original_duration: 2 },
+      { activity_id: "NEW-400", name: "E2E finishes", duration_value: "1", original_duration: 1 },
+    ]) {
+      activities.push(await createActivity(item));
+    }
+    const createRelationship = (payload) =>
+      request(projectBase + "/p6/relationships", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          lag_unit: "working-day",
+          ...payload,
+        }),
+      });
+    const fs = await createRelationship({
+      relationship_id: "E2E-REL-FS",
+      predecessor_id: "NEW-100",
+      successor_id: "NEW-200",
+      relationship_type: "FS",
+      lag_value: "0",
+    });
+    const ss = await createRelationship({
+      relationship_id: "E2E-REL-SS",
+      predecessor_id: "NEW-200",
+      successor_id: "NEW-300",
+      relationship_type: "SS",
+      lag_value: "1",
+    });
+    const cycle = await createRelationship({
+      relationship_id: "E2E-REL-CYCLE",
+      predecessor_id: "NEW-300",
+      successor_id: "NEW-100",
+      relationship_type: "FF",
+      lag_value: "0",
+    });
+    const duplicate = await createRelationship({
+      relationship_id: "E2E-REL-DUP",
+      predecessor_id: "NEW-100",
+      successor_id: "NEW-200",
+      relationship_type: "FS",
+      lag_value: "1",
+    });
+    const orphan = await createRelationship({
+      relationship_id: "E2E-REL-ORPHAN",
+      predecessor_id: "NEW-404",
+      successor_id: "NEW-200",
+      relationship_type: "FS",
+      lag_value: "0",
+    });
+    const list = await request(projectBase + "/p6/relationships", { headers });
+    const read = await request("/api/v2/workspace/control-room/read", { headers });
+    return {
+      creation: activities.map((item) => ({
+        status: item.status,
+        code: item.body?.code ?? null,
+        activity_id: item.body?.activity?.activity_id ?? null,
+      })),
+      fs,
+      ss,
+      cycle,
+      duplicate,
+      orphan,
+      list_status: list.status,
+      list_ids: (list.body?.relationships || []).map(
+        (item) => item?.relationship?.relationship_id ?? item?.relationship_id ?? null,
+      ),
+      read_status: read.status,
+      read_relationships: read.body?.workspace?.relationships || [],
+      read_activity_ids: (read.body?.workspace?.activities || []).map((item) => item.id),
+    };
+  })()`, { awaitPromise: true });
+}
+
+function readPersistedWbsEvidence(managed, projectId) {  if (!managed?.database) return null;
   const command = pythonCommand();
   const script = [
     "import json, sqlite3, sys",
@@ -1946,9 +2052,11 @@ async function main() {
     const scheduleSubmenus = await page.count(".cp-navigation-surface a.cp-submenu-item");
     assert(scheduleSubmenus === 13, "thirteen schedule submenu anchors expected");
     const headerLabels = await page.evaluate(`(() =>
-      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
     assert(headerLabels.length === 10, "ten visible persisted columns expected");
+    const predecessorsHeader = await page.text("#cp-activity-grid thead th.cp-logic-column");
+    assert(predecessorsHeader === "Predecessors", "the persisted logic column must be labelled: " + predecessorsHeader);
     assert(
       headerLabels[0] === "Id" && headerLabels[1] === "Name",
       "authoritative Activity Id/Name columns must lead the grid",
@@ -2220,7 +2328,7 @@ async function main() {
     await page.waitForSelector("[data-schedule-settings-form]", "schedule settings form");
     await page.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "grid after menu renders");
     const initialHeaders = await page.evaluate(`(() =>
-      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
     assert(initialHeaders.length === 10, "initial visible column count before layout edits");
     const hiddenTarget = await page.evaluate(`(() => {
@@ -2244,7 +2352,7 @@ async function main() {
 
     await page.click(`[data-p6-field-visibility="${hiddenTarget}"]:not([data-p6-field-visible])`);
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length - 1}`,
       "hide persisted column",
     );
     await page.click(`[data-p6-field-remove="${addTarget}"]`);
@@ -2254,20 +2362,20 @@ async function main() {
     );
     await page.click(`[data-p6-field-add="${addTarget}"]`);
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length}`,
       "add persisted column",
     );
 
     const orderBeforeMove = await page.evaluate(`(() =>
-      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
     await page.click(`[data-p6-field-move="${addTarget}"][data-p6-field-direction="up"]`);
     await page.waitFor(
-      `JSON.stringify(Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())) !== ${JSON.stringify(JSON.stringify(orderBeforeMove))}`,
+      `JSON.stringify(Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())) !== ${JSON.stringify(JSON.stringify(orderBeforeMove))}`,
       "reorder persisted column",
     );
     const orderAfterMove = await page.evaluate(`(() =>
-      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
     const addedIndex = orderAfterMove.indexOf(addedLabel);
     assert(
@@ -2276,7 +2384,7 @@ async function main() {
     );
 
     const widthBefore = await page.evaluate(`(() => {
-      const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+      const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"));
       const index = ths.findIndex((th) => th.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedLabel)});
       return index >= 0 ? Number.parseFloat(ths[index].style.width) : null;
     })()`);
@@ -2284,14 +2392,14 @@ async function main() {
     await page.click(`[data-p6-field-width="${addTarget}"][data-p6-field-width-delta="increase"]`);
     await page.waitFor(
       `(() => {
-        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"));
         const index = ths.findIndex((th) => th.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedLabel)});
         return index >= 0 && Number.parseFloat(ths[index].style.width) > ${Number(widthBefore)};
       })()`,
       "increase persisted column width",
     );
     const widthAfter = await page.evaluate(`(() => {
-      const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+      const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"));
       const index = ths.findIndex((th) => th.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedLabel)});
       return index >= 0 ? Number.parseFloat(ths[index].style.width) : null;
     })()`);
@@ -2299,7 +2407,7 @@ async function main() {
     await page.click(`[data-p6-field-pin="${addTarget}"]`);
     await page.waitFor(
       `(() => {
-        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"));
         const index = ths.findIndex((th) => th.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedLabel)});
         return index >= 0 && ths[index].getAttribute("data-column-pinned") === "true";
       })()`,
@@ -2308,7 +2416,7 @@ async function main() {
     await page.click(`[data-p6-field-freeze="${addTarget}"]`);
     await page.waitFor(
       `(() => {
-        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"));
         const index = ths.findIndex((th) => th.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedLabel)});
         return index >= 0 && ths[index].getAttribute("data-column-frozen") === "true";
       })()`,
@@ -2326,11 +2434,11 @@ async function main() {
 
     await page.reload(".cp-workspace", "reload reopens the same project");
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length}`,
       "persisted column count after reload",
     );
     const orderAfterReload = await page.evaluate(`(() =>
-      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
     assert(
       JSON.stringify(orderAfterReload) === JSON.stringify(orderAfterMove),
@@ -2342,7 +2450,7 @@ async function main() {
       "added column position must survive reload",
     );
     const addedPresentation = await page.evaluate(`(() => {
-      const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+      const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"));
       const th = ths.find((item) => item.textContent.replace("ƒx", "").trim() === ${JSON.stringify(addedHeader)});
       return th ? {
         width: Number.parseFloat(th.style.width),
@@ -2390,13 +2498,13 @@ async function main() {
 
     await page.click(`[data-p6-field-remove="${addTarget}"]`);
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length - 1}`,
       "remove column before undo",
     );
 
     await page.click("[data-p6-layout-undo]");
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length}`,
       "undo restores removed column",
     );
     const undoNotice = await page.text(".cp-p6-history-notice");
@@ -2417,7 +2525,7 @@ async function main() {
 
     await page.click("[data-p6-layout-redo]");
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length - 1}`,
       "redo reapplies the removed column",
     );
     const layoutAfterRedo = await readLayoutFromPage(page);
@@ -2477,7 +2585,7 @@ async function main() {
     })()`);
     await page.click("[data-p6-layout-restore]");
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length}`,
       "restore reapplies the selected older revision",
     );
     const restoreNotice = await page.text(".cp-p6-history-notice");
@@ -2546,7 +2654,7 @@ async function main() {
     );
     await page.waitFor(
       `(() => {
-        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"));
         const target = ths.find((th) => th.dataset.columnId === ${JSON.stringify(addTarget)});
         return ths.length === ${initialHeaders.length}
           && Boolean(target) && Number.parseFloat(target.style.width) === 333;
@@ -2616,7 +2724,7 @@ async function main() {
     );
     await page.waitFor(
       `(() => {
-        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th"));
+        const ths = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"));
         const target = ths.find((th) => th.dataset.columnId === ${JSON.stringify(addTarget)});
         return ths.length === ${initialHeaders.length}
           && Boolean(target) && Number.parseFloat(target.style.width) === 313;
@@ -2644,7 +2752,7 @@ async function main() {
 
     await page.click(`[data-p6-field-remove="${addTarget}"]`);
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length - 1}`,
       "remove restored column before durable undo",
     );
 
@@ -2659,7 +2767,7 @@ async function main() {
     const layoutBeforeDurableUndo = await readLayoutFromPage(page);
     await page.click("[data-p6-layout-undo]");
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length}`,
       "undo after reload restores removed column",
     );
     const layoutAfterDurableUndo = await readLayoutFromPage(page);
@@ -2679,12 +2787,12 @@ async function main() {
 
     await page.click(`[data-p6-field-remove="${addTarget}"]`);
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length - 1}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length - 1}`,
       "remove temporary column",
     );
     await page.click(`[data-p6-field-visibility="${hiddenTarget}"][data-p6-field-visible="true"]`);
     await page.waitFor(
-      `document.querySelectorAll("#cp-activity-grid thead th").length === ${initialHeaders.length}`,
+      `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length}`,
       "restore hidden column",
     );
     record("temporary visible column changes restored to the fixture baseline", {
@@ -2758,7 +2866,7 @@ async function main() {
       "sort by total float",
     );
     const floatIndex = await page.evaluate(`(() => {
-      const labels = Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim());
+      const labels = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim());
       return labels.findIndex((label) => /float/i.test(label));
     })()`);
     assert(floatIndex >= 0, "Total Float column must be visible");
@@ -3469,7 +3577,7 @@ async function main() {
       "persisted rows after final reload",
     );
     const finalHeaders = await page.evaluate(`(() =>
-      Array.from(document.querySelectorAll("#cp-activity-grid thead th")).map((th) => th.textContent.replace("ƒx", "").trim())
+      Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
     assert(
       finalHeaders.length === initialHeaders.length,
@@ -3881,7 +3989,7 @@ async function main() {
       name: document.querySelector(".cp-project")?.textContent.trim() ?? "",
       revision: document.querySelector(".cp-revision")?.textContent.trim() ?? "",
       rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
-      columns: document.querySelectorAll("#cp-activity-grid thead th").length,
+      columns: document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length,
       calendar_toggle: document.querySelector("[data-calendar-mode]")?.getAttribute("data-calendar-mode") ?? null,
     }))()`);
     const projectsAfterCreate = await page.evaluate(
@@ -4104,7 +4212,7 @@ async function main() {
         id: row.dataset.activityId,
         text: row.textContent ?? "",
       })),
-      columns: document.querySelectorAll("#cp-activity-grid thead th").length,
+      columns: document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length,
     }))()`);
     assert(
       renderedAfterWrites.wbsIds.length === 4 &&
@@ -4181,6 +4289,339 @@ async function main() {
     );
     EVIDENCE.wbs_activity.activity_edit = editReadBack;
     record("workspace activity edit persists and refreshes the activity grid", editReadBack);
+
+    // Section G: persisted FS/SS logic with a working-day lag, duplicate and
+    // cycle rejection, the v2 read exposure and the browser logic surface.
+    const relationshipJourney = await runRelationshipJourney(page, {
+      project_id: wbsJourney.project_id,
+      revision: wbsJourney.revision,
+    });
+    for (const creation of relationshipJourney.creation) {
+      assert(
+        creation.status === 201 && creation.activity_id,
+        `the additional activities must be persisted: ${JSON.stringify(creation)}`,
+      );
+    }
+    assert(
+      relationshipJourney.fs.status === 200 &&
+        relationshipJourney.fs.body.relationship?.relationship_id === "E2E-REL-FS" &&
+        relationshipJourney.fs.body.relationship?.relationship_type === "FS",
+      `the FS relationship must be saved through the persisted API: ${JSON.stringify(relationshipJourney.fs)}`,
+    );
+    assert(
+      relationshipJourney.ss.status === 200 &&
+        relationshipJourney.ss.body.relationship?.relationship_type === "SS" &&
+        relationshipJourney.ss.body.relationship?.lag_value === "1" &&
+        relationshipJourney.ss.body.relationship?.lag_unit === "working-day",
+      `the SS relationship must keep its type and one working-day lag: ${JSON.stringify(relationshipJourney.ss)}`,
+    );
+    assert(
+      relationshipJourney.cycle.status === 400,
+      `a relationship that would create a cycle must be rejected: ${JSON.stringify(relationshipJourney.cycle)}`,
+    );
+    assert(
+      relationshipJourney.duplicate.status === 400,
+      `a duplicate logic link must be rejected: ${JSON.stringify(relationshipJourney.duplicate)}`,
+    );
+    assert(
+      relationshipJourney.orphan.status === 400,
+      `a relationship endpoint outside the project activities must be rejected: ${JSON.stringify(relationshipJourney.orphan)}`,
+    );
+    assert(
+      relationshipJourney.list_status === 200 &&
+        relationshipJourney.list_ids.length === 2 &&
+        relationshipJourney.list_ids.includes("E2E-REL-FS") &&
+        relationshipJourney.list_ids.includes("E2E-REL-SS"),
+      `the relationship endpoint must return exactly the accepted links: ${JSON.stringify(relationshipJourney.list_ids)}`,
+    );
+    assert(
+      relationshipJourney.read_status === 200 &&
+        relationshipJourney.read_activity_ids.length === 4 &&
+        relationshipJourney.read_relationships.length === 2 &&
+        relationshipJourney.read_relationships.some(
+          (item) =>
+            item.relationship_id === "E2E-REL-SS" &&
+            item.predecessor_id === "NEW-200" &&
+            item.successor_id === "NEW-300" &&
+            item.relationship_type === "SS" &&
+            item.lag_value === "1" &&
+            item.lag_unit === "working-day",
+        ) &&
+        !relationshipJourney.read_relationships.some((item) =>
+          ["E2E-REL-CYCLE", "E2E-REL-DUP", "E2E-REL-ORPHAN"].includes(item.relationship_id),
+        ),
+      "the v2 Workspace Read must expose only the accepted persisted relationships: " +
+        JSON.stringify(relationshipJourney.read_relationships),
+    );
+    EVIDENCE.relationships = {
+      api: {
+        read_status: relationshipJourney.read_status,
+        relationship_ids: relationshipJourney.list_ids,
+        read_relationships: relationshipJourney.read_relationships,
+      },
+      rejections: {
+        cycle: relationshipJourney.cycle.status,
+        duplicate: relationshipJourney.duplicate.status,
+        orphan_endpoint: relationshipJourney.orphan.status,
+      },
+      source:
+        "POST /p6/relationships -> Relationship Master -> GET /api/v2/workspace/control-room/read",
+    };
+    record("FS and SS logic with a working-day lag persist and invalid networks are rejected", {
+      relationships: relationshipJourney.list_ids,
+      activities: relationshipJourney.read_activity_ids.length,
+      rejected: EVIDENCE.relationships.rejections,
+    });
+
+    await page.navigate(
+      `${baseUrl}/app?project=${encodeURIComponent(wbsJourney.project_id)}`,
+      ".cp-workspace",
+      "reload project after relationship writes",
+    );
+    await page.waitFor(
+      `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 4`,
+      "four persisted activity rows",
+    );
+    await page.waitFor(
+      `document.querySelectorAll("#cp-logic [data-relationship-id]").length === 2`,
+      "two persisted relationships in the logic panel",
+    );
+    const logicView = await page.evaluate(`(() => {
+      const row = (id) =>
+        document.querySelector("#cp-activity-grid tbody tr[data-activity-id=\\"" + id + "\\"]");
+      const predecessorCell = (id) => row(id)?.querySelector(".cp-logic-column")?.textContent?.trim() ?? "";
+      return {
+        rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+        logicItems: Array.from(document.querySelectorAll("#cp-logic [data-relationship-id]")).map(
+          (item) => item.textContent.trim(),
+        ),
+        gridNew200: predecessorCell("NEW-200"),
+        gridNew300: predecessorCell("NEW-300"),
+        gridNew400: predecessorCell("NEW-400"),
+      };
+    })()`);
+    assert(
+      logicView.rows === 4 &&
+        logicView.logicItems.length === 2 &&
+        logicView.logicItems.some((text) => text.includes("NEW-100") && text.includes("NEW-200")) &&
+        logicView.logicItems.some((text) => text.includes("NEW-200") && text.includes("NEW-300") && text.includes("SS")) &&
+        logicView.gridNew200.includes("NEW-100 FS") &&
+        logicView.gridNew300.includes("NEW-200 SS+1d") &&
+        logicView.gridNew400 === "—",
+      "the browser must render the persisted logic in the panel and the predecessors column: " +
+        JSON.stringify(logicView),
+    );
+
+    await page.evaluate(`(() => {
+      const form = document.querySelector("[data-relationship-create-form]");
+      if (!form) throw new Error("RELATIONSHIP_FORM_MISSING");
+      const set = (name, value) => {
+        const field = form.querySelector('[name="' + name + '"]');
+        if (!field) throw new Error("RELATIONSHIP_FIELD_MISSING_" + name);
+        field.value = value;
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      set("predecessor_id", "NEW-300");
+      set("successor_id", "NEW-400");
+      set("relationship_type", "FS");
+      set("lag_value", "0");
+      set("lag_unit", "working-day");
+      form.requestSubmit();
+    })()`);
+    await page.waitFor(
+      `document.querySelectorAll("#cp-logic [data-relationship-id]").length === 3`,
+      "third relationship created from the browser form",
+    );
+    const createdFromUi = await page.evaluate(`(() => {
+      const items = Array.from(document.querySelectorAll("#cp-logic [data-relationship-id]"));
+      const target = items.find((item) => item.textContent.includes("NEW-300") && item.textContent.includes("NEW-400"));
+      const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="NEW-400"]');
+      return {
+        count: items.length,
+        target: target ? target.textContent.trim() : null,
+        predecessorCell: row?.querySelector(".cp-logic-column")?.textContent?.trim() ?? "",
+      };
+    })()`);
+    assert(
+      createdFromUi.count === 3 &&
+        createdFromUi.target &&
+        createdFromUi.predecessorCell.includes("NEW-300 FS"),
+      "the browser relationship form must persist and re-render the new link: " + JSON.stringify(createdFromUi),
+    );
+    const deleteTarget = await page.evaluate(`(() => {
+      const items = Array.from(document.querySelectorAll("#cp-logic [data-relationship-id]"));
+      const target = items.find((item) => item.textContent.includes("NEW-300") && item.textContent.includes("NEW-400"));
+      const button = target?.querySelector("[data-relationship-delete]");
+      return button ? { id: button.dataset.relationshipDelete, revision: button.dataset.relationshipRevision } : null;
+    })()`);
+    assert(deleteTarget?.id, "the browser must expose a revision-aware delete control for persisted logic");
+    await page.click(`#cp-logic [data-relationship-id="${deleteTarget.id}"] [data-relationship-delete]`);
+    await page.waitFor(
+      `document.querySelectorAll("#cp-logic [data-relationship-id]").length === 2`,
+      "relationship removed from the logic panel",
+    );
+    EVIDENCE.relationships.browser = {
+      ...logicView,
+      created_from_form: createdFromUi,
+      deleted_relationship_id: deleteTarget.id,
+    };
+    record("browser logic panel and predecessors column match the persisted relationship model", {
+      rows: logicView.rows,
+      relationships: 2,
+      created_from_form: Boolean(createdFromUi.target),
+    });
+
+    // Section H: the same persisted project runs through the shared scheduling
+    // core. Settings are saved from the real form, then the snapshot + query
+    // result must drive the result table and the Gantt bars.
+    await page.waitForSelector("[data-schedule-settings-form]", "schedule settings form");
+    await page.evaluate(`(() => {
+      const select = document.querySelector('[data-schedule-settings-form] select[name="calendar_ref"]');
+      if (!select) throw new Error("CALENDAR_SELECT_MISSING");
+      const option = Array.from(select.options).find((item) => item.value);
+      if (!option) throw new Error("CALENDAR_OPTION_MISSING");
+      select.value = option.value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    await page.click('[data-schedule-settings-form] button[type="submit"]');
+    await page.waitFor(
+      `Number(document.querySelector('[data-schedule-settings-form] input[name="record_revision"]')?.value ?? 0) > 0`,
+      "persisted project schedule settings",
+      30000,
+    );
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 4`,
+      "authoritative rows for the persisted project",
+      60000,
+    );
+    const readRunFacts = () => page.evaluate(`(() => {
+      const rows = Array.from(document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr")).map((row) =>
+        Array.from(row.children).map((cell) => cell.textContent.trim())
+      );
+      const barLeft = (id) => {
+        const bar = document.querySelector('[data-gantt-activity-id="' + id + '"] .cp-gantt-bar');
+        return bar ? Number.parseFloat(bar.style.left) : null;
+      };
+      return {
+        hash: document.querySelector("[data-run-results] .cp-schedule-result-meta code")?.textContent.trim() ?? "",
+        rows,
+        gantt: {
+          rows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
+          NEW_100: barLeft("NEW-100"),
+          NEW_200: barLeft("NEW-200"),
+          NEW_300: barLeft("NEW-300"),
+          NEW_400: barLeft("NEW-400"),
+        },
+      };
+    })()`);
+    const loggedFirstRun = await readRunFacts();
+    const runRow = (id) => loggedFirstRun.rows.find((row) => row[0] === id) ?? null;
+    const new100First = runRow("NEW-100");
+    const new200First = runRow("NEW-200");
+    const new300First = runRow("NEW-300");
+    const new400First = runRow("NEW-400");
+    assert(
+      loggedFirstRun.rows.length === 4 &&
+        [new100First, new200First, new300First, new400First].every(
+          (row) => row && row.every((value) => value.length > 0),
+        ),
+      "every persisted activity must receive a fully populated authoritative result: " +
+        JSON.stringify(loggedFirstRun.rows),
+    );
+    const startOf = (row) => Date.parse(row?.[1] ?? "");
+    assert(
+      startOf(new200First) > startOf(new100First) &&
+        startOf(new300First) > startOf(new200First) &&
+        startOf(new400First) === startOf(new100First),
+      "FS and SS+1 lag must produce the expected ordered start dates: " +
+        JSON.stringify({ new100First, new200First, new300First, new400First }),
+    );
+    assert(
+      loggedFirstRun.gantt.rows === 4 &&
+        loggedFirstRun.gantt.NEW_100 !== null &&
+        loggedFirstRun.gantt.NEW_400 === loggedFirstRun.gantt.NEW_100 &&
+        loggedFirstRun.gantt.NEW_200 > loggedFirstRun.gantt.NEW_100 &&
+        loggedFirstRun.gantt.NEW_300 > loggedFirstRun.gantt.NEW_200,
+      "the Gantt bars must reflect the same authoritative dates as the result table: " +
+        JSON.stringify(loggedFirstRun.gantt),
+    );
+
+    const new100Record = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/" + encodeURIComponent(${JSON.stringify(wbsJourney.project_id)}) + "/p6/activities/NEW-100", {
+        headers: {
+          "X-Tenant-Id": ${JSON.stringify(wbsJourney.tenant_id)},
+          "X-Project-Id": ${JSON.stringify(wbsJourney.project_id)},
+          "X-Project-Revision": ${JSON.stringify(String(wbsJourney.revision))},
+        },
+      });
+      const body = await response.json().catch(() => null);
+      return { status: response.status, activity: body?.activity ?? null };
+    })()`, { awaitPromise: true });
+    assert(
+      new100Record.status === 200 && new100Record.activity?.record_revision >= 1,
+      `the activity must expose its revision for a safe update: ${JSON.stringify(new100Record)}`,
+    );
+    const durationUpdate = await page.evaluate(`(async () => {
+      const response = await fetch("/api/projects/" + encodeURIComponent(${JSON.stringify(wbsJourney.project_id)}) + "/p6/activities/NEW-100", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": ${JSON.stringify(wbsJourney.tenant_id)},
+          "X-Project-Id": ${JSON.stringify(wbsJourney.project_id)},
+          "X-Project-Revision": ${JSON.stringify(String(wbsJourney.revision))},
+        },
+        body: JSON.stringify({
+          contract_version: "p6-activity-master-api.v1",
+          expected_revision: ${Number(new100Record.activity.record_revision)},
+          name: ${JSON.stringify(new100Record.activity.name)},
+          duration_value: 4,
+          duration_unit: "working-day",
+          wbs_id: ${JSON.stringify(new100Record.activity.wbs_id)},
+        }),
+      });
+      const body = await response.json().catch(() => null);
+      return { status: response.status, body };
+    })()`, { awaitPromise: true });
+    assert(
+      durationUpdate.status === 200,
+      `the activity duration update must persist: ${JSON.stringify(durationUpdate)}`,
+    );
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `(() => {
+        const hash = document.querySelector("[data-run-results] .cp-schedule-result-meta code")?.textContent.trim() ?? "";
+        return hash !== ${JSON.stringify(loggedFirstRun.hash)} &&
+          document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 4;
+      })()`,
+      "recalculated authoritative snapshot after the duration change",
+      60000,
+    );
+    const loggedSecondRun = await readRunFacts();
+    const secondRow = (id) => loggedSecondRun.rows.find((row) => row[0] === id) ?? null;
+    assert(
+      loggedSecondRun.rows.length === 4 &&
+        startOf(secondRow("NEW-100")) === startOf(loggedFirstRun.rows.find((row) => row[0] === "NEW-100")) &&
+        startOf(secondRow("NEW-200")) > startOf(loggedFirstRun.rows.find((row) => row[0] === "NEW-200")) &&
+        startOf(secondRow("NEW-300")) > startOf(loggedFirstRun.rows.find((row) => row[0] === "NEW-300")) &&
+        loggedSecondRun.gantt.NEW_200 > loggedFirstRun.gantt.NEW_200 &&
+        loggedSecondRun.gantt.NEW_300 > loggedFirstRun.gantt.NEW_300,
+      "changing the duration and re-running must move the successors in both the table and the Gantt: " +
+        JSON.stringify({ loggedFirstRun: loggedFirstRun.rows, loggedSecondRun: loggedSecondRun.rows, gantt: loggedSecondRun.gantt }),
+    );
+    EVIDENCE.relationships.schedule = {
+      first_run: { hash: loggedFirstRun.hash, rows: loggedFirstRun.rows, gantt: loggedFirstRun.gantt },
+      second_run: { hash: loggedSecondRun.hash, rows: loggedSecondRun.rows, gantt: loggedSecondRun.gantt },
+      duration_update_status: durationUpdate.status,
+      source:
+        "settings form -> POST /p6/schedule/snapshots -> POST /api/v1/schedule/query -> result table + Gantt",
+    };
+    record("authoritative CPM output drives the result table and Gantt for FS/SS logic", {
+      rows: loggedFirstRun.rows.length,
+      first_hash: loggedFirstRun.hash.slice(0, 12),
+      second_hash: loggedSecondRun.hash.slice(0, 12),
+    });
 
     // First-run journey on a real account with no project membership. This is
     // not a mocked state: the newcomer session, the empty project list and the
@@ -4448,8 +4889,8 @@ async function main() {
         "persisted WBS child after restart",
       );
       await page.waitFor(
-        `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 1`,
-        "persisted activity row after restart",
+        `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 4`,
+        "persisted activity rows after restart",
       );
       const afterRestart = await page.evaluate(`(async () => {
         const session = await fetch("/api/session").then((response) => response.json());
@@ -4479,6 +4920,11 @@ async function main() {
             id: activity.id,
             wbs_id: activity.wbs_id,
           })),
+          apiRelationships: (body.workspace?.relationships || []).map((item) => ({
+            id: item.relationship_id,
+            type: item.relationship_type,
+            lag: item.lag_value,
+          })),
         };
       })()`, { awaitPromise: true });
       assert(
@@ -4486,12 +4932,16 @@ async function main() {
           afterRestart.wbsIds.length === 4 &&
           afterRestart.wbsIds.includes("E2E-WBS-DESIGN") &&
           afterRestart.wbsText.includes("No activity package") &&
-          afterRestart.rowIds.length === 1 &&
-          afterRestart.rowIds[0] === "NEW-100" &&
+          afterRestart.rowIds.length === 4 &&
+          ["NEW-100", "NEW-200", "NEW-300", "NEW-400"].every((id) => afterRestart.rowIds.includes(id)) &&
           afterRestart.apiNodes.length === 4 &&
-          afterRestart.apiActivities.length === 1 &&
-          afterRestart.apiActivities[0].wbs_id === "E2E-WBS-DESIGN",
-        "the restarted runtime must re-read the same persisted WBS tree and activity: " +
+          afterRestart.apiActivities.length === 4 &&
+          afterRestart.apiActivities.every((activity) => activity.wbs_id === "E2E-WBS-DESIGN") &&
+          afterRestart.apiRelationships.length === 2 &&
+          afterRestart.apiRelationships.some(
+            (item) => item.type === "SS" && item.lag === "1" && item.id === "E2E-REL-SS",
+          ),
+        "the restarted runtime must re-read the same persisted WBS tree, activities and logic: " +
           JSON.stringify(afterRestart),
       );
       await page.screenshot("12d-admin-wbs-activity-restart.png");

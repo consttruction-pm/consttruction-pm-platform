@@ -15,6 +15,11 @@ from construction_pm.backend_p0.workspace_read import (
     WorkspaceControlRoomReadService,
 )
 from construction_pm.backend_p0.workspace_read_provider import PersistedWorkspaceReadProvider
+from construction_pm.relationship_master_repository import (
+    RelationshipMaster,
+    SQLiteRelationshipMasterRepository,
+)
+from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.wbs_master_repository import SQLiteWBSMasterRepository, WBSMaster, WBSParentKind
 
@@ -91,6 +96,59 @@ def test_persisted_workspace_fails_closed_when_legacy_activity_has_no_wbs():
         with pytest.raises(BackendApplicationError) as exc:
             service.read(scope, auth_context=_auth())
         assert exc.value.code == "ACTIVITY_WBS_REQUIRED"
+    finally:
+        connection.close()
+
+
+def test_persisted_workspace_read_exposes_persisted_relationships_and_rejects_orphans():
+    connection = sqlite3.connect(":memory:")
+    try:
+        service, activities, wbs = _service(connection)
+        scope = _scope()
+        wbs.save(WBSMaster(scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Project", 0))
+        for activity_id in ("A-1", "A-2"):
+            activities.save(ActivityMaster(
+                scope=scope, activity_id=activity_id, duration_value=Decimal("1"),
+                duration_unit=DurationUnit.WORKING_DAY, name=f"Task {activity_id}",
+                wbs_id="W-ROOT",
+            ))
+        relationships = SQLiteRelationshipMasterRepository(connection)
+        builder = lambda: PersistedWorkspaceReadProvider(  # noqa: E731
+            activity_repository=activities,
+            wbs_repository=wbs,
+            relationship_repository=relationships,
+        )
+        policy = RoleBasedAuthorizationPolicy({
+            "planner": frozenset({Permission.PROJECT_READ, Permission.PROJECT_WRITE}),
+        })
+
+        relationships.save(RelationshipMaster(
+            scope=scope, relationship_id="R-1", predecessor_id="A-1", successor_id="A-2",
+            relationship_type=RelationshipType.SS, lag_value=Decimal("1"),
+        ))
+        result = WorkspaceControlRoomReadService(builder(), policy).read(
+            scope, auth_context=_auth()
+        )
+        assert result is not None
+        assert result["workspace"]["relationships"] == [{
+            "relationship_id": "R-1",
+            "predecessor_id": "A-1",
+            "successor_id": "A-2",
+            "relationship_type": "SS",
+            "lag_value": "1",
+            "lag_unit": "working-day",
+            "record_revision": 1,
+        }]
+
+        relationships.save(RelationshipMaster(
+            scope=scope, relationship_id="R-ORPHAN", predecessor_id="A-1",
+            successor_id="A-MISSING", relationship_type=RelationshipType.FS,
+        ))
+        with pytest.raises(BackendApplicationError) as exc:
+            WorkspaceControlRoomReadService(builder(), policy).read(
+                scope, auth_context=_auth()
+            )
+        assert exc.value.code == "RELATIONSHIP_REFERENCE_INVALID"
     finally:
         connection.close()
 

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
-import { createWorkspaceState, setP6Presentation, withWbsNodes } from "./workspace-model.js";
+import { createWorkspaceState, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -1127,4 +1127,59 @@ test("Activity Grid exposes a localized edit action for persisted activity rows"
   renderMainWorkspace(container as unknown as HTMLElement, state);
   assert.match(container.innerHTML, /data-activity-edit="A-101"/);
   assert.match(container.innerHTML, /Edit activity/);
+});
+
+test("logic panel renders persisted relationships and the grid shows predecessors", () => {
+  let state = createWorkspaceState({ tenant_id: "t", project_id: "p", revision: 1 }, "en");
+  state = withActivities(state, [
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Excavate", cells: {} },
+    { id: "A-2", wbsId: "W-1", code: "02", name: "Concrete", cells: {} },
+  ]);
+  state = withRelationships(state, [{
+    id: "R-1", predecessorId: "A-1", successorId: "A-2", type: "SS",
+    lagValue: "1", lagUnit: "working-day", recordRevision: 1,
+  }]);
+  const container = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /id="cp-logic"/);
+  assert.match(container.innerHTML, /data-relationship-create-form/);
+  assert.match(container.innerHTML, /data-relationship-id="R-1"/);
+  assert.match(container.innerHTML, /A-1 → A-2/);
+  assert.match(container.innerHTML, /data-predecessors="A-2"[^>]*>A-1 SS\+1d</);
+});
+
+test("relationship create form dispatches the exact predecessor, successor, type and lag", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  let created: { predecessorId: string; successorId: string; type: string; lagValue: string; lagUnit: string } | null = null;
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    createWorkspaceState({ tenant_id: "t", project_id: "p", revision: 1 }, "en"),
+    { onRelationshipCreate: (input) => { created = input; } },
+  );
+  const values: Record<string, { value: string }> = {
+    '[name="predecessor_id"]': { value: "A-1" },
+    '[name="successor_id"]': { value: "A-2" },
+    '[name="relationship_type"]': { value: "SS" },
+    '[name="lag_value"]': { value: " 1 " },
+    '[name="lag_unit"]': { value: "working-day" },
+  };
+  const form = {
+    matches: (selector: string) => selector === "[data-relationship-create-form]",
+    querySelector: (selector: string) => values[selector] ?? null,
+  };
+  let prevented = false;
+  listeners.get("submit")?.({ target: form, preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.deepEqual(created, {
+    predecessorId: "A-1",
+    successorId: "A-2",
+    type: "SS",
+    lagValue: "1",
+    lagUnit: "working-day",
+  });
 });

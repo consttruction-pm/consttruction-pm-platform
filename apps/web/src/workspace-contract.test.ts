@@ -4,9 +4,10 @@ import test from "node:test";
 import {
   createWorkspaceControlRoomSnapshot,
   workspaceActivitiesFromSnapshot,
+  workspaceRelationshipsFromSnapshot,
   WORKSPACE_CONTROL_ROOM_CONTRACT_VERSION,
 } from "./workspace-contract.js";
-import { createWorkspaceState, withActivities, withWbsNodes } from "./workspace-model.js";
+import { createWorkspaceState, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
 
 const context = { tenant_id: "tenant-1", project_id: "project-1", revision: 8 };
 
@@ -84,4 +85,35 @@ test("contract adapter rejects malformed collections with stable errors", () => 
     } as never),
     /INVALID_WORKSPACE_ACTIVITY/,
   );
+});
+
+test("control-room snapshot round-trips persisted relationships for the same revision", () => {
+  let state = createWorkspaceState(context);
+  state = withWbsNodes(state, [{
+    id: "W-1", parentKind: "project", parentWbsId: null,
+    localCode: "1", name: "Project", sequenceNumber: 0, recordRevision: 1,
+  }]);
+  state = withActivities(state, [
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Excavate", cells: {} },
+    { id: "A-2", wbsId: "W-1", code: "02", name: "Concrete", cells: {} },
+  ]);
+  state = withRelationships(state, [{
+    id: "R-1", predecessorId: "A-1", successorId: "A-2", type: "FS",
+    lagValue: "1", lagUnit: "working-day", recordRevision: 2,
+  }]);
+
+  const snapshot = createWorkspaceControlRoomSnapshot(state);
+  assert.deepEqual(snapshot.relationships, [{
+    relationship_id: "R-1",
+    predecessor_id: "A-1",
+    successor_id: "A-2",
+    relationship_type: "FS",
+    lag_value: "1",
+    lag_unit: "working-day",
+    record_revision: 2,
+  }]);
+  const restored = workspaceRelationshipsFromSnapshot(snapshot);
+  assert.equal(restored.length, 1);
+  assert.equal(restored[0]?.predecessorId, "A-1");
+  assert.equal(restored[0]?.lagValue, "1");
 });
