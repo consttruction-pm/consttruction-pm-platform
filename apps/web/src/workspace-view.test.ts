@@ -1105,3 +1105,26 @@ test("activity grid date cells follow the selected display calendar without chan
   assert.match(container.innerHTML, /data-column-id="start"[^>]*>۱۴۰۵\/۰۷\/۱۵<\/td>/);
   assert.doesNotMatch(container.innerHTML, />2026-10-07<\/td>/);
 });
+
+test("Activity Grid exposes a localized edit action for persisted activity rows", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activities: [{
+      id: "A-101",
+      wbsId: "WBS-1",
+      code: "A-101",
+      name: "Foundation",
+      cells: { activity_name: "Foundation" },
+    }],
+  };
+  const container: RenderContainer = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-activity-edit="A-101"/);
+  assert.match(container.innerHTML, /Edit activity/);
+});
