@@ -5,6 +5,10 @@ import {
   isValidCanonicalIsoDate,
   parseJalaliDateInput,
 } from "./workspace-jalali-entry.js";
+import {
+  createCalendarHolidayEditor,
+  type CalendarHolidayLabels,
+} from "./calendar-holidays.js";
 
 export type ScheduleReferenceStatus =
   | "mapped_unverified"
@@ -240,6 +244,13 @@ const LABELS = {
     choices: "Options", inputs: "Inputs", calendarRules: "Units and calendar rules", edgeCases: "Edge cases", acceptance: "Acceptance evidence",
     referenceVersion: "Reference version", sourceDate: "Catalogue date", noSettingsApi: "The settings service is not available in this running environment.",
     noReferenceApi: "The reference catalogue is not available in this running environment.", noRunApi: "The schedule service is not available in this running environment.",
+    holidaysTitle: "Calendar holidays and exceptions", holidaysIntro: "Record a non-working day for the selected project calendar. The scheduling engine reads it on the next calculation; this page never shifts dates itself.",
+    holidayDate: "Non-working day", holidayAdd: "Add holiday", holidayAdding: "Saving holiday…", holidayAdded: "The holiday is saved. Run the schedule again to see its effect.", holidayFailed: "The holiday was not saved.",
+    holidayForbidden: "Your role may read this calendar but not change it.", holidayAlreadyRecorded: "That day is already recorded as a non-working day for this calendar.",
+    holidayInvalidDate: "Enter a valid date for the selected calendar system.", holidayReading: "Loading recorded holidays…", holidayReadFailed: "Recorded holidays could not be loaded.",
+    holidayEmpty: "No exceptions are recorded for this calendar.", holidayNoCalendar: "Select or save a project calendar before recording a holiday.",
+    holidayModeNonwork: "Non-working day", holidayModeTotalHours: "Total work hours", holidayModeDetailedHours: "Detailed work hours", holidayModeResetStandard: "Reset to standard",
+    holidayCanonicalDate: "Stored date", holidayRerunHint: "The calendar changed. Run the schedule again to refresh authoritative dates.",
     results: "Calculation output", snapshot: "Snapshot", hash: "Content hash", outputBinding: "Matching loaded activities are updated in the grid and Gantt; critical status is shown only when returned by the scheduling service.", empty: "—",
     columnActivity: "Activity", columnStart: "Start", columnFinish: "Finish", columnDuration: "Duration", columnTotalFloat: "Total float", columnCritical: "Critical", yes: "Yes", no: "No", projectFinish: "Project finish", activityCount: "Activity count",
   },
@@ -260,6 +271,13 @@ const LABELS = {
     choices: "گزینه‌ها", inputs: "ورودی‌ها", calendarRules: "واحدها و قواعد تقویم", edgeCases: "حالت‌های مرزی", acceptance: "شواهد پذیرش",
     referenceVersion: "نسخهٔ مرجع", sourceDate: "تاریخ فهرست", noSettingsApi: "سرویس تنظیمات در این محیط اجرا در دسترس نیست.",
     noReferenceApi: "فهرست مرجع در این محیط اجرا در دسترس نیست.", noRunApi: "سرویس زمان‌بندی در این محیط اجرا در دسترس نیست.",
+    holidaysTitle: "تعطیلات و استثناهای تقویم", holidaysIntro: "روز غیرکاری را برای تقویم انتخاب‌شدهٔ پروژه ثبت کنید. هستهٔ زمان‌بندی آن را در محاسبهٔ بعدی می‌خواند؛ این صفحه خودش تاریخ‌ها را جابه‌جا نمی‌کند.",
+    holidayDate: "روز غیرکاری", holidayAdd: "افزودن تعطیلی", holidayAdding: "در حال ذخیرهٔ تعطیلی…", holidayAdded: "تعطیلی ذخیره شد. برای دیدن اثر آن زمان‌بندی را دوباره اجرا کنید.", holidayFailed: "تعطیلی ذخیره نشد.",
+    holidayForbidden: "نقش شما اجازهٔ خواندن این تقویم را دارد اما اجازهٔ تغییر آن را ندارد.", holidayAlreadyRecorded: "این روز پیش‌تر برای این تقویم به‌عنوان روز غیرکاری ثبت شده است.",
+    holidayInvalidDate: "تاریخ معتبری برای سیستم تقویم انتخاب‌شده وارد کنید.", holidayReading: "در حال خواندن تعطیلات ثبت‌شده…", holidayReadFailed: "خواندن تعطیلات ثبت‌شده ممکن نشد.",
+    holidayEmpty: "هیچ استثنایی برای این تقویم ثبت نشده است.", holidayNoCalendar: "پیش از ثبت تعطیلی، تقویم پروژه را انتخاب یا ذخیره کنید.",
+    holidayModeNonwork: "روز غیرکاری", holidayModeTotalHours: "مجموع ساعت کاری", holidayModeDetailedHours: "ساعت کاری تفصیلی", holidayModeResetStandard: "بازگشت به استاندارد",
+    holidayCanonicalDate: "تاریخ ذخیره‌شده", holidayRerunHint: "تقویم تغییر کرد. برای دریافت تاریخ‌های معتبر، زمان‌بندی را دوباره اجرا کنید.",
     results: "خروجی محاسبه", snapshot: "تصویر محاسبات", hash: "هش محتوا", outputBinding: "فعالیت‌های منطبق در جدول و گانت به‌روزرسانی می‌شوند؛ وضعیت بحرانی فقط در صورت بازگشت از سرویس زمان‌بندی نمایش داده می‌شود.", empty: "—",
     columnActivity: "فعالیت", columnStart: "شروع", columnFinish: "پایان", columnDuration: "مدت", columnTotalFloat: "شناوری کل", columnCritical: "بحرانی", yes: "بله", no: "خیر", projectFinish: "پایان پروژه", activityCount: "تعداد فعالیت",
   },
@@ -586,7 +604,8 @@ async function mountSettingsPanel(
       <label class="cp-schedule-option"><span>${safe(labels.priority)}</span><input required name="project_leveling_priority" type="number" min="1" max="100" step="1" value="${initial.project_leveling_priority}" /></label>
       ${controls ? `<h3 class="cp-schedule-options-subtitle">${safe(locale === "fa" ? "گزینه‌های هستهٔ محاسبه" : "Calculation engine options")}</h3><div class="cp-schedule-options-grid">${controls}</div>` : ""}
       <div class="cp-schedule-actions"><button type="submit">${safe(labels.save)}</button><span role="status" data-settings-status></span></div>
-    </form>`;
+    </form>
+    <div data-calendar-holidays-host></div>`;
   const form = panel.querySelector<HTMLFormElement>("[data-schedule-settings-form]");
   const modeInput = form?.elements.namedItem("mode") as HTMLSelectElement | null;
   const startInput = form?.elements.namedItem("project_start") as HTMLInputElement | null;
@@ -749,6 +768,11 @@ async function mountSettingsPanel(
       if (finishInput) finishInput.dataset.iso = saved.project_finish ?? "";
       syncDateTypes();
       scheduleSettingsDrafts.delete(draftKey);
+      holidaysEditor?.setCalendar(
+        saved.project_calendar.calendar_id,
+        saved.project_calendar.calendar_version,
+        saved.project_calendar.system,
+      );
       status.textContent = labels.saved;
     } catch (error) {
       status.textContent = `${labels.saveFailed} (${error instanceof Error ? error.message : "INVALID_SETTINGS"})`;
@@ -756,6 +780,78 @@ async function mountSettingsPanel(
       submit.disabled = false;
     }
   });
+
+  // Calendar exceptions are project data, not presentation state: the editor
+  // writes through the calendar API and then re-reads the stored rows. A saved
+  // holiday invalidates any cached calculation because the authoritative CPM
+  // result is evaluated against the persisted calendar.
+  const holidaysHost = panel.querySelector<HTMLElement>("[data-calendar-holidays-host]");
+  let holidaysEditor: ReturnType<typeof createCalendarHolidayEditor> | null = null;
+  if (holidaysHost) {
+    const holidayLabels: CalendarHolidayLabels = {
+      title: labels.holidaysTitle,
+      intro: labels.holidaysIntro,
+      date: labels.holidayDate,
+      add: labels.holidayAdd,
+      adding: labels.holidayAdding,
+      added: labels.holidayAdded,
+      failed: labels.holidayFailed,
+      forbidden: labels.holidayForbidden,
+      alreadyRecorded: labels.holidayAlreadyRecorded,
+      invalidDate: labels.holidayInvalidDate,
+      reading: labels.holidayReading,
+      readFailed: labels.holidayReadFailed,
+      empty: labels.holidayEmpty,
+      noCalendar: labels.holidayNoCalendar,
+      nonwork: labels.holidayModeNonwork,
+      totalHours: labels.holidayModeTotalHours,
+      detailedHours: labels.holidayModeDetailedHours,
+      resetStandard: labels.holidayModeResetStandard,
+      canonicalDate: labels.holidayCanonicalDate,
+    };
+    const readSystem = (): "gregorian" | "jalali" =>
+      calendarSystemInput?.value === "jalali" ? "jalali" : "gregorian";
+    const readCalendar = (): { id: string; version: string } => {
+      const raw = calendarRefInput?.value ?? "";
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as { id?: string; version?: string };
+          if (parsed.id && parsed.version) return { id: parsed.id, version: parsed.version };
+        } catch {
+          // A blank or malformed selector falls back to the manual fields.
+        }
+      }
+      const idField = form?.elements.namedItem("calendar_id") as HTMLInputElement | null;
+      const versionField = form?.elements.namedItem("calendar_version") as HTMLInputElement | null;
+      return {
+        id: (idField?.value ?? initial.calendar_id).trim(),
+        version: (versionField?.value ?? initial.calendar_version).trim(),
+      };
+    };
+    const selected = readCalendar();
+    holidaysEditor = createCalendarHolidayEditor({
+      transport,
+      context,
+      labels: holidayLabels,
+      calendarId: selected.id,
+      calendarVersion: selected.version,
+      system: readSystem(),
+      onSaved: () => {
+        scheduleRunResults.delete(scheduleRunCacheKey(context));
+        const results = panel.ownerDocument.querySelector<HTMLElement>("[data-run-results]");
+        if (results) results.innerHTML = "";
+        const runStatus = panel.ownerDocument.querySelector<HTMLElement>("[data-run-status]");
+        if (runStatus) runStatus.textContent = labels.holidayRerunHint;
+      },
+    });
+    holidaysHost.append(holidaysEditor.element);
+    const syncHolidayCalendar = () => {
+      const next = readCalendar();
+      holidaysEditor?.setCalendar(next.id, next.version, readSystem());
+    };
+    calendarRefInput?.addEventListener("change", syncHolidayCalendar);
+    calendarSystemInput?.addEventListener("change", syncHolidayCalendar);
+  }
 }
 
 function mountRunPanel(
