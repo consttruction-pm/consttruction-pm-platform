@@ -26,6 +26,10 @@ def _web_root(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     (root / "styles.css").write_text("body { margin: 0; }\n", encoding="utf-8")
+    (root / "cubi-platform-logo-primary.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>\n',
+        encoding="utf-8",
+    )
     return root
 
 
@@ -584,6 +588,13 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
         status, _, body = _request(app, "GET", "/dist/web/src/landing-entry.js")
         assert status == 200
         assert body.startswith(b"export {};")
+
+        # A default browser favicon probe must resolve to the canonical CUBI logo.
+        status, headers, body = _request(app, "GET", "/favicon.ico")
+        assert status == 200
+        assert headers["content-type"] == "image/svg+xml"
+        assert body.startswith(b"<svg")
+        assert b"</svg>" in body
 
         status, _, _ = _request(app, "GET", "/.preview/cubi-preview.sqlite3")
         assert status == 404
