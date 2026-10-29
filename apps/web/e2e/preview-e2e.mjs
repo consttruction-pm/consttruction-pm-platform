@@ -1713,7 +1713,7 @@ async function main() {
         rendered_rows: table?.querySelectorAll("tbody tr").length ?? 0,
         session_authenticated: sessionResponse.status === 200,
       };
-    })()`);
+    })()`, { awaitPromise: true });
     assert(
       deepLinkWorkspace.requested_project === PROJECT_ID &&
         deepLinkWorkspace.project_found_in_session_list &&
