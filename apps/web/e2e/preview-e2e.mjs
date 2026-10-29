@@ -4140,6 +4140,11 @@ async function main() {
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
     }`);
+    const editInputValue = await page.evaluate(`() => document.querySelector('form[data-activity-update-form="NEW-100"] input[name="name"]')?.value ?? null`);
+    assert(
+      editInputValue === "E2E linked activity revised",
+      "the browser must hold the revised activity name before submit: " + JSON.stringify(editInputValue),
+    );
     await page.click('form[data-activity-update-form="NEW-100"] button[type="submit"]');
     let editReadBack = { rowText: "", editForm: true };
     for (let attempt = 0; attempt < 50; attempt++) {
