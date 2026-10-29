@@ -4141,17 +4141,15 @@ async function main() {
       input.dispatchEvent(new Event("change", { bubbles: true }));
     }`);
     await page.click('form[data-activity-update-form="NEW-100"] button[type="submit"]');
-    const editReadBack = await page.evaluate(`(async () => {
-      for (let attempt = 0; attempt < 50; attempt++) {
+    let editReadBack = { rowText: "", editForm: true };
+    for (let attempt = 0; attempt < 50; attempt++) {
+      editReadBack = await page.evaluate(`(() => {
         const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="NEW-100"]');
-        const rowText = row?.textContent ?? "";
-        const editForm = Boolean(document.querySelector('form[data-activity-update-form="NEW-100"]'));
-        if (rowText.includes("E2E linked activity revised") && !editForm) return { rowText, editForm };
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-      const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="NEW-100"]');
-      return { rowText: row?.textContent ?? "", editForm: Boolean(document.querySelector('form[data-activity-update-form="NEW-100"]')) };
-    })()`);
+        return { rowText: row?.textContent ?? "", editForm: Boolean(document.querySelector('form[data-activity-update-form="NEW-100"]')) };
+      })()`);
+      if (editReadBack.rowText.includes("E2E linked activity revised") && !editReadBack.editForm) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
     assert(
       editReadBack.rowText.includes("E2E linked activity revised") && !editReadBack.editForm,
       "editing an activity in the workspace must PATCH the authoritative record and refresh the read model: " + JSON.stringify(editReadBack),
