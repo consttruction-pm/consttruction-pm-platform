@@ -1259,7 +1259,7 @@ test("Gantt axis shows the Jalali display date while keeping canonical tick date
   assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"[^>]*>۱۴۰۵/);
 });
 
-test("Gantt scale buttons dispatch the exact day/week/month mode", () => {
+test("Gantt scale buttons dispatch day/week/month/quarter/year and reject unknown modes", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const container = {
     innerHTML: "",
@@ -1272,11 +1272,39 @@ test("Gantt scale buttons dispatch the exact day/week/month mode", () => {
     scheduledGanttState(),
     { onGanttScaleChange: (mode) => chosen.push(mode) },
   );
-  const weekButton = { dataset: { ganttScale: "week" }, closest: () => weekButton };
-  listeners.get("click")?.({ target: weekButton } as unknown as Event);
-  const invalidButton = { dataset: { ganttScale: "quarter" }, closest: () => invalidButton };
-  listeners.get("click")?.({ target: invalidButton } as unknown as Event);
-  assert.deepEqual(chosen, ["week"]);
+  for (const mode of ["week", "month", "quarter", "year", "financial-period"]) {
+    const button = { dataset: { ganttScale: mode }, closest: () => button };
+    listeners.get("click")?.({ target: button } as unknown as Event);
+  }
+  assert.deepEqual(chosen, ["week", "month", "quarter", "year"]);
+});
+
+test("Gantt dependency line visibility is an accessible selectable presentation control", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const chosen: boolean[] = [];
+  const state = scheduledGanttState();
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onGanttRelationshipsChange: (visible) => chosen.push(visible),
+  });
+  assert.match(container.innerHTML, /data-gantt-relationships-toggle="false" aria-pressed="true"/);
+  const hideButton = { dataset: { ganttRelationshipsToggle: "false" }, closest: () => hideButton };
+  listeners.get("click")?.({ target: hideButton } as unknown as Event);
+  const showButton = { dataset: { ganttRelationshipsToggle: "true" }, closest: () => showButton };
+  listeners.get("click")?.({ target: showButton } as unknown as Event);
+  assert.deepEqual(chosen, [false, true]);
+
+  const hiddenContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(hiddenContainer as unknown as HTMLElement, {
+    ...state,
+    showGanttRelationships: false,
+  });
+  assert.match(hiddenContainer.innerHTML, /data-gantt-relationships-toggle="true" aria-pressed="false"/);
+  assert.doesNotMatch(hiddenContainer.innerHTML, /class="cp-gantt-links"/);
 });
 
 test("project settings button dispatches a single open request", () => {
