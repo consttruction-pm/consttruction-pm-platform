@@ -17,6 +17,7 @@ from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, Schedule
 from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
+from construction_pm.p6_calendar_api import P6CalendarAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
@@ -69,6 +70,7 @@ def build_project_lifecycle_wsgi_app(
     p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
     p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
     p6_calendar_read_api: P6CalendarReadAPI | None = None,
+    p6_calendar_api: P6CalendarAPI | None = None,
     p6_interchange_api: P6InterchangeAPI | None = None,
     clock: Clock | None = None,
     ai_action_runtime: AIActionRuntime | None = None,
@@ -210,6 +212,7 @@ def build_project_lifecycle_wsgi_app(
         p6_layout_definition_api=p6_layout_definition_api,
         p6_formula_authority_api=p6_formula_authority_api,
         p6_calendar_read_api=p6_calendar_read_api,
+        p6_calendar_api=p6_calendar_api,
         p6_interchange_api=p6_interchange_api,
         p6_resource_read_api=resource_read_api,
         p6_resource_write_api=resource_write_api,

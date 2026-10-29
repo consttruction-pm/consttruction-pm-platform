@@ -4730,6 +4730,134 @@ async function main() {
       month_ticks: monthGraph.ticks.length,
     });
 
+    // Section H4: a persisted calendar holiday must be consumed by the shared
+    // scheduling core. The browser only stores the canonical date through the
+    // calendar API; the next authoritative calculation must move the affected
+    // activity and its SS successor in both the table and the Gantt, and a
+    // re-mounted panel must re-read the same exception from the server.
+    await page.waitForSelector(
+      "[data-calendar-holidays] form[data-calendar-holiday-form]",
+      "calendar holiday form",
+    );
+    const holidayCalendar = await page.evaluate(`(() => {
+      const raw = document.querySelector('[data-schedule-settings-form] select[name="calendar_ref"]')?.value ?? "";
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return { id: parsed.id, version: parsed.version };
+    })()`);
+    assert(
+      Boolean(holidayCalendar && holidayCalendar.id && holidayCalendar.version),
+      "the saved settings must reference a real project calendar for holidays",
+    );
+    const secondRowOf = (id) => loggedSecondRun.rows.find((row) => row[0] === id) ?? null;
+    const holidayDate = String(secondRowOf("NEW-200")?.[1] ?? "").slice(0, 10);
+    assert(
+      /^\d{4}-\d{2}-\d{2}$/.test(holidayDate),
+      "the authoritative NEW-200 start must expose a canonical date: " +
+        JSON.stringify(secondRowOf("NEW-200")),
+    );
+    await page.evaluate(`(() => {
+      const input = document.querySelector('[data-calendar-holidays] input[data-holiday-date]');
+      const form = document.querySelector('[data-calendar-holidays] form[data-calendar-holiday-form]');
+      if (!input || !form) throw new Error("HOLIDAY_FORM_MISSING");
+      input.value = ${JSON.stringify(holidayDate)};
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      form.requestSubmit();
+      return true;
+    })()`);
+    await page.waitFor(
+      `document.querySelector('[data-calendar-holidays] [data-holiday-status]')?.getAttribute('data-state') === "success"`,
+      "saved calendar holiday",
+      30000,
+    );
+    const holidayState = await page.evaluate(`(() => ({
+      records: Array.from(document.querySelectorAll('[data-calendar-holidays] [data-holiday-record]')).map((item) => item.getAttribute('data-holiday-record')),
+      status: document.querySelector('[data-calendar-holidays] [data-holiday-status]')?.textContent?.trim() ?? "",
+      run_rows: document.querySelectorAll('[data-run-results] .cp-schedule-result-table tbody tr').length,
+      run_status: document.querySelector('[data-run-status]')?.textContent?.trim() ?? "",
+    }))()`);
+    assert(
+      holidayState.records.includes(holidayDate) && holidayState.run_rows === 0,
+      "the saved holiday must be listed from the server and invalidate the cached calculation: " +
+        JSON.stringify(holidayState),
+    );
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 4`,
+      "authoritative rows after the holiday",
+      60000,
+    );
+    const holidayRun = await readRunFacts();
+    const holidayRow = (id) => holidayRun.rows.find((row) => row[0] === id) ?? null;
+    const holidayGraph = await readGanttGraph();
+    // Bar positions are a percentage of the same authoritative date range the
+    // day ticks use, so a moved start must sit exactly on its new date tick.
+    const tickLeftOf = (graph, date) => graph.ticks.find((tick) => tick.date === date)?.left ?? null;
+    const new200Tick = tickLeftOf(holidayGraph, String(holidayRow("NEW-200")?.[1] ?? "").slice(0, 10));
+    const new300Tick = tickLeftOf(holidayGraph, String(holidayRow("NEW-300")?.[1] ?? "").slice(0, 10));
+    assert(
+      holidayRun.hash !== loggedSecondRun.hash &&
+        startOf(holidayRow("NEW-100")) === startOf(secondRowOf("NEW-100")) &&
+        startOf(holidayRow("NEW-400")) === startOf(secondRowOf("NEW-400")) &&
+        startOf(holidayRow("NEW-200")) > startOf(secondRowOf("NEW-200")) &&
+        startOf(holidayRow("NEW-300")) > startOf(secondRowOf("NEW-300")) &&
+        holidayRun.gantt.NEW_100 === loggedSecondRun.gantt.NEW_100 &&
+        holidayGraph.mode === "day" &&
+        holidayGraph.rows === 4 &&
+        new200Tick !== null &&
+        Math.abs(holidayRun.gantt.NEW_200 - new200Tick) < 0.01 &&
+        new300Tick !== null &&
+        Math.abs(holidayRun.gantt.NEW_300 - new300Tick) < 0.01,
+      "the persisted holiday must push NEW-200 and its SS successor while leaving the predecessor untouched: " +
+        JSON.stringify({
+          second: loggedSecondRun.rows,
+          holiday: holidayRun.rows,
+          gantt: { second: loggedSecondRun.gantt, holiday: holidayRun.gantt, new200Tick, new300Tick },
+        }),
+    );
+    // Leave the schedule menu and return: the panels remount and re-read the
+    // exception rows from the API instead of keeping browser state.
+    await page.click('[data-menu="project"]');
+    await page.click('[data-menu="schedule"]');
+    await page.waitForSelector(
+      `[data-calendar-holidays] [data-holiday-record="${holidayDate}"]`,
+      "holiday re-read from the server after the panel remounts",
+      30000,
+    );
+    await page.waitForSelector("[data-run-schedule]", "run control after remount");
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `(() => {
+        const hash = document.querySelector("[data-run-results] .cp-schedule-result-meta code")?.textContent.trim() ?? "";
+        return hash !== ${JSON.stringify(holidayRun.hash)} &&
+          document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 4;
+      })()`,
+      "fresh authoritative rows after the remount",
+      60000,
+    );
+    const holidayRerun = await readRunFacts();
+    assert(
+      JSON.stringify(holidayRerun.rows) === JSON.stringify(holidayRun.rows) &&
+        holidayRerun.gantt.NEW_200 === holidayRun.gantt.NEW_200 &&
+        holidayRerun.gantt.NEW_300 === holidayRun.gantt.NEW_300,
+      "re-reading the persisted holiday must reproduce the same authoritative dates: " +
+        JSON.stringify({ first: holidayRun.rows, rerun: holidayRerun.rows }),
+    );
+    EVIDENCE.relationships.holiday = {
+      calendar: holidayCalendar,
+      date: holidayDate,
+      list_after_save: holidayState.records,
+      run_after_save: { hash: holidayRun.hash, rows: holidayRun.rows, gantt: holidayRun.gantt },
+      run_after_remount: { hash: holidayRerun.hash, rows: holidayRerun.rows },
+      source:
+        "holiday form -> POST /p6/calendars/{id}/{version}/exceptions -> GET exceptions -> snapshot/query -> table + Gantt",
+    };
+    record("a persisted calendar holiday changes authoritative CPM dates and survives a panel remount", {
+      date: holidayDate,
+      new200_before: secondRowOf("NEW-200")?.[1],
+      new200_after: holidayRow("NEW-200")?.[1],
+    });
+
     // Section H3: project settings edit against the real API. The panel loads
     // the authoritative row, saves under its revision, refuses a stale save
     // after another writer bumped the project, and only then accepts a reloaded
@@ -5220,8 +5348,23 @@ async function main() {
           },
         });
         const body = await response.json();
+        const calendarResponse = await fetch(
+          "/api/projects/" + encodeURIComponent(project.project_id) + "/p6/calendars/" +
+            encodeURIComponent(${JSON.stringify(holidayCalendar?.id ?? "")}) + "/" +
+            encodeURIComponent(${JSON.stringify(holidayCalendar?.version ?? "")}) + "/exceptions",
+          {
+            headers: {
+              "X-Tenant-Id": session.tenant_id,
+              "X-Project-Id": project.project_id,
+              "X-Project-Revision": String(project.revision),
+            },
+          },
+        );
+        const calendarBody = await calendarResponse.json().catch(() => null);
         return {
           status: response.status,
+          calendarStatus: calendarResponse.status,
+          calendarExceptions: (calendarBody?.exceptions || []).map((item) => item.date),
           projectMeta: project
             ? {
                 name: project.name,
@@ -5264,8 +5407,10 @@ async function main() {
           afterRestart.apiRelationships.length === 2 &&
           afterRestart.apiRelationships.some(
             (item) => item.type === "SS" && item.lag === "1" && item.id === "E2E-REL-SS",
-          ),
-        "the restarted runtime must re-read the same persisted WBS tree, activities and logic: " +
+          ) &&
+          afterRestart.calendarStatus === 200 &&
+          afterRestart.calendarExceptions.includes(holidayDate),
+        "the restarted runtime must re-read the same persisted WBS tree, activities, logic and calendar holiday: " +
           JSON.stringify(afterRestart),
       );
       assert(

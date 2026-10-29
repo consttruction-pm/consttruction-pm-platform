@@ -2228,6 +2228,19 @@ th {
 .cp-schedule-actions { grid-column:1/-1; display:flex; align-items:center; flex-wrap:wrap; gap:.8rem; }
 .cp-schedule-actions button, [data-run-schedule] { border:1px solid var(--cp-navy); border-radius:.45rem; background:var(--cp-navy); color:#fff; padding:.65rem .9rem; cursor:pointer; }
 .cp-schedule-actions button:disabled, [data-run-schedule]:disabled { opacity:.6; cursor:wait; }
+.cp-calendar-holidays { margin-top:1.1rem; border-top:1px solid var(--cp-border); padding-top:.9rem; }
+.cp-calendar-holidays h3 { margin:0 0 .35rem; color:var(--cp-navy); }
+.cp-calendar-holiday-list { list-style:none; margin:.5rem 0; padding:0; display:grid; gap:.35rem; }
+.cp-calendar-holiday-list li { display:flex; flex-wrap:wrap; align-items:baseline; gap:.6rem; padding:.4rem .55rem; border:1px solid var(--cp-border); border-radius:.4rem; background:#fff; }
+.cp-calendar-holiday-date { font-weight:600; color:var(--cp-navy); }
+.cp-calendar-holiday-mode { font-size:.8rem; color:var(--cp-text); }
+.cp-calendar-holiday-status[data-state="success"] { color:#1d7a46; }
+.cp-calendar-holiday-status[data-state="error"], .cp-calendar-holiday-status[data-state="forbidden"], .cp-calendar-holiday-status[data-state="conflict"] { color:#a12626; }
+.cp-calendar-holidays form { display:flex; flex-wrap:wrap; align-items:end; gap:.6rem; }
+.cp-calendar-holidays form label { display:grid; gap:.3rem; font-size:.88rem; color:var(--cp-navy); }
+.cp-calendar-holidays form input { border:1px solid var(--cp-border); border-radius:.4rem; padding:.5rem .6rem; color:var(--cp-text); background:#fff; }
+.cp-calendar-holidays form button { border:1px solid var(--cp-navy); border-radius:.45rem; background:var(--cp-navy); color:#fff; padding:.55rem .85rem; cursor:pointer; }
+.cp-calendar-holidays form button:disabled { opacity:.6; cursor:wait; }
 .cp-reference-meta, .cp-schedule-result-meta { display:flex; gap:.55rem 1rem; align-items:center; flex-wrap:wrap; color:var(--cp-muted); font-size:.82rem; }
 .cp-reference-filters { display:grid; grid-template-columns:minmax(180px,2fr) repeat(3,minmax(130px,1fr)); gap:.6rem; }
 .cp-reference-filters label { display:grid; gap:.35rem; color:var(--cp-navy); font-size:.82rem; min-width:0; }

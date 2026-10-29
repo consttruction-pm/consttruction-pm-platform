@@ -245,6 +245,9 @@ workspace.
    calendar system to **Jalali**, confirm the start renders as `1405/06/30`, type
    `۱۴۰۵/۰۶/۳۰`, save and confirm the API still stores `2026-09-21`; try
    `1405/13/01` and confirm `INVALID_PROJECT_START`; switch back to Gregorian.
+   Then record a non-working day in the holiday editor below the settings form,
+   confirm the saved exception is listed from `GET .../exceptions`, and confirm
+   the next calculation moves the affected activity and its successors.
 7. Open **Schedule → Run Schedule** and compare the returned A130 dates, float,
    critical flag and snapshot hash.
 8. Open **Schedule → Formula editor**, enter
