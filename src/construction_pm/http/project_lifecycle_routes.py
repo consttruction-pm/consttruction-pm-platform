@@ -494,6 +494,26 @@ class ProjectLifecycleHttpRoutes:
                             base_calendar_version=payload.get("base_calendar_version"),
                         )
                         return self._json(200, self._p6_calendar_api.update(scope, request, auth_context=auth))
+                    if len(parts) == 3 and parts[2] == "work-week" and method == "POST":
+                        calendar_id, calendar_version, _operation = parts
+                        raw_weekdays = payload.get("working_weekdays")
+                        expected_revision = payload.get("expected_revision")
+                        if not isinstance(raw_weekdays, list) or any(
+                            isinstance(day, bool) or not isinstance(day, int) for day in raw_weekdays
+                        ):
+                            raise ValueError("working_weekdays must be an integer array")
+                        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int):
+                            raise ValueError("expected_revision required")
+                        result = self._p6_calendar_api.revise_work_week(
+                            scope,
+                            calendar_id,
+                            calendar_version,
+                            str(payload.get("target_calendar_version", "")),
+                            tuple(raw_weekdays),
+                            expected_revision=expected_revision,
+                            auth_context=auth,
+                        )
+                        return self._json(200, result)
                     if len(parts) == 3 and parts[2] in {"copy", "replace"} and method == "POST":
                         calendar_id, calendar_version, operation = parts
                         if operation == "copy":
