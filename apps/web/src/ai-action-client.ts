@@ -38,6 +38,7 @@ export type CreateActivityProposal = Readonly<{
   name: string;
   duration_value: string;
   duration_unit: "working-day" | "working-hour";
+  wbs_id: string;
 }>;
 
 export type AIAssistantHistoryMessage = Readonly<{

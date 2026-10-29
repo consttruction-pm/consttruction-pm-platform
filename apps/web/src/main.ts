@@ -492,6 +492,11 @@ function renderApp(
   );
   refreshAIProposals = mountAIActionPanel(
     appShell, aiTransport, state.context, state.locale,
+    {
+      // Execution writes through the authoritative API; the grid and Gantt must
+      // show that persisted result instead of leaving the pre-execution view.
+      onExecuted: async () => { await refreshWorkspaceAfterWbsMutation(null); },
+    },
   );
 
   const layoutHistory = state.p6Layout ? getLayoutHistory(state.context, state.p6Layout) : null;

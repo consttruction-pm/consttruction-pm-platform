@@ -1,4 +1,4 @@
-import type { ApiTransport, ProjectContext } from "./client.js";
+import type { ApiResult, ApiTransport, ClientError, ProjectContext } from "./client.js";
 import { AIActionClient, type AIActionProposal, type CreateActivityProposal } from "./ai-action-client.js";
 import { translateWorkspaceText } from "./workspace-localization.js";
 import { cubiAssistantAvatarUrl } from "./cubi-brand-assets.js";
@@ -13,6 +13,7 @@ type PanelLabels = {
   executionFailed: string; stale: string; noRetry: string; approve: string;
   reject: string; execute: string; required: string; invalidResponse: string;
   action: string; projectRevision: string; result: string; operationFailed: string; serverUnavailable: string;
+  wbs: string; wbsPlaceholder: string; wbsLoading: string; wbsUnavailable: string; refreshFailed: string;
 };
 
 const labels: Record<"en" | "fa", PanelLabels> = {
@@ -34,6 +35,9 @@ const labels: Record<"en" | "fa", PanelLabels> = {
     approve: "Approve", reject: "Reject", execute: "Execute approved action",
     required: "This field is required.", invalidResponse: "The server returned an invalid action response.",
     action: "Action", projectRevision: "Project revision", result: "Result", operationFailed: "Request failed", serverUnavailable: "This server has not enabled AI action execution.",
+    wbs: "WBS node", wbsPlaceholder: "Select a WBS node",
+    wbsLoading: "Loading the persisted WBS tree…", wbsUnavailable: "No WBS node is available; create the WBS structure first.",
+    refreshFailed: "The action was applied, but the workspace refresh failed.",
   },
   fa: {
     title: "دستیار هوشمند · اقدامات",
@@ -53,6 +57,9 @@ const labels: Record<"en" | "fa", PanelLabels> = {
     approve: "تأیید", reject: "رد", execute: "اجرای اقدام تأییدشده",
     required: "این فیلد الزامی است.", invalidResponse: "پاسخ سرور برای اقدام معتبر نیست.",
     action: "اقدام", projectRevision: "نسخه پروژه", result: "نتیجه", operationFailed: "درخواست ناموفق بود", serverUnavailable: "اجرای اقدامات دستیار در این سرور پیکربندی نشده است.",
+    wbs: "گره ساختار شکست کار", wbsPlaceholder: "یک گره WBS انتخاب کنید",
+    wbsLoading: "در حال دریافت ساختار شکست کار ذخیره‌شده…", wbsUnavailable: "گره WBS در دسترس نیست؛ ابتدا ساختار شکست کار را ایجاد کنید.",
+    refreshFailed: "اقدام اعمال شد، اما به‌روزرسانی فضای کار ناموفق بود.",
   },
 };
 
@@ -64,6 +71,52 @@ function localeLabels(locale: string): PanelLabels {
       translateWorkspaceText(locale, `aiAction.${key}`, fallback),
     ]),
   ) as PanelLabels;
+}
+
+export type WbsOption = Readonly<{ id: string; label: string }>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function invalidWbsResponse<T>(): ApiResult<T> {
+  const error: ClientError = {
+    code: "INVALID_WBS_OPTIONS_RESPONSE",
+    retryable: false,
+    message_key: "error.wbs.invalid_response",
+    available_actions: ["refresh"],
+  };
+  return { ok: false, error };
+}
+
+/**
+ * Reads the project's persisted WBS tree so an activity proposal can only name a
+ * real node. The server still re-checks the same scope before the proposal and
+ * before execution; the browser never invents or caches hierarchy data.
+ */
+export async function loadProjectWbs(
+  transport: ApiTransport,
+  context: ProjectContext,
+): Promise<ApiResult<readonly WbsOption[]>> {
+  const result = await transport.get<unknown>(
+    `/api/projects/${encodeURIComponent(context.project_id)}/p6/wbs`,
+    context,
+  );
+  if (!result.ok) return result;
+  const data = result.data;
+  if (!isRecord(data) || !Array.isArray(data.wbs_nodes)) return invalidWbsResponse<readonly WbsOption[]>();
+  const options: WbsOption[] = [];
+  for (const node of data.wbs_nodes) {
+    if (!isRecord(node)) return invalidWbsResponse<readonly WbsOption[]>();
+    const wbs = isRecord(node.wbs) ? node.wbs : node;
+    const id = typeof wbs.wbs_id === "string" ? wbs.wbs_id.trim() : "";
+    if (!id) return invalidWbsResponse<readonly WbsOption[]>();
+    const code = typeof wbs.code === "string" ? wbs.code.trim() : "";
+    const name = typeof wbs.name === "string" ? wbs.name.trim() : "";
+    const label = [code, name].filter(Boolean).join(" · ") || id;
+    options.push(Object.freeze({ id, label: `${label} (${id})` }));
+  }
+  return { ok: true, data: Object.freeze(options) };
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -135,6 +188,7 @@ export function mountAIActionPanel(
   transport: ApiTransport,
   context: ProjectContext,
   locale: string,
+  hooks: { onExecuted?: () => void | Promise<void> } = {},
 ): () => Promise<void> {
   const previous = appShell.querySelector<HTMLDetailsElement>("#cp-ai-action-panel");
   const wasOpen = previous?.open ?? false;
@@ -164,6 +218,17 @@ export function mountAIActionPanel(
   const form = element("form", "cp-ai-action-form");
   const formHeading = element("h3", "", t.createTitle);
   form.append(formHeading);
+  const wbsLabel = element("label", "cp-ai-action-field", t.wbs);
+  const wbs = element("select");
+  wbs.name = "wbs_id";
+  wbs.required = true;
+  wbs.disabled = true;
+  wbs.setAttribute("aria-label", t.wbs);
+  const wbsInitial = element("option", "", t.wbsLoading);
+  wbsInitial.value = "";
+  wbs.append(wbsInitial);
+  wbsLabel.append(wbs);
+  form.append(wbsLabel);
   const activityId = addField(form, t.activityId, "activity_id", "text", t.required);
   const activityName = addField(form, t.activityName, "name", "text", t.required);
   const duration = addField(form, t.duration, "duration_value", "number", t.required);
@@ -214,7 +279,39 @@ export function mountAIActionPanel(
     return `${t.operationFailed}: ${code}`;
   };
 
+  const loadWbs = async (): Promise<void> => {
+    const current = wbs.value;
+    const result = await loadProjectWbs(transport, context);
+    wbs.replaceChildren();
+    if (!result.ok) {
+      const unavailable = element("option", "", t.wbsUnavailable);
+      unavailable.value = "";
+      wbs.append(unavailable);
+      wbs.disabled = true;
+      setMessage(operationError(result.error.code), "error");
+      return;
+    }
+    if (result.data.length === 0) {
+      const empty = element("option", "", t.wbsUnavailable);
+      empty.value = "";
+      wbs.append(empty);
+      wbs.disabled = true;
+      return;
+    }
+    const placeholder = element("option", "", t.wbsPlaceholder);
+    placeholder.value = "";
+    wbs.append(placeholder);
+    for (const option of result.data) {
+      const item = element("option", "", option.label);
+      item.value = option.id;
+      wbs.append(item);
+    }
+    wbs.disabled = false;
+    if (current && result.data.some((option) => option.id === current)) wbs.value = current;
+  };
+
   const refreshProposals = async (): Promise<void> => {
+    await loadWbs();
     refresh.disabled = true;
     const result = await client.listProposals(context);
     refresh.disabled = false;
@@ -271,6 +368,12 @@ export function mountAIActionPanel(
             setMessage(operationError(result.error.code), "error");
           } else if (result.data.status === "executed") {
             setMessage(t.executed, "success");
+            try {
+              await hooks.onExecuted?.();
+            } catch (error) {
+              console.error("Workspace refresh after AI action failed", error);
+              setMessage(t.refreshFailed, "warning");
+            }
           } else {
             setMessage(statusText(result.data.status, t), "warning");
           }
@@ -288,7 +391,8 @@ export function mountAIActionPanel(
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const rawDuration = duration.value.trim();
-    if (!activityId.value.trim() || !activityName.value.trim() || !rawDuration ||
+    const wbsId = wbs.value;
+    if (!wbsId || !activityId.value.trim() || !activityName.value.trim() || !rawDuration ||
         !Number.isFinite(Number(rawDuration)) || Number(rawDuration) < 0) {
       setMessage(t.required, "error");
       return;
@@ -300,6 +404,7 @@ export function mountAIActionPanel(
       name: activityName.value.trim(),
       duration_value: rawDuration,
       duration_unit: unit.value as CreateActivityProposal["duration_unit"],
+      wbs_id: wbsId,
     });
     submit.disabled = false;
     if (!result.ok) {
@@ -310,6 +415,7 @@ export function mountAIActionPanel(
       return;
     }
     form.reset();
+    wbs.value = "";
     setMessage(t.proposalCreated, "success");
     await refreshProposals();
   });
