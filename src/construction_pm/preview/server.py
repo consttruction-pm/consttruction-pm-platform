@@ -19,7 +19,7 @@ import traceback
 from http.cookies import SimpleCookie
 from pathlib import Path
 from typing import Iterable, Mapping
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 from construction_pm.application.project_lifecycle import AuthenticatedSession
 
@@ -74,10 +74,33 @@ def _html(status: int, document: str) -> tuple[int, dict[str, str], bytes]:
 
 
 def _safe_next(raw: object) -> str:
+    """Allow only the workspace route and its single, validated project selector."""
     value = str(raw or "").strip()
-    if value in {"/app", "/app/"}:
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
         return "/app"
-    return "/app"
+    if (
+        parsed.scheme
+        or parsed.netloc
+        or parsed.fragment
+        or parsed.path not in {"/app", "/app/"}
+    ):
+        return "/app"
+    if not parsed.query:
+        return "/app"
+    query = parse_qs(parsed.query, keep_blank_values=True)
+    project_values = query.get("project", [])
+    if set(query) != {"project"} or len(project_values) != 1:
+        return "/app"
+    project_id = project_values[0].strip()
+    if (
+        not project_id
+        or len(project_id) > 200
+        or any(ord(char) < 0x20 for char in project_id)
+    ):
+        return "/app"
+    return "/app?" + urlencode({"project": project_id})
 
 
 def _cookie_header(
@@ -287,9 +310,18 @@ class PreviewApplication:
         session: AuthenticatedSession | None,
     ) -> tuple[int, dict[str, str], bytes]:
         if method == "GET":
+            query = parse_qs(
+                str(environ.get("QUERY_STRING", "") or ""),
+                keep_blank_values=True,
+            )
+            next_values = query.get("next", [])
+            next_path = _safe_next(next_values[0] if len(next_values) == 1 else "")
             if session is not None:
-                return _html(200, self._login_page(session=session))
-            return _html(200, self._login_page())
+                return _html(
+                    200,
+                    self._login_page(session=session, next_path=next_path),
+                )
+            return _html(200, self._login_page(next_path=next_path))
         if method != "POST":
             return _json(405, {"code": "METHOD_NOT_ALLOWED"})
         length = _content_length(environ)
@@ -301,6 +333,8 @@ class PreviewApplication:
             values = parse_qs(raw.decode("utf-8"), keep_blank_values=True)
         except UnicodeDecodeError:
             return _json(400, {"code": "PREVIEW_LOGIN_REQUEST_INVALID"})
+        next_values = values.get("next", [])
+        next_path = _safe_next(next_values[0] if len(next_values) == 1 else "")
         role = str((values.get("role") or [""])[0]).strip()
         user = DEMO_USERS_BY_ROLE.get(role)
         if user is None or (self.public_demo and user.role != "viewer"):
@@ -310,8 +344,10 @@ class PreviewApplication:
                 if self.public_demo
                 else "Select one of the demo roles below."
             )
-            return _html(status, self._login_page(error=message))
-        next_path = _safe_next((values.get("next") or [""])[0])
+            return _html(
+                status,
+                self._login_page(error=message, next_path=next_path),
+            )
         created = self.runtime.sessions.create(user)
         headers = {
             "Content-Type": "text/html; charset=utf-8",
@@ -431,9 +467,12 @@ class PreviewApplication:
         session: AuthenticatedSession | None,
     ) -> tuple[int, dict[str, str], bytes]:
         if session is None:
+            query = str(environ.get("QUERY_STRING", "") or "")
+            requested_next = path + ("?" + query if query else "")
+            next_path = _safe_next(requested_next)
             headers = {
                 "Content-Type": "text/html; charset=utf-8",
-                "Location": f"{LOGIN_PATH}?next=%2Fapp",
+                "Location": f"{LOGIN_PATH}?{urlencode({'next': next_path})}",
             }
             return 302, headers, b""
         shell = (self.frontend.root / "app.html").read_text(encoding="utf-8")
@@ -470,7 +509,9 @@ class PreviewApplication:
         *,
         session: AuthenticatedSession | None = None,
         error: str | None = None,
+        next_path: str = "/app",
     ) -> str:
+        safe_next = html.escape(_safe_next(next_path), quote=True)
         if session is not None:
             user_id = html.escape(session.user_id)
             eyebrow = "Public read-only demo" if self.public_demo else "Local full-stack preview"
@@ -489,7 +530,7 @@ class PreviewApplication:
 <p class="eyebrow">{eyebrow}</p>
 <h1>You are signed in</h1>
 <p>{session_copy} <code>{user_id}</code></p>
-<p><a class="primary" href="/app">Open the CUBI workspace</a></p>
+<p><a class="primary" href="{safe_next}">Open the CUBI workspace</a></p>
 <form method="post" action="{LOGOUT_PATH}"><button class="secondary" type="submit">Sign out</button></form>
 </main></body></html>"""
         cards = []
@@ -506,6 +547,7 @@ class PreviewApplication:
             }[user.role]
             cards.append(
                 f"""<form method="post" action="{LOGIN_PATH}" class="persona">
+<input type="hidden" name="next" value="{safe_next}">
 <button type="submit" name="role" value="{role}">
 <span class="name">{label} <span class="fa" lang="fa" dir="rtl">{fa}</span></span>
 <span class="desc">{html.escape(description)}</span>
