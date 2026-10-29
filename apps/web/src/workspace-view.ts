@@ -274,6 +274,7 @@ export type WorkspaceRendererOptions = {
   onWbsUpdate?: (wbsId: string, input: { code: string; name: string; sequenceNumber: number }) => void | Promise<void>;
   onWbsDelete?: (wbsId: string) => void | Promise<void>;
   onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string }) => void | Promise<void>;
+  onActivityEdit?: (activityId: string) => void | Promise<void>;
   onActivitySelect?: (activityId: string) => void;
   onGanttActivitySelect?: (activityId: string) => void;
   onActivityFilterChange?: (filterText: string) => void;
