@@ -26,6 +26,21 @@ function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
   return container.innerHTML;
 }
 
+test("workspace shell uses the canonical CUBI logo and focused module layout contracts", () => {
+  for (const menu of ["project", "schedule", "progress", "resources", "cost", "documents", "reports", "control", "settings"] as const) {
+    const html = render("en", menu);
+    assert.match(html, new RegExp(`data-active-menu="${menu}"`));
+    assert.ok(html.includes('class="cp-brand-logo"'));
+    assert.ok(html.includes("cubi-platform-logo-primary.svg"));
+    assert.ok(!html.includes(">Construction PM</div>"));
+  }
+  const html = render("en", "schedule");
+  assert.match(html, /data-workspace-menu="project schedule"/);
+  assert.match(html, /data-workspace-menu="schedule"/);
+  assert.match(html, /data-workspace-menu="resources"/);
+  assert.match(html, /id="cp-activity-grid"/);
+  assert.match(html, /id="cp-gantt"/);
+});
 test("WBS panel renders localized create controls and permits creating a project root", () => {
   const english = render("en", "project");
   assert.match(english, /data-wbs-create-form/);

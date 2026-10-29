@@ -33,12 +33,16 @@ test("CUBI homepage follows the registered full commercial structure", () => {
   assert.doesNotMatch(landing + styles + index, /cubi-platform-logo-primary-dark\.svg|logo-dark\.svg/);
 });
 
-test("homepage header and footer logos use bounded, aspect-ratio-safe sizing", () => {
+test("homepage and public pages share responsive logo proportions and animated navigation", () => {
   assert.match(styles, /\.cubi-exact-brand\s*\{[^}]*flex:0 0 150px[^}]*width:150px[^}]*min-width:150px/);
-  assert.match(styles, /\.cubi-exact-brand img\s*\{[^}]*width:150px[^}]*height:50px[^}]*object-fit:contain/);
-  assert.match(styles, /\.cubi-footer-brand img\s*\{[^}]*width:180px[^}]*height:59px[^}]*background:transparent[^}]*padding:0/);
-  assert.match(styles, /@media \(max-width:820px\)[\s\S]*?\.cubi-exact-brand img\s*\{[^}]*width:132px[^}]*height:44px/);
-  assert.match(styles, /@media \(max-width:520px\)[\s\S]*?\.cubi-exact-brand img\s*\{[^}]*width:120px[^}]*height:40px/);
+  assert.ok(styles.includes(".cubi-exact-brand img,.cubi-public-header>a:first-child img{"));
+  assert.ok(styles.includes("height:auto;aspect-ratio:1536/664;object-fit:contain"));
+  assert.ok(styles.includes(".cubi-footer-brand img{display:block;width:180px;height:auto"));
+  assert.ok(styles.includes(".cubi-public-header>a:first-child img{"));
+  assert.match(styles, /\.cubi-exact-nav a::after/);
+  assert.match(styles, /\.cubi-exact-nav a:hover::after/);
+  assert.match(styles, /\.cubi-public-nav a::after/);
+  assert.doesNotMatch(styles, /\.cubi-exact-nav a:nth-child\(n\+4\)\{display:none\}/);
 });
 
 test("registered SEO contract remains intact", () => {

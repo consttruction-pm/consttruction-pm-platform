@@ -5,6 +5,7 @@ import { formatWorkspaceCalendarDate } from "./workspace-calendar-display.js";
 import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel, getWorkspaceNavigationSubmenuLabel } from "./workspace-navigation.js";
 import { translateWorkspaceText } from "./workspace-localization.js";
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
+import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 
 const labels = {
   en: {
@@ -268,6 +269,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
   const activityChanged = previous.selectedActivityId !== next.selectedActivityId;
   if (Number(menuChanged) + Number(wbsChanged) + Number(activityChanged) !== 1) return false;
   if (menuChanged) {
+    container.querySelector<HTMLElement>(".cp-workspace")?.setAttribute("data-active-menu", next.activeMenu);
     container.querySelectorAll<HTMLElement>("[data-menu]").forEach((button) => button.setAttribute("aria-current", button.dataset.menu === next.activeMenu ? "page" : "false"));
     const navigation = container.querySelector<HTMLElement>(".cp-navigation-surface");
     if (navigation) navigation.outerHTML = renderNavigationSurface(next);
@@ -364,12 +366,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   }
 
   container.innerHTML = `
-    <section class="cp-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}">
+    <section class="cp-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}">
       <header class="cp-header">
-        <div class="cp-brand">Construction PM</div>
+        <div class="cp-brand"><img class="cp-brand-logo" src="${escapeAttribute(cubiPlatformLogoUrl())}" width="1536" height="664" alt="CUBI Platform" /></div>
         <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
         <div class="cp-revision">${escapeHtml(t.revision)} R${state.context.revision}</div>
-        <button type="button" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
+        <button type="button" id="cp-project-settings-open" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
       </header>
       <nav class="cp-menu" aria-label="${escapeAttribute(t.mainMenu)}">
         ${menuButton("project", t.project, state)} ${menuButton("schedule", t.schedule, state)} ${menuButton("progress", t.progress, state)} ${menuButton("resources", t.resources, state)} ${menuButton("cost", t.cost, state)} ${menuButton("documents", t.documents, state)} ${menuButton("reports", t.reports, state)} ${menuButton("control", t.control, state)} ${menuButton("settings", t.settings, state)}
@@ -381,9 +383,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance, t)}
-        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, [], t)}
+        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, state.documents, t)}
         ${renderProcurement(state.procurementRecords, t.procurement, t)}
-        <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} aria-label="${escapeAttribute(t.wbs)}">
+        <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${escapeHtml(t.wbs)}</h2>
           ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
           <form class="cp-wbs-editor" data-wbs-create-form>
@@ -412,7 +414,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           })() : `<p class="cp-empty">${escapeHtml(t.wbsSelectPrompt)}</p>`}
         </aside>
         <section class="cp-center">
-          <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""}>
+          <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
             <h2>${escapeHtml(t.activities)}</h2>
             <form class="cp-activity-editor" data-activity-create-form>
               <h3>${escapeHtml(t.activityCreate)}</h3>
@@ -433,16 +435,21 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               </table>
             </div>
           </section>
-          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${escapeHtml(t.gantt)}</h2>${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId)}</section>
-            <section id="cp-schedule-options" class="cp-panel cp-schedule-panel"><h2>${escapeHtml(t.scheduleOptions)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
-            <section id="cp-schedule-run" class="cp-panel cp-schedule-panel"><h2>${escapeHtml(t.runSchedule)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
-            <section id="cp-logic" class="cp-panel cp-logic"><h2>${escapeHtml(t.logic)}</h2>${renderRelationships(state, t)}</section>
-            <section id="cp-formula-editor" class="cp-panel cp-schedule-panel"><h2>${escapeHtml(t.formulaEditor)}</h2><div data-formula-editor><p class="cp-empty">—</p></div></section>
-            <section id="cp-schedule-reference" class="cp-panel cp-schedule-panel"><h2>${escapeHtml(t.scheduleReference)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div>${renderSchedulingReference(state.locale, t, state.activeMenu === "schedule")}</section>
-            <section id="cp-interchange" class="cp-panel cp-interchange-panel"><h2>${escapeHtml(t.interchange)}</h2><div data-interchange-panel><p class="cp-empty">—</p></div></section>
-            <section id="cp-resource-capacity" class="cp-panel cp-capacity-panel"><h2>${escapeHtml(t.resourceCapacity)}</h2><div data-capacity-panel><p class="cp-empty">—</p></div></section>
+          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule"><h2>${escapeHtml(t.gantt)}</h2>${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId)}</section>
+            <section id="cp-schedule-options" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.scheduleOptions)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
+            <section id="cp-schedule-run" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.runSchedule)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
+            <section id="cp-logic" class="cp-panel cp-logic" data-workspace-menu="schedule"><h2>${escapeHtml(t.logic)}</h2>${renderRelationships(state, t)}</section>
+            <section id="cp-formula-editor" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.formulaEditor)}</h2><div data-formula-editor><p class="cp-empty">—</p></div></section>
+            <section id="cp-schedule-reference" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.scheduleReference)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div>${renderSchedulingReference(state.locale, t, state.activeMenu === "schedule")}</section>
+            <section id="cp-interchange" class="cp-panel cp-interchange-panel" data-workspace-menu="project"><h2>${escapeHtml(t.interchange)}</h2><div data-interchange-panel><p class="cp-empty">—</p></div></section>
+            <section id="cp-resource-capacity" class="cp-panel cp-capacity-panel" data-workspace-menu="resources"><h2>${escapeHtml(t.resourceCapacity)}</h2><div data-capacity-panel><p class="cp-empty">—</p></div></section>
         </section>
-        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule" aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+        <section id="cp-settings-panel" class="cp-panel" data-workspace-menu="settings" aria-label="${escapeAttribute(t.settings)}">
+          <h2>${escapeHtml(t.settings)}</h2>
+          <p>${escapeHtml(t.projectSettings)}</p>
+          <button type="button" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
+        </section>
       </main>
     </section>
   `;
@@ -458,13 +465,13 @@ function renderNavigationSurface(state: WorkspaceState): string {
   const label = getWorkspaceNavigationLabel(item, state.locale);
   const links = navigationAnchors(item.key);
 
-  return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(t.currentSurface)}">
+  return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(t.currentSurface)}" data-current-menu="${state.activeMenu}">
     <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${escapeHtml(statusLabel)}</span></div>
     <nav aria-label="${escapeAttribute(label + " " + t.submenu)}">
       ${item.submenus.map((submenu, index) => {
         const anchor = links[index];
         return anchor
-          ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>`
+          ? navigationTargetAvailable(state, anchor) ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>` : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`
           : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`;
       }).join("")}
     </nav>
@@ -477,10 +484,50 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
       return ["#cp-project-wbs", "#cp-details", "#cp-interchange"];
     case "schedule":
       return ["#cp-activity-grid", "#cp-gantt", "#cp-reference-relationships", "#cp-reference-calendars", "#cp-schedule-options", "#cp-reference-resources", "#cp-reference-progress", "#cp-schedule-run", "#cp-formula-editor", "#cp-schedule-reference", "#cp-reference-options", "#cp-scheduling-reference-formulas", "#cp-scheduling-reference-documentation"];
+    case "progress":
+      return ["#cp-site-logs", "#cp-field-operations"];
     case "resources":
-      return ["#cp-resource-capacity", null];
-    default:
+      return ["#cp-resource-capacity", "#cp-field-operations"];
+    case "cost":
+      return ["#cp-procurement", "#cp-change-claim"];
+    case "documents":
+      return ["#cp-documents", null];
+    case "reports":
       return [];
+    case "control":
+      return ["#cp-control-summary", "#cp-change-claim"];
+    case "settings":
+      return ["#cp-project-settings-open", "#cp-settings-panel"];
+
+  }
+}
+
+function navigationTargetAvailable(state: WorkspaceState, anchor: string): boolean {
+  switch (anchor) {
+    case "#cp-site-logs":
+      return state.siteDailyLogs.length > 0;
+    case "#cp-field-operations":
+      return state.fieldIssues.length > 0 || state.timecards.length > 0 || state.equipmentReports.length > 0;
+    case "#cp-procurement":
+      return state.procurementRecords.length > 0;
+    case "#cp-change-claim":
+      return state.changeNotices.length > 0 || state.changeCases.length > 0 || state.claims.length > 0 || state.changeClaimImpacts.length > 0 || state.documents.length > 0;
+    case "#cp-documents":
+      return state.documents.length > 0;
+    case "#cp-control-summary":
+      return state.controlSummary !== null;
+    case "#cp-smart-guide":
+      return state.smartGuide !== null;
+    case "#cp-project-wbs":
+      return state.visiblePanels.project_wbs;
+    case "#cp-details":
+      return state.visiblePanels.details;
+    case "#cp-activity-grid":
+      return state.visiblePanels.activity_grid;
+    case "#cp-gantt":
+      return state.visiblePanels.gantt;
+    default:
+      return true;
   }
 }
 
@@ -607,7 +654,7 @@ function renderSmartGuide(
     : '<div class="cp-empty">—</div>';
 
   return `
-    <section class="cp-panel cp-smart-guide" aria-label="${escapeAttribute(label)}">
+    <section id="cp-smart-guide" class="cp-panel cp-smart-guide" aria-label="${escapeAttribute(label)}" data-workspace-menu="control reports">
       <div class="cp-control-heading">
         <div>
           <h2>${escapeHtml(label)}</h2>
@@ -657,7 +704,7 @@ function renderControlSummary(
     : "<div class=\"cp-empty\">—</div>";
 
   return `
-    <section class="cp-panel cp-control-summary" aria-label="${escapeAttribute(summaryLabel)}">
+    <section id="cp-control-summary" class="cp-panel cp-control-summary" aria-label="${escapeAttribute(summaryLabel)}" data-workspace-menu="control reports">
       <div class="cp-control-heading">
         <div>
           <h2>${escapeHtml(summaryLabel)}</h2>
@@ -684,7 +731,7 @@ function renderSiteDailyLogs(
   if (!logs.length) return "";
 
   return `
-    <section class="cp-panel cp-site-logs" aria-label="${escapeAttribute(label)}">
+    <section id="cp-site-logs" class="cp-panel cp-site-logs" aria-label="${escapeAttribute(label)}" data-workspace-menu="progress">
       <div class="cp-control-heading">
         <div><h2>${escapeHtml(label)}</h2></div>
       </div>
@@ -751,7 +798,7 @@ function renderFieldOperations(
     : '<div class="cp-empty">—</div>';
 
   return `
-    <section class="cp-panel cp-field-ops" aria-label="${escapeAttribute(t.issues + " / " + t.attendance + " / " + t.equipment)}">
+    <section id="cp-field-operations" class="cp-panel cp-field-ops" aria-label="${escapeAttribute(t.issues + " / " + t.attendance + " / " + t.equipment)}" data-workspace-menu="progress resources">
       <div class="cp-field-grid">
         <div>
           <h2>${escapeHtml(t.issues)}</h2>
@@ -781,7 +828,7 @@ function renderFieldAssurance(
   if (!inspections.length && !qualityRecords.length && !safetyObservations.length && !punchItems.length) return "";
 
   return `
-    <section class="cp-panel cp-field-assurance" aria-label="${escapeAttribute(label)}">
+    <section class="cp-panel cp-field-assurance" aria-label="${escapeAttribute(label)}" data-workspace-menu="control">
       <h2>${escapeHtml(label)}</h2>
       <div class="cp-field-assurance-grid">
         <div>
@@ -837,7 +884,7 @@ function renderProcurement(
   if (!records.length) return "";
 
   return `
-    <section class="cp-panel cp-procurement" aria-label="${escapeAttribute(label)}">
+    <section id="cp-procurement" class="cp-panel cp-procurement" aria-label="${escapeAttribute(label)}" data-workspace-menu="resources cost">
       <div class="cp-control-heading">
         <div><h2>${escapeHtml(label)}</h2></div>
       </div>
@@ -870,11 +917,11 @@ function renderChangeClaimControl(
   documents: WorkspaceState["documents"] = [],
   t: WorkspaceLabels,
 ): string {
-  if (!notices.length && !changes.length && !claims.length && !impacts.length) return "";
+  if (!notices.length && !changes.length && !claims.length && !impacts.length && !documents.length) return "";
 
   const documentSection = documents.length === 0
     ? ""
-    : `<section class="control-room-section" data-section="documents">
+    : `<section id="cp-documents" class="control-room-section" data-section="documents" data-workspace-menu="documents">
       <h2>${escapeHtml(t.documents)}</h2>
       <div class="control-room-cards">
         ${documents.map((document) => `<article class="control-room-card">
@@ -890,10 +937,10 @@ function renderChangeClaimControl(
     values.length ? values.map((value) => `<span class="cp-ref">${escapeHtml(value)}</span>`).join(" ") : "—";
 
   return `
-    <section class="cp-panel cp-change-claim" aria-label="${escapeAttribute(label)}">
+    <section id="cp-change-claim" class="cp-panel cp-change-claim" aria-label="${escapeAttribute(label)}" data-workspace-menu="control cost documents">
       <h2>${escapeHtml(label)}</h2>
       <div class="cp-change-claim-grid">
-        <div>
+        <div data-workspace-menu="control cost">
           <h3>${escapeHtml(t.notices)}</h3>
           ${notices.length ? notices.map((item) => `
             <article class="cp-field-card">
@@ -904,7 +951,7 @@ function renderChangeClaimControl(
               <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)} · ${escapeHtml(t.approval)}: ${item.approvalRequired ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
-        <div>
+        <div data-workspace-menu="control cost">
           <h3>${escapeHtml(t.changeCases)}</h3>
           ${changes.length ? changes.map((item) => `
             <article class="cp-field-card">
@@ -915,7 +962,7 @@ function renderChangeClaimControl(
               <span>${escapeHtml(t.impactLinkLabel)}: ${item.impactLinkIds.length} · ${escapeHtml(t.approval)}: ${item.approvalRequired ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
-        <div>
+        <div data-workspace-menu="control cost">
           <h3>${escapeHtml(t.claims)}</h3>
           ${claims.length ? claims.map((item) => `
             <article class="cp-field-card">
@@ -927,7 +974,7 @@ function renderChangeClaimControl(
               <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
-        <div>
+        <div data-workspace-menu="control cost">
           <h3>${escapeHtml(t.impactLinks)}</h3>
           ${impacts.length ? impacts.map((item) => `
             <article class="cp-field-card">
