@@ -291,6 +291,14 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       ? event.target as HTMLElement
       : null;
     if (!element) return;
+    const isGroupSelect = Object.prototype.hasOwnProperty.call(element.dataset, "activityGroup");
+    if (isGroupSelect) {
+      const record = workspaceRenderRecords.get(container);
+      if (!record) return;
+      const value = (element as HTMLSelectElement).value;
+      if (value === "wbs" || value === "none") record.options.onActivityGroupByChange?.(value);
+      return;
+    }
     const isSortSelect = Object.prototype.hasOwnProperty.call(element.dataset, "activitySort");
     if (isSortSelect) {
       const record = workspaceRenderRecords.get(container);
@@ -347,7 +355,7 @@ function renderWbsTree(
 }
 
 function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState): boolean {
-  return previous.context === next.context && previous.locale === next.locale && previous.direction === next.direction && previous.calendarMode === next.calendarMode && previous.ganttScale === next.ganttScale && previous.showGanttRelationships === next.showGanttRelationships && previous.visiblePanels === next.visiblePanels && previous.columns === next.columns && previous.activities === next.activities && previous.wbsNodes === next.wbsNodes && previous.relationships === next.relationships && previous.activityFilter === next.activityFilter && previous.activitySort === next.activitySort && previous.controlSummary === next.controlSummary && previous.smartGuide === next.smartGuide && previous.siteDailyLogs === next.siteDailyLogs && previous.timecards === next.timecards && previous.equipmentReports === next.equipmentReports && previous.fieldIssues === next.fieldIssues && previous.changeNotices === next.changeNotices && previous.changeCases === next.changeCases && previous.claims === next.claims && previous.changeClaimImpacts === next.changeClaimImpacts && previous.documents === next.documents && previous.procurementRecords === next.procurementRecords && previous.inspections === next.inspections && previous.qualityRecords === next.qualityRecords && previous.safetyObservations === next.safetyObservations && previous.punchItems === next.punchItems && previous.p6FieldRegistry === next.p6FieldRegistry && previous.p6Layout === next.p6Layout;
+  return previous.context === next.context && previous.locale === next.locale && previous.direction === next.direction && previous.calendarMode === next.calendarMode && previous.ganttScale === next.ganttScale && previous.showGanttRelationships === next.showGanttRelationships && previous.visiblePanels === next.visiblePanels && previous.columns === next.columns && previous.activities === next.activities && previous.wbsNodes === next.wbsNodes && previous.relationships === next.relationships && previous.activityFilter === next.activityFilter && previous.activityGroupBy === next.activityGroupBy && previous.activitySort === next.activitySort && previous.controlSummary === next.controlSummary && previous.smartGuide === next.smartGuide && previous.siteDailyLogs === next.siteDailyLogs && previous.timecards === next.timecards && previous.equipmentReports === next.equipmentReports && previous.fieldIssues === next.fieldIssues && previous.changeNotices === next.changeNotices && previous.changeCases === next.changeCases && previous.claims === next.claims && previous.changeClaimImpacts === next.changeClaimImpacts && previous.documents === next.documents && previous.procurementRecords === next.procurementRecords && previous.inspections === next.inspections && previous.qualityRecords === next.qualityRecords && previous.safetyObservations === next.safetyObservations && previous.punchItems === next.punchItems && previous.p6FieldRegistry === next.p6FieldRegistry && previous.p6Layout === next.p6Layout;
 }
 
 function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: WorkspaceState, next: WorkspaceState): boolean {
@@ -409,6 +417,7 @@ export type WorkspaceRendererOptions = {
   onProjectSettings?: () => void;
   onActivityFilterChange?: (filterText: string) => void;
   onActivitySortChange?: (columnId: string | null) => void;
+  onActivityGroupByChange?: (groupBy: "wbs" | "none") => void;
   onActivitySortDirectionToggle?: () => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
@@ -438,6 +447,8 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     state.activities,
     state.activityFilter,
     state.activitySort,
+    state.activityGroupBy,
+    state.wbsNodes,
   );
   const scale = createGanttScale(visibleActivities);
   let stickyOffsets = workspaceStickyOffsetsCache.get(state.columns);
@@ -1136,18 +1147,30 @@ function renderActivityFilterSort(
 ): string {
   const sort = state.activitySort;
   const direction = sort?.direction ?? "asc";
-  const options = state.columns.map((column) => {
-    const selected = sort?.columnId === column.id ? " selected" : "";
-    return `<option value="${escapeAttribute(column.id)}"${selected}>${escapeHtml(column.label)}</option>`;
-  }).join("");
+  const options = [
+    `<option value="wbs"${sort?.columnId === "wbs" ? " selected" : ""}>${escapeHtml(t.activityWbs)}</option>`,
+    ...state.columns
+      .filter((column) => column.id !== "wbs")
+      .map((column) => {
+        const selected = sort?.columnId === column.id ? " selected" : "";
+        return `<option value="${escapeAttribute(column.id)}"${selected}>${escapeHtml(column.label)}</option>`;
+      }),
+  ].join("");
   return `<div class="cp-activity-toolbar" role="search">
     <label class="cp-activity-filter">
       <span>${escapeHtml(t.activityFilter)}</span>
       <input type="search" data-activity-filter value="${escapeAttribute(state.activityFilter)}" placeholder="${escapeAttribute(t.activityFilterPlaceholder)}" autocomplete="off" spellcheck="false">
     </label>
+    <label class="cp-activity-group">
+      <span>${escapeHtml(t.groupBy)}</span>
+      <select data-activity-group aria-label="${escapeAttribute(t.groupBy)}">
+        <option value="wbs"${state.activityGroupBy === "wbs" ? " selected" : ""}>${escapeHtml(t.activityWbs)}</option>
+        <option value="none"${state.activityGroupBy === "none" ? " selected" : ""}>${escapeHtml(t.groupNone)}</option>
+      </select>
+    </label>
     <label class="cp-activity-sort">
       <span>${escapeHtml(t.activitySort)}</span>
-      <select data-activity-sort>
+      <select data-activity-sort aria-label="${escapeAttribute(t.activitySort)}">
         <option value=""${sort ? "" : " selected"}>${escapeHtml(t.sortNone)}</option>
         ${options}
       </select>
