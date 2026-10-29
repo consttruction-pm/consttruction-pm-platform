@@ -95,6 +95,11 @@ test("Activity entry is localized and requires an authoritative WBS selection", 
   const persian = render("fa", "schedule");
   assert.match(persian, /افزودن فعالیت/);
   assert.match(persian, /واحد مدت/);
+  assert.match(persian, /name="activity_type"/);
+  assert.match(persian, /نوع درصد تکمیل/);
+  assert.match(persian, /وابسته به منابع/);
+  assert.match(empty, /name="percent_complete_type"/);
+  assert.match(empty, /name="leveling_priority"/);
 });
 
 test("Activity create form dispatches typed fields and selected WBS to its callback", () => {
@@ -108,7 +113,7 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
     [{ id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Root", sequenceNumber: 0, recordRevision: 1 }],
   );
-  let created: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string } | null = null;
+  let created: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; levelingPriority: string } | null = null;
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     onActivityCreate: (input) => { created = input; },
   });
@@ -118,6 +123,11 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     '[name="duration_value"]': { value: "2.5" },
     '[name="duration_unit"]': { value: "working-day" },
     '[name="wbs_id"]': { value: "WBS-1" },
+    '[name="activity_type"]': { value: "Resource Dependent" },
+    '[name="status"]': { value: "In Progress" },
+    '[name="status_code"]': { value: "Active" },
+    '[name="percent_complete_type"]': { value: "PHYSICAL" },
+    '[name="leveling_priority"]': { value: "High" },
   };
   const form = {
     matches: (selector: string) => selector === "[data-activity-create-form]",
@@ -132,6 +142,11 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     durationValue: 2.5,
     durationUnit: "working-day",
     wbsId: "WBS-1",
+    activityType: "Resource Dependent",
+    status: "In Progress",
+    statusCode: "Active",
+    percentCompleteType: "PHYSICAL",
+    levelingPriority: "High",
   });
 });
 
