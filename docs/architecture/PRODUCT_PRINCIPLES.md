@@ -46,6 +46,21 @@ Never silently replace a missing, conflicting or unsupported custom calendar wit
 
 This is a release-blocking portability requirement, not an optional convenience. Calendar export/import must be covered by typed schemas, migration/version policy, audit history, user-facing import preview/errors, and regression tests for every supported project package/interchange format.
 
+## Principle 1C — Documentation-first calculation conformance gate
+
+This gate is mandatory before any production change that affects activity relationships, schedule/CPM semantics, resource priorities or leveling, calendars, constraints, dates/durations, progress/EVM calculations, or AI-generated numerical project outputs.
+
+Before changing calculation behavior or its production input mapping:
+
+1. **Cite the exact versioned authoritative source.** Record the official document/version and specific topic/section, not a search snippet or an unversioned general claim. When source semantics conflict or remain ambiguous, mark the requirement **BLOCKED/UNVERIFIED** and do not guess.
+2. **Write the rule before implementation.** Add a row to docs/architecture/CALCULATION_CONFORMANCE_MATRIX.md with a stable rule ID, source, input conditions, expected output/edge cases, explicit unsupported cases, and links to current code/tests.
+3. **Define the typed contract and provenance.** State exact input/output types, units, calendars, revision/scope rules, ordering/precedence, error behavior, and immutable provenance. Missing, stale, unsupported, or mismatched calculation input must fail closed instead of being defaulted or silently omitted.
+4. **Obtain independent semantic review before production calculation code is changed.** The reviewer must not be the change author. Record the review outcome and any source interpretation in the PR. If no independent reviewer has confirmed the rule, keep the implementation change blocked; docs-only/test-only preparation may proceed.
+5. **Add source-linked regression tests.** Each changed rule must map to positive, boundary, negative, and interaction tests as applicable. The PR must identify the exact test names and show exact-head CI. Tests must exercise the real production provider/write-read route where that route is in scope, not a manually fabricated substitute input.
+6. **Include the conformance checklist in every PR.** Missing source/version, matrix row, independent review, test mapping or exact-head CI evidence blocks merge. Test-only or non-semantic changes must explicitly say “no calculation-semantic change” and explain why.
+
+This is an engineering/release gate, not a paperwork substitute for implementation. A documented rule with no passing regression proof remains incomplete. A green CI run alone does not certify compatibility. Internal engineering records may cite source documents; product UI, branding, help and customer-facing output must continue to follow the separate product-presentation rules.
+
 ## Principle 2 — Complete, current and leading Construction Management + Project Controls platform
 
 After compliance with Principle 1, the product target is not merely feature parity with one competitor. **At the time of public/commercial release, the product is intended to be the most complete and forward-looking platform within its defined specialist scope of construction project management, construction control and project controls, based on a documented market benchmark current at the release gate.**
