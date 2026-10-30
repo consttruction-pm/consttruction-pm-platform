@@ -197,6 +197,35 @@ def test_sqlite_settings_repository_preserves_caller_owned_transaction(tmp_path)
     writer.close()
 
 
+def test_sqlite_repository_rolls_back_only_its_own_failed_write_transactions():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteProjectScheduleSettingsRepository(connection)
+
+    connection.execute(
+        "CREATE TRIGGER fail_settings_insert BEFORE INSERT ON project_schedule_settings "
+        "BEGIN SELECT RAISE(ABORT, 'forced insert failure'); END"
+    )
+    with pytest.raises(sqlite3.IntegrityError, match="forced insert failure"):
+        repo.save(date_settings(), expected_revision=0)
+    assert connection.in_transaction is False
+
+    connection.execute("DROP TRIGGER fail_settings_insert")
+    repo.save(date_settings(), expected_revision=0)
+    changed = replace(date_settings(), project_finish=date(2027, 4, 30))
+
+    connection.execute(
+        "CREATE TRIGGER fail_settings_update BEFORE UPDATE ON project_schedule_settings "
+        "BEGIN SELECT RAISE(ABORT, 'forced update failure'); END"
+    )
+    with pytest.raises(sqlite3.IntegrityError, match="forced update failure"):
+        repo.save(changed, expected_revision=1)
+    assert connection.in_transaction is False
+    assert repo.get(scope()).record_revision == 1
+
+    connection.execute("DROP TRIGGER fail_settings_update")
+    connection.close()
+
+
 def test_sqlite_settings_repository_detects_payload_tampering():
     connection = sqlite3.connect(":memory:")
     repo = SQLiteProjectScheduleSettingsRepository(connection)

@@ -37,3 +37,35 @@ def test_positive_working_lag_is_applied() -> None:
     r = WorkingTimeResolver(WorkingCalendar())
     rel = Relationship("A", "B", RelationshipType.FS, lag=2)
     assert successor_earliest_start(rel, date(2026, 9, 21), date(2026, 9, 22), 1, r) == date(2026, 9, 25)
+
+
+def test_fs_zero_lag_skips_nonworking_days_after_finish() -> None:
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    relationship = Relationship("A", "B", RelationshipType.FS)
+    # Friday finish: the next activity starts on Monday, not Saturday.
+    assert successor_earliest_start(
+        relationship, date(2026, 9, 24), date(2026, 9, 25), 1, resolver
+    ) == date(2026, 9, 28)
+
+
+def test_negative_fs_lag_moves_back_by_working_day() -> None:
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    relationship = Relationship("A", "B", RelationshipType.FS, lag=-1)
+    assert successor_earliest_start(
+        relationship, date(2026, 9, 21), date(2026, 9, 23), 1, resolver
+    ) == date(2026, 9, 22)
+
+
+def test_negative_ss_lag_moves_before_predecessor_start() -> None:
+    resolver = WorkingTimeResolver(WorkingCalendar())
+    relationship = Relationship("A", "B", RelationshipType.SS, lag=-1)
+    assert successor_earliest_start(
+        relationship, date(2026, 9, 21), date(2026, 9, 23), 1, resolver
+    ) == date(2026, 9, 18)
+
+
+def test_relationship_rejects_boolean_lag() -> None:
+    import pytest
+
+    with pytest.raises(TypeError, match="lag must be an integer"):
+        Relationship("A", "B", RelationshipType.FS, lag=True)
