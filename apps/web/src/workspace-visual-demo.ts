@@ -560,7 +560,7 @@ function renderWindow(state: DemoState): string {
           <span class="cp-vd-chip">${esc(t(state.locale, "Classic Schedule Layout", "چیدمان کلاسیک زمان‌بندی"))}</span>
         </header>
         ${renderGanttTools(state)}
-        <div class="cp-vd-split">
+        <div class="cp-vd-split" data-vd-split data-table-share="42" data-gantt-share="58">
           <div class="cp-vd-pane">${renderActivityTable(state, state.columns)}</div>
           <div class="cp-vd-pane">${renderGantt(state)}</div>
         </div>
@@ -674,9 +674,12 @@ function renderTimeline(state: DemoState): string {
     { id: "A1400", en: "Testing", fa: "تست", date: "2027-05-03", critical: false, low: true, end: false },
     { id: "A1500", en: "Handover", fa: "تحویل نهایی", date: "2027-05-28", critical: false, low: false, end: true },
   ];
-  const laneRows = lanes.map((lane, index) => {
+  const laneLabels = lanes.map((lane, index) =>
+    `<div class="cp-vd-timeline-lane-label${index % 2 ? " is-alt" : ""}">${esc(t(state.locale, lane.en, lane.fa))}</div>`,
+  ).join("");
+  const laneTracks = lanes.map((lane, index) => {
     const position = barPosition(lane.start, lane.finish);
-    return `<div class="cp-vd-timeline-lane${index % 2 ? " is-alt" : ""}"><span class="cp-vd-timeline-name">${esc(t(state.locale, lane.en, lane.fa))}</span><div class="cp-vd-timeline-track"><span class="cp-vd-timeline-bar" style="inset-inline-start:${position.left};width:${position.width}">${esc(t(state.locale, lane.en, lane.fa))}</span></div></div>`;
+    return `<div class="cp-vd-timeline-track${index % 2 ? " is-alt" : ""}"><span class="cp-vd-timeline-bar" style="inset-inline-start:${position.left};width:${position.width}">${esc(t(state.locale, lane.en, lane.fa))}</span></div>`;
   }).join("");
   const marks = milestones.map((mark) => {
     const position = barPosition(mark.date, mark.date);
@@ -684,11 +687,14 @@ function renderTimeline(state: DemoState): string {
   }).join("");
   const dataDate = (day("2026-12-03") - day(PROJECT_START)) / PROJECT_DAYS;
   return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Timeline", "خط زمانی"))}</h2><div class="cp-vd-winactions"><span class="cp-vd-chip">${esc(t(state.locale, "Summary bars · milestones", "میله‌های خلاصه · نقاط عطف"))}</span><button type="button" class="cp-vd-btn" data-vd-dialog="timeline-options">${esc(t(state.locale, "Timeline options", "تنظیمات خط زمانی"))}</button></div></header>
-    <div class="cp-vd-timeline">
+    <div class="cp-vd-timeline" data-vd-timeline>
       <div class="cp-vd-timeline-head"><span></span><div class="cp-vd-timeline-axis">${raster}</div></div>
       <div class="cp-vd-timeline-body">
-        <span class="cp-vd-timeline-datadate" style="inset-inline-start:calc(170px + (100% - 170px) * ${dataDate.toFixed(4)})" title="${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}"><b>${esc(t(state.locale, "Data date", "تاریخ داده"))}</b></span>
-        ${laneRows}
+        <div class="cp-vd-timeline-labels">${laneLabels}</div>
+        <div class="cp-vd-timeline-tracks">
+          <span class="cp-vd-timeline-datadate" style="inset-inline-start:${(dataDate * 100).toFixed(4)}%" title="${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}"><b>${esc(t(state.locale, "Data date", "تاریخ داده"))}</b></span>
+          ${laneTracks}
+        </div>
       </div>
       <div class="cp-vd-timeline-head is-markers"><span>${esc(t(state.locale, "Milestones", "نقاط عطف"))}</span><div class="cp-vd-timeline-marks">${marks}</div></div>
     </div></section>`;
