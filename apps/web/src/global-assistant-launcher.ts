@@ -264,6 +264,9 @@ export function mountGlobalAssistantLauncher(): void {
       : target.querySelector<HTMLElement>(
           "button,a,input,select,textarea,[tabindex]",
         );
+    // Workspace forms may live in a collapsed disclosure; reveal it before focusing.
+    const enclosingDisclosure = focusTarget?.closest<HTMLDetailsElement>("details");
+    if (enclosingDisclosure) enclosingDisclosure.open = true;
     focusTarget?.focus({ preventScroll: true });
     setPopoverOpen(false, { restoreFocus: false });
   });
