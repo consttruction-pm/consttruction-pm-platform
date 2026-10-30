@@ -4668,9 +4668,14 @@ async function main() {
         const bar = document.querySelector('[data-gantt-activity-id="' + id + '"] .cp-gantt-bar');
         return bar ? Number.parseFloat(bar.style.left) : null;
       };
+      const ticks = Array.from(document.querySelectorAll("#cp-gantt [data-gantt-tick]")).map((tick) => ({
+        date: tick.getAttribute("data-gantt-tick") ?? "",
+        left: Number.parseFloat(tick.style.left),
+      }));
       return {
         hash: document.querySelector("[data-run-results] .cp-schedule-result-meta code")?.textContent.trim() ?? "",
         rows,
+        ticks,
         gantt: {
           rows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
           NEW_100: barLeft("NEW-100"),
@@ -4764,15 +4769,33 @@ async function main() {
     );
     const loggedSecondRun = await readRunFacts();
     const secondRow = (id) => loggedSecondRun.rows.find((row) => row[0] === id) ?? null;
+    const dateFor = (snapshot, id) => String(snapshot.rows.find((row) => row[0] === id)?.[1] ?? "").slice(0, 10);
+    const barMatchesStartTick = (snapshot, id, geometryKey) => {
+      const date = dateFor(snapshot, id);
+      const tick = snapshot.ticks.find((item) => item.date === date);
+      const barLeft = snapshot.gantt[geometryKey];
+      return Boolean(tick && Number.isFinite(tick.left) && barLeft !== null && Math.abs(barLeft - tick.left) < 0.01);
+    };
     assert(
       loggedSecondRun.rows.length === 4 &&
         startOf(secondRow("NEW-100")) === startOf(loggedFirstRun.rows.find((row) => row[0] === "NEW-100")) &&
         startOf(secondRow("NEW-200")) > startOf(loggedFirstRun.rows.find((row) => row[0] === "NEW-200")) &&
         startOf(secondRow("NEW-300")) > startOf(loggedFirstRun.rows.find((row) => row[0] === "NEW-300")) &&
-        loggedSecondRun.gantt.NEW_200 > loggedFirstRun.gantt.NEW_200 &&
-        loggedSecondRun.gantt.NEW_300 > loggedFirstRun.gantt.NEW_300,
-      "changing the duration and re-running must move the successors in both the table and the Gantt: " +
-        JSON.stringify({ loggedFirstRun: loggedFirstRun.rows, loggedSecondRun: loggedSecondRun.rows, gantt: loggedSecondRun.gantt }),
+        dateFor(loggedSecondRun, "NEW-200") !== dateFor(loggedFirstRun, "NEW-200") &&
+        dateFor(loggedSecondRun, "NEW-300") !== dateFor(loggedFirstRun, "NEW-300") &&
+        barMatchesStartTick(loggedFirstRun, "NEW-200", "NEW_200") &&
+        barMatchesStartTick(loggedFirstRun, "NEW-300", "NEW_300") &&
+        barMatchesStartTick(loggedSecondRun, "NEW-200", "NEW_200") &&
+        barMatchesStartTick(loggedSecondRun, "NEW-300", "NEW_300"),
+      "changing duration must move the authoritative successor dates, and each Gantt bar must stay aligned with its own dated axis: " +
+        JSON.stringify({
+          firstRows: loggedFirstRun.rows,
+          secondRows: loggedSecondRun.rows,
+          firstGantt: loggedFirstRun.gantt,
+          secondGantt: loggedSecondRun.gantt,
+          firstTicks: loggedFirstRun.ticks,
+          secondTicks: loggedSecondRun.ticks,
+        }),
     );
     EVIDENCE.relationships.schedule = {
       first_run: { hash: loggedFirstRun.hash, rows: loggedFirstRun.rows, gantt: loggedFirstRun.gantt },

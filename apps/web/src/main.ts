@@ -996,8 +996,19 @@ function renderApp(
   }
   void mountScheduleCyclePanels(workspace, aiTransport, state.context, state.locale, (facts) => {
     try {
-      const next = applyAuthoritativeScheduleFacts(state, facts);
-      if (next !== state) renderApp(container, next, persistence);
+      // A schedule query can finish after another render has replaced this
+      // panel's captured state. Project the authoritative result onto the
+      // latest state for the same project revision so the grid and Gantt stay
+      // synchronized after repeated schedule runs.
+      const latest = currentWorkspaceState;
+      if (
+        !latest ||
+        latest.context.tenant_id !== state.context.tenant_id ||
+        latest.context.project_id !== state.context.project_id ||
+        latest.context.revision !== state.context.revision
+      ) return;
+      const next = applyAuthoritativeScheduleFacts(latest, facts);
+      if (next !== latest) renderApp(container, next, persistence);
     } catch (error) {
       console.error("Authoritative schedule result projection failed", error);
     }
