@@ -28,7 +28,11 @@ import {
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
 import { renderWorkspaceStartup } from "./workspace-startup.js";
-import { getBootstrapLabels, getBootstrapErrorCopy } from "./bootstrap-labels.js";
+import {
+  getBootstrapLabels,
+  getBootstrapErrorCopy,
+  isSessionBootstrapError,
+} from "./bootstrap-labels.js";
 import { formatJalaliDateInput, isValidCanonicalIsoDate, parseJalaliDateInput } from "./workspace-jalali-entry.js";
 import {
   readRequestedProjectId,
@@ -1678,6 +1682,22 @@ function renderBootstrapState(
 
   const actions = document.createElement("div");
   actions.className = "cp-error-actions";
+
+  if (isSessionBootstrapError(error)) {
+    const signIn = document.createElement("button");
+    signIn.type = "button";
+    signIn.textContent = t.errorSignIn;
+    signIn.addEventListener("click", () => {
+      const rememberedProject = new URLSearchParams(window.location.search).get("project");
+      const nextPath = rememberedProject
+        ? `/app?project=${encodeURIComponent(rememberedProject)}`
+        : "/app";
+      window.location.assign(
+        `/preview/login?next=${encodeURIComponent(nextPath)}`,
+      );
+    });
+    actions.append(signIn);
+  }
 
   const retryStart = async (): Promise<void> => {
     renderBootstrapState(container, { status: "loading" }, bootstrap, locale);
