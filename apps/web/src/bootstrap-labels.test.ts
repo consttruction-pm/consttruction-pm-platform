@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getBootstrapErrorCopy, getBootstrapLabels } from "./bootstrap-labels.js";
+import {
+  getBootstrapErrorCopy,
+  getBootstrapLabels,
+  isSessionBootstrapError,
+} from "./bootstrap-labels.js";
 
 test("bootstrap labels preserve English and Persian project-flow parity", () => {
   const en = getBootstrapLabels("en");
@@ -45,4 +49,21 @@ test("bootstrap errors are localized and never expose a raw message key", () => 
     message_key: "error.network",
   });
   assert.match(network.message, /connection/i);
+});
+
+
+test("a lost server-side session is classified as a sign-in recovery case", () => {
+  const missing = {
+    code: "SESSION_NOT_FOUND",
+    message_key: "error.session.invalid",
+  };
+  assert.equal(isSessionBootstrapError(missing), true);
+  assert.equal(
+    getBootstrapErrorCopy("fa", missing).message,
+    getBootstrapLabels("fa").errorSession,
+  );
+  assert.equal(isSessionBootstrapError({
+    code: "PROJECT_ACCESS_DENIED",
+    message_key: "error.authorization.denied",
+  }), false);
 });
