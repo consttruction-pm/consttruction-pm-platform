@@ -46,6 +46,22 @@ Never silently replace a missing, conflicting or unsupported custom calendar wit
 
 This is a release-blocking portability requirement, not an optional convenience. Calendar export/import must be covered by typed schemas, migration/version policy, audit history, user-facing import preview/errors, and regression tests for every supported project package/interchange format.
 
+## Principle 1C — Documentation-first P6 calculation conformance and independent review
+
+For every production-code change that implements or alters behavior overlapping P6 activity relationships, scheduling, resource-leveling priorities, calendars, constraints, scheduling calculations, or AI-generated numerical/project-control outputs, **source verification and independent semantic review must happen before implementation**.
+
+Mandatory sequence:
+
+1. **Pin the applicable source.** Record the product/profile (for example, P6 Professional or P6 EPPM), exact release/version, official Oracle document, section/field name, and direct URL. Do not infer one product's UI label, field meaning, wire type, or sort semantics from another product profile.
+2. **Write the rule before code.** Record the source-derived rule and edge cases in the versioned calculation-conformance matrix. State what is known, what is not specified by the source, and which input/output contract is affected.
+3. **Trace rule to behavior.** Link the canonical Shared Domain/Calculation Core field or function and deterministic regression tests to the conformance-matrix entry. Cover relevant interactions with relationships, calendars, constraints, resource capacity, sort direction, multi-row precedence and tie/blank/missing values.
+4. **Obtain independent review before implementation.** A reviewer who did not author the interpretation must verify the source and proposed rule and record approval or rejection on the issue/PR. The code author must not self-certify this gate.
+5. **Unclear means BLOCKED.** If the official source does not define a necessary semantic or interchange rule, mark the exact item `UNVERIFIED`/`BLOCKED`, keep production behavior unchanged, and obtain authoritative vendor evidence or a controlled versioned runtime fixture. Do not guess, silently coerce, or substitute a convenient default.
+6. **Carry the evidence in every PR.** The PR must include a “Documentation-first conformance” section linking the source/version/section, matrix entry, independent review, affected code paths and tests, exact-head CI, and remaining blockers. A test-only change must explicitly state that production semantics are unchanged.
+7. **No merge on missing evidence.** A green CI run verifies tested paths only; it does not prove P6 parity. Any unresolved applicable conformance item or missing independent sign-off blocks merge and release claims.
+
+This rule applies to all human contributors and AI coding agents. It complements Principles 1 and 1A and Issue #1447; it does not authorize any change to Shared Core calculation semantics without the documented source-to-rule-to-test chain.
+
 ## Principle 2 — Complete, current and leading Construction Management + Project Controls platform
 
 After compliance with Principle 1, the product target is not merely feature parity with one competitor. **At the time of public/commercial release, the product is intended to be the most complete and forward-looking platform within its defined specialist scope of construction project management, construction control and project controls, based on a documented market benchmark current at the release gate.**
