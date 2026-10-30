@@ -8,7 +8,8 @@ on:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["main"]
+    # Include stacked fix branches so dependent PRs receive the required client checks.
+    branches: ["main", "fix/**"]
 
 jobs:
   typecheck:
