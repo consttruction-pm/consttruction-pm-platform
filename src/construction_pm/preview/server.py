@@ -248,6 +248,19 @@ class PreviewApplication:
                 status, headers, body = self._delegate(environ)
                 if status == 404 and body.strip() == b'{"code":"ROUTE_NOT_FOUND"}':
                     status, headers, body = _json(404, {"code": "ROUTE_NOT_FOUND"})
+                if status == 401:
+                    try:
+                        payload = json.loads(body.decode("utf-8"))
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        payload = None
+                    if isinstance(payload, dict) and payload.get("code") in {
+                        "SESSION_REQUIRED",
+                        "SESSION_NOT_FOUND",
+                        "SESSION_EXPIRED",
+                    }:
+                        # A stale HttpOnly cookie otherwise survives the API
+                        # failure and causes the same bootstrap error on retry.
+                        headers["Set-Cookie"] = _clear_cookie_header()[1]
             elif path == "/app" or path.startswith("/app/") or path == "/app.html":
                 status, headers, body = self._app_shell(environ, session)
             else:
@@ -479,6 +492,7 @@ class PreviewApplication:
             headers = {
                 "Content-Type": "text/html; charset=utf-8",
                 "Location": f"{LOGIN_PATH}?{urlencode({'next': next_path})}",
+                "Set-Cookie": _clear_cookie_header()[1],
             }
             return 302, headers, b""
         shell = (self.frontend.root / "app.html").read_text(encoding="utf-8")

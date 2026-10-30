@@ -50,6 +50,7 @@ export type BootstrapLabels = {
   errorTitle: string;
   errorNetwork: string;
   errorSession: string;
+  errorSignIn: string;
   errorForbidden: string;
   errorProjectUnavailable: string;
   errorWorkspace: string;
@@ -106,7 +107,8 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     createFailed: "The project was not created. Check the name and try again.",
     errorTitle: "The workspace could not open",
     errorNetwork: "The server could not be reached. Check your connection and try again.",
-    errorSession: "Your session is no longer valid. Sign in again, then reload the workspace.",
+    errorSession: "Your session is no longer valid. Sign in again to reopen this workspace.",
+    errorSignIn: "Sign in again",
     errorForbidden: "Your account does not have permission to open this workspace.",
     errorProjectUnavailable: "That project is not available to your account. Choose another project.",
     errorWorkspace: "The project data could not be loaded. The stored project was not changed.",
@@ -161,7 +163,8 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     createFailed: "پروژه ایجاد نشد. نام را بررسی کنید و دوباره تلاش کنید.",
     errorTitle: "محیط کار باز نشد",
     errorNetwork: "ارتباط با سرور برقرار نشد. اتصال خود را بررسی کنید و دوباره تلاش کنید.",
-    errorSession: "نشست شما دیگر معتبر نیست. دوباره وارد شوید و سپس محیط کار را بازخوانی کنید.",
+    errorSession: "نشست شما دیگر معتبر نیست. برای باز کردن دوبارهٔ محیط کار، مجدداً وارد شوید.",
+    errorSignIn: "ورود دوباره",
     errorForbidden: "حساب شما اجازهٔ باز کردن این محیط کار را ندارد.",
     errorProjectUnavailable: "این پروژه برای حساب شما در دسترس نیست. پروژهٔ دیگری انتخاب کنید.",
     errorWorkspace: "داده‌های پروژه بارگذاری نشد. پروژهٔ ذخیره‌شده تغییری نکرده است.",
@@ -185,6 +188,7 @@ export type BootstrapErrorCopy = {
 
 const SESSION_CODES = new Set([
   "SESSION_REQUIRED",
+  "SESSION_NOT_FOUND",
   "SESSION_EXPIRED",
   "UNAUTHENTICATED",
   "AUTH_REQUIRED",
@@ -204,6 +208,14 @@ const PROJECT_CODES = new Set([
 ]);
 const NETWORK_CODES = new Set(["NETWORK_ERROR", "REQUEST_FAILED", "FETCH_FAILED"]);
 
+export function isSessionBootstrapError(
+  error: Pick<ClientError, "code" | "message_key">,
+): boolean {
+  const code = String(error.code || "");
+  const messageKey = String(error.message_key || "");
+  return SESSION_CODES.has(code) || messageKey.startsWith("error.session");
+}
+
 /**
  * Map a server error to localized copy. Unknown codes deliberately fall back to
  * a translated generic message: a raw message key or server string must never
@@ -218,7 +230,7 @@ export function getBootstrapErrorCopy(
   const messageKey = String(error.message_key || "");
   let message = t.errorGeneric;
   if (NETWORK_CODES.has(code) || messageKey === "error.network") message = t.errorNetwork;
-  else if (SESSION_CODES.has(code) || messageKey.startsWith("error.session")) message = t.errorSession;
+  else if (isSessionBootstrapError(error)) message = t.errorSession;
   else if (FORBIDDEN_CODES.has(code) || messageKey.includes("forbidden") || messageKey.includes("permission")) message = t.errorForbidden;
   else if (PROJECT_CODES.has(code) || messageKey === "error.project.not_available") message = t.errorProjectUnavailable;
   else if (messageKey.startsWith("error.workspace")) message = t.errorWorkspace;
