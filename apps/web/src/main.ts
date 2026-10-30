@@ -1741,6 +1741,11 @@ function getInitialLocale(): WorkspaceLocale {
   return navigator.language.toLowerCase().startsWith("fa") ? "fa" : "en";
 }
 
+/** Keep the legacy data-backed runtime parked until the visual shell is approved. */
+function isPrimaryVisualReviewEnabled(): boolean {
+  return true;
+}
+
 async function boot(): Promise<void> {
   const container = document.getElementById("app");
   if (!container) throw new Error("APP_ROOT_NOT_FOUND");
@@ -1750,14 +1755,15 @@ async function boot(): Promise<void> {
     return;
   }
 
-  // Temporary visual-review phase: the primary /app entry shows only the
-  // complete visual workspace shell. The public homepage remains separate.
-  // This fixed-data surface does not call APIs or mutate real project data.
-  const locale = getInitialLocale();
-  applyDocumentLocale(locale, locale.startsWith("fa") ? "محیط کار CUBI — پیش‌نمایش بصری" : "CUBI Workspace — visual preview");
-  container.className = "cp-vd-root";
-  mountVisualDemo(container, createVisualDemoState(locale));
-  return;
+  if (isPrimaryVisualReviewEnabled()) {
+    // The primary /app entry shows only the complete visual workspace shell.
+    // The public homepage remains separate; sample data never touches APIs.
+    const locale = getInitialLocale();
+    applyDocumentLocale(locale, locale.startsWith("fa") ? "محیط کار CUBI — پیش‌نمایش بصری" : "CUBI Workspace — visual preview");
+    container.className = "cp-vd-root";
+    mountVisualDemo(container, createVisualDemoState(locale));
+    return;
+  }
 
   const sessionApi = new FetchSessionApi(window.location.origin);
   const syncRuntime = new WebSyncRuntime();
