@@ -1,3 +1,4 @@
+import { API_REQUEST_TIMEOUT_MS } from "./client.js";
 import type { ApiResult, ClientError } from "./client.js";
 
 export type Session = {
@@ -103,7 +104,7 @@ export class FetchSessionApi implements SessionApi {
     path: string, method: "GET" | "POST" | "PATCH" = "GET", body?: unknown,
   ): Promise<ApiResult<T>> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
     try {
       const response = await fetch(new URL(path, this.baseUrl), {
         method, credentials: "include",
