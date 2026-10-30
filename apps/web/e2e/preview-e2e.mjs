@@ -5789,7 +5789,7 @@ async function main() {
     if (managed && wbsJourney) {
       const database = managed.database;
       const previousBaseUrl = baseUrl;
-      managed.stop();
+      await managed.stop();
       await waitForRuntimeStop(previousBaseUrl);
       const restarted = await startManagedRuntime({ database, reset: false });
       managed = restarted;
@@ -5974,7 +5974,7 @@ async function main() {
     chrome.cdp.close();
     await chrome.stop();
     await removeChromeProfile(chrome.userDataDir);
-    if (managed) managed.stop();
+    if (managed) await managed.stop();
   }
 }
 
