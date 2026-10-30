@@ -33,6 +33,12 @@ test("the menu bar mirrors the eight professional workspace menus in order", () 
     menus.map((menu) => menu.id),
     ["workspace", "edit", "view", "project", "organization", "tools", "administration", "help"],
   );
+  const help = menus.find((menu) => menu.id === "help");
+  assert.ok(help);
+  assert.ok(
+    help.items.every((item) => !/visual workspace demo/i.test(item.label.en)),
+    "the visual shell is the primary workspace, not a separate Help destination",
+  );
   for (const menu of menus) {
     assert.ok(menu.items.length > 0, `${menu.id} must not be empty`);
   }

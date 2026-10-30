@@ -694,12 +694,6 @@ function renderApp(
       case "admin.calendar":
         toggleCalendar();
         return;
-      case "help.visual-demo": {
-        const url = new URL(window.location.href);
-        url.searchParams.set("view", "visual");
-        window.location.assign(url.toString());
-        return;
-      }
       default:
         return;
     }
@@ -1756,12 +1750,12 @@ async function boot(): Promise<void> {
     return;
   }
 
-  // The visual workspace demonstration is a self-contained, fixed-data surface
-  // reachable only through this explicit address (Help → Visual workspace demo).
-  // It never calls the project server and never writes project data.
+  // Keep the visual shell available for local screenshot review without
+  // replacing the authenticated application runtime. GitHub Pages mounts this
+  // same component through its dedicated static preview entry.
   if (new URLSearchParams(window.location.search).get("view") === "visual") {
     const locale = getInitialLocale();
-    applyDocumentLocale(locale, locale.startsWith("fa") ? "محیط کار CUBI — نمایش بصری" : "CUBI Workspace — visual demo");
+    applyDocumentLocale(locale, locale.startsWith("fa") ? "محیط کار CUBI — پیش‌نمایش بصری" : "CUBI Workspace — visual preview");
     container.className = "cp-vd-root";
     mountVisualDemo(container, createVisualDemoState(locale));
     return;

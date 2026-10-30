@@ -3,9 +3,9 @@
  *
  * Scope: visual shell only. The rows below are fixed demonstration data used to
  * show table, Gantt, tab and dialog layouts. Nothing here is saved, scheduled or
- * calculated, and the surface is permanently labelled as preview data. Real
- * project data continues to live in the normal workspace; this view is reached
- * explicitly from Help → Visual workspace demo.
+ * calculated, and the surface is permanently labelled as preview data. The
+ * GitHub Pages /app preview mounts this shell directly; authenticated full-stack
+ * runtimes keep their existing data-backed workspace entry point.
  */
 import { workspaceIcon } from "./workspace-icons.js";
 
@@ -1091,7 +1091,7 @@ function renderDialogs(state: DemoState): string {
 export function renderVisualDemo(state: DemoState): string {
   const index = WINDOWS.findIndex((window) => window.id === state.window);
   return `<div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
-    <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span><button type="button" class="cp-vd-exit" data-vd-exit>${esc(t(state.locale, "Return to workspace", "بازگشت به محیط کار"))}</button></div>
+    <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span></div>
     ${renderMenus(state)}
     ${renderToolbars(state)}
     ${renderTabs(state)}
@@ -1343,13 +1343,6 @@ function bind(root: HTMLElement): void {
     if (next?.dataset.vdNext) { state.activityId = next.dataset.vdNext; draw(); return; }
     const command = target.closest<HTMLElement>("[data-vd-command]");
     if (command?.dataset.vdCommand) { run({ command: command.dataset.vdCommand }); return; }
-    const exit = target.closest<HTMLElement>("[data-vd-exit]");
-    if (exit) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("view");
-      window.location.assign(url.toString());
-      return;
-    }
     // Only buttons open dialogs; the <dialog> element itself also carries a
     // data-vd-dialog marker for closing and lookup.
     const dialogTarget = target.closest<HTMLElement>("button[data-vd-dialog]");
