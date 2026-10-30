@@ -3,9 +3,9 @@
  *
  * Scope: visual shell only. The rows below are fixed demonstration data used to
  * show table, Gantt, tab and dialog layouts. Nothing here is saved, scheduled or
- * calculated, and the surface is permanently labelled as preview data. During
- * the visual-review phase this is the only surface mounted at the normal /app
- * entry; the public marketing site remains a separate route.
+ * calculated, and the surface is permanently labelled as preview data. The
+ * GitHub Pages /app preview mounts this shell directly; authenticated full-stack
+ * runtimes keep their existing data-backed workspace entry point.
  */
 import { workspaceIcon } from "./workspace-icons.js";
 
