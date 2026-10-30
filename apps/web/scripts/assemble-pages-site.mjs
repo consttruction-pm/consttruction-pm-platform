@@ -236,6 +236,8 @@ if (workspaceUrl) {
   assert(finalApp.includes('<meta name="robots" content="noindex,nofollow" />'), "workspace must be noindex");
   assert(!finalApp.includes('rel="canonical"'), "workspace must not carry marketing canonical");
   assert(!finalApp.includes("application/ld+json"), "workspace must not carry marketing structured data");
+  assert(finalApp.includes("../dist/web/src/landing-entry.js"), "workspace must load its compiled app entry on Pages");
+  assert(!finalApp.includes("cubi-workspace-preview-2026.onrender.com"), "workspace must not redirect to a separate preview host");
 }
 assert(!readFileSync(join(output, "robots.txt"), "utf8").includes("/app"), "robots must not list workspace");
 assert(!readFileSync(join(output, "sitemap.xml"), "utf8").includes("/app"), "sitemap must not list workspace");
