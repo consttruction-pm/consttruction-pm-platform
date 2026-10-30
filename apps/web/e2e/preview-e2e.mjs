@@ -607,6 +607,7 @@ async function startManagedRuntime({ database: existingDatabase = null, reset = 
         CUBI_AI_ACTIONS_ENABLED: "true",
       },
       stdio: ["ignore", "pipe", "pipe"],
+      detached: process.platform !== "win32",
     },
   );
   child.stdout.pipe(logStream);
