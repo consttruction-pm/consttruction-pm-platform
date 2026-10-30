@@ -10,22 +10,8 @@ const parsedBaseUrl = new URL(rawBaseUrl);
 if (!["https:", "http:"].includes(parsedBaseUrl.protocol)) throw new Error("SITE_BASE_URL_INVALID");
 const baseUrl = parsedBaseUrl.href.replace(/\/+$/, "");
 
-// GitHub Pages can serve the public site but cannot run the authenticated
-// workspace WSGI/API. When a separate read-only demo server is configured,
-// the Pages /app route becomes an explicit redirect to that real runtime.
-const rawWorkspaceUrl = (process.env.CUBI_WORKSPACE_URL || "").trim();
-let workspaceUrl = "";
-if (rawWorkspaceUrl) {
-  const parsedWorkspaceUrl = new URL(rawWorkspaceUrl);
-  if (
-    parsedWorkspaceUrl.protocol !== "https:"
-    || parsedWorkspaceUrl.username
-    || parsedWorkspaceUrl.password
-    || parsedWorkspaceUrl.search
-    || parsedWorkspaceUrl.hash
-  ) throw new Error("CUBI_WORKSPACE_URL_INVALID");
-  workspaceUrl = parsedWorkspaceUrl.href.replace(/\/+$/, "");
-}
+// GitHub Pages is static and cannot run the authenticated WSGI/API. Its /app
+// route therefore serves a dedicated visual-review shell with fixed demo data.
 
 function copyDirectoryContents(source, destination) {
   mkdirSync(destination, { recursive: true });
@@ -81,31 +67,11 @@ let workspace = readFileSync(join(output, "app/index.html"), "utf8")
   .replace(/\s*<meta property="og:[^"]*"[^>]*\/?\s*>/g, "")
   .replace(/\s*<meta name="twitter:[^"]*"[^>]*\/?\s*>/g, "")
   .replace(/\s*<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "");
-if (workspaceUrl) {
-  const escapedWorkspaceUrl = workspaceUrl
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;");
-  writeFileSync(join(output, "app/index.html"), `<!doctype html>
-<html lang="en" dir="ltr">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<meta http-equiv="refresh" content="0;url=${escapedWorkspaceUrl}">
-<title>Opening CUBI Workspace</title>
-</head>
-<body>
-<main>
-<h1>Opening CUBI Workspace…</h1>
-<p>The workspace runs in a separate read-only demo environment with sample data.</p>
-<p lang="fa" dir="rtl">محیط کار در فضای نمایشی جداگانه و با داده‌های آزمایشی باز می‌شود.</p>
-<p><a href="${escapedWorkspaceUrl}">Continue to CUBI Workspace</a></p>
-</main>
-<script>window.location.replace(${JSON.stringify(workspaceUrl)});</script>
-</body></html>`);
-} else {
-  writeFileSync(join(output, "app/index.html"), workspace);
-}
+workspace = workspace.replaceAll(
+  "../dist/web/src/landing-entry.js",
+  "../dist/web/src/visual-preview-entry.js",
+);
+writeFileSync(join(output, "app/index.html"), workspace);
 
 // Resolve deployment-specific URL placeholders in all public HTML documents.
 // The dist rewrites are prefix-agnostic so documents nested below the site
@@ -199,10 +165,6 @@ const expectedTitles = new Map([
   ["fa/pricing/index.html", "اشتراک ماهانه Pro کوبی | قیمت و پرداخت"],
 ]);
 for (const file of listHtml(output)) {
-  // When a separate API-backed demo is configured, /app/ is only a redirect
-  // document; it is intentionally not the workspace shell and should not mount
-  // the assistant while the browser navigates away.
-  if (workspaceUrl && file === join(output, "app/index.html")) continue;
   assert(
     readFileSync(file, "utf8").includes("global-assistant-launcher.js"),
     "global floating assistant launcher missing from " + file,
@@ -228,17 +190,11 @@ const finalHome = readFileSync(join(output, "index.html"), "utf8");
 const finalApp = readFileSync(join(output, "app/index.html"), "utf8");
 assert(finalHome.includes('<link rel="canonical" href="' + baseUrl + '/" />'), "homepage canonical mismatch");
 assert(finalHome.includes('dist/web/src/landing-entry.js'), "homepage script path mismatch");
-if (workspaceUrl) {
-  assert(finalApp.includes("window.location.replace("), "configured workspace route must redirect to the API-backed demo");
-  assert(finalApp.includes(workspaceUrl), "workspace redirect target mismatch");
-  assert(finalApp.includes('noindex,nofollow'), "workspace redirect must not be indexed");
-} else {
-  assert(finalApp.includes('<meta name="robots" content="noindex,nofollow" />'), "workspace must be noindex");
-  assert(!finalApp.includes('rel="canonical"'), "workspace must not carry marketing canonical");
-  assert(!finalApp.includes("application/ld+json"), "workspace must not carry marketing structured data");
-  assert(finalApp.includes("../dist/web/src/landing-entry.js"), "workspace must load its compiled app entry on Pages");
-  assert(!finalApp.includes("cubi-workspace-preview-2026.onrender.com"), "workspace must not redirect to a separate preview host");
-}
+assert(finalApp.includes('<meta name="robots" content="noindex,nofollow" />'), "workspace must be noindex");
+assert(!finalApp.includes('rel="canonical"'), "workspace must not carry marketing canonical");
+assert(!finalApp.includes("application/ld+json"), "workspace must not carry marketing structured data");
+assert(finalApp.includes("../dist/web/src/visual-preview-entry.js"), "Pages /app must mount the visual-only workspace entry");
+assert(!finalApp.includes("landing-entry.js"), "Pages /app must not mount a second/legacy workspace shell");
 assert(!readFileSync(join(output, "robots.txt"), "utf8").includes("/app"), "robots must not list workspace");
 assert(!readFileSync(join(output, "sitemap.xml"), "utf8").includes("/app"), "sitemap must not list workspace");
 assert(!listHtml(output).some((file) => readFileSync(file, "utf8").includes("__CUBI_BASE_URL__")), "unresolved base URL placeholder");
