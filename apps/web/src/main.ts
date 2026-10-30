@@ -23,6 +23,7 @@ import {
   setGanttScale,
   setGanttRelationshipsVisible,
   type WorkspaceLocale,
+  type WorkspaceMenuKey,
   type WorkspaceState,
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
@@ -48,6 +49,13 @@ import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
+import { renderDesktopShell, type DesktopCommand } from "./workspace-desktop-shell.js";
+import {
+  closeWorkspaceWindow,
+  openWorkspaceWindow,
+  readWorkspaceWindows,
+  rememberWorkspaceWindows,
+} from "./workspace-windows.js";
 
 type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
 
@@ -64,12 +72,43 @@ type LayoutHistoryState = {
 const layoutHistoryStore = new Map<string, LayoutHistoryState>();
 let currentWorkspaceState: WorkspaceState | null = null;
 let currentBootstrap: ProjectBootstrap | null = null;
+/** Open windows and deferred focus are browser-local shell state, not project data. */
+let openWindowKeys: WorkspaceMenuKey[] | null = null;
+let pendingDesktopFocusSelector: string | null = null;
+let pendingDesktopAction: (() => void) | null = null;
+
+function getOpenWindows(): WorkspaceMenuKey[] {
+  if (!openWindowKeys) openWindowKeys = readWorkspaceWindows();
+  return openWindowKeys;
+}
+
+function rememberOpenWindows(next: readonly WorkspaceMenuKey[]): void {
+  openWindowKeys = [...next];
+  rememberWorkspaceWindows(openWindowKeys);
+}
 
 /** The next locale the shell can actually serve, never a route that does not exist. */
 function nextWorkspaceLocale(locale: WorkspaceLocale): WorkspaceLocale {
   const available = getAvailableWorkspaceLocales();
   const index = available.indexOf(locale);
   return available[(index + 1) % available.length] ?? "en";
+}
+
+/**
+ * Panels mount asynchronously (schedule options, formula editor), so a command
+ * that targets a control inside them may run before that control exists. Retry
+ * briefly instead of failing without feedback.
+ */
+function focusWhenReady(selector: string, attempts = 20): void {
+  window.setTimeout(() => {
+    const element = document.querySelector<HTMLElement>(selector);
+    if (!element) {
+      if (attempts > 1) focusWhenReady(selector, attempts - 1);
+      return;
+    }
+    element.scrollIntoView({ block: "center", inline: "nearest" });
+    element.focus({ preventScroll: true });
+  }, 25);
 }
 
 function applyDocumentLocale(locale: WorkspaceLocale, title?: string): void {
@@ -405,16 +444,18 @@ function renderApp(
 
   let appShell = container.querySelector<HTMLElement>(".cp-app-shell");
   let status = container.querySelector<HTMLElement>(".cp-app-status");
+  let desktopHost = container.querySelector<HTMLElement>("[data-desktop-host]");
   let workspace = container.querySelector<HTMLElement>("#workspace");
 
-  if (!appShell || !status || !workspace) {
-    container.innerHTML = '<div class="cp-app-shell"><div class="cp-app-status"></div><div id="workspace"></div></div>';
+  if (!appShell || !status || !workspace || !desktopHost) {
+    container.innerHTML = '<div class="cp-app-shell"><div class="cp-app-status"></div><div class="cp-desktop-host" data-desktop-host></div><div id="workspace"></div></div>';
     appShell = container.querySelector<HTMLElement>(".cp-app-shell");
     status = container.querySelector<HTMLElement>(".cp-app-status");
+    desktopHost = container.querySelector<HTMLElement>("[data-desktop-host]");
     workspace = container.querySelector<HTMLElement>("#workspace");
   }
 
-  if (!appShell || !status || !workspace) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
+  if (!appShell || !status || !workspace || !desktopHost) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
 
   const languageButton = document.createElement("button");
   languageButton.type = "button";
@@ -430,11 +471,11 @@ function renderApp(
       getWorkspaceLocaleDisplayName(nextLocale),
     ),
   );
-  languageButton.onclick = () => {
-    const next: WorkspaceLocale = nextLocale;
-    rememberWorkspaceLocale(next, availableLocales);
-    renderApp(container, setLocale(state, next), persistence);
+  const toggleLocale = (): void => {
+    rememberWorkspaceLocale(nextLocale, availableLocales);
+    renderApp(container, setLocale(state, nextLocale), persistence);
   };
+  languageButton.onclick = toggleLocale;
 
   const nextCalendarMode = state.calendarMode === "jalali" ? "gregorian" : "jalali";
   const calendarButton = document.createElement("button");
@@ -444,9 +485,10 @@ function renderApp(
   const calendarLabel = nextCalendarMode === "jalali" ? shellLabels.switchToJalali : shellLabels.switchToGregorian;
   calendarButton.setAttribute("aria-label", calendarLabel);
   calendarButton.setAttribute("title", calendarLabel);
-  calendarButton.onclick = () => {
+  const toggleCalendar = (): void => {
     renderApp(container, setCalendarMode(state, nextCalendarMode), persistence);
   };
+  calendarButton.onclick = toggleCalendar;
   status.replaceChildren(document.createTextNode(shellLabels.status), calendarButton, languageButton);
   const aiTransport = new FetchApiTransport(window.location.origin);
   const reportWbsMutationError = (error: unknown): void => {
@@ -515,6 +557,128 @@ function renderApp(
         })),
       }
     : undefined;
+
+  const activateWindow = (menu: WorkspaceMenuKey): void => {
+    rememberWorkspaceMenu(menu);
+    rememberOpenWindows(openWorkspaceWindow(getOpenWindows(), menu));
+    renderApp(container, menu === state.activeMenu ? state : { ...state, activeMenu: menu }, persistence);
+  };
+
+  const closeDesktopWindow = (menu: WorkspaceMenuKey): void => {
+    const result = closeWorkspaceWindow(getOpenWindows(), menu, state.activeMenu);
+    rememberOpenWindows(result.open);
+    if (result.active !== state.activeMenu) rememberWorkspaceMenu(result.active);
+    renderApp(
+      container,
+      result.active === state.activeMenu ? state : { ...state, activeMenu: result.active },
+      persistence,
+    );
+  };
+
+  const runDesktopCommand = (command: DesktopCommand): void => {
+    switch (command) {
+      case "project.settings":
+        openProjectSettings(container, state, persistence);
+        return;
+      case "project.close":
+        closeDesktopWindow(state.activeMenu);
+        return;
+      case "project.interchange":
+        pendingDesktopFocusSelector = "#cp-interchange";
+        activateWindow("project");
+        return;
+      case "edit.undo":
+        void undoLayout();
+        return;
+      case "edit.redo":
+        void redoLayout();
+        return;
+      case "edit.find":
+        pendingDesktopFocusSelector = "[data-activity-filter]";
+        activateWindow("schedule");
+        return;
+      case "edit.group-wbs":
+        if (state.activityGroupBy !== "wbs") {
+          renderApp(container, setActivityGroupBy(state, "wbs"), persistence);
+        }
+        return;
+      case "edit.sort-toggle":
+        renderApp(container, toggleActivitySortDirection(state), persistence);
+        return;
+      case "project.add-wbs":
+        pendingDesktopFocusSelector = "[data-wbs-create-form] input[name='code']";
+        activateWindow("project");
+        return;
+      case "project.add-activity":
+        pendingDesktopFocusSelector = "[data-activity-create-form] input[name='activity_id']";
+        activateWindow("schedule");
+        return;
+      case "project.edit-activity": {
+        const activityId = state.selectedActivityId;
+        if (!activityId) return;
+        pendingDesktopAction = () => {
+          for (const button of document.querySelectorAll<HTMLButtonElement>("[data-activity-edit]")) {
+            if (button.dataset.activityEdit === activityId) {
+              button.click();
+              return;
+            }
+          }
+        };
+        activateWindow("schedule");
+        return;
+      }
+      case "view.fields":
+        pendingDesktopFocusSelector = ".cp-p6-field-chooser";
+        activateWindow("schedule");
+        return;
+      case "tools.run-schedule":
+        pendingDesktopFocusSelector = "#cp-schedule-run input, #cp-schedule-run select, #cp-schedule-run button";
+        activateWindow("schedule");
+        return;
+      case "tools.formula":
+        pendingDesktopFocusSelector = "#cp-formula-editor input, #cp-formula-editor select, #cp-formula-editor button";
+        activateWindow("schedule");
+        return;
+      case "tools.reference":
+        pendingDesktopFocusSelector = "#cp-schedule-reference input, #cp-schedule-reference button";
+        activateWindow("schedule");
+        return;
+      case "admin.language":
+        toggleLocale();
+        return;
+      case "admin.calendar":
+        toggleCalendar();
+        return;
+      default:
+        return;
+    }
+  };
+
+  const openTabs = getOpenWindows();
+  const tabsWithActive = openWorkspaceWindow(openTabs, state.activeMenu);
+  if (tabsWithActive.length !== openTabs.length) rememberOpenWindows(tabsWithActive);
+  renderDesktopShell(
+    desktopHost,
+    {
+      locale: state.locale,
+      activeWindow: state.activeMenu,
+      openWindows: getOpenWindows(),
+      capabilities: {
+        canUndoLayout: Boolean(historyView?.canUndo),
+        canRedoLayout: Boolean(historyView?.canRedo),
+        hasWbs: state.wbsNodes.length > 0,
+        hasSelectedActivity: Boolean(state.selectedActivityId),
+        hasMultipleWindows: getOpenWindows().length > 1,
+        canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
+        groupByWbs: state.activityGroupBy === "wbs",
+      },
+    },
+    {
+      onWindowOpen: activateWindow,
+      onWindowClose: closeDesktopWindow,
+      onCommand: runDesktopCommand,
+    },
+  );
 
   const requestLayoutRevisions = (layout: LayoutDefinition): Promise<LayoutDefinition[]> => {
     const history = getLayoutHistory(state.context, layout);
@@ -691,6 +855,7 @@ function renderApp(
   renderMainWorkspace(workspace, state, {
     onMenuSelect: (menu) => {
       rememberWorkspaceMenu(menu);
+      rememberOpenWindows(openWorkspaceWindow(getOpenWindows(), menu));
       renderApp(container, { ...state, activeMenu: menu }, persistence);
     },
     onWbsSelect: (wbsId) => {
@@ -1028,6 +1193,16 @@ function renderApp(
     state.activities,
   );
   mountCapacityPanel(workspace, aiTransport, state.context, state.locale);
+  if (pendingDesktopFocusSelector) {
+    const selector = pendingDesktopFocusSelector;
+    pendingDesktopFocusSelector = null;
+    focusWhenReady(selector);
+  }
+  if (pendingDesktopAction) {
+    const action = pendingDesktopAction;
+    pendingDesktopAction = null;
+    window.setTimeout(action, 0);
+  }
 }
 function renderBootstrapState(
   container: HTMLElement,
