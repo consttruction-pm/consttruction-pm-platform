@@ -1,3 +1,5 @@
+export const API_REQUEST_TIMEOUT_MS = 45_000;
+
 export type ProjectContext = {
   tenant_id: string;
   project_id: string;
@@ -106,8 +108,13 @@ export class FetchApiTransport implements ApiTransport {
     path: string,
     init: RequestInit,
   ): Promise<ApiResult<T>> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
     try {
-      const response = await fetch(new URL(path, this.baseUrl), init);
+      const response = await fetch(new URL(path, this.baseUrl), {
+        ...init,
+        signal: controller.signal,
+      });
       const payload = await response.json().catch(() => null);
 
       if (response.ok) {
@@ -129,12 +136,14 @@ export class FetchApiTransport implements ApiTransport {
       return {
         ok: false,
         error: {
-          code: "NETWORK_ERROR",
+          code: controller.signal.aborted ? "NETWORK_TIMEOUT" : "NETWORK_ERROR",
           retryable: true,
           message_key: "error.network",
           available_actions: ["retry"],
         },
       };
+    } finally {
+      clearTimeout(timeout);
     }
   }
 }

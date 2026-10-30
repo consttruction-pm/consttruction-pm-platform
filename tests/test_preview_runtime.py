@@ -4,6 +4,7 @@ import json
 import sqlite3
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -26,6 +27,10 @@ def _web_root(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     (root / "styles.css").write_text("body { margin: 0; }\n", encoding="utf-8")
+    (root / "cubi-platform-logo-primary.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>\n',
+        encoding="utf-8",
+    )
     return root
 
 
@@ -39,9 +44,11 @@ def _request(
     headers: dict[str, str] | None = None,
     content_type: str = "application/json",
 ):
+    parsed_path = urlsplit(path)
     environ: dict[str, object] = {
         "REQUEST_METHOD": method,
-        "PATH_INFO": path,
+        "PATH_INFO": parsed_path.path or "/",
+        "QUERY_STRING": parsed_path.query,
         "CONTENT_LENGTH": str(len(body)),
         "wsgi.input": BytesIO(body),
     }
@@ -539,10 +546,67 @@ def test_preview_wbs_and_activity_write_path_persists_and_rejects_invalid_links(
         reopened.close()
 
 
+def test_preview_project_deep_link_survives_login_and_rejects_external_redirects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CUBI_PREVIEW_PUBLIC_DEMO", "1")
+    runtime = open_preview_runtime(
+        tmp_path / "deep-link-preview.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+
+        status, headers, _ = _request(
+            app, "GET", "/app?project=preview-rps-01"
+        )
+        assert status == 302
+        assert headers["location"] == (
+            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01"
+        )
+
+        status, _, body = _request(
+            app,
+            "GET",
+            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01",
+        )
+        assert status == 200
+        assert (
+            b'<input type="hidden" name="next" '
+            b'value="/app?project=preview-rps-01">'
+        ) in body
+
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=viewer&next=%2Fapp%3Fproject%3Dpreview-rps-01",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        assert headers["location"] == "/app?project=preview-rps-01"
+
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=viewer&next=https%3A%2F%2Fevil.example%2F",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        assert headers["location"] == "/app"
+    finally:
+        runtime.close()
+
+
 def test_preview_server_guards_login_banner_static_files_and_logout(
     tmp_path: Path,
 ) -> None:
     web_root = _web_root(tmp_path)
+    # The shipped build keeps the brand artwork in `public/`, not at the web
+    # root, so drop the fixture's root copy to exercise the real request path.
+    (web_root / "cubi-platform-logo-primary.svg").unlink()
     public = web_root / "public"
     public.mkdir()
     (public / "cubi-platform-logo-primary.svg").write_text(
@@ -594,6 +658,12 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
         # The built site requests brand assets from the root even though their
         # source lives under `public/`; the preview must serve them, not 404.
         status, headers, body = _request(app, "GET", "/cubi-platform-logo-primary.svg")
+        assert status == 200
+        assert headers["content-type"] == "image/svg+xml"
+        assert body == b"<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
+
+        # A default browser favicon probe must resolve to the canonical CUBI logo.
+        status, headers, body = _request(app, "GET", "/favicon.ico")
         assert status == 200
         assert headers["content-type"] == "image/svg+xml"
         assert body == b"<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
@@ -1166,8 +1236,30 @@ def test_public_demo_login_is_read_only_and_warns_about_shared_fixture_data(
         status, _, body = _request(app, "GET", "/preview/health")
         assert status == 200
         health = json.loads(body)
-        assert health["public_demo"] is True
-        assert health["read_only"] is True
+        assert health == {
+            "status": "ok",
+            "production": False,
+            "demo_data": True,
+            "public_demo": True,
+            "read_only": True,
+        }
+        # Anonymous readiness probes must not disclose internal deployment or
+        # tenant details that are present in the runtime's private health data.
+        for internal_key in (
+            "database",
+            "web_root",
+            "tenant_id",
+            "project_count",
+            "demo_project_count",
+            "activity_count",
+            "wbs_node_count",
+            "capacity_segment_count",
+            "session_count",
+            "assistant",
+        ):
+            assert internal_key not in health
+        assert str(tmp_path) not in body.decode("utf-8")
+        assert RPS_TENANT not in body.decode("utf-8")
 
         status, _, body = _request(app, "GET", "/api/session", cookie=cookie)
         assert status == 200

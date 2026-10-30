@@ -26,6 +26,21 @@ function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
   return container.innerHTML;
 }
 
+test("workspace shell uses the canonical CUBI logo and focused module layout contracts", () => {
+  for (const menu of ["project", "schedule", "progress", "resources", "cost", "documents", "reports", "control", "settings"] as const) {
+    const html = render("en", menu);
+    assert.match(html, new RegExp(`data-active-menu="${menu}"`));
+    assert.ok(html.includes('class="cp-brand-logo"'));
+    assert.ok(html.includes("cubi-platform-logo-primary.svg"));
+    assert.ok(!html.includes(">Construction PM</div>"));
+  }
+  const html = render("en", "schedule");
+  assert.match(html, /data-workspace-menu="project schedule"/);
+  assert.match(html, /data-workspace-menu="schedule"/);
+  assert.match(html, /data-workspace-menu="resources"/);
+  assert.match(html, /id="cp-activity-grid"/);
+  assert.match(html, /id="cp-gantt"/);
+});
 test("WBS panel renders localized create controls and permits creating a project root", () => {
   const english = render("en", "project");
   assert.match(english, /data-wbs-create-form/);
@@ -71,6 +86,16 @@ test("WBS create form dispatches validated fields to its workspace callback", ()
   });
 });
 
+test("Activity Group and Sort defaults to WBS in English and Persian", () => {
+  const english = render("en", "schedule");
+  assert.match(english, /<select data-activity-group aria-label="Group by">\s*<option value="wbs" selected>WBS<\/option>/);
+  assert.match(english, /<select data-activity-sort aria-label="Sort by">\s*<option value="">Original order<\/option>\s*<option value="wbs" selected>WBS<\/option>/);
+
+  const persian = render("fa", "schedule");
+  assert.match(persian, /گروه‌بندی بر اساس/);
+  assert.match(persian, /<option value="wbs" selected>ساختار شکست<\/option>/);
+});
+
 test("Activity entry is localized and requires an authoritative WBS selection", () => {
   const empty = render("en", "schedule");
   assert.match(empty, /data-activity-create-form/);
@@ -80,6 +105,11 @@ test("Activity entry is localized and requires an authoritative WBS selection", 
   const persian = render("fa", "schedule");
   assert.match(persian, /افزودن فعالیت/);
   assert.match(persian, /واحد مدت/);
+  assert.match(persian, /name="activity_type"/);
+  assert.match(persian, /نوع درصد تکمیل/);
+  assert.match(persian, /وابسته به منابع/);
+  assert.match(empty, /name="percent_complete_type"/);
+  assert.match(empty, /name="leveling_priority"/);
 });
 
 test("Activity create form dispatches typed fields and selected WBS to its callback", () => {
@@ -93,7 +123,7 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
     [{ id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Root", sequenceNumber: 0, recordRevision: 1 }],
   );
-  let created: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string } | null = null;
+  let created: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; levelingPriority: string } | null = null;
   renderMainWorkspace(container as unknown as HTMLElement, state, {
     onActivityCreate: (input) => { created = input; },
   });
@@ -103,6 +133,11 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     '[name="duration_value"]': { value: "2.5" },
     '[name="duration_unit"]': { value: "working-day" },
     '[name="wbs_id"]': { value: "WBS-1" },
+    '[name="activity_type"]': { value: "Resource Dependent" },
+    '[name="status"]': { value: "In Progress" },
+    '[name="status_code"]': { value: "Active" },
+    '[name="percent_complete_type"]': { value: "PHYSICAL" },
+    '[name="leveling_priority"]': { value: "High" },
   };
   const form = {
     matches: (selector: string) => selector === "[data-activity-create-form]",
@@ -117,6 +152,11 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
     durationValue: 2.5,
     durationUnit: "working-day",
     wbsId: "WBS-1",
+    activityType: "Resource Dependent",
+    status: "In Progress",
+    statusCode: "Active",
+    percentCompleteType: "PHYSICAL",
+    levelingPriority: "High",
   });
 });
 
@@ -1229,7 +1269,7 @@ test("Gantt axis shows the Jalali display date while keeping canonical tick date
   assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"[^>]*>۱۴۰۵/);
 });
 
-test("Gantt scale buttons dispatch the exact day/week/month mode", () => {
+test("Gantt scale buttons dispatch day/week/month/quarter/year and reject unknown modes", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const container = {
     innerHTML: "",
@@ -1242,11 +1282,39 @@ test("Gantt scale buttons dispatch the exact day/week/month mode", () => {
     scheduledGanttState(),
     { onGanttScaleChange: (mode) => chosen.push(mode) },
   );
-  const weekButton = { dataset: { ganttScale: "week" }, closest: () => weekButton };
-  listeners.get("click")?.({ target: weekButton } as unknown as Event);
-  const invalidButton = { dataset: { ganttScale: "quarter" }, closest: () => invalidButton };
-  listeners.get("click")?.({ target: invalidButton } as unknown as Event);
-  assert.deepEqual(chosen, ["week"]);
+  for (const mode of ["week", "month", "quarter", "year", "financial-period"]) {
+    const button = { dataset: { ganttScale: mode }, closest: () => button };
+    listeners.get("click")?.({ target: button } as unknown as Event);
+  }
+  assert.deepEqual(chosen, ["week", "month", "quarter", "year"]);
+});
+
+test("Gantt dependency line visibility is an accessible selectable presentation control", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const chosen: boolean[] = [];
+  const state = scheduledGanttState();
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onGanttRelationshipsChange: (visible) => chosen.push(visible),
+  });
+  assert.match(container.innerHTML, /data-gantt-relationships-toggle="false" aria-pressed="true"/);
+  const hideButton = { dataset: { ganttRelationshipsToggle: "false" }, closest: () => hideButton };
+  listeners.get("click")?.({ target: hideButton } as unknown as Event);
+  const showButton = { dataset: { ganttRelationshipsToggle: "true" }, closest: () => showButton };
+  listeners.get("click")?.({ target: showButton } as unknown as Event);
+  assert.deepEqual(chosen, [false, true]);
+
+  const hiddenContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(hiddenContainer as unknown as HTMLElement, {
+    ...state,
+    showGanttRelationships: false,
+  });
+  assert.match(hiddenContainer.innerHTML, /data-gantt-relationships-toggle="true" aria-pressed="false"/);
+  assert.doesNotMatch(hiddenContainer.innerHTML, /class="cp-gantt-links"/);
 });
 
 test("project settings button dispatches a single open request", () => {
@@ -1266,4 +1334,21 @@ test("project settings button dispatches a single open request", () => {
   const button = { dataset: { projectSettings: "true" }, closest: () => button };
   listeners.get("click")?.({ target: button } as unknown as Event);
   assert.equal(opened, 1);
+});
+
+test("empty and preview-only modules show an explicit truthful surface", () => {
+  const reports = render("en", "reports");
+  assert.match(reports, /data-workspace-menu="reports"/);
+  assert.match(reports, /Reports &amp; print/);
+  assert.match(reports, /not available in this preview yet/);
+
+  const progress = render("fa", "progress");
+  assert.match(progress, /data-workspace-menu="progress"/);
+  assert.match(progress, /داشبورد و نمودارهای اختصاصی پیشرفت/);
+
+  const documents = render("en", "documents");
+  assert.match(documents, /No project documents have been added or linked yet/);
+
+  const settings = render("en", "settings");
+  assert.match(settings, /id="cp-settings-panel"[^>]*data-workspace-menu="settings"/);
 });

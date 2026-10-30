@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FetchApiTransport } from "./client.js";
+import { API_REQUEST_TIMEOUT_MS, FetchApiTransport } from "./client.js";
+
+test("workspace API requests allow time for a slow preview bootstrap", () => {
+  assert.equal(API_REQUEST_TIMEOUT_MS, 45_000);
+});
 
 test("FetchApiTransport normalizes network failure to retryable client error", async () => {
   const originalFetch = globalThis.fetch;

@@ -11,6 +11,7 @@ import {
   removeP6Field,
   reorderP6Fields,
   setActivityFilter,
+  setActivityGroupBy,
   setActivitySort,
   toggleActivitySortDirection,
   updateP6FieldPresentation,
@@ -20,11 +21,14 @@ import {
   setLocale,
   setCalendarMode,
   setGanttScale,
+  setGanttRelationshipsVisible,
   type WorkspaceLocale,
   type WorkspaceState,
 } from "./workspace-model.js";
 import { renderMainWorkspace } from "./workspace-view.js";
+import { renderWorkspaceStartup } from "./workspace-startup.js";
 import { getBootstrapLabels, getBootstrapErrorCopy } from "./bootstrap-labels.js";
+import { formatJalaliDateInput, isValidCanonicalIsoDate, parseJalaliDateInput } from "./workspace-jalali-entry.js";
 import {
   readRequestedProjectId,
   readWorkspaceLocalePreference,
@@ -752,7 +756,7 @@ function renderApp(
     onActivityCreate: async (input) => {
       try {
         const response = await aiTransport.post<
-          { contract_version: string; activity_id: string; name: string; duration_value: number; duration_unit: string; wbs_id: string },
+          { contract_version: string; activity_id: string; name: string; duration_value: number; duration_unit: string; wbs_id: string; activity_type: string; status: string; status_code: string; percent_complete_type: string; leveling_priority: string },
           { activity: { activity_id: string } }
         >(`/api/projects/${encodeURIComponent(state.context.project_id)}/p6/activities`, {
           contract_version: "p6-activity-master-api.v1",
@@ -761,6 +765,11 @@ function renderApp(
           duration_value: input.durationValue,
           duration_unit: input.durationUnit,
           wbs_id: input.wbsId,
+          activity_type: input.activityType,
+          status: input.status,
+          status_code: input.statusCode,
+          percent_complete_type: input.percentCompleteType,
+          leveling_priority: input.levelingPriority,
         }, state.context);
         if (!response.ok) throw new Error(response.error.code);
         await refreshWorkspaceAfterWbsMutation(input.wbsId);
@@ -933,11 +942,17 @@ function renderApp(
     onGanttScaleChange: (ganttScale) => {
       renderApp(container, setGanttScale(state, ganttScale), persistence);
     },
+    onGanttRelationshipsChange: (visible) => {
+      renderApp(container, setGanttRelationshipsVisible(state, visible), persistence);
+    },
     onProjectSettings: () => {
       openProjectSettings(container, state, persistence);
     },
     onActivityFilterChange: (filterText) => {
       renderApp(container, setActivityFilter(state, filterText), persistence);
+    },
+    onActivityGroupByChange: (groupBy) => {
+      renderApp(container, setActivityGroupBy(state, groupBy), persistence);
     },
     onActivitySortChange: (columnId) => {
       const direction = state.activitySort?.columnId === columnId
@@ -981,8 +996,19 @@ function renderApp(
   }
   void mountScheduleCyclePanels(workspace, aiTransport, state.context, state.locale, (facts) => {
     try {
-      const next = applyAuthoritativeScheduleFacts(state, facts);
-      if (next !== state) renderApp(container, next, persistence);
+      // A schedule query can finish after another render has replaced this
+      // panel's captured state. Project the authoritative result onto the
+      // latest state for the same project revision so the grid and Gantt stay
+      // synchronized after repeated schedule runs.
+      const latest = currentWorkspaceState;
+      if (
+        !latest ||
+        latest.context.tenant_id !== state.context.tenant_id ||
+        latest.context.project_id !== state.context.project_id ||
+        latest.context.revision !== state.context.revision
+      ) return;
+      const next = applyAuthoritativeScheduleFacts(latest, facts);
+      if (next !== latest) renderApp(container, next, persistence);
     } catch (error) {
       console.error("Authoritative schedule result projection failed", error);
     }
@@ -1125,6 +1151,56 @@ function renderBootstrapState(
     }
     dateSystemLabel.append(dateSystemSelect);
 
+    const dateErrorId = `cp-project-start-date-error-${idSuffix}`;
+    startDateInput.setAttribute("aria-describedby", dateErrorId);
+    const dateError = document.createElement("p");
+    dateError.id = dateErrorId;
+    dateError.className = "cp-form-error";
+    dateError.setAttribute("role", "alert");
+    dateError.hidden = true;
+    const showDateError = (): void => {
+      dateError.textContent = t.validationStartDateInvalid;
+      dateError.hidden = false;
+      startDateInput.setAttribute("aria-invalid", "true");
+    };
+    const clearDateError = (): void => {
+      dateError.hidden = true;
+      dateError.textContent = "";
+      startDateInput.removeAttribute("aria-invalid");
+    };
+    const syncStartDateInput = (): void => {
+      const raw = startDateInput.value.trim();
+      if (dateSystemSelect.value === "jalali") {
+        const canonical = isValidCanonicalIsoDate(raw) ? raw : null;
+        startDateInput.type = "text";
+        startDateInput.inputMode = "numeric";
+        startDateInput.placeholder = t.projectStartDateJalaliPlaceholder;
+        startDateInput.value = canonical ? formatJalaliDateInput(canonical) : raw;
+        clearDateError();
+        return;
+      }
+
+      let canonical = raw;
+      if (raw) {
+        canonical = parseJalaliDateInput(raw)
+          ?? (isValidCanonicalIsoDate(raw) ? raw : "");
+        if (!canonical) {
+          // Never discard invalid typed input by coercing it to a native date
+          // field. Keep the user's value and the selected Jalali mode instead.
+          dateSystemSelect.value = "jalali";
+          showDateError();
+          return;
+        }
+      }
+      startDateInput.type = "date";
+      startDateInput.inputMode = "";
+      startDateInput.placeholder = "";
+      startDateInput.value = canonical;
+      clearDateError();
+    };
+    dateSystemSelect.addEventListener("change", syncStartDateInput);
+    startDateInput.addEventListener("input", clearDateError);
+
     const errorMessage = document.createElement("p");
     errorMessage.id = errorId;
     errorMessage.className = "cp-form-error";
@@ -1142,7 +1218,7 @@ function renderBootstrapState(
       input.removeAttribute("aria-invalid");
     };
 
-    form.append(label, hint, descriptionLabel, startDateLabel, dateSystemLabel, errorMessage);
+    form.append(label, hint, descriptionLabel, startDateLabel, dateSystemLabel, dateError, errorMessage);
 
     const submit = document.createElement("button");
     submit.type = "submit";
@@ -1163,6 +1239,19 @@ function renderBootstrapState(
         input.focus();
         return;
       }
+      const rawStartDate = startDateInput.value.trim();
+      const selectedDateSystem = dateSystemSelect.value === "jalali" ? "jalali" : "gregorian";
+      const canonicalStartDate = rawStartDate
+        ? selectedDateSystem === "jalali"
+          ? parseJalaliDateInput(rawStartDate)
+          : isValidCanonicalIsoDate(rawStartDate) ? rawStartDate : null
+        : null;
+      if (rawStartDate && !canonicalStartDate) {
+        showDateError();
+        startDateInput.focus();
+        return;
+      }
+
       submit.disabled = true;
       input.disabled = true;
       descriptionInput.disabled = true;
@@ -1172,8 +1261,8 @@ function renderBootstrapState(
       form.setAttribute("aria-busy", "true");
       const next = await bootstrap.createProject(createProjectId(), name, locale, {
         description: descriptionInput.value.trim(),
-        start_date: startDateInput.value.trim() || null,
-        date_system: dateSystemSelect.value === "jalali" ? "jalali" : "gregorian",
+        start_date: canonicalStartDate,
+        date_system: selectedDateSystem,
       });
       form.removeAttribute("aria-busy");
       if (!next) return;
@@ -1375,6 +1464,9 @@ async function boot(): Promise<void> {
   const initialLocale = getInitialLocale();
   renderBootstrapState(container, { status: "loading" }, bootstrap, initialLocale);
 
+  const startupTimer = window.setTimeout(() => {
+    renderWorkspaceStartup(container, initialLocale, "slow");
+  }, 20000);
   try {
     const state = await bootstrap.start(
       readRequestedProjectId(window.location.search),
@@ -1387,7 +1479,14 @@ async function boot(): Promise<void> {
     applyDocumentLocale(locale);
     container.innerHTML = `<main class="cp-shell-error" dir="${getWorkspaceLocaleDirection(locale)}"><h1>${t.errorTitle}</h1><p>${t.unableToInitialize}</p></main>`;
     console.error(error);
+  } finally {
+    window.clearTimeout(startupTimer);
   }
 }
 
-void boot();
+void boot().catch((error: unknown) => {
+  const container = document.getElementById("app");
+  const locale = getInitialLocale();
+  console.error("CUBI workspace startup failed unexpectedly", error);
+  if (container) renderWorkspaceStartup(container, locale, "failed");
+});

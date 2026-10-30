@@ -5,23 +5,96 @@ import { formatWorkspaceCalendarDate } from "./workspace-calendar-display.js";
 import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel, getWorkspaceNavigationSubmenuLabel } from "./workspace-navigation.js";
 import { translateWorkspaceText } from "./workspace-localization.js";
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
+import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", procurement: "Procurement", reports: "Reports", control: "Control", settings: "Settings", mainMenu: "Main Menu", currentSurface: "Current workspace surface", submenu: "submenu", formulaColumn: "formula column", fieldChooser: "Field Chooser", fields: "Fields", undo: "Undo", redo: "Redo", layoutHistory: "Layout history", layoutUndone: "Last layout change undone.", layoutRedone: "Layout change reapplied.", layoutRestored: "Layout revision restored.", layoutHistoryEmpty: "No earlier layout revision is available.", layoutSaveFailed: "Layout change was not saved.", layoutConflict: "Another session changed this layout. The latest saved revision was reloaded.", restore: "Restore", revisionOption: "revision", columnUnit: "column(s)", add: "Add", remove: "Remove", moveUp: "Move up", moveDown: "Move down", narrower: "Narrower", wider: "Wider", alignStart: "Align left", alignCenter: "Align center", alignEnd: "Align right", pin: "Pin", unpin: "Unpin", freeze: "Freeze", unfreeze: "Unfreeze", hide: "Hide", show: "Show", rename: "Rename", findings: "Findings", proposedActions: "Proposed Actions", traceability: "Traceability", sources: "Sources", approvalRequired: "Approval Required", humanApprovalRequired: "Human approval required", noApprovalFlag: "No approval flag", sourceUnit: "source(s)", activityLinkUnit: "activity link(s)", evidenceUnit: "evidence", inspections: "Inspections", qualityNcr: "Quality / NCR", safety: "Safety", punchCloseout: "Punch / Closeout", due: "Due", supplier: "Supplier", reference: "Ref", amount: "Amount", itemUnit: "item(s)", linkedReferenceUnit: "linked reference(s)", stored: "stored", noStorage: "no storage", approval: "Approval", date: "Date", notices: "Notices", changeCases: "Change Cases", claims: "Claims", impactLinks: "Impact Links", scheduleLabel: "Schedule", costLabel: "Cost", noticeLabel: "Notice", changeLabel: "Change", entitlement: "Entitlement", decision: "Decision", impactLinkLabel: "Impact links",
     referenceTitle: "Scheduling logic & implementation reference", referenceDescription: "Browse scheduling requirements, calculation contracts and review evidence. A listed requirement is not proof of implementation; status is evidence-based.", referenceSearch: "Search the reference", referenceSearchPlaceholder: "Search by ID, rule, option, or status…", referenceNoMatches: "No matching entries.", referenceVersion: "Reference version", referenceAsOf: "Catalog date", referenceRequirementCount: "requirements", referenceFormulaCount: "calculation contracts", referenceDocumentationCount: "documentation review tracks", referenceMappedStatus: "Mapped; parity not yet proven", referenceGapStatus: "Known implementation gap", referenceInventoryStatus: "Inventory / acceptance evidence required", referenceFormulaStatus: "Formula contract; parity not yet proven", referenceRuleLabel: "Required behavior", referenceOptionsLabel: "Options", referenceGapLabel: "Known gap / remaining work", referenceInputsLabel: "Inputs", referenceCalendarRulesLabel: "Units & calendar rules", referenceEdgeCasesLabel: "Edge cases", referenceReviewLabel: "Review status", referenceRemainingLabel: "Remaining review work", referenceLinkedReqLabel: "Related requirement IDs", referenceRelationshipsGroupLabel: "Relationships & lag", referenceCalendarsGroupLabel: "Calendars & work time", referenceOptionsGroupLabel: "Schedule options & Data Date", referenceResourcesGroupLabel: "Resources & leveling", referenceProgressGroupLabel: "Progress & baselines", referenceOtherGroupLabel: "Other project-control areas", referenceFormulaGroupLabel: "Calculation formula contracts", referenceDocumentationGroupLabel: "Documentation review register", referenceCatalogGroupLabel: "Requirement catalogue", referenceDocReviewedLabel: "Core behavior extracted", referenceDocPartialLabel: "Partially reviewed", referenceDocPendingLabel: "Review not complete", referenceReviewNotice: "This catalogue is for traceability. Editing controls, persistent schedule updates and execution must be wired to the shared scheduling core and acceptance-tested separately.",
-    wbs: "Project / WBS", wbsCreate: "Add WBS", wbsEdit: "Edit selected WBS", wbsCode: "Code", wbsName: "Name", wbsParent: "Parent WBS", wbsProjectRoot: "Project root", wbsSequence: "Sequence", wbsSave: "Save WBS", wbsDelete: "Delete selected", wbsSelectPrompt: "Select a WBS node to edit.", wbsMutationFailed: "WBS change failed.", wbsDeleteConfirm: "Delete this WBS node?", activities: "Activity Grid", activityCreate: "Add activity", activityEdit: "Edit activity", activityId: "Activity ID", activityName: "Activity name", activityDuration: "Duration", activityDurationUnit: "Duration unit", activityWbs: "WBS", activityCreateFailed: "Activity could not be saved.", activityFilter: "Filter activities", activityFilterPlaceholder: "ID, name, WBS, status…", activitySort: "Sort by", sortNone: "Original order", sortAscending: "Ascending", sortDescending: "Descending", matchingActivities: "activities shown", noMatchingActivities: "No activities match the current filter.", gantt: "Gantt Chart", details: "Details", interchange: "Import / Export", resourceCapacity: "Resource Max Units / Time", scheduleOptions: "Schedule Options", runSchedule: "Run Schedule", formulaEditor: "Formula editor", scheduleReference: "Scheduling Code Reference", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noWbs: "No WBS elements loaded", noSchedule: "No scheduled activities", revision: "Revision", projectSettings: "Project settings", critical: "Critical", smartGuide: "Smart Guide", controlSummary: "Control Summary", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
+    wbs: "Project / WBS", wbsCreate: "Add WBS", wbsEdit: "Edit selected WBS", wbsCode: "Code", wbsName: "Name", wbsParent: "Parent WBS", wbsProjectRoot: "Project root", wbsSequence: "Sequence", wbsSave: "Save WBS", wbsDelete: "Delete selected", wbsSelectPrompt: "Select a WBS node to edit.", wbsMutationFailed: "WBS change failed.", wbsDeleteConfirm: "Delete this WBS node?", activities: "Activity Grid", activityCreate: "Add activity", activityEdit: "Edit activity", activityId: "Activity ID", activityName: "Activity name", activityDuration: "Duration", activityDurationUnit: "Duration unit", activityWbs: "WBS", activityCreateFailed: "Activity could not be saved.", activityFilter: "Filter activities", activityFilterPlaceholder: "ID, name, WBS, status…", activitySort: "Sort by", groupBy: "Group by", groupNone: "No grouping", sortNone: "Original order", sortAscending: "Ascending", sortDescending: "Descending", matchingActivities: "activities shown", noMatchingActivities: "No activities match the current filter.", gantt: "Gantt Chart", details: "Details", interchange: "Import / Export", resourceCapacity: "Resource Max Units / Time", scheduleOptions: "Schedule Options", runSchedule: "Run Schedule", formulaEditor: "Formula editor", scheduleReference: "Scheduling Code Reference", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noWbs: "No WBS elements loaded", noSchedule: "No scheduled activities", revision: "Revision", projectSettings: "Project settings", critical: "Critical", smartGuide: "Smart Guide", controlSummary: "Control Summary", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
     logic: "Logic / Relationships", predecessorsColumn: "Predecessors", relationshipCreate: "Add relationship", predecessor: "Predecessor", successor: "Successor", relationshipType: "Type", relationshipLag: "Lag", relationshipLagUnit: "Lag unit", relationshipDelete: "Delete", noRelationships: "No relationships defined yet.", relationshipCreateFailed: "Relationship could not be saved.", relationshipDeleteFailed: "Relationship could not be deleted.", relationshipConflict: "The relationship changed in another session. Reload and try again.", workingDay: "Working day", workingHour: "Working hour",
-    ganttScaleLabel: "Timeline scale", scaleDay: "Day", scaleWeek: "Week", scaleMonth: "Month", ganttLinks: "Dependency links", milestone: "Milestone",
+    ganttScaleLabel: "Timeline scale", scaleDay: "Day", scaleWeek: "Week", scaleMonth: "Month", scaleQuarter: "Quarter", scaleYear: "Year", ganttLinks: "Dependency links", ganttLinksToggle: "Dependency links", ganttLinksOn: "Shown", ganttLinksOff: "Hidden", milestone: "Milestone",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", procurement: "تدارکات", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات", mainMenu: "منوی اصلی", currentSurface: "سطح فعلی محیط کار", submenu: "زیرمنو", formulaColumn: "ستون فرمول", fieldChooser: "انتخاب‌گر فیلد", fields: "فیلدها", undo: "بازگردانی", redo: "تکرار", layoutHistory: "تاریخچهٔ چیدمان", layoutUndone: "آخرین تغییر چیدمان بازگردانی شد.", layoutRedone: "تغییر چیدمان دوباره اعمال شد.", layoutRestored: "نسخهٔ چیدمان بازگردانی شد.", layoutHistoryEmpty: "نسخهٔ قدیمی‌تری از چیدمان در دسترس نیست.", layoutSaveFailed: "تغییر چیدمان ذخیره نشد.", layoutConflict: "نشست دیگری این چیدمان را تغییر داد. آخرین نسخهٔ ذخیره‌شده دوباره بارگذاری شد.", restore: "بازگردانی نسخه", revisionOption: "نسخه", columnUnit: "ستون", add: "افزودن", remove: "حذف", moveUp: "جابجایی به بالا", moveDown: "جابجایی به پایین", narrower: "باریک‌تر", wider: "عریض‌تر", alignStart: "تراز چپ", alignCenter: "تراز وسط", alignEnd: "تراز راست", pin: "سنجاق کردن", unpin: "برداشتن سنجاق", freeze: "ثابت کردن", unfreeze: "لغو ثابت‌سازی", hide: "پنهان کردن", show: "نمایش", rename: "تغییر نام", findings: "یافته‌ها", proposedActions: "اقدامات پیشنهادی", traceability: "ردیابی", sources: "منابع", approvalRequired: "نیازمند تأیید", humanApprovalRequired: "نیازمند تأیید انسانی", noApprovalFlag: "بدون پرچم تأیید", sourceUnit: "منبع", activityLinkUnit: "پیوند فعالیت", evidenceUnit: "مستند", inspections: "بازرسی‌ها", qualityNcr: "کیفیت / NCR", safety: "ایمنی", punchCloseout: "پانچ / بستن موارد", due: "سررسید", supplier: "تأمین‌کننده", reference: "مرجع", amount: "مبلغ", itemUnit: "مورد", linkedReferenceUnit: "مرجع پیوندشده", stored: "ذخیره‌شده", noStorage: "بدون ذخیره‌سازی", approval: "تأیید", date: "تاریخ", notices: "اعلان‌ها", changeCases: "موارد تغییر", claims: "ادعاها", impactLinks: "پیوندهای اثر", scheduleLabel: "زمان‌بندی", costLabel: "هزینه", noticeLabel: "اعلان", changeLabel: "تغییر", entitlement: "استحقاق", decision: "تصمیم", impactLinkLabel: "پیوندهای اثر",
     referenceTitle: "مرجع منطق و پیاده‌سازی زمان‌بندی", referenceDescription: "الزامات زمان‌بندی، قراردادهای محاسباتی و شواهد بازبینی را مرور کنید. ثبت یک الزام به‌معنای اثبات پیاده‌سازی نیست؛ وضعیت بر پایهٔ شواهد است.", referenceSearch: "جست‌وجو در مرجع", referenceSearchPlaceholder: "جست‌وجو بر اساس شناسه، قاعده، گزینه یا وضعیت…", referenceNoMatches: "موردی با این جست‌وجو یافت نشد.", referenceVersion: "نسخه مرجع", referenceAsOf: "تاریخ کاتالوگ", referenceRequirementCount: "الزام", referenceFormulaCount: "قرارداد محاسباتی", referenceDocumentationCount: "مسیر بازبینی مستندات", referenceMappedStatus: "مسیر کد شناسایی شده؛ تطبیق هنوز اثبات نشده", referenceGapStatus: "شکاف اجرایی شناخته‌شده", referenceInventoryStatus: "تکمیل فهرست و شواهد پذیرش لازم است", referenceFormulaStatus: "قرارداد فرمول؛ تطبیق هنوز اثبات نشده", referenceRuleLabel: "رفتار الزامی", referenceOptionsLabel: "گزینه‌ها", referenceGapLabel: "شکاف شناخته‌شده / کار باقیمانده", referenceInputsLabel: "ورودی‌ها", referenceCalendarRulesLabel: "واحدها و قواعد تقویم", referenceEdgeCasesLabel: "حالت‌های مرزی", referenceReviewLabel: "وضعیت بازبینی", referenceRemainingLabel: "کار باقیمانده در بازبینی", referenceLinkedReqLabel: "شناسه‌های الزامات مرتبط", referenceRelationshipsGroupLabel: "روابط و وقفه‌ها", referenceCalendarsGroupLabel: "تقویم‌ها و ساعات کاری", referenceOptionsGroupLabel: "گزینه‌های زمان‌بندی و تاریخ داده", referenceResourcesGroupLabel: "منابع و تسطیح", referenceProgressGroupLabel: "پیشرفت و مبناها", referenceOtherGroupLabel: "سایر حوزه‌های کنترل پروژه", referenceFormulaGroupLabel: "قرارداد فرمول‌های محاسباتی", referenceDocumentationGroupLabel: "دفتر ثبت بازبینی مستندات", referenceCatalogGroupLabel: "فهرست الزامات", referenceDocReviewedLabel: "رفتار اصلی استخراج شده", referenceDocPartialLabel: "بازبینی جزئی", referenceDocPendingLabel: "بازبینی کامل نشده", referenceReviewNotice: "این فهرست برای ردیابی الزامات است. کنترل‌های ویرایش، به‌روزرسانی پایدار زمان‌بندی و اجرای محاسبه باید جداگانه به هستهٔ مشترک متصل و با آزمون پذیرش تأیید شوند.",
-    wbs: "پروژه / WBS", wbsCreate: "افزودن ساختار شکست", wbsEdit: "ویرایش ساختار انتخاب‌شده", wbsCode: "کد", wbsName: "نام", wbsParent: "والد", wbsProjectRoot: "ریشهٔ پروژه", wbsSequence: "ترتیب", wbsSave: "ذخیره", wbsDelete: "حذف مورد انتخاب‌شده", wbsSelectPrompt: "برای ویرایش یک ردیف را انتخاب کنید.", wbsMutationFailed: "تغییر ساختار شکست ناموفق بود.", wbsDeleteConfirm: "این ردیف ساختار شکست حذف شود؟", activities: "جدول فعالیت‌ها", activityCreate: "افزودن فعالیت", activityEdit: "ویرایش فعالیت", activityId: "شناسه فعالیت", activityName: "نام فعالیت", activityDuration: "مدت", activityDurationUnit: "واحد مدت", activityWbs: "ساختار شکست", activityCreateFailed: "ذخیره فعالیت انجام نشد.", activityFilter: "پالایش فعالیت‌ها", activityFilterPlaceholder: "شناسه، نام، WBS، وضعیت…", activitySort: "ترتیب بر اساس", sortNone: "ترتیب اصلی", sortAscending: "صعودی", sortDescending: "نزولی", matchingActivities: "فعالیت نمایش‌داده‌شده", noMatchingActivities: "هیچ فعالیتی با پالایهٔ فعلی مطابقت ندارد.", gantt: "گانت", details: "جزئیات", interchange: "ورود / خروجی", resourceCapacity: "حداکثر واحد / زمان منبع", scheduleOptions: "تنظیمات زمان‌بندی", runSchedule: "اجرای زمان‌بندی", formulaEditor: "ویرایشگر فرمول", scheduleReference: "مرجع کد زمان‌بندی", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noWbs: "ساختار شکست کار بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", projectSettings: "تنظیمات پروژه", critical: "بحرانی", smartGuide: "راهنمای هوشمند", controlSummary: "خلاصه کنترل", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
+    wbs: "پروژه / WBS", wbsCreate: "افزودن ساختار شکست", wbsEdit: "ویرایش ساختار انتخاب‌شده", wbsCode: "کد", wbsName: "نام", wbsParent: "والد", wbsProjectRoot: "ریشهٔ پروژه", wbsSequence: "ترتیب", wbsSave: "ذخیره", wbsDelete: "حذف مورد انتخاب‌شده", wbsSelectPrompt: "برای ویرایش یک ردیف را انتخاب کنید.", wbsMutationFailed: "تغییر ساختار شکست ناموفق بود.", wbsDeleteConfirm: "این ردیف ساختار شکست حذف شود؟", activities: "جدول فعالیت‌ها", activityCreate: "افزودن فعالیت", activityEdit: "ویرایش فعالیت", activityId: "شناسه فعالیت", activityName: "نام فعالیت", activityDuration: "مدت", activityDurationUnit: "واحد مدت", activityWbs: "ساختار شکست", activityCreateFailed: "ذخیره فعالیت انجام نشد.", activityFilter: "پالایش فعالیت‌ها", activityFilterPlaceholder: "شناسه، نام، WBS، وضعیت…", activitySort: "ترتیب بر اساس", groupBy: "گروه‌بندی بر اساس", groupNone: "بدون گروه‌بندی", sortNone: "ترتیب اصلی", sortAscending: "صعودی", sortDescending: "نزولی", matchingActivities: "فعالیت نمایش‌داده‌شده", noMatchingActivities: "هیچ فعالیتی با پالایهٔ فعلی مطابقت ندارد.", gantt: "گانت", details: "جزئیات", interchange: "ورود / خروجی", resourceCapacity: "حداکثر واحد / زمان منبع", scheduleOptions: "تنظیمات زمان‌بندی", runSchedule: "اجرای زمان‌بندی", formulaEditor: "ویرایشگر فرمول", scheduleReference: "مرجع کد زمان‌بندی", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noWbs: "ساختار شکست کار بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", projectSettings: "تنظیمات پروژه", critical: "بحرانی", smartGuide: "راهنمای هوشمند", controlSummary: "خلاصه کنترل", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
     logic: "منطق / روابط", predecessorsColumn: "پیش‌نیازها", relationshipCreate: "افزودن رابطه", predecessor: "پیش‌نیاز", successor: "پس‌نیاز", relationshipType: "نوع", relationshipLag: "وقفه", relationshipLagUnit: "واحد وقفه", relationshipDelete: "حذف", noRelationships: "هنوز رابطه‌ای تعریف نشده است.", relationshipCreateFailed: "ذخیره رابطه انجام نشد.", relationshipDeleteFailed: "حذف رابطه انجام نشد.", relationshipConflict: "رابطه در نشست دیگری تغییر کرده است. صفحه را دوباره بارگذاری کنید.", workingDay: "روز کاری", workingHour: "ساعت کاری",
-    ganttScaleLabel: "مقیاس زمان‌بندی", scaleDay: "روز", scaleWeek: "هفته", scaleMonth: "ماه", ganttLinks: "پیوندهای وابستگی", milestone: "نقطه عطف",
+    ganttScaleLabel: "مقیاس زمان‌بندی", scaleDay: "روز", scaleWeek: "هفته", scaleMonth: "ماه", scaleQuarter: "فصل", scaleYear: "سال", ganttLinks: "پیوندهای وابستگی", ganttLinksToggle: "نمایش پیوندهای وابستگی", ganttLinksOn: "نمایش", ganttLinksOff: "پنهان", milestone: "نقطه عطف",
   },
 } as const;
+
+const ACTIVITY_CREATE_FIELDS = {
+  activity_type: {
+    label: { en: "Activity type", fa: "نوع فعالیت" },
+    defaultValue: "Task Dependent",
+    options: [
+      { value: "Task Dependent", en: "Task Dependent", fa: "وابسته به فعالیت" },
+      { value: "Resource Dependent", en: "Resource Dependent", fa: "وابسته به منابع" },
+      { value: "Level of Effort", en: "Level of Effort", fa: "سطح تلاش" },
+      { value: "Start Milestone", en: "Start Milestone", fa: "نقطه عطف شروع" },
+      { value: "Finish Milestone", en: "Finish Milestone", fa: "نقطه عطف پایان" },
+      { value: "WBS Summary", en: "WBS Summary", fa: "خلاصه WBS" },
+    ],
+  },
+  status: {
+    label: { en: "Status", fa: "وضعیت" },
+    defaultValue: "Not Started",
+    options: [
+      { value: "Not Started", en: "Not Started", fa: "شروع‌نشده" },
+      { value: "In Progress", en: "In Progress", fa: "در حال اجرا" },
+      { value: "Completed", en: "Completed", fa: "تکمیل‌شده" },
+    ],
+  },
+  status_code: {
+    label: { en: "Status code", fa: "کد وضعیت" },
+    defaultValue: "Planned",
+    options: [
+      { value: "Planned", en: "Planned", fa: "برنامه‌ریزی‌شده" },
+      { value: "Active", en: "Active", fa: "فعال" },
+      { value: "Inactive", en: "Inactive", fa: "غیرفعال" },
+      { value: "What-If", en: "What-If", fa: "فرضی" },
+      { value: "Requested", en: "Requested", fa: "درخواست‌شده" },
+      { value: "Template", en: "Template", fa: "الگو" },
+    ],
+  },
+  percent_complete_type: {
+    label: { en: "Percent complete type", fa: "نوع درصد تکمیل" },
+    defaultValue: "DURATION",
+    options: [
+      { value: "DURATION", en: "Duration", fa: "مدت" },
+      { value: "UNITS", en: "Units", fa: "واحد" },
+      { value: "PHYSICAL", en: "Physical", fa: "فیزیکی" },
+      { value: "SCOPE", en: "Scope", fa: "دامنه" },
+    ],
+  },
+  leveling_priority: {
+    label: { en: "Leveling priority", fa: "اولویت تسطیح منابع" },
+    defaultValue: "Normal",
+    options: [
+      { value: "Top", en: "Top", fa: "بالاترین" },
+      { value: "High", en: "High", fa: "زیاد" },
+      { value: "Normal", en: "Normal", fa: "عادی" },
+      { value: "Low", en: "Low", fa: "کم" },
+      { value: "Lowest", en: "Lowest", fa: "پایین‌ترین" },
+    ],
+  },
+} as const;
+
+type ActivityCreateChoiceField = keyof typeof ACTIVITY_CREATE_FIELDS;
+
+function getActivityCreateFieldLabel(locale: string, field: ActivityCreateChoiceField): string {
+  const language = locale.split("-")[0] === "fa" ? "fa" : "en";
+  return ACTIVITY_CREATE_FIELDS[field].label[language];
+}
+
+function renderActivityCreateOptions(locale: string, field: ActivityCreateChoiceField): string {
+  const language = locale.split("-")[0] === "fa" ? "fa" : "en";
+  const config = ACTIVITY_CREATE_FIELDS[field];
+  return config.options.map((option) =>
+    `<option value="${escapeAttribute(option.value)}" ${option.value === config.defaultValue ? "selected" : ""}>${escapeHtml(option[language])}</option>`
+  ).join("");
+}
 
 type WorkspaceLabels = Record<keyof typeof labels.en, string>;
 
@@ -88,7 +161,19 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const durationValue = Number(form.querySelector<HTMLInputElement>('[name="duration_value"]')?.value ?? "");
       const wbsId = form.querySelector<HTMLSelectElement>('[name="wbs_id"]')?.value ?? "";
       if (!readText("activity_id") || !readText("name") || !Number.isFinite(durationValue) || durationValue < 0 || !wbsId) return;
-      void record.options.onActivityCreate?.({ activityId: readText("activity_id"), name: readText("name"), durationValue, durationUnit: form.querySelector<HTMLSelectElement>('[name="duration_unit"]')?.value ?? "working-day", wbsId });
+      const selected = (name: string, fallback: string): string => form.querySelector<HTMLSelectElement>(`[name="${name}"]`)?.value ?? fallback;
+      void record.options.onActivityCreate?.({
+        activityId: readText("activity_id"),
+        name: readText("name"),
+        durationValue,
+        durationUnit: selected("duration_unit", "working-day"),
+        wbsId,
+        activityType: selected("activity_type", "Task Dependent"),
+        status: selected("status", "Not Started"),
+        statusCode: selected("status_code", "Planned"),
+        percentCompleteType: selected("percent_complete_type", "DURATION"),
+        levelingPriority: selected("leveling_priority", "Normal"),
+      });
     } else if (form.matches("[data-relationship-create-form]")) {
       event.preventDefault();
       const predecessorId = form.querySelector<HTMLSelectElement>('[name="predecessor_id"]')?.value ?? "";
@@ -121,7 +206,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-menu],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-menu],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -181,7 +266,11 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
     if (target.dataset.ganttScale) {
       const mode = target.dataset.ganttScale;
-      if (mode === "day" || mode === "week" || mode === "month") options.onGanttScaleChange?.(mode);
+      if (mode === "day" || mode === "week" || mode === "month" || mode === "quarter" || mode === "year") options.onGanttScaleChange?.(mode);
+      return;
+    }
+    if (target.dataset.ganttRelationshipsToggle !== undefined) {
+      options.onGanttRelationshipsChange?.(target.dataset.ganttRelationshipsToggle === "true");
       return;
     }
     if (target.dataset.ganttActivityId) return void options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
@@ -202,6 +291,14 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       ? event.target as HTMLElement
       : null;
     if (!element) return;
+    const isGroupSelect = Object.prototype.hasOwnProperty.call(element.dataset, "activityGroup");
+    if (isGroupSelect) {
+      const record = workspaceRenderRecords.get(container);
+      if (!record) return;
+      const value = (element as HTMLSelectElement).value;
+      if (value === "wbs" || value === "none") record.options.onActivityGroupByChange?.(value);
+      return;
+    }
     const isSortSelect = Object.prototype.hasOwnProperty.call(element.dataset, "activitySort");
     if (isSortSelect) {
       const record = workspaceRenderRecords.get(container);
@@ -258,7 +355,7 @@ function renderWbsTree(
 }
 
 function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState): boolean {
-  return previous.context === next.context && previous.locale === next.locale && previous.direction === next.direction && previous.calendarMode === next.calendarMode && previous.ganttScale === next.ganttScale && previous.visiblePanels === next.visiblePanels && previous.columns === next.columns && previous.activities === next.activities && previous.wbsNodes === next.wbsNodes && previous.relationships === next.relationships && previous.activityFilter === next.activityFilter && previous.activitySort === next.activitySort && previous.controlSummary === next.controlSummary && previous.smartGuide === next.smartGuide && previous.siteDailyLogs === next.siteDailyLogs && previous.timecards === next.timecards && previous.equipmentReports === next.equipmentReports && previous.fieldIssues === next.fieldIssues && previous.changeNotices === next.changeNotices && previous.changeCases === next.changeCases && previous.claims === next.claims && previous.changeClaimImpacts === next.changeClaimImpacts && previous.documents === next.documents && previous.procurementRecords === next.procurementRecords && previous.inspections === next.inspections && previous.qualityRecords === next.qualityRecords && previous.safetyObservations === next.safetyObservations && previous.punchItems === next.punchItems && previous.p6FieldRegistry === next.p6FieldRegistry && previous.p6Layout === next.p6Layout;
+  return previous.context === next.context && previous.locale === next.locale && previous.direction === next.direction && previous.calendarMode === next.calendarMode && previous.ganttScale === next.ganttScale && previous.showGanttRelationships === next.showGanttRelationships && previous.visiblePanels === next.visiblePanels && previous.columns === next.columns && previous.activities === next.activities && previous.wbsNodes === next.wbsNodes && previous.relationships === next.relationships && previous.activityFilter === next.activityFilter && previous.activityGroupBy === next.activityGroupBy && previous.activitySort === next.activitySort && previous.controlSummary === next.controlSummary && previous.smartGuide === next.smartGuide && previous.siteDailyLogs === next.siteDailyLogs && previous.timecards === next.timecards && previous.equipmentReports === next.equipmentReports && previous.fieldIssues === next.fieldIssues && previous.changeNotices === next.changeNotices && previous.changeCases === next.changeCases && previous.claims === next.claims && previous.changeClaimImpacts === next.changeClaimImpacts && previous.documents === next.documents && previous.procurementRecords === next.procurementRecords && previous.inspections === next.inspections && previous.qualityRecords === next.qualityRecords && previous.safetyObservations === next.safetyObservations && previous.punchItems === next.punchItems && previous.p6FieldRegistry === next.p6FieldRegistry && previous.p6Layout === next.p6Layout;
 }
 
 function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: WorkspaceState, next: WorkspaceState): boolean {
@@ -268,6 +365,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
   const activityChanged = previous.selectedActivityId !== next.selectedActivityId;
   if (Number(menuChanged) + Number(wbsChanged) + Number(activityChanged) !== 1) return false;
   if (menuChanged) {
+    container.querySelector<HTMLElement>(".cp-workspace")?.setAttribute("data-active-menu", next.activeMenu);
     container.querySelectorAll<HTMLElement>("[data-menu]").forEach((button) => button.setAttribute("aria-current", button.dataset.menu === next.activeMenu ? "page" : "false"));
     const navigation = container.querySelector<HTMLElement>(".cp-navigation-surface");
     if (navigation) navigation.outerHTML = renderNavigationSurface(next);
@@ -308,16 +406,18 @@ export type WorkspaceRendererOptions = {
   onWbsCreate?: (input: { code: string; name: string; sequenceNumber: number; parentWbsId: string | null }) => void | Promise<void>;
   onWbsUpdate?: (wbsId: string, input: { code: string; name: string; sequenceNumber: number }) => void | Promise<void>;
   onWbsDelete?: (wbsId: string) => void | Promise<void>;
-  onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string }) => void | Promise<void>;
+  onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; levelingPriority: string }) => void | Promise<void>;
   onActivityEdit?: (activityId: string) => void | Promise<void>;
   onRelationshipCreate?: (input: { predecessorId: string; successorId: string; type: WorkspaceRelationshipType; lagValue: string; lagUnit: string }) => void | Promise<void>;
   onRelationshipDelete?: (relationshipId: string, recordRevision: number) => void | Promise<void>;
   onActivitySelect?: (activityId: string) => void;
   onGanttActivitySelect?: (activityId: string) => void;
   onGanttScaleChange?: (ganttScale: WorkspaceGanttScale) => void;
+  onGanttRelationshipsChange?: (visible: boolean) => void;
   onProjectSettings?: () => void;
   onActivityFilterChange?: (filterText: string) => void;
   onActivitySortChange?: (columnId: string | null) => void;
+  onActivityGroupByChange?: (groupBy: "wbs" | "none") => void;
   onActivitySortDirectionToggle?: () => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
@@ -347,6 +447,8 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     state.activities,
     state.activityFilter,
     state.activitySort,
+    state.activityGroupBy,
+    state.wbsNodes,
   );
   const scale = createGanttScale(visibleActivities);
   let stickyOffsets = workspaceStickyOffsetsCache.get(state.columns);
@@ -364,12 +466,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   }
 
   container.innerHTML = `
-    <section class="cp-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}">
+    <section class="cp-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}">
       <header class="cp-header">
-        <div class="cp-brand">Construction PM</div>
+        <div class="cp-brand"><img class="cp-brand-logo" src="${escapeAttribute(cubiPlatformLogoUrl())}" width="1536" height="664" alt="CUBI Platform" /></div>
         <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
         <div class="cp-revision">${escapeHtml(t.revision)} R${state.context.revision}</div>
-        <button type="button" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
+        <button type="button" id="cp-project-settings-open" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
       </header>
       <nav class="cp-menu" aria-label="${escapeAttribute(t.mainMenu)}">
         ${menuButton("project", t.project, state)} ${menuButton("schedule", t.schedule, state)} ${menuButton("progress", t.progress, state)} ${menuButton("resources", t.resources, state)} ${menuButton("cost", t.cost, state)} ${menuButton("documents", t.documents, state)} ${menuButton("reports", t.reports, state)} ${menuButton("control", t.control, state)} ${menuButton("settings", t.settings, state)}
@@ -381,9 +483,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
         ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
         ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance, t)}
-        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, [], t)}
+        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, state.documents, t)}
         ${renderProcurement(state.procurementRecords, t.procurement, t)}
-        <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} aria-label="${escapeAttribute(t.wbs)}">
+        ${renderModuleEmptyState(state)}
+        <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
           <h2>${escapeHtml(t.wbs)}</h2>
           ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
           <form class="cp-wbs-editor" data-wbs-create-form>
@@ -412,15 +515,20 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           })() : `<p class="cp-empty">${escapeHtml(t.wbsSelectPrompt)}</p>`}
         </aside>
         <section class="cp-center">
-          <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""}>
+          <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
             <h2>${escapeHtml(t.activities)}</h2>
             <form class="cp-activity-editor" data-activity-create-form>
               <h3>${escapeHtml(t.activityCreate)}</h3>
               <label>${escapeHtml(t.activityId)} <input name="activity_id" required maxlength="80" autocomplete="off"></label>
               <label>${escapeHtml(t.activityName)} <input name="name" required maxlength="180" autocomplete="off"></label>
               <label>${escapeHtml(t.activityDuration)} <input name="duration_value" type="number" min="0" step="any" value="1" required></label>
-              <label>${escapeHtml(t.activityDurationUnit)} <select name="duration_unit"><option value="working-day">Working day</option><option value="working-hour">Working hour</option></select></label>
+              <label>${escapeHtml(t.activityDurationUnit)} <select name="duration_unit"><option value="working-day">${escapeHtml(t.workingDay)}</option><option value="working-hour">${escapeHtml(t.workingHour)}</option></select></label>
               <label>${escapeHtml(t.activityWbs)} <select name="wbs_id" required ${state.wbsNodes.length ? "" : "disabled"}>${state.wbsNodes.map((node) => `<option value="${escapeAttribute(node.id)}" ${node.id === state.selectedWbsId ? "selected" : ""}>${escapeHtml(node.localCode)} — ${escapeHtml(node.name)}</option>`).join("")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "activity_type"))} <select name="activity_type">${renderActivityCreateOptions(state.locale, "activity_type")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "status"))} <select name="status">${renderActivityCreateOptions(state.locale, "status")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "status_code"))} <select name="status_code">${renderActivityCreateOptions(state.locale, "status_code")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "percent_complete_type"))} <select name="percent_complete_type">${renderActivityCreateOptions(state.locale, "percent_complete_type")}</select></label>
+              <label>${escapeHtml(getActivityCreateFieldLabel(state.locale, "leveling_priority"))} <select name="leveling_priority">${renderActivityCreateOptions(state.locale, "leveling_priority")}</select></label>
               <button type="submit" ${state.wbsNodes.length ? "" : "disabled"}>${escapeHtml(t.activityCreate)}</button>
               ${state.wbsNodes.length ? "" : `<p class="cp-empty">${escapeHtml(t.noWbs)}</p>`}
             </form>
@@ -433,22 +541,70 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               </table>
             </div>
           </section>
-          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""}><h2>${escapeHtml(t.gantt)}</h2>${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId)}</section>
-            <section id="cp-schedule-options" class="cp-panel cp-schedule-panel"><h2>${escapeHtml(t.scheduleOptions)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
-            <section id="cp-schedule-run" class="cp-panel cp-schedule-panel"><h2>${escapeHtml(t.runSchedule)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
-            <section id="cp-logic" class="cp-panel cp-logic"><h2>${escapeHtml(t.logic)}</h2>${renderRelationships(state, t)}</section>
-            <section id="cp-formula-editor" class="cp-panel cp-schedule-panel"><h2>${escapeHtml(t.formulaEditor)}</h2><div data-formula-editor><p class="cp-empty">—</p></div></section>
-            <section id="cp-schedule-reference" class="cp-panel cp-schedule-panel"><h2>${escapeHtml(t.scheduleReference)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div>${renderSchedulingReference(state.locale, t, state.activeMenu === "schedule")}</section>
-            <section id="cp-interchange" class="cp-panel cp-interchange-panel"><h2>${escapeHtml(t.interchange)}</h2><div data-interchange-panel><p class="cp-empty">—</p></div></section>
-            <section id="cp-resource-capacity" class="cp-panel cp-capacity-panel"><h2>${escapeHtml(t.resourceCapacity)}</h2><div data-capacity-panel><p class="cp-empty">—</p></div></section>
+          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule"><h2>${escapeHtml(t.gantt)}</h2>${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}</section>
+            <section id="cp-schedule-options" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.scheduleOptions)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
+            <section id="cp-schedule-run" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.runSchedule)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
+            <section id="cp-logic" class="cp-panel cp-logic" data-workspace-menu="schedule"><h2>${escapeHtml(t.logic)}</h2>${renderRelationships(state, t)}</section>
+            <section id="cp-formula-editor" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.formulaEditor)}</h2><div data-formula-editor><p class="cp-empty">—</p></div></section>
+            <section id="cp-schedule-reference" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.scheduleReference)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div>${renderSchedulingReference(state.locale, t, state.activeMenu === "schedule")}</section>
+            <section id="cp-interchange" class="cp-panel cp-interchange-panel" data-workspace-menu="project"><h2>${escapeHtml(t.interchange)}</h2><div data-interchange-panel><p class="cp-empty">—</p></div></section>
+            <section id="cp-resource-capacity" class="cp-panel cp-capacity-panel" data-workspace-menu="resources"><h2>${escapeHtml(t.resourceCapacity)}</h2><div data-capacity-panel><p class="cp-empty">—</p></div></section>
         </section>
-        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule" aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+        <section id="cp-settings-panel" class="cp-panel" data-workspace-menu="settings" aria-label="${escapeAttribute(t.settings)}">
+          <h2>${escapeHtml(t.settings)}</h2>
+          <p>${escapeHtml(t.projectSettings)}</p>
+          <button type="button" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
+        </section>
       </main>
     </section>
   `;
 
   workspaceRenderRecords.set(container, { state, options });
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
+}
+
+function renderModuleEmptyState(state: WorkspaceState): string {
+  const locale = state.locale.split("-")[0] === "fa" ? "fa" : "en";
+  const hasControlRecords = Boolean(state.controlSummary || state.smartGuide)
+    || state.siteDailyLogs.length > 0
+    || state.fieldIssues.length > 0
+    || state.timecards.length > 0
+    || state.equipmentReports.length > 0
+    || state.changeNotices.length > 0
+    || state.changeCases.length > 0
+    || state.claims.length > 0
+    || state.changeClaimImpacts.length > 0
+    || state.inspections.length > 0
+    || state.qualityRecords.length > 0
+    || state.safetyObservations.length > 0
+    || state.punchItems.length > 0;
+  let copy: { title: string; message: string } | null = null;
+
+  if (state.activeMenu === "reports") {
+    copy = locale === "fa"
+      ? { title: "گزارش‌ها و چاپ", message: "ساخت گزارش و قالب چاپ در این پیش‌نمایش هنوز فعال نیست. این صفحه گزارشی تولید یا ادعایی درباره کامل بودن گزارش‌ها نمی‌کند." }
+      : { title: "Reports & print", message: "Report generation and print layouts are not available in this preview yet. This page has not generated a report or claimed that reporting is complete." };
+  } else if (state.activeMenu === "progress") {
+    copy = locale === "fa"
+      ? { title: "نمای پیشرفت پروژه", message: "داشبورد و نمودارهای اختصاصی پیشرفت هنوز در مرحله پیش‌نمایش هستند. داده‌های ثبت‌شده را از جدول فعالیت‌ها و سوابق کارگاه بررسی کنید؛ در این صفحه شاخص یا درصد ساختگی نمایش داده نمی‌شود." }
+      : { title: "Project progress", message: "The dedicated progress dashboard and charts are still in preview. Review recorded data in the activity grid and field records; this page does not invent metrics or percentages." };
+  } else if (state.activeMenu === "cost") {
+    copy = locale === "fa"
+      ? { title: "هزینه و جریان مالی", message: "نمای کامل هزینه، پیش‌بینی و نمودارهای مالی هنوز در این پیش‌نمایش تکمیل نشده است. سوابق موجودِ تدارکات، تغییرات و ادعاها فقط در بخش‌های مربوط به خود نمایش داده می‌شوند." }
+      : { title: "Cost & financial control", message: "The full cost view, forecast and financial charts are not complete in this preview. Existing procurement, change and claim records remain available only in their respective panels." };
+  } else if (state.activeMenu === "documents" && state.documents.length === 0) {
+    copy = locale === "fa"
+      ? { title: "اسناد پروژه", message: "هنوز سندی برای این پروژه ثبت یا پیوند داده نشده است. وقتی سندی افزوده شود، در این بخش نمایش داده خواهد شد." }
+      : { title: "Project documents", message: "No project documents have been added or linked yet. Documents will appear here after they are recorded." };
+  } else if (state.activeMenu === "control" && !hasControlRecords) {
+    copy = locale === "fa"
+      ? { title: "کنترل پروژه", message: "هنوز سابقه‌ای برای خلاصه کنترل، گزارش روزانه، بازرسی، مسئله، تغییر یا ادعا در دسترس نیست. با ثبت داده‌های معتبر، این بخش پر می‌شود." }
+      : { title: "Project controls", message: "No control summary, daily log, inspection, issue, change or claim records are available yet. This area will populate when authoritative records are saved." };
+  }
+
+  if (!copy) return "";
+  return `<section class="cp-panel cp-module-empty-state" data-workspace-menu="${state.activeMenu}" aria-live="polite"><h2>${escapeHtml(copy.title)}</h2><p>${escapeHtml(copy.message)}</p></section>`;
 }
 
 function renderNavigationSurface(state: WorkspaceState): string {
@@ -458,13 +614,13 @@ function renderNavigationSurface(state: WorkspaceState): string {
   const label = getWorkspaceNavigationLabel(item, state.locale);
   const links = navigationAnchors(item.key);
 
-  return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(t.currentSurface)}">
+  return `<section class="cp-panel cp-navigation-surface" aria-label="${escapeAttribute(t.currentSurface)}" data-current-menu="${state.activeMenu}">
     <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${escapeHtml(statusLabel)}</span></div>
     <nav aria-label="${escapeAttribute(label + " " + t.submenu)}">
       ${item.submenus.map((submenu, index) => {
         const anchor = links[index];
         return anchor
-          ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>`
+          ? navigationTargetAvailable(state, anchor) ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>` : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`
           : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`;
       }).join("")}
     </nav>
@@ -477,10 +633,50 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
       return ["#cp-project-wbs", "#cp-details", "#cp-interchange"];
     case "schedule":
       return ["#cp-activity-grid", "#cp-gantt", "#cp-reference-relationships", "#cp-reference-calendars", "#cp-schedule-options", "#cp-reference-resources", "#cp-reference-progress", "#cp-schedule-run", "#cp-formula-editor", "#cp-schedule-reference", "#cp-reference-options", "#cp-scheduling-reference-formulas", "#cp-scheduling-reference-documentation"];
+    case "progress":
+      return ["#cp-site-logs", "#cp-field-operations"];
     case "resources":
-      return ["#cp-resource-capacity", null];
-    default:
+      return ["#cp-resource-capacity", "#cp-field-operations"];
+    case "cost":
+      return ["#cp-procurement", "#cp-change-claim"];
+    case "documents":
+      return ["#cp-documents", null];
+    case "reports":
       return [];
+    case "control":
+      return ["#cp-control-summary", "#cp-change-claim"];
+    case "settings":
+      return ["#cp-project-settings-open", "#cp-settings-panel"];
+
+  }
+}
+
+function navigationTargetAvailable(state: WorkspaceState, anchor: string): boolean {
+  switch (anchor) {
+    case "#cp-site-logs":
+      return state.siteDailyLogs.length > 0;
+    case "#cp-field-operations":
+      return state.fieldIssues.length > 0 || state.timecards.length > 0 || state.equipmentReports.length > 0;
+    case "#cp-procurement":
+      return state.procurementRecords.length > 0;
+    case "#cp-change-claim":
+      return state.changeNotices.length > 0 || state.changeCases.length > 0 || state.claims.length > 0 || state.changeClaimImpacts.length > 0 || state.documents.length > 0;
+    case "#cp-documents":
+      return state.documents.length > 0;
+    case "#cp-control-summary":
+      return state.controlSummary !== null;
+    case "#cp-smart-guide":
+      return state.smartGuide !== null;
+    case "#cp-project-wbs":
+      return state.visiblePanels.project_wbs;
+    case "#cp-details":
+      return state.visiblePanels.details;
+    case "#cp-activity-grid":
+      return state.visiblePanels.activity_grid;
+    case "#cp-gantt":
+      return state.visiblePanels.gantt;
+    default:
+      return true;
   }
 }
 
@@ -607,7 +803,7 @@ function renderSmartGuide(
     : '<div class="cp-empty">—</div>';
 
   return `
-    <section class="cp-panel cp-smart-guide" aria-label="${escapeAttribute(label)}">
+    <section id="cp-smart-guide" class="cp-panel cp-smart-guide" aria-label="${escapeAttribute(label)}" data-workspace-menu="control reports">
       <div class="cp-control-heading">
         <div>
           <h2>${escapeHtml(label)}</h2>
@@ -657,7 +853,7 @@ function renderControlSummary(
     : "<div class=\"cp-empty\">—</div>";
 
   return `
-    <section class="cp-panel cp-control-summary" aria-label="${escapeAttribute(summaryLabel)}">
+    <section id="cp-control-summary" class="cp-panel cp-control-summary" aria-label="${escapeAttribute(summaryLabel)}" data-workspace-menu="control reports">
       <div class="cp-control-heading">
         <div>
           <h2>${escapeHtml(summaryLabel)}</h2>
@@ -684,7 +880,7 @@ function renderSiteDailyLogs(
   if (!logs.length) return "";
 
   return `
-    <section class="cp-panel cp-site-logs" aria-label="${escapeAttribute(label)}">
+    <section id="cp-site-logs" class="cp-panel cp-site-logs" aria-label="${escapeAttribute(label)}" data-workspace-menu="progress">
       <div class="cp-control-heading">
         <div><h2>${escapeHtml(label)}</h2></div>
       </div>
@@ -751,7 +947,7 @@ function renderFieldOperations(
     : '<div class="cp-empty">—</div>';
 
   return `
-    <section class="cp-panel cp-field-ops" aria-label="${escapeAttribute(t.issues + " / " + t.attendance + " / " + t.equipment)}">
+    <section id="cp-field-operations" class="cp-panel cp-field-ops" aria-label="${escapeAttribute(t.issues + " / " + t.attendance + " / " + t.equipment)}" data-workspace-menu="progress resources">
       <div class="cp-field-grid">
         <div>
           <h2>${escapeHtml(t.issues)}</h2>
@@ -781,7 +977,7 @@ function renderFieldAssurance(
   if (!inspections.length && !qualityRecords.length && !safetyObservations.length && !punchItems.length) return "";
 
   return `
-    <section class="cp-panel cp-field-assurance" aria-label="${escapeAttribute(label)}">
+    <section class="cp-panel cp-field-assurance" aria-label="${escapeAttribute(label)}" data-workspace-menu="control">
       <h2>${escapeHtml(label)}</h2>
       <div class="cp-field-assurance-grid">
         <div>
@@ -837,7 +1033,7 @@ function renderProcurement(
   if (!records.length) return "";
 
   return `
-    <section class="cp-panel cp-procurement" aria-label="${escapeAttribute(label)}">
+    <section id="cp-procurement" class="cp-panel cp-procurement" aria-label="${escapeAttribute(label)}" data-workspace-menu="resources cost">
       <div class="cp-control-heading">
         <div><h2>${escapeHtml(label)}</h2></div>
       </div>
@@ -870,11 +1066,11 @@ function renderChangeClaimControl(
   documents: WorkspaceState["documents"] = [],
   t: WorkspaceLabels,
 ): string {
-  if (!notices.length && !changes.length && !claims.length && !impacts.length) return "";
+  if (!notices.length && !changes.length && !claims.length && !impacts.length && !documents.length) return "";
 
   const documentSection = documents.length === 0
     ? ""
-    : `<section class="control-room-section" data-section="documents">
+    : `<section id="cp-documents" class="control-room-section" data-section="documents" data-workspace-menu="documents">
       <h2>${escapeHtml(t.documents)}</h2>
       <div class="control-room-cards">
         ${documents.map((document) => `<article class="control-room-card">
@@ -890,10 +1086,10 @@ function renderChangeClaimControl(
     values.length ? values.map((value) => `<span class="cp-ref">${escapeHtml(value)}</span>`).join(" ") : "—";
 
   return `
-    <section class="cp-panel cp-change-claim" aria-label="${escapeAttribute(label)}">
+    <section id="cp-change-claim" class="cp-panel cp-change-claim" aria-label="${escapeAttribute(label)}" data-workspace-menu="control cost documents">
       <h2>${escapeHtml(label)}</h2>
       <div class="cp-change-claim-grid">
-        <div>
+        <div data-workspace-menu="control cost">
           <h3>${escapeHtml(t.notices)}</h3>
           ${notices.length ? notices.map((item) => `
             <article class="cp-field-card">
@@ -904,7 +1100,7 @@ function renderChangeClaimControl(
               <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)} · ${escapeHtml(t.approval)}: ${item.approvalRequired ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
-        <div>
+        <div data-workspace-menu="control cost">
           <h3>${escapeHtml(t.changeCases)}</h3>
           ${changes.length ? changes.map((item) => `
             <article class="cp-field-card">
@@ -915,7 +1111,7 @@ function renderChangeClaimControl(
               <span>${escapeHtml(t.impactLinkLabel)}: ${item.impactLinkIds.length} · ${escapeHtml(t.approval)}: ${item.approvalRequired ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
-        <div>
+        <div data-workspace-menu="control cost">
           <h3>${escapeHtml(t.claims)}</h3>
           ${claims.length ? claims.map((item) => `
             <article class="cp-field-card">
@@ -927,7 +1123,7 @@ function renderChangeClaimControl(
               <span>${item.evidenceCount} ${escapeHtml(t.evidenceUnit)}</span>
             </article>`).join("") : '<div class="cp-empty">—</div>'}
         </div>
-        <div>
+        <div data-workspace-menu="control cost">
           <h3>${escapeHtml(t.impactLinks)}</h3>
           ${impacts.length ? impacts.map((item) => `
             <article class="cp-field-card">
@@ -951,18 +1147,30 @@ function renderActivityFilterSort(
 ): string {
   const sort = state.activitySort;
   const direction = sort?.direction ?? "asc";
-  const options = state.columns.map((column) => {
-    const selected = sort?.columnId === column.id ? " selected" : "";
-    return `<option value="${escapeAttribute(column.id)}"${selected}>${escapeHtml(column.label)}</option>`;
-  }).join("");
+  const options = [
+    `<option value="wbs"${sort?.columnId === "wbs" ? " selected" : ""}>${escapeHtml(t.activityWbs)}</option>`,
+    ...state.columns
+      .filter((column) => column.id !== "wbs")
+      .map((column) => {
+        const selected = sort?.columnId === column.id ? " selected" : "";
+        return `<option value="${escapeAttribute(column.id)}"${selected}>${escapeHtml(column.label)}</option>`;
+      }),
+  ].join("");
   return `<div class="cp-activity-toolbar" role="search">
     <label class="cp-activity-filter">
       <span>${escapeHtml(t.activityFilter)}</span>
       <input type="search" data-activity-filter value="${escapeAttribute(state.activityFilter)}" placeholder="${escapeAttribute(t.activityFilterPlaceholder)}" autocomplete="off" spellcheck="false">
     </label>
+    <label class="cp-activity-group">
+      <span>${escapeHtml(t.groupBy)}</span>
+      <select data-activity-group aria-label="${escapeAttribute(t.groupBy)}">
+        <option value="wbs"${state.activityGroupBy === "wbs" ? " selected" : ""}>${escapeHtml(t.activityWbs)}</option>
+        <option value="none"${state.activityGroupBy === "none" ? " selected" : ""}>${escapeHtml(t.groupNone)}</option>
+      </select>
+    </label>
     <label class="cp-activity-sort">
       <span>${escapeHtml(t.activitySort)}</span>
-      <select data-activity-sort>
+      <select data-activity-sort aria-label="${escapeAttribute(t.activitySort)}">
         <option value=""${sort ? "" : " selected"}>${escapeHtml(t.sortNone)}</option>
         ${options}
       </select>
@@ -1062,6 +1270,7 @@ function renderGantt(
   scale: ReturnType<typeof createGanttScale>,
   t: WorkspaceLabels,
   selectedActivityId: string | null,
+  showRelationships: boolean,
 ): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
 
@@ -1076,10 +1285,12 @@ function renderGantt(
     day: t.scaleDay,
     week: t.scaleWeek,
     month: t.scaleMonth,
+    quarter: t.scaleQuarter,
+    year: t.scaleYear,
   };
-  const toolbar = `<div class="cp-gantt-toolbar" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div>`;
+  const toolbar = `<div class="cp-gantt-toolbar" aria-label="${escapeAttribute(t.ganttScaleLabel)}"><div class="cp-gantt-scale-controls" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div><button type="button" class="cp-gantt-relationships-toggle${showRelationships ? " is-active" : ""}" data-gantt-relationships-toggle="${showRelationships ? "false" : "true"}" aria-pressed="${showRelationships ? "true" : "false"}" title="${escapeAttribute(t.ganttLinksToggle)}"><span>${escapeHtml(t.ganttLinksToggle)}</span><strong>${escapeHtml(showRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</strong></button></div>`;
   const axis = `<div class="cp-gantt-axis" aria-hidden="true"><span class="cp-gantt-axis-label"></span><div class="cp-gantt-axis-track">${ticks.map((tick, index) => `<span class="cp-gantt-axis-tick${index === 0 ? " is-first" : tick.leftPercent > 88 ? " is-last" : ""}" data-gantt-tick="${escapeAttribute(tick.date)}" style="left:${tick.leftPercent}%">${escapeHtml(formatWorkspaceCalendarDate(tick.date, calendarMode))}</span>`).join("")}</div></div>`;
-  const linkSvg = links.length
+  const linkSvg = showRelationships && links.length
     ? `<svg class="cp-gantt-links" viewBox="0 0 100 ${bars.length * 100}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"></path>`).join("")}</svg>`
     : "";
   const rows = bars.map((bar) => `<div class="cp-gantt-row${bar.activityId === selectedActivityId ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(bar.activityId)}" tabindex="0" aria-pressed="${bar.activityId === selectedActivityId ? "true" : "false"}" aria-label="${escapeAttribute(bar.activityId)}"><span class="cp-gantt-label">${escapeHtml(bar.activityId)}</span><div class="cp-gantt-track"><div class="cp-gantt-bar${bar.critical ? " is-critical" : ""}${bar.milestone ? " is-milestone" : ""}" style="left:${bar.leftPercent}%;width:${bar.widthPercent}%" title="${escapeAttribute(bar.activityId + (bar.milestone ? " — " + t.milestone : "") + " — " + bar.progressPercent + "%" + (bar.critical ? " — " + t.critical : ""))}"><span class="cp-gantt-progress" style="width:${bar.progressPercent}%"></span></div></div></div>`).join("");

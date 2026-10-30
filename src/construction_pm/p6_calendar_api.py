@@ -102,10 +102,14 @@ class P6CalendarAPI:
 
     def delete(self, scope: BackendScope, calendar_id: str, calendar_version: str, *, expected_revision: int, auth_context: AuthorizationContext) -> bool:
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
-        deleter = getattr(self.calendar_repository, "delete", None)
-        if deleter is None:
-            raise P6CalendarAPIError("CALENDAR_DELETE_NOT_SUPPORTED_BY_REPOSITORY")
-        return bool(deleter(scope, calendar_id, calendar_version, expected_revision=expected_revision))
+        # Calendar deletion clears the master and all associated rows. Keep
+        # those mutations in the same application-owned transaction, just like
+        # copy/replace, so any failure rolls the complete deletion back.
+        with self._transaction():
+            deleter = getattr(self.calendar_repository, "delete", None)
+            if deleter is None:
+                raise P6CalendarAPIError("CALENDAR_DELETE_NOT_SUPPORTED_BY_REPOSITORY")
+            return bool(deleter(scope, calendar_id, calendar_version, expected_revision=expected_revision))
 
     def copy(self, scope: BackendScope, source_calendar_id: str, source_calendar_version: str, target_calendar_id: str, target_calendar_version: str, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)

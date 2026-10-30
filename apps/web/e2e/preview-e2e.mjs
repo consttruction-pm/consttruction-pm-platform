@@ -1669,6 +1669,88 @@ async function main() {
     });
     await sleep(200);
 
+    // Run this first-visit flow in a dedicated browser profile so its
+    // remembered-project preference cannot leak into the independent legacy
+    // project-selection journey below.
+    const deepLinkChrome = await launchChrome();
+    let deepLinkPage;
+    try {
+      deepLinkPage = new Page(deepLinkChrome.cdp);
+      await deepLinkPage.initialize();
+      await deepLinkPage.cdp.send("Emulation.setDeviceMetricsOverride", {
+        width: 1440,
+        height: 900,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      const requestedProjectUrl = `${baseUrl}/app?project=${encodeURIComponent(PROJECT_ID)}`;
+      await deepLinkPage.navigate(
+        requestedProjectUrl,
+        'form[action="/preview/login"]',
+        "first visit through project deep link",
+        `${baseUrl}/preview/login`,
+      );
+      const deepLinkLogin = await deepLinkPage.evaluate(`(() => ({
+        pathname: location.pathname,
+        next: document.querySelector('form[action="/preview/login"] input[name="next"]')?.value ?? null,
+        project: new URLSearchParams(location.search).get("project"),
+      }))()`);
+      assert(
+        deepLinkLogin.pathname === "/preview/login" &&
+          deepLinkLogin.next === `/app?project=${PROJECT_ID}` &&
+          deepLinkLogin.project === null,
+        "login must preserve the requested project in its validated next path: " +
+          JSON.stringify(deepLinkLogin),
+      );
+      await deepLinkPage.click('button[name="role"][value="planner"]');
+      await deepLinkPage.waitFor(
+        `location.pathname === "/app" && new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)}`,
+        "login returns to the requested project deep link",
+      );
+      await deepLinkPage.waitForSelector("#cp-activity-grid", "deep-linked project activity grid");
+      const deepLinkWorkspace = await deepLinkPage.evaluate(`(async () => {
+        const sessionResponse = await fetch("/api/session");
+        const projectsResponse = await fetch("/api/projects");
+        const projects = await projectsResponse.json();
+        const project = (projects.projects || []).find((item) => item.project_id === ${JSON.stringify(PROJECT_ID)});
+        const table = document.querySelector("#cp-activity-grid");
+        return {
+          pathname: location.pathname,
+          requested_project: new URLSearchParams(location.search).get("project"),
+          project_found_in_session_list: Boolean(project),
+          project_name: project?.name ?? null,
+          grid_visible: Boolean(table),
+          rendered_rows: table?.querySelectorAll("tbody tr").length ?? 0,
+          session_authenticated: sessionResponse.status === 200,
+        };
+      })()`, { awaitPromise: true });
+      assert(
+        deepLinkWorkspace.requested_project === PROJECT_ID &&
+          deepLinkWorkspace.project_found_in_session_list &&
+          deepLinkWorkspace.grid_visible &&
+          deepLinkWorkspace.session_authenticated &&
+          deepLinkWorkspace.rendered_rows > 0,
+        "browser must open the requested authorized project after login: " +
+          JSON.stringify(deepLinkWorkspace),
+      );
+      record("first-visit project deep link survives login and opens the requested workspace", {
+        ...deepLinkWorkspace,
+      });
+      await deepLinkPage.click('#cubi-preview-banner form[action="/preview/logout"] button');
+      await deepLinkPage.waitFor(
+        `location.pathname === "/preview/login"`,
+        "logout after project deep-link roundtrip",
+      );
+      await deepLinkPage.waitForSelector(
+        'form[action="/preview/login"] button[name="role"]',
+        "clean login after deep-link logout",
+      );
+    } finally {
+      if (deepLinkPage) deepLinkPage.cdp.close();
+      deepLinkChrome.stop();
+      rmSync(deepLinkChrome.userDataDir, { recursive: true, force: true });
+    }
+
     await page.navigate(
       `${baseUrl}/preview/login`,
       'form[action="/preview/login"]',
@@ -2854,6 +2936,16 @@ async function main() {
       "clear activity filter",
     );
 
+    const initialGroupSort = await page.evaluate(`(() => ({
+      groupBy: document.querySelector("[data-activity-group]")?.value ?? null,
+      sortBy: document.querySelector("[data-activity-sort]")?.value ?? null,
+    }))()`);
+    assert(
+      initialGroupSort.groupBy === "wbs" && initialGroupSort.sortBy === "wbs",
+      `Activity Group and Sort should default to WBS, got ${JSON.stringify(initialGroupSort)}`,
+    );
+    // This section verifies a global numeric sort independent of grouping.
+    await page.setSelect("[data-activity-group]", "none");
     await page.setSelect("[data-activity-sort]", "activity.id");
     await page.waitFor(
       `document.querySelector('#cp-activity-grid tbody tr[data-activity-id]')?.dataset.activityId === "A100"`,
@@ -2917,6 +3009,12 @@ async function main() {
     await page.waitFor(
       `document.querySelector('#cp-activity-grid tbody tr[data-activity-id]')?.dataset.activityId === "A100"`,
       "reset activity sort",
+    );
+    await page.setSelect("[data-activity-group]", "wbs");
+    await page.setSelect("[data-activity-sort]", "wbs");
+    await page.waitFor(
+      `document.querySelector("[data-activity-group]").value === "wbs" && document.querySelector("[data-activity-sort]").value === "wbs"`,
+      "restore default WBS Group and Sort",
     );
     record("filter and numeric sort operate on persisted activity facts", {
       civil_rows: civilIds,
@@ -4018,8 +4116,16 @@ async function main() {
         input.value = ${JSON.stringify(createdProjectName)};
         input.dispatchEvent(new Event("input", { bubbles: true }));
         description.value = ${JSON.stringify(createdProjectDescription)};
-        startDate.value = "2026-11-02";
-        dateSystem.value = "gregorian";
+        dateSystem.value = "jalali";
+        dateSystem.dispatchEvent(new Event("change", { bubbles: true }));
+        if (startDate.type !== "text") throw new Error("PROJECT_JALALI_DATE_INPUT_NOT_SWITCHED");
+        startDate.value = "1404/12/30";
+        form.requestSubmit();
+        const dateError = form.querySelector('[id^="cp-project-start-date-error-"]');
+        if (!dateError || dateError.hidden) throw new Error("PROJECT_JALALI_INVALID_DATE_NOT_REJECTED");
+        if (input.hasAttribute("aria-invalid")) throw new Error("PROJECT_DATE_ERROR_WRONG_FIELD");
+        startDate.value = "1405/07/15";
+        startDate.dispatchEvent(new Event("input", { bubbles: true }));
         form.requestSubmit();
         return true;
       })()`,
@@ -4052,8 +4158,8 @@ async function main() {
     );
     assert(
       createdMetadata?.description === createdProjectDescription &&
-        createdMetadata?.start_date === "2026-11-02" &&
-        createdMetadata?.date_system === "gregorian" &&
+        createdMetadata?.start_date === "2026-10-07" &&
+        createdMetadata?.date_system === "jalali" &&
         createdMetadata?.revision === 0,
       "creation metadata must be persisted and returned by the project API: " +
         JSON.stringify(createdMetadata),
@@ -4562,9 +4668,14 @@ async function main() {
         const bar = document.querySelector('[data-gantt-activity-id="' + id + '"] .cp-gantt-bar');
         return bar ? Number.parseFloat(bar.style.left) : null;
       };
+      const ticks = Array.from(document.querySelectorAll("#cp-gantt [data-gantt-tick]")).map((tick) => ({
+        date: tick.getAttribute("data-gantt-tick") ?? "",
+        left: Number.parseFloat(tick.style.left),
+      }));
       return {
         hash: document.querySelector("[data-run-results] .cp-schedule-result-meta code")?.textContent.trim() ?? "",
         rows,
+        ticks,
         gantt: {
           rows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
           NEW_100: barLeft("NEW-100"),
@@ -4658,15 +4769,33 @@ async function main() {
     );
     const loggedSecondRun = await readRunFacts();
     const secondRow = (id) => loggedSecondRun.rows.find((row) => row[0] === id) ?? null;
+    const dateFor = (snapshot, id) => String(snapshot.rows.find((row) => row[0] === id)?.[1] ?? "").slice(0, 10);
+    const barMatchesStartTick = (snapshot, id, geometryKey) => {
+      const date = dateFor(snapshot, id);
+      const tick = snapshot.ticks.find((item) => item.date === date);
+      const barLeft = snapshot.gantt[geometryKey];
+      return Boolean(tick && Number.isFinite(tick.left) && barLeft !== null && Math.abs(barLeft - tick.left) < 0.01);
+    };
     assert(
       loggedSecondRun.rows.length === 4 &&
         startOf(secondRow("NEW-100")) === startOf(loggedFirstRun.rows.find((row) => row[0] === "NEW-100")) &&
         startOf(secondRow("NEW-200")) > startOf(loggedFirstRun.rows.find((row) => row[0] === "NEW-200")) &&
         startOf(secondRow("NEW-300")) > startOf(loggedFirstRun.rows.find((row) => row[0] === "NEW-300")) &&
-        loggedSecondRun.gantt.NEW_200 > loggedFirstRun.gantt.NEW_200 &&
-        loggedSecondRun.gantt.NEW_300 > loggedFirstRun.gantt.NEW_300,
-      "changing the duration and re-running must move the successors in both the table and the Gantt: " +
-        JSON.stringify({ loggedFirstRun: loggedFirstRun.rows, loggedSecondRun: loggedSecondRun.rows, gantt: loggedSecondRun.gantt }),
+        dateFor(loggedSecondRun, "NEW-200") !== dateFor(loggedFirstRun, "NEW-200") &&
+        dateFor(loggedSecondRun, "NEW-300") !== dateFor(loggedFirstRun, "NEW-300") &&
+        barMatchesStartTick(loggedFirstRun, "NEW-200", "NEW_200") &&
+        barMatchesStartTick(loggedFirstRun, "NEW-300", "NEW_300") &&
+        barMatchesStartTick(loggedSecondRun, "NEW-200", "NEW_200") &&
+        barMatchesStartTick(loggedSecondRun, "NEW-300", "NEW_300"),
+      "changing duration must move the authoritative successor dates, and each Gantt bar must stay aligned with its own dated axis: " +
+        JSON.stringify({
+          firstRows: loggedFirstRun.rows,
+          secondRows: loggedSecondRun.rows,
+          firstGantt: loggedFirstRun.gantt,
+          secondGantt: loggedSecondRun.gantt,
+          firstTicks: loggedFirstRun.ticks,
+          secondTicks: loggedSecondRun.ticks,
+        }),
     );
     EVIDENCE.relationships.schedule = {
       first_run: { hash: loggedFirstRun.hash, rows: loggedFirstRun.rows, gantt: loggedFirstRun.gantt },
@@ -4918,8 +5047,8 @@ async function main() {
     assert(
       settingsLoaded.name === createdProjectName &&
         settingsLoaded.description === createdProjectDescription &&
-        settingsLoaded.start_date === "2026-11-02" &&
-        settingsLoaded.date_system === "gregorian",
+        settingsLoaded.start_date === "2026-10-07" &&
+        settingsLoaded.date_system === "jalali",
       "the settings panel must load the persisted project metadata: " +
         JSON.stringify(settingsLoaded),
     );
@@ -5392,12 +5521,12 @@ async function main() {
     })()`);
     await page.waitFor(
       `(() => {
-        const error = document.querySelector(".cp-form-error");
+        const error = document.querySelector('[id^="cp-project-name-error-"]');
         return Boolean(error) && !error.hidden && error.textContent.trim().length > 0;
       })()`,
       "empty project name is rejected inline",
     );
-    const emptyNameError = await page.text(".cp-form-error");
+    const emptyNameError = await page.text('[id^="cp-project-name-error-"]');
     assert(/[\u0600-\u06FF]/.test(emptyNameError), "inline validation must be localized");
 
     const firstProjectName = `پروژه نخست ${Date.now()}`;
