@@ -1373,3 +1373,52 @@ def test_preview_project_metadata_edit_is_revision_guarded_and_survives_restart(
         assert persisted["revision"] == 0
     finally:
         reopened.close()
+
+
+
+def test_expired_preview_session_recovers_through_login_and_clears_stale_cookie(
+    tmp_path: Path,
+) -> None:
+    runtime = open_preview_runtime(
+        tmp_path / "preview.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+        stale_cookie = "session-from-a-previous-render-instance"
+
+        status, headers, body = _request(
+            app, "GET", "/api/session", cookie=stale_cookie
+        )
+        assert status == 401
+        assert json.loads(body)["code"] == "SESSION_NOT_FOUND"
+        assert "Max-Age=0" in headers["set-cookie"]
+
+        status, headers, body = _request(
+            app, "GET", "/app?project=preview-rps-01", cookie=stale_cookie
+        )
+        assert status == 302
+        assert headers["location"] == (
+            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01"
+        )
+        assert "Max-Age=0" in headers["set-cookie"]
+
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=planner&next=%2Fapp%3Fproject%3Dpreview-rps-01",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        assert headers["location"] == "/app?project=preview-rps-01"
+        refreshed_cookie = _session_cookie(headers)
+
+        status, _, body = _request(
+            app, "GET", "/api/session", cookie=refreshed_cookie
+        )
+        assert status == 200
+        assert json.loads(body)["roles"] == ["planner"]
+    finally:
+        runtime.close()
