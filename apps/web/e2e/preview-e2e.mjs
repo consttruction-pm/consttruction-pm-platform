@@ -644,24 +644,76 @@ async function waitForChildExit(child, timeoutMs = 5000) {
   ]);
 }
 
+function signalProcessGroup(pid, signal) {
+  if (!pid) return false;
+  try {
+    process.kill(-pid, signal);
+    return true;
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ESRCH") return false;
+    throw error;
+  }
+}
+
+async function waitForProcessGroupExit(pid, timeoutMs = 5000) {
+  if (!pid) return true;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(-pid, 0);
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ESRCH") return true;
+      throw error;
+    }
+    await sleep(100);
+  }
+  try {
+    process.kill(-pid, 0);
+    return false;
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ESRCH") return true;
+    throw error;
+  }
+}
+
+async function removeChromeProfile(path) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      rmSync(path, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!error || typeof error !== "object" || !("code" in error) ||
+          !["EBUSY", "ENOTEMPTY", "EPERM"].includes(String(error.code))) throw error;
+      await sleep(100);
+    }
+  }
+  throw lastError ?? new Error("CHROME_PROFILE_CLEANUP_FAILED");
+}
+
 async function stopProcessTree(child) {
-  if (!child || child.exitCode !== null || child.signalCode !== null) return;
-  if (process.platform === "win32" && child.pid) {
-    spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
-      stdio: "ignore",
-    });
-  } else {
-    child.kill("SIGTERM");
+  if (!child) return;
+  if (process.platform === "win32") {
+    if (child.pid && child.exitCode === null && child.signalCode === null) {
+      spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+    }
+    await waitForChildExit(child, 5000);
+    return;
   }
-  if (await waitForChildExit(child)) return;
-  if (process.platform === "win32" && child.pid) {
-    spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
-      stdio: "ignore",
-    });
-  } else {
-    child.kill("SIGKILL");
-  }
-  await waitForChildExit(child, 5000);
+
+  // Chrome creates renderer/GPU/utility children. Killing only the Browser
+  // process leaves profile files open, so terminate the detached process group.
+  if (child.pid) signalProcessGroup(child.pid, "SIGTERM");
+  await Promise.all([
+    waitForChildExit(child, 3000),
+    waitForProcessGroupExit(child.pid, 3000),
+  ]);
+  if (child.pid) signalProcessGroup(child.pid, "SIGKILL");
+  await Promise.all([
+    waitForChildExit(child, 5000),
+    waitForProcessGroupExit(child.pid, 5000),
+  ]);
 }
 
 class Cdp {
@@ -946,7 +998,7 @@ async function launchChrome() {
       "--hide-scrollbars",
       "about:blank",
     ],
-    { stdio: ["ignore", "pipe", "pipe"] },
+    { stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" },
   );
   let stderr = "";
   child.stderr.on("data", (chunk) => {
@@ -1765,7 +1817,7 @@ async function main() {
     } finally {
       if (deepLinkPage) deepLinkPage.cdp.close();
       await deepLinkChrome.stop();
-      rmSync(deepLinkChrome.userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      await removeChromeProfile(deepLinkChrome.userDataDir);
     }
 
     await page.navigate(
@@ -5920,7 +5972,7 @@ async function main() {
     page?.cdp.close();
     chrome.cdp.close();
     await chrome.stop();
-    rmSync(chrome.userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await removeChromeProfile(chrome.userDataDir);
     if (managed) managed.stop();
   }
 }
