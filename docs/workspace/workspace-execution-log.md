@@ -20,7 +20,7 @@ Scope guard: authenticated workspace and project-management surfaces only. Publi
 | 6 | Menu/window functionality | Visual destinations complete in demo mode; real commands pending visual approval |
 | 7 | Technical wiring | Existing APIs preserved; new wiring not started (by design) |
 | 8 | Responsive/multilingual | fa/en + RTL verified in the visual demo at 1366/1440/1920; real-data responsive work pending |
-| 9 | Quality control | 422 TS + 13 preview + 13 Python tests pass; full preview E2E (80 checks) green; exhaustive visual audit; merge pending |
+| 9 | Quality control | 422 TS + 13 preview + 13 Python tests pass; full preview E2E (80 checks) green; exhaustive visual audit; merged in #1653 (main CI 11/11) |
 | 10 | GitHub delivery | This docs unit follows implement → test → commit → PR → CI → merge |
 
 ## Unit history
@@ -29,8 +29,8 @@ Scope guard: authenticated workspace and project-management surfaces only. Publi
 | --- | --- | --- | --- |
 | Preview brand-asset 404 (logo/favicon) | `fix/preview-brand-asset-fallback` / #1650 | `45411b7` | `pytest tests/test_preview_runtime.py` 13 passed; PR CI 7/7; main CI 8/8; live 200 for `/`, `/fa/`, logo, favicon |
 | Workspace blueprint | `docs/workspace-p6-blueprint` / #1651 | `8bdb4e2` | Docs only; PR CI 7/7; main CI 8/8 |
-| Unit A — desktop shell | `feat/workspace-desktop-shell` / pending | pending | `workspace-windows` (6) + `workspace-desktop-shell` (6) tests; `tsc --noEmit` clean; 422 + 13 tests pass; live preview verified tabs/commands/persistence |
-| Visual shell (demo) | `feat/workspace-visual-shell` / pending | pending | 43 screenshots + `visual-audit.json`: 21/21 windows, 36/36 dialogs, 121 commands, 17/17 detail tabs, 0 errors; 422 TS + 13 preview + 13 Python tests pass; preview E2E 80/80; `tsc --noEmit` and build clean; styles byte-identical |
+| Unit A — desktop shell | `feat/workspace-desktop-shell` / #1652 | `7abc29a` | `workspace-windows` (6) + `workspace-desktop-shell` (6) tests; `tsc --noEmit` clean; 422 + 13 tests pass; live preview verified tabs/commands/persistence |
+| Visual shell (demo) | `feat/workspace-visual-shell` / #1653 | `5d509c7` | 43 screenshots + `visual-audit.json`: 21/21 windows, 36/36 dialogs, 121 commands, 17/17 detail tabs, 0 errors; 422 TS + 13 preview + 13 Python tests pass; preview E2E 80/80; PR CI 8/8 on `b6f7a9d`; main CI 11/11 on `5d509c7`; `tsc --noEmit` and build clean; styles byte-identical |
 
 ## Exact continuation point
 
