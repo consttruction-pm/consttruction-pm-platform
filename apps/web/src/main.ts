@@ -694,12 +694,6 @@ function renderApp(
       case "admin.calendar":
         toggleCalendar();
         return;
-      case "help.visual-demo": {
-        const url = new URL(window.location.href);
-        url.searchParams.set("view", "visual");
-        window.location.assign(url.toString());
-        return;
-      }
       default:
         return;
     }
@@ -1756,16 +1750,14 @@ async function boot(): Promise<void> {
     return;
   }
 
-  // The visual workspace demonstration is a self-contained, fixed-data surface
-  // reachable only through this explicit address (Help → Visual workspace demo).
-  // It never calls the project server and never writes project data.
-  if (new URLSearchParams(window.location.search).get("view") === "visual") {
-    const locale = getInitialLocale();
-    applyDocumentLocale(locale, locale.startsWith("fa") ? "محیط کار CUBI — نمایش بصری" : "CUBI Workspace — visual demo");
-    container.className = "cp-vd-root";
-    mountVisualDemo(container, createVisualDemoState(locale));
-    return;
-  }
+  // Temporary visual-review phase: the primary /app entry shows only the
+  // complete visual workspace shell. The public homepage remains separate.
+  // This fixed-data surface does not call APIs or mutate real project data.
+  const locale = getInitialLocale();
+  applyDocumentLocale(locale, locale.startsWith("fa") ? "محیط کار CUBI — پیش‌نمایش بصری" : "CUBI Workspace — visual preview");
+  container.className = "cp-vd-root";
+  mountVisualDemo(container, createVisualDemoState(locale));
+  return;
 
   const sessionApi = new FetchSessionApi(window.location.origin);
   const syncRuntime = new WebSyncRuntime();
