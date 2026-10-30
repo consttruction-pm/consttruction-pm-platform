@@ -636,15 +636,32 @@ async function startManagedRuntime({ database: existingDatabase = null, reset = 
   };
 }
 
-function stopProcessTree(child) {
-  if (!child || child.killed) return;
+async function waitForChildExit(child, timeoutMs = 5000) {
+  if (child.exitCode !== null || child.signalCode !== null) return true;
+  return Promise.race([
+    new Promise((resolveExit) => child.once("exit", () => resolveExit(true))),
+    sleep(timeoutMs).then(() => false),
+  ]);
+}
+
+async function stopProcessTree(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
   if (process.platform === "win32" && child.pid) {
     spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
       stdio: "ignore",
     });
-    return;
+  } else {
+    child.kill("SIGTERM");
   }
-  child.kill();
+  if (await waitForChildExit(child)) return;
+  if (process.platform === "win32" && child.pid) {
+    spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+    });
+  } else {
+    child.kill("SIGKILL");
+  }
+  await waitForChildExit(child, 5000);
 }
 
 class Cdp {
@@ -1747,8 +1764,8 @@ async function main() {
       );
     } finally {
       if (deepLinkPage) deepLinkPage.cdp.close();
-      deepLinkChrome.stop();
-      rmSync(deepLinkChrome.userDataDir, { recursive: true, force: true });
+      await deepLinkChrome.stop();
+      rmSync(deepLinkChrome.userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     }
 
     await page.navigate(
@@ -5902,7 +5919,8 @@ async function main() {
   } finally {
     page?.cdp.close();
     chrome.cdp.close();
-    chrome.stop();
+    await chrome.stop();
+    rmSync(chrome.userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     if (managed) managed.stop();
   }
 }
