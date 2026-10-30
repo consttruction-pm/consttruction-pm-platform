@@ -164,7 +164,12 @@ class PreviewFrontend:
         if segments[:2] == ["client-sync", "src"]:
             return self._file(self.dist.joinpath("client-sync", "src", *segments[2:]))
         if len(segments) == 1 and segments[0] in _ALLOWED_ROOT_FILES:
-            return self._file(self.root / segments[0])
+            # Brand assets such as the logo live in `public/` for the built site
+            # but are requested from the site root (`/cubi-platform-logo-primary.svg`).
+            # Fall back to the public copy instead of returning a hard 404.
+            return self._file(self.root / segments[0]) or self._file(
+                self.public / segments[0]
+            )
         if segments[0] == "public":
             if len(segments) < 2:
                 return None

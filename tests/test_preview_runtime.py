@@ -542,9 +542,15 @@ def test_preview_wbs_and_activity_write_path_persists_and_rejects_invalid_links(
 def test_preview_server_guards_login_banner_static_files_and_logout(
     tmp_path: Path,
 ) -> None:
+    web_root = _web_root(tmp_path)
+    public = web_root / "public"
+    public.mkdir()
+    (public / "cubi-platform-logo-primary.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg"></svg>', encoding="utf-8"
+    )
     runtime = open_preview_runtime(
         tmp_path / "preview.sqlite3",
-        web_root=_web_root(tmp_path),
+        web_root=web_root,
         reset=True,
     )
     try:
@@ -584,6 +590,13 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
         status, _, body = _request(app, "GET", "/dist/web/src/landing-entry.js")
         assert status == 200
         assert body.startswith(b"export {};")
+
+        # The built site requests brand assets from the root even though their
+        # source lives under `public/`; the preview must serve them, not 404.
+        status, headers, body = _request(app, "GET", "/cubi-platform-logo-primary.svg")
+        assert status == 200
+        assert headers["content-type"] == "image/svg+xml"
+        assert body == b"<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
 
         status, _, _ = _request(app, "GET", "/.preview/cubi-preview.sqlite3")
         assert status == 404
