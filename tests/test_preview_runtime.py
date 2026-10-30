@@ -603,9 +603,18 @@ def test_preview_project_deep_link_survives_login_and_rejects_external_redirects
 def test_preview_server_guards_login_banner_static_files_and_logout(
     tmp_path: Path,
 ) -> None:
+    web_root = _web_root(tmp_path)
+    # The shipped build keeps the brand artwork in `public/`, not at the web
+    # root, so drop the fixture's root copy to exercise the real request path.
+    (web_root / "cubi-platform-logo-primary.svg").unlink()
+    public = web_root / "public"
+    public.mkdir()
+    (public / "cubi-platform-logo-primary.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg"></svg>', encoding="utf-8"
+    )
     runtime = open_preview_runtime(
         tmp_path / "preview.sqlite3",
-        web_root=_web_root(tmp_path),
+        web_root=web_root,
         reset=True,
     )
     try:
@@ -646,12 +655,18 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
         assert status == 200
         assert body.startswith(b"export {};")
 
+        # The built site requests brand assets from the root even though their
+        # source lives under `public/`; the preview must serve them, not 404.
+        status, headers, body = _request(app, "GET", "/cubi-platform-logo-primary.svg")
+        assert status == 200
+        assert headers["content-type"] == "image/svg+xml"
+        assert body == b"<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
+
         # A default browser favicon probe must resolve to the canonical CUBI logo.
         status, headers, body = _request(app, "GET", "/favicon.ico")
         assert status == 200
         assert headers["content-type"] == "image/svg+xml"
-        assert body.startswith(b"<svg")
-        assert b"</svg>" in body
+        assert body == b"<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
 
         status, _, _ = _request(app, "GET", "/.preview/cubi-preview.sqlite3")
         assert status == 404
