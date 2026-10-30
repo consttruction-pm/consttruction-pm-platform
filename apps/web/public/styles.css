@@ -3197,3 +3197,193 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 .cp-activity-group select{min-width:118px;min-height:32px;padding:4px 8px;border:1px solid var(--cubi-neutral-border,#c8d1dc);border-radius:5px;background:#fff;color:var(--cubi-deep-navy,#14283f);font:inherit;font-size:12px}
 .cp-activity-group select:focus-visible,.cp-activity-sort select:focus-visible{outline:2px solid var(--cubi-engineering-blue,#1769aa);outline-offset:2px}
 @media(max-width:700px){.cp-activity-group{min-width:0;flex-wrap:wrap}.cp-activity-group select{max-width:100%}}
+
+/* Desktop chrome: application menus, main toolbar and window tabs above the working area. */
+.cp-desktop-host {
+  width: min(100%, var(--cubi-ui-page-max));
+  margin: 0 auto;
+  padding: 6px clamp(12px, 1.25vw, 24px) 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.cp-desktop {
+  border: 1px solid var(--cubi-neutral-border, var(--cp-border));
+  border-radius: 8px 8px 0 0;
+  background: #fff;
+  box-shadow: 0 3px 12px rgba(8, 26, 47, .05);
+}
+.cp-menubar {
+  position: relative;
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  min-height: 32px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--cubi-neutral-divider, #e3e8ee);
+  background: #f8fafc;
+  border-radius: 8px 8px 0 0;
+}
+.cp-menubar-group { position: relative; }
+.cp-menubar-trigger {
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--cubi-deep-navy, #14283f);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cp-menubar-trigger:hover,
+.cp-menubar-trigger[aria-expanded="true"] {
+  border-color: var(--cubi-neutral-border, #c8d1dc);
+  background: #fff;
+}
+.cp-menubar-trigger:focus-visible { outline: 2px solid var(--cubi-engineering-blue, #1769aa); outline-offset: 1px; }
+.cp-menubar-popup {
+  position: absolute;
+  inset-inline-start: 0;
+  top: calc(100% + 3px);
+  z-index: 40;
+  min-width: 264px;
+  max-width: min(92vw, 380px);
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--cubi-neutral-border, #c8d1dc);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(8, 26, 47, .18);
+}
+.cp-menubar-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 28px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--cubi-deep-navy, #14283f);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: start;
+  cursor: pointer;
+}
+.cp-menubar-item:hover:not(:disabled) { background: #eef5ff; }
+.cp-menubar-item[aria-checked="true"] .cp-menubar-item-label::before { content: "✓ "; color: var(--cubi-engineering-blue, #1769aa); }
+.cp-menubar-item.is-disabled { color: #7c8896; cursor: not-allowed; }
+.cp-menubar-item-label { flex: 1 1 auto; }
+.cp-menubar-item-shortcut { flex: 0 0 auto; color: #6a7686; font-size: 11px; font-variant-numeric: tabular-nums; }
+.cp-menubar-item-reason { flex: 0 1 auto; max-width: 190px; color: #8a5a1c; font-size: 10.5px; text-align: end; }
+.cp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 38px;
+  padding: 4px 8px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--cubi-neutral-divider, #e3e8ee);
+  background: #fff;
+}
+.cp-toolbar-button {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--cubi-neutral-border, #c8d1dc);
+  border-radius: 4px;
+  background: #fbfcfe;
+  color: var(--cubi-deep-navy, #14283f);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cp-toolbar-button:hover:not(:disabled) { border-color: var(--cubi-engineering-blue, #1769aa); background: #f2f8ff; }
+.cp-toolbar-button[aria-pressed="true"] { border-color: #bad5f4; background: #eaf3ff; color: #125da7; }
+.cp-toolbar-button:disabled { opacity: .48; cursor: not-allowed; }
+.cp-toolbar-button:focus-visible { outline: 2px solid var(--cubi-engineering-blue, #1769aa); outline-offset: 2px; }
+.cp-window-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-height: 32px;
+  padding: 0 8px;
+  overflow-x: auto;
+  background: #f3f6fa;
+  border-radius: 0 0 0 0;
+}
+.cp-window-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+  background: transparent;
+}
+.cp-window-tab.is-active {
+  border-color: var(--cubi-neutral-border, #c8d1dc);
+  background: #fff;
+  box-shadow: 0 -2px 0 var(--cubi-engineering-blue, #1769aa) inset;
+}
+.cp-window-tab-label,
+.cp-window-tab-close {
+  border: 0;
+  background: transparent;
+  color: var(--cubi-deep-navy, #14283f);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cp-window-tab-label { min-height: 30px; padding: 4px 8px 4px 11px; font-weight: 600; }
+.cp-window-tab-close { min-width: 24px; min-height: 24px; padding: 0 5px; border-radius: 4px; color: #5b6878; font-size: 15px; line-height: 1; }
+.cp-window-tab-close:hover { background: #e8edf4; color: #9b2c2c; }
+.cp-window-tab-label:focus-visible,
+.cp-window-tab-close:focus-visible { outline: 2px solid var(--cubi-engineering-blue, #1769aa); outline-offset: -2px; }
+.cp-desktop-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: 80vh;
+  padding: 18px 20px;
+  border: 1px solid var(--cubi-neutral-border, #c8d1dc);
+  border-radius: 8px;
+  color: var(--cubi-deep-navy, #14283f);
+  box-shadow: 0 24px 60px rgba(8, 26, 47, .28);
+}
+.cp-desktop-dialog::backdrop { background: rgba(8, 26, 47, .38); }
+.cp-desktop-dialog h2 { margin: 0 0 12px; font-size: 17px; }
+.cp-desktop-dialog table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+.cp-desktop-dialog th,
+.cp-desktop-dialog td { padding: 6px 8px; border-bottom: 1px solid #e6ebf1; font-size: 12.5px; text-align: start; }
+.cp-desktop-dialog kbd { padding: 1px 5px; border: 1px solid #cfd8e3; border-radius: 3px; background: #f6f8fb; font-size: 11.5px; }
+.cp-desktop-dialog form { display: flex; justify-content: flex-end; }
+.cp-desktop-dialog form button {
+  min-height: 32px;
+  padding: 5px 14px;
+  border: 1px solid var(--cubi-engineering-blue, #1769aa);
+  border-radius: 5px;
+  background: var(--cubi-engineering-blue, #1769aa);
+  color: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (max-width: 760px) {
+  .cp-desktop-host { padding: 4px 8px 0; }
+  .cp-menubar { overflow-x: auto; flex-wrap: nowrap; }
+  .cp-toolbar { flex-wrap: nowrap; }
+  .cp-menubar-popup { position: fixed; inset-inline-start: 8px; inset-inline-end: 8px; top: auto; min-width: 0; max-width: none; }
+  .cp-window-tab-label { min-height: 34px; }
+}
+@media print {
+  .cp-desktop-host { display: none; }
+}

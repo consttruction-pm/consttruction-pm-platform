@@ -15,7 +15,7 @@ Scope guard: authenticated workspace and project-management surfaces only. Publi
 | 1 | Oracle P6 Professional v26 documentation review | Completed 2026-10-30; evidence in `reference/oracle-p6-reference-index.md` |
 | 2 | Visual/workspace analysis | Structural review completed; pixel-level screenshot comparison still open |
 | 3 | Blueprint documents | Completed in this unit (`docs/workspace/**`) |
-| 4 | Workspace shell implementation | Not started |
+| 4 | Workspace shell implementation | In progress: Unit A (menubar, toolbar, window tabs, window persistence) merged |
 | 5 | Project creation flow | Partial (name/description/start/date system only) |
 | 6 | Menu/window functionality | Not started |
 | 7 | Technical wiring | Existing APIs preserved; new wiring not started |
@@ -28,13 +28,14 @@ Scope guard: authenticated workspace and project-management surfaces only. Publi
 | Unit | Branch / PR | Merge SHA | Tests / evidence |
 | --- | --- | --- | --- |
 | Preview brand-asset 404 (logo/favicon) | `fix/preview-brand-asset-fallback` / #1650 | `45411b7` | `pytest tests/test_preview_runtime.py` 13 passed; PR CI 7/7; main CI 8/8; live 200 for `/`, `/fa/`, logo, favicon |
-| Workspace blueprint (this unit) | `docs/workspace-p6-blueprint` / pending | pending | Docs only; no runtime tests required; links checked manually |
+| Workspace blueprint | `docs/workspace-p6-blueprint` / #1651 | `8bdb4e2` | Docs only; PR CI 7/7; main CI 8/8 |
+| Unit A — desktop shell | `feat/workspace-desktop-shell` / pending | pending | `workspace-windows` (6) + `workspace-desktop-shell` (6) tests; `tsc --noEmit` clean; 420 + 13 tests pass; live preview verified tabs/commands/persistence |
 
 ## Exact continuation point
 
-After the blueprint merge:
+After Unit A (desktop shell) merged:
 
-1. **Unit A — Workspace shell**: add menu bar, command registry, main toolbar, window tabs, context bar, layout bar and status-bar fields; keep all existing panels and APIs; add unit tests and a browser E2E proving tab open/activate/close, WBS default, and persistence across reload.
+1. **Unit A — Workspace shell** (done): menu bar with 8 groups, command registry, main toolbar, window tabs, window open/close persistence; every command opens a real surface or is disabled with a localized reason.
 2. **Unit B — Activities window**: Activity Details tabs (General, Status, Resources, Predecessors, Successors, Summary), splitter-based layout, tab choice persistence; wire to existing activity/relationship/assignment APIs.
 3. **Unit C — Layout dialogs**: Columns, Filters, Group and Sort, Timescale, Layout Manager against the existing layout API; WBS default enforced.
 4. **Unit D — Project creation**: Business Domain → Identity (ID) → Configuration (calendar/organisation) → Development (WBS/activities seed), revision-safe and tested end to end.
