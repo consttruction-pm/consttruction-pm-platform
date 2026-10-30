@@ -1,3 +1,5 @@
+export const API_REQUEST_TIMEOUT_MS = 45_000;
+
 export type ProjectContext = {
   tenant_id: string;
   project_id: string;
@@ -107,7 +109,7 @@ export class FetchApiTransport implements ApiTransport {
     init: RequestInit,
   ): Promise<ApiResult<T>> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
     try {
       const response = await fetch(new URL(path, this.baseUrl), {
         ...init,
