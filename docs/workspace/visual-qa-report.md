@@ -59,6 +59,7 @@
 9. **تقویم روز ۱ را زیر ستون اشتباه می‌گذاشت** — تعداد خانه‌های خالی از روی روز واقعی اول ماه محاسبه می‌شود، نه فرض دوشنبه؛ دسامبر ۲۰۲۶ با ۱ در سه‌شنبه و تاریخ داده ۳ در پنجشنبه نمایش داده می‌شود. ناوبری ماه (نوامبر ۲۰۲۶ تا مه ۲۰۲۷) واقعاً ماه را عوض می‌کند و در RTL ستون‌ها از شنبه شروع می‌شوند.
 10. **موارد کنار Administration فقط «Users» را نشان می‌دادند** — هر شش بخش (کاربران، پروفایل‌های امنیتی، تنظیمات عمومی، ارزها، کدهای فعالیت، UDFs) اکنون انتخاب‌شدنی است و پنل خودش را با دادهٔ نمونه نشان می‌دهد.
 11. **ورودی‌های دیالوگ Calendar Editor کشیده و بلند بودند** — با `align-content: start` در `.cp-vd-form` ارتفاع طبیعی ۲۶px بازگشت.
+12. **پنل جدید Activity Details در Workspace واقعی شناسهٔ انتخاب‌شده را از دست می‌داد** — بازنویسی پنل، عنصر `.cp-detail-selected` را حذف کرده بود و E2E «A130 selection details» شکست خورد؛ کلاس قرارداد روی `.cp-details-id` بازگردانده شد و یک تست واحد جدید آن را قفل می‌کند. پس از اصلاح، E2E کامل پیش‌نمایش با ۸۰ بررسی سبز شد.
 
 ## مقایسه با تصاویر مرجع
 
@@ -92,8 +93,8 @@ node docs/workspace/qa/view-shot.mjs activities en 1440 900 "$TEMP/activities.pn
 
 ## وضعیت تحویل
 
-- شاخه: `feat/workspace-visual-shell`
-- تست‌ها: ۴۲۰ تست TypeScript + ۱۳ تست preview (Node) + ۱۳ تست Python، همه سبز
+- شاخه: `feat/workspace-visual-shell` — PR [#1653](https://github.com/consttruction-pm/consttruction-pm-platform/pull/1653)
+- تست‌ها: ۴۲۲ تست TypeScript + ۱۳ تست preview (Node) + ۱۳ تست Python، همه سبز؛ E2E کامل پیش‌نمایش (۸۰ بررسی) نیز سبز
 - `tsc --noEmit` و `npm run build` سبز
 - `apps/web/styles.css` و `apps/web/public/styles.css` بایت‌به‌بایت یکسان
-- Commit و PR: در پایان همین واحد ثبت می‌شود؛ تا سبز شدن CI روی SHA دقیق، ادغام انجام نمی‌شود.
+- Commit اصلاح رگرسیون جزئیات: `fix(workspace): keep activity details selection identity`؛ ادغام فقط پس از سبز شدن CI روی SHA دقیق انجام می‌شود.

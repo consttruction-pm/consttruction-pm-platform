@@ -236,7 +236,7 @@ export function renderActivityDetailsPanel(input: ActivityDetailsInput): string 
       <div class="cp-details-nav" role="group" aria-label="${esc(t(locale, "Activity navigation", "پیمایش فعالیت"))}">
         <button type="button" data-details-prev="${esc(previous?.id ?? "")}" ${previous ? "" : "disabled"} title="${esc(t(locale, "Previous activity", "فعالیت قبلی"))}">‹</button>
         <button type="button" data-details-next="${esc(next?.id ?? "")}" ${next ? "" : "disabled"} title="${esc(t(locale, "Next activity", "فعالیت بعدی"))}">›</button>
-        <span class="cp-details-id">${esc(activity?.code ?? "—")}</span>
+        <span class="cp-details-id cp-detail-selected">${esc(activity?.code ?? "—")}</span>
       </div>
     </div>
     <div class="cp-detail-tabs" role="tablist" aria-label="${esc(t(locale, "Activity detail tabs", "زبانه‌های جزئیات فعالیت"))}">
