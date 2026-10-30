@@ -14,6 +14,9 @@ apps/web/dist/
 .preview/
 .preview-server.log
 apps/web/e2e/artifacts/
+.qa-tmp/
+.qa-*.mjs
+.qa-chrome-*/
 
 # Test/coverage caches
 .coverage
