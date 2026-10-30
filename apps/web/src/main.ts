@@ -49,13 +49,17 @@ import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
-import { renderDesktopShell, type DesktopCommand } from "./workspace-desktop-shell.js";
+import { renderDesktopShell, WINDOW_TITLES, type DesktopCommand } from "./workspace-desktop-shell.js";
+import { renderStatusBar, type ChromeLayoutState } from "./workspace-chrome.js";
+import { enhanceActivityDetails } from "./workspace-activity-details.js";
+import type { DesktopLayoutPatch } from "./workspace-dialogs.js";
 import {
   closeWorkspaceWindow,
   openWorkspaceWindow,
   readWorkspaceWindows,
   rememberWorkspaceWindows,
 } from "./workspace-windows.js";
+import { createVisualDemoState, mountVisualDemo } from "./workspace-visual-demo.js";
 
 type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
 
@@ -76,6 +80,45 @@ let currentBootstrap: ProjectBootstrap | null = null;
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
 let pendingDesktopFocusSelector: string | null = null;
 let pendingDesktopAction: (() => void) | null = null;
+
+/**
+ * Visual preferences are browser-local and deliberately outside project state:
+ * they never travel to the server and never alter schedule numbers.
+ */
+type VisualPreferences = {
+  density: ChromeLayoutState["density"];
+  barHeight: number;
+  barTone: "crimson" | "vermilion" | "amber";
+};
+
+const VISUAL_PREFERENCES_KEY = "cubi:workspace-visual-preferences";
+const DEFAULT_VISUAL_PREFERENCES: VisualPreferences = { density: "compact", barHeight: 16, barTone: "crimson" };
+
+function readVisualPreferences(): VisualPreferences {
+  try {
+    const raw = window.localStorage.getItem(VISUAL_PREFERENCES_KEY);
+    if (!raw) return DEFAULT_VISUAL_PREFERENCES;
+    const parsed = JSON.parse(raw) as Partial<VisualPreferences>;
+    return {
+      density: parsed.density === "comfortable" ? "comfortable" : "compact",
+      barHeight: typeof parsed.barHeight === "number" && parsed.barHeight >= 12 && parsed.barHeight <= 24 ? parsed.barHeight : 16,
+      barTone: parsed.barTone === "vermilion" || parsed.barTone === "amber" ? parsed.barTone : "crimson",
+    };
+  } catch {
+    return DEFAULT_VISUAL_PREFERENCES;
+  }
+}
+
+let visualPreferences = readVisualPreferences();
+
+function rememberVisualPreferences(next: VisualPreferences): void {
+  visualPreferences = next;
+  try {
+    window.localStorage.setItem(VISUAL_PREFERENCES_KEY, JSON.stringify(next));
+  } catch {
+    // Preferences are optional; the current session keeps the value in memory.
+  }
+}
 
 function getOpenWindows(): WorkspaceMenuKey[] {
   if (!openWindowKeys) openWindowKeys = readWorkspaceWindows();
@@ -445,17 +488,19 @@ function renderApp(
   let appShell = container.querySelector<HTMLElement>(".cp-app-shell");
   let status = container.querySelector<HTMLElement>(".cp-app-status");
   let desktopHost = container.querySelector<HTMLElement>("[data-desktop-host]");
+  let desktopStatus = container.querySelector<HTMLElement>("[data-desktop-status]");
   let workspace = container.querySelector<HTMLElement>("#workspace");
 
-  if (!appShell || !status || !workspace || !desktopHost) {
-    container.innerHTML = '<div class="cp-app-shell"><div class="cp-app-status"></div><div class="cp-desktop-host" data-desktop-host></div><div id="workspace"></div></div>';
+  if (!appShell || !status || !workspace || !desktopHost || !desktopStatus) {
+    container.innerHTML = '<div class="cp-app-shell"><div class="cp-app-status"></div><div class="cp-desktop-host" data-desktop-host></div><div id="workspace"></div><div class="cp-desktop-status" data-desktop-status></div></div>';
     appShell = container.querySelector<HTMLElement>(".cp-app-shell");
     status = container.querySelector<HTMLElement>(".cp-app-status");
     desktopHost = container.querySelector<HTMLElement>("[data-desktop-host]");
+    desktopStatus = container.querySelector<HTMLElement>("[data-desktop-status]");
     workspace = container.querySelector<HTMLElement>("#workspace");
   }
 
-  if (!appShell || !status || !workspace || !desktopHost) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
+  if (!appShell || !status || !workspace || !desktopHost || !desktopStatus) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
 
   const languageButton = document.createElement("button");
   languageButton.type = "button";
@@ -649,6 +694,12 @@ function renderApp(
       case "admin.calendar":
         toggleCalendar();
         return;
+      case "help.visual-demo": {
+        const url = new URL(window.location.href);
+        url.searchParams.set("view", "visual");
+        window.location.assign(url.toString());
+        return;
+      }
       default:
         return;
     }
@@ -657,6 +708,53 @@ function renderApp(
   const openTabs = getOpenWindows();
   const tabsWithActive = openWorkspaceWindow(openTabs, state.activeMenu);
   if (tabsWithActive.length !== openTabs.length) rememberOpenWindows(tabsWithActive);
+
+  const t = (en: string, persian: string): string => (state.locale.split("-")[0] === "fa" ? persian : en);
+  const chromeProject = {
+    name: state.context.project_id,
+    dataDate: "—",
+    baseline: "—",
+    user: "—",
+    database: t("Preview", "پیش‌نمایش"),
+    layout: t("CUBI Classic Schedule Layout", "چیدمان کلاسیک زمان‌بندی CUBI"),
+    filter: state.activityFilter.trim() || t("All Activities", "همهٔ فعالیت‌ها"),
+  };
+  const chromeLayout = {
+    groupBy: state.activityGroupBy,
+    ganttScale: state.ganttScale,
+    showRelationships: state.showGanttRelationships,
+    density: visualPreferences.density,
+  } as const;
+  const applyDesktopVisuals = (): void => {
+    desktopHost.dataset.density = visualPreferences.density;
+    // The Gantt lives in the workspace below the chrome, so the bar tokens are
+    // applied at the document root where both regions inherit them.
+    document.documentElement.dataset.barTone = visualPreferences.barTone;
+    document.documentElement.style.setProperty("--cp-bar-height", `${visualPreferences.barHeight}px`);
+  };
+  applyDesktopVisuals();
+
+  const applyLayoutOptions = (patch: DesktopLayoutPatch): void => {
+    let next = state;
+    if (patch.groupBy) next = setActivityGroupBy(next, patch.groupBy);
+    if (patch.sortColumnId !== undefined) {
+      next = setActivitySort(next, patch.sortColumnId, patch.sortDirection ?? next.activitySort?.direction ?? "asc");
+    } else if (patch.sortDirection && next.activitySort) {
+      next = setActivitySort(next, next.activitySort.columnId, patch.sortDirection);
+    }
+    if (patch.ganttScale) next = setGanttScale(next, patch.ganttScale);
+    if (patch.showRelationships !== undefined) next = setGanttRelationshipsVisible(next, patch.showRelationships);
+    if (patch.density || patch.barHeight || patch.barTone) {
+      rememberVisualPreferences({
+        density: patch.density ?? visualPreferences.density,
+        barHeight: patch.barHeight ?? visualPreferences.barHeight,
+        barTone: patch.barTone ?? visualPreferences.barTone,
+      });
+    }
+    applyDesktopVisuals();
+    if (next !== state) renderApp(container, next, persistence);
+  };
+
   renderDesktopShell(
     desktopHost,
     {
@@ -672,13 +770,29 @@ function renderApp(
         canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
         groupByWbs: state.activityGroupBy === "wbs",
       },
+      project: chromeProject,
+      layout: chromeLayout,
+      sortColumns: state.columns.map((column) => ({ id: column.id, label: column.label })),
+      sortColumnId: state.activitySort?.columnId ?? null,
+      sortDirection: state.activitySort?.direction ?? "asc",
+      barHeight: visualPreferences.barHeight,
+      barTone: visualPreferences.barTone,
     },
     {
       onWindowOpen: activateWindow,
       onWindowClose: closeDesktopWindow,
       onCommand: runDesktopCommand,
+      onLayoutOptions: applyLayoutOptions,
     },
   );
+  const activeTitle = WINDOW_TITLES[state.activeMenu];
+  desktopStatus.innerHTML = renderStatusBar({
+    locale: state.locale,
+    project: chromeProject,
+    layout: chromeLayout,
+    activeWindowTitle: state.locale.split("-")[0] === "fa" ? activeTitle.fa : activeTitle.en,
+    openWindowCount: getOpenWindows().length,
+  });
 
   const requestLayoutRevisions = (layout: LayoutDefinition): Promise<LayoutDefinition[]> => {
     const history = getLayoutHistory(state.context, layout);
@@ -1178,6 +1292,26 @@ function renderApp(
       console.error("Authoritative schedule result projection failed", error);
     }
   });
+
+  // The bottom details pane is a real tabbed surface, not a placeholder. It
+  // reads the selected row and the same relationships the Gantt draws.
+  const detailsHost = workspace.querySelector<HTMLElement>("#cp-details");
+  if (detailsHost) {
+    enhanceActivityDetails(
+      detailsHost,
+      {
+        locale: state.locale,
+        activities: state.activities,
+        selectedActivityId: state.selectedActivityId,
+        relationships: state.relationships,
+        projectName: state.context.project_id,
+        dataDate: "—",
+        calendarMode: state.calendarMode,
+      },
+      (activityId) => renderApp(container, selectActivity(state, activityId), persistence),
+    );
+  }
+
   mountFormulaEditorPanel(
     workspace,
     aiTransport,
@@ -1619,6 +1753,17 @@ async function boot(): Promise<void> {
 
   if (window.location.pathname === "/" || window.location.pathname === "/index.html") {
     renderLandingPage(container);
+    return;
+  }
+
+  // The visual workspace demonstration is a self-contained, fixed-data surface
+  // reachable only through this explicit address (Help → Visual workspace demo).
+  // It never calls the project server and never writes project data.
+  if (new URLSearchParams(window.location.search).get("view") === "visual") {
+    const locale = getInitialLocale();
+    applyDocumentLocale(locale, locale.startsWith("fa") ? "محیط کار CUBI — نمایش بصری" : "CUBI Workspace — visual demo");
+    container.className = "cp-vd-root";
+    mountVisualDemo(container, createVisualDemoState(locale));
     return;
   }
 

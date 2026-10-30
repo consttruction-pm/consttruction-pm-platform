@@ -1,0 +1,2059 @@
+{
+  "windows": {
+    "projects": true,
+    "wbs": true,
+    "activities": true,
+    "assignments": true,
+    "resources": true,
+    "calendars": true,
+    "reports": true,
+    "tracking": true,
+    "documents": true,
+    "expenses": true,
+    "thresholds": true,
+    "issues": true,
+    "risks": true,
+    "administration": true,
+    "network": true,
+    "trace": true,
+    "timeline": true,
+    "activity-profile": true,
+    "resource-profile": true,
+    "activity-sheet": true,
+    "resource-sheet": true
+  },
+  "commands": [
+    {
+      "source": "toolbar",
+      "label": "New",
+      "dialog": "new-project",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Open",
+      "dialog": null,
+      "window": "projects"
+    },
+    {
+      "source": "toolbar",
+      "label": "Print",
+      "dialog": "print",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "WBS",
+      "dialog": null,
+      "window": "wbs"
+    },
+    {
+      "source": "toolbar",
+      "label": "Activity",
+      "dialog": "add-activity",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Schedule",
+      "dialog": "schedule",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Edit",
+      "dialog": "project-properties",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Undo",
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Redo",
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Columns",
+      "dialog": "columns",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Filter",
+      "dialog": "filters",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Group",
+      "dialog": "group-sort",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Timescale",
+      "dialog": "timescale",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Bars",
+      "dialog": "bars",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Resources",
+      "dialog": "assign-resources",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Predecessors",
+      "dialog": "assign-predecessors",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Network",
+      "dialog": null,
+      "window": "network"
+    },
+    {
+      "source": "toolbar",
+      "label": "Level",
+      "dialog": "level",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Trace",
+      "dialog": null,
+      "window": "trace"
+    },
+    {
+      "source": "toolbar",
+      "label": "Resources",
+      "dialog": null,
+      "window": "resources"
+    },
+    {
+      "source": "toolbar",
+      "label": "Calendars",
+      "dialog": null,
+      "window": "calendars"
+    },
+    {
+      "source": "toolbar",
+      "label": "Codes",
+      "dialog": "dictionaries",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Find",
+      "dialog": "find",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Replace",
+      "dialog": "find-replace",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Back",
+      "dialog": null,
+      "window": "calendars"
+    },
+    {
+      "source": "toolbar",
+      "label": "Forward",
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Print preview",
+      "dialog": "print",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Documents",
+      "dialog": null,
+      "window": "documents"
+    },
+    {
+      "source": "toolbar",
+      "label": "Reports",
+      "dialog": null,
+      "window": "reports"
+    },
+    {
+      "source": "toolbar",
+      "label": "Wizard",
+      "dialog": "report-wizard",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Layout",
+      "dialog": "layout-manager",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Font and row",
+      "dialog": "font-row",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Activities",
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Details",
+      "dialog": "customize-details",
+      "window": "activities"
+    },
+    {
+      "source": "toolbar",
+      "label": "Users",
+      "dialog": null,
+      "window": "administration"
+    },
+    {
+      "source": "toolbar",
+      "label": "Preferences",
+      "dialog": "admin-preferences",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "workspace",
+      "label": "New project…",
+      "action": {
+        "dialog": "new-project"
+      },
+      "dialog": "new-project",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "workspace",
+      "label": "Open project…",
+      "action": {
+        "window": "projects"
+      },
+      "dialog": null,
+      "window": "projects"
+    },
+    {
+      "source": "menu",
+      "menu": "workspace",
+      "label": "Project properties…",
+      "action": {
+        "dialog": "project-properties"
+      },
+      "dialog": "project-properties",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "workspace",
+      "label": "Import / Export▸Import…Export… › Import…",
+      "action": {
+        "dialog": "import"
+      },
+      "dialog": "import",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "workspace",
+      "label": "Import / Export▸Import…Export… › Export…",
+      "action": {
+        "dialog": "export"
+      },
+      "dialog": "export",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "workspace",
+      "label": "Print previewCtrl+P",
+      "action": {
+        "dialog": "print"
+      },
+      "dialog": "print",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "workspace",
+      "label": "Close windowCtrl+W",
+      "action": {
+        "command": "close-window"
+      },
+      "dialog": null,
+      "window": "projects"
+    },
+    {
+      "source": "menu",
+      "menu": "edit",
+      "label": "UndoCtrl+Z",
+      "action": {
+        "command": "undo"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "edit",
+      "label": "RedoCtrl+Y",
+      "action": {
+        "command": "redo"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "edit",
+      "label": "CutCtrl+X",
+      "action": {
+        "command": "noop"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "edit",
+      "label": "CopyCtrl+C",
+      "action": {
+        "command": "noop"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "edit",
+      "label": "PasteCtrl+V",
+      "action": {
+        "command": "noop"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "edit",
+      "label": "Find…Ctrl+F",
+      "action": {
+        "dialog": "find"
+      },
+      "dialog": "find",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "edit",
+      "label": "Find and Replace…",
+      "action": {
+        "dialog": "find-replace"
+      },
+      "dialog": "find-replace",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "edit",
+      "label": "Renumber Activity IDs…",
+      "action": {
+        "dialog": "renumber"
+      },
+      "dialog": "renumber",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Standard",
+      "action": {
+        "command": "toolbar:standard"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Project",
+      "action": {
+        "command": "toolbar:project"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Edit",
+      "action": {
+        "command": "toolbar:edit"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓View",
+      "action": {
+        "command": "toolbar:view"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Assign",
+      "action": {
+        "command": "toolbar:assign"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Tools",
+      "action": {
+        "command": "toolbar:tools"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Organization",
+      "action": {
+        "command": "toolbar:organization"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Dictionaries",
+      "action": {
+        "command": "toolbar:dictionaries"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Find",
+      "action": {
+        "command": "toolbar:find"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Move",
+      "action": {
+        "command": "toolbar:move"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Print",
+      "action": {
+        "command": "toolbar:print"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Publish",
+      "action": {
+        "command": "toolbar:publish"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Reports",
+      "action": {
+        "command": "toolbar:reports"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Layout",
+      "action": {
+        "command": "toolbar:layout"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Top Layout",
+      "action": {
+        "command": "toolbar:top-layout"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Bottom Layout",
+      "action": {
+        "command": "toolbar:bottom-layout"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Toolbars▸✓Standard✓Project✓Edit✓View✓Assign✓Tools✓Organization✓Dictionaries✓Find✓Move✓Print✓Publish✓Reports✓Layout✓Top Layout✓Bottom Layout✓Administrator › ✓Administrator",
+      "action": {
+        "command": "toolbar:administrator"
+      },
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Columns…",
+      "action": {
+        "dialog": "columns"
+      },
+      "dialog": "columns",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Activity Network",
+      "action": {
+        "window": "network"
+      },
+      "dialog": null,
+      "window": "network"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Trace Logic",
+      "action": {
+        "window": "trace"
+      },
+      "dialog": null,
+      "window": "trace"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Timeline",
+      "action": {
+        "window": "timeline"
+      },
+      "dialog": null,
+      "window": "timeline"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Activity Usage Profile",
+      "action": {
+        "window": "activity-profile"
+      },
+      "dialog": null,
+      "window": "activity-profile"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Resource Usage Profile",
+      "action": {
+        "window": "resource-profile"
+      },
+      "dialog": null,
+      "window": "resource-profile"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Activity Usage Spreadsheet",
+      "action": {
+        "window": "activity-sheet"
+      },
+      "dialog": null,
+      "window": "activity-sheet"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Resource Usage Spreadsheet",
+      "action": {
+        "window": "resource-sheet"
+      },
+      "dialog": null,
+      "window": "resource-sheet"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Resource Assignments",
+      "action": {
+        "window": "assignments"
+      },
+      "dialog": null,
+      "window": "assignments"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Tracking",
+      "action": {
+        "window": "tracking"
+      },
+      "dialog": null,
+      "window": "tracking"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Documents",
+      "action": {
+        "window": "documents"
+      },
+      "dialog": null,
+      "window": "documents"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Expenses",
+      "action": {
+        "window": "expenses"
+      },
+      "dialog": null,
+      "window": "expenses"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Thresholds",
+      "action": {
+        "window": "thresholds"
+      },
+      "dialog": null,
+      "window": "thresholds"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Issues",
+      "action": {
+        "window": "issues"
+      },
+      "dialog": null,
+      "window": "issues"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Risks",
+      "action": {
+        "window": "risks"
+      },
+      "dialog": null,
+      "window": "risks"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Calendars",
+      "action": {
+        "window": "calendars"
+      },
+      "dialog": null,
+      "window": "calendars"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layouts▸Activity NetworkTrace LogicTimelineActivity Usage ProfileResource Usage ProfileActivity Usage SpreadsheetResource Usage SpreadsheetResource AssignmentsTrackingDocumentsExpensesThresholdsIssuesRisksCalendarsReports › Reports",
+      "action": {
+        "window": "reports"
+      },
+      "dialog": null,
+      "window": "reports"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Filters…",
+      "action": {
+        "dialog": "filters"
+      },
+      "dialog": "filters",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Group and Sort…",
+      "action": {
+        "dialog": "group-sort"
+      },
+      "dialog": "group-sort",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Timescale…",
+      "action": {
+        "dialog": "timescale"
+      },
+      "dialog": "timescale",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Bars…",
+      "action": {
+        "dialog": "bars"
+      },
+      "dialog": "bars",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Bar Chart Options…",
+      "action": {
+        "dialog": "bar-options"
+      },
+      "dialog": "bar-options",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Table Font and Row…",
+      "action": {
+        "dialog": "font-row"
+      },
+      "dialog": "font-row",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Layout Manager…",
+      "action": {
+        "dialog": "layout-manager"
+      },
+      "dialog": "layout-manager",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "view",
+      "label": "Customize Activity Details…",
+      "action": {
+        "dialog": "customize-details"
+      },
+      "dialog": "customize-details",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "project",
+      "label": "Activities▸Add activityAssign resources…Assign roles…Assign predecessors…Assign successors… › Add activity",
+      "action": {
+        "dialog": "add-activity"
+      },
+      "dialog": "add-activity",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "project",
+      "label": "Activities▸Add activityAssign resources…Assign roles…Assign predecessors…Assign successors… › Assign resources…",
+      "action": {
+        "dialog": "assign-resources"
+      },
+      "dialog": "assign-resources",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "project",
+      "label": "Activities▸Add activityAssign resources…Assign roles…Assign predecessors…Assign successors… › Assign roles…",
+      "action": {
+        "dialog": "assign-roles"
+      },
+      "dialog": "assign-roles",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "project",
+      "label": "Activities▸Add activityAssign resources…Assign roles…Assign predecessors…Assign successors… › Assign predecessors…",
+      "action": {
+        "dialog": "assign-predecessors"
+      },
+      "dialog": "assign-predecessors",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "project",
+      "label": "Activities▸Add activityAssign resources…Assign roles…Assign predecessors…Assign successors… › Assign successors…",
+      "action": {
+        "dialog": "assign-successors"
+      },
+      "dialog": "assign-successors",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "project",
+      "label": "WBS…",
+      "action": {
+        "window": "wbs"
+      },
+      "dialog": null,
+      "window": "wbs"
+    },
+    {
+      "source": "menu",
+      "menu": "project",
+      "label": "Baselines…",
+      "action": {
+        "dialog": "baselines"
+      },
+      "dialog": "baselines",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "project",
+      "label": "Schedule…F9",
+      "action": {
+        "dialog": "schedule"
+      },
+      "dialog": "schedule",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "project",
+      "label": "Level resources…",
+      "action": {
+        "dialog": "level"
+      },
+      "dialog": "level",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "organization",
+      "label": "Resources",
+      "action": {
+        "window": "resources"
+      },
+      "dialog": null,
+      "window": "resources"
+    },
+    {
+      "source": "menu",
+      "menu": "organization",
+      "label": "Resource assignments",
+      "action": {
+        "window": "assignments"
+      },
+      "dialog": null,
+      "window": "assignments"
+    },
+    {
+      "source": "menu",
+      "menu": "organization",
+      "label": "Calendars",
+      "action": {
+        "window": "calendars"
+      },
+      "dialog": null,
+      "window": "calendars"
+    },
+    {
+      "source": "menu",
+      "menu": "organization",
+      "label": "Roles",
+      "action": {
+        "dialog": "roles"
+      },
+      "dialog": "roles",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "organization",
+      "label": "Dictionaries▸Activity codesUDFs › Activity codes",
+      "action": {
+        "dialog": "dictionaries"
+      },
+      "dialog": "dictionaries",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "organization",
+      "label": "Dictionaries▸Activity codesUDFs › UDFs",
+      "action": {
+        "dialog": "dictionaries"
+      },
+      "dialog": "dictionaries",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "tools",
+      "label": "ScheduleF9",
+      "action": {
+        "dialog": "schedule"
+      },
+      "dialog": "schedule",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "tools",
+      "label": "Level resources…",
+      "action": {
+        "dialog": "level"
+      },
+      "dialog": "level",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "tools",
+      "label": "Reports▸Report wizard…Report preview › Report wizard…",
+      "action": {
+        "dialog": "report-wizard"
+      },
+      "dialog": "report-wizard",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "tools",
+      "label": "Reports▸Report wizard…Report preview › Report preview",
+      "action": {
+        "window": "reports"
+      },
+      "dialog": null,
+      "window": "reports"
+    },
+    {
+      "source": "menu",
+      "menu": "tools",
+      "label": "Preferences…",
+      "action": {
+        "dialog": "preferences"
+      },
+      "dialog": "preferences",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "administration",
+      "label": "Users…",
+      "action": {
+        "window": "administration"
+      },
+      "dialog": null,
+      "window": "administration"
+    },
+    {
+      "source": "menu",
+      "menu": "administration",
+      "label": "Security profiles…",
+      "action": {
+        "dialog": "security-profiles"
+      },
+      "dialog": "security-profiles",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "administration",
+      "label": "Administration preferences…",
+      "action": {
+        "dialog": "admin-preferences"
+      },
+      "dialog": "admin-preferences",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "administration",
+      "label": "Dictionaries…",
+      "action": {
+        "dialog": "dictionaries"
+      },
+      "dialog": "dictionaries",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "help",
+      "label": "Keyboard shortcutsF1",
+      "action": {
+        "dialog": "shortcuts"
+      },
+      "dialog": "shortcuts",
+      "window": "activities"
+    },
+    {
+      "source": "menu",
+      "menu": "help",
+      "label": "Activity Network",
+      "action": {
+        "window": "network"
+      },
+      "dialog": null,
+      "window": "network"
+    },
+    {
+      "source": "menu",
+      "menu": "help",
+      "label": "Trace Logic",
+      "action": {
+        "window": "trace"
+      },
+      "dialog": null,
+      "window": "trace"
+    },
+    {
+      "source": "menu",
+      "menu": "help",
+      "label": "About CUBI Workspace",
+      "action": {
+        "dialog": "about"
+      },
+      "dialog": "about",
+      "window": "activities"
+    }
+  ],
+  "toolbar": [
+    {
+      "bar": 0,
+      "label": "New",
+      "dialog": "new-project",
+      "window": "activities"
+    },
+    {
+      "bar": 0,
+      "label": "Open",
+      "dialog": null,
+      "window": "projects"
+    },
+    {
+      "bar": 0,
+      "label": "Print",
+      "dialog": "print",
+      "window": "activities"
+    },
+    {
+      "bar": 1,
+      "label": "WBS",
+      "dialog": null,
+      "window": "wbs"
+    },
+    {
+      "bar": 1,
+      "label": "Activity",
+      "dialog": "add-activity",
+      "window": "activities"
+    },
+    {
+      "bar": 1,
+      "label": "Schedule",
+      "dialog": "schedule",
+      "window": "activities"
+    },
+    {
+      "bar": 2,
+      "label": "Edit",
+      "dialog": "project-properties",
+      "window": "activities"
+    },
+    {
+      "bar": 2,
+      "label": "Undo",
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "bar": 2,
+      "label": "Redo",
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "bar": 3,
+      "label": "Columns",
+      "dialog": "columns",
+      "window": "activities"
+    },
+    {
+      "bar": 3,
+      "label": "Filter",
+      "dialog": "filters",
+      "window": "activities"
+    },
+    {
+      "bar": 3,
+      "label": "Group",
+      "dialog": "group-sort",
+      "window": "activities"
+    },
+    {
+      "bar": 3,
+      "label": "Timescale",
+      "dialog": "timescale",
+      "window": "activities"
+    },
+    {
+      "bar": 3,
+      "label": "Bars",
+      "dialog": "bars",
+      "window": "activities"
+    },
+    {
+      "bar": 4,
+      "label": "Resources",
+      "dialog": "assign-resources",
+      "window": "activities"
+    },
+    {
+      "bar": 4,
+      "label": "Predecessors",
+      "dialog": "assign-predecessors",
+      "window": "activities"
+    },
+    {
+      "bar": 4,
+      "label": "Network",
+      "dialog": null,
+      "window": "network"
+    },
+    {
+      "bar": 5,
+      "label": "Level",
+      "dialog": "level",
+      "window": "activities"
+    },
+    {
+      "bar": 5,
+      "label": "Trace",
+      "dialog": null,
+      "window": "trace"
+    },
+    {
+      "bar": 6,
+      "label": "Resources",
+      "dialog": null,
+      "window": "resources"
+    },
+    {
+      "bar": 6,
+      "label": "Calendars",
+      "dialog": null,
+      "window": "calendars"
+    },
+    {
+      "bar": 7,
+      "label": "Codes",
+      "dialog": "dictionaries",
+      "window": "activities"
+    },
+    {
+      "bar": 8,
+      "label": "Find",
+      "dialog": "find",
+      "window": "activities"
+    },
+    {
+      "bar": 8,
+      "label": "Replace",
+      "dialog": "find-replace",
+      "window": "activities"
+    },
+    {
+      "bar": 9,
+      "label": "Back",
+      "dialog": null,
+      "window": "calendars"
+    },
+    {
+      "bar": 9,
+      "label": "Forward",
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "bar": 10,
+      "label": "Print preview",
+      "dialog": "print",
+      "window": "activities"
+    },
+    {
+      "bar": 11,
+      "label": "Documents",
+      "dialog": null,
+      "window": "documents"
+    },
+    {
+      "bar": 12,
+      "label": "Reports",
+      "dialog": null,
+      "window": "reports"
+    },
+    {
+      "bar": 12,
+      "label": "Wizard",
+      "dialog": "report-wizard",
+      "window": "activities"
+    },
+    {
+      "bar": 13,
+      "label": "Layout",
+      "dialog": "layout-manager",
+      "window": "activities"
+    },
+    {
+      "bar": 13,
+      "label": "Font and row",
+      "dialog": "font-row",
+      "window": "activities"
+    },
+    {
+      "bar": 14,
+      "label": "Activities",
+      "dialog": null,
+      "window": "activities"
+    },
+    {
+      "bar": 15,
+      "label": "Details",
+      "dialog": "customize-details",
+      "window": "activities"
+    },
+    {
+      "bar": 16,
+      "label": "Users",
+      "dialog": null,
+      "window": "administration"
+    },
+    {
+      "bar": 16,
+      "label": "Preferences",
+      "dialog": "admin-preferences",
+      "window": "activities"
+    }
+  ],
+  "windowButtons": [
+    {
+      "window": "projects",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "projects",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "projects",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "projects",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "projects",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "projects",
+      "requested": "new-project",
+      "opened": "new-project"
+    },
+    {
+      "window": "projects",
+      "requested": "baselines",
+      "opened": "baselines"
+    },
+    {
+      "window": "wbs",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "wbs",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "wbs",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "wbs",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "wbs",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "activities",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "activities",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "activities",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "activities",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "activities",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "activities",
+      "requested": "customize-details",
+      "opened": "customize-details"
+    },
+    {
+      "window": "assignments",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "assignments",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "assignments",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "assignments",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "assignments",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "assignments",
+      "requested": "assign-resources",
+      "opened": "assign-resources"
+    },
+    {
+      "window": "assignments",
+      "requested": "assign-roles",
+      "opened": "assign-roles"
+    },
+    {
+      "window": "resources",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "resources",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "resources",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "resources",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "resources",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "resources",
+      "requested": "assign-resources",
+      "opened": "assign-resources"
+    },
+    {
+      "window": "calendars",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "calendars",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "calendars",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "calendars",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "calendars",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "calendars",
+      "requested": "calendar",
+      "opened": "calendar"
+    },
+    {
+      "window": "reports",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "reports",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "reports",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "reports",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "reports",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "reports",
+      "requested": "report-wizard",
+      "opened": "report-wizard"
+    },
+    {
+      "window": "reports",
+      "requested": "print",
+      "opened": "print"
+    },
+    {
+      "window": "reports",
+      "requested": "print",
+      "opened": "print"
+    },
+    {
+      "window": "reports",
+      "requested": "print",
+      "opened": "print"
+    },
+    {
+      "window": "reports",
+      "requested": "print",
+      "opened": "print"
+    },
+    {
+      "window": "tracking",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "tracking",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "tracking",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "tracking",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "tracking",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "documents",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "documents",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "documents",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "documents",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "documents",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "documents",
+      "requested": "export",
+      "opened": "export"
+    },
+    {
+      "window": "expenses",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "expenses",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "expenses",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "expenses",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "expenses",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "thresholds",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "thresholds",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "thresholds",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "thresholds",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "thresholds",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "issues",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "issues",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "issues",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "issues",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "issues",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "risks",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "risks",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "risks",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "risks",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "risks",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "administration",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "administration",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "administration",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "administration",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "administration",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "network",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "network",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "network",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "network",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "network",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "network",
+      "requested": "network-options",
+      "opened": "network-options"
+    },
+    {
+      "window": "trace",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "trace",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "trace",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "trace",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "trace",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "timeline",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "timeline",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "timeline",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "timeline",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "timeline",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "timeline",
+      "requested": "timeline-options",
+      "opened": "timeline-options"
+    },
+    {
+      "window": "activity-profile",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "activity-profile",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "activity-profile",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "activity-profile",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "activity-profile",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "resource-profile",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "resource-profile",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "resource-profile",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "resource-profile",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "resource-profile",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "activity-sheet",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "activity-sheet",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "activity-sheet",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "activity-sheet",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "activity-sheet",
+      "requested": "bars",
+      "opened": "bars"
+    },
+    {
+      "window": "resource-sheet",
+      "requested": "columns",
+      "opened": "columns"
+    },
+    {
+      "window": "resource-sheet",
+      "requested": "filters",
+      "opened": "filters"
+    },
+    {
+      "window": "resource-sheet",
+      "requested": "group-sort",
+      "opened": "group-sort"
+    },
+    {
+      "window": "resource-sheet",
+      "requested": "timescale",
+      "opened": "timescale"
+    },
+    {
+      "window": "resource-sheet",
+      "requested": "bars",
+      "opened": "bars"
+    }
+  ],
+  "detailTabs": [
+    {
+      "id": "general",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "status",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "resources",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "predecessors",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "successors",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "codes",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "discussion",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "notebook",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "steps",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "feedback",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "documents",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "expenses",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "summary",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "relationships",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "risks",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "udfs",
+      "active": true,
+      "empty": false
+    },
+    {
+      "id": "history",
+      "active": true,
+      "empty": false
+    }
+  ],
+  "missingDialogs": [],
+  "errors": [],
+  "details": {
+    "collapsed": true,
+    "bodyHidden": true,
+    "toggleVisible": true,
+    "expandedAfter": true
+  },
+  "adminSections": [
+    {
+      "id": "users",
+      "active": true,
+      "body": true
+    },
+    {
+      "id": "security",
+      "active": true,
+      "body": true
+    },
+    {
+      "id": "preferences",
+      "active": true,
+      "body": true
+    },
+    {
+      "id": "currencies",
+      "active": true,
+      "body": true
+    },
+    {
+      "id": "codes",
+      "active": true,
+      "body": true
+    },
+    {
+      "id": "udfs",
+      "active": true,
+      "body": true
+    }
+  ],
+  "calendar": {
+    "startMonth": "December 2026",
+    "nextMonth": "January 2027",
+    "backMonth": "December 2026",
+    "cells": 40,
+    "dataDate": "3"
+  },
+  "history": {
+    "afterBack": "wbs",
+    "afterForward": "resources"
+  },
+  "totalDialogs": 36,
+  "reachedDialogs": 36,
+  "menuCount": 8,
+  "windowTabCount": 21,
+  "toolbarButtonCount": 36,
+  "failedWindows": [],
+  "failedDetailTabs": [],
+  "unopenedWindowButtons": []
+}

@@ -13,14 +13,14 @@ Scope guard: authenticated workspace and project-management surfaces only. Publi
 | Phase | Description | Status |
 | --- | --- | --- |
 | 1 | Oracle P6 Professional v26 documentation review | Completed 2026-10-30; evidence in `reference/oracle-p6-reference-index.md` |
-| 2 | Visual/workspace analysis | Structural review completed; pixel-level screenshot comparison still open |
+| 2 | Visual/workspace analysis | Completed 2026-10-30; screenshot comparison in `visual-qa-report.md` |
 | 3 | Blueprint documents | Completed in this unit (`docs/workspace/**`) |
-| 4 | Workspace shell implementation | In progress: Unit A (menubar, toolbar, window tabs, window persistence) merged |
+| 4 | Workspace shell implementation | Visual shell complete in preview (21 windows, 36 dialogs, 43 screenshots); technical wiring not started |
 | 5 | Project creation flow | Partial (name/description/start/date system only) |
-| 6 | Menu/window functionality | Not started |
-| 7 | Technical wiring | Existing APIs preserved; new wiring not started |
-| 8 | Responsive/multilingual | Existing fa/en + Jalali/Gregorian retained; shell responsive work pending |
-| 9 | Quality control | Existing suites retained; new E2E pending per unit |
+| 6 | Menu/window functionality | Visual destinations complete in demo mode; real commands pending visual approval |
+| 7 | Technical wiring | Existing APIs preserved; new wiring not started (by design) |
+| 8 | Responsive/multilingual | fa/en + RTL verified in the visual demo at 1366/1440/1920; real-data responsive work pending |
+| 9 | Quality control | 422 TS + 13 preview + 13 Python tests pass; full preview E2E (80 checks) green; exhaustive visual audit; merge pending |
 | 10 | GitHub delivery | This docs unit follows implement → test → commit → PR → CI → merge |
 
 ## Unit history
@@ -29,9 +29,12 @@ Scope guard: authenticated workspace and project-management surfaces only. Publi
 | --- | --- | --- | --- |
 | Preview brand-asset 404 (logo/favicon) | `fix/preview-brand-asset-fallback` / #1650 | `45411b7` | `pytest tests/test_preview_runtime.py` 13 passed; PR CI 7/7; main CI 8/8; live 200 for `/`, `/fa/`, logo, favicon |
 | Workspace blueprint | `docs/workspace-p6-blueprint` / #1651 | `8bdb4e2` | Docs only; PR CI 7/7; main CI 8/8 |
-| Unit A — desktop shell | `feat/workspace-desktop-shell` / pending | pending | `workspace-windows` (6) + `workspace-desktop-shell` (6) tests; `tsc --noEmit` clean; 420 + 13 tests pass; live preview verified tabs/commands/persistence |
+| Unit A — desktop shell | `feat/workspace-desktop-shell` / pending | pending | `workspace-windows` (6) + `workspace-desktop-shell` (6) tests; `tsc --noEmit` clean; 422 + 13 tests pass; live preview verified tabs/commands/persistence |
+| Visual shell (demo) | `feat/workspace-visual-shell` / pending | pending | 43 screenshots + `visual-audit.json`: 21/21 windows, 36/36 dialogs, 121 commands, 17/17 detail tabs, 0 errors; 422 TS + 13 preview + 13 Python tests pass; preview E2E 80/80; `tsc --noEmit` and build clean; styles byte-identical |
 
 ## Exact continuation point
+
+Visual shell status (2026-10-30): every menu, submenu, toolbar button, window, dialog, detail tab, timescale and layout option opens a real visual destination in the local preview; see `visual-qa-report.md` and `screenshots/visual/`. Formula, API and database wiring has deliberately **not** started and must wait for visual approval.
 
 After Unit A (desktop shell) merged:
 

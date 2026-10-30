@@ -1,4 +1,7 @@
 import type { WorkspaceMenuKey } from "./workspace-model.js";
+import { renderLayoutBar, renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } from "./workspace-chrome.js";
+import { defaultLayoutPatch, readLayoutPatch, renderLayoutDialogs, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
+import { workspaceIcon } from "./workspace-icons.js";
 
 /**
  * Desktop chrome for the professional workspace: the application menu bar, the
@@ -26,8 +29,13 @@ export type DesktopCommand =
   | "tools.reference"
   | "admin.language"
   | "admin.calendar"
+  | "dialog.group-sort"
+  | "dialog.timescale"
+  | "dialog.bars"
+  | "dialog.font-row"
   | "help.shortcuts"
-  | "help.about";
+  | "help.about"
+  | "help.visual-demo";
 
 export type DesktopShellCapabilities = {
   canUndoLayout: boolean;
@@ -65,6 +73,8 @@ export type DesktopMenuId =
   | "administration"
   | "help";
 
+export type DesktopToolbarGroupId = "standard" | "project" | "edit" | "view" | "tools";
+
 export type DesktopToolbarItem = {
   id: string;
   label: LocalizedLabel;
@@ -74,6 +84,8 @@ export type DesktopToolbarItem = {
   command?: DesktopCommand;
   disabledReason?: LocalizedLabel;
   active?: boolean;
+  icon?: string;
+  group?: DesktopToolbarGroupId;
 };
 
 export type DesktopShellState = {
@@ -81,12 +93,20 @@ export type DesktopShellState = {
   activeWindow: WorkspaceMenuKey;
   openWindows: readonly WorkspaceMenuKey[];
   capabilities: DesktopShellCapabilities;
+  project?: ChromeProjectContext;
+  layout?: ChromeLayoutState;
+  sortColumns?: readonly DesktopSortColumn[];
+  sortColumnId?: string | null;
+  sortDirection?: "asc" | "desc";
+  barHeight?: number;
+  barTone?: "crimson" | "vermilion" | "amber";
 };
 
 export type DesktopShellHandlers = {
   onWindowOpen: (window: WorkspaceMenuKey) => void;
   onWindowClose: (window: WorkspaceMenuKey) => void;
   onCommand: (command: DesktopCommand) => void;
+  onLayoutOptions?: (patch: DesktopLayoutPatch) => void;
 };
 
 export const WINDOW_TITLES: Record<WorkspaceMenuKey, LocalizedLabel> = {
@@ -197,10 +217,15 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         ...WINDOW_ORDER.map((key, index) => window(key, `Alt+${index + 1}`)),
         {
           id: "view.fields",
-          label: { en: "Activity fields…", fa: "فیلدهای فعالیت…" },
+          label: { en: "Columns…", fa: "ستون‌ها…" },
           command: "view.fields",
           disabledReason: caps.canOpenFieldChooser ? undefined : unavailable(REASONS.noFields, locale),
         },
+        { id: "view.filters", label: { en: "Filters…", fa: "فیلترها…" }, command: "edit.find", shortcut: "Ctrl+F" },
+        { id: "view.group-sort", label: { en: "Group and Sort…", fa: "گروه‌بندی و ترتیب…" }, command: "dialog.group-sort" },
+        { id: "view.timescale", label: { en: "Timescale…", fa: "مقیاس زمانی…" }, command: "dialog.timescale" },
+        { id: "view.bars", label: { en: "Bars…", fa: "میله‌ها…" }, command: "dialog.bars" },
+        { id: "view.font-row", label: { en: "Table Font and Row…", fa: "قلم و ردیف جدول…" }, command: "dialog.font-row" },
       ],
     },
     {
@@ -267,6 +292,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
       label: { en: "Help", fa: "راهنما" },
       items: [
         { id: "help.shortcuts", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1" },
+        { id: "help.visual-demo", label: { en: "Visual workspace demo", fa: "نمایش بصری محیط کار" }, command: "help.visual-demo" },
         { id: "help.about", label: { en: "About CUBI Workspace", fa: "دربارهٔ محیط کار CUBI" }, command: "help.about" },
       ],
     },
@@ -281,12 +307,16 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
       label: { en: "Settings", fa: "تنظیمات" },
       title: { en: "Project settings", fa: "تنظیمات پروژه" },
       command: "project.settings",
+      icon: "settings",
+      group: "standard",
     },
     {
       id: "toolbar.add-wbs",
       label: { en: "WBS", fa: "WBS" },
       title: { en: "Add WBS element", fa: "افزودن عنصر WBS" },
       command: "project.add-wbs",
+      icon: "tree",
+      group: "project",
     },
     {
       id: "toolbar.add-activity",
@@ -294,6 +324,8 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
       title: { en: "Add activity", fa: "افزودن فعالیت" },
       command: "project.add-activity",
       disabledReason: caps.hasWbs ? undefined : unavailable(REASONS.noWbs, locale),
+      icon: "activity",
+      group: "project",
     },
     {
       id: "toolbar.edit-activity",
@@ -301,20 +333,8 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
       title: { en: "Edit selected activity", fa: "ویرایش فعالیت انتخاب‌شده" },
       command: "project.edit-activity",
       disabledReason: caps.hasSelectedActivity ? undefined : unavailable(REASONS.noSelection, locale),
-    },
-    {
-      id: "toolbar.find",
-      label: { en: "Find", fa: "یافتن" },
-      title: { en: "Find activities", fa: "یافتن فعالیت‌ها" },
-      command: "edit.find",
-      shortcut: "Ctrl+F",
-    },
-    {
-      id: "toolbar.group-wbs",
-      label: { en: "Group WBS", fa: "گروه WBS" },
-      title: { en: "Group activities by WBS", fa: "گروه‌بندی فعالیت‌ها بر اساس WBS" },
-      command: "edit.group-wbs",
-      active: caps.groupByWbs,
+      icon: "edit",
+      group: "edit",
     },
     {
       id: "toolbar.undo",
@@ -322,6 +342,8 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
       title: { en: "Undo layout change", fa: "بازگردانی تغییر چیدمان" },
       command: "edit.undo",
       disabledReason: caps.canUndoLayout ? undefined : unavailable(REASONS.undo, locale),
+      icon: "undo",
+      group: "edit",
     },
     {
       id: "toolbar.redo",
@@ -329,21 +351,88 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
       title: { en: "Redo layout change", fa: "اعمال دوبارهٔ تغییر چیدمان" },
       command: "edit.redo",
       disabledReason: caps.canRedoLayout ? undefined : unavailable(REASONS.redo, locale),
+      icon: "redo",
+      group: "edit",
+    },
+    {
+      id: "toolbar.find",
+      label: { en: "Find", fa: "یافتن" },
+      title: { en: "Find activities", fa: "یافتن فعالیت‌ها" },
+      command: "edit.find",
+      shortcut: "Ctrl+F",
+      icon: "find",
+      group: "view",
     },
     {
       id: "toolbar.fields",
-      label: { en: "Fields", fa: "فیلدها" },
+      label: { en: "Columns", fa: "ستون‌ها" },
       title: { en: "Activity field layout", fa: "چیدمان فیلدهای فعالیت" },
       command: "view.fields",
       disabledReason: caps.canOpenFieldChooser ? undefined : unavailable(REASONS.noFields, locale),
+      icon: "columns",
+      group: "view",
+    },
+    {
+      id: "toolbar.group-wbs",
+      label: { en: "Group WBS", fa: "گروه WBS" },
+      title: { en: "Group activities by WBS", fa: "گروه‌بندی فعالیت‌ها بر اساس WBS" },
+      command: "edit.group-wbs",
+      active: caps.groupByWbs,
+      icon: "group",
+      group: "view",
+    },
+    {
+      id: "toolbar.group-sort",
+      label: { en: "Group & Sort", fa: "گروه و ترتیب" },
+      title: { en: "Group and sort dialog", fa: "دیالوگ گروه‌بندی و ترتیب" },
+      command: "dialog.group-sort",
+      icon: "sort",
+      group: "view",
+    },
+    {
+      id: "toolbar.timescale",
+      label: { en: "Timescale", fa: "مقیاس زمانی" },
+      title: { en: "Timescale dialog", fa: "دیالوگ مقیاس زمانی" },
+      command: "dialog.timescale",
+      icon: "clock",
+      group: "view",
+    },
+    {
+      id: "toolbar.bars",
+      label: { en: "Bars", fa: "میله‌ها" },
+      title: { en: "Bar chart dialog", fa: "دیالوگ نمودار میله‌ای" },
+      command: "dialog.bars",
+      icon: "bars",
+      group: "view",
     },
     {
       id: "toolbar.schedule",
       label: { en: "Schedule", fa: "زمان‌بندی" },
-      title: { en: "Open the activities workspace", fa: "بازکردن محیط فعالیت‌ها" },
+      title: { en: "Open the schedule controls", fa: "بازکردن کنترل‌های زمان‌بندی" },
       command: "tools.run-schedule",
+      icon: "calendar",
+      group: "tools",
     },
   ];
+}
+
+export function getDesktopToolbarGroups(state: DesktopShellState): Array<{
+  id: DesktopToolbarGroupId;
+  label: LocalizedLabel;
+  items: DesktopToolbarItem[];
+}> {
+  const groups: Array<{ id: DesktopToolbarGroupId; label: LocalizedLabel; items: DesktopToolbarItem[] }> = [
+    { id: "standard", label: { en: "Standard", fa: "استاندارد" }, items: [] },
+    { id: "project", label: { en: "Project", fa: "پروژه" }, items: [] },
+    { id: "edit", label: { en: "Edit", fa: "ویرایش" }, items: [] },
+    { id: "view", label: { en: "View", fa: "نما" }, items: [] },
+    { id: "tools", label: { en: "Tools", fa: "ابزارها" }, items: [] },
+  ];
+  for (const item of getDesktopToolbar(state)) {
+    const group = groups.find((candidate) => candidate.id === (item.group ?? "standard"));
+    group?.items.push(item);
+  }
+  return groups.filter((group) => group.items.length > 0);
 }
 
 function escapeHtml(value: string): string {
@@ -384,17 +473,20 @@ function renderMenus(state: DesktopShellState): string {
 
 function renderToolbar(state: DesktopShellState): string {
   const locale = state.locale;
+  const groups = getDesktopToolbarGroups(state);
   return `<div class="cp-toolbar" role="toolbar" aria-label="${escapeHtml(locale.startsWith("fa") ? "نوار ابزار اصلی" : "Main toolbar")}">
-    ${getDesktopToolbar(state).map((item) => {
-      const disabled = Boolean(item.disabledReason);
-      const title = item.disabledReason ? pick(item.disabledReason, locale) : pick(item.title, locale);
-      const target = item.window
-        ? ` data-desktop-window="${escapeHtml(item.window)}"`
-        : item.command
-          ? ` data-desktop-command="${escapeHtml(item.command)}"`
-          : "";
-      return `<button type="button" class="cp-toolbar-button" data-toolbar-command="${escapeHtml(item.id)}"${target} title="${escapeHtml(title)}"${item.active ? ' aria-pressed="true"' : ""}${disabled ? ' disabled aria-disabled="true"' : ""}>${escapeHtml(pick(item.label, locale))}</button>`;
-    }).join("")}
+    ${groups.map((group) => `<div class="cp-toolbar-group" role="group" aria-label="${escapeHtml(pick(group.label, locale))}" title="${escapeHtml(pick(group.label, locale))}">
+      ${group.items.map((item) => {
+        const disabled = Boolean(item.disabledReason);
+        const title = item.disabledReason ? pick(item.disabledReason, locale) : pick(item.title, locale);
+        const target = item.window
+          ? ` data-desktop-window="${escapeHtml(item.window)}"`
+          : item.command
+            ? ` data-desktop-command="${escapeHtml(item.command)}"`
+            : "";
+        return `<button type="button" class="cp-toolbar-button" data-toolbar-command="${escapeHtml(item.id)}"${target} title="${escapeHtml(title)}"${item.active ? ' aria-pressed="true"' : ""}${disabled ? ' disabled aria-disabled="true"' : ""}>${workspaceIcon(item.icon ?? "activity")}<span class="cp-toolbar-label">${escapeHtml(pick(item.label, locale))}</span></button>`;
+      }).join("")}
+    </div>`).join("")}
   </div>`;
 }
 
@@ -444,11 +536,30 @@ export function renderDesktopShell(
   handlers: DesktopShellHandlers,
 ): void {
   runtimeByHost.set(host, { state, handlers });
+  const layout = state.layout ?? { groupBy: state.capabilities.groupByWbs ? "wbs" : "none", ganttScale: "day", showRelationships: true, density: "compact" };
+  const chrome = {
+    locale: state.locale,
+    project: state.project,
+    layout,
+    activeWindowTitle: pick(WINDOW_TITLES[state.activeWindow], state.locale),
+    openWindowCount: state.openWindows.length,
+  };
   host.innerHTML = `<section class="cp-desktop" data-desktop-shell>
+    ${renderTitleBar(chrome)}
     ${renderMenus(state)}
     ${renderToolbar(state)}
+    ${renderLayoutBar(chrome)}
     ${renderTabs(state)}
   </section>
+  ${renderLayoutDialogs({
+    locale: state.locale,
+    layout,
+    sortColumns: [...(state.sortColumns ?? [])],
+    sortColumnId: state.sortColumnId ?? null,
+    sortDirection: state.sortDirection ?? "asc",
+    barHeight: state.barHeight ?? 16,
+    barTone: state.barTone ?? "crimson",
+  })}
   ${renderShortcutsDialog(state)}
   ${renderAboutDialog(state)}`;
   bindHost(host);
@@ -496,12 +607,24 @@ function openMenu(host: HTMLElement, menuId: string, focusFirst = false): void {
   }
 }
 
-function openDialog(host: HTMLElement, name: "shortcuts" | "about"): void {
+type DesktopDialogName = "shortcuts" | "about" | "group-sort" | "timescale" | "bars" | "font-row";
+
+function openDialog(host: HTMLElement, name: DesktopDialogName): void {
   const dialog = host.querySelector<HTMLDialogElement>(`[data-desktop-dialog="${name}"]`);
   if (!dialog) return;
   closeMenus(host);
   if (typeof dialog.showModal === "function") dialog.showModal();
   else dialog.setAttribute("open", "");
+}
+
+function dialogNameForCommand(command: string): DesktopDialogName | null {
+  switch (command) {
+    case "dialog.group-sort": return "group-sort";
+    case "dialog.timescale": return "timescale";
+    case "dialog.bars": return "bars";
+    case "dialog.font-row": return "font-row";
+    default: return null;
+  }
 }
 
 function commandForTarget(target: HTMLElement): { command?: string; window?: string } {
@@ -518,6 +641,24 @@ function bindHost(host: HTMLElement): void {
     if (!target || typeof target.closest !== "function") return;
     const runtime = runtimeByHost.get(host);
     if (!runtime) return;
+
+    const cancel = target.closest<HTMLElement>("[data-dialog-cancel]");
+    if (cancel) {
+      cancel.closest<HTMLDialogElement>("dialog")?.close();
+      return;
+    }
+    const reset = target.closest<HTMLElement>("[data-dialog-default]");
+    if (reset) {
+      reset.closest<HTMLDialogElement>("dialog")?.close();
+      runtime.handlers.onLayoutOptions?.(defaultLayoutPatch());
+      return;
+    }
+    const help = target.closest<HTMLElement>("[data-dialog-help]");
+    if (help) {
+      help.closest<HTMLDialogElement>("dialog")?.close();
+      openDialog(host, "shortcuts");
+      return;
+    }
 
     const closeWindow = target.closest<HTMLElement>("[data-window-close]");
     if (closeWindow?.dataset.windowClose) {
@@ -550,11 +691,22 @@ function bindHost(host: HTMLElement): void {
       closeMenus(host);
       if (command === "help.shortcuts") { openDialog(host, "shortcuts"); return; }
       if (command === "help.about") { openDialog(host, "about"); return; }
+      const dialogName = command ? dialogNameForCommand(command) : null;
+      if (dialogName) { openDialog(host, dialogName); return; }
       if (windowKey) { runtime.handlers.onWindowOpen(windowKey as WorkspaceMenuKey); return; }
       if (command) runtime.handlers.onCommand(command as DesktopCommand);
       return;
     }
     if (host.contains(target)) closeMenus(host);
+  });
+
+  host.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.matches("[data-dialog-form]")) return;
+    event.preventDefault();
+    const runtime = runtimeByHost.get(host);
+    runtime?.handlers.onLayoutOptions?.(readLayoutPatch(form));
+    form.closest<HTMLDialogElement>("dialog")?.close();
   });
 
   host.addEventListener("keydown", (event) => {
