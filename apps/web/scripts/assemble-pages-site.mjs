@@ -195,6 +195,9 @@ assert(!finalApp.includes('rel="canonical"'), "workspace must not carry marketin
 assert(!finalApp.includes("application/ld+json"), "workspace must not carry marketing structured data");
 assert(finalApp.includes("../dist/web/src/visual-preview-entry.js"), "Pages /app must mount the visual-only workspace entry");
 assert(!finalApp.includes("landing-entry.js"), "Pages /app must not mount a second/legacy workspace shell");
+const visualPreviewEntry = join(output, "dist/web/src/visual-preview-entry.js");
+assert(existsSync(visualPreviewEntry), "compiled visual workspace entry missing from Pages artifact");
+assert(readFileSync(visualPreviewEntry, "utf8").includes("mountVisualDemo"), "Pages visual entry must mount the complete visual workspace");
 assert(!readFileSync(join(output, "robots.txt"), "utf8").includes("/app"), "robots must not list workspace");
 assert(!readFileSync(join(output, "sitemap.xml"), "utf8").includes("/app"), "sitemap must not list workspace");
 assert(!listHtml(output).some((file) => readFileSync(file, "utf8").includes("__CUBI_BASE_URL__")), "unresolved base URL placeholder");
