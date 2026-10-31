@@ -3948,7 +3948,9 @@ async function main() {
     await page.click('button[name="role"][value="viewer"]');
     await page.waitForSelector(".cp-project-selection", "viewer project selection");
     await page.click(`button[data-project-id="${PROJECT_ID}"]`);
-    await page.waitForSelector(".cp-workspace", "viewer workspace");
+    await page.waitForSelector("[data-visual-demo] .cp-vd-activities", "viewer visual workspace");
+    await page.click("[data-vd-exit]");
+    await page.waitForSelector(".cp-workspace", "viewer classic workspace");
     await page.waitFor(
       `document.querySelector("#cubi-preview-banner")?.textContent.includes("preview-viewer")`,
       "viewer banner identity",
@@ -5888,9 +5890,9 @@ async function main() {
         "persisted project in the list after restart",
       );
       await page.click(`button[data-project-id="${wbsJourney.project_id}"]`);
-      await page.waitForSelector(
       await page.waitForSelector("[data-visual-demo] .cp-vd-activities", "visual workspace after runtime restart");
       await page.click("[data-vd-exit]");
+      await page.waitForSelector(
         '.cp-wbs-node[data-wbs-id="E2E-WBS-DESIGN"]',
         "persisted WBS child after restart",
       );
