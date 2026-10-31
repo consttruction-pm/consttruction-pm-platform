@@ -1777,35 +1777,58 @@ async function main() {
         `location.pathname === "/app" && new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)}`,
         "login returns to the requested project deep link",
       );
-      await deepLinkPage.waitForSelector("#cp-activity-grid", "deep-linked project activity grid");
+      await deepLinkPage.waitForSelector("[data-visual-demo]", "canonical visual workspace preview");
       const deepLinkWorkspace = await deepLinkPage.evaluate(`(async () => {
         const sessionResponse = await fetch("/api/session");
         const projectsResponse = await fetch("/api/projects");
         const projects = await projectsResponse.json();
         const project = (projects.projects || []).find((item) => item.project_id === ${JSON.stringify(PROJECT_ID)});
-        const table = document.querySelector("#cp-activity-grid");
+        const demo = document.querySelector("[data-visual-demo]");
         return {
           pathname: location.pathname,
           requested_project: new URLSearchParams(location.search).get("project"),
           project_found_in_session_list: Boolean(project),
           project_name: project?.name ?? null,
-          grid_visible: Boolean(table),
-          rendered_rows: table?.querySelectorAll("tbody tr").length ?? 0,
+          visual_demo_visible: Boolean(demo),
+          sample_data_label: document.querySelector(".cp-vd-demo-badge")?.textContent?.trim() ?? null,
+          live_grid_hidden: !document.querySelector("#cp-activity-grid"),
           session_authenticated: sessionResponse.status === 200,
         };
       })()`, { awaitPromise: true });
       assert(
         deepLinkWorkspace.requested_project === PROJECT_ID &&
           deepLinkWorkspace.project_found_in_session_list &&
-          deepLinkWorkspace.grid_visible &&
-          deepLinkWorkspace.session_authenticated &&
-          deepLinkWorkspace.rendered_rows > 0,
-        "browser must open the requested authorized project after login: " +
+          deepLinkWorkspace.visual_demo_visible &&
+          deepLinkWorkspace.sample_data_label &&
+          deepLinkWorkspace.live_grid_hidden &&
+          deepLinkWorkspace.session_authenticated,
+        "the canonical preview link must open the visual shell while clearly labelling its sample data: " +
           JSON.stringify(deepLinkWorkspace),
       );
-      record("first-visit project deep link survives login and opens the requested workspace", {
+      record("first-visit project deep link opens the visual workspace preview after login", {
         ...deepLinkWorkspace,
       });
+
+      await deepLinkPage.click(".cp-vd-exit");
+      await deepLinkPage.waitFor(
+        `location.pathname === "/app" && new URLSearchParams(location.search).get("view") === "live"`,
+        "visual preview returns to the live project route",
+      );
+      await deepLinkPage.waitForSelector(".cp-workspace", "live project-backed workspace");
+      await deepLinkPage.waitForSelector("#cp-activity-grid", "live project activity grid");
+      const liveWorkspace = await deepLinkPage.evaluate(`() => ({
+        project: new URLSearchParams(location.search).get("project"),
+        view: new URLSearchParams(location.search).get("view"),
+        rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+      })()`);
+      assert(
+        liveWorkspace.project === PROJECT_ID &&
+          liveWorkspace.view === "live" &&
+          liveWorkspace.rows > 0,
+        "the visual-preview exit must open the authorized data-backed workspace: " +
+          JSON.stringify(liveWorkspace),
+      );
+      record("visual preview exit returns to the real project-backed workspace", liveWorkspace);
       await deepLinkPage.click('#cubi-preview-banner form[action="/preview/logout"] button');
       await deepLinkPage.waitFor(
         `location.pathname === "/preview/login"`,
@@ -4425,7 +4448,7 @@ async function main() {
     });
 
     await page.navigate(
-      `${baseUrl}/app?project=${encodeURIComponent(wbsJourney.project_id)}`,
+      `${baseUrl}/app?project=${encodeURIComponent(wbsJourney.project_id)}&view=live`,
       ".cp-workspace",
       "reload created project after WBS/activity writes",
     );
