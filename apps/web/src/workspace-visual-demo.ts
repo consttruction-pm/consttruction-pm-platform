@@ -197,8 +197,14 @@ function esc(value: unknown): string {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+function isIsoDate(value: string): boolean {
+  if (value.length !== 10) return false;
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
 function fmtDate(iso: string): string {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(iso)) return "—";
+  if (!isIsoDate(iso)) return "—";
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y.slice(2)}`;
 }
@@ -209,6 +215,13 @@ function day(value: string): number {
 
 const PROJECT_START = "2026-11-02";
 const PROJECT_FINISH = "2027-05-28";
+const PROJECT_DAYS = day(PROJECT_FINISH) + 1 - day(PROJECT_START);
+
+function demoBarPosition(start: string, finish: string): { left: string; width: string } {
+  const left = (day(start) - day(PROJECT_START)) / PROJECT_DAYS * 100;
+  const width = Math.max(0.4, (day(finish) - day(start) + 1) / PROJECT_DAYS * 100);
+  return { left: `${Math.max(0, left)}%`, width: `${Math.min(100, width)}%` };
+}
 
 function activitiesFor(state: DemoState): DemoActivity[] {
   return state.project?.activities ?? ACTIVITIES;
@@ -522,7 +535,7 @@ function renderDetails(state: DemoState): string {
     steps: `<table class="cp-vd-mini"><thead><tr><th>#</th><th>${esc(t(state.locale, "Step", "گام"))}</th><th>${esc(t(state.locale, "Weight", "وزن"))}</th><th>${esc(t(state.locale, "% complete", "درصد"))}</th></tr></thead><tbody><tr><td>1</td><td>${esc(t(state.locale, "Prepare", "آماده‌سازی"))}</td><td>40</td><td>100</td></tr><tr><td>2</td><td>${esc(t(state.locale, "Install", "نصب"))}</td><td>60</td><td>25</td></tr></tbody></table>`,
     feedback: `<div class="cp-vd-note">${esc(t(state.locale, "Sample field feedback.", "بازخورد نمونهٔ کارگاه."))}</div>`,
     documents: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Document", "سند"))}</th><th>${esc(t(state.locale, "Revision", "ویرایش"))}</th></tr></thead><tbody><tr><td>ITP-Pump-01.pdf</td><td>B</td></tr></tbody></table>`,
-    expenses: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Expense", "هزینه"))}</th><th>${esc(t(state.locale, "Budget", "بودجه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${row.budgetCost.toLocaleString("en-US")}</td></tr></tbody></table>`,
+    expenses: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Expense", "هزینه"))}</th><th>${esc(t(state.locale, "Budget", "بودجه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${numericDisplay(row.budgetCost)}</td></tr></tbody></table>`,
     summary: fields([["Early start", "شروع زود", fmtDate(row.es)], ["Early finish", "پایان زود", fmtDate(row.ef)], ["Late start", "شروع دیر", fmtDate(row.ls)], ["Late finish", "پایان دیر", fmtDate(row.lf)], ["Free float", "شناوری آزاد", numericDisplay(row.ff, " d")], ["Critical", "بحرانی", row.critical ? "Yes" : "No"]]),
     relationships: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Predecessor", "پیش‌نیاز"))}</th><th>${esc(t(state.locale, "Successor", "جانشین"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th></tr></thead><tbody><tr><td>${esc(row.pred)}</td><td>${esc(row.succ)}</td><td>FS</td></tr></tbody></table>`,
     risks: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Risk", "ریسک"))}</th><th>${esc(t(state.locale, "Rating", "درجه"))}</th></tr></thead><tbody><tr><td>${esc(t(state.locale, "Weather delay", "تأخیر جوی"))}</td><td>Medium</td></tr></tbody></table>`,
@@ -720,7 +733,7 @@ function renderWindow(state: DemoState): string {
       return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Reports", "گزارش‌ها"))}</h2><div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="report-wizard">${esc(t(state.locale, "Report wizard", "جادوگر گزارش"))}</button></div></header>
         <div class="cp-vd-report-list">${["Schedule report", "Cost report", "Resource report", "Critical path report"].map((name) => `<div class="cp-vd-report"><span>${esc(name)}</span><button type="button" class="cp-vd-btn" data-vd-dialog="print">${esc(t(state.locale, "Preview", "پیش‌نمایش"))}</button></div>`).join("")}</div></section>`;
     case "tracking":
-      return renderTableWindow(state, { en: "Tracking", fa: "پیگیری" }, ["Activity ID", "Activity name", "Status", "% complete", "Actual start", "Actual finish", "Remaining duration"], ACTIVITIES.slice(0, 10).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Status: row.status, "% complete": `${row.pct}%`, "Actual start": row.pct ? fmtDate(row.start) : "—", "Actual finish": row.pct >= 100 ? fmtDate(row.finish) : "—", "Remaining duration": `${row.rd} d` })));
+      return renderTableWindow(state, { en: "Tracking", fa: "پیگیری" }, ["Activity ID", "Activity name", "Status", "% complete", "Actual start", "Actual finish", "Remaining duration"], ACTIVITIES.slice(0, 10).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Status: row.status, "% complete": `${row.pct}%`, "Actual start": row.pct ? fmtDate(row.start) : "—", "Actual finish": (row.pct ?? -1) >= 100 ? fmtDate(row.finish) : "—", "Remaining duration": numericDisplay(row.rd, " d") })));
     case "documents":
       return renderTableWindow(state, { en: "Documents", fa: "اسناد" }, ["Document", "Title", "Revision", "Status", "Owner"], [
         { Document: "ITP-Pump-01", Title: "Inspection and test plan", Revision: "B", Status: "Approved", Owner: "QA/QC" },
@@ -728,7 +741,7 @@ function renderWindow(state: DemoState): string {
         { Document: "PO-2026-118", Title: "Pump package purchase order", Revision: "A", Status: "Issued", Owner: "Procurement" },
       ], ["export"]);
     case "expenses":
-      return renderTableWindow(state, { en: "Expenses", fa: "هزینه‌ها" }, ["Expense", "Activity ID", "Budgeted cost", "Actual cost", "Remaining cost"], ACTIVITIES.filter((row) => row.budgetCost > 0).slice(0, 10).map((row) => ({ Expense: row.res, "Activity ID": row.id, "Budgeted cost": row.budgetCost.toLocaleString("en-US"), "Actual cost": row.actualCost.toLocaleString("en-US"), "Remaining cost": row.remainingCost.toLocaleString("en-US") })));
+      return renderTableWindow(state, { en: "Expenses", fa: "هزینه‌ها" }, ["Expense", "Activity ID", "Budgeted cost", "Actual cost", "Remaining cost"], ACTIVITIES.filter((row) => (row.budgetCost ?? 0) > 0).slice(0, 10).map((row) => ({ Expense: row.res, "Activity ID": row.id, "Budgeted cost": numericDisplay(row.budgetCost), "Actual cost": numericDisplay(row.actualCost), "Remaining cost": numericDisplay(row.remainingCost) })));
     case "thresholds":
       return renderTableWindow(state, { en: "Thresholds", fa: "آستانه‌ها" }, ["Threshold", "Type", "Warning", "Critical", "Status"], [
         { Threshold: "Total float", Type: "Activity", Warning: "< 5 d", Critical: "< 0 d", Status: "2 activities" },
@@ -816,11 +829,11 @@ function renderTimeline(state: DemoState): string {
     { id: "A1500", en: "Handover", fa: "تحویل نهایی", date: "2027-05-28", critical: false, low: false, end: true },
   ];
   const laneRows = lanes.map((lane, index) => {
-    const position = barPosition(lane.start, lane.finish);
+    const position = demoBarPosition(lane.start, lane.finish);
     return `<div class="cp-vd-timeline-lane${index % 2 ? " is-alt" : ""}"><span class="cp-vd-timeline-name">${esc(t(state.locale, lane.en, lane.fa))}</span><div class="cp-vd-timeline-track"><span class="cp-vd-timeline-bar" style="inset-inline-start:${position.left};width:${position.width}">${esc(t(state.locale, lane.en, lane.fa))}</span></div></div>`;
   }).join("");
   const marks = milestones.map((mark) => {
-    const position = barPosition(mark.date, mark.date);
+    const position = demoBarPosition(mark.date, mark.date);
     return `<span class="cp-vd-timeline-mark${mark.low ? " is-low" : ""}${mark.critical ? " is-critical" : ""}${mark.end ? " is-end" : ""}" style="inset-inline-start:${Math.min(99.4, Math.max(0.6, parseFloat(position.left)))}%" title="${esc(mark.id)} · ${fmtDate(mark.date)}"><i></i><b>${esc(t(state.locale, mark.en, mark.fa))}</b><em><bdi dir="ltr">${esc(fmtDate(mark.date))}</bdi></em></span>`;
   }).join("");
   const dataDate = (day("2026-12-03") - day(PROJECT_START)) / PROJECT_DAYS;
@@ -1328,15 +1341,6 @@ function liveProjectData(workspace: WorkspaceState): LiveProjectData {
       baseline: "—",
     };
   });
-  const childIds = new Map<string, string[]>();
-  for (const node of workspace.wbsNodes) {
-    if (node.parentWbsId) {
-      const children = childIds.get(node.parentWbsId) ?? [];
-      children.push(node.id);
-      childIds.set(node.parentWbsId, children);
-    }
-  }
-  const activityCounts = new Map<string, number>();
   for (const activity of workspace.activities) {
     let current: string | null = activity.wbsId;
     while (current) {
@@ -1362,7 +1366,7 @@ function liveProjectData(workspace: WorkspaceState): LiveProjectData {
     total: activityCounts.get(node.id) ?? 0,
   }));
   const dates = activities.flatMap((activity) => [activity.start, activity.finish])
-    .filter((value) => /^\\d{4}-\\d{2}-\\d{2}$/.test(value))
+    .filter(isIsoDate)
     .sort();
   const root = workspace.wbsNodes.find((node) => node.parentKind === "project");
   return {
