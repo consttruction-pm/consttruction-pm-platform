@@ -1535,7 +1535,10 @@ function bind(root: HTMLElement): void {
     notice.textContent = t(state.locale, "This command is not connected to the live project yet. No project data was changed.", "این فرمان هنوز به پروژهٔ واقعی متصل نیست؛ هیچ داده‌ای تغییر نکرد.");
     root.querySelector(".cp-vd")?.append(notice);
   };
+  const openDialog = (name: string): void => {
     closeMenus();
+    const liveSafeDialogs = new Set(["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "shortcuts", "about"]);
+    if (state.project && !liveSafeDialogs.has(name)) { showLiveNotice(); return; }
     // Buttons and the dialog element share the same name marker, so the
     // lookup must target the <dialog> itself rather than the opening button.
     const dialog = root.querySelector<HTMLDialogElement>(`dialog.cp-vd-dialog[data-vd-dialog="${name}"]`);
@@ -1549,9 +1552,9 @@ function bind(root: HTMLElement): void {
     else dialog.removeAttribute("open");
   };
   const run = (action: MenuAction | undefined): void => {
+    if (!action || action.reason) return;
     if (state.project && action.command && !["back", "forward", "close-window", "undo", "redo", "noop"].includes(action.command) && !action.command.startsWith("toolbar:")) { showLiveNotice(); return; }
     if (state.project && action.window && !["projects", "wbs", "activities"].includes(action.window)) { showLiveNotice(); return; }
-    if (!action || action.reason) return;
     if (action.window) { navigate(action.window); return; }
     if (action.dialog) { openDialog(action.dialog); return; }
     switch (action.command) {
