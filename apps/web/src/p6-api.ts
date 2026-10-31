@@ -145,9 +145,13 @@ export async function loadP6Presentation(
   transport: ApiTransport,
   context: ProjectContext,
 ): Promise<import("./workspace-model.js").WorkspaceState> {
-  const registry = await createP6FieldRegistryProvider(transport, context).getRegistry();
   const persistence = createP6LayoutPersistence(transport, context);
-  const layout = await persistence.load("project", "activity");
+  // The registry and saved layout are independent, read-only project-scoped
+  // requests. Resolve them together to avoid an unnecessary network round trip.
+  const [registry, layout] = await Promise.all([
+    createP6FieldRegistryProvider(transport, context).getRegistry(),
+    persistence.load("project", "activity"),
+  ]);
   const initialLayout: LayoutDefinition = layout ?? {
     schema_version: "p6-layout.v1",
     scope: "project",
