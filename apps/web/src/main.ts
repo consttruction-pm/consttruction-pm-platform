@@ -64,6 +64,7 @@ import {
   rememberWorkspaceWindows,
 } from "./workspace-windows.js";
 import { createVisualDemoState, mountVisualDemo } from "./workspace-visual-demo.js";
+import { shouldRenderVisualWorkspaceDemo } from "./workspace-visual-demo-route.js";
 
 type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
 
@@ -1776,10 +1777,10 @@ async function boot(): Promise<void> {
     return;
   }
 
-  // The visual workspace demonstration is a self-contained, fixed-data surface
-  // reachable only through this explicit address (Help → Visual workspace demo).
-  // It never calls the project server and never writes project data.
-  if (new URLSearchParams(window.location.search).get("view") === "visual") {
+  // The shared preview project opens the curated visual workspace at its
+  // canonical /app?project=preview-rps-01 address. This surface is intentionally
+  // labelled sample data; use &view=live for the authenticated project-backed UI.
+  if (shouldRenderVisualWorkspaceDemo(window.location.pathname, window.location.search)) {
     const locale = getInitialLocale();
     applyDocumentLocale(locale, locale.startsWith("fa") ? "محیط کار CUBI — نمایش بصری" : "CUBI Workspace — visual demo");
     container.className = "cp-vd-root";
