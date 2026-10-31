@@ -1091,9 +1091,8 @@ function renderDialogs(state: DemoState): string {
 }
 
 function renderLanguageSwitch(state: DemoState): string {
-  // The visual shell currently ships complete base translations for English
-  // and Persian. Additional languages appear here only after the shell has a
-  // complete translation pack for them.
+  // Only locales with complete translations in this visual shell are offered.
+  // Add German, Chinese, or another locale here when its full shell pack ships.
   const supported = getAvailableWorkspaceLocales().filter((locale) => locale === "en" || locale === "fa");
   return `<label class="cp-vd-language"><span>${esc(t(state.locale, "Language", "زبان"))}</span>
     <select data-vd-locale aria-label="${esc(t(state.locale, "Select language", "انتخاب زبان"))}" title="${esc(t(state.locale, "Select workspace language", "انتخاب زبان محیط کار"))}">
