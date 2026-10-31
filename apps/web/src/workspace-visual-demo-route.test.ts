@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  liveWorkspaceProjectHref,
   shouldRenderVisualWorkspaceDemo,
   VISUAL_WORKSPACE_PREVIEW_PROJECT_ID,
 } from "./workspace-visual-demo-route.js";
@@ -49,4 +50,16 @@ test("the shared preview project ID does not hijack the landing page", () => {
     ),
     false,
   );
+});
+
+test("real project URLs preserve live mode across refresh and unrelated query parameters", () => {
+  const href = new URL(
+    "https://preview.example/app?locale=fa&view=visual",
+  );
+  const next = new URL(
+    liveWorkspaceProjectHref(href.href, VISUAL_WORKSPACE_PREVIEW_PROJECT_ID),
+  );
+  assert.equal(next.searchParams.get("project"), VISUAL_WORKSPACE_PREVIEW_PROJECT_ID);
+  assert.equal(next.searchParams.get("view"), "live");
+  assert.equal(next.searchParams.get("locale"), "fa");
 });
