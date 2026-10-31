@@ -39,12 +39,6 @@ LOGOUT_PATH = "/preview/logout"
 PRIVATE_LOGIN_PATH = "/preview/private-login"
 HEALTH_PATH = "/preview/health"
 
-# A direct visit from the public site's assistant launcher reaches /preview/login
-# without a project query. Its default post-login destination must be the same
-# curated visual preview that the workspace route recognizes.
-PUBLIC_DEMO_PROJECT_ID = "preview-rps-01"
-DEFAULT_LOGIN_NEXT = f"/app?project={PUBLIC_DEMO_PROJECT_ID}"
-
 _ALLOWED_ROOT_FILES = {
     "index.html",
     "styles.css",
@@ -110,15 +104,6 @@ def _safe_next(raw: object) -> str:
     ):
         return "/app"
     return "/app?" + urlencode({"project": project_id})
-
-
-def _login_next_path(values: list[str]) -> str:
-    """Choose the safe post-login route, defaulting direct login to the visual demo."""
-    if not values or (len(values) == 1 and not values[0].strip()):
-        return DEFAULT_LOGIN_NEXT
-    if len(values) != 1:
-        return "/app"
-    return _safe_next(values[0])
 
 
 def _cookie_header(
@@ -354,7 +339,7 @@ class PreviewApplication:
                 keep_blank_values=True,
             )
             next_values = query.get("next", [])
-            next_path = _login_next_path(next_values)
+            next_path = _safe_next(next_values[0] if len(next_values) == 1 else "")
             if session is not None:
                 return _html(
                     200,
@@ -373,7 +358,7 @@ class PreviewApplication:
         except UnicodeDecodeError:
             return _json(400, {"code": "PREVIEW_LOGIN_REQUEST_INVALID"})
         next_values = values.get("next", [])
-        next_path = _login_next_path(next_values)
+        next_path = _safe_next(next_values[0] if len(next_values) == 1 else "")
         role = str((values.get("role") or [""])[0]).strip()
         user = DEMO_USERS_BY_ROLE.get(role)
         if user is None or (self.public_demo and user.role != "viewer"):
@@ -554,7 +539,7 @@ class PreviewApplication:
         *,
         session: AuthenticatedSession | None = None,
         error: str | None = None,
-        next_path: str = DEFAULT_LOGIN_NEXT,
+        next_path: str = "/app",
     ) -> str:
         safe_next = html.escape(_safe_next(next_path), quote=True)
         if session is not None:
