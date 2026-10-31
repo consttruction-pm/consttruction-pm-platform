@@ -3766,6 +3766,29 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   cursor: pointer;
 }
 .cp-vd-exit:hover { background: rgba(255,255,255,.18); }
+.cp-vd-fullscreen {
+  flex: 0 0 auto;
+  min-height: 27px;
+  padding: 3px 10px;
+  border: 1px solid rgba(255,255,255,.4);
+  border-radius: 4px;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cp-vd-fullscreen:hover { background: rgba(255,255,255,.18); }
+.cp-vd-fullscreen:focus-visible,
+.cp-vd-exit:focus-visible { outline: 2px solid #f2a35e; outline-offset: 2px; }
+.cp-vd:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  background: #e6eaf0;
+}
+.cp-vd:fullscreen .cp-vd-main { flex: 1 1 auto; min-height: 0; }
 
 /* Menu bar ---------------------------------------------------------------- */
 .cp-vd-menubar {

@@ -163,6 +163,7 @@ type DemoState = {
   forward: DemoWindowId[];
   detailsOpen: boolean;
   locale: string;
+  fullscreen: boolean;
 };
 
 function label(text: Label, locale: string): string {
@@ -1104,7 +1105,7 @@ function renderLanguageSwitch(state: DemoState): string {
 export function renderVisualDemo(state: DemoState): string {
   const index = WINDOWS.findIndex((window) => window.id === state.window);
   return `<div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
-    <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span>${renderLanguageSwitch(state)}<button type="button" class="cp-vd-exit" data-vd-exit title="${esc(t(state.locale, "Open the live project workspace", "ورود به محیط واقعی پروژه"))}">${esc(t(state.locale, "Open live workspace", "بازگشت به محیط واقعی پروژه"))}</button></div>
+    <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span>${renderLanguageSwitch(state)}<button type="button" class="cp-vd-fullscreen" data-vd-fullscreen aria-pressed="${state.fullscreen ? "true" : "false"}" title="${esc(t(state.locale, "Toggle full screen", "تغییر حالت تمام‌صفحه"))}">${esc(state.fullscreen ? t(state.locale, "Return to normal view", "بازگشت به نمای اصلی") : t(state.locale, "Full screen", "تمام‌صفحه"))}</button><button type="button" class="cp-vd-exit" data-vd-action='{"command":"sign-out"}' title="${esc(t(state.locale, "Sign out and return to home page", "خروج از حساب و بازگشت به صفحه اصلی"))}">${esc(t(state.locale, "Sign out", "خروج از حساب"))}</button></div>
     ${renderMenus(state)}
     ${renderToolbars(state)}
     ${renderTabs(state)}
@@ -1131,6 +1132,7 @@ export function createVisualDemoState(locale: string): DemoState {
     forward: [],
     detailsOpen: true,
     locale,
+    fullscreen: false,
   };
 }
 
@@ -1230,6 +1232,10 @@ function bind(root: HTMLElement): void {
     root.innerHTML = renderVisualDemo(state);
     layoutConnectors(root);
   };
+  document.addEventListener("fullscreenchange", () => {
+    state.fullscreen = document.fullscreenElement === root.querySelector<HTMLElement>("[data-visual-demo]");
+    draw();
+  });
   const openMenu = (id: string): void => {
     root.querySelectorAll<HTMLElement>("[data-vd-menu]").forEach((menu) => {
       const trigger = menu.querySelector<HTMLElement>(".cp-vd-menu-trigger");
@@ -1390,11 +1396,19 @@ function bind(root: HTMLElement): void {
     if (next?.dataset.vdNext) { state.activityId = next.dataset.vdNext; draw(); return; }
     const command = target.closest<HTMLElement>("[data-vd-command]");
     if (command?.dataset.vdCommand) { run({ command: command.dataset.vdCommand }); return; }
-    const exit = target.closest<HTMLElement>("[data-vd-exit]");
-    if (exit) {
-      const url = new URL(window.location.href);
-      url.searchParams.set("view", "live");
-      window.location.assign(url.toString());
+    const fullscreen = target.closest<HTMLElement>("[data-vd-fullscreen]");
+    if (fullscreen) {
+      const surface = root.querySelector<HTMLElement>("[data-visual-demo]");
+      if (!surface) return;
+      if (document.fullscreenElement === surface) {
+        void document.exitFullscreen().catch(() => undefined);
+      } else if (typeof surface.requestFullscreen === "function") {
+        void surface.requestFullscreen().catch(() => {
+          state.fullscreen = false;
+          draw();
+          window.alert(t(state.locale, "Full screen is not available in this browser.", "حالت تمام‌صفحه در این مرورگر در دسترس نیست."));
+        });
+      }
       return;
     }
     // Only buttons open dialogs; the <dialog> element itself also carries a
