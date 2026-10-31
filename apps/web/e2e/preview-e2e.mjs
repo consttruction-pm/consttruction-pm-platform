@@ -4930,6 +4930,25 @@ async function main() {
       "monthly Gantt axis",
     );
     const monthGraph = await readGanttGraph();
+    const visibleStart = new Date(dayGraph.ticks[0].date + "T00:00:00Z");
+    const visibleEnd = new Date(dayGraph.ticks[dayGraph.ticks.length - 1].date + "T00:00:00Z");
+    const nextMonthStart = new Date(Date.UTC(
+      visibleStart.getUTCFullYear(),
+      visibleStart.getUTCMonth() + 1,
+      1,
+    ));
+    const hasMonthBoundaryInsideRange = monthGraph.ticks.some((tick) =>
+      tick.date.endsWith("-01") && new Date(tick.date + "T00:00:00Z") <= visibleEnd,
+    );
+    // A short visible range wholly inside one month has no month-boundary
+    // tick to label. In that case the canonical range-start tick is correct;
+    // do not require an out-of-range first-of-month label to be fabricated.
+    const monthAxisMatchesVisibleRange = hasMonthBoundaryInsideRange
+      || (
+        nextMonthStart > visibleEnd &&
+        monthGraph.ticks.length === 1 &&
+        monthGraph.ticks[0].date === dayGraph.ticks[0].date
+      );
     assert(
       weekGraph.mode === "week" &&
         monthGraph.mode === "month" &&
@@ -4939,9 +4958,15 @@ async function main() {
         weekGraph.ticks[0].date === dayGraph.ticks[0].date &&
         monthGraph.ticks[0].date === dayGraph.ticks[0].date &&
         weekGraph.ticks.some((tick) => tick.date.endsWith("-02")) &&
-        monthGraph.ticks.some((tick) => tick.date.endsWith("-01")),
+        monthAxisMatchesVisibleRange,
       "changing the Gantt scale must change only the rendered axis density: " +
-        JSON.stringify({ day: dayGraph.ticks, week: weekGraph.ticks, month: monthGraph.ticks }),
+        JSON.stringify({
+          day: dayGraph.ticks,
+          week: weekGraph.ticks,
+          month: monthGraph.ticks,
+          nextMonthStart: nextMonthStart.toISOString().slice(0, 10),
+          visibleEnd: visibleEnd.toISOString().slice(0, 10),
+        }),
     );
     await page.click('#cp-gantt [data-gantt-scale="day"]');
     await page.waitFor(
