@@ -700,7 +700,7 @@ function renderApp(
         return;
       case "help.visual-demo": {
         const url = new URL(window.location.href);
-        url.searchParams.set("view", "visual");
+        url.searchParams.delete("view");
         window.location.assign(url.toString());
         return;
       }
@@ -1351,11 +1351,17 @@ function renderBootstrapState(
   applyDocumentLocale(locale);
   const t = getBootstrapLabels(locale);
   if (state.status === "ready") {
-    // The server confirmed this context, so it is safe to remember it and to
-    // reopen the same project and menu after a refresh.
+    // The server confirmed this context. The default route now opens the
+    // desktop-style visual shell with this exact project's authenticated read
+    // model; the classic surface remains available explicitly for editing.
     currentBootstrap = bootstrap;
     rememberOpenedProject(state.userId, state.context.project_id);
-    renderApp(container, applyRememberedMenu(state.workspace));
+    if (new URLSearchParams(window.location.search).get("view") === "classic") {
+      renderApp(container, applyRememberedMenu(state.workspace));
+    } else {
+      container.className = "cp-vd-root";
+      mountVisualDemo(container, createVisualDemoState(locale, state.workspace));
+    }
     return;
   }
 

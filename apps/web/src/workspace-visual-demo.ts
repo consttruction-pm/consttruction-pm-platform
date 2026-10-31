@@ -1,13 +1,16 @@
+    const liveSafeDialogs = new Set(["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "shortcuts", "about"]);
+    if (state.project && !liveSafeDialogs.has(name)) { showLiveNotice(); return; }
 /**
- * Visual workspace demo (CUBI-DEMO-001).
+ * Desktop-style visual workspace shell.
  *
- * Scope: visual shell only. The rows below are fixed demonstration data used to
- * show table, Gantt, tab and dialog layouts. Nothing here is saved, scheduled or
- * calculated, and the surface is permanently labelled as preview data. Real
- * project data continues to live in the normal workspace; this view is reached
- * explicitly from Help → Visual workspace demo.
+ * The default authenticated route supplies a server-backed WorkspaceState;
+ * the shell projects its real project, WBS, activity, relationship and schedule
+ * facts without recalculating or fabricating missing values. Unconnected modules
+ * are clearly disabled placeholders. With no WorkspaceState, this module keeps
+ * its isolated fixed-data visual fixture for local layout QA only.
  */
 import { workspaceIcon } from "./workspace-icons.js";
+import type { WorkspaceState } from "./workspace-model.js";
 
 export type DemoWindowId =
   | "projects" | "wbs" | "activities" | "assignments" | "resources" | "calendars" | "reports"
@@ -76,11 +79,26 @@ const ACTIVITY_COLUMNS: Array<{ id: string; en: string; fa: string; width: numbe
 const DEFAULT_COLUMNS = ["id", "name", "wbs", "od", "rd", "start", "finish", "tf", "pct", "status", "res", "pred"];
 
 type DemoActivity = {
-  id: string; name: string; phase: string; wbs: string; type: string; od: number; rd: number; ad: number;
-  start: string; finish: string; es: string; ef: string; ls: string; lf: string; tf: number; ff: number;
-  pct: number; status: string; calendar: string; pred: string; succ: string; res: string;
-  budgetUnits: number; actualUnits: number; remainingUnits: number; budgetCost: number; actualCost: number;
-  remainingCost: number; codes: string; constraint: string; critical: boolean; milestone?: boolean; summary?: boolean; baseline?: string;
+  id: string; name: string; phase: string; wbs: string; type: string; od: number | null; rd: number | null; ad: number | null;
+  start: string; finish: string; es: string; ef: string; ls: string; lf: string; tf: number | null; ff: number | null;
+  pct: number | null; status: string; calendar: string; pred: string; succ: string; res: string;
+  budgetUnits: number | null; actualUnits: number | null; remainingUnits: number | null; budgetCost: number | null; actualCost: number | null;
+  remainingCost: number | null; codes: string; constraint: string; critical: boolean; milestone?: boolean; summary?: boolean; baseline?: string;
+};
+
+type DemoWbsNode = { code: string; name: string; level: number; total: number };
+type DemoResource = { id: string; name: string; type: string; units: number; cost: number };
+type DemoRelationship = { predecessorId: string; successorId: string; type: string; lagValue: string; lagUnit: string };
+type LiveProjectData = {
+  id: string;
+  name: string;
+  revision: number;
+  activities: DemoActivity[];
+  wbsNodes: DemoWbsNode[];
+  relationships: DemoRelationship[];
+  resources: DemoResource[];
+  projectStart: string | null;
+  projectFinish: string | null;
 };
 
 function act(
@@ -161,6 +179,8 @@ type DemoState = {
   forward: DemoWindowId[];
   detailsOpen: boolean;
   locale: string;
+  /** When present, every displayed project/activity/WBS fact is mapped from the authenticated project read. */
+  project: LiveProjectData | null;
 };
 
 function label(text: Label, locale: string): string {
@@ -177,7 +197,14 @@ function esc(value: unknown): string {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+function isIsoDate(value: string): boolean {
+  if (value.length !== 10) return false;
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
 function fmtDate(iso: string): string {
+  if (!isIsoDate(iso)) return "—";
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y.slice(2)}`;
 }
@@ -188,11 +215,49 @@ function day(value: string): number {
 
 const PROJECT_START = "2026-11-02";
 const PROJECT_FINISH = "2027-05-28";
+const PROJECT_DAYS = day(PROJECT_FINISH) + 1 - day(PROJECT_START);
+
+function demoBarPosition(start: string, finish: string): { left: string; width: string } {
+  const left = (day(start) - day(PROJECT_START)) / PROJECT_DAYS * 100;
+  const width = Math.max(0.4, (day(finish) - day(start) + 1) / PROJECT_DAYS * 100);
+  return { left: `${Math.max(0, left)}%`, width: `${Math.min(100, width)}%` };
+}
+
+function activitiesFor(state: DemoState): DemoActivity[] {
+  return state.project?.activities ?? ACTIVITIES;
+}
+
+function wbsNodesFor(state: DemoState): DemoWbsNode[] {
+  return state.project?.wbsNodes ?? WBS_TREE;
+}
+
+function resourcesFor(state: DemoState): DemoResource[] {
+  return state.project?.resources ?? RESOURCES;
+}
+
+function projectIdFor(state: DemoState): string {
+  return state.project?.id ?? "CUBI-DEMO-001";
+}
+
+function projectNameFor(state: DemoState): string {
+  return state.project?.name ?? "Riverside Pump Station Upgrade";
+}
+
+function projectRangeFor(state: DemoState): { start: string; finish: string } | null {
+  if (!state.project) return { start: PROJECT_START, finish: PROJECT_FINISH };
+  if (!state.project.projectStart || !state.project.projectFinish) return null;
+  return { start: state.project.projectStart, finish: state.project.projectFinish };
+}
+
+function numericDisplay(value: number | null, suffix = ""): string {
+  return value === null || !Number.isFinite(value) ? "—" : `${value}${suffix}`;
+}
 
 function filterActivities(state: DemoState): DemoActivity[] {
+  const rows = activitiesFor(state);
   const query = state.filter.trim().toLowerCase();
-  if (!query) return ACTIVITIES;
-  return ACTIVITIES.filter((row) => `${row.id} ${row.name} ${row.wbs} ${row.res}`.toLowerCase().includes(query));
+  if (!query) return rows;
+  return rows.filter((row) => `${row.id} ${row.name} ${row.wbs} ${row.res}`.toLowerCase().includes(query));
 }
 
 function renderActivityTable(state: DemoState, columns: string[]): string {
@@ -216,8 +281,8 @@ function renderActivityTable(state: DemoState, columns: string[]): string {
           const column = ACTIVITY_COLUMNS.find((item) => item.id === id) ?? ACTIVITY_COLUMNS[0];
           let value: string | number = (row as unknown as Record<string, string | number>)[id] ?? "";
           if (["start", "finish", "es", "ef", "ls", "lf"].includes(id)) value = fmtDate(String(value));
-          if (id === "pct") value = `${value}%`;
-          if (["budgetCost", "actualCost", "remainingCost"].includes(id)) value = Number(value) ? Number(value).toLocaleString("en-US") : "—";
+          if (id === "pct") value = row.pct === null ? "—" : `${row.pct}%`;
+          if (["budgetCost", "actualCost", "remainingCost"].includes(id)) value = value !== "" && Number(value) ? Number(value).toLocaleString("en-US") : "—";
           return `<td class="${column.numeric ? "is-numeric" : ""}${id === "id" ? " is-id" : ""}${row.critical && id === "tf" ? " is-red" : ""}">${esc(value)}</td>`;
         }).join("")}
       </tr>`;
@@ -227,9 +292,15 @@ function renderActivityTable(state: DemoState, columns: string[]): string {
   return `<div class="cp-vd-tablewrap"><table class="cp-vd-table" data-vd-table>${header}<tbody>${body}</tbody></table></div>`;
 }
 
-function barPosition(start: string, finish: string): { left: string; width: string } {
-  const total = day(PROJECT_FINISH) - day(PROJECT_START);
-  const left = (day(start) - day(PROJECT_START)) / total * 100;
+function barPosition(start: string, finish: string, state: DemoState): { left: string; width: string } {
+  const range = projectRangeFor(state);
+  if (!range || !/^\\d{4}-\\d{2}-\\d{2}$/.test(start) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(finish)) {
+    return { left: "0%", width: "0%" };
+  }
+  const startDay = day(range.start);
+  const endDay = day(range.finish) + 1;
+  const total = Math.max(1, endDay - startDay);
+  const left = (day(start) - startDay) / total * 100;
   const width = Math.max(0.4, (day(finish) - day(start) + 1) / total * 100);
   return { left: `${Math.max(0, left)}%`, width: `${Math.min(100, width)}%` };
 }
@@ -237,53 +308,89 @@ function barPosition(start: string, finish: string): { left: string; width: stri
 type AxisBand = { label: string; left: number; width: number };
 type GanttAxis = { rows: AxisBand[][]; column: string; minWidth: string };
 
-const PROJECT_DAYS = day(PROJECT_FINISH) + 1 - day(PROJECT_START);
-
-function axisBand(label: string, from: number, to: number): AxisBand {
-  const left = Math.max(0, (from - day(PROJECT_START)) / PROJECT_DAYS * 100);
-  const width = Math.max(0, (Math.min(to, day(PROJECT_FINISH) + 1) - from) / PROJECT_DAYS * 100);
+function axisBand(label: string, from: number, to: number, rangeStart: number, rangeEnd: number): AxisBand {
+  const left = Math.max(0, (from - rangeStart) / (rangeEnd - rangeStart) * 100);
+  const width = Math.max(0, (Math.min(to, rangeEnd) - from) / (rangeEnd - rangeStart) * 100);
   return { label, left, width };
 }
 
 function isoWeek(dayNumber: number): number {
   const date = new Date(dayNumber * 86400000);
   const target = new Date(date.valueOf());
-  target.setUTCDate(target.getUTCDate() - ((date.getUTCDay() + 6) % 7) + 3);
+  target.setUTCDate(target.getUTCDate() - ((target.getUTCDay() + 6) % 7) + 3);
   const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
   return 1 + Math.round((target.getTime() - firstThursday.getTime()) / (7 * 86400000));
 }
 
-// Each timescale builds its own date-based bands; the Gantt axis is not a
-// fixed caption, so switching day/week/month/quarter/year changes the ruler.
-function buildAxis(scale: DemoState["scale"], locale: string): GanttAxis {
-  const fa = locale.startsWith("fa");
-  const start = day(PROJECT_START);
-  const end = day(PROJECT_FINISH) + 1;
-  const monthStarts = [start, day("2026-12-01"), day("2027-01-01"), day("2027-02-01"), day("2027-03-01"), day("2027-04-01"), day("2027-05-01"), end];
-  const monthNames = fa
-    ? ["نوامبر ۲۰۲۶", "دسامبر ۲۰۲۶", "ژانویه ۲۰۲۷", "فوریه ۲۰۲۷", "مارس ۲۰۲۷", "آوریل ۲۰۲۷", "مه ۲۰۲۷"]
-    : ["Nov 2026", "Dec 2026", "Jan 2027", "Feb 2027", "Mar 2027", "Apr 2027", "May 2027"];
-  const months = monthStarts.slice(0, -1).map((from, index) => axisBand(monthNames[index], from, monthStarts[index + 1]));
-  const years = [axisBand("2026", start, day("2027-01-01")), axisBand("2027", day("2027-01-01"), end)];
-  const quarters = [
-    axisBand(fa ? "فصل ۴ ۲۰۲۶" : "Q4 2026", start, day("2027-01-01")),
-    axisBand(fa ? "فصل ۱ ۲۰۲۷" : "Q1 2027", day("2027-01-01"), day("2027-04-01")),
-    axisBand(fa ? "فصل ۲ ۲۰۲۷" : "Q2 2027", day("2027-04-01"), end),
-  ];
+function monthLabel(dayNumber: number, locale: string): string {
+  const date = new Date(dayNumber * 86400000);
+  return new Intl.DateTimeFormat(locale.startsWith("fa") ? "fa-IR" : "en", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+// The ruler is derived from the loaded project's scheduled date range. The
+// visual shell never borrows dates from another fixture project.
+function buildAxis(scale: DemoState["scale"], locale: string, state: DemoState): GanttAxis {
+  const range = projectRangeFor(state);
+  if (!range) return { rows: [], column: "100%", minWidth: "0px" };
+  const start = day(range.start);
+  const end = day(range.finish) + 1;
+  if (end <= start) return { rows: [], column: "100%", minWidth: "0px" };
+  const band = (label: string, from: number, to: number) => axisBand(label, from, to, start, end);
+  const monthStart = (value: number) => {
+    const date = new Date(value * 86400000);
+    return Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1) / 86400000);
+  };
+  const nextMonth = (value: number) => {
+    const date = new Date(value * 86400000);
+    return Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1) / 86400000);
+  };
+  const firstMonth = monthStart(start);
+  const monthStarts: number[] = [];
+  for (let cursor = firstMonth; cursor < end; cursor = nextMonth(cursor)) {
+    monthStarts.push(Math.max(start, cursor));
+  }
+  const months = monthStarts.map((from, index) => {
+    const actualMonth = index === 0 ? firstMonth : monthStart(from);
+    return band(monthLabel(actualMonth, locale), from, Math.min(end, nextMonth(actualMonth)));
+  });
+  const years: AxisBand[] = [];
+  const firstYear = new Date(start * 86400000).getUTCFullYear();
+  const lastYear = new Date((end - 1) * 86400000).getUTCFullYear();
+  for (let year = firstYear; year <= lastYear; year += 1) {
+    const from = Math.max(start, Math.floor(Date.UTC(year, 0, 1) / 86400000));
+    const to = Math.min(end, Math.floor(Date.UTC(year + 1, 0, 1) / 86400000));
+    years.push(band(String(year), from, to));
+  }
+  const quarters: AxisBand[] = [];
+  const quarterStart = Math.floor(Date.UTC(firstYear, Math.floor(new Date(start * 86400000).getUTCMonth() / 3) * 3, 1) / 86400000);
+  for (let cursor = quarterStart; cursor < end;) {
+    const date = new Date(cursor * 86400000);
+    const year = date.getUTCFullYear();
+    const quarter = Math.floor(date.getUTCMonth() / 3) + 1;
+    const next = Math.floor(Date.UTC(year, quarter * 3, 1) / 86400000);
+    quarters.push(band(locale.startsWith("fa") ? `فصل ${quarter} ${year}` : `Q${quarter} ${year}`, Math.max(start, cursor), Math.min(end, next)));
+    cursor = next;
+  }
   const weeks: AxisBand[] = [];
-  for (let from = start; from < end; from += 7) {
-    weeks.push(axisBand(`W${String(isoWeek(from)).padStart(2, "0")}`, from, Math.min(from + 7, end)));
+  const weekStart = start - ((new Date(start * 86400000).getUTCDay() + 6) % 7);
+  for (let from = weekStart; from < end; from += 7) {
+    weeks.push(band(`W${String(isoWeek(from)).padStart(2, "0")}`, Math.max(start, from), Math.min(end, from + 7)));
   }
   const days: AxisBand[] = [];
   for (let from = start; from < end; from += 1) {
-    days.push(axisBand(String(new Date(from * 86400000).getUTCDate()), from, from + 1));
+    days.push(band(String(new Date(from * 86400000).getUTCDate()), from, from + 1));
   }
+  const totalDays = end - start;
   switch (scale) {
-    case "day": return { rows: [months, days], column: `${100 / PROJECT_DAYS}%`, minWidth: `${PROJECT_DAYS * 18}px` };
-    case "week": return { rows: [months, weeks], column: `${100 / weeks.length}%`, minWidth: `${weeks.length * 30}px` };
-    case "quarter": return { rows: [years, quarters], column: `${100 / 3}%`, minWidth: "0px" };
-    case "year": return { rows: [years, quarters], column: "50%", minWidth: "0px" };
-    default: return { rows: [months], column: `${100 / months.length}%`, minWidth: "0px" };
+    case "day": return { rows: [months, days], column: `${100 / Math.max(1, days.length)}%`, minWidth: `${totalDays * 18}px` };
+    case "week": return { rows: [months, weeks], column: `${100 / Math.max(1, weeks.length)}%`, minWidth: `${weeks.length * 30}px` };
+    case "quarter": return { rows: [years, quarters], column: `${100 / Math.max(1, quarters.length)}%`, minWidth: "0px" };
+    case "year": return { rows: [years, quarters], column: `${100 / Math.max(1, years.length)}%`, minWidth: "0px" };
+    default: return { rows: [months], column: `${100 / Math.max(1, months.length)}%`, minWidth: "0px" };
   }
 }
 
@@ -293,7 +400,7 @@ function renderGanttTools(state: DemoState): string {
       ${(["day", "week", "month", "quarter", "year"] as const).map((scale) => `<button type="button" data-vd-scale="${scale}" class="${scale === state.scale ? "is-active" : ""}">${esc(t(state.locale, scale, { day: "روز", week: "هفته", month: "ماه", quarter: "فصل", year: "سال" }[scale]))}</button>`).join("")}
     </div>
     <span class="cp-vd-ganttbar-spacer"></span>
-    <span class="cp-vd-legend"><i class="is-normal"></i>${esc(t(state.locale, "Normal", "عادی"))}<i class="is-critical"></i>${esc(t(state.locale, "Critical", "بحرانی"))}<i class="is-summary"></i>${esc(t(state.locale, "Summary", "خلاصه"))}<i class="is-milestone"></i>${esc(t(state.locale, "Milestone", "نقطهٔ عطف"))}<i class="is-datadate"></i>${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}</span>
+    <span class="cp-vd-legend"><i class="is-normal"></i>${esc(t(state.locale, "Normal", "عادی"))}<i class="is-critical"></i>${esc(t(state.locale, "Critical", "بحرانی"))}<i class="is-summary"></i>${esc(t(state.locale, "Summary", "خلاصه"))}<i class="is-milestone"></i>${esc(t(state.locale, "Milestone", "نقطهٔ عطف"))}${state.project ? "" : `<i class="is-datadate"></i>${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}`}</span>
   </div>`;
 }
 
@@ -302,8 +409,12 @@ function renderGantt(state: DemoState): string {
   const groups = state.groupBy === "wbs"
     ? [...new Set(rows.map((row) => row.phase))].map((phase) => ({ phase, members: rows.filter((row) => row.phase === phase) }))
     : [{ phase: "", members: rows }];
-  const axis = buildAxis(state.scale, state.locale);
-  const dataDate = (day("2026-12-03") - day(PROJECT_START)) / PROJECT_DAYS * 100;
+  const axis = buildAxis(state.scale, state.locale, state);
+  const range = projectRangeFor(state);
+  if (!range) {
+    return `<div class="cp-vd-gantt" data-vd-gantt><div class="cp-vd-empty">${esc(t(state.locale, "No authoritative schedule dates are available for this project yet.", "هنوز تاریخ‌های معتبر زمان‌بندی برای این پروژه موجود نیست."))}</div></div>`;
+  }
+  const dataDate = state.project ? null : (day("2026-12-03") - day(range.start)) / Math.max(1, day(range.finish) + 1 - day(range.start)) * 100;
   const rtl = state.locale.startsWith("fa");
   const ruler = axis.rows.map((bandRow) => `<div class="cp-vd-axisrow">${bandRow.map((band) => `<span style="inset-inline-start:${band.left}%;width:${band.width}%">${esc(band.label)}</span>`).join("")}</div>`).join("");
 
@@ -316,20 +427,20 @@ function renderGantt(state: DemoState): string {
       : "";
     if (group.phase) cursor += 24;
     const members = group.members.map((row) => {
-      const position = barPosition(row.start, row.finish);
+      const position = barPosition(row.start, row.finish, state);
       const summary = row.type === "Hammock" || row.id === "A1000" || row.id === "A1100" || row.id === "A1200" || row.id === "A1300" || row.id === "A1400";
       const shape = row.milestone ? "is-milestone" : summary ? "is-summary" : row.critical ? "is-critical" : "is-normal";
       rowTop.set(row.id, cursor + 13);
       cursor += 26;
       return `<div class="cp-vd-gantt-row${row.id === state.activityId ? " is-selected" : ""}" data-vd-activity="${esc(row.id)}">
         <div class="cp-vd-gantt-track">
-          ${summary ? "" : `<span class="cp-vd-bar is-baseline" style="inset-inline-start:${position.left};width:${position.width}" title="BL-01"></span>`}
+          ${summary || state.project ? "" : `<span class="cp-vd-bar is-baseline" style="inset-inline-start:${position.left};width:${position.width}" title="BL-01"></span>`}
           ${row.milestone
             ? `<span class="cp-vd-bar ${shape} ${row.critical ? "is-critical" : ""}" style="inset-inline-start:${position.left}" title="${esc(row.name)}"></span>`
-            : `<span class="cp-vd-bar ${shape}${summary && row.critical ? " is-critical" : ""}" style="inset-inline-start:${position.left};width:${position.width}" title="${esc(row.name)} — ${row.pct}%">
-                ${summary ? "" : `<span class="cp-vd-bar-progress" style="width:${row.pct}%"></span>`}
+            : `<span class="cp-vd-bar ${shape}${summary && row.critical ? " is-critical" : ""}" style="inset-inline-start:${position.left};width:${position.width}" title="${esc(row.name)} — ${numericDisplay(row.pct, "%")}">
+                ${summary || row.pct === null ? "" : `<span class="cp-vd-bar-progress" style="width:${row.pct}%"></span>`}
               </span>`}
-          <span class="cp-vd-bar-label${summary ? " is-summary" : ""}" style="inset-inline-start:calc(${position.left} + ${summary ? "6px" : position.width})">${esc(row.name)}</span>
+          ${position.width !== "0%" ? `<span class="cp-vd-bar-label${summary ? " is-summary" : ""}" style="inset-inline-start:calc(${position.left} + ${summary ? "6px" : position.width})">${esc(row.name)}</span>` : ""}
         </div>
       </div>`;
     }).join("");
@@ -338,21 +449,27 @@ function renderGantt(state: DemoState): string {
   const totalHeight = Math.max(1, cursor);
 
   // Finish-to-start relationships drawn from the bar dates of both activities.
-  const links: Array<[string, string]> = [
-    ["A1010", "A1100"], ["A1110", "A1120"], ["A1120", "A1130"], ["A1210", "A1220"],
-    ["A1310", "A1320"], ["A1320", "A1330"], ["A1330", "A1340"], ["A1340", "A1410"], ["A1410", "A1420"],
-  ];
+  const links: Array<[string, string]> = state.project
+    ? state.project.relationships.map((link) => [link.predecessorId, link.successorId])
+    : [
+      ["A1010", "A1100"], ["A1110", "A1120"], ["A1120", "A1130"], ["A1210", "A1220"],
+      ["A1310", "A1320"], ["A1320", "A1330"], ["A1330", "A1340"], ["A1340", "A1410"], ["A1410", "A1420"],
+    ];
   const toX = (value: number): number => (rtl ? 100 - value : value);
   const paths = links.map(([from, to]) => {
-    const pred = ACTIVITIES.find((item) => item.id === from);
-    const succ = ACTIVITIES.find((item) => item.id === to);
+    const rowsForLinks = activitiesFor(state);
+    const pred = rowsForLinks.find((item) => item.id === from);
+    const succ = rowsForLinks.find((item) => item.id === to);
     const y1 = rowTop.get(from);
     const y2 = rowTop.get(to);
     if (!pred || !succ || y1 === undefined || y2 === undefined) return "";
-    const start = parseFloat(barPosition(pred.start, pred.finish).left);
-    const width = parseFloat(barPosition(pred.start, pred.finish).width);
+    const predPosition = barPosition(pred.start, pred.finish, state);
+    const succPosition = barPosition(succ.start, succ.finish, state);
+    if (predPosition.width === "0%" || succPosition.width === "0%") return "";
+    const start = parseFloat(predPosition.left);
+    const width = parseFloat(predPosition.width);
     const x1 = toX(start + width);
-    const x2 = toX(parseFloat(barPosition(succ.start, succ.finish).left));
+    const x2 = toX(parseFloat(succPosition.left));
     const stub = x2 >= x1 ? 1.2 : -1.2;
     const marker = pred.critical || succ.critical ? "cp-vd-arrow-critical" : "cp-vd-arrow";
     return `<path d="M ${x1} ${y1} h ${stub} V ${y2} H ${x2}" class="${marker === "cp-vd-arrow-critical" ? "is-critical" : ""}" marker-end="url(#${marker})"></path>`;
@@ -361,7 +478,7 @@ function renderGantt(state: DemoState): string {
   return `<div class="cp-vd-gantt" data-vd-gantt data-scale="${state.scale}" style="--cp-vd-gantt-min:${axis.minWidth};--cp-vd-col:${axis.column}">
     <div class="cp-vd-gantt-months ${axis.rows.length > 1 ? "is-two" : ""}">${ruler}</div>
     <div class="cp-vd-gantt-body">
-      <div class="cp-vd-gantt-today" style="inset-inline-start:${dataDate}%" title="${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}"></div>
+${dataDate === null ? "" : `<div class="cp-vd-gantt-today" style="inset-inline-start:${dataDate}%" title="${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}"></div>`}
       ${body}
       <svg class="cp-vd-links" viewBox="0 0 100 ${totalHeight}" preserveAspectRatio="none" aria-hidden="true">
         <defs>
@@ -383,25 +500,43 @@ function renderDetails(state: DemoState): string {
     ["summary", "Summary", "خلاصه"], ["relationships", "Relationships", "روابط"], ["risks", "Risks", "ریسک‌ها"],
     ["udfs", "UDFs", "فیلد سفارشی"], ["history", "Update History", "تاریخچه"],
   ];
-  const row = ACTIVITIES.find((item) => item.id === state.activityId) ?? ACTIVITIES[0];
-  const index = ACTIVITIES.findIndex((item) => item.id === row.id);
-  const prev = ACTIVITIES[index - 1]?.id ?? "";
-  const next = ACTIVITIES[index + 1]?.id ?? "";
+  const rows = activitiesFor(state);
+  const row = rows.find((item) => item.id === state.activityId) ?? rows[0] ?? null;
+  if (!row) {
+    return `<div class="cp-vd-empty">${esc(t(state.locale, "No activities are available in this project.", "در این پروژه فعالیتی موجود نیست."))}</div>`;
+  }
+  const index = rows.findIndex((item) => item.id === row.id);
+  const prev = index > 0 ? rows[index - 1]?.id ?? "" : "";
+  const next = rows[index + 1]?.id ?? "";
+  const visibleTabs = state.project
+    ? tabs.filter(([id]) => ["general", "status", "predecessors", "successors", "summary"].includes(String(id)))
+    : tabs;
+  if (state.project && !visibleTabs.some(([id]) => id === state.detailTab)) state.detailTab = "general";
   const fields = (pairs: Array<[string, string, string]>): string => `<div class="cp-vd-fields">${pairs.map(([en, fa, value]) => `<label><span>${esc(t(state.locale, en, fa))}</span><input value="${esc(value)}" readonly></label>`).join("")}</div>`;
   const contents: Record<string, string> = {
-    general: fields([["Activity ID", "شناسه", row.id], ["Activity name", "نام فعالیت", row.name], ["WBS", "WBS", row.wbs], ["Activity type", "نوع فعالیت", row.type], ["Calendar", "تقویم", row.calendar], ["Original duration", "مدت اولیه", `${row.od} d`], ["Remaining duration", "مدت باقی‌مانده", `${row.rd} d`], ["% complete", "درصد تکمیل", `${row.pct}%`], ["Status", "وضعیت", row.status], ["Critical", "بحرانی", row.critical ? "Yes" : "No"], ["Resource", "منبع", row.res], ["Project", "پروژه", "CUBI-DEMO-001"]]),
-    status: fields([["Status", "وضعیت", row.status], ["% complete", "درصد تکمیل", `${row.pct}%`], ["Start", "شروع", fmtDate(row.start)], ["Finish", "پایان", fmtDate(row.finish)], ["Total float", "شناوری کل", `${row.tf} d`], ["Remaining duration", "مدت باقی‌مانده", `${row.rd} d`]]),
-    resources: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}</th><th>${esc(t(state.locale, "Cost", "هزینه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${row.budgetUnits}</td><td>${row.budgetCost.toLocaleString("en-US")}</td></tr></tbody></table><p class="cp-vd-note">${esc(t(state.locale, "Sample assignment shown for layout review.", "تخصیص نمونه برای بازبینی چیدمان."))}</p>`,
-    predecessors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row.pred === "—" ? [] : row.pred.split(", ")).map((id) => `<tr><td>${esc(id)}</td><td>FS</td><td>0 d</td></tr>`).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No predecessors", "بدون پیش‌نیاز"))}</td></tr>`}</tbody></table>`,
-    successors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row.succ === "—" ? [] : row.succ.split(", ")).map((id) => `<tr><td>${esc(id)}</td><td>FS</td><td>0 d</td></tr>`).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No successors", "بدون جانشین"))}</td></tr>`}</tbody></table>`,
-    codes: fields([["Activity code", "کد فعالیت", row.codes], ["Phase", "فاز", row.phase], ["Discipline", "رشته", "Mechanical"]]),
+    general: row ? fields([["Activity ID", "شناسه", row.id], ["Activity name", "نام فعالیت", row.name], ["WBS", "WBS", row.wbs], ["Activity type", "نوع", row.type], ["Calendar", "تقویم", row.calendar], ["Original duration", "مدت اولیه", numericDisplay(row.od, " d")], ["Remaining duration", "مدت باقی‌مانده", numericDisplay(row.rd, " d")], ["% complete", "درصد تکمیل", numericDisplay(row.pct, "%")], ["Status", "وضعیت", row.status], ["Critical", "بحرانی", row.critical ? "Yes" : "No"], ["Resource", "منبع", row.res], ["Project", "پروژه", projectIdFor(state)]]) : "",
+    status: row ? fields([["Status", "وضعیت", row.status], ["% complete", "درصد تکمیل", numericDisplay(row.pct, "%")], ["Start", "شروع", fmtDate(row.start)], ["Finish", "پایان", fmtDate(row.finish)], ["Total float", "شناوری کل", numericDisplay(row.tf, " d")], ["Remaining duration", "مدت باقی‌مانده", numericDisplay(row.rd, " d")]]) : "",
+    resources: state.project
+      ? `<p class="cp-vd-note">${esc(t(state.locale, "Resource assignments are not part of the current authenticated workspace read.", "تخصیص منابع هنوز در خواندن محیط کار متصل نشده است."))}</p>`
+      : `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}</th><th>${esc(t(state.locale, "Cost", "هزینه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${numericDisplay(row.budgetUnits)}</td><td>${numericDisplay(row.budgetCost)}</td></tr></tbody></table><p class="cp-vd-note">${esc(t(state.locale, "Sample assignment shown for layout review.", "تخصیص نمونه برای بازبینی چیدمان."))}</p>`,
+    predecessors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row?.pred === "—" || !row ? [] : row.pred.split(", ")).map((id) => {
+      const link = state.project?.relationships.find((item) => item.predecessorId === id && item.successorId === row?.id);
+      return `<tr><td>${esc(id)}</td><td>${esc(link?.type ?? "FS")}</td><td>${esc(link ? `${link.lagValue} ${link.lagUnit}` : "—")}</td></tr>`;
+    }).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No predecessors", "بدون پیش‌نیاز"))}</td></tr>`}</tbody></table>`,
+    successors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row?.succ === "—" || !row ? [] : row.succ.split(", ")).map((id) => {
+      const link = state.project?.relationships.find((item) => item.predecessorId === row?.id && item.successorId === id);
+      return `<tr><td>${esc(id)}</td><td>${esc(link?.type ?? "FS")}</td><td>${esc(link ? `${link.lagValue} ${link.lagUnit}` : "—")}</td></tr>`;
+    }).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No successors", "بدون جانشین"))}</td></tr>`}</tbody></table>`,
+    codes: state.project
+      ? fields([["Activity code", "کد فعالیت", row.codes], ["Phase", "فاز", row.phase]])
+      : fields([["Activity code", "کد فعالیت", row.codes], ["Phase", "فاز", row.phase], ["Discipline", "رشته", "Mechanical"]]),
     discussion: `<div class="cp-vd-note">${esc(t(state.locale, "Sample note: access route confirmed with the site team.", "یادداشت نمونه: مسیر دسترسی با تیم کارگاه تأیید شد."))}</div>`,
     notebook: `<div class="cp-vd-note">${esc(t(state.locale, "Sample notebook entry for visual review.", "مدخل نمونهٔ دفترچه برای بازبینی بصری."))}</div>`,
     steps: `<table class="cp-vd-mini"><thead><tr><th>#</th><th>${esc(t(state.locale, "Step", "گام"))}</th><th>${esc(t(state.locale, "Weight", "وزن"))}</th><th>${esc(t(state.locale, "% complete", "درصد"))}</th></tr></thead><tbody><tr><td>1</td><td>${esc(t(state.locale, "Prepare", "آماده‌سازی"))}</td><td>40</td><td>100</td></tr><tr><td>2</td><td>${esc(t(state.locale, "Install", "نصب"))}</td><td>60</td><td>25</td></tr></tbody></table>`,
     feedback: `<div class="cp-vd-note">${esc(t(state.locale, "Sample field feedback.", "بازخورد نمونهٔ کارگاه."))}</div>`,
     documents: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Document", "سند"))}</th><th>${esc(t(state.locale, "Revision", "ویرایش"))}</th></tr></thead><tbody><tr><td>ITP-Pump-01.pdf</td><td>B</td></tr></tbody></table>`,
-    expenses: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Expense", "هزینه"))}</th><th>${esc(t(state.locale, "Budget", "بودجه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${row.budgetCost.toLocaleString("en-US")}</td></tr></tbody></table>`,
-    summary: fields([["Early start", "شروع زود", fmtDate(row.es)], ["Early finish", "پایان زود", fmtDate(row.ef)], ["Late start", "شروع دیر", fmtDate(row.ls)], ["Late finish", "پایان دیر", fmtDate(row.lf)], ["Free float", "شناوری آزاد", `${row.ff} d`], ["Critical", "بحرانی", row.critical ? "Yes" : "No"]]),
+    expenses: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Expense", "هزینه"))}</th><th>${esc(t(state.locale, "Budget", "بودجه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${numericDisplay(row.budgetCost)}</td></tr></tbody></table>`,
+    summary: fields([["Early start", "شروع زود", fmtDate(row.es)], ["Early finish", "پایان زود", fmtDate(row.ef)], ["Late start", "شروع دیر", fmtDate(row.ls)], ["Late finish", "پایان دیر", fmtDate(row.lf)], ["Free float", "شناوری آزاد", numericDisplay(row.ff, " d")], ["Critical", "بحرانی", row.critical ? "Yes" : "No"]]),
     relationships: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Predecessor", "پیش‌نیاز"))}</th><th>${esc(t(state.locale, "Successor", "جانشین"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th></tr></thead><tbody><tr><td>${esc(row.pred)}</td><td>${esc(row.succ)}</td><td>FS</td></tr></tbody></table>`,
     risks: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Risk", "ریسک"))}</th><th>${esc(t(state.locale, "Rating", "درجه"))}</th></tr></thead><tbody><tr><td>${esc(t(state.locale, "Weather delay", "تأخیر جوی"))}</td><td>Medium</td></tr></tbody></table>`,
     udfs: fields([["Custom field", "فیلد سفارشی", "—"]]),
@@ -418,7 +553,7 @@ function renderDetails(state: DemoState): string {
       </div>
     </div>
     <div class="cp-vd-details-body" id="cp-vd-details-body">
-      <div class="cp-vd-dtabs" role="tablist">${tabs.map(([id, en, fa]) => `<button type="button" role="tab" data-vd-dtab="${id}" class="${state.detailTab === id ? "is-active" : ""}" aria-selected="${state.detailTab === id}">${esc(t(state.locale, en, fa))}</button>`).join("")}</div>
+      <div class="cp-vd-dtabs" role="tablist">${visibleTabs.map(([id, en, fa]) => `<button type="button" role="tab" data-vd-dtab="${id}" class="${state.detailTab === id ? "is-active" : ""}" aria-selected="${state.detailTab === id}">${esc(t(state.locale, en, fa))}</button>`).join("")}</div>
       <div class="cp-vd-dpanel" data-vd-dpanel>${contents[state.detailTab] ?? contents.general}</div>
     </div>
   </div>`;
@@ -542,17 +677,36 @@ function renderTableWindow(state: DemoState, title: Label, headers: string[], ro
   </section>`;
 }
 
+function renderLiveUnavailableWindow(state: DemoState): string {
+  const title = WINDOWS.find((item) => item.id === state.window);
+  const name = title ? label({ en: title.en, fa: title.fa }, state.locale) : "";
+  return `<section class="cp-vd-windowbody cp-vd-live-unavailable">
+    <header class="cp-vd-winhead"><h2>${esc(name)}</h2></header>
+    <div class="cp-vd-empty">
+      <strong>${esc(t(state.locale, "This view is not connected to live project data yet.", "این نما هنوز به داده‌های واقعی پروژه متصل نشده است."))}</strong>
+      <p>${esc(t(state.locale, "No sample records are shown here. The live project, activities, WBS and relationships remain available in the connected views.", "در این بخش دادهٔ ساختگی نمایش داده نمی‌شود. پروژه، فعالیت‌ها، WBS و روابط واقعی در نماهای متصل در دسترس هستند."))}</p>
+    </div>
+  </section>`;
+}
+
 function renderWindow(state: DemoState): string {
+  if (state.project && !["projects", "wbs", "activities"].includes(state.window)) {
+    return renderLiveUnavailableWindow(state);
+  }
   switch (state.window) {
     case "projects":
-      return renderTableWindow(state, { en: "Projects", fa: "پروژه‌ها" }, ["Project ID", "Project name", "Status", "Start", "Finish", "Data date", "Activities"], [
-        { "Project ID": "CUBI-DEMO-001", "Project name": "Riverside Pump Station Upgrade", Status: "Active", Start: "02-Nov-26", Finish: "28-May-27", "Data date": "03-Dec-26", Activities: 20 },
-        { "Project ID": "CUBI-DEMO-002", "Project name": "Intake Screen Replacement", Status: "Planning", Start: "01-Feb-27", Finish: "30-Sep-27", "Data date": "—", Activities: 12 },
-      ], ["new-project", "baselines"]);
+      return state.project
+        ? renderTableWindow(state, { en: "Projects", fa: "پروژه‌ها" }, ["Project ID", "Project name", "Revision", "Status", "Start", "Finish", "Activities"], [
+            { "Project ID": state.project.id, "Project name": state.project.name, Revision: state.project.revision, Status: "Open", Start: state.project.projectStart ? fmtDate(state.project.projectStart) : "—", Finish: state.project.projectFinish ? fmtDate(state.project.projectFinish) : "—", Activities: state.project.activities.length },
+          ])
+        : renderTableWindow(state, { en: "Projects", fa: "پروژه‌ها" }, ["Project ID", "Project name", "Status", "Start", "Finish", "Data date", "Activities"], [
+            { "Project ID": "CUBI-DEMO-001", "Project name": "Riverside Pump Station Upgrade", Status: "Active", Start: "02-Nov-26", Finish: "28-May-27", "Data date": "03-Dec-26", Activities: 20 },
+            { "Project ID": "CUBI-DEMO-002", "Project name": "Intake Screen Replacement", Status: "Planning", Start: "01-Feb-27", Finish: "30-Sep-27", "Data date": "—", Activities: 12 },
+          ], ["new-project", "baselines"]);
     case "wbs":
       return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</h2></header>
         <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>WBS Code</th><th>WBS Name</th><th class="is-numeric">Total Activities</th></tr></thead><tbody>
-        ${WBS_TREE.map((node) => `<tr class="${node.level === 0 ? "is-summary-row" : ""}"><td>${esc(node.code)}</td><td style="padding-inline-start:${8 + node.level * 22}px">${node.level < 2 ? "▾ " : "• "}${esc(node.name)}</td><td class="is-numeric">${node.total}</td></tr>`).join("")}
+        ${wbsNodesFor(state).map((node) => `<tr class="${node.level === 0 ? "is-summary-row" : ""}"><td>${esc(node.code)}</td><td style="padding-inline-start:${8 + node.level * 22}px">${node.level < 2 ? "▾ " : "• "}${esc(node.name)}</td><td class="is-numeric">${node.total}</td></tr>`).join("")}
         </tbody></table></div></section>`;
     case "activities":
       return `<section class="cp-vd-windowbody cp-vd-activities">
@@ -567,7 +721,7 @@ function renderWindow(state: DemoState): string {
         ${renderDetails(state)}
       </section>`;
     case "assignments":
-      return renderTableWindow(state, { en: "Resource Assignments", fa: "تخصیص منابع" }, ["Activity ID", "Activity name", "Resource", "Budgeted units", "Actual units", "Remaining units", "Cost"], ACTIVITIES.filter((row) => row.res !== "—").slice(0, 12).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Resource: row.res, "Budgeted units": row.budgetUnits, "Actual units": row.actualUnits, "Remaining units": row.remainingUnits, Cost: row.budgetCost.toLocaleString("en-US") })), ["assign-resources", "assign-roles"]);
+      return renderTableWindow(state, { en: "Resource Assignments", fa: "تخصیص منابع" }, ["Activity ID", "Activity name", "Resource", "Budgeted units", "Actual units", "Remaining units", "Cost"], ACTIVITIES.filter((row) => row.res !== "—").slice(0, 12).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Resource: row.res, "Budgeted units": row.budgetUnits, "Actual units": row.actualUnits, "Remaining units": row.remainingUnits, Cost: numericDisplay(row.budgetCost) })), ["assign-resources", "assign-roles"]);
     case "resources":
       return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Resources", "منابع"))}</h2><div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="assign-resources">${esc(t(state.locale, "Assign resources", "تخصیص منابع"))}</button></div></header>
         <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>Resource ID</th><th>Resource name</th><th>Type</th><th class="is-numeric">Budgeted units</th><th class="is-numeric">Cost</th><th>Histogram</th></tr></thead><tbody>
@@ -579,7 +733,7 @@ function renderWindow(state: DemoState): string {
       return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Reports", "گزارش‌ها"))}</h2><div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="report-wizard">${esc(t(state.locale, "Report wizard", "جادوگر گزارش"))}</button></div></header>
         <div class="cp-vd-report-list">${["Schedule report", "Cost report", "Resource report", "Critical path report"].map((name) => `<div class="cp-vd-report"><span>${esc(name)}</span><button type="button" class="cp-vd-btn" data-vd-dialog="print">${esc(t(state.locale, "Preview", "پیش‌نمایش"))}</button></div>`).join("")}</div></section>`;
     case "tracking":
-      return renderTableWindow(state, { en: "Tracking", fa: "پیگیری" }, ["Activity ID", "Activity name", "Status", "% complete", "Actual start", "Actual finish", "Remaining duration"], ACTIVITIES.slice(0, 10).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Status: row.status, "% complete": `${row.pct}%`, "Actual start": row.pct ? fmtDate(row.start) : "—", "Actual finish": row.pct >= 100 ? fmtDate(row.finish) : "—", "Remaining duration": `${row.rd} d` })));
+      return renderTableWindow(state, { en: "Tracking", fa: "پیگیری" }, ["Activity ID", "Activity name", "Status", "% complete", "Actual start", "Actual finish", "Remaining duration"], ACTIVITIES.slice(0, 10).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Status: row.status, "% complete": `${row.pct}%`, "Actual start": row.pct ? fmtDate(row.start) : "—", "Actual finish": (row.pct ?? -1) >= 100 ? fmtDate(row.finish) : "—", "Remaining duration": numericDisplay(row.rd, " d") })));
     case "documents":
       return renderTableWindow(state, { en: "Documents", fa: "اسناد" }, ["Document", "Title", "Revision", "Status", "Owner"], [
         { Document: "ITP-Pump-01", Title: "Inspection and test plan", Revision: "B", Status: "Approved", Owner: "QA/QC" },
@@ -587,7 +741,7 @@ function renderWindow(state: DemoState): string {
         { Document: "PO-2026-118", Title: "Pump package purchase order", Revision: "A", Status: "Issued", Owner: "Procurement" },
       ], ["export"]);
     case "expenses":
-      return renderTableWindow(state, { en: "Expenses", fa: "هزینه‌ها" }, ["Expense", "Activity ID", "Budgeted cost", "Actual cost", "Remaining cost"], ACTIVITIES.filter((row) => row.budgetCost > 0).slice(0, 10).map((row) => ({ Expense: row.res, "Activity ID": row.id, "Budgeted cost": row.budgetCost.toLocaleString("en-US"), "Actual cost": row.actualCost.toLocaleString("en-US"), "Remaining cost": row.remainingCost.toLocaleString("en-US") })));
+      return renderTableWindow(state, { en: "Expenses", fa: "هزینه‌ها" }, ["Expense", "Activity ID", "Budgeted cost", "Actual cost", "Remaining cost"], ACTIVITIES.filter((row) => (row.budgetCost ?? 0) > 0).slice(0, 10).map((row) => ({ Expense: row.res, "Activity ID": row.id, "Budgeted cost": numericDisplay(row.budgetCost), "Actual cost": numericDisplay(row.actualCost), "Remaining cost": numericDisplay(row.remainingCost) })));
     case "thresholds":
       return renderTableWindow(state, { en: "Thresholds", fa: "آستانه‌ها" }, ["Threshold", "Type", "Warning", "Critical", "Status"], [
         { Threshold: "Total float", Type: "Activity", Warning: "< 5 d", Critical: "< 0 d", Status: "2 activities" },
@@ -675,11 +829,11 @@ function renderTimeline(state: DemoState): string {
     { id: "A1500", en: "Handover", fa: "تحویل نهایی", date: "2027-05-28", critical: false, low: false, end: true },
   ];
   const laneRows = lanes.map((lane, index) => {
-    const position = barPosition(lane.start, lane.finish);
+    const position = demoBarPosition(lane.start, lane.finish);
     return `<div class="cp-vd-timeline-lane${index % 2 ? " is-alt" : ""}"><span class="cp-vd-timeline-name">${esc(t(state.locale, lane.en, lane.fa))}</span><div class="cp-vd-timeline-track"><span class="cp-vd-timeline-bar" style="inset-inline-start:${position.left};width:${position.width}">${esc(t(state.locale, lane.en, lane.fa))}</span></div></div>`;
   }).join("");
   const marks = milestones.map((mark) => {
-    const position = barPosition(mark.date, mark.date);
+    const position = demoBarPosition(mark.date, mark.date);
     return `<span class="cp-vd-timeline-mark${mark.low ? " is-low" : ""}${mark.critical ? " is-critical" : ""}${mark.end ? " is-end" : ""}" style="inset-inline-start:${Math.min(99.4, Math.max(0.6, parseFloat(position.left)))}%" title="${esc(mark.id)} · ${fmtDate(mark.date)}"><i></i><b>${esc(t(state.locale, mark.en, mark.fa))}</b><em><bdi dir="ltr">${esc(fmtDate(mark.date))}</bdi></em></span>`;
   }).join("");
   const dataDate = (day("2026-12-03") - day(PROJECT_START)) / PROJECT_DAYS;
@@ -754,8 +908,8 @@ function renderSheet(state: DemoState, kind: "activity" | "resource"): string {
     <div class="cp-vd-tablewrap"><table class="cp-vd-table cp-vd-sheet"><thead><tr><th>${esc(t(state.locale, kind === "activity" ? "Activity" : "Resource", kind === "activity" ? "فعالیت" : "منبع"))}</th>${PROJECT_WEEKS.map((week) => `<th class="is-numeric">${week}</th>`).join("")}<th class="is-numeric">${esc(t(state.locale, "Total", "جمع"))}</th></tr></thead><tbody>
     ${rows.map((row) => {
       const [first, end] = weekSpan(row.start, row.finish);
-      const perWeek = row.units / (end - first + 1);
-      return `<tr><td>${esc(row.label)}</td>${PROJECT_WEEKS.map((_, week) => `<td class="is-numeric">${week >= first && week <= end && row.units ? perWeek.toFixed(1) : ""}</td>`).join("")}<td class="is-numeric">${row.units.toLocaleString("en-US")}</td></tr>`;
+      const perWeek = (row.units ?? 0) / (end - first + 1);
+      return `<tr><td>${esc(row.label)}</td>${PROJECT_WEEKS.map((_, week) => `<td class="is-numeric">${week >= first && week <= end && (row.units ?? 0) ? perWeek.toFixed(1) : ""}</td>`).join("")}<td class="is-numeric">${(row.units ?? 0).toLocaleString("en-US")}</td></tr>`;
     }).join("")}
     </tbody></table></div></section>`;
 }
@@ -1078,7 +1232,10 @@ function dialogTitle(name: string, locale: string): string {
 }
 
 function renderDialogs(state: DemoState): string {
-  const names = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-roles", "assign-predecessors", "assign-successors", "add-activity", "import", "export", "print", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles"];
+  const allNames = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-roles", "assign-predecessors", "assign-successors", "add-activity", "import", "export", "print", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles"];
+  const names = state.project
+    ? allNames.filter((name) => ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "shortcuts", "about"].includes(name))
+    : allNames;
   return names.map((name) => `<dialog class="cp-vd-dialog" data-vd-dialog="${name}">
     <form method="dialog" data-vd-form="${name}">
       <div class="cp-vd-dialog-title"><span>${esc(dialogTitle(name, state.locale))}</span><button type="button" data-vd-close aria-label="Close">×</button></div>
@@ -1090,22 +1247,156 @@ function renderDialogs(state: DemoState): string {
 
 export function renderVisualDemo(state: DemoState): string {
   const index = WINDOWS.findIndex((window) => window.id === state.window);
+  const projectId = projectIdFor(state);
+  const projectName = projectNameFor(state);
+  const badge = state.project
+    ? t(state.locale, "Connected project · read-only visual shell", "پروژهٔ متصل · پوستهٔ بصری فقط‌خواندنی")
+    : t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه");
+  const exitLabel = state.project
+    ? t(state.locale, "Open classic workspace for editing", "بازکردن محیط کلاسیک برای ویرایش")
+    : t(state.locale, "Return to workspace", "بازگشت به محیط کار");
   return `<div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
-    <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span><button type="button" class="cp-vd-exit" data-vd-exit>${esc(t(state.locale, "Return to workspace", "بازگشت به محیط کار"))}</button></div>
+    <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">${esc(projectId)} — ${esc(projectName)}</span><span class="cp-vd-demo-badge">${esc(badge)}</span><span class="cp-vd-titlebar-spacer"></span><button type="button" class="cp-vd-exit" data-vd-exit>${esc(exitLabel)}</button></div>
     ${renderMenus(state)}
     ${renderToolbars(state)}
     ${renderTabs(state)}
     <div class="cp-vd-layoutbar"><span>${esc(t(state.locale, "Layout", "چیدمان"))}: <strong>CUBI Classic Schedule Layout</strong></span><span>${esc(t(state.locale, "Filter", "فیلتر"))}: <strong>${esc(state.filter || t(state.locale, "All Activities", "همهٔ فعالیت‌ها"))}</strong></span><span class="cp-vd-layoutspacer"></span><button type="button" class="cp-vd-btn" data-vd-dialog="columns">${workspaceIcon("columns")}${esc(t(state.locale, "Columns", "ستون‌ها"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="filters">${workspaceIcon("filter")}${esc(t(state.locale, "Filters", "فیلترها"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="group-sort">${workspaceIcon("sort")}${esc(t(state.locale, "Group and Sort", "گروه و ترتیب"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="timescale">${workspaceIcon("clock")}${esc(t(state.locale, "Timescale", "مقیاس"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="bars">${workspaceIcon("bars")}${esc(t(state.locale, "Bars", "میله‌ها"))}</button></div>
     <div class="cp-vd-main">${renderWindow(state)}</div>
-    <div class="cp-vd-status"><span>${esc(t(state.locale, "Project", "پروژه"))}: CUBI-DEMO-001</span><span>${esc(t(state.locale, "Data date", "تاریخ داده"))}: <bdi dir="ltr">03-Dec-2026</bdi></span><span>${esc(t(state.locale, "Baseline", "خط مبنا"))}: BL-01</span><span>${esc(t(state.locale, "Window", "پنجره"))}: ${esc(label(WINDOWS[index] ?? WINDOWS[0], state.locale))}</span><span class="cp-vd-status-end">${esc(t(state.locale, "Preview data — not saved or calculated", "دادهٔ پیش‌نمایش — ذخیره یا محاسبه نشده"))}</span></div>
+    <div class="cp-vd-status"><span>${esc(t(state.locale, "Project", "پروژه"))}: ${esc(projectId)}</span><span>${esc(t(state.locale, "Revision", "ویرایش"))}: ${state.project?.revision ?? "—"}</span><span>${esc(t(state.locale, "Activities", "فعالیت‌ها"))}: ${state.project?.activities.length ?? ACTIVITIES.length}</span><span>${esc(t(state.locale, "Window", "پنجره"))}: ${esc(label(WINDOWS[index] ?? WINDOWS[0], state.locale))}</span><span class="cp-vd-status-end">${esc(state.project ? t(state.locale, "Server project data · no edits are sent from this visual shell", "دادهٔ پروژه از سرور · ویرایش از این پوسته ارسال نمی‌شود") : t(state.locale, "Preview data — not saved or calculated", "دادهٔ پیش‌نمایش — ذخیره یا محاسبه نشده"))}</span></div>
     ${renderDialogs(state)}
   </div>`;
 }
 
-export function createVisualDemoState(locale: string): DemoState {
+function liveProjectData(workspace: WorkspaceState): LiveProjectData {
+  const nodesById = new Map(workspace.wbsNodes.map((node) => [node.id, node]));
+  const numberFrom = (record: Readonly<Record<string, unknown>>, keys: string[]): number | null => {
+    for (const key of keys) {
+      const value = record[key];
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string" && value.trim() !== "") {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+    }
+    return null;
+  };
+  const textFrom = (record: Readonly<Record<string, unknown>>, keys: string[]): string => {
+    for (const key of keys) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim() !== "") return value;
+      if (typeof value === "number" || typeof value === "boolean") return String(value);
+    }
+    return "";
+  };
+  const predecessors = new Map<string, string[]>();
+  const successors = new Map<string, string[]>();
+  for (const link of workspace.relationships) {
+    const pred = predecessors.get(link.successorId) ?? [];
+    pred.push(link.predecessorId);
+    predecessors.set(link.successorId, pred);
+    const succ = successors.get(link.predecessorId) ?? [];
+    succ.push(link.successorId);
+    successors.set(link.predecessorId, succ);
+  };
+  const activities: DemoActivity[] = workspace.activities.map((activity) => {
+    const cells = activity.cells ?? {};
+    const wbs = nodesById.get(activity.wbsId);
+    const start = activity.gantt?.start ?? textFrom(cells, ["start", "activity.early_start"]);
+    const finish = activity.gantt?.finish ?? textFrom(cells, ["finish", "activity.early_finish"]);
+    const duration = numberFrom(cells, ["activity.planned_duration", "duration"]);
+    const pct = activity.gantt?.progressPercent ?? numberFrom(cells, ["activity.duration_percent_complete", "progress"]);
+    const rowPreds = predecessors.get(activity.id) ?? [];
+    const rowSuccs = successors.get(activity.id) ?? [];
+    const displayWbs = wbs ? `${wbs.localCode} ${wbs.name}` : "Unassigned";
+    return {
+      id: activity.id,
+      name: activity.name,
+      phase: wbs?.name ?? "Unassigned",
+      wbs: displayWbs,
+      type: textFrom(cells, ["activity.type", "activity.activity_type"]) || "—",
+      od: duration,
+      rd: numberFrom(cells, ["activity.remaining_duration"]),
+      ad: null,
+      start,
+      finish,
+      es: textFrom(cells, ["activity.early_start"]),
+      ef: textFrom(cells, ["activity.early_finish"]),
+      ls: textFrom(cells, ["activity.late_start"]),
+      lf: textFrom(cells, ["activity.late_finish"]),
+      tf: numberFrom(cells, ["activity.total_float"]),
+      ff: numberFrom(cells, ["activity.free_float"]),
+      pct,
+      status: textFrom(cells, ["activity.status", "activity.status_code"]) || "—",
+      calendar: textFrom(cells, ["activity.calendar"]) || "—",
+      pred: rowPreds.length ? rowPreds.join(", ") : "—",
+      succ: rowSuccs.length ? rowSuccs.join(", ") : "—",
+      res: "—",
+      budgetUnits: null,
+      actualUnits: null,
+      remainingUnits: null,
+      budgetCost: null,
+      actualCost: null,
+      remainingCost: null,
+      codes: textFrom(cells, ["activity.activity_code"]) || "—",
+      constraint: textFrom(cells, ["activity.constraint_type"]) || "—",
+      critical: activity.gantt?.critical ?? cells["activity.is_critical"] === true,
+      milestone: duration === 0,
+      baseline: "—",
+    };
+  });
+  for (const activity of workspace.activities) {
+    let current: string | null = activity.wbsId;
+    while (current) {
+      activityCounts.set(current, (activityCounts.get(current) ?? 0) + 1);
+      current = nodesById.get(current)?.parentWbsId ?? null;
+    }
+  }
+  const levels = new Map<string, number>();
+  const levelOf = (id: string): number => {
+    const cached = levels.get(id);
+    if (cached !== undefined) return cached;
+    const node = nodesById.get(id);
+    const level = !node || node.parentKind === "project" || !node.parentWbsId
+      ? 0
+      : levelOf(node.parentWbsId) + 1;
+    levels.set(id, level);
+    return level;
+  };
+  const wbsNodes = workspace.wbsNodes.map((node) => ({
+    code: node.localCode,
+    name: node.name,
+    level: levelOf(node.id),
+    total: activityCounts.get(node.id) ?? 0,
+  }));
+  const dates = activities.flatMap((activity) => [activity.start, activity.finish])
+    .filter(isIsoDate)
+    .sort();
+  const root = workspace.wbsNodes.find((node) => node.parentKind === "project");
+  return {
+    id: workspace.context.project_id,
+    name: root?.name ?? workspace.context.project_id,
+    revision: workspace.context.revision,
+    activities,
+    wbsNodes,
+    relationships: workspace.relationships.map((link) => ({
+      predecessorId: link.predecessorId,
+      successorId: link.successorId,
+      type: link.type,
+      lagValue: link.lagValue,
+      lagUnit: link.lagUnit,
+    })),
+    // This preview does not invent resources, budgets, baselines or a Data Date.
+    resources: [],
+    projectStart: dates[0] ?? null,
+    projectFinish: dates[dates.length - 1] ?? null,
+  };
+}
+
+export function createVisualDemoState(locale: string, workspace?: WorkspaceState): DemoState {
+  const project = workspace ? liveProjectData(workspace) : null;
   return {
     window: "activities",
-    activityId: "A1320",
+    activityId: project?.activities[0]?.id ?? "A1320",
     scale: "month",
     detailTab: "general",
     calendarMonth: 1,
@@ -1118,6 +1409,7 @@ export function createVisualDemoState(locale: string): DemoState {
     forward: [],
     detailsOpen: true,
     locale,
+    project,
   };
 }
 
@@ -1234,7 +1526,15 @@ function bind(root: HTMLElement): void {
     state.window = id;
     draw();
   };
-  const openDialog = (name: string): void => {
+  const showLiveNotice = (): void => {
+    const existing = root.querySelector<HTMLElement>(".cp-vd-live-notice");
+    existing?.remove();
+    const notice = document.createElement("div");
+    notice.className = "cp-vd-live-notice";
+    notice.setAttribute("role", "status");
+    notice.textContent = t(state.locale, "This command is not connected to the live project yet. No project data was changed.", "این فرمان هنوز به پروژهٔ واقعی متصل نیست؛ هیچ داده‌ای تغییر نکرد.");
+    root.querySelector(".cp-vd")?.append(notice);
+  };
     closeMenus();
     // Buttons and the dialog element share the same name marker, so the
     // lookup must target the <dialog> itself rather than the opening button.
@@ -1249,6 +1549,8 @@ function bind(root: HTMLElement): void {
     else dialog.removeAttribute("open");
   };
   const run = (action: MenuAction | undefined): void => {
+    if (state.project && action.command && !["back", "forward", "close-window", "undo", "redo", "noop"].includes(action.command) && !action.command.startsWith("toolbar:")) { showLiveNotice(); return; }
+    if (state.project && action.window && !["projects", "wbs", "activities"].includes(action.window)) { showLiveNotice(); return; }
     if (!action || action.reason) return;
     if (action.window) { navigate(action.window); return; }
     if (action.dialog) { openDialog(action.dialog); return; }
@@ -1346,7 +1648,7 @@ function bind(root: HTMLElement): void {
     const exit = target.closest<HTMLElement>("[data-vd-exit]");
     if (exit) {
       const url = new URL(window.location.href);
-      url.searchParams.delete("view");
+      if (state.project) url.searchParams.set("view", "classic"); else url.searchParams.delete("view");
       window.location.assign(url.toString());
       return;
     }
