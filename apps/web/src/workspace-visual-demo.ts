@@ -1,3 +1,5 @@
+    const liveSafeDialogs = new Set(["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "shortcuts", "about"]);
+    if (state.project && !liveSafeDialogs.has(name)) { showLiveNotice(); return; }
 /**
  * Visual workspace demo (CUBI-DEMO-001).
  *
@@ -266,8 +268,8 @@ function renderActivityTable(state: DemoState, columns: string[]): string {
           const column = ACTIVITY_COLUMNS.find((item) => item.id === id) ?? ACTIVITY_COLUMNS[0];
           let value: string | number = (row as unknown as Record<string, string | number>)[id] ?? "";
           if (["start", "finish", "es", "ef", "ls", "lf"].includes(id)) value = fmtDate(String(value));
-          if (id === "pct") value = `${value}%`;
-          if (["budgetCost", "actualCost", "remainingCost"].includes(id)) value = Number(value) ? Number(value).toLocaleString("en-US") : "—";
+          if (id === "pct") value = row.pct === null ? "—" : `${row.pct}%`;
+          if (["budgetCost", "actualCost", "remainingCost"].includes(id)) value = value !== "" && Number(value) ? Number(value).toLocaleString("en-US") : "—";
           return `<td class="${column.numeric ? "is-numeric" : ""}${id === "id" ? " is-id" : ""}${row.critical && id === "tf" ? " is-red" : ""}">${esc(value)}</td>`;
         }).join("")}
       </tr>`;
@@ -472,11 +474,11 @@ function renderGantt(state: DemoState): string {
       cursor += 26;
       return `<div class="cp-vd-gantt-row${row.id === state.activityId ? " is-selected" : ""}" data-vd-activity="${esc(row.id)}">
         <div class="cp-vd-gantt-track">
-          ${summary ? "" : `<span class="cp-vd-bar is-baseline" style="inset-inline-start:${position.left};width:${position.width}" title="BL-01"></span>`}
+          ${summary || state.project ? "" : `<span class="cp-vd-bar is-baseline" style="inset-inline-start:${position.left};width:${position.width}" title="BL-01"></span>`}
           ${row.milestone
             ? `<span class="cp-vd-bar ${shape} ${row.critical ? "is-critical" : ""}" style="inset-inline-start:${position.left}" title="${esc(row.name)}"></span>`
-            : `<span class="cp-vd-bar ${shape}${summary && row.critical ? " is-critical" : ""}" style="inset-inline-start:${position.left};width:${position.width}" title="${esc(row.name)} — ${row.pct}%">
-                ${summary ? "" : `<span class="cp-vd-bar-progress" style="width:${row.pct}%"></span>`}
+            : `<span class="cp-vd-bar ${shape}${summary && row.critical ? " is-critical" : ""}" style="inset-inline-start:${position.left};width:${position.width}" title="${esc(row.name)} — ${numericDisplay(row.pct, "%")}">
+                ${summary || row.pct === null ? "" : `<span class="cp-vd-bar-progress" style="width:${row.pct}%"></span>`}
               </span>`}
           ${position.width !== "0%" ? `<span class="cp-vd-bar-label${summary ? " is-summary" : ""}" style="inset-inline-start:calc(${position.left} + ${summary ? "6px" : position.width})">${esc(row.name)}</span>` : ""}
         </div>
@@ -1570,7 +1572,15 @@ function bind(root: HTMLElement): void {
     state.window = id;
     draw();
   };
-  const openDialog = (name: string): void => {
+  const showLiveNotice = (): void => {
+    const existing = root.querySelector<HTMLElement>(".cp-vd-live-notice");
+    existing?.remove();
+    const notice = document.createElement("div");
+    notice.className = "cp-vd-live-notice";
+    notice.setAttribute("role", "status");
+    notice.textContent = t(state.locale, "This command is not connected to the live project yet. No project data was changed.", "این فرمان هنوز به پروژهٔ واقعی متصل نیست؛ هیچ داده‌ای تغییر نکرد.");
+    root.querySelector(".cp-vd")?.append(notice);
+  };
     closeMenus();
     // Buttons and the dialog element share the same name marker, so the
     // lookup must target the <dialog> itself rather than the opening button.
@@ -1585,6 +1595,8 @@ function bind(root: HTMLElement): void {
     else dialog.removeAttribute("open");
   };
   const run = (action: MenuAction | undefined): void => {
+    if (state.project && action.command && !["back", "forward", "close-window", "undo", "redo", "noop"].includes(action.command) && !action.command.startsWith("toolbar:")) { showLiveNotice(); return; }
+    if (state.project && action.window && !["projects", "wbs", "activities"].includes(action.window)) { showLiveNotice(); return; }
     if (!action || action.reason) return;
     if (action.window) { navigate(action.window); return; }
     if (action.dialog) { openDialog(action.dialog); return; }
@@ -1682,7 +1694,7 @@ function bind(root: HTMLElement): void {
     const exit = target.closest<HTMLElement>("[data-vd-exit]");
     if (exit) {
       const url = new URL(window.location.href);
-      url.searchParams.delete("view");
+      if (state.project) url.searchParams.set("view", "classic"); else url.searchParams.delete("view");
       window.location.assign(url.toString());
       return;
     }
