@@ -115,7 +115,7 @@ test("English and Persian documents declare locale, metadata, twin and the share
     assert.ok(html.includes('<link rel="alternate" hreflang="x-default"'), `${document.file} x-default`);
     assert.match(html, /<meta property="og:locale" content="[A-Za-z_]+"/, `${document.file} og:locale`);
     assert.match(html, /<meta property="og:locale:alternate" content="[A-Za-z_]+"/, `${document.file} og:locale:alternate`);
-    assert.match(html, /global-assistant-launcher\.js/, `${document.file} must mount the shared assistant`);
+    assert.match(html, /global-assistant-launcher\.bundle\.js/, `${document.file} must mount the shared assistant`);
     if (isPersian) {
       assert.match(html, /[\u0600-\u06FF]{4,}/, `${document.file} must carry Persian copy, not English markup only`);
       assert.doesNotMatch(html, /<h1>[^<]*[A-Za-z]{5,}/, `${document.file} must not fall back to an English headline`);
@@ -176,7 +176,7 @@ test("no public document links to a route that is not shipped", () => {
 test("the Persian landing document boots the same JavaScript entries as the English one", () => {
   const faHome = readDoc("public/fa/index.html");
   const enHome = readDoc("index.html");
-  for (const script of ["landing-entry.js", "global-assistant-launcher.js"]) {
+  for (const script of ["landing-entry.bundle.js", "global-assistant-launcher.bundle.js"]) {
     assert.match(faHome, new RegExp(`src="[^"]*${script}"`), `Persian home must load ${script}`);
     assert.match(enHome, new RegExp(`src="[^"]*${script}"`), `English home must load ${script}`);
   }
