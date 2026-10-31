@@ -8,6 +8,7 @@
  * explicitly from Help → Visual workspace demo.
  */
 import { workspaceIcon } from "./workspace-icons.js";
+import type { WorkspaceState } from "./workspace-model.js";
 
 export type DemoWindowId =
   | "projects" | "wbs" | "activities" | "assignments" | "resources" | "calendars" | "reports"
@@ -76,11 +77,26 @@ const ACTIVITY_COLUMNS: Array<{ id: string; en: string; fa: string; width: numbe
 const DEFAULT_COLUMNS = ["id", "name", "wbs", "od", "rd", "start", "finish", "tf", "pct", "status", "res", "pred"];
 
 type DemoActivity = {
-  id: string; name: string; phase: string; wbs: string; type: string; od: number; rd: number; ad: number;
-  start: string; finish: string; es: string; ef: string; ls: string; lf: string; tf: number; ff: number;
-  pct: number; status: string; calendar: string; pred: string; succ: string; res: string;
-  budgetUnits: number; actualUnits: number; remainingUnits: number; budgetCost: number; actualCost: number;
-  remainingCost: number; codes: string; constraint: string; critical: boolean; milestone?: boolean; summary?: boolean; baseline?: string;
+  id: string; name: string; phase: string; wbs: string; type: string; od: number | null; rd: number | null; ad: number | null;
+  start: string; finish: string; es: string; ef: string; ls: string; lf: string; tf: number | null; ff: number | null;
+  pct: number | null; status: string; calendar: string; pred: string; succ: string; res: string;
+  budgetUnits: number | null; actualUnits: number | null; remainingUnits: number | null; budgetCost: number | null; actualCost: number | null;
+  remainingCost: number | null; codes: string; constraint: string; critical: boolean; milestone?: boolean; summary?: boolean; baseline?: string;
+};
+
+type DemoWbsNode = { code: string; name: string; level: number; total: number };
+type DemoResource = { id: string; name: string; type: string; units: number; cost: number };
+type DemoRelationship = { predecessorId: string; successorId: string; type: string; lagValue: string; lagUnit: string };
+type LiveProjectData = {
+  id: string;
+  name: string;
+  revision: number;
+  activities: DemoActivity[];
+  wbsNodes: DemoWbsNode[];
+  relationships: DemoRelationship[];
+  resources: DemoResource[];
+  projectStart: string | null;
+  projectFinish: string | null;
 };
 
 function act(
@@ -161,6 +177,8 @@ type DemoState = {
   forward: DemoWindowId[];
   detailsOpen: boolean;
   locale: string;
+  /** When present, every displayed project/activity/WBS fact is mapped from the authenticated project read. */
+  project: LiveProjectData | null;
 };
 
 function label(text: Label, locale: string): string {
@@ -178,6 +196,7 @@ function esc(value: unknown): string {
 }
 
 function fmtDate(iso: string): string {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(iso)) return "—";
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y.slice(2)}`;
 }
@@ -189,10 +208,41 @@ function day(value: string): number {
 const PROJECT_START = "2026-11-02";
 const PROJECT_FINISH = "2027-05-28";
 
+function activitiesFor(state: DemoState): DemoActivity[] {
+  return state.project?.activities ?? ACTIVITIES;
+}
+
+function wbsNodesFor(state: DemoState): DemoWbsNode[] {
+  return state.project?.wbsNodes ?? WBS_TREE;
+}
+
+function resourcesFor(state: DemoState): DemoResource[] {
+  return state.project?.resources ?? RESOURCES;
+}
+
+function projectIdFor(state: DemoState): string {
+  return state.project?.id ?? "CUBI-DEMO-001";
+}
+
+function projectNameFor(state: DemoState): string {
+  return state.project?.name ?? "Riverside Pump Station Upgrade";
+}
+
+function projectRangeFor(state: DemoState): { start: string; finish: string } | null {
+  if (!state.project) return { start: PROJECT_START, finish: PROJECT_FINISH };
+  if (!state.project.projectStart || !state.project.projectFinish) return null;
+  return { start: state.project.projectStart, finish: state.project.projectFinish };
+}
+
+function numericDisplay(value: number | null, suffix = ""): string {
+  return value === null || !Number.isFinite(value) ? "—" : `${value}${suffix}`;
+}
+
 function filterActivities(state: DemoState): DemoActivity[] {
+  const rows = activitiesFor(state);
   const query = state.filter.trim().toLowerCase();
-  if (!query) return ACTIVITIES;
-  return ACTIVITIES.filter((row) => `${row.id} ${row.name} ${row.wbs} ${row.res}`.toLowerCase().includes(query));
+  if (!query) return rows;
+  return rows.filter((row) => `${row.id} ${row.name} ${row.wbs} ${row.res}`.toLowerCase().includes(query));
 }
 
 function renderActivityTable(state: DemoState, columns: string[]): string {
@@ -1102,10 +1152,145 @@ export function renderVisualDemo(state: DemoState): string {
   </div>`;
 }
 
-export function createVisualDemoState(locale: string): DemoState {
+function liveProjectData(workspace: WorkspaceState): LiveProjectData {
+  const nodesById = new Map(workspace.wbsNodes.map((node) => [node.id, node]));
+  const numberFrom = (record: Readonly<Record<string, unknown>>, keys: string[]): number | null => {
+    for (const key of keys) {
+      const value = record[key];
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string" && value.trim() !== "") {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+    }
+    return null;
+  };
+  const textFrom = (record: Readonly<Record<string, unknown>>, keys: string[]): string => {
+    for (const key of keys) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim() !== "") return value;
+      if (typeof value === "number" || typeof value === "boolean") return String(value);
+    }
+    return "";
+  };
+  const predecessors = new Map<string, string[]>();
+  const successors = new Map<string, string[]>();
+  for (const link of workspace.relationships) {
+    const pred = predecessors.get(link.successorId) ?? [];
+    pred.push(link.predecessorId);
+    predecessors.set(link.successorId, pred);
+    const succ = successors.get(link.predecessorId) ?? [];
+    succ.push(link.successorId);
+    successors.set(link.predecessorId, succ);
+  };
+  const activities: DemoActivity[] = workspace.activities.map((activity) => {
+    const cells = activity.cells ?? {};
+    const wbs = nodesById.get(activity.wbsId);
+    const start = activity.gantt?.start ?? textFrom(cells, ["start", "activity.early_start"]);
+    const finish = activity.gantt?.finish ?? textFrom(cells, ["finish", "activity.early_finish"]);
+    const duration = numberFrom(cells, ["activity.planned_duration", "duration"]);
+    const pct = activity.gantt?.progressPercent ?? numberFrom(cells, ["activity.duration_percent_complete", "progress"]);
+    const rowPreds = predecessors.get(activity.id) ?? [];
+    const rowSuccs = successors.get(activity.id) ?? [];
+    const displayWbs = wbs ? `${wbs.localCode} ${wbs.name}` : "Unassigned";
+    return {
+      id: activity.id,
+      name: activity.name,
+      phase: wbs?.name ?? "Unassigned",
+      wbs: displayWbs,
+      type: textFrom(cells, ["activity.type", "activity.activity_type"]) || "—",
+      od: duration,
+      rd: numberFrom(cells, ["activity.remaining_duration"]),
+      ad: null,
+      start,
+      finish,
+      es: textFrom(cells, ["activity.early_start"]),
+      ef: textFrom(cells, ["activity.early_finish"]),
+      ls: textFrom(cells, ["activity.late_start"]),
+      lf: textFrom(cells, ["activity.late_finish"]),
+      tf: numberFrom(cells, ["activity.total_float"]),
+      ff: numberFrom(cells, ["activity.free_float"]),
+      pct,
+      status: textFrom(cells, ["activity.status", "activity.status_code"]) || "—",
+      calendar: textFrom(cells, ["activity.calendar"]) || "—",
+      pred: rowPreds.length ? rowPreds.join(", ") : "—",
+      succ: rowSuccs.length ? rowSuccs.join(", ") : "—",
+      res: "—",
+      budgetUnits: null,
+      actualUnits: null,
+      remainingUnits: null,
+      budgetCost: null,
+      actualCost: null,
+      remainingCost: null,
+      codes: textFrom(cells, ["activity.activity_code"]) || "—",
+      constraint: textFrom(cells, ["activity.constraint_type"]) || "—",
+      critical: activity.gantt?.critical ?? cells["activity.is_critical"] === true,
+      milestone: duration === 0,
+      baseline: "—",
+    };
+  });
+  const childIds = new Map<string, string[]>();
+  for (const node of workspace.wbsNodes) {
+    if (node.parentWbsId) {
+      const children = childIds.get(node.parentWbsId) ?? [];
+      children.push(node.id);
+      childIds.set(node.parentWbsId, children);
+    }
+  }
+  const activityCounts = new Map<string, number>();
+  for (const activity of workspace.activities) {
+    let current: string | null = activity.wbsId;
+    while (current) {
+      activityCounts.set(current, (activityCounts.get(current) ?? 0) + 1);
+      current = nodesById.get(current)?.parentWbsId ?? null;
+    }
+  }
+  const levels = new Map<string, number>();
+  const levelOf = (id: string): number => {
+    const cached = levels.get(id);
+    if (cached !== undefined) return cached;
+    const node = nodesById.get(id);
+    const level = !node || node.parentKind === "project" || !node.parentWbsId
+      ? 0
+      : levelOf(node.parentWbsId) + 1;
+    levels.set(id, level);
+    return level;
+  };
+  const wbsNodes = workspace.wbsNodes.map((node) => ({
+    code: node.localCode,
+    name: node.name,
+    level: levelOf(node.id),
+    total: activityCounts.get(node.id) ?? 0,
+  }));
+  const dates = activities.flatMap((activity) => [activity.start, activity.finish])
+    .filter((value) => /^\\d{4}-\\d{2}-\\d{2}$/.test(value))
+    .sort();
+  const root = workspace.wbsNodes.find((node) => node.parentKind === "project");
+  return {
+    id: workspace.context.project_id,
+    name: root?.name ?? workspace.context.project_id,
+    revision: workspace.context.revision,
+    activities,
+    wbsNodes,
+    relationships: workspace.relationships.map((link) => ({
+      predecessorId: link.predecessorId,
+      successorId: link.successorId,
+      type: link.type,
+      lagValue: link.lagValue,
+      lagUnit: link.lagUnit,
+    })),
+    // This preview does not invent resources, budgets, baselines or a Data Date.
+    resources: [],
+    projectStart: dates[0] ?? null,
+    projectFinish: dates[dates.length - 1] ?? null,
+  };
+}
+
+export function createVisualDemoState(locale: string, workspace?: WorkspaceState): DemoState {
+  const project = workspace ? liveProjectData(workspace) : null;
   return {
     window: "activities",
-    activityId: "A1320",
+    activityId: project?.activities[0]?.id ?? "A1320",
     scale: "month",
     detailTab: "general",
     calendarMonth: 1,
@@ -1118,6 +1303,7 @@ export function createVisualDemoState(locale: string): DemoState {
     forward: [],
     detailsOpen: true,
     locale,
+    project,
   };
 }
 
