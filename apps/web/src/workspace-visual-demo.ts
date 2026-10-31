@@ -8,6 +8,8 @@
  * project routes here by default; use the explicit live view to open API-backed data.
  */
 import { workspaceIcon } from "./workspace-icons.js";
+import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName } from "./workspace-localization.js";
+import { LANDING_LOCALE_STORAGE_KEY, rememberWorkspaceLocale, writeStoredValue } from "./workspace-preferences.js";
 
 export type DemoWindowId =
   | "projects" | "wbs" | "activities" | "assignments" | "resources" | "calendars" | "reports"
@@ -763,7 +765,7 @@ function renderSheet(state: DemoState, kind: "activity" | "resource"): string {
 type MenuAction = { window?: DemoWindowId; dialog?: string; command?: string; reason?: Label };
 
 const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shortcut?: string; action?: MenuAction; checked?: string; children?: Array<{ label: Label; action?: MenuAction; checked?: string }> }> }> = [
-  { id: "workspace", label: { en: "Workspace", fa: "محیط کار" }, items: [
+  { id: "workspace", label: { en: "File", fa: "فایل" }, items: [
     { label: { en: "New project…", fa: "پروژهٔ جدید…" }, action: { dialog: "new-project" } },
     { label: { en: "Open project…", fa: "بازکردن پروژه…" }, action: { window: "projects" } },
     { label: { en: "Project properties…", fa: "مشخصات پروژه…" }, action: { dialog: "project-properties" } },
@@ -772,7 +774,7 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
       { label: { en: "Export…", fa: "خروجی…" }, action: { dialog: "export" } },
     ] },
     { label: { en: "Print preview", fa: "پیش‌نمایش چاپ" }, shortcut: "Ctrl+P", action: { dialog: "print" } },
-    { label: { en: "Close window", fa: "بستن پنجره" }, shortcut: "Ctrl+W", action: { command: "close-window" } },
+    { label: { en: "Sign out", fa: "خروج از حساب" }, action: { command: "sign-out" } },
   ] },
   { id: "edit", label: { en: "Edit", fa: "ویرایش" }, items: [
     { label: { en: "Undo", fa: "بازگردانی" }, shortcut: "Ctrl+Z", action: { command: "undo" } },
@@ -1088,10 +1090,21 @@ function renderDialogs(state: DemoState): string {
   </dialog>`).join("");
 }
 
+function renderLanguageSwitch(state: DemoState): string {
+  // Only locales with complete translations in this visual shell are offered.
+  // Add German, Chinese, or another locale here when its full shell pack ships.
+  const supported = getAvailableWorkspaceLocales().filter((locale) => locale === "en" || locale === "fa");
+  return `<label class="cp-vd-language"><span>${esc(t(state.locale, "Language", "زبان"))}</span>
+    <select data-vd-locale aria-label="${esc(t(state.locale, "Select language", "انتخاب زبان"))}" title="${esc(t(state.locale, "Select workspace language", "انتخاب زبان محیط کار"))}">
+      ${supported.map((locale) => `<option value="${esc(locale)}"${state.locale === locale ? " selected" : ""}>${esc(getWorkspaceLocaleDisplayName(locale))}</option>`).join("")}
+    </select>
+  </label>`;
+}
+
 export function renderVisualDemo(state: DemoState): string {
   const index = WINDOWS.findIndex((window) => window.id === state.window);
   return `<div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
-    <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span><button type="button" class="cp-vd-exit" data-vd-exit>${esc(t(state.locale, "Return to workspace", "بازگشت به محیط کار"))}</button></div>
+    <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span>${renderLanguageSwitch(state)}<button type="button" class="cp-vd-exit" data-vd-exit title="${esc(t(state.locale, "Open the live project workspace", "ورود به محیط واقعی پروژه"))}">${esc(t(state.locale, "Open live workspace", "بازگشت به محیط واقعی پروژه"))}</button></div>
     ${renderMenus(state)}
     ${renderToolbars(state)}
     ${renderTabs(state)}
@@ -1263,7 +1276,24 @@ function bind(root: HTMLElement): void {
         if (next) { state.history.push(state.window); state.window = next; draw(); }
         return;
       }
-      case "close-window": navigate("projects"); return;
+      case "sign-out": {
+        const button = root.querySelector<HTMLButtonElement>('[data-vd-action*="sign-out"]');
+        if (button) button.disabled = true;
+        void fetch("/preview/logout", {
+          method: "POST",
+          credentials: "same-origin",
+          redirect: "follow",
+        }).then((response) => {
+          if (!response.ok) throw new Error(`SIGN_OUT_HTTP_${response.status}`);
+          // The preview endpoint revokes the session and redirects its fetch to
+          // the login screen; the top-level browser then returns to the public home page.
+          window.location.assign("/");
+        }).catch(() => {
+          if (button) button.disabled = false;
+          window.alert(t(state.locale, "Sign out failed. Check your connection and try again.", "خروج از حساب انجام نشد. اتصال را بررسی کنید و دوباره تلاش کنید."));
+        });
+        return;
+      }
       case "undo": case "redo": case "noop": return;
       default: {
         // Any toolbar name from the toolbar register can be shown or hidden.
@@ -1277,6 +1307,23 @@ function bind(root: HTMLElement): void {
       }
     }
   };
+
+  root.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement) || !target.matches("[data-vd-locale]")) return;
+    const next = target.value;
+    const available = getAvailableWorkspaceLocales();
+    if ((next !== "en" && next !== "fa") || !available.includes(next)) return;
+    state.locale = next;
+    rememberWorkspaceLocale(next, available);
+    writeStoredValue(LANDING_LOCALE_STORAGE_KEY, next);
+    document.documentElement.lang = next;
+    document.documentElement.dir = getWorkspaceLocaleDirection(next);
+    document.title = next === "fa"
+      ? "محیط کار CUBI — نمایش بصری"
+      : "CUBI Workspace — visual demo";
+    draw();
+  });
 
   root.addEventListener("click", (event) => {
     const target = event.target as HTMLElement | null;

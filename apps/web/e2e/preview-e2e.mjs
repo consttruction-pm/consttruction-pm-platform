@@ -1809,6 +1809,28 @@ async function main() {
         ...deepLinkWorkspace,
       });
 
+      await deepLinkPage.setSelect('select[data-vd-locale]', "fa");
+      await deepLinkPage.waitFor(
+        `document.documentElement.lang === "fa" && document.documentElement.dir === "rtl"`,
+        "visual workspace language switches to Persian",
+      );
+      await deepLinkPage.navigate(
+        `${baseUrl}/app?project=${PROJECT_ID}`,
+        "[data-visual-demo]",
+        "visual workspace reload with saved language",
+      );
+      const savedLanguage = await deepLinkPage.evaluate(`(() => ({
+        lang: document.documentElement.lang,
+        dir: document.documentElement.dir,
+        selected: document.querySelector("select[data-vd-locale]")?.value ?? null,
+      }))()`);
+      assert(
+        savedLanguage.lang === "fa" && savedLanguage.dir === "rtl" && savedLanguage.selected === "fa",
+        "visual workspace language must persist across refresh: " + JSON.stringify(savedLanguage),
+      );
+      record("visual workspace language preference persists across refresh", savedLanguage);
+      await deepLinkPage.setSelect('select[data-vd-locale]', "en");
+
       await deepLinkPage.click(".cp-vd-exit");
       await deepLinkPage.waitFor(
         `location.pathname === "/app" && new URLSearchParams(location.search).get("view") === "live"`,
@@ -1829,15 +1851,30 @@ async function main() {
           JSON.stringify(liveWorkspace),
       );
       record("visual preview exit returns to the real project-backed workspace", liveWorkspace);
-      await deepLinkPage.click('#cubi-preview-banner form[action="/preview/logout"] button');
+
+      await deepLinkPage.navigate(
+        `${baseUrl}/app?project=${PROJECT_ID}`,
+        "[data-visual-demo]",
+        "visual preview before testing sign out",
+      );
+      await deepLinkPage.click('[data-vd-menu="workspace"] .cp-vd-menu-trigger');
+      await deepLinkPage.click('[data-vd-action*="sign-out"]');
       await deepLinkPage.waitFor(
-        `location.pathname === "/preview/login"`,
-        "logout after project deep-link roundtrip",
+        `location.pathname === "/"`,
+        "sign out returns the user to the public home page",
       );
-      await deepLinkPage.waitForSelector(
-        'form[action="/preview/login"] button[name="role"]',
-        "clean login after deep-link logout",
+      const signedOutSession = await deepLinkPage.evaluate(
+        `fetch("/api/session").then((response) => response.status)`,
+        { awaitPromise: true },
       );
+      assert(
+        signedOutSession === 401,
+        `the sign-out control must revoke the preview session, got HTTP ${signedOutSession}`,
+      );
+      record("workspace menu sign out revokes the session and returns home", {
+        pathname: "/",
+        session_status: signedOutSession,
+      });
     } finally {
       if (deepLinkPage) deepLinkPage.cdp.close();
       await deepLinkChrome.stop();
