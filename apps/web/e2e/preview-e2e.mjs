@@ -3924,7 +3924,7 @@ async function main() {
     record("assistant guide explains a failed workspace with the real reference code", workspaceErrorGuide);
     // Restore a working document before the session is signed out below.
     await page.navigate(
-      `${baseUrl}/app`,
+      `${baseUrl}/app?view=classic`,
       ".cp-workspace",
       "workspace restored after the failure check",
     );
@@ -5685,7 +5685,16 @@ async function main() {
         return true;
       })()`,
     );
-    await page.waitForSelector(".cp-workspace", "first project workspace");
+    await page.waitForSelector("[data-visual-demo] .cp-vd-activities", "newly-created project's visual workspace");
+    const newProjectVisual = await page.evaluate(`() => ({
+      project: document.querySelector(".cp-vd-project")?.textContent?.trim() ?? "",
+      rows: document.querySelectorAll("[data-vd-activity]").length,
+      badge: document.querySelector(".cp-vd-demo-badge")?.textContent?.trim() ?? "",
+    })()`);
+    assert(newProjectVisual.project.includes("پروژه نخست") && newProjectVisual.rows === 0 &&
+      newProjectVisual.badge.includes("متصل"), "first-run creation must open the new empty project in the visual shell");
+    await page.click("[data-vd-exit]");
+    await page.waitForSelector(".cp-workspace", "classic editing workspace for new project");
     const firstProject = await page.evaluate(`(() => ({
       url: window.location.href,
       project: document.querySelector(".cp-project")?.textContent?.trim() ?? "",
@@ -5880,6 +5889,8 @@ async function main() {
       );
       await page.click(`button[data-project-id="${wbsJourney.project_id}"]`);
       await page.waitForSelector(
+      await page.waitForSelector("[data-visual-demo] .cp-vd-activities", "visual workspace after runtime restart");
+      await page.click("[data-vd-exit]");
         '.cp-wbs-node[data-wbs-id="E2E-WBS-DESIGN"]',
         "persisted WBS child after restart",
       );
