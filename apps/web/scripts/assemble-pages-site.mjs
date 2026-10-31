@@ -59,8 +59,8 @@ cpSync(join(root, "public/cubi-platform-logo-primary.svg"), join(output, "app/cu
 
 // Fix the TypeScript build paths for the root and workspace entry points.
 let homepage = readFileSync(join(output, "index.html"), "utf8")
-  .replaceAll("./dist/landing-entry.js", "./dist/web/src/landing-entry.js")
-  .replaceAll("./dist/global-assistant-launcher.js", "./dist/web/src/global-assistant-launcher.js")
+  .replaceAll("./dist/landing-entry.bundle.js", "./dist/web/src/landing-entry.bundle.js")
+  .replaceAll("./dist/global-assistant-launcher.bundle.js", "./dist/web/src/global-assistant-launcher.bundle.js")
   .replaceAll("./styles.css", "./styles.css");
 homepage = homepage.replace(/<link rel="canonical" href="\.\/"\s*\/>/, '<link rel="canonical" href="' + baseUrl + '/" />');
 homepage = homepage.replace(/<meta property="og:url" content="\.\/"\s*\/>/, '<meta property="og:url" content="' + baseUrl + '/" />');
@@ -70,8 +70,8 @@ homepage = homepage.replaceAll('"url": "./"', '"url": "' + baseUrl + '/"');
 writeFileSync(join(output, "index.html"), homepage);
 
 let workspace = readFileSync(join(output, "app/index.html"), "utf8")
-  .replaceAll("./dist/landing-entry.js", "../dist/web/src/landing-entry.js")
-  .replaceAll("./dist/global-assistant-launcher.js", "../dist/web/src/global-assistant-launcher.js")
+  .replaceAll("./dist/landing-entry.bundle.js", "../dist/web/src/landing-entry.bundle.js")
+  .replaceAll("./dist/global-assistant-launcher.bundle.js", "../dist/web/src/global-assistant-launcher.bundle.js")
   .replaceAll("./styles.css", "../styles.css")
   .replace(/<title>.*<\/title>/, "<title>CUBI Platform | Workspace</title>")
   .replace(/<meta name="description" content="[^"]*"\s*\/>/, '<meta name="description" content="CUBI Platform workspace." />')
@@ -113,8 +113,8 @@ if (workspaceUrl) {
 for (const file of listHtml(output)) {
   if (file.startsWith(join(output, "app") + "/")) continue;
   const html = readFileSync(file, "utf8")
-    .replaceAll("dist/landing-entry.js", "dist/web/src/landing-entry.js")
-    .replaceAll("dist/global-assistant-launcher.js", "dist/web/src/global-assistant-launcher.js")
+    .replaceAll("dist/landing-entry.bundle.js", "dist/web/src/landing-entry.bundle.js")
+    .replaceAll("dist/global-assistant-launcher.bundle.js", "dist/web/src/global-assistant-launcher.bundle.js")
     .replaceAll("dist/pro-checkout.js", "dist/web/src/pro-checkout.js")
     .replaceAll("__CUBI_BASE_URL__", baseUrl);
   writeFileSync(file, html);
@@ -177,8 +177,8 @@ writeFileSync(join(output, "sitemap.xml"), [
 ].join("\n"));
 
 for (const file of [
-  "index.html", "app/index.html", "styles.css", "dist/web/src/landing-entry.js",
-  "dist/web/src/landing.js", "dist/web/src/global-assistant-launcher.js", "dist/web/src/pro-checkout.js", "cubi-platform-logo-primary.svg", "cubi-assistant-avatar.svg", "app/cubi-platform-logo-primary.svg",
+  "index.html", "app/index.html", "styles.css", "dist/web/src/landing-entry.bundle.js",
+  "dist/web/src/landing.js", "dist/web/src/global-assistant-launcher.bundle.js", "dist/web/src/pro-checkout.js", "cubi-platform-logo-primary.svg", "cubi-assistant-avatar.svg", "app/cubi-platform-logo-primary.svg",
   "platform/index.html", "solutions/index.html", "resources/index.html", "contact/index.html",
   "fa/index.html", "fa/platform/index.html", "fa/solutions/index.html", "fa/resources/index.html", "fa/contact/index.html",
   "pricing/index.html", "fa/pricing/index.html",
@@ -204,7 +204,7 @@ for (const file of listHtml(output)) {
   // the assistant while the browser navigates away.
   if (workspaceUrl && file === join(output, "app/index.html")) continue;
   assert(
-    readFileSync(file, "utf8").includes("global-assistant-launcher.js"),
+    readFileSync(file, "utf8").includes("global-assistant-launcher.bundle.js"),
     "global floating assistant launcher missing from " + file,
   );
 }
@@ -222,12 +222,12 @@ for (const { en, fa } of languageRoutes) {
   assert(faDocument.includes('<link rel="alternate" hreflang="en" href="' + baseUrl + en + '"'), fa + " must offer " + en);
   assert(faDocument.includes('lang="fa"') && faDocument.includes('dir="rtl"'), fa + " must be a Persian RTL document");
   assert(/[\u0600-\u06FF]/.test(faDocument), fa + " must carry real Persian content");
-  assert(faDocument.includes("global-assistant-launcher.js"), fa + " must mount the shared assistant entry");
+  assert(faDocument.includes("global-assistant-launcher.bundle.js"), fa + " must mount the shared assistant entry");
 }
 const finalHome = readFileSync(join(output, "index.html"), "utf8");
 const finalApp = readFileSync(join(output, "app/index.html"), "utf8");
 assert(finalHome.includes('<link rel="canonical" href="' + baseUrl + '/" />'), "homepage canonical mismatch");
-assert(finalHome.includes('dist/web/src/landing-entry.js'), "homepage script path mismatch");
+assert(finalHome.includes('dist/web/src/landing-entry.bundle.js'), "homepage script path mismatch");
 if (workspaceUrl) {
   assert(finalApp.includes("window.location.replace("), "configured workspace route must redirect to the API-backed demo");
   assert(finalApp.includes(workspaceUrl), "workspace redirect target mismatch");

@@ -69,6 +69,44 @@ describe("P6 Web API adapters", () => {
     assert.deepEqual(state.p6Layout?.columns, []);
   });
 
+  it("loads the registry and project layout concurrently", async () => {
+    const started = new Set<string>();
+    let releaseBoth!: () => void;
+    const bothStarted = new Promise<void>((resolve) => { releaseBoth = resolve; });
+    const parallelTransport: ApiTransport = {
+      async get(path) {
+        started.add(path.includes("/p6/fields/") ? "registry" : "layout");
+        if (started.size === 2) releaseBoth();
+        await bothStarted;
+        if (path.includes("/p6/fields/")) {
+          return {
+            ok: true,
+            data: {
+              registry_version: "p6-field-registry.v1",
+              reference_product: "CUBI field baseline",
+              reference_version: "v1",
+              status: "seeded_not_certified",
+              fields: [],
+            },
+          } as { ok: true; data: any };
+        }
+        return { ok: false, error: {
+          code: "P6_LAYOUT_NOT_FOUND",
+          retryable: false,
+          message_key: "error.p6.layout.not_found",
+          available_actions: [],
+        } } as any;
+      },
+      async post<TRequest, TResponse>() { throw new Error("read must not write"); },
+    };
+    const state = await Promise.race([
+      loadP6Presentation(createWorkspaceState(context), parallelTransport, context),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("P6_READS_NOT_PARALLEL")), 1000)),
+    ]);
+    assert.deepEqual(state.p6Layout?.columns, []);
+    assert.equal(started.size, 2);
+  });
+
   it("persists through the authenticated project-scoped layout route", async () => {
     const persistence = createP6LayoutPersistence(transport(), context);
     const layout = {

@@ -105,11 +105,11 @@ test("every public page and the workspace shell load the shared floating assista
   ]) {
     const resolved = resolveRequestFile(route);
     assert.ok(resolved && existsSync(resolved), "Expected a page for " + route);
-    assert.match(readFileSync(resolved, "utf8"), /global-assistant-launcher\.js/, "Missing assistant launcher script on " + route);
+    assert.match(readFileSync(resolved, "utf8"), /global-assistant-launcher\.bundle\.js/, "Missing assistant launcher script on " + route);
   }
 });
 
 test("preview resolver maps the floating assistant module to the compiled Web output", () => {
-  const resolved = portable(resolveRequestFile("/dist/global-assistant-launcher.js"));
-  assert.ok(resolved?.endsWith("/apps/web/dist/web/src/global-assistant-launcher.js"));
+  const resolved = portable(resolveRequestFile("/dist/global-assistant-launcher.bundle.js"));
+  assert.ok(resolved?.endsWith("/apps/web/dist/web/src/global-assistant-launcher.bundle.js"));
 });

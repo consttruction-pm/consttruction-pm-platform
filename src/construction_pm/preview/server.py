@@ -15,11 +15,14 @@ import hmac
 import json
 import os
 import sys
+import threading
 import traceback
 from http.cookies import SimpleCookie
 from pathlib import Path
+from socketserver import ThreadingMixIn
 from typing import Iterable, Mapping
 from urllib.parse import parse_qs, urlencode, urlsplit
+from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 from construction_pm.application.project_lifecycle import AuthenticatedSession
 
@@ -225,6 +228,7 @@ class PreviewApplication:
                 "A full-stack preview requires the built Web root.",
             )
         self.runtime = runtime
+        self._runtime_lock = threading.RLock()
         self.frontend = PreviewFrontend(runtime.web_root)
         self.public_demo = os.environ.get("CUBI_PREVIEW_PUBLIC_DEMO", "").strip().lower() in {
             "1", "true", "yes",
@@ -237,7 +241,9 @@ class PreviewApplication:
 
         try:
             if path == HEALTH_PATH and method in {"GET", "HEAD"}:
-                status, headers, body = _json(200, self._health())
+                # Health checks read the same SQLite connection as the API.
+                with self._runtime_lock:
+                    status, headers, body = _json(200, self._health())
             elif path == LOGIN_PATH:
                 status, headers, body = self._login(method, environ, session)
             elif path == PRIVATE_LOGIN_PATH:
@@ -465,19 +471,23 @@ class PreviewApplication:
             captured["status"] = status
             captured["headers"] = headers
 
-        body = b"".join(self.runtime.app(environ, start_response))
-        status_text = str(captured.get("status", "500 Internal Server Error"))
-        try:
-            status = int(status_text.split(" ", 1)[0])
-        except ValueError:
-            status = 500
-        raw_headers = captured.get("headers") or []
-        headers: dict[str, str] = {}
-        for key, value in raw_headers:
-            if key.lower() == "content-length":
-                continue
-            headers[key] = value
-        return status, headers, body
+        # Keep DB-backed API work serialized because PreviewRuntime owns one
+        # shared SQLite connection. Static files and shell requests remain
+        # concurrent, so browser asset fetches are not held behind API work.
+        with self._runtime_lock:
+            body = b"".join(self.runtime.app(environ, start_response))
+            status_text = str(captured.get("status", "500 Internal Server Error"))
+            try:
+                status = int(status_text.split(" ", 1)[0])
+            except ValueError:
+                status = 500
+            raw_headers = captured.get("headers") or []
+            headers: dict[str, str] = {}
+            for key, value in raw_headers:
+                if key.lower() == "content-length":
+                    continue
+                headers[key] = value
+            return status, headers, body
 
     def _app_shell(
         self,
@@ -737,37 +747,37 @@ def build_preview_application(runtime: PreviewRuntime) -> PreviewApplication:
     return PreviewApplication(runtime)
 
 
+class PreviewRequestHandler(WSGIRequestHandler):
+    # A dropped or idle browser connection must not block other requests.
+    timeout = 10
+
+    def log_message(self, format: str, *args) -> None:  # noqa: A002
+        sys.stderr.write(
+            "%s - [%s] %s\n"
+            % (self.address_string(), self.log_date_time_string(), format % args)
+        )
+
+
+class PreviewThreadingWSGIServer(ThreadingMixIn, WSGIServer):
+    """Serve browser assets concurrently without concurrent SQLite transactions."""
+
+    daemon_threads = True
+    request_queue_size = 64
+
+
 def serve_preview(
     runtime: PreviewRuntime,
     *,
     host: str = "127.0.0.1",
     port: int = 4174,
 ) -> None:
-    from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
-
-    class RequestHandler(WSGIRequestHandler):
-        # A dropped or idle browser connection must not block the single-threaded
-        # preview server forever while it waits for another request line.
-        timeout = 10
-
-        def log_message(self, format: str, *args) -> None:  # noqa: A002
-            sys.stderr.write(
-                "%s - [%s] %s\n"
-                % (self.address_string(), self.log_date_time_string(), format % args)
-            )
-
-    class PreviewServer(WSGIServer):
-        # The Web client loads a module graph in parallel. The default listen
-        # backlog of five can strand connections when a page reloads.
-        request_queue_size = 64
-
     app = build_preview_application(runtime)
     server = make_server(
         host,
         port,
         app,
-        server_class=PreviewServer,
-        handler_class=RequestHandler,
+        server_class=PreviewThreadingWSGIServer,
+        handler_class=PreviewRequestHandler,
     )
     display_host = host if host not in {"0.0.0.0", "::"} else "localhost"
     print("CUBI local full-stack preview (demo data, not production)")
@@ -782,7 +792,6 @@ def serve_preview(
         print("\nStopping CUBI local preview.")
     finally:
         server.server_close()
-
 
 def _default_database() -> Path:
     root = Path(__file__).resolve().parents[3]
