@@ -721,7 +721,7 @@ function renderWindow(state: DemoState): string {
         ${renderDetails(state)}
       </section>`;
     case "assignments":
-      return renderTableWindow(state, { en: "Resource Assignments", fa: "تخصیص منابع" }, ["Activity ID", "Activity name", "Resource", "Budgeted units", "Actual units", "Remaining units", "Cost"], ACTIVITIES.filter((row) => row.res !== "—").slice(0, 12).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Resource: row.res, "Budgeted units": row.budgetUnits, "Actual units": row.actualUnits, "Remaining units": row.remainingUnits, Cost: row.budgetCost.toLocaleString("en-US") })), ["assign-resources", "assign-roles"]);
+      return renderTableWindow(state, { en: "Resource Assignments", fa: "تخصیص منابع" }, ["Activity ID", "Activity name", "Resource", "Budgeted units", "Actual units", "Remaining units", "Cost"], ACTIVITIES.filter((row) => row.res !== "—").slice(0, 12).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Resource: row.res, "Budgeted units": row.budgetUnits, "Actual units": row.actualUnits, "Remaining units": row.remainingUnits, Cost: numericDisplay(row.budgetCost) })), ["assign-resources", "assign-roles"]);
     case "resources":
       return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Resources", "منابع"))}</h2><div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="assign-resources">${esc(t(state.locale, "Assign resources", "تخصیص منابع"))}</button></div></header>
         <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>Resource ID</th><th>Resource name</th><th>Type</th><th class="is-numeric">Budgeted units</th><th class="is-numeric">Cost</th><th>Histogram</th></tr></thead><tbody>
@@ -908,8 +908,8 @@ function renderSheet(state: DemoState, kind: "activity" | "resource"): string {
     <div class="cp-vd-tablewrap"><table class="cp-vd-table cp-vd-sheet"><thead><tr><th>${esc(t(state.locale, kind === "activity" ? "Activity" : "Resource", kind === "activity" ? "فعالیت" : "منبع"))}</th>${PROJECT_WEEKS.map((week) => `<th class="is-numeric">${week}</th>`).join("")}<th class="is-numeric">${esc(t(state.locale, "Total", "جمع"))}</th></tr></thead><tbody>
     ${rows.map((row) => {
       const [first, end] = weekSpan(row.start, row.finish);
-      const perWeek = row.units / (end - first + 1);
-      return `<tr><td>${esc(row.label)}</td>${PROJECT_WEEKS.map((_, week) => `<td class="is-numeric">${week >= first && week <= end && row.units ? perWeek.toFixed(1) : ""}</td>`).join("")}<td class="is-numeric">${row.units.toLocaleString("en-US")}</td></tr>`;
+      const perWeek = (row.units ?? 0) / (end - first + 1);
+      return `<tr><td>${esc(row.label)}</td>${PROJECT_WEEKS.map((_, week) => `<td class="is-numeric">${week >= first && week <= end && (row.units ?? 0) ? perWeek.toFixed perWeek.toFixed(1) : ""}</td>`).join("")}<td class="is-numeric">${(row.units ?? 0).toLocaleString("en-US")}</td></tr>`;
     }).join("")}
     </tbody></table></div></section>`;
 }
