@@ -37,6 +37,7 @@ Scope guard: authenticated workspace and project-management surfaces only. Publi
 - The shared hosted preview URL `/app?project=preview-rps-01` opens the 21-window visual workspace shell directly after login.
 - This is a clearly labelled visual sample surface; it is not the persisted project data or a scheduling calculation.
 - The authenticated data-backed workspace remains available at `/app?project=preview-rps-01&view=live`; leaving the visual shell selects that live route.
+- Every project opened through the live bootstrap now writes `view=live` into its shareable URL; refresh and sign-in recovery preserve the real project route.
 - Browser E2E now covers both directions: canonical deep link → visual shell, then Return to workspace → live project grid.
 
 ## Exact continuation point
