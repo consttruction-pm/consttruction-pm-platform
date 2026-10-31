@@ -110,6 +110,6 @@ test("every public page and the workspace shell load the shared floating assista
 });
 
 test("preview resolver maps the floating assistant module to the compiled Web output", () => {
-  const resolved = portable(resolveRequestFile("/dist/global-assistant-launcher.js"));
-  assert.ok(resolved?.endsWith("/apps/web/dist/web/src/global-assistant-launcher.js"));
+  const resolved = portable(resolveRequestFile("/dist/global-assistant-launcher.bundle.js"));
+  assert.ok(resolved?.endsWith("/apps/web/dist/web/src/global-assistant-launcher.bundle.js"));
 });
