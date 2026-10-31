@@ -4631,7 +4631,7 @@ async function main() {
     });
 
     await page.navigate(
-      `${baseUrl}/app?project=${encodeURIComponent(wbsJourney.project_id)}`,
+      `${baseUrl}/app?project=${encodeURIComponent(wbsJourney.project_id)}&view=live`,
       ".cp-workspace",
       "reload project after relationship writes",
     );
