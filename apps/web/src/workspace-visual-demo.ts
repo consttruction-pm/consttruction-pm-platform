@@ -381,59 +381,6 @@ function buildAxis(scale: DemoState["scale"], locale: string, state: DemoState):
   }
 }
 
-type AxisBand = { label: string; left: number; width: number };
-type GanttAxis = { rows: AxisBand[][]; column: string; minWidth: string };
-
-const PROJECT_DAYS = day(PROJECT_FINISH) + 1 - day(PROJECT_START);
-
-function axisBand(label: string, from: number, to: number): AxisBand {
-  const left = Math.max(0, (from - day(PROJECT_START)) / PROJECT_DAYS * 100);
-  const width = Math.max(0, (Math.min(to, day(PROJECT_FINISH) + 1) - from) / PROJECT_DAYS * 100);
-  return { label, left, width };
-}
-
-function isoWeek(dayNumber: number): number {
-  const date = new Date(dayNumber * 86400000);
-  const target = new Date(date.valueOf());
-  target.setUTCDate(target.getUTCDate() - ((date.getUTCDay() + 6) % 7) + 3);
-  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
-  return 1 + Math.round((target.getTime() - firstThursday.getTime()) / (7 * 86400000));
-}
-
-// Each timescale builds its own date-based bands; the Gantt axis is not a
-// fixed caption, so switching day/week/month/quarter/year changes the ruler.
-function buildAxis(scale: DemoState["scale"], locale: string): GanttAxis {
-  const fa = locale.startsWith("fa");
-  const start = day(PROJECT_START);
-  const end = day(PROJECT_FINISH) + 1;
-  const monthStarts = [start, day("2026-12-01"), day("2027-01-01"), day("2027-02-01"), day("2027-03-01"), day("2027-04-01"), day("2027-05-01"), end];
-  const monthNames = fa
-    ? ["نوامبر ۲۰۲۶", "دسامبر ۲۰۲۶", "ژانویه ۲۰۲۷", "فوریه ۲۰۲۷", "مارس ۲۰۲۷", "آوریل ۲۰۲۷", "مه ۲۰۲۷"]
-    : ["Nov 2026", "Dec 2026", "Jan 2027", "Feb 2027", "Mar 2027", "Apr 2027", "May 2027"];
-  const months = monthStarts.slice(0, -1).map((from, index) => axisBand(monthNames[index], from, monthStarts[index + 1]));
-  const years = [axisBand("2026", start, day("2027-01-01")), axisBand("2027", day("2027-01-01"), end)];
-  const quarters = [
-    axisBand(fa ? "فصل ۴ ۲۰۲۶" : "Q4 2026", start, day("2027-01-01")),
-    axisBand(fa ? "فصل ۱ ۲۰۲۷" : "Q1 2027", day("2027-01-01"), day("2027-04-01")),
-    axisBand(fa ? "فصل ۲ ۲۰۲۷" : "Q2 2027", day("2027-04-01"), end),
-  ];
-  const weeks: AxisBand[] = [];
-  for (let from = start; from < end; from += 7) {
-    weeks.push(axisBand(`W${String(isoWeek(from)).padStart(2, "0")}`, from, Math.min(from + 7, end)));
-  }
-  const days: AxisBand[] = [];
-  for (let from = start; from < end; from += 1) {
-    days.push(axisBand(String(new Date(from * 86400000).getUTCDate()), from, from + 1));
-  }
-  switch (scale) {
-    case "day": return { rows: [months, days], column: `${100 / PROJECT_DAYS}%`, minWidth: `${PROJECT_DAYS * 18}px` };
-    case "week": return { rows: [months, weeks], column: `${100 / weeks.length}%`, minWidth: `${weeks.length * 30}px` };
-    case "quarter": return { rows: [years, quarters], column: `${100 / 3}%`, minWidth: "0px" };
-    case "year": return { rows: [years, quarters], column: "50%", minWidth: "0px" };
-    default: return { rows: [months], column: `${100 / months.length}%`, minWidth: "0px" };
-  }
-}
-
 function renderGanttTools(state: DemoState): string {
   return `<div class="cp-vd-gantt-tools">
     <div class="cp-vd-scale" role="group" aria-label="${esc(t(state.locale, "Timescale", "مقیاس زمانی"))}">
