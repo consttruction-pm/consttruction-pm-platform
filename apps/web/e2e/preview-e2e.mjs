@@ -1050,7 +1050,7 @@ async function launchChrome() {
 
 async function main() {
   EVIDENCE.git_head = gitHead();
-  const buildEntry = join(webRoot, "dist", "web", "src", "landing-entry.js");
+  const buildEntry = join(webRoot, "dist", "web", "src", "landing-entry.bundle.js");
   if (!existsSync(buildEntry)) {
     throw new Error(
       `WEB_BUILD_MISSING: ${buildEntry}; run "npm run build" first (npm run test:e2e:preview does this).`,
