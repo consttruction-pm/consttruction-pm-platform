@@ -1346,7 +1346,7 @@ function bind(root: HTMLElement): void {
     const exit = target.closest<HTMLElement>("[data-vd-exit]");
     if (exit) {
       const url = new URL(window.location.href);
-      url.searchParams.delete("view");
+      url.searchParams.set("view", "live");
       window.location.assign(url.toString());
       return;
     }
