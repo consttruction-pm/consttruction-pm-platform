@@ -42,7 +42,6 @@ import {
   rememberWorkspaceLocale,
   rememberWorkspaceMenu,
   rememberWorkspaceProject,
-  requestedProjectHref,
 } from "./workspace-preferences.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
@@ -64,7 +63,7 @@ import {
   rememberWorkspaceWindows,
 } from "./workspace-windows.js";
 import { createVisualDemoState, mountVisualDemo } from "./workspace-visual-demo.js";
-import { shouldRenderVisualWorkspaceDemo } from "./workspace-visual-demo-route.js";
+import { liveWorkspaceProjectHref, shouldRenderVisualWorkspaceDemo } from "./workspace-visual-demo-route.js";
 
 type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
 
@@ -174,7 +173,7 @@ function applyDocumentLocale(locale: WorkspaceLocale, title?: string): void {
 function rememberOpenedProject(userId: string, projectId: string): void {
   rememberWorkspaceProject(userId, projectId);
   try {
-    const href = requestedProjectHref(window.location.href, projectId);
+    const href = liveWorkspaceProjectHref(window.location.href, projectId);
     const next = new URL(href);
     if (next.href !== window.location.href) {
       window.history.replaceState(null, "", next.href);
@@ -1691,7 +1690,7 @@ function renderBootstrapState(
     signIn.addEventListener("click", () => {
       const rememberedProject = new URLSearchParams(window.location.search).get("project");
       const nextPath = rememberedProject
-        ? `/app?project=${encodeURIComponent(rememberedProject)}`
+        ? `/app?project=${encodeURIComponent(rememberedProject)}&view=live`
         : "/app";
       window.location.assign(
         `/preview/login?next=${encodeURIComponent(nextPath)}`,
