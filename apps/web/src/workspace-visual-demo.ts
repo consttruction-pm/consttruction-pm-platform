@@ -1,13 +1,13 @@
     const liveSafeDialogs = new Set(["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "shortcuts", "about"]);
     if (state.project && !liveSafeDialogs.has(name)) { showLiveNotice(); return; }
 /**
- * Visual workspace demo (CUBI-DEMO-001).
+ * Desktop-style visual workspace shell.
  *
- * Scope: visual shell only. The rows below are fixed demonstration data used to
- * show table, Gantt, tab and dialog layouts. Nothing here is saved, scheduled or
- * calculated, and the surface is permanently labelled as preview data. Real
- * project data continues to live in the normal workspace; this view is reached
- * explicitly from Help → Visual workspace demo.
+ * The default authenticated route supplies a server-backed WorkspaceState;
+ * the shell projects its real project, WBS, activity, relationship and schedule
+ * facts without recalculating or fabricating missing values. Unconnected modules
+ * are clearly disabled placeholders. With no WorkspaceState, this module keeps
+ * its isolated fixed-data visual fixture for local layout QA only.
  */
 import { workspaceIcon } from "./workspace-icons.js";
 import type { WorkspaceState } from "./workspace-model.js";
@@ -1232,7 +1232,10 @@ function dialogTitle(name: string, locale: string): string {
 }
 
 function renderDialogs(state: DemoState): string {
-  const names = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-roles", "assign-predecessors", "assign-successors", "add-activity", "import", "export", "print", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles"];
+  const allNames = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-roles", "assign-predecessors", "assign-successors", "add-activity", "import", "export", "print", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles"];
+  const names = state.project
+    ? allNames.filter((name) => ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "shortcuts", "about"].includes(name))
+    : allNames;
   return names.map((name) => `<dialog class="cp-vd-dialog" data-vd-dialog="${name}">
     <form method="dialog" data-vd-form="${name}">
       <div class="cp-vd-dialog-title"><span>${esc(dialogTitle(name, state.locale))}</span><button type="button" data-vd-close aria-label="Close">×</button></div>
