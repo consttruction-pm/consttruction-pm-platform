@@ -600,6 +600,45 @@ def test_preview_project_deep_link_survives_login_and_rejects_external_redirects
         runtime.close()
 
 
+def test_preview_login_without_next_defaults_to_visual_workspace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CUBI_PREVIEW_PUBLIC_DEMO", "1")
+    runtime = open_preview_runtime(
+        tmp_path / "login-default-visual.sqlite3",
+        web_root=_web_root(tmp_path),
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+
+        status, _, body = _request(app, "GET", "/preview/login")
+        assert status == 200
+        assert (
+            b'<input type="hidden" name="next" '
+            b'value="/app?project=preview-rps-01">'
+        ) in body
+
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=viewer",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        assert headers["location"] == "/app?project=preview-rps-01"
+
+        cookie = _session_cookie(headers)
+        status, _, body = _request(
+            app, "GET", "/app?project=preview-rps-01", cookie=cookie
+        )
+        assert status == 200
+        assert b'<div id="app"></div>' in body
+    finally:
+        runtime.close()
+
+
 def test_preview_server_guards_login_banner_static_files_and_logout(
     tmp_path: Path,
 ) -> None:
