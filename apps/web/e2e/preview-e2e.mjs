@@ -1816,11 +1816,11 @@ async function main() {
       );
       await deepLinkPage.waitForSelector(".cp-workspace", "live project-backed workspace");
       await deepLinkPage.waitForSelector("#cp-activity-grid", "live project activity grid");
-      const liveWorkspace = await deepLinkPage.evaluate(`() => ({
+      const liveWorkspace = await deepLinkPage.evaluate(`(() => ({
         project: new URLSearchParams(location.search).get("project"),
         view: new URLSearchParams(location.search).get("view"),
         rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
-      })()`);
+      }))()`);
       assert(
         liveWorkspace.project === PROJECT_ID &&
           liveWorkspace.view === "live" &&
