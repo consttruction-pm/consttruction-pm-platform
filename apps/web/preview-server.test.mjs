@@ -105,7 +105,7 @@ test("every public page and the workspace shell load the shared floating assista
   ]) {
     const resolved = resolveRequestFile(route);
     assert.ok(resolved && existsSync(resolved), "Expected a page for " + route);
-    assert.match(readFileSync(resolved, "utf8"), /global-assistant-launcher\.js/, "Missing assistant launcher script on " + route);
+    assert.match(readFileSync(resolved, "utf8"), /global-assistant-launcher\.bundle\.js/, "Missing assistant launcher script on " + route);
   }
 });
 
