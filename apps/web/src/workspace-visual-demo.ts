@@ -540,14 +540,23 @@ function renderDetails(state: DemoState): string {
   ];
   const rows = activitiesFor(state);
   const row = rows.find((item) => item.id === state.activityId) ?? rows[0] ?? null;
-  const index = row ? rows.findIndex((item) => item.id === row.id) : -1;
+  if (!row) {
+    return `<div class="cp-vd-empty">${esc(t(state.locale, "No activities are available in this project.", "در این پروژه فعالیتی موجود نیست."))}</div>`;
+  }
+  const index = rows.findIndex((item) => item.id === row.id);
   const prev = index > 0 ? rows[index - 1]?.id ?? "" : "";
-  const next = index >= 0 ? rows[index + 1]?.id ?? "" : "";
+  const next = rows[index + 1]?.id ?? "";
+  const visibleTabs = state.project
+    ? tabs.filter(([id]) => ["general", "status", "predecessors", "successors", "summary"].includes(String(id)))
+    : tabs;
+  if (state.project && !visibleTabs.some(([id]) => id === state.detailTab)) state.detailTab = "general";
   const fields = (pairs: Array<[string, string, string]>): string => `<div class="cp-vd-fields">${pairs.map(([en, fa, value]) => `<label><span>${esc(t(state.locale, en, fa))}</span><input value="${esc(value)}" readonly></label>`).join("")}</div>`;
   const contents: Record<string, string> = {
     general: row ? fields([["Activity ID", "شناسه", row.id], ["Activity name", "نام فعالیت", row.name], ["WBS", "WBS", row.wbs], ["Activity type", "نوع", row.type], ["Calendar", "تقویم", row.calendar], ["Original duration", "مدت اولیه", numericDisplay(row.od, " d")], ["Remaining duration", "مدت باقی‌مانده", numericDisplay(row.rd, " d")], ["% complete", "درصد تکمیل", numericDisplay(row.pct, "%")], ["Status", "وضعیت", row.status], ["Critical", "بحرانی", row.critical ? "Yes" : "No"], ["Resource", "منبع", row.res], ["Project", "پروژه", projectIdFor(state)]]) : "",
     status: row ? fields([["Status", "وضعیت", row.status], ["% complete", "درصد تکمیل", numericDisplay(row.pct, "%")], ["Start", "شروع", fmtDate(row.start)], ["Finish", "پایان", fmtDate(row.finish)], ["Total float", "شناوری کل", numericDisplay(row.tf, " d")], ["Remaining duration", "مدت باقی‌مانده", numericDisplay(row.rd, " d")]]) : "",
-    resources: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}</th><th>${esc(t(state.locale, "Cost", "هزینه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${row.budgetUnits}</td><td>${row.budgetCost.toLocaleString("en-US")}</td></tr></tbody></table><p class="cp-vd-note">${esc(t(state.locale, "Sample assignment shown for layout review.", "تخصیص نمونه برای بازبینی چیدمان."))}</p>`,
+    resources: state.project
+      ? `<p class="cp-vd-note">${esc(t(state.locale, "Resource assignments are not part of the current authenticated workspace read.", "تخصیص منابع هنوز در خواندن محیط کار متصل نشده است."))}</p>`
+      : `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}</th><th>${esc(t(state.locale, "Cost", "هزینه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${numericDisplay(row.budgetUnits)}</td><td>${numericDisplay(row.budgetCost)}</td></tr></tbody></table><p class="cp-vd-note">${esc(t(state.locale, "Sample assignment shown for layout review.", "تخصیص نمونه برای بازبینی چیدمان."))}</p>`,
     predecessors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row?.pred === "—" || !row ? [] : row.pred.split(", ")).map((id) => {
       const link = state.project?.relationships.find((item) => item.predecessorId === id && item.successorId === row?.id);
       return `<tr><td>${esc(id)}</td><td>${esc(link?.type ?? "FS")}</td><td>${esc(link ? `${link.lagValue} ${link.lagUnit}` : "—")}</td></tr>`;
@@ -556,14 +565,16 @@ function renderDetails(state: DemoState): string {
       const link = state.project?.relationships.find((item) => item.predecessorId === row?.id && item.successorId === id);
       return `<tr><td>${esc(id)}</td><td>${esc(link?.type ?? "FS")}</td><td>${esc(link ? `${link.lagValue} ${link.lagUnit}` : "—")}</td></tr>`;
     }).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No successors", "بدون جانشین"))}</td></tr>`}</tbody></table>`,
-    codes: fields([["Activity code", "کد فعالیت", row.codes], ["Phase", "فاز", row.phase], ["Discipline", "رشته", "Mechanical"]]),
+    codes: state.project
+      ? fields([["Activity code", "کد فعالیت", row.codes], ["Phase", "فاز", row.phase]])
+      : fields([["Activity code", "کد فعالیت", row.codes], ["Phase", "فاز", row.phase], ["Discipline", "رشته", "Mechanical"]]),
     discussion: `<div class="cp-vd-note">${esc(t(state.locale, "Sample note: access route confirmed with the site team.", "یادداشت نمونه: مسیر دسترسی با تیم کارگاه تأیید شد."))}</div>`,
     notebook: `<div class="cp-vd-note">${esc(t(state.locale, "Sample notebook entry for visual review.", "مدخل نمونهٔ دفترچه برای بازبینی بصری."))}</div>`,
     steps: `<table class="cp-vd-mini"><thead><tr><th>#</th><th>${esc(t(state.locale, "Step", "گام"))}</th><th>${esc(t(state.locale, "Weight", "وزن"))}</th><th>${esc(t(state.locale, "% complete", "درصد"))}</th></tr></thead><tbody><tr><td>1</td><td>${esc(t(state.locale, "Prepare", "آماده‌سازی"))}</td><td>40</td><td>100</td></tr><tr><td>2</td><td>${esc(t(state.locale, "Install", "نصب"))}</td><td>60</td><td>25</td></tr></tbody></table>`,
     feedback: `<div class="cp-vd-note">${esc(t(state.locale, "Sample field feedback.", "بازخورد نمونهٔ کارگاه."))}</div>`,
     documents: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Document", "سند"))}</th><th>${esc(t(state.locale, "Revision", "ویرایش"))}</th></tr></thead><tbody><tr><td>ITP-Pump-01.pdf</td><td>B</td></tr></tbody></table>`,
     expenses: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Expense", "هزینه"))}</th><th>${esc(t(state.locale, "Budget", "بودجه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${row.budgetCost.toLocaleString("en-US")}</td></tr></tbody></table>`,
-    summary: fields([["Early start", "شروع زود", fmtDate(row.es)], ["Early finish", "پایان زود", fmtDate(row.ef)], ["Late start", "شروع دیر", fmtDate(row.ls)], ["Late finish", "پایان دیر", fmtDate(row.lf)], ["Free float", "شناوری آزاد", `${row.ff} d`], ["Critical", "بحرانی", row.critical ? "Yes" : "No"]]),
+    summary: fields([["Early start", "شروع زود", fmtDate(row.es)], ["Early finish", "پایان زود", fmtDate(row.ef)], ["Late start", "شروع دیر", fmtDate(row.ls)], ["Late finish", "پایان دیر", fmtDate(row.lf)], ["Free float", "شناوری آزاد", numericDisplay(row.ff, " d")], ["Critical", "بحرانی", row.critical ? "Yes" : "No"]]),
     relationships: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Predecessor", "پیش‌نیاز"))}</th><th>${esc(t(state.locale, "Successor", "جانشین"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th></tr></thead><tbody><tr><td>${esc(row.pred)}</td><td>${esc(row.succ)}</td><td>FS</td></tr></tbody></table>`,
     risks: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Risk", "ریسک"))}</th><th>${esc(t(state.locale, "Rating", "درجه"))}</th></tr></thead><tbody><tr><td>${esc(t(state.locale, "Weather delay", "تأخیر جوی"))}</td><td>Medium</td></tr></tbody></table>`,
     udfs: fields([["Custom field", "فیلد سفارشی", "—"]]),
@@ -580,7 +591,7 @@ function renderDetails(state: DemoState): string {
       </div>
     </div>
     <div class="cp-vd-details-body" id="cp-vd-details-body">
-      <div class="cp-vd-dtabs" role="tablist">${tabs.map(([id, en, fa]) => `<button type="button" role="tab" data-vd-dtab="${id}" class="${state.detailTab === id ? "is-active" : ""}" aria-selected="${state.detailTab === id}">${esc(t(state.locale, en, fa))}</button>`).join("")}</div>
+      <div class="cp-vd-dtabs" role="tablist">${visibleTabs.map(([id, en, fa]) => `<button type="button" role="tab" data-vd-dtab="${id}" class="${state.detailTab === id ? "is-active" : ""}" aria-selected="${state.detailTab === id}">${esc(t(state.locale, en, fa))}</button>`).join("")}</div>
       <div class="cp-vd-dpanel" data-vd-dpanel>${contents[state.detailTab] ?? contents.general}</div>
     </div>
   </div>`;
@@ -704,17 +715,36 @@ function renderTableWindow(state: DemoState, title: Label, headers: string[], ro
   </section>`;
 }
 
+function renderLiveUnavailableWindow(state: DemoState): string {
+  const title = WINDOWS.find((item) => item.id === state.window);
+  const name = title ? label({ en: title.en, fa: title.fa }, state.locale) : "";
+  return `<section class="cp-vd-windowbody cp-vd-live-unavailable">
+    <header class="cp-vd-winhead"><h2>${esc(name)}</h2></header>
+    <div class="cp-vd-empty">
+      <strong>${esc(t(state.locale, "This view is not connected to live project data yet.", "این نما هنوز به داده‌های واقعی پروژه متصل نشده است."))}</strong>
+      <p>${esc(t(state.locale, "No sample records are shown here. The live project, activities, WBS and relationships remain available in the connected views.", "در این بخش دادهٔ ساختگی نمایش داده نمی‌شود. پروژه، فعالیت‌ها، WBS و روابط واقعی در نماهای متصل در دسترس هستند."))}</p>
+    </div>
+  </section>`;
+}
+
 function renderWindow(state: DemoState): string {
+  if (state.project && !["projects", "wbs", "activities"].includes(state.window)) {
+    return renderLiveUnavailableWindow(state);
+  }
   switch (state.window) {
     case "projects":
-      return renderTableWindow(state, { en: "Projects", fa: "پروژه‌ها" }, ["Project ID", "Project name", "Status", "Start", "Finish", "Data date", "Activities"], [
-        { "Project ID": "CUBI-DEMO-001", "Project name": "Riverside Pump Station Upgrade", Status: "Active", Start: "02-Nov-26", Finish: "28-May-27", "Data date": "03-Dec-26", Activities: 20 },
-        { "Project ID": "CUBI-DEMO-002", "Project name": "Intake Screen Replacement", Status: "Planning", Start: "01-Feb-27", Finish: "30-Sep-27", "Data date": "—", Activities: 12 },
-      ], ["new-project", "baselines"]);
+      return state.project
+        ? renderTableWindow(state, { en: "Projects", fa: "پروژه‌ها" }, ["Project ID", "Project name", "Revision", "Status", "Start", "Finish", "Activities"], [
+            { "Project ID": state.project.id, "Project name": state.project.name, Revision: state.project.revision, Status: "Open", Start: state.project.projectStart ? fmtDate(state.project.projectStart) : "—", Finish: state.project.projectFinish ? fmtDate(state.project.projectFinish) : "—", Activities: state.project.activities.length },
+          ])
+        : renderTableWindow(state, { en: "Projects", fa: "پروژه‌ها" }, ["Project ID", "Project name", "Status", "Start", "Finish", "Data date", "Activities"], [
+            { "Project ID": "CUBI-DEMO-001", "Project name": "Riverside Pump Station Upgrade", Status: "Active", Start: "02-Nov-26", Finish: "28-May-27", "Data date": "03-Dec-26", Activities: 20 },
+            { "Project ID": "CUBI-DEMO-002", "Project name": "Intake Screen Replacement", Status: "Planning", Start: "01-Feb-27", Finish: "30-Sep-27", "Data date": "—", Activities: 12 },
+          ], ["new-project", "baselines"]);
     case "wbs":
       return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</h2></header>
         <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>WBS Code</th><th>WBS Name</th><th class="is-numeric">Total Activities</th></tr></thead><tbody>
-        ${WBS_TREE.map((node) => `<tr class="${node.level === 0 ? "is-summary-row" : ""}"><td>${esc(node.code)}</td><td style="padding-inline-start:${8 + node.level * 22}px">${node.level < 2 ? "▾ " : "• "}${esc(node.name)}</td><td class="is-numeric">${node.total}</td></tr>`).join("")}
+        ${wbsNodesFor(state).map((node) => `<tr class="${node.level === 0 ? "is-summary-row" : ""}"><td>${esc(node.code)}</td><td style="padding-inline-start:${8 + node.level * 22}px">${node.level < 2 ? "▾ " : "• "}${esc(node.name)}</td><td class="is-numeric">${node.total}</td></tr>`).join("")}
         </tbody></table></div></section>`;
     case "activities":
       return `<section class="cp-vd-windowbody cp-vd-activities">
@@ -1252,14 +1282,22 @@ function renderDialogs(state: DemoState): string {
 
 export function renderVisualDemo(state: DemoState): string {
   const index = WINDOWS.findIndex((window) => window.id === state.window);
+  const projectId = projectIdFor(state);
+  const projectName = projectNameFor(state);
+  const badge = state.project
+    ? t(state.locale, "Connected project · read-only visual shell", "پروژهٔ متصل · پوستهٔ بصری فقط‌خواندنی")
+    : t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه");
+  const exitLabel = state.project
+    ? t(state.locale, "Open classic workspace for editing", "بازکردن محیط کلاسیک برای ویرایش")
+    : t(state.locale, "Return to workspace", "بازگشت به محیط کار");
   return `<div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
-    <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span><button type="button" class="cp-vd-exit" data-vd-exit>${esc(t(state.locale, "Return to workspace", "بازگشت به محیط کار"))}</button></div>
+    <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">${esc(projectId)} — ${esc(projectName)}</span><span class="cp-vd-demo-badge">${esc(badge)}</span><span class="cp-vd-titlebar-spacer"></span><button type="button" class="cp-vd-exit" data-vd-exit>${esc(exitLabel)}</button></div>
     ${renderMenus(state)}
     ${renderToolbars(state)}
     ${renderTabs(state)}
     <div class="cp-vd-layoutbar"><span>${esc(t(state.locale, "Layout", "چیدمان"))}: <strong>CUBI Classic Schedule Layout</strong></span><span>${esc(t(state.locale, "Filter", "فیلتر"))}: <strong>${esc(state.filter || t(state.locale, "All Activities", "همهٔ فعالیت‌ها"))}</strong></span><span class="cp-vd-layoutspacer"></span><button type="button" class="cp-vd-btn" data-vd-dialog="columns">${workspaceIcon("columns")}${esc(t(state.locale, "Columns", "ستون‌ها"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="filters">${workspaceIcon("filter")}${esc(t(state.locale, "Filters", "فیلترها"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="group-sort">${workspaceIcon("sort")}${esc(t(state.locale, "Group and Sort", "گروه و ترتیب"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="timescale">${workspaceIcon("clock")}${esc(t(state.locale, "Timescale", "مقیاس"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="bars">${workspaceIcon("bars")}${esc(t(state.locale, "Bars", "میله‌ها"))}</button></div>
     <div class="cp-vd-main">${renderWindow(state)}</div>
-    <div class="cp-vd-status"><span>${esc(t(state.locale, "Project", "پروژه"))}: CUBI-DEMO-001</span><span>${esc(t(state.locale, "Data date", "تاریخ داده"))}: <bdi dir="ltr">03-Dec-2026</bdi></span><span>${esc(t(state.locale, "Baseline", "خط مبنا"))}: BL-01</span><span>${esc(t(state.locale, "Window", "پنجره"))}: ${esc(label(WINDOWS[index] ?? WINDOWS[0], state.locale))}</span><span class="cp-vd-status-end">${esc(t(state.locale, "Preview data — not saved or calculated", "دادهٔ پیش‌نمایش — ذخیره یا محاسبه نشده"))}</span></div>
+    <div class="cp-vd-status"><span>${esc(t(state.locale, "Project", "پروژه"))}: ${esc(projectId)}</span><span>${esc(t(state.locale, "Revision", "ویرایش"))}: ${state.project?.revision ?? "—"}</span><span>${esc(t(state.locale, "Activities", "فعالیت‌ها"))}: ${state.project?.activities.length ?? ACTIVITIES.length}</span><span>${esc(t(state.locale, "Window", "پنجره"))}: ${esc(label(WINDOWS[index] ?? WINDOWS[0], state.locale))}</span><span class="cp-vd-status-end">${esc(state.project ? t(state.locale, "Server project data · no edits are sent from this visual shell", "دادهٔ پروژه از سرور · ویرایش از این پوسته ارسال نمی‌شود") : t(state.locale, "Preview data — not saved or calculated", "دادهٔ پیش‌نمایش — ذخیره یا محاسبه نشده"))}</span></div>
     ${renderDialogs(state)}
   </div>`;
 }
