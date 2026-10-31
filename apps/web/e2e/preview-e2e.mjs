@@ -1777,7 +1777,37 @@ async function main() {
         `location.pathname === "/app" && new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)}`,
         "login returns to the requested project deep link",
       );
-      await deepLinkPage.waitForSelector("#cp-activity-grid", "deep-linked project activity grid");
+      await deepLinkPage.waitForSelector("[data-visual-demo] .cp-vd-activities", "connected visual project workspace");
+      const deepLinkVisual = await deepLinkPage.evaluate(`() => {
+        const surface = document.querySelector("[data-visual-demo]");
+        const projectLabel = surface?.querySelector(".cp-vd-project")?.textContent?.trim() ?? "";
+        const badge = surface?.querySelector(".cp-vd-demo-badge")?.textContent?.trim() ?? "";
+        const activityRows = surface?.querySelectorAll("[data-vd-activity]")?.length ?? 0;
+        return {
+          pathname: location.pathname,
+          requested_project: new URLSearchParams(location.search).get("project"),
+          project_label: projectLabel,
+          live_badge: badge,
+          activity_rows: activityRows,
+          has_sample_project: surface?.textContent?.includes("CUBI-DEMO-001") ?? false,
+          classic_grid_absent: !document.querySelector("#cp-activity-grid"),
+        };
+      })()`;
+      assert(
+        deepLinkVisual.requested_project === PROJECT_ID &&
+          deepLinkVisual.project_label.includes(PROJECT_ID) &&
+          deepLinkVisual.live_badge.toLowerCase().includes("connected") &&
+          deepLinkVisual.activity_rows === 14 &&
+          !deepLinkVisual.has_sample_project &&
+          deepLinkVisual.classic_grid_absent,
+        "the direct project URL must render the visual shell with this project's real data: " +
+          JSON.stringify(deepLinkVisual),
+      );
+      await deepLinkPage.screenshot("02a-connected-visual-workspace.png");
+      // The classic operational surface remains reachable for editing while the
+      // default project URL opens the connected visual shell.
+      await deepLinkPage.click("[data-vd-exit]");
+      await deepLinkPage.waitForSelector("#cp-activity-grid", "classic editable workspace after visual handoff");
       const deepLinkWorkspace = await deepLinkPage.evaluate(`(async () => {
         const sessionResponse = await fetch("/api/session");
         const projectsResponse = await fetch("/api/projects");
@@ -1787,6 +1817,7 @@ async function main() {
         return {
           pathname: location.pathname,
           requested_project: new URLSearchParams(location.search).get("project"),
+          view: new URLSearchParams(location.search).get("view"),
           project_found_in_session_list: Boolean(project),
           project_name: project?.name ?? null,
           grid_visible: Boolean(table),
@@ -1796,15 +1827,17 @@ async function main() {
       })()`, { awaitPromise: true });
       assert(
         deepLinkWorkspace.requested_project === PROJECT_ID &&
+          deepLinkWorkspace.view === "classic" &&
           deepLinkWorkspace.project_found_in_session_list &&
           deepLinkWorkspace.grid_visible &&
           deepLinkWorkspace.session_authenticated &&
           deepLinkWorkspace.rendered_rows > 0,
-        "browser must open the requested authorized project after login: " +
+        "classic editing remains available for the same authorized project: " +
           JSON.stringify(deepLinkWorkspace),
       );
-      record("first-visit project deep link survives login and opens the requested workspace", {
-        ...deepLinkWorkspace,
+      record("default deep link opens connected visual shell and preserves classic editing", {
+        visual: deepLinkVisual,
+        classic: deepLinkWorkspace,
       });
       await deepLinkPage.click('#cubi-preview-banner form[action="/preview/logout"] button');
       await deepLinkPage.waitFor(
@@ -1966,7 +1999,23 @@ async function main() {
     record("assistant entry guides the user when no project is open", assistantNeedsProject);
 
     await page.click(`button[data-project-id="${PROJECT_ID}"]`);
-    await page.waitForSelector(".cp-workspace", "workspace shell");
+    await page.waitForSelector("[data-visual-demo] .cp-vd-activities", "default connected visual workspace");
+    const selectedVisual = await page.evaluate(`() => ({
+      project: document.querySelector(".cp-vd-project")?.textContent?.trim() ?? "",
+      badge: document.querySelector(".cp-vd-demo-badge")?.textContent?.trim() ?? "",
+      rows: document.querySelectorAll("[data-vd-activity]").length,
+      sample: document.querySelector("[data-visual-demo]")?.textContent?.includes("CUBI-DEMO-001") ?? false,
+    })()`);
+    assert(
+      selectedVisual.project.includes(PROJECT_ID) &&
+        selectedVisual.badge.toLowerCase().includes("connected") &&
+        selectedVisual.rows === 14 &&
+        !selectedVisual.sample,
+      "project selection must open its real data in the visual shell: " + JSON.stringify(selectedVisual),
+    );
+    await page.screenshot("02b-project-selected-visual-workspace.png");
+    await page.click("[data-vd-exit]");
+    await page.waitForSelector(".cp-workspace", "classic editing workspace after visual handoff");
     await page.waitFor(
       `document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length === 14`,
       "fourteen persisted activity rows",
