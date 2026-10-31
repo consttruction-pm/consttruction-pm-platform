@@ -277,11 +277,106 @@ function renderActivityTable(state: DemoState, columns: string[]): string {
   return `<div class="cp-vd-tablewrap"><table class="cp-vd-table" data-vd-table>${header}<tbody>${body}</tbody></table></div>`;
 }
 
-function barPosition(start: string, finish: string): { left: string; width: string } {
-  const total = day(PROJECT_FINISH) - day(PROJECT_START);
-  const left = (day(start) - day(PROJECT_START)) / total * 100;
+function barPosition(start: string, finish: string, state: DemoState): { left: string; width: string } {
+  const range = projectRangeFor(state);
+  if (!range || !/^\\d{4}-\\d{2}-\\d{2}$/.test(start) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(finish)) {
+    return { left: "0%", width: "0%" };
+  }
+  const startDay = day(range.start);
+  const endDay = day(range.finish) + 1;
+  const total = Math.max(1, endDay - startDay);
+  const left = (day(start) - startDay) / total * 100;
   const width = Math.max(0.4, (day(finish) - day(start) + 1) / total * 100);
   return { left: `${Math.max(0, left)}%`, width: `${Math.min(100, width)}%` };
+}
+
+type AxisBand = { label: string; left: number; width: number };
+type GanttAxis = { rows: AxisBand[][]; column: string; minWidth: string };
+
+function axisBand(label: string, from: number, to: number, rangeStart: number, rangeEnd: number): AxisBand {
+  const left = Math.max(0, (from - rangeStart) / (rangeEnd - rangeStart) * 100);
+  const width = Math.max(0, (Math.min(to, rangeEnd) - from) / (rangeEnd - rangeStart) * 100);
+  return { label, left, width };
+}
+
+function isoWeek(dayNumber: number): number {
+  const date = new Date(dayNumber * 86400000);
+  const target = new Date(date.valueOf());
+  target.setUTCDate(target.getUTCDate() - ((target.getUTCDay() + 6) % 7) + 3);
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+  return 1 + Math.round((target.getTime() - firstThursday.getTime()) / (7 * 86400000));
+}
+
+function monthLabel(dayNumber: number, locale: string): string {
+  const date = new Date(dayNumber * 86400000);
+  return new Intl.DateTimeFormat(locale.startsWith("fa") ? "fa-IR" : "en", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+// The ruler is derived from the loaded project's scheduled date range. The
+// visual shell never borrows dates from another fixture project.
+function buildAxis(scale: DemoState["scale"], locale: string, state: DemoState): GanttAxis {
+  const range = projectRangeFor(state);
+  if (!range) return { rows: [], column: "100%", minWidth: "0px" };
+  const start = day(range.start);
+  const end = day(range.finish) + 1;
+  if (end <= start) return { rows: [], column: "100%", minWidth: "0px" };
+  const band = (label: string, from: number, to: number) => axisBand(label, from, to, start, end);
+  const monthStart = (value: number) => {
+    const date = new Date(value * 86400000);
+    return Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1) / 86400000);
+  };
+  const nextMonth = (value: number) => {
+    const date = new Date(value * 86400000);
+    return Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1) / 86400000);
+  };
+  const firstMonth = monthStart(start);
+  const monthStarts: number[] = [];
+  for (let cursor = firstMonth; cursor < end; cursor = nextMonth(cursor)) {
+    monthStarts.push(Math.max(start, cursor));
+  }
+  const months = monthStarts.map((from, index) => {
+    const actualMonth = index === 0 ? firstMonth : monthStart(from);
+    return band(monthLabel(actualMonth, locale), from, Math.min(end, nextMonth(actualMonth)));
+  });
+  const years: AxisBand[] = [];
+  const firstYear = new Date(start * 86400000).getUTCFullYear();
+  const lastYear = new Date((end - 1) * 86400000).getUTCFullYear();
+  for (let year = firstYear; year <= lastYear; year += 1) {
+    const from = Math.max(start, Math.floor(Date.UTC(year, 0, 1) / 86400000));
+    const to = Math.min(end, Math.floor(Date.UTC(year + 1, 0, 1) / 86400000));
+    years.push(band(String(year), from, to));
+  }
+  const quarters: AxisBand[] = [];
+  const quarterStart = Math.floor(Date.UTC(firstYear, Math.floor(new Date(start * 86400000).getUTCMonth() / 3) * 3, 1) / 86400000);
+  for (let cursor = quarterStart; cursor < end;) {
+    const date = new Date(cursor * 86400000);
+    const year = date.getUTCFullYear();
+    const quarter = Math.floor(date.getUTCMonth() / 3) + 1;
+    const next = Math.floor(Date.UTC(year, quarter * 3, 1) / 86400000);
+    quarters.push(band(locale.startsWith("fa") ? `فصل ${quarter} ${year}` : `Q${quarter} ${year}`, Math.max(start, cursor), Math.min(end, next)));
+    cursor = next;
+  }
+  const weeks: AxisBand[] = [];
+  const weekStart = start - ((new Date(start * 86400000).getUTCDay() + 6) % 7);
+  for (let from = weekStart; from < end; from += 7) {
+    weeks.push(band(`W${String(isoWeek(from)).padStart(2, "0")}`, Math.max(start, from), Math.min(end, from + 7)));
+  }
+  const days: AxisBand[] = [];
+  for (let from = start; from < end; from += 1) {
+    days.push(band(String(new Date(from * 86400000).getUTCDate()), from, from + 1));
+  }
+  const totalDays = end - start;
+  switch (scale) {
+    case "day": return { rows: [months, days], column: `${100 / Math.max(1, days.length)}%`, minWidth: `${totalDays * 18}px` };
+    case "week": return { rows: [months, weeks], column: `${100 / Math.max(1, weeks.length)}%`, minWidth: `${weeks.length * 30}px` };
+    case "quarter": return { rows: [years, quarters], column: `${100 / Math.max(1, quarters.length)}%`, minWidth: "0px" };
+    case "year": return { rows: [years, quarters], column: `${100 / Math.max(1, years.length)}%`, minWidth: "0px" };
+    default: return { rows: [months], column: `${100 / Math.max(1, months.length)}%`, minWidth: "0px" };
+  }
 }
 
 type AxisBand = { label: string; left: number; width: number };
@@ -343,7 +438,7 @@ function renderGanttTools(state: DemoState): string {
       ${(["day", "week", "month", "quarter", "year"] as const).map((scale) => `<button type="button" data-vd-scale="${scale}" class="${scale === state.scale ? "is-active" : ""}">${esc(t(state.locale, scale, { day: "روز", week: "هفته", month: "ماه", quarter: "فصل", year: "سال" }[scale]))}</button>`).join("")}
     </div>
     <span class="cp-vd-ganttbar-spacer"></span>
-    <span class="cp-vd-legend"><i class="is-normal"></i>${esc(t(state.locale, "Normal", "عادی"))}<i class="is-critical"></i>${esc(t(state.locale, "Critical", "بحرانی"))}<i class="is-summary"></i>${esc(t(state.locale, "Summary", "خلاصه"))}<i class="is-milestone"></i>${esc(t(state.locale, "Milestone", "نقطهٔ عطف"))}<i class="is-datadate"></i>${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}</span>
+    <span class="cp-vd-legend"><i class="is-normal"></i>${esc(t(state.locale, "Normal", "عادی"))}<i class="is-critical"></i>${esc(t(state.locale, "Critical", "بحرانی"))}<i class="is-summary"></i>${esc(t(state.locale, "Summary", "خلاصه"))}<i class="is-milestone"></i>${esc(t(state.locale, "Milestone", "نقطهٔ عطف"))}${state.project ? "" : `<i class="is-datadate"></i>${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}`}</span>
   </div>`;
 }
 
@@ -352,8 +447,12 @@ function renderGantt(state: DemoState): string {
   const groups = state.groupBy === "wbs"
     ? [...new Set(rows.map((row) => row.phase))].map((phase) => ({ phase, members: rows.filter((row) => row.phase === phase) }))
     : [{ phase: "", members: rows }];
-  const axis = buildAxis(state.scale, state.locale);
-  const dataDate = (day("2026-12-03") - day(PROJECT_START)) / PROJECT_DAYS * 100;
+  const axis = buildAxis(state.scale, state.locale, state);
+  const range = projectRangeFor(state);
+  if (!range) {
+    return `<div class="cp-vd-gantt" data-vd-gantt><div class="cp-vd-empty">${esc(t(state.locale, "No authoritative schedule dates are available for this project yet.", "هنوز تاریخ‌های معتبر زمان‌بندی برای این پروژه موجود نیست."))}</div></div>`;
+  }
+  const dataDate = state.project ? null : (day("2026-12-03") - day(range.start)) / Math.max(1, day(range.finish) + 1 - day(range.start)) * 100;
   const rtl = state.locale.startsWith("fa");
   const ruler = axis.rows.map((bandRow) => `<div class="cp-vd-axisrow">${bandRow.map((band) => `<span style="inset-inline-start:${band.left}%;width:${band.width}%">${esc(band.label)}</span>`).join("")}</div>`).join("");
 
@@ -366,7 +465,7 @@ function renderGantt(state: DemoState): string {
       : "";
     if (group.phase) cursor += 24;
     const members = group.members.map((row) => {
-      const position = barPosition(row.start, row.finish);
+      const position = barPosition(row.start, row.finish, state);
       const summary = row.type === "Hammock" || row.id === "A1000" || row.id === "A1100" || row.id === "A1200" || row.id === "A1300" || row.id === "A1400";
       const shape = row.milestone ? "is-milestone" : summary ? "is-summary" : row.critical ? "is-critical" : "is-normal";
       rowTop.set(row.id, cursor + 13);
@@ -379,7 +478,7 @@ function renderGantt(state: DemoState): string {
             : `<span class="cp-vd-bar ${shape}${summary && row.critical ? " is-critical" : ""}" style="inset-inline-start:${position.left};width:${position.width}" title="${esc(row.name)} — ${row.pct}%">
                 ${summary ? "" : `<span class="cp-vd-bar-progress" style="width:${row.pct}%"></span>`}
               </span>`}
-          <span class="cp-vd-bar-label${summary ? " is-summary" : ""}" style="inset-inline-start:calc(${position.left} + ${summary ? "6px" : position.width})">${esc(row.name)}</span>
+          ${position.width !== "0%" ? `<span class="cp-vd-bar-label${summary ? " is-summary" : ""}" style="inset-inline-start:calc(${position.left} + ${summary ? "6px" : position.width})">${esc(row.name)}</span>` : ""}
         </div>
       </div>`;
     }).join("");
@@ -388,21 +487,27 @@ function renderGantt(state: DemoState): string {
   const totalHeight = Math.max(1, cursor);
 
   // Finish-to-start relationships drawn from the bar dates of both activities.
-  const links: Array<[string, string]> = [
-    ["A1010", "A1100"], ["A1110", "A1120"], ["A1120", "A1130"], ["A1210", "A1220"],
-    ["A1310", "A1320"], ["A1320", "A1330"], ["A1330", "A1340"], ["A1340", "A1410"], ["A1410", "A1420"],
-  ];
+  const links: Array<[string, string]> = state.project
+    ? state.project.relationships.map((link) => [link.predecessorId, link.successorId])
+    : [
+      ["A1010", "A1100"], ["A1110", "A1120"], ["A1120", "A1130"], ["A1210", "A1220"],
+      ["A1310", "A1320"], ["A1320", "A1330"], ["A1330", "A1340"], ["A1340", "A1410"], ["A1410", "A1420"],
+    ];
   const toX = (value: number): number => (rtl ? 100 - value : value);
   const paths = links.map(([from, to]) => {
-    const pred = ACTIVITIES.find((item) => item.id === from);
-    const succ = ACTIVITIES.find((item) => item.id === to);
+    const rowsForLinks = activitiesFor(state);
+    const pred = rowsForLinks.find((item) => item.id === from);
+    const succ = rowsForLinks.find((item) => item.id === to);
     const y1 = rowTop.get(from);
     const y2 = rowTop.get(to);
     if (!pred || !succ || y1 === undefined || y2 === undefined) return "";
-    const start = parseFloat(barPosition(pred.start, pred.finish).left);
-    const width = parseFloat(barPosition(pred.start, pred.finish).width);
+    const predPosition = barPosition(pred.start, pred.finish, state);
+    const succPosition = barPosition(succ.start, succ.finish, state);
+    if (predPosition.width === "0%" || succPosition.width === "0%") return "";
+    const start = parseFloat(predPosition.left);
+    const width = parseFloat(predPosition.width);
     const x1 = toX(start + width);
-    const x2 = toX(parseFloat(barPosition(succ.start, succ.finish).left));
+    const x2 = toX(parseFloat(succPosition.left));
     const stub = x2 >= x1 ? 1.2 : -1.2;
     const marker = pred.critical || succ.critical ? "cp-vd-arrow-critical" : "cp-vd-arrow";
     return `<path d="M ${x1} ${y1} h ${stub} V ${y2} H ${x2}" class="${marker === "cp-vd-arrow-critical" ? "is-critical" : ""}" marker-end="url(#${marker})"></path>`;
@@ -411,7 +516,7 @@ function renderGantt(state: DemoState): string {
   return `<div class="cp-vd-gantt" data-vd-gantt data-scale="${state.scale}" style="--cp-vd-gantt-min:${axis.minWidth};--cp-vd-col:${axis.column}">
     <div class="cp-vd-gantt-months ${axis.rows.length > 1 ? "is-two" : ""}">${ruler}</div>
     <div class="cp-vd-gantt-body">
-      <div class="cp-vd-gantt-today" style="inset-inline-start:${dataDate}%" title="${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}"></div>
+${dataDate === null ? "" : `<div class="cp-vd-gantt-today" style="inset-inline-start:${dataDate}%" title="${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}"></div>`}
       ${body}
       <svg class="cp-vd-links" viewBox="0 0 100 ${totalHeight}" preserveAspectRatio="none" aria-hidden="true">
         <defs>
@@ -433,17 +538,24 @@ function renderDetails(state: DemoState): string {
     ["summary", "Summary", "خلاصه"], ["relationships", "Relationships", "روابط"], ["risks", "Risks", "ریسک‌ها"],
     ["udfs", "UDFs", "فیلد سفارشی"], ["history", "Update History", "تاریخچه"],
   ];
-  const row = ACTIVITIES.find((item) => item.id === state.activityId) ?? ACTIVITIES[0];
-  const index = ACTIVITIES.findIndex((item) => item.id === row.id);
-  const prev = ACTIVITIES[index - 1]?.id ?? "";
-  const next = ACTIVITIES[index + 1]?.id ?? "";
+  const rows = activitiesFor(state);
+  const row = rows.find((item) => item.id === state.activityId) ?? rows[0] ?? null;
+  const index = row ? rows.findIndex((item) => item.id === row.id) : -1;
+  const prev = index > 0 ? rows[index - 1]?.id ?? "" : "";
+  const next = index >= 0 ? rows[index + 1]?.id ?? "" : "";
   const fields = (pairs: Array<[string, string, string]>): string => `<div class="cp-vd-fields">${pairs.map(([en, fa, value]) => `<label><span>${esc(t(state.locale, en, fa))}</span><input value="${esc(value)}" readonly></label>`).join("")}</div>`;
   const contents: Record<string, string> = {
-    general: fields([["Activity ID", "شناسه", row.id], ["Activity name", "نام فعالیت", row.name], ["WBS", "WBS", row.wbs], ["Activity type", "نوع فعالیت", row.type], ["Calendar", "تقویم", row.calendar], ["Original duration", "مدت اولیه", `${row.od} d`], ["Remaining duration", "مدت باقی‌مانده", `${row.rd} d`], ["% complete", "درصد تکمیل", `${row.pct}%`], ["Status", "وضعیت", row.status], ["Critical", "بحرانی", row.critical ? "Yes" : "No"], ["Resource", "منبع", row.res], ["Project", "پروژه", "CUBI-DEMO-001"]]),
-    status: fields([["Status", "وضعیت", row.status], ["% complete", "درصد تکمیل", `${row.pct}%`], ["Start", "شروع", fmtDate(row.start)], ["Finish", "پایان", fmtDate(row.finish)], ["Total float", "شناوری کل", `${row.tf} d`], ["Remaining duration", "مدت باقی‌مانده", `${row.rd} d`]]),
+    general: row ? fields([["Activity ID", "شناسه", row.id], ["Activity name", "نام فعالیت", row.name], ["WBS", "WBS", row.wbs], ["Activity type", "نوع", row.type], ["Calendar", "تقویم", row.calendar], ["Original duration", "مدت اولیه", numericDisplay(row.od, " d")], ["Remaining duration", "مدت باقی‌مانده", numericDisplay(row.rd, " d")], ["% complete", "درصد تکمیل", numericDisplay(row.pct, "%")], ["Status", "وضعیت", row.status], ["Critical", "بحرانی", row.critical ? "Yes" : "No"], ["Resource", "منبع", row.res], ["Project", "پروژه", projectIdFor(state)]]) : "",
+    status: row ? fields([["Status", "وضعیت", row.status], ["% complete", "درصد تکمیل", numericDisplay(row.pct, "%")], ["Start", "شروع", fmtDate(row.start)], ["Finish", "پایان", fmtDate(row.finish)], ["Total float", "شناوری کل", numericDisplay(row.tf, " d")], ["Remaining duration", "مدت باقی‌مانده", numericDisplay(row.rd, " d")]]) : "",
     resources: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}</th><th>${esc(t(state.locale, "Cost", "هزینه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${row.budgetUnits}</td><td>${row.budgetCost.toLocaleString("en-US")}</td></tr></tbody></table><p class="cp-vd-note">${esc(t(state.locale, "Sample assignment shown for layout review.", "تخصیص نمونه برای بازبینی چیدمان."))}</p>`,
-    predecessors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row.pred === "—" ? [] : row.pred.split(", ")).map((id) => `<tr><td>${esc(id)}</td><td>FS</td><td>0 d</td></tr>`).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No predecessors", "بدون پیش‌نیاز"))}</td></tr>`}</tbody></table>`,
-    successors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row.succ === "—" ? [] : row.succ.split(", ")).map((id) => `<tr><td>${esc(id)}</td><td>FS</td><td>0 d</td></tr>`).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No successors", "بدون جانشین"))}</td></tr>`}</tbody></table>`,
+    predecessors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row?.pred === "—" || !row ? [] : row.pred.split(", ")).map((id) => {
+      const link = state.project?.relationships.find((item) => item.predecessorId === id && item.successorId === row?.id);
+      return `<tr><td>${esc(id)}</td><td>${esc(link?.type ?? "FS")}</td><td>${esc(link ? `${link.lagValue} ${link.lagUnit}` : "—")}</td></tr>`;
+    }).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No predecessors", "بدون پیش‌نیاز"))}</td></tr>`}</tbody></table>`,
+    successors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row?.succ === "—" || !row ? [] : row.succ.split(", ")).map((id) => {
+      const link = state.project?.relationships.find((item) => item.predecessorId === row?.id && item.successorId === id);
+      return `<tr><td>${esc(id)}</td><td>${esc(link?.type ?? "FS")}</td><td>${esc(link ? `${link.lagValue} ${link.lagUnit}` : "—")}</td></tr>`;
+    }).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No successors", "بدون جانشین"))}</td></tr>`}</tbody></table>`,
     codes: fields([["Activity code", "کد فعالیت", row.codes], ["Phase", "فاز", row.phase], ["Discipline", "رشته", "Mechanical"]]),
     discussion: `<div class="cp-vd-note">${esc(t(state.locale, "Sample note: access route confirmed with the site team.", "یادداشت نمونه: مسیر دسترسی با تیم کارگاه تأیید شد."))}</div>`,
     notebook: `<div class="cp-vd-note">${esc(t(state.locale, "Sample notebook entry for visual review.", "مدخل نمونهٔ دفترچه برای بازبینی بصری."))}</div>`,
