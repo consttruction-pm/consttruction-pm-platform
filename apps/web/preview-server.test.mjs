@@ -113,3 +113,12 @@ test("preview resolver maps the floating assistant module to the compiled Web ou
   const resolved = portable(resolveRequestFile("/dist/global-assistant-launcher.bundle.js"));
   assert.ok(resolved?.endsWith("/apps/web/dist/web/src/global-assistant-launcher.bundle.js"));
 });
+
+
+test("the authenticated workspace shell loads the workspace bundle directly", () => {
+  const appShell = readFileSync(resolveRequestFile("/app"), "utf8");
+  assert.match(appShell, /<title>CUBI Workspace<\/title>/);
+  assert.match(appShell, /<script type="module" src="\/dist\/main\.bundle\.js"><\/script>/);
+  assert.doesNotMatch(appShell, /landing-entry\.bundle\.js/);
+  assert.match(appShell, /global-assistant-launcher\.bundle\.js/);
+});
