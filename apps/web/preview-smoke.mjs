@@ -26,7 +26,7 @@ const expected = [
   ["http://127.0.0.1:4173/fa/contact/", "به مسیر درست کوبی برسید."],
   ["http://127.0.0.1:4173/fa/pricing/", "مدت اشتراک Pro را انتخاب کنید."],
   ["http://127.0.0.1:4173/fa/pricing/", "month-quantity"],
-  ["http://127.0.0.1:4173/fa/contact/", "global-assistant-launcher.js"],
+  ["http://127.0.0.1:4173/fa/contact/", "global-assistant-launcher.bundle.js"],
 ];
 
 const server = startPreviewServer();
