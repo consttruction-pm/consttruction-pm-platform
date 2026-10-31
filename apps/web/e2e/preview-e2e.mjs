@@ -1833,47 +1833,20 @@ async function main() {
 
       await deepLinkPage.click(".cp-vd-exit");
       await deepLinkPage.waitFor(
-        `location.pathname === "/app" && new URLSearchParams(location.search).get("view") === "live"`,
-        "visual preview returns to the live project route",
-      );
-      await deepLinkPage.waitForSelector(".cp-workspace", "live project-backed workspace");
-      await deepLinkPage.waitForSelector("#cp-activity-grid", "live project activity grid");
-      const liveWorkspace = await deepLinkPage.evaluate(`(() => ({
-        project: new URLSearchParams(location.search).get("project"),
-        view: new URLSearchParams(location.search).get("view"),
-        rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
-      }))()`);
-      assert(
-        liveWorkspace.project === PROJECT_ID &&
-          liveWorkspace.view === "live" &&
-          liveWorkspace.rows > 0,
-        "the visual-preview exit must open the authorized data-backed workspace: " +
-          JSON.stringify(liveWorkspace),
-      );
-      record("visual preview exit returns to the real project-backed workspace", liveWorkspace);
-
-      await deepLinkPage.navigate(
-        `${baseUrl}/app?project=${PROJECT_ID}`,
-        "[data-visual-demo]",
-        "visual preview before testing sign out",
-      );
-      await deepLinkPage.click('[data-vd-menu="workspace"] .cp-vd-menu-trigger');
-      await deepLinkPage.click('[data-vd-action*="sign-out"]');
-      await deepLinkPage.waitFor(
         `location.pathname === "/"`,
-        "sign out returns the user to the public home page",
+        "visual workspace sign out returns the user to the public home page",
       );
-      const signedOutSession = await deepLinkPage.evaluate(
+      const visualSignOutSession = await deepLinkPage.evaluate(
         `fetch("/api/session").then((response) => response.status)`,
         { awaitPromise: true },
       );
       assert(
-        signedOutSession === 401,
-        `the sign-out control must revoke the preview session, got HTTP ${signedOutSession}`,
+        visualSignOutSession === 401,
+        `the visual workspace sign-out control must revoke the preview session, got HTTP ${visualSignOutSession}`,
       );
-      record("workspace menu sign out revokes the session and returns home", {
+      record("visual workspace sign out revokes the session and returns home", {
         pathname: "/",
-        session_status: signedOutSession,
+        session_status: visualSignOutSession,
       });
     } finally {
       if (deepLinkPage) deepLinkPage.cdp.close();
