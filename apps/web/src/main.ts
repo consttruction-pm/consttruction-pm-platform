@@ -42,7 +42,6 @@ import {
   rememberWorkspaceLocale,
   rememberWorkspaceMenu,
   rememberWorkspaceProject,
-  requestedProjectHref,
 } from "./workspace-preferences.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
@@ -64,6 +63,7 @@ import {
   rememberWorkspaceWindows,
 } from "./workspace-windows.js";
 import { createVisualDemoState, mountVisualDemo } from "./workspace-visual-demo.js";
+import { liveWorkspaceProjectHref, shouldRenderVisualWorkspaceDemo } from "./workspace-visual-demo-route.js";
 
 type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
 
@@ -173,7 +173,7 @@ function applyDocumentLocale(locale: WorkspaceLocale, title?: string): void {
 function rememberOpenedProject(userId: string, projectId: string): void {
   rememberWorkspaceProject(userId, projectId);
   try {
-    const href = requestedProjectHref(window.location.href, projectId);
+    const href = liveWorkspaceProjectHref(window.location.href, projectId);
     const next = new URL(href);
     if (next.href !== window.location.href) {
       window.history.replaceState(null, "", next.href);
@@ -1690,7 +1690,7 @@ function renderBootstrapState(
     signIn.addEventListener("click", () => {
       const rememberedProject = new URLSearchParams(window.location.search).get("project");
       const nextPath = rememberedProject
-        ? `/app?project=${encodeURIComponent(rememberedProject)}`
+        ? `/app?project=${encodeURIComponent(rememberedProject)}&view=live`
         : "/app";
       window.location.assign(
         `/preview/login?next=${encodeURIComponent(nextPath)}`,
@@ -1776,10 +1776,10 @@ async function boot(): Promise<void> {
     return;
   }
 
-  // The visual workspace demonstration is a self-contained, fixed-data surface
-  // reachable only through this explicit address (Help → Visual workspace demo).
-  // It never calls the project server and never writes project data.
-  if (new URLSearchParams(window.location.search).get("view") === "visual") {
+  // The shared preview project opens the curated visual workspace at its
+  // canonical /app?project=preview-rps-01 address. This surface is intentionally
+  // labelled sample data; use &view=live for the authenticated project-backed UI.
+  if (shouldRenderVisualWorkspaceDemo(window.location.pathname, window.location.search)) {
     const locale = getInitialLocale();
     applyDocumentLocale(locale, locale.startsWith("fa") ? "محیط کار CUBI — نمایش بصری" : "CUBI Workspace — visual demo");
     container.className = "cp-vd-root";

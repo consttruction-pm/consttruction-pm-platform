@@ -4,8 +4,8 @@
  * Scope: visual shell only. The rows below are fixed demonstration data used to
  * show table, Gantt, tab and dialog layouts. Nothing here is saved, scheduled or
  * calculated, and the surface is permanently labelled as preview data. Real
- * project data continues to live in the normal workspace; this view is reached
- * explicitly from Help → Visual workspace demo.
+ * project data continues to live in the normal workspace. The shared preview
+ * project routes here by default; use the explicit live view to open API-backed data.
  */
 import { workspaceIcon } from "./workspace-icons.js";
 
@@ -1346,7 +1346,7 @@ function bind(root: HTMLElement): void {
     const exit = target.closest<HTMLElement>("[data-vd-exit]");
     if (exit) {
       const url = new URL(window.location.href);
-      url.searchParams.delete("view");
+      url.searchParams.set("view", "live");
       window.location.assign(url.toString());
       return;
     }
