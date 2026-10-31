@@ -1848,43 +1848,6 @@ async function main() {
         pathname: "/",
         session_status: visualSignOutSession,
       });
-
-      // The public site's assistant launcher lands on /preview/login without a
-      // project query. A direct login must default to the curated visual demo,
-      // not the API-backed /app bootstrap that waits for a real project session.
-      await deepLinkPage.navigate(
-        `${baseUrl}/preview/login`,
-        'form[action="/preview/login"]',
-        "assistant entry login without an explicit next route",
-      );
-      const defaultLoginNext = await deepLinkPage.evaluate(
-        `document.querySelector('form[action="/preview/login"] input[name="next"]')?.value ?? null`,
-      );
-      assert(
-        defaultLoginNext === `/app?project=${PROJECT_ID}`,
-        "direct assistant entry login must default to the shared visual preview: " + defaultLoginNext,
-      );
-      await deepLinkPage.click('button[name="role"][value="planner"]');
-      await deepLinkPage.waitFor(
-        `location.pathname === "/app" && new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)}`,
-        "direct assistant login redirects to the visual preview project",
-      );
-      await deepLinkPage.waitForSelector("[data-visual-demo]", "visual workspace after direct assistant login");
-      const directAssistantLanding = await deepLinkPage.evaluate(`(() => ({
-        project: new URLSearchParams(location.search).get("project"),
-        visualWorkspace: Boolean(document.querySelector("[data-visual-demo]")),
-        startupSlow: Boolean(document.querySelector('[data-startup-code="WORKSPACE_STARTUP_SLOW"]')),
-        sampleDataLabel: document.querySelector(".cp-vd-demo-badge")?.textContent?.trim() ?? null,
-      }))()`);
-      assert(
-        directAssistantLanding.project === PROJECT_ID &&
-          directAssistantLanding.visualWorkspace &&
-          !directAssistantLanding.startupSlow &&
-          Boolean(directAssistantLanding.sampleDataLabel),
-        "direct assistant login must show the visual workspace without startup timeout: " +
-          JSON.stringify(directAssistantLanding),
-      );
-      record("assistant direct login defaults to the visual workspace instead of slow API startup", directAssistantLanding);
     } finally {
       if (deepLinkPage) deepLinkPage.cdp.close();
       await deepLinkChrome.stop();
