@@ -765,7 +765,7 @@ function renderSheet(state: DemoState, kind: "activity" | "resource"): string {
 type MenuAction = { window?: DemoWindowId; dialog?: string; command?: string; reason?: Label };
 
 const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shortcut?: string; action?: MenuAction; checked?: string; children?: Array<{ label: Label; action?: MenuAction; checked?: string }> }> }> = [
-  { id: "workspace", label: { en: "Workspace", fa: "محیط کار" }, items: [
+  { id: "workspace", label: { en: "File", fa: "فایل" }, items: [
     { label: { en: "New project…", fa: "پروژهٔ جدید…" }, action: { dialog: "new-project" } },
     { label: { en: "Open project…", fa: "بازکردن پروژه…" }, action: { window: "projects" } },
     { label: { en: "Project properties…", fa: "مشخصات پروژه…" }, action: { dialog: "project-properties" } },
