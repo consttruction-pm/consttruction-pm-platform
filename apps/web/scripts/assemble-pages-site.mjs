@@ -23,7 +23,13 @@ if (rawWorkspaceUrl) {
     || parsedWorkspaceUrl.password
     || parsedWorkspaceUrl.search
     || parsedWorkspaceUrl.hash
+    || parsedWorkspaceUrl.pathname.replace(/\/+$/, "") !== "/preview/login"
   ) throw new Error("CUBI_WORKSPACE_URL_INVALID");
+
+  // The public assistant's /app/ entry must preserve the curated visual
+  // project through the login form. Without this validated next route, login
+  // falls back to the generic API workspace and starts without a project ID.
+  parsedWorkspaceUrl.searchParams.set("next", "/app?project=preview-rps-01");
   workspaceUrl = parsedWorkspaceUrl.href.replace(/\/+$/, "");
 }
 
@@ -231,6 +237,10 @@ assert(finalHome.includes('dist/web/src/landing-entry.bundle.js'), "homepage scr
 if (workspaceUrl) {
   assert(finalApp.includes("window.location.replace("), "configured workspace route must redirect to the API-backed demo");
   assert(finalApp.includes(workspaceUrl), "workspace redirect target mismatch");
+  assert(
+    new URL(workspaceUrl).searchParams.get("next") === "/app?project=preview-rps-01",
+    "assistant workspace redirect must preserve the visual preview project through login",
+  );
   assert(finalApp.includes('noindex,nofollow'), "workspace redirect must not be indexed");
 } else {
   assert(finalApp.includes('<meta name="robots" content="noindex,nofollow" />'), "workspace must be noindex");
