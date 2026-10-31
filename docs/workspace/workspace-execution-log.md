@@ -32,6 +32,13 @@ Scope guard: authenticated workspace and project-management surfaces only. Publi
 | Unit A — desktop shell | `feat/workspace-desktop-shell` / #1652 | `7abc29a` | `workspace-windows` (6) + `workspace-desktop-shell` (6) tests; `tsc --noEmit` clean; 422 + 13 tests pass; live preview verified tabs/commands/persistence |
 | Visual shell (demo) | `feat/workspace-visual-shell` / #1653 | `5d509c7` | 43 screenshots + `visual-audit.json`: 21/21 windows, 36/36 dialogs, 121 commands, 17/17 detail tabs, 0 errors; 422 TS + 13 preview + 13 Python tests pass; preview E2E 80/80; PR CI 8/8 on `b6f7a9d`; main CI 11/11 on `5d509c7`; `tsc --noEmit` and build clean; styles byte-identical |
 
+## Visual preview route handoff (2026-10-31)
+
+- The shared hosted preview URL `/app?project=preview-rps-01` opens the 21-window visual workspace shell directly after login.
+- This is a clearly labelled visual sample surface; it is not the persisted project data or a scheduling calculation.
+- The authenticated data-backed workspace remains available at `/app?project=preview-rps-01&view=live`; leaving the visual shell selects that live route.
+- Browser E2E now covers both directions: canonical deep link → visual shell, then Return to workspace → live project grid.
+
 ## Exact continuation point
 
 Visual shell status (2026-10-30): every menu, submenu, toolbar button, window, dialog, detail tab, timescale and layout option opens a real visual destination in the local preview; see `visual-qa-report.md` and `screenshots/visual/`. Formula, API and database wiring has deliberately **not** started and must wait for visual approval.
