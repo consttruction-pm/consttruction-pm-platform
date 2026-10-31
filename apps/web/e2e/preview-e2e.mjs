@@ -1809,13 +1809,7 @@ async function main() {
         ...deepLinkWorkspace,
       });
 
-      await deepLinkPage.evaluate(`() => {
-        const selector = document.querySelector('select[data-vd-locale]');
-        if (!(selector instanceof HTMLSelectElement)) throw new Error("VISUAL_LANGUAGE_SELECTOR_MISSING");
-        selector.value = "fa";
-        selector.dispatchEvent(new Event("change", { bubbles: true }));
-        return { lang: document.documentElement.lang, dir: document.documentElement.dir };
-      })()`);
+      await deepLinkPage.setSelect('select[data-vd-locale]', "fa");
       await deepLinkPage.waitFor(
         `document.documentElement.lang === "fa" && document.documentElement.dir === "rtl"`,
         "visual workspace language switches to Persian",
@@ -1825,22 +1819,17 @@ async function main() {
         "[data-visual-demo]",
         "visual workspace reload with saved language",
       );
-      const savedLanguage = await deepLinkPage.evaluate(`() => ({
+      const savedLanguage = await deepLinkPage.evaluate(`(() => ({
         lang: document.documentElement.lang,
         dir: document.documentElement.dir,
         selected: document.querySelector("select[data-vd-locale]")?.value ?? null,
-      })()`);
+      }))()`);
       assert(
         savedLanguage.lang === "fa" && savedLanguage.dir === "rtl" && savedLanguage.selected === "fa",
         "visual workspace language must persist across refresh: " + JSON.stringify(savedLanguage),
       );
       record("visual workspace language preference persists across refresh", savedLanguage);
-      await deepLinkPage.evaluate(`() => {
-        const selector = document.querySelector('select[data-vd-locale]');
-        if (!(selector instanceof HTMLSelectElement)) throw new Error("VISUAL_LANGUAGE_SELECTOR_MISSING");
-        selector.value = "en";
-        selector.dispatchEvent(new Event("change", { bubbles: true }));
-      })()`);
+      await deepLinkPage.setSelect('select[data-vd-locale]', "en");
 
       await deepLinkPage.click(".cp-vd-exit");
       await deepLinkPage.waitFor(
