@@ -909,7 +909,7 @@ function renderSheet(state: DemoState, kind: "activity" | "resource"): string {
     ${rows.map((row) => {
       const [first, end] = weekSpan(row.start, row.finish);
       const perWeek = (row.units ?? 0) / (end - first + 1);
-      return `<tr><td>${esc(row.label)}</td>${PROJECT_WEEKS.map((_, week) => `<td class="is-numeric">${week >= first && week <= end && (row.units ?? 0) ? perWeek.toFixed perWeek.toFixed(1) : ""}</td>`).join("")}<td class="is-numeric">${(row.units ?? 0).toLocaleString("en-US")}</td></tr>`;
+      return `<tr><td>${esc(row.label)}</td>${PROJECT_WEEKS.map((_, week) => `<td class="is-numeric">${week >= first && week <= end && (row.units ?? 0) ? perWeek.toFixed(1) : ""}</td>`).join("")}<td class="is-numeric">${(row.units ?? 0).toLocaleString("en-US")}</td></tr>`;
     }).join("")}
     </tbody></table></div></section>`;
 }
