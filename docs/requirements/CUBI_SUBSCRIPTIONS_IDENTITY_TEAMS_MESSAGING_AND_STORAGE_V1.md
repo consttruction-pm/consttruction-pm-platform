@@ -308,3 +308,44 @@ Resolve grants by authenticated actor, organization/tenant, project, WBS/form/re
 ### 14.6 Implementation status rule
 
 These are approved product requirements, **not claims of completed implementation**. They must be delivered through versioned contracts, persisted authorization grants, server-side application services, UI, audit, migration and end-to-end tests. Do not mark complete based only on documentation, a UI-hidden control or a mock workflow.
+
+## 15. Product-owner-approved Form Builder placement and library ownership — 2026-11-01
+
+This section records the approved Form Builder navigation and template-library decisions. It is mandatory product scope for implementation and supplements the form-only access and approval rules in sections 4.1 and 14.
+
+### 15.1 Visual workspace navigation
+
+- Place the form-authoring capability in the visual project workspace under **Control → Forms & Workflows → Form Builder**.
+- Keep form authoring and form use/workflow surfaces within the Control area; do not place the Form Builder as an unrelated top-level workspace module.
+- The Forms & Workflows area must provide access to the relevant library, assignment and submission/approval surfaces according to the actor's permissions. At minimum, the navigation model must distinguish:
+  - **Form Builder** — create and edit form templates;
+  - **Organization Form Library** — reusable organization-wide templates;
+  - **Project Form Library** — templates belonging only to the active project;
+  - **Form Assignments / My Assigned Forms** — assign forms and open only the forms assigned to the current user;
+  - **Submissions & Approvals** — review and decide on submitted records within the user's authorized scope.
+- Navigation visibility is not an authorization boundary. Every operation and data query remains server-authorized.
+
+### 15.2 User-authored forms and explicit library destination
+
+- Forms are authored by authorized CUBI users through the Form Builder. The catalog is not limited to a fixed set of hard-coded form definitions; users create the templates needed for their organization and projects using the supported Form Builder capabilities.
+- When saving/publishing a form template, the author must explicitly select its destination:
+  1. **Organization Form Library:** a standard or custom organization template intended for reuse across projects in that organization, subject to the user's organization-level permissions; or
+  2. **Project Form Library:** a form specific to the selected project, including a project-customized form derived from an organization template.
+- Do not silently choose or change the destination based only on the current screen, project context, or the author's role. Show the selected destination clearly before save/publish.
+- Organization-library templates may be reused only within the owning organization and only by users/projects with permission. Project-library templates remain scoped to their owning project and must not become visible to other projects by default.
+- A project-specific customization or copy derived from an organization template must not mutate the organization source template. Preserve source/template lineage and version identity. Publishing a project-authored or customized form into the organization library requires a separate explicit action and organization-level permission.
+- Saving, editing, publishing, deprecating, cloning and assigning templates must respect immutable version history. Each submission must remain bound to the exact template version used when the submission was created; later template changes must not rewrite historical forms or submissions.
+- Enforce organization/project scope, creator/actor identity, current membership, permission, entitlement and revision on the server for library browse/search, create, save, clone, edit, publish, assign, export and archive operations.
+
+### 15.3 Acceptance requirements
+
+- An authorized user can create a form and explicitly save it to the organization library; an authorized user in another project of that organization can reuse it without exposing it to another organization.
+- An authorized project user can create a project-specific form or derive one from an organization template and save it only to the selected project library.
+- Editing a project copy never changes the organization source or another project's copy.
+- A project form cannot be promoted to the organization library without an explicit promotion action and organization-level permission.
+- Users without organization-library permission cannot create, publish, edit or administer organization templates, even if they can create project forms.
+- Users without project permission cannot view, enumerate, edit, export or assign that project's templates by guessing identifiers or invoking APIs directly.
+- Template version changes preserve previous versions, and every saved submission continues to reference the exact immutable template version used at submission time.
+- The navigation and all library operations are localized and support RTL/LTR and Jalali/Gregorian date presentation through the shared localization/calendar services.
+- These requirements do not certify that the Form Builder UI or workflows are already implemented. Completion requires persisted templates, scoped authorization, UI, APIs and end-to-end tests.
+
