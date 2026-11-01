@@ -3929,6 +3929,14 @@ async function main() {
     );
     await page.realClick("[data-fullscreen-toggle]");
     await page.waitFor(`Boolean(document.fullscreenElement)`, "workspace enters full screen", 6000);
+    // The fullscreen element appears before the toolbar reacts to the
+    // fullscreenchange event on a loaded CI runner; wait for the UI state the
+    // assertion below is about instead of racing the event loop.
+    await page.waitFor(
+      `document.querySelector("[data-fullscreen-toggle]")?.getAttribute("aria-pressed") === "true"`,
+      "full-screen toggle reflects the active state",
+      6000,
+    );
     const fullscreenActive = await page.evaluate(`(() => {
       const toggle = document.querySelector("[data-fullscreen-toggle]");
       const launcher = document.querySelector("#cubi-assistant-launcher")?.getBoundingClientRect();
