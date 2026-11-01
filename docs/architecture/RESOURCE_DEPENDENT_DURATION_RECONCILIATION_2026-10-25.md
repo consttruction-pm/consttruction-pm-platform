@@ -28,3 +28,11 @@ Status: implementation merged on source commit; semantic scope remains partial a
 5. Update the main project state ledger only after fresh evidence is available.
 
 This record is additive. It does not remove existing project requirements or grant release-completion credit.
+
+## 2026-11-02 addendum — multiple driving calendars
+
+- The derivation now evaluates each driving assignment's daily rate against that assignment's own versioned resource calendar instead of requiring all drivers to share one calendar and unit.
+- The longest driving duration selects the activity's calendar ID/version. An equal-duration tie between two different calendars raises `RESOURCE_DEPENDENT_DRIVING_CALENDAR_TIE`; input order never decides the activity calendar.
+- Driving assignments may carry different units of measure because each rate advances its own resource's units. The per-assignment conversion factor remains required and hash-bound.
+- Unit tests cover calendar selection, order independence, same-calendar ties and per-driver identity validation. The authenticated snapshot/query integration test proves the selected four-day resource calendar drives the CPM finish date and per-assignment placement ledger.
+- Still not implemented: in-progress Resource Dependent derivation, non-daily or fractional driving rates, progress-aware nondriving placement and Level of Effort semantics.

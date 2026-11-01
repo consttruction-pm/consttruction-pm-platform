@@ -176,6 +176,21 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
     )
     calendar_repo.save(resource_calendar)
     calendar_snapshots.save(resource_calendar, WorkingCalendar())
+    alternate_resource_calendar = CalendarMaster(
+        scope=scope,
+        calendar_id="RC-2",
+        calendar_version="v1",
+        kind="working-day",
+        name="Alternate Resource Calendar",
+        calendar_type="resource",
+    )
+    calendar_repo.save(alternate_resource_calendar)
+    # A four-day work week makes the selected driving calendar observable in
+    # the calculated activity finish date.
+    calendar_snapshots.save(
+        alternate_resource_calendar,
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3})),
+    )
 
     composer = AuthoritativeScheduleInputComposer(
         activity_repository=activity_repo,
@@ -218,6 +233,9 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
                 WorkingCalendar(working_weekdays=frozenset({1, 2, 3, 4}))
             ),
             "RC-1@v1": WorkingTimeResolver(WorkingCalendar()),
+            "RC-2@v1": WorkingTimeResolver(
+                WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3}))
+            ),
         }
     )
     app = build_project_lifecycle_wsgi_app(
@@ -764,6 +782,160 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
     connection.close()
 
 
+
+
+def test_resource_dependent_longest_driving_assignment_selects_its_calendar(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-CAL",
+            "name": "Differing driving calendars",
+            "duration_value": "1",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.NOT_STARTED.value,
+            "status_code": ActivityStatusCode.PLANNED.value,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    # Both drivers use a daily rate, but on their own versioned calendars:
+    # 8/4 = 2 days on the five-day RC-1 and 12/4 = 3 days on the four-day RC-2.
+    # The longest driver controls the duration and therefore the activity
+    # calendar, without either calendar being reinterpreted as the other.
+    for assignment_id, resource_id, planned_units, calendar_id, period_days in (
+        (
+            "RD-CAL-A",
+            "RD-CAL-RES-A",
+            "8",
+            "RC-1",
+            ("2026-10-19", "2026-10-20"),
+        ),
+        (
+            "RD-CAL-B",
+            "RD-CAL-RES-B",
+            "12",
+            "RC-2",
+            ("2026-10-19", "2026-10-20", "2026-10-21"),
+        ),
+    ):
+        fixture["resource_assignments"].upsert(
+            P6ResourceAssignment(
+                scope=scope,
+                assignment_id=assignment_id,
+                activity_id="RD-CAL",
+                resource_id=resource_id,
+                units=Decimal(planned_units),
+                unit="labor-unit",
+                calendar_id=calendar_id,
+                calendar_version="v1",
+                is_driving=True,
+                units_per_time=Decimal("4"),
+                units_per_time_period="day",
+                hours_per_units_time_period=Decimal("8"),
+            )
+        )
+        for period_start in period_days:
+            fixture["resource_periods"].upsert(
+                P6ResourceAssignmentPeriodValue(
+                    scope=scope,
+                    assignment_id=assignment_id,
+                    activity_id="RD-CAL",
+                    resource_id=resource_id,
+                    period_start=period_start,
+                    units=Decimal("4"),
+                    cost=Decimal("0"),
+                )
+            )
+
+    connection.commit()
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    activity = next(
+        item for item in materialized.schedule_input.activities if item.id == "RD-CAL"
+    )
+    assert activity.duration == 3
+    calendar_assignment = next(
+        item
+        for item in materialized.schedule_input.activity_calendar_assignments
+        if item.activity_id == "RD-CAL"
+    )
+    assert (
+        calendar_assignment.calendar.calendar_id,
+        calendar_assignment.calendar.calendar_version,
+    ) == ("RC-2", "v1")
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-RD-CAL",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "calculate the differing driving calendars",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    assert query_result["data"]["activities"]["RD-CAL"]["start"] == "2026-10-19"
+    # Three working days on RC-2 (Mon-Wed) finish before a five-day calendar
+    # would, proving the winning assignment calendar drives CPM arithmetic.
+    assert query_result["data"]["activities"]["RD-CAL"]["finish"] == "2026-10-21"
+    assert query_result["data"]["activities"]["RD-CAL"]["duration"] == 3
+
+    placement = query_result["data"]["resource_dependent_placement"]
+    assert placement["status"] == "COMPLETE"
+    assert placement["failed_assignment_count"] == 0
+    for assignment_id, expected_finish, expected_calendar, row_count in (
+        ("RD-CAL-A", "2026-10-20", "RC-1", 2),
+        ("RD-CAL-B", "2026-10-21", "RC-2", 3),
+    ):
+        item = placement["assignments"][assignment_id]
+        assert item["status"] == "FIXED_DRIVING"
+        assert item["activity_start"] == "2026-10-19"
+        assert item["start"] == "2026-10-19"
+        assert item["finish"] == expected_finish
+        assert item["calendar_id"] == expected_calendar
+        assert item["calendar_version"] == "v1"
+        assert item["diagnostic_code"] is None
+        assert len(item["demand_periods"]) == row_count
+    connection.close()
 
 
 def test_resource_dependent_activity_publication_fails_closed_for_unknown_driving_flag(tmp_path):

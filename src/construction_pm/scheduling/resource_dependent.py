@@ -219,9 +219,11 @@ def derive_resource_dependent_duration(
 ) -> ResourceDependentDuration:
     """Return a reproducible duration from explicit driving resource contracts.
 
-    The supported subset uses each driving assignment's Planned Units, an
-    explicit daily rate, and one shared driving calendar/unit/conversion. The
-    longest-to-complete driving assignment controls duration. Every nondriving
+    The supported subset uses each driving assignment's Planned Units and an
+    explicit daily rate on that assignment's own versioned resource calendar.
+    The longest-to-complete driving assignment controls duration and supplies
+    the activity calendar. An equal-duration tie between different calendars is
+    rejected instead of being resolved by input order. Every nondriving
     assignment never affects this duration but remains in the canonical hash so
     its independent placement is bound to the same immutable input.
 
@@ -326,48 +328,31 @@ def derive_resource_dependent_duration(
         duration_days = fallback_duration_working_days
         duration_source = "activity"
     else:
-        first = driving[0]
-        if not isinstance(first.calendar_id, str) or not first.calendar_id.strip():
-            raise ResourceDependentCalculationError(
-                "RESOURCE_DEPENDENT_DRIVER_CALENDAR_REQUIRED"
-            )
-        if (
-            not isinstance(first.calendar_version, str)
-            or not first.calendar_version.strip()
-        ):
-            raise ResourceDependentCalculationError(
-                "RESOURCE_DEPENDENT_DRIVER_CALENDAR_VERSION_REQUIRED"
-            )
-        if any(
-            (item.calendar_id, item.calendar_version)
-            != (first.calendar_id, first.calendar_version)
-            for item in driving
-        ):
-            raise ResourceDependentCalculationError(
-                "RESOURCE_DEPENDENT_DRIVING_CALENDAR_MISMATCH"
-            )
-        if not isinstance(first.unit_of_measure, str) or not first.unit_of_measure.strip():
-            raise ResourceDependentCalculationError(
-                "RESOURCE_DEPENDENT_UNIT_OF_MEASURE_REQUIRED"
-            )
-        if any(item.unit_of_measure != first.unit_of_measure for item in driving):
-            raise ResourceDependentCalculationError(
-                "RESOURCE_DEPENDENT_DRIVING_UNIT_MISMATCH"
-            )
-        if any(item.units_per_time_period != "day" for item in driving):
-            raise ResourceDependentCalculationError(
-                "RESOURCE_DEPENDENT_NONDAILY_RATE_UNSUPPORTED"
-            )
-        if any(
-            item.hours_per_units_time_period != first.hours_per_units_time_period
-            for item in driving
-        ):
-            raise ResourceDependentCalculationError(
-                "RESOURCE_DEPENDENT_DRIVER_RATE_CONVERSION_MISMATCH"
-            )
-
         durations: list[Decimal] = []
         for item in driving:
+            if not isinstance(item.calendar_id, str) or not item.calendar_id.strip():
+                raise ResourceDependentCalculationError(
+                    "RESOURCE_DEPENDENT_DRIVER_CALENDAR_REQUIRED"
+                )
+            if (
+                not isinstance(item.calendar_version, str)
+                or not item.calendar_version.strip()
+            ):
+                raise ResourceDependentCalculationError(
+                    "RESOURCE_DEPENDENT_DRIVER_CALENDAR_VERSION_REQUIRED"
+                )
+            if (
+                not isinstance(item.unit_of_measure, str)
+                or not item.unit_of_measure.strip()
+            ):
+                raise ResourceDependentCalculationError(
+                    "RESOURCE_DEPENDENT_UNIT_OF_MEASURE_REQUIRED"
+                )
+            if item.units_per_time_period != "day":
+                raise ResourceDependentCalculationError(
+                    "RESOURCE_DEPENDENT_NONDAILY_RATE_UNSUPPORTED"
+                )
+
             planned = _require_decimal(
                 item.planned_units,
                 "RESOURCE_DEPENDENT_PLANNED_UNITS_REQUIRED",
@@ -387,16 +372,33 @@ def derive_resource_dependent_duration(
             # the source's explicit period is already "day"; non-daily
             # conversion needs an hourly core model and is rejected above.
             del conversion
-            durations.append(planned / rate)
+            duration = planned / rate
+            if duration != duration.to_integral_value():
+                raise ResourceDependentCalculationError(
+                    "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED"
+                )
+            if int(duration) > 10_000:
+                raise ResourceDependentCalculationError(
+                    "RESOURCE_DEPENDENT_DURATION_OUT_OF_RANGE"
+                )
+            durations.append(duration)
 
         duration = max(durations)
-        if duration != duration.to_integral_value():
+        # Each daily rate is measured on its own assignment resource calendar,
+        # so the longest duration selects the driving calendar that governs the
+        # activity. Two different calendars that tie for the maximum would make
+        # the activity calendar depend on input order, so fail closed.
+        winner_calendars = {
+            (item.calendar_id, item.calendar_version)
+            for item, value in zip(driving, durations)
+            if value == duration
+        }
+        if len(winner_calendars) > 1:
             raise ResourceDependentCalculationError(
-                "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED"
+                "RESOURCE_DEPENDENT_DRIVING_CALENDAR_TIE"
             )
+        calendar_id, calendar_version = next(iter(winner_calendars))
         duration_days = int(duration)
-        calendar_id = first.calendar_id
-        calendar_version = first.calendar_version
         if duration_days > 10_000:
             raise ResourceDependentCalculationError(
                 "RESOURCE_DEPENDENT_DURATION_OUT_OF_RANGE"

@@ -281,13 +281,13 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Assignment Units/Time and conversion period"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": "Implemented subset: date-based, not-started Resource Dependent activities derive duration from driving assignments, while nondriving assignments are placed independently against their exact versioned calendars and persisted capacity. Remaining gaps include in-progress activities, non-daily and fractional driving rates, differing driving calendars, Level of Effort semantics and broader cross-feature parity. The wider relationship, lag, calendar, priority and infeasible-window matrix remains unqualified; do not claim complete Version 26 parity."
+      "gap": "Implemented subset: date-based, not-started Resource Dependent activities derive duration from driving assignments. Each driver's daily rate is evaluated on its own exact versioned resource calendar; the longest driver controls the activity duration and calendar, while an equal-duration tie between different calendars fails closed instead of depending on input order. Nondriving assignments are placed independently against their exact versioned calendars and persisted capacity. Remaining gaps include in-progress activities, non-daily and fractional driving rates, Level of Effort semantics and broader cross-feature parity. The wider relationship, lag, calendar, priority and infeasible-window matrix remains unqualified; do not claim complete Version 26 parity."
     },
     {
       "id": "RES-002",
       "area": "Resources / Leveling",
       "feature": "Resource leveling controls and priority order",
-      "semantics": "Leveling must consume persisted, time-phased demand and effective capacity bound to the same tenant, project revision, immutable schedule snapshot and calculation identity. It must respect activity relationships, constraints, resolved activity/resource calendars, priorities, selected resources, float limits, permitted overallocation and Early/Late preservation. Final resource-load validation remains mandatory after accepted movements and CPM recalculation.",
+      "semantics": "Leveling must respect persisted, time-phased resource demand, effective available capacity, activity relationships/constraints, resolved per-activity calendars, activity priority, selected resources, float limits, allowed overallocation, preserve-Early/Late settings and calculation options. Production leveling must consume an immutable input bound to the same tenant/project/revision, schedule snapshot hash and calculation identity; it must fail closed for missing or mismatched calendar versions, capacity slices or authorization scope. The final resource-load invariant must remain enforced after each accepted movement and CPM recalculation.",
       "options": [
         "Level all resources",
         "Selected resource list",
@@ -303,13 +303,13 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Projects whose scheduling options control leveling"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": "The production write-to-snapshot-to-query path and exact resource-calendar version binding are implemented and tested, but complete compatibility is not proven for demand/capacity unit conversion, hours-per-period conversion, full priority/resource-selection ordering, resource shifts, multi-project thresholds, movement horizon, cost recalculation and unresolved-overload reporting."
+      "gap": "The production write/commit/snapshot/query path and exact calendar version binding are implemented and tested, but full Version 26 equivalence is not proven. Independent semantic fixtures/review are still required for demand versus capacity units and hours-per-period conversion, complete PriorityList/ResourceList and hierarchical ordering behavior, resource shifts, multi-project thresholds, movement horizon, cost recalculation, and unresolved-overload logging. Keep Issue #1468 open until those cases are accepted."
     },
     {
       "id": "RES-003",
       "area": "Resources / Capacity and calendars",
       "feature": "Max Units/Time, effective rates and unit/time conversion",
-      "semantics": "Resource capacity is effective-dated and unit-aware. Use the exact versioned resource calendar and work-time rules for each capacity slice. Demand and capacity need a documented common unit/time basis; resource Max Units/Time, assignment Units/Time and Hours-per-Time-Period conversion are distinct. Never infer a standard workday or silently fall back to an ID-only or latest calendar.",
+      "semantics": "Resource capacity is effective-dated and unit-aware. Use the exact versioned resource calendar and its work-time rules for each capacity slice. Demand and capacity must share a documented unit and time-period basis; explicit resource Max Units/Time, assignment Units/Time and the Hours-per-Time-Period conversion are distinct sources. Percentage capacity needs an explicit full-time base. Never infer an 8-hour day, treat Max Units/Time as assignment rate, or fall back to an ID-only/latest calendar.",
       "options": [
         "Max Units/Time",
         "Effective date",
@@ -321,7 +321,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Calendar version and effective exceptions"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": "Exact identity/version binding and capacity-slice contracts exist, but persisted Max Units/Time, total work hours, date-specific detailed work hours and Hours-per-Time-Period conversions are not fully aligned and independently verified. Ambiguous inputs must fail closed."
+      "gap": "Exact ID/version and capacity-slice identity are implemented, but there is still no full verified mapping for resource Max Units/Time, calendar total_work_hours, date-specific DetailedWorkHours and Hours-per-Time-Period conversion. Until the underlying persisted source contracts agree and reference cases prove unit conversion, fail closed for unsupported or ambiguous records. Do not claim full resource-capacity semantic parity."
     },
     {
       "id": "RES-004",
@@ -1389,7 +1389,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Nondriving placement"
       ],
       "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
-      "gap": "Implemented only for not-started, date-based activities with compatible daily driving rates and integral working-day durations. In-progress activities, differing driving calendars, non-daily or fractional durations and broader option interactions remain unsupported or unqualified. No full Version 26 parity claim is made."
+      "gap": "Implemented only for not-started, date-based activities with daily driving rates and integral working-day durations. Driving assignments may use different versioned calendars and units; the longest duration selects the activity calendar and an equal-duration calendar tie fails closed. In-progress activities, non-daily or fractional durations and broader option interactions remain unsupported or unqualified. No full Version 26 parity claim is made."
     },
     {
       "id": "FRM-CAP-001",
@@ -1609,7 +1609,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Max over-allocation threshold reached"
       ],
       "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
-      "gap": "reference scheduler leveling heuristic/order and output parity must be established with reference fixtures; current presence of a leveling engine is not proof of equivalent results."
+      "gap": "Persisted date-based resource leveling is wired through the authoritative production query and exact calendar versions, but Version 26 leveling heuristic/order and output parity still require independent reference fixtures for demand/capacity units, PriorityList/ResourceList ordering and interactions, calendar-hour conversion, shift capacity, movement horizon, multi-project selection, cost recalculation and unresolved-overload logging. Current passing CI proves the CUBI path and its regressions, not complete external-product equivalence."
     },
     {
       "id": "FRM-ACT-TYPES-001",
@@ -1815,7 +1815,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "scope": "reference scheduler Professional Resource Dependent activities and assignment placement",
       "status": "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN",
       "reviewed": "Driving resources determine duration from quantity/rate; multiple drivers and nondriving assignments are identified as separate algorithms.",
-      "remaining": "Build and pass multiple-driving-resource, calendar-specific duration, unit/time conversion, nondriving placement, out-of-sequence and backward-pass fixtures. The existing Draft PR blocker remains open.",
+      "remaining": "Multiple-driving-resource and calendar-specific duration fixtures are implemented and passing, including fail-closed calendar ties. Complete the unit/time conversion, in-progress, nondriving progress placement, out-of-sequence and backward-pass reviews. The existing Draft PR blocker remains open.",
       "requirements": [
         "RES-001",
         "RES-002",

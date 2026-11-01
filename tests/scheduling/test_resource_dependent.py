@@ -318,12 +318,78 @@ def test_invalid_demand_periods_fail_closed():
         derive(negative)
 
 
-def test_driving_assignments_must_share_exact_calendar_version_and_unit():
-    with pytest.raises(ResourceDependentCalculationError, match="RESOURCE_DEPENDENT_DRIVING_CALENDAR_MISMATCH"):
-        derive(driver("A-1"), driver("A-2", calendar_version="v3"))
+def test_longest_driving_assignment_selects_its_own_calendar():
+    result = derive(
+        driver("A-1", planned="8", rate="4", calendar_id="RC-1"),
+        driver("A-2", planned="9", rate="3", calendar_id="RC-2", calendar_version="v7"),
+    )
 
-    with pytest.raises(ResourceDependentCalculationError, match="RESOURCE_DEPENDENT_DRIVING_UNIT_MISMATCH"):
-        derive(driver("A-1"), driver("A-2", unit="equipment-day"))
+    assert result.duration_working_days == 3
+    assert (result.calendar_id, result.calendar_version) == ("RC-2", "v7")
+    assert result.driving_assignment_ids == ("A-1", "A-2")
+
+
+def test_driving_calendar_selection_is_independent_of_input_order():
+    facts = (
+        driver("A-1", planned="8", rate="4", calendar_id="RC-1"),
+        driver("A-2", planned="9", rate="3", calendar_id="RC-2", calendar_version="v7"),
+    )
+    first = derive(*facts)
+    second = derive(*reversed(facts))
+    assert first == second
+
+
+def test_equal_duration_tie_between_different_calendars_fails_closed():
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_DRIVING_CALENDAR_TIE",
+    ):
+        derive(
+            driver("A-1", planned="8", rate="4", calendar_id="RC-1"),
+            driver("A-2", planned="6", rate="3", calendar_id="RC-2", calendar_version="v7"),
+        )
+
+
+def test_equal_duration_tie_on_one_calendar_is_deterministic():
+    result = derive(
+        driver("A-1", planned="8", rate="4", calendar_id="RC-1"),
+        driver("A-2", planned="6", rate="3", calendar_id="RC-1"),
+    )
+
+    assert result.duration_working_days == 2
+    assert (result.calendar_id, result.calendar_version) == ("RC-1", "v2")
+
+
+def test_driving_assignments_may_use_different_units_of_measure():
+    result = derive(
+        driver("A-1", planned="8", rate="4", unit="labor-unit"),
+        driver("A-2", planned="9", rate="3", unit="equipment-day"),
+    )
+
+    assert result.duration_working_days == 3
+    assert result.calendar_id == "RC-1"
+
+
+@pytest.mark.parametrize(
+    ("fact", "code"),
+    [
+        (
+            driver("A-2", calendar_version=None),
+            "RESOURCE_DEPENDENT_DRIVER_CALENDAR_VERSION_REQUIRED",
+        ),
+        (
+            driver("A-2", calendar_id=None),
+            "RESOURCE_DEPENDENT_DRIVER_CALENDAR_REQUIRED",
+        ),
+        (
+            driver("A-2", unit=None),
+            "RESOURCE_DEPENDENT_UNIT_OF_MEASURE_REQUIRED",
+        ),
+    ],
+)
+def test_each_driving_assignment_requires_its_own_identity(fact, code):
+    with pytest.raises(ResourceDependentCalculationError, match=code):
+        derive(driver("A-1"), fact)
 
 def test_duplicate_assignment_ids_fail_closed():
     with pytest.raises(
