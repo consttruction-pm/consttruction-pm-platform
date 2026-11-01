@@ -152,7 +152,7 @@ Required behavior:
 - support backup/export/restore under existing permission-bounded portability policies.
 
 The following storage capacity policy is now product-owner approved and mandatory:
-- Each distinct team member with an active Pro entitlement contributes **2 GiB** to that team's shared storage capacity (initial policy value; store it in central entitlement configuration, never duplicate/hard-code it in clients).
+- Each distinct team member with an active Pro entitlement contributes **2 GB (2,000,000,000 bytes)** to that team's shared storage capacity (initial policy value; store it in central entitlement configuration, never duplicate/hard-code it in clients).
 - Team capacity is the sum of active Pro member contributions. A Pro member is counted once per team, regardless of how many projects they join. Membership in several projects does not multiply the contribution.
 - The capacity is shared by all projects in the team/organization. It is not allocated separately per project. Show total capacity, used and remaining space at team level and show usage by project/category for management.
 - No separate storage-space purchase/add-on is part of the current product model. Additional shared capacity comes from additional distinct, active Pro team members.
