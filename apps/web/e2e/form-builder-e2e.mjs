@@ -32,6 +32,10 @@ const ORG_TEMPLATE = "contractor-daily-site-report";
 const RUN = Date.now().toString(36);
 const ORG_NEW_ID = `e2e-org-${RUN}`;
 const REPORT_TITLE = `E2E daily report ${RUN}`;
+// A published preview can sit behind a slow relay where the initial Web bundle
+// takes far longer than a local origin. Scale every UI wait without changing
+// the checks themselves.
+const TIMEOUT_SCALE = Math.max(1, Number(process.env.CUBI_E2E_TIMEOUT_SCALE || "1") || 1);
 
 const CHECKS = [];
 const SCREENSHOTS = [];
@@ -233,7 +237,7 @@ class Page {
     return response.result?.value;
   }
 
-  async waitFor(expression, label, timeoutMs = 30000) {
+  async waitFor(expression, label, timeoutMs = 30000 * TIMEOUT_SCALE) {
     const deadline = Date.now() + timeoutMs;
     let lastError;
     while (Date.now() < deadline) {
@@ -251,7 +255,7 @@ class Page {
     );
   }
 
-  waitForSelector(selector, label = selector, timeoutMs = 30000) {
+  waitForSelector(selector, label = selector, timeoutMs = 30000 * TIMEOUT_SCALE) {
     return this.waitFor(`Boolean(document.querySelector(${JSON.stringify(selector)}))`, label, timeoutMs);
   }
 
@@ -406,8 +410,36 @@ async function launchChrome() {
   };
 }
 
+async function openLogin(page, baseUrl) {
+  await page.cdp.send("Page.navigate", { url: `${baseUrl}/preview/login` });
+  await sleep(600);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    // Free HTTPS relays such as Serveo put a one-time browser warning in front
+    // of the tunnel. A real visitor clicks the same "Continue to Site" button.
+    await page.waitFor(
+      `Boolean(document.querySelector('form[action="/preview/login"]')) ||
+       Array.from(document.querySelectorAll("button")).some((item) =>
+         /continue to site/i.test(item.textContent || ""),
+       )`,
+      "login page or relay warning",
+    );
+    const state = await page.evaluate(`(() => {
+      if (document.querySelector('form[action="/preview/login"]')) return "login";
+      const button = Array.from(document.querySelectorAll("button")).find((item) =>
+        /continue to site/i.test(item.textContent || ""),
+      );
+      if (!button) return "unknown";
+      button.click();
+      return "warning";
+    })()`);
+    if (state === "login") return;
+    await sleep(1200);
+  }
+  throw new Error("RELAY_WARNING_UNRESOLVED: the login page never appeared");
+}
+
 async function login(page, baseUrl, role) {
-  await page.navigate(`${baseUrl}/preview/login`, 'form[action="/preview/login"]', "login page");
+  await openLogin(page, baseUrl);
   await page.click(`button[name="role"][value="${role}"]`);
   await page.waitFor(`location.pathname === "/app"`, `${role} redirect`);
   // The shell may restore the previously opened project instead of asking
@@ -427,7 +459,7 @@ async function logout(page, baseUrl) {
   await page.evaluate('fetch("/preview/logout", { method: "POST" }).then(() => true)', {
     awaitPromise: true,
   });
-  await page.navigate(`${baseUrl}/preview/login`, 'form[action="/preview/login"]', "login after logout");
+  await openLogin(page, baseUrl);
 }
 
 async function openForms(page) {
@@ -460,9 +492,14 @@ async function publish(page, reason) {
 
 async function main() {
   mkdirSync(artifactsDir, { recursive: true });
-  const port = await freePort();
-  const database = join(tmpdir(), `cubi-form-e2e-${RUN}.sqlite3`);
-  const baseUrl = `http://127.0.0.1:${port}`;
+  // The same journey can run against a published preview: pass the public URL
+  // and the SQLite file that preview is serving. Without them the harness owns
+  // a disposable local runtime.
+  const externalBaseUrl = (process.env.CUBI_E2E_BASE_URL || "").replace(/\/+$/, "");
+  const externalDatabase = process.env.CUBI_E2E_DATABASE || "";
+  const port = externalBaseUrl ? 0 : await freePort();
+  const database = externalDatabase || join(tmpdir(), `cubi-form-e2e-${RUN}.sqlite3`);
+  const baseUrl = externalBaseUrl || `http://127.0.0.1:${port}`;
   const env = {
     ...process.env,
     PYTHONPATH: join(repoRoot, "src"),
@@ -470,34 +507,38 @@ async function main() {
     CUBI_PREVIEW_PUBLIC_DEMO: "",
     CUBI_PREVIEW_PRIVATE_ACCESS_TOKEN: "",
   };
-  const server = spawn(
-    process.platform === "win32" ? "py" : "python3",
-    [
-      ...(process.platform === "win32" ? ["-3"] : []),
-      "-m",
-      "construction_pm.preview",
-      "--web-root",
-      join(webRoot),
-      "--database",
-      database,
-      "--reset",
-      "--port",
-      String(port),
-    ],
-    { cwd: repoRoot, env, stdio: ["ignore", "pipe", "pipe"] },
-  );
+  const server = externalBaseUrl
+    ? null
+    : spawn(
+        process.platform === "win32" ? "py" : "python3",
+        [
+          ...(process.platform === "win32" ? ["-3"] : []),
+          "-m",
+          "construction_pm.preview",
+          "--web-root",
+          join(webRoot),
+          "--database",
+          database,
+          "--reset",
+          "--port",
+          String(port),
+        ],
+        { cwd: repoRoot, env, stdio: ["ignore", "pipe", "pipe"] },
+      );
   let serverLog = "";
-  server.stdout.on("data", (chunk) => {
+  server?.stdout.on("data", (chunk) => {
     serverLog += chunk.toString();
   });
-  server.stderr.on("data", (chunk) => {
+  server?.stderr.on("data", (chunk) => {
     serverLog += chunk.toString();
   });
 
   let chrome = null;
   try {
     await waitForHttp(`${baseUrl}/preview/health`);
-    log(`Preview ready at ${baseUrl} with database ${database}`);
+    log(
+      `${externalBaseUrl ? "Published preview" : "Preview"} ready at ${baseUrl} with database ${database}`,
+    );
     chrome = await launchChrome();
     const page = new Page(chrome.cdp);
     activePage = page;
@@ -894,7 +935,7 @@ print(json.dumps({"submission": submission, "approvals": approvals, "versions": 
   } finally {
     chrome?.cdp.close();
     chrome?.stop();
-    server.kill();
+    server?.kill();
     try {
       if (chrome?.userDataDir) rmSync(chrome.userDataDir, { recursive: true, force: true });
     } catch {

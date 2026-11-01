@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 import sqlite3
 from io import BytesIO
@@ -680,6 +681,100 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
 
         status, _, _ = _request(app, "GET", "/api/session", cookie=cookie)
         assert status == 401
+    finally:
+        runtime.close()
+
+
+def test_preview_compresses_large_text_assets_for_slow_public_relays(
+    tmp_path: Path,
+) -> None:
+    web_root = _web_root(tmp_path)
+    styles = web_root / "styles.css"
+    styles.write_text(
+        "body { margin: 0; }\n" + (".cp-workspace { display: grid; }\n" * 400),
+        encoding="utf-8",
+    )
+    runtime = open_preview_runtime(
+        tmp_path / "preview.sqlite3",
+        web_root=web_root,
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+
+        status, headers, body = _request(
+            app,
+            "GET",
+            "/styles.css",
+            headers={"Accept-Encoding": "gzip"},
+        )
+        assert status == 200
+        assert headers["content-encoding"] == "gzip"
+        assert headers["vary"] == "Accept-Encoding"
+        assert headers["cache-control"] == "public, max-age=60"
+        assert len(body) < len(styles.read_bytes())
+        assert gzip.decompress(body) == styles.read_bytes()
+
+        # Clients that do not advertise gzip must still receive readable bytes.
+        status, headers, body = _request(app, "GET", "/styles.css")
+        assert status == 200
+        assert "content-encoding" not in headers
+        assert body == styles.read_bytes()
+
+        # API and authenticated shells must never be cached by shared relays.
+        status, headers, _ = _request(app, "GET", "/api/session")
+        assert status == 401
+        assert headers["cache-control"] == "no-store"
+    finally:
+        runtime.close()
+
+
+def test_preview_can_serve_the_workspace_bundle_from_a_cdn(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    web_root = _web_root(tmp_path)
+    (web_root / "app.html").write_text(
+        '<!doctype html><html><head>'
+        '<link rel="stylesheet" href="/styles.css" />'
+        "</head><body><div id=\"app\"></div>"
+        '<script type="module" src="/dist/main.bundle.js"></script>'
+        "</body></html>",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(
+        "CUBI_PREVIEW_ASSET_BASE",
+        "https://cdn.example.test/cubi/assets/",
+    )
+    runtime = open_preview_runtime(
+        tmp_path / "preview.sqlite3",
+        web_root=web_root,
+        reset=True,
+    )
+    try:
+        app = build_preview_application(runtime)
+        status, headers, _ = _request(
+            app,
+            "POST",
+            "/preview/login",
+            body=b"role=planner&next=%2Fapp",
+            content_type="application/x-www-form-urlencoded",
+        )
+        assert status == 303
+        cookie = _session_cookie(headers)
+
+        status, _, body = _request(app, "GET", "/app", cookie=cookie)
+        assert status == 200
+        shell = body.decode("utf-8")
+        # Only the static bundle moves to the CDN; API calls stay same-origin.
+        assert (
+            'href="https://cdn.example.test/cubi/assets/styles.css"' in shell
+        )
+        assert (
+            'src="https://cdn.example.test/cubi/assets/dist/main.bundle.js"'
+            in shell
+        )
+        assert 'src="/dist/main.bundle.js"' not in shell
     finally:
         runtime.close()
 

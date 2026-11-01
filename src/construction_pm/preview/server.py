@@ -10,6 +10,7 @@ guard that keeps the workspace shell behind that demo session.
 from __future__ import annotations
 
 import argparse
+import gzip
 import html
 import hmac
 import json
@@ -30,6 +31,7 @@ from .runtime import PreviewRuntime, PreviewRuntimeError, open_preview_runtime
 from .storage import (
     DEMO_USERS,
     DEMO_USERS_BY_ROLE,
+    PREVIEW_SEED_VERSION,
     PREVIEW_SESSION_TTL,
 )
 
@@ -142,6 +144,20 @@ def _wants_json(environ: Mapping[str, object]) -> bool:
     return str(environ.get("PATH_INFO", "")).startswith("/api/")
 
 
+def _is_compressible(content_type: str) -> bool:
+    lowered = content_type.lower()
+    return any(
+        lowered.startswith(prefix)
+        for prefix in (
+            "text/",
+            "application/javascript",
+            "application/json",
+            "application/xml",
+            "image/svg+xml",
+        )
+    )
+
+
 class PreviewFrontend:
     """Explicit, non-traversable static file mapping for the built Web client."""
 
@@ -233,6 +249,11 @@ class PreviewApplication:
         self.public_demo = os.environ.get("CUBI_PREVIEW_PUBLIC_DEMO", "").strip().lower() in {
             "1", "true", "yes",
         }
+        # A published preview can be reached through a low-bandwidth relay where
+        # shipping the 1.2 MB Web bundle over the same link makes the workspace
+        # unusable. When an asset base is configured, the built JS/CSS are
+        # loaded from that CDN while every API call stays same-origin.
+        self.asset_base = os.environ.get("CUBI_PREVIEW_ASSET_BASE", "").strip().rstrip("/")
 
     def __call__(self, environ: dict[str, object], start_response):
         method = str(environ.get("REQUEST_METHOD", "GET")).upper()
@@ -291,9 +312,35 @@ class PreviewApplication:
         if method == "HEAD":
             body = b""
         response_headers: list[tuple[str, str]] = list(headers.items())
+        content_type = next(
+            (
+                value
+                for key, value in response_headers
+                if key.lower() == "content-type"
+            ),
+            "",
+        )
+        if (
+            body
+            and len(body) >= 1024
+            and _is_compressible(content_type)
+            and "gzip" in str(environ.get("HTTP_ACCEPT_ENCODING", "")).lower()
+        ):
+            # The published preview is often reached through a slow relay. The
+            # Web bundle is over a megabyte, so compress text responses when the
+            # client advertises support instead of shipping it uncompressed.
+            body = gzip.compress(body, compresslevel=5)
+            response_headers.append(("Content-Encoding", "gzip"))
+            response_headers.append(("Vary", "Accept-Encoding"))
+        cache_control = (
+            "no-store"
+            if path.startswith(("/api/", "/preview/"))
+            or path in {"/app", "/app.html"}
+            else "public, max-age=60"
+        )
         response_headers.extend([
             ("Content-Length", str(len(body))),
-            ("Cache-Control", "no-store"),
+            ("Cache-Control", cache_control),
             ("X-Content-Type-Options", "nosniff"),
             ("X-Frame-Options", "DENY"),
             ("Referrer-Policy", "no-referrer"),
@@ -506,6 +553,13 @@ class PreviewApplication:
             }
             return 302, headers, b""
         shell = (self.frontend.root / "app.html").read_text(encoding="utf-8")
+        if self.asset_base:
+            for asset in (
+                "/styles.css",
+                "/dist/main.bundle.js",
+                "/dist/global-assistant-launcher.bundle.js",
+            ):
+                shell = shell.replace(f'"{asset}"', f'"{self.asset_base}{asset}"')
         banner = self._banner(session)
         if "</body>" in shell:
             shell = shell.replace("</body>", f"{banner}\n  </body>", 1)
@@ -620,7 +674,7 @@ class PreviewApplication:
 <p class="notice">{data_notice}</p>
 {('<p class="notice"><a href="' + PRIVATE_LOGIN_PATH + '">Owner access · private staging</a></p>') if os.environ.get("CUBI_PREVIEW_PRIVATE_ACCESS_TOKEN", "").strip() else ""}
 <p class="notice fa-note" lang="fa" dir="rtl">{fa_notice}</p>
-<p class="meta">Seed: cubi-preview-seed.v1 · <a href="/preview/health">health</a> · <a href="/">landing page</a></p>
+<p class="meta">Seed: {html.escape(PREVIEW_SEED_VERSION)} · <a href="/preview/health">health</a> · <a href="/">landing page</a></p>
 </main></body></html>"""
 
     def _banner(self, session: AuthenticatedSession) -> str:
