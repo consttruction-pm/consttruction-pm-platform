@@ -603,6 +603,7 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
             "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
             "status": ActivityStatus.NOT_STARTED.value,
             "status_code": ActivityStatusCode.PLANNED.value,
+            "wbs_id": "W-ROOT",
             "leveling_priority": ActivityLevelingPriority.HIGH.value,
             "original_duration": 1,
         },
@@ -852,6 +853,7 @@ def test_resource_dependent_driving_and_nondriving_placement_is_bound_to_immutab
             "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
             "status": ActivityStatus.NOT_STARTED.value,
             "status_code": ActivityStatusCode.PLANNED.value,
+            "wbs_id": "W-ROOT",
         },
     )
     assert status == "201 Created"
