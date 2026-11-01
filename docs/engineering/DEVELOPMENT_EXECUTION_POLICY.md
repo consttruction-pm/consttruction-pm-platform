@@ -23,14 +23,17 @@ A previous ChatGPT-only execution attempt was stopped because the required SQL r
 
 ## Mandatory PMBOK-aligned Form Builder calculation contract
 
-Before creating, changing, reviewing, or debugging any website form template, field type, formula editor, validation/conditional rule, form submission/approval flow, calculated form field, form-derived KPI/report, or AI-assisted form generation, read:
+Before creating, changing, reviewing, or debugging any website form template, field type, formula editor, validation/conditional rule, form submission/approval flow, calculated form field, form-derived KPI/report, report layout/renderer, print/export flow, or AI-assisted form generation, read both mandatory documents:
 
-- `docs/engineering/PMBOK_FORM_BUILDER_AND_FORM_CALCULATIONS.md`
+- `docs/engineering/PMBOK_FORM_BUILDER_AND_FORM_CALCULATIONS.md` — CUBI-FORM-CALC-001, calculation/schema/authority contract.
+- `docs/architecture/CUBI_FORM_DESIGNER_LAYOUT_PRINT_WORKFLOW_V1.md` — CUBI-FORM-DESIGN-002, product-owner designer/layout/data-binding/approval/print/report requirements.
 
-This document identifies the current PMBOK edition and related PMI sources, distinguishes documented guidance from optional CUBI/project-configured formulas, defines typed form/field/calculation behavior, and maps current form/formula-core components with known gaps. It is mandatory engineering authority for this area.
+The first document identifies the current PMBOK edition and related PMI sources, distinguishes documented guidance from optional CUBI/project-configured formulas, and defines typed form/field/calculation behavior. The second records the complete Form Designer product scope, including organization/project libraries, headers/footers, rich content/tables, formulas and project bindings, charts, authenticated approvals, access/workflows, print/PDF/spreadsheet export, report families, localization, security and acceptance gates. Both are mandatory engineering authorities for this area.
 
 For formulas that read schedule dates, durations, calendars, resource capacity/units/cost, progress, EVM or WBS values, the form layer must use the canonical shared CUBI domain/calculation services. It must not create a duplicate CPM, calendar, resource-leveling or EVM implementation. The standalone scheduling calculation contract remains the authority for reference-compatible scheduling/Project Controls formulas once merged.
 
 Every form-calculation change must document contract section IDs, formula authority class, source/input/output units, null/zero/rounding behavior, field dependencies, tests and exact final SHA. AI-generated fields/formulas are draft-only until type-checked, tested and approved by an authorized human.
+
+Actual website control/source/permission/validation/test mapping is tracked in issue #1481; end-to-end Form Builder delivery is also tracked in issue #1617. Documentation is not implementation credit.
 
 **Status: ACTIVE for engineering changes in the form-builder area on this branch; merge this policy/document before treating the requirement as active on main.**
