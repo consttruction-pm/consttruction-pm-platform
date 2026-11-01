@@ -186,3 +186,125 @@ Do not introduce a parallel authentication provider, authorization engine, subsc
 ## 11. Release and governance
 
 Track implementation and evidence in [GitHub issue #1605](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1605). No implementation slice is complete based solely on a document, JSON schema, mock, demo database or screenshot. Record changed files, migration IDs, endpoint contracts, exact commit SHA, focused test results, CI run links and independently checked authorization behavior. Keep this document aligned with the Master Reference and amend it through reviewed commits if the product owner approves a change.
+
+
+---
+
+## 12. Product-owner-approved shared organization storage policy — 2026-11-01
+
+This section records the approved product direction discussed with the product owner. It supplements the configurable quota policy above and is mandatory for implementation. Related tracker: [#1605](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1605).
+
+### 12.1 Shared capacity is earned through active Pro membership
+
+- Do not sell separate storage add-on packs in the current product model.
+- Organization/team storage is a shared pool calculated from the number of **unique members with an active Pro entitlement** who are members of that organization/team.
+- A user contributes capacity at most once to an organization, regardless of how many projects or workspaces they join within that organization.
+- The currently discussed baseline is **2 GB per unique active Pro member** (for example, 10 active Pro members provide a 20 GB organization pool). Keep the per-member amount in centrally managed entitlement configuration; never hard-code it independently in clients or services.
+- The quota is shared by all projects in the organization. Project count does not multiply the quota. Show organization total/used/available capacity and per-project consumption breakdown to authorized managers.
+- Membership in a team alone does not grant access to every project; storage entitlement and project authorization remain separate decisions.
+- If an active Pro count falls and committed usage exceeds the new quota, do not delete or corrupt existing data. Give the organization a **30-day grace period** and clear warnings. During/after the grace policy, prevent new uploads that would increase usage while preserving access to existing data for authorized users, including viewing, downloading and deletion, until usage is brought within quota or entitlement is restored.
+- The quota service must account consistently for persisted project files, attachments, retained customer-controlled versions and manual backup packages. Use byte-accurate accounting and safe concurrency handling.
+
+### 12.2 Project manual backups consume customer storage
+
+- An authorized project user can request an immediate/manual backup for a specific project.
+- The portable project backup package is stored in the organization/customer storage pool and **counts against that pool**.
+- Keep at most **three retained manual backup versions per project**. Before creating a fourth, require the authorized user to select which prior manual version to replace; do not silently remove a version.
+- Show the authorized user the project's manual-backup history with project identity, version, creation time, size, status and available download/restore actions.
+- Download access is project-scope and permission-bound. Temporary server-side download artifacts/links expire and are cleaned up after **24 hours**; expiry of a temporary download must never remove the retained backup package.
+- Support restore-as-new-project to protect the current project. Restore-in-place requires explicit permission, confirmation, a revision guard and a pre-restore recovery checkpoint.
+- A project package must be clearly distinguished from a full database/system backup; it must never be described as a complete server backup.
+
+### 12.3 Storage-efficient retention
+
+- Use compression and incremental/version-aware storage where it is safe and supported. Avoid storing identical file payloads repeatedly.
+- Deduplication must not create cross-tenant data disclosure, existence/timing side channels or shared authorization shortcuts. Prefer tenant-isolated deduplication unless a stronger design is independently security-reviewed.
+- Maintain manifests, checksums, version ancestry and integrity metadata. Deleting/replacing an older version must not break restoration of any retained version that depends on it; compact/rebase chains safely before removing required ancestors.
+- Failed, cancelled, retried and concurrent backup/upload operations must not double-count quota or leave orphaned billable objects.
+
+## 13. Product-owner-approved backup ownership and retention — 2026-11-01
+
+Related recovery tracker: [#1439](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1439).
+
+### 13.1 Separate customer backups from CUBI system protection
+
+There are two distinct storage and authorization domains:
+
+1. **Customer-controlled project backups:** manually requested project packages belong to the customer's organization storage pool, count against its quota, and are visible/downloadable only to users with explicit project permissions.
+2. **CUBI system/disaster-recovery backups:** automatic server/database/file-system protection is owned and operated by CUBI, uses CUBI-funded infrastructure storage separate from customer quota, and is managed only by explicitly authorized platform operations administrators. Ordinary project users and tenant/team admins must not receive raw full-system backup access merely because they are signed in or manage a project.
+
+Do not duplicate a project backup into the customer quota merely because it is also covered by the CUBI system recovery backup. Conversely, a customer project export is not a substitute for the CUBI disaster-recovery backup.
+
+### 13.2 CUBI system backup schedule and retention
+
+The currently approved retention policy is:
+
+- daily recovery points: retain 7 days;
+- weekly recovery points: retain 4 weeks;
+- monthly recovery points: retain 3 months.
+
+Store system backups independently from the primary server/storage failure domain. Protect them with appropriate access controls, encryption, integrity manifests/checksums and auditable administrative access. Configure and test recovery procedures. Do not claim point-in-time recovery, a particular RPO/RTO, or complete recovery of a deployment component until the relevant mechanism is configured and an actual restore test proves it.
+
+### 13.3 Backup & Restore user interface
+
+- Add the customer-facing backup controls under the visual workspace's **Settings → Backup & Restore**.
+- Show customer-visible manual project backups by permitted project, including latest version, history, size, date, status, quota consumed and download/restore actions.
+- Do not expose CUBI-wide database dumps, server snapshots, unrelated tenants' project names, metadata, counts or artifacts in the customer panel.
+- Platform-wide backup schedules, retention, integrity monitoring and restore controls belong in a separate restricted CUBI operations/admin interface.
+- Enforce permission checks server-side for backup creation, queued work, artifact generation, download, deletion and restore. Re-check permissions at execution and download time; log actor, scope, decision and outcome.
+
+---
+
+## 14. Product-owner-approved project member access model — 2026-11-01
+
+This section refines the scoped-role and form-only access contract in section 4 and issue [#1605](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1605).
+
+### 14.1 Project creator is the initial project administrator
+
+- The account that creates a project is its initial project administrator/project manager and is responsible for granting, changing and revoking project-member permissions.
+- Keep project administrator/project manager distinct from subscription owner and team owner. They may be the same person, but the concepts and permissions are not interchangeable.
+- The project administrator can assign permissions separately to each member and separately for each project; team membership must never grant blanket access to every project.
+
+### 14.2 Explicit permission scopes and capabilities
+
+The access model must support, at minimum:
+
+- read-only access to the entire project;
+- read-only access to selected WBS nodes/branches;
+- read-and-write access to the entire project;
+- read-and-write access restricted to selected WBS nodes/branches;
+- access only to specifically assigned forms, with no general project browsing;
+- submit-only access to designated daily field logs/forms for a date/project/work area;
+- submit-and-wait-for-approval access for proposed changes to an assigned project section;
+- approve, reject or request-correction access only for explicitly assigned workflows and scopes.
+
+Resolve grants by authenticated actor, organization/tenant, project, WBS/form/record scope, requested action, current membership/entitlement and current project revision. A role label is not a substitute for the underlying permission. WBS branch access must be enforced against the canonical WBS hierarchy on the server; the UI must not infer access from activity rows or client-side filters.
+
+### 14.3 Separate data submission from authoritative project mutation
+
+- **Direct editing:** a member with explicit write permission can mutate only the permitted project/WBS scope, subject to validation, revision checks and audit.
+- **Submission-only:** a member can enter and submit information using only the assigned form or daily-log interface. The submission is a separate pending record and does not immediately alter authoritative project, schedule, progress, quantity, resource or cost data.
+- **Approval and application:** a separately authorized, designated approver reviews the pending submission and may approve, reject or request correction. Only an approved submission can be applied to the specified project record, through the authoritative application/domain services, with fresh permission and project-revision checks, transaction/idempotency protection, read-back and audit.
+- A submitter cannot approve their own submission unless an explicit separately reviewed policy allows it; the default is separation of duties.
+- Preserve the original submission and the full decision/revision history. Record submitter, submission time, target project/WBS/form/date, approver, decision time, decision reason, applied revision and final outcome.
+- Unapproved or rejected field records must not enter official progress, accepted quantities, resource consumption, schedule actuals or management-report totals.
+
+### 14.4 Daily field reporting
+
+- A field worker may be restricted to submitting a daily report for a specified project, work area/WBS and reporting date.
+- The form may collect only the fields assigned by the project administrator, such as work performed, quantities, labor, equipment, materials, photos/evidence and notes.
+- The worker must not gain access to the activity grid, schedule settings, relationships, calendars, costs or unrelated project records unless separately authorized.
+- A daily report is stored under its project/date context. Any requested update to authoritative activity progress, actuals, quantities, resources or costs follows the submit → review → approve → apply boundary above.
+
+### 14.5 Security, revocation and audit
+
+- Enforce permissions at the server/application boundary for every read, search, create, update, delete, form open, submission, attachment upload/download, approval, export, background job and restore. Hiding controls in the UI is not authorization.
+- Apply least privilege and fail closed for missing, expired, stale or ambiguous grants.
+- Scope-check every object by tenant/team/project and, where applicable, WBS branch, form assignment and record.
+- Revoking or changing a member's permissions blocks future unauthorized access immediately while retaining legitimate project history and audit records.
+- Pro entitlement expiry follows the existing limited-mode policy: preserve data and history; remove write capabilities that require active Pro and retain only the permitted read-only access until renewed or otherwise resolved by the configured entitlement policy.
+- Add tests for cross-tenant/project access, guessed IDs, WBS ancestor/descendant boundaries, form-only users, submitter/approver separation, approval application, stale revisions, revocation and audit completeness.
+
+### 14.6 Implementation status rule
+
+These are approved product requirements, **not claims of completed implementation**. They must be delivered through versioned contracts, persisted authorization grants, server-side application services, UI, audit, migration and end-to-end tests. Do not mark complete based only on documentation, a UI-hidden control or a mock workflow.
