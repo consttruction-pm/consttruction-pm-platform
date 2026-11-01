@@ -54,8 +54,8 @@ def test_every_entry_has_source_and_code_mapping_and_explicit_evidence_label():
 def test_resource_dependent_supported_subset_is_mapped_but_not_certified():
     item = get_reference("RES-001")
     assert item.coverage == MAPPED_NOT_PROVEN
-    assert "resource_dependent_placement.py" in item.cubi_code_paths
-    assert "test_resource_dependent_placement.py" in item.regression_tests
+    assert any(path.endswith("resource_dependent_placement.py") for path in item.cubi_code_paths)
+    assert any(path.endswith("test_resource_dependent_placement.py") for path in item.regression_tests)
     assert "in-progress activities" in item.known_gap
     assert "complete Version 26 parity" in item.known_gap
 
@@ -110,7 +110,7 @@ def test_float_formula_reference_lists_all_three_selected_modes():
 def test_resource_dependent_formula_tracks_the_implemented_subset_without_claiming_parity():
     item = get_formula_reference("FRM-RESOURCE-DUR-001")
     assert item.status == "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN"
-    assert "resource_dependent_placement.py" in item.cubi_code_paths
+    assert any(path.endswith("resource_dependent_placement.py") for path in item.cubi_code_paths)
     assert "in-progress" in item.known_gap
     assert "non-daily" in item.known_gap
 
@@ -194,7 +194,7 @@ def test_calendar_and_data_date_links_point_to_current_official_p6_help_pages():
 
 
 def test_resource_leveling_registry_tracks_merged_persisted_production_path_without_claiming_parity():
-    assert REFERENCE_VERSION == "0.8.8"
+    assert REFERENCE_VERSION == "0.8.9"
     leveling = get_reference("RES-002")
     assert leveling.coverage == MAPPED_NOT_PROVEN
     assert "src/construction_pm/p6_persisted_resource_leveling_resolver.py" in leveling.cubi_code_paths
