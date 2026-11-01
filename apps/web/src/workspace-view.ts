@@ -3,23 +3,24 @@ import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, 
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import { formatWorkspaceCalendarDate } from "./workspace-calendar-display.js";
 import { getWorkspaceNavigation, getWorkspaceNavigationLabel, getWorkspaceNavigationStatusLabel, getWorkspaceNavigationSubmenuLabel } from "./workspace-navigation.js";
-import { translateWorkspaceText } from "./workspace-localization.js";
+import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiText } from "./workspace-localization.js";
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
+import { workspaceIcon } from "./workspace-icons.js";
 
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", procurement: "Procurement", reports: "Reports", control: "Control", settings: "Settings", mainMenu: "Main Menu", currentSurface: "Current workspace surface", submenu: "submenu", formulaColumn: "formula column", fieldChooser: "Field Chooser", fields: "Fields", undo: "Undo", redo: "Redo", layoutHistory: "Layout history", layoutUndone: "Last layout change undone.", layoutRedone: "Layout change reapplied.", layoutRestored: "Layout revision restored.", layoutHistoryEmpty: "No earlier layout revision is available.", layoutSaveFailed: "Layout change was not saved.", layoutConflict: "Another session changed this layout. The latest saved revision was reloaded.", restore: "Restore", revisionOption: "revision", columnUnit: "column(s)", add: "Add", remove: "Remove", moveUp: "Move up", moveDown: "Move down", narrower: "Narrower", wider: "Wider", alignStart: "Align left", alignCenter: "Align center", alignEnd: "Align right", pin: "Pin", unpin: "Unpin", freeze: "Freeze", unfreeze: "Unfreeze", hide: "Hide", show: "Show", rename: "Rename", findings: "Findings", proposedActions: "Proposed Actions", traceability: "Traceability", sources: "Sources", approvalRequired: "Approval Required", humanApprovalRequired: "Human approval required", noApprovalFlag: "No approval flag", sourceUnit: "source(s)", activityLinkUnit: "activity link(s)", evidenceUnit: "evidence", inspections: "Inspections", qualityNcr: "Quality / NCR", safety: "Safety", punchCloseout: "Punch / Closeout", due: "Due", supplier: "Supplier", reference: "Ref", amount: "Amount", itemUnit: "item(s)", linkedReferenceUnit: "linked reference(s)", stored: "stored", noStorage: "no storage", approval: "Approval", date: "Date", notices: "Notices", changeCases: "Change Cases", claims: "Claims", impactLinks: "Impact Links", scheduleLabel: "Schedule", costLabel: "Cost", noticeLabel: "Notice", changeLabel: "Change", entitlement: "Entitlement", decision: "Decision", impactLinkLabel: "Impact links",
     referenceTitle: "Scheduling logic & implementation reference", referenceDescription: "Browse scheduling requirements, calculation contracts and review evidence. A listed requirement is not proof of implementation; status is evidence-based.", referenceSearch: "Search the reference", referenceSearchPlaceholder: "Search by ID, rule, option, or status…", referenceNoMatches: "No matching entries.", referenceVersion: "Reference version", referenceAsOf: "Catalog date", referenceRequirementCount: "requirements", referenceFormulaCount: "calculation contracts", referenceDocumentationCount: "documentation review tracks", referenceMappedStatus: "Mapped; parity not yet proven", referenceGapStatus: "Known implementation gap", referenceInventoryStatus: "Inventory / acceptance evidence required", referenceFormulaStatus: "Formula contract; parity not yet proven", referenceRuleLabel: "Required behavior", referenceOptionsLabel: "Options", referenceGapLabel: "Known gap / remaining work", referenceInputsLabel: "Inputs", referenceCalendarRulesLabel: "Units & calendar rules", referenceEdgeCasesLabel: "Edge cases", referenceReviewLabel: "Review status", referenceRemainingLabel: "Remaining review work", referenceLinkedReqLabel: "Related requirement IDs", referenceRelationshipsGroupLabel: "Relationships & lag", referenceCalendarsGroupLabel: "Calendars & work time", referenceOptionsGroupLabel: "Schedule options & Data Date", referenceResourcesGroupLabel: "Resources & leveling", referenceProgressGroupLabel: "Progress & baselines", referenceOtherGroupLabel: "Other project-control areas", referenceFormulaGroupLabel: "Calculation formula contracts", referenceDocumentationGroupLabel: "Documentation review register", referenceCatalogGroupLabel: "Requirement catalogue", referenceDocReviewedLabel: "Core behavior extracted", referenceDocPartialLabel: "Partially reviewed", referenceDocPendingLabel: "Review not complete", referenceReviewNotice: "This catalogue is for traceability. Editing controls, persistent schedule updates and execution must be wired to the shared scheduling core and acceptance-tested separately.",
     wbs: "Project / WBS", wbsCreate: "Add WBS", wbsEdit: "Edit selected WBS", wbsCode: "Code", wbsName: "Name", wbsParent: "Parent WBS", wbsProjectRoot: "Project root", wbsSequence: "Sequence", wbsSave: "Save WBS", wbsDelete: "Delete selected", wbsSelectPrompt: "Select a WBS node to edit.", wbsMutationFailed: "WBS change failed.", wbsDeleteConfirm: "Delete this WBS node?", activities: "Activity Grid", activityCreate: "Add activity", activityEdit: "Edit activity", activityId: "Activity ID", activityName: "Activity name", activityDuration: "Duration", activityDurationUnit: "Duration unit", activityWbs: "WBS", activityCreateFailed: "Activity could not be saved.", activityFilter: "Filter activities", activityFilterPlaceholder: "ID, name, WBS, status…", activitySort: "Sort by", groupBy: "Group by", groupNone: "No grouping", sortNone: "Original order", sortAscending: "Ascending", sortDescending: "Descending", matchingActivities: "activities shown", noMatchingActivities: "No activities match the current filter.", gantt: "Gantt Chart", details: "Details", interchange: "Import / Export", resourceCapacity: "Resource Max Units / Time", scheduleOptions: "Schedule Options", runSchedule: "Run Schedule", formulaEditor: "Formula editor", scheduleReference: "Scheduling Code Reference", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noWbs: "No WBS elements loaded", noSchedule: "No scheduled activities", revision: "Revision", projectSettings: "Project settings", critical: "Critical", smartGuide: "Smart Guide", controlSummary: "Control Summary", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
-    logic: "Logic / Relationships", predecessorsColumn: "Predecessors", relationshipCreate: "Add relationship", predecessor: "Predecessor", successor: "Successor", relationshipType: "Type", relationshipLag: "Lag", relationshipLagUnit: "Lag unit", relationshipDelete: "Delete", noRelationships: "No relationships defined yet.", relationshipCreateFailed: "Relationship could not be saved.", relationshipDeleteFailed: "Relationship could not be deleted.", relationshipConflict: "The relationship changed in another session. Reload and try again.", workingDay: "Working day", workingHour: "Working hour",
+    logic: "Logic / Relationships", predecessorsColumn: "Predecessors", relationshipCreate: "Add relationship", predecessor: "Predecessor", successor: "Successor", relationshipType: "Type", relationshipLag: "Lag", relationshipLagUnit: "Lag unit", relationshipDelete: "Delete", relationshipEdit: "Edit", relationshipSave: "Save relationship", noRelationships: "No relationships defined yet.", relationshipCreateFailed: "Relationship could not be saved.", relationshipDeleteFailed: "Relationship could not be deleted.", relationshipConflict: "The relationship changed in another session. Reload and try again.", workingDay: "Working day", workingHour: "Working hour",
     ganttScaleLabel: "Timeline scale", scaleDay: "Day", scaleWeek: "Week", scaleMonth: "Month", scaleQuarter: "Quarter", scaleYear: "Year", ganttLinks: "Dependency links", ganttLinksToggle: "Dependency links", ganttLinksOn: "Shown", ganttLinksOff: "Hidden", milestone: "Milestone",
   },
   fa: {
     project: "پروژه", schedule: "زمان‌بندی", progress: "پیشرفت", resources: "منابع", cost: "هزینه", documents: "اسناد", procurement: "تدارکات", reports: "گزارش‌ها", control: "کنترل", settings: "تنظیمات", mainMenu: "منوی اصلی", currentSurface: "سطح فعلی محیط کار", submenu: "زیرمنو", formulaColumn: "ستون فرمول", fieldChooser: "انتخاب‌گر فیلد", fields: "فیلدها", undo: "بازگردانی", redo: "تکرار", layoutHistory: "تاریخچهٔ چیدمان", layoutUndone: "آخرین تغییر چیدمان بازگردانی شد.", layoutRedone: "تغییر چیدمان دوباره اعمال شد.", layoutRestored: "نسخهٔ چیدمان بازگردانی شد.", layoutHistoryEmpty: "نسخهٔ قدیمی‌تری از چیدمان در دسترس نیست.", layoutSaveFailed: "تغییر چیدمان ذخیره نشد.", layoutConflict: "نشست دیگری این چیدمان را تغییر داد. آخرین نسخهٔ ذخیره‌شده دوباره بارگذاری شد.", restore: "بازگردانی نسخه", revisionOption: "نسخه", columnUnit: "ستون", add: "افزودن", remove: "حذف", moveUp: "جابجایی به بالا", moveDown: "جابجایی به پایین", narrower: "باریک‌تر", wider: "عریض‌تر", alignStart: "تراز چپ", alignCenter: "تراز وسط", alignEnd: "تراز راست", pin: "سنجاق کردن", unpin: "برداشتن سنجاق", freeze: "ثابت کردن", unfreeze: "لغو ثابت‌سازی", hide: "پنهان کردن", show: "نمایش", rename: "تغییر نام", findings: "یافته‌ها", proposedActions: "اقدامات پیشنهادی", traceability: "ردیابی", sources: "منابع", approvalRequired: "نیازمند تأیید", humanApprovalRequired: "نیازمند تأیید انسانی", noApprovalFlag: "بدون پرچم تأیید", sourceUnit: "منبع", activityLinkUnit: "پیوند فعالیت", evidenceUnit: "مستند", inspections: "بازرسی‌ها", qualityNcr: "کیفیت / NCR", safety: "ایمنی", punchCloseout: "پانچ / بستن موارد", due: "سررسید", supplier: "تأمین‌کننده", reference: "مرجع", amount: "مبلغ", itemUnit: "مورد", linkedReferenceUnit: "مرجع پیوندشده", stored: "ذخیره‌شده", noStorage: "بدون ذخیره‌سازی", approval: "تأیید", date: "تاریخ", notices: "اعلان‌ها", changeCases: "موارد تغییر", claims: "ادعاها", impactLinks: "پیوندهای اثر", scheduleLabel: "زمان‌بندی", costLabel: "هزینه", noticeLabel: "اعلان", changeLabel: "تغییر", entitlement: "استحقاق", decision: "تصمیم", impactLinkLabel: "پیوندهای اثر",
     referenceTitle: "مرجع منطق و پیاده‌سازی زمان‌بندی", referenceDescription: "الزامات زمان‌بندی، قراردادهای محاسباتی و شواهد بازبینی را مرور کنید. ثبت یک الزام به‌معنای اثبات پیاده‌سازی نیست؛ وضعیت بر پایهٔ شواهد است.", referenceSearch: "جست‌وجو در مرجع", referenceSearchPlaceholder: "جست‌وجو بر اساس شناسه، قاعده، گزینه یا وضعیت…", referenceNoMatches: "موردی با این جست‌وجو یافت نشد.", referenceVersion: "نسخه مرجع", referenceAsOf: "تاریخ کاتالوگ", referenceRequirementCount: "الزام", referenceFormulaCount: "قرارداد محاسباتی", referenceDocumentationCount: "مسیر بازبینی مستندات", referenceMappedStatus: "مسیر کد شناسایی شده؛ تطبیق هنوز اثبات نشده", referenceGapStatus: "شکاف اجرایی شناخته‌شده", referenceInventoryStatus: "تکمیل فهرست و شواهد پذیرش لازم است", referenceFormulaStatus: "قرارداد فرمول؛ تطبیق هنوز اثبات نشده", referenceRuleLabel: "رفتار الزامی", referenceOptionsLabel: "گزینه‌ها", referenceGapLabel: "شکاف شناخته‌شده / کار باقیمانده", referenceInputsLabel: "ورودی‌ها", referenceCalendarRulesLabel: "واحدها و قواعد تقویم", referenceEdgeCasesLabel: "حالت‌های مرزی", referenceReviewLabel: "وضعیت بازبینی", referenceRemainingLabel: "کار باقیمانده در بازبینی", referenceLinkedReqLabel: "شناسه‌های الزامات مرتبط", referenceRelationshipsGroupLabel: "روابط و وقفه‌ها", referenceCalendarsGroupLabel: "تقویم‌ها و ساعات کاری", referenceOptionsGroupLabel: "گزینه‌های زمان‌بندی و تاریخ داده", referenceResourcesGroupLabel: "منابع و تسطیح", referenceProgressGroupLabel: "پیشرفت و مبناها", referenceOtherGroupLabel: "سایر حوزه‌های کنترل پروژه", referenceFormulaGroupLabel: "قرارداد فرمول‌های محاسباتی", referenceDocumentationGroupLabel: "دفتر ثبت بازبینی مستندات", referenceCatalogGroupLabel: "فهرست الزامات", referenceDocReviewedLabel: "رفتار اصلی استخراج شده", referenceDocPartialLabel: "بازبینی جزئی", referenceDocPendingLabel: "بازبینی کامل نشده", referenceReviewNotice: "این فهرست برای ردیابی الزامات است. کنترل‌های ویرایش، به‌روزرسانی پایدار زمان‌بندی و اجرای محاسبه باید جداگانه به هستهٔ مشترک متصل و با آزمون پذیرش تأیید شوند.",
     wbs: "پروژه / WBS", wbsCreate: "افزودن ساختار شکست", wbsEdit: "ویرایش ساختار انتخاب‌شده", wbsCode: "کد", wbsName: "نام", wbsParent: "والد", wbsProjectRoot: "ریشهٔ پروژه", wbsSequence: "ترتیب", wbsSave: "ذخیره", wbsDelete: "حذف مورد انتخاب‌شده", wbsSelectPrompt: "برای ویرایش یک ردیف را انتخاب کنید.", wbsMutationFailed: "تغییر ساختار شکست ناموفق بود.", wbsDeleteConfirm: "این ردیف ساختار شکست حذف شود؟", activities: "جدول فعالیت‌ها", activityCreate: "افزودن فعالیت", activityEdit: "ویرایش فعالیت", activityId: "شناسه فعالیت", activityName: "نام فعالیت", activityDuration: "مدت", activityDurationUnit: "واحد مدت", activityWbs: "ساختار شکست", activityCreateFailed: "ذخیره فعالیت انجام نشد.", activityFilter: "پالایش فعالیت‌ها", activityFilterPlaceholder: "شناسه، نام، WBS، وضعیت…", activitySort: "ترتیب بر اساس", groupBy: "گروه‌بندی بر اساس", groupNone: "بدون گروه‌بندی", sortNone: "ترتیب اصلی", sortAscending: "صعودی", sortDescending: "نزولی", matchingActivities: "فعالیت نمایش‌داده‌شده", noMatchingActivities: "هیچ فعالیتی با پالایهٔ فعلی مطابقت ندارد.", gantt: "گانت", details: "جزئیات", interchange: "ورود / خروجی", resourceCapacity: "حداکثر واحد / زمان منبع", scheduleOptions: "تنظیمات زمان‌بندی", runSchedule: "اجرای زمان‌بندی", formulaEditor: "ویرایشگر فرمول", scheduleReference: "مرجع کد زمان‌بندی", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noWbs: "ساختار شکست کار بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", projectSettings: "تنظیمات پروژه", critical: "بحرانی", smartGuide: "راهنمای هوشمند", controlSummary: "خلاصه کنترل", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
-    logic: "منطق / روابط", predecessorsColumn: "پیش‌نیازها", relationshipCreate: "افزودن رابطه", predecessor: "پیش‌نیاز", successor: "پس‌نیاز", relationshipType: "نوع", relationshipLag: "وقفه", relationshipLagUnit: "واحد وقفه", relationshipDelete: "حذف", noRelationships: "هنوز رابطه‌ای تعریف نشده است.", relationshipCreateFailed: "ذخیره رابطه انجام نشد.", relationshipDeleteFailed: "حذف رابطه انجام نشد.", relationshipConflict: "رابطه در نشست دیگری تغییر کرده است. صفحه را دوباره بارگذاری کنید.", workingDay: "روز کاری", workingHour: "ساعت کاری",
+    logic: "منطق / روابط", predecessorsColumn: "پیش‌نیازها", relationshipCreate: "افزودن رابطه", predecessor: "پیش‌نیاز", successor: "پس‌نیاز", relationshipType: "نوع", relationshipLag: "وقفه", relationshipLagUnit: "واحد وقفه", relationshipDelete: "حذف", relationshipEdit: "ویرایش", relationshipSave: "ذخیرهٔ رابطه", noRelationships: "هنوز رابطه‌ای تعریف نشده است.", relationshipCreateFailed: "ذخیره رابطه انجام نشد.", relationshipDeleteFailed: "حذف رابطه انجام نشد.", relationshipConflict: "رابطه در نشست دیگری تغییر کرده است. صفحه را دوباره بارگذاری کنید.", workingDay: "روز کاری", workingHour: "ساعت کاری",
     ganttScaleLabel: "مقیاس زمان‌بندی", scaleDay: "روز", scaleWeek: "هفته", scaleMonth: "ماه", scaleQuarter: "فصل", scaleYear: "سال", ganttLinks: "پیوندهای وابستگی", ganttLinksToggle: "نمایش پیوندهای وابستگی", ganttLinksOn: "نمایش", ganttLinksOff: "پنهان", milestone: "نقطه عطف",
   },
 } as const;
@@ -84,27 +85,30 @@ const ACTIVITY_CREATE_FIELDS = {
 type ActivityCreateChoiceField = keyof typeof ACTIVITY_CREATE_FIELDS;
 
 function getActivityCreateFieldLabel(locale: string, field: ActivityCreateChoiceField): string {
-  const language = locale.split("-")[0] === "fa" ? "fa" : "en";
-  return ACTIVITY_CREATE_FIELDS[field].label[language];
+  const label = ACTIVITY_CREATE_FIELDS[field].label;
+  return translateWorkspaceUiText(locale, label.en, label.fa);
 }
 
 function renderActivityCreateOptions(locale: string, field: ActivityCreateChoiceField): string {
-  const language = locale.split("-")[0] === "fa" ? "fa" : "en";
   const config = ACTIVITY_CREATE_FIELDS[field];
   return config.options.map((option) =>
-    `<option value="${escapeAttribute(option.value)}" ${option.value === config.defaultValue ? "selected" : ""}>${escapeHtml(option[language])}</option>`
+    `<option value="${escapeAttribute(option.value)}" ${option.value === config.defaultValue ? "selected" : ""}>${escapeHtml(translateWorkspaceUiText(locale, option.en, option.fa))}</option>`
   ).join("");
 }
 
 type WorkspaceLabels = Record<keyof typeof labels.en, string>;
 
 function getWorkspaceLabels(locale: string): WorkspaceLabels {
-  const baseLocale = locale.split("-")[0] as keyof typeof labels;
-  const baseline = labels[locale as keyof typeof labels] ?? labels[baseLocale] ?? labels.en;
-  return Object.fromEntries(Object.entries(labels.en).map(([key, fallback]) => [
-    key,
-    translateWorkspaceText(locale, `workspace.${key}`, (baseline as Record<string, string>)[key] ?? fallback),
-  ])) as WorkspaceLabels;
+  return Object.fromEntries(Object.entries(labels.en).map(([key, english]) => {
+    const packed = translateWorkspaceText(locale, `workspace.${key}`, "");
+    if (packed) return [key, packed];
+    const persian = (labels.fa as Record<string, string>)[key] ?? english;
+    return [key, translateWorkspaceUiText(locale, english, persian)];
+  })) as WorkspaceLabels;
+}
+
+function uiText(locale: string, en: string, fa: string): string {
+  return translateWorkspaceUiText(locale, en, fa);
 }
 
 type WorkspaceRenderRecord = { state: WorkspaceState; options: WorkspaceRendererOptions };
@@ -112,9 +116,62 @@ const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>()
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
 
+function toggleDrawer(container: HTMLElement, selector: string): void {
+  const drawer = container.querySelector<HTMLElement>(selector);
+  if (!drawer) return;
+  const willOpen = drawer.hidden;
+  if (willOpen) {
+    container.querySelectorAll<HTMLElement>("[data-tools-drawer],[data-wbs-drawer],[data-nav-flyout]").forEach((other) => {
+      if (other !== drawer) other.hidden = true;
+    });
+  }
+  drawer.hidden = !willOpen;
+}
+
+function closeDrawer(container: HTMLElement, selector: string): void {
+  const drawer = typeof container.querySelector === "function" ? container.querySelector<HTMLElement>(selector) : null;
+  if (drawer) drawer.hidden = true;
+}
+
+function openToolsDrawer(container: HTMLElement): void {
+  const drawer = container.querySelector<HTMLElement>("[data-tools-drawer]");
+  if (!drawer) return;
+  container.querySelectorAll<HTMLElement>("[data-wbs-drawer],[data-nav-flyout]").forEach((other) => { other.hidden = true; });
+  drawer.hidden = false;
+  drawer.querySelector<HTMLElement>("[data-tools-close]")?.focus({ preventScroll: true });
+}
+
+function openWbsDrawer(container: HTMLElement): void {
+  const drawer = container.querySelector<HTMLElement>("[data-wbs-drawer]");
+  if (!drawer) return;
+  container.querySelectorAll<HTMLElement>("[data-tools-drawer],[data-nav-flyout]").forEach((other) => { other.hidden = true; });
+  drawer.hidden = false;
+}
+
 function bindWorkspaceEvents(container: HTMLElement): void {
   if (typeof container.addEventListener !== "function" || workspaceEventDelegation.has(container)) return;
   workspaceEventDelegation.add(container);
+  container.addEventListener("pointerdown", (event) => {
+    const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
+    if (!splitter) return;
+    const split = splitter.closest<HTMLElement>("[data-panel-split]");
+    if (!split) return;
+    event.preventDefault();
+    const move = (moveEvent: PointerEvent): void => {
+      const rect = split.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const percent = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+      const clamped = Math.min(70, Math.max(30, percent));
+      split.style.setProperty("--cp-split-table", `${clamped.toFixed(2)}%`);
+      splitter.setAttribute("aria-valuenow", clamped.toFixed(0));
+    };
+    const stop = (): void => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop, { once: true });
+  });
   container.addEventListener("input", (event) => {
     const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
       ? event.target as HTMLElement
@@ -194,6 +251,29 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         lagValue,
         lagUnit,
       });
+    } else if (form.matches("[data-relationship-edit-form]")) {
+      event.preventDefault();
+      const relationshipId = form.dataset.relationshipEditForm ?? "";
+      const recordRevision = Number(form.dataset.relationshipRevision ?? "");
+      const predecessorId = form.querySelector<HTMLSelectElement>('[name="predecessor_id"]')?.value ?? "";
+      const successorId = form.querySelector<HTMLSelectElement>('[name="successor_id"]')?.value ?? "";
+      const type = form.querySelector<HTMLSelectElement>('[name="relationship_type"]')?.value ?? "FS";
+      const lagValue = form.querySelector<HTMLInputElement>('[name="lag_value"]')?.value.trim() ?? "";
+      const lagUnit = form.querySelector<HTMLSelectElement>('[name="lag_unit"]')?.value ?? "working-day";
+      if (
+        !relationshipId || !Number.isInteger(recordRevision) || recordRevision < 1 ||
+        !predecessorId || !successorId || predecessorId === successorId ||
+        !["FS", "SS", "FF", "SF"].includes(type) ||
+        !/^-?\d+(\.\d+)?$/.test(lagValue) ||
+        !["working-day", "working-hour"].includes(lagUnit)
+      ) return;
+      void record.options.onRelationshipUpdate?.(relationshipId, recordRevision, {
+        predecessorId,
+        successorId,
+        type: type as WorkspaceRelationshipType,
+        lagValue,
+        lagUnit,
+      });
     } else if (!Number.isInteger(sequenceNumber) || sequenceNumber < 0) return;
     else if (form.matches("[data-wbs-create-form]")) {
       event.preventDefault();
@@ -206,13 +286,27 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-menu],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
     if ("projectSettings" in target.dataset) return void options.onProjectSettings?.();
-    if (target.dataset.menu) return void options.onMenuSelect?.(target.dataset.menu as WorkspaceState["activeMenu"]);
+    if (target.dataset.toolsOpen !== undefined) { openToolsDrawer(container); return; }
+    if (target.dataset.toolsClose !== undefined) { closeDrawer(container, "[data-tools-drawer]"); return; }
+    if (target.dataset.wbsDrawerClose !== undefined) { closeDrawer(container, "[data-wbs-drawer]"); return; }
+    if (target.dataset.railAction) {
+      const action = target.dataset.railAction;
+      if (action === "navigation") { toggleDrawer(container, "[data-nav-flyout]"); return; }
+      if (action === "wbs") { openWbsDrawer(container); return; }
+      if (action === "tools") { toggleDrawer(container, "[data-tools-drawer]"); return; }
+      options.onRailAction?.(action);
+      return;
+    }
+    if (target.dataset.menu) {
+      closeDrawer(container, "[data-nav-flyout]");
+      return void options.onMenuSelect?.(target.dataset.menu as WorkspaceState["activeMenu"]);
+    }
     if (target.dataset.activityEdit) return void options.onActivityEdit?.(target.dataset.activityEdit);
     if (target.dataset.activitySortDirection !== undefined) return void options.onActivitySortDirectionToggle?.();
     if (target.dataset.wbsId) return void options.onWbsSelect?.(target.dataset.wbsId);
@@ -277,6 +371,18 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
   });
   container.addEventListener("keydown", (event) => {
+    const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
+    if (splitter && splitter.dataset && "panelSplitter" in splitter.dataset) {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const split = splitter.closest<HTMLElement>("[data-panel-split]");
+      if (!split) return;
+      event.preventDefault();
+      const current = Number.parseFloat(split.style.getPropertyValue("--cp-split-table")) || 53.5;
+      const next = Math.min(70, Math.max(30, current + (event.key === "ArrowRight" ? 2 : -2)));
+      split.style.setProperty("--cp-split-table", `${next}%`);
+      splitter.setAttribute("aria-valuenow", next.toFixed(0));
+      return;
+    }
     if (event.key !== "Enter" && event.key !== " ") return;
     const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id]") : null;
     if (!target) return;
@@ -369,6 +475,15 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     container.querySelectorAll<HTMLElement>("[data-menu]").forEach((button) => button.setAttribute("aria-current", button.dataset.menu === next.activeMenu ? "page" : "false"));
     const navigation = container.querySelector<HTMLElement>(".cp-navigation-surface");
     if (navigation) navigation.outerHTML = renderNavigationSurface(next);
+    const labels = getWorkspaceLabels(next.locale);
+    const navigationItem = getWorkspaceNavigation(next.activeMenu);
+    const title = container.querySelector<HTMLElement>("[data-activity-header] .cp-p6-activity-heading strong");
+    if (title) title.textContent = getWorkspaceNavigationLabel(navigationItem, next.locale);
+    const kind = container.querySelector<HTMLElement>("[data-activity-header] .cp-p6-activity-heading span");
+    if (kind) kind.textContent = next.activeMenu === "schedule" ? uiText(next.locale, "Activity workspace", "محیط کار فعالیت") : uiText(next.locale, "Workspace page", "صفحهٔ محیط کار");
+    const stage = container.querySelector<HTMLElement>("#cp-p6-module-stage");
+    if (stage) stage.outerHTML = renderP6ModuleStage(next, labels);
+    container.querySelector<HTMLElement>("[data-nav-flyout]")?.setAttribute("hidden", "");
     const schedulingReference = container.querySelector<HTMLElement>("#cp-scheduling-reference");
     if (schedulingReference) schedulingReference.hidden = next.activeMenu !== "schedule";
     return true;
@@ -409,6 +524,7 @@ export type WorkspaceRendererOptions = {
   onActivityCreate?: (input: { activityId: string; name: string; durationValue: number; durationUnit: string; wbsId: string; activityType: string; status: string; statusCode: string; percentCompleteType: string; levelingPriority: string }) => void | Promise<void>;
   onActivityEdit?: (activityId: string) => void | Promise<void>;
   onRelationshipCreate?: (input: { predecessorId: string; successorId: string; type: WorkspaceRelationshipType; lagValue: string; lagUnit: string }) => void | Promise<void>;
+  onRelationshipUpdate?: (relationshipId: string, recordRevision: number, input: { predecessorId: string; successorId: string; type: WorkspaceRelationshipType; lagValue: string; lagUnit: string }) => void | Promise<void>;
   onRelationshipDelete?: (relationshipId: string, recordRevision: number) => void | Promise<void>;
   onActivitySelect?: (activityId: string) => void;
   onGanttActivitySelect?: (activityId: string) => void;
@@ -434,6 +550,7 @@ export type WorkspaceRendererOptions = {
     noticeKey?: "undone" | "redone" | "restored" | "empty" | "failed" | "conflict" | null;
     revisions?: readonly { revision: number; columnCount: number }[];
   };
+  onRailAction?: (action: string) => void;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -464,59 +581,179 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     stickyOffsets = nextStickyOffsets;
     workspaceStickyOffsetsCache.set(state.columns, stickyOffsets);
   }
+  // The P6 grid uses a fixed table layout so the persisted column widths are
+  // honoured exactly; long values and headers are clipped instead of widening
+  // the table and pushing the required columns out of the initial view.
+  const activityTableWidth =
+    state.columns.reduce((total, column) => total + column.width, 0) + 48 + 44;
+
+  const navigationLabel = getWorkspaceNavigationLabel(getWorkspaceNavigation(state.activeMenu), state.locale);
+  const rail = {
+    menu: uiText(state.locale, "Workspace menu", "منوی محیط کار"),
+    projects: uiText(state.locale, "Projects", "پروژه‌ها"),
+    eps: uiText(state.locale, "EPS / Portfolio", "EPS / سبد پروژه"),
+    wbs: uiText(state.locale, "WBS", "ساختار شکست"),
+    activities: uiText(state.locale, "Activities", "فعالیت‌ها"),
+    resources: uiText(state.locale, "Resources", "منابع"),
+    assignments: uiText(state.locale, "Resource assignments", "تخصیص منابع"),
+    reports: uiText(state.locale, "Reports", "گزارش‌ها"),
+    documents: uiText(state.locale, "Documents", "اسناد"),
+    expenses: uiText(state.locale, "Expenses", "هزینه‌ها"),
+    risks: uiText(state.locale, "Risks", "ریسک‌ها"),
+    issues: uiText(state.locale, "Issues", "مسائل"),
+    forms: uiText(state.locale, "Forms", "فرم‌ها"),
+    settings: uiText(state.locale, "Settings", "تنظیمات"),
+    tools: uiText(state.locale, "Tools", "ابزارها"),
+    comments: uiText(state.locale, "Comments", "یادداشت‌ها"),
+    notes: uiText(state.locale, "Notebook", "دفترچه"),
+    attachments: uiText(state.locale, "Attachments", "پیوست‌ها"),
+    close: uiText(state.locale, "Close", "بستن"),
+    columns: uiText(state.locale, "Columns", "ستون‌ها"),
+    bars: uiText(state.locale, "Bars", "میله‌ها"),
+    openTools: uiText(state.locale, "Open workspace tools", "بازکردن ابزارهای محیط کار"),
+    showDetails: uiText(state.locale, "Show details", "نمایش جزئیات"),
+    activityWorkspace: uiText(state.locale, "Activity workspace", "محیط کار فعالیت"),
+    moduleWorkspace: uiText(state.locale, "Workspace page", "صفحهٔ محیط کار"),
+    dataDate: uiText(state.locale, "Data date", "تاریخ داده"),
+    filter: uiText(state.locale, "Filter", "پالایه"),
+    layout: uiText(state.locale, "Layout", "چیدمان"),
+    noDataDate: uiText(state.locale, "Not provided", "ارائه نشده"),
+  };
+  const railMenuIcons: Record<WorkspaceState["activeMenu"], string> = {
+    project: "folder",
+    schedule: "activity",
+    progress: "progress",
+    resources: "resource",
+    cost: "money",
+    documents: "file",
+    reports: "print",
+    control: "network",
+    settings: "settings",
+  };
+  const activityFilterLabel = state.activityFilter.trim() || uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
 
   container.innerHTML = `
-    <section class="cp-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}">
+    <section class="cp-workspace cp-p6-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}">
       <header class="cp-header">
         <div class="cp-brand"><img class="cp-brand-logo" src="${escapeAttribute(cubiPlatformLogoUrl())}" width="1536" height="664" alt="CUBI Platform" /></div>
         <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
         <div class="cp-revision">${escapeHtml(t.revision)} R${state.context.revision}</div>
         <button type="button" id="cp-project-settings-open" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
       </header>
-      <nav class="cp-menu" aria-label="${escapeAttribute(t.mainMenu)}">
-        ${menuButton("project", t.project, state)} ${menuButton("schedule", t.schedule, state)} ${menuButton("progress", t.progress, state)} ${menuButton("resources", t.resources, state)} ${menuButton("cost", t.cost, state)} ${menuButton("documents", t.documents, state)} ${menuButton("reports", t.reports, state)} ${menuButton("control", t.control, state)} ${menuButton("settings", t.settings, state)}
-      </nav>
-      ${renderNavigationSurface(state)}
-      <main class="cp-main">
-        ${renderSmartGuide(state.smartGuide, t.smartGuide, t)}
-        ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
-        ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
-        ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
-        ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance, t)}
-        ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, state.documents, t)}
-        ${renderProcurement(state.procurementRecords, t.procurement, t)}
-        ${renderModuleEmptyState(state)}
-        <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
-          <h2>${escapeHtml(t.wbs)}</h2>
-          ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
-          <form class="cp-wbs-editor" data-wbs-create-form>
-            <h3>${escapeHtml(t.wbsCreate)}</h3>
-            <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" autocomplete="off"></label>
-            <label>${escapeHtml(t.wbsName)} <input name="name" required maxlength="180" autocomplete="off"></label>
-            <label>${escapeHtml(t.wbsParent)}
-              <select name="parent_wbs_id" required>
-                ${state.wbsNodes.length ? state.wbsNodes.map((node) => `<option value="${escapeAttribute(node.id)}" ${node.id === (state.selectedWbsId ?? state.wbsNodes.find((item) => item.parentKind === "project")?.id) ? "selected" : ""}>${escapeHtml(node.localCode)} — ${escapeHtml(node.name)}</option>`).join("") : `<option value="__project__" selected>${escapeHtml(t.wbsProjectRoot)}</option>`}
-              </select>
-            </label>
-            <label>${escapeHtml(t.wbsSequence)} <input name="sequence_number" type="number" min="0" step="1" value="0" required></label>
-            <button type="submit">${escapeHtml(t.wbsCreate)}</button>
-          </form>
-          ${state.selectedWbsId ? (() => {
-            const selected = state.wbsNodes.find((node) => node.id === state.selectedWbsId);
-            if (!selected) return "";
-            return `<form class="cp-wbs-editor" data-wbs-edit-form="${escapeAttribute(selected.id)}">
-              <h3>${escapeHtml(t.wbsEdit)}</h3>
-              <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" value="${escapeAttribute(selected.localCode)}"></label>
-              <label>${escapeHtml(t.wbsName)} <input name="name" required maxlength="180" value="${escapeAttribute(selected.name)}"></label>
-              <label>${escapeHtml(t.wbsSequence)} <input name="sequence_number" type="number" min="0" step="1" value="${selected.sequenceNumber}" required></label>
-              <button type="submit">${escapeHtml(t.wbsSave)}</button>
-              <button type="button" data-wbs-delete>${escapeHtml(t.wbsDelete)}</button>
-            </form>`;
-          })() : `<p class="cp-empty">${escapeHtml(t.wbsSelectPrompt)}</p>`}
+      <div class="cp-p6-shell">
+        <nav class="cp-menu cp-p6-rail" aria-label="${escapeAttribute(t.mainMenu)}">
+          <button type="button" class="cp-rail-button cp-rail-theme" data-rail-action="navigation" title="${escapeAttribute(rail.menu)}" aria-label="${escapeAttribute(rail.menu)}">${workspaceIcon("group")}<span class="cp-rail-label">${escapeHtml(rail.menu)}</span></button>
+          ${(Object.keys(railMenuIcons) as WorkspaceState["activeMenu"][]).map((key) => menuButton(key, key === "schedule" ? t.schedule : key === "project" ? t.project : key === "progress" ? t.progress : key === "resources" ? t.resources : key === "cost" ? t.cost : key === "documents" ? t.documents : key === "reports" ? t.reports : key === "control" ? t.control : t.settings, state, railMenuIcons[key])).join("")}
+          <span class="cp-rail-separator" aria-hidden="true"></span>
+          ${railActionButton("projects", rail.projects, "folder")}
+          ${railActionButton("eps", rail.eps, "portfolio")}
+          ${railActionButton("wbs", rail.wbs, "wbs")}
+          ${railActionButton("activities", rail.activities, "activity")}
+          ${railActionButton("resources", rail.resources, "resource")}
+          ${railActionButton("assignments", rail.assignments, "link")}
+          ${railActionButton("reports", rail.reports, "print")}
+          ${railActionButton("documents", rail.documents, "file")}
+          ${railActionButton("expenses", rail.expenses, "money")}
+          ${railActionButton("risks", rail.risks, "warning")}
+          ${railActionButton("issues", rail.issues, "warning")}
+          ${railActionButton("forms", rail.forms, "forms")}
+          ${railActionButton("settings", rail.settings, "settings")}
+          <span class="cp-rail-separator" aria-hidden="true"></span>
+          ${railActionButton("tools", rail.tools, "tools")}
+        </nav>
+        <div class="cp-p6-body">
+          <header class="cp-p6-activity-header" data-activity-header>
+            <span class="cp-p6-activity-heading">
+              <strong>${escapeHtml(navigationLabel)}</strong>
+              <span>${escapeHtml(state.activeMenu === "schedule" ? rail.activityWorkspace : rail.moduleWorkspace)}</span>
+            </span>
+            <span class="cp-p6-activity-meta">${escapeHtml(t.project)}: ${escapeHtml(state.context.project_id)}</span>
+            <span class="cp-p6-activity-meta">${escapeHtml(rail.dataDate)}: ${escapeHtml(rail.noDataDate)}</span>
+            <span class="cp-p6-activity-meta">${escapeHtml(rail.filter)}: ${escapeHtml(activityFilterLabel)}</span>
+            <span class="cp-p6-activity-spacer"></span>
+            <button type="button" class="cp-p6-chip" data-rail-action="wbs" title="${escapeAttribute(rail.wbs)}">${workspaceIcon("wbs")}<span>${escapeHtml(rail.wbs)}</span></button>
+            <button type="button" class="cp-p6-chip" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}<span>${escapeHtml(rail.columns)}</span></button>
+            <button type="button" class="cp-p6-chip" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span>${escapeHtml(rail.comments)}</span></button>
+          </header>
+          <main class="cp-main">
+            <div class="cp-p6-primary">
+              <section class="cp-p6-split" data-panel-split data-workspace-menu="schedule">
+                <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
+                  <div class="cp-p6-grid-head">
+                    <h2>${escapeHtml(t.activities)}</h2>
+                    <span class="cp-p6-grid-actions">
+                      <button type="button" data-rail-action="wbs" title="${escapeAttribute(rail.wbs)}">${workspaceIcon("wbs")}</button>
+                      <button type="button" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}</button>
+                      <button type="button" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}</button>
+                    </span>
+                  </div>
+                  ${renderActivityFilterSort(state, visibleActivities.length, t)}
+                  <div class="cp-table-wrap">
+                    <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false" style="width:${activityTableWidth}px">
+                      <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
+                      <tbody>${visibleActivities.length ? visibleActivities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length + 2)}">${escapeHtml(state.activities.length ? t.noMatchingActivities : t.noActivities)}</td></tr>`}</tbody>
+                    </table>
+                  </div>
+                </section>
+                <div class="cp-p6-splitter" data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize table and Gantt", "تغییر اندازهٔ جدول و گانت"))}"><span></span></div>
+                <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule">
+                  <div class="cp-p6-gantt-head">
+                    <h2>${escapeHtml(t.gantt)}</h2>
+                    <button type="button" data-tools-open title="${escapeAttribute(rail.bars)}">${workspaceIcon("bars")}</button>
+                  </div>
+                  ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}
+                </section>
+              </section>
+              ${renderP6ModuleStage(state, t)}
+            </div>
+            <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+          </main>
+          <div class="cp-p6-drawer cp-p6-wbs-drawer" data-wbs-drawer hidden aria-label="${escapeAttribute(t.wbs)}">
+            <div class="cp-p6-drawer-head"><strong>${escapeHtml(t.wbs)}</strong><button type="button" data-wbs-drawer-close title="${escapeAttribute(rail.close)}" aria-label="${escapeAttribute(rail.close)}">${workspaceIcon("close")}</button></div>
+            <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
+              <h2>${escapeHtml(t.wbs)}</h2>
+              ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
+              <form class="cp-wbs-editor" data-wbs-create-form>
+                <h3>${escapeHtml(t.wbsCreate)}</h3>
+                <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" autocomplete="off"></label>
+                <label>${escapeHtml(t.wbsName)} <input name="name" required maxlength="180" autocomplete="off"></label>
+                <label>${escapeHtml(t.wbsParent)}
+                  <select name="parent_wbs_id" required>
+                    ${state.wbsNodes.length ? state.wbsNodes.map((node) => `<option value="${escapeAttribute(node.id)}" ${node.id === (state.selectedWbsId ?? state.wbsNodes.find((item) => item.parentKind === "project")?.id) ? "selected" : ""}>${escapeHtml(node.localCode)} — ${escapeHtml(node.name)}</option>`).join("") : `<option value="__project__" selected>${escapeHtml(t.wbsProjectRoot)}</option>`}
+                  </select>
+                </label>
+                <label>${escapeHtml(t.wbsSequence)} <input name="sequence_number" type="number" min="0" step="1" value="0" required></label>
+                <button type="submit">${escapeHtml(t.wbsCreate)}</button>
+              </form>
+              ${state.selectedWbsId ? (() => {
+                const selected = state.wbsNodes.find((node) => node.id === state.selectedWbsId);
+                if (!selected) return "";
+                return `<form class="cp-wbs-editor" data-wbs-edit-form="${escapeAttribute(selected.id)}">
+                  <h3>${escapeHtml(t.wbsEdit)}</h3>
+                  <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" value="${escapeAttribute(selected.localCode)}"></label>
+                  <label>${escapeHtml(t.wbsName)} <input name="name" required maxlength="180" value="${escapeAttribute(selected.name)}"></label>
+                  <label>${escapeHtml(t.wbsSequence)} <input name="sequence_number" type="number" min="0" step="1" value="${selected.sequenceNumber}" required></label>
+                  <button type="submit">${escapeHtml(t.wbsSave)}</button>
+                  <button type="button" data-wbs-delete>${escapeHtml(t.wbsDelete)}</button>
+                </form>`;
+              })() : `<p class="cp-empty">${escapeHtml(t.wbsSelectPrompt)}</p>`}
+            </aside>
+          </div>
+        </div>
+        <aside class="cp-comments-dock-rail" aria-label="${escapeAttribute(rail.comments)}">
+          <button type="button" class="cp-rail-button cp-comments-toggle" data-comments-toggle title="${escapeAttribute(rail.comments)}" aria-label="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span class="cp-rail-label">${escapeHtml(rail.comments)}</span></button>
+          <button type="button" class="cp-rail-button" data-rail-action="notebook" title="${escapeAttribute(rail.notes)}" aria-label="${escapeAttribute(rail.notes)}">${workspaceIcon("book")}<span class="cp-rail-label">${escapeHtml(rail.notes)}</span></button>
+          <button type="button" class="cp-rail-button" data-rail-action="documents" title="${escapeAttribute(rail.documents)}" aria-label="${escapeAttribute(rail.documents)}">${workspaceIcon("file")}<span class="cp-rail-label">${escapeHtml(rail.documents)}</span></button>
+          <button type="button" class="cp-rail-button" data-rail-action="risks" title="${escapeAttribute(rail.risks)}" aria-label="${escapeAttribute(rail.risks)}">${workspaceIcon("warning")}<span class="cp-rail-label">${escapeHtml(rail.risks)}</span></button>
         </aside>
-        <section class="cp-center">
-          <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
-            <h2>${escapeHtml(t.activities)}</h2>
+      </div>
+      <div class="cp-p6-flyout" data-nav-flyout hidden>${renderNavigationSurface(state)}</div>
+      <div class="cp-p6-drawer cp-p6-tools-drawer" data-tools-drawer hidden aria-label="${escapeAttribute(rail.tools)}">
+        <div class="cp-p6-drawer-head"><strong>${escapeHtml(rail.tools)}</strong><button type="button" data-tools-close title="${escapeAttribute(rail.close)}" aria-label="${escapeAttribute(rail.close)}">${workspaceIcon("close")}</button></div>
+        <div class="cp-p6-tool-scroll">
+          ${renderP6FieldChooser(state, options.layoutHistory)}
+          <section class="cp-panel cp-p6-tool-panel" aria-label="${escapeAttribute(t.activityCreate)}">
+            <h2>${escapeHtml(t.activityCreate)}</h2>
             <form class="cp-activity-editor" data-activity-create-form>
               <h3>${escapeHtml(t.activityCreate)}</h3>
               <label>${escapeHtml(t.activityId)} <input name="activity_id" required maxlength="80" autocomplete="off"></label>
@@ -532,36 +769,127 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               <button type="submit" ${state.wbsNodes.length ? "" : "disabled"}>${escapeHtml(t.activityCreate)}</button>
               ${state.wbsNodes.length ? "" : `<p class="cp-empty">${escapeHtml(t.noWbs)}</p>`}
             </form>
-            ${renderActivityFilterSort(state, visibleActivities.length, t)}
-            ${renderP6FieldChooser(state, options.layoutHistory)}
-            <div class="cp-table-wrap">
-              <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false">
-                <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${escapeHtml(column.label)}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
-                <tbody>${visibleActivities.length ? visibleActivities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length + 2)}">${escapeHtml(state.activities.length ? t.noMatchingActivities : t.noActivities)}</td></tr>`}</tbody>
-              </table>
-            </div>
           </section>
-          <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule"><h2>${escapeHtml(t.gantt)}</h2>${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}</section>
-            <section id="cp-schedule-options" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.scheduleOptions)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
-            <section id="cp-schedule-run" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.runSchedule)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
-            <section id="cp-logic" class="cp-panel cp-logic" data-workspace-menu="schedule"><h2>${escapeHtml(t.logic)}</h2>${renderRelationships(state, t)}</section>
-            <section id="cp-formula-editor" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.formulaEditor)}</h2><div data-formula-editor><p class="cp-empty">—</p></div></section>
-            <section id="cp-schedule-reference" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.scheduleReference)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div>${renderSchedulingReference(state.locale, t, state.activeMenu === "schedule")}</section>
-            <section id="cp-interchange" class="cp-panel cp-interchange-panel" data-workspace-menu="project"><h2>${escapeHtml(t.interchange)}</h2><div data-interchange-panel><p class="cp-empty">—</p></div></section>
-            <section id="cp-resource-capacity" class="cp-panel cp-capacity-panel" data-workspace-menu="resources"><h2>${escapeHtml(t.resourceCapacity)}</h2><div data-capacity-panel><p class="cp-empty">—</p></div></section>
-        </section>
-        <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule" aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
-        <section id="cp-settings-panel" class="cp-panel" data-workspace-menu="settings" aria-label="${escapeAttribute(t.settings)}">
-          <h2>${escapeHtml(t.settings)}</h2>
-          <p>${escapeHtml(t.projectSettings)}</p>
-          <button type="button" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
-        </section>
-      </main>
+          ${renderSmartGuide(state.smartGuide, t.smartGuide, t)}
+          ${renderControlSummary(state.controlSummary, t.controlSummary, t.metrics, t.findings)}
+          ${renderSiteDailyLogs(state.siteDailyLogs, t.siteLogs)}
+          ${renderFieldOperations(state.fieldIssues, state.timecards, state.equipmentReports, t)}
+          ${renderFieldAssurance(state.inspections, state.qualityRecords, state.safetyObservations, state.punchItems, t.assurance, t)}
+          ${renderChangeClaimControl(state.changeNotices, state.changeCases, state.claims, state.changeClaimImpacts, t.commercial, state.documents, t)}
+          ${renderProcurement(state.procurementRecords, t.procurement, t)}
+          ${renderModuleEmptyState(state)}
+          <section id="cp-schedule-options" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.scheduleOptions)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
+          <section id="cp-schedule-run" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.runSchedule)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div></section>
+          <section id="cp-logic" class="cp-panel cp-logic" data-workspace-menu="schedule"><h2>${escapeHtml(t.logic)}</h2>${renderRelationships(state, t)}</section>
+          <section id="cp-formula-editor" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.formulaEditor)}</h2><div data-formula-editor><p class="cp-empty">—</p></div></section>
+          <section id="cp-schedule-reference" class="cp-panel cp-schedule-panel" data-workspace-menu="schedule"><h2>${escapeHtml(t.scheduleReference)}</h2><div data-schedule-panel><p class="cp-empty">—</p></div>${renderSchedulingReference(state.locale, t, state.activeMenu === "schedule")}</section>
+          <section id="cp-interchange" class="cp-panel cp-interchange-panel" data-workspace-menu="project"><h2>${escapeHtml(t.interchange)}</h2><div data-interchange-panel><p class="cp-empty">—</p></div></section>
+          <section id="cp-resource-capacity" class="cp-panel cp-capacity-panel" data-workspace-menu="resources"><h2>${escapeHtml(t.resourceCapacity)}</h2><div data-capacity-panel><p class="cp-empty">—</p></div></section>
+          <section id="cp-settings-panel" class="cp-panel" data-workspace-menu="settings" aria-label="${escapeAttribute(t.settings)}">
+            <h2>${escapeHtml(t.settings)}</h2>
+            <p>${escapeHtml(t.projectSettings)}</p>
+            <button type="button" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
+          </section>
+        </div>
+      </div>
+      <aside class="cp-comments-dock" data-comments-panel hidden aria-label="${escapeAttribute(rail.comments)}"></aside>
     </section>
   `;
 
   workspaceRenderRecords.set(container, { state, options });
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
+}
+
+function renderP6ModuleStage(state: WorkspaceState, t: WorkspaceLabels): string {
+  if (state.activeMenu === "schedule") return `<section id="cp-p6-module-stage" class="cp-p6-module-stage" data-workspace-menu="schedule" hidden></section>`;
+  const navigation = getWorkspaceNavigation(state.activeMenu);
+  const title = getWorkspaceNavigationLabel(navigation, state.locale);
+  const status = getWorkspaceNavigationStatusLabel(navigation, state.locale);
+  const controls = (items: string): string => `<div class="cp-p6-module-actions">${items}</div>`;
+  const metric = (value: string | number, label: string): string =>
+    `<span class="cp-p6-module-metric"><strong>${escapeHtml(String(value))}</strong><span>${escapeHtml(label)}</span></span>`;
+  let body = "";
+  switch (state.activeMenu) {
+    case "project":
+      body = `
+        <p>${escapeHtml(uiText(state.locale, "Project and WBS structure. Open the WBS drawer to browse, add or edit the real hierarchy used by the activities grid.", "ساختار پروژه و WBS. برای مرور، افزودن یا ویرایش سلسله‌مراتب واقعی مورد استفادهٔ جدول فعالیت‌ها، کشوی WBS را باز کنید."))}</p>
+        <div class="cp-p6-module-metrics">
+          ${metric(state.wbsNodes.length, uiText(state.locale, "WBS elements", "عناصر WBS"))}
+          ${metric(state.activities.length, uiText(state.locale, "Activities", "فعالیت‌ها"))}
+          ${metric(state.relationships.length, uiText(state.locale, "Relationships", "روابط"))}
+          ${metric(state.documents.length, uiText(state.locale, "Documents", "اسناد"))}
+        </div>
+        ${controls(`${moduleButton("wbs", "wbs", uiText(state.locale, "Open WBS tree", "بازکردن درخت WBS"))}${moduleButton("tools", "tools", uiText(state.locale, "Import / Export", "ورود / خروجی"))}${projectSettingsButton(state, t)}`)}`;
+      break;
+    case "resources":
+      body = `
+        <p>${escapeHtml(uiText(state.locale, "Resource capacity and assignment surfaces are kept in the workspace tools. Existing capacity limits and assignments are read from the project service; this page does not invent resource values.", "سطوح ظرفیت و تخصیص منابع در ابزارهای محیط کار نگهداری می‌شوند. محدودیت‌های ظرفیت و تخصیص‌های موجود از سرویس پروژه خوانده می‌شوند؛ این صفحه مقدار ساختگی منبع نمی‌سازد."))}</p>
+        <div class="cp-p6-module-metrics">
+          ${metric(state.activities.length, uiText(state.locale, "Activities", "فعالیت‌ها"))}
+          ${metric(state.relationships.length, uiText(state.locale, "Assignments in logic", "تخصیص در منطق"))}
+        </div>
+        ${controls(`${moduleButton("tools", "resource", uiText(state.locale, "Open resource capacity", "بازکردن ظرفیت منابع"))}${moduleButton("assignments", "link", uiText(state.locale, "Resource assignments", "تخصیص منابع"))}`)}`;
+      break;
+    case "documents":
+      body = state.documents.length
+        ? `<div class="cp-p6-module-list">${state.documents.map((document) => `<article><strong>${escapeHtml(document.documentId)}</strong><span>${escapeHtml(document.title)}</span><small>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · R${document.revision}</small></article>`).join("")}</div>`
+        : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No project documents have been recorded yet.", "هنوز سندی برای این پروژه ثبت نشده است."))}</p>`;
+      body += controls(moduleButton("tools", "file", uiText(state.locale, "Open workspace tools", "بازکردن ابزارهای محیط کار")));
+      break;
+    case "cost":
+      body = `
+        <div class="cp-p6-module-metrics">
+          ${metric(state.procurementRecords.length, t.procurement)}
+          ${metric(state.changeNotices.length + state.changeCases.length + state.claims.length, t.commercial)}
+        </div>
+        <p>${escapeHtml(uiText(state.locale, "Cost presentation uses the procurement, change and claim records already loaded for this project. Financial calculations remain in the authoritative core.", "نمایش هزینه از سوابق تدارکات، تغییر و ادعای بارگذاری‌شده برای این پروژه استفاده می‌کند. محاسبات مالی در هستهٔ مرجع باقی می‌ماند."))}</p>
+        ${controls(moduleButton("tools", "money", uiText(state.locale, "Open cost records", "بازکردن سوابق هزینه")))}`;
+      break;
+    case "progress":
+      body = `
+        <div class="cp-p6-module-metrics">
+          ${metric(state.siteDailyLogs.length, t.siteLogs)}
+          ${metric(state.timecards.length + state.equipmentReports.length, `${t.attendance} / ${t.equipment}`)}
+          ${metric(state.fieldIssues.length, t.issues)}
+        </div>
+        <p>${escapeHtml(uiText(state.locale, "Progress presentation reads the field records already saved for this project. No progress percentages are computed on this page.", "نمایش پیشرفت از سوابق کارگاهی ذخیره‌شده برای این پروژه می‌خواند. هیچ درصد پیشرفتی در این صفحه محاسبه نمی‌شود."))}</p>
+        ${controls(moduleButton("tools", "progress", uiText(state.locale, "Open field records", "بازکردن سوابق کارگاه")))}`;
+      break;
+    case "control":
+      body = `
+        <div class="cp-p6-module-metrics">
+          ${metric(state.inspections.length + state.qualityRecords.length, t.assurance)}
+          ${metric(state.safetyObservations.length, t.safety)}
+          ${metric(state.fieldIssues.length, t.issues)}
+          ${metric(state.punchItems.length, t.punchCloseout)}
+        </div>
+        ${controls(moduleButton("tools", "warning", uiText(state.locale, "Open control records", "بازکردن سوابق کنترل")))}`;
+      break;
+    case "reports":
+      body = `
+        <p>${escapeHtml(uiText(state.locale, "Report generation and print layouts are not available in this preview yet. No report is generated or claimed here.", "تولید گزارش و قالب چاپ در این پیش‌نمایش فعال نیست. هیچ گزارشی در این صفحه تولید یا ادعا نمی‌شود."))}</p>
+        ${controls(moduleButton("tools", "print", uiText(state.locale, "Open reports and print tools", "بازکردن ابزارهای گزارش و چاپ")))}`;
+      break;
+    case "settings":
+      body = `
+        <p>${escapeHtml(uiText(state.locale, "Project settings are edited through the existing authoritative project service.", "تنظیمات پروژه از طریق سرویس مرجع موجود پروژه ویرایش می‌شود."))}</p>
+        ${controls(projectSettingsButton(state, t))}`;
+      break;
+    default:
+      body = "";
+  }
+  return `<section id="cp-p6-module-stage" class="cp-p6-module-stage" data-p6-module="${escapeAttribute(state.activeMenu)}" data-workspace-menu="${escapeAttribute(state.activeMenu)}">
+    <header class="cp-p6-module-head"><div><h2>${escapeHtml(title)}</h2><span>${escapeHtml(status)}</span></div><span class="cp-p6-module-surface">${escapeHtml(uiText(state.locale, "Workspace page", "صفحهٔ محیط کار"))}</span></header>
+    <div class="cp-p6-module-body">${body}</div>
+  </section>`;
+}
+
+function moduleButton(action: string, icon: string, label: string): string {
+  return `<button type="button" class="cp-p6-module-button" data-rail-action="${escapeAttribute(action)}" title="${escapeAttribute(label)}">${workspaceIcon(icon)}<span>${escapeHtml(label)}</span></button>`;
+}
+
+function projectSettingsButton(state: WorkspaceState, t: WorkspaceLabels): string {
+  return `<button type="button" class="cp-p6-module-button" data-project-settings title="${escapeAttribute(t.projectSettings)}">${workspaceIcon("settings")}<span>${escapeHtml(t.projectSettings)}</span></button>`;
 }
 
 function renderModuleEmptyState(state: WorkspaceState): string {
@@ -1153,7 +1481,7 @@ function renderActivityFilterSort(
       .filter((column) => column.id !== "wbs")
       .map((column) => {
         const selected = sort?.columnId === column.id ? " selected" : "";
-        return `<option value="${escapeAttribute(column.id)}"${selected}>${escapeHtml(column.label)}</option>`;
+        return `<option value="${escapeAttribute(column.id)}"${selected}>${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}</option>`;
       }),
   ].join("");
   return `<div class="cp-activity-toolbar" role="search">
@@ -1289,7 +1617,16 @@ function renderGantt(
     year: t.scaleYear,
   };
   const toolbar = `<div class="cp-gantt-toolbar" aria-label="${escapeAttribute(t.ganttScaleLabel)}"><div class="cp-gantt-scale-controls" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div><button type="button" class="cp-gantt-relationships-toggle${showRelationships ? " is-active" : ""}" data-gantt-relationships-toggle="${showRelationships ? "false" : "true"}" aria-pressed="${showRelationships ? "true" : "false"}" title="${escapeAttribute(t.ganttLinksToggle)}"><span>${escapeHtml(t.ganttLinksToggle)}</span><strong>${escapeHtml(showRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</strong></button></div>`;
-  const axis = `<div class="cp-gantt-axis" aria-hidden="true"><span class="cp-gantt-axis-label"></span><div class="cp-gantt-axis-track">${ticks.map((tick, index) => `<span class="cp-gantt-axis-tick${index === 0 ? " is-first" : tick.leftPercent > 88 ? " is-last" : ""}" data-gantt-tick="${escapeAttribute(tick.date)}" style="left:${tick.leftPercent}%">${escapeHtml(formatWorkspaceCalendarDate(tick.date, calendarMode))}</span>`).join("")}</div></div>`;
+  const axis = `<div class="cp-gantt-axis" aria-hidden="true"><span class="cp-gantt-axis-label"></span><div class="cp-gantt-axis-track">${ticks.map((tick, index) => {
+    const fullLabel = formatWorkspaceCalendarDate(tick.date, calendarMode);
+    // At day resolution daily ticks are too close together for the full date,
+    // so the DOM keeps the complete label (and tooltip) while CSS renders only
+    // the day number through data-gantt-day.
+    const dayLabel = fullLabel.split(/[\/\-]/).filter(Boolean).pop() ?? fullLabel;
+    const dayClass = ganttScale === "day" ? " is-day" : "";
+    const dayAttribute = ganttScale === "day" ? ` data-gantt-day="${escapeAttribute(dayLabel)}"` : "";
+    return `<span class="cp-gantt-axis-tick${index === 0 ? " is-first" : tick.leftPercent > 88 ? " is-last" : ""}${dayClass}" data-gantt-tick="${escapeAttribute(tick.date)}"${dayAttribute} title="${escapeAttribute(fullLabel)}" style="left:${tick.leftPercent}%">${escapeHtml(fullLabel)}</span>`;
+  }).join("")}</div></div>`;
   const linkSvg = showRelationships && links.length
     ? `<svg class="cp-gantt-links" viewBox="0 0 100 ${bars.length * 100}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"></path>`).join("")}</svg>`
     : "";
@@ -1314,15 +1651,37 @@ function predecessorSummary(activityId: string, state: WorkspaceState): string {
 }
 
 function renderRelationships(state: WorkspaceState, t: WorkspaceLabels): string {
+  const activityOptionsFor = (selectedId?: string): string =>
+    state.activities
+      .map((activity) => `<option value="${escapeAttribute(activity.id)}"${activity.id === selectedId ? " selected" : ""}>${escapeHtml(activity.id)} — ${escapeHtml(activity.name)}</option>`)
+      .join("");
+  const typeOptions = (selected: string): string =>
+    (["FS", "SS", "FF", "SF"] as const)
+      .map((type) => `<option value="${type}"${type === selected ? " selected" : ""}>${type}</option>`)
+      .join("");
+  const unitOptions = (selected: string): string =>
+    [["working-day", t.workingDay], ["working-hour", t.workingHour]]
+      .map(([value, label]) => `<option value="${value}"${value === selected ? " selected" : ""}>${escapeHtml(label)}</option>`)
+      .join("");
+  const editForm = (relationship: WorkspaceRelationshipRow): string => `<details class="cp-logic-edit" data-relationship-edit-box="${escapeAttribute(relationship.id)}">
+      <summary>${escapeHtml(t.relationshipEdit)}</summary>
+      <form class="cp-logic-editor" data-relationship-edit-form="${escapeAttribute(relationship.id)}" data-relationship-revision="${relationship.recordRevision}">
+        <label>${escapeHtml(t.predecessor)} <select name="predecessor_id" required>${activityOptionsFor(relationship.predecessorId)}</select></label>
+        <label>${escapeHtml(t.successor)} <select name="successor_id" required>${activityOptionsFor(relationship.successorId)}</select></label>
+        <label>${escapeHtml(t.relationshipType)} <select name="relationship_type">${typeOptions(relationship.type)}</select></label>
+        <label>${escapeHtml(t.relationshipLag)} <input name="lag_value" type="number" step="any" value="${escapeAttribute(relationship.lagValue)}" required></label>
+        <label>${escapeHtml(t.relationshipLagUnit)} <select name="lag_unit">${unitOptions(relationship.lagUnit)}</select></label>
+        <button type="submit">${escapeHtml(t.relationshipSave)}</button>
+      </form>
+    </details>`;
   const rows = state.relationships.map((relationship: WorkspaceRelationshipRow) => `<li class="cp-logic-item" data-relationship-id="${escapeAttribute(relationship.id)}">
       <span class="cp-logic-pair">${escapeHtml(relationship.predecessorId)} → ${escapeHtml(relationship.successorId)}</span>
       <span class="cp-logic-type">${escapeHtml(relationship.type)}</span>
       <span class="cp-logic-lag">${escapeHtml(formatRelationshipLag(relationship.lagValue, relationship.lagUnit, t))}</span>
       <button type="button" data-relationship-delete="${escapeAttribute(relationship.id)}" data-relationship-revision="${relationship.recordRevision}">${escapeHtml(t.relationshipDelete)}</button>
+      ${editForm(relationship)}
     </li>`).join("");
-  const activityOptions = state.activities
-    .map((activity) => `<option value="${escapeAttribute(activity.id)}">${escapeHtml(activity.id)} — ${escapeHtml(activity.name)}</option>`)
-    .join("");
+  const activityOptions = activityOptionsFor();
   const canCreate = state.activities.length >= 2;
   return `<div class="cp-logic-list-wrap">
     ${state.relationships.length ? `<ul class="cp-logic-list">${rows}</ul>` : `<p class="cp-empty">${escapeHtml(t.noRelationships)}</p>`}
@@ -1330,16 +1689,21 @@ function renderRelationships(state: WorkspaceState, t: WorkspaceLabels): string 
       <h3>${escapeHtml(t.relationshipCreate)}</h3>
       <label>${escapeHtml(t.predecessor)} <select name="predecessor_id" required ${canCreate ? "" : "disabled"}>${activityOptions}</select></label>
       <label>${escapeHtml(t.successor)} <select name="successor_id" required ${canCreate ? "" : "disabled"}>${activityOptions}</select></label>
-      <label>${escapeHtml(t.relationshipType)} <select name="relationship_type"><option value="FS">FS</option><option value="SS">SS</option><option value="FF">FF</option><option value="SF">SF</option></select></label>
+      <label>${escapeHtml(t.relationshipType)} <select name="relationship_type">${typeOptions("FS")}</select></label>
       <label>${escapeHtml(t.relationshipLag)} <input name="lag_value" type="number" step="any" value="0" required></label>
-      <label>${escapeHtml(t.relationshipLagUnit)} <select name="lag_unit"><option value="working-day">${escapeHtml(t.workingDay)}</option><option value="working-hour">${escapeHtml(t.workingHour)}</option></select></label>
+      <label>${escapeHtml(t.relationshipLagUnit)} <select name="lag_unit">${unitOptions("working-day")}</select></label>
       <button type="submit" ${canCreate ? "" : "disabled"}>${escapeHtml(t.relationshipCreate)}</button>
     </form>
   </div>`;
 }
 
-function menuButton(key: WorkspaceState["activeMenu"], label: string, state: WorkspaceState): string {
-  return `<button type="button" data-menu="${key}" aria-current="${key === state.activeMenu ? "page" : "false"}">${escapeHtml(label)}</button>`;
+function menuButton(key: WorkspaceState["activeMenu"], label: string, state: WorkspaceState, icon: string): string {
+  const active = key === state.activeMenu;
+  return `<button type="button" class="cp-rail-button" data-menu="${key}" aria-current="${active ? "page" : "false"}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}">${workspaceIcon(icon)}<span class="cp-rail-label">${escapeHtml(label)}</span></button>`;
+}
+
+function railActionButton(action: string, label: string, icon: string): string {
+  return `<button type="button" class="cp-rail-button" data-rail-action="${escapeAttribute(action)}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}">${workspaceIcon(icon)}<span class="cp-rail-label">${escapeHtml(label)}</span></button>`;
 }
 
 function escapeHtml(value: string): string {

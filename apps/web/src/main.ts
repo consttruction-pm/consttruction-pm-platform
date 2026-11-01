@@ -45,7 +45,7 @@ import {
 } from "./workspace-preferences.js";
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
-import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName } from "./workspace-localization.js";
+import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceUiText } from "./workspace-localization.js";
 import { mountAIActionPanel } from "./ai-action-panel.js";
 import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
@@ -55,6 +55,8 @@ import { mountCapacityPanel } from "./p6-capacity-panel.js";
 import { renderDesktopShell, WINDOW_TITLES, type DesktopCommand } from "./workspace-desktop-shell.js";
 import { renderStatusBar, type ChromeLayoutState } from "./workspace-chrome.js";
 import { enhanceActivityDetails } from "./workspace-activity-details.js";
+import { enhanceWorkspaceComments } from "./workspace-comments.js";
+import { mountWorkspaceMobile } from "./workspace-mobile.js";
 import type { DesktopLayoutPatch } from "./workspace-dialogs.js";
 import {
   closeWorkspaceWindow,
@@ -134,13 +136,6 @@ function rememberOpenWindows(next: readonly WorkspaceMenuKey[]): void {
   rememberWorkspaceWindows(openWindowKeys);
 }
 
-/** The next locale the shell can actually serve, never a route that does not exist. */
-function nextWorkspaceLocale(locale: WorkspaceLocale): WorkspaceLocale {
-  const available = getAvailableWorkspaceLocales();
-  const index = available.indexOf(locale);
-  return available[(index + 1) % available.length] ?? "en";
-}
-
 /**
  * Panels mount asynchronously (schedule options, formula editor), so a command
  * that targets a control inside them may run before that control exists. Retry
@@ -156,6 +151,12 @@ function focusWhenReady(selector: string, attempts = 20): void {
     element.scrollIntoView({ block: "center", inline: "nearest" });
     element.focus({ preventScroll: true });
   }, 25);
+}
+
+function openWorkspaceDrawer(container: HTMLElement, selector: string): void {
+  container.querySelectorAll<HTMLElement>("[data-tools-drawer],[data-wbs-drawer],[data-nav-flyout]").forEach((drawer) => {
+    drawer.hidden = drawer.matches(selector) ? false : true;
+  });
 }
 
 function applyDocumentLocale(locale: WorkspaceLocale, title?: string): void {
@@ -191,20 +192,24 @@ function applyRememberedMenu(workspace: WorkspaceState): WorkspaceState {
 function createLanguageSwitch(
   locale: WorkspaceLocale,
   onSelect: (locale: WorkspaceLocale) => void,
-): HTMLButtonElement {
+): HTMLSelectElement {
   const t = getBootstrapLabels(locale);
-  const next = nextWorkspaceLocale(locale);
-  const nextName = getWorkspaceLocaleDisplayName(next);
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "cp-bootstrap-language";
-  button.dataset.bootstrapLanguage = next;
-  button.lang = next;
-  button.dir = getWorkspaceLocaleDirection(next);
-  button.textContent = nextName;
-  button.setAttribute("aria-label", t.switchLanguage.replace("{language}", nextName));
-  button.addEventListener("click", () => onSelect(next));
-  return button;
+  const select = document.createElement("select");
+  select.className = "cp-bootstrap-language";
+  select.dataset.bootstrapLanguage = locale;
+  select.setAttribute("aria-label", t.languageLabel);
+  select.title = t.languageLabel;
+  for (const available of getAvailableWorkspaceLocales()) {
+    const option = document.createElement("option");
+    option.value = available;
+    option.lang = available;
+    option.dir = getWorkspaceLocaleDirection(available);
+    option.textContent = getWorkspaceLocaleDisplayName(available);
+    if (available === locale) option.selected = true;
+    select.append(option);
+  }
+  select.addEventListener("change", () => onSelect(select.value as WorkspaceLocale));
+  return select;
 }
 
 function layoutHistoryKey(context: ProjectContext, layout: LayoutDefinition): string {
@@ -475,6 +480,80 @@ function openProjectSettings(
   void load();
 }
 
+type WorkspaceDraft = { key: string; value: string; checked?: boolean };
+
+/** Stable identity for an entered value across a full locale re-render. */
+function workspaceDraftKey(field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): string {
+  const form = field.closest("form");
+  const formKey = form
+    ? Array.from(form.attributes)
+        .filter(({ name }) => name.startsWith("data-") && name !== "data-workspace-menu")
+        .map(({ name, value }) => `${name}=${value}`)
+        .join("&") || `form.${form.className}`
+    : "formless";
+  const base = field.name || field.id || (field.getAttribute("data-activity-filter") !== null ? "activity-filter" : "");
+  const choice = field instanceof HTMLInputElement && ["checkbox", "radio"].includes(field.type) ? `=${field.value}` : "";
+  return `${formKey}::${base}${choice}`;
+}
+
+/**
+ * Language switching re-renders every panel. Unsaved values in filters, editors
+ * and dialogs belong to the user, not to the locale, so they are captured and
+ * restored instead of being silently discarded.
+ */
+function captureWorkspaceDrafts(container: HTMLElement): WorkspaceDraft[] {
+  const drafts: WorkspaceDraft[] = [];
+  container.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+    "input, select, textarea",
+  ).forEach((field) => {
+    if (field.matches("[data-workspace-language], [data-bootstrap-language]")) return;
+    if (field instanceof HTMLInputElement && ["hidden", "file", "submit", "button", "reset"].includes(field.type)) return;
+    const key = workspaceDraftKey(field);
+    if (!key.split("::")[1]) return;
+    drafts.push({
+      key,
+      value: field.value,
+      checked: field instanceof HTMLInputElement && ["checkbox", "radio"].includes(field.type) ? field.checked : undefined,
+    });
+  });
+  return drafts;
+}
+
+function restoreWorkspaceDrafts(container: HTMLElement, drafts: readonly WorkspaceDraft[]): void {
+  const remaining = new Map(drafts.map((draft) => [draft.key, draft]));
+  container.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+    "input, select, textarea",
+  ).forEach((field) => {
+    if (field.matches("[data-workspace-language], [data-bootstrap-language]")) return;
+    const draft = remaining.get(workspaceDraftKey(field));
+    if (!draft) return;
+    field.value = draft.value;
+    if (draft.checked !== undefined && field instanceof HTMLInputElement) field.checked = draft.checked;
+    // The reference search narrows already rendered entries in place, so it
+    // needs its handler to run again. The activity filter is part of the
+    // workspace state and is already applied by the render itself.
+    if (field.matches("[data-reference-search-input]")) {
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  });
+}
+
+/**
+ * Renders that are not initiated by the field owner (locale switch, async
+ * layout history, authoritative schedule projection) must not discard values
+ * the user has already entered but not submitted.
+ */
+function renderAppPreservingDrafts(
+  container: HTMLElement,
+  state: WorkspaceState,
+  persistence?: ReturnType<typeof createP6LayoutPersistence>,
+  preserveLayoutNotice = false,
+): void {
+  const drafts = captureWorkspaceDrafts(container);
+  renderApp(container, state, persistence, preserveLayoutNotice);
+  restoreWorkspaceDrafts(container, drafts);
+}
+
 function renderApp(
   container: HTMLElement,
   state: WorkspaceState,
@@ -496,7 +575,7 @@ function renderApp(
   let workspace = container.querySelector<HTMLElement>("#workspace");
 
   if (!appShell || !status || !workspace || !desktopHost || !desktopStatus) {
-    container.innerHTML = '<div class="cp-app-shell"><div class="cp-app-status"></div><div class="cp-desktop-host" data-desktop-host></div><div id="workspace"></div><div class="cp-desktop-status" data-desktop-status></div></div>';
+    container.innerHTML = '<div class="cp-app-shell cp-p6"><div class="cp-app-status"></div><div class="cp-desktop-host" data-desktop-host></div><div id="workspace"></div><div class="cp-desktop-status" data-desktop-status></div></div>';
     appShell = container.querySelector<HTMLElement>(".cp-app-shell");
     status = container.querySelector<HTMLElement>(".cp-app-status");
     desktopHost = container.querySelector<HTMLElement>("[data-desktop-host]");
@@ -505,32 +584,28 @@ function renderApp(
   }
 
   if (!appShell || !status || !workspace || !desktopHost || !desktopStatus) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
+  appShell.classList.add("cp-p6");
+  mountWorkspaceMobile(container, state.locale);
+  // The inline activity editor is created on demand. A background render (layout
+  // history, authoritative schedule facts) must not close it under the user's
+  // hands, so the same live form node is reattached after the workspace render.
+  const activityEditor = container.querySelector<HTMLFormElement>("form[data-activity-update-form]");
+  const activityEditorId = activityEditor?.dataset.activityUpdateForm ?? null;
 
-  const languageButton = document.createElement("button");
-  languageButton.type = "button";
-  languageButton.dataset.languageToggle = "true";
   const availableLocales = getAvailableWorkspaceLocales();
-  const currentLocaleIndex = availableLocales.indexOf(state.locale);
-  const nextLocale = availableLocales[(currentLocaleIndex + 1) % availableLocales.length] ?? "en";
-  languageButton.textContent = getWorkspaceLocaleDisplayName(nextLocale);
-  languageButton.setAttribute(
-    "aria-label",
-    getBootstrapLabels(state.locale).switchLanguage.replace(
-      "{language}",
-      getWorkspaceLocaleDisplayName(nextLocale),
-    ),
-  );
-  const toggleLocale = (): void => {
+  const changeLocale = (nextLocale: WorkspaceLocale): void => {
+    if (!availableLocales.includes(nextLocale) || nextLocale === state.locale) return;
     rememberWorkspaceLocale(nextLocale, availableLocales);
-    renderApp(container, setLocale(state, nextLocale), persistence);
+    renderAppPreservingDrafts(container, setLocale(state, nextLocale), persistence);
   };
-  languageButton.onclick = toggleLocale;
 
   const nextCalendarMode = state.calendarMode === "jalali" ? "gregorian" : "jalali";
   const calendarButton = document.createElement("button");
   calendarButton.type = "button";
   calendarButton.dataset.calendarMode = nextCalendarMode;
-  calendarButton.textContent = state.calendarMode === "jalali" ? "Gregorian" : "Jalali";
+  calendarButton.textContent = state.calendarMode === "jalali"
+    ? translateWorkspaceUiText(state.locale, "Gregorian", "میلادی")
+    : translateWorkspaceUiText(state.locale, "Jalali", "شمسی");
   const calendarLabel = nextCalendarMode === "jalali" ? shellLabels.switchToJalali : shellLabels.switchToGregorian;
   calendarButton.setAttribute("aria-label", calendarLabel);
   calendarButton.setAttribute("title", calendarLabel);
@@ -538,7 +613,7 @@ function renderApp(
     renderApp(container, setCalendarMode(state, nextCalendarMode), persistence);
   };
   calendarButton.onclick = toggleCalendar;
-  status.replaceChildren(document.createTextNode(shellLabels.status), calendarButton, languageButton);
+  status.replaceChildren(document.createTextNode(shellLabels.status), calendarButton);
   const aiTransport = new FetchApiTransport(window.location.origin);
   const reportWbsMutationError = (error: unknown): void => {
     console.error("WBS mutation failed", error);
@@ -635,6 +710,10 @@ function renderApp(
       case "project.interchange":
         pendingDesktopFocusSelector = "#cp-interchange";
         activateWindow("project");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
+        return;
+      case "file.print":
+        window.print();
         return;
       case "edit.undo":
         void undoLayout();
@@ -657,10 +736,12 @@ function renderApp(
       case "project.add-wbs":
         pendingDesktopFocusSelector = "[data-wbs-create-form] input[name='code']";
         activateWindow("project");
+        openWorkspaceDrawer(container, "[data-wbs-drawer]");
         return;
       case "project.add-activity":
         pendingDesktopFocusSelector = "[data-activity-create-form] input[name='activity_id']";
         activateWindow("schedule");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
       case "project.edit-activity": {
         const activityId = state.selectedActivityId;
@@ -676,25 +757,68 @@ function renderApp(
         activateWindow("schedule");
         return;
       }
+      case "project.schedule-options":
+        pendingDesktopFocusSelector = "#cp-schedule-options input, #cp-schedule-options select, #cp-schedule-options button";
+        activateWindow("schedule");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
+        return;
+      case "activity.assign-resources":
+        pendingDesktopFocusSelector = "#cp-resource-capacity input, #cp-resource-capacity select, #cp-resource-capacity button";
+        activateWindow("resources");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
+        return;
+      case "activity.predecessors":
+      case "activity.successors":
+        pendingDesktopFocusSelector = "#cp-logic select[name='predecessor_id'], #cp-logic select[name='successor_id'], #cp-logic button";
+        activateWindow("schedule");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
+        return;
       case "view.fields":
         pendingDesktopFocusSelector = ".cp-p6-field-chooser";
         activateWindow("schedule");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
+        return;
+      case "view.zoom-in":
+      case "view.zoom-out": {
+        const order: WorkspaceState["ganttScale"][] = ["year", "quarter", "month", "week", "day"];
+        const index = order.indexOf(state.ganttScale);
+        const nextIndex = Math.min(order.length - 1, Math.max(0, index + (command === "view.zoom-in" ? 1 : -1)));
+        renderApp(container, setGanttScale(state, order[nextIndex]), persistence);
+        return;
+      }
+      case "view.fit":
+        renderApp(container, setGanttScale(state, "month"), persistence);
+        return;
+      case "view.toggle-wbs":
+        openWorkspaceDrawer(container, "[data-wbs-drawer]");
+        return;
+      case "view.toggle-gantt":
+        renderApp(container, { ...state, visiblePanels: { ...state.visiblePanels, gantt: !state.visiblePanels.gantt } }, persistence);
+        return;
+      case "view.toggle-details":
+        renderApp(container, { ...state, visiblePanels: { ...state.visiblePanels, details: !state.visiblePanels.details } }, persistence);
         return;
       case "tools.run-schedule":
         pendingDesktopFocusSelector = "#cp-schedule-run input, #cp-schedule-run select, #cp-schedule-run button";
         activateWindow("schedule");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
       case "tools.formula":
         pendingDesktopFocusSelector = "#cp-formula-editor input, #cp-formula-editor select, #cp-formula-editor button";
         activateWindow("schedule");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
       case "tools.reference":
         pendingDesktopFocusSelector = "#cp-schedule-reference input, #cp-schedule-reference button";
         activateWindow("schedule");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
-      case "admin.language":
-        toggleLocale();
+      case "admin.language": {
+        const current = availableLocales.indexOf(state.locale);
+        const next = availableLocales[(current + 1) % availableLocales.length] ?? "en";
+        changeLocale(next);
         return;
+      }
       case "admin.calendar":
         toggleCalendar();
         return;
@@ -713,7 +837,7 @@ function renderApp(
   const tabsWithActive = openWorkspaceWindow(openTabs, state.activeMenu);
   if (tabsWithActive.length !== openTabs.length) rememberOpenWindows(tabsWithActive);
 
-  const t = (en: string, persian: string): string => (state.locale.split("-")[0] === "fa" ? persian : en);
+  const t = (en: string, persian: string): string => translateWorkspaceUiText(state.locale, en, persian);
   const chromeProject = {
     name: state.context.project_id,
     dataDate: "—",
@@ -759,6 +883,31 @@ function renderApp(
     if (next !== state) renderApp(container, next, persistence);
   };
 
+  const workspaceHasPendingEdits = (): boolean => {
+    if (container.querySelector("[data-project-settings-panel]")) return true;
+    if (container.querySelector("[data-activity-update-form]")) return true;
+    const entered = container.querySelectorAll<HTMLInputElement>(
+      "[data-activity-create-form] input, [data-wbs-create-form] input, [data-wbs-edit-form] input",
+    );
+    return Array.from(entered).some((input) => input.value.trim().length > 0);
+  };
+  const goWorkspaceHome = (): void => {
+    if (workspaceHasPendingEdits()) {
+      const prompt = translateWorkspaceUiText(
+        state.locale,
+        "You have unsaved changes in this workspace. Leave without saving?",
+        "شما تغییرات ذخیره‌نشده در این محیط کار دارید. بدون ذخیره خارج می‌شوید؟",
+      );
+      if (!window.confirm(prompt)) return;
+    }
+    if (document.fullscreenElement) {
+      void document.exitFullscreen?.().catch(() => undefined);
+    }
+    // Navigation only: the authenticated session and every saved project
+    // revision stay untouched. The Home page re-opens this workspace later.
+    window.location.assign(publicHomeHref());
+  };
+
   renderDesktopShell(
     desktopHost,
     {
@@ -787,6 +936,8 @@ function renderApp(
       onWindowClose: closeDesktopWindow,
       onCommand: runDesktopCommand,
       onLayoutOptions: applyLayoutOptions,
+      onLocaleChange: (locale) => changeLocale(locale),
+      onHome: goWorkspaceHome,
     },
   );
   const activeTitle = WINDOW_TITLES[state.activeMenu];
@@ -794,7 +945,7 @@ function renderApp(
     locale: state.locale,
     project: chromeProject,
     layout: chromeLayout,
-    activeWindowTitle: state.locale.split("-")[0] === "fa" ? activeTitle.fa : activeTitle.en,
+    activeWindowTitle: translateWorkspaceUiText(state.locale, activeTitle.en, activeTitle.fa),
     openWindowCount: getOpenWindows().length,
   });
 
@@ -1086,6 +1237,37 @@ function renderApp(
         reportRelationshipError(error);
       }
     },
+    onRelationshipUpdate: async (relationshipId, recordRevision, input) => {
+      try {
+        if (!aiTransport.patch) throw new Error("PATCH_TRANSPORT_UNAVAILABLE");
+        const response = await aiTransport.patch<
+          {
+            expected_revision: number;
+            predecessor_id: string;
+            successor_id: string;
+            relationship_type: string;
+            lag_value: string;
+            lag_unit: string;
+          },
+          unknown
+        >(
+          `/api/projects/${encodeURIComponent(state.context.project_id)}/p6/relationships/${encodeURIComponent(relationshipId)}`,
+          {
+            expected_revision: recordRevision,
+            predecessor_id: input.predecessorId,
+            successor_id: input.successorId,
+            relationship_type: input.type,
+            lag_value: input.lagValue,
+            lag_unit: input.lagUnit,
+          },
+          state.context,
+        );
+        if (!response.ok) throw new Error(response.error.code);
+        await refreshWorkspaceAfterWbsMutation(state.selectedWbsId);
+      } catch (error) {
+        reportRelationshipError(error);
+      }
+    },
     onRelationshipDelete: async (relationshipId, recordRevision) => {
       try {
         if (!aiTransport.delete) throw new Error("DELETE_TRANSPORT_UNAVAILABLE");
@@ -1118,11 +1300,13 @@ function renderApp(
         const old = panel.querySelector<HTMLElement>("[data-activity-update-form]");
         old?.remove();
         const form = document.createElement("form");
+        form.className = "cp-p6-inline-activity-editor";
         form.dataset.activityUpdateForm = activity.activity_id;
-        form.setAttribute("aria-label", state.locale === "fa" ? "ویرایش فعالیت" : "Edit activity");
+        const editTitle = t("Edit activity", "ویرایش فعالیت");
+        form.setAttribute("aria-label", editTitle);
         form.innerHTML = "";
         const heading = document.createElement("h3");
-        heading.textContent = state.locale === "fa" ? "ویرایش فعالیت" : "Edit activity";
+        heading.textContent = editTitle;
         form.append(heading);
         const addInput = (name: string, labelText: string, value: string, type = "text") => {
           const label = document.createElement("label");
@@ -1137,14 +1321,13 @@ function renderApp(
           label.append(input);
           form.append(label);
         };
-        const isFa = state.locale === "fa";
-        addInput("name", isFa ? "نام فعالیت" : "Activity name", activity.name);
-        addInput("duration_value", isFa ? "مدت" : "Duration", String(activity.duration_value), "number");
+        addInput("name", t("Activity name", "نام فعالیت"), activity.name);
+        addInput("duration_value", t("Duration", "مدت"), String(activity.duration_value), "number");
         const unitLabel = document.createElement("label");
-        unitLabel.append(document.createTextNode((isFa ? "واحد مدت" : "Duration unit") + " "));
+        unitLabel.append(document.createTextNode(t("Duration unit", "واحد مدت") + " "));
         const unit = document.createElement("select");
         unit.name = "duration_unit";
-        for (const [value, labelText] of [["working-day", isFa ? "روز کاری" : "Working day"], ["working-hour", isFa ? "ساعت کاری" : "Working hour"]] as const) {
+        for (const [value, labelText] of [["working-day", t("Working day", "روز کاری")], ["working-hour", t("Working hour", "ساعت کاری")]] as const) {
           const option = document.createElement("option");
           option.value = value;
           option.textContent = labelText;
@@ -1169,9 +1352,11 @@ function renderApp(
         form.append(wbsLabel);
         const save = document.createElement("button");
         save.type = "submit";
-        save.textContent = isFa ? "ذخیره تغییرات" : "Save changes";
+        save.textContent = t("Save changes", "ذخیره تغییرات");
         form.append(save);
-        panel.querySelector("[data-activity-create-form]")?.after(form);
+        const createForm = panel.querySelector("[data-activity-create-form]");
+        if (createForm) createForm.after(form);
+        else panel.append(form);
         form.addEventListener("submit", async (event) => {
           event.preventDefault();
           const name = (form.elements.namedItem("name") as HTMLInputElement).value.trim();
@@ -1192,6 +1377,9 @@ function renderApp(
               wbs_id: wbsId,
             }, state.context);
             if (!updated.ok) throw new Error(updated.error.code);
+            // The edit is committed; the refreshed grid must not resurrect the
+            // closed editor with its pre-save values.
+            form.remove();
             await refreshWorkspaceAfterWbsMutation(wbsId);
           } catch (error) {
             let notice = form.querySelector<HTMLElement>("[data-activity-error]");
@@ -1255,8 +1443,75 @@ function renderApp(
     onP6LayoutUndo: () => { void undoLayout(); },
     onP6LayoutRedo: () => { void redoLayout(); },
     onP6LayoutRestore: (revision) => { void restoreLayout(revision); },
+    onRailAction: (action) => {
+      switch (action) {
+        case "projects":
+        case "eps":
+          activateWindow("project");
+          return;
+        case "wbs":
+          openWorkspaceDrawer(container, "[data-wbs-drawer]");
+          return;
+        case "activities":
+          activateWindow("schedule");
+          return;
+        case "resources":
+        case "assignments":
+          activateWindow("resources");
+          openWorkspaceDrawer(container, "[data-tools-drawer]");
+          return;
+        case "reports":
+          activateWindow("reports");
+          return;
+        case "documents":
+          activateWindow("documents");
+          return;
+        case "expenses":
+          activateWindow("cost");
+          return;
+        case "risks":
+        case "issues":
+          activateWindow("control");
+          return;
+        case "forms":
+        case "settings":
+          activateWindow("settings");
+          return;
+        case "tools":
+          openWorkspaceDrawer(container, "[data-tools-drawer]");
+          return;
+        case "notebook": {
+          const openNotebook = (): void => {
+            const tab = document.querySelector<HTMLElement>("#cp-details [data-detail-tab='notebook']");
+            if (tab) tab.click();
+          };
+          if (state.activeMenu === "schedule" || state.activeMenu === "project") {
+            openNotebook();
+          } else {
+            pendingDesktopAction = openNotebook;
+            activateWindow("schedule");
+          }
+          return;
+        }
+        default:
+          return;
+      }
+    },
     layoutHistory: historyView,
   });
+  if (
+    activityEditor
+    && !activityEditor.isConnected
+    && activityEditorId
+    && state.activities.some((activity) => activity.id === activityEditorId)
+  ) {
+    const panel = workspace.querySelector<HTMLElement>("#cp-activity-grid");
+    if (panel) {
+      const createForm = panel.querySelector("[data-activity-create-form]");
+      if (createForm) createForm.after(activityEditor);
+      else panel.append(activityEditor);
+    }
+  }
   if (
     state.p6Layout
     && layoutHistory
@@ -1266,12 +1521,12 @@ function renderApp(
   ) {
     void requestLayoutRevisions(state.p6Layout)
       .then(() => {
-        renderApp(container, currentWorkspaceState ?? state, persistence, true);
+        renderAppPreservingDrafts(container, currentWorkspaceState ?? state, persistence, true);
       })
       .catch((error) => {
         console.error("P6 layout history read failed", error);
         layoutHistory.revisionLoadFailed = true;
-        renderApp(container, currentWorkspaceState ?? state, persistence, true);
+        renderAppPreservingDrafts(container, currentWorkspaceState ?? state, persistence, true);
       });
   }
   if (layoutHistory && !preserveLayoutNotice && !layoutHistory.revisionRequest) {
@@ -1291,7 +1546,7 @@ function renderApp(
         latest.context.revision !== state.context.revision
       ) return;
       const next = applyAuthoritativeScheduleFacts(latest, facts);
-      if (next !== latest) renderApp(container, next, persistence);
+      if (next !== latest) renderAppPreservingDrafts(container, next, persistence);
     } catch (error) {
       console.error("Authoritative schedule result projection failed", error);
     }
@@ -1311,10 +1566,31 @@ function renderApp(
         projectName: state.context.project_id,
         dataDate: "—",
         calendarMode: state.calendarMode,
+        state,
       },
       (activityId) => renderApp(container, selectActivity(state, activityId), persistence),
     );
   }
+
+  // Comments are scoped to the item currently selected in the workspace: an
+  // activity, the selected WBS element, or the project as a whole. They are
+  // browser-local notes and must never look like project database records.
+  const selectedWbsNode = state.wbsNodes.find((node) => node.id === state.selectedWbsId);
+  const commentsEntity =
+    state.activeMenu === "schedule" && state.selectedActivityId
+      ? { entityKind: "activity" as const, entityId: state.selectedActivityId, entityLabel: state.selectedActivityId }
+      : state.activeMenu === "project" && selectedWbsNode
+        ? { entityKind: "wbs" as const, entityId: selectedWbsNode.id, entityLabel: `${selectedWbsNode.localCode} — ${selectedWbsNode.name}` }
+        : {
+            entityKind: (state.activeMenu === "schedule" ? "project" : state.activeMenu) as "project" | "progress" | "resources" | "cost" | "documents" | "reports" | "control" | "settings",
+            entityId: state.context.project_id,
+            entityLabel: state.context.project_id,
+          };
+  enhanceWorkspaceComments(workspace, {
+    projectId: state.context.project_id,
+    locale: state.locale,
+    ...commentsEntity,
+  });
 
   mountFormulaEditorPanel(
     workspace,
@@ -1764,7 +2040,15 @@ function getInitialLocale(): WorkspaceLocale {
   const available = getAvailableWorkspaceLocales();
   const remembered = readWorkspaceLocalePreference(available);
   if (remembered) return remembered;
-  return navigator.language.toLowerCase().startsWith("fa") ? "fa" : "en";
+  const language = navigator.language.toLowerCase();
+  const detected = language.startsWith("fa")
+    ? "fa"
+    : language.startsWith("de")
+      ? "de"
+      : language.startsWith("zh")
+        ? "zh"
+        : "en";
+  return available.includes(detected) ? detected : "en";
 }
 
 async function boot(): Promise<void> {

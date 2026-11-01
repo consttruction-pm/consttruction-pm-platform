@@ -1,5 +1,5 @@
 import type { WorkspaceLocale } from "./workspace-model.js";
-import { translateWorkspaceText } from "./workspace-localization.js";
+import { translateWorkspaceText, translateWorkspaceUiText } from "./workspace-localization.js";
 
 export type WorkspaceShellLabels = {
   status: string;
@@ -27,12 +27,18 @@ const labels: Partial<Record<WorkspaceLocale, WorkspaceShellLabels>> = {
 };
 
 export function getWorkspaceShellLabels(locale: WorkspaceLocale): WorkspaceShellLabels {
-  const baseline = labels[locale] ?? labels.en!;
+  const english = labels.en!;
+  const persian = labels.fa!;
+  const translate = (key: keyof WorkspaceShellLabels): string => {
+    const packed = translateWorkspaceText(locale, `shell.${key}`, "");
+    if (packed) return packed;
+    return translateWorkspaceUiText(locale, english[key], persian[key]);
+  };
   return {
-    status: translateWorkspaceText(locale, "shell.status", baseline.status),
-    switchToEnglish: translateWorkspaceText(locale, "shell.switchToEnglish", baseline.switchToEnglish),
-    switchToPersian: translateWorkspaceText(locale, "shell.switchToPersian", baseline.switchToPersian),
-    switchToJalali: translateWorkspaceText(locale, "shell.switchToJalali", baseline.switchToJalali),
-    switchToGregorian: translateWorkspaceText(locale, "shell.switchToGregorian", baseline.switchToGregorian),
+    status: translate("status"),
+    switchToEnglish: translate("switchToEnglish"),
+    switchToPersian: translate("switchToPersian"),
+    switchToJalali: translate("switchToJalali"),
+    switchToGregorian: translate("switchToGregorian"),
   };
 }

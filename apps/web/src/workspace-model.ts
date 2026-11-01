@@ -10,7 +10,7 @@ import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObserv
 import type { WorkspaceSmartGuide } from "./workspace-smart-guide.js";
 import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { addField, removeField, reorderFields, updateFieldPresentation } from "./p6-field-layout-foundation.js";
-import { getWorkspaceLocaleDirection, translateWorkspaceText } from "./workspace-localization.js";
+import { getWorkspaceLocaleDirection, localizeWorkspaceLabel, translateWorkspaceText } from "./workspace-localization.js";
 
 export type WorkspaceLocale = string;
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
@@ -190,7 +190,14 @@ const DEFAULT_WORKSPACE_COLUMN_LABELS: Record<WorkspaceLocale, Record<string, st
 };
 
 export function getDefaultWorkspaceColumns(locale: WorkspaceLocale = "en"): readonly WorkspaceColumn[] {
-  return DEFAULT_WORKSPACE_COLUMNS.map((column) => Object.freeze({ ...column, label: translateWorkspaceText(locale, `column.${column.id}`, DEFAULT_WORKSPACE_COLUMN_LABELS[locale.split("-")[0] as "en" | "fa"]?.[column.id] ?? column.label) }));
+  return DEFAULT_WORKSPACE_COLUMNS.map((column) => {
+    const localized = translateWorkspaceText(
+      locale,
+      `column.${column.id}`,
+      DEFAULT_WORKSPACE_COLUMN_LABELS[locale.split("-")[0]]?.[column.id] ?? column.label,
+    );
+    return Object.freeze({ ...column, label: localizeWorkspaceLabel(locale, localized) });
+  });
 }
 
 export function createWorkspaceState(

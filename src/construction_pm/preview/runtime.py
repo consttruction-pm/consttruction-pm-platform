@@ -298,7 +298,7 @@ def _presentation_columns() -> tuple[LayoutColumn, ...]:
             field_id=column.field_id,
             visible=column.visible,
             order=index,
-            label=None,
+            label=column.label,
             width=column.width,
             alignment=column.alignment,
             pinned=False,

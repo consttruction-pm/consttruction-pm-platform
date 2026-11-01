@@ -33,6 +33,25 @@ const PATHS: Record<string, string> = {
   resource: "M6 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M2 14c0-2.2 1.8-4 4-4s4 1.8 4 4 M11 5.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M11 8c1.7 0 3 1.3 3 3",
   book: "M3 3h4a2 2 0 0 1 2 2v8a2 2 0 0 0-2-2H3z M13 3H9a2 2 0 0 0-2 2v8a2 2 0 0 1 2-2h4z",
   warning: "M8 2l6 11H2z M8 6v4 M8 11.5v.2",
+  folder: "M2 4h5l1.5 2H14v7H2z",
+  portfolio: "M2 3h5v4H2z M2 9h5v4H2z M9 3h5v4H9z M9 9h5v4H9z",
+  wbs: "M2 3h5v3H2z M9 3h5v3H9z M6 9h4v3H6z M5 6v5h3 M9 6v5H8",
+  money: "M8 3a5 5 0 1 0 0 10A5 5 0 0 0 8 3z M6 6h3a1.5 1.5 0 0 1 0 3H7 M6 9h4 M8 5v6",
+  forms: "M3 2h10v12H3z M5 5h6 M5 8h6 M5 11h4",
+  progress: "M2 13h12 M4 11l3-3 2 2 4-5",
+  comment: "M3 3h10v7H8l-3 3v-3H3z",
+  tools: "M3 13l5-5 M9 3l4 4-2 2-4-4z M10 9l3 3-1 1z",
+  assignment: "M2 6h7 M6 3l3 3-3 3 M11 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M8 14c0-1.7 1.3-3 3-3s3 1.3 3 3",
+  save: "M3 2h8l2 2v10H3z M5 2v5h6V2 M5 14v-4h6v4",
+  open: "M2 4h5l1.5 2H14l-2 7H3z",
+  compare: "M4 2v12 M12 2v12 M7 5h4 M7 8h4 M7 11h4",
+  baseline: "M2 8h12 M4 4v8 M8 5.5v5 M12 6.5v3",
+  fullscreen: "M2 6V2h4 M10 2h4v4 M14 10v4h-4 M6 14H2v-4",
+  exitfullscreen: "M6 2v4H2 M14 6h-4V2 M10 14v-4h4 M2 10h4v4",
+  refresh: "M13 8a5 5 0 1 1-1.5-3.5 M13 2v3h-3",
+  home: "M2 7l6-5 6 5 M4 6v7h8V6 M6.5 13V9h3v4",
+  language:
+    "M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2z M2 8h12 M8 2c1.8 1.7 2.7 3.7 2.7 6S9.8 12.3 8 14C6.2 12.3 5.3 10.3 5.3 8S6.2 3.7 8 2z",
 };
 
 export function workspaceIcon(name: string): string {

@@ -1,6 +1,7 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
 import { createWorkspaceState, setSmartGuide, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, withRelationships, withWbsNodes, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
 import { workspaceActivitiesFromSnapshot, workspaceRelationshipsFromSnapshot, workspaceWbsNodesFromSnapshot, type WorkspaceControlRoomSnapshot } from "./workspace-contract.js";
+import { localizeWorkspaceLabel } from "./workspace-localization.js";
 import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from "./workspace-control-intelligence.js";
 import { projectSmartGuide } from "./workspace-smart-guide.js";
 import { projectSiteDailyLog, type SiteDailyLogSnapshot } from "./workspace-site-log.js";
@@ -81,7 +82,7 @@ export class WorkspaceReadClient {
           const presentation = defaultColumns.find((item) => item.id === column.id);
           return {
             id: column.id,
-            label: column.label,
+            label: localizeWorkspaceLabel(locale, column.label),
             dataType: column.data_type,
             editable: column.editable,
             formula: column.formula,

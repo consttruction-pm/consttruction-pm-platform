@@ -5,6 +5,7 @@
  * immediately; there is no decorative option without an effect.
  */
 import type { ChromeLayoutState } from "./workspace-chrome.js";
+import { translateWorkspaceUiText } from "./workspace-localization.js";
 
 export type DesktopSortColumn = { id: string; label: string };
 
@@ -29,12 +30,8 @@ export type DialogOptions = {
   barTone: DesktopLayoutPatch["barTone"];
 };
 
-function fa(locale: string): boolean {
-  return locale.split("-")[0] === "fa";
-}
-
 function t(locale: string, en: string, persian: string): string {
-  return fa(locale) ? persian : en;
+  return translateWorkspaceUiText(locale, en, persian);
 }
 
 function esc(value: string): string {

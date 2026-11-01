@@ -62,29 +62,33 @@ class LayoutColumnFixture:
     visible: bool
     width: float
     alignment: str = "start"
+    label: str | None = None
 
 
-# Column order is persisted with the project layout. The visible subset is
-# what the Web grid renders first; hidden columns remain addable from the
-# persisted field registry without inventing fields in the browser.
+# Column order is persisted with the project layout. The visible subset follows
+# the P6 Professional activity table order (Id, Name, Original/Remaining
+# Duration, Schedule %, Start, Finish, Status, WBS, Total Float) and is sized to
+# fit the fixed 53.5% table region at the 1100x808 reference viewport. Hidden
+# columns remain addable from the persisted field registry without inventing
+# fields in the browser.
 LAYOUT_COLUMNS: tuple[LayoutColumnFixture, ...] = (
-    LayoutColumnFixture("activity.id", True, 130, "start"),
-    LayoutColumnFixture("activity.name", True, 290, "start"),
-    LayoutColumnFixture("activity.status", True, 110, "start"),
-    LayoutColumnFixture("activity.wbs", True, 190, "start"),
-    LayoutColumnFixture("activity.planned_duration", True, 120, "end"),
-    LayoutColumnFixture("activity.early_start", True, 115, "center"),
-    LayoutColumnFixture("activity.early_finish", True, 115, "center"),
-    LayoutColumnFixture("activity.duration_percent_complete", True, 120, "end"),
-    LayoutColumnFixture("activity.total_float", True, 95, "end"),
-    LayoutColumnFixture("activity.is_critical", True, 90, "center"),
+    LayoutColumnFixture("activity.id", True, 48, "start", "Activity ID"),
+    LayoutColumnFixture("activity.name", True, 130, "start", "Activity Name"),
+    LayoutColumnFixture("activity.planned_duration", True, 50, "end", "Original Duration"),
+    LayoutColumnFixture("activity.remaining_duration", True, 50, "end", "Remaining Duration"),
+    LayoutColumnFixture("activity.duration_percent_complete", True, 50, "end", "Schedule % Complete"),
+    LayoutColumnFixture("activity.early_start", True, 68, "center", "Start"),
+    LayoutColumnFixture("activity.early_finish", True, 68, "center", "Finish"),
+    LayoutColumnFixture("activity.status", True, 70, "start", "Status"),
+    LayoutColumnFixture("activity.wbs", True, 100, "start", "WBS"),
+    LayoutColumnFixture("activity.total_float", True, 50, "end", "Total Float"),
+    LayoutColumnFixture("activity.is_critical", False, 55, "center"),
     LayoutColumnFixture("activity.type", False, 130, "start"),
     LayoutColumnFixture("activity.leveling_priority", False, 120, "start"),
     LayoutColumnFixture("activity.status_code", False, 110, "start"),
     LayoutColumnFixture("activity.planned_finish", False, 115, "center"),
     LayoutColumnFixture("activity.actual_start", False, 115, "center"),
     LayoutColumnFixture("activity.actual_finish", False, 115, "center"),
-    LayoutColumnFixture("activity.remaining_duration", False, 120, "end"),
     LayoutColumnFixture("activity.late_start", False, 115, "center"),
     LayoutColumnFixture("activity.late_finish", False, 115, "center"),
     LayoutColumnFixture("activity.free_float", False, 95, "end"),

@@ -27,11 +27,11 @@ function shellState(patch: Partial<DesktopShellCapabilities> = {}, locale = "en"
   };
 }
 
-test("the menu bar mirrors the eight professional workspace menus in order", () => {
+test("the menu bar mirrors the eleven professional workspace menus in order", () => {
   const menus = getDesktopMenus(shellState());
   assert.deepEqual(
     menus.map((menu) => menu.id),
-    ["workspace", "edit", "view", "project", "organization", "tools", "administration", "help"],
+    ["file", "edit", "view", "project", "enterprise", "schedule", "resources", "tools", "reports", "window", "help"],
   );
   for (const menu of menus) {
     assert.ok(menu.items.length > 0, `${menu.id} must not be empty`);
@@ -102,7 +102,7 @@ test("disabled commands explain the missing precondition instead of failing sile
 test("toolbar commands are real and track layout history and selection", () => {
   const toolbar = getDesktopToolbar(shellState());
   assert.ok(toolbar.length >= 8);
-  assert.ok(toolbar.every((item) => item.command || item.window));
+  assert.ok(toolbar.every((item) => item.command || item.window || item.fullscreen));
   assert.ok(toolbar.every((item) => !item.disabledReason));
   const group = toolbar.find((item) => item.id === "toolbar.group-wbs");
   assert.equal(group?.active, true);
@@ -114,7 +114,7 @@ test("toolbar commands are real and track layout history and selection", () => {
 
 test("Persian labels are provided for menus, items and window titles", () => {
   const menus = getDesktopMenus(shellState({}, "fa"));
-  assert.equal(menus[0]?.label.fa, "محیط کار");
+  assert.equal(menus[0]?.label.fa, "فایل");
   assert.ok(menus.every((menu) => menu.items.every((item) => item.label.fa.trim().length > 0)));
   assert.equal(WINDOW_TITLES.schedule.fa, "فعالیت‌ها");
 });

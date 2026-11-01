@@ -80,7 +80,7 @@ export const ASSISTANT_GUIDE_TARGETS: readonly string[] = Object.freeze([
   "#cp-interchange",
   "#cp-schedule-run",
   ".cp-control-summary",
-  "[data-language-toggle]",
+  "[data-workspace-language]",
 ]);
 
 export const WORKSPACE_MENU_KEYS: readonly WorkspaceMenuKey[] = Object.freeze([
@@ -589,7 +589,7 @@ const MENU_GUIDES: Record<WorkspaceMenuKey, GuideShape> = {
     },
     action: {
       label: { en: "Open the language control", fa: "باز کردن کنترل زبان" },
-      target: "[data-language-toggle]",
+      target: "[data-workspace-language]",
     },
   },
 };

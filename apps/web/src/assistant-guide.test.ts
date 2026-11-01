@@ -14,6 +14,7 @@ import { WORKSPACE_NAVIGATION } from "./workspace-navigation.js";
 const root = process.cwd();
 const workspaceView = readFileSync(join(root, "src/workspace-view.ts"), "utf8");
 const mainSource = readFileSync(join(root, "src/main.ts"), "utf8");
+const chromeSource = readFileSync(join(root, "src/workspace-chrome.ts"), "utf8");
 
 const publicPages = ["home", "platform", "solutions", "resources", "contact", "login"] as const;
 
@@ -70,7 +71,7 @@ test("every workspace menu has guidance whose action target is a real control", 
 });
 
 test("registered action targets exist in the rendered product", () => {
-  const sources = workspaceView + mainSource;
+  const sources = workspaceView + mainSource + chromeSource;
   for (const target of ASSISTANT_GUIDE_TARGETS) {
     if (target.startsWith("#")) {
       assert.match(sources, new RegExp(`id="${target.slice(1)}"`), `${target} must be rendered`);

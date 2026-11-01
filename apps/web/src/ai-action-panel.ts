@@ -1,6 +1,7 @@
 import type { ApiResult, ApiTransport, ClientError, ProjectContext } from "./client.js";
 import { AIActionClient, type AIActionProposal, type CreateActivityProposal } from "./ai-action-client.js";
 import { translateWorkspaceText } from "./workspace-localization.js";
+import { translateUiString } from "./workspace-ui-translations.js";
 import { cubiAssistantAvatarUrl } from "./cubi-brand-assets.js";
 
 type PanelLabels = {
@@ -66,10 +67,10 @@ const labels: Record<"en" | "fa", PanelLabels> = {
 function localeLabels(locale: string): PanelLabels {
   const baseline = labels[locale.toLowerCase().startsWith("fa") ? "fa" : "en"];
   return Object.fromEntries(
-    Object.entries(baseline).map(([key, fallback]) => [
-      key,
-      translateWorkspaceText(locale, `aiAction.${key}`, fallback),
-    ]),
+    Object.entries(baseline).map(([key, fallback]) => {
+      const packValue = translateWorkspaceText(locale, `aiAction.${key}`, fallback);
+      return [key, translateUiString(locale, packValue) ?? packValue];
+    }),
   ) as PanelLabels;
 }
 

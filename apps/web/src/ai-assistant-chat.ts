@@ -141,7 +141,10 @@ export function mountAIAssistantChatPanel(
   onProposalCreated: () => void = () => {},
 ): void {
   const previous = appShell.querySelector<HTMLDetailsElement>("#cp-ai-assistant-chat");
-  const wasOpen = previous?.open ?? true;
+  // The chat is an overlay attached to the floating assistant. It must never
+  // open on top of the workspace by itself: only the assistant launcher (or an
+  // explicit summary click) opens it.
+  const wasOpen = previous?.open ?? false;
   previous?.remove();
 
   let session = sessions.get(appShell);

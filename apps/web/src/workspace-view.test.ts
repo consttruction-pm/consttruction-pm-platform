@@ -305,7 +305,7 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["input", "submit", "click", "keydown", "change"]);
+  assert.deepEqual(registrations, ["pointerdown", "input", "submit", "click", "keydown", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -910,7 +910,7 @@ test("interactive Activity Grid exposes grid row selection semantics", () => {
   };
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  assert.match(container.innerHTML, /<table role="grid" aria-label="Activity Grid" aria-multiselectable="false">/);
+  assert.match(container.innerHTML, /<table role="grid" aria-label="Activity Grid" aria-multiselectable="false"[^>]*>/);
   assert.match(container.innerHTML, /<thead><tr role="row">/);
   assert.match(container.innerHTML, /<th role="columnheader" scope="col"/);
   assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" tabindex="0" aria-selected="true" aria-label="A-1"/);
@@ -1184,6 +1184,8 @@ test("logic panel renders persisted relationships and the grid shows predecessor
   assert.match(container.innerHTML, /id="cp-logic"/);
   assert.match(container.innerHTML, /data-relationship-create-form/);
   assert.match(container.innerHTML, /data-relationship-id="R-1"/);
+  assert.match(container.innerHTML, /data-relationship-edit-form="R-1"/);
+  assert.match(container.innerHTML, /data-relationship-revision="1"/);
   assert.match(container.innerHTML, /A-1 → A-2/);
   assert.match(container.innerHTML, /data-predecessors="A-2"[^>]*>A-1 SS\+1d</);
 });
@@ -1221,6 +1223,55 @@ test("relationship create form dispatches the exact predecessor, successor, type
     type: "SS",
     lagValue: "1",
     lagUnit: "working-day",
+  });
+});
+
+test("relationship edit form dispatches the stored id, revision and edited logic", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  let updated: {
+    relationshipId: string;
+    recordRevision: number;
+    input: { predecessorId: string; successorId: string; type: string; lagValue: string; lagUnit: string };
+  } | null = null;
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    createWorkspaceState({ tenant_id: "t", project_id: "p", revision: 1 }, "en"),
+    {
+      onRelationshipUpdate: (relationshipId, recordRevision, input) => {
+        updated = { relationshipId, recordRevision, input };
+      },
+    },
+  );
+  const values: Record<string, { value: string }> = {
+    '[name="predecessor_id"]': { value: "A-1" },
+    '[name="successor_id"]': { value: "A-2" },
+    '[name="relationship_type"]': { value: "FF" },
+    '[name="lag_value"]': { value: " 2.5 " },
+    '[name="lag_unit"]': { value: "working-hour" },
+  };
+  const form = {
+    dataset: { relationshipEditForm: "R-1", relationshipRevision: "3" },
+    matches: (selector: string) => selector === "[data-relationship-edit-form]",
+    querySelector: (selector: string) => values[selector] ?? null,
+  };
+  let prevented = false;
+  listeners.get("submit")?.({ target: form, preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.deepEqual(updated, {
+    relationshipId: "R-1",
+    recordRevision: 3,
+    input: {
+      predecessorId: "A-1",
+      successorId: "A-2",
+      type: "FF",
+      lagValue: "2.5",
+      lagUnit: "working-hour",
+    },
   });
 });
 

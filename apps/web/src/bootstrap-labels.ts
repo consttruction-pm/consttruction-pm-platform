@@ -1,6 +1,7 @@
 import type { ClientError } from "./client.js";
 import type { WorkspaceLocale } from "./workspace-model.js";
 import { translateWorkspaceText } from "./workspace-localization.js";
+import { translateUiString } from "./workspace-ui-translations.js";
 
 export type BootstrapLabels = {
   workspaceTitle: string;
@@ -41,6 +42,7 @@ export type BootstrapLabels = {
   unableToInitialize: string;
   retry: string;
   refresh: string;
+  languageLabel: string;
   switchLanguage: string;
   projectListAria: string;
   validationNameRequired: string;
@@ -99,6 +101,7 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     unableToInitialize: "Unable to initialize the web workspace.",
     retry: "Retry",
     refresh: "Refresh",
+    languageLabel: "Language",
     switchLanguage: "Switch language to {language}",
     projectListAria: "Projects available to your account",
     validationNameRequired: "Enter a project name.",
@@ -155,6 +158,7 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
     unableToInitialize: "راه‌اندازی محیط کار وب امکان‌پذیر نیست.",
     retry: "تلاش مجدد",
     refresh: "بازخوانی",
+    languageLabel: "زبان",
     switchLanguage: "تغییر زبان به {language}",
     projectListAria: "پروژه‌های در دسترس حساب شما",
     validationNameRequired: "نام پروژه را وارد کنید.",
@@ -176,7 +180,12 @@ const labels: Partial<Record<WorkspaceLocale, BootstrapLabels>> = {
 
 export function getBootstrapLabels(locale: WorkspaceLocale): BootstrapLabels {
   const baseline = labels[locale] ?? labels.en!;
-  return Object.fromEntries(Object.entries(baseline).map(([key, value]) => [key, translateWorkspaceText(locale, `bootstrap.${key}`, value)])) as BootstrapLabels;
+  return Object.fromEntries(
+    Object.entries(baseline).map(([key, value]) => {
+      const packValue = translateWorkspaceText(locale, `bootstrap.${key}`, value);
+      return [key, translateUiString(locale, packValue) ?? packValue];
+    }),
+  ) as BootstrapLabels;
 }
 
 export type BootstrapErrorCopy = {

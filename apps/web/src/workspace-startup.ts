@@ -1,4 +1,4 @@
-export type WorkspaceStartupLocale = "en" | "fa";
+export type WorkspaceStartupLocale = "en" | "fa" | "de" | "zh";
 export type WorkspaceStartupMode = "loading" | "slow" | "failed";
 
 export type WorkspaceStartupCopy = {
@@ -9,11 +9,16 @@ export type WorkspaceStartupCopy = {
   code: string;
 };
 
+function baseLocale(locale: string): WorkspaceStartupLocale {
+  const base = locale.split("-")[0].toLowerCase();
+  return base === "fa" || base === "de" || base === "zh" ? base : "en";
+}
+
 export function getWorkspaceStartupCopy(
   locale: string,
   mode: WorkspaceStartupMode,
 ): WorkspaceStartupCopy {
-  const language: WorkspaceStartupLocale = locale.split("-")[0] === "fa" ? "fa" : "en";
+  const language = baseLocale(locale);
   const copy = {
     en: {
       loading: {
@@ -61,6 +66,52 @@ export function getWorkspaceStartupCopy(
         code: "WORKSPACE_ENTRY_LOAD_FAILED",
       },
     },
+    de: {
+      loading: {
+        title: "Ihr Projektarbeitsbereich wird geöffnet",
+        message: "Aktivitätstabelle, Terminplan-Zeitleiste und Projektsteuerung werden geladen.",
+        progressLabel: "Arbeitsbereich wird geladen",
+        action: "Arbeitsbereich neu laden",
+        code: "",
+      },
+      slow: {
+        title: "Der Arbeitsbereich benötigt länger als erwartet",
+        message: "Die Anwendung wurde noch nicht vollständig gestartet. Sie können diese Seite neu laden; Ihre gespeicherten Projektdaten werden dadurch nicht verändert.",
+        progressLabel: "Der Start des Arbeitsbereichs ist verzögert",
+        action: "Arbeitsbereich neu laden",
+        code: "WORKSPACE_STARTUP_SLOW",
+      },
+      failed: {
+        title: "Der Arbeitsbereich konnte nicht geladen werden",
+        message: "Die Arbeitsbereichsanwendung konnte nicht gestartet werden. Laden Sie die Seite neu. Wenn das Problem weiterhin besteht, nennen Sie dem Support den Diagnosecode.",
+        progressLabel: "Der Arbeitsbereich konnte nicht gestartet werden",
+        action: "Arbeitsbereich neu laden",
+        code: "WORKSPACE_ENTRY_LOAD_FAILED",
+      },
+    },
+    zh: {
+      loading: {
+        title: "正在打开您的项目工作区",
+        message: "正在加载活动表格、进度计划时间轴和项目控制工具。",
+        progressLabel: "正在加载工作区",
+        action: "重新加载工作区",
+        code: "",
+      },
+      slow: {
+        title: "工作区加载时间超出预期",
+        message: "应用程序尚未完成启动。您可以重新加载此页面；重新加载不会更改已保存的项目数据。",
+        progressLabel: "工作区启动延迟",
+        action: "重新加载工作区",
+        code: "WORKSPACE_STARTUP_SLOW",
+      },
+      failed: {
+        title: "工作区无法加载",
+        message: "工作区应用程序启动失败。请重新加载页面后再试。如果问题持续，请将诊断代码提供给支持人员。",
+        progressLabel: "工作区启动失败",
+        action: "重新加载工作区",
+        code: "WORKSPACE_ENTRY_LOAD_FAILED",
+      },
+    },
   } as const;
   return copy[language][mode];
 }
@@ -69,7 +120,7 @@ export function renderWorkspaceStartupMarkup(
   locale: string,
   mode: WorkspaceStartupMode,
 ): string {
-  const language: WorkspaceStartupLocale = locale.split("-")[0] === "fa" ? "fa" : "en";
+  const language = baseLocale(locale);
   const copy = getWorkspaceStartupCopy(language, mode);
   const direction = language === "fa" ? "rtl" : "ltr";
   const role = mode === "failed" ? "alert" : "status";

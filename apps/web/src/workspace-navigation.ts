@@ -1,5 +1,5 @@
 import type { WorkspaceLocale, WorkspaceMenuKey, WorkspaceState } from "./workspace-model.js";
-import { translateWorkspaceText } from "./workspace-localization.js";
+import { translateWorkspaceText, translateWorkspaceUiText } from "./workspace-localization.js";
 
 export type WorkspaceSurfaceStatus = "implemented" | "partial" | "preview";
 
@@ -30,20 +30,29 @@ export function getWorkspaceNavigation(activeMenu: WorkspaceMenuKey): WorkspaceN
 }
 
 export function getWorkspaceNavigationLabel(item: WorkspaceNavigationItem, locale: WorkspaceLocale): string {
-  const baseLocale = locale.split("-")[0] as "en" | "fa";
-  return translateWorkspaceText(locale, `navigation.${item.key}`, item.label[baseLocale] ?? item.label.en);
+  return translateWorkspaceText(
+    locale,
+    `navigation.${item.key}`,
+    translateWorkspaceUiText(locale, item.label.en, item.label.fa),
+  );
 }
 
 export function getWorkspaceNavigationStatusLabel(item: WorkspaceNavigationItem, locale: WorkspaceLocale): string {
-  const baseLocale = locale.split("-")[0] as "en" | "fa";
-  return translateWorkspaceText(locale, `navigation.${item.key}.status`, item.statusLabel[baseLocale] ?? item.statusLabel.en);
+  return translateWorkspaceText(
+    locale,
+    `navigation.${item.key}.status`,
+    translateWorkspaceUiText(locale, item.statusLabel.en, item.statusLabel.fa),
+  );
 }
 
 export function getWorkspaceNavigationSubmenuLabel(item: WorkspaceNavigationItem, index: number, locale: WorkspaceLocale): string {
   const submenu = item.submenus[index];
   if (!submenu) throw new Error("WORKSPACE_SUBMENU_NOT_FOUND");
-  const baseLocale = locale.split("-")[0] as "en" | "fa";
-  return translateWorkspaceText(locale, `navigation.${item.key}.submenu.${index}`, submenu[baseLocale] ?? submenu.en);
+  return translateWorkspaceText(
+    locale,
+    `navigation.${item.key}.submenu.${index}`,
+    translateWorkspaceUiText(locale, submenu.en, submenu.fa),
+  );
 }
 
 export function getWorkspaceNavigationStatus(state: WorkspaceState): WorkspaceSurfaceStatus {

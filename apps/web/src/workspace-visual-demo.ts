@@ -8,7 +8,7 @@
  * project routes here by default; use the explicit live view to open API-backed data.
  */
 import { workspaceIcon } from "./workspace-icons.js";
-import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName } from "./workspace-localization.js";
+import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceUiText } from "./workspace-localization.js";
 import { LANDING_LOCALE_STORAGE_KEY, rememberWorkspaceLocale, writeStoredValue } from "./workspace-preferences.js";
 
 export type DemoWindowId =
@@ -167,11 +167,11 @@ type DemoState = {
 };
 
 function label(text: Label, locale: string): string {
-  return locale.startsWith("fa") ? text.fa : text.en;
+  return translateWorkspaceUiText(locale, text.en, text.fa);
 }
 
 function t(locale: string, en: string, fa: string): string {
-  return locale.startsWith("fa") ? fa : en;
+  return translateWorkspaceUiText(locale, en, fa);
 }
 
 function esc(value: unknown): string {
@@ -1094,7 +1094,7 @@ function renderDialogs(state: DemoState): string {
 function renderLanguageSwitch(state: DemoState): string {
   // Only locales with complete translations in this visual shell are offered.
   // Add German, Chinese, or another locale here when its full shell pack ships.
-  const supported = getAvailableWorkspaceLocales().filter((locale) => locale === "en" || locale === "fa");
+  const supported = getAvailableWorkspaceLocales();
   return `<label class="cp-vd-language"><span>${esc(t(state.locale, "Language", "زبان"))}</span>
     <select data-vd-locale aria-label="${esc(t(state.locale, "Select language", "انتخاب زبان"))}" title="${esc(t(state.locale, "Select workspace language", "انتخاب زبان محیط کار"))}">
       ${supported.map((locale) => `<option value="${esc(locale)}"${state.locale === locale ? " selected" : ""}>${esc(getWorkspaceLocaleDisplayName(locale))}</option>`).join("")}

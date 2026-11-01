@@ -16,7 +16,7 @@
 
 import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { createServer } from "node:net";
-import { createWriteStream, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -484,7 +484,40 @@ async function runRelationshipJourney(page, project) {
     });
     const list = await request(projectBase + "/p6/relationships", { headers });
     const read = await request("/api/v2/workspace/control-room/read", { headers });
+    const currentRevision = ss.body?.relationship?.record_revision ?? 1;
+    const update = await request(projectBase + "/p6/relationships/E2E-REL-SS", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        expected_revision: currentRevision,
+        predecessor_id: "NEW-200",
+        successor_id: "NEW-300",
+        relationship_type: "FF",
+        lag_value: "2",
+        lag_unit: "working-hour",
+      }),
+    });
+    const updatedRevision = update.body?.relationship?.record_revision ?? currentRevision + 1;
+    const revert = await request(projectBase + "/p6/relationships/E2E-REL-SS", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        expected_revision: updatedRevision,
+        predecessor_id: "NEW-200",
+        successor_id: "NEW-300",
+        relationship_type: "SS",
+        lag_value: "1",
+        lag_unit: "working-day",
+      }),
+    });
+    const listAfterUpdate = await request(projectBase + "/p6/relationships", { headers });
     return {
+      update,
+      revert,
+      ss_revision: currentRevision,
+      updated_ss: (listAfterUpdate.body?.relationships || []).find(
+        (item) => (item?.relationship?.relationship_id ?? item?.relationship_id) === "E2E-REL-SS",
+      ),
       creation: activities.map((item) => ({
         status: item.status,
         code: item.body?.code ?? null,
@@ -679,18 +712,22 @@ async function waitForProcessGroupExit(pid, timeoutMs = 5000) {
 
 async function removeChromeProfile(path) {
   let lastError = null;
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     try {
       rmSync(path, { recursive: true, force: true });
-      return;
+      return true;
     } catch (error) {
       lastError = error;
       if (!error || typeof error !== "object" || !("code" in error) ||
           !["EBUSY", "ENOTEMPTY", "EPERM"].includes(String(error.code))) throw error;
-      await sleep(100);
+      await sleep(150);
     }
   }
-  throw lastError ?? new Error("CHROME_PROFILE_CLEANUP_FAILED");
+  // A Windows file handle can outlive the killed browser for a few seconds.
+  // Removing an isolated OS temp profile is housekeeping, never a product
+  // assertion, so report it and let the OS temp cleaner finish the job.
+  log(`  warn isolated Chrome profile not removed yet: ${lastError?.message ?? path}`);
+  return false;
 }
 
 async function stopProcessTree(child) {
@@ -910,6 +947,35 @@ class Page {
     assert(clicked, `click target not found: ${selector}`);
   }
 
+  /**
+   * Native CDP pointer click. Fullscreen and Screen Orientation requests require
+   * transient user activation, which programmatic element.click() does not grant.
+   */
+  async realClick(selector) {
+    const point = await this.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return null;
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })()`);
+    assert(point, `click target not found or not visible: ${selector}`);
+    await this.cdp.send("Input.dispatchMouseEvent", {
+      type: "mousePressed",
+      x: point.x,
+      y: point.y,
+      button: "left",
+      clickCount: 1,
+    });
+    await this.cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseReleased",
+      x: point.x,
+      y: point.y,
+      button: "left",
+      clickCount: 1,
+    });
+  }
+
   async setInput(selector, value) {
     const changed = await this.evaluate(`(() => {
       const element = document.querySelector(${JSON.stringify(selector)});
@@ -1021,7 +1087,27 @@ async function launchChrome() {
     }
     await sleep(50);
   }
-  const [debugPort] = (await (await import("node:fs/promises")).readFile(activePortFile, "utf8")).split("\n");
+  // Windows Chrome keeps a handle on DevToolsActivePort while writing the
+  // debug port; a plain read can fail with EBUSY/EACCES even after the file
+  // exists. Retry until the first line contains a usable port.
+  let debugPort = "";
+  const portDeadline = Date.now() + 20000;
+  while (!debugPort) {
+    try {
+      const firstLine = readFileSync(activePortFile, "utf8").split("\n")[0].trim();
+      if (/^\d+$/.test(firstLine)) debugPort = firstLine;
+    } catch {
+      // Chrome is still writing the file; retry below.
+    }
+    if (debugPort) break;
+    if (exited) {
+      throw new Error(`CHROME_EXITED: ${JSON.stringify(exited)} ${stderr.slice(-800)}`);
+    }
+    if (Date.now() > portDeadline) {
+      throw new Error(`CHROME_DEBUG_PORT_UNREADABLE ${stderr.slice(-800)}`);
+    }
+    await sleep(50);
+  }
   let target = null;
   for (let attempt = 0; attempt < 50 && !target; attempt += 1) {
     try {
@@ -1777,7 +1863,10 @@ async function main() {
         `location.pathname === "/app" && new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)}`,
         "login returns to the requested project deep link",
       );
-      await deepLinkPage.waitForSelector("[data-visual-demo]", "canonical visual workspace preview");
+      // The visual demo is bootstrapped after the session/project fetches settle.
+      // On a busy machine that can take longer than the default wait, so allow more
+      // time for the real render instead of weakening the assertion.
+      await deepLinkPage.waitForSelector("[data-visual-demo]", "canonical visual workspace preview", 60000);
       const deepLinkWorkspace = await deepLinkPage.evaluate(`(async () => {
         const sessionResponse = await fetch("/api/session");
         const projectsResponse = await fetch("/api/projects");
@@ -1911,7 +2000,7 @@ async function main() {
       "the selection step must still be rendered before the language switch",
     );
     const switchWorkspaceLanguage = async (target) => {
-      await page.click(`[data-bootstrap-language="${target}"]`);
+      await page.setSelect("[data-bootstrap-language]", target);
       await page.waitFor(
         `document.documentElement.lang === "${target}" &&
          document.documentElement.dir === "${target === "fa" ? "rtl" : "ltr"}"`,
@@ -2247,8 +2336,8 @@ async function main() {
     const predecessorsHeader = await page.text("#cp-activity-grid thead th.cp-logic-column");
     assert(predecessorsHeader === "Predecessors", "the persisted logic column must be labelled: " + predecessorsHeader);
     assert(
-      headerLabels[0] === "Id" && headerLabels[1] === "Name",
-      "authoritative Activity Id/Name columns must lead the grid",
+      headerLabels[0] === "Activity ID" && headerLabels[1] === "Activity Name",
+      "authoritative Activity ID/Name columns must lead the grid",
     );
     const criticalBars = await page.count(".cp-gantt-bar.is-critical");
     assert(criticalBars >= 1, "Shared Core critical path must reach the Gantt");
@@ -3716,7 +3805,32 @@ async function main() {
       unregistered_status: capacity.missing_status,
     });
 
-    await page.click("[data-language-toggle]");
+    const languageSelectorPresent = await page.evaluate(
+      `Boolean(document.querySelector(".cp-titlebar [data-workspace-language]"))`,
+    );
+    assert(languageSelectorPresent, "workspace language selector must sit in the top bar");
+    const selectionBeforeLanguage = await page.evaluate(`(() => ({
+      activity: document.querySelector('#cp-activity-grid tbody tr[aria-selected="true"]')?.dataset.activityId ?? null,
+      details: document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() ?? null,
+      menu: document.querySelector('.cp-menu button[aria-current="page"]')?.dataset.menu ?? null,
+      project: document.querySelector(".cp-titlebar-context")?.textContent.trim() ?? null,
+    }))()`);
+    const selectWorkspaceLocale = async (locale) => {
+      await page.evaluate(`(() => {
+        const select = document.querySelector("[data-workspace-language]");
+        if (!select) throw new Error("WORKSPACE_LANGUAGE_SELECTOR_MISSING");
+        select.value = ${JSON.stringify(locale)};
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+      })()`);
+    };
+    const languageDraftArmed = await page.evaluate(`(() => {
+      const field = document.querySelector("[data-wbs-create-form] input[name='code']");
+      if (!field) return false;
+      field.value = "DRAFT-LANG";
+      return field.value === "DRAFT-LANG";
+    })()`);
+    assert(languageDraftArmed, "an unsaved workspace draft must be available before the language switch");
+    await selectWorkspaceLocale("fa");
     await page.waitFor(
       `document.querySelector(".cp-workspace")?.getAttribute("dir") === "rtl"`,
       "Persian RTL workspace",
@@ -3739,11 +3853,447 @@ async function main() {
       schedule_label: faMenu,
       filter_placeholder: faFilter,
     });
-    await page.click("[data-language-toggle]");
+
+    await selectWorkspaceLocale("de");
     await page.waitFor(
-      `document.querySelector(".cp-workspace")?.getAttribute("dir") === "ltr"`,
+      `document.documentElement.lang === "de" && document.querySelector(".cp-workspace")?.getAttribute("dir") === "ltr"`,
+      "German LTR workspace",
+    );
+    const deMenu = await page.evaluate(
+      `Array.from(document.querySelectorAll(".cp-menu button[data-menu]")).find((button) => button.dataset.menu === "schedule")?.textContent.trim()`,
+    );
+    assert(deMenu === "Terminplan", "German menu label must render");
+    const deGridHeader = await page.evaluate(
+      `document.querySelector("#cp-activity-grid thead th[data-column-id='activity.id']")?.textContent.trim()`,
+    );
+    assert(deGridHeader === "Aktivitäts-ID", "German column header must render");
+    await page.screenshot("08b-german-ltr.png");
+    record("German workspace switches without leaving the workspace", {
+      schedule_label: deMenu,
+      column_header: deGridHeader,
+    });
+
+    await selectWorkspaceLocale("zh");
+    await page.waitFor(
+      `document.documentElement.lang === "zh" && document.querySelector(".cp-workspace")?.getAttribute("dir") === "ltr"`,
+      "Chinese LTR workspace",
+    );
+    const zhMenu = await page.evaluate(
+      `Array.from(document.querySelectorAll(".cp-menu button[data-menu]")).find((button) => button.dataset.menu === "schedule")?.textContent.trim()`,
+    );
+    assert(zhMenu === "进度计划", "Chinese menu label must render");
+    await page.screenshot("08c-chinese-ltr.png");
+    record("Chinese workspace switches without leaving the workspace", { schedule_label: zhMenu });
+
+    await selectWorkspaceLocale("en");
+    await page.waitFor(
+      `document.documentElement.lang === "en" && document.querySelector(".cp-workspace")?.getAttribute("dir") === "ltr"`,
       "English LTR workspace",
     );
+
+    const selectionAfterLanguage = await page.evaluate(`(() => ({
+      activity: document.querySelector('#cp-activity-grid tbody tr[aria-selected="true"]')?.dataset.activityId ?? null,
+      details: document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() ?? null,
+      menu: document.querySelector('.cp-menu button[aria-current="page"]')?.dataset.menu ?? null,
+      project: document.querySelector(".cp-titlebar-context")?.textContent.trim() ?? null,
+    }))()`);
+    assert(
+      selectionAfterLanguage.activity === selectionBeforeLanguage.activity &&
+        selectionAfterLanguage.details === selectionBeforeLanguage.details &&
+        selectionAfterLanguage.menu === selectionBeforeLanguage.menu &&
+        selectionAfterLanguage.project === selectionBeforeLanguage.project,
+      "language switching must preserve the project, active menu and activity selection: " +
+        JSON.stringify({ before: selectionBeforeLanguage, after: selectionAfterLanguage }),
+    );
+    const languageDraftAfter = await page.evaluate(
+      `document.querySelector("[data-wbs-create-form] input[name='code']")?.value ?? null`,
+    );
+    assert(
+      languageDraftAfter === "DRAFT-LANG",
+      "language switching must keep unsaved editor values: " + JSON.stringify({ languageDraftAfter }),
+    );
+    await page.evaluate(
+      `document.querySelectorAll("[data-wbs-create-form] input").forEach((input) => { input.value = ""; })`,
+    );
+    record("language switching preserves project, menu, activity selection and unsaved drafts", {
+      ...selectionAfterLanguage,
+      unsaved_draft: languageDraftAfter,
+    });
+
+    // The full-screen key is workspace-only. While active its label and icon
+    // return to the main view, and the work area keeps its reference geometry.
+    await page.evaluate("window.scrollTo(0, 0)");
+    await page.evaluate(`document.querySelector("[data-fullscreen-toggle]")?.scrollIntoView({ block: "nearest", inline: "nearest" })`);
+    const mainBeforeFullscreen = await page.evaluate(
+      `JSON.stringify(document.querySelector(".cp-main")?.getBoundingClientRect().toJSON() ?? null)`,
+    );
+    await page.realClick("[data-fullscreen-toggle]");
+    await page.waitFor(`Boolean(document.fullscreenElement)`, "workspace enters full screen", 6000);
+    const fullscreenActive = await page.evaluate(`(() => {
+      const toggle = document.querySelector("[data-fullscreen-toggle]");
+      const launcher = document.querySelector("#cubi-assistant-launcher")?.getBoundingClientRect();
+      return {
+        label: toggle?.querySelector(".cp-toolbar-label")?.textContent.trim() ?? null,
+        title: toggle?.getAttribute("title") ?? null,
+        pressed: toggle?.getAttribute("aria-pressed") ?? null,
+        main: JSON.stringify(document.querySelector(".cp-main")?.getBoundingClientRect().toJSON() ?? null),
+        assistantVisible: Boolean(launcher && launcher.width > 0 && launcher.height > 0 && launcher.top >= 0 && launcher.bottom <= innerHeight),
+        element: document.fullscreenElement?.tagName ?? null,
+      };
+    })()`);
+    assert(
+      fullscreenActive.element === "HTML" &&
+        fullscreenActive.label === "Return to Main View" &&
+        /main workspace view/i.test(fullscreenActive.title ?? "") &&
+        fullscreenActive.pressed === "true" &&
+        fullscreenActive.main === mainBeforeFullscreen &&
+        fullscreenActive.assistantVisible,
+      "full screen must expose the return label, keep the work area and keep the assistant reachable: " +
+        JSON.stringify(fullscreenActive),
+    );
+    await page.screenshot("09a-fullscreen-return-action.png");
+    await page.realClick("[data-fullscreen-toggle]");
+    await page.waitFor(`!document.fullscreenElement`, "workspace leaves full screen", 6000);
+    await page.waitFor(
+      `document.querySelector("[data-fullscreen-toggle] .cp-toolbar-label")?.textContent.trim() === "Full Screen"`,
+      "full-screen label returns to its default",
+    );
+    const fullscreenExited = await page.evaluate(`(() => ({
+      label: document.querySelector("[data-fullscreen-toggle] .cp-toolbar-label")?.textContent.trim() ?? null,
+      pressed: document.querySelector("[data-fullscreen-toggle]")?.getAttribute("aria-pressed") ?? null,
+      main: JSON.stringify(document.querySelector(".cp-main")?.getBoundingClientRect().toJSON() ?? null),
+    }))()`);
+    assert(
+      fullscreenExited.label === "Full Screen" &&
+        fullscreenExited.pressed === "false" &&
+        fullscreenExited.main === mainBeforeFullscreen,
+      "leaving full screen must restore the exact previous normal view: " + JSON.stringify(fullscreenExited),
+    );
+    record("full-screen activates and returns to the identical normal view", {
+      active: fullscreenActive.label,
+      returned: fullscreenExited.label,
+      geometry_unchanged: fullscreenExited.main === mainBeforeFullscreen,
+    });
+
+    // The floating assistant is an overlay: opening it must not resize the
+    // table, Gantt or details pane, and closing it must only hide the chat.
+    const assistantLayout = await page.evaluate(`(() => {
+      const panel = document.querySelector("#cubi-assistant-popover");
+      if (panel && !panel.hidden) {
+        document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      }
+      const main = document.querySelector(".cp-main")?.getBoundingClientRect();
+      const grid = document.querySelector("#cp-activity-grid")?.getBoundingClientRect();
+      const gantt = document.querySelector(".cp-gantt-chart")?.getBoundingClientRect();
+      return { main: main?.toJSON(), grid: grid?.toJSON(), gantt: gantt?.toJSON() };
+    })()`);
+    await page.click("#cubi-assistant-launcher");
+    const assistantOpened = await page.waitFor(`(() => {
+      const panel = document.querySelector("#cubi-assistant-popover");
+      if (!panel || panel.hidden) return null;
+      const rect = panel.getBoundingClientRect();
+      const main = document.querySelector(".cp-main")?.getBoundingClientRect();
+      const grid = document.querySelector("#cp-activity-grid")?.getBoundingClientRect();
+      const gantt = document.querySelector(".cp-gantt-chart")?.getBoundingClientRect();
+      return {
+        main: main?.toJSON(), grid: grid?.toJSON(), gantt: gantt?.toJSON(),
+        insideViewport: rect.left >= -1 && rect.right <= innerWidth + 1 && rect.top >= -1 && rect.bottom <= innerHeight + 1,
+        panelIsOverlay: ["absolute", "fixed"].includes(getComputedStyle(panel).position) ||
+          Boolean(panel.closest(".cubi-assistant-launcher")),
+      };
+    })()`, "floating assistant opens as an overlay", 6000);
+    assert(
+      JSON.stringify(assistantOpened.main) === JSON.stringify(assistantLayout.main) &&
+        JSON.stringify(assistantOpened.grid) === JSON.stringify(assistantLayout.grid) &&
+        JSON.stringify(assistantOpened.gantt) === JSON.stringify(assistantLayout.gantt) &&
+        assistantOpened.insideViewport &&
+        assistantOpened.panelIsOverlay,
+      "the assistant must overlay the workspace without resizing it: " +
+        JSON.stringify({ before: assistantLayout, after: assistantOpened }),
+    );
+    await page.screenshot("09b-assistant-overlay.png");
+    await page.evaluate(
+      `document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }))`,
+    );
+    await page.waitFor(
+      `document.querySelector("#cubi-assistant-popover")?.hidden === true`,
+      "assistant overlay closes without touching the workspace",
+    );
+    const assistantClosed = await page.evaluate(`(() => ({
+      main: JSON.stringify(document.querySelector(".cp-main")?.getBoundingClientRect().toJSON() ?? null),
+      grid: JSON.stringify(document.querySelector("#cp-activity-grid")?.getBoundingClientRect().toJSON() ?? null),
+    }))()`);
+    assert(
+      assistantClosed.main === JSON.stringify(assistantLayout.main) &&
+        assistantClosed.grid === JSON.stringify(assistantLayout.grid),
+      "closing the assistant must leave the workspace geometry untouched",
+    );
+    record("assistant opens and closes as an overlay without resizing the workspace", {
+      panel_inside_viewport: assistantOpened.insideViewport,
+      geometry_unchanged: true,
+    });
+
+    // The tools drawer is a floating overlay too; the table and Gantt keep
+    // their widths while it is open and its close control restores the view.
+    await page.evaluate("window.scrollTo(0, 0)");
+    await page.click("[data-tools-open]");
+    await page.waitFor(
+      `!document.querySelector("[data-tools-drawer]")?.hidden`,
+      "tools drawer opens",
+    );
+    const drawerState = await page.evaluate(`(() => {
+      const drawer = document.querySelector("[data-tools-drawer]");
+      const rect = drawer?.getBoundingClientRect();
+      return {
+        main: JSON.stringify(document.querySelector(".cp-main")?.getBoundingClientRect().toJSON() ?? null),
+        grid: JSON.stringify(document.querySelector("#cp-activity-grid")?.getBoundingClientRect().toJSON() ?? null),
+        insideViewport: Boolean(rect && rect.left >= -1 && rect.right <= innerWidth + 1 && rect.top >= -1 && rect.bottom <= innerHeight + 1),
+        position: drawer ? getComputedStyle(drawer).position : null,
+      };
+    })()`);
+    await page.screenshot("09c-tools-drawer.png");
+    assert(
+      drawerState.main === JSON.stringify(assistantLayout.main) &&
+        drawerState.grid === JSON.stringify(assistantLayout.grid) &&
+        drawerState.insideViewport &&
+        ["absolute", "fixed"].includes(drawerState.position ?? ""),
+      "the tools drawer must float over the unchanged work area: " + JSON.stringify(drawerState),
+    );
+    await page.click("[data-tools-close]");
+    await page.waitFor(
+      `document.querySelector("[data-tools-drawer]")?.hidden === true`,
+      "tools drawer closes",
+    );
+    record("tools drawer floats over the table and Gantt without reflow", drawerState);
+
+    // Activity details are bound to the real selected row, not to placeholder
+    // text. Switching rows replaces every general field, and the status tab
+    // reports the same authoritative cells as the grid.
+    await page.evaluate("window.scrollTo(0, 0)");
+    await page.click('.cp-menu button[data-menu="schedule"]');
+    await page.waitFor(
+      `document.querySelector('.cp-menu button[data-menu="schedule"]')?.getAttribute("aria-current") === "page"`,
+      "schedule workspace for real activity details",
+    );
+    const activityIds = await page.evaluate(
+      `Array.from(document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]")).map((row) => row.dataset.activityId)`,
+    );
+    assert(activityIds.length >= 2, "activity details need at least two persisted rows");
+    const readDetails = async () => page.evaluate(`(() => {
+      const row = document.querySelector('#cp-activity-grid tbody tr[aria-selected="true"]');
+      const cells = row ? Object.fromEntries(Array.from(row.querySelectorAll("td[data-column-id]")).map((td) => [td.dataset.columnId, td.textContent.trim()])) : {};
+      const panel = document.querySelector("#cp-details [data-detail-panel]:not([hidden])");
+      const fields = Object.fromEntries(Array.from(panel?.querySelectorAll(".cp-detail-field") ?? []).map((field) => [
+        field.querySelector(".cp-detail-label")?.textContent.trim(),
+        field.querySelector(".cp-detail-value")?.textContent.trim(),
+      ]));
+      return { id: row?.dataset.activityId ?? null, cells, fields, detailsId: document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() ?? null };
+    })()`);
+    await page.click(`#cp-activity-grid tbody tr[data-activity-id="${activityIds[0]}"]`);
+    await page.waitFor(
+      `document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() === ${JSON.stringify(activityIds[0])}`,
+      "details follow the first selected activity",
+    );
+    await page.click('[data-detail-tab="general"]');
+    const firstDetails = await readDetails();
+    const wbsName = (firstDetails.cells["activity.wbs"] ?? "").replace(/^\S+\s+/, "");
+    assert(
+      firstDetails.id === activityIds[0] &&
+        firstDetails.detailsId === activityIds[0] &&
+        firstDetails.fields["Activity ID"] === firstDetails.cells["activity.id"] &&
+        firstDetails.fields["Activity name"] === firstDetails.cells["activity.name"] &&
+        firstDetails.fields["Status"] === firstDetails.cells["activity.status"] &&
+        firstDetails.fields["Project"] === PROJECT_ID &&
+        (wbsName.length === 0 || (firstDetails.fields.WBS ?? "").includes(wbsName)),
+      "general details must show the selected row's persisted facts: " + JSON.stringify(firstDetails),
+    );
+    await page.click(`#cp-activity-grid tbody tr[data-activity-id="${activityIds[1]}"]`);
+    await page.waitFor(
+      `document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() === ${JSON.stringify(activityIds[1])}`,
+      "details follow the second selected activity",
+    );
+    const secondDetails = await readDetails();
+    assert(
+      secondDetails.id === activityIds[1] &&
+        secondDetails.fields["Activity ID"] === secondDetails.cells["activity.id"] &&
+        secondDetails.fields["Activity name"] === secondDetails.cells["activity.name"] &&
+        secondDetails.fields["Activity name"] !== firstDetails.fields["Activity name"],
+      "activity details must not leak the previous activity: " + JSON.stringify({ first: firstDetails, second: secondDetails }),
+    );
+    await page.click('[data-detail-tab="status"]');
+    const statusDetails = await readDetails();
+    assert(
+      statusDetails.fields["Schedule % complete"] === secondDetails.cells["activity.duration_percent_complete"] &&
+        statusDetails.fields.Start === secondDetails.cells["activity.early_start"] &&
+        statusDetails.fields.Finish === secondDetails.cells["activity.early_finish"],
+      "status details must reflect the same authoritative cells as the grid: " + JSON.stringify(statusDetails),
+    );
+    await page.screenshot("09d-activity-details.png");
+    record("activity details bind real selected facts without leaking between rows", {
+      first: firstDetails.id,
+      second: secondDetails.id,
+      status_fields: {
+        schedule_percent: statusDetails.fields["Schedule % complete"],
+        start: statusDetails.fields.Start,
+        finish: statusDetails.fields.Finish,
+      },
+    });
+    await page.click('[data-detail-tab="general"]');
+
+    // Home is a workspace navigation action, not a logout. It must ask before
+    // discarding an entered value and must keep the authenticated session.
+    await page.evaluate("window.scrollTo(0, 0)");
+    const homeGuardArmed = await page.evaluate(`(() => {
+      const input = document.querySelector("[data-wbs-create-form] input");
+      if (!input) return false;
+      input.value = "Unsaved workspace change";
+      window.__homeConfirms = 0;
+      window.confirm = () => { window.__homeConfirms += 1; return false; };
+      return true;
+    })()`);
+    assert(homeGuardArmed, "the workspace WBS form must be available for the unsaved-change guard");
+    await page.realClick("[data-workspace-home]");
+    await sleep(500);
+    const homeGuard = await page.evaluate(`(() => ({
+      path: location.pathname,
+      confirms: window.__homeConfirms ?? 0,
+    }))()`);
+    assert(
+      homeGuard.path === "/app" && homeGuard.confirms === 1,
+      "Home must ask before leaving unsaved workspace input: " + JSON.stringify(homeGuard),
+    );
+    await page.evaluate(`(() => {
+      document.querySelectorAll("[data-wbs-create-form] input, [data-activity-create-form] input, [data-wbs-edit-form] input").forEach((input) => { input.value = ""; });
+      window.confirm = () => true;
+      return true;
+    })()`);
+    await page.evaluate("window.scrollTo(0, 0)");
+    await page.realClick("[data-workspace-home]");
+    await page.waitFor(`location.pathname === "/"`, "Home returns to the public Home page", 10000);
+    // location.assign starts a real navigation; wait for the public page bundle
+    // instead of reading the previous document while it is still unloading.
+    await page.waitForSelector("#cubi-assistant-launcher", "Home page assistant launcher", 20000);
+    await page.waitFor(
+      `Boolean(document.querySelector('a[href*="login"], a[href*="/app"]'))`,
+      "Home page workspace entry link",
+      20000,
+    );
+    const homePage = await page.evaluate(`(() => ({
+      path: location.pathname,
+      assistant: Boolean(document.querySelector("#cubi-assistant-launcher")),
+      signIn: Boolean(document.querySelector('a[href*="login"], a[href*="/app"]')),
+    }))()`);
+    assert(
+      homePage.path === "/" && homePage.assistant && homePage.signIn,
+      "Home must land on the public Home page with the session still usable: " + JSON.stringify(homePage),
+    );
+    record("Home asks about unsaved input and returns to the public Home page", homeGuard);
+    await page.navigate(
+      `${baseUrl}/app?project=${PROJECT_ID}&view=live`,
+      ".cp-workspace",
+      "return to the live workspace after Home",
+    );
+
+    // Mobile portrait shows rotate guidance instead of CSS-rotating the
+    // reference layout; landscape keeps the table, Gantt and details usable.
+    await page.cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 390,
+      height: 844,
+      deviceScaleFactor: 2,
+      mobile: true,
+    });
+    await page.reload(".cp-workspace", "mobile workspace reload");
+    await page.waitFor(
+      `(() => { const panel = document.querySelector("[data-mobile-orientation]"); return Boolean(panel) && !panel.hidden; })()`,
+      "mobile portrait rotate guidance",
+    );
+    const mobilePortrait = await page.evaluate(`(() => {
+      const panel = document.querySelector("[data-mobile-orientation]");
+      return {
+        coarse: matchMedia("(pointer: coarse)").matches,
+        portrait: matchMedia("(orientation: portrait)").matches,
+        title: panel?.querySelector("[data-mobile-orientation-title]")?.textContent.trim() ?? null,
+        retry: Boolean(panel?.querySelector("[data-mobile-orientation-retry]")),
+        continue: Boolean(panel?.querySelector("[data-mobile-orientation-continue]")),
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth,
+        table: Boolean(document.querySelector("#cp-activity-grid")),
+        gantt: Boolean(document.querySelector("#cp-gantt")),
+        details: Boolean(document.querySelector("#cp-details")),
+      };
+    })()`);
+    assert(
+      mobilePortrait.coarse &&
+        mobilePortrait.portrait &&
+        mobilePortrait.title &&
+        mobilePortrait.retry &&
+        mobilePortrait.continue &&
+        mobilePortrait.scrollWidth <= mobilePortrait.innerWidth + 1 &&
+        mobilePortrait.table &&
+        mobilePortrait.gantt &&
+        mobilePortrait.details,
+      "mobile portrait must show rotate guidance without breaking the workspace: " + JSON.stringify(mobilePortrait),
+    );
+    await page.screenshot("10-mobile-portrait-guidance.png");
+    await page.click("[data-mobile-orientation-continue]");
+    await page.waitFor(
+      `document.querySelector("[data-mobile-orientation]")?.hidden === true`,
+      "portrait fallback hides the guidance",
+    );
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 844,
+      height: 390,
+      deviceScaleFactor: 2,
+      mobile: true,
+    });
+    await page.waitFor(
+      `(() => {
+        const main = document.querySelector(".cp-main")?.getBoundingClientRect();
+        return document.documentElement.scrollWidth <= innerWidth + 1 && Boolean(main) && main.width > 700 && main.left >= -1 && main.right <= innerWidth + 1;
+      })()`,
+      "mobile landscape keeps the workspace inside the viewport",
+      10000,
+    );
+    const mobileLandscape = await page.evaluate(`(() => {
+      const main = document.querySelector(".cp-main")?.getBoundingClientRect();
+      const grid = document.querySelector("#cp-activity-grid")?.getBoundingClientRect();
+      return {
+        innerWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        overlayHidden: document.querySelector("[data-mobile-orientation]")?.hidden === true,
+        main: main?.toJSON(),
+        gridWidth: grid?.width ?? 0,
+        gantt: Boolean(document.querySelector("#cp-gantt")),
+        details: Boolean(document.querySelector("#cp-details")),
+        assistant: Boolean(document.querySelector("#cubi-assistant-launcher")),
+      };
+    })()`);
+    assert(
+      mobileLandscape.scrollWidth <= mobileLandscape.innerWidth + 1 &&
+        mobileLandscape.overlayHidden &&
+        mobileLandscape.main &&
+        mobileLandscape.main.width > 700 &&
+        mobileLandscape.gridWidth > 300 &&
+        mobileLandscape.gantt &&
+        mobileLandscape.details &&
+        mobileLandscape.assistant,
+      "mobile landscape must keep the full workspace usable: " + JSON.stringify(mobileLandscape),
+    );
+    await page.screenshot("10b-mobile-landscape.png");
+    record("mobile portrait guidance and landscape workspace geometry verified", {
+      portrait_title: mobilePortrait.title,
+      landscape_main_width: Math.round(mobileLandscape.main?.width ?? 0),
+      landscape_grid_width: Math.round(mobileLandscape.gridWidth),
+    });
+    await page.cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await page.reload(".cp-workspace", "desktop workspace after mobile probes");
 
     await page.cdp.send("Emulation.setDeviceMetricsOverride", {
       width: 1024,
@@ -4594,6 +5144,25 @@ async function main() {
       relationshipJourney.orphan.status === 400,
       `a relationship endpoint outside the project activities must be rejected: ${JSON.stringify(relationshipJourney.orphan)}`,
     );
+    const updatedRelationship = relationshipJourney.update.body?.relationship ?? relationshipJourney.update.body ?? {};
+    const restoredRelationship = relationshipJourney.updated_ss?.relationship ?? relationshipJourney.updated_ss ?? {};
+    assert(
+      relationshipJourney.update.status === 200 &&
+        updatedRelationship.relationship_type === "FF" &&
+        String(updatedRelationship.lag_value) === "2" &&
+        updatedRelationship.lag_unit === "working-hour" &&
+        Number(updatedRelationship.record_revision) > relationshipJourney.ss_revision,
+      "editing a persisted relationship must change its type, lag and revision: " +
+        JSON.stringify(relationshipJourney.update),
+    );
+    assert(
+      relationshipJourney.revert.status === 200 &&
+        restoredRelationship.relationship_type === "SS" &&
+        String(restoredRelationship.lag_value) === "1" &&
+        restoredRelationship.lag_unit === "working-day",
+      "the relationship edit must be revertible through the same API without residue: " +
+        JSON.stringify({ revert: relationshipJourney.revert, restored: restoredRelationship }),
+    );
     assert(
       relationshipJourney.list_status === 200 &&
         relationshipJourney.list_ids.length === 2 &&
@@ -4659,12 +5228,27 @@ async function main() {
       const predecessorCell = (id) => row(id)?.querySelector(".cp-logic-column")?.textContent?.trim() ?? "";
       return {
         rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+        // Read only the relationship summary, never the hidden edit form whose
+        // <select> options contain every activity name and would corrupt lookups.
         logicItems: Array.from(document.querySelectorAll("#cp-logic [data-relationship-id]")).map(
-          (item) => item.textContent.trim(),
+          (item) => [
+            item.querySelector(".cp-logic-pair")?.textContent.trim() ?? "",
+            item.querySelector(".cp-logic-type")?.textContent.trim() ?? "",
+            item.querySelector(".cp-logic-lag")?.textContent.trim() ?? "",
+          ].join(" "),
         ),
         gridNew200: predecessorCell("NEW-200"),
         gridNew300: predecessorCell("NEW-300"),
         gridNew400: predecessorCell("NEW-400"),
+        editForms: Array.from(document.querySelectorAll("#cp-logic [data-relationship-edit-form]")).map((form) => ({
+          id: form.dataset.relationshipEditForm ?? null,
+          revision: Number(form.dataset.relationshipRevision ?? 0),
+          predecessor: form.querySelector('[name="predecessor_id"]')?.value ?? null,
+          successor: form.querySelector('[name="successor_id"]')?.value ?? null,
+          type: form.querySelector('[name="relationship_type"]')?.value ?? null,
+          lag: form.querySelector('[name="lag_value"]')?.value ?? null,
+          unit: form.querySelector('[name="lag_unit"]')?.value ?? null,
+        })),
       };
     })()`);
     assert(
@@ -4672,6 +5256,17 @@ async function main() {
         logicView.logicItems.length === 2 &&
         logicView.logicItems.some((text) => text.includes("NEW-100") && text.includes("NEW-200")) &&
         logicView.logicItems.some((text) => text.includes("NEW-200") && text.includes("NEW-300") && text.includes("SS")) &&
+        logicView.editForms.length === 2 &&
+        logicView.editForms.some(
+          (form) =>
+            form.id === "E2E-REL-SS" &&
+            form.predecessor === "NEW-200" &&
+            form.successor === "NEW-300" &&
+            form.type === "SS" &&
+            form.lag === "1" &&
+            form.unit === "working-day" &&
+            form.revision >= 1,
+        ) &&
         logicView.gridNew200.includes("NEW-100 FS") &&
         logicView.gridNew300.includes("NEW-200 SS+1d") &&
         logicView.gridNew400 === "—",
@@ -4702,7 +5297,8 @@ async function main() {
     );
     const createdFromUi = await page.evaluate(`(() => {
       const items = Array.from(document.querySelectorAll("#cp-logic [data-relationship-id]"));
-      const target = items.find((item) => item.textContent.includes("NEW-300") && item.textContent.includes("NEW-400"));
+      const pair = (item) => item.querySelector(".cp-logic-pair")?.textContent ?? "";
+      const target = items.find((item) => pair(item).includes("NEW-300") && pair(item).includes("NEW-400"));
       const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="NEW-400"]');
       return {
         count: items.length,
@@ -4718,7 +5314,8 @@ async function main() {
     );
     const deleteTarget = await page.evaluate(`(() => {
       const items = Array.from(document.querySelectorAll("#cp-logic [data-relationship-id]"));
-      const target = items.find((item) => item.textContent.includes("NEW-300") && item.textContent.includes("NEW-400"));
+      const pair = (item) => item.querySelector(".cp-logic-pair")?.textContent ?? "";
+      const target = items.find((item) => pair(item).includes("NEW-300") && pair(item).includes("NEW-400"));
       const button = target?.querySelector("[data-relationship-delete]");
       return button ? { id: button.dataset.relationshipDelete, revision: button.dataset.relationshipRevision } : null;
     })()`);
@@ -5612,7 +6209,7 @@ async function main() {
     // The stored workspace language is English from the earlier explicit
     // choice; select it again only if a different profile locale won.
     if ((await page.evaluate(`document.documentElement.lang`)) !== "en") {
-      await page.click('[data-bootstrap-language="en"]');
+      await page.setSelect("[data-bootstrap-language]", "en");
       await page.waitFor(
         `document.documentElement.lang === "en" && document.documentElement.dir === "ltr"`,
         "English first-run page",
@@ -5634,7 +6231,7 @@ async function main() {
     assert(!firstRun.rawMessageKey, "no raw error message key may be shown to the user");
     assert(firstRun.heading === "Create your first project", "the first-run heading must explain the next step");
 
-    await page.click('[data-bootstrap-language="fa"]');
+    await page.setSelect("[data-bootstrap-language]", "fa");
     await page.waitFor(
       `document.documentElement.lang === "fa" && document.documentElement.dir === "rtl" &&
        (document.querySelector(".cp-project-selection h1")?.textContent ?? "").includes("اولین پروژه")`,
@@ -6031,7 +6628,13 @@ async function main() {
     page?.cdp.close();
     chrome.cdp.close();
     await chrome.stop();
-    await removeChromeProfile(chrome.userDataDir);
+    try {
+      await removeChromeProfile(chrome.userDataDir);
+    } catch (error) {
+      // A lingering Chrome file lock must not replace the real test result.
+      // The OS temp cleaner will remove the isolated profile later.
+      log(`  warn unable to remove the isolated Chrome profile: ${error.message}`);
+    }
     if (managed) await managed.stop();
   }
 }

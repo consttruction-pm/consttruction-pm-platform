@@ -1,6 +1,7 @@
 import type { WorkspaceLocale } from "./workspace-model.js";
 import type { LanguagePackManifest } from "../../client-sync/src/language-pack-manifest.js";
 import type { LanguagePackResource } from "../../client-sync/src/language-pack-resource-validation.js";
+import { translateUiString, translateColumnLabel } from "./workspace-ui-translations.js";
 
 export type WorkspaceTextDirection = "ltr" | "rtl";
 export type WorkspaceLocaleDefinition = {
@@ -13,6 +14,8 @@ export type WorkspaceLocaleDefinition = {
 const localeDefinitions = new Map<string, WorkspaceLocaleDefinition>([
   ["en", { locale: "en", displayName: "English", direction: "ltr", translations: {} }],
   ["fa", { locale: "fa", displayName: "فارسی", direction: "rtl", translations: {} }],
+  ["de", { locale: "de", displayName: "Deutsch", direction: "ltr", translations: {} }],
+  ["zh", { locale: "zh", displayName: "中文", direction: "ltr", translations: {} }],
 ]);
 
 /** Register translations from a verified, activated language pack. Keys are stable IDs, not English labels. */
@@ -104,4 +107,21 @@ export function getAvailableWorkspaceLocales(): readonly WorkspaceLocale[] {
 
 export function translateWorkspaceText(locale: WorkspaceLocale, key: string, fallback: string): string {
   return localeDefinitions.get(locale)?.translations[key] ?? fallback;
+}
+
+/**
+ * Translate a UI sentence that already carries an English and Persian form.
+ * German and Chinese use the shared dictionary; an untranslated sentence falls
+ * back to its English source so no raw key ever reaches the screen.
+ */
+export function translateWorkspaceUiText(locale: WorkspaceLocale, english: string, persian: string): string {
+  const base = locale.split("-")[0].toLowerCase();
+  if (base === "fa") return persian;
+  if (base === "de" || base === "zh") return translateUiString(locale, english) ?? english;
+  return english;
+}
+
+/** Translate a persisted English presentation label for the active locale. */
+export function localizeWorkspaceLabel(locale: WorkspaceLocale, english: string): string {
+  return translateColumnLabel(locale, english);
 }
