@@ -33,6 +33,7 @@ from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnaps
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.wbs_master_repository import WBSMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
+from construction_pm.form_builder_api import FormBuilderAPI
 from construction_pm.ai_action_runtime import (
     AIActionRuntime,
     AIActionRuntimeError,
@@ -86,6 +87,7 @@ def build_project_lifecycle_wsgi_app(
     resource_calendar_snapshot_repository: CalendarSnapshotRepository | None = None,
     resource_calendar_exception_repository: CalendarExceptionRepository | None = None,
     resource_calendar_work_hours_repository: CalendarWorkHourRepository | None = None,
+    form_builder_api: FormBuilderAPI | None = None,
 ) -> ProjectLifecycleWsgiApp:
     """Compose the production-facing lifecycle WSGI seam.
 
@@ -222,6 +224,7 @@ def build_project_lifecycle_wsgi_app(
         schedule_query_api=schedule_query_api,
         ai_action_runtime=ai_action_runtime,
         ai_assistant_orchestrator=ai_assistant_orchestrator,
+        form_builder_api=form_builder_api,
     )
     return ProjectLifecycleWsgiApp(routes)
 

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 from decimal import Decimal
+from urllib.parse import parse_qs, urlsplit
 from dataclasses import asdict, fields as dataclass_fields
 from datetime import date, datetime, time, timezone
 from typing import Callable, Mapping, Protocol
 
-from ..application.authorization import AuthorizationError, Permission
+from ..application.authorization import AuthorizationContext, AuthorizationError, Permission
 from ..change_claim_api import (
     ChangeClaimAPI, ChangeClaimCreateRequest, ChangeClaimReadRequest,
     P0_CHANGE_CLAIM_API_VERSION,
@@ -89,6 +90,7 @@ from ..p6_expense_repository import P6Expense
 from ..p6_financial_period_repository import P6FinancialPeriod
 from ..p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from ..p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
+from .form_builder_routes import FormBuilderHttpRoutes, ORGANIZATION_ROUTE
 from ..p6_resource_read_api import P6ResourceReadAPI, P6_RESOURCE_READ_API_VERSION
 from ..p6_resource_capacity_read_api import (
     P6ResourceCapacityReadAPI,
@@ -175,6 +177,7 @@ class ProjectLifecycleHttpRoutes:
         schedule_query_api: ScheduleQueryAPI | None = None,
         ai_action_runtime: AIActionRuntime | None = None,
         ai_assistant_orchestrator: AIAssistantTurnOrchestrator | None = None,
+        form_builder_api: object | None = None,
     ) -> None:
         self._api = api
         self._clock = clock or UtcClock()
@@ -209,6 +212,11 @@ class ProjectLifecycleHttpRoutes:
         self._schedule_query_api = schedule_query_api
         self._ai_action_runtime = ai_action_runtime
         self._ai_assistant_orchestrator = ai_assistant_orchestrator
+        self._form_builder_routes = (
+            FormBuilderHttpRoutes(form_builder_api)  # type: ignore[arg-type]
+            if form_builder_api is not None
+            else None
+        )
 
     def handle(
         self,
@@ -226,6 +234,14 @@ class ProjectLifecycleHttpRoutes:
 
         try:
             now = self._clock.now()
+            if self._form_builder_routes is not None:
+                form_path = urlsplit(path).path
+                if form_path.startswith(ORGANIZATION_ROUTE) or (
+                    form_path.startswith("/api/projects/") and "/forms" in form_path
+                ):
+                    return self._handle_form_route(
+                        method, path, session_id=session_id, now=now, body=body, headers=request_headers
+                    )
             if method == "GET" and path == "/api/v1/schedule/code-reference":
                 # The catalogue contains no project records, but a valid active session is required.
                 self._api.get_session(session_id, now=now)
@@ -2942,6 +2958,44 @@ class ProjectLifecycleHttpRoutes:
             return self._error(400, code, "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return self._error(400, str(exc) or "INVALID_REQUEST", "error.request.invalid")
+
+    def _handle_form_route(
+        self,
+        method: str,
+        path: str,
+        *,
+        session_id: str,
+        now: datetime,
+        body: bytes,
+        headers: Mapping[str, str],
+    ) -> tuple[int, dict[str, str], bytes]:
+        assert self._form_builder_routes is not None
+        split = urlsplit(path)
+        route_path = split.path
+        query = {
+            key: values[-1]
+            for key, values in parse_qs(split.query, keep_blank_values=True).items()
+        }
+        session = self._api.get_session(session_id, now=now)
+        if route_path.startswith(ORGANIZATION_ROUTE):
+            auth = AuthorizationContext(
+                tenant_id=session.tenant_id,
+                project_id="__organization__",
+                user_id=session.user_id,
+                roles=frozenset(session.roles),
+            )
+        else:
+            project_id = route_path[len("/api/projects/"):route_path.find("/forms")].strip("/")
+            context = self._api.open_project(session_id, project_id, now=now).context
+            auth = context.authorization_context(session.roles)
+        return self._form_builder_routes.handle(
+            method,
+            route_path,
+            auth=auth,
+            body=body,
+            headers=headers,
+            query=query,
+        )
 
     @staticmethod
     def _json(status: int, payload: object) -> tuple[int, dict[str, str], bytes]:

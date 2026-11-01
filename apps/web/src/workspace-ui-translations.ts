@@ -66,6 +66,8 @@ export const UI_TRANSLATIONS: Readonly<Record<string, UiTranslation>> = {
   "Keyboard shortcuts": ["Tastenkürzel", "键盘快捷键"],
   "Visual workspace demo": ["Visuelle Arbeitsbereich-Demo", "可视化工作区演示"],
   "Reports": ["Berichte", "报表"],
+  "Forms & Workflows": ["Formulare & Workflows", "表单与工作流"],
+  "Forms & Workflows…": ["Formulare & Workflows…", "表单与工作流…"],
   "Print preview": ["Druckvorschau", "打印预览"],
   "Report wizard…": ["Berichtsassistent…", "报表向导…"],
   "Window": ["Fenster", "窗口"],

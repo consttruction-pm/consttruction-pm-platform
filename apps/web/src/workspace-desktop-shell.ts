@@ -13,6 +13,7 @@ import { translateWorkspaceUiText } from "./workspace-localization.js";
 export type LocalizedLabel = { en: string; fa: string };
 
 export type DesktopCommand =
+  | "forms.open"
   | "project.settings"
   | "project.close"
   | "project.interchange"
@@ -325,6 +326,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
       id: "tools",
       label: { en: "Tools", fa: "ابزارها" },
       items: [
+        { id: "tools.forms", label: { en: "Forms & Workflows…", fa: "فرم‌ها و گردش‌کار…" }, command: "forms.open" },
         { id: "tools.search", label: { en: "Search activities", fa: "جست‌وجوی فعالیت‌ها" }, command: "edit.find", shortcut: "Ctrl+F" },
         { id: "tools.preferences", label: { en: "Preferences…", fa: "تنظیمات…" }, window: "settings" },
         { id: "tools.schedule", label: { en: "Schedule", fa: "زمان‌بندی" }, command: "tools.run-schedule" },

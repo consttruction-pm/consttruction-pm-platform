@@ -476,6 +476,14 @@ class PreviewStore:
         if owns_transaction:
             self.connection.commit()
 
+    def member_ids(self, tenant_id: str, project_id: str) -> tuple[str, ...]:
+        rows = self.connection.execute(
+            "SELECT user_id FROM preview_project_member "
+            "WHERE tenant_id=? AND project_id=? ORDER BY user_id",
+            (tenant_id, project_id),
+        ).fetchall()
+        return tuple(str(row[0]) for row in rows)
+
     def list_for_user(
         self, tenant_id: str, user_id: str
     ) -> tuple[ProjectSummary, ...]:

@@ -67,3 +67,8 @@ jobs:
         env:
           CUBI_PYTHON: python
         run: npm run test:e2e:preview
+
+      - name: Browser E2E for the Form Builder workflow
+        env:
+          CUBI_PYTHON: python
+        run: npm run test:e2e:forms

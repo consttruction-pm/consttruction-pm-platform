@@ -14,6 +14,17 @@ class Permission(str, Enum):
     PROJECT_WRITE = "project.write"
     PROJECT_SCHEDULE = "project.schedule"
     PROJECT_ADMIN = "project.admin"
+    # Form Builder capabilities are separate grants, not aliases of project write.
+    FORM_READ = "form.read"
+    FORM_CREATE = "form.create"
+    FORM_DESIGN = "form.design"
+    FORM_FILL = "form.fill"
+    FORM_SUBMIT = "form.submit"
+    FORM_REVIEW = "form.review"
+    FORM_APPROVE = "form.approve"
+    FORM_PUBLISH = "form.publish"
+    FORM_EXPORT = "form.export"
+    FORM_LIBRARY_ADMIN = "form.library.admin"
 
 
 @dataclass(frozen=True)
@@ -61,9 +72,20 @@ class RoleBasedAuthorizationPolicy:
 def default_project_policy() -> RoleBasedAuthorizationPolicy:
     return RoleBasedAuthorizationPolicy(
         {
-            "viewer": frozenset({Permission.PROJECT_READ}),
+            "viewer": frozenset({Permission.PROJECT_READ, Permission.FORM_READ}),
             "planner": frozenset(
-                {Permission.PROJECT_READ, Permission.PROJECT_WRITE, Permission.PROJECT_SCHEDULE}
+                {
+                    Permission.PROJECT_READ,
+                    Permission.PROJECT_WRITE,
+                    Permission.PROJECT_SCHEDULE,
+                    Permission.FORM_READ,
+                    Permission.FORM_CREATE,
+                    Permission.FORM_DESIGN,
+                    Permission.FORM_FILL,
+                    Permission.FORM_SUBMIT,
+                    Permission.FORM_REVIEW,
+                    Permission.FORM_EXPORT,
+                }
             ),
             "project_admin": frozenset(
                 {
@@ -71,6 +93,16 @@ def default_project_policy() -> RoleBasedAuthorizationPolicy:
                     Permission.PROJECT_WRITE,
                     Permission.PROJECT_SCHEDULE,
                     Permission.PROJECT_ADMIN,
+                    Permission.FORM_READ,
+                    Permission.FORM_CREATE,
+                    Permission.FORM_DESIGN,
+                    Permission.FORM_FILL,
+                    Permission.FORM_SUBMIT,
+                    Permission.FORM_REVIEW,
+                    Permission.FORM_APPROVE,
+                    Permission.FORM_PUBLISH,
+                    Permission.FORM_EXPORT,
+                    Permission.FORM_LIBRARY_ADMIN,
                 }
             ),
         }

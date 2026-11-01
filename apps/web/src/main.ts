@@ -57,6 +57,7 @@ import { renderStatusBar, type ChromeLayoutState } from "./workspace-chrome.js";
 import { enhanceActivityDetails } from "./workspace-activity-details.js";
 import { enhanceWorkspaceComments } from "./workspace-comments.js";
 import { mountWorkspaceMobile } from "./workspace-mobile.js";
+import { openFormBuilder, type FormBuilderHandle } from "./workspace-forms.js";
 import type { DesktopLayoutPatch } from "./workspace-dialogs.js";
 import {
   closeWorkspaceWindow,
@@ -237,6 +238,30 @@ function getLayoutHistory(context: ProjectContext, layout: LayoutDefinition): La
   };
   layoutHistoryStore.set(key, created);
   return created;
+}
+
+let formBuilderHandle: FormBuilderHandle | null = null;
+
+/**
+ * The Form Builder is mounted inside the existing application shell as a
+ * modal surface, so the P6 workspace underneath keeps its state. Every
+ * template, version, submission and approval it shows comes from the server.
+ */
+function openFormsSurface(container: HTMLElement, state: WorkspaceState): void {
+  if (formBuilderHandle?.isOpen()) {
+    formBuilderHandle.close();
+    return;
+  }
+  const host = container.querySelector<HTMLElement>(".cp-app-shell") ?? container;
+  formBuilderHandle = openFormBuilder({
+    host,
+    context: state.context,
+    locale: state.locale,
+    calendarMode: state.calendarMode,
+    onClose: () => {
+      formBuilderHandle = null;
+    },
+  });
 }
 
 function openProjectSettings(
@@ -701,6 +726,9 @@ function renderApp(
 
   const runDesktopCommand = (command: DesktopCommand): void => {
     switch (command) {
+      case "forms.open":
+        openFormsSurface(container, state);
+        return;
       case "project.settings":
         openProjectSettings(container, state, persistence);
         return;
@@ -1474,6 +1502,8 @@ function renderApp(
           activateWindow("control");
           return;
         case "forms":
+          openFormsSurface(container, state);
+          return;
         case "settings":
           activateWindow("settings");
           return;

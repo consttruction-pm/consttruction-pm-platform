@@ -863,7 +863,7 @@ function renderP6ModuleStage(state: WorkspaceState, t: WorkspaceLabels): string 
           ${metric(state.fieldIssues.length, t.issues)}
           ${metric(state.punchItems.length, t.punchCloseout)}
         </div>
-        ${controls(moduleButton("tools", "warning", uiText(state.locale, "Open control records", "بازکردن سوابق کنترل")))}`;
+        ${controls(`${moduleButton("forms", "forms", uiText(state.locale, "Forms & Workflows", "فرم‌ها و گردش‌کار"))}${moduleButton("tools", "warning", uiText(state.locale, "Open control records", "بازکردن سوابق کنترل"))}`)}`;
       break;
     case "reports":
       body = `

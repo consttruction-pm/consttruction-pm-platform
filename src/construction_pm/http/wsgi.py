@@ -19,6 +19,7 @@ class ProjectLifecycleWsgiApp:
 
     DEFAULT_BODY_LIMIT = 1_048_576
     DEFAULT_P6_IMPORT_BODY_LIMIT = 50 * 1_024 * 1_024
+    DEFAULT_FORM_ASSET_BODY_LIMIT = 21 * 1_024 * 1_024
 
     def __init__(
         self,
@@ -26,19 +27,31 @@ class ProjectLifecycleWsgiApp:
         *,
         default_body_limit: int = DEFAULT_BODY_LIMIT,
         p6_import_body_limit: int = DEFAULT_P6_IMPORT_BODY_LIMIT,
+        form_asset_body_limit: int = DEFAULT_FORM_ASSET_BODY_LIMIT,
     ) -> None:
         if default_body_limit <= 0 or p6_import_body_limit <= 0:
             raise ValueError("body limits must be positive")
         if p6_import_body_limit < default_body_limit:
             raise ValueError("P6 import body limit must not be smaller than default limit")
+        if form_asset_body_limit < default_body_limit:
+            raise ValueError("form asset body limit must not be smaller than default limit")
         self._routes = routes
         self._default_body_limit = default_body_limit
         self._p6_import_body_limit = p6_import_body_limit
+        self._form_asset_body_limit = form_asset_body_limit
 
     def __call__(self, environ: dict[str, object], start_response: StartResponse) -> Iterable[bytes]:
         method = str(environ.get("REQUEST_METHOD", "GET")).upper()
         raw_path = str(environ.get("PATH_INFO", "/"))
         path = urlsplit(raw_path).path
+        query_string = str(environ.get("QUERY_STRING", "") or "")
+        if query_string and (
+            path.startswith("/api/forms/")
+            or (path.startswith("/api/projects/") and "/forms" in path)
+        ):
+            # Form endpoints read filters and locale from the query string;
+            # carry it on the routed path so the shared handler sees it.
+            path = f"{path}?{query_string}"
         cookie_header = str(environ.get("HTTP_COOKIE", ""))
         cookies = SimpleCookie()
         cookies.load(cookie_header)
@@ -73,8 +86,13 @@ class ProjectLifecycleWsgiApp:
 
 
     def _body_limit(self, method: str, path: str) -> int:
+        path = urlsplit(path).path
         if method == "POST" and path.startswith("/api/projects/") and "/p6/interchange/" in path and path.endswith("/import"):
             return self._p6_import_body_limit
+        if method == "POST" and (
+            path.endswith("/forms/assets") or path == "/api/forms/organization/assets"
+        ):
+            return self._form_asset_body_limit
         return self._default_body_limit
 
     @staticmethod

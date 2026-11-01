@@ -76,6 +76,10 @@ from construction_pm.calendar_snapshot_repository import (
 from construction_pm.constraint_master_repository import (
     SQLiteConstraintMasterRepository,
 )
+from construction_pm.form_builder_api import FormBuilderAPI
+from construction_pm.form_builder_repository import SQLiteFormBuilderRepository
+from construction_pm.form_builder_templates import seed_organization_library
+from construction_pm.preview.form_bindings import PreviewFormBindingProvider, PreviewFormDirectory
 from construction_pm.http.production_composition import (
     build_project_lifecycle_wsgi_app,
 )
@@ -654,6 +658,20 @@ def seed_database(connection: sqlite3.Connection) -> None:
 
     repositories = PreviewRepositories.create(connection)
     store = PreviewStore(connection)
+    form_repository = SQLiteFormBuilderRepository(connection)
+    form_binding_provider = PreviewFormBindingProvider(
+        store,
+        repositories.activities,
+        repositories.wbs,
+        repositories.resource_assignments,
+    )
+    form_builder_api = FormBuilderAPI(
+        form_repository,
+        default_project_policy(),
+        binding_provider=form_binding_provider,
+        clock=PreviewClock().now,
+    )
+    seed_organization_library(form_repository, PREVIEW_TENANT_ID, "preview-admin")
     for fixture in DEMO_PROJECTS:
         seed_demo_project(repositories, store, fixture)
     connection.commit()
@@ -942,6 +960,21 @@ def open_preview_runtime(
 
     repositories = PreviewRepositories.create(connection)
     store = PreviewStore(connection)
+    form_repository = SQLiteFormBuilderRepository(connection)
+    form_binding_provider = PreviewFormBindingProvider(
+        store,
+        repositories.activities,
+        repositories.wbs,
+        repositories.resource_assignments,
+    )
+    form_builder_api = FormBuilderAPI(
+        form_repository,
+        default_project_policy(),
+        binding_provider=form_binding_provider,
+        directory_provider=PreviewFormDirectory(store),
+        clock=PreviewClock().now,
+    )
+    seed_organization_library(form_repository, PREVIEW_TENANT_ID, "preview-admin")
     sessions = PreviewSessionRepository()
     policy = default_project_policy()
     public_demo = os.environ.get("CUBI_PREVIEW_PUBLIC_DEMO", "").strip().lower() in {
@@ -1122,6 +1155,7 @@ def open_preview_runtime(
         clock=PreviewClock(),
         ai_action_runtime=ai_action_runtime,
         ai_assistant_provider=ai_assistant_provider,
+        form_builder_api=form_builder_api,
     )
     return PreviewRuntime(
         database=database,
