@@ -1,7 +1,7 @@
 /** Generated from the compatibility registry. Do not hand-edit; run scripts/generate_web_scheduling_reference.py. */
 export const SCHEDULING_REFERENCE_CATALOG = {
-  "version": "0.8.8",
-  "asOf": "2026-10-25",
+  "version": "0.8.9",
+  "asOf": "2026-11-02",
   "requirements": [
     {
       "id": "SCH-001",
@@ -280,8 +280,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Per-assignment driving override",
         "Assignment Units/Time and conversion period"
       ],
-      "status": "KNOWN_GAP",
-      "gap": "Resource-dependent activity duration from driving assignments and calendar-aware placement of nondriving assignments remain unsupported. This is separate from date-based resource leveling; persisted resource leveling does not complete resource-dependent activity timing. The unsupported behavior remains an explicit release blocker."
+      "status": "MAPPED_NOT_PROVEN",
+      "gap": "Implemented subset: date-based, not-started Resource Dependent activities derive duration from driving assignments, while nondriving assignments are placed independently against their exact versioned calendars and persisted capacity. Remaining gaps include in-progress activities, non-daily and fractional driving rates, differing driving calendars, Level of Effort semantics and broader cross-feature parity. The wider relationship, lag, calendar, priority and infeasible-window matrix remains unqualified; do not claim complete Version 26 parity."
     },
     {
       "id": "RES-002",
@@ -1388,8 +1388,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Actual/remaining work",
         "Nondriving placement"
       ],
-      "status": "KNOWN_GAP",
-      "gap": "Current authoritative composer explicitly rejects Resource Dependent assignments with RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED; this formula must not be treated as implemented."
+      "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+      "gap": "Implemented only for not-started, date-based activities with compatible daily driving rates and integral working-day durations. In-progress activities, differing driving calendars, non-daily or fractional durations and broader option interactions remain unsupported or unqualified. No full Version 26 parity claim is made."
     },
     {
       "id": "FRM-CAP-001",

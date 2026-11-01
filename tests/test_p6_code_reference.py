@@ -51,11 +51,13 @@ def test_every_entry_has_source_and_code_mapping_and_explicit_evidence_label():
             assert item.known_gap.strip()
 
 
-def test_resource_dependent_driving_gap_is_explicit_not_marked_complete():
+def test_resource_dependent_supported_subset_is_mapped_but_not_certified():
     item = get_reference("RES-001")
-    assert item.coverage == KNOWN_GAP
-    assert "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED" in item.known_gap
-    assert "nondriving placement" in item.known_gap
+    assert item.coverage == MAPPED_NOT_PROVEN
+    assert "resource_dependent_placement.py" in item.cubi_code_paths
+    assert "test_resource_dependent_placement.py" in item.regression_tests
+    assert "in-progress activities" in item.known_gap
+    assert "complete Version 26 parity" in item.known_gap
 
 
 def test_key_schedule_options_have_separate_reference_ids():
@@ -105,10 +107,12 @@ def test_float_formula_reference_lists_all_three_selected_modes():
     assert "Smallest Float" in item.formula_or_algorithm
 
 
-def test_resource_dependent_formula_remains_marked_as_a_known_gap():
+def test_resource_dependent_formula_tracks_the_implemented_subset_without_claiming_parity():
     item = get_formula_reference("FRM-RESOURCE-DUR-001")
-    assert item.status == "KNOWN_GAP"
-    assert "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED" in item.known_gap
+    assert item.status == "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN"
+    assert "resource_dependent_placement.py" in item.cubi_code_paths
+    assert "in-progress" in item.known_gap
+    assert "non-daily" in item.known_gap
 
 
 

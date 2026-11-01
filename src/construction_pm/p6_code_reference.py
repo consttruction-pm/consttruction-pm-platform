@@ -24,8 +24,8 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.8.8"
-REFERENCE_AS_OF: Final[str] = "2026-10-25"
+REFERENCE_VERSION: Final[str] = "0.8.9"
+REFERENCE_AS_OF: Final[str] = "2026-11-02"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
 
@@ -294,11 +294,11 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="A driving resource can determine Resource Dependent activity duration from remaining work and assignment Units/Time. With multiple driving assignments, the limiting/longest completion time determines activity duration. Nondriving assignments are placed using their own schedule rules after activity dates are determined; persisting the flag alone is insufficient.",
         user_options=("Default driving flag", "Per-assignment driving override", "Assignment Units/Time and conversion period"),
         official_sources=(ORACLE_SOURCES["driving"], ORACLE_SOURCES["nondriving"], ORACLE_SOURCES["resource_planning"]),
-        cubi_code_paths=("src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_write_api.py", "src/construction_pm/p6_resource_read_api.py", "src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "docs/architecture/RESOURCE_CALENDAR_VERSION_BINDING_2026-10-21.md"),
-        regression_tests=("tests/test_p6_resource_assignment_repository.py", "tests/test_p6_postgres_resource_assignment.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
-        coverage=KNOWN_GAP,
-        known_gap="Resource Dependent activity-duration derivation from multiple driving assignments and calendar-aware nondriving placement remain unsupported. This is separate from date-based resource leveling: the new persisted resource-leveling path does not make Resource Dependent activity timing complete. Keep the explicit RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED gate until dedicated domain rules, source fixtures, and SQLite/PostgreSQL tests pass.",
-        acceptance_evidence=("Driving flag traverses persistence/read/write/snapshot/hash", "Multiple-driver limiting-duration tests pass", "Nondriving placement is calendar-aware", "SQLite/PostgreSQL parity passes"),
+        cubi_code_paths=("src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_write_api.py", "src/construction_pm/p6_resource_read_api.py", "src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/scheduling/resource_dependent.py", "src/construction_pm/scheduling/resource_dependent_placement.py", "src/construction_pm/p6_persisted_resource_leveling_resolver.py", "src/construction_pm/p6_resource_leveling_read_adapter.py", "docs/architecture/RESOURCE_CALENDAR_VERSION_BINDING_2026-10-21.md"),
+        regression_tests=("tests/test_p6_resource_assignment_repository.py", "tests/test_p6_postgres_resource_assignment.py", "tests/test_authoritative_schedule_snapshot_composer.py", "tests/scheduling/test_resource_dependent.py", "tests/scheduling/test_resource_dependent_assignment_windows.py", "tests/scheduling/test_resource_dependent_placement.py", "tests/test_persisted_resource_leveling_resolver.py", "tests/test_schedule_evaluator.py", "tests/test_authoritative_schedule_query.py"),
+        coverage=MAPPED_NOT_PROVEN,
+        known_gap="Implemented subset: date-based, not-started Resource Dependent activities derive duration from driving assignments, while nondriving assignments are placed independently against their exact versioned calendars and persisted capacity. Remaining gaps include in-progress activities, non-daily and fractional driving rates, differing driving calendars, Level of Effort semantics and broader cross-feature parity. The wider relationship, lag, calendar, priority and infeasible-window matrix remains unqualified; do not claim complete Version 26 parity.",
+        acceptance_evidence=("Driving flag and time-phased demand traverse persistence/read/write/snapshot/hash", "Longest driving assignment controls duration in the supported daily-rate subset", "Nondriving assignments are independently placed against versioned resource calendars and capacity", "SQLite and PostgreSQL integration plus focused regression tests pass on the same commit"),
     ),
     P6CodeReference(
         id="RES-002", area="Resources / Leveling", feature="Resource leveling controls and priority order",
@@ -958,10 +958,10 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         units_and_calendar_rules="Calendar-aware inverse-rate calculation is required; never use resource Max Units/Time as a substitute for assignment Units/Time.",
         edge_cases=("Missing driving flag", "No driving assignments", "Multiple driving resources", "Different resource calendars", "Rate changes/effective dates", "Actual/remaining work", "Nondriving placement"),
         official_sources=(ORACLE_SOURCES["driving"], ORACLE_SOURCES["nondriving"], ORACLE_SOURCES["resources"]),
-        cubi_code_paths=("src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/scheduling/resource_leveling.py"),
-        regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py", "tests/test_p6_resource_assignment_repository.py"),
-        status=KNOWN_GAP,
-        known_gap="Current authoritative composer explicitly rejects Resource Dependent assignments with RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED; this formula must not be treated as implemented.",
+        cubi_code_paths=("src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/scheduling/resource_dependent.py", "src/construction_pm/scheduling/resource_dependent_placement.py", "src/construction_pm/p6_persisted_resource_leveling_resolver.py", "src/construction_pm/p6_resource_leveling_read_adapter.py", "src/construction_pm/schedule_evaluator.py"),
+        regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py", "tests/test_p6_resource_assignment_repository.py", "tests/scheduling/test_resource_dependent.py", "tests/scheduling/test_resource_dependent_assignment_windows.py", "tests/scheduling/test_resource_dependent_placement.py", "tests/test_persisted_resource_leveling_resolver.py", "tests/test_schedule_evaluator.py"),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+        known_gap="Implemented only for not-started, date-based activities with compatible daily driving rates and integral working-day durations. In-progress activities, differing driving calendars, non-daily or fractional durations and broader option interactions remain unsupported or unqualified. No full Version 26 parity claim is made.",
     ),
     P6FormulaReference(
         id="FRM-CAP-001",
