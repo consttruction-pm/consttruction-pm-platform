@@ -739,6 +739,7 @@ def test_preview_can_serve_the_workspace_bundle_from_a_cdn(
         '<link rel="stylesheet" href="/styles.css" />'
         "</head><body><div id=\"app\"></div>"
         '<script type="module" src="/dist/main.bundle.js"></script>'
+        '<script type="module" src="/dist/global-assistant-launcher.bundle.js"></script>'
         "</body></html>",
         encoding="utf-8",
     )
@@ -770,11 +771,15 @@ def test_preview_can_serve_the_workspace_bundle_from_a_cdn(
         assert (
             'href="https://cdn.example.test/cubi/assets/styles.css"' in shell
         )
+        # Three directory levels keep the bundle's ../../../ brand-asset
+        # resolution inside the CDN ref instead of collapsing to /gh/.
         assert (
-            'src="https://cdn.example.test/cubi/assets/dist/main.bundle.js"'
+            'src="https://cdn.example.test/cubi/assets/apps/web/dist/main.bundle.js"'
             in shell
         )
         assert 'src="/dist/main.bundle.js"' not in shell
+        # The launcher keeps its same-origin URL because it derives /app/ from it.
+        assert 'src="/dist/global-assistant-launcher.bundle.js"' in shell
     finally:
         runtime.close()
 
