@@ -111,7 +111,7 @@ def test_resource_dependent_formula_tracks_the_implemented_subset_without_claimi
     item = get_formula_reference("FRM-RESOURCE-DUR-001")
     assert item.status == "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN"
     assert any(path.endswith("resource_dependent_placement.py") for path in item.cubi_code_paths)
-    assert "in-progress" in item.known_gap
+    assert "In-progress activities" in item.known_gap
     assert "non-daily" in item.known_gap
 
 
