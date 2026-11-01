@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
 
@@ -8,7 +9,7 @@ from construction_pm.schedule_evaluator import (
     evaluate_schedule_snapshot,
 )
 from construction_pm.schedule_input_snapshot_repository import build_snapshot
-from construction_pm.scheduling.activity import Activity
+from construction_pm.scheduling.activity import Activity, ActivityType
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar_context import (
@@ -23,6 +24,10 @@ from construction_pm.scheduling.authoritative_schedule import (
 )
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.resource_dependent import (
+    ResourceDependentDemandPeriod,
+    ResourceDependentDriverFact,
+)
 from construction_pm.scheduling.resource_leveling import (
     LevelingActivity,
     ResourceCapacity,
@@ -30,7 +35,7 @@ from construction_pm.scheduling.resource_leveling import (
     ResourceLevelingOptions,
 )
 from construction_pm.scheduling.relationships import Relationship
-from construction_pm.scheduling.schedule_options import ScheduleOptions
+from construction_pm.scheduling.schedule_options import ScheduleMode, ScheduleOptions
 from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver, WorkingTimeCalendar
 from construction_pm.scheduling.time_duration import TimeQuantity
 from construction_pm.scheduling.time_forward_pass import TimeActivity, TimeRelationship
@@ -214,6 +219,179 @@ def test_evaluator_routes_leveling_options_to_authoritative_seam():
     assert result.date_result is not None
     assert len(result.date_result.activities) == 2
     assert len({item.start for item in result.date_result.activities.values()}) == 2
+
+
+def test_evaluator_places_alap_assignments_backward_from_cpm_early_and_late_dates():
+    calendar = CalendarReference("CAL-1", "1")
+    fact = ResourceDependentDriverFact(
+        assignment_id="RD-ALAP-ND",
+        activity_id="A",
+        resource_id="R-RD",
+        calendar_id="CAL-1",
+        calendar_version="1",
+        unit_of_measure="labor-unit",
+        planned_units=Decimal("8"),
+        is_driving=False,
+        units_per_time=Decimal("4"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+        demand_periods=(
+            ResourceDependentDemandPeriod(date(2026, 9, 21), Decimal("4")),
+            ResourceDependentDemandPeriod(date(2026, 9, 22), Decimal("4")),
+        ),
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-ALAP",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=7,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(
+            Activity("A", 2, activity_type=ActivityType.RESOURCE_DEPENDENT),
+            Activity("B", 1),
+        ),
+        relationships=(Relationship("A", "B"),),
+        activity_calendar_assignments=(),
+        schedule_options=ScheduleOptions(mode=ScheduleMode.ALAP),
+        project_start=date(2026, 9, 21),
+        project_finish=date(2026, 9, 30),
+        resource_dependent_assignment_facts=(fact,),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-ALAP",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source,
+        context,
+        datetime(2026, 9, 30, tzinfo=timezone.utc),
+    )
+    capacity_days = (
+        "2026-09-21",
+        "2026-09-22",
+        "2026-09-23",
+        "2026-09-24",
+        "2026-09-25",
+        "2026-09-28",
+        "2026-09-29",
+        "2026-09-30",
+    )
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", date(2026, 9, 21), date(2026, 9, 22), 2),
+            LevelingActivity("B", date(2026, 9, 23), date(2026, 9, 23), 1),
+        ),
+        backward_activities=(
+            LevelingActivity("A", date(2026, 9, 28), date(2026, 9, 29), 2),
+            LevelingActivity("B", date(2026, 9, 30), date(2026, 9, 30), 1),
+        ),
+        capacities=tuple(
+            ResourceCapacity(
+                "R-RD",
+                date.fromisoformat(day),
+                Decimal("8"),
+                "CAL-1",
+                "1",
+                "b" * 64,
+            )
+            for day in capacity_days
+        ),
+        options=ResourceLevelingOptions(),
+    )
+
+    result = evaluate_schedule_snapshot(
+        snapshot,
+        context,
+        registry(),
+        leveling_input=leveling_input,
+    )
+
+    assert result.date_result is not None
+    # ALAP schedules the activities at their CPM late dates.
+    assert result.date_result.activities["A"].start == date(2026, 9, 28)
+    assert result.date_result.activities["B"].start == date(2026, 9, 30)
+    placement = result.resource_dependent_placement
+    assert placement is not None
+    assert placement.status == "COMPLETE"
+    assert placement.placement_direction == "LATE"
+    placed = placement.assignments[0]
+    assert (placed.start, placed.finish) == (date(2026, 9, 28), date(2026, 9, 29))
+    assert (placed.early_start, placed.early_finish) == (
+        date(2026, 9, 21),
+        date(2026, 9, 22),
+    )
+    assert (placed.late_start, placed.late_finish) == (
+        date(2026, 9, 28),
+        date(2026, 9, 29),
+    )
+    assert placed.assignment_float_working_days == 5
+
+    # The P6 Level Resources preservation option controls activity-level
+    # backward leveling; it does not force each nondriving assignment into its
+    # late CPM window. Assignment placement direction follows ScheduleMode.
+    def evaluate_earliest_with_preservation(*, snapshot_id: str, preserve: bool):
+        configured_source = replace(
+            source,
+            snapshot_id=snapshot_id,
+            schedule_options=ScheduleOptions(
+                mode=ScheduleMode.EARLIEST,
+                level_all_resources=True,
+                preserve_scheduled_early_and_late_dates=preserve,
+            ),
+        )
+        configured_context = replace(context, input_snapshot_id=snapshot_id)
+        configured_snapshot = build_snapshot(
+            configured_source,
+            configured_context,
+            datetime(2026, 9, 30, tzinfo=timezone.utc),
+        )
+        return evaluate_schedule_snapshot(
+            configured_snapshot,
+            configured_context,
+            registry(),
+            leveling_input=leveling_input,
+        )
+
+    backward_levelled = evaluate_earliest_with_preservation(
+        snapshot_id="S-EARLIEST-BACKWARD-LEVEL",
+        preserve=False,
+    )
+    assert backward_levelled.date_result is not None
+    assert backward_levelled.date_result.mode is ScheduleMode.EARLIEST
+    backward_placement = backward_levelled.resource_dependent_placement
+    assert backward_placement is not None
+    assert backward_placement.status == "COMPLETE"
+    assert backward_placement.placement_direction == "EARLY"
+    backward_assignment = backward_placement.assignments[0]
+    assert (backward_assignment.start, backward_assignment.finish) == (
+        backward_assignment.early_start,
+        backward_assignment.early_finish,
+    )
+
+    forward_levelled = evaluate_earliest_with_preservation(
+        snapshot_id="S-EARLIEST-PRESERVED",
+        preserve=True,
+    )
+    assert forward_levelled.date_result is not None
+    assert forward_levelled.date_result.mode is ScheduleMode.EARLIEST
+    forward_placement = forward_levelled.resource_dependent_placement
+    assert forward_placement is not None
+    assert forward_placement.status == "COMPLETE"
+    assert forward_placement.placement_direction == "EARLY"
+    forward_assignment = forward_placement.assignments[0]
+    assert (forward_assignment.start, forward_assignment.finish) == (
+        forward_assignment.early_start,
+        forward_assignment.early_finish,
+    )
 
 
 def test_evaluator_rejects_leveling_request_without_authoritative_leveling_input():

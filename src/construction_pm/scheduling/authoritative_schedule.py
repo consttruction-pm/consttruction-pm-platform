@@ -15,10 +15,14 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any, Mapping
 
-from .activity import Activity
+from .activity import Activity, ActivityType
 from .calendar_context import CalendarReference, RelationshipLagCalendar
 from .constraints import ActivityConstraint
 from .relationships import Relationship
+from .resource_dependent import (
+    ResourceDependentDemandPeriod,
+    ResourceDependentDriverFact,
+)
 from .schedule_options import ScheduleOptions
 from .time_forward_pass import TimeActivity, TimeRelationship
 
@@ -105,6 +109,9 @@ class AuthoritativeScheduleInput:
     project_leveling_priority: int = 10
     # Appended to preserve the positional constructor order of existing snapshots.
     relationship_lag_calendar_assignments: tuple[RelationshipLagCalendarAssignment, ...] = ()
+    # Appended: persisted assignment identity, driving flags, rates, versioned
+    # resource calendars and time-phased units are bound by the snapshot hash.
+    resource_dependent_assignment_facts: tuple[ResourceDependentDriverFact, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.snapshot_id, str) or not self.snapshot_id.strip():
@@ -166,6 +173,91 @@ class AuthoritativeScheduleInput:
         activity_ids = [activity.id for activity in self.activities]
         if len(activity_ids) != len(set(activity_ids)):
             raise ValueError("activity ids must be unique")
+
+        if not isinstance(self.resource_dependent_assignment_facts, tuple):
+            raise TypeError("resource_dependent_assignment_facts must be a tuple")
+        if not all(
+            isinstance(item, ResourceDependentDriverFact)
+            for item in self.resource_dependent_assignment_facts
+        ):
+            raise TypeError(
+                "resource_dependent_assignment_facts must contain ResourceDependentDriverFact items"
+            )
+        resource_fact_ids = [
+            item.assignment_id for item in self.resource_dependent_assignment_facts
+        ]
+        if len(resource_fact_ids) != len(set(resource_fact_ids)):
+            raise ValueError("resource dependent assignment fact IDs must be unique")
+        activity_by_id = {activity.id: activity for activity in self.activities}
+        for fact in self.resource_dependent_assignment_facts:
+            for value, field_name in (
+                (fact.assignment_id, "assignment_id"),
+                (fact.activity_id, "activity_id"),
+                (fact.resource_id, "resource_id"),
+            ):
+                if (
+                    not isinstance(value, str)
+                    or not value.strip()
+                    or value != value.strip()
+                ):
+                    raise ValueError(
+                        "resource dependent assignment fact identifiers must be canonical non-empty strings"
+                    )
+            for value in (
+                fact.calendar_id,
+                fact.calendar_version,
+                fact.unit_of_measure,
+                fact.units_per_time_period,
+            ):
+                if value is not None and (
+                    not isinstance(value, str)
+                    or not value.strip()
+                    or value != value.strip()
+                ):
+                    raise ValueError(
+                        "resource dependent assignment fact identifiers must be canonical non-empty strings"
+                    )
+            if fact.is_driving is not None and not isinstance(fact.is_driving, bool):
+                raise ValueError("resource dependent driving flag must be boolean or None")
+            activity = activity_by_id.get(fact.activity_id)
+            if activity is None:
+                raise ValueError(
+                    "resource dependent assignment fact references unknown activity"
+                )
+            if (
+                not isinstance(activity, Activity)
+                or activity.activity_type is not ActivityType.RESOURCE_DEPENDENT
+            ):
+                raise ValueError(
+                    "resource dependent assignment facts require Resource Dependent activity type"
+                )
+            if not isinstance(fact.demand_periods, tuple):
+                raise ValueError(
+                    "resource dependent assignment demand periods must be a tuple"
+                )
+            demand_dates: set[date] = set()
+            for demand in fact.demand_periods:
+                if not isinstance(demand, ResourceDependentDemandPeriod):
+                    raise ValueError(
+                        "resource dependent assignment demand periods are invalid"
+                    )
+                if (
+                    not isinstance(demand.period_start, date)
+                    or isinstance(demand.period_start, datetime)
+                    or demand.period_start in demand_dates
+                ):
+                    raise ValueError(
+                        "resource dependent assignment demand periods are invalid"
+                    )
+                demand_dates.add(demand.period_start)
+                if (
+                    not isinstance(demand.units, Decimal)
+                    or not demand.units.is_finite()
+                    or demand.units < 0
+                ):
+                    raise ValueError(
+                        "resource dependent assignment demand units are invalid"
+                    )
 
         lag_assignment_ids = [
             item.relationship_id for item in self.relationship_lag_calendar_assignments
@@ -251,6 +343,7 @@ class AuthoritativeScheduleInput:
             "relationships": self.relationships,
             "activity_calendar_assignments": self.activity_calendar_assignments,
             "relationship_lag_calendar_assignments": self.relationship_lag_calendar_assignments,
+            "resource_dependent_assignment_facts": self.resource_dependent_assignment_facts,
             "constraints": self.constraints,
             "schedule_options": self.schedule_options,
             "project_start": self.project_start,
