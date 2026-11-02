@@ -67,6 +67,7 @@ def _key(bucket: P6ResourceSpreadBucket) -> tuple[str, str, str, str]:
 class SQLiteP6ResourceSpreadRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         execute_sqlite_script(self.connection,"""
@@ -81,7 +82,8 @@ class SQLiteP6ResourceSpreadRepository:
           ON p6_resource_spread_bucket(tenant_id, project_id, resource_id, period_id);
         """)
 
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def upsert(self, bucket: P6ResourceSpreadBucket) -> P6ResourceSpreadBucket:
         bucket.validate()
