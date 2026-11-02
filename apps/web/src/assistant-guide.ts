@@ -452,6 +452,30 @@ const MENU_GUIDES: Record<WorkspaceMenuKey, GuideShape> = {
       target: "#cp-resource-capacity",
     },
   },
+  calendars: {
+    purpose: {
+      en: "Project and resource working calendars, workweeks and nonworking exceptions.",
+      fa: "تقویم‌های کاری پروژه و منابع، هفته‌های کاری و استثناهای روزهای غیرکاری.",
+    },
+    steps: [
+      {
+        en: "Review the calendar assigned to the project and the calendars assigned to its resources.",
+        fa: "تقویم تخصیص‌یافته به پروژه و تقویم‌های تخصیص‌یافته به منابع آن را بررسی کنید.",
+      },
+      {
+        en: "Check working days, daily work hours, shifts and dated exceptions before scheduling.",
+        fa: "پیش از زمان‌بندی، روزهای کاری، ساعات کار روزانه، شیفت‌ها و استثناهای تاریخ‌دار را بررسی کنید.",
+      },
+      {
+        en: "After changing a calendar, run the schedule again and verify the returned dates and durations.",
+        fa: "پس از تغییر تقویم، زمان‌بندی را دوباره اجرا کنید و تاریخ‌ها و مدت‌زمان‌های بازگشتی را بررسی کنید.",
+      },
+    ],
+    commonError: {
+      en: "A calendar change does not prove that dates were recalculated; verify a successful schedule run and its stored result.",
+      fa: "تغییر تقویم به‌تنهایی به معنی محاسبه مجدد تاریخ‌ها نیست؛ اجرای موفق زمان‌بندی و نتیجه ذخیره‌شده را بررسی کنید.",
+    },
+  },
   cost: {
     purpose: {
       en: "Cost and commercial signals from the project control data.",
