@@ -213,6 +213,12 @@ test("Activities window exposes a real Layout Options dialog with current timesc
   assert.match(english, /data-layout-links/);
   assert.match(english, /Show relationship lines/);
   assert.match(english, /Display interval/);
+  for (const label of ["Timescale start", "Date format", "Date interval", "Shift calendar", "Show ordinal dates", "Ordinal start", "Ordinal date interval", "Font &amp; Color", "Default Font", "Apply", "Help"]) {
+    assert.ok(english.includes(label), `missing Timescale dialog control: ${label}`);
+  }
+  assert.match(english, /name="timescale-format"/);
+  assert.match(english, /data-layout-options-actions/);
+  assert.match(english, /data-layout-links/);
 
   const persian = render("fa", "schedule");
   assert.match(persian, /گزینه‌های چیدمان/);
