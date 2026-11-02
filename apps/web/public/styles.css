@@ -6274,3 +6274,221 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 @media (max-width: 900px) {
   .cp-p6-workspace[data-active-menu="project"] .cp-project-window-overview { grid-template-columns: minmax(0, 1fr); }
 }
+
+
+/* Desktop workbench composition: expandable navigation tree, window strip,
+   contextual command rail and docked page panes. */
+.cp-p6 .cp-p6-shell {
+  grid-template-columns: minmax(196px, 224px) minmax(0, 1fr) 36px;
+}
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
+  align-items: stretch;
+  width: auto;
+  min-width: 0;
+  padding: 6px 5px;
+  gap: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: #f0f3f7;
+  border-inline-end: 1px solid #b7c2d0;
+}
+.cp-p6 .cp-nav-tree-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 0 7px 6px;
+  border-bottom: 1px solid #cbd4df;
+  color: #173d68;
+  font-size: 11px;
+}
+.cp-p6 .cp-nav-tree-title .cp-icon { width: 16px; height: 16px; }
+.cp-p6 .cp-nav-tree-group {
+  display: grid;
+  gap: 1px;
+  padding: 5px 0;
+  border-bottom: 1px solid #d6dde6;
+}
+.cp-p6 .cp-nav-tree-group > span {
+  padding: 1px 7px 4px;
+  color: #718096;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.cp-p6 .cp-navigation-tree .cp-rail-button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  justify-content: start;
+  place-items: center start;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  min-height: 27px;
+  height: auto;
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 3px;
+  text-align: start;
+  font-size: 10px;
+}
+.cp-p6 .cp-navigation-tree .cp-rail-button .cp-icon { width: 15px; height: 15px; }
+.cp-p6 .cp-navigation-tree .cp-rail-label {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip: auto;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border: 0;
+}
+.cp-p6 .cp-navigation-tree .cp-rail-button[aria-current="page"] {
+  background: #dce9f7;
+  color: #123f70;
+  box-shadow: inset 2px 0 0 #1c66ad;
+  font-weight: 700;
+}
+.cp-p6 .cp-p6-body {
+  grid-template-rows: auto 28px 30px minmax(0, 1fr);
+}
+.cp-p6 .cp-window-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  height: 28px;
+  padding: 2px 5px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid #aebdce;
+  background: #e5eaf1;
+  scrollbar-width: thin;
+}
+.cp-p6 .cp-window-tab {
+  flex: 0 0 auto;
+  min-width: 78px;
+  max-width: 160px;
+  height: 25px;
+  padding: 0 10px;
+  border: 1px solid #c5cfdb;
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  background: #edf1f6;
+  color: #42556b;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.cp-p6 .cp-window-tab:hover { background: #fff; color: #123a6b; }
+.cp-p6 .cp-window-tab.is-active {
+  position: relative;
+  background: #fff;
+  color: #123a6b;
+  border-color: #9fb2c8;
+  box-shadow: inset 0 2px 0 #c66a36;
+  font-weight: 700;
+}
+.cp-p6 .cp-p6-activity-header {
+  height: 30px;
+  min-height: 30px;
+  font-size: 10px;
+  padding-inline: 8px;
+}
+.cp-p6 .cp-comments-dock-rail.cp-context-command-rail {
+  grid-column: 3;
+  width: 36px;
+  min-width: 36px;
+  align-items: center;
+  padding: 5px 2px;
+  gap: 3px;
+  overflow: visible;
+  z-index: 15;
+  background: #edf1f6;
+}
+.cp-p6 .cp-context-command-rail .cp-rail-button {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+}
+.cp-p6 .cp-context-add-menu { position: relative; }
+.cp-p6 .cp-context-add-menu > summary {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #b5c4d5;
+  border-radius: 4px;
+  background: #fff;
+  color: #164d82;
+  font-size: 23px;
+  line-height: 1;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+.cp-p6 .cp-context-add-menu > summary::-webkit-details-marker { display: none; }
+.cp-p6 .cp-context-add-menu[open] > summary,
+.cp-p6 .cp-context-add-menu > summary:hover { background: #e1edf9; border-color: #7da4cc; }
+.cp-p6 .cp-context-add-popup {
+  position: absolute;
+  inset-inline-end: calc(100% + 7px);
+  inset-block-start: 0;
+  display: grid;
+  gap: 2px;
+  width: 220px;
+  max-height: min(70vh, 460px);
+  overflow: auto;
+  padding: 7px;
+  border: 1px solid #aebdce;
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 8px 24px #14253b30;
+}
+.cp-p6 .cp-context-add-popup strong {
+  padding: 4px 6px 7px;
+  border-bottom: 1px solid #e0e6ed;
+  color: #173d68;
+  font-size: 10px;
+}
+.cp-p6 .cp-context-add-popup button {
+  min-height: 27px;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 2px;
+  background: #f5f7fa;
+  color: #45576c;
+  text-align: start;
+  font: inherit;
+  font-size: 10px;
+}
+.cp-p6 .cp-context-add-popup button:disabled { opacity: .58; cursor: not-allowed; }
+.cp-p6 .cp-p6-workspace[dir="rtl"] .cp-p6-shell { grid-template-columns: 36px minmax(0, 1fr) minmax(196px, 224px); }
+.cp-p6 .cp-p6-workspace[dir="rtl"] .cp-menu.cp-p6-rail.cp-navigation-tree { grid-column: 3; border-inline-start: 1px solid #b7c2d0; border-inline-end: 0; }
+.cp-p6 .cp-p6-workspace[dir="rtl"] .cp-context-command-rail { grid-column: 1; border-inline-end: 1px solid #b7c2d0; border-inline-start: 0; }
+.cp-p6 .cp-p6-workspace[dir="rtl"] .cp-navigation-tree .cp-rail-button[aria-current="page"] { box-shadow: inset -2px 0 0 #1c66ad; }
+@media (max-width: 900px) {
+  .cp-p6 .cp-p6-shell { grid-template-columns: 42px minmax(0, 1fr) 32px; }
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree { align-items: center; width: 42px; padding-inline: 2px; }
+  .cp-p6 .cp-nav-tree-title { justify-content: center; padding-inline: 0; }
+  .cp-p6 .cp-nav-tree-title strong,
+  .cp-p6 .cp-nav-tree-group > span,
+  .cp-p6 .cp-navigation-tree .cp-rail-label { display: none; }
+  .cp-p6 .cp-navigation-tree .cp-rail-button { grid-template-columns: 1fr; justify-items: center; width: 34px; padding: 4px 0; }
+  .cp-p6 .cp-comments-dock-rail.cp-context-command-rail { width: 32px; min-width: 32px; }
+  .cp-p6 .cp-context-command-rail .cp-rail-button,
+  .cp-p6 .cp-context-add-menu > summary { width: 27px; min-width: 27px; }
+  .cp-p6 .cp-p6-body { grid-template-rows: auto 28px 30px minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .cp-p6 .cp-p6-shell { grid-template-columns: 36px minmax(0, 1fr) 30px; }
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree { width: 36px; }
+  .cp-p6 .cp-context-command-rail { width: 30px; min-width: 30px; }
+  .cp-p6 .cp-window-tab { min-width: 70px; padding-inline: 7px; }
+  .cp-p6 .cp-p6-activity-header { gap: 4px; }
+  .cp-p6 .cp-p6-activity-meta:nth-of-type(n+3) { display: none; }
+}
