@@ -78,6 +78,7 @@ type CapacityPanelBinding = {
 };
 
 const capacityPanelBindings = new WeakMap<HTMLElement, CapacityPanelBinding>();
+const capacityWorkspaceBindings = new WeakSet<HTMLElement>();
 
 const BASIS_LABELS: Record<CapacityBasis, { en: string; fa: string }> = {
   hour: { en: "Hour", fa: "ساعت" },
@@ -546,7 +547,7 @@ export function renderCapacityPanel(
       <label>${escapeHtml(labels.resolveHours)}
         <input type="text" inputmode="decimal" data-capacity-resolve-hours autocomplete="off" disabled>
       </label>
-      <button type="submit" data-capacity-resolve>${escapeHtml(
+      <button type="button" data-capacity-resolve>${escapeHtml(
         labels.resolveAction,
       )}</button>
     </form>
@@ -672,6 +673,62 @@ export function mountCapacityPanel(
     !resolveResult
   ) {
     return;
+  }
+
+  // Bind once to the persistent workspace host, not the drawer subtree. The
+  // workspace renderer replaces drawer contents during state refreshes, so a
+  // panel-local listener can become detached while the visible control remains.
+  if (!capacityWorkspaceBindings.has(workspace)) {
+    capacityWorkspaceBindings.add(workspace);
+    workspace.addEventListener("click", async (event) => {
+      const target = event.target instanceof Element
+        ? event.target.closest<HTMLElement>("[data-capacity-resolve]")
+        : null;
+      if (!target) return;
+      const activePanel = workspace.querySelector<HTMLElement>(
+        "#cp-resource-capacity [data-capacity-panel]",
+      );
+      if (!activePanel || !activePanel.contains(target)) return;
+      event.preventDefault();
+      const binding = capacityPanelBindings.get(activePanel);
+      if (!binding) return;
+      const resourceField = activePanel.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
+      const periodField = activePanel.querySelector<HTMLInputElement>("[data-capacity-resolve-period]");
+      const basisField = activePanel.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]");
+      const hoursField = activePanel.querySelector<HTMLInputElement>("[data-capacity-resolve-hours]");
+      const button = activePanel.querySelector<HTMLButtonElement>("[data-capacity-resolve]");
+      const status = activePanel.querySelector<HTMLElement>("[data-capacity-resolve-status]");
+      const resultTarget = activePanel.querySelector<HTMLElement>("[data-capacity-resolve-result]");
+      if (!resourceField || !periodField || !basisField || !hoursField || !button || !status || !resultTarget) return;
+      const basis = basisField.value ? basisField.value as CapacityBasis : null;
+      const input: CapacityResolveInput = {
+        resource_id: resourceField.value.trim(),
+        period: periodField.value,
+        basis,
+        hours_per_time_period: basis === null ? null : hoursField.value.trim(),
+      };
+      if (!input.resource_id || !input.period || (basis !== null && !input.hours_per_time_period)) {
+        status.textContent = binding.labels.invalidInput;
+        resultTarget.innerHTML = "";
+        return;
+      }
+      button.disabled = true;
+      activePanel.setAttribute("aria-busy", "true");
+      status.textContent = binding.labels.resolving;
+      resultTarget.innerHTML = "";
+      try {
+        const resolved = await binding.client.resolveCapacity(input);
+        resultTarget.innerHTML = renderCapacityResolution(resolved, binding.labels, binding.locale);
+        status.textContent = binding.labels.resolved;
+      } catch (error) {
+        const code = errorCode(error);
+        status.textContent = binding.labels.error;
+        resultTarget.innerHTML = renderCapacityError(code, binding.labels);
+      } finally {
+        button.disabled = false;
+        activePanel.removeAttribute("aria-busy");
+      }
+    });
   }
 
   let knownResources: string[] = [];
@@ -805,57 +862,7 @@ export function mountCapacityPanel(
     }
   });
 
-  // The resolver is a real form submission. Bind directly to the current
-  // button and form after every mount so refreshed drawer contents cannot retain
-  // stale handlers. requestSubmit also works if the host webview reparents controls.
-  resolveButton.addEventListener("click", (event) => {
-    event.preventDefault();
-    resolveForm.requestSubmit();
-  });
-  resolveForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const binding = capacityPanelBindings.get(panel);
-    if (!binding) return;
 
-    const resourceField = resolveForm.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
-    const periodField = resolveForm.querySelector<HTMLInputElement>("[data-capacity-resolve-period]");
-    const basisField = resolveForm.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]");
-    const hoursField = resolveForm.querySelector<HTMLInputElement>("[data-capacity-resolve-hours]");
-    const button = resolveForm.querySelector<HTMLButtonElement>("[data-capacity-resolve]");
-    const status = panel.querySelector<HTMLElement>("[data-capacity-resolve-status]");
-    const resultTarget = panel.querySelector<HTMLElement>("[data-capacity-resolve-result]");
-    if (!resourceField || !periodField || !basisField || !hoursField || !button || !status || !resultTarget) return;
-
-    const basis = basisField.value ? basisField.value as CapacityBasis : null;
-    const input: CapacityResolveInput = {
-      resource_id: resourceField.value.trim(),
-      period: periodField.value,
-      basis,
-      hours_per_time_period: basis === null ? null : hoursField.value.trim(),
-    };
-    if (!input.resource_id || !input.period || (basis !== null && !input.hours_per_time_period)) {
-      status.textContent = binding.labels.invalidInput;
-      resultTarget.innerHTML = "";
-      return;
-    }
-
-    button.disabled = true;
-    panel.setAttribute("aria-busy", "true");
-    status.textContent = binding.labels.resolving;
-    resultTarget.innerHTML = "";
-    try {
-      const resolved = await binding.client.resolveCapacity(input);
-      resultTarget.innerHTML = renderCapacityResolution(resolved, binding.labels, binding.locale);
-      status.textContent = binding.labels.resolved;
-    } catch (error) {
-      const code = errorCode(error);
-      status.textContent = binding.labels.error;
-      resultTarget.innerHTML = renderCapacityError(code, binding.labels);
-    } finally {
-      button.disabled = false;
-      panel.removeAttribute("aria-busy");
-    }
-  });
 
   void loadAll();
 }
