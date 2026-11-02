@@ -840,7 +840,7 @@ export function mountCapacityPanel(
   });
   resolveButton.addEventListener("click", () => {
     void submitCapacityResolution();
-  });;
+  });
 
   void loadAll();
 }
