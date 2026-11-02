@@ -84,15 +84,9 @@ export const ASSISTANT_GUIDE_TARGETS: readonly string[] = Object.freeze([
 ]);
 
 export const WORKSPACE_MENU_KEYS: readonly WorkspaceMenuKey[] = Object.freeze([
-  "project",
-  "schedule",
-  "progress",
-  "resources",
-  "cost",
-  "documents",
-  "reports",
-  "control",
-  "settings",
+  "project", "wbs", "schedule", "progress", "resources", "assignments", "roles",
+  "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues",
+  "risks", "thresholds", "control", "settings",
 ]);
 
 export function isWorkspaceMenuKey(value: string | undefined): value is WorkspaceMenuKey {
@@ -339,7 +333,7 @@ const WORKSPACE_STATE_GUIDES: Record<
   },
 };
 
-const MENU_GUIDES: Record<WorkspaceMenuKey, GuideShape> = {
+const MENU_GUIDES: Partial<Record<WorkspaceMenuKey, GuideShape>> = {
   project: {
     purpose: {
       en: "Work breakdown, activity details and project interchange for the open project.",
@@ -661,7 +655,29 @@ function shapeToGuide(
 }
 
 function menuShape(menu: WorkspaceMenuKey): GuideShape {
-  return MENU_GUIDES[menu];
+  const configured = MENU_GUIDES[menu];
+  if (configured) return configured;
+  const label = getWorkspaceNavigationLabel(getWorkspaceNavigation(menu), "en");
+  return {
+    purpose: {
+      en: `Review the current ${label} workspace surface and its server-provided records.`,
+      fa: `نمای ${label} و رکوردهای بازگشتی از سرور را بررسی کنید.`,
+    },
+    steps: [
+      {
+        en: "Review the records and details currently loaded for this project.",
+        fa: "رکوردها و جزئیاتی را که اکنون برای این پروژه بارگذاری شده‌اند بررسی کنید.",
+      },
+      {
+        en: "Use only enabled controls; unavailable actions remain disabled until their service is connected.",
+        fa: "فقط از کنترل‌های فعال استفاده کنید؛ عملیات فاقد سرویس تا زمان اتصال غیرفعال می‌مانند.",
+      },
+    ],
+    commonError: {
+      en: "An empty register means no records were returned; it is not evidence that the project has zero values.",
+      fa: "فهرست خالی یعنی رکوردی بازگردانده نشده است؛ این موضوع به معنی صفر بودن مقادیر پروژه نیست.",
+    },
+  };
 }
 
 /**
