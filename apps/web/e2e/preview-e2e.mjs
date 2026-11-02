@@ -2437,7 +2437,7 @@ async function main() {
       { menu: "project", label: "Project", status: "Partial", submenus: 3 },
       { menu: "resources", label: "Resources", status: "Partial", submenus: 2 },
       { menu: "control", label: "Control", status: "Partial", submenus: 2 },
-      { menu: "schedule", label: "Schedule", status: "Implemented", submenus: 13 },
+      { menu: "schedule", label: "Schedule", status: "Partial", submenus: 13 },
     ]) {
       await page.click(`[data-menu="${surface.menu}"]`);
       await page.waitFor(
