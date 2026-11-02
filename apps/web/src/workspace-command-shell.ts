@@ -9,7 +9,7 @@ type MenuEntry = { label: string; description?: string; shortcut?: string; child
 type MenuDefinition = { key: string; en: string; fa: string; entries: MenuEntry[] };
 
 const menus: MenuDefinition[] = [
-  { key: "file", en: "File", fa: "فایل", entries: [
+  { key: "workspace", en: "Workspace", fa: "محیط کار", entries: [
     { label: "New Project", shortcut: "Ctrl+N" }, { label: "Open Project", shortcut: "Ctrl+O" }, { label: "Close Project" }, { label: "Close All Projects" },
     { divider: true, label: "" }, { label: "Save", shortcut: "Ctrl+S" }, { label: "Save All" }, { label: "Recent Projects", children: [{ label: "Recent project list" }, { label: "Clear recent list" }] },
     { divider: true, label: "" }, { label: "Import", children: [{ label: "Microsoft Project" }, { label: "Spreadsheet (XLSX)" }, { label: "Delimited text (CSV)" }, { label: "Project exchange package" }, { label: "Import layout" }] },
