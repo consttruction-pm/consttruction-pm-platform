@@ -299,7 +299,8 @@ test("Activity Details tab editor transfers tabs, reorders them and applies the 
   dispatch({ activityDetailMoveUp: "" });
   assert.deepEqual(displayed.options.map((option) => option.value), ["general", "resources", "status"]);
   dispatch({ activityDetailsApplyClose: "" });
-  assert.ok(details.innerHTML.indexOf('data-activity-detail-tab="resources"') < details.innerHTML.indexOf('data-activity-detail-tab="general"'));
+  assert.ok(details.innerHTML.indexOf('data-activity-detail-tab="general"') < details.innerHTML.indexOf('data-activity-detail-tab="resources"'));
+  assert.ok(details.innerHTML.indexOf('data-activity-detail-tab="resources"') < details.innerHTML.indexOf('data-activity-detail-tab="status"'));
   assert.ok(details.innerHTML.includes('data-activity-detail-tab="status"'));
 });
 
@@ -381,6 +382,7 @@ test("Project Details splitter follows pointer dragging and double-click restore
   const styles: Record<string, string> = {};
   const root = { style: { setProperty: (name: string, value: string) => { styles[name] = value; } } };
   const splitter = {
+    dataset: { projectDetailsSplitter: "" },
     setAttribute: () => {},
     setPointerCapture: () => {},
     releasePointerCapture: () => {},
@@ -496,7 +498,7 @@ test("Projects window docks Project Details below the register with the full det
   assert.match(html, /class="cp-project-details-splitter"[^>]*role="separator" aria-orientation="horizontal"/);
   assert.match(html, /id="cp-details" class="cp-panel cp-details cp-project-details-dock"/);
   assert.match(html, /aria-label="Project detail tabs"/);
-  for (const tab of ["general", "dates", "defaults", "resources", "settings", "codes", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "baselines", "documents", "history", "udfs"]) {
+  for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "planning-resources", "contract-management", "udfs"]) {
     assert.match(html, new RegExp(`data-project-detail-tab="${tab}"`));
   }
 });
@@ -518,7 +520,7 @@ test("Project Details horizontal splitter supports keyboard resizing and persist
     activeMenu: "project" as const,
   };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  const target = { closest: () => target };
+  const target = { dataset: { projectDetailsSplitter: "" }, closest: () => target };
   let prevented = false;
   listeners.get("keydown")?.({ target, key: "ArrowUp", preventDefault: () => { prevented = true; } } as unknown as Event);
   assert.equal(prevented, true);
@@ -848,7 +850,7 @@ test("renderer honors visible workspace panel flags", () => {
 
   assert.match(container.innerHTML, /class="cp-panel cp-wbs" hidden/);
   assert.match(container.innerHTML, /class="cp-panel cp-gantt" hidden/);
-  assert.match(container.innerHTML, /class="cp-panel cp-details" hidden/);
+  assert.match(container.innerHTML, /class="cp-panel cp-details cp-activity-details-dock" hidden/);
   assert.match(container.innerHTML, /class="cp-panel cp-grid"/);
 });
 
@@ -1220,7 +1222,7 @@ test("details complementary landmark is named by its heading", () => {
   );
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  assert.match(container.innerHTML, /class="cp-panel cp-details"[^>]*aria-labelledby="cp-details-heading"/);
+  assert.match(container.innerHTML, /class="cp-panel cp-details cp-activity-details-dock"[^>]*aria-labelledby="cp-details-heading"/);
   assert.match(container.innerHTML, /<h2 id="cp-details-heading">Details<\/h2>/);
 });
 
