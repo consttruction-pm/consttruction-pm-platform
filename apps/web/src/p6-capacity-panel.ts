@@ -806,18 +806,12 @@ export function mountCapacityPanel(
     }
   });
 
-  // Delegate resolver submission from the stable panel rather than its inner form.
-  // The panel contents are rebuilt during workspace refreshes; a form-level listener can
-  // otherwise disappear between filling the fields and submitting the request.
+  // Keep resolver handlers on the stable panel: inner forms are rebuilt during refresh.
   if (!capacityResolveSubmitBound.has(panel)) {
     capacityResolveSubmitBound.add(panel);
-    panel.addEventListener("submit", async (event) => {
-      const form = event.target instanceof HTMLFormElement ? event.target : null;
-      if (!form || !form.matches("[data-capacity-resolve-form]")) return;
-      event.preventDefault();
+    const resolveCapacityForm = async (form: HTMLFormElement): Promise<void> => {
       const binding = capacityPanelBindings.get(panel);
       if (!binding) return;
-
       const resourceField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
       const periodField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-period]");
       const basisField = form.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]");
@@ -856,6 +850,22 @@ export function mountCapacityPanel(
         button.disabled = false;
         panel.removeAttribute("aria-busy");
       }
+    };
+
+    panel.addEventListener("submit", (event) => {
+      const form = event.target instanceof HTMLFormElement ? event.target : null;
+      if (!form || !form.matches("[data-capacity-resolve-form]")) return;
+      event.preventDefault();
+      void resolveCapacityForm(form);
+    });
+    panel.addEventListener("click", (event) => {
+      const target = event.target instanceof Element
+        ? event.target.closest<HTMLElement>("[data-capacity-resolve]")
+        : null;
+      if (!target) return;
+      event.preventDefault();
+      const form = target.closest<HTMLFormElement>("[data-capacity-resolve-form]");
+      if (form) void resolveCapacityForm(form);
     });
   }
 
