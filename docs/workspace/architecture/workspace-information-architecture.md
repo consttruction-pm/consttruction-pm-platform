@@ -52,8 +52,8 @@ Business Domain (sector)
 CUBI windows are **views of data**, not pages:
 
 - **Projects** — authorized project register, business-domain/portfolio structure when supplied by the organization API, and bottom-docked Project Details. The current build may show only the current session project; it must not fabricate an organization hierarchy.
-- **Activities** — activity table + Gantt/network + Activity Details in its own bottom layout.\n- **WBS** — WBS hierarchy and WBS Details; WBS selection must not change the Project Details context in the Projects window.
-- **WBS** — WBS table/chart + element details.
+- **Activities** — activity table + Gantt/network + Activity Details in its own bottom layout.
+- **WBS** — WBS table/chart + element Details in its own bottom layout; WBS selection must not change the Project Details context in the Projects window.
 - **Resource Assignments** — assignments grouped by resource.
 - **Resources** — resource hierarchy and details.
 - **Calendars** — calendar dictionary and working-time editor.
