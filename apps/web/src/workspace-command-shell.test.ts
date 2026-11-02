@@ -87,3 +87,14 @@ test("Arabic command shell applies RTL layout direction", async () => {
   assert.match(html, /مساحة العمل/);
   assert.match(html, /مشروع جديد/);
 });
+
+test("View menu includes the complete Version 26 display toolbar commands in CUBI wording", () => {
+  const html = renderWorkspaceCommandShell("en");
+  for (const command of ["Hint Help", "Launch", "Reset All Toolbars", "Lock All Toolbars", "Tab Groups", "Collapse To", "Activity Critical Path", "Check Schedule", "Attachments", "Line Numbers"]) {
+    assert.ok(html.includes(command), `missing View menu command: ${command}`);
+  }
+  const fa = renderWorkspaceCommandShell("fa");
+  for (const command of ["راهنمای زمینه‌ای", "بازنشانی همه نوارهای ابزار", "قفل همه نوارهای ابزار"]) {
+    assert.ok(fa.includes(command), `missing Persian View menu command: ${command}`);
+  }
+});
