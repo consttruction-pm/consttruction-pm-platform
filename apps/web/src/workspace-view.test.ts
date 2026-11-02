@@ -363,6 +363,41 @@ test("module navigation action activates a namespaced register detail tab", () =
   assert.equal(activated, 1);
 });
 
+test("Projects window docks Project Details below the register with the full detail-tab strip", () => {
+  const html = render("en", "project");
+  assert.match(html, /class="cp-project-details-splitter"[^>]*role="separator" aria-orientation="horizontal"/);
+  assert.match(html, /id="cp-details" class="cp-panel cp-details cp-project-details-dock"/);
+  assert.match(html, /aria-label="Project detail tabs"/);
+  for (const tab of ["general", "dates", "defaults", "resources", "settings", "codes", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "baselines", "documents", "history", "udfs"]) {
+    assert.match(html, new RegExp(`data-project-detail-tab="${tab}"`));
+  }
+});
+
+test("Project Details horizontal splitter supports keyboard resizing and persists its pane height", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const styles: Record<string, string> = {};
+  const attributes: Record<string, string> = {};
+  const root = { style: { setProperty: (name: string, value: string) => { styles[name] = value; } } };
+  const splitter = { setAttribute: (name: string, value: string) => { attributes[name] = value; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === ".cp-workspace[data-active-menu=project]" ? root : selector === "[data-project-details-splitter]" ? splitter : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "project" as const,
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { closest: () => target };
+  let prevented = false;
+  listeners.get("keydown")?.({ target, key: "ArrowUp", preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.equal(styles["--cp-project-details-height"], "256px");
+  assert.equal(attributes["aria-valuenow"], "256");
+});
+
 test("rendered navigation surface follows Persian locale and RTL direction", () => {
   const html = render("fa", "schedule");
 
