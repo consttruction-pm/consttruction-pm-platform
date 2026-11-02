@@ -315,8 +315,18 @@ test("Documents window renders real records and navigable detail tabs", () => {
     linkedEntityRefs: ["activity:ACT-101", "wbs:WBS-01"],
     hasStorageRef: true,
   };
+  const evidenceDocument = {
+    documentId: "EVD-201",
+    resourceType: "evidence" as const,
+    title: "Concrete Test Certificate",
+    status: "approved" as const,
+    revision: 1,
+    contentHash: `sha256:${"b".repeat(64)}`,
+    linkedEntityRefs: ["activity:ACT-201"],
+    hasStorageRef: true,
+  };
   const state = {
-    ...setDocuments(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [document]),
+    ...setDocuments(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [document, evidenceDocument]),
     activeMenu: "documents" as const,
   };
   const listeners = new Map<string, (event: Event) => void>();
@@ -339,6 +349,14 @@ test("Documents window renders real records and navigable detail tabs", () => {
   listeners.get("click")?.({ target: linksTarget } as unknown as Event);
   assert.match(container.innerHTML, /activity:ACT-101/);
   assert.match(container.innerHTML, /wbs:WBS-01/);
+  const evidenceTarget = { dataset: { navigationAction: "document-type:evidence" }, closest: () => evidenceTarget };
+  listeners.get("click")?.({ target: evidenceTarget } as unknown as Event);
+  assert.match(container.innerHTML, /EVD-201/);
+  assert.doesNotMatch(container.innerHTML, /DOC-101/);
+  assert.match(container.innerHTML, /data-document-type-filter-clear/);
+  const clearTarget = { dataset: { documentTypeFilterClear: "" }, closest: () => clearTarget };
+  listeners.get("click")?.({ target: clearTarget } as unknown as Event);
+  assert.match(container.innerHTML, /DOC-101/);
 });
 
 test("Activities Layout Options inventories top and bottom chart layouts without enabling unimplemented renderers", () => {
