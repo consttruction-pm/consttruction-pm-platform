@@ -547,7 +547,7 @@ export function renderCapacityPanel(
       <label>${escapeHtml(labels.resolveHours)}
         <input type="text" inputmode="decimal" data-capacity-resolve-hours autocomplete="off" disabled>
       </label>
-      <button type="submit" data-capacity-resolve>${escapeHtml(
+      <button type="button" data-capacity-resolve>${escapeHtml(
         labels.resolveAction,
       )}</button>
     </form>
@@ -804,6 +804,13 @@ export function mountCapacityPanel(
       saveButton.disabled = false;
       panel.removeAttribute("aria-busy");
     }
+  });
+
+  // A direct button action dispatches a cancellable submit event on the current form.
+  // This avoids native navigation if a host layout re-parents the panel during interaction.
+  resolveButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    resolveForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   });
 
   // Delegate resolver submission from the stable panel rather than its inner form.
