@@ -309,6 +309,38 @@ test("rendered preview surfaces remain explicitly marked", () => {
   assert.match(html, /Print/);
 });
 
+test("Project Details splitter follows pointer dragging and double-click restores its default height", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const styles: Record<string, string> = {};
+  const root = { style: { setProperty: (name: string, value: string) => { styles[name] = value; } } };
+  const splitter = {
+    setAttribute: () => {},
+    setPointerCapture: () => {},
+    releasePointerCapture: () => {},
+  };
+  const details = { getBoundingClientRect: () => ({ height: 240 }) };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === ".cp-workspace[data-active-menu=project]" ? root
+      : selector === "[data-project-details-splitter]" ? splitter
+        : selector === "#cp-details" ? details : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "project" as const,
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { closest: () => splitter };
+  listeners.get("pointerdown")?.({ target, pointerId: 7, clientY: 300, preventDefault: () => {} } as unknown as Event);
+  listeners.get("pointermove")?.({ pointerId: 7, clientY: 280 } as unknown as Event);
+  assert.equal(styles["--cp-project-details-height"], "260px");
+  listeners.get("pointerup")?.({ target, pointerId: 7 } as unknown as Event);
+  listeners.get("dblclick")?.({ target, preventDefault: () => {} } as unknown as Event);
+  assert.equal(styles["--cp-project-details-height"], "240px");
+});
+
 test("module navigation submenus route to real registers, detail tabs and tracking views", () => {
   const wbs = render("en", "wbs");
   assert.match(wbs, /href="#cp-p6-module-stage"/);
