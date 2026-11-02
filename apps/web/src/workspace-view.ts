@@ -785,30 +785,42 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   };
   const railMenuIcons: Record<WorkspaceState["activeMenu"], string> = {
     project: "folder",
+    wbs: "wbs",
     schedule: "activity",
     progress: "progress",
     resources: "resource",
+    assignments: "link",
     roles: "resource",
     calendars: "calendar",
     cost: "money",
+    expenses: "money",
     documents: "file",
     reports: "print",
     tracking: "progress",
+    issues: "warning",
+    risks: "warning",
+    thresholds: "network",
     control: "network",
     settings: "settings",
   };
   const activityFilterLabel = state.activityFilter.trim() || uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
   const windowTabs = ([
     ["project", uiText(state.locale, "Projects", "پروژه‌ها")],
+    ["wbs", uiText(state.locale, "WBS", "ساختار شکست")],
     ["schedule", uiText(state.locale, "Activities", "فعالیت‌ها")],
     ["progress", uiText(state.locale, "Progress", "پیشرفت")],
     ["resources", uiText(state.locale, "Resources", "منابع")],
+    ["assignments", uiText(state.locale, "Resource Assignments", "تخصیص منابع")],
     ["roles", uiText(state.locale, "Roles", "نقش‌ها")],
     ["calendars", uiText(state.locale, "Calendars", "تقویم‌ها")],
     ["cost", uiText(state.locale, "Cost", "هزینه")],
+    ["expenses", uiText(state.locale, "Expenses", "هزینه‌ها")],
     ["documents", uiText(state.locale, "Documents", "اسناد")],
     ["reports", uiText(state.locale, "Reports", "گزارش‌ها")],
     ["tracking", uiText(state.locale, "Tracking", "رهگیری")],
+    ["issues", uiText(state.locale, "Issues", "مسائل")],
+    ["risks", uiText(state.locale, "Risks", "ریسک‌ها")],
+    ["thresholds", uiText(state.locale, "Thresholds", "آستانه‌ها")],
     ["control", uiText(state.locale, "Project Controls", "کنترل پروژه")],
     ["settings", uiText(state.locale, "Settings", "تنظیمات")],
   ] as const).filter(([key]) => (options.openWindows ?? [state.activeMenu]).includes(key));
@@ -853,7 +865,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
             ${menuButton("project", t.project, state, railMenuIcons.project)}
             ${railActionButton("eps", rail.eps, "portfolio")}
-            ${railActionButton("wbs", rail.wbs, "wbs")}
+            ${menuButton("wbs", uiText(state.locale, "WBS", "ساختار شکست"), state, railMenuIcons.wbs)}
           </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Planning & execution", "برنامه‌ریزی و اجرا"))}</span>
             ${menuButton("schedule", t.schedule, state, railMenuIcons.schedule)}
@@ -862,20 +874,20 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Resources & cost", "منابع و هزینه"))}</span>
             ${menuButton("resources", t.resources, state, railMenuIcons.resources)}
-            ${railActionButton("assignments", rail.assignments, "link")}
+            ${menuButton("assignments", uiText(state.locale, "Assignments", "تخصیص‌ها"), state, railMenuIcons.assignments)}
             ${menuButton("calendars", uiText(state.locale, "Calendars", "تقویم‌ها"), state, railMenuIcons.calendars)}
             ${menuButton("roles", uiText(state.locale, "Roles", "نقش‌ها"), state, railMenuIcons.roles)}
             ${menuButton("cost", t.cost, state, railMenuIcons.cost)}
-            ${railActionButton("expenses", rail.expenses, "money")}
+            ${menuButton("expenses", uiText(state.locale, "Expenses", "هزینه‌ها"), state, railMenuIcons.expenses)}
           </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project information", "اطلاعات پروژه"))}</span>
             ${menuButton("documents", t.documents, state, railMenuIcons.documents)}
             ${menuButton("reports", t.reports, state, railMenuIcons.reports)}
             ${menuButton("tracking", uiText(state.locale, "Tracking", "رهگیری"), state, railMenuIcons.tracking)}
             ${menuButton("control", t.control, state, railMenuIcons.control)}
-            <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Thresholds window design is catalogued; its page is not implemented yet.", "پنجره آستانه‌ها ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">⌁</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Thresholds", "آستانه‌ها"))}</span></button>
-            ${railActionButton("risks", rail.risks, "warning")}
-            ${railActionButton("issues", rail.issues, "warning")}
+            ${menuButton("thresholds", uiText(state.locale, "Thresholds", "آستانه‌ها"), state, railMenuIcons.thresholds)}
+            ${menuButton("risks", uiText(state.locale, "Risks", "ریسک‌ها"), state, railMenuIcons.risks)}
+            ${menuButton("issues", uiText(state.locale, "Issues", "مسائل"), state, railMenuIcons.issues)}
           </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "CUBI tools & administration", "ابزارها و مدیریت CUBI"))}</span>
             ${railActionButton("forms", uiText(state.locale, "Form Builder", "فرم‌ساز"), "forms")}
