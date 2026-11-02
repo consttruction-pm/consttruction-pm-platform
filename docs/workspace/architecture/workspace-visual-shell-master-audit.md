@@ -224,3 +224,29 @@ The following structural shell slice is now implemented in the PR branch and cov
 - CSS is mirrored byte-for-byte between apps/web/styles.css and apps/web/public/styles.css; responsive widths have dedicated rules.
 
 **Still not complete:** the nine module tabs are navigation between current workspace surfaces, not yet a full independent multi-window manager with per-window saved state and close/dirty prompts. Most listed secondary windows, page-specific top-layout modes, page-specific Details panes, calendar editor, full layout dialogs, functional Add workflows, and browser screenshot review remain outstanding. This is an incremental conversion of the shell, not final visual parity.
+
+
+## Owner-approved completion sequence and preservation decisions (2026-11-02)
+
+The product owner confirms that visual-shell implementation is to continue without spending Qoder Credits for the current no-credit period. The assistant should implement and verify bounded changes directly where repository tooling permits; it must not ask Qoder to perform work until the user's daily allowance is available again.
+
+The next visual implementation work is ordered as follows. This is an execution order, not a claim that these items are already implemented:
+
+1. **Real window manager:** replace the current nine-tab navigation proxy with a true per-window registry/state model. Opening a module creates or activates its window; tabs have stable instance IDs, active state, close, reorder, keyboard cycling and tab groups. Project context and per-window view state must not leak between windows.
+2. **Dirty-state lifecycle:** add explicit dirty tracking and Save / Discard / Cancel close confirmation. Do not fabricate persistence: if save is not wired for a window, explain that state cannot yet be saved and prevent silent data loss.
+3. **Window-specific surfaces:** implement the highest-priority professional windows in dependency order: Projects, Activities, WBS, Resource Assignments, Resources, Roles, Calendars, Documents, Expenses, Issues, Risks, Thresholds, Reports and Tracking. Each must own its page layout and selection context rather than reusing one generic list.
+4. **Per-window Details:** implement each window's required Details tabs from the table above, including empty-selection page context and selected-record identity; preserve tab selection per window instance.
+5. **Layout/view controls:** implement top/bottom layout selectors and the corresponding dialogs (columns, filters, multi-level group/sort, timescale, bars, network, usage spreadsheet/profile, font/row, tab configuration). A control must be functional or explicitly disabled with a reason.
+6. **Calendar editor:** implement Global / Project / Resource calendar scope, workweek intervals, split/overnight shifts, exceptions/holidays, preview and assignment dialogs. Keep Jalali/Gregorian display separate from working-time calendars.
+7. **Contextual command workflows:** connect Add/Edit/Delete/Assign/Link and page-specific commands only to real owning workflows and permission-checked APIs. Do not present success for visual-only controls.
+8. **Visual acceptance:** run actual browser E2E and capture the reference desktop viewport plus tablet/mobile and RTL/LTR screenshots; compare against the approved Version 22 geometry reference. Preserve approved Timeline/Gantt proportions; no resizing without explicit owner instruction.
+
+### Qoder credit-aware workflow decision
+
+Before any future Qoder prompt, inspect the Qoder model/tier, context size and displayed estimate. Qoder meters Credits rather than a universal fixed number of prompt tokens; actual usage must be read from the account Usage panel and never inferred from prompt length or code size. Manual repository inspection, manual editing, ordinary terminal commands, Git operations and manually running tests do not themselves invoke a paid model. AI Ask/Chat/Agent/Quest/Knowledge operations may consume Credits.
+
+Every future Qoder prompt must be one repository-aware bounded work package, include known files and prior work, require implementation plus local tests and fixes in the same run, and request exact final SHA and evidence. The assistant must independently review the returned code and outputs. GitHub Actions is a later integration gate, not the primary fast feedback loop. Avoid repeat prompts unless a concrete remaining defect or new requirement is identified.
+
+### Acceptance distinction for the calculation core
+
+Lack of a licensed direct P6 execution is not a blocker to implementation or documented-rule numeric tests. Keep three evidence levels separate: documented-rule/golden-case numeric verification, independent code/output review, and direct same-scenario P6 comparison. Only the last claim remains unavailable until direct reference execution can be performed. This calculation-core rule also governs any shell command that displays calculation results; the visual layer must never create a second calculation authority.
