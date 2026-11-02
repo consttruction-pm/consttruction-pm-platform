@@ -77,8 +77,53 @@ type CapacityPanelBinding = {
   locale: string;
 };
 
+type CapacityPanelDraft = {
+  resource: string;
+  maxUnits: string;
+  writeBasis: string;
+  hours: string;
+  from: string;
+  to: string;
+  closeOpen: boolean;
+  resolveResource: string;
+  resolvePeriod: string;
+  resolveBasis: string;
+  resolveHours: string;
+};
+
 const capacityPanelBindings = new WeakMap<HTMLElement, CapacityPanelBinding>();
+const capacityPanelDrafts = new WeakMap<HTMLElement, CapacityPanelDraft>();
+const capacityDraftCaptureInstalled = new WeakSet<HTMLElement>();
 let capacityDocumentBindingInstalled = false;
+
+function readCapacityDraft(panel: HTMLElement): CapacityPanelDraft {
+  return {
+    resource: panel.querySelector<HTMLInputElement>("[data-capacity-resource]")?.value ?? "",
+    maxUnits: panel.querySelector<HTMLInputElement>("[data-capacity-max-units]")?.value ?? "",
+    writeBasis: panel.querySelector<HTMLSelectElement>("[data-capacity-unit-basis]")?.value ?? "day",
+    hours: panel.querySelector<HTMLInputElement>("[data-capacity-hours]")?.value ?? "",
+    from: panel.querySelector<HTMLInputElement>("[data-capacity-from]")?.value ?? "",
+    to: panel.querySelector<HTMLInputElement>("[data-capacity-to]")?.value ?? "",
+    closeOpen: panel.querySelector<HTMLInputElement>("[data-capacity-close]")?.checked ?? true,
+    resolveResource: panel.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]")?.value ?? "",
+    resolvePeriod: panel.querySelector<HTMLInputElement>("[data-capacity-resolve-period]")?.value ?? "",
+    resolveBasis: panel.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]")?.value ?? "",
+    resolveHours: panel.querySelector<HTMLInputElement>("[data-capacity-resolve-hours]")?.value ?? "",
+  };
+}
+
+function installCapacityDraftCapture(workspace: HTMLElement): void {
+  if (capacityDraftCaptureInstalled.has(workspace)) return;
+  capacityDraftCaptureInstalled.add(workspace);
+  const capture = (event: Event): void => {
+    const target = event.target;
+    if (!(target instanceof Element) || !target.closest("[data-capacity-write-form], [data-capacity-resolve-form]")) return;
+    const panel = target.closest<HTMLElement>("#cp-resource-capacity [data-capacity-panel]");
+    if (panel) capacityPanelDrafts.set(workspace, readCapacityDraft(panel));
+  };
+  workspace.addEventListener("input", capture);
+  workspace.addEventListener("change", capture);
+}
 
 const BASIS_LABELS: Record<CapacityBasis, { en: string; fa: string }> = {
   hour: { en: "Hour", fa: "ساعت" },
@@ -572,10 +617,11 @@ export function mountCapacityPanel(
   );
   if (!panel) return;
   const labels = getCapacityPanelLabels(locale);
+  installCapacityDraftCapture(workspace);
   // renderApp may remount module panels after unrelated workspace state changes.
   // Preserve the user's in-progress capacity edits and the last operation result
   // instead of silently clearing a form that is still visible in the workspace.
-  const previousDraft = {
+  const previousDraft = capacityPanelDrafts.get(workspace) ?? {
     resource: panel.querySelector<HTMLInputElement>("[data-capacity-resource]")?.value,
     maxUnits: panel.querySelector<HTMLInputElement>("[data-capacity-max-units]")?.value,
     writeBasis: panel.querySelector<HTMLSelectElement>("[data-capacity-unit-basis]")?.value,
@@ -696,6 +742,19 @@ export function mountCapacityPanel(
   if (restoredWriteResult) restoredWriteResult.innerHTML = previousDraft.writeResult;
   if (restoredResolveStatus) restoredResolveStatus.textContent = previousDraft.resolveStatus;
   if (restoredResolveResult) restoredResolveResult.innerHTML = previousDraft.resolveResult;
+  capacityPanelDrafts.set(workspace, {
+    resource: writeResource?.value ?? previousDraft.resource ?? "",
+    maxUnits: writeMaxUnits?.value ?? previousDraft.maxUnits ?? "",
+    writeBasis: writeBasis?.value ?? previousDraft.writeBasis ?? "day",
+    hours: writeHours?.value ?? previousDraft.hours ?? "",
+    from: writeFrom?.value ?? previousDraft.from ?? "",
+    to: writeTo?.value ?? previousDraft.to ?? "",
+    closeOpen: writeClose?.checked ?? previousDraft.closeOpen ?? true,
+    resolveResource: resolveResource?.value ?? previousDraft.resolveResource ?? "",
+    resolvePeriod: resolvePeriod?.value ?? previousDraft.resolvePeriod ?? "",
+    resolveBasis: resolveBasis?.value ?? previousDraft.resolveBasis ?? "",
+    resolveHours: resolveHours?.value ?? previousDraft.resolveHours ?? "",
+  });
 
   if (
     !resourceSelect ||
