@@ -472,6 +472,19 @@ class AuthoritativeScheduleInputComposer:
                     remaining_duration_value = (
                         derived.remaining_duration_working_days
                     )
+                elif (
+                    remaining_duration_value is not None
+                    and remaining_duration_value != derived.duration_working_days
+                ):
+                    # A not-started activity has no consumed work, so its
+                    # Remaining Duration must equal the derived duration.
+                    # Accepting a shorter persisted value would silently
+                    # compress the schedule.
+                    raise ScheduleInputCompositionError(
+                        "RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH:"
+                        f"{item.activity_id}:{remaining_duration_value}:"
+                        f"{derived.duration_working_days}"
+                    )
             else:
                 if raw_activity_type == ActivityType.LEVEL_OF_EFFORT.value:
                     # LOE dates come from its start/finish-linked

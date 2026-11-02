@@ -61,7 +61,12 @@ def test_resource_dependent_supported_subset_is_mapped_but_not_certified():
     assert "Level of Effort" in item.known_gap
     assert "complete Version 26 parity" in item.known_gap
     assert any(
-        "In-progress assignments derive remaining duration" in evidence
+        "in-progress assignments derive remaining duration from Remaining Units"
+        in evidence
+        for evidence in item.acceptance_evidence
+    )
+    assert any(
+        "Not-started Remaining Duration must equal" in evidence
         for evidence in item.acceptance_evidence
     )
 

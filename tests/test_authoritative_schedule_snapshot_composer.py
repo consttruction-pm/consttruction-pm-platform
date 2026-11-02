@@ -1275,6 +1275,93 @@ def test_resource_dependent_in_progress_requires_assignment_progress_units(tmp_p
     connection.close()
 
 
+def test_resource_dependent_not_started_rejects_divergent_remaining_duration(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-NS-BAD",
+            "name": "Not-started activity with shortened remaining duration",
+            "duration_value": "5",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            # Not started, so Remaining Duration must equal the derived
+            # duration of 20 units / 4 per day = 5 working days.
+            "remaining_duration": 2,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-NS-BAD-AS",
+            activity_id="RD-NS-BAD",
+            resource_id="RD-NS-BAD-RES",
+            units=Decimal("20"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    for period_start in (
+        "2026-10-19",
+        "2026-10-20",
+        "2026-10-21",
+        "2026-10-22",
+        "2026-10-23",
+    ):
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-NS-BAD-AS",
+                activity_id="RD-NS-BAD",
+                resource_id="RD-NS-BAD-RES",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status != "201 Created"
+    assert (
+        "RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH:RD-NS-BAD:2:5"
+        in json.dumps(error)
+    )
+    connection.close()
+
+
 def test_resource_dependent_activity_publication_fails_closed_for_unknown_driving_flag(tmp_path):
     fixture = _fixture(tmp_path)
     app = fixture["app"]
