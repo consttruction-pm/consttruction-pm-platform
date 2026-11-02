@@ -829,8 +829,8 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter],[data-activity-details-splitter]");
     if (!target) return;
     const details = container.querySelector<HTMLElement>("#cp-details");
-    const startHeight = details?.getBoundingClientRect().height || (target.dataset.projectDetailsSplitter !== undefined ? readProjectDetailsHeight() : readActivityDetailsHeight());
-    if (target.dataset.projectDetailsSplitter !== undefined) projectDetailsDragByContainer.set(container, { pointerId: event.pointerId, startY: event.clientY, startHeight });
+    const startHeight = details?.getBoundingClientRect().height || (target.dataset?.projectDetailsSplitter !== undefined ? readProjectDetailsHeight() : readActivityDetailsHeight());
+    if (target.dataset?.projectDetailsSplitter !== undefined) projectDetailsDragByContainer.set(container, { pointerId: event.pointerId, startY: event.clientY, startHeight });
     else activityDetailsDragByContainer.set(container, { pointerId: event.pointerId, startY: event.clientY, startHeight });
     try { target.setPointerCapture(event.pointerId); } catch { /* pointer capture is optional in embedded previews */ }
     event.preventDefault();
@@ -858,7 +858,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter],[data-activity-details-splitter]");
     if (!target) return;
     event.preventDefault();
-    if (target.dataset.projectDetailsSplitter !== undefined) setProjectDetailsHeight(container, PROJECT_DETAILS_HEIGHT_DEFAULT);
+    if (target.dataset?.projectDetailsSplitter !== undefined) setProjectDetailsHeight(container, PROJECT_DETAILS_HEIGHT_DEFAULT);
     else setActivityDetailsHeight(container, ACTIVITY_DETAILS_HEIGHT_DEFAULT);
   });
 
