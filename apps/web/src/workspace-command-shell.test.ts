@@ -23,6 +23,15 @@ test("visual command shell exposes all global menu families and toolbar groups",
   assert.match(html, /data-shell-command="Save"[^>]*disabled/);
 });
 
+test("view commands are enabled only for a window that implements the corresponding controls", () => {
+  const projectHtml = renderWorkspaceCommandShell("en", "project");
+  assert.match(projectHtml, /data-shell-command="Timescale"[^>]*disabled/);
+  assert.match(projectHtml, /data-shell-command="Columns"[^>]*disabled/);
+  const activityHtml = renderWorkspaceCommandShell("en", "schedule");
+  assert.doesNotMatch(activityHtml, /data-shell-command="Timescale"[^>]*disabled/);
+  assert.doesNotMatch(activityHtml, /data-shell-command="Columns"[^>]*disabled/);
+});
+
 test("CUBI Form Builder is additive and exposes both governed libraries", () => {
   const html = renderWorkspaceCommandShell("en");
   assert.match(html, /Form Builder/);
