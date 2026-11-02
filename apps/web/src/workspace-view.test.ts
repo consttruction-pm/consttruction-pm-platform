@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
-import { createWorkspaceState, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
+import { createWorkspaceState, setDocuments, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -302,6 +302,43 @@ test("Activity Details tab editor transfers tabs, reorders them and applies the 
   assert.ok(details.innerHTML.indexOf('data-activity-detail-tab="general"') < details.innerHTML.indexOf('data-activity-detail-tab="resources"'));
   assert.ok(details.innerHTML.indexOf('data-activity-detail-tab="resources"') < details.innerHTML.indexOf('data-activity-detail-tab="status"'));
   assert.ok(details.innerHTML.includes('data-activity-detail-tab="status"'));
+});
+
+test("Documents window renders real records and navigable detail tabs", () => {
+  const document = {
+    documentId: "DOC-101",
+    resourceType: "drawing" as const,
+    title: "Foundation Layout",
+    status: "approved" as const,
+    revision: 2,
+    contentHash: `sha256:${"a".repeat(64)}`,
+    linkedEntityRefs: ["activity:ACT-101", "wbs:WBS-01"],
+    hasStorageRef: true,
+  };
+  const state = {
+    ...setDocuments(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [document]),
+    activeMenu: "documents" as const,
+  };
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /class="cp-documents-window"/);
+  assert.match(container.innerHTML, /DOC-101/);
+  assert.match(container.innerHTML, /Foundation Layout/);
+  assert.match(container.innerHTML, /data-document-select="DOC-101"/);
+  const rowTarget = { dataset: { documentSelect: "DOC-101" }, closest: () => rowTarget };
+  listeners.get("click")?.({ target: rowTarget } as unknown as Event);
+  assert.match(container.innerHTML, /aria-pressed="true"/);
+  assert.match(container.innerHTML, /Document Details/);
+  assert.match(container.innerHTML, /data-document-detail-tab="links"/);
+  const linksTarget = { dataset: { documentDetailTab: "links" }, closest: () => linksTarget };
+  listeners.get("click")?.({ target: linksTarget } as unknown as Event);
+  assert.match(container.innerHTML, /activity:ACT-101/);
+  assert.match(container.innerHTML, /wbs:WBS-01/);
 });
 
 test("Activities Layout Options inventories top and bottom chart layouts without enabling unimplemented renderers", () => {
