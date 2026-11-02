@@ -1694,3 +1694,29 @@ test("Group and Sort opens a structured dialog and applies supported grouping an
   assert.match(html, /data-group-sort-direction/);
   assert.match(html, /data-group-sort-apply/);
 });
+
+test("Group and Sort apply dispatches grouping and sort together without stale-state overwrites", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const calls: unknown[][] = [];
+  const dialog = {
+    close: () => {},
+    querySelector: (selector: string) => {
+      if (selector === "[data-group-sort-group]") return { value: "none" };
+      if (selector === "[data-group-sort-field]") return { value: "activity_name" };
+      if (selector === "[data-group-sort-direction]") return { value: "desc" };
+      return null;
+    },
+  };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-group-sort-dialog]" ? dialog : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), {
+    onActivityGroupSortChange: (...args) => calls.push(args),
+  });
+  const target = { dataset: { groupSortApply: "" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.deepEqual(calls, [["none", "activity_name", "desc"]]);
+});
