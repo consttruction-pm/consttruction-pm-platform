@@ -779,7 +779,7 @@ async function mountSettingsPanel(
     } finally {
       submit.disabled = false;
     }
-  })
+  });
   // The workspace command host can intercept native submit activation in
   // embedded desktop/browser shells. Route an explicit button click through the
   // same form submit handler while preserving native required-field validation.
@@ -791,7 +791,7 @@ async function mountSettingsPanel(
       return;
     }
     form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-  });;
+  });
 
   // Calendar exceptions are project data, not presentation state: the editor
   // writes through the calendar API and then re-reads the stored rows. A saved
