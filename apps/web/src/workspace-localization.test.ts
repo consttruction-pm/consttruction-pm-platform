@@ -135,3 +135,23 @@ test("Arabic, French, Japanese and Korean are registered as selectable workspace
     assert.equal(state.direction, direction);
   }
 });
+
+
+test("verified locale resources can translate the visual command menu and shared UI labels", async () => {
+  registerWorkspaceLocale({
+    locale: "fr",
+    displayName: "Français",
+    direction: "ltr",
+    translations: {
+      "command.Workspace": "Espace de travail",
+      "command.New Project": "Nouveau projet",
+      "ui.Project": "Projet",
+      "column.label.Activity Name": "Nom de l’activité",
+    },
+  });
+  const { renderWorkspaceCommandShell } = await import("./workspace-command-shell.js");
+  const shell = renderWorkspaceCommandShell("fr");
+  assert.match(shell, /Espace de travail/);
+  assert.match(shell, /Nouveau projet/);
+  assert.equal(translateWorkspaceText("fr", "ui.Project", "Project"), "Projet");
+});
