@@ -12,6 +12,10 @@ from .schedule_input_snapshot_repository import ScheduleInputSnapshot
 from .schedule_snapshot_materializer import MaterializedScheduleInput, materialize_schedule_snapshot
 from .scheduling.calendar_context import CalendarResolverRegistry
 from .scheduling.calculation_context import CalculationContext
+from .scheduling.diagnostics import (
+    ScheduleDiagnostic,
+    ScheduleInfeasibilityError,
+)
 from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.leveling_scheduler import schedule_with_resource_leveling
 from .scheduling.leveling_boundary import SchedulerLevelingInput
@@ -48,6 +52,13 @@ class ScheduleEvaluationResult:
     time_activities: Mapping[str, TimeScheduledActivity] | None = None
     time_result: TimeScheduleResult | None = None
     resource_dependent_placement: ResourceDependentPlacementResult | None = None
+
+    @property
+    def diagnostics(self) -> tuple[ScheduleDiagnostic, ...]:
+        """Stable findings for this run (for example, negative float)."""
+        if self.date_result is not None:
+            return self.date_result.diagnostics
+        return ()
 
     @property
     def project_finish(self) -> date | datetime:
@@ -271,6 +282,13 @@ def _evaluate_materialized(
         )
     except ScheduleEvaluationError:
         raise
+    except ScheduleInfeasibilityError as exc:
+        # Preserve the stable schedule diagnostic code across the evaluation
+        # boundary instead of collapsing every infeasible input into an opaque
+        # failure. Callers may rely on the ``SCHEDULE_INFEASIBLE:<CODE>`` form.
+        raise ScheduleEvaluationError(
+            f"SCHEDULE_INFEASIBLE:{exc.code.value}"
+        ) from exc
     except (KeyError, TypeError, ValueError) as exc:
         raise ScheduleEvaluationError("SCHEDULE_EVALUATION_FAILED") from exc
 

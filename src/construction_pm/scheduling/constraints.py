@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Iterable
 
 from .calendar import WorkingTimeResolver
+from .diagnostics import ScheduleDiagnosticCode, ScheduleInfeasibilityError
 
 
 class ConstraintType(str, Enum):
@@ -113,8 +114,23 @@ def resolve_secondary_constraint(
     return secondary.to_activity_constraint()
 
 
-class ConstraintViolation(ValueError):
+class ConstraintViolation(ScheduleInfeasibilityError):
     """Raised when constraints cannot be satisfied simultaneously."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: ScheduleDiagnosticCode = ScheduleDiagnosticCode.CONSTRAINT_WINDOW_EMPTY,
+        activity_id: str | None = None,
+    ) -> None:
+        super().__init__(code, message, activity_id=activity_id)
+
+
+def _violation(
+    code: ScheduleDiagnosticCode, message: str, activity_id: str | None = None
+) -> ConstraintViolation:
+    return ConstraintViolation(message, code=code, activity_id=activity_id)
 
 
 def _target(constraint: ActivityConstraint, resolver: WorkingTimeResolver) -> date:
@@ -159,62 +175,102 @@ def validate_constraint_set(
                 finish_upper = min(finish_upper, target) if finish_upper else target
             elif constraint.type is ConstraintType.MANDATORY_START:
                 if mandatory_start is not None and mandatory_start != target:
-                    raise ConstraintViolation(
-                        f"conflicting mandatory starts for {activity_id}"
+                    raise _violation(
+                        ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_CONFLICT,
+                        f"conflicting mandatory starts for {activity_id}",
+                        activity_id,
                     )
                 mandatory_start = target
             elif constraint.type is ConstraintType.MANDATORY_FINISH:
                 if mandatory_finish is not None and mandatory_finish != target:
-                    raise ConstraintViolation(
-                        f"conflicting mandatory finishes for {activity_id}"
+                    raise _violation(
+                        ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_CONFLICT,
+                        f"conflicting mandatory finishes for {activity_id}",
+                        activity_id,
                     )
                 mandatory_finish = target
 
         if start_lower and start_upper and start_lower > start_upper:
-            raise ConstraintViolation(
-                f"start constraint window is empty for {activity_id}"
+            raise _violation(
+                ScheduleDiagnosticCode.CONSTRAINT_WINDOW_EMPTY,
+                f"start constraint window is empty for {activity_id}",
+                activity_id,
             )
         if finish_lower and finish_upper and finish_lower > finish_upper:
-            raise ConstraintViolation(
-                f"finish constraint window is empty for {activity_id}"
+            raise _violation(
+                ScheduleDiagnosticCode.CONSTRAINT_WINDOW_EMPTY,
+                f"finish constraint window is empty for {activity_id}",
+                activity_id,
             )
 
         if mandatory_start is not None:
             if start_lower and mandatory_start < start_lower:
-                raise ConstraintViolation(f"mandatory start conflicts for {activity_id}")
+                raise _violation(
+                    ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+                    f"mandatory start conflicts for {activity_id}",
+                    activity_id,
+                )
             if start_upper and mandatory_start > start_upper:
-                raise ConstraintViolation(f"mandatory start conflicts for {activity_id}")
+                raise _violation(
+                    ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+                    f"mandatory start conflicts for {activity_id}",
+                    activity_id,
+                )
             mandatory_finish_from_start = resolver.add_working_duration(
                 mandatory_start, duration
             )
             if finish_lower and mandatory_finish_from_start < finish_lower:
-                raise ConstraintViolation(f"mandatory start conflicts with finish constraint for {activity_id}")
+                raise _violation(
+                        ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+                        f"mandatory start conflicts with finish constraint for {activity_id}",
+                        activity_id,
+                    )
             if finish_upper and mandatory_finish_from_start > finish_upper:
-                raise ConstraintViolation(f"mandatory start conflicts with finish constraint for {activity_id}")
+                raise _violation(
+                        ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+                        f"mandatory start conflicts with finish constraint for {activity_id}",
+                        activity_id,
+                    )
             if mandatory_finish is not None and mandatory_finish_from_start != mandatory_finish:
-                raise ConstraintViolation(f"mandatory start and finish conflict for {activity_id}")
+                raise _violation(
+                    ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_CONFLICT,
+                    f"mandatory start and finish conflict for {activity_id}",
+                    activity_id,
+                )
 
         if mandatory_finish is not None:
             mandatory_start_from_finish = resolver.subtract_working_duration(
                 mandatory_finish, duration
             )
             if start_lower and mandatory_start_from_finish < start_lower:
-                raise ConstraintViolation(f"mandatory finish conflicts with start constraint for {activity_id}")
+                raise _violation(
+                        ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+                        f"mandatory finish conflicts with start constraint for {activity_id}",
+                        activity_id,
+                    )
             if start_upper and mandatory_start_from_finish > start_upper:
-                raise ConstraintViolation(f"mandatory finish conflicts with start constraint for {activity_id}")
+                raise _violation(
+                        ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+                        f"mandatory finish conflicts with start constraint for {activity_id}",
+                        activity_id,
+                    )
 
         if start_lower and finish_upper:
             earliest_finish = resolver.add_working_duration(start_lower, duration)
             if earliest_finish > finish_upper:
-                raise ConstraintViolation(
-                    f"start/finish constraint window is empty for {activity_id}"
+                raise _violation(
+                    ScheduleDiagnosticCode.CONSTRAINT_WINDOW_EMPTY,
+                    f"start/finish constraint window is empty for {activity_id}",
+                    activity_id,
                 )
 
         if finish_lower and start_upper:
             latest_finish = resolver.add_working_duration(start_upper, duration)
             if latest_finish < finish_lower:
-                raise ConstraintViolation(
-                    f"start/finish constraint window is empty for {activity_id}"
+                raise _violation(
+                    ScheduleDiagnosticCode.CONSTRAINT_WINDOW_EMPTY,
+                    f"start/finish constraint window is empty for {activity_id}",
+                    activity_id,
                 )
 
 
@@ -235,16 +291,20 @@ def apply_earliest_constraint(
 
     if constraint.type is ConstraintType.MANDATORY_START:
         if start > target:
-            raise ConstraintViolation(
-                f"mandatory start for {constraint.activity_id} is earlier than predecessor logic"
+            raise _violation(
+                ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+                f"mandatory start for {constraint.activity_id} is earlier than predecessor logic",
+                constraint.activity_id,
             )
         return target
 
     if constraint.type is ConstraintType.MANDATORY_FINISH:
         required_start = resolver.subtract_working_duration(target, duration)
         if start > required_start:
-            raise ConstraintViolation(
-                f"mandatory finish for {constraint.activity_id} cannot be satisfied"
+            raise _violation(
+                ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+                f"mandatory finish for {constraint.activity_id} cannot be satisfied",
+                constraint.activity_id,
             )
         return required_start
 
@@ -276,16 +336,20 @@ def apply_latest_constraint(
 
     if constraint.type is ConstraintType.MANDATORY_START:
         if late_start < target:
-            raise ConstraintViolation(
-                f"mandatory start for {constraint.activity_id} conflicts with successor/project finish logic"
+            raise _violation(
+                ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+                f"mandatory start for {constraint.activity_id} conflicts with successor/project finish logic",
+                constraint.activity_id,
             )
         return target
 
     if constraint.type is ConstraintType.MANDATORY_FINISH:
         latest_start = resolver.subtract_working_duration(target, duration)
         if late_start < latest_start:
-            raise ConstraintViolation(
-                f"mandatory finish for {constraint.activity_id} conflicts with successor/project finish logic"
+            raise _violation(
+                ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+                f"mandatory finish for {constraint.activity_id} conflicts with successor/project finish logic",
+                constraint.activity_id,
             )
         return latest_start
 
@@ -302,13 +366,17 @@ def validate_upper_bound(
     target = _target(constraint, resolver)
 
     if constraint.type is ConstraintType.START_NO_LATER_THAN and start > target:
-        raise ConstraintViolation(
-            f"start no later than constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_UPPER_BOUND_VIOLATED,
+            f"start no later than constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
     if constraint.type is ConstraintType.FINISH_NO_LATER_THAN and finish > target:
-        raise ConstraintViolation(
-            f"finish no later than constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_UPPER_BOUND_VIOLATED,
+            f"finish no later than constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
 
@@ -327,23 +395,31 @@ def validate_late_constraint_window(
     target = _target(constraint, resolver)
 
     if constraint.type is ConstraintType.START_NO_LATER_THAN and start > target:
-        raise ConstraintViolation(
-            f"start no later than constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_UPPER_BOUND_VIOLATED,
+            f"start no later than constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
     if constraint.type is ConstraintType.FINISH_NO_LATER_THAN and finish > target:
-        raise ConstraintViolation(
-            f"finish no later than constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_UPPER_BOUND_VIOLATED,
+            f"finish no later than constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
     if constraint.type is ConstraintType.MANDATORY_START and start != target:
-        raise ConstraintViolation(
-            f"mandatory start constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+            f"mandatory start constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
     if constraint.type is ConstraintType.MANDATORY_FINISH and finish != target:
-        raise ConstraintViolation(
-            f"mandatory finish constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+            f"mandatory finish constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
 
@@ -356,31 +432,43 @@ def validate_constraint_window(
     target = _target(constraint, resolver)
 
     if constraint.type is ConstraintType.START_NO_EARLIER_THAN and start < target:
-        raise ConstraintViolation(
-            f"start no earlier than constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_LOWER_BOUND_VIOLATED,
+            f"start no earlier than constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
     if constraint.type is ConstraintType.START_NO_LATER_THAN and start > target:
-        raise ConstraintViolation(
-            f"start no later than constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_UPPER_BOUND_VIOLATED,
+            f"start no later than constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
     if constraint.type is ConstraintType.FINISH_NO_EARLIER_THAN and finish < target:
-        raise ConstraintViolation(
-            f"finish no earlier than constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_LOWER_BOUND_VIOLATED,
+            f"finish no earlier than constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
     if constraint.type is ConstraintType.FINISH_NO_LATER_THAN and finish > target:
-        raise ConstraintViolation(
-            f"finish no later than constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_UPPER_BOUND_VIOLATED,
+            f"finish no later than constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
     if constraint.type is ConstraintType.MANDATORY_START and start != target:
-        raise ConstraintViolation(
-            f"mandatory start constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+            f"mandatory start constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )
 
     if constraint.type is ConstraintType.MANDATORY_FINISH and finish != target:
-        raise ConstraintViolation(
-            f"mandatory finish constraint violated for {constraint.activity_id}"
+        raise _violation(
+            ScheduleDiagnosticCode.CONSTRAINT_MANDATORY_UNSATISFIABLE,
+            f"mandatory finish constraint violated for {constraint.activity_id}",
+            constraint.activity_id,
         )

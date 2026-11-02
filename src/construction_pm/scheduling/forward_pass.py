@@ -7,6 +7,7 @@ from typing import Iterable, Mapping, Sequence
 from .activity import Activity, ActivityType
 from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
+from .diagnostics import ScheduleDiagnosticCode, ScheduleInfeasibilityError
 from .constraints import (
     ActivityConstraint,
     apply_earliest_constraint,
@@ -17,8 +18,11 @@ from .relationships import Relationship, RelationshipType
 from .schedule_options import OutOfSequenceScheduleType, StartToStartLagCalculationType
 
 
-class SchedulingCycleError(ValueError):
+class SchedulingCycleError(ScheduleInfeasibilityError):
     """Raised when the activity network contains a directed cycle."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ScheduleDiagnosticCode.NETWORK_CYCLE, message)
 
 
 @dataclass(frozen=True)
@@ -66,7 +70,12 @@ def driving_relationships(
         predecessor = activity_map.get(relationship.predecessor_id)
         successor = activity_map.get(relationship.successor_id)
         if predecessor is None or successor is None:
-            raise ValueError("relationship references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "relationship references an unknown activity",
+                predecessor_id=relationship.predecessor_id,
+                successor_id=relationship.successor_id,
+            )
         if is_non_driving_activity(predecessor) or is_non_driving_activity(successor):
             continue
         result.append(relationship)
@@ -127,12 +136,18 @@ def _successor_start(
             and predecessor_activity.actual_start > predecessor.start
         ):
             if data_date is None:
-                raise ValueError(
-                    "data_date is required for an out-of-sequence start-to-start relationship"
+                raise ScheduleInfeasibilityError(
+                    ScheduleDiagnosticCode.INVALID_DATA_DATE,
+                    "data_date is required for an out-of-sequence start-to-start relationship",
+                    predecessor_id=relationship.predecessor_id,
+                    successor_id=relationship.successor_id,
                 )
             if data_date < predecessor_activity.actual_start:
-                raise ValueError(
-                    "data_date must not precede actual_start for an out-of-sequence start-to-start relationship"
+                raise ScheduleInfeasibilityError(
+                    ScheduleDiagnosticCode.INVALID_DATA_DATE,
+                    "data_date must not precede actual_start for an out-of-sequence start-to-start relationship",
+                    predecessor_id=relationship.predecessor_id,
+                    successor_id=relationship.successor_id,
                 )
             elapsed = (predecessor_resolver or resolver).working_days_between(
                 predecessor_activity.actual_start, data_date
@@ -446,14 +461,22 @@ def forward_pass(
     activity_list = list(activities)
     activity_map = {activity.id: activity for activity in activity_list}
     if len(activity_map) != len(activity_list):
-        raise ValueError("activity ids must be unique")
+        raise ScheduleInfeasibilityError(
+            ScheduleDiagnosticCode.DUPLICATE_ACTIVITY_ID,
+            "activity ids must be unique",
+        )
     if not activity_map:
         return {}
 
     relationship_list = list(relationships)
     for rel in relationship_list:
         if rel.predecessor_id not in activity_map or rel.successor_id not in activity_map:
-            raise ValueError("relationship references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "relationship references an unknown activity",
+                predecessor_id=rel.predecessor_id,
+                successor_id=rel.successor_id,
+            )
 
     constraint_map: dict[str, list[ActivityConstraint]] = {
         activity_id: [] for activity_id in activity_map
@@ -461,7 +484,11 @@ def forward_pass(
     all_constraints = list(constraints or ())
     for constraint in all_constraints:
         if constraint.activity_id not in activity_map:
-            raise ValueError("constraint references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "constraint references an unknown activity",
+                activity_id=constraint.activity_id,
+            )
         constraint_map[constraint.activity_id].append(constraint)
 
     for activity_id, activity_constraints in constraint_map.items():

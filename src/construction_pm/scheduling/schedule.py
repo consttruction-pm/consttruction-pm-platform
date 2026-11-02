@@ -7,6 +7,12 @@ from typing import Callable, Iterable, Mapping
 from .activity import Activity, ActivityType
 from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
+from .diagnostics import (
+    ScheduleDiagnostic,
+    ScheduleDiagnosticCode,
+    ScheduleDiagnosticSeverity,
+    ScheduleInfeasibilityError,
+)
 from .constraints import (
     ActivityConstraint,
     apply_latest_constraint,
@@ -61,6 +67,10 @@ class ScheduleResult:
     late_activities: Mapping[str, ScheduledActivity] | None = None
     mode: ScheduleMode = ScheduleMode.EARLIEST
     float_paths: tuple[MultipleFloatPath, ...] = ()
+    # Stable, machine-readable findings for this run. Negative float is a
+    # valid reported outcome and appears here as a WARNING; unsatisfiable
+    # inputs never reach a result and raise ScheduleInfeasibilityError instead.
+    diagnostics: tuple[ScheduleDiagnostic, ...] = ()
 
 
 def _remaining_cpm_duration(activity: Activity) -> int:
@@ -136,7 +146,11 @@ def backward_pass(
     all_constraints = list(constraints or ())
     for constraint in all_constraints:
         if constraint.activity_id not in activity_map:
-            raise ValueError("constraint references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "constraint references an unknown activity",
+                activity_id=constraint.activity_id,
+            )
         constraint_map[constraint.activity_id].append(constraint)
 
     if set(activity_map) != set(forward):
@@ -163,7 +177,12 @@ def backward_pass(
 
     for rel in relationship_list:
         if rel.predecessor_id not in activity_map or rel.successor_id not in activity_map:
-            raise ValueError("relationship references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "relationship references an unknown activity",
+                predecessor_id=rel.predecessor_id,
+                successor_id=rel.successor_id,
+            )
 
     early_project_finish = max(item.finish for item in forward.values())
     finish = resolver.normalize_finish(project_finish or early_project_finish)
@@ -232,7 +251,11 @@ def backward_pass(
             late_finish = activity_resolver.add_working_duration(late_start, remaining_duration)
 
         if late_finish > activity_resolver.normalize_finish(finish):
-            raise ValueError(f"backward schedule exceeds project finish for {activity_id}")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.BACKWARD_EXCEEDS_PROJECT_FINISH,
+                f"backward schedule exceeds project finish for {activity_id}",
+                activity_id=activity_id,
+            )
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
@@ -252,9 +275,12 @@ def backward_pass(
 
     for relationship in network_relationships:
         if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver, (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id))):
-            raise ValueError(
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.BACKWARD_RELATIONSHIP_VIOLATED,
                 f"backward schedule violates relationship {relationship.predecessor_id} -> "
-                f"{relationship.successor_id} ({relationship.type.value}, lag={relationship.lag})"
+                f"{relationship.successor_id} ({relationship.type.value}, lag={relationship.lag})",
+                predecessor_id=relationship.predecessor_id,
+                successor_id=relationship.successor_id,
             )
 
     return result
@@ -416,7 +442,12 @@ def _longest_path_activity_ids(
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for relationship in relationships:
         if relationship.predecessor_id not in activity_map or relationship.successor_id not in activity_map:
-            raise ValueError("relationship references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "relationship references an unknown activity",
+                predecessor_id=rel.predecessor_id,
+                successor_id=rel.successor_id,
+            )
         incoming[relationship.successor_id].append(relationship)
 
     latest_early_finish = max(item.finish for item in early_schedule.values())
@@ -589,7 +620,12 @@ def _multiple_float_paths(
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for relationship in relationship_list:
         if relationship.predecessor_id not in activity_map or relationship.successor_id not in activity_map:
-            raise ValueError("relationship references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "relationship references an unknown activity",
+                predecessor_id=rel.predecessor_id,
+                successor_id=rel.successor_id,
+            )
         incoming[relationship.successor_id].append(relationship)
 
     remaining = set(activity_map)
@@ -957,6 +993,20 @@ def schedule(
     )
     selected = late if selected_options.mode is ScheduleMode.ALAP else early
 
+    diagnostics = tuple(
+        ScheduleDiagnostic(
+            code=ScheduleDiagnosticCode.NEGATIVE_FLOAT,
+            message=(
+                f"negative total float for {activity_id}: "
+                f"{value.total_float} working days"
+            ),
+            activity_id=activity_id,
+            severity=ScheduleDiagnosticSeverity.WARNING,
+        )
+        for activity_id, value in sorted(floats.items())
+        if value.total_float < 0
+    )
+
     return ScheduleResult(
         activities=selected,
         floats=floats,
@@ -965,4 +1015,5 @@ def schedule(
         late_activities=late,
         mode=selected_options.mode,
         float_paths=float_paths,
+        diagnostics=diagnostics,
     )

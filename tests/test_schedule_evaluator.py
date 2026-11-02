@@ -466,3 +466,47 @@ def test_evaluator_routes_time_aware_mode_through_full_shared_schedule_core():
     assert result.time_activities == result.time_result.early_activities
     assert result.time_result.late_activities['B'].finish == datetime(2026, 9, 22, 17, tzinfo=timezone.utc)
     assert result.time_result.floats['B'].total_float_hours == Decimal('2')
+
+
+def test_evaluator_preserves_stable_diagnostic_code_for_infeasible_constraints():
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-INFEASIBLE",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=7,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        constraints=(
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 25)
+            ),
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_LATER_THAN, date(2026, 9, 22)
+            ),
+        ),
+        schedule_options=ScheduleOptions(),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-INFEASIBLE",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)
+    )
+
+    with pytest.raises(
+        ScheduleEvaluationError, match="SCHEDULE_INFEASIBLE:CONSTRAINT_WINDOW_EMPTY"
+    ):
+        evaluate_schedule_snapshot(snapshot, context, registry())
