@@ -14,6 +14,21 @@ import { getWorkspaceLocaleDirection, localizeWorkspaceLabel, translateWorkspace
 
 export type WorkspaceLocale = string;
 export type WorkspaceCalendarMode = "jalali" | "gregorian";
+
+export type WorkspaceCalendarRecord = {
+  calendarId: string;
+  calendarVersion: string;
+  kind: string;
+  calendarType: string;
+  name: string;
+  recordRevision: number;
+};
+
+export type WorkspaceCalendarCatalog = {
+  status: "not-loaded" | "loaded" | "unavailable";
+  calendars: readonly WorkspaceCalendarRecord[];
+  errorCode: string | null;
+};
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
 export type WorkspaceMenuKey =
   | "project"
@@ -148,6 +163,7 @@ export type WorkspaceState = {
   locale: WorkspaceLocale;
   direction: "rtl" | "ltr";
   calendarMode: WorkspaceCalendarMode;
+  calendarCatalog: WorkspaceCalendarCatalog;
   ganttScale: WorkspaceGanttScale;
   showGanttRelationships: boolean;
   activeMenu: WorkspaceMenuKey;
@@ -220,6 +236,7 @@ export function createWorkspaceState(
     locale,
     direction: getWorkspaceLocaleDirection(locale),
     calendarMode,
+    calendarCatalog: { status: "not-loaded", calendars: [], errorCode: null },
     ganttScale: "day",
     showGanttRelationships: true,
     activeMenu: "schedule",
