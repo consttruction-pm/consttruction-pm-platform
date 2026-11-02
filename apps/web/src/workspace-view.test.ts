@@ -309,6 +309,41 @@ test("rendered preview surfaces remain explicitly marked", () => {
   assert.match(html, /Print/);
 });
 
+test("module navigation submenus route to real registers, detail tabs and tracking views", () => {
+  const wbs = render("en", "wbs");
+  assert.match(wbs, /href="#cp-p6-module-stage"/);
+  assert.match(wbs, /data-navigation-action="wbs-detail-tab:general"/);
+  assert.match(wbs, /WBS Chart/);
+  assert.match(wbs, /data-submenu-status="preview"/);
+
+  const calendars = render("en", "calendars");
+  for (const action of ["calendar-tab:workweek", "calendar-tab:exceptions", "calendar-tab:assignments"]) {
+    assert.match(calendars, new RegExp(`data-navigation-action="${action}"`));
+  }
+
+  const roles = render("en", "roles");
+  assert.match(roles, /data-navigation-action="register-tab:roles:rates"/);
+  assert.match(roles, /data-navigation-action="register-tab:roles:assignments"/);
+
+  const assignments = render("en", "assignments");
+  assert.match(assignments, /data-navigation-action="register-tab:assignments:general"/);
+
+  const issues = render("en", "issues");
+  assert.match(issues, /data-navigation-action="register-tab:issues:details"/);
+
+  const risks = render("en", "risks");
+  assert.match(risks, /data-navigation-action="register-tab:risks:general"/);
+
+  const thresholds = render("en", "thresholds");
+  assert.match(thresholds, /data-navigation-action="register-tab:thresholds:monitoring"/);
+  assert.match(thresholds, /data-navigation-action="register-tab:thresholds:details"/);
+
+  const tracking = render("en", "tracking");
+  for (const layout of ["bar-chart", "gantt-profile", "resource-analysis"]) {
+    assert.match(tracking, new RegExp(`data-navigation-action="tracking-layout:${layout}"`));
+  }
+});
+
 test("rendered navigation surface follows Persian locale and RTL direction", () => {
   const html = render("fa", "schedule");
 
