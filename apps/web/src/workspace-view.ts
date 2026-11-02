@@ -9,6 +9,34 @@ import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon } from "./workspace-icons.js";
 import { renderWorkspaceCommandShell } from "./workspace-command-shell.js";
 
+const PROJECT_DETAILS_HEIGHT_STORAGE_KEY = "cubi:project-details-height";
+const PROJECT_DETAILS_HEIGHT_DEFAULT = 240;
+const PROJECT_DETAILS_HEIGHT_MIN = 150;
+type ProjectDetailsDrag = { pointerId: number; startY: number; startHeight: number };
+const projectDetailsDragByContainer = new WeakMap<HTMLElement, ProjectDetailsDrag>();
+
+function projectDetailsHeightMax(): number {
+  if (typeof window === "undefined") return 600;
+  return Math.max(PROJECT_DETAILS_HEIGHT_MIN, Math.min(600, Math.floor(window.innerHeight * 0.45)));
+}
+
+function readProjectDetailsHeight(): number {
+  try {
+    if (typeof window !== "undefined") {
+      const value = Number(window.localStorage.getItem(PROJECT_DETAILS_HEIGHT_STORAGE_KEY));
+      if (Number.isFinite(value) && value > 0) return Math.min(projectDetailsHeightMax(), Math.max(PROJECT_DETAILS_HEIGHT_MIN, Math.round(value)));
+    }
+  } catch { /* storage is optional; keep the default pane geometry */ }
+  return PROJECT_DETAILS_HEIGHT_DEFAULT;
+}
+
+function setProjectDetailsHeight(container: HTMLElement, value: number): void {
+  const height = Math.min(projectDetailsHeightMax(), Math.max(PROJECT_DETAILS_HEIGHT_MIN, Math.round(value)));
+  container.querySelector<HTMLElement>(".cp-workspace[data-active-menu=project]")?.style.setProperty("--cp-project-details-height", `${height}px`);
+  container.querySelector<HTMLElement>("[data-project-details-splitter]")?.setAttribute("aria-valuenow", String(height));
+  try { if (typeof window !== "undefined") window.localStorage.setItem(PROJECT_DETAILS_HEIGHT_STORAGE_KEY, String(height)); }
+  catch { /* a failed layout preference save must not block resizing */ }
+}
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", procurement: "Procurement", reports: "Reports", control: "Control", settings: "Settings", mainMenu: "Main Menu", currentSurface: "Current workspace surface", submenu: "submenu", formulaColumn: "formula column", fieldChooser: "Field Chooser", fields: "Fields", undo: "Undo", redo: "Redo", layoutHistory: "Layout history", layoutUndone: "Last layout change undone.", layoutRedone: "Layout change reapplied.", layoutRestored: "Layout revision restored.", layoutHistoryEmpty: "No earlier layout revision is available.", layoutSaveFailed: "Layout change was not saved.", layoutConflict: "Another session changed this layout. The latest saved revision was reloaded.", restore: "Restore", revisionOption: "revision", columnUnit: "column(s)", add: "Add", remove: "Remove", moveUp: "Move up", moveDown: "Move down", narrower: "Narrower", wider: "Wider", alignStart: "Align left", alignCenter: "Align center", alignEnd: "Align right", pin: "Pin", unpin: "Unpin", freeze: "Freeze", unfreeze: "Unfreeze", hide: "Hide", show: "Show", rename: "Rename", findings: "Findings", proposedActions: "Proposed Actions", traceability: "Traceability", sources: "Sources", approvalRequired: "Approval Required", humanApprovalRequired: "Human approval required", noApprovalFlag: "No approval flag", sourceUnit: "source(s)", activityLinkUnit: "activity link(s)", evidenceUnit: "evidence", inspections: "Inspections", qualityNcr: "Quality / NCR", safety: "Safety", punchCloseout: "Punch / Closeout", due: "Due", supplier: "Supplier", reference: "Ref", amount: "Amount", itemUnit: "item(s)", linkedReferenceUnit: "linked reference(s)", stored: "stored", noStorage: "no storage", approval: "Approval", date: "Date", notices: "Notices", changeCases: "Change Cases", claims: "Claims", impactLinks: "Impact Links", scheduleLabel: "Schedule", costLabel: "Cost", noticeLabel: "Notice", changeLabel: "Change", entitlement: "Entitlement", decision: "Decision", impactLinkLabel: "Impact links",
@@ -638,6 +666,19 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
   });
   container.addEventListener("keydown", (event) => {
+    const projectSplitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter]");
+    if (projectSplitter) {
+      const current = readProjectDetailsHeight();
+      let next = current;
+      if (event.key === "ArrowUp") next += 16;
+      else if (event.key === "ArrowDown") next -= 16;
+      else if (event.key === "Home") next = PROJECT_DETAILS_HEIGHT_MIN;
+      else if (event.key === "End") next = projectDetailsHeightMax();
+      else return;
+      event.preventDefault();
+      setProjectDetailsHeight(container, next);
+      return;
+    }
     const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
     if (splitter && splitter.dataset && "panelSplitter" in splitter.dataset) {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -659,6 +700,36 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.ganttActivityId) record.options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
     else if (target.dataset.activityId) record.options.onActivitySelect?.(target.dataset.activityId);
   });
+  container.addEventListener("pointerdown", (event) => {
+    const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter]");
+    if (!target) return;
+    const details = container.querySelector<HTMLElement>("#cp-details");
+    const startHeight = details?.getBoundingClientRect().height || readProjectDetailsHeight();
+    projectDetailsDragByContainer.set(container, { pointerId: event.pointerId, startY: event.clientY, startHeight });
+    try { target.setPointerCapture(event.pointerId); } catch { /* pointer capture is optional in embedded previews */ }
+    event.preventDefault();
+  });
+  container.addEventListener("pointermove", (event) => {
+    const drag = projectDetailsDragByContainer.get(container);
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setProjectDetailsHeight(container, drag.startHeight - (event.clientY - drag.startY));
+  });
+  const finishProjectDetailsDrag = (event: PointerEvent): void => {
+    const drag = projectDetailsDragByContainer.get(container);
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    projectDetailsDragByContainer.delete(container);
+    const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter]");
+    try { target?.releasePointerCapture(event.pointerId); } catch { /* pointer capture may already be released */ }
+  };
+  container.addEventListener("pointerup", finishProjectDetailsDrag);
+  container.addEventListener("pointercancel", finishProjectDetailsDrag);
+  container.addEventListener("dblclick", (event) => {
+    const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter]");
+    if (!target) return;
+    event.preventDefault();
+    setProjectDetailsHeight(container, PROJECT_DETAILS_HEIGHT_DEFAULT);
+  });
+
   container.addEventListener("change", (event) => {
     const element = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
       ? event.target as HTMLElement
@@ -987,7 +1058,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         : `<button type="button" disabled title="${escapeAttribute(uiText(state.locale, "This visual command is not connected yet.", "این فرمان بصری هنوز متصل نشده است."))}">${escapeHtml(command.label)}</button>`).join("");
 
   container.innerHTML = `
-    <section class="cp-workspace cp-p6-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}" data-workspace-layout="${state.workspaceLayout}">
+    <section class="cp-workspace cp-p6-workspace" style="--cp-project-details-height:${readProjectDetailsHeight()}px" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}" data-workspace-layout="${state.workspaceLayout}">
       <header class="cp-header">
         <div class="cp-brand"><img class="cp-brand-logo" src="${escapeAttribute(cubiPlatformLogoUrl())}" width="1536" height="664" alt="CUBI Platform" /></div>
         <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
@@ -1084,7 +1155,8 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               </section>
               ${renderP6ModuleStage(container, state, t)}
             </div>
-            <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading">${renderWindowDetailsPanel(state, t, container)}</aside>
+            ${state.activeMenu === "project" && state.visiblePanels.details ? `<div class="cp-project-details-splitter" data-project-details-splitter role="separator" aria-orientation="horizontal" aria-valuemin="${PROJECT_DETAILS_HEIGHT_MIN}" aria-valuemax="${projectDetailsHeightMax()}" aria-valuenow="${readProjectDetailsHeight()}" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize Project Details pane", "تغییر ارتفاع پنل جزئیات پروژه"))}"><span></span></div>` : ""}
+            <aside id="cp-details" class="cp-panel cp-details${state.activeMenu === "project" ? " cp-project-details-dock" : ""}" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading">${renderWindowDetailsPanel(state, t, container)}</aside>
           </main>
           <div class="cp-p6-drawer cp-p6-wbs-drawer" data-wbs-drawer hidden aria-label="${escapeAttribute(t.wbs)}">
             <div class="cp-p6-drawer-head"><strong>${escapeHtml(t.wbs)}</strong><button type="button" data-wbs-drawer-close title="${escapeAttribute(rail.close)}" aria-label="${escapeAttribute(rail.close)}">${workspaceIcon("close")}</button></div>
