@@ -197,6 +197,8 @@ function uiText(locale: string, en: string, fa: string): string {
 type WorkspaceRenderRecord = { state: WorkspaceState; options: WorkspaceRendererOptions };
 const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>();
 const activityDetailsTabByContainer = new WeakMap<HTMLElement, string>();
+const documentSelectionByContainer = new WeakMap<HTMLElement, string>();
+const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
 const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<string>>();
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
@@ -1481,6 +1483,40 @@ function renderRegisterWindow(
   </div>`;
 }
 
+function renderDocumentRegisterWindow(container: HTMLElement, state: WorkspaceState): string {
+  const selectedId = documentSelectionByContainer.get(container) ?? null;
+  const selected = state.documents.find((document) => document.documentId === selectedId) ?? null;
+  const tabs = [
+    ["general", "General", "عمومی"],
+    ["links", "Links", "پیوندها"],
+    ["integrity", "Integrity", "یکپارچگی"],
+    ["revisions", "Revisions", "بازنگری‌ها"],
+    ["udfs", "UDFs", "فیلدهای کاربر"],
+  ] as const;
+  const activeTab = documentDetailTabByContainer.get(container) ?? "general";
+  const value = (label: string, content: string): string => `<div class="cp-document-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(content)}</strong></div>`;
+  let detail = `<p class="cp-empty">${escapeHtml(uiText(state.locale, "Select a document to view its details.", "برای مشاهده جزئیات یک سند را انتخاب کنید."))}</p>`;
+  if (selected && activeTab === "general") {
+    detail = `<div class="cp-document-detail-grid">${value(uiText(state.locale, "Document ID", "شناسه سند"), selected.documentId)}${value(uiText(state.locale, "Title", "عنوان"), selected.title)}${value(uiText(state.locale, "Type", "نوع"), selected.resourceType)}${value(uiText(state.locale, "Status", "وضعیت"), selected.status)}${value(uiText(state.locale, "Revision", "بازنگری"), String(selected.revision))}${value(uiText(state.locale, "Storage", "ذخیره‌سازی"), selected.hasStorageRef ? uiText(state.locale, "Reference available", "مرجع موجود است") : uiText(state.locale, "No storage reference", "مرجع ذخیره‌سازی موجود نیست"))}</div>`;
+  } else if (selected && activeTab === "links") {
+    detail = selected.linkedEntityRefs.length ? `<ul class="cp-document-link-list">${selected.linkedEntityRefs.map((ref) => `<li>${escapeHtml(ref)}</li>`).join("")}</ul>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No linked project records.", "هیچ رکورد پروژه‌ای پیوند نشده است."))}</p>`;
+  } else if (selected && activeTab === "integrity") {
+    detail = `<div class="cp-document-detail-grid">${value("SHA-256", selected.contentHash)}${value(uiText(state.locale, "Storage reference", "مرجع ذخیره‌سازی"), selected.hasStorageRef ? uiText(state.locale, "Available", "موجود") : uiText(state.locale, "Unavailable", "ناموجود"))}</div>`;
+  } else if (selected && activeTab === "revisions") {
+    detail = `<div class="cp-document-detail-grid">${value(uiText(state.locale, "Current revision", "بازنگری جاری"), String(selected.revision))}</div><p class="cp-empty">${escapeHtml(uiText(state.locale, "Only the current document revision is loaded; revision history is not available from this service.", "فقط بازنگری جاری سند بارگذاری شده است؛ تاریخچه بازنگری از این سرویس در دسترس نیست."))}</p>`;
+  } else if (selected && activeTab === "udfs") {
+    detail = `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No user-defined document fields are loaded.", "فیلد سفارشی برای سند بارگذاری نشده است."))}</p>`;
+  }
+  const columns = [["Document ID","شناسه سند"],["Title","عنوان"],["Type","نوع"],["Status","وضعیت"],["Revision","بازنگری"],["Linked Records","رکوردهای پیوندشده"]] as const;
+  return `<div class="cp-documents-window">
+    <section class="cp-documents-register"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Project Documents", "اسناد پروژه"))}</strong><span>${escapeHtml(String(state.documents.length))} ${escapeHtml(uiText(state.locale, "documents", "سند"))}</span></div>
+      <div class="cp-register-table-wrap"><table><thead><tr>${columns.map(([en,fa])=>`<th>${escapeHtml(uiText(state.locale,en,fa))}</th>`).join("")}</tr></thead><tbody>
+      ${state.documents.length ? state.documents.map((document) => `<tr class="${document.documentId === selectedId ? "is-selected" : ""}"><td><button type="button" data-document-select="${escapeAttribute(document.documentId)}" aria-pressed="${document.documentId === selectedId}">${escapeHtml(document.documentId)}</button></td><td>${escapeHtml(document.title)}</td><td>${escapeHtml(document.resourceType)}</td><td>${escapeHtml(document.status)}</td><td>${escapeHtml(String(document.revision))}</td><td>${escapeHtml(String(document.linkedEntityRefs.length))}</td></tr>`).join("") : `<tr><td colspan="${columns.length}">${escapeHtml(uiText(state.locale, "No project documents have been recorded yet.", "هنوز سندی برای این پروژه ثبت نشده است."))}</td></tr>`}
+      </tbody></table></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Create, edit, delete and upload actions remain disabled until the document service exposes the corresponding write workflows.", "عملیات ایجاد، ویرایش، حذف و بارگذاری تا ارائه گردش‌کار نوشتن توسط سرویس اسناد غیرفعال هستند."))}</p></section>
+    <section class="cp-document-details"><header><strong>${escapeHtml(uiText(state.locale, "Document Details", "جزئیات سند"))}</strong><span>${escapeHtml(selected?.documentId ?? uiText(state.locale, "No selection", "بدون انتخاب"))}</span></header>
+      <nav role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Document detail tabs", "زبانه‌های جزئیات سند"))}">${tabs.map(([key,en,fa])=>`<button type="button" role="tab" data-document-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}</nav><div class="cp-document-detail-content">${detail}</div></section>
+  </div>`;
+}
 function renderCalendarCatalog(state: WorkspaceState): string {
   const catalog = state.calendarCatalog;
   if (catalog.status === "unavailable") {
@@ -1659,9 +1695,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       body = renderRegisterWindow(state, uiText(state.locale, "Project Expenses", "هزینه‌های پروژه"), [["Expense Item","شرح هزینه"],["Expense ID","شناسه هزینه"],["Activity ID","شناسه فعالیت"],["WBS","ساختار شکست"],["Cost Account","حساب هزینه"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Accrual Type","نوع تعهد"],["Vendor","تأمین‌کننده"],["Status","وضعیت"]], [["general","General","عمومی"],["costs","Costs","هزینه‌ها"],["description","Description","شرح"],["documents","Documents","اسناد"],["udfs","UDFs","فیلدهای کاربر"]]);
       break;
     case "documents":
-      body = state.documents.length
-        ? `<div class="cp-p6-module-list">${state.documents.map((document) => `<article><strong>${escapeHtml(document.documentId)}</strong><span>${escapeHtml(document.title)}</span><small>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · R${document.revision}</small></article>`).join("")}</div>`
-        : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No project documents have been recorded yet.", "هنوز سندی برای این پروژه ثبت نشده است."))}</p>`;
+      body = renderDocumentRegisterWindow(container, state);
       body += controls(moduleButton("tools", "file", uiText(state.locale, "Open workspace tools", "بازکردن ابزارهای محیط کار")));
       break;
     case "cost":
@@ -1806,6 +1840,7 @@ function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: numb
   const actions: Partial<Record<WorkspaceState["activeMenu"], readonly ({ kind: string; value: string } | null)[]>> = {
     wbs: [null, { kind: "wbs-detail-tab", value: "general" }, null],
     resources: [null, null, { kind: "register-tab", value: "resources:assignments" }, { kind: "register-tab", value: "resources:codes" }, { kind: "register-tab", value: "resources:roles" }],
+    documents: [null, { kind: "document-detail-tab", value: "links" }, { kind: "document-detail-tab", value: "integrity" }, { kind: "document-detail-tab", value: "revisions" }, null],
     assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
     expenses: [null, null, { kind: "register-tab", value: "expenses:general" }],
     issues: [null, { kind: "register-tab", value: "issues:details" }],
@@ -1845,7 +1880,7 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "cost":
       return ["#cp-procurement", "#cp-change-claim"];
     case "documents":
-      return ["#cp-documents", null];
+      return ["#cp-p6-module-stage"];
     case "reports":
       return [];
     case "control":
