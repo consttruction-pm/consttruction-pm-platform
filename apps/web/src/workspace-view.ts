@@ -1720,7 +1720,8 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
           ${metric(state.procurementRecords.length, t.procurement)}
           ${metric(state.changeNotices.length + state.changeCases.length + state.claims.length, t.commercial)}
         </div>
-        <p>${escapeHtml(uiText(state.locale, "Cost presentation uses the procurement, change and claim records already loaded for this project. Financial calculations remain in the authoritative core.", "نمایش هزینه از سوابق تدارکات، تغییر و ادعای بارگذاری‌شده برای این پروژه استفاده می‌کند. محاسبات مالی در هستهٔ مرجع باقی می‌ماند."))}</p>
+        <p>${escapeHtml(uiText(state.locale, "Cost presentation uses the procurement, change and claim records already loaded for this project. Financial calculations remain in the authoritative core; the account, budget, cash-flow and earned-value registers remain empty until their services provide data.", "نمایش هزینه از سوابق تدارکات، تغییر و ادعای بارگذاری‌شده برای این پروژه استفاده می‌کند. محاسبات مالی در هسته مرجع باقی می‌ماند؛ فهرست حساب، بودجه، جریان نقدی و ارزش کسب‌شده تا ارائه داده توسط سرویس مربوط خالی می‌مانند."))}</p>
+        ${renderRegisterWindow(state, uiText(state.locale, "Cost Accounts & Control", "حساب‌ها و کنترل هزینه"), [["Cost Account","حساب هزینه"],["Description","شرح"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Remaining Cost","هزینه باقیمانده"],["Forecast Cost","هزینه پیش‌بینی"],["Variance","انحراف"],["Currency","ارز"],["Financial Period","دوره مالی"],["Funding Source","منبع تأمین مالی"]], [["general","General","عمومی"],["budget","Budget","بودجه"],["actuals","Actuals","واقعی‌ها"],["forecast","Forecast","پیش‌بینی"],["cash-flow","Cash Flow","جریان نقدی"],["evm","Earned Value","ارزش کسب‌شده"],["periods","Financial Periods","دوره‌های مالی"],["funding","Funding","تأمین مالی"],["udfs","UDFs","فیلدهای کاربر"]])}
         ${controls(moduleButton("tools", "money", uiText(state.locale, "Open cost records", "بازکردن سوابق هزینه")))}`;
       break;
     case "progress":
@@ -1857,6 +1858,7 @@ function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: numb
     wbs: [null, { kind: "wbs-detail-tab", value: "general" }, null],
     resources: [null, null, { kind: "register-tab", value: "resources:assignments" }, { kind: "register-tab", value: "resources:codes" }, { kind: "register-tab", value: "resources:roles" }],
     documents: [null, { kind: "document-detail-tab", value: "links" }, { kind: "document-detail-tab", value: "integrity" }, { kind: "document-detail-tab", value: "revisions" }, null],
+    cost: [null, { kind: "register-tab", value: "cost:general" }, { kind: "register-tab", value: "cost:budget" }, { kind: "register-tab", value: "cost:cash-flow" }, { kind: "register-tab", value: "cost:evm" }, null, null],
     assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
     expenses: [null, null, { kind: "register-tab", value: "expenses:general" }],
     issues: [null, { kind: "register-tab", value: "issues:details" }],
@@ -1894,7 +1896,7 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "tracking":
       return ["#cp-p6-module-stage"];
     case "cost":
-      return ["#cp-procurement", "#cp-change-claim"];
+      return ["#cp-p6-module-stage", null, null, null, null, "#cp-procurement", "#cp-change-claim"];
     case "documents":
       return ["#cp-p6-module-stage"];
     case "reports":
