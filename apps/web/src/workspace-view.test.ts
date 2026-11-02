@@ -503,6 +503,43 @@ test("Projects window docks Project Details below the register with the full det
   }
 });
 
+test("Project Structure leading rail supports keyboard and pointer resizing", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const styles: Record<string, string> = {};
+  const attributes: Record<string, string> = {};
+  const root = { style: { setProperty: (name: string, value: string) => { styles[name] = value; } }, getAttribute: () => "ltr" };
+  const splitter = {
+    dataset: { projectStructureSplitter: "" },
+    setAttribute: (name: string, value: string) => { attributes[name] = value; },
+    setPointerCapture: () => {},
+    releasePointerCapture: () => {},
+  };
+  const structure = { getBoundingClientRect: () => ({ width: 240 }) };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === ".cp-workspace[data-active-menu=project]" ? root
+      : selector === "[data-project-structure-splitter]" ? splitter
+        : selector === ".cp-project-structure-summary" ? structure : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "project" as const,
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { projectStructureSplitter: "" }, closest: () => target };
+  let prevented = false;
+  listeners.get("keydown")?.({ target, key: "ArrowRight", preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.equal(styles["--cp-project-structure-width"], "256px");
+  listeners.get("pointerdown")?.({ target, pointerId: 9, clientX: 300, preventDefault: () => {} } as unknown as Event);
+  listeners.get("pointermove")?.({ pointerId: 9, clientX: 320 } as unknown as Event);
+  assert.equal(styles["--cp-project-structure-width"], "260px");
+  assert.equal(attributes["aria-valuenow"], "260");
+  listeners.get("pointerup")?.({ target, pointerId: 9 } as unknown as Event);
+});
+
 test("Project Details horizontal splitter supports keyboard resizing and persists its pane height", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const styles: Record<string, string> = {};
