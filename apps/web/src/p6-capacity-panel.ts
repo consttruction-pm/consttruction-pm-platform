@@ -865,7 +865,7 @@ export function mountCapacityPanel(
       boundPanel.dataset.capacityResolveClicked = "true";
       event.preventDefault();
       void submitCapacityResolution(boundPanel, form);
-    });
+    }, true);
     documentRef.addEventListener("submit", (event) => {
       const form = event.target instanceof HTMLFormElement ? event.target : null;
       if (!form || !form.matches("[data-capacity-resolve-form]")) return;
@@ -873,7 +873,7 @@ export function mountCapacityPanel(
       if (!boundPanel) return;
       event.preventDefault();
       void submitCapacityResolution(boundPanel, form);
-    });
+    }, true);
   }
 
   void loadAll();
