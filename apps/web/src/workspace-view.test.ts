@@ -230,10 +230,19 @@ test("Activity Details exposes the Bottom Layout Options tab customization dialo
   const html = render("en", "schedule");
   assert.match(html, /data-activity-details-options-open/);
   assert.match(html, /data-activity-details-options-dialog/);
-  assert.match(html, /data-activity-detail-visible="general" checked/);
-  assert.match(html, /data-activity-detail-visible="risks" checked/);
+  assert.match(html, /data-activity-detail-available/);
+  assert.match(html, /data-activity-detail-display/);
+  assert.match(html, /value="general"/);
+  assert.match(html, /Available Tabs/);
+  assert.match(html, /Display Tabs/);
+  assert.match(html, /data-activity-detail-add-all/);
+  assert.match(html, /data-activity-detail-remove-all/);
+  assert.match(html, /data-activity-detail-move-up/);
+  assert.match(html, /data-activity-detail-move-down/);
+  assert.match(html, /data-activity-detail-default/);
+  assert.match(html, /data-activity-details-apply-close/);
   assert.match(html, /Customize Activity Details/);
-  assert.match(html, /Choose which detail tabs are visible/);
+  assert.match(html, /Choose the available tabs, move them into Display Tabs, and arrange their order/);
 });
 
 test("Activities Layout Options inventories top and bottom chart layouts without enabling unimplemented renderers", () => {
