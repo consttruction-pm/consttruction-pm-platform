@@ -162,6 +162,7 @@ def _exception_snapshot(
 class SQLiteCalendarExceptionRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS calendar_exception (
@@ -174,7 +175,8 @@ class SQLiteCalendarExceptionRepository:
                     REFERENCES calendar_master(tenant_id, project_id, calendar_id, calendar_version)
             )"""
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def save(self, exception: CalendarException) -> CalendarException:
         was_in_transaction = self.connection.in_transaction
