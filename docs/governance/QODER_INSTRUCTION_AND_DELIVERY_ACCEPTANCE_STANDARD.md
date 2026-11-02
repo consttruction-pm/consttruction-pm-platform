@@ -31,11 +31,11 @@ Every task must identify its target product/version and the source hierarchy. CU
 
 ### 2.1 Visual workspace track
 
-The currently recorded visual reference baseline is **P6 Professional Version 22**:
+The visual and functional reference baseline is the **latest available P6 Professional release, Version 26 (with the latest applicable 26.x update/patch)**. As of 2026-11-02, Oracle's current official documentation set is Version 26; the latest public 26.x update identified in Oracle's community is 26.8.0.56513. Re-check Oracle's official release/update information before each major audit because the current patch may advance. The owner's 2026-11-02 decision explicitly supersedes the former Version 22 baseline. The older Version 22 screenshot may be retained only as historical geometry evidence, never as the controlling baseline:
 - the user-supplied 1100 × 808 screenshot is the primary geometry/proportion reference;
-- the Version 22 Professional User Guide and Version 22 Help are the primary behavior/layout inventory;
+- the latest Version 26 Professional User Guide, Help, Visualizer Help and release-specific documentation are the primary behavior/layout inventory and acceptance source;
 - measured proportions in `CUBI_Primavera_P6_Reference_Index.md` are to be preserved as the initial visual baseline, subject to measured responsive adaptations;
-- Version 25/26 references are cross-checks for later additions or changed behavior. A later-version feature must not silently replace a Version 22 behavior. Record version, difference, CUBI decision and test.
+- older-version references are historical cross-checks only. Do not preserve an older behavior where the latest release changes it; record the exact latest-version guide/topic, any backward-compatibility decision, and a test.
 
 If the product owner explicitly changes the visual baseline version, update this standard, the reference index and affected acceptance matrices before implementation.
 
@@ -385,7 +385,7 @@ These are concrete reasons this standard is mandatory:
 - Its own `workspace-visual-shell-master-audit.md` explicitly says the current branch is incomplete and lists independent windows, full Details surfaces, contextual bars, layout dialogs and browser screenshot review as outstanding.
 - The same audit says a menu catalogue/static placeholder is not completion evidence.
 - The current visual branch contains a visual-demo renderer and sample-only data. It can prove selected markup behavior, but not a complete running multi-window workspace.
-- The visual audit and older reference index had inconsistent version emphasis (Version 26 desktop guide versus Version 22 primary screenshot/Help). Section 2 now resolves this: Version 22 is the visual geometry baseline unless the product owner changes it; later versions are explicit cross-checks.
+- The owner explicitly changed the visual baseline on 2026-11-02: latest P6 Professional Version 26 / current 26.x update governs visual, functional and behavioral parity. Version 22 imagery is historical only and must not constrain the new shell.
 
 ### Shared calculation core
 - PR #1668 contains substantial core implementation and exact-head green CI evidence, but remains Draft/open.
@@ -413,3 +413,9 @@ The product owner confirms the preferred high-speed workflow:
 - Direct licensed P6 numeric comparison is desirable evidence when available, but it is not a prerequisite for implementing or testing documented rules. Only the direct product-to-product parity claim remains unavailable until such a comparison exists.
 - The user's daily Qoder budget is limited (reported as 100 per day). Every prompt must therefore be complete, scoped, repository-aware, and designed to maximize finished work per successful model request while preserving correctness.
 - The assistant must not send a new Qoder prompt until it has inspected the previous response and identified the exact remaining delta. No vague continuation prompts, repetitive rediscovery, unnecessary retries, or cosmetic micro-prompts.
+
+## Owner decision — latest release is the sole controlling reference (2026-11-02)
+
+The owner explicitly instructs that CUBI's visual shell, menus, windows, dialogs, controls, layouts, and interaction behavior must be designed and audited against the **latest available P6 Professional release**, not Version 22. Oracle's official documentation currently identifies Version 26 as the current documentation set. The latest 26.x patch/update must be checked from Oracle release information at each audit; a public Oracle community item identifies 26.8.0.56513, but do not assume that remains latest indefinitely. Version 22 screenshots and dimensions are superseded as controlling requirements; they may be consulted only as historical context. Do not preserve Version 22 geometry where it conflicts with latest-release behavior or UI. Where no reliable latest-version screenshot exists, reconstruct from the current official guides and document the evidence and any visual uncertainty rather than reverting to Version 22.
+
+Official reference: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/ . Latest patch verification reference (re-check at time of work): https://community.oracle.com/mosc/categories/primavera_-_prim .
