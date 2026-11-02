@@ -2,7 +2,7 @@
 
 Branch: `codex/jalal/resource-dependent-core-20261102`
 Baseline: `main` at `2577a56287f446fe0177458808e77952c12d4d7a`
-Latest implementation/test head: `3a780106` (this ledger update follows it)
+Latest implementation/test head: `66072977` (this ledger update follows it)
 PR: #1668 (open; not yet Ready/merged)
 
 This ledger is the durable continuation record for the core-calculation mission.
@@ -236,7 +236,8 @@ repository; they are not waiting on external input.
     cross-module import -> persist (SQLite) -> shared schedule -> export test.
 - Commits: `ed26aef7`, `72a18596`, `2bd88bf4`, `4c851b75`, `f69503ee`,
   `54eabd13`, `55fe65f2`, `ddff9af7`, `e210f5c1`, `b7483eca`, `3c29300a`,
-  `3a780106`.
+  `3a780106`; ledger commits `12771e14` and `66072977` follow, then this
+  final evidence update.
 - Files: scheduling diagnostics, evaluator, Schedule Query projection,
   activity/schedule WBS and milestone paths, resource leveling and cost
   recalculation, baseline update, EVM source and read model, interchange
@@ -251,16 +252,16 @@ repository; they are not waiting on external input.
   rejection, cross-project priority, cost recalculation, baseline update (10
   SQLite + 4 PostgreSQL), EVM WBS/milestone/bucket/curve integration,
   interchange round-trip and import/persist/schedule/export.
-- Exact-head CI on `3c29300a`: 9/9 green. ConstructionPM CI run `41390618837`
-  (jobs 125100976232 `test (3.13)`, 125100976436 `test (3.11)`,
-  125100976500 `test (3.12)`); PostgreSQL Integration run `41390618603`
-  (job 125100975337 `postgres`); Client Typecheck run `41390618649`
-  (jobs 125100975439 `apps/mobile`, 125100975663 `apps/web`,
-  125100975832 `apps/desktop`, 125100975908 `apps/client-sync`);
-  ConstructionPM Web CI run `41390618561` (job 125100975303 `web`). All
-  concluded `success`. This ledger-only commit does not change code; the
-  path-filtered PostgreSQL and Web workflows are not expected to rerun on a
-  documentation-only head.
+- Exact-head CI on the final code head `66072977`: 9/9 green. ConstructionPM CI
+  run `41392001760` (jobs 125105219025 `test (3.11)`, 125105219148
+  `test (3.12)`, 125105219176 `test (3.13)`); PostgreSQL Integration run
+  `41392001753` (job 125105218931 `postgres`); Client Typecheck run
+  `41392001902` (jobs 125105219370 `apps/desktop`, 125105219580
+  `apps/client-sync`, 125105219618 `apps/mobile`, 125105219736 `apps/web`);
+  ConstructionPM Web CI run `41392001782` (job 125105219108 `web`). All
+  concluded `success`. The prior code head `3c29300a` was also 9/9 green
+  (runs `41390618837`, `41390618603`, `41390618649`, `41390618561`). This
+  ledger-only commit does not change code.
 - Open: no matrix row is `IMPLEMENTED_BUT_INCOMPLETE` or `KNOWN_GAP`. No
   licensed Version 26 reference run exists, so no row is
   `IMPLEMENTED_AND_PARITY_TESTED`; external parity fixtures remain the only
