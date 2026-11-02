@@ -89,7 +89,15 @@ class P6XlsCodec:
 
     @staticmethod
     def _write_value(sheet: Any, row: int, col: int, value: Any) -> None:
-        if value is None:
+        from datetime import date, datetime
+
+        if isinstance(value, datetime):
+            # Write ISO text instead of a bare serial number so the date type
+            # survives the round trip without cell-format metadata.
+            sheet.write(row, col, value.isoformat())
+        elif isinstance(value, date):
+            sheet.write(row, col, value.isoformat())
+        elif value is None:
             sheet.write(row, col, "")
         elif isinstance(value, bool):
             sheet.write(row, col, 1 if value else 0)

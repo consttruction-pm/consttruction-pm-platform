@@ -29,6 +29,11 @@ class P6InterchangeTypedValue:
             not isinstance(self.currency, str) or not self.currency.strip()
         ):
             raise P6InterchangeValueError("INVALID_CURRENCY")
+        if self.value is None:
+            # An absent value is explicitly typed: the field is known but has
+            # no value. Text formats represent it as an empty cell/text, which
+            # the mapper restores to None instead of coercing to "" or 0.
+            return
 
         kind = self.data_type
         if kind == "date":
@@ -74,6 +79,13 @@ class P6InterchangeTypedValue:
 
     def to_payload(self) -> dict[str, Any]:
         self.validate()
+        if self.value is None:
+            return {
+                "data_type": self.data_type,
+                "value": None,
+                "unit": self.unit,
+                "currency": self.currency,
+            }
         value: Any
         if self.data_type == "date":
             value = self.value.isoformat()
@@ -105,6 +117,10 @@ class P6InterchangeTypedValue:
         raw = payload.get("value")
         if not isinstance(kind, str):
             raise P6InterchangeValueError("INVALID_DATA_TYPE")
+        if raw is None:
+            result = cls(kind, None, unit, currency)
+            result.validate()
+            return result
 
         try:
             if kind == "date":
