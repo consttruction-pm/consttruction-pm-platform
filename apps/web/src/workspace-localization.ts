@@ -119,6 +119,8 @@ export function translateWorkspaceText(locale: WorkspaceLocale, key: string, fal
  * back to its English source so no raw key ever reaches the screen.
  */
 export function translateWorkspaceUiText(locale: WorkspaceLocale, english: string, persian: string): string {
+  const packed = translateWorkspaceText(locale, `ui.${english}`, "");
+  if (packed) return packed;
   const base = locale.split("-")[0].toLowerCase();
   if (base === "fa") return persian;
   if (base === "de" || base === "zh") return translateUiString(locale, english) ?? english;
@@ -127,5 +129,5 @@ export function translateWorkspaceUiText(locale: WorkspaceLocale, english: strin
 
 /** Translate a persisted English presentation label for the active locale. */
 export function localizeWorkspaceLabel(locale: WorkspaceLocale, english: string): string {
-  return translateColumnLabel(locale, english);
+  return translateWorkspaceText(locale, `column.label.${english}`, "") || translateColumnLabel(locale, english);
 }
