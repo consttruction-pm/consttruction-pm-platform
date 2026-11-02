@@ -40,6 +40,8 @@ The current authoritative functional inventory is the latest official Version 26
 | Administration | Users, Security Profiles, Admin Preferences, Admin Categories, Currencies, Financial Period Calendars | CUBI team, permissions, audit and system-default controls are additional product-specific commands; access must be role-authorized. |
 | Help | Local Help, Online Help, About, What's New, Share Feedback | CUBI guide, context help, shortcuts and documentation library are additional help destinations. |
 
+The Edit menu's Add Activity, Add WBS, Add Relationship and Link Activities entries now route to the existing creation/relationship workflows; Find focuses the activity filter. These commands reuse the owning form and API callback rather than duplicating write logic.
+
 ### Main-window submenu routing audit — 2026-11-02
 
 Module submenus are not allowed to remain decorative labels when the destination already exists. The current navigation surface now routes supported submenus into their real module stage, detail tab, calendar editor tab or tracking-layout selector:
