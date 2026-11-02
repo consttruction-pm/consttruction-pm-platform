@@ -6701,3 +6701,11 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-layout-options-section p{margin:0;color:#718096;font-size:10px;line-height:1.55}
 .cp-layout-options-form>footer{display:flex;justify-content:flex-end;padding:10px 15px;background:#f7f9fc}
 .cp-layout-options-form>footer button{min-width:78px;min-height:29px;border:1px solid #9eafc2;border-radius:3px;background:#eaf0f7;color:#23405e;font:inherit;font-size:11px;cursor:pointer}
+
+
+/* Window strip mirrors the persisted open-window registry. */
+.cp-p6 .cp-window-tab-item{display:inline-flex;align-items:stretch;flex:0 0 auto;min-width:0;height:25px;margin-inline-end:2px}
+.cp-p6 .cp-window-tab-item .cp-window-tab{height:25px;margin:0;border-radius:3px 0 0 0}
+.cp-p6 .cp-window-tab-item .cp-window-tab-close{width:20px;min-width:20px;height:25px;padding:0;border:1px solid #c5cfdb;border-bottom:0;border-inline-start:0;border-radius:0 3px 0 0;background:#edf1f6;color:#63748a;font-size:14px;line-height:1;cursor:pointer}
+.cp-p6 .cp-window-tab-item .cp-window-tab-close:hover{background:#fbe9e7;border-color:#d7a39d;color:#9b332a}
+.cp-p6 .cp-window-tab-item:has(.cp-window-tab[aria-selected="true"]) .cp-window-tab-close{background:#fff;border-color:#9fb2c8;color:#53657b}
