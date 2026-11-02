@@ -81,3 +81,53 @@ class ResourceAPI:
             return dto
         except ApplicationError as exc:
             return exc.to_dto()
+
+
+    def get_resource(self, resource_id: str) -> dict[str, Any] | None:
+        try:
+            result = self.service.get_resource(resource_id)
+            if result is None:
+                return None
+            dto = resource_to_dto(result)
+            dto["revision"] = self.service.repository.get_resource_revision(
+                self.service.context, result.id
+            )
+            dto["contract_version"] = RESOURCE_CONTRACT_VERSION
+            dto["operation"] = "get_resource"
+            return dto
+        except ApplicationError as exc:
+            return exc.to_dto()
+
+    def list_resources(self) -> tuple[dict[str, Any], ...]:
+        try:
+            values = self.service.list_resources()
+            return tuple(
+                {
+                    **resource_to_dto(item),
+                    "revision": self.service.repository.get_resource_revision(
+                        self.service.context, item.id
+                    ),
+                    "contract_version": RESOURCE_CONTRACT_VERSION,
+                    "operation": "list_resources",
+                }
+                for item in values
+            )
+        except ApplicationError as exc:
+            return (exc.to_dto(),)
+
+    def list_assignments(self, activity_id: str | None = None) -> tuple[dict[str, Any], ...]:
+        try:
+            values = self.service.list_assignments(activity_id)
+            return tuple(
+                {
+                    **assignment_to_dto(item),
+                    "revision": self.service.repository.get_assignment_revision(
+                        self.service.context, item.activity_id, item.resource_id
+                    ),
+                    "contract_version": RESOURCE_CONTRACT_VERSION,
+                    "operation": "list_assignments",
+                }
+                for item in values
+            )
+        except ApplicationError as exc:
+            return (exc.to_dto(),)
