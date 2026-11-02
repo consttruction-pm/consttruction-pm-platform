@@ -1813,6 +1813,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
           ${metric(state.fieldIssues.length, t.issues)}
           ${metric(state.punchItems.length, t.punchCloseout)}
         </div>
+        ${renderRegisterWindow(state, uiText(state.locale, "Project Control Register", "فهرست کنترل پروژه"), [["Record ID","شناسه رکورد"],["Record Type","نوع رکورد"],["Title","عنوان"],["Status","وضعیت"],["Severity","شدت"],["Responsible","مسئول"],["Updated","به‌روزرسانی"],["Evidence","مدرک"]], [["general","General","عمومی"],["quality","Quality","کیفیت"],["inspections","Inspections","بازرسی‌ها"],["safety","Safety","ایمنی"],["issues","Field Issues","مسائل کارگاهی"],["punch","Punch List","فهرست نواقص"],["changes","Changes & Claims","تغییرات و ادعاها"],["forms","Forms & Workflows","فرم‌ها و گردش‌کارها"],["udfs","UDFs","فیلدهای کاربر"]])}
         ${controls(`${moduleButton("forms", "forms", uiText(state.locale, "Forms & Workflows", "فرم‌ها و گردش‌کار"))}${moduleButton("tools", "warning", uiText(state.locale, "Open control records", "بازکردن سوابق کنترل"))}`)}`;
       break;
     case "reports":
@@ -1930,6 +1931,7 @@ function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: numb
     resources: [null, null, { kind: "register-tab", value: "resources:assignments" }, { kind: "register-tab", value: "resources:codes" }, { kind: "register-tab", value: "resources:roles" }],
     documents: [null, { kind: "document-detail-tab", value: "links" }, { kind: "document-detail-tab", value: "integrity" }, { kind: "document-detail-tab", value: "revisions" }, { kind: "document-type", value: "evidence" }],
     progress: [null, null, null, null, null, { kind: "progress-dialog", value: "update" }, { kind: "progress-dialog", value: "period-performance" }],
+    control: [null, { kind: "register-tab", value: "control:quality" }, { kind: "register-tab", value: "control:inspections" }, { kind: "register-tab", value: "control:safety" }, { kind: "register-tab", value: "control:issues" }, { kind: "register-tab", value: "control:punch" }, { kind: "register-tab", value: "control:changes" }, { kind: "register-tab", value: "control:forms" }],
     cost: [null, { kind: "register-tab", value: "cost:general" }, { kind: "register-tab", value: "cost:budget" }, { kind: "register-tab", value: "cost:cash-flow" }, { kind: "register-tab", value: "cost:evm" }, null, null],
     assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
     expenses: [null, null, { kind: "register-tab", value: "expenses:general" }],
@@ -1974,7 +1976,7 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "reports":
       return [];
     case "control":
-      return ["#cp-control-summary", "#cp-change-claim"];
+      return ["#cp-control-summary"];
     case "settings":
       return ["#cp-project-settings-open", "#cp-settings-panel"];
 
