@@ -2557,10 +2557,25 @@ async function main() {
       "capacity write fields must retain their values before submit: " + JSON.stringify(writeInputsBeforeSubmit),
     );
     await page.click("[data-capacity-save]");
-    await page.waitFor(
-      `Boolean(document.querySelector("[data-capacity-write-result] [data-capacity-write-success]"))`,
-      "capacity write accepted by the server",
-    );
+    try {
+      await page.waitFor(
+        `Boolean(document.querySelector("[data-capacity-write-result] [data-capacity-write-success]"))`,
+        "capacity write accepted by the server",
+      );
+    } catch (error) {
+      const diagnostic = await page.evaluate(`(() => {
+        const form = document.querySelector("[data-capacity-write-form]");
+        const panel = document.querySelector("#cp-resource-capacity [data-capacity-panel]");
+        return {
+          formValid: form instanceof HTMLFormElement ? form.checkValidity() : null,
+          values: form ? Array.from(form.querySelectorAll("input,select")).map((field) => ({ type: field.type, value: field.type === "checkbox" ? field.checked : field.value, valid: field.validity?.valid })) : [],
+          status: panel?.querySelector("[data-capacity-write-status]")?.textContent?.trim() ?? "",
+          result: panel?.querySelector("[data-capacity-write-result]")?.innerHTML ?? "",
+          busy: panel?.getAttribute("aria-busy") ?? null,
+        };
+      })()`);
+      throw new Error("CAPACITY_WRITE_DIAGNOSTIC: " + JSON.stringify(diagnostic) + "; " + error.message);
+    }
     await page.waitFor(
       `document.querySelectorAll("[data-capacity-profile] tbody tr").length === 3`,
       "three active capacity segments after the effective change",
