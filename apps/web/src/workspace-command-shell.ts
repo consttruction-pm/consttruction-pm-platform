@@ -125,7 +125,8 @@ export function renderWorkspaceCommandShell(locale: string, activeMenu = "schedu
   .cubi-menu-popup,.cubi-command-parent ul{list-style:none;margin:0;padding:4px;min-width:230px;background:#fff;border:1px solid #b8c6d8;box-shadow:0 8px 22px #14253b2b}
   .cubi-menu-popup{position:absolute;top:100%;inset-inline-start:0;max-height:min(70vh,560px);overflow:auto}
   .cubi-menu-popup li button,.cubi-command-parent summary{display:flex;align-items:center;justify-content:space-between;gap:22px;width:100%;border:0;background:transparent;color:#24384f;text-align:start;padding:6px 9px;border-radius:2px;font:inherit;cursor:pointer}
-  .cubi-menu-popup li button[aria-disabled=true]{opacity:.82}.cubi-menu-popup li button:hover,.cubi-command-parent summary:hover{background:#e8eff8}
+  .cubi-menu-popup li button[aria-disabled=true]{opacity:.48;cursor:not-allowed}.cubi-menu-popup li button:not(:disabled):hover,.cubi-command-parent summary:hover{background:#e8eff8}
+  .cubi-menu-root summary:focus-visible,.cubi-menu-popup button:focus-visible,.cubi-command-parent summary:focus-visible{outline:2px solid #1c6bb7;outline-offset:1px}
   .cubi-menu-popup kbd{font:10px Inter, sans-serif;color:#69798c}.cubi-command-divider{height:1px;background:#e1e6ed;margin:4px 3px}
   .cubi-command-parent{position:relative}.cubi-command-parent ul{display:none;position:absolute;top:0;inset-inline-start:100%;max-height:60vh;overflow:auto}.cubi-command-parent details[open]>ul{display:block}
   .cubi-submenu-caret{margin-inline-start:auto;color:#73849a}
