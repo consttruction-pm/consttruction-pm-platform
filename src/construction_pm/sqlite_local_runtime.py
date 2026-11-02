@@ -15,8 +15,11 @@ from typing import Callable, Protocol
 
 from construction_pm.application.authorization import (
     AuthorizationContext,
+    Permission,
     RoleBasedAuthorizationPolicy,
 )
+from construction_pm.client_sync.offline_mutation import OfflineMutation
+from construction_pm.client_sync.offline_store_sqlite import SQLiteOfflineMutationStore
 from construction_pm.application.project_lifecycle import (
     ProjectLifecycleService,
     SessionRepository,
@@ -239,6 +242,7 @@ class SQLiteLocalApplicationRuntime:
 
     connection: sqlite3.Connection
     transaction_manager: SQLiteTransactionManager
+    offline_mutation_store: SQLiteOfflineMutationStore
     authorization_policy: RoleBasedAuthorizationPolicy
     project_lifecycle_api: ProjectLifecycleAPI
     activity_api: P6ActivityMasterAPI
@@ -278,6 +282,39 @@ class SQLiteLocalApplicationRuntime:
     _rules_version: str
     _engine_version: str
     _schedule_runtime_factory: LocalScheduleRuntimeFactory | None = None
+
+    def apply_offline_mutation(
+        self,
+        scope: BackendScope,
+        mutation: OfflineMutation,
+        *,
+        auth_context: AuthorizationContext,
+        apply: Callable[[], object],
+    ) -> object:
+        """Commit one authorized local domain write and its durable outbox item.
+
+        Native hosts must route each offline-capable write through this method.
+        The callback must call the relevant authenticated application API; this
+        boundary then guarantees the domain write and its mutation envelope
+        share one SQLite transaction. A failed callback or outbox append rolls
+        back the domain write. The result is returned only after durable commit.
+        """
+        scope.validate()
+        auth_context.validate()
+        if (
+            auth_context.tenant_id != scope.tenant_id
+            or auth_context.project_id != scope.project_id
+            or mutation.tenant_id != scope.tenant_id
+            or mutation.project_id != scope.project_id
+        ):
+            raise ValueError("OFFLINE_MUTATION_SCOPE_MISMATCH")
+        if mutation.expected_revision != scope.project_revision:
+            raise ValueError("OFFLINE_MUTATION_REVISION_MISMATCH")
+        self.authorization_policy.require(auth_context, Permission.PROJECT_WRITE)
+        with self.transaction_manager.transaction():
+            result = apply()
+            self.offline_mutation_store.append(mutation)
+        return result
 
     def calendar_registry(self, scope: BackendScope) -> CalendarResolverRegistry:
         """Return the exact project/revision calendar registry from local storage."""
@@ -341,6 +378,7 @@ def build_sqlite_local_application_runtime(
         connection.execute("PRAGMA busy_timeout = 5000")
 
     transaction_manager = SQLiteTransactionManager(connection)
+    offline_mutation_store = SQLiteOfflineMutationStore(connection, transaction_manager)
     project_repository = SQLiteProjectRepository(connection)
     project_lifecycle_api = ProjectLifecycleAPI(
         ProjectLifecycleService(sessions, project_repository, authorization_policy)
@@ -431,6 +469,7 @@ def build_sqlite_local_application_runtime(
     return SQLiteLocalApplicationRuntime(
         connection=connection,
         transaction_manager=transaction_manager,
+        offline_mutation_store=offline_mutation_store,
         authorization_policy=authorization_policy,
         project_lifecycle_api=project_lifecycle_api,
         activity_api=activity_api,
