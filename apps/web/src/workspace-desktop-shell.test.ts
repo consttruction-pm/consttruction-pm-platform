@@ -60,15 +60,21 @@ test("window titles cover every navigation surface and avoid third-party product
   const titles = Object.keys(WINDOW_TITLES);
   assert.deepEqual(titles, [
     "project",
+    "wbs",
     "schedule",
     "progress",
     "resources",
+    "assignments",
     "roles",
     "calendars",
     "cost",
+    "expenses",
     "documents",
     "reports",
     "tracking",
+    "issues",
+    "risks",
+    "thresholds",
     "control",
     "settings",
   ]);
