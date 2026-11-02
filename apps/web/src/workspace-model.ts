@@ -20,10 +20,12 @@ export type WorkspaceMenuKey =
   | "schedule"
   | "progress"
   | "resources"
+  | "roles"
   | "calendars"
   | "cost"
   | "documents"
   | "reports"
+  | "tracking"
   | "control"
   | "settings";
 
