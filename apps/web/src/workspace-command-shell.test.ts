@@ -113,3 +113,15 @@ test("global menus include the remaining documented file, edit, organization, to
   assert.match(fa, /به‌روزرسانی داده‌ها/);
   assert.match(fa, /راهنمای محلی/);
 });
+
+test("Version 26 tools submenu inventory includes summarize scopes, approvals and publish layouts", () => {
+  const html = renderWorkspaceCommandShell("en");
+  for (const command of ["Summarize", "Open Projects", "All Projects", "Disable Auto-Reorganization", "Job Services", "Job Status", "Approvals", "Timesheets", "Report Preferences", "Project Website", "Activity Layouts", "Tracking Layouts", "Share Feedback", "Resources by Role", "Exchange Data", "CUBI Project Package"]) {
+    assert.ok(html.includes(command), `missing documented submenu command: ${command}`);
+  }
+  assert.match(html, /cubi-command-parent/);
+  const fa = renderWorkspaceCommandShell("fa");
+  assert.match(fa, /تبادل داده/);
+  assert.match(fa, /برگه‌های زمانی/);
+  assert.match(fa, /ارسال بازخورد/);
+});
