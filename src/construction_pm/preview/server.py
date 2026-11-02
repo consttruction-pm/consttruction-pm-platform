@@ -554,12 +554,16 @@ class PreviewApplication:
             return 302, headers, b""
         shell = (self.frontend.root / "app.html").read_text(encoding="utf-8")
         if self.asset_base:
-            for asset in (
-                "/styles.css",
-                "/dist/main.bundle.js",
-                "/dist/global-assistant-launcher.bundle.js",
+            # The bundle resolves shared brand assets with `new URL("../../../…",
+            # import.meta.url)`, exactly as it does when served from /dist/. It
+            # therefore must keep three directory levels below the CDN ref root
+            # or the logo becomes a 404. The assistant launcher stays same-origin
+            # because it derives the `/app/` workspace link from its own URL.
+            for asset, remote in (
+                ("/styles.css", "/styles.css"),
+                ("/dist/main.bundle.js", "/apps/web/dist/main.bundle.js"),
             ):
-                shell = shell.replace(f'"{asset}"', f'"{self.asset_base}{asset}"')
+                shell = shell.replace(f'"{asset}"', f'"{self.asset_base}{remote}"')
         banner = self._banner(session)
         if "</body>" in shell:
             shell = shell.replace("</body>", f"{banner}\n  </body>", 1)
