@@ -648,7 +648,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     ["control", uiText(state.locale, "Project Controls", "کنترل پروژه")],
     ["settings", uiText(state.locale, "Settings", "تنظیمات")],
   ] as const);
-  const contextCommands = state.activeMenu === "project"
+  const contextCommands: Array<{ label: string; action?: "project-settings" | "wbs" | "tools"; disabled?: boolean }> = state.activeMenu === "project"
     ? [
       { label: uiText(state.locale, "Project properties", "مشخصات پروژه"), action: "project-settings" },
       { label: uiText(state.locale, "WBS structure", "ساختار شکست"), action: "wbs" },
