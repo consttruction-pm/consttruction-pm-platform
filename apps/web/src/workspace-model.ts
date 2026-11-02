@@ -20,6 +20,7 @@ export type WorkspaceMenuKey =
   | "schedule"
   | "progress"
   | "resources"
+  | "calendars"
   | "cost"
   | "documents"
   | "reports"
