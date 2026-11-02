@@ -30,7 +30,7 @@ test("CUBI Form Builder is additive and exposes both governed libraries", () => 
 test("Persian command shell localizes menus, common commands and toolbar groups in RTL", () => {
   const html = renderWorkspaceCommandShell("fa");
   assert.match(html, /dir="rtl"/);
-  assert.match(html, /<summary>فایل<\/summary>/);
+  assert.match(html, /<summary>محیط کار<\/summary>/);
   assert.match(html, /<summary>ویرایش<\/summary>/);
   assert.match(html, /<summary>نمایش<\/summary>/);
   assert.match(html, /ذخیره/);
