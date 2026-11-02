@@ -155,6 +155,7 @@ type DemoState = {
   wbsDetailTab: "general" | "dates" | "activities" | "documents" | "notebook";
   collapsedWbsCodes: string[];
   scale: "day" | "week" | "month" | "quarter" | "year";
+  activityView: "schedule" | "relationships";
   detailTab: string;
   calendarMonth: number;
   adminSection: string;
@@ -295,12 +296,52 @@ function buildAxis(scale: DemoState["scale"], locale: string): GanttAxis {
 
 function renderGanttTools(state: DemoState): string {
   return `<div class="cp-vd-gantt-tools">
+    <div class="cp-vd-view-switch" role="group" aria-label="${esc(t(state.locale, "Activity view", "نمای فعالیت"))}">
+      <button type="button" data-vd-activity-view="schedule" class="${state.activityView === "schedule" ? "is-active" : ""}" aria-pressed="${state.activityView === "schedule"}">${esc(t(state.locale, "Activities & Gantt", "فعالیت‌ها و گانت"))}</button>
+      <button type="button" data-vd-activity-view="relationships" class="${state.activityView === "relationships" ? "is-active" : ""}" aria-pressed="${state.activityView === "relationships"}">${esc(t(state.locale, "Relationships", "روابط"))}</button>
+    </div>
     <div class="cp-vd-scale" role="group" aria-label="${esc(t(state.locale, "Timescale", "مقیاس زمانی"))}">
       ${(["day", "week", "month", "quarter", "year"] as const).map((scale) => `<button type="button" data-vd-scale="${scale}" class="${scale === state.scale ? "is-active" : ""}">${esc(t(state.locale, scale, { day: "روز", week: "هفته", month: "ماه", quarter: "فصل", year: "سال" }[scale]))}</button>`).join("")}
     </div>
     <span class="cp-vd-ganttbar-spacer"></span>
     <span class="cp-vd-legend"><i class="is-normal"></i>${esc(t(state.locale, "Normal", "عادی"))}<i class="is-critical"></i>${esc(t(state.locale, "Critical", "بحرانی"))}<i class="is-summary"></i>${esc(t(state.locale, "Summary", "خلاصه"))}<i class="is-milestone"></i>${esc(t(state.locale, "Milestone", "نقطهٔ عطف"))}<i class="is-datadate"></i>${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}</span>
   </div>`;
+}
+
+const DEMO_RELATIONSHIPS: ReadonlyArray<{ predecessor: string; successor: string; type: "FS" | "SS" | "FF" | "SF"; lag: number; unit: "d" | "h" }> = [
+  { predecessor: "A1010", successor: "A1110", type: "FS", lag: 0, unit: "d" },
+  { predecessor: "A1110", successor: "A1120", type: "SS", lag: 2, unit: "d" },
+  { predecessor: "A1120", successor: "A1130", type: "FF", lag: 0, unit: "d" },
+  { predecessor: "A1210", successor: "A1220", type: "FS", lag: -1, unit: "d" },
+  { predecessor: "A1310", successor: "A1320", type: "FS", lag: 0, unit: "d" },
+  { predecessor: "A1320", successor: "A1330", type: "SS", lag: 8, unit: "h" },
+  { predecessor: "A1330", successor: "A1340", type: "FF", lag: 1, unit: "d" },
+  { predecessor: "A1340", successor: "A1350", type: "SF", lag: 0, unit: "d" },
+];
+
+function renderRelationshipRegister(state: DemoState): string {
+  const rows = DEMO_RELATIONSHIPS.filter((link) => {
+    const query = state.filter.trim().toLowerCase();
+    if (!query) return true;
+    const pred = ACTIVITIES.find((item) => item.id === link.predecessor);
+    const succ = ACTIVITIES.find((item) => item.id === link.successor);
+    return `${link.predecessor} ${link.successor} ${pred?.name ?? ""} ${succ?.name ?? ""} ${link.type}`.toLowerCase().includes(query);
+  });
+  const cell = (value: string): string => `<td>${esc(value)}</td>`;
+  return `<section class="cp-vd-relationship-register" aria-label="${esc(t(state.locale, "Activity relationships", "روابط فعالیت‌ها"))}">
+    <div class="cp-vd-relationship-summary"><strong>${rows.length}</strong><span>${esc(t(state.locale, "Displayed relationships", "رابطهٔ نمایش‌داده‌شده"))}</span><span class="cp-vd-note">${esc(t(state.locale, "FS · SS · FF · SF  |  positive lag = delay, negative lag = lead", "FS · SS · FF · SF  |  تأخیر مثبت، پیش‌افتادگی منفی"))}</span></div>
+    <div class="cp-vd-tablewrap"><table class="cp-vd-table cp-vd-relationship-table"><thead><tr>
+      <th>${esc(t(state.locale, "Predecessor", "پیش‌نیاز"))}</th><th>${esc(t(state.locale, "Predecessor name", "نام پیش‌نیاز"))}</th>
+      <th>${esc(t(state.locale, "Relationship type", "نوع رابطه"))}</th><th>${esc(t(state.locale, "Lag / Lead", "تأخیر / پیش‌افتادگی"))}</th>
+      <th>${esc(t(state.locale, "Successor", "پس‌نیاز"))}</th><th>${esc(t(state.locale, "Successor name", "نام پس‌نیاز"))}</th>
+    </tr></thead><tbody>${rows.map((link) => {
+      const pred = ACTIVITIES.find((item) => item.id === link.predecessor);
+      const succ = ACTIVITIES.find((item) => item.id === link.successor);
+      const lag = `${link.lag > 0 ? "+" : ""}${link.lag} ${link.unit}`;
+      return `<tr data-vd-relationship="${esc(link.predecessor)}:${esc(link.successor)}">${cell(link.predecessor)}${cell(pred?.name ?? "—")}<td><span class="cp-vd-rel-type">${link.type}</span></td><td><bdi dir="ltr">${esc(lag)}</bdi></td>${cell(link.successor)}${cell(succ?.name ?? "—")}</tr>`;
+    }).join("") || `<tr><td colspan="6">${esc(t(state.locale, "No relationships match the current filter.", "رابطه‌ای با فیلتر فعلی مطابقت ندارد."))}</td></tr>`}</tbody></table></div>
+    <p class="cp-vd-note">${esc(t(state.locale, "Visual sample only. Relationship rows and lag values are illustrative; they are not persisted or used by the scheduling engine.", "صرفاً نمونه بصری. روابط و مقادیر تأخیر نمایشی‌اند و ذخیره یا در موتور زمان‌بندی استفاده نمی‌شوند."))}</p>
+  </section>`;
 }
 
 function renderGantt(state: DemoState): string {
@@ -624,10 +665,10 @@ function renderWindow(state: DemoState): string {
           <span class="cp-vd-chip">${esc(t(state.locale, "Classic Schedule Layout", "چیدمان کلاسیک زمان‌بندی"))}</span>
         </header>
         ${renderGanttTools(state)}
-        <div class="cp-vd-split">
+        ${state.activityView === "relationships" ? renderRelationshipRegister(state) : `<div class="cp-vd-split">
           <div class="cp-vd-pane">${renderActivityTable(state, state.columns)}</div>
           <div class="cp-vd-pane">${renderGantt(state)}</div>
-        </div>
+        </div>`}
         ${renderDetails(state)}
       </section>`;
     case "assignments":
@@ -1216,6 +1257,7 @@ export function createVisualDemoState(locale: string): DemoState {
     wbsDetailTab: "general",
     collapsedWbsCodes: [],
     scale: "month",
+    activityView: "schedule",
     detailTab: "general",
     calendarMonth: 1,
     adminSection: "users",
@@ -1452,6 +1494,12 @@ function bind(root: HTMLElement): void {
     }
     const tab = target.closest<HTMLElement>("[data-vd-window]");
     if (tab?.dataset.vdWindow) { navigate(tab.dataset.vdWindow as DemoWindowId); return; }
+    const activityView = target.closest<HTMLElement>("[data-vd-activity-view]");
+    if (activityView?.dataset.vdActivityView === "schedule" || activityView?.dataset.vdActivityView === "relationships") {
+      state.activityView = activityView.dataset.vdActivityView;
+      draw();
+      return;
+    }
     const scale = target.closest<HTMLElement>("[data-vd-scale]");
     if (scale?.dataset.vdScale) {
       state.scale = scale.dataset.vdScale as DemoState["scale"];
