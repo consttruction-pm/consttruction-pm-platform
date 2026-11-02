@@ -172,6 +172,7 @@ def _validate_resource_id(resource_id: str) -> None:
 class SQLiteP6ResourceCapacityRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         self.connection.execute(
@@ -215,7 +216,8 @@ class SQLiteP6ResourceCapacityRepository:
             )
             """
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def upsert(self, record: P6ResourceCapacityRecord) -> P6ResourceCapacityRecord:
         record.validate()
