@@ -257,3 +257,30 @@ Lack of a licensed direct P6 execution is not a blocker to implementation or doc
 The product owner explicitly replaced Version 22 as the controlling visual baseline and requires the **latest available P6 Professional release** to govern CUBI's complete visual shell. Oracle's official documentation set currently identifies Version 26. The latest 26.x patch/update must be checked before each visual audit; Oracle's 2026 What's New documentation lists P6 Professional 26.10; confirm the exact Professional client build and availability from the current release notes before treating an update as installed. Use the current Version 26 User Guide, Help, Visualizer Help, release notes and all relevant official topics to inventory the current menus, windows, bars, dialogs, layouts, columns, filters, grouping/sorting, timescale, calendars and workflows. Version 22 screenshots are no longer acceptance references and may be retained only as historical comparison material. If current screenshots are unavailable, reconstruct behavior and layout from current official documentation and explicitly flag visual uncertainty; do not silently fall back to Version 22.
 
 Official current documentation: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/ . Current patch discovery: https://community.oracle.com/mosc/categories/primavera_-_prim .
+
+
+## Version 26 Activity Details and View-command implementation slice (2026-11-02)
+
+### Official Activity Details inventory
+
+The current P6 Professional Help documents the following Activity Details tabs: General, Status, Resources, Predecessors, Successors, Codes, Tasks, Discussion, Notebook, Steps, Feedback, WPs & Docs, Expenses, Summary, Relationships, Risks (Professional-only), and UDFs. The Activity Details tabs are configurable through Bottom Layout Options / Customize Activity Details. The current official View Menu also defines context-sensitive commands including Layout, Show on Top, Show on Bottom, Bottom Layout Options, Bars, Bar Chart Options, Columns, Timescale, Filter By, Group and Sort By, Progress Line, Progress Spotlight, Attachments, Line Numbers, Activity Critical Path, Check Schedule, Table Font and Row, Activity Network options, Zoom, Expand/Collapse and Tab Groups.
+
+### Implemented in this slice
+
+- The workspace tab strip now renders only the open windows from the existing persisted open-window registry, rather than showing all nine modules as permanently open.
+- Each open window tab has a close control when more than one window is open; close delegates to the existing window registry and preserves the one-window minimum.
+- The Activities window now renders the complete 17-tab Activity Details inventory above. General and Status show only fields already present in the selected activity projection; relationship tabs show only authoritative relationship rows; unloaded detail categories explicitly show an empty/not-loaded state rather than invented records.
+- Bottom Layout Options is represented by a Customize Tabs dialog. Users can choose visible Activity Details tabs; the preference is stored locally and the selected tab remains active when possible.
+- The Activities View menu now enables the supported Columns, Filter By, Group and Sort By, Timescale, Bars and Bar Chart Options entries only while the Activities window is active. These entries focus the existing filter/group controls or open the existing tools drawer / new Layout Options dialog; unsupported commands remain disabled with an explanation.
+- The Activities Layout Options dialog exposes the currently implemented Gantt timescale and relationship-line visibility controls, wired to the existing state callbacks.
+- CSS is mirrored byte-for-byte between `apps/web/styles.css` and `apps/web/public/styles.css`.
+
+### Boundaries still open
+
+This is a verified source implementation slice, not completion of the full visual shell. The Activities detail tabs for Resources, Codes, Tasks, Discussion, Notebook, Steps, Feedback, WPs & Docs, Expenses, Risks and UDFs remain read-only empty states until their authoritative data/services are available. The full Bars / Bar Chart Options, columns/filter/group dialogs for each distinct window, alternative top layouts (Activity Network, usage spreadsheets/profiles, Trace Logic), full calendar/role/tracking/threshold windows, per-window independent state and dirty-close lifecycle, and browser screenshot/E2E acceptance remain open. Do not mark the shell complete until those items are implemented and tested.
+
+### Official sources
+
+- P6 Professional Version 26 Help — Activity Details: https://docs.oracle.com/cd/G48902_01/client_help/en_US/activity_details.htm
+- P6 Professional Version 26 Help — View Menu: https://docs.oracle.com/cd/G48902_01/client_help/en_US/49095.htm
+- P6 Professional Version 26 User Guide: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm
