@@ -6683,3 +6683,21 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-vd-calendar-registers .cp-vd-table { min-width:620px; }
 .cp-vd-calendar-registers + .cp-vd-note { margin-top:8px; }
 @media (max-width:900px) { .cp-vd-calendar-registers { grid-template-columns:1fr; } }
+
+
+/* Activities Layout Options dialog — native modal with compact engineering controls. */
+.cp-layout-options-dialog{width:min(560px,calc(100vw - 28px));max-width:560px;max-height:min(82vh,680px);padding:0;border:1px solid #9eafc2;border-radius:4px;background:#fff;color:#20344c;box-shadow:0 18px 55px #14253b45}
+.cp-layout-options-dialog::backdrop{background:#10243b66}
+.cp-layout-options-form{display:flex;flex-direction:column;max-height:inherit}
+.cp-layout-options-form>header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;border-bottom:1px solid #cbd5e1;background:#edf2f8}
+.cp-layout-options-form>header small{color:#6b7b8f;font-size:10px}
+.cp-layout-options-form>header h2{margin:2px 0 0;color:#173d68;font-size:15px}
+.cp-layout-options-form>header button{width:28px;height:28px;border:1px solid #b9c6d5;border-radius:3px;background:#fff;color:#31465e;font-size:19px;cursor:pointer}
+.cp-layout-options-section{display:grid;gap:10px;padding:14px 16px;border-bottom:1px solid #e1e7ee}
+.cp-layout-options-section h3{margin:0;color:#244463;font-size:12px}
+.cp-layout-options-section>label:not(.cp-layout-options-check){display:grid;grid-template-columns:minmax(120px,.8fr) minmax(160px,1.2fr);align-items:center;gap:12px;color:#52657a;font-size:11px}
+.cp-layout-options-section select{min-height:30px;padding:4px 7px;border:1px solid #b9c6d5;border-radius:2px;background:#fff;color:#24384f;font:inherit}
+.cp-layout-options-check{display:flex;align-items:center;gap:8px;color:#31465e;font-size:11px}
+.cp-layout-options-section p{margin:0;color:#718096;font-size:10px;line-height:1.55}
+.cp-layout-options-form>footer{display:flex;justify-content:flex-end;padding:10px 15px;background:#f7f9fc}
+.cp-layout-options-form>footer button{min-width:78px;min-height:29px;border:1px solid #9eafc2;border-radius:3px;background:#eaf0f7;color:#23405e;font:inherit;font-size:11px;cursor:pointer}
