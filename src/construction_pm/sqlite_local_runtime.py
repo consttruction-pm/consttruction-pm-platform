@@ -11,9 +11,10 @@ offline-aware authorization policy.
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable
+from typing import Callable, Protocol
 
 from construction_pm.application.authorization import (
+    AuthorizationContext,
     RoleBasedAuthorizationPolicy,
 )
 from construction_pm.application.project_lifecycle import (
@@ -72,7 +73,6 @@ from construction_pm.relationship_master_repository import SQLiteRelationshipMas
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository
 from construction_pm.schedule_snapshot_publisher import AuthoritativeScheduleSnapshotPublisher
-from construction_pm.shared_core_runtime import SharedCoreRuntime, build_shared_core_runtime
 from construction_pm.scheduling.calendar import WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
@@ -88,9 +88,22 @@ from construction_pm.p6_versioned_resource_calendar_resolver import (
     _load_work_rules,
     _persisted_exception_to_core,
 )
-from construction_pm.p6_resource_spread_repository import P6ResourceSpreadApplicationService
-from construction_pm.p6_resource_capacity_repository import P6ResourceCapacityApplicationService
 
+
+class LocalScheduleRuntime(Protocol):
+    def dispatch_json(
+        self,
+        request_json: str,
+        *,
+        auth_context: AuthorizationContext,
+        expected_project_revision: int,
+    ) -> str: ...
+
+
+LocalScheduleRuntimeFactory = Callable[
+    ["SQLiteLocalApplicationRuntime", BackendScope],
+    LocalScheduleRuntime,
+]
 
 def build_sqlite_calendar_resolver_registry(
     scope: BackendScope,
@@ -244,6 +257,7 @@ class SQLiteLocalApplicationRuntime:
     expense_repository: SQLiteP6ExpenseRepository
     _rules_version: str
     _engine_version: str
+    _schedule_runtime_factory: LocalScheduleRuntimeFactory | None = None
 
     def calendar_registry(self, scope: BackendScope) -> CalendarResolverRegistry:
         """Return the exact project/revision calendar registry from local storage."""
@@ -255,23 +269,17 @@ class SQLiteLocalApplicationRuntime:
             work_hours_repository=self.calendar_work_hours_repository,
         )
 
-    def schedule_runtime(self, scope: BackendScope) -> SharedCoreRuntime:
-        """Create a query runtime pinned to the open local project revision."""
+    def schedule_runtime(self, scope: BackendScope) -> LocalScheduleRuntime:
+        """Delegate to the host-supplied versioned Shared Core runtime factory.
+
+        The native host factory must call the canonical Shared Core runtime
+        builder, using this runtime's repositories and exact-version local
+        calendar/leveling services. Injection prevents a second calculation engine.
+        """
         scope.validate()
-        resolver = build_persisted_resource_leveling_input_resolver(
-            resource_read_api=self.resource_read_api,
-            calendar_master_repository=self.calendar_repository,
-            calendar_snapshot_repository=self.calendar_snapshot_repository,
-            calendar_exception_repository=self.calendar_exception_repository,
-            calendar_work_hours_repository=self.calendar_work_hours_repository,
-        )
-        return build_shared_core_runtime(
-            snapshot_repository=self.schedule_snapshot_repository,
-            calendar_registry_factory=lambda: self.calendar_registry(scope),
-            calculation_context_repository=self.calculation_context_repository,
-            authorization_policy=self.authorization_policy,
-            leveling_input_resolver=resolver,
-        )
+        if self._schedule_runtime_factory is None:
+            raise ValueError("LOCAL_SCHEDULE_RUNTIME_FACTORY_REQUIRED")
+        return self._schedule_runtime_factory(self, scope)
 
 
 def build_sqlite_local_application_runtime(
@@ -282,6 +290,7 @@ def build_sqlite_local_application_runtime(
     rules_version: str,
     engine_version: str,
     clock: object | None = None,
+    schedule_runtime_factory: LocalScheduleRuntimeFactory | None = None,
 ) -> SQLiteLocalApplicationRuntime:
     """Compose the existing application APIs and Shared Core over one local DB.
 
@@ -414,6 +423,7 @@ def build_sqlite_local_application_runtime(
         expense_repository=expense_repository,
         _rules_version=rules_version,
         _engine_version=engine_version,
+        _schedule_runtime_factory=schedule_runtime_factory,
     )
 
 
