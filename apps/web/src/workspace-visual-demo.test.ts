@@ -86,9 +86,9 @@ test("Activities window switches to an explicit relationship register with all f
   assert.match(html, /data-vd-activity-view="relationships"[^>]*aria-pressed="true"/);
   assert.match(html, /Activity relationships/);
   for (const type of ["FS", "SS", "FF", "SF"]) assert.match(html, new RegExp(`cp-vd-rel-type[^>]*>${type}<`));
-  assert.match(html, /\\+2 d/);
+  assert.match(html, /\+2 d/);
   assert.match(html, /-1 d/);
-  assert.match(html, /Visual sample only\\. Relationship rows and lag values are illustrative/);
+  assert.match(html, /Visual sample only\. Relationship rows and lag values are illustrative/);
   assert.doesNotMatch(html, /cp-vd-gantt-body/);
 });
 
