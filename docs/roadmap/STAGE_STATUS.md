@@ -16,6 +16,25 @@ Status: **100% — implemented; runtime-verified 2026-09-27 through PR #174**
 
 # Project Stage Status
 
+### CMP-01 — Project Comparison and Variance Analysis
+Status: **Registered / Not implemented — mandatory V1 capability; tracked by [Issue #1669](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1669)**.
+
+This requirement is not satisfied by the current baseline-to-current activity comparator, interchange codecs, a disabled menu command, or Issue #1421 (which validates CUBI schedule calculations against stored results inside an XER). CMP-01 requires three modes: Project vs Baseline, Revision vs Revision, and independent Project vs Project.
+
+Required workspace entry points:
+- Project → Compare Projects… (`dialog:project-comparison`).
+- Project Directory → Comparisons (`window:comparisons`), with New Comparison.
+- Dedicated Comparison Results workspace/tab showing saved immutable results.
+
+Execution order:
+1. Finish and stabilize the active Shared Calculation Core work; do not divert or duplicate it.
+2. Phase 1: baseline and same-project revision comparison.
+3. Phase 2: independent project comparison with safe identity matching and structural differences.
+4. Phase 3: calculated CPM, resource, cost and EVM variances plus professional reports.
+
+All three phases are mandatory. This roadmap entry is a tracker, not implementation credit. Issue #1669 must remain open until all acceptance criteria, persistence/security/interchange/UI tests and exact-head verification are complete.
+
+
 | Stage | Status |
 |---|---:|
 | Scheduling/Calendar Engine | Completed through approved design and test specifications |
