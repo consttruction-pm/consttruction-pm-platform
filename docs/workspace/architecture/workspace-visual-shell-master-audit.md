@@ -284,3 +284,14 @@ This is a verified source implementation slice, not completion of the full visua
 - P6 Professional Version 26 Help — Activity Details: https://docs.oracle.com/cd/G48902_01/client_help/en_US/activity_details.htm
 - P6 Professional Version 26 Help — View Menu: https://docs.oracle.com/cd/G48902_01/client_help/en_US/49095.htm
 - P6 Professional Version 26 User Guide: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm
+
+
+### Additional Project and WBS Details surfaces added
+
+- Projects now has a dedicated Project Details inspector with the documented tabs: General, Dates, Notebook, Budget Log, Spending Plan, Budget Summary, Funding, Codes, Defaults, Resources, Settings, Calculations, Planning Resources, Contract Management and UDFs. Only project ID, workspace revision and loaded WBS/activity/relationship counts are populated from current authoritative state; every unprovided tab clearly identifies that its data is not loaded.
+- The WBS drawer now includes a separate WBS Details inspector with General, Notebook, Budget Log, Spending Plan, Budget Summary, WBS Milestones, WPs & Docs, Earned Value, Planning Resources and UDFs. General displays the selected node's persisted ID/code/name/parent/sequence/revision; other tabs remain explicit empty states until their service projections exist.
+- The shared Details area now switches context by active window: Activities shows Activity Details, Projects shows Project Details, and other modules do not incorrectly reuse Activity Details.
+
+Official references:
+- P6 Professional Help — Project Details tabs: https://docs.oracle.com/cd/G48902_01/client_help/en_US/project_details.htm
+- P6 Professional Help — WBS Details tabs: https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_details.htm
