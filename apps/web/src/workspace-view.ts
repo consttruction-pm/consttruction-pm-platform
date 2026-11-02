@@ -298,6 +298,10 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.activityDetailsOptionsOpen !== undefined || target.dataset.activityDetailsOptionsClose !== undefined) {
       const dialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
       if (target.dataset.activityDetailsOptionsOpen !== undefined) {
+        const visible = getActivityDetailsVisibleTabs(container);
+        dialog?.querySelectorAll<HTMLInputElement>("[data-activity-detail-visible]").forEach((input) => {
+          input.checked = visible.has(input.dataset.activityDetailVisible ?? "");
+        });
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
       } else if (dialog && typeof dialog.close === "function") dialog.close();
