@@ -70,22 +70,43 @@ const toolbarGroups = [
   { en: "CUBI Tools", fa: "ابزارهای کوبی", items: ["Form Builder", "Smart Guide", "Assistant", "Reports", "Theme"] },
 ];
 
+const faCommandLabels: Record<string, string> = {
+  "New Project":"پروژه جدید","Open Project":"باز کردن پروژه","Close Project":"بستن پروژه","Close All Projects":"بستن همه پروژه‌ها",
+  "Save":"ذخیره","Save All":"ذخیره همه","Recent Projects":"پروژه‌های اخیر","Recent project list":"فهرست پروژه‌های اخیر","Clear recent list":"پاک کردن فهرست اخیر",
+  "Import":"ورود اطلاعات","Export":"خروجی گرفتن","Spreadsheet (XLSX)":"صفحه‌گسترده","Delimited text (CSV)":"فایل متنی CSV","Project exchange package":"بسته تبادل پروژه","Import layout":"ورود چیدمان","Export layout":"خروجی چیدمان",
+  "Print Preview":"پیش‌نمایش چاپ","Page Setup":"تنظیم صفحه","Print":"چاپ","Backup Project":"پشتیبان‌گیری پروژه","Restore Project":"بازیابی پروژه","Workspace Backup / Restore":"پشتیبان‌گیری و بازیابی محیط کار","Sign Out":"خروج از حساب","Exit Workspace":"خروج از محیط کار",
+  "Undo":"بازگردانی","Redo":"تکرار","Cut":"برش","Copy":"کپی","Paste":"چسباندن","Paste Special":"چسباندن ویژه","Fill Down":"تکمیل به پایین","Add":"افزودن","Add Project":"افزودن پروژه","Add WBS":"افزودن ساختار شکست","Add Activity":"افزودن فعالیت","Add Relationship":"افزودن رابطه","Add Resource Assignment":"افزودن تخصیص منبع","Add Expense":"افزودن هزینه","Add Document":"افزودن سند","Add Issue":"افزودن مسئله","Add Risk":"افزودن ریسک","Delete":"حذف","Dissolve Activity":"تجزیه فعالیت","Link Activities":"پیوند فعالیت‌ها","Unlink Activities":"قطع پیوند فعالیت‌ها","Renumber Activity IDs":"شماره‌گذاری مجدد فعالیت‌ها",
+  "Assign":"تخصیص","Resources":"منابع","Roles":"نقش‌ها","Activity Codes":"کدهای فعالیت","Predecessors":"پیش‌نیازها","Successors":"پس‌نیازها","Documents":"اسناد","Find":"جست‌وجو","Find Next":"یافتن بعدی","Select All":"انتخاب همه","User Preferences":"ترجیحات کاربر",
+  "Layout":"چیدمان","New":"جدید","Open":"باز کردن","Save As":"ذخیره با نام","Restore Default Layout":"بازگردانی چیدمان پیش‌فرض","Show on Top":"نمایش در بالا","Table":"جدول","Gantt Chart":"نمودار گانت","Activity Network":"شبکه فعالیت","Resource Usage Spreadsheet":"صفحه‌گسترده مصرف منابع","Activity Usage Spreadsheet":"صفحه‌گسترده مصرف فعالیت","Profile":"منحنی","Chart":"نمودار","Show on Bottom":"نمایش در پایین","Details":"جزئیات","Activity Usage Profile":"منحنی مصرف فعالیت","Resource Usage Profile":"منحنی مصرف منابع","Trace Logic":"ردیابی منطق","None":"هیچ‌کدام",
+  "Bottom Layout Options":"گزینه‌های چیدمان پایین","Columns":"ستون‌ها","Filter By":"فیلتر بر اساس","Group and Sort By":"گروه‌بندی و مرتب‌سازی","Timescale":"مقیاس زمانی","Bars":"میله‌ها","Bar Chart Options":"تنظیمات نمودار میله‌ای","Progress Line":"خط پیشرفت","Progress Spotlight":"برجسته‌سازی پیشرفت","Activity Critical Path":"مسیر بحرانی فعالیت","Check Schedule":"بررسی زمان‌بندی","Line Numbers":"شماره ردیف‌ها","Attachments":"پیوست‌ها","Table Font and Row":"قلم و ارتفاع ردیف جدول","Chart Font and Colors":"قلم و رنگ نمودار","Chart Box Template":"الگوی کادر نمودار","Arrange Children":"چیدمان زیرمجموعه‌ها","Align Children":"تراز زیرمجموعه‌ها","Zoom":"بزرگ‌نمایی","Zoom In":"بزرگ‌نمایی","Zoom Out":"کوچک‌نمایی","Best Fit":"بهترین اندازه","Expand All":"باز کردن همه","Collapse All":"بستن همه","Collapse To":"جمع کردن تا سطح","Toolbars":"نوارهای ابزار","Tab Groups":"گروه‌بندی زبانه‌ها","Full Screen":"تمام‌صفحه","Theme / Appearance":"قالب و ظاهر",
+  "Project":"پروژه","Activities":"فعالیت‌ها","Additional Activities View":"نمای اضافی فعالیت‌ها","WBS":"ساختار شکست","Resource Assignments":"تخصیص منابع","Assign Baselines":"تخصیص مبناها","Maintain Baselines":"مدیریت مبناها","Expenses":"هزینه‌ها","Work Products and Documents":"محصولات کاری و اسناد","Thresholds":"آستانه‌ها","Issues":"مسائل","Risks":"ریسک‌ها","Set Default Project":"تعیین پروژه پیش‌فرض","Project Details":"جزئیات پروژه","Project Codes":"کدهای پروژه","Project Defaults":"پیش‌فرض‌های پروژه","Project Calendars":"تقویم‌های پروژه","Project Notebook":"دفترچه پروژه",
+  "Organization":"سازمان","Projects / Business Domains":"پروژه‌ها و حوزه‌های کسب‌وکار","Portfolios":"سبدهای پروژه","Responsibility Structure":"ساختار مسئولیت","Calendars":"تقویم‌ها","Global Calendars":"تقویم‌های سازمانی","Project Calendars":"تقویم‌های پروژه","Resource Calendars":"تقویم‌های منابع","Working Hours and Shifts":"ساعات کاری و شیفت‌ها","Exceptions and Holidays":"استثناها و تعطیلات","Codes":"کدها","User Defined Fields":"فیلدهای تعریف‌شده کاربر","Resource Curves":"منحنی‌های منابع","Resource Shifts":"شیفت‌های منابع","Cost Accounts":"حساب‌های هزینه","Funding Sources":"منابع تأمین مالی","Currencies":"واحدهای پول","Financial Period Calendars":"تقویم دوره‌های مالی",
+  "Schedule":"زمان‌بندی","Level Resources":"تسطیح منابع","Apply Actuals":"اعمال مقادیر واقعی","Update Progress":"به‌روزرسانی پیشرفت","Recalculate Assignment Costs":"محاسبه مجدد هزینه تخصیص‌ها","Summarize Projects":"خلاصه‌سازی پروژه‌ها","Store Period Performance":"ذخیره عملکرد دوره‌ای","Global Change":"تغییر سراسری","Monitor Thresholds":"پایش آستانه‌ها","Issue Navigator":"راهنمای مسائل","Reports":"گزارش‌ها","Report Groups":"گروه‌های گزارش","Report Batches":"دسته‌های گزارش","Run Report":"اجرای گزارش","Report Designer":"طراح گزارش","Form Builder":"فرم‌ساز","Open Form Builder":"باز کردن فرم‌ساز","Organization Form Library":"کتابخانه فرم‌های سازمان","Project Form Library":"کتابخانه فرم‌های پروژه","Form Templates":"قالب‌های فرم","Form Versions":"نسخه‌های فرم","Form Preview":"پیش‌نمایش فرم","Smart Guide":"راهنمای هوشمند","Assistant":"دستیار","Global Search":"جست‌وجوی سراسری",
+  "Administration":"مدیریت","Users":"کاربران","Teams and Membership":"تیم‌ها و عضویت","Access Profiles":"پروفایل‌های دسترسی","Security Profiles":"پروفایل‌های امنیتی","User Permissions":"مجوزهای کاربر","Admin Preferences":"ترجیحات مدیر","Categories":"دسته‌بندی‌ها","Financial Periods":"دوره‌های مالی","Audit Log":"گزارش ممیزی","System Defaults":"پیش‌فرض‌های سامانه",
+  "Help":"راهنما","Workspace Guide":"راهنمای محیط کار","Context Help":"راهنمای زمینه‌ای","Keyboard Shortcuts":"میانبرهای صفحه‌کلید","What's New":"تغییرات جدید","Documentation Library":"کتابخانه مستندات","About CUBI":"درباره کوبی",
+  "Standard":"عمومی","Open Layout":"باز کردن چیدمان","Save Layout":"ذخیره چیدمان","Group / Sort":"گروه‌بندی و مرتب‌سازی","Critical Path":"مسیر بحرانی"
+};
+
+function commandLabel(locale: string, value: string): string {
+  return locale === "fa" ? (faCommandLabels[value] ?? value) : value;
+}
+
 function esc(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
 function renderEntry(entry: MenuEntry, locale: string): string {
   if (entry.divider) return '<li class="cubi-command-divider" role="separator"></li>';
-  const label = locale === "fa" ? (entry.label) : entry.label;
+  const label = commandLabel(locale, entry.label);
   const shortcut = entry.shortcut ? `<kbd>${esc(entry.shortcut)}</kbd>` : "";
   if (entry.children?.length) return `<li class="cubi-command-parent"><details><summary>${esc(label)}<span class="cubi-submenu-caret">›</span></summary><ul role="group">${entry.children.map((child) => renderEntry(child, locale)).join("")}</ul></details></li>`;
-  return `<li><button type="button" data-shell-command="${esc(entry.label)}" aria-disabled="true" title="Visual shell item; command wiring is a later phase">${esc(label)}${shortcut}</button></li>`;
+  return `<li><button type="button" data-shell-command="${esc(entry.label)}" aria-disabled="true" disabled title="${locale === "fa" ? "فرمان نمایشی؛ اتصال عملکرد در مرحله بعد انجام می‌شود" : "Visual shell item; command wiring is a later phase"}">${esc(label)}${shortcut}</button></li>`;
 }
 
 export function renderWorkspaceCommandShell(locale: string): string {
   const isFa = locale === "fa";
   const menuMarkup = menus.map((menu) => `<li class="cubi-menu-root"><details><summary>${isFa ? menu.fa : menu.en}</summary><ul class="cubi-menu-popup" role="menu" aria-label="${isFa ? menu.fa : menu.en}">${menu.entries.map((entry) => renderEntry(entry, locale)).join("")}</ul></details></li>`).join("");
-  const toolbar = toolbarGroups.map((group) => `<section class="cubi-toolbar-group"><strong>${isFa ? group.fa : group.en}</strong><div>${group.items.map((item) => `<button type="button" data-shell-command="${esc(item)}" aria-disabled="true" title="Visual shell item; command wiring is a later phase">${esc(item)}</button>`).join("")}</div></section>`).join("");
+  const toolbar = toolbarGroups.map((group) => `<section class="cubi-toolbar-group"><strong>${isFa ? group.fa : group.en}</strong><div>${group.items.map((item) => `<button type="button" data-shell-command="${esc(item)}" aria-disabled="true" disabled title="${isFa ? "فرمان نمایشی؛ اتصال عملکرد در مرحله بعد انجام می‌شود" : "Visual shell item; command wiring is a later phase"}">${esc(commandLabel(locale, item))}</button>`).join("")}</div></section>`).join("");
   return `<style>
   .cubi-command-shell{position:relative;z-index:12;background:#f7f9fc;border-bottom:1px solid #aebdce;color:#172b43;font:12px Inter,Vazirmatn, sans-serif}
   .cubi-command-menubar{display:flex;align-items:center;gap:2px;min-height:30px;padding:2px 8px;border-bottom:1px solid #d7dee8;background:#edf2f8;list-style:none;margin:0}
