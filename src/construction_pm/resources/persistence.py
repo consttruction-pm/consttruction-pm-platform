@@ -386,8 +386,23 @@ class ContextScopedSQLiteResourceRepository:
                     ON context_resources(tenant_id, company_id, project_id, resource_id);
                 CREATE INDEX IF NOT EXISTS idx_context_resource_assignments_scope
                     ON context_resource_assignments(tenant_id, company_id, project_id, activity_id, resource_id);
+                CREATE TABLE IF NOT EXISTS cubi_local_schema_versions (
+                    component TEXT PRIMARY KEY,
+                    version INTEGER NOT NULL CHECK (version >= 1)
+                );
                 """,
             )
+            row = self.connection.execute(
+                "SELECT version FROM cubi_local_schema_versions WHERE component=?",
+                ("context_scoped_resource_repository",),
+            ).fetchone()
+            if row is None:
+                self.connection.execute(
+                    "INSERT INTO cubi_local_schema_versions(component, version) VALUES (?, ?)",
+                    ("context_scoped_resource_repository", 1),
+                )
+            elif int(row[0]) != 1:
+                raise ValueError("UNSUPPORTED_CONTEXT_RESOURCE_SCHEMA_VERSION")
 
     @staticmethod
     def _validate(context: ProjectContext) -> None:
