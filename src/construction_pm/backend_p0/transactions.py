@@ -5,6 +5,29 @@ from contextlib import AbstractContextManager
 from typing import Protocol
 
 
+def execute_sqlite_script(connection: sqlite3.Connection, script: str) -> None:
+    """Execute SQL statements without sqlite3.executescript's implicit COMMIT.
+
+    Connection.executescript commits any pending transaction before executing
+    the script. That breaks caller-owned atomic units such as a local domain
+    write plus outbox append. This helper uses SQLite's complete-statement
+    parser and execute so statements participate in the active transaction.
+    """
+    if not isinstance(script, str) or not script.strip():
+        raise ValueError("SQLITE_SCRIPT_REQUIRED")
+    pending: list[str] = []
+    for line in script.splitlines():
+        pending.append(line)
+        statement = "\n".join(pending)
+        if sqlite3.complete_statement(statement):
+            if statement.strip():
+                connection.execute(statement)
+            pending.clear()
+    remainder = "\n".join(pending).strip()
+    if remainder:
+        raise ValueError("INCOMPLETE_SQLITE_SCRIPT")
+
+
 class TransactionManager(Protocol):
     def transaction(self) -> AbstractContextManager[None]: ...
 
