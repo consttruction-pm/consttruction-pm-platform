@@ -2543,17 +2543,46 @@ function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, a
     const tabLabel = ACTIVITY_DETAIL_TABS.find(([key]) => key === tab);
     return empty(uiText(state.locale, `No ${tabLabel?.[1] ?? "detail"} records are loaded for this activity.`, `برای این فعالیت هنوز سابقه‌ای در بخش «${tabLabel?.[2] ?? "جزئیات"}» بارگذاری نشده است.`));
   };
+  const displayedTabs = [...visibleTabs]
+    .map((key) => ACTIVITY_DETAIL_TABS.find(([candidate]) => candidate === key))
+    .filter((item): item is (typeof ACTIVITY_DETAIL_TABS)[number] => item !== undefined);
   return `<div class="cp-activity-details">
     <header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2><span>${escapeHtml(activity ? `${activity.id} — ${activity.name}` : state.selectedActivityId ?? "—")}</span></div><div class="cp-activity-details-heading-actions"><small>${escapeHtml(uiText(state.locale, "Activity Details", "جزئیات فعالیت"))}</small><button type="button" data-activity-details-options-open>${escapeHtml(uiText(state.locale, "Customize Tabs", "تنظیم زبانه‌ها"))}</button></div></header>
     <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Activity detail tabs", "زبانه‌های جزئیات فعالیت"))}">
-      ${ACTIVITY_DETAIL_TABS.filter(([key]) => visibleTabs.has(key)).map(([key, en, fa]) => `<button type="button" role="tab" data-activity-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-activity-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
+      ${displayedTabs.map(([key, en, fa]) => `<button type="button" role="tab" data-activity-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-activity-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
     </nav>
-    ${ACTIVITY_DETAIL_TABS.filter(([key]) => visibleTabs.has(key)).map(([key]) => `<section id="cp-activity-detail-panel-${key}" class="cp-activity-detail-panel" role="tabpanel" data-activity-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${contentFor(key)}</section>`).join("")}
+    ${displayedTabs.map(([key]) => `<section id="cp-activity-detail-panel-${key}" class="cp-activity-detail-panel" role="tabpanel" data-activity-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${contentFor(key)}</section>`).join("")}
   </div>${renderActivityDetailsOptionsDialog(state, visibleTabs)}`;
 }
 
 function renderActivityDetailsOptionsDialog(state: WorkspaceState, visibleTabs: ReadonlySet<string>): string {
-  return `<dialog class="cp-activity-details-options" data-activity-details-options-dialog aria-labelledby="cp-activity-details-options-title"><div class="cp-activity-details-options-head"><h3 id="cp-activity-details-options-title">${escapeHtml(uiText(state.locale, "Customize Activity Details", "تنظیم جزئیات فعالیت"))}</h3><button type="button" data-activity-details-options-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></div><p>${escapeHtml(uiText(state.locale, "Choose which detail tabs are visible in the bottom layout.", "زبانه‌هایی را که در چیدمان پایین نمایش داده می‌شوند انتخاب کنید."))}</p><div class="cp-activity-details-options-list">${ACTIVITY_DETAIL_TABS.map(([key, en, fa]) => `<label><input type="checkbox" data-activity-detail-visible="${key}"${visibleTabs.has(key) ? " checked" : ""}> ${escapeHtml(uiText(state.locale, en, fa))}</label>`).join("")}</div><footer><button type="button" data-activity-details-options-close>${escapeHtml(uiText(state.locale, "Cancel", "انصراف"))}</button><button type="button" data-activity-details-apply>${escapeHtml(uiText(state.locale, "Apply", "اعمال"))}</button></footer></dialog>`;
+  const option = ([key, en, fa]: (typeof ACTIVITY_DETAIL_TABS)[number]): string =>
+    `<option value="${key}">${escapeHtml(uiText(state.locale, en, fa))}</option>`;
+  const available = ACTIVITY_DETAIL_TABS.filter(([key]) => !visibleTabs.has(key));
+  const displayed = [...visibleTabs]
+    .map((key) => ACTIVITY_DETAIL_TABS.find(([candidate]) => candidate === key))
+    .filter((item): item is (typeof ACTIVITY_DETAIL_TABS)[number] => item !== undefined);
+  const label = (en: string, fa: string): string => escapeHtml(uiText(state.locale, en, fa));
+  return `<dialog class="cp-activity-details-options" data-activity-details-options-dialog aria-labelledby="cp-activity-details-options-title">
+    <div class="cp-activity-details-options-head"><h3 id="cp-activity-details-options-title">${label("Customize Activity Details", "تنظیم جزئیات فعالیت")}</h3><button type="button" data-activity-details-options-close aria-label="${label("Close", "بستن")}">×</button></div>
+    <p>${label("Choose the available tabs, move them into Display Tabs, and arrange their order.", "زبانه‌های موجود را انتخاب کنید، به زبانه‌های نمایشی منتقل کنید و ترتیب آن‌ها را تنظیم کنید.")}</p>
+    <div class="cp-activity-details-options-grid">
+      <fieldset><legend>${label("Available Tabs", "زبانه‌های موجود")}</legend><select multiple size="14" data-activity-detail-available aria-label="${label("Available Tabs", "زبانه‌های موجود")}">${available.map(option).join("")}</select></fieldset>
+      <div class="cp-activity-details-transfer" aria-label="${label("Move tabs", "انتقال زبانه‌ها")}">
+        <button type="button" data-activity-detail-add-all title="${label("Add all", "افزودن همه")}">≫</button>
+        <button type="button" data-activity-detail-add title="${label("Add selected", "افزودن انتخاب‌شده")}">›</button>
+        <button type="button" data-activity-detail-remove title="${label("Remove selected", "حذف انتخاب‌شده")}">‹</button>
+        <button type="button" data-activity-detail-remove-all title="${label("Remove all", "حذف همه")}">≪</button>
+      </div>
+      <fieldset><legend>${label("Display Tabs", "زبانه‌های نمایشی")}</legend><select multiple size="14" data-activity-detail-display aria-label="${label("Display Tabs", "زبانه‌های نمایشی")}">${displayed.map(option).join("")}</select></fieldset>
+      <div class="cp-activity-details-order" aria-label="${label("Arrange display tabs", "ترتیب زبانه‌های نمایشی")}">
+        <button type="button" data-activity-detail-move-up title="${label("Move Up", "انتقال به بالا")}">▲</button>
+        <button type="button" data-activity-detail-move-down title="${label("Move Down", "انتقال به پایین")}">▼</button>
+        <button type="button" data-activity-detail-default>${label("Default", "پیش‌فرض")}</button>
+      </div>
+    </div>
+    <footer><button type="button" data-activity-details-options-close>${label("Cancel", "انصراف")}</button><button type="button" data-activity-details-apply>${label("Apply", "اعمال")}</button><button type="button" data-activity-details-apply-close>${label("OK", "تأیید")}</button><button type="button" disabled>${label("Help", "راهنما")}</button></footer>
+  </dialog>`;
 }
 
 function getActivityDetailsVisibleTabs(container: HTMLElement): Set<string> {
