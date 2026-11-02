@@ -1742,3 +1742,45 @@ test("Bar Chart Options exposes all documented tabs without enabling unsupported
   assert.match(html, /data-bar-options-tab="progress-line"/);
   assert.match(html, /data-layout-links/);
 });
+
+test("Bars and Bar Chart Options commands open their own dialogs", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let barsOpened = false;
+  let optionsOpened = false;
+  const barsDialog = { showModal: () => { barsOpened = true; } };
+  const optionsDialog = { showModal: () => { optionsOpened = true; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-bars-dialog]" ? barsDialog : selector === "[data-bar-chart-options-dialog]" ? optionsDialog : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"));
+  const barsTarget = { dataset: { shellCommand: "Bars" }, closest: () => barsTarget };
+  listeners.get("click")?.({ target: barsTarget } as unknown as Event);
+  assert.equal(barsOpened, true);
+  const optionsTarget = { dataset: { shellCommand: "Bar Chart Options" }, closest: () => optionsTarget };
+  listeners.get("click")?.({ target: optionsTarget } as unknown as Event);
+  assert.equal(optionsOpened, true);
+});
+
+test("Bars dialog tabs switch the visible configuration panel", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const buttons = ["style", "settings", "labels"].map((barsTab) => ({
+    dataset: { barsTab },
+    setAttribute: (_name: string, _value: string) => {},
+    classList: { toggle: (_name: string, _active: boolean) => {} },
+  }));
+  const panels = ["style", "settings", "labels"].map((barsPanel) => ({ dataset: { barsPanel }, hidden: true }));
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector: string) => selector === "[data-bars-tab]" ? buttons : selector === "[data-bars-panel]" ? panels : [],
+    querySelector: () => null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"));
+  const target = { dataset: { barsTab: "labels" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(panels.find((panel) => panel.dataset.barsPanel === "labels")?.hidden, false);
+  assert.equal(panels.find((panel) => panel.dataset.barsPanel === "style")?.hidden, true);
+});
