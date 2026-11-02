@@ -78,7 +78,6 @@ type CapacityPanelBinding = {
 };
 
 const capacityPanelBindings = new WeakMap<HTMLElement, CapacityPanelBinding>();
-const capacityResolveSubmitBound = new WeakSet<HTMLElement>();
 
 const BASIS_LABELS: Record<CapacityBasis, { en: string; fa: string }> = {
   hour: { en: "Hour", fa: "ساعت" },
@@ -547,7 +546,7 @@ export function renderCapacityPanel(
       <label>${escapeHtml(labels.resolveHours)}
         <input type="text" inputmode="decimal" data-capacity-resolve-hours autocomplete="off" disabled>
       </label>
-      <button type="button" data-capacity-resolve>${escapeHtml(
+      <button type="submit" data-capacity-resolve>${escapeHtml(
         labels.resolveAction,
       )}</button>
     </form>
@@ -806,65 +805,52 @@ export function mountCapacityPanel(
     }
   });
 
-  // Delegate resolver submission from the stable panel rather than its inner form.
-  // The panel contents are rebuilt during workspace refreshes; a form-level listener can
-  // otherwise disappear between filling the fields and submitting the request.
-  if (!capacityResolveSubmitBound.has(panel)) {
-    capacityResolveSubmitBound.add(panel);
-    // Bind the visible control itself as well as the stable submit delegate.
-    // Some embedded/desktop webviews retarget clicks across drawer boundaries;
-    // a direct listener guarantees the resolver command reaches its form.
-    resolveButton.addEventListener("click", (event) => {
-      event.preventDefault();
-      resolveForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-    });
-    panel.addEventListener("submit", async (event) => {
-      const form = event.target instanceof HTMLFormElement ? event.target : null;
-      if (!form || !form.matches("[data-capacity-resolve-form]")) return;
-      event.preventDefault();
-      const binding = capacityPanelBindings.get(panel);
-      if (!binding) return;
+  // The resolver is a real form submission. Bind directly to the current form
+  // after every mount so refreshed drawer contents cannot retain stale handlers.
+  resolveForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const binding = capacityPanelBindings.get(panel);
+    if (!binding) return;
 
-      const resourceField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
-      const periodField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-period]");
-      const basisField = form.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]");
-      const hoursField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-hours]");
-      const button = form.querySelector<HTMLButtonElement>("[data-capacity-resolve]");
-      const status = panel.querySelector<HTMLElement>("[data-capacity-resolve-status]");
-      const resultTarget = panel.querySelector<HTMLElement>("[data-capacity-resolve-result]");
-      if (!resourceField || !periodField || !basisField || !hoursField || !button || !status || !resultTarget) return;
+    const resourceField = resolveForm.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
+    const periodField = resolveForm.querySelector<HTMLInputElement>("[data-capacity-resolve-period]");
+    const basisField = resolveForm.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]");
+    const hoursField = resolveForm.querySelector<HTMLInputElement>("[data-capacity-resolve-hours]");
+    const button = resolveForm.querySelector<HTMLButtonElement>("[data-capacity-resolve]");
+    const status = panel.querySelector<HTMLElement>("[data-capacity-resolve-status]");
+    const resultTarget = panel.querySelector<HTMLElement>("[data-capacity-resolve-result]");
+    if (!resourceField || !periodField || !basisField || !hoursField || !button || !status || !resultTarget) return;
 
-      const basis = basisField.value ? basisField.value as CapacityBasis : null;
-      const input: CapacityResolveInput = {
-        resource_id: resourceField.value.trim(),
-        period: periodField.value,
-        basis,
-        hours_per_time_period: basis === null ? null : hoursField.value.trim(),
-      };
-      if (!input.resource_id || !input.period || (basis !== null && !input.hours_per_time_period)) {
-        status.textContent = binding.labels.invalidInput;
-        resultTarget.innerHTML = "";
-        return;
-      }
-
-      button.disabled = true;
-      panel.setAttribute("aria-busy", "true");
-      status.textContent = binding.labels.resolving;
+    const basis = basisField.value ? basisField.value as CapacityBasis : null;
+    const input: CapacityResolveInput = {
+      resource_id: resourceField.value.trim(),
+      period: periodField.value,
+      basis,
+      hours_per_time_period: basis === null ? null : hoursField.value.trim(),
+    };
+    if (!input.resource_id || !input.period || (basis !== null && !input.hours_per_time_period)) {
+      status.textContent = binding.labels.invalidInput;
       resultTarget.innerHTML = "";
-      try {
-        const resolved = await binding.client.resolveCapacity(input);
-        resultTarget.innerHTML = renderCapacityResolution(resolved, binding.labels, binding.locale);
-        status.textContent = binding.labels.resolved;
-      } catch (error) {
-        const code = errorCode(error);
-        status.textContent = binding.labels.error;
-        resultTarget.innerHTML = renderCapacityError(code, binding.labels);
-      } finally {
-        button.disabled = false;
-        panel.removeAttribute("aria-busy");
-      }
-    });
-  }
+      return;
+    }
+
+    button.disabled = true;
+    panel.setAttribute("aria-busy", "true");
+    status.textContent = binding.labels.resolving;
+    resultTarget.innerHTML = "";
+    try {
+      const resolved = await binding.client.resolveCapacity(input);
+      resultTarget.innerHTML = renderCapacityResolution(resolved, binding.labels, binding.locale);
+      status.textContent = binding.labels.resolved;
+    } catch (error) {
+      const code = errorCode(error);
+      status.textContent = binding.labels.error;
+      resultTarget.innerHTML = renderCapacityError(code, binding.labels);
+    } finally {
+      button.disabled = false;
+      panel.removeAttribute("aria-busy");
+    }
+  });
 
   void loadAll();
 }
