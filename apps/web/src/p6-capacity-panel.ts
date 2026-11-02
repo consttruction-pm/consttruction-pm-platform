@@ -608,6 +608,67 @@ function errorCode(error: unknown): string {
   return String(error || "CAPACITY_OPERATION_FAILED");
 }
 
+async function performCapacityWrite(
+  activePanel: HTMLElement,
+  form: HTMLFormElement,
+  binding: CapacityPanelBinding,
+): Promise<void> {
+  const resourceField = form.querySelector<HTMLInputElement>("[data-capacity-resource]");
+  const maxUnitsField = form.querySelector<HTMLInputElement>("[data-capacity-max-units]");
+  const basisField = form.querySelector<HTMLSelectElement>("[data-capacity-unit-basis]");
+  const hoursField = form.querySelector<HTMLInputElement>("[data-capacity-hours]");
+  const fromField = form.querySelector<HTMLInputElement>("[data-capacity-from]");
+  const toField = form.querySelector<HTMLInputElement>("[data-capacity-to]");
+  const closeField = form.querySelector<HTMLInputElement>("[data-capacity-close]");
+  const saveButton = form.querySelector<HTMLButtonElement>("[data-capacity-save]");
+  const status = activePanel.querySelector<HTMLElement>("[data-capacity-write-status]");
+  const resultTarget = activePanel.querySelector<HTMLElement>("[data-capacity-write-result]");
+  if (!resourceField || !maxUnitsField || !basisField || !hoursField || !fromField || !toField || !closeField || !saveButton || !status || !resultTarget) return;
+  const input: CapacityWriteInput = {
+    resource_id: resourceField.value.trim(),
+    max_units: maxUnitsField.value.trim(),
+    unit_basis: basisField.value as CapacityBasis,
+    hours_per_time_period: hoursField.value.trim(),
+    effective_from: fromField.value,
+    effective_to: toField.value ? toField.value : null,
+    close_open_segment: closeField.checked,
+  };
+  if (!input.resource_id || !input.max_units || !input.hours_per_time_period || !input.effective_from) {
+    status.textContent = binding.labels.invalidInput;
+    resultTarget.innerHTML = "";
+    return;
+  }
+  saveButton.disabled = true;
+  activePanel.setAttribute("aria-busy", "true");
+  status.textContent = binding.labels.saving;
+  resultTarget.innerHTML = "";
+  try {
+    const result = await binding.client.saveEffectiveChange(input);
+    resultTarget.innerHTML = renderCapacityWriteResult(result, binding.labels);
+    status.textContent = binding.labels.saved;
+    const segments = await binding.client.listSegments();
+    const selected = result.capacity.resource_id;
+    activePanel.querySelectorAll<HTMLSelectElement>("[data-capacity-resource-select]").forEach((select) => {
+      select.innerHTML = renderResourceOptions(segments, selected);
+      select.value = selected;
+      select.disabled = segments.length === 0;
+    });
+    const profile = activePanel.querySelector<HTMLElement>("[data-capacity-profile]");
+    if (profile) profile.innerHTML = renderCapacityProfile(selected, segments.filter((segment) => segment.resource_id === selected), binding.labels);
+    const writeResource = activePanel.querySelector<HTMLInputElement>("[data-capacity-resource]");
+    const resolveResource = activePanel.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
+    if (writeResource) writeResource.value = selected;
+    if (resolveResource) resolveResource.value = selected;
+  } catch (error) {
+    const code = errorCode(error);
+    status.textContent = binding.labels.error;
+    resultTarget.innerHTML = renderCapacityError(code, binding.labels);
+  } finally {
+    saveButton.disabled = false;
+    activePanel.removeAttribute("aria-busy");
+  }
+}
+
 export function mountCapacityPanel(
   workspace: HTMLElement,
   transport: ApiTransport,
@@ -784,7 +845,7 @@ export function mountCapacityPanel(
     capacityDocumentBindingInstalled = true;
     document.addEventListener("click", async (event) => {
       const target = event.target instanceof Element
-        ? event.target.closest<HTMLElement>("[data-capacity-resolve]")
+        ? event.target.closest<HTMLElement>("[data-capacity-resolve], [data-capacity-save]")
         : null;
       if (!target) return;
       const activePanel = target.closest<HTMLElement>("#cp-resource-capacity [data-capacity-panel]");
@@ -793,6 +854,11 @@ export function mountCapacityPanel(
       event.stopPropagation();
       const binding = capacityPanelBindings.get(activePanel);
       if (!binding) return;
+      if (target.matches("[data-capacity-save]")) {
+        const form = target.closest<HTMLFormElement>("[data-capacity-write-form]");
+        if (form) await performCapacityWrite(activePanel, form, binding);
+        return;
+      }
       const resourceField = activePanel.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
       const periodField = activePanel.querySelector<HTMLInputElement>("[data-capacity-resolve-period]");
       const basisField = activePanel.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]");
@@ -841,60 +907,7 @@ export function mountCapacityPanel(
       event.stopPropagation();
       const binding = capacityPanelBindings.get(activePanel);
       if (!binding) return;
-      const resourceField = form.querySelector<HTMLInputElement>("[data-capacity-resource]");
-      const maxUnitsField = form.querySelector<HTMLInputElement>("[data-capacity-max-units]");
-      const basisField = form.querySelector<HTMLSelectElement>("[data-capacity-unit-basis]");
-      const hoursField = form.querySelector<HTMLInputElement>("[data-capacity-hours]");
-      const fromField = form.querySelector<HTMLInputElement>("[data-capacity-from]");
-      const toField = form.querySelector<HTMLInputElement>("[data-capacity-to]");
-      const closeField = form.querySelector<HTMLInputElement>("[data-capacity-close]");
-      const saveButton = form.querySelector<HTMLButtonElement>("[data-capacity-save]");
-      const status = activePanel.querySelector<HTMLElement>("[data-capacity-write-status]");
-      const resultTarget = activePanel.querySelector<HTMLElement>("[data-capacity-write-result]");
-      if (!resourceField || !maxUnitsField || !basisField || !hoursField || !fromField || !toField || !closeField || !saveButton || !status || !resultTarget) return;
-      const input: CapacityWriteInput = {
-        resource_id: resourceField.value.trim(),
-        max_units: maxUnitsField.value.trim(),
-        unit_basis: basisField.value as CapacityBasis,
-        hours_per_time_period: hoursField.value.trim(),
-        effective_from: fromField.value,
-        effective_to: toField.value ? toField.value : null,
-        close_open_segment: closeField.checked,
-      };
-      if (!input.resource_id || !input.max_units || !input.hours_per_time_period || !input.effective_from) {
-        status.textContent = binding.labels.invalidInput;
-        resultTarget.innerHTML = "";
-        return;
-      }
-      saveButton.disabled = true;
-      activePanel.setAttribute("aria-busy", "true");
-      status.textContent = binding.labels.saving;
-      resultTarget.innerHTML = "";
-      try {
-        const result = await binding.client.saveEffectiveChange(input);
-        resultTarget.innerHTML = renderCapacityWriteResult(result, binding.labels);
-        status.textContent = binding.labels.saved;
-        const segments = await binding.client.listSegments();
-        const selected = result.capacity.resource_id;
-        activePanel.querySelectorAll<HTMLSelectElement>("[data-capacity-resource-select]").forEach((select) => {
-          select.innerHTML = renderResourceOptions(segments, selected);
-          select.value = selected;
-          select.disabled = segments.length === 0;
-        });
-        const profile = activePanel.querySelector<HTMLElement>("[data-capacity-profile]");
-        if (profile) profile.innerHTML = renderCapacityProfile(selected, segments.filter((segment) => segment.resource_id === selected), binding.labels);
-        const writeResource = activePanel.querySelector<HTMLInputElement>("[data-capacity-resource]");
-        const resolveResource = activePanel.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
-        if (writeResource) writeResource.value = selected;
-        if (resolveResource) resolveResource.value = selected;
-      } catch (error) {
-        const code = errorCode(error);
-        status.textContent = binding.labels.error;
-        resultTarget.innerHTML = renderCapacityError(code, binding.labels);
-      } finally {
-        saveButton.disabled = false;
-        activePanel.removeAttribute("aria-busy");
-      }
+      await performCapacityWrite(activePanel, form, binding);
     }, true);
   }
 
