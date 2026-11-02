@@ -6652,3 +6652,21 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 /* Activity relationship detail sections */
 .cp-vd-detail-section { margin:8px 0; min-width:0; }
 .cp-vd-detail-section h4 { margin:0 0 6px; padding:5px 8px; border-inline-start:3px solid #6d8fb5; background:#f1f4f8; color:#31445b; font-size:11px; font-weight:700; }
+
+
+/* Resource, assignment and role inspectors: dense register layout. */
+.cp-vd-resource-workspace { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.cp-vd-resource-kpis { display:grid; grid-template-columns:repeat(4,minmax(120px,1fr)); gap:8px; }
+.cp-vd-resource-kpis > div { display:flex; flex-direction:column; gap:5px; padding:9px 11px; border:1px solid #cbd4df; background:#f4f7fa; min-width:0; }
+.cp-vd-resource-kpis span { color:#52657a; font-size:10px; }
+.cp-vd-resource-kpis strong { color:#173d68; font-size:17px; font-weight:700; overflow-wrap:anywhere; }
+.cp-vd-subheading { margin:4px 0 0; padding:6px 9px; border-inline-start:3px solid #6d8fb5; background:#edf2f7; color:#263f5b; font-size:11px; font-weight:700; }
+.cp-vd-resource-type-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.cp-vd-resource-type-grid article { border:1px solid #cbd4df; background:#fff; padding:10px; min-width:0; }
+.cp-vd-resource-type-grid strong { display:block; color:#173d68; font-size:11px; }
+.cp-vd-resource-type-grid p { margin:5px 0 0; color:#52657a; font-size:10px; line-height:1.5; }
+.cp-vd-resource-workspace .cp-vd-table { min-width:850px; }
+@media (max-width:720px) {
+ .cp-vd-resource-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .cp-vd-resource-type-grid { grid-template-columns:1fr; }
+}
