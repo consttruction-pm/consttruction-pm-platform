@@ -621,18 +621,9 @@ export function mountCapacityPanel(
   // renderApp may remount module panels after unrelated workspace state changes.
   // Preserve the user's in-progress capacity edits and the last operation result
   // instead of silently clearing a form that is still visible in the workspace.
-  const previousDraft = capacityPanelDrafts.get(workspace) ?? {
-    resource: panel.querySelector<HTMLInputElement>("[data-capacity-resource]")?.value,
-    maxUnits: panel.querySelector<HTMLInputElement>("[data-capacity-max-units]")?.value,
-    writeBasis: panel.querySelector<HTMLSelectElement>("[data-capacity-unit-basis]")?.value,
-    hours: panel.querySelector<HTMLInputElement>("[data-capacity-hours]")?.value,
-    from: panel.querySelector<HTMLInputElement>("[data-capacity-from]")?.value,
-    to: panel.querySelector<HTMLInputElement>("[data-capacity-to]")?.value,
-    closeOpen: panel.querySelector<HTMLInputElement>("[data-capacity-close]")?.checked,
-    resolveResource: panel.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]")?.value,
-    resolvePeriod: panel.querySelector<HTMLInputElement>("[data-capacity-resolve-period]")?.value,
-    resolveBasis: panel.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]")?.value,
-    resolveHours: panel.querySelector<HTMLInputElement>("[data-capacity-resolve-hours]")?.value,
+  const previousDraft = {
+    ...readCapacityDraft(panel),
+    ...capacityPanelDrafts.get(workspace),
     writeStatus: panel.querySelector<HTMLElement>("[data-capacity-write-status]")?.textContent ?? "",
     writeResult: panel.querySelector<HTMLElement>("[data-capacity-write-result]")?.innerHTML ?? "",
     resolveStatus: panel.querySelector<HTMLElement>("[data-capacity-resolve-status]")?.textContent ?? "",
