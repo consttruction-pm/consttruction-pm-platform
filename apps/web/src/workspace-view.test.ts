@@ -117,7 +117,7 @@ test("Calendar Register displays only authenticated project calendar records", (
 test("WBS register exposes the connected add workflow and never fabricates a chart action", () => {
   const html = render("en", "wbs");
   assert.match(html, /data-rail-action="wbs"/);
-  assert.match(html, /<span>Add WBS<\/span>/);
+  assert.match(html, /data-rail-action="wbs">Add WBS/);
   assert.match(html, /data-wbs-delete disabled/);
   assert.match(html, /WBS chart view is not connected yet/);
 });
