@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { WorkspaceActivityRow } from "./workspace-model.js";
+import { createWorkspaceState, type WorkspaceActivityRow } from "./workspace-model.js";
 import { renderActivityDetailsPanel } from "./workspace-activity-details.js";
 
 const ACTIVITIES: WorkspaceActivityRow[] = [
@@ -33,4 +33,28 @@ test("activity details renders an explicit placeholder when nothing is selected"
   assert.match(html, /cp-detail-selected">—<\/span>/);
   assert.match(html, /data-details-prev="" disabled/);
   assert.match(html, /data-details-next="" disabled/);
+});
+
+test("Projects window keeps the bottom pane scoped to Project Details", () => {
+  const state = createWorkspaceState({
+    tenant_id: "tenant-1", project_id: "project-1", revision: 7, user_id: "user-1",
+  });
+  const projectState = {
+    ...state,
+    activeMenu: "project" as const,
+    selectedWbsId: "wbs-1",
+    wbsNodes: [{
+      id: "wbs-1", parentKind: "project" as const, parentWbsId: null,
+      localCode: "01", name: "Civil works", sequenceNumber: 1, recordRevision: 2,
+    }],
+  };
+  const html = renderActivityDetailsPanel({
+    locale: "en", activities: ACTIVITIES, selectedActivityId: null,
+    relationships: [], projectName: "project-1", dataDate: "—",
+    calendarMode: "gregorian", state: projectState,
+  });
+  assert.match(html, /Project Details/);
+  assert.match(html, /data-detail-tab="defaults"/);
+  assert.match(html, /data-detail-tab="settings"/);
+  assert.doesNotMatch(html, /WBS Details/);
 });
