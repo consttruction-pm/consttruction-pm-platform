@@ -78,7 +78,7 @@ type CapacityPanelBinding = {
 };
 
 const capacityPanelBindings = new WeakMap<HTMLElement, CapacityPanelBinding>();
-const capacityWorkspaceBindings = new WeakSet<HTMLElement>();
+let capacityDocumentBindingInstalled = false;
 
 const BASIS_LABELS: Record<CapacityBasis, { en: string; fa: string }> = {
   hour: { en: "Hour", fa: "ساعت" },
@@ -675,21 +675,20 @@ export function mountCapacityPanel(
     return;
   }
 
-  // Bind once to the persistent workspace host, not the drawer subtree. The
-  // workspace renderer replaces drawer contents during state refreshes, so a
-  // panel-local listener can become detached while the visible control remains.
-  if (!capacityWorkspaceBindings.has(workspace)) {
-    capacityWorkspaceBindings.add(workspace);
-    workspace.addEventListener("click", async (event) => {
+  // Capture at document level because the visual shell can replace its drawer
+  // subtree while keeping the project workspace alive. This binding always
+  // resolves the current panel and its current server client at click time.
+  if (!capacityDocumentBindingInstalled && typeof document !== "undefined") {
+    capacityDocumentBindingInstalled = true;
+    document.addEventListener("click", async (event) => {
       const target = event.target instanceof Element
         ? event.target.closest<HTMLElement>("[data-capacity-resolve]")
         : null;
       if (!target) return;
-      const activePanel = workspace.querySelector<HTMLElement>(
-        "#cp-resource-capacity [data-capacity-panel]",
-      );
-      if (!activePanel || !activePanel.contains(target)) return;
+      const activePanel = target.closest<HTMLElement>("#cp-resource-capacity [data-capacity-panel]");
+      if (!activePanel) return;
       event.preventDefault();
+      event.stopPropagation();
       const binding = capacityPanelBindings.get(activePanel);
       if (!binding) return;
       const resourceField = activePanel.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
@@ -728,7 +727,7 @@ export function mountCapacityPanel(
         button.disabled = false;
         activePanel.removeAttribute("aria-busy");
       }
-    });
+    }, true);
   }
 
   let knownResources: string[] = [];
