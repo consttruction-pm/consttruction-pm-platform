@@ -557,7 +557,7 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["pointerdown", "input", "submit", "click", "keydown", "change"]);
+  assert.deepEqual(registrations, ["pointerdown", "input", "submit", "click", "keydown", "pointerdown", "pointermove", "pointerup", "pointercancel", "dblclick", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
