@@ -171,3 +171,38 @@ test("activity Resources details expose budgeted, actual and remaining units and
   assert.match(html, /Illustrative assignment values only/);
   assert.match(html, /does not save resource assignments or recalculate costs/);
 });
+
+
+test("Resource Assignments window presents separate resource and role assignment registers with unit and cost columns", () => {
+  const state = createVisualDemoState("en");
+  state.window = "assignments";
+  const html = renderVisualDemo(state);
+  assert.match(html, /Resource Assignments/);
+  assert.match(html, /Resource assignments/);
+  assert.match(html, /Role assignments/);
+  for (const label of ["Budgeted units", "Actual units", "Remaining units", "Budgeted cost", "Actual cost", "Remaining cost", "Level resources"]) {
+    assert.match(html, new RegExp(label));
+  }
+  assert.match(html, /not persisted/);
+  assert.match(html, /do not run resource leveling or cost calculations/);
+});
+
+test("Resources and Roles have independent Primavera-style dictionaries and Persian RTL labels", () => {
+  const resources = createVisualDemoState("fa");
+  resources.window = "resources";
+  const resourceHtml = renderVisualDemo(resources);
+  assert.match(resourceHtml, /data-visual-demo dir="rtl"/);
+  assert.match(resourceHtml, /واژه‌نامه منابع/);
+  assert.match(resourceHtml, /شناسه منبع/);
+  assert.match(resourceHtml, /نیروی انسانی/);
+  assert.match(resourceHtml, /تجهیزات/);
+
+  const roles = createVisualDemoState("fa");
+  roles.window = "roles";
+  const roleHtml = renderVisualDemo(roles);
+  assert.match(roleHtml, /نقش‌ها/);
+  assert.match(roleHtml, /واژه‌نامه نقش‌ها و ظرفیت/);
+  assert.match(roleHtml, /شناسه نقش/);
+  assert.match(roleHtml, /ظرفیت/);
+  assert.match(roleHtml, /نرخ و ظرفیت در این پیش‌نمایش هزینه پروژه یا تسطیح منابع را محاسبه نمی‌کنند/);
+});
