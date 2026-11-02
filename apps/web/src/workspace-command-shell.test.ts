@@ -16,6 +16,8 @@ test("visual command shell exposes all global menu families and toolbar groups",
   assert.match(html, /Group and Sort By/);
   assert.match(html, /Activity Network/);
   assert.match(html, /disabled/);
+  assert.match(html, /button\[aria-disabled=true\]\{opacity:\.48;cursor:not-allowed\}/);
+  assert.match(html, /:focus-visible\{outline:2px solid #1c6bb7/);
   assert.match(html, /data-shell-command="Timescale" title="Open the corresponding options for the current view"/);
   assert.match(html, /data-shell-command="Columns" title="Open the corresponding options for the current view"/);
   assert.doesNotMatch(html, /data-shell-command="Timescale"[^>]*disabled/);
