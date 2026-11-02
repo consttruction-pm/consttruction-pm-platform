@@ -210,3 +210,17 @@ Primary official desktop references:
 ## Audit gate and current state
 
 This document is the target design inventory, not proof that the current app already renders these elements. Current branch implementation remains partial: the Projects surface has a first register/details composition and the global menu/toolbar shell is a visual catalogue. The complete independent windows, navigation tree, multi-window tabs, contextual bars, calendar editor, all view/layout dialogs and all page-specific Details surfaces remain acceptance-gated. Do not call the skin complete until each item is represented in the running application and exercised in browser screenshots/E2E at desktop and responsive breakpoints.
+
+
+## Implementation progress update — desktop workbench shell (2026-11-02)
+
+The following structural shell slice is now implemented in the PR branch and covered by renderer tests:
+
+- Left navigation is now a labeled, grouped tree on desktop, with project, planning/execution, resources/cost, project information and CUBI tool groups. At tablet/mobile widths it intentionally collapses to a compact icon rail.
+- The workspace now renders a horizontal window strip for the nine existing primary modules. Selecting a tab uses the existing workspace menu callback and updates the selected state without replacing the whole shell.
+- The active module now has its own compact horizontal contextual command bar. Only commands with existing owning workflows are enabled; unavailable visual commands explain that they are not connected.
+- The right edge is now a separate contextual command rail with Add (+), followed by the existing comments/notes/documents/risk shortcuts. The Add popup inventories create targets but disables them until the corresponding real create workflow is connected.
+- Calendars, Roles, Tracking and Thresholds are exposed in the navigation tree as explicitly unavailable entries, not silently omitted.
+- CSS is mirrored byte-for-byte between apps/web/styles.css and apps/web/public/styles.css; responsive widths have dedicated rules.
+
+**Still not complete:** the nine module tabs are navigation between current workspace surfaces, not yet a full independent multi-window manager with per-window saved state and close/dirty prompts. Most listed secondary windows, page-specific top-layout modes, page-specific Details panes, calendar editor, full layout dialogs, functional Add workflows, and browser screenshot review remain outstanding. This is an incremental conversion of the shell, not final visual parity.
