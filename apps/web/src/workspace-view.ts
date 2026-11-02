@@ -473,7 +473,12 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
   if (Number(menuChanged) + Number(wbsChanged) + Number(activityChanged) !== 1) return false;
   if (menuChanged) {
     container.querySelector<HTMLElement>(".cp-workspace")?.setAttribute("data-active-menu", next.activeMenu);
-    container.querySelectorAll<HTMLElement>("[data-menu]").forEach((button) => button.setAttribute("aria-current", button.dataset.menu === next.activeMenu ? "page" : "false"));
+    container.querySelectorAll<HTMLElement>("[data-menu]").forEach((button) => {
+      const active = button.dataset.menu === next.activeMenu;
+      button.setAttribute("aria-current", active ? "page" : "false");
+      if (button.hasAttribute("role") && button.getAttribute("role") === "tab") button.setAttribute("aria-selected", String(active));
+      button.classList.toggle("is-active", active);
+    });
     const navigation = container.querySelector<HTMLElement>(".cp-navigation-surface");
     if (navigation) navigation.outerHTML = renderNavigationSurface(next);
     const labels = getWorkspaceLabels(next.locale);
@@ -643,6 +648,32 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     ["control", uiText(state.locale, "Project Controls", "کنترل پروژه")],
     ["settings", uiText(state.locale, "Settings", "تنظیمات")],
   ] as const);
+  const contextCommands = state.activeMenu === "project"
+    ? [
+      { label: uiText(state.locale, "Project properties", "مشخصات پروژه"), action: "project-settings" },
+      { label: uiText(state.locale, "WBS structure", "ساختار شکست"), action: "wbs" },
+      { label: uiText(state.locale, "Import / Export", "ورود و خروج اطلاعات"), disabled: true },
+    ]
+    : state.activeMenu === "schedule"
+      ? [
+        { label: uiText(state.locale, "Add activity", "افزودن فعالیت"), action: "tools" },
+        { label: uiText(state.locale, "WBS", "ساختار شکست"), action: "wbs" },
+        { label: uiText(state.locale, "Columns & fields", "ستون‌ها و فیلدها"), action: "tools" },
+        { label: uiText(state.locale, "Relationships", "روابط"), disabled: true },
+        { label: uiText(state.locale, "Timescale & bars", "مقیاس زمانی و میله‌ها"), disabled: true },
+      ]
+      : [
+        { label: uiText(state.locale, "Open tools", "بازکردن ابزارها"), action: "tools" },
+        { label: uiText(state.locale, "Configure layout", "تنظیم چیدمان"), disabled: true },
+        { label: uiText(state.locale, "Page options", "گزینه‌های صفحه"), disabled: true },
+      ];
+  const contextCommandMarkup = contextCommands.map((command) => command.action === "project-settings"
+    ? `<button type="button" data-project-settings>${escapeHtml(command.label)}</button>`
+    : command.action === "wbs"
+      ? `<button type="button" data-rail-action="wbs">${escapeHtml(command.label)}</button>`
+      : command.action === "tools"
+        ? `<button type="button" data-tools-open>${escapeHtml(command.label)}</button>`
+        : `<button type="button" disabled title="${escapeAttribute(uiText(state.locale, "This visual command is not connected yet.", "این فرمان بصری هنوز متصل نشده است."))}">${escapeHtml(command.label)}</button>`).join("");
 
   container.innerHTML = `
     <section class="cp-workspace cp-p6-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}">
@@ -702,6 +733,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <button type="button" class="cp-p6-chip" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}<span>${escapeHtml(rail.columns)}</span></button>
             <button type="button" class="cp-p6-chip" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span>${escapeHtml(rail.comments)}</span></button>
           </header>
+          <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
+            <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}
+          </div>
           <main class="cp-main">
             <div class="cp-p6-primary">
               <section class="cp-p6-split" data-panel-split data-workspace-menu="schedule">
