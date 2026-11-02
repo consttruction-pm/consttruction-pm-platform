@@ -73,6 +73,7 @@ class InMemoryOfflineMutationQueue:
 class SQLiteOfflineMutationQueue:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        caller_owns_transaction = connection.in_transaction
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS offline_mutation_queue (
                 tenant_id TEXT NOT NULL, company_id TEXT NOT NULL, project_id TEXT NOT NULL,
@@ -80,7 +81,8 @@ class SQLiteOfflineMutationQueue:
                 payload TEXT NOT NULL, PRIMARY KEY (tenant_id, company_id, project_id, operation, idempotency_key)
             )"""
         )
-        self.connection.commit()
+        if not caller_owns_transaction:
+            self.connection.commit()
 
     @staticmethod
     def _encode(mutation: OfflineMutation) -> str:

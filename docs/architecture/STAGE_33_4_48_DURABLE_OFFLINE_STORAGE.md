@@ -1,31 +1,10 @@
-# Stage 33.4.48 — Durable Offline Storage
+# SQLite Offline Mutation Queue Transaction Ownership Fix
 
-## Purpose
+**Parent:** #1680 — durable local project database and outbox.
+**Issue:** #1685.
 
-Persist approved offline mutations across application restart without embedding business calculations in the storage layer.
+The SQLite queue may be constructed over a connection that is already inside a caller-owned transaction. Schema initialization must not commit that transaction. The constructor now records transaction ownership before creating the queue table and commits only when no outer transaction existed.
 
-## Contract
+This preserves the host's ability to place local domain writes and the outbox append under one `SQLiteTransactionManager.transaction()` boundary. A rollback must undo both the domain write and the queued mutation. Queue construction itself must not commit unrelated caller work.
 
-The storage boundary exposes:
-
-- append
-- pending
-- acknowledge
-
-The stored mutation preserves tenant/project identity, expected revision, mutation identity, idempotency key, operation and opaque payload.
-
-## Portability
-
-A framework-neutral storage protocol is authoritative. A portable JSON-file adapter is supplied as the initial reference implementation for Desktop/local environments and tests. Platform-specific databases may later implement the same protocol.
-
-## Atomicity
-
-The JSON adapter writes to a temporary file and replaces the target file after serialization, reducing the risk of partial writes.
-
-## Authority
-
-Storage never recalculates Scheduling/P6, Calendar, Progress/EVM, Resource/Cost or financial semantics.
-
-## Remaining synchronization work
-
-Retry policy, network transport, server acknowledgement, conflict handling, and end-to-end synchronization remain subsequent stages.
+This is a storage-ownership fix only. It does not change mutation identity, payload, retry, idempotency, sync ordering or calculation semantics.
