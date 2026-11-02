@@ -7,6 +7,7 @@ import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiTex
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon } from "./workspace-icons.js";
+import { renderWorkspaceCommandShell } from "./workspace-command-shell.js";
 
 const labels = {
   en: {
@@ -662,6 +663,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           ${railActionButton("tools", rail.tools, "tools")}
         </nav>
         <div class="cp-p6-body">
+          ${renderWorkspaceCommandShell(state.locale)}
           <header class="cp-p6-activity-header" data-activity-header>
             <span class="cp-p6-activity-heading">
               <strong>${escapeHtml(navigationLabel)}</strong>
