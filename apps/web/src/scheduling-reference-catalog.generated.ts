@@ -1136,8 +1136,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Cost currency",
         "Financial/reporting period"
       ],
-      "status": "INVENTORY_REQUIRED",
-      "gap": "Native EV field definitions and each WBS ETC/performance-factor formula are not yet traced to exact CUBI calculation functions and denominator/rounding tests."
+      "status": "MAPPED_NOT_PROVEN",
+      "gap": "The shared formula core implements CV/SV, CPI/SPI and every documented ETC estimator with explicit zero-denominator, missing-input and user-PF rules, and the resource EVM bridge delegates to it. Still open: selecting and proving EV/PV/AC from the chosen baseline, Data Date and WBS percent-complete/EV technique, currency and financial-period conversion, WBS overrides, manual future-period buckets and resource-curve methods. The native field inventory remains evidence-only."
     },
     {
       "id": "SCH-014",
@@ -1448,8 +1448,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Different currencies",
         "Unclosed financial period"
       ],
-      "status": "FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
-      "gap": "CUBI must explicitly define zero-denominator behavior and prove source values/rollups using Version 26 acceptance fixtures."
+      "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+      "gap": "The shared formula core computes CV/SV and CPI/SPI with explicit null policy (AC=0 leaves CPI undefined, PV=0 leaves SPI undefined) and deterministic Decimal arithmetic; tests cover the identities, zero denominators, non-finite inputs and the resource EVM bridge. Sourcing EV/PV/AC from a selected baseline, Data Date and WBS technique, currency conversion and rollup parity remain unproven."
     },
     {
       "id": "FRM-EVM-002",
@@ -1481,8 +1481,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "WBS-specific method override",
         "Resource curve/manual future bucket methods"
       ],
-      "status": "FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
-      "gap": "Implement and test each reference scheduler WBS ETC option separately; zero-index and missing-input behavior must be confirmed from Version 26 behavior."
+      "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+      "gap": "The shared core implements Remaining Cost, PF=1, PF=1/CPI, PF=1/(CPI*SPI) and a user-defined PF separately, with fail-closed missing-input, zero-index, non-positive-PF and EV>BAC rules. WBS-specific method selection, manual future-period buckets/resource curves and Version 26 acceptance fixtures remain unproven."
     },
     {
       "id": "FRM-DATA-DATE-001",
