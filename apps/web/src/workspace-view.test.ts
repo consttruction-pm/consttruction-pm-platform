@@ -1640,3 +1640,21 @@ test("schedule workspace renders localized command ribbon and three layout choic
   assert.match(persian, /جدول \+ گانت/);
   assert.match(persian, /افزودن فعالیت/);
 });
+
+test("workspace layout toolbar dispatches selected mode to the application", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const layouts: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ), { onWorkspaceLayoutChange: (layout) => layouts.push(layout) });
+  const gridButton = { dataset: { workspaceLayout: "grid" }, closest: () => gridButton };
+  listeners.get("click")?.({ target: gridButton } as unknown as Event);
+  assert.deepEqual(layouts, ["grid"]);
+});
+
