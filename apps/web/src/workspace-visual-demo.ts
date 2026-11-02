@@ -1392,7 +1392,7 @@ function layoutConnectors(root: HTMLElement): void {
       );
       const marker = critical ? "cp-vd-net-arrow-critical" : "cp-vd-net-arrow";
       const label = `${link.type} ${link.lag > 0 ? "+" : ""}${link.lag}${link.unit}`;
-      const labelX = (start.centerX + end.centerX) / 2;
+      const labelX = (start.left + start.right + end.left + end.right) / 4;
       const labelY = (start.middle + end.middle) / 2 - 7;
       return `<path d="${routeLink(start, end, outward)}" class="${critical ? "is-critical" : ""}" data-link-type="${link.type}" marker-end="url(#${marker})"></path><text class="cp-vd-network-link-label" x="${labelX}" y="${labelY}" text-anchor="middle">${esc(label)}</text>`;
     }).join("");
