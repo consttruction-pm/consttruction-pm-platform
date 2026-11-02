@@ -184,6 +184,14 @@ test("Activities window exposes a real Layout Options dialog with current timesc
   assert.match(persian, /نمایش خطوط روابط/);
 });
 
+test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
+  const html = render("en", "schedule");
+  for (const tab of ["General", "Status", "Resources", "Predecessors", "Successors", "Codes", "Tasks", "Discussion", "Notebook", "Steps", "Feedback", "WPs & Docs", "Expenses", "Summary", "Relationships", "Risks", "UDFs"]) {
+    assert.match(html, new RegExp(`data-activity-detail-tab="[^"]+"[^>]*>\\${tab.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {")}<\\/button>`));
+  }
+  assert.match(html, /Select an activity in the table or Gantt chart/);
+});
+
 test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const closed: WorkspaceMenuKey[] = [];
