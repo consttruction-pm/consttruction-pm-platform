@@ -117,6 +117,7 @@ const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>()
 const activityDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<string>>();
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
+const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
@@ -291,11 +292,24 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.wbsDetailTab) {
+      const tab = target.dataset.wbsDetailTab;
+      wbsDetailsTabByContainer.set(container, tab);
+      container.querySelectorAll<HTMLElement>("[data-wbs-detail-tab]").forEach((button) => {
+        const active = button.dataset.wbsDetailTab === tab;
+        button.setAttribute("aria-selected", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      container.querySelectorAll<HTMLElement>("[data-wbs-detail-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.wbsDetailPanel !== tab;
+      });
+      return;
+    }
     if (target.dataset.projectDetailTab) {
       const tab = target.dataset.projectDetailTab;
       projectDetailsTabByContainer.set(container, tab);
@@ -888,6 +902,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
               <h2>${escapeHtml(t.wbs)}</h2>
               ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
+              ${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}
               <form class="cp-wbs-editor" data-wbs-create-form>
                 <h3>${escapeHtml(t.wbsCreate)}</h3>
                 <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" autocomplete="off"></label>
@@ -1839,6 +1854,48 @@ function renderGantt(
 
 
 
+
+
+const WBS_DETAIL_TABS = [
+  ["general", "General", "عمومی"],
+  ["notebook", "Notebook", "دفترچه"],
+  ["budget-log", "Budget Log", "دفتر ثبت بودجه"],
+  ["spending-plan", "Spending Plan", "برنامه هزینه"],
+  ["budget-summary", "Budget Summary", "خلاصه بودجه"],
+  ["milestones", "WBS Milestones", "نقاط عطف ساختار شکست"],
+  ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
+  ["earned-value", "Earned Value", "ارزش کسب‌شده"],
+  ["planning-resources", "Planning Resources", "منابع برنامه‌ریزی"],
+  ["udfs", "UDFs", "فیلدهای کاربر"],
+] as const;
+
+function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
+  const node = state.wbsNodes.find((item) => item.id === state.selectedWbsId);
+  const panel = (tab: string): string => {
+    if (!node) return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, "Select a WBS element to display its details.", "برای نمایش جزئیات، یک عنصر ساختار شکست انتخاب کنید."))}</p>`;
+    if (tab === "general") {
+      const parent = node.parentWbsId ? state.wbsNodes.find((item) => item.id === node.parentWbsId)?.name ?? node.parentWbsId : uiText(state.locale, "Project root", "ریشه پروژه");
+      const fields = [
+        [uiText(state.locale, "WBS ID", "شناسه WBS"), node.id],
+        [uiText(state.locale, "WBS Code", "کد WBS"), node.localCode],
+        [uiText(state.locale, "WBS Name", "نام WBS"), node.name],
+        [uiText(state.locale, "Parent", "والد"), parent],
+        [uiText(state.locale, "Sequence", "ترتیب"), String(node.sequenceNumber)],
+        [uiText(state.locale, "Record revision", "ویرایش رکورد"), String(node.recordRevision)],
+      ];
+      return `<div class="cp-activity-detail-fields">${fields.map(([label, value]) => `<div class="cp-activity-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>`;
+    }
+    const tabInfo = WBS_DETAIL_TABS.find(([key]) => key === tab);
+    return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, `No authoritative ${tabInfo?.[1] ?? "WBS"} records are loaded for this element.`, `اطلاعات مرجع بخش «${tabInfo?.[2] ?? "جزئیات WBS"}» برای این عنصر بارگذاری نشده است.`))}</p>`;
+  };
+  return `<section class="cp-wbs-details">
+    <header class="cp-wbs-details-heading"><strong>${escapeHtml(uiText(state.locale, "WBS Details", "جزئیات ساختار شکست"))}</strong><span>${escapeHtml(node?.localCode ?? "—")}</span></header>
+    <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "WBS detail tabs", "زبانه‌های جزئیات WBS"))}">
+      ${WBS_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-wbs-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-wbs-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
+    </nav>
+    ${WBS_DETAIL_TABS.map(([key]) => `<div id="cp-wbs-detail-panel-${key}" role="tabpanel" data-wbs-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${panel(key)}</div>`).join("")}
+  </section>`;
+}
 
 const PROJECT_DETAIL_TABS = [
   ["general", "General", "عمومی"],
