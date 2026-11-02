@@ -71,3 +71,21 @@ test("navigation status follows the workspace active menu", () => {
     "preview",
   );
 });
+
+test("navigation status labels follow the live status and ignore stale legacy translations", async () => {
+  const { registerWorkspaceLocale } = await import("./workspace-localization.js");
+  const { getWorkspaceNavigationStatusLabel } = await import("./workspace-navigation.js");
+  registerWorkspaceLocale({
+    locale: "fr",
+    displayName: "Français",
+    direction: "ltr",
+    translations: {
+      "navigation.schedule.status": "Implemented",
+      "navigation.schedule.status.partial": "Partiel",
+      "navigation.reports.status.preview": "Aperçu",
+    },
+  });
+  assert.equal(getWorkspaceNavigationStatusLabel(getWorkspaceNavigation("schedule"), "fr"), "Partiel");
+  assert.equal(getWorkspaceNavigationStatusLabel(getWorkspaceNavigation("reports"), "fr"), "Aperçu");
+  assert.equal(getWorkspaceNavigationStatusLabel(getWorkspaceNavigation("schedule"), "fa"), "جزئی");
+});
