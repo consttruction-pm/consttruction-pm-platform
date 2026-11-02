@@ -7374,3 +7374,14 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.cp-documents-register .cp-register-toolbar button {
+  min-height: 26px;
+  padding: 3px 8px;
+  border: 1px solid #b9c7d8;
+  border-radius: 3px;
+  background: #f6f8fb;
+  color: #203e61;
+  font: inherit;
+  cursor: pointer;
+}
