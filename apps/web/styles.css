@@ -6789,3 +6789,37 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-calendar-notice{margin:0;padding:7px 9px;border:1px solid #e1d4b8;background:#fffaf0;color:#785a2b;font-size:9px;line-height:1.5}
 @media(max-width:900px){.cp-p6 .cp-calendar-window-layout{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-calendar-register{min-height:130px}}
 @media(max-width:560px){.cp-p6 .cp-calendar-fields{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-calendar-window-toolbar{align-items:flex-start;flex-direction:column}}
+
+
+/* Roles Register and Tracking window shells. */
+.cp-p6 .cp-register-window,.cp-p6 .cp-tracking-window{display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;height:100%}
+.cp-p6 .cp-register-toolbar,.cp-p6 .cp-tracking-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 8px;border:1px solid #cbd5e1;background:#eef2f7;color:#173d68;font-size:10px}
+.cp-p6 .cp-register-toolbar>div{display:flex;gap:5px}
+.cp-p6 .cp-register-toolbar button,.cp-p6 .cp-tracking-toolbar button{min-height:25px;padding:3px 8px;border:1px solid #b9c6d5;border-radius:2px;background:#fff;color:#38536f;font:inherit;font-size:9px}
+.cp-p6 .cp-register-toolbar button:disabled,.cp-p6 .cp-tracking-toolbar button:disabled{opacity:.55;cursor:not-allowed}
+.cp-p6 .cp-register-table-wrap{min-height:100px;overflow:auto;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-register-table-wrap table{width:100%;border-collapse:collapse;font-size:9px}
+.cp-p6 .cp-register-table-wrap th,.cp-p6 .cp-register-table-wrap td{padding:7px;border:1px solid #e1e7ee;text-align:start}
+.cp-p6 .cp-register-table-wrap th{background:#f1f4f8;color:#52657a;white-space:nowrap}
+.cp-p6 .cp-register-table-wrap td[colspan]{height:76px;color:#718096;text-align:center}
+.cp-p6 .cp-register-details{display:flex;flex-direction:column;min-height:150px;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-register-details>header{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;border-bottom:1px solid #d8e0e9;background:#f2f5f9;color:#244463;font-size:10px}
+.cp-p6 .cp-register-details>header span{color:#718096;font-size:9px}
+.cp-p6 .cp-register-detail-tabs{display:flex;gap:2px;overflow:auto;padding:4px 5px 0;border-bottom:1px solid #bdc9d7;background:#edf1f6}
+.cp-p6 .cp-register-detail-tabs button{flex:0 0 auto;min-height:25px;padding:4px 8px;border:1px solid transparent;border-bottom:0;background:transparent;color:#52657a;font:inherit;font-size:9px;white-space:nowrap}
+.cp-p6 .cp-register-detail-tabs button.is-active{border-color:#bdc9d7;background:#fff;color:#173d68;font-weight:700}
+.cp-p6 .cp-register-detail-content{min-height:80px;padding:8px;overflow:auto}
+.cp-p6 .cp-register-detail-content [hidden]{display:none!important}
+.cp-p6 .cp-register-detail-content p,.cp-p6 .cp-register-notice{margin:0;color:#748399;font-size:9px;line-height:1.55}
+.cp-p6 .cp-register-notice{padding:7px 9px;border:1px solid #e1d4b8;background:#fffaf0;color:#785a2b}
+.cp-p6 .cp-tracking-toolbar label{display:flex;align-items:center;gap:6px;color:#52657a;font-size:9px}
+.cp-p6 .cp-tracking-toolbar select{min-height:26px;padding:3px 7px;border:1px solid #b9c6d5;background:#fff;color:#31465e;font:inherit;font-size:9px}
+.cp-p6 .cp-tracking-layout{display:grid;grid-template-columns:minmax(170px,.5fr) minmax(0,1.7fr);gap:8px;flex:1 1 auto;min-height:0}
+.cp-p6 .cp-tracking-layout>aside,.cp-p6 .cp-tracking-chart{min-width:0;min-height:180px;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-tracking-layout>aside{padding:8px;color:#244463;font-size:10px}
+.cp-p6 .cp-tracking-layout>aside p{color:#77869a;font-size:9px;line-height:1.5}
+.cp-p6 .cp-tracking-chart{display:flex;flex-direction:column}
+.cp-p6 .cp-tracking-chart-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;border-bottom:1px solid #d8e0e9;background:#f2f5f9;color:#244463;font-size:10px}
+.cp-p6 .cp-tracking-chart-head span{color:#718096;font-size:9px}
+.cp-p6 .cp-tracking-empty{display:grid;place-items:center;flex:1 1 auto;padding:18px;color:#77869a;font-size:10px;line-height:1.6;text-align:center}
+@media(max-width:800px){.cp-p6 .cp-tracking-layout{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-tracking-layout>aside{min-height:75px}}
