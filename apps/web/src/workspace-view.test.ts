@@ -1981,6 +1981,41 @@ test("Show on Top Table and Gantt Chart commands select the matching workspace l
   assert.deepEqual(layouts, ["grid", "gantt"]);
 });
 
+test("Edit menu Add Activity, Add WBS, Add Relationship and Find commands reach their live controls", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const activated: string[] = [];
+  const focused: string[] = [];
+  const trigger = (name: string) => ({ click: () => activated.push(name) });
+  const focusable = (name: string) => ({ focus: () => focused.push(name) });
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => {
+      if (selector === '[data-workspace-command="new-activity"]') return trigger("new-activity");
+      if (selector === '[data-workspace-command="new-wbs"]') return trigger("new-wbs");
+      if (selector === '[data-workspace-command="relationships"]') return trigger("relationships");
+      if (selector === '[data-relationship-create-form] [name="predecessor_id"]') return focusable("predecessor");
+      if (selector === "[data-activity-filter]") return focusable("find");
+      return null;
+    },
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  const dispatch = (command: string) => {
+    const target = { dataset: { shellCommand: command }, closest: () => target };
+    listeners.get("click")?.({ target } as unknown as Event);
+  };
+  dispatch("Add Activity");
+  dispatch("Add WBS");
+  dispatch("Add Relationship");
+  dispatch("Find");
+  assert.deepEqual(activated, ["new-activity", "new-wbs", "relationships"]);
+  assert.deepEqual(focused, ["predecessor", "find"]);
+});
+
 test("Columns menu command opens the dedicated field registry dialog", () => {
   const html = render("en", "schedule");
   assert.match(html, /data-columns-dialog/);
