@@ -1521,7 +1521,7 @@ function renderProgressRegisterWindow(container: HTMLElement, state: WorkspaceSt
   const selectedId = progressActivitySelectionByContainer.get(container) ?? state.selectedActivityId ?? null;
   const selected = state.activities.find((activity) => activity.id === selectedId) ?? null;
   const cell = (activity: WorkspaceActivityRow, key: string): string => {
-    const value = activity.cells[key];
+    const value = activity.cells?.[key];
     return value === null || value === undefined || value === "" ? "—" : String(value);
   };
   const field = (label: string, content: string): string => `<div class="cp-progress-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(content)}</strong></div>`;
