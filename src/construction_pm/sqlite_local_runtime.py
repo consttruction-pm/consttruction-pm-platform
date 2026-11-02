@@ -98,6 +98,12 @@ from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolve
 from construction_pm.scheduling.calendar import WorkingCalendar
 from construction_pm.scheduling.time_calendar import WorkingTimeCalendar
 from construction_pm.wbs_master_repository import SQLiteWBSMasterRepository
+from construction_pm.resources.api import ResourceAPI
+from construction_pm.resources.application import ResourceApplicationService
+from construction_pm.resources.authorization import AuthorizationPolicy as ResourceAuthorizationPolicy
+from construction_pm.resources.context import ProjectContext as ResourceProjectContext
+from construction_pm.resources.errors import authorization_error
+from construction_pm.resources.persistence import ContextScopedSQLiteResourceRepository
 
 # Shared strict calendar field/exception mapping used by the existing exact
 # resource-calendar resolver. Reuse it instead of making a preview-only path.
@@ -122,6 +128,32 @@ LocalScheduleRuntimeFactory = Callable[
     ["SQLiteLocalApplicationRuntime", BackendScope],
     LocalScheduleRuntime,
 ]
+
+
+class _RuntimeResourceAuthorizationPolicy:
+    """Bind legacy resource-service authorization to a trusted project actor."""
+
+    def __init__(
+        self,
+        authorization_policy: RoleBasedAuthorizationPolicy,
+        auth_context: AuthorizationContext,
+    ) -> None:
+        self.authorization_policy = authorization_policy
+        self.auth_context = auth_context
+
+    def authorize(self, context: ResourceProjectContext, operation: str) -> None:
+        context.validate()
+        self.auth_context.validate()
+        if (
+            context.tenant_id != self.auth_context.tenant_id
+            or context.project_id != self.auth_context.project_id
+        ):
+            raise authorization_error(
+                "CROSS_SCOPE_ACCESS",
+                "The resource operation is outside the authenticated project scope.",
+            )
+        self.authorization_policy.require(self.auth_context, Permission.PROJECT_WRITE)
+
 
 def build_sqlite_calendar_resolver_registry(
     scope: BackendScope,
@@ -243,6 +275,7 @@ class SQLiteLocalApplicationRuntime:
     connection: sqlite3.Connection
     transaction_manager: SQLiteTransactionManager
     offline_mutation_store: SQLiteOfflineMutationStore
+    resource_repository: ContextScopedSQLiteResourceRepository
     authorization_policy: RoleBasedAuthorizationPolicy
     project_lifecycle_api: ProjectLifecycleAPI
     activity_api: P6ActivityMasterAPI
@@ -282,6 +315,38 @@ class SQLiteLocalApplicationRuntime:
     _rules_version: str
     _engine_version: str
     _schedule_runtime_factory: LocalScheduleRuntimeFactory | None = None
+
+    def resource_api(
+        self,
+        scope: BackendScope,
+        auth_context: AuthorizationContext,
+        *,
+        company_id: str,
+    ) -> ResourceAPI:
+        """Build a resource API bound to a trusted tenant/company/project actor."""
+        scope.validate()
+        auth_context.validate()
+        if not isinstance(company_id, str) or not company_id.strip():
+            raise ValueError("RESOURCE_COMPANY_ID_REQUIRED")
+        if (
+            auth_context.tenant_id != scope.tenant_id
+            or auth_context.project_id != scope.project_id
+        ):
+            raise ValueError("CROSS_SCOPE_ACCESS")
+        context = ResourceProjectContext(
+            tenant_id=scope.tenant_id,
+            company_id=company_id,
+            project_id=scope.project_id,
+        )
+        service = ResourceApplicationService(
+            repository=self.resource_repository,
+            context=context,
+            transaction_manager=self.transaction_manager,
+            authorization_policy=_RuntimeResourceAuthorizationPolicy(
+                self.authorization_policy, auth_context
+            ),
+        )
+        return ResourceAPI(service)
 
     def apply_offline_mutation(
         self,
@@ -379,6 +444,9 @@ def build_sqlite_local_application_runtime(
 
     transaction_manager = SQLiteTransactionManager(connection)
     offline_mutation_store = SQLiteOfflineMutationStore(connection, transaction_manager)
+    resource_repository = ContextScopedSQLiteResourceRepository(
+        connection, transaction_manager
+    )
     project_repository = SQLiteProjectRepository(connection)
     project_lifecycle_api = ProjectLifecycleAPI(
         ProjectLifecycleService(sessions, project_repository, authorization_policy)
@@ -470,6 +538,7 @@ def build_sqlite_local_application_runtime(
         connection=connection,
         transaction_manager=transaction_manager,
         offline_mutation_store=offline_mutation_store,
+        resource_repository=resource_repository,
         authorization_policy=authorization_policy,
         project_lifecycle_api=project_lifecycle_api,
         activity_api=activity_api,
