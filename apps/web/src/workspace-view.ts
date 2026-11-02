@@ -441,8 +441,12 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
-      } else if (command === "Columns" || command === "Bars" || command === "Bar Chart Options") {
+      } else if (command === "Columns") {
         openToolsDrawer(container);
+      } else if (command === "Bars" || command === "Bar Chart Options") {
+        const dialog = container.querySelector<HTMLDialogElement>(command === "Bars" ? "[data-bars-dialog]" : "[data-bar-chart-options-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
       } else if (command === "Filter By") {
         container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
       } else if (command === "Group and Sort By") {
@@ -523,6 +527,48 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
       if (dialog && typeof dialog.showModal === "function") dialog.showModal();
       else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.dataset.barsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-bars-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.barChartOptionsOpen !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-bar-chart-options-dialog]");
+      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+      else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.dataset.barOptionsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-bar-chart-options-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.barsTab) {
+      const active = target.dataset.barsTab;
+      container.querySelectorAll<HTMLElement>("[data-bars-tab]").forEach((button) => {
+        const selected = button.dataset.barsTab === active;
+        button.setAttribute("aria-selected", String(selected));
+        button.classList.toggle("is-active", selected);
+      });
+      container.querySelectorAll<HTMLElement>("[data-bars-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.barsPanel !== active;
+      });
+      return;
+    }
+    if (target.dataset.barOptionsTab) {
+      const active = target.dataset.barOptionsTab;
+      container.querySelectorAll<HTMLElement>("[data-bar-options-tab]").forEach((button) => {
+        const selected = button.dataset.barOptionsTab === active;
+        button.setAttribute("aria-selected", String(selected));
+        button.classList.toggle("is-active", selected);
+      });
+      container.querySelectorAll<HTMLElement>("[data-bar-options-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.barOptionsPanel !== active;
+      });
       return;
     }
     if (target.dataset.groupSortClose !== undefined) {
@@ -982,7 +1028,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
             <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>` : ""}
           </div>
-          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderGroupSortDialog(state, t) : ""}
+          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderGroupSortDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderBarsDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarChartOptionsDialog(state) : ""}
           ${state.activeMenu === "schedule" ? renderWorkspaceCommandRibbon(state, t) : ""}
           <main class="cp-main">
             <div class="cp-p6-primary">
@@ -2466,6 +2512,118 @@ function renderGroupSortDialog(state: WorkspaceState, t: WorkspaceLabels): strin
           <button type="button" disabled>${escapeHtml(uiText(state.locale, "Help", "راهنما"))}</button>
         </aside>
       </div>
+    </form>
+  </dialog>`;
+}
+
+function renderBarsDialog(state: WorkspaceState): string {
+  const locale = state.locale;
+  const text = (en: string, fa: string): string => uiText(locale, en, fa);
+  const disabledButton = (en: string, fa: string): string => `<button type="button" disabled>${escapeHtml(text(en, fa))}</button>`;
+  return `<dialog class="cp-bars-dialog" data-bars-dialog aria-labelledby="cp-bars-title">
+    <form method="dialog">
+      <header><div><small>${escapeHtml(text("Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-bars-title">${escapeHtml(text("Bars", "میله‌ها"))}</h2></div><button type="button" data-bars-close aria-label="${escapeAttribute(text("Close", "بستن"))}">×</button></header>
+      <div class="cp-bars-body">
+        <section class="cp-bars-main">
+          <div class="cp-bars-grid-wrap"><table class="cp-bars-grid"><thead><tr><th>${escapeHtml(text("Display", "نمایش"))}</th><th>${escapeHtml(text("Name", "نام"))}</th><th>${escapeHtml(text("Timescale", "مقیاس زمانی"))}</th><th>${escapeHtml(text("User Start", "شروع کاربر"))}</th><th>${escapeHtml(text("User Finish", "پایان کاربر"))}</th><th>${escapeHtml(text("Filter", "فیلتر"))}</th><th>${escapeHtml(text("Preview", "پیش‌نمایش"))}</th></tr></thead><tbody><tr><td colspan="7">${escapeHtml(text("No saved bar definitions are available in the current layout.", "هیچ تعریف میله ذخیره‌شده‌ای در چیدمان جاری موجود نیست."))}</td></tr></tbody></table></div>
+          <section class="cp-bars-preview"><strong>${escapeHtml(text("Preview", "پیش‌نمایش"))}</strong><div aria-label="${escapeAttribute(text("Bar preview", "پیش‌نمایش میله"))}"></div></section>
+          <nav class="cp-bars-tabs" role="tablist" aria-label="${escapeAttribute(text("Bar detail tabs", "زبانه‌های جزئیات میله"))}">
+            <button type="button" role="tab" aria-selected="true" class="is-active" data-bars-tab="style">${escapeHtml(text("Bar Style", "سبک میله"))}</button>
+            <button type="button" role="tab" aria-selected="false" data-bars-tab="settings">${escapeHtml(text("Bar Settings", "تنظیمات میله"))}</button>
+            <button type="button" role="tab" aria-selected="false" data-bars-tab="labels">${escapeHtml(text("Bar Labels", "برچسب‌های میله"))}</button>
+          </nav>
+          <section class="cp-bars-tab-panel" data-bars-panel="style">
+            <div class="cp-bars-style-grid"><strong></strong><strong>${escapeHtml(text("Start", "شروع"))}</strong><strong>${escapeHtml(text("Bar", "میله"))}</strong><strong>${escapeHtml(text("Finish", "پایان"))}</strong>
+              <span>${escapeHtml(text("Shape", "شکل"))}</span><select disabled><option>—</option></select><select disabled><option>—</option></select><select disabled><option>—</option></select>
+              <span>${escapeHtml(text("Color", "رنگ"))}</span><button type="button" disabled>—</button><button type="button" disabled>—</button><button type="button" disabled>—</button>
+              <span>${escapeHtml(text("Pattern", "الگو"))}</span><select disabled><option>—</option></select><select disabled><option>—</option></select><select disabled><option>—</option></select>
+              <span>${escapeHtml(text("Row", "ردیف"))}</span><select disabled><option>—</option></select><span></span><span></span>
+            </div>
+          </section>
+          <section class="cp-bars-tab-panel" data-bars-panel="settings" hidden>
+            <div class="cp-bars-fields"><label>${escapeHtml(text("Timescale", "مقیاس زمانی"))}<select disabled><option>—</option></select></label><label>${escapeHtml(text("Filter", "فیلتر"))}<select disabled><option>—</option></select></label><label>${escapeHtml(text("Start field", "فیلد شروع"))}<select disabled><option>—</option></select></label><label>${escapeHtml(text("Finish field", "فیلد پایان"))}<select disabled><option>—</option></select></label></div>
+          </section>
+          <section class="cp-bars-tab-panel" data-bars-panel="labels" hidden>
+            <div class="cp-bars-grid-wrap"><table class="cp-bars-grid"><thead><tr><th>${escapeHtml(text("Position", "موقعیت"))}</th><th>${escapeHtml(text("Label", "برچسب"))}</th></tr></thead><tbody><tr><td colspan="2">${escapeHtml(text("No labels are configured for this bar.", "برای این میله برچسبی تنظیم نشده است."))}</td></tr></tbody></table></div>
+            <div class="cp-bars-label-actions">${disabledButton("Add", "افزودن")}${disabledButton("Delete", "حذف")}</div>
+          </section>
+        </section>
+        <aside class="cp-bars-actions" aria-label="${escapeAttribute(text("Dialog actions", "فرمان‌های پنجره"))}">
+          <button type="button" data-bars-close>${escapeHtml(text("OK", "تأیید"))}</button>
+          <button type="button" data-bars-close>${escapeHtml(text("Cancel", "انصراف"))}</button>
+          ${disabledButton("Apply", "اعمال")}${disabledButton("Add", "افزودن")}${disabledButton("Delete", "حذف")}${disabledButton("Copy From...", "کپی از...")}${disabledButton("Shift Up", "انتقال به بالا")}${disabledButton("Shift Down", "انتقال به پایین")}
+          <button type="button" data-bar-chart-options-open>${escapeHtml(text("Options...", "گزینه‌ها..."))}</button>
+          ${disabledButton("Default", "پیش‌فرض")}${disabledButton("Help", "راهنما")}
+        </aside>
+      </div>
+      <p class="cp-bars-notice">${escapeHtml(text("Bar definitions and style changes are not yet persisted by the layout service. Controls are visible for parity and remain disabled until that contract is available.", "تعریف میله‌ها و تغییرات سبک هنوز توسط سرویس چیدمان ذخیره نمی‌شوند. کنترل‌ها برای تطابق بصری نمایش داده شده‌اند و تا آماده‌شدن قرارداد مربوطه غیرفعال هستند."))}</p>
+    </form>
+  </dialog>`;
+}
+
+function renderBarChartOptionsDialog(state: WorkspaceState): string {
+  const locale = state.locale;
+  const text = (en: string, fa: string): string => uiText(locale, en, fa);
+  const tab = (id: string, en: string, fa: string, active = false): string => `<button type="button" role="tab" data-bar-options-tab="${id}" aria-selected="${active}" class="${active ? "is-active" : ""}">${escapeHtml(text(en, fa))}</button>`;
+  const check = (en: string, fa: string, enabled = false, checked = false, attr = ""): string => `<label><input type="checkbox"${checked ? " checked" : ""}${enabled ? "" : " disabled"} ${attr}> ${escapeHtml(text(en, fa))}</label>`;
+  return `<dialog class="cp-bar-options-dialog" data-bar-chart-options-dialog aria-labelledby="cp-bar-options-title">
+    <form method="dialog">
+      <header><h2 id="cp-bar-options-title">${escapeHtml(text("Bar Chart Options", "گزینه‌های نمودار میله‌ای"))}</h2><button type="button" data-bar-options-close aria-label="${escapeAttribute(text("Close", "بستن"))}">×</button></header>
+      <nav class="cp-bar-options-tabs" role="tablist" aria-label="${escapeAttribute(text("Bar chart option tabs", "زبانه‌های گزینه‌های نمودار"))}">
+        ${tab("general","General","عمومی",true)}${tab("collapsed","Collapsed Bars","میله‌های جمع‌شده")}${tab("data-date","Data Date","تاریخ داده")}${tab("sight-lines","Sight Lines","خطوط راهنما")}${tab("progress-line","Progress Line","خط پیشرفت")}
+      </nav>
+      <section class="cp-bar-options-panel" data-bar-options-panel="general">
+        <fieldset><legend>${escapeHtml(text("General", "عمومی"))}</legend>
+          ${check("Show Relationships", "نمایش روابط", true, state.showGanttRelationships, 'data-layout-links')}
+          ${check("Show Legend", "نمایش راهنما")}
+          <label>${escapeHtml(text("Limit Text Label Characters To", "حداکثر نویسه برچسب"))}<input type="number" disabled placeholder="—"></label>
+        </fieldset>
+        <fieldset><legend>${escapeHtml(text("Horizontal Lines", "خطوط افقی"))}</legend>
+          ${check("Show Major Lines", "نمایش خطوط اصلی")}
+          ${check("Show Minor Lines Every", "نمایش خطوط فرعی در هر بازه")}
+          <label>${escapeHtml(text("Rows", "ردیف‌ها"))}<input type="number" disabled placeholder="—"></label>
+        </fieldset>
+        <fieldset><legend>${escapeHtml(text("Default Size for Notebook Items", "اندازه پیش‌فرض موارد دفترچه"))}</legend>
+          <label>${escapeHtml(text("Width", "عرض"))}<input type="number" disabled placeholder="—"></label><label>${escapeHtml(text("Height", "ارتفاع"))}<input type="number" disabled placeholder="—"></label>
+        </fieldset>
+      </section>
+      <section class="cp-bar-options-panel" data-bar-options-panel="collapsed" hidden>
+        <fieldset><legend>${escapeHtml(text("Collapsed Bar Formatting", "قالب‌بندی میله‌های جمع‌شده"))}</legend>
+          ${check("Collapse to grouping bands", "جمع‌کردن تا نوارهای گروه")}
+          ${check("Show Relationships for Collapsed Bars", "نمایش روابط برای میله‌های جمع‌شده")}
+          <label>${escapeHtml(text("Show bar necking for", "نمایش باریک‌شدن میله برای"))}<select disabled><option>Calendar Nonwork Time</option><option>Activity Nonwork Intervals</option></select></label>
+          ${check("Collapse to individual bars to minimize space", "جمع‌کردن میله‌های منفرد برای کاهش فضا")}
+          ${check("Allow Overlapping of Bar Labels", "اجازه هم‌پوشانی برچسب میله‌ها")}
+        </fieldset>
+      </section>
+      <section class="cp-bar-options-panel" data-bar-options-panel="data-date" hidden>
+        <fieldset><legend>${escapeHtml(text("Data Date Line", "خط تاریخ داده"))}</legend>
+          ${check("Show Data Date", "نمایش تاریخ داده")}
+          <label>${escapeHtml(text("Line Style", "سبک خط"))}<select disabled><option>—</option></select></label>
+          <label>${escapeHtml(text("Color", "رنگ"))}<button type="button" disabled>—</button></label>
+        </fieldset>
+      </section>
+      <section class="cp-bar-options-panel" data-bar-options-panel="sight-lines" hidden>
+        <fieldset><legend>${escapeHtml(text("Horizontal Lines", "خطوط افقی"))}</legend>
+          ${check("Show Major Lines", "نمایش خطوط اصلی")}${check("Show Minor Lines Every", "نمایش خطوط فرعی")}
+          <label>${escapeHtml(text("Rows", "ردیف‌ها"))}<input type="number" disabled placeholder="—"></label><label>${escapeHtml(text("Style", "سبک"))}<select disabled><option>—</option></select></label>
+        </fieldset>
+        <fieldset><legend>${escapeHtml(text("Vertical Lines", "خطوط عمودی"))}</legend>
+          ${check("Show Major Lines", "نمایش خطوط اصلی")}${check("Show Minor Lines Every", "نمایش خطوط فرعی")}
+          <label>${escapeHtml(text("Date Interval", "فاصله تاریخ"))}<select disabled><option>—</option></select></label><label>${escapeHtml(text("Style", "سبک"))}<select disabled><option>—</option></select></label>
+        </fieldset>
+      </section>
+      <section class="cp-bar-options-panel" data-bar-options-panel="progress-line" hidden>
+        <fieldset><legend>${escapeHtml(text("Progress Line", "خط پیشرفت"))}</legend>
+          ${check("Show Progress Line", "نمایش خط پیشرفت")}
+          <label>${escapeHtml(text("Size", "ضخامت"))}<input type="number" disabled placeholder="—"></label>
+          <label>${escapeHtml(text("Color", "رنگ"))}<button type="button" disabled>—</button></label>
+          <label>${escapeHtml(text("Baseline to use", "مبنای مورد استفاده"))}<select disabled><option>—</option></select></label>
+          <label>${escapeHtml(text("Based on difference between current and baseline activity's", "مبنای اختلاف فعالیت جاری و مبنا"))}<select disabled><option>Start Date</option><option>Finish Date</option></select></label>
+          <label>${escapeHtml(text("By connecting progress points based on activity's", "اتصال نقاط پیشرفت بر اساس"))}<select disabled><option>% Complete</option><option>Remaining Duration</option></select></label>
+        </fieldset>
+      </section>
+      <footer><button type="button" data-bar-options-close>${escapeHtml(text("OK", "تأیید"))}</button><button type="button" data-bar-options-close>${escapeHtml(text("Cancel", "انصراف"))}</button><button type="button" disabled>${escapeHtml(text("Help", "راهنما"))}</button></footer>
     </form>
   </dialog>`;
 }
