@@ -811,15 +811,12 @@ export function mountCapacityPanel(
   // otherwise disappear between filling the fields and submitting the request.
   if (!capacityResolveSubmitBound.has(panel)) {
     capacityResolveSubmitBound.add(panel);
-    panel.addEventListener("click", (event) => {
-      const target = event.target instanceof Element
-        ? event.target.closest<HTMLElement>("[data-capacity-resolve]")
-        : null;
-      if (!target) return;
-      const form = target.closest<HTMLFormElement>("[data-capacity-resolve-form]");
-      if (!form) return;
+    // Bind the visible control itself as well as the stable submit delegate.
+    // Some embedded/desktop webviews retarget clicks across drawer boundaries;
+    // a direct listener guarantees the resolver command reaches its form.
+    resolveButton.addEventListener("click", (event) => {
       event.preventDefault();
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      resolveForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     });
     panel.addEventListener("submit", async (event) => {
       const form = event.target instanceof HTMLFormElement ? event.target : null;
