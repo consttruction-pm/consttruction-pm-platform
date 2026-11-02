@@ -2522,6 +2522,11 @@ async function main() {
       basis: document.querySelector("[data-capacity-resolve-basis]")?.value ?? null,
       hours: document.querySelector("[data-capacity-resolve-hours]")?.value ?? null,
       buttonDisabled: document.querySelector("[data-capacity-resolve]")?.disabled ?? null,
+      buttonType: document.querySelector("[data-capacity-resolve]")?.type ?? null,
+      binding: document.querySelector("[data-capacity-panel]")?.getAttribute("data-capacity-resolve-bound") ?? null,
+      clicked: document.querySelector("[data-capacity-panel]")?.getAttribute("data-capacity-resolve-clicked") ?? null,
+      handled: document.querySelector("[data-capacity-panel]")?.getAttribute("data-capacity-resolve-handled") ?? null,
+      url: location.href,
       panelBusy: document.querySelector("[data-capacity-panel]")?.getAttribute("aria-busy") ?? null,
     }))()`);
     assert(
