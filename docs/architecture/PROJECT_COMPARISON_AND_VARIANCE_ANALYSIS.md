@@ -148,6 +148,41 @@ A critical-path difference must identify the relevant activities and logic chang
 
 ## 8. Results, review and reporting
 
+### 8.1 Primary entry point and workspace location
+
+The primary command must be discoverable from the **Project** menu:
+
+- **Menu path:** `Project → Compare Projects…`
+- **Target:** `dialog:project-comparison`
+- **Purpose:** open a guided comparison setup dialog; do not start a comparison merely by opening the command.
+- **Default placement:** immediately after the Baselines commands and before progress-update commands, so users can find baseline and general comparison tools together without confusing their scopes.
+- **No duplicate comparison command:** this unified command offers all supported comparison modes (Project vs Project, Revision vs Revision, Project vs Baseline). Baseline assignment/maintenance remains a separate Baselines management function.
+
+The workspace Directory must also contain a persistent **Comparisons** entry under the Project area:
+
+- **Directory item:** `Comparisons`
+- **Target:** `window:comparisons`
+- **Purpose:** list saved comparison runs the current user is authorized to read, with source names/IDs, comparison mode, run date, status, scope, and report availability.
+- Selecting a saved run opens its immutable results in a comparison-results window/tab. It must not silently rerun against newer project revisions.
+- A clearly labeled **New Comparison** action in this window opens `dialog:project-comparison`.
+
+The setup dialog must guide the user through, in this order:
+
+1. Select comparison mode.
+2. Select Reference A and Compared B (project, revision, baseline, or validated imported snapshot as allowed by the selected mode).
+3. Confirm each source revision/snapshot and Data Date.
+4. Select whole-project or scoped WBS/activity/resource coverage.
+5. Select comparison domains and output families.
+6. Review identity-matching suggestions and explicitly resolve ambiguous mappings.
+7. Review missing fields, partial coverage, incompatible calendars/units/currencies, and other blocking or non-comparable conditions.
+8. Preview the scope and start the read-only comparison.
+
+The results open in a dedicated **Comparison Results** workspace/tab, not inside the ordinary Activities grid. It must provide a summary, change-category filters, WBS-grouped difference table, field-level before/after details, and side-by-side schedule/Gantt review where supported. Drill-through may open the relevant Activities/WBS/Resources window while preserving the selected comparison run and source revision references.
+
+The existing **Additional Activities View** may be used for a secondary activities-layout or comparison drill-through only; it is not the comparison engine, comparison-run history, or the authoritative result container.
+
+The menu command, Directory entry, dialog, result window, labels, translations and permissions must be declared in the workspace navigation map and window inventory before the feature is considered available. Do not render an enabled placeholder that has no working target. No keyboard shortcut is assigned until it is registered and tested in the shared command registry.
+
 The comparison result must provide:
 
 - a project-level summary of added, removed, changed, moved, unchanged, ambiguous and incomparable entities;
