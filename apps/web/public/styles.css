@@ -7263,3 +7263,114 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
     grid-row: 2;
   }
 }
+
+/* Documents window: data-backed register with a bottom/side details inspector. */
+.cp-documents-window {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+  gap: 10px;
+  min-width: 0;
+  min-height: 280px;
+}
+.cp-documents-register,
+.cp-document-details {
+  min-width: 0;
+  border: 1px solid var(--cp-ui-border, #c3ccd8);
+  background: var(--cp-ui-surface, #fff);
+}
+.cp-documents-register .cp-register-toolbar,
+.cp-document-details > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 9px;
+  border-bottom: 1px solid var(--cp-ui-border, #c3ccd8);
+  background: var(--cp-ui-chrome, #f4f6f9);
+}
+.cp-documents-register table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.cp-documents-register th,
+.cp-documents-register td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--cp-ui-grid, #dfe5ec);
+  text-align: start;
+}
+.cp-documents-register tr.is-selected {
+  background: var(--cp-ui-selected, #cfe3f7);
+}
+.cp-documents-register td button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--cubi-engineering-blue, #1c4f8f);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.cp-document-details nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid var(--cp-ui-border, #c3ccd8);
+}
+.cp-document-details nav button {
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  background: transparent;
+  color: #53677f;
+  font: inherit;
+  cursor: pointer;
+}
+.cp-document-details nav button.is-active {
+  border-color: var(--cp-ui-border, #c3ccd8);
+  border-bottom: 2px solid var(--cubi-engineering-blue, #1c4f8f);
+  background: #fff;
+  color: #20364f;
+  font-weight: 700;
+}
+.cp-document-detail-content {
+  padding: 10px;
+}
+.cp-document-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.cp-document-detail-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid #e0e6ed;
+  background: #fbfcfd;
+}
+.cp-document-detail-field span {
+  color: #66798e;
+  font-size: 10px;
+}
+.cp-document-detail-field strong {
+  overflow-wrap: anywhere;
+  color: #23384f;
+  font-size: 12px;
+}
+.cp-document-link-list {
+  margin: 0;
+  padding-inline-start: 20px;
+}
+@media (max-width: 900px) {
+  .cp-documents-window {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cp-document-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
