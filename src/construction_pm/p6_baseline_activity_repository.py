@@ -289,27 +289,34 @@ class PostgresP6BaselineActivityRepository:
                 "IMMUTABLE_BASELINE_ACTIVITIES"
             )
         for row in rows:
-            self.connection.execute(
-                "INSERT INTO p6_baseline_activity "
-                "(tenant_id,project_id,project_revision,baseline_id,activity_id,"
-                "planned_start,planned_finish,budgeted_cost,currency,wbs_id,"
-                "earned_value_technique) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
-                "ON CONFLICT (tenant_id,project_id,baseline_id,activity_id) "
-                "DO NOTHING",
-                (
-                    scope.tenant_id,
-                    scope.project_id,
-                    scope.project_revision,
-                    baseline_id,
-                    row.activity_id,
-                    row.planned_start.isoformat(),
-                    row.planned_finish.isoformat(),
-                    str(row.budgeted_cost),
-                    row.currency,
-                    row.wbs_id,
-                    row.earned_value_technique,
-                ),
-            )
+            try:
+                self.connection.execute(
+                    "INSERT INTO p6_baseline_activity "
+                    "(tenant_id,project_id,project_revision,baseline_id,activity_id,"
+                    "planned_start,planned_finish,budgeted_cost,currency,wbs_id,"
+                    "earned_value_technique) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                    "ON CONFLICT (tenant_id,project_id,baseline_id,activity_id) "
+                    "DO NOTHING",
+                    (
+                        scope.tenant_id,
+                        scope.project_id,
+                        scope.project_revision,
+                        baseline_id,
+                        row.activity_id,
+                        row.planned_start.isoformat(),
+                        row.planned_finish.isoformat(),
+                        str(row.budgeted_cost),
+                        row.currency,
+                        row.wbs_id,
+                        row.earned_value_technique,
+                    ),
+                )
+            except Exception as exc:
+                if getattr(exc, "sqlstate", None) == "23503":
+                    raise P6BaselineActivityPersistenceError(
+                        "BASELINE_ACTIVITY_PARENT_BASELINE_REQUIRED"
+                    ) from exc
+                raise
         stored = self.list(scope, baseline_id)
         if stored != rows:
             raise P6BaselineActivityPersistenceError(

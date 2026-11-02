@@ -384,7 +384,7 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         user_options=("Create current-project copy", "Convert another project to baseline", "Project baseline", "Primary", "Secondary", "Tertiary"),
         official_sources=(ORACLE_SOURCES["create_baseline"], ORACLE_SOURCES["assign_baseline"]),
         cubi_code_paths=("src/construction_pm/p6_baseline_api.py", "src/construction_pm/p6_baseline_repository.py", "src/construction_pm/p6_baseline_activity_repository.py", "src/construction_pm/p6_earned_value_read_model.py", "shared/contracts/p6-baseline-api.v1.schema.json"),
-        regression_tests=("tests/test_p6_baseline_repository.py", "tests/test_p6_baseline_activity_repository.py", "tests/test_p6_earned_value_read_model.py"),
+        regression_tests=("tests/test_p6_baseline_repository.py", "tests/test_p6_baseline_activity_repository.py", "tests/test_p6_postgres_baseline_activity.py", "tests/test_p6_earned_value_read_model.py"),
         coverage=MAPPED_NOT_PROVEN,
         known_gap="Project/primary/secondary/tertiary baseline identity, scoped reads, revision conflicts and immutable baseline-activity values are implemented and tested against both SQLite and PostgreSQL repositories. Still open: converting another project into a baseline, selective baseline update (#1483 scope) and assignment of baselines to live project summary fields.",
     ),
