@@ -106,7 +106,7 @@ test("Version 26 menu inventory is represented in CUBI menus without exposing so
   for (const command of [
     "Enterprise Project Structure", "Tracking", "Resource Codes", "Role Codes", "Stored Images",
     "Schedule Visualization", "Project Comparison &amp; Variance", "Admin Categories",
-    "Financial Period Calendars", "Expand", "Bottom Layout Options", "Share Feedback",
+    "Financial Period Calendars", "Expand", "Bottom Layout Options", "Activity Details", "Share Feedback",
     "Exchange Data", "Select Project Portfolio", "Commit Changes", "Refresh Data",
     "Progress Spotlight", "Activity Critical Path", "Check Schedule", "Tab Groups",
     "Store Period Performance", "Issue Navigator", "Report Preferences",
