@@ -597,6 +597,8 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     container.querySelector<HTMLElement>("[data-nav-flyout]")?.setAttribute("hidden", "");
     const schedulingReference = container.querySelector<HTMLElement>("#cp-scheduling-reference");
     if (schedulingReference) schedulingReference.hidden = next.activeMenu !== "schedule";
+    const details = container.querySelector<HTMLElement>("#cp-details");
+    if (details) details.innerHTML = renderWindowDetailsPanel(next, labels, container);
     return true;
   }
   if (wbsChanged) {
