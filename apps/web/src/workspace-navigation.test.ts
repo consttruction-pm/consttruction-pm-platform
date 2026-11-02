@@ -15,10 +15,10 @@ test("workspace navigation exposes every V1 main menu surface", () => {
   );
 });
 
-test("schedule navigation exposes run controls and every reference section", () => {
+test("schedule navigation exposes run controls and every reference section without overstating completion", () => {
   const item = getWorkspaceNavigation("schedule");
 
-  assert.equal(item.status, "implemented");
+  assert.equal(item.status, "partial");
   assert.deepEqual(item.submenus.map((submenu) => submenu.en), [
     "Activity Grid",
     "Gantt Chart",
@@ -65,7 +65,7 @@ test("navigation status follows the workspace active menu", () => {
     revision: 0,
   });
 
-  assert.equal(getWorkspaceNavigationStatus(state), "implemented");
+  assert.equal(getWorkspaceNavigationStatus(state), "partial");
   assert.equal(
     getWorkspaceNavigationStatus({ ...state, activeMenu: "reports" }),
     "preview",
