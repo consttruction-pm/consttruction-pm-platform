@@ -395,6 +395,35 @@ test("module navigation action activates a namespaced register detail tab", () =
   assert.equal(activated, 1);
 });
 
+test("Activities window docks Activity Details below the grid and Gantt with a resize splitter", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /class="cp-activity-details-splitter"[^>]*role="separator" aria-orientation="horizontal"/);
+  assert.match(html, /id="cp-details" class="cp-panel cp-details cp-activity-details-dock"/);
+  assert.match(html, /data-activity-details-options-open/);
+  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "steps", "relationships", "documents", "expenses", "summary", "risks", "udfs"]) {
+    assert.match(html, new RegExp(`data-activity-detail-tab="${tab}"`));
+  }
+});
+
+test("Show on Bottom Activity Details command scrolls to the docked details pane", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let scrolled = false;
+  const details = { scrollIntoView: () => { scrolled = true; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "#cp-details" ? details : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  const target = { dataset: { shellCommand: "Activity Details" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(scrolled, true);
+});
+
 test("Projects window docks Project Details below the register with the full detail-tab strip", () => {
   const html = render("en", "project");
   assert.match(html, /class="cp-project-details-splitter"[^>]*role="separator" aria-orientation="horizontal"/);
