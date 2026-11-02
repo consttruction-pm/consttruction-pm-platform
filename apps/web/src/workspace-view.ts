@@ -201,6 +201,7 @@ const documentSelectionByContainer = new WeakMap<HTMLElement, string>();
 const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
 const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
 const progressActivitySelectionByContainer = new WeakMap<HTMLElement, string>();
+const reportTabByContainer = new WeakMap<HTMLElement, string>();
 const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<string>>();
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
@@ -378,11 +379,17 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.reportTab !== undefined) {
+      reportTabByContainer.set(container, target.dataset.reportTab);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
     if (target.dataset.progressDialogClose !== undefined) {
       const dialog = (event.target as HTMLElement | null)?.closest?.<HTMLDialogElement>("[data-progress-dialog]");
       if (dialog && typeof dialog.close === "function") dialog.close();
@@ -427,6 +434,10 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         container.querySelector<HTMLElement>("[data-wbs-detail-tab='" + value + "']")?.click();
       } else if (kind === "document-type") {
         documentTypeFilterByContainer.set(container, value);
+        const record = workspaceRenderRecords.get(container);
+        if (record) renderMainWorkspace(container, record.state, record.options);
+      } else if (kind === "reports-tab") {
+        reportTabByContainer.set(container, value);
         const record = workspaceRenderRecords.get(container);
         if (record) renderMainWorkspace(container, record.state, record.options);
       } else if (kind === "progress-dialog") {
@@ -1529,6 +1540,21 @@ function renderRegisterWindow(
   </div>`;
 }
 
+function renderReportsCenter(container: HTMLElement, state: WorkspaceState): string {
+  const tabs = [["library","Report Library","کتابخانه گزارش"],["layouts","Report Layouts","چیدمان گزارش"],["batch","Batch Reports","گزارش‌های دسته‌ای"],["print-preview","Print Preview","پیش‌نمایش چاپ"],["page-setup","Page Setup","تنظیم صفحه"],["export","Export","خروجی"],["custom","Custom Reports","گزارش‌های سفارشی"]] as const;
+  const active = reportTabByContainer.get(container) ?? "library";
+  const label = (en: string, fa: string): string => escapeHtml(uiText(state.locale, en, fa));
+  const option = (name: string): string => `<label class="cp-report-option"><input type="checkbox" disabled> ${escapeHtml(name)}</label>`;
+  let panel = "";
+  if (active === "library") panel = `<div class="cp-report-template-grid">${["Activity List","WBS Summary","Schedule Variance","Critical Activities","Resource Assignments","Resource Usage","Cost Accounts","Cash Flow","Earned Value","Progress Summary","Quality Inspections","Safety Observations","Change Register","Claim Register","Document Register"].map((name)=>`<article><strong>${escapeHtml(name)}</strong><small>${label("Template definition not loaded","تعریف قالب بارگذاری نشده است")}</small><button type="button" disabled>${label("Select","انتخاب")}</button></article>`).join("")}</div>`;
+  else if (active === "layouts") panel = `<fieldset><legend>${label("Report Layout","چیدمان گزارش")}</legend><label>${label("Columns","ستون‌ها")}<select disabled><option>${label("No saved report layout","چیدمان ذخیره‌شده‌ای وجود ندارد")}</option></select></label><label>${label("Group By","گروه‌بندی")}<select disabled><option>WBS</option><option>Activity Code</option><option>Resource</option></select></label><label>${label("Sort By","مرتب‌سازی")}<select disabled><option>Activity ID</option><option>Start</option><option>Finish</option></select></label>${option("Show totals")}${option("Show subtotals")}${option("Repeat column headers")}</fieldset>`;
+  else if (active === "batch") panel = `<fieldset><legend>${label("Batch Report Queue","صف گزارش دسته‌ای")}</legend><p class="cp-empty">${label("No batch report jobs are queued.","هیچ کار گزارش دسته‌ای در صف نیست.")}</p><label>${label("Report Selection","انتخاب گزارش")}<select disabled><option>${label("No report templates loaded","قالب گزارشی بارگذاری نشده است")}</option></select></label><label>${label("Output Format","قالب خروجی")}<select disabled><option>PDF</option><option>XLSX</option><option>CSV</option></select></label>${option("Include all open projects")}${option("Create one file per project")}</fieldset>`;
+  else if (active === "print-preview") panel = `<div class="cp-report-page-preview"><div><strong>${label("Print Preview","پیش‌نمایش چاپ")}</strong><span>${label("No report selected","گزارشی انتخاب نشده است")}</span></div></div>`;
+  else if (active === "page-setup") panel = `<fieldset><legend>${label("Page Setup","تنظیم صفحه")}</legend><label>${label("Paper Size","اندازه کاغذ")}<select disabled><option>A4</option><option>A3</option><option>Letter</option><option>Legal</option></select></label><label>${label("Orientation","جهت صفحه")}<select disabled><option>${label("Portrait","عمودی")}</option><option>${label("Landscape","افقی")}</option></select></label><label>${label("Margins","حاشیه‌ها")}<input type="text" disabled value="—"></label><label>${label("Scaling","مقیاس")}<select disabled><option>${label("Fit to page width","جای‌گیری در عرض صفحه")}</option><option>${label("Actual size","اندازه واقعی")}</option></select></label>${option("Repeat header on each page")}${option("Include page numbers")}</fieldset>`;
+  else if (active === "export") panel = `<fieldset><legend>${label("Export Options","گزینه‌های خروجی")}</legend>${["PDF","Excel Workbook (XLSX)","Delimited Text (CSV)","Rich Text (RTF)","XML"].map(option).join("")}<label>${label("Destination","مقصد")}<input type="text" disabled placeholder="—"></label><label>${label("File Name","نام فایل")}<input type="text" disabled placeholder="—"></label></fieldset>`;
+  else panel = `<fieldset><legend>${label("Custom Report Builder","سازنده گزارش سفارشی")}</legend>${["Select Data Source","Choose Fields","Add Grouping","Add Filter","Add Calculated Field","Preview Results"].map(option).join("")}<p class="cp-empty">${label("The report definition and query services are not connected.","سرویس تعریف گزارش و پرس‌وجو متصل نیست.")}</p></fieldset>`;
+  return `<div class="cp-reports-center"><aside class="cp-reports-categories"><h3>${label("Report Categories","دسته‌های گزارش")}</h3>${["Project","Schedule","Activities","WBS","Resources","Cost","Progress","Quality","Safety","Commercial","Documents","Custom"].map((name)=>`<button type="button" disabled>${escapeHtml(name)}</button>`).join("")}</aside><section class="cp-reports-workspace"><nav role="tablist" aria-label="${label("Report workspace tabs","زبانه‌های فضای گزارش")}">${tabs.map(([key,en,fa])=>`<button type="button" role="tab" data-report-tab="${key}" aria-selected="${active===key}" class="${active===key?"is-active":""}">${label(en,fa)}</button>`).join("")}</nav><div class="cp-reports-panel">${panel}</div><p class="cp-dialog-notice">${label("Report generation, print, export and template editing are disabled until the report service is connected. No output is fabricated.","تولید گزارش، چاپ، خروجی و ویرایش قالب تا اتصال سرویس گزارش غیرفعال هستند. هیچ خروجی ساختگی تولید نمی‌شود.")}</p><footer><button type="button" disabled>${label("Generate","تولید")}</button><button type="button" disabled>${label("Preview","پیش‌نمایش")}</button><button type="button" disabled>${label("Print","چاپ")}</button><button type="button" disabled>${label("Export","خروجی")}</button><button type="button" disabled>${label("Help","راهنما")}</button></footer></section></div>`;
+}
 function renderProgressRegisterWindow(container: HTMLElement, state: WorkspaceState): string {
   const selectedId = progressActivitySelectionByContainer.get(container) ?? state.selectedActivityId ?? null;
   const selected = state.activities.find((activity) => activity.id === selectedId) ?? null;
@@ -1817,9 +1843,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         ${controls(`${moduleButton("forms", "forms", uiText(state.locale, "Forms & Workflows", "فرم‌ها و گردش‌کار"))}${moduleButton("tools", "warning", uiText(state.locale, "Open control records", "بازکردن سوابق کنترل"))}`)}`;
       break;
     case "reports":
-      body = `
-        <p>${escapeHtml(uiText(state.locale, "Report generation and print layouts are not available in this preview yet. No report is generated or claimed here.", "تولید گزارش و قالب چاپ در این پیش‌نمایش فعال نیست. هیچ گزارشی در این صفحه تولید یا ادعا نمی‌شود."))}</p>
-        ${controls(moduleButton("tools", "print", uiText(state.locale, "Open reports and print tools", "بازکردن ابزارهای گزارش و چاپ")))}`;
+      body = renderReportsCenter(container, state);
       break;
     case "issues":
       body = renderRegisterWindow(state, uiText(state.locale, "Project Issues", "مسائل پروژه"), [["Issue ID","شناسه مسئله"],["Title","عنوان"],["Status","وضعیت"],["Priority","اولویت"],["Responsible Manager","مدیر مسئول"],["Date Identified","تاریخ شناسایی"],["Due Date","موعد"],["Owner","مسئول"]], [["general","General","عمومی"],["details","Details","جزئیات"],["notes","Notes","یادداشت‌ها"],["documents","Documents","اسناد"]]);
@@ -1932,6 +1956,7 @@ function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: numb
     documents: [null, { kind: "document-detail-tab", value: "links" }, { kind: "document-detail-tab", value: "integrity" }, { kind: "document-detail-tab", value: "revisions" }, { kind: "document-type", value: "evidence" }],
     progress: [null, null, null, null, null, { kind: "progress-dialog", value: "update" }, { kind: "progress-dialog", value: "period-performance" }],
     control: [null, { kind: "register-tab", value: "control:quality" }, { kind: "register-tab", value: "control:inspections" }, { kind: "register-tab", value: "control:safety" }, { kind: "register-tab", value: "control:issues" }, { kind: "register-tab", value: "control:punch" }, { kind: "register-tab", value: "control:changes" }, { kind: "register-tab", value: "control:forms" }],
+    reports: [{ kind: "reports-tab", value: "library" }, { kind: "reports-tab", value: "layouts" }, { kind: "reports-tab", value: "batch" }, { kind: "reports-tab", value: "print-preview" }, { kind: "reports-tab", value: "page-setup" }, { kind: "reports-tab", value: "export" }, { kind: "reports-tab", value: "custom" }],
     cost: [null, { kind: "register-tab", value: "cost:general" }, { kind: "register-tab", value: "cost:budget" }, { kind: "register-tab", value: "cost:cash-flow" }, { kind: "register-tab", value: "cost:evm" }, null, null],
     assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
     expenses: [null, null, { kind: "register-tab", value: "expenses:general" }],
