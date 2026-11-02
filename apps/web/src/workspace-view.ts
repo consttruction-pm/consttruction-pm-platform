@@ -1859,7 +1859,7 @@ function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, a
     return empty(uiText(state.locale, `No ${tabLabel?.[1] ?? "detail"} records are loaded for this activity.`, `برای این فعالیت هنوز سابقه‌ای در بخش «${tabLabel?.[2] ?? "جزئیات"}» بارگذاری نشده است.`));
   };
   return `<div class="cp-activity-details">
-    <header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2><span>${escapeHtml(activity ? `${activity.id} — ${activity.name}` : uiText(state.locale, "No activity selected", "فعالیتی انتخاب نشده است"))}</span></div><small>${escapeHtml(uiText(state.locale, "Activity Details", "جزئیات فعالیت"))}</small></header>
+    <header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2><span>${escapeHtml(activity ? `${activity.id} — ${activity.name}` : state.selectedActivityId ?? uiText(state.locale, "No activity selected", "فعالیتی انتخاب نشده است"))}</span></div><small>${escapeHtml(uiText(state.locale, "Activity Details", "جزئیات فعالیت"))}</small></header>
     <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Activity detail tabs", "زبانه‌های جزئیات فعالیت"))}">
       ${ACTIVITY_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-activity-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-activity-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
     </nav>
