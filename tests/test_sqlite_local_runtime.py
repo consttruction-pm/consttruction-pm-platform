@@ -727,3 +727,71 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
         assert {"schedule.query", "wbs.create", "activity.create", "relationship.create", "constraint.create"} <= advertised
     finally:
         connection.close()
+
+
+def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_operations():
+    connection = sqlite3.connect(":memory:")
+    runtime, now = _open_runtime(connection)
+    try:
+        created = runtime.project_lifecycle_api.create_project(
+            "offline-session",
+            "calendar-runtime-project",
+            "Calendar runtime project",
+            start_date="2026-11-03",
+            now=now,
+        )
+        scope = BackendScope(
+            created.context.tenant_id,
+            created.context.project_id,
+            created.context.revision,
+        )
+        auth = created.context.authorization_context(frozenset({"project_admin"}))
+        shared = runtime.schedule_runtime(scope)
+
+        def invoke(operation, payload):
+            envelope = {
+                "contract_version": "cubi.shared-core-runtime.v1",
+                "operation": operation,
+                "payload": {
+                    "contract_version": "p6-calendar.v1",
+                    "scope": {
+                        "tenant_id": scope.tenant_id,
+                        "project_id": scope.project_id,
+                        "project_revision": scope.project_revision,
+                    },
+                    **payload,
+                },
+            }
+            return json.loads(
+                shared.dispatch_json(
+                    json.dumps(envelope),
+                    auth_context=auth,
+                    expected_project_revision=scope.project_revision,
+                )
+            )
+
+        created_calendar = invoke("calendar.create", {
+            "calendar": {
+                "calendar_id": "CAL-P",
+                "calendar_version": "1",
+                "calendar_type": "project",
+                "kind": "working-day",
+                "name": "Project Working Calendar",
+            }
+        })
+        assert created_calendar["result"]["item"]["calendar_id"] == "CAL-P"
+
+        catalog = invoke("calendar.list", {})
+        assert catalog["result"]["kind"] == "calendar_catalog"
+        assert catalog["result"]["calendars"][0]["calendar_id"] == "CAL-P"
+
+        calendar = invoke("calendar.get", {
+            "calendar_id": "CAL-P",
+            "calendar_version": "1",
+        })
+        assert calendar["result"]["item"]["calendar_version"] == "1"
+
+        advertised = {item["operation"] for item in shared.supported_operations}
+        assert {"calendar.create", "calendar.list", "calendar.get", "calendar.delete"} <= advertised
+    finally:
+        connection.close()
