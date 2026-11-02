@@ -86,6 +86,13 @@ test("WBS create form dispatches validated fields to its workspace callback", ()
   });
 });
 
+test("WBS register exposes the connected add workflow and never fabricates a chart action", () => {
+  const html = render("en", "wbs");
+  assert.match(html, /data-rail-action="wbs">[^<]*<span>Add WBS<\/span>/);
+  assert.match(html, /data-wbs-delete disabled/);
+  assert.match(html, /WBS chart view is not connected yet/);
+});
+
 test("Activity Group and Sort defaults to WBS in English and Persian", () => {
   const english = render("en", "schedule");
   assert.match(english, /<select data-activity-group aria-label="Group by">\s*<option value="wbs" selected>WBS<\/option>/);
