@@ -28,6 +28,7 @@ from construction_pm.scheduling.activity import (
 )
 from construction_pm.scheduling.constraints import ConstraintType
 from construction_pm.scheduling.time_duration import DurationUnit
+from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.shared_core_runtime import SharedCoreOperation
 from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
 
