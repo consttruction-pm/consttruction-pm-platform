@@ -316,3 +316,10 @@ Remaining: real calendar CRUD, calendar inheritance and assignment API, interval
 - Roles includes a register grid with Role ID, Role Name, Category, Max Units/Time, Default Rate, Rate Type and Currency, plus General, Limits, Rates, Assignments, Notes and UDFs detail tabs. The tabs switch panels; records remain empty until role/rate services are connected.
 - Tracking includes a layout selector for Project Table, Project Bar Chart, Project Gantt/Profile and Resource Analysis, with a project selector pane and chart/table surface. The selected layout updates the active surface label; no chart data is fabricated.
 - Mutation, data refresh and layout save controls remain disabled until authoritative resource/role and tracking services exist. These are honest visual shells, not claims that those modules are functionally complete.
+
+
+### Additional first-class register windows
+
+The workspace navigation and persisted window registry now include separate WBS, Resource Assignments, Project Expenses, Project Issues, Project Risks and Project Thresholds windows. Their shells provide domain-specific register columns and contextual detail-tab inventories. The WBS window reuses the current persisted WBS hierarchy and WBS Details tabs; the other registers display honest empty states until their authoritative module projections are loaded. Create/edit/delete/filter controls remain disabled where no owning API is connected. These surfaces are not yet functionally complete and must not be reported as such.
+
+Current first-class workspace window inventory now contains 18 keys: Projects, WBS, Activities, Progress, Resources, Resource Assignments, Roles, Calendars, Cost, Expenses, Documents, Reports, Tracking, Issues, Risks, Thresholds, Project Controls and Settings. The shell's persisted open-window registry, tab strip and desktop title registry must remain synchronized with this inventory.
