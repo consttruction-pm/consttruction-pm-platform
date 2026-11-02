@@ -472,6 +472,12 @@ test("module navigation submenus route to real registers, detail tabs and tracki
   assert.match(resources, /data-navigation-action="register-tab:resources:roles"/);
   assert.match(resources, /Resource records are not yet returned by the project API/);
 
+  const documents = render("en", "documents");
+  assert.match(documents, /class="cp-documents-window"/);
+  assert.match(documents, /data-navigation-action="document-detail-tab:links"/);
+  assert.match(documents, /data-navigation-action="document-detail-tab:integrity"/);
+  assert.match(documents, /data-navigation-action="document-detail-tab:revisions"/);
+
   const assignments = render("en", "assignments");
   assert.match(assignments, /data-navigation-action="register-tab:assignments:general"/);
 
