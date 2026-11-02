@@ -1408,7 +1408,7 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 test("desktop workbench renders a grouped navigation tree, window tabs and contextual command rail", () => {
   const html = render("en", "schedule");
   assert.match(html, /class="[^"]*cp-navigation-tree/);
-  const navigationMarkup = html.match(/<nav class="cp-menu[^"]*cp-navigation-tree"[\\s\\S]*?<\\/nav>/)?.[0] ?? "";
+  const navigationMarkup = html.match(/<nav class="cp-menu[^"]*cp-navigation-tree"[\s\S]*?<\/nav>/)?.[0] ?? "";
   assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 9);
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
