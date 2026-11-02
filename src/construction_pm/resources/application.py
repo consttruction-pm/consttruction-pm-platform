@@ -142,10 +142,19 @@ class ResourceApplicationService:
             raise _to_resource_error(exc) from exc
 
     def get_resource(self, resource_id: str) -> Resource | None:
+        (self.authorization_policy or AllowAllAuthorizationPolicy()).authorize(
+            self.context, "get_resource"
+        )
         return self.repository.get_resource(self.context, resource_id)
 
     def list_resources(self) -> list[Resource]:
+        (self.authorization_policy or AllowAllAuthorizationPolicy()).authorize(
+            self.context, "list_resources"
+        )
         return self.repository.list_resources(self.context)
 
     def list_assignments(self, activity_id: str | None = None) -> list[ResourceAssignment]:
+        (self.authorization_policy or AllowAllAuthorizationPolicy()).authorize(
+            self.context, "list_assignments"
+        )
         return self.repository.list_assignments(self.context, activity_id)
