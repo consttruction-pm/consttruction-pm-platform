@@ -294,11 +294,30 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.navigationAction) {
+      const [kind, value] = target.dataset.navigationAction.split(":", 2);
+      if (kind === "register-tab") {
+        container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
+          if (button.dataset.registerTab === value) button.click();
+        });
+      } else if (kind === "calendar-tab") {
+        container.querySelector<HTMLElement>("[data-calendar-editor-tab='" + value + "']")?.click();
+      } else if (kind === "wbs-detail-tab") {
+        container.querySelector<HTMLElement>("[data-wbs-detail-tab='" + value + "']")?.click();
+      } else if (kind === "tracking-layout") {
+        const select = container.querySelector<HTMLSelectElement>("[data-tracking-layout]");
+        if (select) {
+          select.value = value;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+      return;
+    }
     if (target.dataset.workspaceLayout) {
       const layout = target.dataset.workspaceLayout;
       if (layout === "split" || layout === "grid" || layout === "gantt") options.onWorkspaceLayoutChange?.(layout);
@@ -1510,15 +1529,36 @@ function renderNavigationSurface(state: WorkspaceState): string {
     <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${escapeHtml(statusLabel)}</span></div>
     <nav aria-label="${escapeAttribute(label + " " + t.submenu)}">
       ${item.submenus.map((submenu, index) => {
+        const text = escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale));
         const anchor = links[index];
-        return anchor
-          ? navigationTargetAvailable(state, anchor) ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>` : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`
-          : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`;
+        const action = navigationSubmenuAction(item.key, index);
+        if (anchor && navigationTargetAvailable(state, anchor)) return `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${text}</a>`;
+        if (action) return `<button type="button" class="cp-submenu-item" data-navigation-action="${escapeAttribute(action.kind + ":" + action.value)}">${text}</button>`;
+        return `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${text}</span>`;
       }).join("")}
     </nav>
   </section>`;
 }
 
+function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: number): { kind: string; value: string } | null {
+  const actions: Partial<Record<WorkspaceState["activeMenu"], readonly ({ kind: string; value: string } | null)[]>> = {
+    wbs: [null, { kind: "wbs-detail-tab", value: "general" }, null],
+    assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
+    expenses: [null, null, { kind: "register-tab", value: "expenses:general" }],
+    issues: [null, { kind: "register-tab", value: "issues:details" }],
+    risks: [null, null, { kind: "register-tab", value: "risks:general" }],
+    thresholds: [null, { kind: "register-tab", value: "thresholds:monitoring" }, { kind: "register-tab", value: "thresholds:details" }],
+    calendars: [null, { kind: "calendar-tab", value: "workweek" }, { kind: "calendar-tab", value: "exceptions" }, { kind: "calendar-tab", value: "assignments" }],
+    roles: [null, { kind: "register-tab", value: "roles:rates" }, { kind: "register-tab", value: "roles:assignments" }],
+    tracking: [
+      { kind: "tracking-layout", value: "table" },
+      { kind: "tracking-layout", value: "bar-chart" },
+      { kind: "tracking-layout", value: "gantt-profile" },
+      { kind: "tracking-layout", value: "resource-analysis" },
+    ],
+  };
+  return actions[menu]?.[index] ?? null;
+}
 function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string | null)[] {
   switch (menu) {
     case "project":
@@ -1538,7 +1578,7 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "calendars":
     case "roles":
     case "tracking":
-      return [];
+      return ["#cp-p6-module-stage"];
     case "cost":
       return ["#cp-procurement", "#cp-change-claim"];
     case "documents":
