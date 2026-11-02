@@ -295,3 +295,16 @@ This is a verified source implementation slice, not completion of the full visua
 Official references:
 - P6 Professional Help — Project Details tabs: https://docs.oracle.com/cd/G48902_01/client_help/en_US/project_details.htm
 - P6 Professional Help — WBS Details tabs: https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_details.htm
+
+
+### Calendar Register window — first-class navigation and editor shell
+
+- Calendars is now a first-class `WorkspaceMenuKey`, navigation surface, persisted open-window key, desktop-shell window title and workspace tab; it is no longer a disabled icon-only navigation item.
+- The Calendar Register surface contains a calendar list pane and a details editor with General, Workweek, Exceptions and Assignments tabs.
+- The General editor exposes calendar name/scope (Global, Project, Resource), parent calendar, hours per day/week/month/year and effective-from date.
+- The Workweek editor exposes all seven days, working-day toggles, start/finish time, break/interval controls, and an explicit note for split shifts, multiple intervals, overnight shifts and nonworking days.
+- Exceptions exposes holiday/nonworking and modified-working-time concepts; Assignments separates project/resource/activity usage.
+- The window intentionally shows empty registers and disabled mutation controls until the authoritative calendar service and shared scheduling-core assignment contract are connected. It does not invent sample calendars or apply visual-only calendar values to CPM calculations.
+- The editor tab strip is interactive; selecting General, Workweek, Exceptions or Assignments switches the visible panel.
+
+Remaining: real calendar CRUD, calendar inheritance and assignment API, interval validation, exception recurrence, timezone/Jalali display handling, calendar preview, and direct schedule recalculation integration. The visual editor shell is not the completed calendar subsystem.
