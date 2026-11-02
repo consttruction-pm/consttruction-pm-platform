@@ -74,3 +74,16 @@ Parity source: P6 Professional desktop Version 26 User Guide and Help, including
 - https://docs.oracle.com/cd/G48902_01/client_help/en_US/49095.htm
 - https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/using_main_windows.htm
 - https://docs.oracle.com/cd/G48902_01/client_help/en_US/49099.htm
+
+
+## Multilingual UI and public website requirement (2026-11-02)
+
+Supported language targets: English (en), Persian (fa), German (de), Chinese Simplified (zh), Arabic (ar), French (fr), Japanese (ja), and Korean (ko).
+
+- Arabic is RTL. Persian remains RTL. English, German, French, Japanese, Korean and Simplified Chinese are LTR.
+- The authenticated visual workspace language selector must expose all registered languages, preserve the current project, selected object, open page, layout, calendar mode and unsaved drafts when switching, and update document lang/dir, navigation, menus, command bars, Details tabs, dialogs, forms, tables, charts, reports, assistant and status bar.
+- Public website must provide translated, indexable route sets for Home, Platform, Solutions, Resources, Contact and Pricing in each published language. Each route must include correct lang/dir, translated title/description/OG metadata, canonical and reciprocal hreflang links, localized navigation/footer and correct language switcher.
+- A language may be registered in the workspace before its public website routes are published. Do not advertise an unavailable website route or create a dead link. Do not treat English fallback as completed translation.
+- Translation packs use stable translation IDs and are verified/activated through the existing language-pack lifecycle. The visual command shell and generic UI translation helpers must resolve activated pack strings before English fallback.
+- Fonts must cover Arabic/Persian shaping, French diacritics, Japanese kana/kanji, Korean Hangul and Chinese glyphs. Layouts must be checked for clipping, wrapping, line height, mixed-direction identifiers, numbers and dates.
+- Acceptance: complete translation coverage report for every shipped page and workspace surface; RTL/LTR visual tests; locale-specific SEO route tests; language-switch preservation tests; screenshots for all eight languages at desktop and mobile breakpoints.
