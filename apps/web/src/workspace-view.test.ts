@@ -184,6 +184,30 @@ test("Activities window exposes a real Layout Options dialog with current timesc
   assert.match(persian, /نمایش خطوط روابط/);
 });
 
+test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const closed: WorkspaceMenuKey[] = [];
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    {
+      openWindows: ["project", "schedule"],
+      onWindowClose: (menu) => closed.push(menu),
+    },
+  );
+  assert.match(container.innerHTML, /data-window-tab="project"/);
+  assert.match(container.innerHTML, /data-window-tab="schedule"/);
+  assert.match(container.innerHTML, /data-window-close="project"/);
+  const target = { dataset: { windowClose: "project" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.deepEqual(closed, ["project"]);
+});
+
 test("View menu Timescale command opens the current window Layout Options dialog", () => {
   const listeners = new Map<string, (event: Event) => void>();
   let opened = false;
