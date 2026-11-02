@@ -64,10 +64,12 @@ Companion to `workspace-information-architecture.md`. This file defines where ev
 | Item | Target | Notes |
 | --- | --- | --- |
 | Activities | `window:activities` | Primary workspace |
-| Additional Activities View | `window:activities-2` | Compare project/baseline |
+| Comparisons | `window:comparisons` | Saved comparison runs and reports; New Comparison opens `dialog:project-comparison` |
+| Additional Activities View | `window:activities-2` | Secondary activities analysis/layout view; comparison drill-through only, not the comparison engine or saved-run history |
 | WBS | `window:wbs` | Hierarchy editing |
 | Resource Assignments | `window:resource-assignments` | Grouped by resource |
 | Baselines → Assign / Maintain | `dialog:assign-baselines` / `dialog:maintain-baselines` | Disabled until baseline UI lands |
+| Compare Projects… | `dialog:project-comparison` | Unified entry for project/project, revision/revision and project/baseline comparison; keep separate from baseline assignment/maintenance |
 | Expenses | `window:expenses` | Project expense register |
 | Documents | `window:documents` | WPs & Docs equivalent |
 | Thresholds | `window:thresholds` | Disabled until threshold API exists |
@@ -133,6 +135,7 @@ Companion to `workspace-information-architecture.md`. This file defines where ev
 ```
 Project
 ├── Activities            → window:activities
+├── Comparisons           → window:comparisons
 ├── WBS                   → window:wbs
 ├── Resource Assignments  → window:resource-assignments
 ├── Documents             → window:documents
