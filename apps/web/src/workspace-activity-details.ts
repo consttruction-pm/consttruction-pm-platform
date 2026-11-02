@@ -337,7 +337,7 @@ function projectTabBody(tab: string, input: ActivityDetailsInput, state: Workspa
     case "general":
       return `<div class="cp-detail-grid">
         ${field(locale, t(locale, "Project ID", "شناسهٔ پروژه"), state.context.project_id)}
-        ${field(locale, t(locale, "Project name", "نام پروژه"), input.projectName)}
+        ${field(locale, t(locale, "Project name", "نام پروژه"), "")}
         ${field(locale, t(locale, "Business Domain", "حوزه کسب‌وکار"), "")}
         ${field(locale, t(locale, "Portfolio", "سبد پروژه"), "")}
         ${field(locale, t(locale, "Responsible manager", "مدیر مسئول"), "")}
