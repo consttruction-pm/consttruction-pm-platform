@@ -1625,3 +1625,18 @@ test("desktop workbench keeps contextual Add actions visibly unavailable until w
   assert.match(html, /role="menuitem" disabled/);
   assert.match(html, /create workflow is not connected yet/);
 });
+
+
+test("schedule workspace renders localized command ribbon and three layout choices", () => {
+  const english = render("en", "schedule");
+  assert.match(english, /class="cp-command-ribbon" role="toolbar"/);
+  assert.match(english, /data-workspace-layout="split" aria-pressed="true"/);
+  assert.match(english, /data-workspace-layout="grid" aria-pressed="false"/);
+  assert.match(english, /data-workspace-layout="gantt" aria-pressed="false"/);
+  assert.match(english, /data-workspace-command="run-schedule"/);
+  assert.match(english, /data-workspace-command="relationships"/);
+  const persian = render("fa", "schedule");
+  assert.match(persian, /ابزارهای زمان‌بندی/);
+  assert.match(persian, /جدول \+ گانت/);
+  assert.match(persian, /افزودن فعالیت/);
+});
