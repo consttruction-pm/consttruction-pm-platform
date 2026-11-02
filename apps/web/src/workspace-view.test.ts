@@ -233,7 +233,7 @@ test("Activity Details exposes the Bottom Layout Options tab customization dialo
 test("Activities Layout Options inventories top and bottom chart layouts without enabling unimplemented renderers", () => {
   const html = render("en", "schedule");
   assert.match(html, /data-top-layout/);
-  assert.match(html, /Activity Table \\+ Gantt Chart/);
+  assert.match(html, /Activity Table \+ Gantt Chart/);
   assert.match(html, /Activity Network/);
   assert.match(html, /Activity Usage Spreadsheet/);
   assert.match(html, /Resource Usage Profile/);
