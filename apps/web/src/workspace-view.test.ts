@@ -1720,3 +1720,25 @@ test("Group and Sort apply dispatches grouping and sort together without stale-s
   listeners.get("click")?.({ target } as unknown as Event);
   assert.deepEqual(calls, [["none", "activity_name", "desc"]]);
 });
+
+test("Bars dialog exposes bar definition columns, style/settings/labels tabs and command column", () => {
+  const html = render("en", "schedule");
+  for (const label of ["Bars", "Display", "Name", "Timescale", "User Start", "User Finish", "Filter", "Preview", "Bar Style", "Bar Settings", "Bar Labels", "Shape", "Color", "Pattern", "Row", "Position", "Label", "Copy From...", "Shift Up", "Shift Down", "Options..."]) {
+    assert.ok(html.includes(label), `missing Bars dialog inventory item: ${label}`);
+  }
+  assert.match(html, /data-bars-dialog/);
+  assert.match(html, /data-bars-tab="style"/);
+  assert.match(html, /data-bars-tab="settings"/);
+  assert.match(html, /data-bars-tab="labels"/);
+  assert.match(html, /data-bar-chart-options-open/);
+});
+
+test("Bar Chart Options exposes all documented tabs without enabling unsupported settings", () => {
+  const html = render("en", "schedule");
+  for (const label of ["General", "Collapsed Bars", "Data Date", "Sight Lines", "Progress Line", "Show Relationships", "Show Legend", "Limit Text Label Characters To", "Collapse to grouping bands", "Show Data Date", "Vertical Lines", "Baseline to use"]) {
+    assert.ok(html.includes(label), `missing Bar Chart Options item: ${label}`);
+  }
+  assert.match(html, /data-bar-chart-options-dialog/);
+  assert.match(html, /data-bar-options-tab="progress-line"/);
+  assert.match(html, /data-layout-links/);
+});
