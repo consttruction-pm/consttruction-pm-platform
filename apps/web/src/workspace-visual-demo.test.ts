@@ -65,3 +65,14 @@ test("WBS detail tab state is rendered as the active accessible tab", () => {
   assert.match(html, /data-vd-wbs-dtab="dates" aria-selected="true" class="is-active"/);
   assert.match(html, /Not available in this visual sample/);
 });
+
+test("calendar editor presents properties, workweek and exception panes", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  assert.match(html, /data-vd-dialog="calendar"/);
+  assert.match(html, /cp-vd-calendar-editor/);
+  assert.match(html, /Calendar properties/);
+  assert.match(html, /Workweek/);
+  assert.match(html, /Exceptions and holidays/);
+  assert.match(html, /2027-03-20/);
+  assert.match(html, /not saved or used for scheduling/);
+});
