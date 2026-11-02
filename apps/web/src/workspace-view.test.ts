@@ -1682,3 +1682,15 @@ test("workspace layout toolbar dispatches selected mode to the application", () 
   assert.deepEqual(layouts, ["grid"]);
 });
 
+
+test("Group and Sort opens a structured dialog and applies supported grouping and sort controls", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-group-sort-dialog/);
+  for (const label of ["Display Options", "Show Group Totals", "Show Grand Total", "Show Summaries", "Shrink vertical groups", "Group By", "Hide if empty", "Sort bands alphabetically", "Field Name", "Sort Order", "Ascending", "Descending"]) {
+    assert.ok(html.includes(label), `missing Group and Sort control: ${label}`);
+  }
+  assert.match(html, /data-group-sort-group/);
+  assert.match(html, /data-group-sort-field/);
+  assert.match(html, /data-group-sort-direction/);
+  assert.match(html, /data-group-sort-apply/);
+});
