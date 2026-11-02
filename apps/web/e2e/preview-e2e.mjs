@@ -2321,32 +2321,17 @@ async function main() {
     );
     await page.click('[data-workspace-layout="grid"]');
     assert(
-      await page.evaluate(() => {
-        const workspace = document.querySelector(".cp-p6-workspace");
-        return workspace?.getAttribute("data-workspace-layout") === "grid" &&
-          getComputedStyle(document.querySelector("#cp-gantt")).display === "none" &&
-          getComputedStyle(document.querySelector("#cp-activity-grid")).display !== "none";
-      }),
+      await page.evaluate("(() => {\n        const workspace = document.querySelector(\".cp-p6-workspace\");\n        return workspace?.getAttribute(\"data-workspace-layout\") === \"grid\" &&\n          getComputedStyle(document.querySelector(\"#cp-gantt\")).display === \"none\" &&\n          getComputedStyle(document.querySelector(\"#cp-activity-grid\")).display !== \"none\";\n      })()"),
       "Grid only must show the activity register and hide Gantt",
     );
     await page.click('[data-workspace-layout="gantt"]');
     assert(
-      await page.evaluate(() => {
-        const workspace = document.querySelector(".cp-p6-workspace");
-        return workspace?.getAttribute("data-workspace-layout") === "gantt" &&
-          getComputedStyle(document.querySelector("#cp-activity-grid")).display === "none" &&
-          getComputedStyle(document.querySelector("#cp-gantt")).display !== "none";
-      }),
+      await page.evaluate("(() => {\n        const workspace = document.querySelector(\".cp-p6-workspace\");\n        return workspace?.getAttribute(\"data-workspace-layout\") === \"gantt\" &&\n          getComputedStyle(document.querySelector(\"#cp-activity-grid\")).display === \"none\" &&\n          getComputedStyle(document.querySelector(\"#cp-gantt\")).display !== \"none\";\n      })()"),
       "Gantt only must show the chart and hide the activity register",
     );
     await page.click('[data-workspace-layout="split"]');
     assert(
-      await page.evaluate(() => {
-        const workspace = document.querySelector(".cp-p6-workspace");
-        return workspace?.getAttribute("data-workspace-layout") === "split" &&
-          getComputedStyle(document.querySelector("#cp-activity-grid")).display !== "none" &&
-          getComputedStyle(document.querySelector("#cp-gantt")).display !== "none";
-      }),
+      await page.evaluate("(() => {\n        const workspace = document.querySelector(\".cp-p6-workspace\");\n        return workspace?.getAttribute(\"data-workspace-layout\") === \"split\" &&\n          getComputedStyle(document.querySelector(\"#cp-activity-grid\")).display !== \"none\" &&\n          getComputedStyle(document.querySelector(\"#cp-gantt\")).display !== \"none\";\n      })()"),
       "Split must restore both synchronized schedule panes",
     );
     assert(
