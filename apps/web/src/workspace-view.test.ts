@@ -1603,6 +1603,9 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
   const progress = render("fa", "progress");
   assert.match(progress, /data-workspace-menu="progress"/);
   assert.match(progress, /داشبورد و نمودارهای اختصاصی پیشرفت/);
+  assert.match(progress, /href="#cp-site-logs"/, "empty progress registers remain reachable");
+  assert.match(progress, /href="#cp-field-operations"/, "empty field-operation registers remain reachable");
+  assert.doesNotMatch(progress, /data-submenu-status="preview"/, "existing empty-state destinations are not disabled");
 
   const documents = render("en", "documents");
   assert.match(documents, /No project documents have been added or linked yet/);
