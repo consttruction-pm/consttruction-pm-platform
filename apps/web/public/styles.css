@@ -6552,3 +6552,10 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   box-shadow: inset 0 2px 0 #c66a36;
   font-weight: 700;
 }
+
+.cp-p6 .cp-navigation-tree .cp-nav-unavailable {
+  opacity: .56;
+  cursor: not-allowed;
+  background: transparent;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-unavailable:hover { background: transparent; color: #3a4b60; }
