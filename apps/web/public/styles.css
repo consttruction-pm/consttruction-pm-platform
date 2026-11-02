@@ -7212,3 +7212,54 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   color: #62758a;
   text-align: center;
 }
+
+/* Project Structure rail width is independently adjustable from the bottom details pane. */
+.cp-p6-workspace[data-active-menu="project"] .cp-project-window-overview {
+  grid-template-columns: minmax(190px, var(--cp-project-structure-width, 240px)) 8px minmax(0, 1fr);
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-structure-summary {
+  grid-column: 1;
+  grid-row: 1;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-structure-splitter {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-structure-splitter span {
+  width: 3px;
+  height: 58px;
+  border-radius: 999px;
+  background: var(--cubi-brushed-titanium);
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-structure-splitter:hover span,
+.cp-p6-workspace[data-active-menu="project"] .cp-project-structure-splitter:focus-visible span {
+  height: 82px;
+  background: var(--cubi-engineering-blue);
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register {
+  grid-column: 3;
+  grid-row: 1;
+}
+@media (max-width: 900px) {
+  .cp-p6-workspace[data-active-menu="project"] .cp-project-window-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cp-p6-workspace[data-active-menu="project"] .cp-project-structure-splitter {
+    display: none;
+  }
+  .cp-p6-workspace[data-active-menu="project"] .cp-project-structure-summary {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .cp-p6-workspace[data-active-menu="project"] .cp-project-register {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
