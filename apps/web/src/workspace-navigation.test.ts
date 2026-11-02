@@ -11,7 +11,7 @@ import { createWorkspaceState } from "./workspace-model.js";
 test("workspace navigation exposes every V1 main menu surface", () => {
   assert.deepEqual(
     WORKSPACE_NAVIGATION.map((item) => item.key),
-    ["project", "schedule", "progress", "resources", "roles", "calendars", "cost", "documents", "reports", "tracking", "control", "settings"],
+    ["project", "wbs", "schedule", "progress", "resources", "assignments", "roles", "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues", "risks", "thresholds", "control", "settings"],
   );
 });
 
