@@ -6190,6 +6190,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   background: #fff;
   box-shadow: inset 0 2px 0 #dce5ef;
 }
+.cp-p6-workspace[data-active-menu="project"] #cp-details[hidden] { display: none !important; }
 .cp-p6-workspace[data-active-menu="project"] #cp-details .cp-details-head {
   flex: 0 0 auto;
   min-height: 24px;
