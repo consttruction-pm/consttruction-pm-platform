@@ -1651,11 +1651,8 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       break;
     case "resources":
       body = `
-        <p>${escapeHtml(uiText(state.locale, "Resource capacity and assignment surfaces are kept in the workspace tools. Existing capacity limits and assignments are read from the project service; this page does not invent resource values.", "سطوح ظرفیت و تخصیص منابع در ابزارهای محیط کار نگهداری می‌شوند. محدودیت‌های ظرفیت و تخصیص‌های موجود از سرویس پروژه خوانده می‌شوند؛ این صفحه مقدار ساختگی منبع نمی‌سازد."))}</p>
-        <div class="cp-p6-module-metrics">
-          ${metric(state.activities.length, uiText(state.locale, "Activities", "فعالیت‌ها"))}
-          ${metric(state.relationships.length, uiText(state.locale, "Assignments in logic", "تخصیص در منطق"))}
-        </div>
+        ${renderRegisterWindow(state, uiText(state.locale, "Project Resources", "منابع پروژه"), [["Resource ID","شناسه منبع"],["Resource Name","نام منبع"],["Resource Type","نوع منبع"],["Parent Resource","منبع والد"],["Default Units / Time","واحد / زمان پیش‌فرض"],["Max Units / Time","حداکثر واحد / زمان"],["Calendar","تقویم"],["Price / Unit","قیمت واحد"],["Cost Account","حساب هزینه"],["Primary Role","نقش اصلی"],["Status","وضعیت"]], [["general","General","عمومی"],["units-prices","Units & Prices","واحدها و قیمت‌ها"],["rates","Rates","نرخ‌ها"],["codes","Codes","کدها"],["roles","Roles","نقش‌ها"],["assignments","Assignments","تخصیص‌ها"],["calendars","Calendars","تقویم‌ها"],["notes","Notes","یادداشت‌ها"],["udfs","UDFs","فیلدهای کاربر"]])}
+        <p>${escapeHtml(uiText(state.locale, "Resource records are not yet returned by the project API. The register and detail tabs are visible, but create, edit, delete and assignment calculations remain unavailable until the authoritative resource service is connected.", "سوابق منابع هنوز از API پروژه دریافت نمی‌شوند. فهرست و زبانه‌های جزئیات نمایش داده می‌شوند، اما ایجاد، ویرایش، حذف و محاسبات تخصیص تا اتصال سرویس مرجع منابع در دسترس نیستند."))}</p>
         ${controls(`${moduleButton("tools", "resource", uiText(state.locale, "Open resource capacity", "بازکردن ظرفیت منابع"))}${moduleButton("assignments", "link", uiText(state.locale, "Resource assignments", "تخصیص منابع"))}`)}`;
       break;
     case "expenses":
@@ -1808,6 +1805,7 @@ function renderNavigationSurface(state: WorkspaceState): string {
 function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: number): { kind: string; value: string } | null {
   const actions: Partial<Record<WorkspaceState["activeMenu"], readonly ({ kind: string; value: string } | null)[]>> = {
     wbs: [null, { kind: "wbs-detail-tab", value: "general" }, null],
+    resources: [null, null, { kind: "register-tab", value: "resources:assignments" }, { kind: "register-tab", value: "resources:codes" }],
     assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
     expenses: [null, null, { kind: "register-tab", value: "expenses:general" }],
     issues: [null, { kind: "register-tab", value: "issues:details" }],
@@ -1833,7 +1831,7 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "progress":
       return ["#cp-site-logs", "#cp-field-operations"];
     case "resources":
-      return ["#cp-resource-capacity", "#cp-field-operations"];
+      return ["#cp-p6-module-stage", "#cp-resource-capacity"];
     case "wbs":
     case "assignments":
     case "expenses":
