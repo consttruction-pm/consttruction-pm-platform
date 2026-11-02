@@ -27,7 +27,7 @@ function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
 }
 
 test("workspace shell uses the canonical CUBI logo and focused module layout contracts", () => {
-  for (const menu of ["project", "schedule", "progress", "resources", "calendars", "cost", "documents", "reports", "control", "settings"] as const) {
+  for (const menu of ["project", "schedule", "progress", "resources", "roles", "calendars", "cost", "documents", "reports", "tracking", "control", "settings] as const) {
     const html = render("en", menu);
     assert.match(html, new RegExp(`data-active-menu="${menu}"`));
     assert.ok(html.includes('class="cp-brand-logo"'));
@@ -1462,6 +1462,21 @@ test("project settings button dispatches a single open request", () => {
   assert.equal(opened, 1);
 });
 
+test("Roles and Tracking are first-class windows with their documented visual surfaces", () => {
+  const roles = render("en", "roles");
+  assert.match(roles, /Role Register/);
+  assert.match(roles, /Max Units \/ Time/);
+  assert.match(roles, /data-register-tab="roles:rates"/);
+  assert.match(roles, /time-phased limits/);
+  const tracking = render("en", "tracking");
+  assert.match(tracking, /Tracking Layout/);
+  assert.match(tracking, /Project Table/);
+  assert.match(tracking, /Project Bar Chart/);
+  assert.match(tracking, /Project Gantt \/ Profile/);
+  assert.match(tracking, /Resource Analysis/);
+  assert.match(tracking, /data-tracking-layout/);
+});
+
 test("Calendar Register opens as a first-class window with documented editor controls", () => {
   const html = render("en", "calendars");
   assert.match(html, /data-active-menu="calendars"/);
@@ -1522,7 +1537,7 @@ test("desktop workbench renders a grouped navigation tree, window tabs and conte
   const navigationStart = html.indexOf('class="cp-menu cp-p6-rail cp-navigation-tree"');
   const navigationEnd = html.indexOf("</nav>", navigationStart);
   const navigationMarkup = html.slice(navigationStart, navigationEnd + 6);
-  assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 10);
+  assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 12);
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
   assert.match(html, /Resources &amp; cost/);
