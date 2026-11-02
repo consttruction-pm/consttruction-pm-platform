@@ -3,12 +3,15 @@ from __future__ import annotations
 import json
 import sqlite3
 
+import pytest
+
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import AuthenticatedSession
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.client_sync.offline_mutation import OfflineMutation
 from construction_pm.calendar_master_repository import CalendarMaster
 from construction_pm.project_schedule_settings_repository import ProjectScheduleSettings
 from construction_pm.scheduling.activity import (
@@ -329,4 +332,64 @@ def test_local_runtime_delegates_to_host_shared_core_runtime_factory():
     scope = BackendScope("local-tenant", "p1", 0)
     assert runtime.schedule_runtime(scope) is fake_runtime
     assert calls == [(runtime, scope)]
+    connection.close()
+
+
+
+def test_local_runtime_commits_domain_write_and_outbox_atomically():
+    connection = sqlite3.connect(":memory:")
+    runtime, now = _open_runtime(connection)
+    project_response = runtime.project_lifecycle_api.create_project(
+        "offline-session", "outbox-project", "Outbox project", now=now
+    )
+    project = project_response.context
+    scope = BackendScope(project.tenant_id, project.project_id, project.revision)
+    auth = project.authorization_context(frozenset({"project_admin"}))
+    connection.execute(
+        "CREATE TABLE local_outbox_probe (value TEXT PRIMARY KEY NOT NULL)"
+    )
+
+    first_mutation = OfflineMutation(
+        mutation_id="mutation-1",
+        tenant_id=scope.tenant_id,
+        project_id=scope.project_id,
+        expected_revision=scope.project_revision,
+        operation="probe.insert",
+        payload={"value": "committed"},
+        idempotency_key="probe-key-1",
+    )
+    result = runtime.apply_offline_mutation(
+        scope,
+        first_mutation,
+        auth_context=auth,
+        apply=lambda: connection.execute(
+            "INSERT INTO local_outbox_probe(value) VALUES (?)", ("committed",)
+        ).rowcount,
+    )
+    assert result == 1
+    assert runtime.offline_mutation_store.pending() == (first_mutation,)
+
+    duplicate_key_mutation = OfflineMutation(
+        mutation_id="mutation-2",
+        tenant_id=scope.tenant_id,
+        project_id=scope.project_id,
+        expected_revision=scope.project_revision,
+        operation="probe.insert",
+        payload={"value": "must-rollback"},
+        idempotency_key="probe-key-1",
+    )
+    with pytest.raises(ValueError, match="DUPLICATE_IDEMPOTENCY_KEY"):
+        runtime.apply_offline_mutation(
+            scope,
+            duplicate_key_mutation,
+            auth_context=auth,
+            apply=lambda: connection.execute(
+                "INSERT INTO local_outbox_probe(value) VALUES (?)", ("must-rollback",)
+            ).rowcount,
+        )
+
+    assert connection.execute(
+        "SELECT value FROM local_outbox_probe ORDER BY value"
+    ).fetchall() == [("committed",)]
+    assert runtime.offline_mutation_store.pending() == (first_mutation,)
     connection.close()
