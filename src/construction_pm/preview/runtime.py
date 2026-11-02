@@ -86,8 +86,22 @@ from construction_pm.http.production_composition import (
 from construction_pm.http.project_lifecycle_routes import Clock
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_baseline_activity_repository import (
+    SQLiteP6BaselineActivityRepository,
+)
+from construction_pm.p6_baseline_api import P6BaselineAPI
+from construction_pm.p6_baseline_repository import (
+    P6BaselineApplicationService,
+    SQLiteP6BaselineRepository,
+)
+from construction_pm.p6_baseline_update import P6BaselineUpdateService
+from construction_pm.p6_baseline_update_api import P6BaselineUpdateAPI
 from construction_pm.p6_calendar_api import P6CalendarAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
+from construction_pm.p6_current_activity_value_repository import (
+    P6CurrentActivityApplicationService,
+    SQLiteP6CurrentActivityRepository,
+)
 from construction_pm.p6_field_registry import get_field
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_field_registry_repository import (
@@ -232,6 +246,10 @@ class PreviewRepositories:
     layouts: SQLiteP6LayoutRepository
     snapshots: SQLiteScheduleInputSnapshotRepository
     contexts: SQLiteCalculationContextRepository
+    baselines: SQLiteP6BaselineRepository
+    baseline_activities: SQLiteP6BaselineActivityRepository
+    current_activity_values: SQLiteP6CurrentActivityRepository
+    current_activity_service: P6CurrentActivityApplicationService
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -263,6 +281,12 @@ class PreviewRepositories:
         layouts = SQLiteP6LayoutRepository(connection)
         snapshots = SQLiteScheduleInputSnapshotRepository(connection)
         contexts = SQLiteCalculationContextRepository(connection)
+        baselines = SQLiteP6BaselineRepository(connection)
+        baseline_activities = SQLiteP6BaselineActivityRepository(connection)
+        current_activity_values = SQLiteP6CurrentActivityRepository(connection)
+        current_activity_service = P6CurrentActivityApplicationService(
+            current_activity_values, transaction_manager
+        )
         return cls(
             activities=activities,
             wbs=wbs,
@@ -286,6 +310,10 @@ class PreviewRepositories:
             layouts=layouts,
             snapshots=snapshots,
             contexts=contexts,
+            baselines=baselines,
+            baseline_activities=baseline_activities,
+            current_activity_values=current_activity_values,
+            current_activity_service=current_activity_service,
             transaction_manager=transaction_manager,
         )
 
@@ -1052,6 +1080,21 @@ def open_preview_runtime(
         policy,
         repositories.settings,
     )
+    baseline_api = P6BaselineAPI(
+        P6BaselineApplicationService(
+            repositories.baselines, repositories.transaction_manager
+        ),
+        policy,
+    )
+    baseline_update_service = P6BaselineUpdateService(
+        repository=repositories.baseline_activities,
+        transaction_manager=repositories.transaction_manager,
+        baseline_repository=repositories.baselines,
+        current_source=repositories.current_activity_service,
+    )
+    baseline_update_api = P6BaselineUpdateAPI(
+        baseline_update_service, policy
+    )
 
     ai_assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
         "1", "true", "yes",
@@ -1140,6 +1183,8 @@ def open_preview_runtime(
             policy,
             transaction_manager=repositories.transaction_manager,
         ),
+        p6_baseline_api=baseline_api,
+        p6_baseline_update_api=baseline_update_api,
         p6_interchange_api=P6InterchangeAPI(
             mapping_service=repositories.mapping_service,
             authorization_policy=policy,

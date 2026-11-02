@@ -45,7 +45,21 @@ from ..scheduling.activity import (
 )
 from ..scheduling.time_duration import DurationUnit as P6ActivityDurationUnit
 from ..p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
+from ..p6_baseline_update import (
+    BASELINE_UPDATE_FIELDS,
+    P6BaselineUpdateError,
+    P6BaselineUpdateSelection,
+)
+from ..p6_baseline_update_api import (
+    P6_BASELINE_UPDATE_API_VERSION,
+    P6BaselineUpdateAPI,
+)
 from ..p6_baseline_repository import P6Baseline
+from ..p6_baseline_activity_repository import P6BaselineActivityPersistenceError
+from ..p6_baseline_repository import P6BaselinePersistenceError
+from ..p6_current_activity_value_repository import (
+    P6CurrentActivityPersistenceError,
+)
 from ..dependency_graph_api import DependencyGraphAPI
 from ..client_sync.api_endpoint import VersionedSyncEndpoint, VersionedSyncRevisionEndpoint
 from ..p6_field_registry import (
@@ -152,6 +166,7 @@ class ProjectLifecycleHttpRoutes:
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
+        p6_baseline_update_api: P6BaselineUpdateAPI | None = None,
         change_claim_api: ChangeClaimAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
@@ -187,6 +202,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_calendar_read_api = p6_calendar_read_api
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
+        self._p6_baseline_update_api = p6_baseline_update_api
         self._change_claim_api = change_claim_api
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
@@ -242,6 +258,11 @@ class ProjectLifecycleHttpRoutes:
                     return self._handle_form_route(
                         method, path, session_id=session_id, now=now, body=body, headers=request_headers
                     )
+            baseline_update_response = self._handle_baseline_update_route(
+                method, path, session_id=session_id, now=now, body=body
+            )
+            if baseline_update_response is not None:
+                return baseline_update_response
             if method == "GET" and path == "/api/v1/schedule/code-reference":
                 # The catalogue contains no project records, but a valid active session is required.
                 self._api.get_session(session_id, now=now)
@@ -2958,6 +2979,262 @@ class ProjectLifecycleHttpRoutes:
             return self._error(400, code, "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return self._error(400, str(exc) or "INVALID_REQUEST", "error.request.invalid")
+
+    def _handle_baseline_update_route(
+        self,
+        method: str,
+        path: str,
+        *,
+        session_id: str,
+        now: datetime,
+        body: bytes,
+    ) -> tuple[int, dict[str, str], bytes] | None:
+        """Route BAS-02 preview/apply/compare over the versioned API.
+
+        The current project state is always read from the persisted current
+        activity source inside the service. The request body may select what to
+        copy, but it can never supply the current values themselves.
+        """
+        if method != "POST":
+            return None
+        marker = "/p6/baselines/"
+        if not path.startswith("/api/projects/") or marker not in path:
+            return None
+        prefix, remainder = path.split(marker, 1)
+        project_id = prefix[len("/api/projects/"):]
+        operation: str | None = None
+        baseline_id = ""
+        for suffix, name in (
+            ("/update/preview", "preview"),
+            ("/update/apply", "apply"),
+            ("/compare", "compare"),
+        ):
+            if remainder.endswith(suffix):
+                baseline_id = remainder[: -len(suffix)]
+                operation = name
+                break
+        if operation is None:
+            return None
+        if not project_id or not baseline_id or "/" in baseline_id:
+            return self._error(
+                400,
+                "P6_BASELINE_UPDATE_REQUEST_INVALID",
+                "error.request.invalid",
+            )
+        if self._p6_baseline_update_api is None:
+            return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+        try:
+            context = self._api.open_project(session_id, project_id, now=now).context
+        except ProjectLifecycleError as exc:
+            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                return self._error(403, str(exc), "error.authorization.denied")
+            raise
+        session = self._api.get_session(session_id, now=now)
+        auth = context.authorization_context(session.roles)
+        scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+        try:
+            payload = json.loads(body.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return self._error(
+                400,
+                "P6_BASELINE_UPDATE_REQUEST_INVALID",
+                "error.request.invalid",
+            )
+        if not isinstance(payload, dict):
+            return self._error(
+                400,
+                "P6_BASELINE_UPDATE_REQUEST_INVALID",
+                "error.request.invalid",
+            )
+        if "current" in payload or "current_activities" in payload:
+            return self._error(
+                400,
+                "BASELINE_UPDATE_CURRENT_BODY_FORBIDDEN",
+                "error.request.invalid",
+            )
+        try:
+            contract_version = payload.get("contract_version", "")
+            expected_revision = payload.get("expected_revision")
+            if isinstance(expected_revision, bool):
+                raise P6BaselineUpdateError("BASELINE_UPDATE_REVISION_INVALID")
+            if operation == "compare":
+                self._reject_unknown_baseline_update_keys(
+                    payload,
+                    {"contract_version", "expected_revision", "activity_ids"},
+                )
+                raw_ids = payload.get("activity_ids")
+                activity_ids = (
+                    None
+                    if raw_ids is None
+                    else self._baseline_update_id_list(raw_ids)
+                )
+                result = self._p6_baseline_update_api.compare(
+                    scope,
+                    baseline_id,
+                    expected_revision=expected_revision,
+                    auth_context=auth,
+                    activity_ids=activity_ids,
+                    contract_version=contract_version,
+                )
+            else:
+                selection = self._baseline_update_selection(
+                    payload.get("selection")
+                )
+                target_baseline_id = payload.get("target_baseline_id", "")
+                if operation == "preview":
+                    self._reject_unknown_baseline_update_keys(
+                        payload,
+                        {
+                            "contract_version",
+                            "expected_revision",
+                            "target_baseline_id",
+                            "selection",
+                        },
+                    )
+                    result = self._p6_baseline_update_api.preview(
+                        scope,
+                        baseline_id,
+                        target_baseline_id,
+                        selection,
+                        expected_revision=expected_revision,
+                        auth_context=auth,
+                        contract_version=contract_version,
+                    )
+                else:
+                    self._reject_unknown_baseline_update_keys(
+                        payload,
+                        {
+                            "contract_version",
+                            "expected_revision",
+                            "target_baseline_id",
+                            "selection",
+                            "target_name",
+                            "baseline_type",
+                        },
+                    )
+                    result = self._p6_baseline_update_api.apply(
+                        scope,
+                        baseline_id,
+                        target_baseline_id,
+                        selection,
+                        target_name=payload.get("target_name", ""),
+                        expected_revision=expected_revision,
+                        auth_context=auth,
+                        baseline_type=payload.get(
+                            "baseline_type", "USER_SELECTED"
+                        ),
+                        contract_version=contract_version,
+                    )
+        except AuthorizationError as exc:
+            return self._error(403, str(exc), "error.authorization.denied")
+        except P6BaselineUpdateError as exc:
+            return self._baseline_update_error(exc)
+        except (
+            P6BaselinePersistenceError,
+            P6BaselineActivityPersistenceError,
+            P6CurrentActivityPersistenceError,
+        ) as exc:
+            code = str(exc)
+            if code in {
+                "REVISION_CONFLICT",
+                "IMMUTABLE_BASELINE",
+                "IMMUTABLE_BASELINE_ACTIVITIES",
+            }:
+                return self._error(
+                    409, code, "error.p6.baseline.update.conflict"
+                )
+            return self._error(
+                400, code, "error.p6.baseline.update.invalid"
+            )
+        return self._json(201 if operation == "apply" else 200, result)
+
+    @staticmethod
+    def _reject_unknown_baseline_update_keys(
+        payload: Mapping[str, object], allowed: set[str]
+    ) -> None:
+        if set(payload) - allowed:
+            raise P6BaselineUpdateError(
+                "P6_BASELINE_UPDATE_REQUEST_INVALID"
+            )
+
+    @staticmethod
+    def _baseline_update_id_list(value: object) -> tuple[str, ...]:
+        if not isinstance(value, list) or any(
+            not isinstance(item, str)
+            or not item.strip()
+            or item != item.strip()
+            for item in value
+        ):
+            raise P6BaselineUpdateError(
+                "BASELINE_UPDATE_ACTIVITY_IDS_INVALID"
+            )
+        return tuple(value)
+
+    @classmethod
+    def _baseline_update_selection(
+        cls, value: object
+    ) -> P6BaselineUpdateSelection:
+        if value is None:
+            return P6BaselineUpdateSelection()
+        if not isinstance(value, dict):
+            raise P6BaselineUpdateError("BASELINE_UPDATE_SELECTION_INVALID")
+        allowed = {
+            "activity_ids",
+            "fields",
+            "add_new_activities",
+            "remove_missing_activities",
+        }
+        if set(value) - allowed:
+            raise P6BaselineUpdateError("BASELINE_UPDATE_SELECTION_INVALID")
+        raw_ids = value.get("activity_ids")
+        activity_ids = (
+            None
+            if raw_ids is None
+            else frozenset(cls._baseline_update_id_list(raw_ids))
+        )
+        raw_fields = value.get("fields")
+        if raw_fields is None:
+            fields = frozenset(BASELINE_UPDATE_FIELDS)
+        else:
+            if not isinstance(raw_fields, list) or any(
+                not isinstance(item, str) or not item.strip()
+                for item in raw_fields
+            ):
+                raise P6BaselineUpdateError("BASELINE_UPDATE_FIELDS_INVALID")
+            fields = frozenset(raw_fields)
+        return P6BaselineUpdateSelection(
+            activity_ids=activity_ids,
+            fields=fields,
+            add_new_activities=value.get("add_new_activities", True),
+            remove_missing_activities=value.get(
+                "remove_missing_activities", False
+            ),
+        )
+
+    @classmethod
+    def _baseline_update_error(
+        cls, exc: P6BaselineUpdateError
+    ) -> tuple[int, dict[str, str], bytes]:
+        code = str(exc)
+        if code == "BASELINE_UPDATE_SOURCE_NOT_FOUND":
+            return cls._error(
+                404, code, "error.p6.baseline.not_found"
+            )
+        if code in {
+            "BASELINE_UPDATE_STALE_REVISION",
+            "BASELINE_UPDATE_TARGET_ALREADY_EXISTS",
+            "BASELINE_UPDATE_CURRENT_EMPTY",
+        } or code.startswith("BASELINE_UPDATE_CURRENCY_MISMATCH:"):
+            return cls._error(
+                409, code, "error.p6.baseline.update.conflict"
+            )
+        if code == "BASELINE_UPDATE_CURRENT_SOURCE_REQUIRED":
+            return cls._error(
+                503, code, "error.p6.baseline.update.unavailable"
+            )
+        return cls._error(
+            400, code, "error.p6.baseline.update.invalid"
+        )
 
     def _handle_form_route(
         self,

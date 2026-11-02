@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/p6-baseline-update-api/v1",
+  "title": "P6 Baseline Update API v1",
+  "description": "Preview, apply and compare in the selective baseline update workflow. Variance is always current minus baseline.",
+  "type": "object",
+  "required": ["contract_version", "kind", "scope"],
+  "properties": {
+    "contract_version": {"const": "p6-baseline-update-api.v1"},
+    "kind": {
+      "enum": [
+        "p6_baseline_update_preview",
+        "p6_baseline_update_apply",
+        "p6_baseline_compare"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "required": ["tenant_id", "project_id", "project_revision"],
+      "properties": {
+        "tenant_id": {"type": "string", "minLength": 1},
+        "project_id": {"type": "string", "minLength": 1},
+        "project_revision": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "kind": {"const": "p6_baseline_update_preview"},
+        "source_baseline_id": {"type": "string", "minLength": 1},
+        "target_baseline_id": {"type": "string", "minLength": 1},
+        "selection": {"$ref": "#/$defs/selection"},
+        "counts": {"$ref": "#/$defs/counts"},
+        "added_activity_ids": {"$ref": "#/$defs/ids"},
+        "updated_activity_ids": {"$ref": "#/$defs/ids"},
+        "removed_activity_ids": {"$ref": "#/$defs/ids"},
+        "unchanged_activity_ids": {"$ref": "#/$defs/ids"},
+        "changes": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/change"}
+        }
+      },
+      "required": [
+        "source_baseline_id",
+        "target_baseline_id",
+        "selection",
+        "counts",
+        "added_activity_ids",
+        "updated_activity_ids",
+        "removed_activity_ids",
+        "unchanged_activity_ids",
+        "changes"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {"const": "p6_baseline_update_apply"},
+        "source_baseline_id": {"type": "string", "minLength": 1},
+        "baseline": {
+          "type": "object",
+          "required": [
+            "baseline_id",
+            "name",
+            "baseline_type",
+            "source_revision",
+            "created_at"
+          ],
+          "properties": {
+            "baseline_id": {"type": "string", "minLength": 1},
+            "name": {"type": "string", "minLength": 1},
+            "baseline_type": {
+              "enum": ["PRIMARY", "SECONDARY", "TERTIARY", "USER_SELECTED"]
+            },
+            "source_revision": {"type": "integer", "minimum": 0},
+            "created_at": {"type": "string", "minLength": 1},
+            "notes": {"type": ["string", "null"]}
+          },
+          "additionalProperties": false
+        },
+        "selection": {"$ref": "#/$defs/selection"},
+        "counts": {"$ref": "#/$defs/counts"},
+        "added_activity_ids": {"$ref": "#/$defs/ids"},
+        "updated_activity_ids": {"$ref": "#/$defs/ids"},
+        "removed_activity_ids": {"$ref": "#/$defs/ids"},
+        "unchanged_activity_ids": {"$ref": "#/$defs/ids"}
+      },
+      "required": [
+        "source_baseline_id",
+        "baseline",
+        "selection",
+        "counts",
+        "added_activity_ids",
+        "updated_activity_ids",
+        "removed_activity_ids",
+        "unchanged_activity_ids"
+      ]
+    },
+    {
+      "properties": {
+        "kind": {"const": "p6_baseline_compare"},
+        "baseline_id": {"type": "string", "minLength": 1},
+        "variance_convention": {"const": "CURRENT_MINUS_BASELINE"},
+        "counts": {"$ref": "#/$defs/compare_counts"},
+        "rows": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/compare_row"}
+        }
+      },
+      "required": [
+        "baseline_id",
+        "variance_convention",
+        "counts",
+        "rows"
+      ]
+    }
+  ],
+  "$defs": {
+    "ids": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "selection": {
+      "type": "object",
+      "required": [
+        "activity_ids",
+        "fields",
+        "add_new_activities",
+        "remove_missing_activities"
+      ],
+      "properties": {
+        "activity_ids": {
+          "type": ["array", "null"],
+          "items": {"type": "string", "minLength": 1}
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "planned_start",
+              "planned_finish",
+              "budgeted_cost",
+              "currency",
+              "wbs_id",
+              "earned_value_technique"
+            ]
+          }
+        },
+        "add_new_activities": {"type": "boolean"},
+        "remove_missing_activities": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "counts": {
+      "type": "object",
+      "required": ["added", "updated", "removed", "unchanged", "total"],
+      "properties": {
+        "added": {"type": "integer", "minimum": 0},
+        "updated": {"type": "integer", "minimum": 0},
+        "removed": {"type": "integer", "minimum": 0},
+        "unchanged": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "compare_counts": {
+      "type": "object",
+      "required": ["added", "changed", "deleted", "unchanged", "total"],
+      "properties": {
+        "added": {"type": "integer", "minimum": 0},
+        "changed": {"type": "integer", "minimum": 0},
+        "deleted": {"type": "integer", "minimum": 0},
+        "unchanged": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "activity_values": {
+      "type": "object",
+      "required": [
+        "planned_start",
+        "planned_finish",
+        "budgeted_cost",
+        "currency",
+        "wbs_id",
+        "earned_value_technique"
+      ],
+      "properties": {
+        "planned_start": {"type": ["string", "null"]},
+        "planned_finish": {"type": ["string", "null"]},
+        "budgeted_cost": {"type": ["string", "null"]},
+        "currency": {"type": ["string", "null"]},
+        "wbs_id": {"type": ["string", "null"]},
+        "earned_value_technique": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "change": {
+      "type": "object",
+      "required": ["activity_id", "change_type", "fields"],
+      "properties": {
+        "activity_id": {"type": "string", "minLength": 1},
+        "change_type": {
+          "enum": ["UNCHANGED", "CHANGED", "ADDED", "DELETED"]
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["baseline", "current", "proposed"],
+            "properties": {
+              "baseline": {},
+              "current": {},
+              "proposed": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "compare_row": {
+      "type": "object",
+      "required": [
+        "activity_id",
+        "status",
+        "baseline",
+        "current",
+        "start_variance_days",
+        "finish_variance_days",
+        "budget_variance",
+        "wbs_changed",
+        "technique_changed",
+        "currency_changed"
+      ],
+      "properties": {
+        "activity_id": {"type": "string", "minLength": 1},
+        "status": {"enum": ["UNCHANGED", "CHANGED", "ADDED", "DELETED"]},
+        "baseline": {"$ref": "#/$defs/activity_values"},
+        "current": {"$ref": "#/$defs/activity_values"},
+        "start_variance_days": {"type": ["integer", "null"]},
+        "finish_variance_days": {"type": ["integer", "null"]},
+        "budget_variance": {"type": ["string", "null"]},
+        "wbs_changed": {"type": ["boolean", "null"]},
+        "technique_changed": {"type": ["boolean", "null"]},
+        "currency_changed": {"type": ["boolean", "null"]}
+      },
+      "additionalProperties": false
+    }
+  }
+}

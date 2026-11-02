@@ -16,13 +16,14 @@ baseline; a positive budget variance means current is costlier.
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Iterable
+from typing import Callable, Iterable, Protocol
 
 from .backend_p0.models import BackendScope
 from .p6_baseline_activity_repository import (
     P6BaselineActivity,
     P6BaselineActivityRepository,
 )
+from .p6_baseline_repository import P6Baseline, P6BaselineRepository
 
 BASELINE_UPDATE_FIELDS = (
     "planned_start",
@@ -41,6 +42,21 @@ BASELINE_COMPARISON_STATUS_DELETED = "DELETED"
 
 class P6BaselineUpdateError(ValueError):
     """Raised when a selective update or comparison input is invalid."""
+
+
+class BaselineCurrentActivitySource(Protocol):
+    """Reads authoritative current activity values for one project scope.
+
+    The source is persistence-backed; the HTTP/API boundary never accepts the
+    current project state from a request body.
+    """
+
+    def list_as_baseline(
+        self,
+        scope: BackendScope,
+        *,
+        baseline_id: str = "CURRENT",
+    ) -> tuple[P6BaselineActivity, ...]: ...
 
 
 @dataclass(frozen=True)
@@ -140,6 +156,8 @@ class P6BaselineUpdatePlan:
     updated_activity_ids: tuple[str, ...]
     removed_activity_ids: tuple[str, ...]
     unchanged_activity_ids: tuple[str, ...]
+    baseline_rows: tuple[P6BaselineActivity, ...] = ()
+    current_rows: tuple[P6BaselineActivity, ...] = ()
 
     def canonical_payload(self) -> dict[str, object]:
         return {
@@ -288,6 +306,12 @@ def plan_selective_baseline_update(
         updated_activity_ids=tuple(updated),
         removed_activity_ids=tuple(removed),
         unchanged_activity_ids=tuple(unchanged),
+        baseline_rows=tuple(
+            baseline_by_id[activity_id] for activity_id in sorted(baseline_by_id)
+        ),
+        current_rows=tuple(
+            current_by_id[activity_id] for activity_id in sorted(current_by_id)
+        ),
     )
 
 
@@ -308,6 +332,13 @@ class P6BaselineActivityComparison:
     budget_variance: Decimal | None
     wbs_changed: bool | None
     technique_changed: bool | None
+    baseline_wbs_id: str | None = None
+    current_wbs_id: str | None = None
+    baseline_earned_value_technique: str | None = None
+    current_earned_value_technique: str | None = None
+    baseline_currency: str | None = None
+    current_currency: str | None = None
+    currency_changed: bool | None = None
 
     def to_payload(self) -> dict[str, object]:
         def _date(value: date | None) -> str | None:
@@ -323,17 +354,24 @@ class P6BaselineActivityComparison:
                 "planned_start": _date(self.baseline_planned_start),
                 "planned_finish": _date(self.baseline_planned_finish),
                 "budgeted_cost": _decimal(self.baseline_budgeted_cost),
+                "currency": self.baseline_currency,
+                "wbs_id": self.baseline_wbs_id,
+                "earned_value_technique": self.baseline_earned_value_technique,
             },
             "current": {
                 "planned_start": _date(self.current_planned_start),
                 "planned_finish": _date(self.current_planned_finish),
                 "budgeted_cost": _decimal(self.current_budgeted_cost),
+                "currency": self.current_currency,
+                "wbs_id": self.current_wbs_id,
+                "earned_value_technique": self.current_earned_value_technique,
             },
             "start_variance_days": self.start_variance_days,
             "finish_variance_days": self.finish_variance_days,
             "budget_variance": _decimal(self.budget_variance),
             "wbs_changed": self.wbs_changed,
             "technique_changed": self.technique_changed,
+            "currency_changed": self.currency_changed,
         }
 
 
@@ -422,6 +460,20 @@ def _comparison(
             else baseline.earned_value_technique
             != current.earned_value_technique
         ),
+        baseline_wbs_id=None if baseline is None else baseline.wbs_id,
+        current_wbs_id=None if current is None else current.wbs_id,
+        baseline_earned_value_technique=(
+            None if baseline is None else baseline.earned_value_technique
+        ),
+        current_earned_value_technique=(
+            None if current is None else current.earned_value_technique
+        ),
+        baseline_currency=None if baseline is None else baseline.currency,
+        current_currency=None if current is None else current.currency,
+        currency_changed=(
+            None if baseline is None or current is None
+            else baseline.currency != current.currency
+        ),
     )
 
 
@@ -450,11 +502,50 @@ def compare_baseline_activities(
 
 
 @dataclass(frozen=True)
+class P6BaselineUpdateApplyResult:
+    """The immutable target baseline metadata and its persisted plan."""
+
+    plan: P6BaselineUpdatePlan
+    baseline: P6Baseline
+
+
+def _validated_current_rows(
+    rows: Iterable[P6BaselineActivity],
+    scope: BackendScope,
+) -> tuple[P6BaselineActivity, ...]:
+    current = tuple(rows)
+    if not current:
+        raise P6BaselineUpdateError("BASELINE_UPDATE_CURRENT_EMPTY")
+    for row in current:
+        if not isinstance(row, P6BaselineActivity):
+            raise P6BaselineUpdateError("BASELINE_UPDATE_CURRENT_ROW_INVALID")
+        row.validate()
+        if row.scope != scope:
+            raise P6BaselineUpdateError("BASELINE_UPDATE_CURRENT_SCOPE_MISMATCH")
+    return current
+
+
+@dataclass(frozen=True)
 class P6BaselineUpdateService:
-    """Preview, apply and compare baseline updates over a real repository."""
+    """Preview, apply and compare baseline updates over a real repository.
+
+    ``current_source`` is the authoritative persisted current-project value
+    source. Callers may still pass an explicit current tuple to the low-level
+    methods for pure planning tests, but the application boundary uses
+    ``preview_from_source``, ``apply_from_source`` and ``compare_from_source``
+    so request bodies can never masquerade as current project state.
+    """
 
     repository: P6BaselineActivityRepository
     transaction_manager: object
+    baseline_repository: P6BaselineRepository | None = None
+    current_source: BaselineCurrentActivitySource | None = None
+    clock: Callable[[], str] | None = None
+
+    def _current(self, scope: BackendScope) -> tuple[P6BaselineActivity, ...]:
+        if self.current_source is None:
+            raise P6BaselineUpdateError("BASELINE_UPDATE_CURRENT_SOURCE_REQUIRED")
+        return _validated_current_rows(self.current_source.list_as_baseline(scope), scope)
 
     def preview(
         self,
@@ -473,6 +564,24 @@ class P6BaselineUpdateService:
                 target_baseline_id=target_baseline_id,
             )
 
+    def preview_from_source(
+        self,
+        scope: BackendScope,
+        source_baseline_id: str,
+        target_baseline_id: str,
+        selection: P6BaselineUpdateSelection,
+    ) -> P6BaselineUpdatePlan:
+        with self.transaction_manager.transaction():
+            existing = self.repository.list(scope, source_baseline_id)
+            if not existing:
+                raise P6BaselineUpdateError("BASELINE_UPDATE_SOURCE_NOT_FOUND")
+            return plan_selective_baseline_update(
+                existing,
+                self._current(scope),
+                selection,
+                target_baseline_id=target_baseline_id,
+            )
+
     def apply(
         self,
         scope: BackendScope,
@@ -481,6 +590,7 @@ class P6BaselineUpdateService:
         current: Iterable[P6BaselineActivity],
         selection: P6BaselineUpdateSelection,
     ) -> P6BaselineUpdatePlan:
+        """Persist activity rows only (low-level planning compatibility)."""
         with self.transaction_manager.transaction():
             existing = self.repository.list(scope, source_baseline_id)
             plan = plan_selective_baseline_update(
@@ -494,6 +604,104 @@ class P6BaselineUpdateService:
                 raise P6BaselineUpdateError("BASELINE_UPDATE_WRITE_MISMATCH")
             return plan
 
+    def apply_with_metadata(
+        self,
+        scope: BackendScope,
+        source_baseline_id: str,
+        target_baseline_id: str,
+        current: Iterable[P6BaselineActivity],
+        selection: P6BaselineUpdateSelection,
+        *,
+        target_name: str | None = None,
+        baseline_type: str = "USER_SELECTED",
+        source_revision: int | None = None,
+        created_at: str | None = None,
+    ) -> P6BaselineUpdateApplyResult:
+        if self.baseline_repository is None:
+            raise P6BaselineUpdateError("BASELINE_UPDATE_METADATA_REPOSITORY_REQUIRED")
+        with self.transaction_manager.transaction():
+            source = self.baseline_repository.get(scope, source_baseline_id)
+            if source is None:
+                raise P6BaselineUpdateError("BASELINE_UPDATE_SOURCE_NOT_FOUND")
+            existing_target = self.baseline_repository.get(scope, target_baseline_id)
+            existing_rows = self.repository.list(scope, target_baseline_id)
+            plan = plan_selective_baseline_update(
+                self.repository.list(scope, source_baseline_id),
+                tuple(current),
+                selection,
+                target_baseline_id=target_baseline_id,
+            )
+            metadata = P6Baseline(
+                scope=scope,
+                baseline_id=target_baseline_id,
+                name=(target_name or source.name),
+                baseline_type=baseline_type,
+                source_revision=(
+                    scope.project_revision
+                    if source_revision is None
+                    else source_revision
+                ),
+                created_at=(
+                    created_at
+                    if created_at is not None
+                    else (
+                        self.clock()
+                        if self.clock is not None
+                        else datetime.now().astimezone().isoformat()
+                    )
+                ),
+            )
+            metadata.validate()
+            if existing_target is not None:
+                if existing_target != metadata:
+                    raise P6BaselineUpdateError(
+                        "BASELINE_UPDATE_TARGET_ALREADY_EXISTS"
+                    )
+                if existing_rows:
+                    if existing_rows != plan.rows:
+                        raise P6BaselineUpdateError(
+                            "BASELINE_UPDATE_TARGET_ALREADY_EXISTS"
+                        )
+                    return P6BaselineUpdateApplyResult(
+                        plan=plan, baseline=existing_target
+                    )
+            else:
+                self.baseline_repository.upsert(metadata)
+            stored = self.repository.save_many(plan.rows)
+            if stored != plan.rows:
+                raise P6BaselineUpdateError("BASELINE_UPDATE_WRITE_MISMATCH")
+            return P6BaselineUpdateApplyResult(plan=plan, baseline=metadata)
+
+    def apply_from_source(
+        self,
+        scope: BackendScope,
+        source_baseline_id: str,
+        target_baseline_id: str,
+        selection: P6BaselineUpdateSelection,
+        *,
+        target_name: str,
+        baseline_type: str = "USER_SELECTED",
+        expected_revision: int | None = None,
+    ) -> P6BaselineUpdateApplyResult:
+        if expected_revision is not None and expected_revision != scope.project_revision:
+            raise P6BaselineUpdateError("BASELINE_UPDATE_STALE_REVISION")
+        if not isinstance(target_name, str) or not target_name.strip():
+            raise P6BaselineUpdateError("BASELINE_UPDATE_TARGET_NAME_INVALID")
+        with self.transaction_manager.transaction():
+            existing = self.repository.list(scope, source_baseline_id)
+            if not existing:
+                raise P6BaselineUpdateError("BASELINE_UPDATE_SOURCE_NOT_FOUND")
+            return self.apply_with_metadata(
+                scope,
+                source_baseline_id,
+                target_baseline_id,
+                self._current(scope),
+                selection,
+                target_name=target_name,
+                baseline_type=baseline_type,
+                source_revision=scope.project_revision,
+            )
+
     def compare(
         self,
         scope: BackendScope,
@@ -504,6 +712,19 @@ class P6BaselineUpdateService:
             existing = self.repository.list(scope, baseline_id)
             return tuple(compare_baseline_activities(existing, tuple(current)))
 
+    def compare_from_source(
+        self,
+        scope: BackendScope,
+        baseline_id: str,
+    ) -> tuple[P6BaselineActivityComparison, ...]:
+        with self.transaction_manager.transaction():
+            existing = self.repository.list(scope, baseline_id)
+            if not existing:
+                raise P6BaselineUpdateError("BASELINE_UPDATE_SOURCE_NOT_FOUND")
+            return tuple(
+                compare_baseline_activities(existing, self._current(scope))
+            )
+
 
 __all__ = [
     "BASELINE_COMPARISON_STATUS_ADDED",
@@ -511,7 +732,9 @@ __all__ = [
     "BASELINE_COMPARISON_STATUS_DELETED",
     "BASELINE_COMPARISON_STATUS_UNCHANGED",
     "BASELINE_UPDATE_FIELDS",
+    "BaselineCurrentActivitySource",
     "P6BaselineActivityComparison",
+    "P6BaselineUpdateApplyResult",
     "P6BaselineUpdateError",
     "P6BaselineUpdatePlan",
     "P6BaselineUpdateSelection",
