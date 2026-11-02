@@ -81,6 +81,7 @@ export const ASSISTANT_GUIDE_TARGETS: readonly string[] = Object.freeze([
   "#cp-schedule-run",
   ".cp-control-summary",
   "[data-workspace-language]",
+  "[data-workspace-menu]",
 ]);
 
 export const WORKSPACE_MENU_KEYS: readonly WorkspaceMenuKey[] = Object.freeze([
@@ -657,11 +658,12 @@ function shapeToGuide(
 function menuShape(menu: WorkspaceMenuKey): GuideShape {
   const configured = MENU_GUIDES[menu];
   if (configured) return configured;
-  const label = getWorkspaceNavigationLabel(getWorkspaceNavigation(menu), "en");
+  const navigation = getWorkspaceNavigation(menu);
+  const label = getWorkspaceNavigationLabel(navigation, "en");
   return {
     purpose: {
       en: `Review the current ${label} workspace surface and its server-provided records.`,
-      fa: `نمای ${label} و رکوردهای بازگشتی از سرور را بررسی کنید.`,
+      fa: `نمای ${navigation.label.fa} و رکوردهای بازگشتی از سرور را بررسی کنید.`,
     },
     steps: [
       {
@@ -677,9 +679,12 @@ function menuShape(menu: WorkspaceMenuKey): GuideShape {
       en: "An empty register means no records were returned; it is not evidence that the project has zero values.",
       fa: "فهرست خالی یعنی رکوردی بازگردانده نشده است؛ این موضوع به معنی صفر بودن مقادیر پروژه نیست.",
     },
+    action: {
+      label: { en: `Review ${label}`, fa: `بررسی ${navigation.label.fa}` },
+      target: "[data-workspace-menu]",
+    },
   };
 }
-
 /**
  * Resolve the guide for a detected page/state. The caller supplies the state so
  * this function stays pure and every branch is unit-testable without a browser.
