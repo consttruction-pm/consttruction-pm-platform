@@ -13,10 +13,11 @@ Provide a production local-client SQLite adapter for the existing Python `Projec
 - Stores tenant-scoped project metadata, project data revision, metadata/settings revision and memberships.
 - Every list/get/update operation is membership-scoped.
 - Project creation inserts the project and its initial owner membership in one transaction.
+- Schema initialization and its component version record use the same transaction manager, preserving caller-owned outer transactions.
 - Uses the existing `SQLiteTransactionManager`; nested operations use savepoints and caller-owned outer transactions are never committed or rolled back by the repository.
 - Metadata updates use `settings_revision` and preserve the separate project data `revision`.
 - Project start dates are canonical ISO Gregorian strings; `date_system` is presentation metadata only.
-- Database schema version is recorded in SQLite `PRAGMA user_version` (version 1).
+- Database schema version is stored per component in `cubi_local_schema_versions`; the adapter deliberately does not claim or overwrite SQLite's database-wide `PRAGMA user_version`.
 
 ## Usage
 

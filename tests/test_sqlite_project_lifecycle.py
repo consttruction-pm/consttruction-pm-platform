@@ -172,3 +172,49 @@ def test_sqlite_project_repository_composes_with_shared_lifecycle_api():
     assert updated.settings_revision == 1
     assert api.open_project("offline-session", "project-1", now=now).context.revision == 0
     connection.close()
+
+
+
+def test_sqlite_project_repository_uses_component_schema_version_not_database_user_version():
+    connection = sqlite3.connect(":memory:")
+    connection.execute("PRAGMA user_version = 37")
+    connection.execute(
+        """CREATE TABLE cubi_local_schema_versions (
+            component TEXT PRIMARY KEY,
+            version INTEGER NOT NULL CHECK (version >= 1)
+        )"""
+    )
+    connection.execute(
+        "INSERT INTO cubi_local_schema_versions(component, version) VALUES (?, ?)",
+        ("other_component", 6),
+    )
+    connection.commit()
+
+    SQLiteProjectRepository(connection)
+
+    assert connection.execute("PRAGMA user_version").fetchone()[0] == 37
+    versions = dict(connection.execute(
+        "SELECT component, version FROM cubi_local_schema_versions"
+    ).fetchall())
+    assert versions == {"other_component": 6, "project_lifecycle": 1}
+    connection.close()
+
+
+def test_sqlite_project_repository_schema_initialization_respects_outer_transaction():
+    connection = sqlite3.connect(":memory:")
+    connection.execute("CREATE TABLE caller_state (value TEXT NOT NULL)")
+    connection.execute("BEGIN IMMEDIATE")
+    connection.execute("INSERT INTO caller_state(value) VALUES ('pending')")
+
+    SQLiteProjectRepository(connection)
+
+    assert connection.in_transaction
+    assert connection.execute(
+        "SELECT version FROM cubi_local_schema_versions WHERE component='project_lifecycle'"
+    ).fetchone() == (1,)
+    connection.rollback()
+    assert connection.execute("SELECT value FROM caller_state").fetchall() == []
+    assert connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='project_lifecycle_projects'"
+    ).fetchone() is None
+    connection.close()

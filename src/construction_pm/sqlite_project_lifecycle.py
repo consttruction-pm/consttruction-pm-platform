@@ -62,43 +62,60 @@ class SQLiteProjectRepository(ProjectRepository):
     def _ensure_schema(self) -> None:
         if not self._connection.in_transaction:
             self._connection.execute("PRAGMA foreign_keys = ON")
-        version = int(self._connection.execute("PRAGMA user_version").fetchone()[0])
-        if version not in (0, _SCHEMA_VERSION):
-            raise ValueError("UNSUPPORTED_LOCAL_PROJECT_SCHEMA_VERSION")
 
-        self._connection.execute(
-            """CREATE TABLE IF NOT EXISTS project_lifecycle_projects (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                name TEXT NOT NULL,
-                revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
-                description TEXT NOT NULL DEFAULT '',
-                start_date TEXT,
-                date_system TEXT NOT NULL DEFAULT 'gregorian'
-                    CHECK (date_system IN ('gregorian', 'jalali')),
-                primary_calendar_id TEXT,
-                settings_revision INTEGER NOT NULL DEFAULT 0
-                    CHECK (settings_revision >= 0),
-                PRIMARY KEY (tenant_id, project_id)
-            )"""
-        )
-        self._connection.execute(
-            """CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
-                tenant_id TEXT NOT NULL,
-                project_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, project_id, user_id),
-                FOREIGN KEY (tenant_id, project_id)
-                    REFERENCES project_lifecycle_projects(tenant_id, project_id)
-                    ON DELETE CASCADE
-            )"""
-        )
-        self._connection.execute(
-            """CREATE INDEX IF NOT EXISTS idx_project_lifecycle_memberships_user
-                ON project_lifecycle_memberships (tenant_id, user_id)"""
-        )
-        if version == 0:
-            self._connection.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
+        # SQLite PRAGMA user_version is database-wide. This component must not
+        # claim or overwrite the schema version of other local repositories.
+        with self._transactions.transaction():
+            self._connection.execute(
+                """CREATE TABLE IF NOT EXISTS cubi_local_schema_versions (
+                    component TEXT PRIMARY KEY,
+                    version INTEGER NOT NULL CHECK (version >= 1)
+                )"""
+            )
+            row = self._connection.execute(
+                "SELECT version FROM cubi_local_schema_versions WHERE component=?",
+                ("project_lifecycle",),
+            ).fetchone()
+            version = 0 if row is None else int(row[0])
+            if version not in (0, _SCHEMA_VERSION):
+                raise ValueError("UNSUPPORTED_LOCAL_PROJECT_SCHEMA_VERSION")
+
+            self._connection.execute(
+                """CREATE TABLE IF NOT EXISTS project_lifecycle_projects (
+                    tenant_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+                    description TEXT NOT NULL DEFAULT '',
+                    start_date TEXT,
+                    date_system TEXT NOT NULL DEFAULT 'gregorian'
+                        CHECK (date_system IN ('gregorian', 'jalali')),
+                    primary_calendar_id TEXT,
+                    settings_revision INTEGER NOT NULL DEFAULT 0
+                        CHECK (settings_revision >= 0),
+                    PRIMARY KEY (tenant_id, project_id)
+                )"""
+            )
+            self._connection.execute(
+                """CREATE TABLE IF NOT EXISTS project_lifecycle_memberships (
+                    tenant_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, project_id, user_id),
+                    FOREIGN KEY (tenant_id, project_id)
+                        REFERENCES project_lifecycle_projects(tenant_id, project_id)
+                        ON DELETE CASCADE
+                )"""
+            )
+            self._connection.execute(
+                """CREATE INDEX IF NOT EXISTS idx_project_lifecycle_memberships_user
+                    ON project_lifecycle_memberships (tenant_id, user_id)"""
+            )
+            if version == 0:
+                self._connection.execute(
+                    "INSERT INTO cubi_local_schema_versions(component, version) VALUES (?, ?)",
+                    ("project_lifecycle", _SCHEMA_VERSION),
+                )
 
     def list_for_user(self, tenant_id: str, user_id: str) -> tuple[ProjectSummary, ...]:
         rows = self._connection.execute(
