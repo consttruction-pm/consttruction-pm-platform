@@ -639,16 +639,22 @@ function renderWbsWindow(state: DemoState): string {
     ["general", "General", "عمومی"], ["dates", "Dates", "تاریخ‌ها"], ["activities", "Activities", "فعالیت‌ها"],
     ["documents", "Documents", "اسناد"], ["notebook", "Notebook", "دفترچه"],
   ];
+  const scopedActivities = ACTIVITIES.filter((activity) => selected.level === 0
+    || activity.phase === selected.name
+    || activity.wbs.toLowerCase().includes(selected.name.toLowerCase()));
+  const scopedStart = scopedActivities.map((activity) => activity.start).sort()[0] ?? "";
+  const scopedFinish = scopedActivities.map((activity) => activity.finish).sort().at(-1) ?? "";
   const detail = state.wbsDetailTab === "general"
     ? [[ "WBS Code", "کد WBS", selected.code ], [ "WBS Name", "نام WBS", selected.name ], [ "Parent WBS", "WBS والد", parent?.name ?? "Project root" ], [ "Level", "سطح", String(selected.level + 1) ], [ "Total activities", "تعداد فعالیت‌ها", String(selected.total) ]]
-    : state.wbsDetailTab === "activities"
-      ? [[ "Activity count", "تعداد فعالیت‌ها", String(selected.total) ], [ "Summary scope", "دامنه خلاصه", selected.level === 0 ? "Entire project" : selected.name ]]
-      : state.wbsDetailTab === "dates"
-        ? [[ "Planned start", "شروع برنامه‌ای", "Not available in this visual sample" ], [ "Planned finish", "پایان برنامه‌ای", "Not available in this visual sample" ]]
-        : [];
-  const detailBody = detail.length
-    ? `<div class="cp-vd-wbs-fields">${detail.map(([en, fa, value]) => `<label><span>${esc(t(state.locale, en, fa))}</span><strong>${esc(value)}</strong></label>`).join("")}</div>`
-    : `<p class="cp-vd-note">${esc(t(state.locale, "No sample records are provided for this tab. Connect project data to populate it.", "برای این زبانه رکورد نمونه‌ای ارائه نشده است. برای نمایش اطلاعات، داده‌های پروژه باید متصل شوند."))}</p>`;
+    : state.wbsDetailTab === "dates"
+      ? [[ "Earliest activity start", "زودترین شروع فعالیت", scopedStart ? fmtDate(scopedStart) : "—" ], [ "Latest activity finish", "آخرین پایان فعالیت", scopedFinish ? fmtDate(scopedFinish) : "—" ], [ "Activity records in scope", "رکورد فعالیت در دامنه", String(scopedActivities.length) ]]
+      : [];
+  const activityDetailRows = scopedActivities.map((activity) => `<tr><td><bdi dir="ltr">${esc(activity.id)}</bdi></td><td>${esc(activity.name)}</td><td>${esc(activity.status)}</td><td>${esc(fmtDate(activity.start))}</td><td>${esc(fmtDate(activity.finish))}</td><td class="is-numeric">${activity.pct}%</td></tr>`).join("");
+  const detailBody = state.wbsDetailTab === "activities"
+    ? `<div class="cp-vd-tablewrap"><table class="cp-vd-table cp-vd-wbs-activity-table"><thead><tr><th>${esc(t(state.locale, "Activity ID", "شناسه فعالیت"))}</th><th>${esc(t(state.locale, "Activity name", "نام فعالیت"))}</th><th>${esc(t(state.locale, "Status", "وضعیت"))}</th><th>${esc(t(state.locale, "Start", "شروع"))}</th><th>${esc(t(state.locale, "Finish", "پایان"))}</th><th>${esc(t(state.locale, "% complete", "درصد تکمیل"))}</th></tr></thead><tbody>${activityDetailRows || `<tr><td colspan="6">${esc(t(state.locale, "No activities in this WBS scope.", "فعالیتی در این محدوده WBS وجود ندارد."))}</td></tr>`}</tbody></table></div>`
+    : detail.length
+      ? `<div class="cp-vd-wbs-fields">${detail.map(([en, fa, value]) => `<label><span>${esc(t(state.locale, en, fa))}</span><strong>${esc(value)}</strong></label>`).join("")}</div>`
+      : `<p class="cp-vd-note">${esc(t(state.locale, "No sample records are provided for this tab. Connect project data to populate it.", "برای این زبانه رکورد نمونه‌ای ارائه نشده است. برای نمایش اطلاعات، داده‌های پروژه باید متصل شوند."))}</p>`;
   return `<section class="cp-vd-windowbody cp-vd-wbs-window">
     <header class="cp-vd-winhead">
       <div><h2>${esc(t(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</h2><small>${esc(t(state.locale, "Hierarchical project scope", "ساختار سلسله‌مراتبی دامنه پروژه"))}</small></div>
