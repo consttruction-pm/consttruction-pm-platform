@@ -572,7 +572,48 @@ export function mountCapacityPanel(
   );
   if (!panel) return;
   const labels = getCapacityPanelLabels(locale);
+  // renderApp may remount module panels after unrelated workspace state changes.
+  // Preserve the user's in-progress capacity edits and the last operation result
+  // instead of silently clearing a form that is still visible in the workspace.
+  const previousDraft = {
+    resource: panel.querySelector<HTMLInputElement>("[data-capacity-resource]")?.value,
+    maxUnits: panel.querySelector<HTMLInputElement>("[data-capacity-max-units]")?.value,
+    writeBasis: panel.querySelector<HTMLSelectElement>("[data-capacity-unit-basis]")?.value,
+    hours: panel.querySelector<HTMLInputElement>("[data-capacity-hours]")?.value,
+    from: panel.querySelector<HTMLInputElement>("[data-capacity-from]")?.value,
+    to: panel.querySelector<HTMLInputElement>("[data-capacity-to]")?.value,
+    closeOpen: panel.querySelector<HTMLInputElement>("[data-capacity-close]")?.checked,
+    resolveResource: panel.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]")?.value,
+    resolvePeriod: panel.querySelector<HTMLInputElement>("[data-capacity-resolve-period]")?.value,
+    resolveBasis: panel.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]")?.value,
+    resolveHours: panel.querySelector<HTMLInputElement>("[data-capacity-resolve-hours]")?.value,
+    writeStatus: panel.querySelector<HTMLElement>("[data-capacity-write-status]")?.textContent ?? "",
+    writeResult: panel.querySelector<HTMLElement>("[data-capacity-write-result]")?.innerHTML ?? "",
+    resolveStatus: panel.querySelector<HTMLElement>("[data-capacity-resolve-status]")?.textContent ?? "",
+    resolveResult: panel.querySelector<HTMLElement>("[data-capacity-resolve-result]")?.innerHTML ?? "",
+  };
   panel.innerHTML = renderCapacityPanel([], labels, locale);
+  const restoreValue = <T extends HTMLInputElement | HTMLSelectElement>(
+    selector: string,
+    value: string | undefined,
+  ): T | null => {
+    const field = panel.querySelector<T>(selector);
+    if (field && value !== undefined) field.value = value;
+    return field;
+  };
+  restoreValue<HTMLInputElement>("[data-capacity-resource]", previousDraft.resource);
+  restoreValue<HTMLInputElement>("[data-capacity-max-units]", previousDraft.maxUnits);
+  restoreValue<HTMLSelectElement>("[data-capacity-unit-basis]", previousDraft.writeBasis);
+  restoreValue<HTMLInputElement>("[data-capacity-hours]", previousDraft.hours);
+  restoreValue<HTMLInputElement>("[data-capacity-from]", previousDraft.from);
+  restoreValue<HTMLInputElement>("[data-capacity-to]", previousDraft.to);
+  const closeOpenField = panel.querySelector<HTMLInputElement>("[data-capacity-close]");
+  if (closeOpenField && previousDraft.closeOpen !== undefined) closeOpenField.checked = previousDraft.closeOpen;
+  restoreValue<HTMLInputElement>("[data-capacity-resolve-resource]", previousDraft.resolveResource);
+  restoreValue<HTMLInputElement>("[data-capacity-resolve-period]", previousDraft.resolvePeriod);
+  restoreValue<HTMLSelectElement>("[data-capacity-resolve-basis]", previousDraft.resolveBasis);
+  const restoredResolveHours = restoreValue<HTMLInputElement>("[data-capacity-resolve-hours]", previousDraft.resolveHours);
+  if (restoredResolveHours) restoredResolveHours.disabled = !previousDraft.resolveBasis;
   const client = createP6CapacityClient(transport, context);
   capacityPanelBindings.set(panel, { client, labels, locale });
 
@@ -646,6 +687,15 @@ export function mountCapacityPanel(
   const resourceList = panel.querySelector<HTMLDataListElement>(
     "#cp-capacity-resource-list",
   );
+
+  const restoredWriteStatus = panel.querySelector<HTMLElement>("[data-capacity-write-status]");
+  const restoredWriteResult = panel.querySelector<HTMLElement>("[data-capacity-write-result]");
+  const restoredResolveStatus = panel.querySelector<HTMLElement>("[data-capacity-resolve-status]");
+  const restoredResolveResult = panel.querySelector<HTMLElement>("[data-capacity-resolve-result]");
+  if (restoredWriteStatus) restoredWriteStatus.textContent = previousDraft.writeStatus;
+  if (restoredWriteResult) restoredWriteResult.innerHTML = previousDraft.writeResult;
+  if (restoredResolveStatus) restoredResolveStatus.textContent = previousDraft.resolveStatus;
+  if (restoredResolveResult) restoredResolveResult.innerHTML = previousDraft.resolveResult;
 
   if (
     !resourceSelect ||
