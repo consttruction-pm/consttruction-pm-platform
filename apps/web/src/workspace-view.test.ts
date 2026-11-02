@@ -1797,6 +1797,25 @@ test("Bar Chart Options exposes all documented tabs without enabling unsupported
   assert.match(html, /data-layout-links/);
 });
 
+test("Bottom Layout Options menu command opens the Activity Details tab selector", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let opened = false;
+  const trigger = { click: () => { opened = true; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-activity-details-options-open]" ? trigger : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  const target = { dataset: { shellCommand: "Bottom Layout Options" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(opened, true);
+});
+
 test("Bars and Bar Chart Options commands open their own dialogs", () => {
   const listeners = new Map<string, (event: Event) => void>();
   let barsOpened = false;
