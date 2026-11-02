@@ -1131,6 +1131,42 @@ function renderCalendarCatalog(state: WorkspaceState): string {
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
 
+function renderWorkspaceCommandRibbon(state: WorkspaceState, t: WorkspaceLabels): string {
+  const layoutChoices = [
+    { value: "split", label: t.layoutSplit },
+    { value: "grid", label: t.layoutGrid },
+    { value: "gantt", label: t.layoutGantt },
+  ] as const;
+  return `<section class="cp-command-ribbon" role="toolbar" aria-label="${escapeAttribute(t.commandRibbon)}">
+    <div class="cp-command-group">
+      <span class="cp-command-group-title">${escapeHtml(t.layoutGroup)}</span>
+      <div class="cp-command-group-controls" role="group" aria-label="${escapeAttribute(t.layoutGroup)}">
+        ${layoutChoices.map((choice) => `<button type="button" class="cp-command-button cp-layout-button${state.workspaceLayout === choice.value ? " is-active" : ""}" data-workspace-layout="${choice.value}" aria-pressed="${state.workspaceLayout === choice.value ? "true" : "false"}">${escapeHtml(choice.label)}</button>`).join("")}
+      </div>
+    </div>
+    <div class="cp-command-group">
+      <span class="cp-command-group-title">${escapeHtml(t.activityGroup)}</span>
+      <div class="cp-command-group-controls">
+        <button type="button" class="cp-command-button cp-command-primary" data-workspace-command="new-activity">${escapeHtml(t.newActivityCommand)}</button>
+        <button type="button" class="cp-command-button" data-workspace-command="new-wbs">${escapeHtml(t.newWbsCommand)}</button>
+      </div>
+    </div>
+    <div class="cp-command-group">
+      <span class="cp-command-group-title">${escapeHtml(t.logicGroup)}</span>
+      <div class="cp-command-group-controls">
+        <button type="button" class="cp-command-button" data-workspace-command="schedule-options">${escapeHtml(t.scheduleOptionsCommand)}</button>
+        <button type="button" class="cp-command-button" data-workspace-command="run-schedule">${escapeHtml(t.runScheduleCommand)}</button>
+        <button type="button" class="cp-command-button" data-workspace-command="relationships">${escapeHtml(t.relationshipsCommand)}</button>
+      </div>
+    </div>
+    <div class="cp-command-group cp-command-view-state">
+      <span class="cp-command-group-title">${escapeHtml(t.ganttLinksToggle)}</span>
+      <button type="button" class="cp-command-button cp-command-toggle${state.showGanttRelationships ? " is-active" : ""}" data-workspace-command="toggle-relationships" aria-pressed="${state.showGanttRelationships ? "true" : "false"}">${escapeHtml(state.showGanttRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</button>
+    </div>
+  </section>`;
+}
+
+
 function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: WorkspaceLabels): string {
   if (state.activeMenu === "schedule") return `<section id="cp-p6-module-stage" class="cp-p6-module-stage" data-workspace-menu="schedule" hidden></section>`;
   const navigation = getWorkspaceNavigation(state.activeMenu);
