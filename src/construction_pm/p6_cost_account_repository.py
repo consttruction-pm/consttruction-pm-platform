@@ -5,6 +5,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Protocol
 
+from .backend_p0.transactions import execute_sqlite_script
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 
 
@@ -64,7 +65,7 @@ class SQLiteP6CostAccountRepository:
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
-        self.connection.executescript(
+        execute_sqlite_script(self.connection,
             """
             CREATE TABLE IF NOT EXISTS p6_cost_account (
               tenant_id TEXT NOT NULL,
