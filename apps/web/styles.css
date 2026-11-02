@@ -6856,3 +6856,24 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6-workspace[data-workspace-layout="gantt"] #cp-gantt{grid-column:1!important}
 @media(max-width:900px){.cp-command-group{padding:6px 8px}.cp-command-button{font-size:10px;padding-inline:7px}}
 @media(max-width:560px){.cp-command-ribbon{align-items:stretch}.cp-command-group-controls{flex-wrap:wrap}}
+
+/* Dense, dialog-first layout options matching the desktop scheduling workspace. */
+.cp-layout-options-dialog{width:min(760px,calc(100vw - 28px));max-height:min(88vh,820px);padding:0;border:1px solid #8797aa;border-radius:4px;box-shadow:0 18px 55px #10243b55;color:#24384f}
+.cp-layout-options-dialog::backdrop{background:#10243b66}
+.cp-layout-options-dialog .cp-layout-options-form>header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(#f7f9fc,#e8edf3);border-bottom:1px solid #c4cfdb}
+.cp-layout-options-dialog .cp-layout-options-form>header h2{margin:2px 0 0;font-size:16px}
+.cp-layout-options-dialog-body{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:12px;padding:12px;max-height:calc(88vh - 150px);overflow:auto}
+.cp-layout-options-main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;align-content:start}
+.cp-layout-options-section{min-width:0;margin:0;padding:10px;border:1px solid #c7d1dc;background:#fbfcfd}
+.cp-layout-options-section legend{padding:0 5px;font-size:11px;font-weight:750;color:#334e69}
+.cp-layout-options-section>label{display:grid;gap:4px;margin:7px 0;font-size:11px}
+.cp-layout-options-section input:not([type=checkbox]):not([type=radio]),.cp-layout-options-section select{width:100%;min-width:0;min-height:29px;border:1px solid #aebdce;background:#fff;padding:4px 7px;font:inherit}
+.cp-layout-options-section input:disabled,.cp-layout-options-section select:disabled{background:#edf0f3;color:#788696}
+.cp-layout-options-radio-row,.cp-layout-options-font-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0}
+.cp-layout-options-radio-row label,.cp-layout-options-check{display:flex!important;align-items:center;gap:6px;font-size:11px}
+.cp-layout-options-input-with-button{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:4px}
+.cp-layout-options-actions{display:flex;flex-direction:column;gap:7px;padding-top:4px}
+.cp-layout-options-actions button,.cp-layout-options-section button{min-height:28px;border:1px solid #b7c4d2;border-radius:3px;background:linear-gradient(#fff,#edf1f5);color:#28435f;font:inherit;font-size:11px;padding:5px 8px}
+.cp-layout-options-actions button:disabled,.cp-layout-options-section button:disabled{opacity:.55}
+.cp-layout-options-notice{margin:0;padding:8px 13px;border-top:1px solid #d5dde6;background:#f5f7fa;color:#68798a;font-size:10px}
+@media(max-width:620px){.cp-layout-options-main{grid-template-columns:minmax(0,1fr)}.cp-layout-options-dialog-body{grid-template-columns:minmax(0,1fr)}.cp-layout-options-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
