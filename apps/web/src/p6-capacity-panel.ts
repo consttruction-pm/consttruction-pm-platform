@@ -728,6 +728,72 @@ export function mountCapacityPanel(
         activePanel.removeAttribute("aria-busy");
       }
     }, true);
+    document.addEventListener("submit", async (event) => {
+      const form = event.target instanceof HTMLFormElement
+        ? event.target
+        : null;
+      if (!form || !form.matches("[data-capacity-write-form]")) return;
+      const activePanel = form.closest<HTMLElement>("#cp-resource-capacity [data-capacity-panel]");
+      if (!activePanel) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const binding = capacityPanelBindings.get(activePanel);
+      if (!binding) return;
+      const resourceField = form.querySelector<HTMLInputElement>("[data-capacity-resource]");
+      const maxUnitsField = form.querySelector<HTMLInputElement>("[data-capacity-max-units]");
+      const basisField = form.querySelector<HTMLSelectElement>("[data-capacity-unit-basis]");
+      const hoursField = form.querySelector<HTMLInputElement>("[data-capacity-hours]");
+      const fromField = form.querySelector<HTMLInputElement>("[data-capacity-from]");
+      const toField = form.querySelector<HTMLInputElement>("[data-capacity-to]");
+      const closeField = form.querySelector<HTMLInputElement>("[data-capacity-close]");
+      const saveButton = form.querySelector<HTMLButtonElement>("[data-capacity-save]");
+      const status = activePanel.querySelector<HTMLElement>("[data-capacity-write-status]");
+      const resultTarget = activePanel.querySelector<HTMLElement>("[data-capacity-write-result]");
+      if (!resourceField || !maxUnitsField || !basisField || !hoursField || !fromField || !toField || !closeField || !saveButton || !status || !resultTarget) return;
+      const input: CapacityWriteInput = {
+        resource_id: resourceField.value.trim(),
+        max_units: maxUnitsField.value.trim(),
+        unit_basis: basisField.value as CapacityBasis,
+        hours_per_time_period: hoursField.value.trim(),
+        effective_from: fromField.value,
+        effective_to: toField.value ? toField.value : null,
+        close_open_segment: closeField.checked,
+      };
+      if (!input.resource_id || !input.max_units || !input.hours_per_time_period || !input.effective_from) {
+        status.textContent = binding.labels.invalidInput;
+        resultTarget.innerHTML = "";
+        return;
+      }
+      saveButton.disabled = true;
+      activePanel.setAttribute("aria-busy", "true");
+      status.textContent = binding.labels.saving;
+      resultTarget.innerHTML = "";
+      try {
+        const result = await binding.client.saveEffectiveChange(input);
+        resultTarget.innerHTML = renderCapacityWriteResult(result, binding.labels);
+        status.textContent = binding.labels.saved;
+        const segments = await binding.client.listSegments();
+        const selected = result.capacity.resource_id;
+        activePanel.querySelectorAll<HTMLSelectElement>("[data-capacity-resource-select]").forEach((select) => {
+          select.innerHTML = renderResourceOptions(segments, selected);
+          select.value = selected;
+          select.disabled = segments.length === 0;
+        });
+        const profile = activePanel.querySelector<HTMLElement>("[data-capacity-profile]");
+        if (profile) profile.innerHTML = renderCapacityProfile(selected, segments.filter((segment) => segment.resource_id === selected), binding.labels);
+        const writeResource = activePanel.querySelector<HTMLInputElement>("[data-capacity-resource]");
+        const resolveResource = activePanel.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
+        if (writeResource) writeResource.value = selected;
+        if (resolveResource) resolveResource.value = selected;
+      } catch (error) {
+        const code = errorCode(error);
+        status.textContent = binding.labels.error;
+        resultTarget.innerHTML = renderCapacityError(code, binding.labels);
+      } finally {
+        saveButton.disabled = false;
+        activePanel.removeAttribute("aria-busy");
+      }
+    }, true);
   }
 
   let knownResources: string[] = [];
@@ -821,45 +887,7 @@ export function mountCapacityPanel(
     if (!converted) resolveHours.value = "";
   });
 
-  writeForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const input: CapacityWriteInput = {
-      resource_id: writeResource.value.trim(),
-      max_units: writeMaxUnits.value.trim(),
-      unit_basis: writeBasis.value as CapacityBasis,
-      hours_per_time_period: writeHours.value.trim(),
-      effective_from: writeFrom.value,
-      effective_to: writeTo.value ? writeTo.value : null,
-      close_open_segment: writeClose.checked,
-    };
-    if (
-      !input.resource_id ||
-      !input.max_units ||
-      !input.hours_per_time_period ||
-      !input.effective_from
-    ) {
-      writeStatus.textContent = labels.invalidInput;
-      writeResult.innerHTML = "";
-      return;
-    }
-    saveButton.disabled = true;
-    panel.setAttribute("aria-busy", "true");
-    writeStatus.textContent = labels.saving;
-    writeResult.innerHTML = "";
-    try {
-      const result = await client.saveEffectiveChange(input);
-      writeResult.innerHTML = renderCapacityWriteResult(result, labels);
-      writeStatus.textContent = labels.saved;
-      await loadAll(result.capacity.resource_id);
-    } catch (error) {
-      const code = errorCode(error);
-      writeStatus.textContent = labels.error;
-      writeResult.innerHTML = renderCapacityError(code, labels);
-    } finally {
-      saveButton.disabled = false;
-      panel.removeAttribute("aria-busy");
-    }
-  });
+
 
 
 
