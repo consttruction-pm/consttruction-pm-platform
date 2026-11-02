@@ -2338,9 +2338,14 @@ async function main() {
       (await page.text(".cp-navigation-surface strong")) === "Schedule",
       "schedule is the initial workspace surface",
     );
+    const initialScheduleStatus = await page.text(".cp-navigation-surface [data-surface-status]");
+    const initialScheduleStatusContract = await page.evaluate(`(() => ({
+      code: document.querySelector(".cp-navigation-surface [data-surface-status]")?.getAttribute("data-surface-status") ?? null,
+      label: document.documentElement.lang === "fa" ? "جزئی" : "Partial",
+    }))()`);
     assert(
-      (await page.text(".cp-navigation-surface [data-surface-status]")) === "Implemented",
-      "schedule surface status must be honest",
+      initialScheduleStatusContract.code === "partial" && initialScheduleStatus === initialScheduleStatusContract.label,
+      "schedule surface status must be honest and localized: " + JSON.stringify({ initialScheduleStatus, initialScheduleStatusContract }),
     );
     const scheduleSubmenus = await page.count(".cp-navigation-surface a.cp-submenu-item");
     assert(scheduleSubmenus === 13, "thirteen schedule submenu anchors expected");
