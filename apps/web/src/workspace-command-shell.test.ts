@@ -116,6 +116,9 @@ test("Version 26 menu inventory is represented in CUBI menus without exposing so
   assert.doesNotMatch(html, /Oracle|Primavera|P6 Professional/i);
   const activityHtml = renderWorkspaceCommandShell("en", "schedule");
   assert.doesNotMatch(activityHtml, /data-shell-command="Bottom Layout Options"[^>]*disabled/);
+  assert.doesNotMatch(activityHtml, /data-shell-command="Activity Details"[^>]*disabled/);
+  assert.doesNotMatch(activityHtml, /data-shell-command="Table"[^>]*disabled/);
+  assert.doesNotMatch(activityHtml, /data-shell-command="Gantt Chart"[^>]*disabled/);
   const projectHtml = renderWorkspaceCommandShell("en", "project");
   assert.match(projectHtml, /data-shell-command="Bottom Layout Options"[^>]*disabled/);
 });
