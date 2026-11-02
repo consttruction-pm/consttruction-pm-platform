@@ -200,6 +200,7 @@ const activityDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const documentSelectionByContainer = new WeakMap<HTMLElement, string>();
 const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
 const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
+const progressActivitySelectionByContainer = new WeakMap<HTMLElement, string>();
 const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<string>>();
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
@@ -377,11 +378,17 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.progressActivitySelect !== undefined) {
+      progressActivitySelectionByContainer.set(container, target.dataset.progressActivitySelect);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
     if (target.dataset.documentTypeFilterClear !== undefined) {
       documentTypeFilterByContainer.delete(container);
       const record = workspaceRenderRecords.get(container);
@@ -1510,6 +1517,26 @@ function renderRegisterWindow(
   </div>`;
 }
 
+function renderProgressRegisterWindow(container: HTMLElement, state: WorkspaceState): string {
+  const selectedId = progressActivitySelectionByContainer.get(container) ?? state.selectedActivityId ?? null;
+  const selected = state.activities.find((activity) => activity.id === selectedId) ?? null;
+  const cell = (activity: WorkspaceActivityRow, key: string): string => {
+    const value = activity.cells[key];
+    return value === null || value === undefined || value === "" ? "—" : String(value);
+  };
+  const field = (label: string, content: string): string => `<div class="cp-progress-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(content)}</strong></div>`;
+  const activityRows = state.activities.map((activity) => `<tr class="${activity.id === selectedId ? "is-selected" : ""}"><td><button type="button" data-progress-activity-select="${escapeAttribute(activity.id)}" aria-pressed="${activity.id === selectedId}">${escapeHtml(activity.id)}</button></td><td>${escapeHtml(activity.name)}</td><td>${escapeHtml(activity.wbsId ?? "—")}</td><td>${escapeHtml(activity.gantt?.start ?? cell(activity, "start"))}</td><td>${escapeHtml(activity.gantt?.finish ?? cell(activity, "finish"))}</td><td>${escapeHtml(cell(activity, "progress"))}</td></tr>`).join("");
+  const details = selected ? `<div class="cp-progress-detail-grid">${field(uiText(state.locale, "Activity ID", "شناسه فعالیت"), selected.id)}${field(uiText(state.locale, "Activity Name", "نام فعالیت"), selected.name)}${field(uiText(state.locale, "WBS", "ساختار شکست"), selected.wbsId ?? "—")}${field(uiText(state.locale, "Start", "شروع"), selected.gantt?.start ?? cell(selected, "start"))}${field(uiText(state.locale, "Finish", "پایان"), selected.gantt?.finish ?? cell(selected, "finish"))}${field(uiText(state.locale, "Entered Progress", "پیشرفت ثبت‌شده"), cell(selected, "progress"))}${field(uiText(state.locale, "Actual Start", "شروع واقعی"), cell(selected, "actual_start"))}${field(uiText(state.locale, "Actual Finish", "پایان واقعی"), cell(selected, "actual_finish"))}</div>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "Select an activity to inspect its entered progress and actual dates.", "برای بررسی پیشرفت ثبت‌شده و تاریخ‌های واقعی، یک فعالیت را انتخاب کنید."))}</p>`;
+  return `<div class="cp-progress-window">
+    <section class="cp-progress-register"><header><strong>${escapeHtml(uiText(state.locale, "Activity Progress Register", "فهرست پیشرفت فعالیت‌ها"))}</strong><span>${escapeHtml(String(state.activities.length))} ${escapeHtml(uiText(state.locale, "activities", "فعالیت"))}</span></header>
+      <div class="cp-register-table-wrap"><table><thead><tr>${["Activity ID","Activity Name","WBS","Start","Finish","Entered Progress"].map((label) => `<th>${escapeHtml(uiText(state.locale, label, label === "Activity ID" ? "شناسه فعالیت" : label === "Activity Name" ? "نام فعالیت" : label === "Entered Progress" ? "پیشرفت ثبت‌شده" : label === "Start" ? "شروع" : label === "Finish" ? "پایان" : "ساختار شکست"))}</th>`).join("")}</tr></thead><tbody>${activityRows || `<tr><td colspan="6">${escapeHtml(uiText(state.locale, "No activities are loaded.", "فعالیتی بارگذاری نشده است."))}</td></tr>`}</tbody></table></div>
+      <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Progress values shown here are read from saved activity fields. This window does not calculate, infer or update progress.", "مقادیر پیشرفت از فیلدهای ذخیره‌شده فعالیت خوانده می‌شوند. این پنجره پیشرفت را محاسبه، استنباط یا به‌روزرسانی نمی‌کند."))}</p></section>
+    <aside class="cp-progress-side"><section class="cp-progress-details"><header><strong>${escapeHtml(uiText(state.locale, "Progress Details", "جزئیات پیشرفت"))}</strong><span>${escapeHtml(selected?.id ?? "—")}</span></header>${details}</section>
+      <section class="cp-progress-evidence"><h3>${escapeHtml(uiText(state.locale, "Field Evidence", "شواهد کارگاهی"))}</h3><div class="cp-progress-evidence-grid">
+        <div>${escapeHtml(String(state.siteDailyLogs.length))}<span>${escapeHtml(uiText(state.locale, "Site Daily Logs", "گزارش روزانه"))}</span></div><div>${escapeHtml(String(state.timecards.length))}<span>${escapeHtml(uiText(state.locale, "Timecards", "کارت کارکرد"))}</span></div><div>${escapeHtml(String(state.equipmentReports.length))}<span>${escapeHtml(uiText(state.locale, "Equipment Reports", "گزارش ماشین‌آلات"))}</span></div><div>${escapeHtml(String(state.fieldIssues.length))}<span>${escapeHtml(uiText(state.locale, "Field Issues", "مسائل کارگاهی"))}</span></div>
+      </div></section></aside>
+  </div>`;
+}
 function renderDocumentRegisterWindow(container: HTMLElement, state: WorkspaceState): string {
   const selectedId = documentSelectionByContainer.get(container) ?? null;
   const typeFilter = documentTypeFilterByContainer.get(container) ?? null;
@@ -1739,12 +1766,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       break;
     case "progress":
       body = `
-        <div class="cp-p6-module-metrics">
-          ${metric(state.siteDailyLogs.length, t.siteLogs)}
-          ${metric(state.timecards.length + state.equipmentReports.length, `${t.attendance} / ${t.equipment}`)}
-          ${metric(state.fieldIssues.length, t.issues)}
-        </div>
-        <p>${escapeHtml(uiText(state.locale, "Progress presentation reads the field records already saved for this project. No progress percentages are computed on this page.", "نمایش پیشرفت از سوابق کارگاهی ذخیره‌شده برای این پروژه می‌خواند. هیچ درصد پیشرفتی در این صفحه محاسبه نمی‌شود."))}</p>
+        ${renderProgressRegisterWindow(container, state)}
         ${controls(moduleButton("tools", "progress", uiText(state.locale, "Open field records", "بازکردن سوابق کارگاه")))}`;
       break;
     case "control":
@@ -1871,6 +1893,7 @@ function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: numb
     wbs: [null, { kind: "wbs-detail-tab", value: "general" }, null],
     resources: [null, null, { kind: "register-tab", value: "resources:assignments" }, { kind: "register-tab", value: "resources:codes" }, { kind: "register-tab", value: "resources:roles" }],
     documents: [null, { kind: "document-detail-tab", value: "links" }, { kind: "document-detail-tab", value: "integrity" }, { kind: "document-detail-tab", value: "revisions" }, { kind: "document-type", value: "evidence" }],
+    progress: [null, null, null, null, null, null, null],
     cost: [null, { kind: "register-tab", value: "cost:general" }, { kind: "register-tab", value: "cost:budget" }, { kind: "register-tab", value: "cost:cash-flow" }, { kind: "register-tab", value: "cost:evm" }, null, null],
     assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
     expenses: [null, null, { kind: "register-tab", value: "expenses:general" }],
@@ -1895,7 +1918,7 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "schedule":
       return ["#cp-activity-grid", "#cp-gantt", "#cp-reference-relationships", "#cp-reference-calendars", "#cp-schedule-options", "#cp-reference-resources", "#cp-reference-progress", "#cp-schedule-run", "#cp-formula-editor", "#cp-schedule-reference", "#cp-reference-options", "#cp-scheduling-reference-formulas", "#cp-scheduling-reference-documentation"];
     case "progress":
-      return ["#cp-site-logs", "#cp-field-operations"];
+      return ["#cp-p6-module-stage", "#cp-site-logs", "#cp-field-operations", "#cp-field-operations", "#cp-field-operations"];
     case "resources":
       return ["#cp-p6-module-stage", "#cp-resource-capacity"];
     case "wbs":
