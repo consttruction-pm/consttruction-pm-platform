@@ -1551,6 +1551,12 @@ test("Calendar Register opens as a first-class window with documented editor con
   assert.match(html, /Workweek/);
   assert.match(html, /Exceptions and Holidays/);
   assert.match(html, /Assignments/);
+  for (const tab of ["general", "workweek", "exceptions", "assignments"]) {
+    assert.ok(html.includes(`id="cp-calendar-tab-${tab}" aria-controls="cp-calendar-panel-${tab}"`));
+    assert.ok(html.includes(`role="tabpanel" id="cp-calendar-panel-${tab}" aria-labelledby="cp-calendar-tab-${tab}"`));
+  }
+  assert.match(html, /tabindex="0" class="is-active" data-calendar-editor-tab="general"/);
+  assert.match(html, /tabindex="-1" class=""/);
   assert.match(html, /split shifts, multiple work intervals, overnight shifts/);
   assert.match(html, /Editing and saving are disabled until the authoritative calendar service/i);
 });
