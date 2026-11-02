@@ -5,16 +5,18 @@ module owns the separate decision of *which* budget and progress values feed
 that arithmetic:
 
 * PV comes from the selected baseline's activity budget distributed linearly
-  across the baseline activity's working days. The status date (Data Date)
+  across the baseline activity's working days, or from explicit future-period
+  buckets when the activity declares them. The status date (Data Date)
   determines how much of each baseline activity is planned.
-* EV applies the activity's earned-value technique to its current progress.
+* EV applies the activity's earned-value technique (including WBS milestone
+  weights and resource-curve Units % Complete) to its current progress.
 * AC and BAC come from the current actual cost and the selected baseline budget.
 * A different baseline identity, mixed currencies, duplicate rows, orphaned
   progress or non-working baseline dates fail closed instead of being guessed.
 
-P6 also allows resource-curve and future-period PV distribution as well as
-WBS milestone earning rules. Those inputs are not present in this contract, so
-they are rejected explicitly rather than approximated.
+Assignment-level resource-curve PV profiles are not part of this contract.
+Callers that need curve-distributed PV must supply the equivalent future-period
+buckets; no curve is silently approximated by a linear distribution.
 """
 
 from __future__ import annotations
