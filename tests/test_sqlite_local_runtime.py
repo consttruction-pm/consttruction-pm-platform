@@ -422,5 +422,54 @@ def test_local_runtime_commits_domain_write_and_outbox_atomically():
         "SELECT value FROM local_outbox_probe ORDER BY value"
     ).fetchall() == [("committed",)]
     assert runtime.relationship_repository.get(scope, "REL-OUTBOX-B") is None
+
+    updated_relationship = RelationshipMaster(
+        scope=scope,
+        relationship_id="REL-OUTBOX-A",
+        predecessor_id="A1",
+        successor_id="A3",
+        relationship_type=RelationshipType.FS,
+        lag_value=Decimal("0"),
+        lag_unit=DurationUnit.WORKING_DAY,
+    )
+    duplicate_update = OfflineMutation(
+        mutation_id="mutation-3",
+        tenant_id=scope.tenant_id,
+        project_id=scope.project_id,
+        expected_revision=scope.project_revision,
+        operation="relationship.update",
+        payload={"relationship_id": "REL-OUTBOX-A", "successor_id": "A3"},
+        idempotency_key="probe-key-1",
+    )
+    with pytest.raises(ValueError, match="DUPLICATE_IDEMPOTENCY_KEY"):
+        runtime.apply_offline_mutation(
+            scope,
+            duplicate_update,
+            auth_context=auth,
+            apply=lambda: runtime.relationship_repository.save(
+                updated_relationship, expected_revision=1
+            ),
+        )
+    assert runtime.relationship_repository.get(scope, "REL-OUTBOX-A").successor_id == "A2"
+
+    duplicate_delete = OfflineMutation(
+        mutation_id="mutation-4",
+        tenant_id=scope.tenant_id,
+        project_id=scope.project_id,
+        expected_revision=scope.project_revision,
+        operation="relationship.delete",
+        payload={"relationship_id": "REL-OUTBOX-A"},
+        idempotency_key="probe-key-1",
+    )
+    with pytest.raises(ValueError, match="DUPLICATE_IDEMPOTENCY_KEY"):
+        runtime.apply_offline_mutation(
+            scope,
+            duplicate_delete,
+            auth_context=auth,
+            apply=lambda: runtime.relationship_repository.delete(
+                scope, "REL-OUTBOX-A", expected_revision=1
+            ),
+        )
+    assert runtime.relationship_repository.get(scope, "REL-OUTBOX-A") is not None
     assert runtime.offline_mutation_store.pending() == (first_mutation,)
     connection.close()
