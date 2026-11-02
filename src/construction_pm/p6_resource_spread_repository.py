@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Protocol
 
+from .backend_p0.transactions import execute_sqlite_script
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
 
 
@@ -68,7 +69,7 @@ class SQLiteP6ResourceSpreadRepository:
         self.connection = connection
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
-        self.connection.executescript("""
+        execute_sqlite_script(self.connection,"""
         CREATE TABLE IF NOT EXISTS p6_resource_spread_bucket (
           tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
           spread_id TEXT NOT NULL, resource_id TEXT NOT NULL, period_id TEXT NOT NULL,
