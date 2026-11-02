@@ -426,6 +426,15 @@ test("module navigation submenus route to real registers, detail tabs and tracki
   assert.match(roles, /data-navigation-action="register-tab:roles:rates"/);
   assert.match(roles, /data-navigation-action="register-tab:roles:assignments"/);
 
+  const resources = render("en", "resources");
+  assert.match(resources, /class="cp-register-window"/);
+  assert.match(resources, /Resource ID/);
+  assert.match(resources, /Max Units \/ Time/);
+  assert.match(resources, /data-navigation-action="register-tab:resources:assignments"/);
+  assert.match(resources, /data-navigation-action="register-tab:resources:codes"/);
+  assert.match(resources, /data-navigation-action="register-tab:resources:roles"/);
+  assert.match(resources, /Resource records are not yet returned by the project API/);
+
   const assignments = render("en", "assignments");
   assert.match(assignments, /data-navigation-action="register-tab:assignments:general"/);
 
