@@ -237,15 +237,16 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snap
     assert snapshot is not None
     assert calculation_context is not None
     assert snapshot.snapshot_hash == published["snapshot_hash"]
-    assert {item.activity_id for item in snapshot.activities} == {"A1", "A2"}
+    snapshot_payload = json.loads(snapshot.canonical_payload)
+    assert {item["id"] for item in snapshot_payload["activities"]} == {"A1", "A2"}
     assert runtime.baseline_api.list(scope, auth_context=auth)[0]["baseline"]["baseline_id"] == "BL-1"
     assert runtime.cost_account_api.list(scope, auth_context=auth)[0]["cost_account"]["account_id"] == "CA-1"
     assert runtime.expense_api.list(scope, auth_context=auth)[0]["expense"]["expense_id"] == "EXP-1"
     assert runtime.resource_spread_api.list(scope, auth_context=auth)[0]["spread"]["spread_id"] == "SPREAD-1"
-    assert len(snapshot.relationships) == 1
-    assert len(snapshot.constraints) == 1
-    assert snapshot.relationships[0].predecessor_id == "A1"
-    assert snapshot.relationships[0].successor_id == "A2"
+    assert len(snapshot_payload["relationships"]) == 1
+    assert len(snapshot_payload["constraints"]) == 1
+    assert snapshot_payload["relationships"][0]["predecessor_id"] == "A1"
+    assert snapshot_payload["relationships"][0]["successor_id"] == "A2"
     assert runtime.calendar_registry(scope).resolve(calendar_reference)
 
     query_payload = {
