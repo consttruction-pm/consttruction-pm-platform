@@ -698,13 +698,17 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Resources & cost", "منابع و هزینه"))}</span>
             ${menuButton("resources", t.resources, state, railMenuIcons.resources)}
             ${railActionButton("assignments", rail.assignments, "link")}
+            <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Calendar window design is catalogued; its page is not implemented yet.", "پنجره تقویم در فهرست طراحی ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">▦</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Calendars", "تقویم‌ها"))}</span></button>
+            <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Role management window is catalogued; its page is not implemented yet.", "پنجره مدیریت نقش‌ها ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">♙</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Roles", "نقش‌ها"))}</span></button>
             ${menuButton("cost", t.cost, state, railMenuIcons.cost)}
             ${railActionButton("expenses", rail.expenses, "money")}
           </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project information", "اطلاعات پروژه"))}</span>
             ${menuButton("documents", t.documents, state, railMenuIcons.documents)}
             ${railActionButton("reports", rail.reports, "print")}
+            <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Tracking window design is catalogued; its page is not implemented yet.", "پنجره رهگیری ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">▤</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Tracking", "رهگیری"))}</span></button>
             ${menuButton("control", t.control, state, railMenuIcons.control)}
+            <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Thresholds window design is catalogued; its page is not implemented yet.", "پنجره آستانه‌ها ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">⌁</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Thresholds", "آستانه‌ها"))}</span></button>
             ${railActionButton("risks", rail.risks, "warning")}
             ${railActionButton("issues", rail.issues, "warning")}
           </div>
