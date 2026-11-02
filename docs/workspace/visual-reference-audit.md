@@ -1,6 +1,6 @@
 # CUBI Workspace — Visual Reference Audit
 
-Mission: visual implementation order, 2026-10-30. This document records what was actually opened and seen before building the CUBI visual shell. It is an inspection log, not a design brief.
+Mission: visual implementation order and Version 26 menu audit, 2026-11-02. This document records what was actually opened and seen before building the CUBI visual shell. It is an inspection log, not a design brief.
 
 ## Method and honesty notes
 
@@ -8,9 +8,47 @@ Mission: visual implementation order, 2026-10-30. This document records what was
 - Where a host refused the request, an image proxy (`images.weserv.nl`) was used and the result is marked below. That proxy re-encodes the image but does not change its content.
 - Reference files are **not** copied into the application, not committed, and not shipped as CUBI assets. Only the observations and the source register are kept.
 - Version caveat: only the Oracle Version 26 documentation is authoritative for feature inventory. The screenshots are older releases (8.3–18) and third-party captures; they are used for layout, density, colour and interaction patterns only.
-- Oracle Version 26 documentation was re-opened on 2026-10-30:
+- The latest official Version 26 documentation was re-opened and checked on 2026-11-02:
   - `https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html` — loads; document G57529-01, release 26, publication October 2026; body is JavaScript-rendered, so structure was confirmed through the linked help pages.
   - `https://docs.oracle.com/cd/G48902_01/client_help/en_US/menu_bar.htm` — loads; confirms File, Edit, View, Project, Enterprise, Tools, Help and the conditional Admin menu (Admin appears only when connected to a Professional database).
+
+## Latest official documentation audit — 2026-11-02
+
+The current authoritative functional inventory is the latest official Version 26 help and user guide, not any legacy screenshot release. The menu bar was checked command-by-command against the current Help pages:
+
+- Menu bar overview: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/menu_bar.htm`
+- File menu: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/49093.htm`
+- Edit menu: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/49094.htm`
+- View menu: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/49095.htm`
+- Project menu: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/49096.htm`
+- Enterprise / organization menu: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/49097.htm`
+- Tools menu: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/49098.htm`
+- Administration menu: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/49099.htm`
+- Help menu: `https://docs.oracle.com/cd/G48902_01/client_help/en_US/49100.htm`
+- Version 26 user guide, October 2026: `https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html`
+
+### Menu-by-menu acceptance inventory
+
+| CUBI menu | Required Version 26 command families | CUBI presentation / audit status |
+| --- | --- | --- |
+| Workspace | New, Open, Close All, Page Setup, Print Setup, Print Preview, Print, Import, Export, Send Project, Exchange Data, Check In/Out, Select Project Portfolio, Commit Changes, Refresh Data, Recent Projects, Exit | Inventory present; save, backup/restore and package workflows are CUBI additions. Most commands remain disabled until their real owner workflow is connected. |
+| Edit | Undo, Cut, Copy, Paste, Add, Delete, Dissolve, Assign Resources / Resources by Role / Roles / Activity Codes / Predecessors / Successors, Link/Unlink, Renumber Activity IDs, Fill Down, Select All, Find/Find Next, Replace, Spell Check, User Preferences | Inventory present; command activation remains context- and service-dependent. |
+| View | Layout, Show on Top/Bottom, Bottom Layout Options, Bars, Bar Chart Options, Columns, Timescale, Filter By, Group and Sort By, Progress Line/Spotlight, Attachments, Line Numbers, Activity Critical Path, Check Schedule, Table Font and Row, Activity Network, Arrange/Align Children, Chart Box Template, Chart Font and Colors, Launch, Hint Help, Zoom, Expand/Collapse/Collapse To, Toolbars, Reset/Lock Toolbars, Tab Groups | Inventory present. Columns, Filter By, Group and Sort By, Timescale, Bars, Bar Chart Options and Bottom Layout Options have live routes in the activity workspace. Other commands remain visibly disabled until the corresponding view or behavior exists. |
+| Project | Activities, Additional Activities View, Resource Assignments, WBS, Assign/Maintain Baselines, Expenses, Work Products and Documents, Thresholds, Issues, Risks (conditional), Set Default Project | Inventory present, with CUBI project-detail and project-default additions. Several secondary windows remain preview/partial. |
+| Organization | Projects, EPS, Tracking, Portfolios, Resources, Roles, OBS, Project/Activity/Resource/Role Codes, User Defined Fields, Calendars, Resource Shifts, Activity Step Templates, Cost Accounts, Funding Sources, Stored Images, Resource Curves, External Applications | Inventory present in CUBI wording; organization-wide records must come from authorized services, never fabricated demo rows. |
+| Tools | Schedule, Level Resources, Apply Actuals, Update Progress, Recalculate Assignment Costs, Summarize, Job Services/Job Status (conditional), Store Period Performance, Auto-Reorganization, Global Change, Monitor Thresholds, Issue Navigator, Timesheets/Approvals, Reports/Groups/Batches/Preferences, Report Wizard, Publish layouts/site, Schedule Visualization, Project Comparison | Inventory present, plus CUBI Form Builder, Smart Guide and Assistant. A visible menu entry is not proof that a command is implemented. |
+| Administration | Users, Security Profiles, Admin Preferences, Admin Categories, Currencies, Financial Period Calendars | CUBI team, permissions, audit and system-default controls are additional product-specific commands; access must be role-authorized. |
+| Help | Local Help, Online Help, About, What's New, Share Feedback | CUBI guide, context help, shortcuts and documentation library are additional help destinations. |
+
+### Dialog and window audit gates
+
+- A menu command must open its named dialog/window or be disabled with a truthful explanation; it must never be an inert enabled button.
+- Dialogs must use a title/header, labelled group boxes, correctly typed inputs, selection lists, and a right-side action column where the reference pattern calls for it. OK, Cancel, Apply and Help are individually wired or visibly disabled.
+- Options are enabled only when their rendering, persistence and domain contract exist. A visual placeholder must not imply a working calculation or saved change.
+- Activity Details customization must support moving available tabs into the displayed tab set, ordering them, restoring defaults and applying the result; an empty or decorative tab is not acceptable.
+- Timescale controls must preserve two/three-line format, primary/ordinal dates, date interval, shift calendar and font settings only after their renderer and persistence are implemented. Current live controls are the display interval and relationship-line visibility; the remaining fields are intentionally disabled and documented as gaps.
+- Every major window is checked for table, chart, detail pane, navigation, empty state, selection, context actions, resize/scroll behavior, keyboard focus, RTL/LTR and mobile-width overflow.
+- No source-vendor product name, logo or URL may appear in CUBI workspace chrome or user-facing help.
 
 ## Source register and inspection status
 
