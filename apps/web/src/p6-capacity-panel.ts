@@ -806,68 +806,65 @@ export function mountCapacityPanel(
     }
   });
 
-  // Keep resolver handlers on the stable panel: inner forms are rebuilt during refresh.
+  const resolveCapacityForm = async (form: HTMLFormElement): Promise<void> => {
+    const binding = capacityPanelBindings.get(panel);
+    if (!binding) return;
+    const resourceField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
+    const periodField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-period]");
+    const basisField = form.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]");
+    const hoursField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-hours]");
+    const button = form.querySelector<HTMLButtonElement>("[data-capacity-resolve]");
+    const status = panel.querySelector<HTMLElement>("[data-capacity-resolve-status]");
+    const resultTarget = panel.querySelector<HTMLElement>("[data-capacity-resolve-result]");
+    if (!resourceField || !periodField || !basisField || !hoursField || !button || !status || !resultTarget) return;
+
+    const basis = basisField.value ? basisField.value as CapacityBasis : null;
+    const input: CapacityResolveInput = {
+      resource_id: resourceField.value.trim(),
+      period: periodField.value,
+      basis,
+      hours_per_time_period: basis === null ? null : hoursField.value.trim(),
+    };
+    if (!input.resource_id || !input.period || (basis !== null && !input.hours_per_time_period)) {
+      status.textContent = binding.labels.invalidInput;
+      resultTarget.innerHTML = "";
+      return;
+    }
+
+    button.disabled = true;
+    panel.setAttribute("aria-busy", "true");
+    status.textContent = binding.labels.resolving;
+    resultTarget.innerHTML = "";
+    try {
+      const resolved = await binding.client.resolveCapacity(input);
+      resultTarget.innerHTML = renderCapacityResolution(resolved, binding.labels, binding.locale);
+      status.textContent = binding.labels.resolved;
+    } catch (error) {
+      const code = errorCode(error);
+      status.textContent = binding.labels.error;
+      resultTarget.innerHTML = renderCapacityError(code, binding.labels);
+    } finally {
+      button.disabled = false;
+      panel.removeAttribute("aria-busy");
+    }
+  };
+
+  // The stable panel handles keyboard submissions. The current button also gets a
+  // direct click binding because browser/CDP submit activation can be suppressed by
+  // required-field validation before a delegated submit event is emitted.
   if (!capacityResolveSubmitBound.has(panel)) {
     capacityResolveSubmitBound.add(panel);
-    const resolveCapacityForm = async (form: HTMLFormElement): Promise<void> => {
-      const binding = capacityPanelBindings.get(panel);
-      if (!binding) return;
-      const resourceField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
-      const periodField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-period]");
-      const basisField = form.querySelector<HTMLSelectElement>("[data-capacity-resolve-basis]");
-      const hoursField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-hours]");
-      const button = form.querySelector<HTMLButtonElement>("[data-capacity-resolve]");
-      const status = panel.querySelector<HTMLElement>("[data-capacity-resolve-status]");
-      const resultTarget = panel.querySelector<HTMLElement>("[data-capacity-resolve-result]");
-      if (!resourceField || !periodField || !basisField || !hoursField || !button || !status || !resultTarget) return;
-
-      const basis = basisField.value ? basisField.value as CapacityBasis : null;
-      const input: CapacityResolveInput = {
-        resource_id: resourceField.value.trim(),
-        period: periodField.value,
-        basis,
-        hours_per_time_period: basis === null ? null : hoursField.value.trim(),
-      };
-      if (!input.resource_id || !input.period || (basis !== null && !input.hours_per_time_period)) {
-        status.textContent = binding.labels.invalidInput;
-        resultTarget.innerHTML = "";
-        return;
-      }
-
-      button.disabled = true;
-      panel.setAttribute("aria-busy", "true");
-      status.textContent = binding.labels.resolving;
-      resultTarget.innerHTML = "";
-      try {
-        const resolved = await binding.client.resolveCapacity(input);
-        resultTarget.innerHTML = renderCapacityResolution(resolved, binding.labels, binding.locale);
-        status.textContent = binding.labels.resolved;
-      } catch (error) {
-        const code = errorCode(error);
-        status.textContent = binding.labels.error;
-        resultTarget.innerHTML = renderCapacityError(code, binding.labels);
-      } finally {
-        button.disabled = false;
-        panel.removeAttribute("aria-busy");
-      }
-    };
-
     panel.addEventListener("submit", (event) => {
       const form = event.target instanceof HTMLFormElement ? event.target : null;
       if (!form || !form.matches("[data-capacity-resolve-form]")) return;
       event.preventDefault();
       void resolveCapacityForm(form);
     });
-    panel.addEventListener("click", (event) => {
-      const target = event.target instanceof Element
-        ? event.target.closest<HTMLElement>("[data-capacity-resolve]")
-        : null;
-      if (!target) return;
-      event.preventDefault();
-      const form = target.closest<HTMLFormElement>("[data-capacity-resolve-form]");
-      if (form) void resolveCapacityForm(form);
-    });
   }
+  resolveButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    void resolveCapacityForm(resolveForm);
+  });
 
   void loadAll();
 }
