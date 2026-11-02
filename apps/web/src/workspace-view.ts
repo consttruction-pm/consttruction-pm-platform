@@ -955,7 +955,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <aside id="cp-project-wbs" class="cp-panel cp-wbs" ${!state.visiblePanels.project_wbs ? "hidden" : ""} data-workspace-menu="project schedule" aria-label="${escapeAttribute(t.wbs)}">
               <h2>${escapeHtml(t.wbs)}</h2>
               ${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}
-              ${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}
+              ${renderWbsDetails(state, "general")}
               <form class="cp-wbs-editor" data-wbs-create-form>
                 <h3>${escapeHtml(t.wbsCreate)}</h3>
                 <label>${escapeHtml(t.wbsCode)} <input name="code" required maxlength="80" autocomplete="off"></label>
