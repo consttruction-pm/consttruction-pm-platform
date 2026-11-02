@@ -2377,7 +2377,7 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): s
             <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
           </fieldset>
         </div>
-        <aside class="cp-layout-options-actions" aria-label="${escapeAttribute(uiText(state.locale, "Dialog actions", "فرمان‌های پنجره"))}">
+        <aside class="cp-layout-options-actions" data-layout-options-actions aria-label="${escapeAttribute(uiText(state.locale, "Dialog actions", "فرمان‌های پنجره"))}">
           ${action(uiText(state.locale, "OK", "تأیید"), true)}
           ${action(uiText(state.locale, "Cancel", "انصراف"), true)}
           ${action(uiText(state.locale, "Apply", "اعمال"), false, true)}
