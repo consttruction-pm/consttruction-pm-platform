@@ -106,6 +106,8 @@ def test_sqlite_constraint_repository_never_commits_caller_owned_transaction():
     assert connection.in_transaction
     connection.rollback()
     assert connection.execute("SELECT value FROM caller_state").fetchall() == []
+    # Schema creation belonged to the rolled-back outer transaction too.
+    repository = SQLiteConstraintMasterRepository(connection)
     assert repository.get(scope(), "C-1") is None
     connection.close()
 
