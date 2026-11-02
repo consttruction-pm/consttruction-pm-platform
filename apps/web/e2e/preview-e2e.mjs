@@ -2508,9 +2508,37 @@ async function main() {
     await page.setSelect("[data-capacity-resolve-basis]", "week");
     await page.setInput("[data-capacity-resolve-hours]", "40");
     await page.click("[data-capacity-resolve]");
-    await page.waitFor(
-      `document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") === "60"`,
-      "server-resolved weekly capacity before the change",
+    await sleep(500);
+    let capacityResolveState = await page.evaluate(`(() => ({
+      status: document.querySelector("[data-capacity-resolve-status]")?.textContent.trim() ?? "",
+      value: document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") ?? null,
+      resource: document.querySelector("[data-capacity-resolve-resource]")?.value ?? null,
+      period: document.querySelector("[data-capacity-resolve-period]")?.value ?? null,
+      basis: document.querySelector("[data-capacity-resolve-basis]")?.value ?? null,
+      hours: document.querySelector("[data-capacity-resolve-hours]")?.value ?? null,
+      buttonDisabled: document.querySelector("[data-capacity-resolve]")?.disabled ?? null,
+      panelBusy: document.querySelector("[data-capacity-panel]")?.getAttribute("aria-busy") ?? null,
+    }))()`);
+    assert(
+      capacityResolveState.status.length > 0 || capacityResolveState.value !== null,
+      "capacity resolver must receive the click and start processing: " + JSON.stringify(capacityResolveState),
+    );
+    if (capacityResolveState.status.toLowerCase().includes("resolv")) {
+      await page.waitFor(
+        `(() => {
+          const status = document.querySelector("[data-capacity-resolve-status]")?.textContent.trim().toLowerCase() ?? "";
+          return status !== "" && !status.includes("resolving");
+        })()`,
+        "capacity resolver completion",
+      );
+    }
+    capacityResolveState = await page.evaluate(`(() => ({
+      status: document.querySelector("[data-capacity-resolve-status]")?.textContent.trim() ?? "",
+      value: document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") ?? null,
+    }))()`);
+    assert(
+      capacityResolveState.value === "60",
+      "server-resolved weekly capacity before the change: " + JSON.stringify(capacityResolveState),
     );
 
     await page.setInput("[data-capacity-resource]", "RPS-CIVIL-CREW");
