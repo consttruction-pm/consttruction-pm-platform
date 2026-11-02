@@ -6543,3 +6543,12 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   .cp-p6 .cp-p6-body { grid-template-rows: auto 28px 30px 32px minmax(0, 1fr); }
   .cp-p6 .cp-context-command-bar { min-height: 32px; }
 }
+
+.cp-p6 .cp-window-tab[aria-selected="true"] {
+  position: relative;
+  background: #fff;
+  color: #123a6b;
+  border-color: #9fb2c8;
+  box-shadow: inset 0 2px 0 #c66a36;
+  font-weight: 700;
+}
