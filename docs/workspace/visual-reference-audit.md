@@ -64,7 +64,7 @@ Module submenus are not allowed to remain decorative labels when the destination
 | Issues | Issue register, Details tab | Create/Edit/Delete until the issue service is connected |
 | Risks | Risk register, Details tab | Risk analysis until the scoring/response renderer is connected |
 | Thresholds | Threshold register, Monitoring and Details tabs | Create/Edit/Delete until the threshold service is connected |
-| Control | Control summary, Change/Claim records | No synthesized control or earned-value data |
+| Control | Quality, Inspections, Safety, Field Issues, Punch List, Changes/Claims and Forms detail tabs with live category counts | Register rows remain empty where the authoritative control record is not loaded; no synthesized control or earned-value data |
 | Settings | Project settings and workspace settings | Unsupported preferences are not exposed as active controls |
 
 For a submenu implemented as a detail-tab action, activation must reuse the module's existing tab event path. It must not maintain a second, divergent tab state. Tracking layout choices may change the selected layout type, but they must not claim that the underlying tracking data or chart is available.
