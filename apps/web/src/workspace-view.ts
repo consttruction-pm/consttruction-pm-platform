@@ -880,7 +880,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   });
   container.addEventListener("pointerdown", (event) => {
     const structureTarget = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-structure-splitter]");
-    if (structureTarget) {
+    if (structureTarget?.dataset && "projectStructureSplitter" in structureTarget.dataset) {
       const structure = container.querySelector<HTMLElement>(".cp-project-structure-summary");
       const root = container.querySelector<HTMLElement>(".cp-workspace[data-active-menu=project]");
       projectStructureDragByContainer.set(container, { pointerId: event.pointerId, startX: event.clientX, startWidth: structure?.getBoundingClientRect().width || readProjectStructureWidth(), rtl: root?.getAttribute("dir") === "rtl" });
@@ -926,7 +926,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   container.addEventListener("pointercancel", finishDetailsDrag);
   container.addEventListener("dblclick", (event) => {
     const structureTarget = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-structure-splitter]");
-    if (structureTarget) { event.preventDefault(); setProjectStructureWidth(container, PROJECT_STRUCTURE_WIDTH_DEFAULT); return; }
+    if (structureTarget?.dataset && "projectStructureSplitter" in structureTarget.dataset) { event.preventDefault(); setProjectStructureWidth(container, PROJECT_STRUCTURE_WIDTH_DEFAULT); return; }
     const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter],[data-activity-details-splitter]");
     if (!target) return;
     event.preventDefault();
