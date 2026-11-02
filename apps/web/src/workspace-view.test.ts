@@ -245,6 +245,64 @@ test("Activity Details exposes the Bottom Layout Options tab customization dialo
   assert.match(html, /Choose the available tabs, move them into Display Tabs, and arrange their order/);
 });
 
+test("Activity Details tab editor transfers tabs, reorders them and applies the selected order", () => {
+  type Option = { value: string; selected: boolean; owner?: FakeSelect };
+  class FakeSelect {
+    options: Option[];
+    constructor(options: Option[]) { this.options = options; options.forEach((option) => { option.owner = this; }); }
+    get selectedOptions(): Option[] { return this.options.filter((option) => option.selected); }
+    set selectedIndex(value: number) { if (value === -1) this.options.forEach((option) => { option.selected = false; }); }
+    add(option: Option): void {
+      if (option.owner) {
+        const index = option.owner.options.indexOf(option);
+        if (index >= 0) option.owner.options.splice(index, 1);
+      }
+      option.owner = this;
+      this.options.push(option);
+    }
+    insertBefore(option: Option, reference: Option): void {
+      const current = this.options.indexOf(option);
+      if (current >= 0) this.options.splice(current, 1);
+      const index = this.options.indexOf(reference);
+      this.options.splice(index < 0 ? this.options.length : index, 0, option);
+      option.owner = this;
+    }
+  }
+  const availableOption: Option = { value: "resources", selected: true };
+  const available = new FakeSelect([availableOption]);
+  const displayed = new FakeSelect([
+    { value: "general", selected: false },
+    { value: "status", selected: false },
+  ]);
+  const dialog = {
+    querySelector: (selector: string) => selector === "[data-activity-detail-available]" ? available : selector === "[data-activity-detail-display]" ? displayed : null,
+    close: () => {},
+  };
+  const details = { innerHTML: "" };
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-activity-details-options-dialog]" ? dialog : selector === "#cp-details" ? details : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  const dispatch = (dataset: Record<string, string>) => {
+    const target = { dataset, closest: () => target };
+    listeners.get("click")?.({ target } as unknown as Event);
+  };
+  dispatch({ activityDetailAdd: "" });
+  assert.deepEqual(displayed.options.map((option) => option.value), ["general", "status", "resources"]);
+  dispatch({ activityDetailMoveUp: "" });
+  assert.deepEqual(displayed.options.map((option) => option.value), ["general", "resources", "status"]);
+  dispatch({ activityDetailsApplyClose: "" });
+  assert.ok(details.innerHTML.indexOf('data-activity-detail-tab="resources"') < details.innerHTML.indexOf('data-activity-detail-tab="general"'));
+  assert.ok(details.innerHTML.includes('data-activity-detail-tab="status"'));
+});
+
 test("Activities Layout Options inventories top and bottom chart layouts without enabling unimplemented renderers", () => {
   const html = render("en", "schedule");
   assert.match(html, /data-top-layout/);
