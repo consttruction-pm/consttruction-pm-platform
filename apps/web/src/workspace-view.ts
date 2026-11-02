@@ -350,7 +350,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -461,36 +461,89 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       });
       return;
     }
+    if (target.dataset.activityDetailAdd !== undefined || target.dataset.activityDetailAddAll !== undefined || target.dataset.activityDetailRemove !== undefined || target.dataset.activityDetailRemoveAll !== undefined || target.dataset.activityDetailMoveUp !== undefined || target.dataset.activityDetailMoveDown !== undefined || target.dataset.activityDetailDefault !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
+      const available = dialog?.querySelector<HTMLSelectElement>("[data-activity-detail-available]");
+      const displayed = dialog?.querySelector<HTMLSelectElement>("[data-activity-detail-display]");
+      if (!available || !displayed) return;
+      const optionMarkup = ([key, en, fa]: (typeof ACTIVITY_DETAIL_TABS)[number]): string => `<option value="${key}">${escapeHtml(uiText(state.locale, en, fa))}</option>`;
+      const sortAvailable = (): void => {
+        const ordered = Array.from(available.options).sort((left, right) => ACTIVITY_DETAIL_TABS.findIndex(([key]) => key === left.value) - ACTIVITY_DETAIL_TABS.findIndex(([key]) => key === right.value));
+        ordered.forEach((option) => available.add(option));
+      };
+      const moveOptions = (source: HTMLSelectElement, destination: HTMLSelectElement, all: boolean): void => {
+        const selected = all ? Array.from(source.options) : Array.from(source.selectedOptions);
+        selected.forEach((option) => { option.selected = true; destination.add(option); });
+        source.selectedIndex = -1;
+      };
+      if (target.dataset.activityDetailDefault !== undefined) {
+        available.innerHTML = "";
+        displayed.innerHTML = ACTIVITY_DETAIL_TABS.map(optionMarkup).join("");
+        Array.from(displayed.options).forEach((option) => { option.selected = false; });
+      } else if (target.dataset.activityDetailAddAll !== undefined) {
+        moveOptions(available, displayed, true);
+      } else if (target.dataset.activityDetailAdd !== undefined) {
+        moveOptions(available, displayed, false);
+      } else if (target.dataset.activityDetailRemoveAll !== undefined) {
+        moveOptions(displayed, available, true);
+        sortAvailable();
+      } else if (target.dataset.activityDetailRemove !== undefined) {
+        moveOptions(displayed, available, false);
+        sortAvailable();
+      } else {
+        const items = Array.from(displayed.options);
+        if (target.dataset.activityDetailMoveUp !== undefined) {
+          for (let index = 1; index < items.length; index += 1) {
+            if (items[index].selected && !items[index - 1].selected) {
+              displayed.insertBefore(items[index], items[index - 1]);
+              [items[index - 1], items[index]] = [items[index], items[index - 1]];
+            }
+          }
+        } else {
+          for (let index = items.length - 2; index >= 0; index -= 1) {
+            if (items[index].selected && !items[index + 1].selected) {
+              displayed.insertBefore(items[index + 1], items[index]);
+              [items[index], items[index + 1]] = [items[index + 1], items[index]];
+            }
+          }
+        }
+      }
+      return;
+    }
     if (target.dataset.activityDetailsOptionsOpen !== undefined || target.dataset.activityDetailsOptionsClose !== undefined) {
       const dialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
       if (target.dataset.activityDetailsOptionsOpen !== undefined) {
         const visible = getActivityDetailsVisibleTabs(container);
-        dialog?.querySelectorAll<HTMLInputElement>("[data-activity-detail-visible]").forEach((input) => {
-          input.checked = visible.has(input.dataset.activityDetailVisible ?? "");
-        });
+        const available = dialog?.querySelector<HTMLSelectElement>("[data-activity-detail-available]");
+        const displayed = dialog?.querySelector<HTMLSelectElement>("[data-activity-detail-display]");
+        const optionMarkup = ([key, en, fa]: (typeof ACTIVITY_DETAIL_TABS)[number]): string => `<option value="${key}">${escapeHtml(uiText(state.locale, en, fa))}</option>`;
+        if (available) available.innerHTML = ACTIVITY_DETAIL_TABS.filter(([key]) => !visible.has(key)).map(optionMarkup).join("");
+        if (displayed) displayed.innerHTML = [...visible].map((key) => ACTIVITY_DETAIL_TABS.find(([candidate]) => candidate === key)).filter((item): item is (typeof ACTIVITY_DETAIL_TABS)[number] => item !== undefined).map(optionMarkup).join("");
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
       } else if (dialog && typeof dialog.close === "function") dialog.close();
       else dialog?.removeAttribute("open");
       return;
     }
-    if (target.dataset.activityDetailsApply !== undefined) {
-      const dialog = container.querySelector<HTMLElement>("[data-activity-details-options-dialog]");
-      const selected = new Set(Array.from(dialog?.querySelectorAll<HTMLInputElement>("[data-activity-detail-visible]") ?? [])
-        .filter((input) => input.checked)
-        .map((input) => input.dataset.activityDetailVisible ?? ""));
+    if (target.dataset.activityDetailsApply !== undefined || target.dataset.activityDetailsApplyClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
+      const displayed = dialog?.querySelector<HTMLSelectElement>("[data-activity-detail-display]");
+      const selected = new Set(Array.from(displayed?.options ?? []).map((option) => option.value));
       if (!selected.size) return;
       activityDetailsVisibleTabsByContainer.set(container, selected);
       try { window.localStorage.setItem(ACTIVITY_DETAILS_TABS_STORAGE_KEY, JSON.stringify([...selected])); } catch { /* optional local preference storage */ }
       const currentTab = activityDetailsTabByContainer.get(container) ?? "general";
-      const nextTab = selected.has(currentTab) ? currentTab : ACTIVITY_DETAIL_TABS.find(([key]) => selected.has(key))?.[0] ?? "general";
+      const nextTab = selected.has(currentTab) ? currentTab : [...selected][0];
       activityDetailsTabByContainer.set(container, nextTab);
       const record = workspaceRenderRecords.get(container);
       const details = container.querySelector<HTMLElement>("#cp-details");
       if (record && details) details.innerHTML = renderActivityDetailsPanel(record.state, getWorkspaceLabels(record.state.locale), nextTab, selected);
-      const optionsDialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
-      if (optionsDialog && typeof optionsDialog.close === "function") optionsDialog.close();
-      else optionsDialog?.removeAttribute("open");
+      const updatedDialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
+      if (target.dataset.activityDetailsApplyClose !== undefined) {
+        if (updatedDialog && typeof updatedDialog.close === "function") updatedDialog.close();
+        else updatedDialog?.removeAttribute("open");
+      } else if (updatedDialog && typeof updatedDialog.showModal === "function") updatedDialog.showModal();
+      else updatedDialog?.setAttribute("open", "");
       return;
     }
     if (target.dataset.activityDetailTab) {
