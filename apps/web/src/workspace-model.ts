@@ -17,15 +17,21 @@ export type WorkspaceCalendarMode = "jalali" | "gregorian";
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
 export type WorkspaceMenuKey =
   | "project"
+  | "wbs"
   | "schedule"
   | "progress"
   | "resources"
+  | "assignments"
   | "roles"
   | "calendars"
   | "cost"
+  | "expenses"
   | "documents"
   | "reports"
   | "tracking"
+  | "issues"
+  | "risks"
+  | "thresholds"
   | "control"
   | "settings";
 
