@@ -56,8 +56,14 @@ def test_resource_dependent_supported_subset_is_mapped_but_not_certified():
     assert item.coverage == MAPPED_NOT_PROVEN
     assert any(path.endswith("resource_dependent_placement.py") for path in item.cubi_code_paths)
     assert any(path.endswith("test_resource_dependent_placement.py") for path in item.regression_tests)
-    assert "in-progress activities" in item.known_gap
+    assert "in-progress activity" in item.known_gap
+    assert "completed Resource Dependent activities" in item.known_gap
+    assert "Level of Effort" in item.known_gap
     assert "complete Version 26 parity" in item.known_gap
+    assert any(
+        "In-progress assignments derive remaining duration" in evidence
+        for evidence in item.acceptance_evidence
+    )
 
 
 def test_key_schedule_options_have_separate_reference_ids():
@@ -111,8 +117,10 @@ def test_resource_dependent_formula_tracks_the_implemented_subset_without_claimi
     item = get_formula_reference("FRM-RESOURCE-DUR-001")
     assert item.status == "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN"
     assert any(path.endswith("resource_dependent_placement.py") for path in item.cubi_code_paths)
-    assert "In-progress activities" in item.known_gap
+    assert "not-started and in-progress activities" in item.known_gap
+    assert "Completed activities" in item.known_gap
     assert "non-daily" in item.known_gap
+    assert "remaining-start progress-anchor parity" in item.known_gap
 
 
 

@@ -404,6 +404,11 @@ def build_persisted_resource_leveling_input_resolver(
                 ),
                 key=lambda value: str(value.get("assignment_id", "")),
             ))
+            # The composer binds progress units into the immutable facts only
+            # for an in-progress activity. Remaining Units stored on a
+            # not-started assignment are not an input to its planned duration
+            # and must not make the replay look changed.
+            progressed = activity.actual_start is not None
             persisted_facts = tuple(
                 ResourceDependentDriverFact(
                     assignment_id=str(value.get("assignment_id", "")),
@@ -423,6 +428,8 @@ def build_persisted_resource_leveling_input_resolver(
                         ),
                         key=lambda period: period.period_start,
                     )),
+                    actual_units=value.get("actual_units") if progressed else None,
+                    remaining_units=value.get("remaining_units") if progressed else None,
                 )
                 for value in assignment_rows
             )
@@ -489,6 +496,14 @@ def build_persisted_resource_leveling_input_resolver(
             ):
                 raise PersistedResourceLevelingResolverError(
                     f"RESOURCE_DEPENDENT_SOURCE_CHANGED:{activity.id}"
+                )
+            if (
+                derivation.remaining_duration_working_days is not None
+                and derivation.remaining_duration_working_days
+                != activity.remaining_duration
+            ):
+                raise PersistedResourceLevelingResolverError(
+                    f"RESOURCE_DEPENDENT_REMAINING_DURATION_CHANGED:{activity.id}"
                 )
             if (
                 effective_calendar.calendar_id != derivation.calendar_id

@@ -25,6 +25,8 @@ def driver(
     rate: str = "4",
     period: str = "day",
     hours: str = "8",
+    actual: str | None = None,
+    remaining: str | None = None,
 ) -> ResourceDependentDriverFact:
     return ResourceDependentDriverFact(
         assignment_id=assignment_id,
@@ -38,6 +40,8 @@ def driver(
         units_per_time=None if rate is None else Decimal(rate),
         units_per_time_period=period,
         hours_per_units_time_period=None if hours is None else Decimal(hours),
+        actual_units=None if actual is None else Decimal(actual),
+        remaining_units=None if remaining is None else Decimal(remaining),
     )
 
 
@@ -437,3 +441,200 @@ def test_identity_and_revision_inputs_are_validated(overrides, code):
     kwargs.update(overrides)
     with pytest.raises(ResourceDependentCalculationError, match=code):
         derive_resource_dependent_duration(**kwargs)
+
+
+def test_in_progress_activity_derives_remaining_duration_from_remaining_units():
+    fact = with_periods(
+        driver("A-1", planned="20", rate="5", actual="15", remaining="5"),
+        (("2026-10-26", "5"),),
+    )
+
+    result = derive(fact)
+
+    assert result.duration_working_days == 4
+    assert result.remaining_duration_working_days == 1
+    assert result.duration_source == "driving"
+
+
+def test_in_progress_longest_remaining_driver_selects_activity_calendar():
+    # A has the longer planned duration (20/4 = 5 days) but only one day of
+    # remaining work; B still needs four days. The remaining-work schedule is
+    # governed by B and therefore by B's own versioned calendar.
+    result = derive(
+        with_periods(
+            driver(
+                "A-1", planned="20", rate="4", actual="16", remaining="4",
+                calendar_id="RC-1",
+            ),
+            (("2026-11-02", "4"),),
+        ),
+        with_periods(
+            driver(
+                "B-1", planned="24", rate="4", actual="8", remaining="16",
+                calendar_id="RC-2", calendar_version="v7",
+            ),
+            (("2026-11-02", "4"), ("2026-11-03", "4"), ("2026-11-04", "4"), ("2026-11-05", "4")),
+        ),
+    )
+
+    assert result.duration_working_days == 6
+    assert result.remaining_duration_working_days == 4
+    assert (result.calendar_id, result.calendar_version) == ("RC-2", "v7")
+
+
+def test_in_progress_equal_remaining_duration_between_calendars_fails_closed():
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_PROGRESS_DRIVING_CALENDAR_TIE",
+    ):
+        derive(
+            with_periods(
+                driver(
+                    "A-1", planned="20", rate="4", actual="16", remaining="4",
+                    calendar_id="RC-1",
+                ),
+                (("2026-11-02", "4"),),
+            ),
+            with_periods(
+                driver(
+                    "B-1", planned="20", rate="4", actual="16", remaining="4",
+                    calendar_id="RC-2", calendar_version="v7",
+                ),
+                (("2026-11-02", "4"),),
+            ),
+        )
+
+
+def test_in_progress_progress_units_must_reconcile_planned_units():
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_PROGRESS_UNITS_MISMATCH",
+    ):
+        derive(driver("A-1", planned="20", rate="4", actual="10", remaining="6"))
+
+
+@pytest.mark.parametrize(
+    ("actual", "remaining", "code"),
+    [
+        (None, "4", "RESOURCE_DEPENDENT_PROGRESS_ACTUAL_UNITS_REQUIRED"),
+        ("16", None, "RESOURCE_DEPENDENT_PROGRESS_REMAINING_UNITS_REQUIRED"),
+        ("-4", "24", "RESOURCE_DEPENDENT_PROGRESS_ACTUAL_UNITS_REQUIRED"),
+    ],
+)
+def test_in_progress_requires_reconciled_actual_and_remaining_units(
+    actual, remaining, code
+):
+    with pytest.raises(ResourceDependentCalculationError, match=code):
+        derive(
+            driver(
+                "A-1", planned="20", rate="4", actual=actual, remaining=remaining
+            )
+        )
+
+
+def test_in_progress_fractional_remaining_duration_fails_closed():
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED",
+    ):
+        derive(
+            driver(
+                "A-1", planned="20", rate="5", actual="17", remaining="3"
+            )
+        )
+
+
+def test_in_progress_every_driving_assignment_requires_progress_units():
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_PROGRESS_ASSIGNMENT_UNITS_REQUIRED:B-1",
+    ):
+        derive(
+            with_periods(
+                driver("A-1", planned="20", rate="4", actual="16", remaining="4"),
+                (("2026-11-02", "4"),),
+            ),
+            driver("B-1", planned="20", rate="4"),
+        )
+
+
+def test_in_progress_every_nondriving_assignment_also_requires_progress_units():
+    # Progress is activity-level: a nondriving assignment whose rows are
+    # remaining demand must declare Actual/Remaining Units too, otherwise the
+    # placement could misread remaining rows as planned demand.
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_PROGRESS_ASSIGNMENT_UNITS_REQUIRED:B-1",
+    ):
+        derive(
+            with_periods(
+                driver("A-1", planned="20", rate="4", actual="16", remaining="4"),
+                (("2026-11-02", "4"),),
+            ),
+            with_periods(
+                driver("B-1", planned="8", rate="4", driving=False),
+                (("2026-11-02", "4"), ("2026-11-03", "4")),
+            ),
+        )
+
+
+def test_in_progress_demand_rows_reconcile_remaining_not_planned_units():
+    valid = with_periods(
+        driver("A-1", planned="20", rate="4", actual="16", remaining="4"),
+        (("2026-11-02", "4"),),
+    )
+    assert derive(valid).remaining_duration_working_days == 1
+
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_DEMAND_PERIOD_COUNT_MISMATCH",
+    ):
+        derive(
+            with_periods(
+                driver("A-1", planned="20", rate="4", actual="16", remaining="4"),
+                (
+                    ("2026-10-26", "4"),
+                    ("2026-10-27", "4"),
+                    ("2026-10-28", "4"),
+                    ("2026-10-29", "4"),
+                    ("2026-10-30", "4"),
+                ),
+            )
+        )
+
+
+def test_in_progress_hash_binds_actual_and_remaining_units():
+    base = with_periods(
+        driver("A-1", planned="20", rate="4", actual="16", remaining="4"),
+        (("2026-11-02", "4"),),
+    )
+    other = with_periods(
+        driver("A-1", planned="20", rate="4", actual="12", remaining="8"),
+        (("2026-11-02", "4"), ("2026-11-03", "4")),
+    )
+    assert derive(base).input_hash != derive(other).input_hash
+
+    not_started = with_periods(
+        driver("A-1", planned="20", rate="4"),
+        (
+            ("2026-10-26", "4"),
+            ("2026-10-27", "4"),
+            ("2026-10-28", "4"),
+            ("2026-10-29", "4"),
+            ("2026-10-30", "4"),
+        ),
+    )
+    assert derive(not_started).remaining_duration_working_days is None
+
+
+def test_absent_progress_fields_keep_the_not_started_hash_reproducible():
+    fact = with_periods(
+        driver("A-1", planned="8", rate="4"),
+        (("2026-10-19", "4"), ("2026-10-20", "4")),
+    )
+    explicit_none = ResourceDependentDriverFact(
+        **{**fact.__dict__, "actual_units": None, "remaining_units": None}
+    )
+
+    assert derive(fact).input_hash == derive(explicit_none).input_hash
+    assert "actual_units" not in fact.canonical_payload()

@@ -281,7 +281,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Assignment Units/Time and conversion period"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": "Implemented subset: date-based, not-started Resource Dependent activities derive duration from driving assignments. Each driver's daily rate is evaluated on its own exact versioned resource calendar; the longest driver controls the activity duration and calendar, while an equal-duration tie between different calendars fails closed instead of depending on input order. Nondriving assignments are placed independently against their exact versioned calendars and persisted capacity. Remaining gaps include in-progress activities, non-daily and fractional driving rates, Level of Effort semantics and broader cross-feature parity. The wider relationship, lag, calendar, priority and infeasible-window matrix remains unqualified; do not claim complete Version 26 parity."
+      "gap": "Implemented subset: date-based Resource Dependent activities derive duration from driving assignments. For a not-started activity, Planned Units divided by the driver's daily rate gives total duration. For an in-progress activity, every assignment must declare Actual Units plus Remaining Units that reconcile to Planned Units (actual + remaining = planned); total duration still comes from Planned Units, remaining duration from Remaining Units, and the longest remaining driver selects the activity calendar and remaining duration, with an equal-remaining tie between different calendars failing closed. Persisted time-phased rows for an in-progress assignment are remaining demand, must reconcile to Remaining Units, and are placed only as work still to be performed; a changed remaining row or remaining duration after publication fails closed as stale. Each driver's daily rate is evaluated on its own exact versioned resource calendar. Nondriving assignments are placed independently against their exact versioned calendars and persisted capacity. Remaining gaps include completed Resource Dependent activities, non-daily and fractional driving rates, Level of Effort and WBS Summary handling, and parity between the forward-pass progress anchor and the Data Date/remaining-start reference scheduler behavior. The wider relationship, lag, calendar, priority and infeasible-window matrix remains unqualified; do not claim complete Version 26 parity."
     },
     {
       "id": "RES-002",
@@ -1389,7 +1389,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Nondriving placement"
       ],
       "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
-      "gap": "Implemented only for not-started, date-based activities with daily driving rates and integral working-day durations. Driving assignments may use different versioned calendars and units; the longest duration selects the activity calendar and an equal-duration calendar tie fails closed. In-progress activities, non-daily or fractional durations and broader option interactions remain unsupported or unqualified. No full Version 26 parity claim is made."
+      "gap": "Implemented for date-based not-started and in-progress activities with daily driving rates and integral working-day durations. Not-started duration = Planned Units / daily rate. In-progress assignments must reconcile Actual Units + Remaining Units to Planned Units; total duration uses Planned Units, remaining duration uses Remaining Units, and the longest remaining driver selects the activity calendar. Driving assignments may use different versioned calendars and units; equal-duration or equal-remaining calendar ties fail closed. Completed activities, non-daily or fractional durations, Level of Effort, and the data-date/remaining-start progress-anchor parity remain unsupported or unqualified. No full Version 26 parity claim is made."
     },
     {
       "id": "FRM-CAP-001",
@@ -1815,7 +1815,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "scope": "reference scheduler Professional Resource Dependent activities and assignment placement",
       "status": "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN",
       "reviewed": "Driving resources determine duration from quantity/rate; multiple drivers and nondriving assignments are identified as separate algorithms.",
-      "remaining": "Multiple-driving-resource and calendar-specific duration fixtures are implemented and passing, including fail-closed calendar ties. Complete the unit/time conversion, in-progress, nondriving progress placement, out-of-sequence and backward-pass reviews. The existing Draft PR blocker remains open.",
+      "remaining": "Multiple-driving-resource and calendar-specific duration fixtures are implemented and passing, including fail-closed calendar ties. In-progress derivation from reconciled Actual/Remaining Units, remaining-duration selection, remaining-demand placement and stale-remaining-row rejection are implemented and passing. Complete the unit/time conversion, completed-activity, nondriving progress placement, out-of-sequence, backward-pass and Data Date/remaining-start anchor reviews. No full Version 26 parity claim is made while those reviews remain open.",
       "requirements": [
         "RES-001",
         "RES-002",

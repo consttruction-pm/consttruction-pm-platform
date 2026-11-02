@@ -8,15 +8,26 @@ more than one driver is present. Nondriving assignments are placed independently
 on or after the calculated activity dates by the shared-core assignment
 placement engine; they never contribute to the activity duration.
 
+For an in-progress activity, the total duration still describes the planned
+work (Planned Units / daily rate), while the remaining duration describes the
+work still to place (Remaining Units / daily rate). The persisted time-phased
+rows of a progressed assignment are the remaining demand rows: they must
+reconcile with Remaining Units and the derived remaining duration. Actual Units
+and Remaining Units must both be present on every driving assignment and must
+reconcile with Planned Units; inconsistent progress fails closed instead of
+silently choosing one value. The driver with the longest remaining duration
+selects the activity calendar because it governs the remaining-work schedule.
+
 When a Resource Dependent activity has only nondriving assignments, its
 persisted working-day duration and activity calendar govern the activity dates,
 and the nondriving assignments are still placed independently. A driver is never
 invented for such an activity.
 
 This module does not read persistence or calculate dates. Every assignment fact,
-including its versioned resource calendar and time-phased units, is part of the
-canonical input hash. Non-daily driving rates and fractional working-day
-durations remain explicit unsupported cases.
+including its versioned resource calendar, progress units and time-phased units,
+is part of the canonical input hash. Non-daily driving rates, fractional
+working-day durations and completed-activity derivation remain explicit
+unsupported cases.
 """
 
 import hashlib
@@ -65,9 +76,14 @@ class ResourceDependentDriverFact:
     # Appended to keep positional construction compatible. Periods preserve
     # time-phased units while placement re-anchors them to resource-calendar days.
     demand_periods: tuple[ResourceDependentDemandPeriod, ...] = ()
+    # Appended: progress state of an in-progress assignment. Both values are
+    # present together and reconcile against Planned Units. For a progressed
+    # assignment the demand periods describe the remaining work still to place.
+    actual_units: Decimal | None = None
+    remaining_units: Decimal | None = None
 
     def canonical_payload(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "assignment_id": self.assignment_id,
             "activity_id": self.activity_id,
             "resource_id": self.resource_id,
@@ -88,6 +104,13 @@ class ResourceDependentDriverFact:
                 for item in sorted(self.demand_periods, key=lambda value: value.period_start)
             ],
         }
+        # Absent progress keys are omitted so every already-published non-progress
+        # snapshot keeps its exact input hash.
+        if self.actual_units is not None:
+            payload["actual_units"] = str(self.actual_units)
+        if self.remaining_units is not None:
+            payload["remaining_units"] = str(self.remaining_units)
+        return payload
 
 
 @dataclass(frozen=True)
@@ -98,6 +121,57 @@ class ResourceDependentDuration:
     input_hash: str
     driving_assignment_ids: tuple[str, ...]
     duration_source: str = "driving"
+    # Present only for an in-progress activity whose driving facts declare
+    # Actual/Remaining Units.
+    remaining_duration_working_days: int | None = None
+
+
+def _has_declared_progress(fact: ResourceDependentDriverFact) -> bool:
+    return fact.actual_units is not None or fact.remaining_units is not None
+
+
+def _progress_units(
+    fact: ResourceDependentDriverFact,
+    planned: Decimal,
+) -> Decimal:
+    """Return the remaining units of a progressed assignment after reconciling."""
+    if fact.actual_units is None:
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_PROGRESS_ACTUAL_UNITS_REQUIRED"
+        )
+    if fact.remaining_units is None:
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_PROGRESS_REMAINING_UNITS_REQUIRED"
+        )
+    actual = _require_decimal(
+        fact.actual_units,
+        "RESOURCE_DEPENDENT_PROGRESS_ACTUAL_UNITS_REQUIRED",
+        allow_zero=True,
+    )
+    remaining = _require_decimal(
+        fact.remaining_units,
+        "RESOURCE_DEPENDENT_PROGRESS_REMAINING_UNITS_REQUIRED",
+        allow_zero=True,
+    )
+    if actual + remaining != planned:
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_PROGRESS_UNITS_MISMATCH"
+        )
+    return remaining
+
+
+def _integral_working_days(units: Decimal, rate: Decimal) -> int:
+    duration = units / rate
+    if duration != duration.to_integral_value():
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED"
+        )
+    duration_days = int(duration)
+    if duration_days > 10_000:
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_DURATION_OUT_OF_RANGE"
+        )
+    return duration_days
 
 
 def _require_decimal(value: Decimal | None, code: str, *, allow_zero: bool) -> Decimal:
@@ -142,13 +216,16 @@ def _validate_demand_periods(fact: ResourceDependentDriverFact) -> tuple[Resourc
 def validate_resource_dependent_demand_distribution(
     fact: ResourceDependentDriverFact,
 ) -> tuple[ResourceDependentDemandPeriod, ...]:
-    """Reconcile persisted period rows with planned units and the daily rate.
+    """Reconcile persisted period rows with the units they must place.
 
     A persisted assignment row is interpreted as one demand bucket per
-    assignment working day. That interpretation is only safe when the rows are
-    unambiguous: no zero-unit bucket, one row per ``planned_units /
-    units_per_time`` day, and a total equal to the planned units. A gap between
-    period dates is not rejected here because weekends and holidays are
+    assignment working day. For a not-started assignment the rows reconcile
+    with Planned Units; for an assignment that declares Actual/Remaining Units
+    they reconcile with Remaining Units, because only the work still to be
+    performed occupies future capacity. That interpretation is only safe when
+    the rows are unambiguous: no zero-unit bucket, one row per
+    ``units / units_per_time`` day, and a total equal to the units. A gap
+    between period dates is not rejected here because weekends and holidays are
     calendar closures; placement verifies the sequence against the versioned
     resource-capacity calendar.
 
@@ -158,7 +235,7 @@ def validate_resource_dependent_demand_distribution(
     placement diagnostic instead of apparently successful dates.
     """
     ordered = _validate_demand_periods(fact)
-    if not ordered:
+    if not ordered and not _has_declared_progress(fact):
         return ordered
     if any(item.units == 0 for item in ordered):
         raise ResourceDependentCalculationError(
@@ -178,21 +255,17 @@ def validate_resource_dependent_demand_distribution(
         "RESOURCE_DEPENDENT_UNITS_PER_TIME_REQUIRED",
         allow_zero=False,
     )
-    duration = planned / rate
-    if duration != duration.to_integral_value():
-        raise ResourceDependentCalculationError(
-            "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED"
-        )
-    duration_days = int(duration)
-    if duration_days > 10_000:
-        raise ResourceDependentCalculationError(
-            "RESOURCE_DEPENDENT_DURATION_OUT_OF_RANGE"
-        )
+    expected_units = (
+        _progress_units(fact, planned)
+        if _has_declared_progress(fact)
+        else planned
+    )
+    duration_days = _integral_working_days(expected_units, rate)
     if len(ordered) != duration_days:
         raise ResourceDependentCalculationError(
             "RESOURCE_DEPENDENT_DEMAND_PERIOD_COUNT_MISMATCH"
         )
-    if sum((item.units for item in ordered), Decimal("0")) != planned:
+    if sum((item.units for item in ordered), Decimal("0")) != expected_units:
         raise ResourceDependentCalculationError(
             "RESOURCE_DEPENDENT_DEMAND_UNITS_MISMATCH"
         )
@@ -296,6 +369,21 @@ def derive_resource_dependent_duration(
     driving = tuple(item for item in ordered if item.is_driving is True)
     nondriving = tuple(item for item in ordered if item.is_driving is False)
     duration_source = "driving"
+    progress_declared = any(_has_declared_progress(item) for item in ordered)
+    remaining_days: int | None = None
+
+    if progress_declared:
+        # Progress is an activity-level fact: every assignment must state both
+        # Actual and Remaining Units. Otherwise the remaining duration or the
+        # remaining-demand rows could silently fall back to planned work and
+        # overstate the schedule. The composer rejects this first; this check
+        # keeps direct calculation callers fail-closed as well.
+        for item in ordered:
+            if not _has_declared_progress(item):
+                raise ResourceDependentCalculationError(
+                    "RESOURCE_DEPENDENT_PROGRESS_ASSIGNMENT_UNITS_REQUIRED:"
+                    f"{item.assignment_id}"
+                )
 
     if not driving:
         if (
@@ -329,6 +417,7 @@ def derive_resource_dependent_duration(
         duration_source = "activity"
     else:
         durations: list[Decimal] = []
+        remaining_durations: list[Decimal] = []
         for item in driving:
             if not isinstance(item.calendar_id, str) or not item.calendar_id.strip():
                 raise ResourceDependentCalculationError(
@@ -382,17 +471,43 @@ def derive_resource_dependent_duration(
                     "RESOURCE_DEPENDENT_DURATION_OUT_OF_RANGE"
                 )
             durations.append(duration)
+            if progress_declared:
+                remaining_durations.append(
+                    Decimal(
+                        _integral_working_days(
+                            _progress_units(item, planned), rate
+                        )
+                    )
+                )
 
         duration = max(durations)
-        # Each daily rate is measured on its own assignment resource calendar,
-        # so the longest duration selects the driving calendar that governs the
-        # activity. Two different calendars that tie for the maximum would make
-        # the activity calendar depend on input order, so fail closed.
-        winner_calendars = {
-            (item.calendar_id, item.calendar_version)
-            for item, value in zip(driving, durations)
-            if value == duration
-        }
+        if progress_declared:
+            # Remaining work is what the forward pass schedules for a progressed
+            # activity, so the driver with the longest remaining duration must
+            # also own the activity calendar. A tie between different calendars
+            # cannot be resolved without input order, so fail closed.
+            remaining_duration = max(remaining_durations)
+            winner_calendars = {
+                (item.calendar_id, item.calendar_version)
+                for item, value in zip(driving, remaining_durations)
+                if value == remaining_duration
+            }
+            remaining_days = int(remaining_duration)
+            if len(winner_calendars) > 1:
+                raise ResourceDependentCalculationError(
+                    "RESOURCE_DEPENDENT_PROGRESS_DRIVING_CALENDAR_TIE"
+                )
+        else:
+            # Each daily rate is measured on its own assignment resource
+            # calendar, so the longest duration selects the driving calendar
+            # that governs the activity. Two different calendars that tie for
+            # the maximum would make the activity calendar depend on input
+            # order, so fail closed.
+            winner_calendars = {
+                (item.calendar_id, item.calendar_version)
+                for item, value in zip(driving, durations)
+                if value == duration
+            }
         if len(winner_calendars) > 1:
             raise ResourceDependentCalculationError(
                 "RESOURCE_DEPENDENT_DRIVING_CALENDAR_TIE"
@@ -407,6 +522,7 @@ def derive_resource_dependent_duration(
     legacy_compatible = (
         not nondriving
         and duration_source == "driving"
+        and not progress_declared
         and all(not item.demand_periods for item in ordered)
     )
     if legacy_compatible:
@@ -425,7 +541,11 @@ def derive_resource_dependent_duration(
         }
     else:
         payload = {
-            "rule_version": "resource-dependent-driving-v2",
+            "rule_version": (
+                "resource-dependent-driving-v3"
+                if progress_declared
+                else "resource-dependent-driving-v2"
+            ),
             "duration_source": duration_source,
             "tenant_id": tenant_id,
             "project_id": project_id,
@@ -462,9 +582,19 @@ def derive_resource_dependent_duration(
                         for period in canonical_demands[item.assignment_id]
                     ],
                 }
+                | (
+                    {
+                        "actual_units": str(item.actual_units),
+                        "remaining_units": str(item.remaining_units),
+                    }
+                    if _has_declared_progress(item)
+                    else {}
+                )
                 for item in ordered
             ],
         }
+        if progress_declared:
+            payload["remaining_duration_working_days"] = remaining_days
     canonical = json.dumps(
         payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     )
@@ -475,4 +605,5 @@ def derive_resource_dependent_duration(
         input_hash=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
         driving_assignment_ids=tuple(item.assignment_id for item in driving),
         duration_source=duration_source,
+        remaining_duration_working_days=remaining_days,
     )

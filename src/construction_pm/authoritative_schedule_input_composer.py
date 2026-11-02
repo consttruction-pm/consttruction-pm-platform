@@ -302,19 +302,65 @@ class AuthoritativeScheduleInputComposer:
             raw_activity_type = getattr(item.activity_type, "value", item.activity_type)
             resource_dependent = raw_activity_type == ActivityType.RESOURCE_DEPENDENT.value
             derived = None
+            remaining_duration_value = item.remaining_duration
             if resource_dependent:
                 raw_status = getattr(item.status, "value", item.status)
+                in_progress = raw_status == ActivityStatus.IN_PROGRESS.value
                 if (
-                    raw_status != ActivityStatus.NOT_STARTED.value
-                    or item.actual_start is not None
+                    raw_status == ActivityStatus.COMPLETED.value
                     or item.actual_finish is not None
                 ):
+                    # A completed Resource Dependent activity is governed by its
+                    # actual duration, which is not derivable from the planned
+                    # assignment units. Do not substitute a planned duration.
                     raise ScheduleInputCompositionError(
-                        f"RESOURCE_DEPENDENT_IN_PROGRESS_DERIVATION_UNSUPPORTED:{item.activity_id}"
+                        f"RESOURCE_DEPENDENT_COMPLETED_DERIVATION_UNSUPPORTED:{item.activity_id}"
+                    )
+                if raw_status not in (
+                    ActivityStatus.NOT_STARTED.value,
+                    ActivityStatus.IN_PROGRESS.value,
+                ):
+                    raise ScheduleInputCompositionError(
+                        f"RESOURCE_DEPENDENT_STATUS_UNSUPPORTED:{item.activity_id}:{raw_status}"
+                    )
+                if in_progress:
+                    if item.actual_start is None:
+                        raise ScheduleInputCompositionError(
+                            f"RESOURCE_DEPENDENT_IN_PROGRESS_ACTUAL_START_REQUIRED:{item.activity_id}"
+                        )
+                elif item.actual_start is not None:
+                    raise ScheduleInputCompositionError(
+                        f"RESOURCE_DEPENDENT_ACTUAL_START_REQUIRES_IN_PROGRESS:{item.activity_id}"
                     )
                 raw_assignments = assignments_by_activity.get(item.activity_id, [])
                 for assignment in raw_assignments:
-                    if (
+                    if in_progress:
+                        # A started Resource Dependent activity must state both
+                        # Actual and Remaining Units on every assignment. The
+                        # persisted rows are remaining demand, so a missing unit
+                        # value would make the derivation silently fall back to
+                        # planned work and overstate the schedule.
+                        if (
+                            assignment.actual_units is None
+                            or assignment.remaining_units is None
+                        ):
+                            raise ScheduleInputCompositionError(
+                                "RESOURCE_DEPENDENT_PROGRESS_ASSIGNMENT_UNITS_REQUIRED:"
+                                f"{item.activity_id}:{assignment.assignment_id}"
+                            )
+                        if assignment.units is None:
+                            continue
+                        if (
+                            assignment.actual_units < 0
+                            or assignment.remaining_units < 0
+                            or assignment.actual_units + assignment.remaining_units
+                            != assignment.units
+                        ):
+                            raise ScheduleInputCompositionError(
+                                "RESOURCE_DEPENDENT_PROGRESS_UNITS_MISMATCH:"
+                                f"{item.activity_id}:{assignment.assignment_id}"
+                            )
+                    elif (
                         assignment.remaining_units is not None
                         and assignment.units is not None
                         and assignment.remaining_units != assignment.units
@@ -345,6 +391,12 @@ class AuthoritativeScheduleInputComposer:
                                 periods_by_assignment.get(assignment.assignment_id, ()),
                                 key=lambda period: period.period_start,
                             )
+                        ),
+                        actual_units=(
+                            assignment.actual_units if in_progress else None
+                        ),
+                        remaining_units=(
+                            assignment.remaining_units if in_progress else None
                         ),
                     )
                     for assignment in sorted(
@@ -403,6 +455,23 @@ class AuthoritativeScheduleInputComposer:
                     ) from exc
                 resource_dependent_durations[item.activity_id] = derived
                 value = Decimal(derived.duration_working_days)
+                if derived.remaining_duration_working_days is not None:
+                    # A progressed activity's Remaining Duration is the
+                    # calculation output. Persisted progress is authoritative
+                    # only when it agrees with the assignment facts.
+                    if (
+                        remaining_duration_value is not None
+                        and remaining_duration_value
+                        != derived.remaining_duration_working_days
+                    ):
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH:"
+                            f"{item.activity_id}:{remaining_duration_value}:"
+                            f"{derived.remaining_duration_working_days}"
+                        )
+                    remaining_duration_value = (
+                        derived.remaining_duration_working_days
+                    )
             else:
                 value = item.duration_value
                 if not isinstance(value, Decimal) or not value.is_finite() or value != value.to_integral_value():
@@ -415,7 +484,7 @@ class AuthoritativeScheduleInputComposer:
                         duration=int(value),
                         actual_start=self._date_value(item.actual_start, field_name="actual_start", activity_id=item.activity_id),
                         actual_finish=self._date_value(item.actual_finish, field_name="actual_finish", activity_id=item.activity_id),
-                        remaining_duration=item.remaining_duration,
+                        remaining_duration=remaining_duration_value,
                         remaining_start=self._date_value(item.remaining_start, field_name="remaining_start", activity_id=item.activity_id),
                         percent_complete=item.percent_complete,
                         percent_complete_type=item.percent_complete_type,

@@ -759,6 +759,16 @@ def _materialize_payload(
                     demand_periods=tuple(
                         sorted(demand_periods, key=lambda period: period.period_start)
                     ),
+                    actual_units=(
+                        None
+                        if item.get("actual_units") is None
+                        else _decimal(item["actual_units"])
+                    ),
+                    remaining_units=(
+                        None
+                        if item.get("remaining_units") is None
+                        else _decimal(item["remaining_units"])
+                    ),
                 )
             )
         except (TypeError, ValueError, InvalidOperation) as exc:

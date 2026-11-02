@@ -7,6 +7,10 @@ assignment ledger that belongs to those dates:
 
 * A driving assignment's time-phased demand is fixed at the authoritative
   activity start and must fit the versioned resource calendar capacity.
+* For an in-progress assignment, the persisted rows are its remaining demand:
+  they reconcile with Remaining Units and the remaining duration, and the
+  ledger places only the work still to be performed. Actual work already
+  consumed is not re-placed against future capacity.
 * A nondriving assignment is placed independently at the earliest resource
   working date on or after the activity start where all of its ordered
   time-phased units fit the remaining capacity. It may finish before or after
