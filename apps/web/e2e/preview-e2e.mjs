@@ -2507,6 +2507,11 @@ async function main() {
     await page.setInput("[data-capacity-resolve-period]", "2026-10-16");
     await page.setSelect("[data-capacity-resolve-basis]", "week");
     await page.setInput("[data-capacity-resolve-hours]", "40");
+    const capacityInputs = await page.evaluate("(() => ({ resource: document.querySelector(\"[data-capacity-resolve-resource]\")?.value ?? null, period: document.querySelector(\"[data-capacity-resolve-period]\")?.value ?? null, basis: document.querySelector(\"[data-capacity-resolve-basis]\")?.value ?? null, hours: document.querySelector(\"[data-capacity-resolve-hours]\")?.value ?? null, hoursDisabled: document.querySelector(\"[data-capacity-resolve-hours]\")?.disabled ?? null }))()");
+    assert(
+      capacityInputs.resource === "RPS-CIVIL-CREW" && capacityInputs.period === "2026-10-16" && capacityInputs.basis === "week" && capacityInputs.hours === "40" && capacityInputs.hoursDisabled === false,
+      "capacity resolver inputs must retain the entered values: " + JSON.stringify(capacityInputs),
+    );
     await page.click("[data-capacity-resolve]");
     await sleep(500);
     let capacityResolveState = await page.evaluate(`(() => ({
