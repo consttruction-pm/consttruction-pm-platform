@@ -38,11 +38,23 @@ from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHou
 from construction_pm.constraint_master_repository import SQLiteConstraintMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
-from construction_pm.p6_baseline_repository import SQLiteP6BaselineRepository
+from construction_pm.p6_baseline_api import P6BaselineAPI
+from construction_pm.p6_baseline_repository import (
+    P6BaselineApplicationService,
+    SQLiteP6BaselineRepository,
+)
 from construction_pm.p6_calendar_api import P6CalendarAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
-from construction_pm.p6_cost_account_repository import SQLiteP6CostAccountRepository
-from construction_pm.p6_expense_repository import SQLiteP6ExpenseRepository
+from construction_pm.p6_cost_account_api import P6CostAccountAPI
+from construction_pm.p6_cost_account_repository import (
+    P6CostAccountApplicationService,
+    SQLiteP6CostAccountRepository,
+)
+from construction_pm.p6_expense_api import P6ExpenseAPI
+from construction_pm.p6_expense_repository import (
+    P6ExpenseApplicationService,
+    SQLiteP6ExpenseRepository,
+)
 from construction_pm.p6_persisted_resource_leveling_resolver import (
     build_persisted_resource_leveling_input_resolver,
 )
@@ -60,6 +72,7 @@ from construction_pm.p6_resource_capacity_repository import (
 )
 from construction_pm.p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI
 from construction_pm.p6_resource_spread_repository import (
     P6ResourceSpreadApplicationService,
     SQLiteP6ResourceSpreadRepository,
@@ -235,6 +248,10 @@ class SQLiteLocalApplicationRuntime:
     resource_write_api: P6ResourceWriteAPI
     resource_capacity_read_api: P6ResourceCapacityReadAPI
     resource_capacity_write_api: P6ResourceCapacityWriteAPI
+    resource_spread_api: P6ResourceSpreadAPI
+    baseline_api: P6BaselineAPI
+    cost_account_api: P6CostAccountAPI
+    expense_api: P6ExpenseAPI
     schedule_snapshot_api: P6ScheduleSnapshotPublicationAPI
     activity_repository: SQLiteActivityMasterRepository
     wbs_repository: SQLiteWBSMasterRepository
@@ -339,6 +356,9 @@ def build_sqlite_local_application_runtime(
     period_service = P6ResourceAssignmentPeriodApplicationService(resource_period_repository, transaction_manager)
     spread_service = P6ResourceSpreadApplicationService(resource_spread_repository, transaction_manager)
     capacity_service = P6ResourceCapacityApplicationService(resource_capacity_repository, transaction_manager)
+    baseline_service = P6BaselineApplicationService(baseline_repository, transaction_manager)
+    cost_account_service = P6CostAccountApplicationService(cost_account_repository, transaction_manager)
+    expense_service = P6ExpenseApplicationService(expense_repository, transaction_manager)
 
     activity_api = P6ActivityMasterAPI(activity_repository, authorization_policy)
     wbs_api = P6WBSMasterAPI(wbs_repository, authorization_policy)
@@ -360,6 +380,10 @@ def build_sqlite_local_application_runtime(
     resource_write_api = P6ResourceWriteAPI(period_service, authorization_policy, assignment_service)
     capacity_read_api = P6ResourceCapacityReadAPI(capacity_service, authorization_policy)
     capacity_write_api = P6ResourceCapacityWriteAPI(capacity_service, authorization_policy)
+    resource_spread_api = P6ResourceSpreadAPI(spread_service, authorization_policy)
+    baseline_api = P6BaselineAPI(baseline_service, authorization_policy)
+    cost_account_api = P6CostAccountAPI(cost_account_service, authorization_policy)
+    expense_api = P6ExpenseAPI(expense_service, authorization_policy)
 
     composer = AuthoritativeScheduleInputComposer(
         activity_repository=activity_repository,
@@ -401,6 +425,10 @@ def build_sqlite_local_application_runtime(
         resource_write_api=resource_write_api,
         resource_capacity_read_api=capacity_read_api,
         resource_capacity_write_api=capacity_write_api,
+        resource_spread_api=resource_spread_api,
+        baseline_api=baseline_api,
+        cost_account_api=cost_account_api,
+        expense_api=expense_api,
         schedule_snapshot_api=schedule_snapshot_api,
         activity_repository=activity_repository,
         wbs_repository=wbs_repository,
