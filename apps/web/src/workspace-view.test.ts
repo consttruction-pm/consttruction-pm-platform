@@ -1979,6 +1979,32 @@ test("Show on Top Table and Gantt Chart commands select the matching workspace l
   assert.deepEqual(layouts, ["grid", "gantt"]);
 });
 
+test("Columns menu command opens the dedicated field registry dialog", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-columns-dialog/);
+  assert.match(html, /class="cp-columns-dialog"/);
+  assert.match(html, /class="cp-p6-field-chooser"/);
+  assert.match(html, /data-p6-field-add=/);
+  assert.match(html, /data-p6-field-remove=/);
+  assert.match(html, /data-p6-field-move=/);
+  const listeners = new Map<string, (event: Event) => void>();
+  let opened = false;
+  const dialog = { showModal: () => { opened = true; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-columns-dialog]" ? dialog : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  const target = { dataset: { shellCommand: "Columns" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(opened, true);
+});
+
 test("Bottom Layout Options menu command opens the Activity Details tab selector", () => {
   const listeners = new Map<string, (event: Event) => void>();
   let opened = false;
