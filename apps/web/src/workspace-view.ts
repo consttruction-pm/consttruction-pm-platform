@@ -9,6 +9,30 @@ import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon } from "./workspace-icons.js";
 import { renderWorkspaceCommandShell } from "./workspace-command-shell.js";
 
+const PROJECT_STRUCTURE_WIDTH_STORAGE_KEY = "cubi:project-structure-width";
+const PROJECT_STRUCTURE_WIDTH_DEFAULT = 240;
+const PROJECT_STRUCTURE_WIDTH_MIN = 190;
+const PROJECT_STRUCTURE_WIDTH_MAX = 340;
+type ProjectStructureDrag = { pointerId: number; startX: number; startWidth: number; rtl: boolean };
+const projectStructureDragByContainer = new WeakMap<HTMLElement, ProjectStructureDrag>();
+
+function readProjectStructureWidth(): number {
+  try {
+    if (typeof window !== "undefined") {
+      const value = Number(window.localStorage.getItem(PROJECT_STRUCTURE_WIDTH_STORAGE_KEY));
+      if (Number.isFinite(value) && value > 0) return Math.min(PROJECT_STRUCTURE_WIDTH_MAX, Math.max(PROJECT_STRUCTURE_WIDTH_MIN, Math.round(value)));
+    }
+  } catch { /* storage is optional; keep the default structure rail width */ }
+  return PROJECT_STRUCTURE_WIDTH_DEFAULT;
+}
+
+function setProjectStructureWidth(container: HTMLElement, value: number): void {
+  const width = Math.min(PROJECT_STRUCTURE_WIDTH_MAX, Math.max(PROJECT_STRUCTURE_WIDTH_MIN, Math.round(value)));
+  container.querySelector<HTMLElement>(".cp-workspace[data-active-menu=project]")?.style.setProperty("--cp-project-structure-width", `${width}px`);
+  container.querySelector<HTMLElement>("[data-project-structure-splitter]")?.setAttribute("aria-valuenow", String(width));
+  try { if (typeof window !== "undefined") window.localStorage.setItem(PROJECT_STRUCTURE_WIDTH_STORAGE_KEY, String(width)); }
+  catch { /* a failed layout preference save must not block resizing */ }
+}
 const PROJECT_DETAILS_HEIGHT_STORAGE_KEY = "cubi:project-details-height";
 const PROJECT_DETAILS_HEIGHT_DEFAULT = 240;
 const PROJECT_DETAILS_HEIGHT_MIN = 150;
@@ -792,6 +816,21 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
   });
   container.addEventListener("keydown", (event) => {
+    const structureSplitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-structure-splitter]");
+    if (structureSplitter?.dataset && "projectStructureSplitter" in structureSplitter.dataset) {
+      const root = container.querySelector<HTMLElement>(".cp-workspace[data-active-menu=project]");
+      const rtl = root?.getAttribute("dir") === "rtl";
+      const current = readProjectStructureWidth();
+      let next = current;
+      if (event.key === (rtl ? "ArrowLeft" : "ArrowRight")) next += 16;
+      else if (event.key === (rtl ? "ArrowRight" : "ArrowLeft")) next -= 16;
+      else if (event.key === "Home") next = PROJECT_STRUCTURE_WIDTH_MIN;
+      else if (event.key === "End") next = PROJECT_STRUCTURE_WIDTH_MAX;
+      else return;
+      event.preventDefault();
+      setProjectStructureWidth(container, next);
+      return;
+    }
     const projectSplitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter]");
     if (projectSplitter?.dataset && "projectDetailsSplitter" in projectSplitter.dataset) {
       const current = readProjectDetailsHeight();
@@ -840,6 +879,15 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     else if (target.dataset.activityId) record.options.onActivitySelect?.(target.dataset.activityId);
   });
   container.addEventListener("pointerdown", (event) => {
+    const structureTarget = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-structure-splitter]");
+    if (structureTarget) {
+      const structure = container.querySelector<HTMLElement>(".cp-project-structure-summary");
+      const root = container.querySelector<HTMLElement>(".cp-workspace[data-active-menu=project]");
+      projectStructureDragByContainer.set(container, { pointerId: event.pointerId, startX: event.clientX, startWidth: structure?.getBoundingClientRect().width || readProjectStructureWidth(), rtl: root?.getAttribute("dir") === "rtl" });
+      try { structureTarget.setPointerCapture(event.pointerId); } catch { /* pointer capture is optional in embedded previews */ }
+      event.preventDefault();
+      return;
+    }
     const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter],[data-activity-details-splitter]");
     if (!target) return;
     const details = container.querySelector<HTMLElement>("#cp-details");
@@ -850,6 +898,12 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     event.preventDefault();
   });
   container.addEventListener("pointermove", (event) => {
+    const structureDrag = projectStructureDragByContainer.get(container);
+    if (structureDrag && structureDrag.pointerId === event.pointerId) {
+      const delta = (event.clientX - structureDrag.startX) * (structureDrag.rtl ? -1 : 1);
+      setProjectStructureWidth(container, structureDrag.startWidth + delta);
+      return;
+    }
     const projectDrag = projectDetailsDragByContainer.get(container);
     if (projectDrag && projectDrag.pointerId === event.pointerId) {
       setProjectDetailsHeight(container, projectDrag.startHeight - (event.clientY - projectDrag.startY));
@@ -859,16 +913,20 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (activityDrag && activityDrag.pointerId === event.pointerId) setActivityDetailsHeight(container, activityDrag.startHeight - (event.clientY - activityDrag.startY));
   });
   const finishDetailsDrag = (event: PointerEvent): void => {
+    const structureDrag = projectStructureDragByContainer.get(container);
+    if (structureDrag?.pointerId === event.pointerId) projectStructureDragByContainer.delete(container);
     const projectDrag = projectDetailsDragByContainer.get(container);
     const activityDrag = activityDetailsDragByContainer.get(container);
     if (projectDrag?.pointerId === event.pointerId) projectDetailsDragByContainer.delete(container);
     if (activityDrag?.pointerId === event.pointerId) activityDetailsDragByContainer.delete(container);
-    const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter],[data-activity-details-splitter]");
+    const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-structure-splitter],[data-project-details-splitter],[data-activity-details-splitter]");
     try { target?.releasePointerCapture(event.pointerId); } catch { /* pointer capture may already be released */ }
   };
   container.addEventListener("pointerup", finishDetailsDrag);
   container.addEventListener("pointercancel", finishDetailsDrag);
   container.addEventListener("dblclick", (event) => {
+    const structureTarget = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-structure-splitter]");
+    if (structureTarget) { event.preventDefault(); setProjectStructureWidth(container, PROJECT_STRUCTURE_WIDTH_DEFAULT); return; }
     const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter],[data-activity-details-splitter]");
     if (!target) return;
     event.preventDefault();
@@ -1204,7 +1262,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         : `<button type="button" disabled title="${escapeAttribute(uiText(state.locale, "This visual command is not connected yet.", "این فرمان بصری هنوز متصل نشده است."))}">${escapeHtml(command.label)}</button>`).join("");
 
   container.innerHTML = `
-    <section class="cp-workspace cp-p6-workspace" style="--cp-project-details-height:${readProjectDetailsHeight()}px;--cp-activity-details-height:${readActivityDetailsHeight()}px" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}" data-workspace-layout="${state.workspaceLayout}">
+    <section class="cp-workspace cp-p6-workspace" style="--cp-project-details-height:${readProjectDetailsHeight()}px;--cp-activity-details-height:${readActivityDetailsHeight()}px;--cp-project-structure-width:${readProjectStructureWidth()}px" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}" data-workspace-layout="${state.workspaceLayout}">
       <header class="cp-header">
         <div class="cp-brand"><img class="cp-brand-logo" src="${escapeAttribute(cubiPlatformLogoUrl())}" width="1536" height="664" alt="CUBI Platform" /></div>
         <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
@@ -1521,6 +1579,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
             <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Structure", "ساختار پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Loaded WBS hierarchy", "سلسله‌مراتب WBS بارگذاری‌شده"))}</span></div>
             ${state.wbsNodes.length ? `<div class="cp-project-wbs-list">${state.wbsNodes.map((node) => `<div class="cp-project-wbs-row"><span>${escapeHtml(node.localCode)}</span><strong>${escapeHtml(node.name)}</strong><small>R${node.recordRevision}</small></div>`).join("")}</div>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No WBS elements are loaded for this project.", "هیچ عنصر WBS برای این پروژه بارگذاری نشده است."))}</p>`}
           </section>
+          <div class="cp-project-structure-splitter" data-project-structure-splitter role="separator" aria-orientation="vertical" aria-valuemin="${PROJECT_STRUCTURE_WIDTH_MIN}" aria-valuemax="${PROJECT_STRUCTURE_WIDTH_MAX}" aria-valuenow="${readProjectStructureWidth()}" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize Project Structure pane", "تغییر عرض پنل ساختار پروژه"))}"><span></span></div>
         </div>
         <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "This build displays the project authorized for the current session. Organization-wide domains, portfolios and additional projects are not invented when the API does not provide them.", "این نسخه پروژه مجاز برای نشست جاری را نمایش می‌دهد. حوزه‌های سازمانی، سبدها و پروژه‌های دیگر در صورت نبود داده از API ساخته یا حدس زده نمی‌شوند."))}</p>`;
       break;
