@@ -689,6 +689,11 @@ export function mountCapacityPanel(
       if (!activePanel) return;
       event.preventDefault();
       event.stopPropagation();
+      // A drawer may be hidden by the shell's pointer-down focus handling before
+      // this delegated click reaches the document. Keep the active tools surface
+      // visible while its in-panel command is being processed.
+      const toolsDrawer = activePanel.closest<HTMLElement>("[data-tools-drawer]");
+      if (toolsDrawer) toolsDrawer.hidden = false;
       const binding = capacityPanelBindings.get(activePanel);
       if (!binding) return;
       const resourceField = activePanel.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
@@ -737,6 +742,8 @@ export function mountCapacityPanel(
       if (!activePanel) return;
       event.preventDefault();
       event.stopPropagation();
+      const toolsDrawer = activePanel.closest<HTMLElement>("[data-tools-drawer]");
+      if (toolsDrawer) toolsDrawer.hidden = false;
       const binding = capacityPanelBindings.get(activePanel);
       if (!binding) return;
       const resourceField = form.querySelector<HTMLInputElement>("[data-capacity-resource]");
