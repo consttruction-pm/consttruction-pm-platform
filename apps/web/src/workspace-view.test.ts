@@ -304,6 +304,40 @@ test("Activity Details tab editor transfers tabs, reorders them and applies the 
   assert.ok(details.innerHTML.includes('data-activity-detail-tab="status"'));
 });
 
+test("Progress Update and Period Performance submenus open complete read-only dialog inventories", () => {
+  const html = render("en", "progress");
+  assert.match(html, /data-progress-dialog="update"/);
+  assert.match(html, /data-progress-dialog="period-performance"/);
+  for (const label of ["Current Data Date", "New Data Date", "Progress Spotlight", "Apply actuals from timesheets", "Duration Type", "Out-of-sequence policy", "Retained Logic", "Progress Override", "Actual Dates", "Use each project’s own Data Date"]) {
+    assert.ok(html.includes(label), `missing progress dialog field: ${label}`);
+  }
+  assert.ok(html.includes("No financial periods loaded"));
+  assert.match(html, /data-navigation-action="progress-dialog:update"/);
+  assert.match(html, /data-navigation-action="progress-dialog:period-performance"/);
+  assert.match(html, /data-progress-dialog-close/);
+  assert.match(html, /<input type="date" disabled/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const opened: string[] = [];
+  const updateDialog = { showModal: () => opened.push("update") };
+  const periodDialog = { showModal: () => opened.push("period-performance") };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === '[data-progress-dialog="update"]' ? updateDialog
+      : selector === '[data-progress-dialog="period-performance"]' ? periodDialog : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  for (const action of ["progress-dialog:update", "progress-dialog:period-performance"]) {
+    const target = { dataset: { navigationAction: action }, closest: () => target };
+    listeners.get("click")?.({ target } as unknown as Event);
+  }
+  assert.deepEqual(opened, ["update", "period-performance"]);
+});
+
 test("Progress window displays entered activity values and field evidence without recalculation", () => {
   const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
   const state = {
