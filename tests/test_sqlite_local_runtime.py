@@ -36,6 +36,14 @@ from construction_pm.p6_baseline_repository import P6Baseline
 from construction_pm.p6_cost_account_repository import P6CostAccount
 from construction_pm.p6_expense_repository import P6Expense
 from construction_pm.p6_resource_spread_repository import P6ResourceSpreadBucket
+from construction_pm.resources.context import ProjectContext as ResourceProjectContext
+from construction_pm.resources.models import (
+    CostBasis,
+    Resource,
+    ResourceAssignment,
+    ResourceRate,
+    ResourceType,
+)
 from construction_pm.relationship_master_repository import (
     RelationshipMaster,
     SQLiteRelationshipMasterRepository,
@@ -489,4 +497,111 @@ def test_relationship_repository_initialization_preserves_caller_transaction():
     assert connection.in_transaction
     connection.rollback()
     assert connection.execute("SELECT value FROM caller_state").fetchall() == []
+    connection.close()
+
+
+
+def test_local_runtime_composes_scoped_resource_master_api_and_atomic_outbox():
+    connection = sqlite3.connect(":memory:")
+    runtime, now = _open_runtime(connection)
+    project_response = runtime.project_lifecycle_api.create_project(
+        "offline-session", "resource-project", "Resource project", now=now
+    )
+    project = project_response.context
+    scope = BackendScope(project.tenant_id, project.project_id, project.revision)
+    auth = project.authorization_context(frozenset({"project_admin"}))
+    api = runtime.resource_api(scope, auth, company_id="company-1")
+
+    labor = Resource(
+        id="LAB-001",
+        code="LAB",
+        name="Civil crew",
+        resource_type=ResourceType.LABOR,
+        unit="hour",
+        rates=[
+            ResourceRate(
+                rate=Decimal("35.50"),
+                basis=CostBasis.PER_HOUR,
+                currency="EUR",
+                version=1,
+            )
+        ],
+    )
+    created = api.create_resource(labor, expected_revision=0)
+    assert created["id"] == "LAB-001"
+    assert created["revision"] == 1
+    assert created["type"] == "labor"
+    assert api.get_resource("LAB-001")["name"] == "Civil crew"
+    assert api.list_resources()[0]["id"] == "LAB-001"
+
+    assignment = ResourceAssignment(
+        activity_id="A-001",
+        resource_id="LAB-001",
+        planned_units=Decimal("40"),
+        actual_units=Decimal("8"),
+        remaining_units=Decimal("32"),
+        planned_cost=Decimal("1420"),
+        actual_cost=Decimal("284"),
+        remaining_cost=Decimal("1136"),
+    )
+    saved_assignment = api.create_assignment(assignment, expected_revision=0)
+    assert saved_assignment["revision"] == 1
+    assert api.list_assignments("A-001")[0]["resource_id"] == "LAB-001"
+
+    mutation = OfflineMutation(
+        mutation_id="resource-mutation-1",
+        tenant_id=scope.tenant_id,
+        project_id=scope.project_id,
+        expected_revision=scope.project_revision,
+        operation="resource.create",
+        payload={"resource_id": "MACH-002", "resource_type": "machinery"},
+        idempotency_key="resource-idempotency-1",
+    )
+    machinery = Resource(
+        id="MACH-002",
+        code="EXC-20T",
+        name="20t excavator",
+        resource_type=ResourceType.MACHINERY,
+        unit="hour",
+    )
+    runtime.apply_offline_mutation(
+        scope,
+        mutation,
+        auth_context=auth,
+        apply=lambda: api.service.register_resource(machinery, expected_revision=0),
+    )
+    assert runtime.resource_repository.get_resource(
+        ResourceProjectContext(scope.tenant_id, "company-1", scope.project_id),
+        "MACH-002",
+    ) is not None
+
+    duplicate_mutation = OfflineMutation(
+        mutation_id="resource-mutation-2",
+        tenant_id=scope.tenant_id,
+        project_id=scope.project_id,
+        expected_revision=scope.project_revision,
+        operation="resource.create",
+        payload={"resource_id": "MACH-003", "resource_type": "machinery"},
+        idempotency_key="resource-idempotency-1",
+    )
+    second_machinery = Resource(
+        id="MACH-003",
+        code="CRN-60T",
+        name="60t mobile crane",
+        resource_type=ResourceType.MACHINERY,
+        unit="hour",
+    )
+    with pytest.raises(ValueError, match="DUPLICATE_IDEMPOTENCY_KEY"):
+        runtime.apply_offline_mutation(
+            scope,
+            duplicate_mutation,
+            auth_context=auth,
+            apply=lambda: api.service.register_resource(
+                second_machinery, expected_revision=0
+            ),
+        )
+    assert runtime.resource_repository.get_resource(
+        ResourceProjectContext(scope.tenant_id, "company-1", scope.project_id),
+        "MACH-003",
+    ) is None
     connection.close()
