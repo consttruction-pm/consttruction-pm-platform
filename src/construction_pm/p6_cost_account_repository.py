@@ -63,6 +63,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> P6CostAccount:
 class SQLiteP6CostAccountRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         execute_sqlite_script(self.connection,
@@ -81,7 +82,8 @@ class SQLiteP6CostAccountRepository:
               ON p6_cost_account(tenant_id, project_id, project_revision, parent_account_id, account_id);
             """
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def upsert(self, account: P6CostAccount) -> P6CostAccount:
         account.validate()
