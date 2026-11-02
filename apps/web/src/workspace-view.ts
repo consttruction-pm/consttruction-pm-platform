@@ -601,6 +601,20 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         container.querySelector<HTMLElement>("[data-activity-details-options-open]")?.click();
       } else if (command === "Activity Details") {
         container.querySelector<HTMLElement>("#cp-details")?.scrollIntoView?.({ behavior: "smooth", block: "end" });
+      } else if (command === "Add Activity") {
+        container.querySelector<HTMLElement>('[data-workspace-command="new-activity"]')?.click();
+      } else if (command === "Add WBS") {
+        const trigger = container.querySelector<HTMLElement>('[data-workspace-command="new-wbs"]');
+        if (trigger) trigger.click();
+        else {
+          openWbsDrawer(container);
+          container.querySelector<HTMLInputElement>('[data-wbs-create-form] [name="code"]')?.focus({ preventScroll: true });
+        }
+      } else if (command === "Add Relationship" || command === "Link Activities") {
+        container.querySelector<HTMLElement>('[data-workspace-command="relationships"]')?.click();
+        container.querySelector<HTMLSelectElement>('[data-relationship-create-form] [name="predecessor_id"]')?.focus({ preventScroll: true });
+      } else if (command === "Find") {
+        container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus({ preventScroll: true });
       }
       return;
     }
