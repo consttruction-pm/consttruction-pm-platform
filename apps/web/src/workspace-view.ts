@@ -476,8 +476,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     container.querySelectorAll<HTMLElement>("[data-menu]").forEach((button) => {
       const active = button.dataset.menu === next.activeMenu;
       button.setAttribute("aria-current", active ? "page" : "false");
-      if (button.hasAttribute("role") && button.getAttribute("role") === "tab") button.setAttribute("aria-selected", String(active));
-      button.classList.toggle("is-active", active);
+      if (button.dataset.windowTab !== undefined) button.setAttribute("aria-selected", String(active));
     });
     const navigation = container.querySelector<HTMLElement>(".cp-navigation-surface");
     if (navigation) navigation.outerHTML = renderNavigationSurface(next);
@@ -718,7 +717,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         <div class="cp-p6-body">
           ${renderWorkspaceCommandShell(state.locale)}
           <nav class="cp-window-tabs" aria-label="${escapeAttribute(uiText(state.locale, "Workspace windows", "پنجره‌های محیط کار"))}" role="tablist">
-            ${windowTabs.map(([key, label]) => `<button type="button" role="tab" data-menu="${key}" aria-selected="${key === state.activeMenu}" aria-current="${key === state.activeMenu ? "page" : "false"}" class="cp-window-tab${key === state.activeMenu ? " is-active" : ""}">${escapeHtml(label)}</button>`).join("")}
+            ${windowTabs.map(([key, label]) => `<button type="button" role="tab" data-window-tab="${key}" data-menu="${key}" aria-selected="${key === state.activeMenu}" aria-current="${key === state.activeMenu ? "page" : "false"}" class="cp-window-tab${key === state.activeMenu ? " is-active" : ""}">${escapeHtml(label)}</button>`).join("")}
           </nav>
           <header class="cp-p6-activity-header" data-activity-header>
             <span class="cp-p6-activity-heading">
