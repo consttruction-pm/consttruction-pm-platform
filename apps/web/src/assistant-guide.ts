@@ -723,8 +723,18 @@ function shapeToGuide(
 
 function menuShape(menu: WorkspaceMenuKey): GuideShape {
   const configured = MENU_GUIDES[menu];
-  if (configured) return configured;
   const navigation = getWorkspaceNavigation(menu);
+  if (configured) {
+    if (configured.action) return configured;
+    const label = getWorkspaceNavigationLabel(navigation, "en");
+    return {
+      ...configured,
+      action: {
+        label: { en: `Review ${label}`, fa: `بررسی ${navigation.label.fa}` },
+        target: "[data-workspace-menu]",
+      },
+    };
+  }
   const label = getWorkspaceNavigationLabel(navigation, "en");
   return {
     purpose: {
