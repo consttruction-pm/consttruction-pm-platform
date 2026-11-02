@@ -72,10 +72,12 @@ class SQLiteResourceRepository:
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        self.transaction_manager = SQLiteTransactionManager(connection)
         self.connection.execute("PRAGMA foreign_keys = ON")
-        self.connection.executescript(SCHEMA_SQL)
-        self._migrate_schema()
-        self._record_schema_version()
+        with self.transaction_manager.transaction():
+            execute_sqlite_script(self.connection, SCHEMA_SQL)
+            self._migrate_schema()
+            self._record_schema_version()
 
     def _migrate_schema(self) -> None:
         resource_columns = {
@@ -105,7 +107,8 @@ class SQLiteResourceRepository:
             "ON CONFLICT(id) DO UPDATE SET version=excluded.version",
             (SCHEMA_VERSION,),
         )
-        self.connection.commit()
+        # The constructor's transaction manager commits only when it owns
+        # the outer transaction; never commit a caller-owned transaction here.
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
