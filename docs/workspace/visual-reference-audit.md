@@ -51,7 +51,7 @@ Module submenus are not allowed to remain decorative labels when the destination
 | Project | Project/WBS, Details, Import/Export | — |
 | WBS | WBS Register, WBS Details tab | WBS Chart until a real hierarchy chart renderer exists |
 | Schedule | Activity Grid, Gantt, relationship/calendar/resource/progress reference groups, schedule options, run, formula and documentation sections | Any future view not rendered by the shared schedule workspace |
-| Progress | Site logs, field operations | No locally computed progress percentage |
+| Progress | Data-backed Activity Progress Register with entered progress/actual dates, selectable activity details, Site Daily Logs, Timecards, Equipment Reports and Field Issues routes | Update Progress, period close and progress calculations remain unavailable until authoritative scheduling/progress services expose them |
 | Resources | Resource Register, Max Units/Time, Assignments, Codes, Roles detail tabs; capacity tool | Resource utilization and assignment calculations until backed by authoritative resource/assignment data |
 | Resource Assignments | Assignment register, General details tab | Resource Usage chart/profile |
 | Roles | Role register, Rates and Assignments detail tabs | — |
