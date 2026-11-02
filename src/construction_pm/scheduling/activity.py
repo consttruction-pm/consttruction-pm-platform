@@ -177,6 +177,16 @@ class Activity:
                 raise ValueError("milestones must have zero original_duration")
             if self.remaining_duration not in (None, 0):
                 raise ValueError("milestones must have zero remaining_duration")
+            if (
+                self.actual_start is not None
+                and self.actual_finish is not None
+                and self.actual_start != self.actual_finish
+            ):
+                # A milestone is a single event: its actual start and actual
+                # finish are the same date, never a spanned work window.
+                raise ValueError(
+                    "milestone actual_finish must equal actual_start"
+                )
         if not isinstance(self.status_code, ActivityStatusCode):
             raise TypeError("status_code must be an ActivityStatusCode")
         if self.expected_finish is not None and (not isinstance(self.expected_finish, date) or isinstance(self.expected_finish, datetime)):

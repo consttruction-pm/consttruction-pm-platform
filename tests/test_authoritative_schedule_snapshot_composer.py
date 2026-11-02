@@ -13,7 +13,10 @@ from construction_pm.activity_master_repository import SQLiteActivityMasterRepos
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectLifecycleService, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
-from construction_pm.authoritative_schedule_input_composer import AuthoritativeScheduleInputComposer
+from construction_pm.authoritative_schedule_input_composer import (
+    AuthoritativeScheduleInputComposer,
+    ScheduleInputCompositionError,
+)
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.calendar_master_repository import (
@@ -276,6 +279,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "calendar_exceptions": calendar_exceptions,
         "calendar_work_hours": calendar_work_hours,
         "registry": registry,
+        "composer": composer,
     }
 
 
@@ -2464,3 +2468,56 @@ def test_authenticated_persisted_workspace_v2_returns_canonical_wbs_tree(tmp_pat
     assert snapshot["workspace"]["activities"][0]["name"] == "Install Foundation"
     assert snapshot["workspace"]["activities"][0]["gantt"] is None
     fixture["connection"].close()
+
+
+@pytest.mark.parametrize(
+    "activity_type",
+    [ActivityType.START_MILESTONE.value, ActivityType.FINISH_MILESTONE.value],
+)
+def test_composer_rejects_resource_assignments_on_milestones(
+    tmp_path, activity_type: str
+) -> None:
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "M-1",
+            "name": "Milestone event",
+            "duration_value": "0",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "activity_type": activity_type,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="AS-M",
+            activity_id="M-1",
+            resource_id="RES-1",
+            units=Decimal("4"),
+            unit="labor-unit",
+        )
+    )
+    fixture["connection"].commit()
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(data_date=date(2026, 11, 2)),
+        project_start=date(2026, 11, 2),
+    )
+    assert settings_status == "201 Created"
+
+    with pytest.raises(
+        ScheduleInputCompositionError,
+        match="MILESTONE_RESOURCE_ASSIGNMENT_UNSUPPORTED:M-1:AS-M",
+    ):
+        fixture["composer"].compose(scope, snapshot_id="SNAP-MILESTONE")

@@ -395,3 +395,40 @@ def test_wbs_summary_progress_is_preserved_in_late_date_output(resolver):
     assert result.early_activities["WBS"].status is ActivityStatus.IN_PROGRESS
     assert result.late_activities["WBS"].percent_complete == 50.0
     assert result.late_activities["WBS"].status is ActivityStatus.IN_PROGRESS
+
+
+def test_start_and_finish_milestones_are_zero_duration_events_in_network(resolver):
+    activities = [
+        Activity(
+            "SM",
+            0,
+            activity_type=ActivityType.START_MILESTONE,
+            wbs_id="W-ROOT",
+        ),
+        Activity("A", 3, wbs_id="W-ROOT"),
+        Activity(
+            "FM",
+            0,
+            activity_type=ActivityType.FINISH_MILESTONE,
+            wbs_id="W-ROOT",
+        ),
+    ]
+    relationships = [
+        # A start milestone marks the start that successors bind to.
+        Relationship("SM", "A", RelationshipType.FS),
+        # A finish milestone marks the finish that followers bind to.
+        Relationship("A", "FM", RelationshipType.FS),
+    ]
+
+    result = forward_pass(activities, relationships, date(2026, 11, 2), resolver)
+
+    assert (result["SM"].start, result["SM"].finish) == (
+        date(2026, 11, 2),
+        date(2026, 11, 2),
+    )
+    assert result["A"].start == date(2026, 11, 3)
+    assert (result["FM"].start, result["FM"].finish) == (
+        date(2026, 11, 6),
+        date(2026, 11, 6),
+    )
+    assert result["SM"].duration == result["FM"].duration == 0

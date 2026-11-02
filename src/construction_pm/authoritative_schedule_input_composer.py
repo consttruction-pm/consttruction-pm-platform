@@ -423,6 +423,19 @@ class AuthoritativeScheduleInputComposer:
                 )
 
             raw_activity_type = getattr(item.activity_type, "value", item.activity_type)
+            if raw_activity_type in (
+                ActivityType.START_MILESTONE.value,
+                ActivityType.FINISH_MILESTONE.value,
+            ):
+                # A milestone is a zero-duration event and cannot carry work.
+                # Persisted resource assignments (including time-based labour
+                # costs) contradict the documented activity type.
+                milestone_assignments = assignments_by_activity.get(item.activity_id, [])
+                if milestone_assignments:
+                    raise ScheduleInputCompositionError(
+                        "MILESTONE_RESOURCE_ASSIGNMENT_UNSUPPORTED:"
+                        f"{item.activity_id}:{milestone_assignments[0].assignment_id}"
+                    )
             activity_wbs_id = item.wbs_id
             activity_wbs_ancestry: tuple[str, ...] = ()
             if activity_wbs_id is not None:
