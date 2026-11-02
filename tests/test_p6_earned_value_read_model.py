@@ -410,3 +410,63 @@ def test_missing_remaining_cost_for_unfinished_work_fails_closed_but_completed_i
     ).read(scope(), "B-1", data_date=date(2026, 11, 6), currency="USD")
     assert completed.result.earned_value.estimate_to_complete == Decimal("0")
     assert completed.result.earned_value.estimate_at_completion == Decimal("90")
+
+
+def test_api_passes_wbs_settings_to_the_authoritative_service():
+    from construction_pm.p6_earned_value_read_model import P6EarnedValueSettings
+    from construction_pm.scheduling.evm_source import (
+        EVM_TECHNIQUE_FIFTY_FIFTY,
+        EarnedValueTechniqueOverride,
+    )
+    from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
+
+    svc = P6EarnedValueReadModelService(
+        baseline_activities=SimpleNamespace(
+            list=lambda scope, baseline_id: (baseline("A", "W-1", "1000"),)
+        ),
+        activities=SimpleNamespace(
+            list=lambda scope: (
+                current(
+                    "A", percent=10.0, status=ActivityStatus.IN_PROGRESS,
+                    actual_start=date(2026, 11, 2),
+                ),
+            )
+        ),
+        actuals=SimpleNamespace(list=lambda scope: ()),
+        expenses=SimpleNamespace(
+            list=lambda scope: (expense("A", "0", actual="100"),)
+        ),
+        resolver=resolver(),
+        wbs_repository=SimpleNamespace(
+            list=lambda scope: (
+                WBSMaster(
+                    scope, "W-ROOT", WBSParentKind.PROJECT, None, "1", "Root", 0
+                ),
+                WBSMaster(
+                    scope, "W-1", WBSParentKind.WBS, "W-ROOT", "1.1", "Child", 0
+                ),
+            )
+        ),
+    )
+    api = P6EarnedValueReadModelAPI(svc, default_project_policy())
+    payload = api.get(
+        scope(),
+        "B-1",
+        data_date=date(2026, 11, 4),
+        currency="USD",
+        auth_context=AuthorizationContext(
+            user_id="user-1",
+            tenant_id="tenant-a",
+            project_id="project-a",
+            roles=frozenset({"viewer"}),
+        ),
+        settings=P6EarnedValueSettings(
+            technique_overrides=(
+                EarnedValueTechniqueOverride("W-ROOT", EVM_TECHNIQUE_FIFTY_FIFTY),
+            ),
+        ),
+    )
+    assert payload["activities"][0]["earned_value_technique"] == (
+        EVM_TECHNIQUE_FIFTY_FIFTY
+    )
+    assert Decimal(payload["earned_value"]["earned_value"]) == Decimal("500.00")

@@ -22,11 +22,15 @@ from .scheduling.calendar import WorkingTimeResolver
 from .scheduling.earned_value import ETC_REMAINING_COST
 from .scheduling.evm_source import (
     EarnedValueCostAdjustment,
+    EarnedValuePVBucket,
     EarnedValueProgress,
     EarnedValueSourceError,
     EarnedValueSourceResult,
+    EarnedValueTechniqueOverride,
+    EarnedValueWBSMilestone,
     select_earned_value_sources,
 )
+from .wbs_master_repository import WBSParentKind, WBSPersistenceError
 
 P6_EARNED_VALUE_READ_MODEL_VERSION = "p6-earned-value-read-model.v1"
 
@@ -61,6 +65,98 @@ class ExpenseSource(Protocol):
         activity_id: str | None = None,
         wbs_id: str | None = None,
     ) -> tuple[P6Expense, ...]: ...
+
+
+class WBSHierarchySource(Protocol):
+    def list(self, scope: BackendScope) -> tuple[object, ...]: ...
+
+
+@dataclass(frozen=True)
+class P6EarnedValueSettings:
+    """Project-level WBS Earned Value settings for one measurement.
+
+    These settings are not part of the immutable baseline activity values.
+    Keeping them explicit lets the read model report exactly which override
+    or milestone facts produced the result instead of reading hidden state.
+    """
+
+    technique_overrides: tuple[EarnedValueTechniqueOverride, ...] = ()
+    wbs_milestones: tuple[EarnedValueWBSMilestone, ...] = ()
+    pv_buckets: tuple[EarnedValuePVBucket, ...] = ()
+
+    def validate(self) -> None:
+        for values, expected, code in (
+            (
+                self.technique_overrides,
+                EarnedValueTechniqueOverride,
+                "EVM_TECHNIQUE_OVERRIDE_REQUIRED",
+            ),
+            (
+                self.wbs_milestones,
+                EarnedValueWBSMilestone,
+                "EVM_WBS_MILESTONE_REQUIRED",
+            ),
+            (self.pv_buckets, EarnedValuePVBucket, "EVM_PV_BUCKET_REQUIRED"),
+        ):
+            if not isinstance(values, tuple):
+                raise P6EarnedValueReadModelError(code)
+            if any(not isinstance(value, expected) for value in values):
+                raise P6EarnedValueReadModelError(code)
+
+
+def _wbs_ancestry_map(
+    records: Iterable[object],
+    scope: BackendScope,
+) -> dict[str, tuple[str, ...]]:
+    """Return root-to-parent WBS ancestry for the persisted hierarchy."""
+    nodes: dict[str, object] = {}
+    for record in records:
+        try:
+            record.validate()  # type: ignore[attr-defined]
+        except WBSPersistenceError as exc:
+            raise P6EarnedValueReadModelError(str(exc)) from exc
+        if record.scope != scope:  # type: ignore[attr-defined]
+            raise P6EarnedValueReadModelError(
+                f"EVM_WBS_SCOPE_MISMATCH:{record.wbs_id}"  # type: ignore[attr-defined]
+            )
+        if record.wbs_id in nodes:  # type: ignore[attr-defined]
+            raise P6EarnedValueReadModelError(
+                f"EVM_DUPLICATE_WBS_ID:{record.wbs_id}"  # type: ignore[attr-defined]
+            )
+        nodes[record.wbs_id] = record  # type: ignore[attr-defined]
+
+    cache: dict[str, tuple[str, ...]] = {}
+
+    def ancestry(wbs_id: str) -> tuple[str, ...]:
+        cached = cache.get(wbs_id)
+        if cached is not None:
+            return cached
+        path: list[str] = []
+        seen: set[str] = set()
+        current = wbs_id
+        while True:
+            if current in seen:
+                raise P6EarnedValueReadModelError(f"EVM_WBS_ANCESTRY_CYCLE:{wbs_id}")
+            seen.add(current)
+            node = nodes.get(current)
+            if node is None:
+                raise P6EarnedValueReadModelError(
+                    f"EVM_WBS_ANCESTRY_INCOMPLETE:{wbs_id}:{current}"
+                )
+            if node.parent_kind is WBSParentKind.PROJECT:  # type: ignore[attr-defined]
+                break
+            parent = node.parent_wbs_id  # type: ignore[attr-defined]
+            if parent is None:
+                raise P6EarnedValueReadModelError(
+                    f"EVM_WBS_ANCESTRY_INCOMPLETE:{wbs_id}:{current}"
+                )
+            path.append(parent)
+            current = parent
+        value = tuple(reversed(path))
+        cache[wbs_id] = value
+        return value
+
+    return {wbs_id: ancestry(wbs_id) for wbs_id in sorted(nodes)}
 
 
 @dataclass(frozen=True)
@@ -221,6 +317,25 @@ class P6EarnedValueReadModelService:
     actuals: ActivityActualSource
     expenses: ExpenseSource
     resolver: WorkingTimeResolver
+    wbs_repository: WBSHierarchySource | None = None
+
+    def _ancestry_map(
+        self,
+        scope: BackendScope,
+        settings: P6EarnedValueSettings,
+    ) -> dict[str, tuple[str, ...]]:
+        needs_ancestry = bool(
+            settings.technique_overrides or settings.wbs_milestones
+        )
+        if not needs_ancestry:
+            return {}
+        if self.wbs_repository is None:
+            raise P6EarnedValueReadModelError("EVM_WBS_REPOSITORY_REQUIRED")
+        try:
+            records = self.wbs_repository.list(scope)
+        except WBSPersistenceError as exc:
+            raise P6EarnedValueReadModelError(str(exc)) from exc
+        return _wbs_ancestry_map(records, scope)
 
     def read(
         self,
@@ -231,15 +346,22 @@ class P6EarnedValueReadModelService:
         currency: str,
         etc_method: str = ETC_REMAINING_COST,
         performance_factor: Decimal | None = None,
+        settings: P6EarnedValueSettings | None = None,
     ) -> P6EarnedValueReadModel:
         scope.validate()
         if not isinstance(data_date, date) or isinstance(data_date, datetime):
             raise P6EarnedValueReadModelError("EVM_DATA_DATE_INVALID")
+        if settings is None:
+            settings = P6EarnedValueSettings()
+        if not isinstance(settings, P6EarnedValueSettings):
+            raise P6EarnedValueReadModelError("EVM_SETTINGS_REQUIRED")
+        settings.validate()
         baseline = self.baseline_activities.list(scope, baseline_id)
         if not baseline:
             raise P6EarnedValueReadModelError(
                 f"EVM_BASELINE_ACTIVITIES_EMPTY:{baseline_id}"
             )
+        ancestry_by_wbs = self._ancestry_map(scope, settings)
         try:
             progress, cost_adjustments = _progress_rows(
                 baseline,
@@ -249,7 +371,16 @@ class P6EarnedValueReadModelService:
                 currency=currency,
             )
             result = select_earned_value_sources(
-                (item.to_value() for item in baseline),
+                (
+                    item.to_value(
+                        wbs_ancestry=(
+                            ancestry_by_wbs.get(item.wbs_id, ())
+                            if item.wbs_id is not None
+                            else ()
+                        )
+                    )
+                    for item in baseline
+                ),
                 progress,
                 baseline_id=baseline_id,
                 data_date=data_date,
@@ -258,6 +389,9 @@ class P6EarnedValueReadModelService:
                 etc_method=etc_method,
                 performance_factor=performance_factor,
                 cost_adjustments=cost_adjustments,
+                technique_overrides=settings.technique_overrides,
+                wbs_milestones=settings.wbs_milestones,
+                pv_buckets=settings.pv_buckets,
             )
         except EarnedValueSourceError as exc:
             raise P6EarnedValueReadModelError(str(exc)) from exc
@@ -275,4 +409,5 @@ __all__ = [
     "P6EarnedValueReadModel",
     "P6EarnedValueReadModelError",
     "P6EarnedValueReadModelService",
+    "P6EarnedValueSettings",
 ]

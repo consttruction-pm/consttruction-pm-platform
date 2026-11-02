@@ -82,7 +82,16 @@ class P6BaselineActivity:
             _decimal(self.budgeted_cost, "INVALID_BUDGETED_COST"),
         )
 
-    def to_value(self) -> BaselineValueActivity:
+    def to_value(
+        self,
+        *,
+        wbs_ancestry: tuple[str, ...] = (),
+    ) -> BaselineValueActivity:
+        """Project to the shared EVM value object.
+
+        ``wbs_ancestry`` is supplied by the caller that owns the persisted WBS
+        hierarchy; it is not duplicated on the baseline activity row.
+        """
         self.validate()
         return BaselineValueActivity(
             baseline_id=self.baseline_id,
@@ -93,6 +102,7 @@ class P6BaselineActivity:
             currency=self.currency,
             wbs_id=self.wbs_id,
             earned_value_technique=self.earned_value_technique,
+            wbs_ancestry=wbs_ancestry,
         )
 
 

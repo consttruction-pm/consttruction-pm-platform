@@ -16,6 +16,7 @@ from .p6_earned_value_read_model import (
     P6_EARNED_VALUE_READ_MODEL_VERSION,
     P6EarnedValueReadModelError,
     P6EarnedValueReadModelService,
+    P6EarnedValueSettings,
 )
 
 
@@ -46,6 +47,7 @@ class P6EarnedValueReadModelAPI:
         auth_context: AuthorizationContext,
         etc_method: str | None = None,
         performance_factor: Decimal | str | float | int | None = None,
+        settings: P6EarnedValueSettings | None = None,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(
@@ -61,6 +63,8 @@ class P6EarnedValueReadModelAPI:
             kwargs["etc_method"] = etc_method
         if performance_factor is not None:
             kwargs["performance_factor"] = Decimal(str(performance_factor))
+        if settings is not None:
+            kwargs["settings"] = settings
         try:
             result = self.service.read(
                 scope,
