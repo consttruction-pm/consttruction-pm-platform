@@ -86,6 +86,34 @@ test("WBS create form dispatches validated fields to its workspace callback", ()
   });
 });
 
+test("Calendar Register displays only authenticated project calendar records", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activeMenu: "calendars" as const,
+    calendarCatalog: {
+      status: "loaded" as const,
+      calendars: [{
+        calendarId: "CAL-01",
+        calendarVersion: "v2",
+        kind: "working-time",
+        calendarType: "project",
+        name: "Project Standard",
+        recordRevision: 5,
+      }],
+      errorCode: null,
+    },
+  };
+  const container = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /CAL-01/);
+  assert.match(container.innerHTML, /Project Standard/);
+  assert.match(container.innerHTML, /working-time/);
+  assert.doesNotMatch(container.innerHTML, />0<\/span>/);
+});
+
 test("WBS register exposes the connected add workflow and never fabricates a chart action", () => {
   const html = render("en", "wbs");
   assert.match(html, /data-rail-action="wbs"/);
