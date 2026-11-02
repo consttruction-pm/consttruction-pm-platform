@@ -100,14 +100,18 @@ function esc(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
-const connectedShellCommands = new Set(["Table", "Gantt Chart", "Columns", "Filter By", "Group and Sort By", "Timescale", "Bars", "Bar Chart Options", "Bottom Layout Options", "Activity Details"]);
+const connectedShellCommands = new Set(["Table", "Gantt Chart", "Columns", "Filter By", "Group and Sort By", "Timescale", "Bars", "Bar Chart Options", "Bottom Layout Options", "Activity Details", "Add Activity", "Add WBS", "Add Relationship", "Link Activities", "Find"]);
+
+function shellCommandConnected(command: string, activeMenu: string): boolean {
+  return (activeMenu === "schedule" && connectedShellCommands.has(command)) || (command === "Add WBS" && activeMenu === "project");
+}
 
 function renderEntry(entry: MenuEntry, locale: string, activeMenu: string): string {
   if (entry.divider) return '<li class="cubi-command-divider" role="separator"></li>';
   const label = commandLabel(locale, entry.label);
   const shortcut = entry.shortcut ? `<kbd>${esc(entry.shortcut)}</kbd>` : "";
   if (entry.children?.length) return `<li class="cubi-command-parent"><details><summary>${esc(label)}<span class="cubi-submenu-caret">›</span></summary><ul role="group">${entry.children.map((child) => renderEntry(child, locale, activeMenu)).join("")}</ul></details></li>`;
-  const connected = activeMenu === "schedule" && connectedShellCommands.has(entry.label);
+  const connected = shellCommandConnected(entry.label, activeMenu);
   const state = connected ? "" : ' aria-disabled="true" disabled';
   const title = connected ? (locale === "fa" ? "بازکردن گزینه‌های مربوط به نمای جاری" : "Open the corresponding options for the current view") : (locale === "fa" ? "این فرمان هنوز به گردش‌کار خود متصل نشده است" : "This command is not connected to its owning workflow yet");
   return `<li><button type="button" data-shell-command="${esc(entry.label)}"${state} title="${title}">${esc(label)}${shortcut}</button></li>`;
@@ -117,7 +121,7 @@ export function renderWorkspaceCommandShell(locale: string, activeMenu = "schedu
   const isFa = locale.split("-")[0].toLowerCase() === "fa";
   const direction = getWorkspaceLocaleDirection(locale);
   const menuMarkup = menus.map((menu) => { const label = isFa ? menu.fa : commandLabel(locale, menu.en); return `<li class="cubi-menu-root"><details><summary>${label}</summary><ul class="cubi-menu-popup" role="menu" aria-label="${label}">${menu.entries.map((entry) => renderEntry(entry, locale, activeMenu)).join("")}</ul></details></li>`; }).join("");
-  const toolbar = toolbarGroups.map((group) => `<section class="cubi-toolbar-group"><strong>${isFa ? group.fa : commandLabel(locale, group.en)}</strong><div>${group.items.map((item) => `<button type="button" data-shell-command="${esc(item)}"${activeMenu === "schedule" && connectedShellCommands.has(item) ? "" : ' aria-disabled="true" disabled'} title="${activeMenu === "schedule" && connectedShellCommands.has(item) ? (isFa ? "بازکردن گزینه‌های نمای جاری" : "Open current view options") : (isFa ? "این فرمان هنوز به پنجره جاری متصل نشده است" : "This command is not connected to the current window yet")}">${esc(commandLabel(locale, item))}</button>`).join("")}</div></section>`).join("");
+  const toolbar = toolbarGroups.map((group) => `<section class="cubi-toolbar-group"><strong>${isFa ? group.fa : commandLabel(locale, group.en)}</strong><div>${group.items.map((item) => `<button type="button" data-shell-command="${esc(item)}"${shellCommandConnected(item, activeMenu) ? "" : ' aria-disabled="true" disabled'} title="${shellCommandConnected(item, activeMenu) ? (isFa ? "بازکردن گزینه‌های نمای جاری" : "Open current view options") : (isFa ? "این فرمان هنوز به پنجره جاری متصل نشده است" : "This command is not connected to the current window yet")}">${esc(commandLabel(locale, item))}</button>`).join("")}</div></section>`).join("");
   return `<style>
   .cubi-command-shell{position:relative;z-index:12;background:#f7f9fc;border-bottom:1px solid #aebdce;color:#172b43;font:12px Inter,Vazirmatn, sans-serif}
   .cubi-command-menubar{display:flex;align-items:center;gap:2px;min-height:30px;padding:2px 8px;border-bottom:1px solid #d7dee8;background:#edf2f8;list-style:none;margin:0}
