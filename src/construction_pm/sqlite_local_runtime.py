@@ -429,6 +429,8 @@ class SQLiteLocalApplicationRuntime:
                 wbs_api=self.wbs_api,
                 relationship_api=self.relationship_api,
                 constraint_api=self.constraint_api,
+                calendar_api=self.calendar_api,
+                calendar_read_api=self.calendar_read_api,
             ),
         )
 
