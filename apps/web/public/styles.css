@@ -6749,3 +6749,13 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-activity-details-options>footer{display:flex;justify-content:flex-end;gap:7px;padding-top:10px;border-top:1px solid #e1e7ee}
 .cp-p6 .cp-activity-details-options>footer button{min-height:28px;padding:4px 11px;border:1px solid #9eafc2;border-radius:3px;background:#edf2f8;color:#23405e;font:inherit;font-size:10px;cursor:pointer}
 @media(max-width:520px){.cp-p6 .cp-activity-details-options-list{grid-template-columns:minmax(0,1fr)}}
+
+
+/* WBS Details lower inspector tabs. */
+.cp-p6 .cp-wbs-details{display:flex;flex-direction:column;gap:0;margin:9px 0;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-wbs-details-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px;padding:5px 8px;background:#f1f4f8;border-bottom:1px solid #d7e0e9;color:#173d68;font-size:10px}
+.cp-p6 .cp-wbs-details-heading span{color:#65758a;font-variant-numeric:tabular-nums}
+.cp-p6 .cp-wbs-details [role=tabpanel]{min-height:80px;max-height:220px;overflow:auto;padding:7px}
+.cp-p6 .cp-wbs-details [role=tabpanel][hidden]{display:none!important}
+.cp-p6 .cp-wbs-details .cp-activity-detail-fields{grid-template-columns:repeat(3,minmax(100px,1fr))}
+@media(max-width:620px){.cp-p6 .cp-wbs-details .cp-activity-detail-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
