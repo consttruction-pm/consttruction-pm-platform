@@ -60,6 +60,19 @@ test("WBS Activities and Dates tabs show scoped activity records and derived sam
   assert.match(dateHtml, /21\/12\/26/);
 });
 
+test("activity network uses the typed relationship register and includes all linked activities", () => {
+  const state = createVisualDemoState("en");
+  state.window = "network";
+  const html = renderVisualDemo(state);
+
+  assert.match(html, /12 boxes · 8 typed links/);
+  for (const id of ["A1010", "A1110", "A1120", "A1130", "A1210", "A1220", "A1310", "A1320", "A1330", "A1340", "A1350"]) {
+    assert.match(html, new RegExp(`data-vd-node="${id}"`));
+  }
+  assert.match(html, /data-vd-node="A1350"/);
+  assert.match(html, /cp-vd-node-links/);
+});
+
 test("WBS window renders a selectable hierarchy and a dedicated details inspector", () => {
   const state = createVisualDemoState("en");
   state.window = "wbs";
