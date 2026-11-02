@@ -58,6 +58,18 @@ test("unsupported V1 surfaces are explicitly marked preview instead of being pre
   assert.equal(getWorkspaceNavigation("reports").status, "preview");
 });
 
+test("Reports navigation exposes library, layout, batch, print and export surfaces", () => {
+  assert.deepEqual(getWorkspaceNavigation("reports").submenus.map((item) => item.en), [
+    "Report Library",
+    "Report Layouts",
+    "Batch Reports",
+    "Print Preview",
+    "Page Setup",
+    "Export",
+    "Custom Reports",
+  ]);
+});
+
 test("Control navigation exposes quality, inspection, safety and closeout registers", () => {
   assert.deepEqual(getWorkspaceNavigation("control").submenus.map((item) => item.en), [
     "Control Summary",
