@@ -21,7 +21,7 @@ Status values: **Implemented** = usable with real data; **Partial** = some real 
 
 | CUBI window | Current implementation | Status | Gap to target |
 | --- | --- | --- | --- |
-| Projects / Business Domains | Project picker in `main.ts:1306-1344`; `GET /api/projects`, `POST /api/projects/{id}/open` | Preview | No window, no business-domain tree, no EPS/portfolio grouping |
+| Projects / Business Domains | Projects module shell with current-project register, loaded WBS structure summary and bottom Project Details; project picker still uses project list/open APIs | Partial | Organization-wide register/tree, multi-project list context, full tab data and persistent project defaults still require service contracts |
 | Activities | Activity grid `#cp-activity-grid` (`workspace-view.ts:518`), Gantt `#cp-gantt` (`:544`), filter/group/sort (`:1159-1180`), P6 field chooser (`:1183-1240`) | Partial | No window tabs, no Activity Details tabs, no menu commands, no resizable layouts |
 | WBS | `#cp-project-wbs` aside (`:489`), create/edit forms (`:492-515`) | Partial | No WBS window, chart view or element details |
 | Resource Assignments | Capacity panel `#cp-resource-capacity` (`:551`) | Partial | No assignments window grouped by resource; assignment editing UI incomplete |
@@ -36,7 +36,7 @@ Status values: **Implemented** = usable with real data; **Partial** = some real 
 | Risks | None | Missing | Risk register and exposure |
 | Administration | None | Missing | Users, profiles, preferences, categories, currencies, periods |
 
-## Activities window composition (target)
+## Projects window composition (current shell and target)\n\n| Region | Current | Target |\n| --- | --- | --- |\n| Project Register | Current authorized/open project facts and loaded WBS summary | Full authorized project list with domain/portfolio tree, table columns, grouping, sorting and filters |\n| Project Details | Bottom-docked tab surface; project-scoped tabs | General, Dates, Defaults, Resources, Settings, Codes, Notebook, budget/funding, Baselines, Documents, History and UDFs |\n| Project metadata edit | Existing metadata dialog/API | Editing for every field with service contract, revision guard and audit |\n\nSee the Projects Window and Project Details specification for field inventory, choices and acceptance gates.\n\n## Activities window composition (target)
 
 | Region | Current | Target |
 | --- | --- | --- |
