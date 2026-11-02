@@ -453,6 +453,8 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         const dialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
+      } else if (command === "Bottom Layout Options") {
+        container.querySelector<HTMLElement>("[data-activity-details-options-open]")?.click();
       }
       return;
     }
