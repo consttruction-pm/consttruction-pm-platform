@@ -47,10 +47,18 @@ export function getWorkspaceNavigationLabel(item: WorkspaceNavigationItem, local
 }
 
 export function getWorkspaceNavigationStatusLabel(item: WorkspaceNavigationItem, locale: WorkspaceLocale): string {
+  const labels: Record<WorkspaceSurfaceStatus, { en: string; fa: string }> = {
+    implemented: { en: "Implemented", fa: "پیاده‌سازی‌شده" },
+    partial: { en: "Partial", fa: "جزئی" },
+    preview: { en: "Preview", fa: "پیش‌نمایش" },
+  };
+  const label = labels[item.status];
+  // The legacy status key omitted the status value and could preserve a stale
+  // "Implemented" translation after a surface was downgraded to Partial.
   return translateWorkspaceText(
     locale,
-    `navigation.${item.key}.status`,
-    translateWorkspaceUiText(locale, item.statusLabel.en, item.statusLabel.fa),
+    `navigation.${item.key}.status.${item.status}`,
+    translateWorkspaceUiText(locale, label.en, label.fa),
   );
 }
 
