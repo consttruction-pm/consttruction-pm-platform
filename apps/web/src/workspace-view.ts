@@ -1179,7 +1179,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </section>
         </div>
       </div>
-      ${renderWorkspaceStatusBar(state)}
       <aside class="cp-comments-dock" data-comments-panel hidden aria-label="${escapeAttribute(rail.comments)}"></aside>
     </section>
   `;
@@ -1188,21 +1187,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
 }
 
-
-function renderWorkspaceStatusBar(state: WorkspaceState): string {
-  const labels = [
-    { key: "portfolio", en: "Portfolio", fa: "سبد پروژه", valueEn: "Not supplied", valueFa: "ارائه نشده" },
-    { key: "access", en: "Access Mode", fa: "حالت دسترسی", valueEn: "Authorized session", valueFa: "نشست مجاز" },
-    { key: "data-date", en: "Data Date", fa: "تاریخ داده", valueEn: "Not loaded", valueFa: "بارگذاری نشده" },
-    { key: "baseline", en: "Baseline", fa: "مبنا", valueEn: "Not assigned", valueFa: "تخصیص نیافته" },
-    { key: "user", en: "User", fa: "کاربر", valueEn: "Current session", valueFa: "نشست جاری" },
-    { key: "database", en: "DB", fa: "پایگاه داده", valueEn: "Server-backed", valueFa: "متصل به سرور" },
-  ];
-  return `<footer class="cp-workspace-statusbar" role="status" aria-label="${escapeAttribute(uiText(state.locale, "Workspace status", "وضعیت محیط کار"))}" data-workspace-statusbar>
-    ${labels.map((item) => `<span class="cp-workspace-status-pane" data-status-pane="${item.key}"><strong>${escapeHtml(uiText(state.locale,item.en,item.fa))}</strong><span>${escapeHtml(uiText(state.locale,item.valueEn,item.valueFa))}</span></span>`).join("")}
-    <span class="cp-workspace-status-revision" title="${escapeAttribute(uiText(state.locale, "Current project revision", "ویرایش جاری پروژه"))}">R${state.context.revision}</span>
-  </footer>`;
-}
 
 function renderRegisterWindow(
   state: WorkspaceState,
