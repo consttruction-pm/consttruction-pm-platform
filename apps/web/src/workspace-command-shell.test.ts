@@ -101,7 +101,7 @@ test("View menu includes the complete Version 26 display toolbar commands in CUB
 
 test("global menus include the remaining documented file, edit, organization, tools and help commands", () => {
   const html = renderWorkspaceCommandShell("en");
-  for (const command of ["Commit Changes", "Refresh Data", "Print Setup", "Send Project", "Check In", "Check Out", "Select Project Portfolio", "Replace", "Spell Check", "Organizational Breakdown Structure", "Activity Step Templates", "External Applications", "Auto-Reorganization", "Job Services", "Report Wizard", "Publish", "Local Help", "Online Help"]) {
+  for (const command of ["Commit Changes", "Refresh Data", "Print Setup", "Send Project", "Check In", "Check Out", "Select Project Portfolio", "Replace", "Spell Check", "Organizational Breakdown Structure", "Activity Step Templates", "External Applications", "Disable Auto-Reorganization", "Job Services", "Report Wizard", "Publish", "Local Help", "Online Help"]) {
     assert.ok(html.includes(command), `missing menu command: ${command}`);
   }
   assert.match(html, /Ctrl\+W/);
