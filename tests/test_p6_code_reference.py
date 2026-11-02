@@ -170,6 +170,17 @@ def test_level_of_effort_and_wbs_summary_are_explicit_fail_closed_gaps():
 
 
 
+def test_status_actual_date_consistency_is_recorded_as_fail_closed_guard():
+    item = get_reference("ACT-003")
+    assert "COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH" in item.known_gap
+    assert "NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS" in item.known_gap
+    assert "IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START" in item.known_gap
+    assert any(
+        path.endswith("test_authoritative_schedule_snapshot_composer.py")
+        for path in item.regression_tests
+    )
+
+
 def test_every_referenced_cubi_repository_path_exists():
     repo_root = Path(__file__).resolve().parents[1]
     paths = {

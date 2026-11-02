@@ -267,8 +267,10 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="Keep Original/Planned, Actual, Remaining and At Complete duration distinct. P6 defines At Complete Duration as Actual Duration + Remaining Duration. Validate legal edits by activity state and preserve coherent actual-date/remaining-work invariants.",
         user_options=("Original/Planned Duration", "Actual Duration", "Remaining Duration", "At Complete Duration", "Actual Start", "Actual Finish"),
         official_sources=(ORACLE_SOURCES["activity_status"], ORACLE_SOURCES["progress"]),
-        cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/scheduling/remaining_work.py"),
-        regression_tests=("tests/scheduling/test_schedule.py",), coverage=MAPPED_NOT_PROVEN,
+        cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/scheduling/remaining_work.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"), coverage=MAPPED_NOT_PROVEN,
+        known_gap="Original, Actual and Remaining values are composed from persisted data. The composer fails closed with COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH, NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS or IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START when the persisted status contradicts the actual dates, because progress state is derived from actual dates rather than from the label. Suspend/resume edit rules, Actual Duration derivation and full at-completion edit-rule parity remain unproven.",
+        acceptance_evidence=("Status/actual-date contradictions fail closed before a snapshot is published", "Completed status requires an actual finish", "Not Started status rejects actual dates and In Progress status requires an actual start"),
     ),
     P6CodeReference(
         id="ACT-004", area="Activities / Percent complete", feature="Duration, Units, Physical and scope percent complete",

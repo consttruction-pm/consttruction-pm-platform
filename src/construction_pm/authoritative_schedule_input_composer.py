@@ -486,6 +486,31 @@ class AuthoritativeScheduleInputComposer:
                         f"{derived.duration_working_days}"
                     )
             else:
+                raw_status = getattr(item.status, "value", item.status)
+                if (
+                    raw_status == ActivityStatus.COMPLETED.value
+                    and item.actual_finish is None
+                ):
+                    # Progress state is derived from actual dates, not from
+                    # the label. Scheduling a completed label without an
+                    # actual finish would silently treat the activity as
+                    # outstanding work.
+                    raise ScheduleInputCompositionError(
+                        f"COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH:{item.activity_id}"
+                    )
+                if raw_status == ActivityStatus.NOT_STARTED.value and (
+                    item.actual_start is not None or item.actual_finish is not None
+                ):
+                    raise ScheduleInputCompositionError(
+                        f"NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS:{item.activity_id}"
+                    )
+                if (
+                    raw_status == ActivityStatus.IN_PROGRESS.value
+                    and item.actual_start is None
+                ):
+                    raise ScheduleInputCompositionError(
+                        f"IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START:{item.activity_id}"
+                    )
                 if raw_activity_type == ActivityType.LEVEL_OF_EFFORT.value:
                     # LOE dates come from its start/finish-linked
                     # predecessors and successors, not from a task duration.

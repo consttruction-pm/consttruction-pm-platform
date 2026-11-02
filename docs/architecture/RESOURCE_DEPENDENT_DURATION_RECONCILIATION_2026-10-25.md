@@ -52,3 +52,9 @@ This record is additive. It does not remove existing project requirements or gra
 - Level of Effort and WBS Summary are rejected at composition with `LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED` and `WBS_SUMMARY_SCHEDULING_UNSUPPORTED`. Neither is run through the task-duration algorithm while its type-specific date rule is unproven.
 - Start and Finish Milestones must have zero duration, zero original duration and zero remaining duration. A persisted milestone that carries task work fails closed with `INVALID_PERSISTED_ACTIVITY` rather than moving itself and its successors.
 - These guards add no new scheduling semantics; the start-versus-finish milestone placement convention, LOE start/finish-linked derivation and WBS Summary child rollup remain open verification items.
+
+## 2026-11-02 addendum — status versus actual-date consistency
+
+- The scheduler derives progress state from actual dates and remaining work, not from the persisted status label. The composer therefore fails closed on contradictory persisted records: `COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH`, `NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS` and `IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START`.
+- This prevents a Completed label without an actual finish from being silently scheduled as outstanding work and a Not Started label with actual dates from silently becoming an in-progress activity.
+- Legal edit rules, suspend/resume and full Actual Duration derivation remain open verification items.

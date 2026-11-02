@@ -1517,6 +1517,72 @@ def test_milestone_with_nonzero_persisted_duration_fails_closed(tmp_path):
     fixture["connection"].close()
 
 
+@pytest.mark.parametrize(
+    ("payload", "code"),
+    [
+        (
+            {
+                "status": ActivityStatus.COMPLETED.value,
+            },
+            "COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH",
+        ),
+        (
+            {
+                "status": ActivityStatus.NOT_STARTED.value,
+                "actual_start": "2026-10-19",
+            },
+            "NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS",
+        ),
+        (
+            {
+                "status": ActivityStatus.IN_PROGRESS.value,
+            },
+            "IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START",
+        ),
+    ],
+)
+def test_task_dependent_status_conflicting_with_actual_dates_fails_closed(
+    tmp_path, payload, code
+):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    activity_id = "STATUS-CONFLICT"
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": activity_id,
+            "name": "Status contradicts actual dates",
+            "duration_value": "2",
+            "duration_unit": "working-day",
+            "activity_type": ActivityType.TASK_DEPENDENT.value,
+            "wbs_id": "W-ROOT",
+            **payload,
+        },
+    )
+    assert status == "201 Created"
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(level_all_resources=True),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+    )
+    assert publication_status == "400 Bad Request"
+    assert f"{code}:{activity_id}" in error["code"]
+    assert fixture["snapshot_repo"].list(scope) == ()
+    fixture["connection"].close()
+
+
 def test_resource_dependent_driving_and_nondriving_placement_is_bound_to_immutable_facts(tmp_path):
     fixture = _fixture(tmp_path)
     app = fixture["app"]
@@ -1776,6 +1842,8 @@ def test_activity_snapshot_publication_fails_closed_for_datetime_date_fields(tmp
             "name": "Foundation",
             "duration_value": "1",
             "duration_unit": "working-day",
+            "activity_type": ActivityType.TASK_DEPENDENT.value,
+            "status": ActivityStatus.IN_PROGRESS.value,
             "actual_start": "2026-10-19T09:15:00+00:00",
             "wbs_id": "W-ROOT",
         },

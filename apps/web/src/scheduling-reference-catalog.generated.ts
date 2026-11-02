@@ -239,7 +239,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Actual Finish"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": ""
+      "gap": "Original, Actual and Remaining values are composed from persisted data. The composer fails closed with COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH, NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS or IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START when the persisted status contradicts the actual dates, because progress state is derived from actual dates rather than from the label. Suspend/resume edit rules, Actual Duration derivation and full at-completion edit-rule parity remain unproven."
     },
     {
       "id": "ACT-004",
