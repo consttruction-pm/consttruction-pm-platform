@@ -183,3 +183,8 @@ The tree is collapsible; the active window is highlighted. The tree never replac
 2. Open **Activities** with WBS grouping and WBS sort.
 3. Top layout: table + Gantt. Bottom layout: Activity Details (General tab).
 4. Status bar shows project, data date, baseline (or None), layout, user, sync state.
+
+
+## Visual shell master audit (2026-11-02)
+
+The exhaustive menu, submenu, toolbar, contextual command-bar, window, and per-window Details inventory is maintained in [workspace-visual-shell-master-audit.md](./workspace-visual-shell-master-audit.md). That master audit is the controlling visual-scope checklist. This navigation map remains the command-target map; do not treat the existence of an item here as proof that its API or command execution exists. Visual-only commands must be marked disabled until their owning implementation is connected. CUBI Form Builder and the two distinct form libraries are additive and must not replace baseline windows or commands.
