@@ -322,6 +322,7 @@ class SQLiteProjectScheduleSettingsRepository:
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute("PRAGMA busy_timeout = 5000")
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS project_schedule_settings (
@@ -338,7 +339,8 @@ class SQLiteProjectScheduleSettingsRepository:
             "CREATE INDEX IF NOT EXISTS idx_project_schedule_settings_revision "
             "ON project_schedule_settings(tenant_id, project_id, project_revision)"
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def save(
         self,
