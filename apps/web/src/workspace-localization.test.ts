@@ -117,3 +117,21 @@ test("language-pack UI translations require the versioned schema before activati
     [{ path: "translations/ui.json", bytes: new TextEncoder().encode("{}") }],
   ), /UNSUPPORTED_WORKSPACE_LOCALE_TRANSLATION_SCHEMA/);
 });
+
+
+test("Arabic, French, Japanese and Korean are registered as selectable workspace locales", () => {
+  const expected = [
+    ["ar", "العربية", "rtl"],
+    ["fr", "Français", "ltr"],
+    ["ja", "日本語", "ltr"],
+    ["ko", "한국어", "ltr"],
+  ] as const;
+  for (const [locale, displayName, direction] of expected) {
+    assert.ok(getAvailableWorkspaceLocales().includes(locale));
+    assert.equal(getWorkspaceLocaleDisplayName(locale), displayName);
+    assert.equal(getWorkspaceLocaleDirection(locale), direction);
+    const state = setLocale(createWorkspaceState(context, "en"), locale);
+    assert.equal(state.locale, locale);
+    assert.equal(state.direction, direction);
+  }
+});
