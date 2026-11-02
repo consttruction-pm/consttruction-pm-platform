@@ -767,10 +767,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     schedule: "activity",
     progress: "progress",
     resources: "resource",
+    roles: "resource",
     calendars: "calendar",
     cost: "money",
     documents: "file",
     reports: "print",
+    tracking: "progress",
     control: "network",
     settings: "settings",
   };
@@ -780,10 +782,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     ["schedule", uiText(state.locale, "Activities", "فعالیت‌ها")],
     ["progress", uiText(state.locale, "Progress", "پیشرفت")],
     ["resources", uiText(state.locale, "Resources", "منابع")],
+    ["roles", uiText(state.locale, "Roles", "نقش‌ها")],
     ["calendars", uiText(state.locale, "Calendars", "تقویم‌ها")],
     ["cost", uiText(state.locale, "Cost", "هزینه")],
     ["documents", uiText(state.locale, "Documents", "اسناد")],
     ["reports", uiText(state.locale, "Reports", "گزارش‌ها")],
+    ["tracking", uiText(state.locale, "Tracking", "رهگیری")],
     ["control", uiText(state.locale, "Project Controls", "کنترل پروژه")],
     ["settings", uiText(state.locale, "Settings", "تنظیمات")],
   ] as const).filter(([key]) => (options.openWindows ?? [state.activeMenu]).includes(key));
@@ -839,14 +843,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             ${menuButton("resources", t.resources, state, railMenuIcons.resources)}
             ${railActionButton("assignments", rail.assignments, "link")}
             ${menuButton("calendars", uiText(state.locale, "Calendars", "تقویم‌ها"), state, railMenuIcons.calendars)}
-            <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Role management window is catalogued; its page is not implemented yet.", "پنجره مدیریت نقش‌ها ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">♙</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Roles", "نقش‌ها"))}</span></button>
+            ${menuButton("roles", uiText(state.locale, "Roles", "نقش‌ها"), state, railMenuIcons.roles)}
             ${menuButton("cost", t.cost, state, railMenuIcons.cost)}
             ${railActionButton("expenses", rail.expenses, "money")}
           </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project information", "اطلاعات پروژه"))}</span>
             ${menuButton("documents", t.documents, state, railMenuIcons.documents)}
             ${menuButton("reports", t.reports, state, railMenuIcons.reports)}
-            <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Tracking window design is catalogued; its page is not implemented yet.", "پنجره رهگیری ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">▤</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Tracking", "رهگیری"))}</span></button>
+            ${menuButton("tracking", uiText(state.locale, "Tracking", "رهگیری"), state, railMenuIcons.tracking)}
             ${menuButton("control", t.control, state, railMenuIcons.control)}
             <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Thresholds window design is catalogued; its page is not implemented yet.", "پنجره آستانه‌ها ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">⌁</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Thresholds", "آستانه‌ها"))}</span></button>
             ${railActionButton("risks", rail.risks, "warning")}
@@ -1104,6 +1108,15 @@ function renderP6ModuleStage(state: WorkspaceState, t: WorkspaceLabels): string 
           </div>
         </div>`;
       break;
+    case "roles":
+      body = `
+        <div class="cp-register-window cp-roles-window">
+          <div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Role Register", "فهرست نقش‌ها"))}</strong><div><button type="button" disabled>${escapeHtml(uiText(state.locale, "New Role", "نقش جدید"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Edit", "ویرایش"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button></div></div>
+          <div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale, "Role ID", "شناسه نقش"))}</th><th>${escapeHtml(uiText(state.locale, "Role Name", "نام نقش"))}</th><th>${escapeHtml(uiText(state.locale, "Category", "دسته"))}</th><th>${escapeHtml(uiText(state.locale, "Max Units / Time", "حداکثر واحد / زمان"))}</th><th>${escapeHtml(uiText(state.locale, "Default Rate", "نرخ پیش‌فرض"))}</th><th>${escapeHtml(uiText(state.locale, "Rate Type", "نوع نرخ"))}</th><th>${escapeHtml(uiText(state.locale, "Currency", "ارز"))}</th></tr></thead><tbody><tr><td colspan="7">${escapeHtml(uiText(state.locale, "No role records are loaded for this project.", "هیچ رکورد نقشی برای این پروژه بارگذاری نشده است."))}</td></tr></tbody></table></div>
+          <section class="cp-register-details"><header><strong>${escapeHtml(uiText(state.locale, "Role Details", "جزئیات نقش"))}</strong><span>${escapeHtml(uiText(state.locale, "No selection", "بدون انتخاب"))}</span></header><nav class="cp-register-detail-tabs" role="tablist">${[["general","General","عمومی"],["limits","Limits","محدودیت‌ها"],["rates","Rates","نرخ‌ها"],["assignments","Assignments","تخصیص‌ها"],["notes","Notes","یادداشت‌ها"],["udfs","UDFs","فیلدهای کاربر"]].map(([key,en,fa],i)=>`<button type="button" role="tab" data-register-tab="roles:${key}" aria-selected="${i===0}" class="${i===0?"is-active":""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}</nav><div class="cp-register-detail-content"><p>${escapeHtml(uiText(state.locale, "Select a role to view its general properties, time-phased limits, price/unit rates and assignments. No role data is fabricated.", "برای مشاهده مشخصات عمومی، محدودیت‌های زمان‌مند، نرخ‌های قیمت/واحد و تخصیص‌ها یک نقش انتخاب کنید. هیچ داده‌ای برای نقش ساخته نشده است."))}</p></div></section>
+          <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Role management is a visual shell only until role CRUD, rate history and resource assignment services are connected.", "مدیریت نقش تا اتصال سرویس‌های ایجاد/ویرایش نقش، تاریخچه نرخ و تخصیص منابع صرفاً پوسته بصری است."))}</p>
+        </div>`;
+      break;
     case "resources":
       body = `
         <p>${escapeHtml(uiText(state.locale, "Resource capacity and assignment surfaces are kept in the workspace tools. Existing capacity limits and assignments are read from the project service; this page does not invent resource values.", "سطوح ظرفیت و تخصیص منابع در ابزارهای محیط کار نگهداری می‌شوند. محدودیت‌های ظرفیت و تخصیص‌های موجود از سرویس پروژه خوانده می‌شوند؛ این صفحه مقدار ساختگی منبع نمی‌سازد."))}</p>
@@ -1152,6 +1165,14 @@ function renderP6ModuleStage(state: WorkspaceState, t: WorkspaceLabels): string 
       body = `
         <p>${escapeHtml(uiText(state.locale, "Report generation and print layouts are not available in this preview yet. No report is generated or claimed here.", "تولید گزارش و قالب چاپ در این پیش‌نمایش فعال نیست. هیچ گزارشی در این صفحه تولید یا ادعا نمی‌شود."))}</p>
         ${controls(moduleButton("tools", "print", uiText(state.locale, "Open reports and print tools", "بازکردن ابزارهای گزارش و چاپ")))}`;
+      break;
+    case "tracking":
+      body = `
+        <div class="cp-tracking-window">
+          <div class="cp-tracking-toolbar"><strong>${escapeHtml(uiText(state.locale, "Tracking Layout", "چیدمان رهگیری"))}</strong><label>${escapeHtml(uiText(state.locale, "Layout Type", "نوع چیدمان"))}<select data-tracking-layout><option value="table">${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</option><option value="bar-chart">${escapeHtml(uiText(state.locale, "Project Bar Chart", "نمودار میله‌ای پروژه"))}</option><option value="gantt-profile">${escapeHtml(uiText(state.locale, "Project Gantt / Profile", "گانت / منحنی پروژه"))}</option><option value="resource-analysis">${escapeHtml(uiText(state.locale, "Resource Analysis", "تحلیل منابع"))}</option></select></label><button type="button" disabled>${escapeHtml(uiText(state.locale, "Refresh Data", "به‌روزرسانی داده"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Save Layout", "ذخیره چیدمان"))}</button></div>
+          <div class="cp-tracking-layout"><aside><strong>${escapeHtml(uiText(state.locale, "Projects", "پروژه‌ها"))}</strong><p>${escapeHtml(uiText(state.locale, "No project set is available for tracking.", "مجموعه پروژه‌ای برای رهگیری در دسترس نیست."))}</p></aside><section class="cp-tracking-chart" data-tracking-surface="table"><div class="cp-tracking-chart-head"><strong>${escapeHtml(uiText(state.locale, "Project Tracking", "رهگیری پروژه"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty">${escapeHtml(uiText(state.locale, "Select a tracking layout and load project data to display a table, bar chart, Gantt/profile or resource analysis.", "برای نمایش جدول، نمودار میله‌ای، گانت/منحنی یا تحلیل منابع، یک چیدمان رهگیری انتخاب و داده پروژه بارگذاری کنید."))}</div></section></div>
+          <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Tracking layout types are exposed for visual parity. Project selection, summarization, chart rendering and saved tracking layouts are not connected yet.", "انواع چیدمان رهگیری برای تطابق بصری نمایش داده شده‌اند؛ انتخاب پروژه، خلاصه‌سازی، ترسیم نمودار و ذخیره چیدمان رهگیری هنوز متصل نیستند."))}</p>
+        </div>`;
       break;
     case "settings":
       body = `
@@ -1249,6 +1270,8 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "resources":
       return ["#cp-resource-capacity", "#cp-field-operations"];
     case "calendars":
+    case "roles":
+    case "tracking":
       return [];
     case "cost":
       return ["#cp-procurement", "#cp-change-claim"];
