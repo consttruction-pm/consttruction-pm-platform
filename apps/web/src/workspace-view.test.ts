@@ -553,6 +553,16 @@ test("module navigation submenus route to real registers, detail tabs and tracki
   assert.match(resources, /data-navigation-action="register-tab:resources:roles"/);
   assert.match(resources, /Resource records are not yet returned by the project API/);
 
+  const control = render("en", "control");
+  assert.match(control, /Project Control Register/);
+  assert.match(control, /Quality/);
+  assert.match(control, /Inspections/);
+  assert.match(control, /Safety/);
+  assert.match(control, /Punch List/);
+  for (const tab of ["quality", "inspections", "safety", "issues", "punch", "changes", "forms"]) {
+    assert.match(control, new RegExp(`data-navigation-action="register-tab:control:${tab}"`));
+  }
+
   const cost = render("en", "cost");
   assert.match(cost, /Cost Accounts &amp; Control/);
   assert.match(cost, /Budgeted Cost/);
