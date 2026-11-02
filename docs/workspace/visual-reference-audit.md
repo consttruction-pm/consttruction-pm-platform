@@ -73,7 +73,7 @@ For a submenu implemented as a detail-tab action, activation must reuse the modu
 
 - The Activities window now places Activity Details below the activity table/Gantt region, with a horizontal splitter. The splitter supports pointer drag, Arrow Up/Down, Home/End, double-click reset, ARIA range values and browser-local height persistence.
 - The Projects window now places Project Details below the upper Project Structure / Project Register region, with the same accessible and persistent horizontal splitter behavior.
-- The Projects upper region places Project Structure in the leading rail and Project Register in the remaining width; RTL mirrors the leading edge, and narrow screens stack the two regions.
+- The Projects upper region places Project Structure in a leading 190–340 px rail (240 px default) and Project Register in the remaining width; the rail supports pointer and keyboard resizing, persists locally, RTL mirrors the leading edge, and narrow screens stack the two regions.
 - View → Show on Bottom → Activity Details routes to the docked details pane. View → Bottom Layout Options opens the available/displayed Activity Details tab selector.
 - View → Show on Top → Table and Gantt Chart are connected to the real workspace layout state. Activity Network and usage/profile layouts remain disabled until their renderers and data contracts exist.
 - Pane sizes are visual preferences only. They are stored locally and do not alter project data, schedule calculations or permissions.
