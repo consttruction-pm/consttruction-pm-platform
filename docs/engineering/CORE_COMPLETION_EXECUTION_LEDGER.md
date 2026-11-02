@@ -2,7 +2,7 @@
 
 Branch: `codex/jalal/resource-dependent-core-20261102`
 Baseline: `main` at `2577a56287f446fe0177458808e77952c12d4d7a`
-Latest implementation/test head: `1b121f22`
+Latest implementation/test head: `78d78414` (this ledger update follows it)
 PR: #1668 (open; not yet Ready/merged)
 
 This ledger is the durable continuation record for the core-calculation mission.
@@ -191,6 +191,22 @@ repository; they are not waiting on external input.
 - Acceptance criterion: cost facts are never silently dropped or spread, and
   the full persisted path is exercised.
 
+### Stage 8 — Exact-head verification and PostgreSQL CI repair
+
+- What was done: fixed the PostgreSQL baseline-activity fixture to pass calendar
+  dates instead of strings, and wired that test file into the dedicated
+  PostgreSQL Integration workflow paths and command. Confirmed the PR
+  description now reflects the implemented scope and the remaining gaps.
+- Commits: `750d721f`, `4d569a1c`, `78d78414`.
+- Tests: local full suite 3055 passed / 132 skipped; exact-head CI 9/9 on
+  `78d78414` (Python 3.11/3.12/3.13, Web, PostgreSQL, four client typechecks).
+- Open: PR remains Draft; Ready/merge requires authenticated GitHub write
+  access and the acceptance criteria below are not all met.
+- Next: implement the remaining matrix rows or obtain a licensed reference run
+  before claiming parity.
+- Acceptance criterion: CI is green on the exact pushed head with no weakened
+  tests.
+
 ## Remaining acceptance criteria
 
 1. All core capabilities inspected in real code — in progress; matrix rows
@@ -212,7 +228,7 @@ repository; they are not waiting on external input.
    Python suite at this head; cross-language CI is verified separately.
 9. CUBI code reference updated with real paths/tests — updated for EVM-001,
    EVM-003 and BAS-001; remaining rows reference current paths.
-10. Final commits saved on GitHub — `1b121f22` pushed (see remote tracking).
+10. Final commits saved on GitHub — `78d78414` pushed; exact-head CI 9/9 green.
 11. PR contains latest code, precise description and real CI results — pending
     PR body update and exact-head CI.
 12. Unproven capabilities and external limits clearly identified — recorded
