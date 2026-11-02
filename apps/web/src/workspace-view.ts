@@ -1067,6 +1067,32 @@ function renderRegisterWindow(
   </div>`;
 }
 
+function renderCalendarCatalog(state: WorkspaceState): string {
+  const catalog = state.calendarCatalog;
+  if (catalog.status === "unavailable") {
+    const message = uiText(state.locale, "Calendar catalogue unavailable", "فهرست تقویم‌ها در دسترس نیست");
+    return '<div class="cp-calendar-empty">' + escapeHtml(message) + ' (' + escapeHtml(catalog.errorCode ?? "unknown") + ')</div>';
+  }
+  if (catalog.status !== "loaded") {
+    return '<div class="cp-calendar-empty">' + escapeHtml(uiText(state.locale, "Calendar catalogue has not been loaded.", "فهرست تقویم‌ها هنوز بارگذاری نشده است.")) + '</div>';
+  }
+  if (!catalog.calendars.length) {
+    return '<div class="cp-calendar-empty">' + escapeHtml(uiText(state.locale, "No calendar records exist for this project.", "برای این پروژه رکورد تقویمی وجود ندارد.")) + '</div>';
+  }
+  const headings = [
+    ["Calendar ID", "شناسه تقویم"], ["Name", "نام"], ["Type", "نوع"],
+    ["Kind", "ماهیت"], ["Version", "نسخه"], ["Revision", "ویرایش"],
+  ];
+  const head = headings.map(([en, fa]) => '<th>' + escapeHtml(uiText(state.locale, en, fa)) + '</th>').join("");
+  const rows = catalog.calendars.map((calendar) => '<tr><td>' +
+    escapeHtml(calendar.calendarId) + '</td><td>' + escapeHtml(calendar.name) +
+    '</td><td>' + escapeHtml(calendar.calendarType) + '</td><td>' +
+    escapeHtml(calendar.kind) + '</td><td>' + escapeHtml(calendar.calendarVersion) +
+    '</td><td>' + escapeHtml(String(calendar.recordRevision)) + '</td></tr>').join("");
+  return '<div class="cp-register-table-wrap"><table><thead><tr>' + head +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
 function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: WorkspaceLabels): string {
   if (state.activeMenu === "schedule") return `<section id="cp-p6-module-stage" class="cp-p6-module-stage" data-workspace-menu="schedule" hidden></section>`;
   const navigation = getWorkspaceNavigation(state.activeMenu);
@@ -1120,7 +1146,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
           <div class="cp-calendar-window-layout">
             <section class="cp-calendar-register">
               <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Available Calendars", "تقویم‌های موجود"))}</strong></div>
-              <div class="cp-calendar-empty">${escapeHtml(uiText(state.locale, "No calendar records have been loaded for this project.", "هیچ رکورد تقویمی برای این پروژه بارگذاری نشده است."))}</div>
+              ${renderCalendarCatalog(state)}
             </section>
             <section class="cp-calendar-editor">
               <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Calendar Details", "جزئیات تقویم"))}</strong><span>${escapeHtml(uiText(state.locale, "No selection", "بدون انتخاب"))}</span></div>
