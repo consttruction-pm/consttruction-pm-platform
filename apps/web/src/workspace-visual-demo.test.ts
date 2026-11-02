@@ -76,3 +76,28 @@ test("calendar editor presents properties, workweek and exception panes", () => 
   assert.match(html, /2027-03-20/);
   assert.match(html, /not saved or used for scheduling/);
 });
+
+
+test("Activities window switches to an explicit relationship register with all four link types and signed lag", () => {
+  const state = createVisualDemoState("en");
+  state.activityView = "relationships";
+  const html = renderVisualDemo(state);
+
+  assert.match(html, /data-vd-activity-view="relationships"[^>]*aria-pressed="true"/);
+  assert.match(html, /Activity relationships/);
+  for (const type of ["FS", "SS", "FF", "SF"]) assert.match(html, new RegExp(`cp-vd-rel-type[^>]*>${type}<`));
+  assert.match(html, /\\+2 d/);
+  assert.match(html, /-1 d/);
+  assert.match(html, /Visual sample only\\. Relationship rows and lag values are illustrative/);
+  assert.doesNotMatch(html, /cp-vd-gantt-body/);
+});
+
+test("relationship register has Persian labels and preserves the RTL visual shell", () => {
+  const state = createVisualDemoState("fa");
+  state.activityView = "relationships";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  assert.match(html, /روابط فعالیت‌ها/);
+  assert.match(html, /تأخیر \/ پیش‌افتادگی/);
+  assert.match(html, /ذخیره یا در موتور زمان‌بندی استفاده نمی‌شوند/);
+});
