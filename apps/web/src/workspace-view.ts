@@ -810,17 +810,36 @@ function renderP6ModuleStage(state: WorkspaceState, t: WorkspaceLabels): string 
     `<span class="cp-p6-module-metric"><strong>${escapeHtml(String(value))}</strong><span>${escapeHtml(label)}</span></span>`;
   let body = "";
   switch (state.activeMenu) {
-    case "project":
+    case "project": {
+      const projectRows = [
+        [uiText(state.locale, "Project ID", "شناسه پروژه"), state.context.project_id],
+        [uiText(state.locale, "Workspace revision", "ویرایش محیط کار"), `R${state.context.revision}`],
+        [uiText(state.locale, "WBS elements", "عناصر WBS"), String(state.wbsNodes.length)],
+        [uiText(state.locale, "Activities", "فعالیت‌ها"), String(state.activities.length)],
+        [uiText(state.locale, "Relationships", "روابط"), String(state.relationships.length)],
+        [uiText(state.locale, "Documents", "اسناد"), String(state.documents.length)],
+      ];
       body = `
-        <p>${escapeHtml(uiText(state.locale, "Project and WBS structure. Open the WBS drawer to browse, add or edit the real hierarchy used by the activities grid.", "ساختار پروژه و WBS. برای مرور، افزودن یا ویرایش سلسله‌مراتب واقعی مورد استفادهٔ جدول فعالیت‌ها، کشوی WBS را باز کنید."))}</p>
-        <div class="cp-p6-module-metrics">
-          ${metric(state.wbsNodes.length, uiText(state.locale, "WBS elements", "عناصر WBS"))}
-          ${metric(state.activities.length, uiText(state.locale, "Activities", "فعالیت‌ها"))}
-          ${metric(state.relationships.length, uiText(state.locale, "Relationships", "روابط"))}
-          ${metric(state.documents.length, uiText(state.locale, "Documents", "اسناد"))}
+        <div class="cp-project-window-toolbar">
+          ${controls(`${moduleButton("wbs", "wbs", uiText(state.locale, "Open WBS structure", "بازکردن ساختار WBS"))}${moduleButton("tools", "tools", uiText(state.locale, "Import / Export", "ورود / خروجی"))}${projectSettingsButton(state, t)}`)}
+          <span class="cp-project-window-scope">${escapeHtml(uiText(state.locale, "Current project · server-authorized session", "پروژه جاری · نشست تأییدشده توسط سرور"))}</span>
         </div>
-        ${controls(`${moduleButton("wbs", "wbs", uiText(state.locale, "Open WBS tree", "بازکردن درخت WBS"))}${moduleButton("tools", "tools", uiText(state.locale, "Import / Export", "ورود / خروجی"))}${projectSettingsButton(state, t)}`)}`;
+        <div class="cp-project-window-overview">
+          <section class="cp-project-register" aria-label="${escapeAttribute(uiText(state.locale, "Current project register", "دفتر ثبت پروژه جاری"))}">
+            <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Register", "دفتر ثبت پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Current session project", "پروژه نشست جاری"))}</span></div>
+            <table class="cp-project-register-table">
+              <thead><tr><th>${escapeHtml(uiText(state.locale, "Property", "مشخصه"))}</th><th>${escapeHtml(uiText(state.locale, "Current value", "مقدار فعلی"))}</th></tr></thead>
+              <tbody>${projectRows.map(([label, value]) => `<tr><th scope="row">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}</tbody>
+            </table>
+          </section>
+          <section class="cp-project-structure-summary" aria-label="${escapeAttribute(uiText(state.locale, "Project structure summary", "خلاصه ساختار پروژه"))}">
+            <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Structure", "ساختار پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Loaded WBS hierarchy", "سلسله‌مراتب WBS بارگذاری‌شده"))}</span></div>
+            ${state.wbsNodes.length ? `<div class="cp-project-wbs-list">${state.wbsNodes.map((node) => `<div class="cp-project-wbs-row"><span>${escapeHtml(node.localCode)}</span><strong>${escapeHtml(node.name)}</strong><small>R${node.recordRevision}</small></div>`).join("")}</div>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No WBS elements are loaded for this project.", "هیچ عنصر WBS برای این پروژه بارگذاری نشده است."))}</p>`}
+          </section>
+        </div>
+        <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "This build displays the project authorized for the current session. Organization-wide domains, portfolios and additional projects are not invented when the API does not provide them.", "این نسخه پروژه مجاز برای نشست جاری را نمایش می‌دهد. حوزه‌های سازمانی، سبدها و پروژه‌های دیگر در صورت نبود داده از API ساخته یا حدس زده نمی‌شوند."))}</p>`;
       break;
+    }
     case "resources":
       body = `
         <p>${escapeHtml(uiText(state.locale, "Resource capacity and assignment surfaces are kept in the workspace tools. Existing capacity limits and assignments are read from the project service; this page does not invent resource values.", "سطوح ظرفیت و تخصیص منابع در ابزارهای محیط کار نگهداری می‌شوند. محدودیت‌های ظرفیت و تخصیص‌های موجود از سرویس پروژه خوانده می‌شوند؛ این صفحه مقدار ساختگی منبع نمی‌سازد."))}</p>
