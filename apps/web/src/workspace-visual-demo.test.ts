@@ -35,3 +35,33 @@ test("full-screen control changes to return-to-normal-view while active", () => 
   assert.match(html, /aria-pressed="true"/);
   assert.match(html, />Return to normal view<\/button>/);
 });
+
+test("WBS window renders a selectable hierarchy and a dedicated details inspector", () => {
+  const state = createVisualDemoState("en");
+  state.window = "wbs";
+  state.selectedWbsCode = "1.2";
+  const html = renderVisualDemo(state);
+
+  assert.match(html, /cp-vd-wbs-layout/);
+  assert.match(html, /data-vd-wbs="1\.2"/);
+  assert.match(html, /Engineering/);
+  assert.match(html, /data-vd-wbs-toggle="1"/);
+  assert.match(html, /data-vd-wbs-dtab="general"/);
+  assert.match(html, /Selected WBS element/);
+  assert.match(html, /Parent code/);
+  assert.match(html, /Visual sample only/);
+  assert.doesNotMatch(html, /data-vd-wbs="1\.2\.1"[^>]*aria-selected="true"/);
+});
+
+test("WBS detail tab state is rendered as the active accessible tab", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "wbs";
+  state.selectedWbsCode = "1.2.1";
+  state.wbsDetailTab = "dates";
+  const html = renderVisualDemo(state);
+
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  assert.match(html, /data-vd-wbs="1\.2\.1"[^>]*aria-selected="true"/);
+  assert.match(html, /data-vd-wbs-dtab="dates" aria-selected="true" class="is-active"/);
+  assert.match(html, /Not available in this visual sample/);
+});
