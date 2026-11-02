@@ -300,7 +300,9 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (!record) return;
     const { state, options } = record;
     if (target.dataset.navigationAction) {
-      const [kind, value] = target.dataset.navigationAction.split(":", 2);
+      const separator = target.dataset.navigationAction.indexOf(":");
+      const kind = separator >= 0 ? target.dataset.navigationAction.slice(0, separator) : target.dataset.navigationAction;
+      const value = separator >= 0 ? target.dataset.navigationAction.slice(separator + 1) : "";
       if (kind === "register-tab") {
         container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
           if (button.dataset.registerTab === value) button.click();
