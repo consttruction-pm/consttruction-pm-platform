@@ -1342,6 +1342,12 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "issues":
     case "risks":
     case "thresholds":
+    case "wbs":
+    case "assignments":
+    case "expenses":
+    case "issues":
+    case "risks":
+    case "thresholds":
     case "calendars":
     case "roles":
     case "tracking":
