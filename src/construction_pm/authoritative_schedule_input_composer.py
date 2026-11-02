@@ -473,6 +473,21 @@ class AuthoritativeScheduleInputComposer:
                         derived.remaining_duration_working_days
                     )
             else:
+                if item.activity_type is ActivityType.LEVEL_OF_EFFORT:
+                    # LOE dates come from its start/finish-linked
+                    # predecessors and successors, not from a task duration.
+                    # Scheduling it as an ordinary task would emit silently
+                    # wrong dates, so fail closed until that rule is proven.
+                    raise ScheduleInputCompositionError(
+                        f"LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED:{item.activity_id}"
+                    )
+                if item.activity_type is ActivityType.WBS_SUMMARY:
+                    # WBS Summary dates roll up from descendant activities,
+                    # which are not part of this snapshot contract. A stored
+                    # duration is not a substitute for that rollup.
+                    raise ScheduleInputCompositionError(
+                        f"WBS_SUMMARY_SCHEDULING_UNSUPPORTED:{item.activity_id}"
+                    )
                 value = item.duration_value
                 if not isinstance(value, Decimal) or not value.is_finite() or value != value.to_integral_value():
                     raise ScheduleInputCompositionError(f"NON_INTEGRAL_WORKING_DAY_DURATION:{item.activity_id}")

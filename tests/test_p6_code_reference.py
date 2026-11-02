@@ -144,6 +144,22 @@ def test_curve_earned_value_formula_is_separately_tracked():
 
 
 
+def test_level_of_effort_and_wbs_summary_are_explicit_fail_closed_gaps():
+    item = get_formula_reference("FRM-ACT-TYPES-001")
+    assert item.status == KNOWN_GAP
+    assert "LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED" in item.known_gap
+    assert "WBS_SUMMARY_SCHEDULING_UNSUPPORTED" in item.known_gap
+    assert any(
+        path.endswith("test_authoritative_schedule_snapshot_composer.py")
+        for path in item.regression_tests
+    )
+    activity = get_reference("ACT-001")
+    assert activity.coverage == KNOWN_GAP
+    assert "LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED" in activity.known_gap
+    assert "WBS_SUMMARY_SCHEDULING_UNSUPPORTED" in activity.known_gap
+
+
+
 def test_every_referenced_cubi_repository_path_exists():
     repo_root = Path(__file__).resolve().parents[1]
     paths = {

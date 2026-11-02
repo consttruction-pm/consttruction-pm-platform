@@ -1342,6 +1342,54 @@ def test_resource_dependent_activity_publication_fails_closed_for_unknown_drivin
     fixture["connection"].close()
 
 
+@pytest.mark.parametrize(
+    ("activity_type", "code"),
+    [
+        (ActivityType.LEVEL_OF_EFFORT, "LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED"),
+        (ActivityType.WBS_SUMMARY, "WBS_SUMMARY_SCHEDULING_UNSUPPORTED"),
+    ],
+)
+def test_unsupported_activity_types_fail_closed_before_scheduling(
+    tmp_path, activity_type, code
+):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    activity_id = "UNSUPPORTED-TYPE"
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": activity_id,
+            "name": "Type-specific semantics not implemented",
+            "duration_value": "1",
+            "duration_unit": "working-day",
+            "activity_type": activity_type.value,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(level_all_resources=True),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+    )
+    assert publication_status == "400 Bad Request"
+    assert f"{code}:{activity_id}" in error["code"]
+    assert fixture["snapshot_repo"].list(scope) == ()
+    fixture["connection"].close()
+
+
 def test_resource_dependent_driving_and_nondriving_placement_is_bound_to_immutable_facts(tmp_path):
     fixture = _fixture(tmp_path)
     app = fixture["app"]

@@ -249,7 +249,8 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         user_options=("Task Dependent", "Resource Dependent", "Level of Effort", "Start Milestone", "Finish Milestone", "WBS Summary"),
         official_sources=(ORACLE_SOURCES["activity_general"],),
         cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
-        regression_tests=("tests/scheduling/test_schedule.py",), coverage=MAPPED_NOT_PROVEN,
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"), coverage=KNOWN_GAP,
+        known_gap="Task Dependent and the supported Resource Dependent subset are scheduled through the shared core, and Level of Effort / WBS Summary are rejected at composition with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED instead of being run through the task-duration algorithm. Type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup remain unimplemented until Version 26 fixtures prove them.",
     ),
     P6CodeReference(
         id="ACT-002", area="Activities", feature="Activity duration type and recalculation relationships",
@@ -1070,8 +1071,8 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         official_sources=(ORACLE_SOURCES["activity_general"], ORACLE_SOURCES["driving"], ORACLE_SOURCES["nondriving"], ORACLE_SOURCES["schedule"]),
         cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/schedule.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
         regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
-        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
-        known_gap="Level of Effort and WBS Summary date-derivation rules still require type-specific Version 26 fixtures; this entry deliberately does not invent a single formula for them.",
+        status="KNOWN_GAP",
+        known_gap="The composer rejects Level of Effort and WBS Summary with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED rather than applying the task-duration algorithm; the fail-closed path is covered by tests/test_authoritative_schedule_snapshot_composer.py. Type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup still require Version 26 fixtures, so this entry does not invent a single formula for them.",
     ),
     P6FormulaReference(
         id="FRM-COST-001",

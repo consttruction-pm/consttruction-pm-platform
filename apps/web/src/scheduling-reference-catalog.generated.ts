@@ -208,8 +208,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Finish Milestone",
         "WBS Summary"
       ],
-      "status": "MAPPED_NOT_PROVEN",
-      "gap": ""
+      "status": "KNOWN_GAP",
+      "gap": "Task Dependent and the supported Resource Dependent subset are scheduled through the shared core, and Level of Effort / WBS Summary are rejected at composition with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED instead of being run through the task-duration algorithm. Type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup remain unimplemented until Version 26 fixtures prove them."
     },
     {
       "id": "ACT-002",
@@ -1638,8 +1638,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Resource Dependent with missing driving flag",
         "Mixed calendars"
       ],
-      "status": "FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
-      "gap": "Level of Effort and WBS Summary date-derivation rules still require type-specific Version 26 fixtures; this entry deliberately does not invent a single formula for them."
+      "status": "KNOWN_GAP",
+      "gap": "The composer rejects Level of Effort and WBS Summary with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED rather than applying the task-duration algorithm; the fail-closed path is covered by internal reference Type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup still require Version 26 fixtures, so this entry does not invent a single formula for them."
     },
     {
       "id": "FRM-COST-001",
