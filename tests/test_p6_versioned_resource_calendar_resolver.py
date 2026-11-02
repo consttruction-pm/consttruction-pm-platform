@@ -248,3 +248,55 @@ def test_missing_or_wrong_calendar_version_fails_closed(repositories):
 
     with pytest.raises(P6ResourceCalendarResolutionError, match="RESOURCE_CALENDAR_NOT_FOUND"):
         resolve(repositories, "resource-calendar", "v2", (date(2026, 10, 2),))
+
+
+def test_multiple_shift_windows_are_summed_exactly_once(repositories):
+    _conn, scope, masters, snapshots, _exceptions, work_hours = repositories
+    save_calendar(
+        scope, masters, snapshots, "shift-calendar", "s1",
+        WorkingTimeCalendar(
+            working_weekdays=frozenset({0, 1, 2, 3, 4}),
+            daily_intervals={
+                weekday: ((time(8, 0), time(12, 0)), (time(13, 0), time(17, 0)))
+                for weekday in range(5)
+            },
+        ),
+    )
+    work_hours.save(CalendarWorkHourRule(
+        scope,
+        "shift-calendar",
+        "s1",
+        "standard_detailed_work_hours",
+        weekday=0,
+        intervals=(
+            ("06:00", "10:00"),
+            ("10:00", "14:00"),
+            ("18:00", "22:00"),
+        ),
+    ))
+
+    result = resolve(repositories, "shift-calendar", "s1", (date(2026, 10, 5),))
+
+    # 4h morning + 4h afternoon + 4h evening; adjacent shifts do not overlap
+    # and the total hours are not replaced by the generic 8h day.
+    assert dict(result.capacity_slices) == {date(2026, 10, 5): Decimal("12")}
+
+
+def test_overlapping_shift_windows_are_rejected_at_persistence(repositories):
+    from construction_pm.calendar_master_repository import CalendarPersistenceError
+
+    _conn, scope, masters, snapshots, _exceptions, work_hours = repositories
+    save_calendar(
+        scope, masters, snapshots, "shift-calendar", "s1",
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3, 4})),
+    )
+
+    with pytest.raises(CalendarPersistenceError, match="OVERLAP_WORK_HOUR_INTERVAL"):
+        work_hours.save(CalendarWorkHourRule(
+            scope,
+            "shift-calendar",
+            "s1",
+            "standard_detailed_work_hours",
+            weekday=0,
+            intervals=(("06:00", "14:00"), ("12:00", "20:00")),
+        ))

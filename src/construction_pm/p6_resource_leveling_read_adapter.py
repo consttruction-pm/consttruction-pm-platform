@@ -244,6 +244,7 @@ def build_scheduler_leveling_input(
             source_calculation_identity=source_calculation_identity,
             resource_facts_hash=resource_facts_hash,
             calendar_manifest_hash=calendar_manifest_hash,
+            source_project_id=scope.project_id,
         )
     return SchedulerLevelingInput(
         forward_activities=forward,

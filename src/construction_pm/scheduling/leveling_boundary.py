@@ -152,6 +152,7 @@ def scheduler_leveling_input_from_options(
     source_calculation_identity: str | None = None,
     resource_facts_hash: str | None = None,
     calendar_manifest_hash: str | None = None,
+    source_project_id: str | None = None,
 ) -> SchedulerLevelingInput:
     """Map typed ScheduleOptions into the existing Shared Core leveling options.
 
@@ -166,6 +167,8 @@ def scheduler_leveling_input_from_options(
         over_allocation_percentage=Decimal(str(options.over_allocation_percentage)),
         resource_ids=options.resource_list or (),
         priorities=_map_priority_list(options),
+        external_project_priority_limit=options.external_project_priority_limit,
+        source_project_id=source_project_id,
     )
     return SchedulerLevelingInput(
         forward_activities=forward_activities,

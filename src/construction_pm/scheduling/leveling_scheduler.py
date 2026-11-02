@@ -17,11 +17,17 @@ from .resource_leveling import (
     propose_backward_leveling,
     propose_forward_leveling,
     ResourceLevelingError,
+    is_leveling_activity_included,
 )
 from .schedule_options import ScheduleOptions
 from .leveling_boundary import (
     SchedulerLevelingInput,
     scheduler_leveling_input_from_options,
+)
+from .leveling_cost_recalculation import (
+    LevelingCostAssignment,
+    LevelingCostRecalculationError,
+    recalculate_costs_for_schedule,
 )
 
 
@@ -107,7 +113,11 @@ def _schedule_options_without_leveling(options: ScheduleOptions) -> ScheduleOpti
         resource_list=None,
         priority_list=None,
         min_float_to_preserve=0,
+        external_project_priority_limit=0,
         preserve_scheduled_early_and_late_dates=False,
+        # The CPM pass never owns resource rate/cost facts. Cost recalculation
+        # is performed once, explicitly, after the final leveled result.
+        recalculate_resource_costs=False,
     )
 
 
@@ -284,6 +294,8 @@ def _backward_activities_from_intermediate(
                 activity_priority=activity.activity_priority,
                 total_float=getattr((float_schedule or {}).get(activity.activity_id), "total_float", None),
                 free_float=getattr((float_schedule or {}).get(activity.activity_id), "free_float", None),
+                project_id=forward_activity.project_id,
+                project_priority=forward_activity.project_priority,
             )
         )
     return tuple(result)
@@ -301,6 +313,14 @@ def _validate_final_resource_load(
     final_activities = getattr(result, "activities", {})
     shifted_demands: list[ResourceDemand] = []
     for activity_id, activity_input in forward_by_id.items():
+        if not is_leveling_activity_included(
+            activity_input,
+            external_project_priority_limit=leveling_input.options.external_project_priority_limit,
+            source_project_id=leveling_input.options.source_project_id,
+        ):
+            # An assignment excluded by the cross-project threshold is not part
+            # of the combined demand ledger; it must not fail the final check.
+            continue
         final_activity = final_activities.get(activity_id)
         if final_activity is None:
             if activity_input.resource_demands:
@@ -370,6 +390,9 @@ def schedule_with_resource_leveling(
     relationship_lag_resolvers: Mapping[tuple[str, str], object] | None = None,
     batch_scheduled_finish: date | None = None,
     activity_resolvers: Mapping[str, object] | None = None,
+    cost_assignments: tuple[LevelingCostAssignment, ...] = (),
+    cost_resources: Mapping[str, object] | None = None,
+    cost_project_currency: str | None = None,
 ):
     """Run resource leveling through the authoritative scheduler.
 
@@ -418,6 +441,7 @@ def schedule_with_resource_leveling(
             source_calculation_identity=leveling_input.source_calculation_identity,
             resource_facts_hash=leveling_input.resource_facts_hash,
             calendar_manifest_hash=leveling_input.calendar_manifest_hash,
+            source_project_id=leveling_input.options.source_project_id,
         )
 
     if selected_options.resource_list is not None:
@@ -466,6 +490,8 @@ def schedule_with_resource_leveling(
         level_all_resources=leveling_input.options.level_all_resources,
         resource_ids=leveling_input.options.resource_ids,
         activity_resolvers=activity_resolvers,
+        external_project_priority_limit=leveling_input.options.external_project_priority_limit,
+        source_project_id=leveling_input.options.source_project_id,
     )
     shifted_forward = apply_leveling_shifts(
         forward_activities, forward_shifts, resolver=resolver,
@@ -512,6 +538,8 @@ def schedule_with_resource_leveling(
             resource_ids=leveling_input.options.resource_ids,
             protected_activity_ids=protected_forward_ids,
             activity_resolvers=activity_resolvers,
+            external_project_priority_limit=leveling_input.options.external_project_priority_limit,
+            source_project_id=leveling_input.options.source_project_id,
         )
         # P6 leveling proposals are candidates, not permission to override
         # CPM or user-entered constraints. Validate each proposed exact-date
@@ -594,4 +622,24 @@ def schedule_with_resource_leveling(
         resolver=resolver,
         activity_resolvers=activity_resolvers,
     )
+    if selected_options.recalculate_resource_costs:
+        # ScheduleOptions is a typed public option; when it is enabled the
+        # caller must supply the exact rate/assignment facts. Silently keeping
+        # pre-leveling costs would misreport the leveled budget.
+        if cost_resources is None or not cost_assignments:
+            raise ResourceLevelingError(
+                "RECALCULATE_RESOURCE_COSTS_REQUIRES_COST_INPUTS"
+            )
+        try:
+            recalculated = recalculate_costs_for_schedule(
+                result,
+                cost_assignments,
+                cost_resources,  # type: ignore[arg-type]
+                resolver=resolver,
+                activity_resolvers=activity_resolvers,  # type: ignore[arg-type]
+                project_currency=cost_project_currency,
+            )
+        except LevelingCostRecalculationError as exc:
+            raise ResourceLevelingError(str(exc)) from exc
+        result = replace(result, recalculated_assignment_costs=recalculated)
     return result, forward_shifts, backward_shifts

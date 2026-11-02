@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable, Iterable, Mapping
+from typing import TYPE_CHECKING, Callable, Iterable, Mapping
 
 from .activity import Activity, ActivityType
 from .calculation_context import CalculationContext
@@ -36,6 +36,9 @@ from .schedule_options import (
     StartToStartLagCalculationType,
     TotalFloatCalculationType,
 )
+
+if TYPE_CHECKING:
+    from .leveling_cost_recalculation import RecalculatedAssignmentCost
 
 
 @dataclass(frozen=True)
@@ -71,6 +74,10 @@ class ScheduleResult:
     # valid reported outcome and appears here as a WARNING; unsatisfiable
     # inputs never reach a result and raise ScheduleInfeasibilityError instead.
     diagnostics: tuple[ScheduleDiagnostic, ...] = ()
+    # Present only when a leveling orchestration explicitly recalculated
+    # assignment costs (ScheduleOptions.recalculate_resource_costs). Empty
+    # means the authoritative CPM run did not own or mutate cost facts.
+    recalculated_assignment_costs: tuple[RecalculatedAssignmentCost, ...] = ()
 
 
 def _remaining_cpm_duration(activity: Activity) -> int:

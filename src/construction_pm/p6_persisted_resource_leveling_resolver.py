@@ -278,6 +278,7 @@ def build_persisted_resource_leveling_input_resolver(
                 free_float=floats.free_float,
                 late_start=late.start,
                 late_finish=late.finish,
+                project_id=scope.project_id,
             ))
             # Negative-float snapshots can report late dates before early dates.
             # The leveling proposal window is clamped to the computed early dates;
@@ -294,6 +295,7 @@ def build_persisted_resource_leveling_input_resolver(
                 activity_priority=priority,
                 total_float=floats.total_float,
                 free_float=floats.free_float,
+                project_id=scope.project_id,
             ))
 
         # Snapshot assignment/period DTOs once through the authorized read API.
