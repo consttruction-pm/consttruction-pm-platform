@@ -3,6 +3,7 @@
 **Status:** Approved product and architecture requirement; implementation is not certified by this specification.
 **Requirement ID:** CMP-01
 **Registration baseline:** \`codex/jalal/resource-dependent-core-20261102\` at inspected HEAD \`66072977b9fe893de842d2668ad96157bb8c08af\`.
+**Implementation tracker:** [Issue #1669](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1669) — mandatory V1 execution item; keep open until Phase 1, Phase 2 and Phase 3 acceptance gates pass.
 **Authority:** This specification elaborates Principle 12 in \`PRODUCT_PRINCIPLES.md\`. It is additive to all existing CUBI requirements.
 
 ## 1. Purpose
