@@ -43,10 +43,10 @@ const menus: MenuDefinition[] = [
     { divider: true, label: "" }, { label: "Project Details" }, { label: "Project Codes" }, { label: "Project Defaults" }, { label: "Project Calendars" }, { label: "Project Notebook" },
   ]},
   { key: "organization", en: "Organization", fa: "سازمان", entries: [
-    { label: "Projects / Business Domains" }, { label: "Enterprise Project Structure" }, { label: "Tracking" }, { label: "Portfolios" }, { label: "Responsibility Structure" }, { label: "Organizational Breakdown Structure" }, { label: "Resources" }, { label: "Roles" },
-    { label: "Calendars", children: [{ label: "Global Calendars" }, { label: "Project Calendars" }, { label: "Resource Calendars" }, { label: "Working Hours and Shifts" }, { label: "Exceptions and Holidays" }] },
+    { label: "Projects / Business Domains" }, { label: "Enterprise Project Structure" }, { label: "Tracking" }, { label: "Portfolios" }, { label: "Resources" }, { label: "Roles" }, { label: "Responsibility Structure" }, { label: "Organizational Breakdown Structure" },
     { label: "Codes", children: [{ label: "Project Codes" }, { label: "Activity Codes" }, { label: "Resource Codes" }, { label: "Role Codes" }] },
-    { label: "User Defined Fields" }, { label: "Activity Step Templates" }, { label: "Resource Curves" }, { label: "Resource Shifts" }, { label: "External Applications" }, { label: "Cost Accounts" }, { label: "Funding Sources" }, { label: "Currencies" }, { label: "Financial Period Calendars" }, { label: "Stored Images" },
+    { label: "User Defined Fields" }, { label: "Calendars", children: [{ label: "Global Calendars" }, { label: "Project Calendars" }, { label: "Resource Calendars" }, { label: "Working Hours and Shifts" }, { label: "Exceptions and Holidays" }] },
+    { label: "Resource Shifts" }, { label: "Activity Step Templates" }, { label: "Cost Accounts" }, { label: "Funding Sources" }, { label: "Stored Images" }, { label: "Resource Curves" }, { label: "External Applications" },
   ]},
   { key: "tools", en: "Tools", fa: "ابزارها", entries: [
     { label: "Schedule", shortcut: "F9" }, { label: "Level Resources", shortcut: "Shift+F9" }, { label: "Apply Actuals" }, { label: "Update Progress" }, { label: "Recalculate Assignment Costs" },
@@ -57,8 +57,8 @@ const menus: MenuDefinition[] = [
     { label: "Smart Guide" }, { label: "Assistant" }, { label: "Global Search" },
   ]},
   { key: "administration", en: "Administration", fa: "مدیریت", entries: [
-    { label: "Users" }, { label: "Teams and Membership" }, { label: "Access Profiles" }, { label: "Security Profiles" }, { label: "User Permissions" }, { label: "Admin Preferences" },
-    { label: "Categories" }, { label: "Admin Categories" }, { label: "Currencies" }, { label: "Financial Periods" }, { label: "Financial Period Calendars" }, { label: "Audit Log" }, { label: "System Defaults" },
+    { label: "Users" }, { label: "Security Profiles" }, { label: "Admin Preferences" }, { label: "Admin Categories" }, { label: "Currencies" }, { label: "Financial Period Calendars" },
+    { divider: true, label: "" }, { label: "Teams and Membership" }, { label: "Access Profiles" }, { label: "User Permissions" }, { label: "Financial Periods" }, { label: "Audit Log" }, { label: "System Defaults" },
   ]},
   { key: "help", en: "Help", fa: "راهنما", entries: [
     { label: "Workspace Guide" }, { label: "Local Help" }, { label: "Online Help" }, { label: "Context Help" }, { label: "Keyboard Shortcuts" }, { label: "What's New" }, { label: "Documentation Library" }, { label: "About CUBI" }, { label: "Share Feedback" },
