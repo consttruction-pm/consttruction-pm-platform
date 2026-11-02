@@ -621,6 +621,8 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
       button.classList.toggle("is-selected", selected);
       button.setAttribute("aria-current", selected ? "true" : "false");
     });
+    const wbsDetails = container.querySelector<HTMLElement>(".cp-wbs-details");
+    if (wbsDetails) wbsDetails.outerHTML = renderWbsDetails(next, wbsDetailsTabByContainer.get(container) ?? "general");
     return true;
   }
   container.querySelectorAll<HTMLElement>("[data-activity-id]").forEach((row) => {
