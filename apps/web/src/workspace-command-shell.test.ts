@@ -55,3 +55,21 @@ test("visual command shell uses activated language-pack command translations", a
   assert.match(html, /ワークスペース/);
   assert.match(html, /新しいプロジェクト/);
 });
+
+
+test("Arabic command shell applies RTL layout direction", async () => {
+  const { registerWorkspaceLocale } = await import("./workspace-localization.js");
+  registerWorkspaceLocale({
+    locale: "ar",
+    displayName: "العربية",
+    direction: "rtl",
+    translations: {
+      "command.Workspace": "مساحة العمل",
+      "command.New Project": "مشروع جديد",
+    },
+  });
+  const html = renderWorkspaceCommandShell("ar");
+  assert.match(html, /class="cubi-command-shell" dir="rtl"/);
+  assert.match(html, /مساحة العمل/);
+  assert.match(html, /مشروع جديد/);
+});
