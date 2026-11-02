@@ -6852,5 +6852,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6-workspace[data-workspace-layout="gantt"] .cp-p6-splitter{display:none!important}
 .cp-p6-workspace[data-workspace-layout="grid"] #cp-gantt{display:none!important}
 .cp-p6-workspace[data-workspace-layout="gantt"] #cp-activity-grid{display:none!important}
+.cp-p6-workspace[data-workspace-layout="grid"] #cp-activity-grid{grid-column:1!important}
+.cp-p6-workspace[data-workspace-layout="gantt"] #cp-gantt{grid-column:1!important}
 @media(max-width:900px){.cp-command-group{padding:6px 8px}.cp-command-button{font-size:10px;padding-inline:7px}}
 @media(max-width:560px){.cp-command-ribbon{align-items:stretch}.cp-command-group-controls{flex-wrap:wrap}}
