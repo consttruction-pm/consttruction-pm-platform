@@ -6492,3 +6492,54 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   .cp-p6 .cp-p6-activity-header { gap: 4px; }
   .cp-p6 .cp-p6-activity-meta:nth-of-type(n+3) { display: none; }
 }
+
+
+.cp-p6 .cp-p6-body { grid-template-rows: auto 28px 30px 32px minmax(0, 1fr); }
+.cp-p6 .cp-context-command-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 32px;
+  height: 32px;
+  padding: 2px 7px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid #c2ccd8;
+  background: #f6f8fb;
+  scrollbar-width: thin;
+}
+.cp-p6 .cp-context-command-bar > span {
+  flex: 0 0 auto;
+  padding-inline: 4px 7px;
+  color: #758397;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.cp-p6 .cp-context-command-bar button {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid #c5d0dc;
+  border-radius: 3px;
+  background: #fff;
+  color: #28435f;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.cp-p6 .cp-context-command-bar button:hover:not(:disabled) {
+  border-color: #85a8cd;
+  background: #eaf2fb;
+  color: #123a6b;
+}
+.cp-p6 .cp-context-command-bar button:disabled {
+  color: #8b96a4;
+  background: #f0f2f5;
+  cursor: not-allowed;
+}
+@media (max-width: 900px) {
+  .cp-p6 .cp-p6-body { grid-template-rows: auto 28px 30px 32px minmax(0, 1fr); }
+  .cp-p6 .cp-context-command-bar { min-height: 32px; }
+}
