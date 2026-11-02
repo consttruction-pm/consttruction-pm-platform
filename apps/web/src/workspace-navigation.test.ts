@@ -58,6 +58,19 @@ test("unsupported V1 surfaces are explicitly marked preview instead of being pre
   assert.equal(getWorkspaceNavigation("reports").status, "preview");
 });
 
+test("Control navigation exposes quality, inspection, safety and closeout registers", () => {
+  assert.deepEqual(getWorkspaceNavigation("control").submenus.map((item) => item.en), [
+    "Control Summary",
+    "Quality Records",
+    "Inspections",
+    "Safety Observations",
+    "Field Issues",
+    "Punch List",
+    "Changes & Claims",
+    "Forms & Workflows",
+  ]);
+});
+
 test("Progress navigation exposes the live activity register and field evidence routes", () => {
   assert.deepEqual(getWorkspaceNavigation("progress").submenus.map((item) => item.en), [
     "Activity Progress",
