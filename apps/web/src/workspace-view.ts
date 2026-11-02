@@ -2363,7 +2363,6 @@ function renderP6FieldChooser(
 }
 
 function renderColumnsDialog(state: WorkspaceState, history?: WorkspaceRendererOptions["layoutHistory"]): string {
-  const t = getWorkspaceLabels(state.locale);
   const chooser = renderP6FieldChooser(state, history);
   return `<dialog class="cp-columns-dialog" data-columns-dialog aria-labelledby="cp-columns-title">
     <header class="cp-columns-dialog-head"><div><h2 id="cp-columns-title">${escapeHtml(uiText(state.locale, "Columns", "ستون‌ها"))}</h2><p>${escapeHtml(uiText(state.locale, "Choose, arrange and configure the fields displayed in the activity table.", "فیلدهای جدول فعالیت را انتخاب و مرتب کنید و تنظیمات آن‌ها را انجام دهید."))}</p></div><button type="button" data-columns-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
