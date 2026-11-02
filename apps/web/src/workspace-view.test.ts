@@ -1893,6 +1893,25 @@ test("Bar Chart Options exposes all documented tabs without enabling unsupported
   assert.match(html, /data-layout-links/);
 });
 
+test("Show on Top Table and Gantt Chart commands select the matching workspace layout", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const layouts: string[] = [];
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ), { onWorkspaceLayoutChange: (layout) => layouts.push(layout) });
+  const table = { dataset: { shellCommand: "Table" }, closest: () => table };
+  const gantt = { dataset: { shellCommand: "Gantt Chart" }, closest: () => gantt };
+  listeners.get("click")?.({ target: table } as unknown as Event);
+  listeners.get("click")?.({ target: gantt } as unknown as Event);
+  assert.deepEqual(layouts, ["grid", "gantt"]);
+});
+
 test("Bottom Layout Options menu command opens the Activity Details tab selector", () => {
   const listeners = new Map<string, (event: Event) => void>();
   let opened = false;
