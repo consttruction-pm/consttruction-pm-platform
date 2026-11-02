@@ -82,6 +82,8 @@ For a submenu implemented as a detail-tab action, activation must reuse the modu
 
 View → Columns opens a dedicated modal window around the existing authoritative field-registry chooser. The chooser retains add/remove, visible/hidden, order, width, alignment, pin/freeze and layout-history controls. If the field registry is not loaded, the dialog explicitly reports that state instead of rendering fabricated fields. The rail Tools action continues to open the full field chooser drawer.
 
+The Progress navigation now exposes read-only Update Progress and Store Period Performance dialogs with Current/New Data Date, Progress Spotlight/selected-activity scope, timesheet actuals, remaining-duration recalculation choices, out-of-sequence policy, project Data Date scope and financial-period controls. The controls remain disabled until the authoritative update and period-performance services are available; no progress values are computed or written by the visual layer.
+
 ### Activity Details tab customization parity — 2026-11-02
 
 The Activity Details customization dialog now uses separate Available Tabs and Display Tabs listboxes. It includes Add, Add All, Remove, Remove All, Move Up, Move Down, Default, Cancel, Apply and OK controls. The displayed order is preserved when applied and used by the Activity Details tab strip; it is not merely a checked/unchecked list. The selected tab order is stored as a browser-local layout preference, separate from project schedule data. Help remains disabled until a contextual help target is connected.
