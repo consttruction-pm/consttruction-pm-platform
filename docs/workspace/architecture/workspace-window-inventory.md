@@ -36,7 +36,17 @@ Status values: **Implemented** = usable with real data; **Partial** = some real 
 | Risks | None | Missing | Risk register and exposure |
 | Administration | None | Missing | Users, profiles, preferences, categories, currencies, periods |
 
-## Projects window composition (current shell and target)\n\n| Region | Current | Target |\n| --- | --- | --- |\n| Project Register | Current authorized/open project facts and loaded WBS summary | Full authorized project list with domain/portfolio tree, table columns, grouping, sorting and filters |\n| Project Details | Bottom-docked tab surface; project-scoped tabs | General, Dates, Defaults, Resources, Settings, Codes, Notebook, budget/funding, Baselines, Documents, History and UDFs |\n| Project metadata edit | Existing metadata dialog/API | Editing for every field with service contract, revision guard and audit |\n\nSee the Projects Window and Project Details specification for field inventory, choices and acceptance gates.\n\n## Activities window composition (target)
+## Projects window composition (current shell and target)
+
+| Region | Current | Target |
+| --- | --- | --- |
+| Project Register | Current authorized/open project facts and loaded WBS summary | Full authorized project list with domain/portfolio tree, table columns, grouping, sorting and filters |
+| Project Details | Bottom-docked tab surface; project-scoped tabs | General, Dates, Defaults, Resources, Settings, Codes, Notebook, budget/funding, Baselines, Documents, History and UDFs |
+| Project metadata edit | Existing metadata dialog/API | Editing for every field with service contract, revision guard and audit |
+
+See the Projects Window and Project Details specification for field inventory, choices and acceptance gates.
+
+## Activities window composition (target)
 
 | Region | Current | Target |
 | --- | --- | --- |
