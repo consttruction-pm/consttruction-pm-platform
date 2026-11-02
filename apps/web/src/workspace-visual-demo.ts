@@ -12,7 +12,7 @@ import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspace
 import { LANDING_LOCALE_STORAGE_KEY, rememberWorkspaceLocale, writeStoredValue } from "./workspace-preferences.js";
 
 export type DemoWindowId =
-  | "projects" | "wbs" | "activities" | "assignments" | "resources" | "calendars" | "reports"
+  | "projects" | "wbs" | "activities" | "assignments" | "resources" | "roles" | "calendars" | "reports"
   | "tracking" | "documents" | "expenses" | "thresholds" | "issues" | "risks" | "administration"
   | "network" | "trace" | "timeline" | "activity-profile" | "resource-profile" | "activity-sheet" | "resource-sheet";
 
@@ -25,6 +25,7 @@ const WINDOWS: Array<{ id: DemoWindowId; en: string; fa: string }> = [
   { id: "activities", en: "Activities", fa: "فعالیت‌ها" },
   { id: "assignments", en: "Resource Assignments", fa: "تخصیص منابع" },
   { id: "resources", en: "Resources", fa: "منابع" },
+  { id: "roles", en: "Roles", fa: "نقش‌ها" },
   { id: "calendars", en: "Calendars", fa: "تقویم‌ها" },
   { id: "reports", en: "Reports", fa: "گزارش‌ها" },
   { id: "tracking", en: "Tracking", fa: "پیگیری" },
@@ -137,6 +138,21 @@ const WBS_TREE = [
   { code: "1.5", name: "Testing & Commissioning", level: 1, total: 4 },
 ];
 
+const DEMO_ROLES = [
+  { id: "ROLE-PLN", name: "Planner", discipline: "Project Controls", rate: 95, capacity: 2, assigned: 1 },
+  { id: "ROLE-CST", name: "Cost Engineer", discipline: "Cost Control", rate: 88, capacity: 2, assigned: 1 },
+  { id: "ROLE-SIT", name: "Site Engineer", discipline: "Construction", rate: 85, capacity: 6, assigned: 2 },
+  { id: "ROLE-QA", name: "QA/QC Inspector", discipline: "Quality", rate: 78, capacity: 4, assigned: 1 },
+  { id: "ROLE-HSE", name: "HSE Officer", discipline: "HSE", rate: 82, capacity: 3, assigned: 1 },
+];
+const DEMO_ROLE_ASSIGNMENTS = [
+  { activity: "A1020", role: "Cost Engineer", budget: 80, actual: 44, remaining: 36, rate: 88 },
+  { activity: "A1310", role: "Site Engineer", budget: 240, actual: 72, remaining: 168, rate: 85 },
+  { activity: "A1320", role: "Site Engineer", budget: 320, actual: 96, remaining: 224, rate: 85 },
+  { activity: "A1340", role: "QA/QC Inspector", budget: 120, actual: 0, remaining: 120, rate: 78 },
+  { activity: "A1500", role: "HSE Officer", budget: 160, actual: 0, remaining: 160, rate: 82 },
+];
+
 const RESOURCES = [
   { id: "R-100", name: "PM Office", type: "Labor", units: 1480, cost: 82000 },
   { id: "R-110", name: "Engineering", type: "Labor", units: 980, cost: 64500 },
@@ -151,7 +167,11 @@ const RESOURCES = [
 type DemoState = {
   window: DemoWindowId;
   activityId: string;
+  selectedWbsCode: string;
+  wbsDetailTab: "general" | "dates" | "activities" | "documents" | "notebook";
+  collapsedWbsCodes: string[];
   scale: "day" | "week" | "month" | "quarter" | "year";
+  activityView: "schedule" | "relationships";
   detailTab: string;
   calendarMonth: number;
   adminSection: string;
@@ -292,12 +312,52 @@ function buildAxis(scale: DemoState["scale"], locale: string): GanttAxis {
 
 function renderGanttTools(state: DemoState): string {
   return `<div class="cp-vd-gantt-tools">
+    <div class="cp-vd-view-switch" role="group" aria-label="${esc(t(state.locale, "Activity view", "نمای فعالیت"))}">
+      <button type="button" data-vd-activity-view="schedule" class="${state.activityView === "schedule" ? "is-active" : ""}" aria-pressed="${state.activityView === "schedule"}">${esc(t(state.locale, "Activities & Gantt", "فعالیت‌ها و گانت"))}</button>
+      <button type="button" data-vd-activity-view="relationships" class="${state.activityView === "relationships" ? "is-active" : ""}" aria-pressed="${state.activityView === "relationships"}">${esc(t(state.locale, "Relationships", "روابط"))}</button>
+    </div>
     <div class="cp-vd-scale" role="group" aria-label="${esc(t(state.locale, "Timescale", "مقیاس زمانی"))}">
       ${(["day", "week", "month", "quarter", "year"] as const).map((scale) => `<button type="button" data-vd-scale="${scale}" class="${scale === state.scale ? "is-active" : ""}">${esc(t(state.locale, scale, { day: "روز", week: "هفته", month: "ماه", quarter: "فصل", year: "سال" }[scale]))}</button>`).join("")}
     </div>
     <span class="cp-vd-ganttbar-spacer"></span>
     <span class="cp-vd-legend"><i class="is-normal"></i>${esc(t(state.locale, "Normal", "عادی"))}<i class="is-critical"></i>${esc(t(state.locale, "Critical", "بحرانی"))}<i class="is-summary"></i>${esc(t(state.locale, "Summary", "خلاصه"))}<i class="is-milestone"></i>${esc(t(state.locale, "Milestone", "نقطهٔ عطف"))}<i class="is-datadate"></i>${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}</span>
   </div>`;
+}
+
+const DEMO_RELATIONSHIPS: ReadonlyArray<{ predecessor: string; successor: string; type: "FS" | "SS" | "FF" | "SF"; lag: number; unit: "d" | "h" }> = [
+  { predecessor: "A1010", successor: "A1110", type: "FS", lag: 0, unit: "d" },
+  { predecessor: "A1110", successor: "A1120", type: "SS", lag: 2, unit: "d" },
+  { predecessor: "A1120", successor: "A1130", type: "FF", lag: 0, unit: "d" },
+  { predecessor: "A1210", successor: "A1220", type: "FS", lag: -1, unit: "d" },
+  { predecessor: "A1310", successor: "A1320", type: "FS", lag: 0, unit: "d" },
+  { predecessor: "A1320", successor: "A1330", type: "SS", lag: 8, unit: "h" },
+  { predecessor: "A1330", successor: "A1340", type: "FF", lag: 1, unit: "d" },
+  { predecessor: "A1340", successor: "A1350", type: "SF", lag: 0, unit: "d" },
+];
+
+function renderRelationshipRegister(state: DemoState): string {
+  const rows = DEMO_RELATIONSHIPS.filter((link) => {
+    const query = state.filter.trim().toLowerCase();
+    if (!query) return true;
+    const pred = ACTIVITIES.find((item) => item.id === link.predecessor);
+    const succ = ACTIVITIES.find((item) => item.id === link.successor);
+    return `${link.predecessor} ${link.successor} ${pred?.name ?? ""} ${succ?.name ?? ""} ${link.type}`.toLowerCase().includes(query);
+  });
+  const cell = (value: string): string => `<td>${esc(value)}</td>`;
+  return `<section class="cp-vd-relationship-register" aria-label="${esc(t(state.locale, "Activity relationships", "روابط فعالیت‌ها"))}">
+    <div class="cp-vd-relationship-summary"><strong>${rows.length}</strong><span>${esc(t(state.locale, "Displayed relationships", "رابطهٔ نمایش‌داده‌شده"))}</span><span class="cp-vd-note">${esc(t(state.locale, "FS · SS · FF · SF  |  positive lag = delay, negative lag = lead", "FS · SS · FF · SF  |  تأخیر مثبت، پیش‌افتادگی منفی"))}</span></div>
+    <div class="cp-vd-tablewrap"><table class="cp-vd-table cp-vd-relationship-table"><thead><tr>
+      <th>${esc(t(state.locale, "Predecessor", "پیش‌نیاز"))}</th><th>${esc(t(state.locale, "Predecessor name", "نام پیش‌نیاز"))}</th>
+      <th>${esc(t(state.locale, "Relationship type", "نوع رابطه"))}</th><th>${esc(t(state.locale, "Lag / Lead", "تأخیر / پیش‌افتادگی"))}</th>
+      <th>${esc(t(state.locale, "Successor", "پس‌نیاز"))}</th><th>${esc(t(state.locale, "Successor name", "نام پس‌نیاز"))}</th>
+    </tr></thead><tbody>${rows.map((link) => {
+      const pred = ACTIVITIES.find((item) => item.id === link.predecessor);
+      const succ = ACTIVITIES.find((item) => item.id === link.successor);
+      const lag = `${link.lag > 0 ? "+" : ""}${link.lag} ${link.unit}`;
+      return `<tr data-vd-relationship="${esc(link.predecessor)}:${esc(link.successor)}">${cell(link.predecessor)}${cell(pred?.name ?? "—")}<td><span class="cp-vd-rel-type">${link.type}</span></td><td><bdi dir="ltr">${esc(lag)}</bdi></td>${cell(link.successor)}${cell(succ?.name ?? "—")}</tr>`;
+    }).join("") || `<tr><td colspan="6">${esc(t(state.locale, "No relationships match the current filter.", "رابطه‌ای با فیلتر فعلی مطابقت ندارد."))}</td></tr>`}</tbody></table></div>
+    <p class="cp-vd-note">${esc(t(state.locale, "Visual sample only. Relationship rows and lag values are illustrative; they are not persisted or used by the scheduling engine.", "صرفاً نمونه بصری. روابط و مقادیر تأخیر نمایشی‌اند و ذخیره یا در موتور زمان‌بندی استفاده نمی‌شوند."))}</p>
+  </section>`;
 }
 
 function renderGantt(state: DemoState): string {
@@ -380,24 +440,36 @@ function renderGantt(state: DemoState): string {
 function renderDetails(state: DemoState): string {
   const tabs = [
     ["general", "General", "عمومی"], ["status", "Status", "وضعیت"], ["resources", "Resources", "منابع"],
-    ["predecessors", "Predecessors", "پیش‌نیازها"], ["successors", "Successors", "جانشین‌ها"], ["codes", "Codes", "کدها"],
+    ["predecessors", "Predecessors", "پیش‌نیازها"], ["successors", "Successors", "جانشین‌ها"], ["codes", "Codes", "کدها"], ["calendar", "Calendar", "تقویم"],
     ["discussion", "Discussion", "بحث"], ["notebook", "Notebook", "دفترچه"], ["steps", "Steps", "گام‌ها"],
     ["feedback", "Feedback", "بازخورد"], ["documents", "Documents", "اسناد"], ["expenses", "Expenses", "هزینه‌ها"],
     ["summary", "Summary", "خلاصه"], ["relationships", "Relationships", "روابط"], ["risks", "Risks", "ریسک‌ها"],
     ["udfs", "UDFs", "فیلد سفارشی"], ["history", "Update History", "تاریخچه"],
   ];
   const row = ACTIVITIES.find((item) => item.id === state.activityId) ?? ACTIVITIES[0];
+  const assignedResource = RESOURCES.find((resource) => resource.name === row.res);
   const index = ACTIVITIES.findIndex((item) => item.id === row.id);
   const prev = ACTIVITIES[index - 1]?.id ?? "";
   const next = ACTIVITIES[index + 1]?.id ?? "";
   const fields = (pairs: Array<[string, string, string]>): string => `<div class="cp-vd-fields">${pairs.map(([en, fa, value]) => `<label><span>${esc(t(state.locale, en, fa))}</span><input value="${esc(value)}" readonly></label>`).join("")}</div>`;
+  const relationshipRows = (direction: "predecessors" | "successors"): string => {
+    const links = DEMO_RELATIONSHIPS.filter((link) => direction === "predecessors" ? link.successor === row.id : link.predecessor === row.id);
+    if (!links.length) return `<p class="cp-vd-note">${esc(t(state.locale, direction === "predecessors" ? "No predecessors are shown for this activity." : "No successors are shown for this activity.", direction === "predecessors" ? "برای این فعالیت پیش‌نیازی نمایش داده نشده است." : "برای این فعالیت پس‌نیازی نمایش داده نشده است."))}</p>`;
+    return `<div class="cp-vd-tablewrap"><table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity ID", "شناسه فعالیت"))}</th><th>${esc(t(state.locale, "Activity name", "نام فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع رابطه"))}</th><th>${esc(t(state.locale, "Lag / Lead", "تأخیر / پیش‌افتادگی"))}</th></tr></thead><tbody>${links.map((link) => {
+      const otherId = direction === "predecessors" ? link.predecessor : link.successor;
+      const other = ACTIVITIES.find((item) => item.id === otherId);
+      const lag = `${link.lag > 0 ? "+" : ""}${link.lag} ${link.unit}`;
+      return `<tr><td><bdi dir="ltr">${esc(otherId)}</bdi></td><td>${esc(other?.name ?? "—")}</td><td><span class="cp-vd-rel-type">${link.type}</span></td><td><bdi dir="ltr">${esc(lag)}</bdi></td></tr>`;
+    }).join("")}</tbody></table></div>`;
+  };
   const contents: Record<string, string> = {
     general: fields([["Activity ID", "شناسه", row.id], ["Activity name", "نام فعالیت", row.name], ["WBS", "WBS", row.wbs], ["Activity type", "نوع فعالیت", row.type], ["Calendar", "تقویم", row.calendar], ["Original duration", "مدت اولیه", `${row.od} d`], ["Remaining duration", "مدت باقی‌مانده", `${row.rd} d`], ["% complete", "درصد تکمیل", `${row.pct}%`], ["Status", "وضعیت", row.status], ["Critical", "بحرانی", row.critical ? "Yes" : "No"], ["Resource", "منبع", row.res], ["Project", "پروژه", "CUBI-DEMO-001"]]),
-    status: fields([["Status", "وضعیت", row.status], ["% complete", "درصد تکمیل", `${row.pct}%`], ["Start", "شروع", fmtDate(row.start)], ["Finish", "پایان", fmtDate(row.finish)], ["Total float", "شناوری کل", `${row.tf} d`], ["Remaining duration", "مدت باقی‌مانده", `${row.rd} d`]]),
-    resources: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}</th><th>${esc(t(state.locale, "Cost", "هزینه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${row.budgetUnits}</td><td>${row.budgetCost.toLocaleString("en-US")}</td></tr></tbody></table><p class="cp-vd-note">${esc(t(state.locale, "Sample assignment shown for layout review.", "تخصیص نمونه برای بازبینی چیدمان."))}</p>`,
-    predecessors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row.pred === "—" ? [] : row.pred.split(", ")).map((id) => `<tr><td>${esc(id)}</td><td>FS</td><td>0 d</td></tr>`).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No predecessors", "بدون پیش‌نیاز"))}</td></tr>`}</tbody></table>`,
-    successors: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Activity", "فعالیت"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Lag", "تأخیر"))}</th></tr></thead><tbody>${(row.succ === "—" ? [] : row.succ.split(", ")).map((id) => `<tr><td>${esc(id)}</td><td>FS</td><td>0 d</td></tr>`).join("") || `<tr><td colspan="3">${esc(t(state.locale, "No successors", "بدون جانشین"))}</td></tr>`}</tbody></table>`,
+    status: fields([["Status", "وضعیت", row.status], ["% complete", "درصد تکمیل", `${row.pct}%`], ["Actual duration", "مدت واقعی", `${row.ad} d`], ["Original duration", "مدت اولیه", `${row.od} d`], ["Remaining duration", "مدت باقی‌مانده", `${row.rd} d`], ["Start", "شروع", fmtDate(row.start)], ["Finish", "پایان", fmtDate(row.finish)], ["Early start", "شروع زودهنگام", fmtDate(row.es)], ["Early finish", "پایان زودهنگام", fmtDate(row.ef)], ["Late start", "شروع دیرهنگام", fmtDate(row.ls)], ["Late finish", "پایان دیرهنگام", fmtDate(row.lf)], ["Total float", "شناوری کل", `${row.tf} d`], ["Free float", "شناوری آزاد", `${row.ff} d`], ["Actual start", "شروع واقعی", "—"], ["Actual finish", "پایان واقعی", "—"], ["Critical", "بحرانی", row.critical ? "Yes" : "No"]]),
+    resources: `<div class="cp-vd-tablewrap"><table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Resource type", "نوع منبع"))}</th><th>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}</th><th>${esc(t(state.locale, "Actual units", "واحد واقعی"))}</th><th>${esc(t(state.locale, "Remaining units", "واحد باقی‌مانده"))}</th><th>${esc(t(state.locale, "Budgeted cost", "هزینه بودجه‌ای"))}</th><th>${esc(t(state.locale, "Actual cost", "هزینه واقعی"))}</th><th>${esc(t(state.locale, "Remaining cost", "هزینه باقی‌مانده"))}</th></tr></thead><tbody>${row.res !== "—" ? `<tr><td>${esc(row.res)}</td><td>${esc(assignedResource?.type ?? t(state.locale, "Not classified", "طبقه‌بندی‌نشده"))}</td><td>${row.budgetUnits.toLocaleString("en-US")}</td><td>${row.actualUnits.toLocaleString("en-US")}</td><td>${row.remainingUnits.toLocaleString("en-US")}</td><td>${row.budgetCost.toLocaleString("en-US")}</td><td>${row.actualCost.toLocaleString("en-US")}</td><td>${row.remainingCost.toLocaleString("en-US")}</td></tr>` : `<tr><td colspan="8">${esc(t(state.locale, "No resource assignment in this sample activity.", "برای این فعالیت نمونه تخصیص منبعی وجود ندارد."))}</td></tr>`}</tbody></table></div><p class="cp-vd-note">${esc(t(state.locale, "Illustrative assignment values only; this preview does not save resource assignments or recalculate costs.", "مقادیر تخصیص صرفاً نمونه هستند؛ این پیش‌نمایش تخصیص منابع را ذخیره یا هزینه‌ها را دوباره محاسبه نمی‌کند."))}</p>`,
+    predecessors: relationshipRows("predecessors"),
+    successors: relationshipRows("successors"),
     codes: fields([["Activity code", "کد فعالیت", row.codes], ["Phase", "فاز", row.phase], ["Discipline", "رشته", "Mechanical"]]),
+    calendar: `${fields([["Activity calendar", "تقویم فعالیت", row.calendar], ["Calendar type", "نوع تقویم", "Project-assigned workweek"], ["Working time", "زمان کاری", "As defined by assigned calendar"], ["Data date", "تاریخ داده", "03-Dec-2026"]])}<div class="cp-vd-detail-actions"><button type="button" data-vd-dialog="calendar">${esc(t(state.locale, "Open calendar editor", "باز کردن ویرایشگر تقویم"))}</button></div><p class="cp-vd-note">${esc(t(state.locale, "Calendar values shown here are visual sample metadata; edit and scheduling persistence are not connected in this preview.", "اطلاعات تقویم در اینجا نمونه بصری است؛ ذخیره تغییرات و اتصال به زمان‌بندی در این پیش‌نمایش فعال نیست."))}</p>`,
     discussion: `<div class="cp-vd-note">${esc(t(state.locale, "Sample note: access route confirmed with the site team.", "یادداشت نمونه: مسیر دسترسی با تیم کارگاه تأیید شد."))}</div>`,
     notebook: `<div class="cp-vd-note">${esc(t(state.locale, "Sample notebook entry for visual review.", "مدخل نمونهٔ دفترچه برای بازبینی بصری."))}</div>`,
     steps: `<table class="cp-vd-mini"><thead><tr><th>#</th><th>${esc(t(state.locale, "Step", "گام"))}</th><th>${esc(t(state.locale, "Weight", "وزن"))}</th><th>${esc(t(state.locale, "% complete", "درصد"))}</th></tr></thead><tbody><tr><td>1</td><td>${esc(t(state.locale, "Prepare", "آماده‌سازی"))}</td><td>40</td><td>100</td></tr><tr><td>2</td><td>${esc(t(state.locale, "Install", "نصب"))}</td><td>60</td><td>25</td></tr></tbody></table>`,
@@ -405,7 +477,7 @@ function renderDetails(state: DemoState): string {
     documents: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Document", "سند"))}</th><th>${esc(t(state.locale, "Revision", "ویرایش"))}</th></tr></thead><tbody><tr><td>ITP-Pump-01.pdf</td><td>B</td></tr></tbody></table>`,
     expenses: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Expense", "هزینه"))}</th><th>${esc(t(state.locale, "Budget", "بودجه"))}</th></tr></thead><tbody><tr><td>${esc(row.res)}</td><td>${row.budgetCost.toLocaleString("en-US")}</td></tr></tbody></table>`,
     summary: fields([["Early start", "شروع زود", fmtDate(row.es)], ["Early finish", "پایان زود", fmtDate(row.ef)], ["Late start", "شروع دیر", fmtDate(row.ls)], ["Late finish", "پایان دیر", fmtDate(row.lf)], ["Free float", "شناوری آزاد", `${row.ff} d`], ["Critical", "بحرانی", row.critical ? "Yes" : "No"]]),
-    relationships: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Predecessor", "پیش‌نیاز"))}</th><th>${esc(t(state.locale, "Successor", "جانشین"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th></tr></thead><tbody><tr><td>${esc(row.pred)}</td><td>${esc(row.succ)}</td><td>FS</td></tr></tbody></table>`,
+    relationships: `<section class="cp-vd-detail-section"><h4>${esc(t(state.locale, "Predecessors", "پیش‌نیازها"))}</h4>${relationshipRows("predecessors")}</section><section class="cp-vd-detail-section"><h4>${esc(t(state.locale, "Successors", "پس‌نیازها"))}</h4>${relationshipRows("successors")}</section><p class="cp-vd-note">${esc(t(state.locale, "Relationship type and signed lag are shown exactly as configured in this visual sample.", "نوع رابطه و مقدار علامت‌دار تأخیر مطابق نمونه بصری نمایش داده می‌شود."))}</p>`,
     risks: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Risk", "ریسک"))}</th><th>${esc(t(state.locale, "Rating", "درجه"))}</th></tr></thead><tbody><tr><td>${esc(t(state.locale, "Weather delay", "تأخیر جوی"))}</td><td>Medium</td></tr></tbody></table>`,
     udfs: fields([["Custom field", "فیلد سفارشی", "—"]]),
     history: `<p class="cp-vd-note">${esc(t(state.locale, "No saved update history in the visual demo.", "در نمایش بصری تاریخچه‌ای ذخیره نشده است."))}</p>`,
@@ -484,7 +556,13 @@ function renderCalendars(state: DemoState): string {
         <table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Day", "روز"))}</th><th>${esc(t(state.locale, "Work hours", "ساعت کاری"))}</th></tr></thead><tbody>${dayRows}</tbody></table>
         <p class="cp-vd-note">${esc(t(state.locale, "Sample calendar for visual review. Holidays and work hours are fixed demo data.", "تقویم نمونه برای بازبینی بصری. تعطیلات و ساعت کاری دادهٔ ثابت نمایشی است."))}</p>
       </aside>
-    </div></section>`;
+    </div>
+    <div class="cp-vd-calendar-registers">
+      <section><h3>${esc(t(state.locale, "Available calendars", "تقویم‌های تعریف‌شده"))}</h3><div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>${esc(t(state.locale, "Calendar name", "نام تقویم"))}</th><th>${esc(t(state.locale, "Calendar type", "نوع تقویم"))}</th><th>${esc(t(state.locale, "Workweek", "هفته کاری"))}</th><th>${esc(t(state.locale, "Hours per day", "ساعت روزانه"))}</th><th>${esc(t(state.locale, "Assigned to", "اختصاص به"))}</th></tr></thead><tbody><tr><td>${esc(t(state.locale, "Standard 5-Day", "استاندارد پنج‌روزه"))}</td><td>${esc(t(state.locale, "Global", "سراسری"))}</td><td>Sat–Wed</td><td>8</td><td>${esc(t(state.locale, "Project default", "پیش‌فرض پروژه"))}</td></tr><tr><td>${esc(t(state.locale, "Six-Day Site", "کارگاه شش‌روزه"))}</td><td>${esc(t(state.locale, "Project", "پروژه"))}</td><td>Sat–Thu</td><td>8</td><td>${esc(t(state.locale, "Civil activities", "فعالیت‌های عمرانی"))}</td></tr><tr><td>${esc(t(state.locale, "24 Hours", "۲۴ ساعته"))}</td><td>${esc(t(state.locale, "Global", "سراسری"))}</td><td>All days</td><td>24</td><td>${esc(t(state.locale, "Continuous operations", "عملیات پیوسته"))}</td></tr></tbody></table></div></section>
+      <section><h3>${esc(t(state.locale, "Exceptions and holidays", "استثناها و تعطیلات"))}</h3><div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>${esc(t(state.locale, "Date", "تاریخ"))}</th><th>${esc(t(state.locale, "Description", "شرح"))}</th><th>${esc(t(state.locale, "Exception type", "نوع استثنا"))}</th><th>${esc(t(state.locale, "Working time", "زمان کاری"))}</th></tr></thead><tbody><tr><td>21-Mar-2027</td><td>${esc(t(state.locale, "New year holiday", "تعطیلات نوروز"))}</td><td>${esc(t(state.locale, "Nonworking", "غیرکاری"))}</td><td>—</td></tr><tr><td>01-May-2027</td><td>${esc(t(state.locale, "Reduced shift", "شیفت کوتاه"))}</td><td>${esc(t(state.locale, "Modified hours", "ساعات اصلاح‌شده"))}</td><td>08:00–12:00</td></tr></tbody></table></div></section>
+    </div>
+    <p class="cp-vd-note">${esc(t(state.locale, "Calendar registers are illustrative visual data. Calendar assignments, exceptions and shift rules are not saved or applied to schedule calculations in this preview.", "فهرست تقویم‌ها داده نمایشی است؛ تخصیص تقویم، استثناها و قواعد شیفت در این پیش‌نمایش ذخیره یا در محاسبات زمان‌بندی اعمال نمی‌شوند."))}</p>
+  </section>`;
 }
 
 const ADMIN_SECTIONS: Array<[string, string, string]> = [
@@ -545,6 +623,109 @@ function renderTableWindow(state: DemoState, title: Label, headers: string[], ro
   </section>`;
 }
 
+function renderWbsWindow(state: DemoState): string {
+  const selected = WBS_TREE.find((node) => node.code === state.selectedWbsCode) ?? WBS_TREE[0];
+  const parentCode = selected.code.includes(".") ? selected.code.slice(0, selected.code.lastIndexOf(".")) : "—";
+  const parent = WBS_TREE.find((node) => node.code === parentCode);
+  const visible = WBS_TREE.filter((node) => {
+    const parts = node.code.split(".");
+    for (let length = 1; length < parts.length; length += 1) {
+      const ancestor = parts.slice(0, length).join(".");
+      if (state.collapsedWbsCodes.includes(ancestor)) return false;
+    }
+    return true;
+  });
+  const tabs: Array<[DemoState["wbsDetailTab"], string, string]> = [
+    ["general", "General", "عمومی"], ["dates", "Dates", "تاریخ‌ها"], ["activities", "Activities", "فعالیت‌ها"],
+    ["documents", "Documents", "اسناد"], ["notebook", "Notebook", "دفترچه"],
+  ];
+  const scopedActivities = ACTIVITIES.filter((activity) => selected.level === 0
+    || activity.phase === selected.name
+    || activity.wbs.toLowerCase().includes(selected.name.toLowerCase()));
+  const scopedStart = scopedActivities.map((activity) => activity.start).sort()[0] ?? "";
+  const scopedFinish = scopedActivities.map((activity) => activity.finish).sort().at(-1) ?? "";
+  const detail = state.wbsDetailTab === "general"
+    ? [[ "WBS Code", "کد WBS", selected.code ], [ "WBS Name", "نام WBS", selected.name ], [ "Parent WBS", "WBS والد", parent?.name ?? "Project root" ], [ "Level", "سطح", String(selected.level + 1) ], [ "Total activities", "تعداد فعالیت‌ها", String(selected.total) ]]
+    : state.wbsDetailTab === "dates"
+      ? [[ "Earliest activity start", "زودترین شروع فعالیت", scopedStart ? fmtDate(scopedStart) : "—" ], [ "Latest activity finish", "آخرین پایان فعالیت", scopedFinish ? fmtDate(scopedFinish) : "—" ], [ "Activity records in scope", "رکورد فعالیت در دامنه", String(scopedActivities.length) ]]
+      : [];
+  const activityDetailRows = scopedActivities.map((activity) => `<tr><td><bdi dir="ltr">${esc(activity.id)}</bdi></td><td>${esc(activity.name)}</td><td>${esc(activity.status)}</td><td>${esc(fmtDate(activity.start))}</td><td>${esc(fmtDate(activity.finish))}</td><td class="is-numeric">${activity.pct}%</td></tr>`).join("");
+  const detailBody = state.wbsDetailTab === "activities"
+    ? `<div class="cp-vd-tablewrap"><table class="cp-vd-table cp-vd-wbs-activity-table"><thead><tr><th>${esc(t(state.locale, "Activity ID", "شناسه فعالیت"))}</th><th>${esc(t(state.locale, "Activity name", "نام فعالیت"))}</th><th>${esc(t(state.locale, "Status", "وضعیت"))}</th><th>${esc(t(state.locale, "Start", "شروع"))}</th><th>${esc(t(state.locale, "Finish", "پایان"))}</th><th>${esc(t(state.locale, "% complete", "درصد تکمیل"))}</th></tr></thead><tbody>${activityDetailRows || `<tr><td colspan="6">${esc(t(state.locale, "No activities in this WBS scope.", "فعالیتی در این محدوده WBS وجود ندارد."))}</td></tr>`}</tbody></table></div>`
+    : detail.length
+      ? `<div class="cp-vd-wbs-fields">${detail.map(([en, fa, value]) => `<label><span>${esc(t(state.locale, en, fa))}</span><strong>${esc(value)}</strong></label>`).join("")}</div>`
+      : `<p class="cp-vd-note">${esc(t(state.locale, "No sample records are provided for this tab. Connect project data to populate it.", "برای این زبانه رکورد نمونه‌ای ارائه نشده است. برای نمایش اطلاعات، داده‌های پروژه باید متصل شوند."))}</p>`;
+  return `<section class="cp-vd-windowbody cp-vd-wbs-window">
+    <header class="cp-vd-winhead">
+      <div><h2>${esc(t(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</h2><small>${esc(t(state.locale, "Hierarchical project scope", "ساختار سلسله‌مراتبی دامنه پروژه"))}</small></div>
+      <div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="new-wbs" disabled title="${esc(t(state.locale, "Creation is not connected in this visual-only preview.", "ایجاد ساختار در این پیش‌نمایش بصری متصل نیست."))}">${esc(t(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="export">${esc(t(state.locale, "Export", "خروجی"))}</button></div>
+    </header>
+    <div class="cp-vd-wbs-layout">
+      <section class="cp-vd-wbs-tree" aria-label="${esc(t(state.locale, "WBS hierarchy", "درخت ساختار شکست"))}">
+        <div class="cp-vd-wbs-treehead"><strong>${esc(t(state.locale, "WBS hierarchy", "درخت ساختار شکست"))}</strong><span>${WBS_TREE.length} ${esc(t(state.locale, "elements", "عنصر"))}</span></div>
+        <div class="cp-vd-wbs-scroll"><table class="cp-vd-table cp-vd-wbs-table"><thead><tr><th>${esc(t(state.locale, "Code", "کد"))}</th><th>${esc(t(state.locale, "WBS element", "عنصر WBS"))}</th><th class="is-numeric">${esc(t(state.locale, "Activities", "فعالیت‌ها"))}</th></tr></thead><tbody>
+        ${visible.map((node) => {
+          const hasChildren = WBS_TREE.some((candidate) => candidate.code.startsWith(node.code + ".") && candidate.level === node.level + 1);
+          const collapsed = state.collapsedWbsCodes.includes(node.code);
+          return `<tr class="cp-vd-wbs-row${node.code === selected.code ? " is-selected" : ""}${node.level === 0 ? " is-summary-row" : ""}" data-vd-wbs="${esc(node.code)}" aria-selected="${node.code === selected.code}">
+            <td class="cp-vd-wbs-code">${esc(node.code)}</td>
+            <td><div class="cp-vd-wbs-name" style="padding-inline-start:${node.level * 19}px">${hasChildren ? `<button type="button" class="cp-vd-wbs-toggle" data-vd-wbs-toggle="${esc(node.code)}" aria-label="${esc(collapsed ? t(state.locale, "Expand", "بازکردن") : t(state.locale, "Collapse", "بستن"))}" aria-expanded="${!collapsed}">${collapsed ? "+" : "−"}</button>` : `<span class="cp-vd-wbs-leaf" aria-hidden="true">•</span>`}<span>${esc(node.name)}</span></div></td>
+            <td class="is-numeric">${node.total}</td>
+          </tr>`;
+        }).join("")}
+        </tbody></table></div>
+      </section>
+      <aside class="cp-vd-wbs-inspector">
+        <div class="cp-vd-wbs-inspector-head"><div><small>${esc(t(state.locale, "Selected WBS element", "عنصر انتخاب‌شده"))}</small><h3>${esc(selected.name)}</h3></div><span class="cp-vd-chip">${esc(selected.code)}</span></div>
+        <div class="cp-vd-wbs-kpis"><div><strong>${selected.total}</strong><span>${esc(t(state.locale, "Activities", "فعالیت‌ها"))}</span></div><div><strong>${selected.level + 1}</strong><span>${esc(t(state.locale, "Hierarchy level", "سطح سلسله‌مراتب"))}</span></div><div><strong>${parent ? parent.code : "—"}</strong><span>${esc(t(state.locale, "Parent code", "کد والد"))}</span></div></div>
+        <div class="cp-vd-wbs-detail">
+          <div class="cp-vd-wbs-detail-tabs" role="tablist" aria-label="${esc(t(state.locale, "WBS details", "جزئیات WBS"))}">
+            ${tabs.map(([id, en, fa]) => `<button type="button" role="tab" data-vd-wbs-dtab="${id}" aria-selected="${state.wbsDetailTab === id}" class="${state.wbsDetailTab === id ? "is-active" : ""}">${esc(t(state.locale, en, fa))}</button>`).join("")}
+          </div>
+          <div class="cp-vd-wbs-detail-panel" role="tabpanel">${detailBody}</div>
+        </div>
+        <p class="cp-vd-note">${esc(t(state.locale, "Visual sample only. Values are illustrative and are not connected to a live project record.", "صرفاً نمونه بصری؛ مقادیر نمایشی هستند و به رکورد زنده پروژه متصل نیستند."))}</p>
+      </aside>
+    </div>
+  </section>`;
+}
+
+
+function renderAssignmentsWindow(state: DemoState): string {
+  const assigned = ACTIVITIES.filter((row) => row.res !== "—");
+  const sum = (key: "budgetUnits" | "actualUnits" | "remainingUnits") => assigned.reduce((n, row) => n + row[key], 0);
+  const resourceRows = assigned.map((row) => `<tr><td><bdi dir="ltr">${esc(row.id)}</bdi></td><td>${esc(row.name)}</td><td>${esc(row.res)}</td><td class="is-numeric">${row.budgetUnits}</td><td class="is-numeric">${row.actualUnits}</td><td class="is-numeric">${row.remainingUnits}</td><td class="is-numeric">${row.budgetCost.toLocaleString("en-US")}</td><td class="is-numeric">${row.actualCost.toLocaleString("en-US")}</td><td class="is-numeric">${row.remainingCost.toLocaleString("en-US")}</td></tr>`).join("");
+  const roleRows = DEMO_ROLE_ASSIGNMENTS.map((item) => {
+    const activity = ACTIVITIES.find((row) => row.id === item.activity);
+    return `<tr><td><bdi dir="ltr">${item.activity}</bdi></td><td>${esc(activity?.name ?? "—")}</td><td>${esc(item.role)}</td><td>${item.budget}</td><td>${item.actual}</td><td>${item.remaining}</td><td>${(item.budget * item.rate).toLocaleString("en-US")}</td></tr>`;
+  }).join("");
+  return `<section class="cp-vd-windowbody cp-vd-resource-workspace"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Resource Assignments", "تخصیص منابع"))}</h2><div class="cp-vd-winactions"><button class="cp-vd-btn" data-vd-dialog="assign-resources">${esc(t(state.locale, "Assign resources", "تخصیص منابع"))}</button><button class="cp-vd-btn" data-vd-dialog="assign-roles">${esc(t(state.locale, "Assign roles", "تخصیص نقش‌ها"))}</button><button class="cp-vd-btn" data-vd-dialog="level">${esc(t(state.locale, "Level resources", "تسطیح منابع"))}</button></div></header>
+  <div class="cp-vd-resource-kpis"><div><span>${esc(t(state.locale, "Budgeted units", "واحد بودجه‌ای"))}</span><strong>${sum("budgetUnits").toLocaleString("en-US")}</strong></div><div><span>${esc(t(state.locale, "Actual units", "واحد واقعی"))}</span><strong>${sum("actualUnits").toLocaleString("en-US")}</strong></div><div><span>${esc(t(state.locale, "Remaining units", "واحد باقی‌مانده"))}</span><strong>${sum("remainingUnits").toLocaleString("en-US")}</strong></div><div><span>${esc(t(state.locale, "Assigned activities", "فعالیت‌های دارای تخصیص"))}</span><strong>${assigned.length}</strong></div></div>
+  <h3 class="cp-vd-subheading">${esc(t(state.locale, "Resource assignments", "تخصیص منابع"))}</h3><div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>${esc(t(state.locale, "Activity ID", "شناسه فعالیت"))}</th><th>${esc(t(state.locale, "Activity name", "نام فعالیت"))}</th><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Budgeted units", "واحد بودجه‌ای"))}</th><th>${esc(t(state.locale, "Actual units", "واحد واقعی"))}</th><th>${esc(t(state.locale, "Remaining units", "واحد باقی‌مانده"))}</th><th>${esc(t(state.locale, "Budgeted cost", "هزینه بودجه‌ای"))}</th><th>${esc(t(state.locale, "Actual cost", "هزینه واقعی"))}</th><th>${esc(t(state.locale, "Remaining cost", "هزینه باقی‌مانده"))}</th></tr></thead><tbody>${resourceRows}</tbody></table></div>
+  <h3 class="cp-vd-subheading">${esc(t(state.locale, "Role assignments", "تخصیص نقش‌ها"))}</h3><div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>${esc(t(state.locale, "Activity ID", "شناسه فعالیت"))}</th><th>${esc(t(state.locale, "Activity name", "نام فعالیت"))}</th><th>${esc(t(state.locale, "Role", "نقش"))}</th><th>${esc(t(state.locale, "Budgeted units", "واحد بودجه‌ای"))}</th><th>${esc(t(state.locale, "Actual units", "واحد واقعی"))}</th><th>${esc(t(state.locale, "Remaining units", "واحد باقی‌مانده"))}</th><th>${esc(t(state.locale, "Budgeted cost", "هزینه بودجه‌ای"))}</th></tr></thead><tbody>${roleRows}</tbody></table></div>
+  <p class="cp-vd-note">${esc(t(state.locale, "Visual sample only. Assignments are not persisted and do not run resource leveling or cost calculations.", "صرفاً نمونه بصری؛ تخصیص‌ها ذخیره نمی‌شوند و تسطیح منابع یا محاسبه هزینه اجرا نمی‌شود."))}</p></section>`;
+}
+
+function renderResourcesWindow(state: DemoState): string {
+  const units = RESOURCES.reduce((n, row) => n + row.units, 0);
+  const cost = RESOURCES.reduce((n, row) => n + row.cost, 0);
+  const rows = RESOURCES.map((row) => `<tr><td><bdi dir="ltr">${esc(row.id)}</bdi></td><td>${esc(row.name)}</td><td>${esc(row.type)}</td><td class="is-numeric">${row.units.toLocaleString("en-US")}</td><td class="is-numeric">${row.cost.toLocaleString("en-US")}</td><td><span class="cp-vd-minibar" style="width:${Math.min(100, row.cost / 2500)}%"></span></td></tr>`).join("");
+  return `<section class="cp-vd-windowbody cp-vd-resource-workspace"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Resources", "منابع"))}</h2><div class="cp-vd-winactions"><button class="cp-vd-btn" data-vd-dialog="assign-resources">${esc(t(state.locale, "Assign resources", "تخصیص منابع"))}</button><button class="cp-vd-btn" data-vd-dialog="assign-roles">${esc(t(state.locale, "Assign roles", "تخصیص نقش‌ها"))}</button></div></header>
+  <div class="cp-vd-resource-kpis"><div><span>${esc(t(state.locale, "Resource count", "تعداد منابع"))}</span><strong>${RESOURCES.length}</strong></div><div><span>${esc(t(state.locale, "Budgeted units", "واحد بودجه‌ای"))}</span><strong>${units.toLocaleString("en-US")}</strong></div><div><span>${esc(t(state.locale, "Budgeted cost", "هزینه بودجه‌ای"))}</span><strong>${cost.toLocaleString("en-US")}</strong></div><div><span>${esc(t(state.locale, "Resource categories", "گروه منابع"))}</span><strong>3</strong></div></div>
+  <h3 class="cp-vd-subheading">${esc(t(state.locale, "Resource dictionary", "واژه‌نامه منابع"))}</h3><div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>${esc(t(state.locale, "Resource ID", "شناسه منبع"))}</th><th>${esc(t(state.locale, "Resource name", "نام منبع"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Budgeted units", "واحد بودجه‌ای"))}</th><th>${esc(t(state.locale, "Budgeted cost", "هزینه بودجه‌ای"))}</th><th>${esc(t(state.locale, "Usage", "مصرف"))}</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="cp-vd-resource-type-grid"><article><strong>${esc(t(state.locale, "Labor", "نیروی انسانی"))}</strong><p>${esc(t(state.locale, "People and crews measured in time units.", "افراد و گروه‌های کاری با واحدهای زمانی اندازه‌گیری می‌شوند."))}</p></article><article><strong>${esc(t(state.locale, "Equipment", "تجهیزات"))}</strong><p>${esc(t(state.locale, "Owned or rented equipment measured by usage or time.", "تجهیزات ملکی یا اجاره‌ای بر اساس میزان استفاده یا زمان اندازه‌گیری می‌شوند."))}</p></article><article><strong>${esc(t(state.locale, "Material", "مصالح و مواد"))}</strong><p>${esc(t(state.locale, "Consumable materials measured by quantity and unit.", "مصالح و مواد مصرفی بر اساس مقدار و واحد سنجش ثبت می‌شوند."))}</p></article></div>
+  <p class="cp-vd-note">${esc(t(state.locale, "Illustrative dictionary only; rates, calendars, curves and availability are not connected to live resource calculations.", "واژه‌نامه نمونه است؛ نرخ‌ها، تقویم‌ها، منحنی‌ها و ظرفیت به محاسبات واقعی متصل نیستند."))}</p></section>`;
+}
+
+function renderRolesWindow(state: DemoState): string {
+  const rows = DEMO_ROLES.map((role) => `<tr><td><bdi dir="ltr">${esc(role.id)}</bdi></td><td>${esc(role.name)}</td><td>${esc(role.discipline)}</td><td class="is-numeric">${role.rate}</td><td class="is-numeric">${role.capacity}</td><td class="is-numeric">${role.assigned}</td><td><span class="cp-vd-minibar" style="width:${Math.min(100, role.assigned / role.capacity * 100)}%"></span></td></tr>`).join("");
+  const capacity = DEMO_ROLES.reduce((n, role) => n + role.capacity - role.assigned, 0);
+  return `<section class="cp-vd-windowbody cp-vd-resource-workspace"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Roles", "نقش‌ها"))}</h2><div class="cp-vd-winactions"><button class="cp-vd-btn" data-vd-dialog="roles">${esc(t(state.locale, "Role dictionary", "واژه‌نامه نقش‌ها"))}</button><button class="cp-vd-btn" data-vd-dialog="assign-roles">${esc(t(state.locale, "Assign roles", "تخصیص نقش‌ها"))}</button></div></header>
+  <div class="cp-vd-resource-kpis"><div><span>${esc(t(state.locale, "Defined roles", "نقش‌های تعریف‌شده"))}</span><strong>${DEMO_ROLES.length}</strong></div><div><span>${esc(t(state.locale, "Role assignments", "تخصیص نقش‌ها"))}</span><strong>${DEMO_ROLE_ASSIGNMENTS.length}</strong></div><div><span>${esc(t(state.locale, "Unassigned capacity", "ظرفیت تخصیص‌نیافته"))}</span><strong>${capacity}</strong></div><div><span>${esc(t(state.locale, "Disciplines", "رشته‌ها"))}</span><strong>${new Set(DEMO_ROLES.map((role) => role.discipline)).size}</strong></div></div>
+  <h3 class="cp-vd-subheading">${esc(t(state.locale, "Role dictionary and capacity", "واژه‌نامه نقش‌ها و ظرفیت"))}</h3><div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>${esc(t(state.locale, "Role ID", "شناسه نقش"))}</th><th>${esc(t(state.locale, "Role name", "نام نقش"))}</th><th>${esc(t(state.locale, "Discipline", "رشته"))}</th><th>${esc(t(state.locale, "Price / unit", "نرخ هر واحد"))}</th><th>${esc(t(state.locale, "Maximum units", "حداکثر واحد"))}</th><th>${esc(t(state.locale, "Assigned units", "واحد تخصیص‌یافته"))}</th><th>${esc(t(state.locale, "Capacity", "ظرفیت"))}</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <p class="cp-vd-note">${esc(t(state.locale, "Illustrative role dictionary only; rates and capacity do not drive project cost or resource leveling in this preview.", "واژه‌نامه نقش‌ها نمونه است؛ نرخ و ظرفیت در این پیش‌نمایش هزینه پروژه یا تسطیح منابع را محاسبه نمی‌کنند."))}</p></section>`;
+}
+
 function renderWindow(state: DemoState): string {
   switch (state.window) {
     case "projects":
@@ -553,29 +734,25 @@ function renderWindow(state: DemoState): string {
         { "Project ID": "CUBI-DEMO-002", "Project name": "Intake Screen Replacement", Status: "Planning", Start: "01-Feb-27", Finish: "30-Sep-27", "Data date": "—", Activities: 12 },
       ], ["new-project", "baselines"]);
     case "wbs":
-      return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</h2></header>
-        <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>WBS Code</th><th>WBS Name</th><th class="is-numeric">Total Activities</th></tr></thead><tbody>
-        ${WBS_TREE.map((node) => `<tr class="${node.level === 0 ? "is-summary-row" : ""}"><td>${esc(node.code)}</td><td style="padding-inline-start:${8 + node.level * 22}px">${node.level < 2 ? "▾ " : "• "}${esc(node.name)}</td><td class="is-numeric">${node.total}</td></tr>`).join("")}
-        </tbody></table></div></section>`;
+      return renderWbsWindow(state);
     case "activities":
       return `<section class="cp-vd-windowbody cp-vd-activities">
         <header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Activities", "فعالیت‌ها"))}</h2>
           <span class="cp-vd-chip">${esc(t(state.locale, "Classic Schedule Layout", "چیدمان کلاسیک زمان‌بندی"))}</span>
         </header>
         ${renderGanttTools(state)}
-        <div class="cp-vd-split">
+        ${state.activityView === "relationships" ? renderRelationshipRegister(state) : `<div class="cp-vd-split">
           <div class="cp-vd-pane">${renderActivityTable(state, state.columns)}</div>
           <div class="cp-vd-pane">${renderGantt(state)}</div>
-        </div>
+        </div>`}
         ${renderDetails(state)}
       </section>`;
     case "assignments":
-      return renderTableWindow(state, { en: "Resource Assignments", fa: "تخصیص منابع" }, ["Activity ID", "Activity name", "Resource", "Budgeted units", "Actual units", "Remaining units", "Cost"], ACTIVITIES.filter((row) => row.res !== "—").slice(0, 12).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Resource: row.res, "Budgeted units": row.budgetUnits, "Actual units": row.actualUnits, "Remaining units": row.remainingUnits, Cost: row.budgetCost.toLocaleString("en-US") })), ["assign-resources", "assign-roles"]);
+      return renderAssignmentsWindow(state);
     case "resources":
-      return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Resources", "منابع"))}</h2><div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="assign-resources">${esc(t(state.locale, "Assign resources", "تخصیص منابع"))}</button></div></header>
-        <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>Resource ID</th><th>Resource name</th><th>Type</th><th class="is-numeric">Budgeted units</th><th class="is-numeric">Cost</th><th>Histogram</th></tr></thead><tbody>
-        ${RESOURCES.map((row) => `<tr><td>${esc(row.id)}</td><td>${esc(row.name)}</td><td>${esc(row.type)}</td><td class="is-numeric">${row.units}</td><td class="is-numeric">${row.cost.toLocaleString("en-US")}</td><td><span class="cp-vd-minibar" style="width:${Math.min(100, row.cost / 2500)}%"></span></td></tr>`).join("")}
-        </tbody></table></div></section>`;
+      return renderResourcesWindow(state);
+    case "roles":
+      return renderRolesWindow(state);
     case "calendars":
       return renderCalendars(state);
     case "reports":
@@ -630,17 +807,15 @@ function renderWindow(state: DemoState): string {
 }
 
 const NETWORK_NODES: Array<{ id: string; col: number; row: number }> = [
-  { id: "A1010", col: 0, row: 0 }, { id: "A1020", col: 0, row: 1 }, { id: "A1210", col: 0, row: 2 },
-  { id: "A1110", col: 1, row: 0 }, { id: "A1120", col: 1, row: 1 }, { id: "A1220", col: 1, row: 2 },
-  { id: "A1130", col: 2, row: 0 }, { id: "A1310", col: 2, row: 1 }, { id: "A1320", col: 2, row: 2 },
-  { id: "A1330", col: 3, row: 0 }, { id: "A1340", col: 3, row: 1 }, { id: "A1500", col: 3, row: 2 },
+  { id: "A1010", col: 0, row: 0 }, { id: "A1210", col: 0, row: 1 },
+  { id: "A1110", col: 1, row: 0 }, { id: "A1220", col: 1, row: 1 },
+  { id: "A1120", col: 2, row: 0 }, { id: "A1310", col: 2, row: 1 },
+  { id: "A1130", col: 3, row: 0 }, { id: "A1320", col: 3, row: 1 },
+  { id: "A1330", col: 4, row: 0 }, { id: "A1340", col: 4, row: 1 },
+  { id: "A1350", col: 5, row: 0 }, { id: "A1500", col: 5, row: 1 },
 ];
-// Finish-to-start relationships exactly as they exist in the demo successor data.
-const NETWORK_LINKS: Array<[string, string]> = [
-  ["A1010", "A1110"], ["A1020", "A1110"], ["A1110", "A1120"], ["A1110", "A1130"], ["A1120", "A1130"],
-  ["A1210", "A1220"], ["A1130", "A1320"], ["A1310", "A1320"], ["A1320", "A1330"], ["A1330", "A1340"],
-  ["A1340", "A1500"],
-];
+// The network uses the same typed relationship register as the Activity Details view.
+const NETWORK_LINKS = DEMO_RELATIONSHIPS;
 
 const NETWORK_DEFS = `<defs>
   <marker id="cp-vd-net-arrow" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill="#44536a"></path></marker>
@@ -650,9 +825,9 @@ const NETWORK_DEFS = `<defs>
 function renderNetwork(state: DemoState): string {
   const nodes = NETWORK_NODES.map((node) => {
     const row = ACTIVITIES.find((item) => item.id === node.id) ?? ACTIVITIES[0];
-    return `<div class="cp-vd-node ${row.critical ? "is-critical" : ""}" data-vd-node="${esc(node.id)}" style="inset-inline-start:${3 + node.col * 23.5}%;top:${8 + node.row * 28}%"><span>${esc(row.id)}</span><strong>${esc(row.name)}</strong><em>${row.od}d · ${row.pct}%</em></div>`;
+    return `<div class="cp-vd-node ${row.critical ? "is-critical" : ""}" data-vd-node="${esc(node.id)}" style="inset-inline-start:${2 + node.col * 15.8}%;top:${14 + node.row * 42}%"><span>${esc(row.id)}</span><strong>${esc(row.name)}</strong><em>${row.od}d · ${row.pct}%</em></div>`;
   }).join("");
-  return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Activity Network", "شبکه فعالیت"))}</h2><div class="cp-vd-winactions"><span class="cp-vd-chip">${esc(t(state.locale, "12 boxes · 11 links", "۱۲ جعبه · ۱۱ رابطه"))}</span><button type="button" class="cp-vd-btn" data-vd-dialog="network-options">${esc(t(state.locale, "Layout options", "تنظیمات چیدمان"))}</button></div></header>
+  return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Activity Network", "شبکه فعالیت"))}</h2><div class="cp-vd-winactions"><span class="cp-vd-chip">${esc(t(state.locale, "12 boxes · 8 typed links", "۱۲ جعبه · ۸ رابطهٔ نوع‌دار"))}</span><button type="button" class="cp-vd-btn" data-vd-dialog="network-options">${esc(t(state.locale, "Layout options", "تنظیمات چیدمان"))}</button></div></header>
     <div class="cp-vd-network" data-vd-network>
       ${nodes}
       <svg class="cp-vd-node-links" data-vd-netlinks aria-hidden="true">${NETWORK_DEFS}</svg>
@@ -1005,7 +1180,38 @@ function dialogContent(name: string, state: DemoState): string {
     case "project-properties":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Project ID", "شناسهٔ پروژه"))}<input value="CUBI-DEMO-001" readonly></label><label>${esc(t(state.locale, "Name", "نام"))}<input value="Riverside Pump Station Upgrade"></label><label>${esc(t(state.locale, "Data date", "تاریخ داده"))}<input value="2026-12-03"></label></div>`;
     case "calendar":
-      return `<div class="cp-vd-two"><div class="cp-vd-calendar"><div class="cp-vd-cal-head"><button type="button" aria-label="${esc(t(state.locale, "Previous month", "ماه قبل"))}">‹</button><strong>${esc(t(state.locale, "December 2026", "دسامبر ۲۰۲۶"))}</strong><button type="button" aria-label="${esc(t(state.locale, "Next month", "ماه بعد"))}">›</button></div><div class="cp-vd-cal-grid">${calendarGrid(state.locale, 2026, 11)}</div></div><div class="cp-vd-form"><label>${esc(t(state.locale, "Work hours", "ساعت کار"))}<input value="08:00 – 16:00"></label><label>${esc(t(state.locale, "Nonwork", "غیرکاری"))}<input value="${esc(t(state.locale, "Thursday, Friday", "پنجشنبه، جمعه"))}"></label></div></div>`;
+      return `<div class="cp-vd-calendar-editor">
+        <div class="cp-vd-calendar-editor-main">
+          <div class="cp-vd-calendar-properties">
+            <h3>${esc(t(state.locale, "Calendar properties", "مشخصات تقویم"))}</h3>
+            <div class="cp-vd-form cp-vd-calendar-fields">
+              <label>${esc(t(state.locale, "Calendar name", "نام تقویم"))}<input value="5-Day Workweek" readonly></label>
+              <label>${esc(t(state.locale, "Calendar type", "نوع تقویم"))}<select disabled><option>Global</option><option>Project</option><option>Resource</option></select></label>
+              <label>${esc(t(state.locale, "Hours per day", "ساعت در روز"))}<input value="8" readonly></label>
+              <label>${esc(t(state.locale, "Hours per week", "ساعت در هفته"))}<input value="40" readonly></label>
+              <label>${esc(t(state.locale, "Hours per month", "ساعت در ماه"))}<input value="176" readonly></label>
+              <label>${esc(t(state.locale, "Hours per year", "ساعت در سال"))}<input value="2080" readonly></label>
+              <label>${esc(t(state.locale, "Parent calendar", "تقویم والد"))}<input value="None — base calendar" readonly></label>
+              <label>${esc(t(state.locale, "Effective from", "اعتبار از"))}<input value="2026-01-01" readonly></label>
+            </div>
+          </div>
+          <div class="cp-vd-calendar-workweek">
+            <h3>${esc(t(state.locale, "Workweek", "هفته کاری"))}</h3>
+            <table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Day", "روز"))}</th><th>${esc(t(state.locale, "Working time", "زمان کاری"))}</th><th>${esc(t(state.locale, "Status", "وضعیت"))}</th></tr></thead><tbody>
+              ${[[ "Saturday", "شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Sunday", "یکشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Monday", "دوشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Tuesday", "سه‌شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Wednesday", "چهارشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Thursday", "پنجشنبه", "—", false ],[ "Friday", "جمعه", "—", false ]].map(([en, fa, hours, working]) => `<tr><td>${esc(t(state.locale, String(en), String(fa)))}</td><td><bdi dir="ltr">${esc(String(hours))}</bdi></td><td><span class="cp-vd-calendar-day-status ${working ? "is-working" : "is-nonwork"}">${esc(t(state.locale, working ? "Working" : "Nonwork", working ? "کاری" : "تعطیل"))}</span></td></tr>`).join("")}
+            </tbody></table>
+          </div>
+        </div>
+        <aside class="cp-vd-calendar-editor-side">
+          <h3>${esc(t(state.locale, "Exceptions and holidays", "استثناها و تعطیلات"))}</h3>
+          <table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Date", "تاریخ"))}</th><th>${esc(t(state.locale, "Description", "شرح"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th></tr></thead><tbody>
+            <tr><td><bdi dir="ltr">2026-12-21</bdi></td><td>${esc(t(state.locale, "Winter solstice adjustment", "تغییر ساعت انقلاب زمستانی"))}</td><td>${esc(t(state.locale, "Nonwork", "تعطیل"))}</td></tr>
+            <tr><td><bdi dir="ltr">2027-03-20</bdi></td><td>${esc(t(state.locale, "Local holiday", "تعطیل محلی"))}</td><td>${esc(t(state.locale, "Nonwork", "تعطیل"))}</td></tr>
+          </tbody></table>
+          <div class="cp-vd-calendar-legend"><span class="is-working">${esc(t(state.locale, "Working day", "روز کاری"))}</span><span class="is-nonwork">${esc(t(state.locale, "Nonwork day", "روز تعطیل"))}</span><span class="is-exception">${esc(t(state.locale, "Exception", "استثنا"))}</span></div>
+          <p class="cp-vd-note">${esc(t(state.locale, "Visual sample only. Calendar rules, exceptions and inherited settings are not saved or used for scheduling.", "صرفاً نمونه بصری. قوانین تقویم، استثناها و تنظیمات ارث‌بری ذخیره یا در زمان‌بندی استفاده نمی‌شوند."))}</p>
+        </aside>
+      </div>`;
     case "schedule":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Data date", "تاریخ داده"))}<input value="2026-12-03"></label><label>${esc(t(state.locale, "Schedule mode", "حالت زمان‌بندی"))}<select><option>Forward and backward</option><option>Forward only</option></select></label><label class="cp-vd-check"><input type="checkbox" checked> ${esc(t(state.locale, "Level resources", "تسطیح منابع"))}</label><p class="cp-vd-note">${esc(t(state.locale, "Visual demo: no schedule run is executed.", "نمایش بصری: هیچ محاسبهٔ زمان‌بندی اجرا نمی‌شود."))}</p></div>`;
     case "level":
@@ -1120,7 +1326,11 @@ export function createVisualDemoState(locale: string): DemoState {
   return {
     window: "activities",
     activityId: "A1320",
+    selectedWbsCode: "1",
+    wbsDetailTab: "general",
+    collapsedWbsCodes: [],
     scale: "month",
+    activityView: "schedule",
     detailTab: "general",
     calendarMonth: 1,
     adminSection: "users",
@@ -1173,15 +1383,18 @@ function layoutConnectors(root: HTMLElement): void {
   const networkSvg = network?.querySelector<SVGSVGElement>("[data-vd-netlinks]");
   if (network && networkSvg) {
     const origin = network.getBoundingClientRect();
-    const paths = NETWORK_LINKS.map(([from, to]) => {
-      const start = boxOf(network.querySelector(`[data-vd-node="${from}"]`), origin);
-      const end = boxOf(network.querySelector(`[data-vd-node="${to}"]`), origin);
+    const paths = NETWORK_LINKS.map((link) => {
+      const start = boxOf(network.querySelector(`[data-vd-node="${link.predecessor}"]`), origin);
+      const end = boxOf(network.querySelector(`[data-vd-node="${link.successor}"]`), origin);
       if (!start || !end) return "";
       const critical = Boolean(
-        ACTIVITIES.find((item) => item.id === from)?.critical && ACTIVITIES.find((item) => item.id === to)?.critical,
+        ACTIVITIES.find((item) => item.id === link.predecessor)?.critical && ACTIVITIES.find((item) => item.id === link.successor)?.critical,
       );
       const marker = critical ? "cp-vd-net-arrow-critical" : "cp-vd-net-arrow";
-      return `<path d="${routeLink(start, end, outward)}" class="${critical ? "is-critical" : ""}" marker-end="url(#${marker})"></path>`;
+      const label = `${link.type} ${link.lag > 0 ? "+" : ""}${link.lag}${link.unit}`;
+      const labelX = (start.left + start.right + end.left + end.right) / 4;
+      const labelY = (start.middle + end.middle) / 2 - 7;
+      return `<path d="${routeLink(start, end, outward)}" class="${critical ? "is-critical" : ""}" data-link-type="${link.type}" marker-end="url(#${marker})"></path><text class="cp-vd-network-link-label" x="${labelX}" y="${labelY}" text-anchor="middle">${esc(label)}</text>`;
     }).join("");
     networkSvg.innerHTML = NETWORK_DEFS + paths;
   }
@@ -1357,6 +1570,12 @@ function bind(root: HTMLElement): void {
     }
     const tab = target.closest<HTMLElement>("[data-vd-window]");
     if (tab?.dataset.vdWindow) { navigate(tab.dataset.vdWindow as DemoWindowId); return; }
+    const activityView = target.closest<HTMLElement>("[data-vd-activity-view]");
+    if (activityView?.dataset.vdActivityView === "schedule" || activityView?.dataset.vdActivityView === "relationships") {
+      state.activityView = activityView.dataset.vdActivityView;
+      draw();
+      return;
+    }
     const scale = target.closest<HTMLElement>("[data-vd-scale]");
     if (scale?.dataset.vdScale) {
       state.scale = scale.dataset.vdScale as DemoState["scale"];
@@ -1369,6 +1588,27 @@ function bind(root: HTMLElement): void {
     if (calNext) { state.calendarMonth = Math.min(CAL_MONTHS.length - 1, state.calendarMonth + 1); draw(); return; }
     const adminSection = target.closest<HTMLElement>("[data-vd-admin]");
     if (adminSection?.dataset.vdAdmin) { state.adminSection = adminSection.dataset.vdAdmin; draw(); return; }
+    const wbsToggle = target.closest<HTMLElement>("[data-vd-wbs-toggle]");
+    if (wbsToggle?.dataset.vdWbsToggle) {
+      const code = wbsToggle.dataset.vdWbsToggle;
+      state.collapsedWbsCodes = state.collapsedWbsCodes.includes(code)
+        ? state.collapsedWbsCodes.filter((item) => item !== code)
+        : [...state.collapsedWbsCodes, code];
+      draw();
+      return;
+    }
+    const wbsRow = target.closest<HTMLElement>("[data-vd-wbs]");
+    if (wbsRow?.dataset.vdWbs) {
+      state.selectedWbsCode = wbsRow.dataset.vdWbs;
+      draw();
+      return;
+    }
+    const wbsDetailTab = target.closest<HTMLElement>("[data-vd-wbs-dtab]");
+    if (wbsDetailTab?.dataset.vdWbsDtab) {
+      state.wbsDetailTab = wbsDetailTab.dataset.vdWbsDtab as DemoState["wbsDetailTab"];
+      draw();
+      return;
+    }
     const activity = target.closest<HTMLElement>("[data-vd-activity]");
     if (activity?.dataset.vdActivity) {
       state.activityId = activity.dataset.vdActivity;

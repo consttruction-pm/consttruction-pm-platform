@@ -101,14 +101,25 @@ function workspaceSnapshot(): WorkspaceControlRoomReadSnapshot {
 
 class StubTransport implements ApiTransport {
   public path = "";
+  public paths: string[] = [];
   public context: ProjectContext | null = null;
 
-  constructor(private readonly result: ApiResult<WorkspaceControlRoomReadSnapshot>) {}
+  constructor(
+    private readonly result: ApiResult<WorkspaceControlRoomReadSnapshot>,
+    private readonly calendarResult: ApiResult<unknown> = {
+      ok: false,
+      error: { code: "ROUTE_NOT_FOUND", retryable: false, message_key: "error.route.not_found", available_actions: [] },
+    },
+  ) {}
 
   async get<T>(path: string, contextValue: ProjectContext): Promise<ApiResult<T>> {
-    this.path = path;
-    this.context = contextValue;
-    return this.result as ApiResult<T>;
+    this.paths.push(path);
+    if (this.paths.length === 1) {
+      this.path = path;
+      this.context = contextValue;
+      return this.result as ApiResult<T>;
+    }
+    return this.calendarResult as ApiResult<T>;
   }
 
   async post<TRequest, TResponse>(): Promise<ApiResult<TResponse>> {
@@ -133,6 +144,44 @@ test("workspace read client hydrates the control room and field issue projection
   assert.equal(result.data.calendarMode, "jalali");
   assert.equal(transport.path, WORKSPACE_CONTROL_ROOM_READ_PATH);
   assert.deepEqual(transport.context, context);
+});
+
+test("workspace read client loads the authenticated project calendar catalogue", async () => {
+  const transport = new StubTransport(
+    { ok: true, data: workspaceSnapshot() },
+    {
+      ok: true,
+      data: {
+        contract_version: "p6-calendar-read-api.v1",
+        kind: "calendar_catalog",
+        scope: { tenant_id: context.tenant_id, project_id: context.project_id, project_revision: context.revision },
+        calendars: [{
+          calendar_id: "CAL-PROJECT",
+          calendar_version: "v3",
+          kind: "working-time",
+          calendar_type: "project",
+          name: "Project Standard",
+          record_revision: 4,
+        }],
+      },
+    },
+  );
+  const result = await new WorkspaceReadClient(transport).load(context);
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("expected success");
+  assert.deepEqual(result.data.calendarCatalog, {
+    status: "loaded",
+    calendars: [{
+      calendarId: "CAL-PROJECT",
+      calendarVersion: "v3",
+      kind: "working-time",
+      calendarType: "project",
+      name: "Project Standard",
+      recordRevision: 4,
+    }],
+    errorCode: null,
+  });
+  assert.equal(transport.paths[1], "/api/projects/project-1/p6/calendars");
 });
 
 test("workspace read client preserves API errors without masking them", async () => {
