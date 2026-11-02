@@ -100,7 +100,7 @@ function esc(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
-const connectedShellCommands = new Set(["Table", "Gantt Chart", "Columns", "Filter By", "Group and Sort By", "Timescale", "Bars", "Bar Chart Options", "Bottom Layout Options", "Activity Details", "Add Activity", "Add WBS", "Add Relationship", "Link Activities", "Find"]);
+const connectedShellCommands = new Set(["Table", "Gantt Chart", "Columns", "Filter By", "Group and Sort By", "Timescale", "Bars", "Bar Chart Options", "Bottom Layout Options", "Activity Details", "Add Activity", "Add WBS", "Add Relationship", "Link Activities", "Find", "Restore Default Layout"]);
 
 function shellCommandConnected(command: string, activeMenu: string): boolean {
   return (activeMenu === "schedule" && connectedShellCommands.has(command)) || (command === "Add WBS" && activeMenu === "project");
