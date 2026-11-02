@@ -42,7 +42,7 @@ Expose the existing Python Shared Domain/Calculation Core through a transport-in
 }
 ```
 
-The native host must derive the authorization context from its trusted local session/entitlement store and must bind that identity to the request. A caller-supplied identity in JSON is not authentication. The runtime validates requester equality and delegates scope/permission enforcement to the existing application service.
+The native host must derive the authorization context from its trusted local session/entitlement store and must bind that identity to the request. The host must also pass the project's current revision from its trusted local project store as the out-of-band `expected_project_revision` argument. A caller-supplied identity or revision in JSON is not authentication or authoritative project context. The runtime validates requester equality, revision equality and delegates tenant/project/permission enforcement to the existing application service. A stale request returns `STALE_PROJECT_REVISION` without evaluating the snapshot.
 
 ## Runtime response
 

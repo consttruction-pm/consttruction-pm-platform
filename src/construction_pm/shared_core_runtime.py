@@ -25,7 +25,7 @@ from construction_pm.backend_p0.schedule_query import (
     ScheduleQueryAPI,
     ScheduleQueryApplicationService,
 )
-from construction_pm.control_intelligence.contracts import ControlScope
+from construction_pm.control_intelligence.contracts import ControlScope, MAX_SAFE_REVISION
 from construction_pm.control_intelligence.query import (
     ScheduleQueryKind,
     ScheduleQueryRequest,
@@ -113,8 +113,9 @@ class SharedCoreRuntime:
         request: ScheduleQueryRequest,
         *,
         auth_context: AuthorizationContext,
+        expected_project_revision: int,
     ) -> dict[str, object]:
-        """Execute one query using host-authenticated identity and shared policy."""
+        """Execute one query bound to host-authenticated identity and current revision."""
         try:
             auth_context.validate()
         except AuthorizationError:
@@ -122,6 +123,22 @@ class SharedCoreRuntime:
                 "authorization",
                 "INVALID_AUTHORIZATION_CONTEXT",
                 "The host supplied an invalid authorization context.",
+            )
+        if (
+            isinstance(expected_project_revision, bool)
+            or not isinstance(expected_project_revision, int)
+            or not 0 <= expected_project_revision <= MAX_SAFE_REVISION
+        ):
+            return _error(
+                "authorization",
+                "INVALID_HOST_PROJECT_REVISION",
+                "The host supplied an invalid project revision.",
+            )
+        if request.scope.project_revision != expected_project_revision:
+            return _error(
+                "conflict",
+                "STALE_PROJECT_REVISION",
+                "The request revision does not match the host's current project revision.",
             )
         if request.requested_by != auth_context.user_id:
             return _error(
@@ -136,8 +153,9 @@ class SharedCoreRuntime:
         request_json: str,
         *,
         auth_context: AuthorizationContext,
+        expected_project_revision: int,
     ) -> str:
-        """Dispatch the versioned JSON ABI; identity/roles are supplied out-of-band."""
+        """Dispatch JSON; identity, roles and current revision are supplied out-of-band."""
         if not isinstance(request_json, str):
             return _response(
                 "runtime.error",
@@ -175,7 +193,11 @@ class SharedCoreRuntime:
                 _error("validation", "CORE_RUNTIME_REQUEST_INVALID", "The schedule query payload is invalid."),
             )
 
-        result = self.execute_schedule_query(request, auth_context=auth_context)
+        result = self.execute_schedule_query(
+            request,
+            auth_context=auth_context,
+            expected_project_revision=expected_project_revision,
+        )
         return _response(SCHEDULE_QUERY_OPERATION, result)
 
 

@@ -100,7 +100,7 @@ def _envelope(**overrides):
 def test_shared_core_runtime_dispatches_authoritative_schedule_without_http():
     runtime, auth, connection = _runtime()
     try:
-        response = json.loads(runtime.dispatch_json(json.dumps(_envelope()), auth_context=auth))
+        response = json.loads(runtime.dispatch_json(json.dumps(_envelope()), auth_context=auth, expected_project_revision=9))
         assert response["contract_version"] == CORE_RUNTIME_CONTRACT_VERSION
         assert response["operation"] == SCHEDULE_QUERY_OPERATION
         result = response["result"]
@@ -122,15 +122,15 @@ def test_shared_core_runtime_rejects_bad_contract_and_unknown_operation():
     try:
         bad_contract = _envelope()
         bad_contract["contract_version"] = "cubi.shared-core-runtime.v0"
-        response = json.loads(runtime.dispatch_json(json.dumps(bad_contract), auth_context=auth))
+        response = json.loads(runtime.dispatch_json(json.dumps(bad_contract), auth_context=auth, expected_project_revision=9))
         assert response["result"]["error"]["code"] == "UNSUPPORTED_CORE_RUNTIME_CONTRACT"
 
         unknown_operation = _envelope()
         unknown_operation["operation"] = "schedule.recalculate.client"
-        response = json.loads(runtime.dispatch_json(json.dumps(unknown_operation), auth_context=auth))
+        response = json.loads(runtime.dispatch_json(json.dumps(unknown_operation), auth_context=auth, expected_project_revision=9))
         assert response["result"]["error"]["code"] == "UNSUPPORTED_CORE_RUNTIME_OPERATION"
 
-        response = json.loads(runtime.dispatch_json("{invalid-json", auth_context=auth))
+        response = json.loads(runtime.dispatch_json("{invalid-json", auth_context=auth, expected_project_revision=9))
         assert response["result"]["error"]["code"] == "CORE_RUNTIME_REQUEST_INVALID"
     finally:
         connection.close()
@@ -140,17 +140,25 @@ def test_shared_core_runtime_binds_request_actor_and_scope_to_host_identity():
     runtime, auth, connection = _runtime()
     try:
         mismatch = _envelope(requested_by="another-user")
-        response = json.loads(runtime.dispatch_json(json.dumps(mismatch), auth_context=auth))
+        response = json.loads(runtime.dispatch_json(json.dumps(mismatch), auth_context=auth, expected_project_revision=9))
         assert response["result"]["error"]["code"] == "REQUESTED_BY_MISMATCH"
+
+        stale_revision = _envelope(
+            scope={"tenant_id": "T-1", "project_id": "P-1", "project_revision": 8}
+        )
+        response = json.loads(runtime.dispatch_json(
+            json.dumps(stale_revision), auth_context=auth, expected_project_revision=9
+        ))
+        assert response["result"]["error"]["code"] == "STALE_PROJECT_REVISION"
 
         cross_scope = _envelope(
             scope={"tenant_id": "OTHER", "project_id": "P-1", "project_revision": 9}
         )
-        response = json.loads(runtime.dispatch_json(json.dumps(cross_scope), auth_context=auth))
+        response = json.loads(runtime.dispatch_json(json.dumps(cross_scope), auth_context=auth, expected_project_revision=9))
         assert response["result"]["error"]["code"] == "CROSS_SCOPE_ACCESS"
 
         denied_auth = AuthorizationContext("T-1", "P-1", "u1", frozenset({"unprivileged"}))
-        response = json.loads(runtime.dispatch_json(json.dumps(_envelope()), auth_context=denied_auth))
+        response = json.loads(runtime.dispatch_json(json.dumps(_envelope()), auth_context=denied_auth, expected_project_revision=9))
         assert response["result"]["error"]["code"] == "FORBIDDEN"
     finally:
         connection.close()
