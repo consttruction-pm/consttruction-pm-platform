@@ -52,13 +52,13 @@ Module submenus are not allowed to remain decorative labels when the destination
 | WBS | WBS Register, WBS Details tab | WBS Chart until a real hierarchy chart renderer exists |
 | Schedule | Activity Grid, Gantt, relationship/calendar/resource/progress reference groups, schedule options, run, formula and documentation sections | Any future view not rendered by the shared schedule workspace |
 | Progress | Site logs, field operations | No locally computed progress percentage |
-| Resources | Resource capacity, field operations | Resource utilization views until backed by authoritative assignment data |
+| Resources | Resource Register, Max Units/Time, Assignments, Codes, Roles detail tabs; capacity tool | Resource utilization and assignment calculations until backed by authoritative resource/assignment data |
 | Resource Assignments | Assignment register, General details tab | Resource Usage chart/profile |
 | Roles | Role register, Rates and Assignments detail tabs | — |
 | Calendars | Calendar register, Workweek, Exceptions, Assignments tabs | Create/Edit/Delete while calendar persistence is not connected |
 | Expenses | Expense register, General details tab | Cost Accounts until the account register is connected |
 | Cost | Procurement records, Change/Claim records | Financial calculations outside the authoritative core |
-| Documents | Project document register | Evidence panel until its own evidence view is available |
+| Documents | Data-backed document register, selectable rows, General/Links/Integrity/Revisions/UDF detail tabs | Evidence panel until its own evidence view is available |
 | Reports | Preview only | Report generation and print layouts |
 | Tracking | Project Table, Bar Chart, Gantt/Profile and Resource Analysis layout selector | Data selection, summarization, chart rendering and saved layouts |
 | Issues | Issue register, Details tab | Create/Edit/Delete until the issue service is connected |
