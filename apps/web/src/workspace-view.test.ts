@@ -184,6 +184,16 @@ test("Activities window exposes a real Layout Options dialog with current timesc
   assert.match(persian, /نمایش خطوط روابط/);
 });
 
+test("Activity Details exposes the Bottom Layout Options tab customization dialog", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-activity-details-options-open/);
+  assert.match(html, /data-activity-details-options-dialog/);
+  assert.match(html, /data-activity-detail-visible="general" checked/);
+  assert.match(html, /data-activity-detail-visible="risks" checked/);
+  assert.match(html, /Customize Activity Details/);
+  assert.match(html, /Choose which detail tabs are visible/);
+});
+
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
   const html = render("en", "schedule");
   for (const tab of ["General", "Status", "Resources", "Predecessors", "Successors", "Codes", "Tasks", "Discussion", "Notebook", "Steps", "Feedback", "WPs & Docs", "Expenses", "Summary", "Relationships", "Risks", "UDFs"]) {
