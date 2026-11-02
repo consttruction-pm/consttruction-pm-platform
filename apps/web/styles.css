@@ -6973,3 +6973,29 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   width: 82px;
   background: var(--cubi-engineering-blue);
 }
+
+/* Project Structure occupies the leading rail; Project Register takes the remaining width. */
+.cp-p6-workspace[data-active-menu="project"] .cp-project-window-overview {
+  grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-structure-summary {
+  grid-column: 1;
+  grid-row: 1;
+}
+.cp-p6-workspace[data-active-menu="project"] .cp-project-register {
+  grid-column: 2;
+  grid-row: 1;
+}
+@media (max-width: 900px) {
+  .cp-p6-workspace[data-active-menu="project"] .cp-project-window-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cp-p6-workspace[data-active-menu="project"] .cp-project-structure-summary {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .cp-p6-workspace[data-active-menu="project"] .cp-project-register {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
