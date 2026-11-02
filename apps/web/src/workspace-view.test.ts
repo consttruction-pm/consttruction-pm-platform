@@ -472,6 +472,15 @@ test("module navigation submenus route to real registers, detail tabs and tracki
   assert.match(resources, /data-navigation-action="register-tab:resources:roles"/);
   assert.match(resources, /Resource records are not yet returned by the project API/);
 
+  const cost = render("en", "cost");
+  assert.match(cost, /Cost Accounts &amp; Control/);
+  assert.match(cost, /Budgeted Cost/);
+  assert.match(cost, /Cash Flow/);
+  assert.match(cost, /Earned Value/);
+  assert.match(cost, /data-navigation-action="register-tab:cost:budget"/);
+  assert.match(cost, /data-navigation-action="register-tab:cost:cash-flow"/);
+  assert.match(cost, /data-navigation-action="register-tab:cost:evm"/);
+
   const documents = render("en", "documents");
   assert.match(documents, /class="cp-documents-window"/);
   assert.match(documents, /data-navigation-action="document-detail-tab:links"/);
