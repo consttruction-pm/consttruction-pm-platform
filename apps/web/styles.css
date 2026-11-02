@@ -6733,3 +6733,19 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-activity-detail-table th{background:#f1f4f8;color:#53657b;font-weight:700}
 @media(max-width:900px){.cp-p6 .cp-activity-detail-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.cp-p6 .cp-activity-detail-fields{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-activity-details-heading{align-items:flex-start;flex-direction:column;gap:2px}}
+
+
+/* Activity Details tab customization dialog. */
+.cp-p6 .cp-activity-details-heading-actions{display:flex;align-items:center;gap:9px}
+.cp-p6 .cp-activity-details-heading-actions button{min-height:23px;padding:2px 7px;border:1px solid #bac7d5;border-radius:2px;background:#fff;color:#35516f;font:inherit;font-size:9px;cursor:pointer}
+.cp-p6 .cp-activity-details-options{width:min(520px,calc(100vw - 28px));max-width:520px;max-height:min(78vh,620px);padding:13px;border:1px solid #9eafc2;border-radius:4px;background:#fff;color:#20344c;box-shadow:0 18px 55px #14253b45}
+.cp-p6 .cp-activity-details-options::backdrop{background:#10243b66}
+.cp-p6 .cp-activity-details-options-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:8px;border-bottom:1px solid #dbe2ea}
+.cp-p6 .cp-activity-details-options-head h3{margin:0;color:#173d68;font-size:13px}
+.cp-p6 .cp-activity-details-options-head button{width:26px;height:26px;border:1px solid #bac7d5;background:#f7f9fc;color:#40566f;font-size:18px;cursor:pointer}
+.cp-p6 .cp-activity-details-options>p{color:#68798d;font-size:10px;line-height:1.5}
+.cp-p6 .cp-activity-details-options-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:7px 0;max-height:48vh;overflow:auto}
+.cp-p6 .cp-activity-details-options-list label{display:flex;align-items:center;gap:7px;padding:6px 8px;border:1px solid #e0e6ed;background:#fbfcfe;color:#31465e;font-size:10px}
+.cp-p6 .cp-activity-details-options>footer{display:flex;justify-content:flex-end;gap:7px;padding-top:10px;border-top:1px solid #e1e7ee}
+.cp-p6 .cp-activity-details-options>footer button{min-height:28px;padding:4px 11px;border:1px solid #9eafc2;border-radius:3px;background:#edf2f8;color:#23405e;font:inherit;font-size:10px;cursor:pointer}
+@media(max-width:520px){.cp-p6 .cp-activity-details-options-list{grid-template-columns:minmax(0,1fr)}}
