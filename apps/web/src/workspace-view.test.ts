@@ -27,7 +27,7 @@ function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
 }
 
 test("workspace shell uses the canonical CUBI logo and focused module layout contracts", () => {
-  for (const menu of ["project", "schedule", "progress", "resources", "roles", "calendars", "cost", "documents", "reports", "tracking", "control", "settings] as const) {
+  for (const menu of ["project", "schedule", "progress", "resources", "roles", "calendars", "cost", "documents", "reports", "tracking", "control", "settings"] as const) {
     const html = render("en", menu);
     assert.match(html, new RegExp(`data-active-menu="${menu}"`));
     assert.ok(html.includes('class="cp-brand-logo"'));
