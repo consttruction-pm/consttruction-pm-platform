@@ -667,7 +667,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   });
   container.addEventListener("keydown", (event) => {
     const projectSplitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter]");
-    if (projectSplitter) {
+    if (projectSplitter?.dataset && "projectDetailsSplitter" in projectSplitter.dataset) {
       const current = readProjectDetailsHeight();
       let next = current;
       if (event.key === "ArrowUp") next += 16;
