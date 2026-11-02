@@ -83,7 +83,7 @@ def test_constraint_api_fails_closed_for_scope_permission_and_unknown_activity()
     with pytest.raises(AuthorizationError, match="CROSS_SCOPE_ACCESS"):
         boundary.create(item(), auth_context=auth(tenant="other"))
     with pytest.raises(AuthorizationError, match="authorization denied"):
-        boundary.list(scope(), auth_context=auth(role="viewer"))
+        boundary.list(scope(), auth_context=auth(role="form_filler"))
 
     no_activity = P6ConstraintAPI(
         SQLiteConstraintMasterRepository(sqlite3.connect(":memory:")),

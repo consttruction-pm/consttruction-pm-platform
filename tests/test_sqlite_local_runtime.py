@@ -74,8 +74,9 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snap
         start_date="2026-11-03",
         now=now,
     )
-    scope = BackendScope(project_context.tenant_id, project_context.project_id, project_context.revision)
-    auth = project_context.authorization_context(frozenset({"project_admin"}))
+    project = project_context.context
+    scope = BackendScope(project.tenant_id, project.project_id, project.revision)
+    auth = project.authorization_context(frozenset({"project_admin"}))
 
     root = WBSMaster(
         scope=scope,
@@ -297,7 +298,7 @@ def test_local_runtime_is_built_over_one_shared_connection_and_schema_is_restart
     projects = runtime_after_restart.project_lifecycle_api.list_projects(
         "offline-session", now=now
     )
-    assert [item.project_id for item in projects] == ["project-reopen"]
+    assert [item.project_id for item in projects.projects] == ["project-reopen"]
     second.close()
 
 
