@@ -338,6 +338,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
         const active = button.dataset.registerTab === tab;
         button.setAttribute("aria-selected", String(active));
+        button.tabIndex = active ? 0 : -1;
         button.classList.toggle("is-active", active);
       });
       container.querySelectorAll<HTMLElement>("[data-register-panel]").forEach((panel) => {
@@ -1225,10 +1226,10 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
             <section class="cp-calendar-editor">
               <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Calendar Details", "جزئیات تقویم"))}</strong><span>${escapeHtml(uiText(state.locale, "No selection", "بدون انتخاب"))}</span></div>
               <div class="cp-calendar-editor-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Calendar detail tabs", "زبانه‌های جزئیات تقویم"))}">
-                ${[["general","General","عمومی"],["workweek","Workweek","هفته کاری"],["exceptions","Exceptions","استثناها"],["assignments","Assignments","تخصیص‌ها"]].map(([key,en,fa],index)=>`<button type="button" role="tab" aria-selected="${index===0}" class="${index===0?"is-active":""}" data-calendar-editor-tab="${key}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}
+                ${[["general","General","عمومی"],["workweek","Workweek","هفته کاری"],["exceptions","Exceptions","استثناها"],["assignments","Assignments","تخصیص‌ها"]].map(([key,en,fa],index)=>`<button type="button" role="tab" id="cp-calendar-tab-${key}" aria-controls="cp-calendar-panel-${key}" aria-selected="${index===0}" tabindex="${index===0?0:-1}" class="${index===0?"is-active":""}" data-calendar-editor-tab="${key}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}
               </div>
               <div class="cp-calendar-editor-content">
-                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="general">
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-general" aria-labelledby="cp-calendar-tab-general" tabindex="0" data-calendar-editor-panel="general">
                   <div class="cp-calendar-fields">
                     <label>${escapeHtml(uiText(state.locale, "Calendar Name", "نام تقویم"))}<input disabled placeholder="${escapeAttribute(uiText(state.locale, "Select or create a calendar", "یک تقویم انتخاب یا ایجاد کنید"))}"></label>
                     <label>${escapeHtml(uiText(state.locale, "Calendar Scope", "دامنه تقویم"))}<select disabled><option>${escapeHtml(uiText(state.locale, "Select scope", "انتخاب دامنه"))}</option><option>Global</option><option>Project</option><option>Resource</option></select></label>
@@ -1240,18 +1241,18 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
                     <label>${escapeHtml(uiText(state.locale, "Effective From", "اعتبار از"))}<input type="date" disabled></label>
                   </div>
                 </section>
-                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="workweek" hidden>
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-workweek" aria-labelledby="cp-calendar-tab-workweek" tabindex="0" data-calendar-editor-panel="workweek" hidden>
                   <div class="cp-calendar-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale, "Day", "روز"))}</th><th>${escapeHtml(uiText(state.locale, "Working Day", "روز کاری"))}</th><th>${escapeHtml(uiText(state.locale, "Start", "شروع"))}</th><th>${escapeHtml(uiText(state.locale, "Finish", "پایان"))}</th><th>${escapeHtml(uiText(state.locale, "Break", "وقفه"))}</th><th>${escapeHtml(uiText(state.locale, "Add Interval", "افزودن بازه"))}</th></tr></thead><tbody>
                     ${[["Saturday","شنبه"],["Sunday","یکشنبه"],["Monday","دوشنبه"],["Tuesday","سه‌شنبه"],["Wednesday","چهارشنبه"],["Thursday","پنجشنبه"],["Friday","جمعه"]].map(([en,fa])=>`<tr><th>${escapeHtml(uiText(state.locale,en,fa))}</th><td><input type="checkbox" disabled aria-label="${escapeAttribute(uiText(state.locale,"Working day","روز کاری"))}"></td><td><input type="time" disabled></td><td><input type="time" disabled></td><td><input type="text" disabled placeholder="—"></td><td><button type="button" disabled>+</button></td></tr>`).join("")}
                   </tbody></table></div>
                   <p class="cp-calendar-hint">${escapeHtml(uiText(state.locale, "Supports split shifts, multiple work intervals, overnight shifts and nonworking days.", "پشتیبانی از شیفت‌های چندبخشی، چند بازه کاری، شیفت شبانه و روزهای غیرکاری."))}</p>
                 </section>
-                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="exceptions" hidden>
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-exceptions" aria-labelledby="cp-calendar-tab-exceptions" tabindex="0" data-calendar-editor-panel="exceptions" hidden>
                   <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Exceptions and Holidays", "استثناها و تعطیلات"))}</strong><button type="button" disabled>${escapeHtml(uiText(state.locale, "Add Exception", "افزودن استثنا"))}</button></div>
                   <div class="cp-calendar-empty">${escapeHtml(uiText(state.locale, "No exceptions are loaded.", "هیچ استثنایی بارگذاری نشده است."))}</div>
                   <p class="cp-calendar-hint">${escapeHtml(uiText(state.locale, "Exception types include nonworking days, modified working hours and recurring holidays.", "انواع استثنا شامل روز غیرکاری، ساعات کاری اصلاح‌شده و تعطیلات تکرارشونده است."))}</p>
                 </section>
-                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="assignments" hidden>
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-assignments" aria-labelledby="cp-calendar-tab-assignments" tabindex="0" data-calendar-editor-panel="assignments" hidden>
                   <div class="cp-calendar-empty">${escapeHtml(uiText(state.locale, "No project, resource or activity calendar assignments are loaded.", "هیچ تخصیص تقویم پروژه، منبع یا فعالیت بارگذاری نشده است."))}</div>
                 </section>
               </div>
