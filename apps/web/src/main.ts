@@ -1150,6 +1150,8 @@ function renderApp(
   };
 
   renderMainWorkspace(workspace, state, {
+    openWindows: getOpenWindows(),
+    onWindowClose: (menu) => closeDesktopWindow(menu),
     onMenuSelect: (menu) => {
       rememberWorkspaceMenu(menu);
       rememberOpenWindows(openWorkspaceWindow(getOpenWindows(), menu));
