@@ -3109,7 +3109,7 @@ th {
 .cp-navigation-surface>div strong{color:var(--cubi-deep-navy);font-size:14px}
 .cp-navigation-surface nav{gap:7px;margin-top:10px}
 .cp-submenu-item{min-height:35px;padding:7px 11px;font-size:12px;background:#f8fafc;transition:color .16s ease,background-color .16s ease,border-color .16s ease}
-a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-engineering-blue);border-color:#a9c9ed;background:#eef6ff;outline-offset:2px}
+a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible,button.cp-submenu-item:hover,button.cp-submenu-item:focus-visible{color:var(--cubi-engineering-blue);border-color:#a9c9ed;background:#eef6ff;outline-offset:2px}button.cp-submenu-item{font:inherit;text-align:start;cursor:pointer}
 .cp-workspace[data-active-menu="project"] .cp-main,.cp-workspace[data-active-menu="progress"] .cp-main,.cp-workspace[data-active-menu="resources"] .cp-main,.cp-workspace[data-active-menu="cost"] .cp-main,.cp-workspace[data-active-menu="reports"] .cp-main,.cp-workspace[data-active-menu="control"] .cp-main{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:14px}
 .cp-workspace[data-active-menu="schedule"] .cp-main{grid-template-columns:minmax(190px,230px) minmax(0,1fr) minmax(190px,245px);align-items:start;gap:14px}
 .cp-workspace[data-active-menu="schedule"] #cp-project-wbs{grid-column:1;grid-row:1;align-self:start}
