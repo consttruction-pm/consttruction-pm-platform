@@ -7043,6 +7043,26 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   background: var(--cubi-engineering-blue);
 }
 
+/* Filter dialog with criteria editor and action column. */
+.cp-filters-dialog{width:min(720px,calc(100vw - 28px));max-height:88vh;padding:0;border:1px solid #8797aa;border-radius:4px;box-shadow:0 18px 55px #10243b55;color:#24384f}
+.cp-filters-dialog::backdrop{background:#10243b66}
+.cp-filters-dialog form>header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(#f7f9fc,#e8edf3);border-bottom:1px solid #c4cfdb}
+.cp-filters-dialog h2{margin:2px 0 0;font-size:16px}
+.cp-filters-body{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:12px;padding:12px;max-height:calc(88vh - 65px);overflow:auto}
+.cp-filters-main{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}
+.cp-filters-dialog fieldset{min-width:0;margin:0;padding:10px;border:1px solid #c7d1dc;background:#fbfcfd}
+.cp-filters-dialog legend{padding:0 5px;font-size:11px;font-weight:750;color:#334e69}
+.cp-filters-dialog label{display:grid;gap:4px;font-size:11px}
+.cp-filters-dialog select,.cp-filters-dialog input[type=text]{min-height:29px;width:100%;border:1px solid #aebdce;background:#fff;padding:4px 7px;font:inherit}
+.cp-filters-empty,.cp-filters-dialog fieldset>p{font-size:10px;color:#68798a}
+.cp-filters-match{display:flex;gap:16px;flex-wrap:wrap;margin:7px 0}
+.cp-filters-match label{display:flex;align-items:center;gap:5px}
+.cp-filters-criteria{display:grid;grid-template-columns:130px 110px minmax(0,1fr);gap:7px;align-items:center;padding:7px;border:1px solid #d3dce5;background:#fff;font-size:10px}
+.cp-filters-actions{display:flex;flex-direction:column;gap:6px}
+.cp-filters-actions button{min-height:27px;border:1px solid #b7c4d2;border-radius:3px;background:linear-gradient(#fff,#edf1f5);color:#28435f;font:inherit;font-size:11px;padding:5px 8px}
+.cp-filters-actions button:disabled{opacity:.55}
+@media(max-width:620px){.cp-filters-body{grid-template-columns:minmax(0,1fr)}.cp-filters-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.cp-filters-criteria{grid-template-columns:minmax(0,1fr)}}
+
 /* Activity Details tab customization: available/display lists, transfer controls and ordering. */
 .cp-activity-details-options {
   width: min(920px, calc(100vw - 28px));
