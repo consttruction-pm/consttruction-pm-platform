@@ -514,7 +514,11 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
     if (target.dataset.shellCommand) {
       const command = target.dataset.shellCommand;
-      if (command === "Timescale") {
+      if (command === "Table") {
+        options.onWorkspaceLayoutChange?.("grid");
+      } else if (command === "Gantt Chart") {
+        options.onWorkspaceLayoutChange?.("gantt");
+      } else if (command === "Timescale") {
         const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
