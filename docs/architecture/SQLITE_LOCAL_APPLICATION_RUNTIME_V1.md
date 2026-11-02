@@ -40,7 +40,7 @@ The same SQLiteTransactionManager is passed to application services and snapshot
 5. `runtime.schedule_runtime(scope)` delegates to the host-supplied versioned Shared Core runtime factory. The host factory must call `build_shared_core_runtime` from the Shared Python Runtime package, binding this runtime's snapshot/context repositories, exact-version calendar registry and persisted resource-leveling resolver. A missing factory fails closed.
 6. `schedule.query` runs the same `AuthoritativeScheduleQueryProvider` and Python Shared Core evaluator used by Web.
 
-The native bridge must pass trusted AuthorizationContext and current project revision out-of-band. JSON input cannot grant identity, roles, permissions or a revision.
+The native bridge must pass trusted AuthorizationContext and current project revision out-of-band. JSON input cannot grant identity, roles, permissions or a revision. The first local end-to-end test now publishes a SQLite-backed project snapshot and executes the real SharedCoreRuntime `schedule.query` operation against it.
 
 ## Scope not certified by this slice
 

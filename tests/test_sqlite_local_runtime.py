@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import sqlite3
 
-import pytest
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -243,6 +242,40 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snap
     assert snapshot.relationships[0].predecessor_id == "A1"
     assert snapshot.relationships[0].successor_id == "A2"
     assert runtime.calendar_registry(scope).resolve(calendar_reference)
+
+    query_payload = {
+        "contract_version": "schedule-query.v1",
+        "query_id": "Q-LOCAL-CORE",
+        "scope": {
+            "tenant_id": scope.tenant_id,
+            "project_id": scope.project_id,
+            "project_revision": scope.project_revision,
+        },
+        "requested_by": auth.user_id,
+        "query_text": "Return authoritative schedule facts",
+        "kind": "fact",
+        "language": "en",
+        "constraints": {"snapshot_id": published["snapshot_id"]},
+    }
+    import json
+    response = json.loads(
+        runtime.schedule_runtime(scope).dispatch_json(
+            json.dumps({
+                "contract_version": "cubi.shared-core-runtime.v1",
+                "operation": "schedule.query",
+                "payload": query_payload,
+            }),
+            auth_context=auth,
+            expected_project_revision=scope.project_revision,
+        )
+    )
+    result = response["result"]
+    assert result["contract_version"] == "schedule-query-result.v1"
+    assert result["data"]["calculation_run_identity"]
+    assert result["data"]["activities"]["A1"]["start"] == "2026-11-03"
+    assert result["data"]["activities"]["A1"]["finish"] == "2026-11-04"
+    assert result["data"]["activities"]["A2"]["start"] == "2026-11-05"
+    assert result["data"]["activities"]["A2"]["finish"] == "2026-11-05"
     connection.close()
 
 
@@ -267,14 +300,6 @@ def test_local_runtime_is_built_over_one_shared_connection_and_schema_is_restart
     assert [item.project_id for item in projects] == ["project-reopen"]
     second.close()
 
-
-
-def test_local_runtime_requires_a_trusted_shared_core_runtime_factory():
-    connection = sqlite3.connect(":memory:")
-    runtime, _ = _open_runtime(connection)
-    with pytest.raises(ValueError, match="LOCAL_SCHEDULE_RUNTIME_FACTORY_REQUIRED"):
-        runtime.schedule_runtime(BackendScope("local-tenant", "p1", 0))
-    connection.close()
 
 
 def test_local_runtime_delegates_to_host_shared_core_runtime_factory():

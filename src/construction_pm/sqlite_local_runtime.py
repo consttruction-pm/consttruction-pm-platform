@@ -87,6 +87,7 @@ from construction_pm.relationship_master_repository import SQLiteRelationshipMas
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository
 from construction_pm.schedule_snapshot_publisher import AuthoritativeScheduleSnapshotPublisher
+from construction_pm.shared_core_runtime import build_shared_core_runtime
 from construction_pm.scheduling.calendar import WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
@@ -289,16 +290,29 @@ class SQLiteLocalApplicationRuntime:
         )
 
     def schedule_runtime(self, scope: BackendScope) -> LocalScheduleRuntime:
-        """Delegate to the host-supplied versioned Shared Core runtime factory.
+        """Build the canonical SharedCoreRuntime bound to this local project.
 
-        The native host factory must call the canonical Shared Core runtime
-        builder, using this runtime's repositories and exact-version local
-        calendar/leveling services. Injection prevents a second calculation engine.
+        The optional host factory is an override seam for a platform-specific
+        runtime wrapper; the default always composes the canonical Python
+        Shared Core evaluator over this local snapshot/context and calendar data.
         """
         scope.validate()
-        if self._schedule_runtime_factory is None:
-            raise ValueError("LOCAL_SCHEDULE_RUNTIME_FACTORY_REQUIRED")
-        return self._schedule_runtime_factory(self, scope)
+        if self._schedule_runtime_factory is not None:
+            return self._schedule_runtime_factory(self, scope)
+        resolver = build_persisted_resource_leveling_input_resolver(
+            resource_read_api=self.resource_read_api,
+            calendar_master_repository=self.calendar_repository,
+            calendar_snapshot_repository=self.calendar_snapshot_repository,
+            calendar_exception_repository=self.calendar_exception_repository,
+            calendar_work_hours_repository=self.calendar_work_hours_repository,
+        )
+        return build_shared_core_runtime(
+            snapshot_repository=self.schedule_snapshot_repository,
+            calendar_registry_factory=lambda: self.calendar_registry(scope),
+            calculation_context_repository=self.calculation_context_repository,
+            authorization_policy=self.authorization_policy,
+            leveling_input_resolver=resolver,
+        )
 
 
 def build_sqlite_local_application_runtime(
