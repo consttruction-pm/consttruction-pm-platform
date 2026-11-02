@@ -28,6 +28,10 @@ from construction_pm.scheduling.schedule_options import ScheduleOptions
 from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
 from construction_pm.activity_master_repository import ActivityMaster
+from construction_pm.p6_baseline_repository import P6Baseline
+from construction_pm.p6_cost_account_repository import P6CostAccount
+from construction_pm.p6_expense_repository import P6Expense
+from construction_pm.p6_resource_spread_repository import P6ResourceSpreadBucket
 from construction_pm.relationship_master_repository import RelationshipMaster
 from construction_pm.sqlite_local_runtime import build_sqlite_local_application_runtime
 
@@ -83,6 +87,16 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snap
         sequence_number=0,
     )
     runtime.wbs_api.create(root, auth_context=auth)
+    child = WBSMaster(
+        scope=scope,
+        wbs_id="WBS-EXEC",
+        parent_kind=WBSParentKind.WBS,
+        parent_wbs_id=root.wbs_id,
+        code="1.1",
+        name="Execution",
+        sequence_number=1,
+    )
+    runtime.wbs_api.create(child, auth_context=auth)
 
     for activity_id, duration, name in (("A1", "2", "Activity 1"), ("A2", "1", "Activity 2")):
         runtime.activity_api.create(
@@ -98,7 +112,7 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snap
                 status_code=ActivityStatusCode.PLANNED,
                 percent_complete_type=PercentCompleteType.DURATION,
                 leveling_priority=ActivityLevelingPriority.NORMAL,
-                wbs_id=root.wbs_id,
+                wbs_id=child.wbs_id,
             ),
             auth_context=auth,
         )
@@ -115,6 +129,54 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snap
         ),
         auth_context=auth,
         expected_revision=0,
+    )
+
+    runtime.baseline_api.create(
+        P6Baseline(
+            scope=scope,
+            baseline_id="BL-1",
+            name="Initial baseline",
+            baseline_type="PRIMARY",
+            source_revision=scope.project_revision,
+            created_at="2026-11-03T10:00:00Z",
+        ),
+        auth_context=auth,
+    )
+    runtime.cost_account_api.create(
+        P6CostAccount(
+            scope=scope,
+            account_id="CA-1",
+            name="Direct costs",
+        ),
+        auth_context=auth,
+    )
+    runtime.expense_api.create(
+        P6Expense(
+            scope=scope,
+            expense_id="EXP-1",
+            name="Initial labour allowance",
+            category="LABOUR",
+            activity_id="A1",
+            wbs_id=child.wbs_id,
+            planned_cost=Decimal("1500.00"),
+            currency="USD",
+        ),
+        auth_context=auth,
+    )
+    runtime.resource_spread_api.save(
+        P6ResourceSpreadBucket(
+            scope=scope,
+            spread_id="SPREAD-1",
+            resource_id="RES-1",
+            period_id="2026-11-03",
+            period_start="2026-11-03",
+            period_end="2026-11-03",
+            spread_type="PLANNED",
+            metric="UNITS",
+            value=Decimal("8"),
+            unit="hours",
+        ),
+        auth_context=auth,
     )
 
     calendar = CalendarMaster(
@@ -160,6 +222,10 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snap
     assert calculation_context is not None
     assert snapshot.snapshot_hash == published["snapshot_hash"]
     assert {item.activity_id for item in snapshot.activities} == {"A1", "A2"}
+    assert runtime.baseline_api.list(scope, auth_context=auth)[0]["baseline"]["baseline_id"] == "BL-1"
+    assert runtime.cost_account_api.list(scope, auth_context=auth)[0]["cost_account"]["account_id"] == "CA-1"
+    assert runtime.expense_api.list(scope, auth_context=auth)[0]["expense"]["expense_id"] == "EXP-1"
+    assert runtime.resource_spread_api.list(scope, auth_context=auth)[0]["spread"]["spread_id"] == "SPREAD-1"
     assert len(snapshot.relationships) == 1
     assert snapshot.relationships[0].predecessor_id == "A1"
     assert snapshot.relationships[0].successor_id == "A2"

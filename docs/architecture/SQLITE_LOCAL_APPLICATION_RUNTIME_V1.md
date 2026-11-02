@@ -19,9 +19,10 @@ Module: `src/construction_pm/sqlite_local_runtime.py`.
 - WBS, Activity Master, Relationships and Constraints;
 - versioned project calendars, assignments, snapshots, exceptions and work-hour rules;
 - schedule settings, immutable schedule snapshots and CalculationContext;
-- resource assignments, periods, spreads and effective-dated capacity;
+- resource assignments, periods, spreads and effective-dated capacity, including their existing authenticated APIs;
+- baselines, cost accounts and expenses, including their existing authenticated APIs;
 - baseline, cost-account and expense repositories;
-- the existing Activity/WBS/Relationship/Calendar/Resource APIs;
+- the existing Project lifecycle, Activity/WBS/Relationship/Calendar/Resource/Resource Spread/Baseline/Cost Account/Expense APIs;
 - authoritative snapshot publication and the transport-independent SharedCoreRuntime.
 
 The same SQLiteTransactionManager is passed to application services and snapshot publication. The host must create this composition once at startup and must not instantiate repositories inside a user mutation transaction; the existing SQLite repository constructors perform their schema initialization at startup.
