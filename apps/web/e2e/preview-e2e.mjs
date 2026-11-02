@@ -2538,11 +2538,45 @@ async function main() {
       return element.checked;
     })()`);
     assert(closeChecked, "the effective change must request closing the open segment");
+    await page.evaluate(`(() => {
+      window.__capacityWriteDebug = [];
+      document.addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target.closest("[data-capacity-save]") : null;
+        if (target) window.__capacityWriteDebug.push({ type: "click", form: Boolean(target.form), panel: Boolean(target.closest("#cp-resource-capacity [data-capacity-panel]")) });
+      }, true);
+      document.addEventListener("submit", (event) => {
+        const form = event.target instanceof HTMLFormElement ? event.target : null;
+        if (form?.matches("[data-capacity-write-form]")) window.__capacityWriteDebug.push({ type: "submit", valid: form.checkValidity(), button: form.querySelector("[data-capacity-save]")?.type ?? null });
+      }, true);
+    })()`);
     await page.click("[data-capacity-save]");
-    await page.waitFor(
-      `Boolean(document.querySelector("[data-capacity-write-result] [data-capacity-write-success]"))`,
-      "capacity write accepted by the server",
-    );
+    try {
+      await page.waitFor(
+        `Boolean(document.querySelector("[data-capacity-write-result] [data-capacity-write-success]"))`,
+        "capacity write accepted by the server",
+      );
+    } catch (error) {
+      const diagnostic = await page.evaluate(`(() => {
+        const form = document.querySelector("[data-capacity-write-form]");
+        const button = document.querySelector("[data-capacity-save]");
+        const panel = document.querySelector("#cp-resource-capacity [data-capacity-panel]");
+        return {
+          events: window.__capacityWriteDebug ?? [],
+          url: location.href,
+          drawerHidden: document.querySelector("[data-tools-drawer]")?.hidden ?? null,
+          formExists: Boolean(form),
+          buttonExists: Boolean(button),
+          buttonType: button?.type ?? null,
+          formContainsButton: Boolean(form && button && form.contains(button)),
+          formValid: form instanceof HTMLFormElement ? form.checkValidity() : null,
+          fields: form ? Array.from(form.querySelectorAll("input,select")).map((field) => ({ name: field.name, type: field.type, value: field.value, required: field.required, valid: field.validity?.valid })) : [],
+          status: panel?.querySelector("[data-capacity-write-status]")?.textContent?.trim() ?? "",
+          result: panel?.querySelector("[data-capacity-write-result]")?.innerHTML ?? "",
+          panelBusy: panel?.getAttribute("aria-busy") ?? null,
+        };
+      })()`);
+      throw new Error("CAPACITY_WRITE_DIAGNOSTIC: " + JSON.stringify(diagnostic) + "; " + error.message);
+    }
     await page.waitFor(
       `document.querySelectorAll("[data-capacity-profile] tbody tr").length === 3`,
       "three active capacity segments after the effective change",
