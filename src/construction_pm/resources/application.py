@@ -144,5 +144,8 @@ class ResourceApplicationService:
     def get_resource(self, resource_id: str) -> Resource | None:
         return self.repository.get_resource(self.context, resource_id)
 
+    def list_resources(self) -> list[Resource]:
+        return self.repository.list_resources(self.context)
+
     def list_assignments(self, activity_id: str | None = None) -> list[ResourceAssignment]:
         return self.repository.list_assignments(self.context, activity_id)
