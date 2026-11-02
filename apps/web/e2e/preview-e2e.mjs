@@ -2216,7 +2216,7 @@ async function main() {
     // offered only because its target exists and is then actually reached.
     await page.click('[data-menu="schedule"]');
     await page.waitFor(
-      `document.querySelector('.cp-menu button[data-menu="schedule"]')?.getAttribute("aria-current") === "page"`,
+      `document.querySelector('.cp-navigation-tree button[data-menu="schedule"]')?.getAttribute("aria-current") === "page"`,
       "schedule surface for the workspace guide",
     );
     await page.evaluate(`(() => {
@@ -2310,10 +2310,10 @@ async function main() {
       (await page.text(".cp-revision"))?.includes(`R${PROJECT_REVISION}`),
       "workspace identifies the persisted project revision",
     );
-    const menuCount = await page.count(".cp-menu button[data-menu]");
+    const menuCount = await page.count(".cp-navigation-tree button[data-menu]");
     assert(menuCount === 9, "nine main menus must render");
     const menuLabels = await page.evaluate(`(() =>
-      Array.from(document.querySelectorAll(".cp-menu button[data-menu]")).map((button) => button.textContent.trim())
+      Array.from(document.querySelectorAll(".cp-navigation-tree button[data-menu]")).map((button) => button.textContent.trim())
     )()`);
     assert(
       menuLabels.includes("Schedule") && menuLabels.includes("Resources"),
@@ -3836,7 +3836,7 @@ async function main() {
       "Persian RTL workspace",
     );
     const faMenu = await page.evaluate(
-      `Array.from(document.querySelectorAll(".cp-menu button[data-menu]")).find((button) => button.dataset.menu === "schedule")?.textContent.trim()`,
+      `Array.from(document.querySelectorAll(".cp-navigation-tree button[data-menu]")).find((button) => button.dataset.menu === "schedule")?.textContent.trim()`,
     );
     assert(faMenu === "زمان‌بندی", "Persian menu label must render");
     const faFilter = await page.evaluate(
@@ -3860,7 +3860,7 @@ async function main() {
       "German LTR workspace",
     );
     const deMenu = await page.evaluate(
-      `Array.from(document.querySelectorAll(".cp-menu button[data-menu]")).find((button) => button.dataset.menu === "schedule")?.textContent.trim()`,
+      `Array.from(document.querySelectorAll(".cp-navigation-tree button[data-menu]")).find((button) => button.dataset.menu === "schedule")?.textContent.trim()`,
     );
     assert(deMenu === "Terminplan", "German menu label must render");
     const deGridHeader = await page.evaluate(
@@ -3879,7 +3879,7 @@ async function main() {
       "Chinese LTR workspace",
     );
     const zhMenu = await page.evaluate(
-      `Array.from(document.querySelectorAll(".cp-menu button[data-menu]")).find((button) => button.dataset.menu === "schedule")?.textContent.trim()`,
+      `Array.from(document.querySelectorAll(".cp-navigation-tree button[data-menu]")).find((button) => button.dataset.menu === "schedule")?.textContent.trim()`,
     );
     assert(zhMenu === "进度计划", "Chinese menu label must render");
     await page.screenshot("08c-chinese-ltr.png");
@@ -4078,9 +4078,9 @@ async function main() {
     // text. Switching rows replaces every general field, and the status tab
     // reports the same authoritative cells as the grid.
     await page.evaluate("window.scrollTo(0, 0)");
-    await page.click('.cp-menu button[data-menu="schedule"]');
+    await page.click('.cp-navigation-tree button[data-menu="schedule"]');
     await page.waitFor(
-      `document.querySelector('.cp-menu button[data-menu="schedule"]')?.getAttribute("aria-current") === "page"`,
+      `document.querySelector('.cp-navigation-tree button[data-menu="schedule"]')?.getAttribute("aria-current") === "page"`,
       "schedule workspace for real activity details",
     );
     const activityIds = await page.evaluate(
@@ -4314,7 +4314,7 @@ async function main() {
       innerWidth: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
       menuWidth: document.querySelector(".cp-menu")?.getBoundingClientRect().width ?? 0,
-      menuButtons: Array.from(document.querySelectorAll(".cp-menu button[data-menu]")).map((button) => {
+      menuButtons: Array.from(document.querySelectorAll(".cp-navigation-tree button[data-menu]")).map((button) => {
         const rect = button.getBoundingClientRect();
         return { label: button.textContent.trim(), left: rect.left, right: rect.right, width: rect.width };
       }),
@@ -6291,7 +6291,7 @@ async function main() {
     // because the document does.
     await page.click('[data-menu="schedule"]');
     await page.waitFor(
-      `document.querySelector('.cp-menu button[data-menu="schedule"]')?.getAttribute("aria-current") === "page"`,
+      `document.querySelector('.cp-navigation-tree button[data-menu="schedule"]')?.getAttribute("aria-current") === "page"`,
       "schedule surface on the empty project",
     );
     await page.click("#cubi-assistant-launcher");
@@ -6339,7 +6339,7 @@ async function main() {
 
     await page.click('[data-menu="control"]');
     await page.waitFor(
-      `document.querySelector('.cp-menu button[data-menu="control"]')?.getAttribute("aria-current") === "page"`,
+      `document.querySelector('.cp-navigation-tree button[data-menu="control"]')?.getAttribute("aria-current") === "page"`,
       "control menu selected",
     );
     // Cost/control guidance is only allowed to offer the summary action when a
