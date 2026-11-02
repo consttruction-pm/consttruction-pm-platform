@@ -56,5 +56,8 @@ test("Projects window keeps the bottom pane scoped to Project Details", () => {
   assert.match(html, /Project Details/);
   assert.match(html, /data-detail-tab="defaults"/);
   assert.match(html, /data-detail-tab="settings"/);
+  assert.match(html, /data-detail-tab="baselines"/);
+  assert.match(html, /data-detail-tab="documents"/);
+  assert.match(html, /data-detail-tab="history"/);
   assert.doesNotMatch(html, /WBS Details/);
 });
