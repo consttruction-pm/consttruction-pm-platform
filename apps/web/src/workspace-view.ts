@@ -1462,21 +1462,10 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
 }
 
 function navigationTargetAvailable(state: WorkspaceState, anchor: string): boolean {
+  // Empty register states are valid destinations: users must be able to reach
+  // a module before its first record exists. Only hide links whose target
+  // panel is intentionally hidden by the current workspace layout.
   switch (anchor) {
-    case "#cp-site-logs":
-      return state.siteDailyLogs.length > 0;
-    case "#cp-field-operations":
-      return state.fieldIssues.length > 0 || state.timecards.length > 0 || state.equipmentReports.length > 0;
-    case "#cp-procurement":
-      return state.procurementRecords.length > 0;
-    case "#cp-change-claim":
-      return state.changeNotices.length > 0 || state.changeCases.length > 0 || state.claims.length > 0 || state.changeClaimImpacts.length > 0 || state.documents.length > 0;
-    case "#cp-documents":
-      return state.documents.length > 0;
-    case "#cp-control-summary":
-      return state.controlSummary !== null;
-    case "#cp-smart-guide":
-      return state.smartGuide !== null;
     case "#cp-project-wbs":
       return state.visiblePanels.project_wbs;
     case "#cp-details":
