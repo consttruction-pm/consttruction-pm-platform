@@ -38,3 +38,20 @@ test("Persian command shell localizes menus, common commands and toolbar groups 
   assert.match(html, /فرم‌ساز/);
   assert.match(html, /نوار ابزار اصلی/);
 });
+
+
+test("visual command shell uses activated language-pack command translations", async () => {
+  const { registerWorkspaceLocale } = await import("./workspace-localization.js");
+  registerWorkspaceLocale({
+    locale: "ja",
+    displayName: "日本語",
+    direction: "ltr",
+    translations: {
+      "command.Workspace": "ワークスペース",
+      "command.New Project": "新しいプロジェクト",
+    },
+  });
+  const html = renderWorkspaceCommandShell("ja");
+  assert.match(html, /ワークスペース/);
+  assert.match(html, /新しいプロジェクト/);
+});
