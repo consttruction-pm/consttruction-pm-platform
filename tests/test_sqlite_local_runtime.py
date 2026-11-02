@@ -36,7 +36,10 @@ from construction_pm.p6_baseline_repository import P6Baseline
 from construction_pm.p6_cost_account_repository import P6CostAccount
 from construction_pm.p6_expense_repository import P6Expense
 from construction_pm.p6_resource_spread_repository import P6ResourceSpreadBucket
-from construction_pm.relationship_master_repository import RelationshipMaster
+from construction_pm.relationship_master_repository import (
+    RelationshipMaster,
+    SQLiteRelationshipMasterRepository,
+)
 from construction_pm.sqlite_local_runtime import build_sqlite_local_application_runtime
 
 
@@ -472,4 +475,19 @@ def test_local_runtime_commits_domain_write_and_outbox_atomically():
         )
     assert runtime.relationship_repository.get(scope, "REL-OUTBOX-A") is not None
     assert runtime.offline_mutation_store.pending() == (first_mutation,)
+    connection.close()
+
+
+
+def test_relationship_repository_initialization_preserves_caller_transaction():
+    connection = sqlite3.connect(":memory:")
+    connection.execute("CREATE TABLE caller_state (value TEXT NOT NULL)")
+    connection.execute("BEGIN IMMEDIATE")
+    connection.execute("INSERT INTO caller_state(value) VALUES ('uncommitted')")
+
+    SQLiteRelationshipMasterRepository(connection)
+
+    assert connection.in_transaction
+    connection.rollback()
+    assert connection.execute("SELECT value FROM caller_state").fetchall() == []
     connection.close()
