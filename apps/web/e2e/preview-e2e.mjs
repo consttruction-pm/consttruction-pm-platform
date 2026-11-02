@@ -2512,7 +2512,7 @@ async function main() {
       capacityInputs.resource === "RPS-CIVIL-CREW" && capacityInputs.period === "2026-10-16" && capacityInputs.basis === "week" && capacityInputs.hours === "40" && capacityInputs.hoursDisabled === false,
       "capacity resolver inputs must retain the entered values: " + JSON.stringify(capacityInputs),
     );
-    await page.click("[data-capacity-resolve]");
+    await page.realClick("[data-capacity-resolve]");
     await sleep(500);
     let capacityResolveState = await page.evaluate(`(() => ({
       status: document.querySelector("[data-capacity-resolve-status]")?.textContent.trim() ?? "",
