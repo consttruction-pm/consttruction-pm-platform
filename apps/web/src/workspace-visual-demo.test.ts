@@ -187,6 +187,23 @@ test("Resource Assignments window presents separate resource and role assignment
   assert.match(html, /do not run resource leveling or cost calculations/);
 });
 
+test("calendar workspace shows calendar definitions and exception registers in both locales", () => {
+  const fa = createVisualDemoState("fa");
+  fa.window = "calendars";
+  const faHtml = renderVisualDemo(fa);
+  assert.match(faHtml, /تقویم‌های تعریف‌شده/);
+  assert.match(faHtml, /هفته کاری/);
+  assert.match(faHtml, /استثناها و تعطیلات/);
+  assert.match(faHtml, /تعطیلات نوروز/);
+  const en = createVisualDemoState("en");
+  en.window = "calendars";
+  const enHtml = renderVisualDemo(en);
+  assert.match(enHtml, /Available calendars/);
+  assert.match(enHtml, /Exceptions and holidays/);
+  assert.match(enHtml, /Reduced shift/);
+  assert.match(enHtml, /not saved or applied to schedule calculations/);
+});
+
 test("Resources and Roles have independent Primavera-style dictionaries and Persian RTL labels", () => {
   const resources = createVisualDemoState("fa");
   resources.window = "resources";
