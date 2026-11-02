@@ -151,6 +151,9 @@ const RESOURCES = [
 type DemoState = {
   window: DemoWindowId;
   activityId: string;
+  selectedWbsCode: string;
+  wbsDetailTab: "general" | "dates" | "activities" | "documents" | "notebook";
+  collapsedWbsCodes: string[];
   scale: "day" | "week" | "month" | "quarter" | "year";
   detailTab: string;
   calendarMonth: number;
@@ -545,6 +548,67 @@ function renderTableWindow(state: DemoState, title: Label, headers: string[], ro
   </section>`;
 }
 
+function renderWbsWindow(state: DemoState): string {
+  const selected = WBS_TREE.find((node) => node.code === state.selectedWbsCode) ?? WBS_TREE[0];
+  const parentCode = selected.code.includes(".") ? selected.code.slice(0, selected.code.lastIndexOf(".")) : "—";
+  const parent = WBS_TREE.find((node) => node.code === parentCode);
+  const visible = WBS_TREE.filter((node) => {
+    const parts = node.code.split(".");
+    for (let length = 1; length < parts.length; length += 1) {
+      const ancestor = parts.slice(0, length).join(".");
+      if (state.collapsedWbsCodes.includes(ancestor)) return false;
+    }
+    return true;
+  });
+  const tabs: Array<[DemoState["wbsDetailTab"], string, string]> = [
+    ["general", "General", "عمومی"], ["dates", "Dates", "تاریخ‌ها"], ["activities", "Activities", "فعالیت‌ها"],
+    ["documents", "Documents", "اسناد"], ["notebook", "Notebook", "دفترچه"],
+  ];
+  const detail = state.wbsDetailTab === "general"
+    ? [[ "WBS Code", "کد WBS", selected.code ], [ "WBS Name", "نام WBS", selected.name ], [ "Parent WBS", "WBS والد", parent?.name ?? "Project root" ], [ "Level", "سطح", String(selected.level + 1) ], [ "Total activities", "تعداد فعالیت‌ها", String(selected.total) ]]
+    : state.wbsDetailTab === "activities"
+      ? [[ "Activity count", "تعداد فعالیت‌ها", String(selected.total) ], [ "Summary scope", "دامنه خلاصه", selected.level === 0 ? "Entire project" : selected.name ]]
+      : state.wbsDetailTab === "dates"
+        ? [[ "Planned start", "شروع برنامه‌ای", "Not available in this visual sample" ], [ "Planned finish", "پایان برنامه‌ای", "Not available in this visual sample" ]]
+        : [];
+  const detailBody = detail.length
+    ? `<div class="cp-vd-wbs-fields">${detail.map(([en, fa, value]) => `<label><span>${esc(t(state.locale, en, fa))}</span><strong>${esc(value)}</strong></label>`).join("")}</div>`
+    : `<p class="cp-vd-note">${esc(t(state.locale, "No sample records are provided for this tab. Connect project data to populate it.", "برای این زبانه رکورد نمونه‌ای ارائه نشده است. برای نمایش اطلاعات، داده‌های پروژه باید متصل شوند."))}</p>`;
+  return `<section class="cp-vd-windowbody cp-vd-wbs-window">
+    <header class="cp-vd-winhead">
+      <div><h2>${esc(t(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</h2><small>${esc(t(state.locale, "Hierarchical project scope", "ساختار سلسله‌مراتبی دامنه پروژه"))}</small></div>
+      <div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="new-wbs" disabled title="${esc(t(state.locale, "Creation is not connected in this visual-only preview.", "ایجاد ساختار در این پیش‌نمایش بصری متصل نیست."))}">${esc(t(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="export">${esc(t(state.locale, "Export", "خروجی"))}</button></div>
+    </header>
+    <div class="cp-vd-wbs-layout">
+      <section class="cp-vd-wbs-tree" aria-label="${esc(t(state.locale, "WBS hierarchy", "درخت ساختار شکست"))}">
+        <div class="cp-vd-wbs-treehead"><strong>${esc(t(state.locale, "WBS hierarchy", "درخت ساختار شکست"))}</strong><span>${WBS_TREE.length} ${esc(t(state.locale, "elements", "عنصر"))}</span></div>
+        <div class="cp-vd-wbs-scroll"><table class="cp-vd-table cp-vd-wbs-table"><thead><tr><th>${esc(t(state.locale, "Code", "کد"))}</th><th>${esc(t(state.locale, "WBS element", "عنصر WBS"))}</th><th class="is-numeric">${esc(t(state.locale, "Activities", "فعالیت‌ها"))}</th></tr></thead><tbody>
+        ${visible.map((node) => {
+          const hasChildren = WBS_TREE.some((candidate) => candidate.code.startsWith(node.code + ".") && candidate.level === node.level + 1);
+          const collapsed = state.collapsedWbsCodes.includes(node.code);
+          return `<tr class="cp-vd-wbs-row${node.code === selected.code ? " is-selected" : ""}${node.level === 0 ? " is-summary-row" : ""}" data-vd-wbs="${esc(node.code)}" aria-selected="${node.code === selected.code}">
+            <td class="cp-vd-wbs-code">${esc(node.code)}</td>
+            <td><div class="cp-vd-wbs-name" style="padding-inline-start:${node.level * 19}px">${hasChildren ? `<button type="button" class="cp-vd-wbs-toggle" data-vd-wbs-toggle="${esc(node.code)}" aria-label="${esc(collapsed ? t(state.locale, "Expand", "بازکردن") : t(state.locale, "Collapse", "بستن"))}" aria-expanded="${!collapsed}">${collapsed ? "+" : "−"}</button>` : `<span class="cp-vd-wbs-leaf" aria-hidden="true">•</span>`}<span>${esc(node.name)}</span></div></td>
+            <td class="is-numeric">${node.total}</td>
+          </tr>`;
+        }).join("")}
+        </tbody></table></div>
+      </section>
+      <aside class="cp-vd-wbs-inspector">
+        <div class="cp-vd-wbs-inspector-head"><div><small>${esc(t(state.locale, "Selected WBS element", "عنصر انتخاب‌شده"))}</small><h3>${esc(selected.name)}</h3></div><span class="cp-vd-chip">${esc(selected.code)}</span></div>
+        <div class="cp-vd-wbs-kpis"><div><strong>${selected.total}</strong><span>${esc(t(state.locale, "Activities", "فعالیت‌ها"))}</span></div><div><strong>${selected.level + 1}</strong><span>${esc(t(state.locale, "Hierarchy level", "سطح سلسله‌مراتب"))}</span></div><div><strong>${parent ? parent.code : "—"}</strong><span>${esc(t(state.locale, "Parent code", "کد والد"))}</span></div></div>
+        <div class="cp-vd-wbs-detail">
+          <div class="cp-vd-wbs-detail-tabs" role="tablist" aria-label="${esc(t(state.locale, "WBS details", "جزئیات WBS"))}">
+            ${tabs.map(([id, en, fa]) => `<button type="button" role="tab" data-vd-wbs-dtab="${id}" aria-selected="${state.wbsDetailTab === id}" class="${state.wbsDetailTab === id ? "is-active" : ""}">${esc(t(state.locale, en, fa))}</button>`).join("")}
+          </div>
+          <div class="cp-vd-wbs-detail-panel" role="tabpanel">${detailBody}</div>
+        </div>
+        <p class="cp-vd-note">${esc(t(state.locale, "Visual sample only. Values are illustrative and are not connected to a live project record.", "صرفاً نمونه بصری؛ مقادیر نمایشی هستند و به رکورد زنده پروژه متصل نیستند."))}</p>
+      </aside>
+    </div>
+  </section>`;
+}
+
 function renderWindow(state: DemoState): string {
   switch (state.window) {
     case "projects":
@@ -553,10 +617,7 @@ function renderWindow(state: DemoState): string {
         { "Project ID": "CUBI-DEMO-002", "Project name": "Intake Screen Replacement", Status: "Planning", Start: "01-Feb-27", Finish: "30-Sep-27", "Data date": "—", Activities: 12 },
       ], ["new-project", "baselines"]);
     case "wbs":
-      return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</h2></header>
-        <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>WBS Code</th><th>WBS Name</th><th class="is-numeric">Total Activities</th></tr></thead><tbody>
-        ${WBS_TREE.map((node) => `<tr class="${node.level === 0 ? "is-summary-row" : ""}"><td>${esc(node.code)}</td><td style="padding-inline-start:${8 + node.level * 22}px">${node.level < 2 ? "▾ " : "• "}${esc(node.name)}</td><td class="is-numeric">${node.total}</td></tr>`).join("")}
-        </tbody></table></div></section>`;
+      return renderWbsWindow(state);
     case "activities":
       return `<section class="cp-vd-windowbody cp-vd-activities">
         <header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Activities", "فعالیت‌ها"))}</h2>
@@ -1120,6 +1181,9 @@ export function createVisualDemoState(locale: string): DemoState {
   return {
     window: "activities",
     activityId: "A1320",
+    selectedWbsCode: "1",
+    wbsDetailTab: "general",
+    collapsedWbsCodes: [],
     scale: "month",
     detailTab: "general",
     calendarMonth: 1,
@@ -1369,6 +1433,27 @@ function bind(root: HTMLElement): void {
     if (calNext) { state.calendarMonth = Math.min(CAL_MONTHS.length - 1, state.calendarMonth + 1); draw(); return; }
     const adminSection = target.closest<HTMLElement>("[data-vd-admin]");
     if (adminSection?.dataset.vdAdmin) { state.adminSection = adminSection.dataset.vdAdmin; draw(); return; }
+    const wbsToggle = target.closest<HTMLElement>("[data-vd-wbs-toggle]");
+    if (wbsToggle?.dataset.vdWbsToggle) {
+      const code = wbsToggle.dataset.vdWbsToggle;
+      state.collapsedWbsCodes = state.collapsedWbsCodes.includes(code)
+        ? state.collapsedWbsCodes.filter((item) => item !== code)
+        : [...state.collapsedWbsCodes, code];
+      draw();
+      return;
+    }
+    const wbsRow = target.closest<HTMLElement>("[data-vd-wbs]");
+    if (wbsRow?.dataset.vdWbs) {
+      state.selectedWbsCode = wbsRow.dataset.vdWbs;
+      draw();
+      return;
+    }
+    const wbsDetailTab = target.closest<HTMLElement>("[data-vd-wbs-dtab]");
+    if (wbsDetailTab?.dataset.vdWbsDtab) {
+      state.wbsDetailTab = wbsDetailTab.dataset.vdWbsDtab as DemoState["wbsDetailTab"];
+      draw();
+      return;
+    }
     const activity = target.closest<HTMLElement>("[data-vd-activity]");
     if (activity?.dataset.vdActivity) {
       state.activityId = activity.dataset.vdActivity;
