@@ -6607,3 +6607,19 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-vd-wbs-inspector > .cp-vd-note { margin: auto 8px 8px; }
 @media (max-width: 900px) { .cp-vd-wbs-layout { grid-template-columns: minmax(0,1fr); } .cp-vd-wbs-inspector { min-height: 260px; } }
 @media (max-width: 520px) { .cp-vd-wbs-fields { grid-template-columns: minmax(0,1fr); } .cp-vd-wbs-kpis { grid-template-columns: repeat(3,minmax(0,1fr)); } .cp-vd-wbs-kpis strong { font-size: 11px; } }
+
+/* Calendar editor: structured properties, workweek and exceptions panes. */
+.cp-vd-calendar-editor{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(250px,.85fr);gap:16px;min-width:0}
+.cp-vd-calendar-editor-main{display:grid;gap:14px;min-width:0}
+.cp-vd-calendar-editor h3{margin:0 0 10px;font-size:13px;font-weight:700;color:var(--cp-vd-text,#1f2937)}
+.cp-vd-calendar-properties,.cp-vd-calendar-workweek,.cp-vd-calendar-editor-side{min-width:0;border:1px solid var(--cp-vd-border,#d7dce4);border-radius:7px;padding:12px;background:var(--cp-vd-panel,#fff)}
+.cp-vd-calendar-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 12px}
+.cp-vd-calendar-fields label{min-width:0}
+.cp-vd-calendar-fields input,.cp-vd-calendar-fields select{width:100%;min-width:0}
+.cp-vd-calendar-day-status{display:inline-flex;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:650;white-space:nowrap}
+.cp-vd-calendar-day-status.is-working,.cp-vd-calendar-legend .is-working{background:#e6f3e9;color:#28623a}
+.cp-vd-calendar-day-status.is-nonwork,.cp-vd-calendar-legend .is-nonwork{background:#f1f2f4;color:#626b78}
+.cp-vd-calendar-legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.cp-vd-calendar-legend span{padding:4px 8px;border-radius:12px;font-size:11px}
+.cp-vd-calendar-legend .is-exception{background:#fff1df;color:#8a4b08}
+@media(max-width:760px){.cp-vd-calendar-editor{grid-template-columns:minmax(0,1fr)}.cp-vd-calendar-fields{grid-template-columns:minmax(0,1fr)}}
