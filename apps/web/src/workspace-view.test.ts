@@ -1974,3 +1974,24 @@ test("Bars dialog tabs switch the visible configuration panel", () => {
 });
 
 
+
+test("Filter By opens a filter dialog and applies the current activity search", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const calls: string[] = [];
+  let closed = false;
+  const dialog = { showModal: () => {}, close: () => { closed = true; } };
+  const search = { value: "concrete" };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-filters-dialog]" ? dialog : selector === "[data-filters-search]" ? search : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), {
+    onActivityFilterChange: (value) => calls.push(value),
+  });
+  const target = { dataset: { filtersApply: "" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.deepEqual(calls, ["concrete"]);
+  assert.equal(closed, true);
+});
