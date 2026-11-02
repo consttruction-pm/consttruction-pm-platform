@@ -59,7 +59,7 @@ Module submenus are not allowed to remain decorative labels when the destination
 | Expenses | Expense register, General details tab | Cost Accounts until the account register is connected |
 | Cost | Procurement/Change/Claim metrics plus Cost Accounts, Budget, Actuals, Forecast, Cash Flow, Earned Value, Financial Periods and Funding tabs | Account and financial registers remain empty until authoritative services return records; no client-side financial calculations |
 | Documents | Data-backed document register, selectable rows, General/Links/Integrity/Revisions/UDF detail tabs, Evidence type filter | Upload/write operations and revision history remain unavailable until the document service exposes them |
-| Reports | Preview only | Report generation and print layouts |
+| Reports | Report Library, Layouts, Batch Reports, Print Preview, Page Setup, Export and Custom Reports tabs | Template catalog, query, generate, print and export services remain disabled until connected |
 | Tracking | Project Table, Bar Chart, Gantt/Profile and Resource Analysis layout selector | Data selection, summarization, chart rendering and saved layouts |
 | Issues | Issue register, Details tab | Create/Edit/Delete until the issue service is connected |
 | Risks | Risk register, Details tab | Risk analysis until the scoring/response renderer is connected |
