@@ -473,7 +473,7 @@ class AuthoritativeScheduleInputComposer:
                         derived.remaining_duration_working_days
                     )
             else:
-                if item.activity_type is ActivityType.LEVEL_OF_EFFORT:
+                if raw_activity_type == ActivityType.LEVEL_OF_EFFORT.value:
                     # LOE dates come from its start/finish-linked
                     # predecessors and successors, not from a task duration.
                     # Scheduling it as an ordinary task would emit silently
@@ -481,7 +481,7 @@ class AuthoritativeScheduleInputComposer:
                     raise ScheduleInputCompositionError(
                         f"LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED:{item.activity_id}"
                     )
-                if item.activity_type is ActivityType.WBS_SUMMARY:
+                if raw_activity_type == ActivityType.WBS_SUMMARY.value:
                     # WBS Summary dates roll up from descendant activities,
                     # which are not part of this snapshot contract. A stored
                     # duration is not a substitute for that rollup.

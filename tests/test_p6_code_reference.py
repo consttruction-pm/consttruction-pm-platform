@@ -157,6 +157,11 @@ def test_level_of_effort_and_wbs_summary_are_explicit_fail_closed_gaps():
     assert activity.coverage == KNOWN_GAP
     assert "LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED" in activity.known_gap
     assert "WBS_SUMMARY_SCHEDULING_UNSUPPORTED" in activity.known_gap
+    assert "INVALID_PERSISTED_ACTIVITY" in activity.known_gap
+    assert any(
+        path.endswith("test_scheduling_activity_semantics.py")
+        for path in activity.regression_tests
+    )
 
 
 

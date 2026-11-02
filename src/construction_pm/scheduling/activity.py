@@ -159,6 +159,19 @@ class Activity:
             raise TypeError("status must be an ActivityStatus")
         if not isinstance(self.activity_type, ActivityType):
             raise TypeError("activity_type must be an ActivityType")
+        if self.activity_type in (
+            ActivityType.START_MILESTONE,
+            ActivityType.FINISH_MILESTONE,
+        ):
+            # A milestone is a zero-duration event. Treating a stored
+            # nonzero duration as task work would silently move the
+            # milestone and its successors.
+            if self.duration != 0:
+                raise ValueError("milestones must have zero duration")
+            if self.original_duration not in (None, 0):
+                raise ValueError("milestones must have zero original_duration")
+            if self.remaining_duration not in (None, 0):
+                raise ValueError("milestones must have zero remaining_duration")
         if not isinstance(self.status_code, ActivityStatusCode):
             raise TypeError("status_code must be an ActivityStatusCode")
         if self.expected_finish is not None and (not isinstance(self.expected_finish, date) or isinstance(self.expected_finish, datetime)):

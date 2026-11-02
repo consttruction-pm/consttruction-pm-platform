@@ -249,8 +249,8 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         user_options=("Task Dependent", "Resource Dependent", "Level of Effort", "Start Milestone", "Finish Milestone", "WBS Summary"),
         official_sources=(ORACLE_SOURCES["activity_general"],),
         cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
-        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"), coverage=KNOWN_GAP,
-        known_gap="Task Dependent and the supported Resource Dependent subset are scheduled through the shared core, and Level of Effort / WBS Summary are rejected at composition with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED instead of being run through the task-duration algorithm. Type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup remain unimplemented until Version 26 fixtures prove them.",
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py", "tests/test_scheduling_activity_semantics.py"), coverage=KNOWN_GAP,
+        known_gap="Task Dependent and the supported Resource Dependent subset are scheduled through the shared core. Start and Finish Milestones reject nonzero duration, original duration or remaining duration at the Activity boundary, so composition fails with INVALID_PERSISTED_ACTIVITY instead of scheduling a milestone as task work. Level of Effort and WBS Summary are rejected at composition with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED instead of being run through the task-duration algorithm. Start-versus-finish milestone date placement conventions, type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup remain unimplemented until Version 26 fixtures prove them.",
     ),
     P6CodeReference(
         id="ACT-002", area="Activities", feature="Activity duration type and recalculation relationships",
@@ -1070,9 +1070,9 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         edge_cases=("Milestone duration edit", "WBS Summary with child activities", "Level of Effort start/finish relationships", "Resource Dependent with missing driving flag", "Mixed calendars"),
         official_sources=(ORACLE_SOURCES["activity_general"], ORACLE_SOURCES["driving"], ORACLE_SOURCES["nondriving"], ORACLE_SOURCES["schedule"]),
         cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/schedule.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
-        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py", "tests/test_scheduling_activity_semantics.py"),
         status="KNOWN_GAP",
-        known_gap="The composer rejects Level of Effort and WBS Summary with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED rather than applying the task-duration algorithm; the fail-closed path is covered by tests/test_authoritative_schedule_snapshot_composer.py. Type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup still require Version 26 fixtures, so this entry does not invent a single formula for them.",
+        known_gap="Start and Finish Milestones enforce zero duration, original duration and remaining duration at the Activity boundary, and the composer rejects an invalid persisted milestone with INVALID_PERSISTED_ACTIVITY; these paths are covered by tests/test_scheduling_activity_semantics.py and tests/test_authoritative_schedule_snapshot_composer.py. The composer also rejects Level of Effort and WBS Summary with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED rather than applying the task-duration algorithm. Start-versus-finish milestone date placement, type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup still require Version 26 fixtures, so this entry does not invent a single formula for them.",
     ),
     P6FormulaReference(
         id="FRM-COST-001",

@@ -209,7 +209,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "WBS Summary"
       ],
       "status": "KNOWN_GAP",
-      "gap": "Task Dependent and the supported Resource Dependent subset are scheduled through the shared core, and Level of Effort / WBS Summary are rejected at composition with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED instead of being run through the task-duration algorithm. Type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup remain unimplemented until Version 26 fixtures prove them."
+      "gap": "Task Dependent and the supported Resource Dependent subset are scheduled through the shared core. Start and Finish Milestones reject nonzero duration, original duration or remaining duration at the Activity boundary, so composition fails with INVALID_PERSISTED_ACTIVITY instead of scheduling a milestone as task work. Level of Effort and WBS Summary are rejected at composition with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED instead of being run through the task-duration algorithm. Start-versus-finish milestone date placement conventions, type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup remain unimplemented until Version 26 fixtures prove them."
     },
     {
       "id": "ACT-002",
@@ -1639,7 +1639,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Mixed calendars"
       ],
       "status": "KNOWN_GAP",
-      "gap": "The composer rejects Level of Effort and WBS Summary with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED rather than applying the task-duration algorithm; the fail-closed path is covered by internal reference Type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup still require Version 26 fixtures, so this entry does not invent a single formula for them."
+      "gap": "Start and Finish Milestones enforce zero duration, original duration and remaining duration at the Activity boundary, and the composer rejects an invalid persisted milestone with INVALID_PERSISTED_ACTIVITY; these paths are covered by internal reference and internal reference The composer also rejects Level of Effort and WBS Summary with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED rather than applying the task-duration algorithm. Start-versus-finish milestone date placement, type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup still require Version 26 fixtures, so this entry does not invent a single formula for them."
     },
     {
       "id": "FRM-COST-001",
