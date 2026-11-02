@@ -40,6 +40,33 @@ The current authoritative functional inventory is the latest official Version 26
 | Administration | Users, Security Profiles, Admin Preferences, Admin Categories, Currencies, Financial Period Calendars | CUBI team, permissions, audit and system-default controls are additional product-specific commands; access must be role-authorized. |
 | Help | Local Help, Online Help, About, What's New, Share Feedback | CUBI guide, context help, shortcuts and documentation library are additional help destinations. |
 
+### Main-window submenu routing audit — 2026-11-02
+
+Module submenus are not allowed to remain decorative labels when the destination already exists. The current navigation surface now routes supported submenus into their real module stage, detail tab, calendar editor tab or tracking-layout selector:
+
+| Workspace window | Live submenu routes | Explicitly unavailable submenu |
+| --- | --- | --- |
+| Project | Project/WBS, Details, Import/Export | — |
+| WBS | WBS Register, WBS Details tab | WBS Chart until a real hierarchy chart renderer exists |
+| Schedule | Activity Grid, Gantt, relationship/calendar/resource/progress reference groups, schedule options, run, formula and documentation sections | Any future view not rendered by the shared schedule workspace |
+| Progress | Site logs, field operations | No locally computed progress percentage |
+| Resources | Resource capacity, field operations | Resource utilization views until backed by authoritative assignment data |
+| Resource Assignments | Assignment register, General details tab | Resource Usage chart/profile |
+| Roles | Role register, Rates and Assignments detail tabs | — |
+| Calendars | Calendar register, Workweek, Exceptions, Assignments tabs | Create/Edit/Delete while calendar persistence is not connected |
+| Expenses | Expense register, General details tab | Cost Accounts until the account register is connected |
+| Cost | Procurement records, Change/Claim records | Financial calculations outside the authoritative core |
+| Documents | Project document register | Evidence panel until its own evidence view is available |
+| Reports | Preview only | Report generation and print layouts |
+| Tracking | Project Table, Bar Chart, Gantt/Profile and Resource Analysis layout selector | Data selection, summarization, chart rendering and saved layouts |
+| Issues | Issue register, Details tab | Create/Edit/Delete until the issue service is connected |
+| Risks | Risk register, Details tab | Risk analysis until the scoring/response renderer is connected |
+| Thresholds | Threshold register, Monitoring and Details tabs | Create/Edit/Delete until the threshold service is connected |
+| Control | Control summary, Change/Claim records | No synthesized control or earned-value data |
+| Settings | Project settings and workspace settings | Unsupported preferences are not exposed as active controls |
+
+For a submenu implemented as a detail-tab action, activation must reuse the module's existing tab event path. It must not maintain a second, divergent tab state. Tracking layout choices may change the selected layout type, but they must not claim that the underlying tracking data or chart is available.
+
 ### Dialog and window audit gates
 
 - A menu command must open its named dialog/window or be disabled with a truthful explanation; it must never be an inert enabled button.
