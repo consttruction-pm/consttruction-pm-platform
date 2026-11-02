@@ -196,8 +196,8 @@ test("Activity Details exposes the Bottom Layout Options tab customization dialo
 
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
   const html = render("en", "schedule");
-  for (const tab of ["General", "Status", "Resources", "Predecessors", "Successors", "Codes", "Tasks", "Discussion", "Notebook", "Steps", "Feedback", "WPs & Docs", "Expenses", "Summary", "Relationships", "Risks", "UDFs"]) {
-    assert.ok(html.includes(`>${tab}</button>`), `missing Activity Details tab: ${tab}`);
+  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "tasks", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
+    assert.ok(html.includes(`data-activity-detail-tab="${tab}"`), `missing Activity Details tab: ${tab}`);
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
