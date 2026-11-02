@@ -7151,3 +7151,64 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
     min-height: 170px;
   }
 }
+
+/* Dedicated Columns window: retain the field registry controls but use a modal workspace window. */
+.cp-columns-dialog {
+  width: min(1120px, calc(100vw - 28px));
+  max-width: 1120px;
+  max-height: min(88vh, 820px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid #aebdce;
+  border-radius: 5px;
+  box-shadow: 0 18px 52px #14253b38;
+}
+.cp-columns-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #d9e1ea;
+}
+.cp-columns-dialog-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.cp-columns-dialog-head p {
+  margin: 5px 0 0;
+  color: #62758a;
+  font-size: 12px;
+}
+.cp-columns-dialog-head button {
+  width: 30px;
+  height: 30px;
+}
+.cp-columns-dialog .cp-p6-field-chooser {
+  width: 100%;
+  max-height: 62vh;
+  overflow: auto;
+}
+.cp-columns-dialog .cp-p6-field-list {
+  max-height: 52vh;
+  overflow: auto;
+}
+.cp-columns-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #d9e1ea;
+}
+.cp-columns-dialog footer button {
+  min-width: 76px;
+  min-height: 30px;
+}
+.cp-columns-unavailable {
+  padding: 24px;
+  border: 1px dashed #b9c7d8;
+  color: #62758a;
+  text-align: center;
+}
