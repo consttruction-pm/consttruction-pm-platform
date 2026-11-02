@@ -184,6 +184,25 @@ test("Activities window exposes a real Layout Options dialog with current timesc
   assert.match(persian, /نمایش خطوط روابط/);
 });
 
+test("View menu Timescale command opens the current window Layout Options dialog", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let opened = false;
+  const dialog = { showModal: () => { opened = true; }, setAttribute: () => {} };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-layout-options-dialog]" ? dialog : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+  );
+  const target = { dataset: { shellCommand: "Timescale" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(opened, true);
+});
+
 test("rendered preview surfaces remain explicitly marked", () => {
   const html = render("en", "reports");
 
