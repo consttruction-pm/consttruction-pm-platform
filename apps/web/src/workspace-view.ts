@@ -378,11 +378,17 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.progressDialogClose !== undefined) {
+      const dialog = (event.target as HTMLElement | null)?.closest?.<HTMLDialogElement>("[data-progress-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
     if (target.dataset.progressActivitySelect !== undefined) {
       progressActivitySelectionByContainer.set(container, target.dataset.progressActivitySelect);
       const record = workspaceRenderRecords.get(container);
@@ -423,6 +429,10 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         documentTypeFilterByContainer.set(container, value);
         const record = workspaceRenderRecords.get(container);
         if (record) renderMainWorkspace(container, record.state, record.options);
+      } else if (kind === "progress-dialog") {
+        const dialog = container.querySelector<HTMLDialogElement>(`[data-progress-dialog="${value}"]`);
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
       } else if (kind === "document-detail-tab") {
         documentDetailTabByContainer.set(container, value);
         const record = workspaceRenderRecords.get(container);
@@ -1364,6 +1374,8 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </div>
           ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderGroupSortDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderFiltersDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarsDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarChartOptionsDialog(state) : ""}
           ${state.activeMenu === "schedule" ? renderColumnsDialog(state, options.layoutHistory) : ""}
+          ${state.activeMenu === "progress" ? renderUpdateProgressDialog(state) : ""}
+          ${state.activeMenu === "progress" ? renderPeriodPerformanceDialog(state) : ""}
           ${state.activeMenu === "schedule" ? renderWorkspaceCommandRibbon(state, t) : ""}
           <main class="cp-main">
             <div class="cp-p6-primary">
@@ -1536,6 +1548,29 @@ function renderProgressRegisterWindow(container: HTMLElement, state: WorkspaceSt
         <div>${escapeHtml(String(state.siteDailyLogs.length))}<span>${escapeHtml(uiText(state.locale, "Site Daily Logs", "گزارش روزانه"))}</span></div><div>${escapeHtml(String(state.timecards.length))}<span>${escapeHtml(uiText(state.locale, "Timecards", "کارت کارکرد"))}</span></div><div>${escapeHtml(String(state.equipmentReports.length))}<span>${escapeHtml(uiText(state.locale, "Equipment Reports", "گزارش ماشین‌آلات"))}</span></div><div>${escapeHtml(String(state.fieldIssues.length))}<span>${escapeHtml(uiText(state.locale, "Field Issues", "مسائل کارگاهی"))}</span></div>
       </div></section></aside>
   </div>`;
+}
+function renderUpdateProgressDialog(state: WorkspaceState): string {
+  const label = (en: string, fa: string): string => escapeHtml(uiText(state.locale, en, fa));
+  return `<dialog class="cp-progress-dialog" data-progress-dialog="update" aria-labelledby="cp-update-progress-title">
+    <header><h2 id="cp-update-progress-title">${label("Update Progress", "به‌روزرسانی پیشرفت")}</h2><button type="button" data-progress-dialog-close aria-label="${label("Close", "بستن")}">×</button></header>
+    <p class="cp-dialog-notice">${label("The complete update workflow is shown for review. Inputs remain disabled until the authoritative progress and scheduling service is connected.", "گردش‌کار کامل به‌روزرسانی برای بازبینی نمایش داده شده است. ورودی‌ها تا اتصال سرویس مرجع پیشرفت و زمان‌بندی غیرفعال هستند.")}</p>
+    <div class="cp-progress-dialog-grid">
+      <fieldset><legend>${label("Data Date", "تاریخ داده")}</legend><label>${label("Current Data Date", "تاریخ داده فعلی")}<input type="date" disabled placeholder="—"></label><label>${label("New Data Date", "تاریخ داده جدید")}<input type="date" disabled></label><label><input type="radio" name="progress-scope" disabled checked> ${label("Update all activities highlighted by Progress Spotlight", "به‌روزرسانی همه فعالیت‌های مشخص‌شده در نشانگر پیشرفت")}</label><label><input type="radio" name="progress-scope" disabled> ${label("Update selected activities only", "به‌روزرسانی فقط فعالیت‌های انتخاب‌شده")}</label></fieldset>
+      <fieldset><legend>${label("Actuals and Remaining Work", "واقعی‌ها و کار باقیمانده")}</legend><label><input type="checkbox" disabled> ${label("Apply actuals from timesheets", "اعمال مقادیر واقعی از کارت‌های کارکرد")}</label><label><input type="radio" name="remaining-duration" disabled checked> ${label("Recalculate remaining duration based on activity Duration Type", "محاسبه مجدد مدت باقیمانده بر اساس نوع مدت فعالیت")}</label><label><input type="radio" name="remaining-duration" disabled> ${label("Always recalculate remaining duration (Fixed Units and Fixed Units/Time)", "محاسبه همیشگی مدت باقیمانده (واحد ثابت و واحد/زمان ثابت)")}</label><label>${label("Out-of-sequence policy", "سیاست فعالیت‌های خارج از توالی")}<select disabled><option>Retained Logic</option><option>Progress Override</option><option>Actual Dates</option></select></label></fieldset>
+      <fieldset><legend>${label("Project Scope", "دامنه پروژه")}</legend><label><input type="radio" name="data-date-scope" disabled checked> ${label("Apply selected Data Date to open projects", "اعمال تاریخ داده انتخاب‌شده به پروژه‌های باز")}</label><label><input type="radio" name="data-date-scope" disabled> ${label("Use each project’s own Data Date", "استفاده از تاریخ داده اختصاصی هر پروژه")}</label><label><input type="checkbox" disabled> ${label("Store period performance", "ذخیره عملکرد دوره‌ای")}</label></fieldset>
+    </div>
+    <footer><button type="button" data-progress-dialog-close>${label("Cancel", "انصراف")}</button><button type="button" disabled>${label("OK", "تأیید")}</button><button type="button" disabled>${label("Apply", "اعمال")}</button><button type="button" disabled>${label("Help", "راهنما")}</button></footer>
+  </dialog>`;
+}
+
+function renderPeriodPerformanceDialog(state: WorkspaceState): string {
+  const label = (en: string, fa: string): string => escapeHtml(uiText(state.locale, en, fa));
+  return `<dialog class="cp-progress-dialog" data-progress-dialog="period-performance" aria-labelledby="cp-period-performance-title">
+    <header><h2 id="cp-period-performance-title">${label("Store Period Performance", "ذخیره عملکرد دوره‌ای")}</h2><button type="button" data-progress-dialog-close aria-label="${label("Close", "بستن")}">×</button></header>
+    <p class="cp-dialog-notice">${label("Financial period records are not available from the current project service. No period values can be stored from this window.", "سوابق دوره مالی از سرویس فعلی پروژه در دسترس نیست. از این پنجره مقداری برای دوره ذخیره نمی‌شود.")}</p>
+    <fieldset><legend>${label("Financial Period", "دوره مالی")}</legend><label>${label("Period", "دوره")}<select disabled><option>${label("No financial periods loaded", "هیچ دوره مالی بارگذاری نشده است")}</option></select></label><label>${label("Data Date", "تاریخ داده")}<input type="date" disabled></label><label><input type="checkbox" disabled> ${label("Store period performance", "ذخیره عملکرد دوره")}</label></fieldset>
+    <footer><button type="button" data-progress-dialog-close>${label("Cancel", "انصراف")}</button><button type="button" disabled>${label("OK", "تأیید")}</button><button type="button" disabled>${label("Apply", "اعمال")}</button><button type="button" disabled>${label("Help", "راهنما")}</button></footer>
+  </dialog>`;
 }
 function renderDocumentRegisterWindow(container: HTMLElement, state: WorkspaceState): string {
   const selectedId = documentSelectionByContainer.get(container) ?? null;
@@ -1893,7 +1928,7 @@ function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: numb
     wbs: [null, { kind: "wbs-detail-tab", value: "general" }, null],
     resources: [null, null, { kind: "register-tab", value: "resources:assignments" }, { kind: "register-tab", value: "resources:codes" }, { kind: "register-tab", value: "resources:roles" }],
     documents: [null, { kind: "document-detail-tab", value: "links" }, { kind: "document-detail-tab", value: "integrity" }, { kind: "document-detail-tab", value: "revisions" }, { kind: "document-type", value: "evidence" }],
-    progress: [null, null, null, null, null, null, null],
+    progress: [null, null, null, null, null, { kind: "progress-dialog", value: "update" }, { kind: "progress-dialog", value: "period-performance" }],
     cost: [null, { kind: "register-tab", value: "cost:general" }, { kind: "register-tab", value: "cost:budget" }, { kind: "register-tab", value: "cost:cash-flow" }, { kind: "register-tab", value: "cost:evm" }, null, null],
     assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
     expenses: [null, null, { kind: "register-tab", value: "expenses:general" }],
