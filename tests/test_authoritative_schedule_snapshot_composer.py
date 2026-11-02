@@ -784,6 +784,140 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
 
 
 
+def test_resource_dependent_weekly_rate_converts_through_calendar_hours(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-WEEK",
+            "name": "Weekly rated resource dependent work",
+            "duration_value": "1",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.NOT_STARTED.value,
+            "status_code": ActivityStatusCode.PLANNED.value,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    # 100 units at 20 units/week on a 40-hour week and an 8-hour resource day
+    # is 25 working days. The date-based calendar therefore spans 25 distinct
+    # working days and the persisted rows must reconcile with that span.
+    period_dates: list[str] = []
+    cursor = date(2026, 10, 19)
+    while len(period_dates) < 25:
+        if cursor.weekday() < 5:
+            period_dates.append(cursor.isoformat())
+        cursor += timedelta(days=1)
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-WEEK-AS",
+            activity_id="RD-WEEK",
+            resource_id="RD-WEEK-RES",
+            units=Decimal("100"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("20"),
+            units_per_time_period="week",
+            hours_per_units_time_period=Decimal("40"),
+        )
+    )
+    for period_start in period_dates:
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-WEEK-AS",
+                activity_id="RD-WEEK",
+                resource_id="RD-WEEK-RES",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    fact = json.loads(snapshot.canonical_payload)[
+        "resource_dependent_assignment_facts"
+    ][0]
+    # The rate period is non-daily, so the calendar's hours per day is an
+    # explicit immutable input rather than a process default.
+    assert fact["units_per_time_period"] == "week"
+    assert fact["hours_per_units_time_period"] == "40"
+    assert fact["calendar_hours_per_day"] == "8"
+
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    activity = next(
+        item
+        for item in materialized.schedule_input.activities
+        if item.id == "RD-WEEK"
+    )
+    assert activity.duration == 25
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-RD-WEEK",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "calculate the weekly resource-dependent activity",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK", query_result
+    assert query_result["data"]["activities"]["RD-WEEK"]["start"] == "2026-10-19"
+    assert query_result["data"]["activities"]["RD-WEEK"]["finish"] == period_dates[-1]
+    assert query_result["data"]["activities"]["RD-WEEK"]["duration"] == 25
+
+    placement = query_result["data"]["resource_dependent_placement"]
+    assert placement["status"] == "COMPLETE"
+    placed = placement["assignments"]["RD-WEEK-AS"]
+    assert placed["status"] == "FIXED_DRIVING"
+    assert placed["diagnostic_code"] is None
+    assert placed["total_units"] == "100"
+    assert len(placed["demand_periods"]) == 25
+    connection.close()
+
+
 def test_resource_dependent_longest_driving_assignment_selects_its_calendar(tmp_path):
     fixture = _fixture(tmp_path)
     app = fixture["app"]

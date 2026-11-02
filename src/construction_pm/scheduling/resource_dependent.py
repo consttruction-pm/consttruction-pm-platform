@@ -25,16 +25,22 @@ invented for such an activity.
 
 This module does not read persistence or calculate dates. Every assignment fact,
 including its versioned resource calendar, progress units and time-phased units,
-is part of the canonical input hash. Non-daily driving rates, fractional
-working-day durations and completed-activity derivation remain explicit
-unsupported cases.
+is part of the canonical input hash.
+
+Driving rates may use any supported P6 rate period (hour, day, week, month,
+year). Non-daily periods are converted through the assignment's versioned
+resource calendar: the rate's own hours-per-period and the calendar's hours per
+day produce an exact working-day duration. When that exact duration is
+fractional, the date-based schedule occupies the whole working day in which the
+work completes (ceiling) and the exact decimal duration remains bound in the
+input hash and reported for audit. No value is silently rounded away.
 """
 
 import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_CEILING
 
 
 class ResourceDependentCalculationError(ValueError):
@@ -81,6 +87,10 @@ class ResourceDependentDriverFact:
     # assignment the demand periods describe the remaining work still to place.
     actual_units: Decimal | None = None
     remaining_units: Decimal | None = None
+    # Appended: the assignment resource calendar's hours per day. Required only
+    # when the rate period is not a day, where it converts the rate to a
+    # working-day duration. Bound in the input hash for such rates.
+    calendar_hours_per_day: Decimal | None = None
 
     def canonical_payload(self) -> dict[str, object]:
         payload: dict[str, object] = {
@@ -124,6 +134,54 @@ class ResourceDependentDuration:
     # Present only for an in-progress activity whose driving facts declare
     # Actual/Remaining Units.
     remaining_duration_working_days: int | None = None
+    # Exact decimal durations before the date-based whole-day ceiling. Present
+    # only when a rate period is non-daily or the exact duration is fractional.
+    exact_duration_working_days: Decimal | None = None
+    exact_remaining_duration_working_days: Decimal | None = None
+
+
+_DAILY_RATE_PERIODS = frozenset({"hour", "day", "week", "month", "year"})
+
+
+def _normalized_rate_period(value: object) -> str:
+    if not isinstance(value, str):
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_RATE_PERIOD_REQUIRED"
+        )
+    period = value.strip().lower()
+    if period not in _DAILY_RATE_PERIODS:
+        raise ResourceDependentCalculationError(
+            "RESOURCE_DEPENDENT_RATE_PERIOD_UNSUPPORTED"
+        )
+    return period
+
+
+def _exact_working_days(
+    fact: ResourceDependentDriverFact,
+    units: Decimal,
+    rate: Decimal,
+) -> Decimal:
+    """Convert units at an assignment rate into exact working days.
+
+    A daily rate is already expressed per assignment working day. Any other
+    period is converted through the rate's hours-per-period and the assignment
+    calendar's hours-per-day; both are immutable inputs, so the result never
+    depends on a default or on the host timezone.
+    """
+    period = _normalized_rate_period(fact.units_per_time_period)
+    if period == "day":
+        return units / rate
+    hours_per_period = _require_decimal(
+        fact.hours_per_units_time_period,
+        "RESOURCE_DEPENDENT_RATE_CONVERSION_REQUIRED",
+        allow_zero=False,
+    )
+    hours_per_day = _require_decimal(
+        fact.calendar_hours_per_day,
+        "RESOURCE_DEPENDENT_CALENDAR_HOURS_PER_DAY_REQUIRED",
+        allow_zero=False,
+    )
+    return units * hours_per_period / (rate * hours_per_day)
 
 
 def _has_declared_progress(fact: ResourceDependentDriverFact) -> bool:
@@ -160,13 +218,13 @@ def _progress_units(
     return remaining
 
 
-def _integral_working_days(units: Decimal, rate: Decimal) -> int:
-    duration = units / rate
-    if duration != duration.to_integral_value():
+def _whole_working_days(exact: Decimal) -> int:
+    """Return the working days occupied by exact work on a date-based calendar."""
+    if not exact.is_finite() or exact < 0:
         raise ResourceDependentCalculationError(
-            "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED"
+            "RESOURCE_DEPENDENT_DURATION_OUT_OF_RANGE"
         )
-    duration_days = int(duration)
+    duration_days = int(exact.to_integral_value(rounding=ROUND_CEILING))
     if duration_days > 10_000:
         raise ResourceDependentCalculationError(
             "RESOURCE_DEPENDENT_DURATION_OUT_OF_RANGE"
@@ -246,10 +304,6 @@ def validate_resource_dependent_demand_distribution(
         "RESOURCE_DEPENDENT_PLANNED_UNITS_REQUIRED",
         allow_zero=True,
     )
-    if fact.units_per_time_period != "day":
-        raise ResourceDependentCalculationError(
-            "RESOURCE_DEPENDENT_NONDAILY_RATE_UNSUPPORTED"
-        )
     rate = _require_decimal(
         fact.units_per_time,
         "RESOURCE_DEPENDENT_UNITS_PER_TIME_REQUIRED",
@@ -260,7 +314,9 @@ def validate_resource_dependent_demand_distribution(
         if _has_declared_progress(fact)
         else planned
     )
-    duration_days = _integral_working_days(expected_units, rate)
+    duration_days = _whole_working_days(
+        _exact_working_days(fact, expected_units, rate)
+    )
     if len(ordered) != duration_days:
         raise ResourceDependentCalculationError(
             "RESOURCE_DEPENDENT_DEMAND_PERIOD_COUNT_MISMATCH"
@@ -371,6 +427,8 @@ def derive_resource_dependent_duration(
     duration_source = "driving"
     progress_declared = any(_has_declared_progress(item) for item in ordered)
     remaining_days: int | None = None
+    exact_duration_value: Decimal | None = None
+    exact_remaining_value: Decimal | None = None
 
     if progress_declared:
         # Progress is an activity-level fact: every assignment must state both
@@ -416,8 +474,8 @@ def derive_resource_dependent_duration(
         duration_days = fallback_duration_working_days
         duration_source = "activity"
     else:
-        durations: list[Decimal] = []
-        remaining_durations: list[Decimal] = []
+        exact_durations: list[Decimal] = []
+        exact_remaining_durations: list[Decimal] = []
         for item in driving:
             if not isinstance(item.calendar_id, str) or not item.calendar_id.strip():
                 raise ResourceDependentCalculationError(
@@ -437,10 +495,7 @@ def derive_resource_dependent_duration(
                 raise ResourceDependentCalculationError(
                     "RESOURCE_DEPENDENT_UNIT_OF_MEASURE_REQUIRED"
                 )
-            if item.units_per_time_period != "day":
-                raise ResourceDependentCalculationError(
-                    "RESOURCE_DEPENDENT_NONDAILY_RATE_UNSUPPORTED"
-                )
+            _normalized_rate_period(item.units_per_time_period)
 
             planned = _require_decimal(
                 item.planned_units,
@@ -452,77 +507,85 @@ def derive_resource_dependent_duration(
                 "RESOURCE_DEPENDENT_UNITS_PER_TIME_REQUIRED",
                 allow_zero=False,
             )
-            conversion = _require_decimal(
+            # The conversion factor is required and identity-bound for every
+            # driving rate. For a daily period the calendar's hours per day
+            # cancels out; for any other period both factors participate.
+            _require_decimal(
                 item.hours_per_units_time_period,
                 "RESOURCE_DEPENDENT_RATE_CONVERSION_REQUIRED",
                 allow_zero=False,
             )
-            # The conversion factor is required and identity-bound even though
-            # the source's explicit period is already "day"; non-daily
-            # conversion needs an hourly core model and is rejected above.
-            del conversion
-            duration = planned / rate
-            if duration != duration.to_integral_value():
-                raise ResourceDependentCalculationError(
-                    "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED"
-                )
-            if int(duration) > 10_000:
-                raise ResourceDependentCalculationError(
-                    "RESOURCE_DEPENDENT_DURATION_OUT_OF_RANGE"
-                )
-            durations.append(duration)
+            exact_duration = _exact_working_days(item, planned, rate)
+            _whole_working_days(exact_duration)
+            exact_durations.append(exact_duration)
             if progress_declared:
-                remaining_durations.append(
-                    Decimal(
-                        _integral_working_days(
-                            _progress_units(item, planned), rate
-                        )
-                    )
+                exact_remaining = _exact_working_days(
+                    item, _progress_units(item, planned), rate
                 )
+                _whole_working_days(exact_remaining)
+                exact_remaining_durations.append(exact_remaining)
 
-        duration = max(durations)
+        exact_total = max(exact_durations)
         if progress_declared:
             # Remaining work is what the forward pass schedules for a progressed
             # activity, so the driver with the longest remaining duration must
             # also own the activity calendar. A tie between different calendars
             # cannot be resolved without input order, so fail closed.
-            remaining_duration = max(remaining_durations)
+            exact_remaining_total = max(exact_remaining_durations)
             winner_calendars = {
                 (item.calendar_id, item.calendar_version)
-                for item, value in zip(driving, remaining_durations)
-                if value == remaining_duration
+                for item, value in zip(driving, exact_remaining_durations)
+                if value == exact_remaining_total
             }
-            remaining_days = int(remaining_duration)
+            remaining_days = _whole_working_days(exact_remaining_total)
             if len(winner_calendars) > 1:
                 raise ResourceDependentCalculationError(
                     "RESOURCE_DEPENDENT_PROGRESS_DRIVING_CALENDAR_TIE"
                 )
         else:
-            # Each daily rate is measured on its own assignment resource
-            # calendar, so the longest duration selects the driving calendar
-            # that governs the activity. Two different calendars that tie for
-            # the maximum would make the activity calendar depend on input
-            # order, so fail closed.
+            # Each rate is measured on its own assignment resource calendar, so
+            # the longest duration selects the driving calendar that governs
+            # the activity. Two different calendars that tie for the maximum
+            # would make the activity calendar depend on input order, so fail
+            # closed.
             winner_calendars = {
                 (item.calendar_id, item.calendar_version)
-                for item, value in zip(driving, durations)
-                if value == duration
+                for item, value in zip(driving, exact_durations)
+                if value == exact_total
             }
         if len(winner_calendars) > 1:
             raise ResourceDependentCalculationError(
                 "RESOURCE_DEPENDENT_DRIVING_CALENDAR_TIE"
             )
         calendar_id, calendar_version = next(iter(winner_calendars))
-        duration_days = int(duration)
-        if duration_days > 10_000:
-            raise ResourceDependentCalculationError(
-                "RESOURCE_DEPENDENT_DURATION_OUT_OF_RANGE"
-            )
+        duration_days = _whole_working_days(exact_total)
+        exact_duration_value = exact_total
+        if progress_declared:
+            exact_remaining_value = exact_remaining_total
+
+    non_daily_contract = any(
+        _normalized_rate_period(item.units_per_time_period) != "day"
+        for item in driving
+    )
+    non_daily_assignment_ids = {
+        item.assignment_id
+        for item in driving
+        if _normalized_rate_period(item.units_per_time_period) != "day"
+    }
+    fractional_contract = exact_duration_value is not None and (
+        exact_duration_value != Decimal(duration_days)
+        or (
+            exact_remaining_value is not None
+            and exact_remaining_value != Decimal(remaining_days or 0)
+        )
+    )
+    precise_duration = non_daily_contract or fractional_contract
 
     legacy_compatible = (
         not nondriving
         and duration_source == "driving"
         and not progress_declared
+        and not precise_duration
         and all(not item.demand_periods for item in ordered)
     )
     if legacy_compatible:
@@ -542,9 +605,13 @@ def derive_resource_dependent_duration(
     else:
         payload = {
             "rule_version": (
-                "resource-dependent-driving-v3"
-                if progress_declared
-                else "resource-dependent-driving-v2"
+                "resource-dependent-driving-v4"
+                if precise_duration
+                else (
+                    "resource-dependent-driving-v3"
+                    if progress_declared
+                    else "resource-dependent-driving-v2"
+                )
             ),
             "duration_source": duration_source,
             "tenant_id": tenant_id,
@@ -590,11 +657,22 @@ def derive_resource_dependent_duration(
                     if _has_declared_progress(item)
                     else {}
                 )
+                | (
+                    {"calendar_hours_per_day": str(item.calendar_hours_per_day)}
+                    if item.assignment_id in non_daily_assignment_ids
+                    else {}
+                )
                 for item in ordered
             ],
         }
         if progress_declared:
             payload["remaining_duration_working_days"] = remaining_days
+        if precise_duration:
+            payload["exact_duration_working_days"] = str(exact_duration_value)
+            if progress_declared:
+                payload["exact_remaining_duration_working_days"] = str(
+                    exact_remaining_value
+                )
     canonical = json.dumps(
         payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     )
@@ -606,4 +684,10 @@ def derive_resource_dependent_duration(
         driving_assignment_ids=tuple(item.assignment_id for item in driving),
         duration_source=duration_source,
         remaining_duration_working_days=remaining_days,
+        exact_duration_working_days=(
+            exact_duration_value if precise_duration else None
+        ),
+        exact_remaining_duration_working_days=(
+            exact_remaining_value if precise_duration and progress_declared else None
+        ),
     )

@@ -11,6 +11,7 @@ before evaluation.
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Callable, Protocol
 
 from .application.authorization import AuthorizationContext
@@ -385,6 +386,50 @@ def build_persisted_resource_leveling_input_resolver(
         activity_calendar_assignments = {
             item.activity_id: item.calendar for item in source.activity_calendar_assignments
         }
+        calendar_hours_cache: dict[tuple[str, str], Decimal] = {}
+
+        def assignment_calendar_hours(value: dict) -> Decimal | None:
+            """Read the exact hours/day needed by a non-daily assignment rate."""
+            period = value.get("units_per_time_period")
+            if not isinstance(period, str) or period.strip().lower() == "day":
+                return None
+            calendar_id = value.get("calendar_id")
+            calendar_version = value.get("calendar_version")
+            if not isinstance(calendar_id, str) or not isinstance(calendar_version, str):
+                return None
+            key = (calendar_id, calendar_version)
+            cached = calendar_hours_cache.get(key)
+            if cached is not None:
+                return cached
+            master = calendar_master_repository.get(scope, calendar_id, calendar_version)
+            if master is None:
+                raise PersistedResourceLevelingResolverError(
+                    f"CALENDAR_VERSION_NOT_FOUND:{calendar_id}@{calendar_version}"
+                )
+            snapshot = calendar_snapshot_repository.get(master)
+            data = getattr(snapshot, "snapshot", None)
+            if not isinstance(data, dict):
+                raise PersistedResourceLevelingResolverError(
+                    "CALENDAR_SNAPSHOT_NOT_FOUND_OR_INVALID"
+                )
+            factors = data.get("time_period_factors", {})
+            if not isinstance(factors, dict):
+                raise PersistedResourceLevelingResolverError(
+                    "INVALID_CALENDAR_TIME_PERIOD_FACTORS"
+                )
+            try:
+                hours = Decimal(str(factors.get("hours_per_day", "8")))
+            except (InvalidOperation, TypeError, ValueError) as exc:
+                raise PersistedResourceLevelingResolverError(
+                    "INVALID_CALENDAR_HOURS_PER_DAY"
+                ) from exc
+            if not hours.is_finite() or hours <= 0:
+                raise PersistedResourceLevelingResolverError(
+                    "INVALID_CALENDAR_HOURS_PER_DAY"
+                )
+            calendar_hours_cache[key] = hours
+            return hours
+
         snapshot_facts_by_activity: dict[str, list[ResourceDependentDriverFact]] = {}
         for fact in source.resource_dependent_assignment_facts:
             snapshot_facts_by_activity.setdefault(fact.activity_id, []).append(fact)
@@ -433,6 +478,7 @@ def build_persisted_resource_leveling_input_resolver(
                     )),
                     actual_units=value.get("actual_units") if progressed else None,
                     remaining_units=value.get("remaining_units") if progressed else None,
+                    calendar_hours_per_day=assignment_calendar_hours(value),
                 )
                 for value in assignment_rows
             )
@@ -469,6 +515,7 @@ def build_persisted_resource_leveling_input_resolver(
                         units_per_time=value.units_per_time,
                         units_per_time_period=value.units_per_time_period,
                         hours_per_units_time_period=value.hours_per_units_time_period,
+                        calendar_hours_per_day=value.calendar_hours_per_day,
                     )
                     for value in persisted_facts
                 )

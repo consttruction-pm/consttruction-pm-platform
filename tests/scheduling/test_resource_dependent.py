@@ -27,6 +27,7 @@ def driver(
     hours: str = "8",
     actual: str | None = None,
     remaining: str | None = None,
+    calendar_hours_per_day: str | None = None,
 ) -> ResourceDependentDriverFact:
     return ResourceDependentDriverFact(
         assignment_id=assignment_id,
@@ -42,6 +43,9 @@ def driver(
         hours_per_units_time_period=None if hours is None else Decimal(hours),
         actual_units=None if actual is None else Decimal(actual),
         remaining_units=None if remaining is None else Decimal(remaining),
+        calendar_hours_per_day=(
+            None if calendar_hours_per_day is None else Decimal(calendar_hours_per_day)
+        ),
     )
 
 
@@ -90,14 +94,59 @@ def test_derivation_is_deterministic_independent_of_input_order():
 
 
 @pytest.mark.parametrize(
+    ("planned", "rate", "period", "hours", "calendar_hours", "expected_days"),
+    [
+        # 100 units at 20/week with a 40-hour week and an 8-hour day = 25 days.
+        ("100", "20", "week", "40", "8", 25),
+        # 20 units at 0.5/hour with a 1-hour period and 8-hour day = 5 days.
+        ("20", "0.5", "hour", "1", "8", 5),
+        # A 160-hour month with an 8-hour day and 50 units at 10/month = 100 days.
+        ("50", "10", "month", "160", "8", 100),
+        # A 10-hour resource day changes the conversion of a weekly rate.
+        ("100", "20", "week", "50", "10", 25),
+    ],
+)
+def test_non_daily_rate_converts_through_bound_calendar_hours(
+    planned, rate, period, hours, calendar_hours, expected_days
+):
+    result = derive(
+        driver(
+            "A-1",
+            planned=planned,
+            rate=rate,
+            period=period,
+            hours=hours,
+            calendar_hours_per_day=calendar_hours,
+        )
+    )
+    assert result.duration_working_days == expected_days
+    assert result.exact_duration_working_days == Decimal(expected_days)
+
+
+def test_fractional_rate_with_whole_day_result_is_supported():
+    result = derive(driver("A-1", planned="5", rate="2.5"))
+    assert result.duration_working_days == 2
+    # The legacy daily contract has no fractional remainder to bind.
+    assert result.exact_duration_working_days is None
+
+
+def test_weekly_rate_without_calendar_hours_fails_closed():
+    with pytest.raises(
+        ResourceDependentCalculationError,
+        match="RESOURCE_DEPENDENT_CALENDAR_HOURS_PER_DAY_REQUIRED",
+    ):
+        derive(driver("A-1", planned="100", rate="20", period="week", hours="40"))
+
+
+@pytest.mark.parametrize(
     ("facts", "code"),
     [
         ((), "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_REQUIRED"),
         ((driver("A-1", driving=None),), "RESOURCE_DEPENDENT_DRIVING_FLAG_REQUIRED"),
         ((driver("A-1", driving=False),), "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_REQUIRED"),
         ((driver("A-1", calendar_version=None),), "RESOURCE_DEPENDENT_DRIVER_CALENDAR_VERSION_REQUIRED"),
-        ((driver("A-1", period="week"),), "RESOURCE_DEPENDENT_NONDAILY_RATE_UNSUPPORTED"),
-        ((driver("A-1", planned="5", rate="2"),), "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED"),
+        ((driver("A-1", period="week"),), "RESOURCE_DEPENDENT_CALENDAR_HOURS_PER_DAY_REQUIRED"),
+        ((driver("A-1", period="fortnight"),), "RESOURCE_DEPENDENT_RATE_PERIOD_UNSUPPORTED"),
     ],
 )
 def test_unsupported_or_ambiguous_driving_contract_fails_closed(facts, code):
@@ -218,22 +267,25 @@ def test_demand_distribution_reconciles_planned_units_rate_and_row_count():
         ),
         (
             with_periods(
-                driver("A-1", planned="8", rate="4", period="week"),
-                (("2026-10-19", "4"), ("2026-10-20", "4")),
-            ),
-            "RESOURCE_DEPENDENT_NONDAILY_RATE_UNSUPPORTED",
-        ),
-        (
-            with_periods(
                 driver("A-1", planned="9", rate="4"),
                 (("2026-10-19", "5"), ("2026-10-20", "4")),
             ),
-            "RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED",
+            # 9 units at 4/day is 2.25 exact days, so a date-based schedule
+            # occupies three working days; two demand rows are ambiguous.
+            "RESOURCE_DEPENDENT_DEMAND_PERIOD_COUNT_MISMATCH",
         ),
     )
     for fact, code in cases:
         with pytest.raises(ResourceDependentCalculationError, match=code):
             derive(fact)
+
+    fractional = with_periods(
+        driver("A-1", planned="9", rate="4"),
+        (("2026-10-19", "4"), ("2026-10-20", "4"), ("2026-10-21", "1")),
+    )
+    result = derive(fractional)
+    assert result.duration_working_days == 3
+    assert result.exact_duration_working_days == Decimal("2.25")
 
 
 def test_nondriving_demand_distribution_is_validated_independently_of_activity_duration():
@@ -532,16 +584,20 @@ def test_in_progress_requires_reconciled_actual_and_remaining_units(
         )
 
 
-def test_in_progress_fractional_remaining_duration_fails_closed():
-    with pytest.raises(
-        ResourceDependentCalculationError,
-        match="RESOURCE_DEPENDENT_FRACTIONAL_DURATION_UNSUPPORTED",
-    ):
-        derive(
+def test_in_progress_fractional_remaining_duration_uses_whole_day_span():
+    # 3 remaining units at 5/day is 0.6 day: the remaining work occupies one
+    # whole working day, while the exact decimal value stays auditable.
+    result = derive(
+        with_periods(
             driver(
                 "A-1", planned="20", rate="5", actual="17", remaining="3"
-            )
+            ),
+            (("2026-10-19", "3"),),
         )
+    )
+    assert result.duration_working_days == 4
+    assert result.remaining_duration_working_days == 1
+    assert result.exact_remaining_duration_working_days == Decimal("0.6")
 
 
 def test_in_progress_every_driving_assignment_requires_progress_units():

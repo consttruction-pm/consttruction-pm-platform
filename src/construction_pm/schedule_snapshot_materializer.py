@@ -769,6 +769,11 @@ def _materialize_payload(
                         if item.get("remaining_units") is None
                         else _decimal(item["remaining_units"])
                     ),
+                    calendar_hours_per_day=(
+                        None
+                        if item.get("calendar_hours_per_day") is None
+                        else _decimal(item["calendar_hours_per_day"])
+                    ),
                 )
             )
         except (TypeError, ValueError, InvalidOperation) as exc:

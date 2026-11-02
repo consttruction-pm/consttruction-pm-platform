@@ -157,6 +157,44 @@ class AuthoritativeScheduleInputComposer:
             raise ScheduleInputCompositionError("CALENDAR_SNAPSHOT_IDENTITY_MISMATCH")
         return self._calendar_reference(calendar, snapshot)
 
+    def _load_calendar_hours_per_day(
+        self,
+        scope: BackendScope,
+        calendar_id: str,
+        calendar_version: str,
+    ) -> Decimal:
+        """Return the exact hours-per-day factor of a versioned working calendar.
+
+        A non-daily resource rate is meaningless without this factor: it is the
+        bridge between the rate's hours-per-period and a working-day duration.
+        The value is read from the same immutable calendar snapshot that backs
+        the assignment, never from a process default.
+        """
+        try:
+            calendar = self.calendar_repository.get(
+                scope, calendar_id, calendar_version
+            )
+            if calendar is None:
+                raise ScheduleInputCompositionError(
+                    f"CALENDAR_VERSION_NOT_FOUND:{calendar_id}@{calendar_version}"
+                )
+            snapshot = self.calendar_snapshot_repository.get(calendar)
+        except CalendarPersistenceError as exc:
+            raise ScheduleInputCompositionError(str(exc)) from exc
+        data = getattr(snapshot, "snapshot", None)
+        if not isinstance(data, dict):
+            raise ScheduleInputCompositionError("CALENDAR_SNAPSHOT_NOT_FOUND_OR_INVALID")
+        factors = data.get("time_period_factors", {})
+        if not isinstance(factors, dict):
+            raise ScheduleInputCompositionError("INVALID_CALENDAR_TIME_PERIOD_FACTORS")
+        try:
+            value = Decimal(str(factors.get("hours_per_day", "8")))
+        except (ArithmeticError, TypeError, ValueError) as exc:
+            raise ScheduleInputCompositionError("INVALID_CALENDAR_HOURS_PER_DAY") from exc
+        if not value.is_finite() or value <= 0:
+            raise ScheduleInputCompositionError("INVALID_CALENDAR_HOURS_PER_DAY")
+        return value
+
     def compose(
         self,
         scope: BackendScope,
@@ -439,6 +477,23 @@ class AuthoritativeScheduleInputComposer:
                         ),
                         remaining_units=(
                             assignment.remaining_units if in_progress else None
+                        ),
+                        calendar_hours_per_day=(
+                            self._load_calendar_hours_per_day(
+                                scope,
+                                assignment.calendar_id,
+                                assignment.calendar_version,
+                            )
+                            if (
+                                isinstance(assignment.units_per_time_period, str)
+                                and assignment.units_per_time_period.strip().lower()
+                                != "day"
+                                and isinstance(assignment.calendar_id, str)
+                                and assignment.calendar_id.strip()
+                                and isinstance(assignment.calendar_version, str)
+                                and assignment.calendar_version.strip()
+                            )
+                            else None
                         ),
                     )
                     for assignment in sorted(
