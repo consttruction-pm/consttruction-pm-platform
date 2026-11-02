@@ -239,7 +239,7 @@ The next visual implementation work is ordered as follows. This is an execution 
 5. **Layout/view controls:** implement top/bottom layout selectors and the corresponding dialogs (columns, filters, multi-level group/sort, timescale, bars, network, usage spreadsheet/profile, font/row, tab configuration). A control must be functional or explicitly disabled with a reason.
 6. **Calendar editor:** implement Global / Project / Resource calendar scope, workweek intervals, split/overnight shifts, exceptions/holidays, preview and assignment dialogs. Keep Jalali/Gregorian display separate from working-time calendars.
 7. **Contextual command workflows:** connect Add/Edit/Delete/Assign/Link and page-specific commands only to real owning workflows and permission-checked APIs. Do not present success for visual-only controls.
-8. **Visual acceptance:** run actual browser E2E and capture the reference desktop viewport plus tablet/mobile and RTL/LTR screenshots; compare against the approved Version 22 geometry reference. Preserve approved Timeline/Gantt proportions; no resizing without explicit owner instruction.
+8. **Visual acceptance:** run actual browser E2E and capture the reference desktop viewport plus tablet/mobile and RTL/LTR screenshots; compare against the latest available P6 Professional release (Version 26 and its latest applicable 26.x update). The owner's 2026-11-02 decision supersedes Version 22 as the controlling visual baseline. Version 22 imagery is historical only; do not retain its geometry where it conflicts with the latest release. Preserve Timeline/Gantt proportions of the latest-release reference; no arbitrary resizing.
 
 ### Qoder credit-aware workflow decision
 
@@ -250,3 +250,10 @@ Every future Qoder prompt must be one repository-aware bounded work package, inc
 ### Acceptance distinction for the calculation core
 
 Lack of a licensed direct P6 execution is not a blocker to implementation or documented-rule numeric tests. Keep three evidence levels separate: documented-rule/golden-case numeric verification, independent code/output review, and direct same-scenario P6 comparison. Only the last claim remains unavailable until direct reference execution can be performed. This calculation-core rule also governs any shell command that displays calculation results; the visual layer must never create a second calculation authority.
+
+
+## Superseding owner instruction — latest P6 release governs (2026-11-02)
+
+The product owner explicitly replaced Version 22 as the controlling visual baseline and requires the **latest available P6 Professional release** to govern CUBI's complete visual shell. Oracle's official documentation set currently identifies Version 26. The latest 26.x patch/update must be checked before each visual audit; Oracle's community currently surfaces 26.8.0.56513 as an update, but the patch may advance. Use the current Version 26 User Guide, Help, Visualizer Help, release notes and all relevant official topics to inventory the current menus, windows, bars, dialogs, layouts, columns, filters, grouping/sorting, timescale, calendars and workflows. Version 22 screenshots are no longer acceptance references and may be retained only as historical comparison material. If current screenshots are unavailable, reconstruct behavior and layout from current official documentation and explicitly flag visual uncertainty; do not silently fall back to Version 22.
+
+Official current documentation: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/ . Current patch discovery: https://community.oracle.com/mosc/categories/primavera_-_prim .
