@@ -2516,6 +2516,9 @@ async function main() {
     );
     await page.scrollTo("[data-capacity-resolve]");
     await page.realClick("[data-capacity-resolve]");
+    await sleep(400);
+    const resolveDiagnostic = await page.evaluate("(() => ({ status: document.querySelector(\"[data-capacity-resolve-status]\")?.textContent.trim() ?? \"\", value: document.querySelector(\"[data-capacity-resolve-value]\")?.getAttribute(\"data-capacity-resolve-value\") ?? null, buttonType: document.querySelector(\"[data-capacity-resolve]\")?.type ?? null, buttonDisabled: document.querySelector(\"[data-capacity-resolve]\")?.disabled ?? null, drawerHidden: document.querySelector(\"[data-tools-drawer]\")?.hidden ?? null, panelBusy: document.querySelector(\"[data-capacity-panel]\")?.getAttribute(\"aria-busy\") ?? null }))()");
+    assert(resolveDiagnostic.status.length > 0 || resolveDiagnostic.value !== null, "capacity resolve action must start: " + JSON.stringify(resolveDiagnostic));
     await page.waitFor(
       `document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") === "60"`,
       "server-resolved weekly capacity before the change",
