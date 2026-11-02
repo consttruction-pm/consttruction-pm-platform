@@ -53,16 +53,18 @@ export const ACTIVITY_DETAILS_TABS: readonly TabLabel[] = [
 const PROJECT_DETAILS_TABS: readonly TabLabel[] = [
   { id: "general", en: "General", fa: "عمومی" },
   { id: "dates", en: "Dates", fa: "تاریخ‌ها" },
+  { id: "defaults", en: "Defaults", fa: "پیش‌فرض‌ها" },
+  { id: "resources", en: "Resources", fa: "منابع" },
+  { id: "settings", en: "Settings", fa: "تنظیمات" },
+  { id: "codes", en: "Codes", fa: "کدها" },
   { id: "notebook", en: "Notebook", fa: "دفترچه" },
   { id: "budget-log", en: "Budget Log", fa: "گزارش بودجه" },
   { id: "spending-plan", en: "Spending Plan", fa: "برنامهٔ هزینه" },
   { id: "budget-summary", en: "Budget Summary", fa: "خلاصهٔ بودجه" },
   { id: "funding", en: "Funding", fa: "تأمین مالی" },
-  { id: "codes", en: "Codes", fa: "کدها" },
-  { id: "defaults", en: "Defaults", fa: "پیش‌فرض‌ها" },
-  { id: "resources", en: "Resources", fa: "منابع" },
-  { id: "settings", en: "Settings", fa: "تنظیمات" },
-  { id: "calculations", en: "Calculations", fa: "محاسبات" },
+  { id: "baselines", en: "Baselines", fa: "مبناها" },
+  { id: "documents", en: "Documents", fa: "اسناد" },
+  { id: "history", en: "History", fa: "تاریخچه" },
   { id: "udfs", en: "UDFs", fa: "فیلدهای سفارشی" },
 ];
 
@@ -418,6 +420,12 @@ function projectTabBody(tab: string, input: ActivityDetailsInput, state: Workspa
     case "budget-summary":
     case "funding":
       return empty(locale, t(locale, "No budget or funding records are returned by the workspace read model.", "هیچ رکورد بودجه یا تأمین مالی توسط مدل خواندن محیط کار برگردانده نشده است."));
+    case "baselines":
+      return empty(locale, t(locale, "No project baseline records are returned by the current workspace read model.", "مدل خواندن فعلی محیط کار هیچ رکورد مبنای پروژه‌ای برنمی‌گرداند."));
+    case "documents":
+      return documentTabBody("general", locale, state);
+    case "history":
+      return empty(locale, t(locale, "Project audit history is not exposed by the current workspace read model.", "تاریخچه ممیزی پروژه در مدل خواندن فعلی محیط کار ارائه نشده است."));
     case "resources":
       return empty(locale, t(locale, "No project resource master is returned by the workspace read model.", "هیچ فهرست مرجع منبع پروژه‌ای توسط مدل خواندن محیط کار برگردانده نشده است."));
     case "codes":
