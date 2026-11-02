@@ -1784,3 +1784,19 @@ test("Bars dialog tabs switch the visible configuration panel", () => {
   assert.equal(panels.find((panel) => panel.dataset.barsPanel === "labels")?.hidden, false);
   assert.equal(panels.find((panel) => panel.dataset.barsPanel === "style")?.hidden, true);
 });
+
+test("workspace status bar displays the six reference status panes without inventing project facts", () => {
+  const html = render("en", "schedule");
+  for (const pane of ["portfolio", "access", "data-date", "baseline", "user", "database"]) {
+    assert.match(html, new RegExp(`data-status-pane="${pane}"`));
+  }
+  assert.match(html, /Portfolio/);
+  assert.match(html, /Authorized session/);
+  assert.match(html, /Data Date/);
+  assert.match(html, /Not loaded/);
+  assert.match(html, /Not assigned/);
+  assert.match(html, /Server-backed/);
+  const persian = render("fa", "schedule");
+  assert.match(persian, /وضعیت محیط کار/);
+  assert.match(persian, /بارگذاری نشده/);
+});
