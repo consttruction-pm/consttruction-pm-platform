@@ -21,6 +21,7 @@ from .p6_expense_repository import P6Expense
 from .scheduling.calendar import WorkingTimeResolver
 from .scheduling.earned_value import ETC_REMAINING_COST
 from .scheduling.evm_source import (
+    EarnedValueCostAdjustment,
     EarnedValueProgress,
     EarnedValueSourceError,
     EarnedValueSourceResult,
@@ -114,7 +115,9 @@ def _progress_rows(
     expenses: Iterable[P6Expense],
     *,
     currency: str,
-) -> tuple[EarnedValueProgress, ...]:
+) -> tuple[tuple[EarnedValueProgress, ...], tuple[EarnedValueCostAdjustment, ...]]:
+    baseline_rows = tuple(baseline)
+    baseline_ids = frozenset(row.activity_id for row in baseline_rows)
     activity_map: dict[str, ActivityMaster] = {}
     for activity in activities:
         if activity.activity_id in activity_map:
@@ -129,6 +132,10 @@ def _progress_rows(
             raise P6EarnedValueReadModelError(
                 f"EVM_ACTUAL_CURRENCY_MISMATCH:{row.activity_id}"
             )
+        if row.activity_id not in baseline_ids:
+            raise P6EarnedValueReadModelError(
+                f"EVM_ACTUAL_ACTIVITY_NOT_IN_BASELINE:{row.activity_id}"
+            )
         if row.actual_cost is None:
             continue
         actual_cost[row.activity_id] = (
@@ -136,14 +143,31 @@ def _progress_rows(
         )
 
     remaining_cost: dict[str, Decimal | None] = {}
+    cost_adjustments: list[EarnedValueCostAdjustment] = []
     for row in expenses:
-        if row.activity_id is None:
-            # WBS-level expenses have no activity EVM row to attach to. Do not
-            # silently spread them across activities.
-            continue
         if row.currency is not None and row.currency != currency:
             raise P6EarnedValueReadModelError(
-                f"EVM_EXPENSE_CURRENCY_MISMATCH:{row.activity_id}"
+                f"EVM_EXPENSE_CURRENCY_MISMATCH:{row.activity_id or row.wbs_id}"
+            )
+        if row.activity_id is None:
+            # A WBS or project expense has no activity EVM row. Keep it as an
+            # attributable cost adjustment instead of spreading it across
+            # activities or silently dropping it.
+            cost_adjustments.append(
+                EarnedValueCostAdjustment(
+                    wbs_id=row.wbs_id,
+                    actual_cost=row.actual_cost or Decimal("0"),
+                    remaining_cost=row.remaining_cost,
+                )
+            )
+            continue
+        if row.activity_id not in baseline_ids:
+            raise P6EarnedValueReadModelError(
+                f"EVM_EXPENSE_ACTIVITY_NOT_IN_BASELINE:{row.activity_id}"
+            )
+        if row.actual_cost is not None:
+            actual_cost[row.activity_id] = (
+                actual_cost.get(row.activity_id, Decimal("0")) + row.actual_cost
             )
         current = remaining_cost.get(row.activity_id, Decimal("0"))
         if current is None or row.remaining_cost is None:
@@ -152,7 +176,7 @@ def _progress_rows(
             remaining_cost[row.activity_id] = current + row.remaining_cost
 
     result: list[EarnedValueProgress] = []
-    for row in baseline:
+    for row in baseline_rows:
         activity_id = row.activity_id
         current = activity_map.get(activity_id)
         if current is None:
@@ -175,6 +199,7 @@ def _progress_rows(
             percent = Decimal("100")
         elif not started:
             percent = Decimal("0")
+        default_remaining = Decimal("0") if completed else None
         result.append(
             EarnedValueProgress(
                 activity_id=activity_id,
@@ -183,10 +208,10 @@ def _progress_rows(
                 completed=completed,
                 actual_cost=actual_cost.get(activity_id, Decimal("0")),
                 currency=currency,
-                remaining_cost=remaining_cost.get(activity_id, Decimal("0")),
+                remaining_cost=remaining_cost.get(activity_id, default_remaining),
             )
         )
-    return tuple(result)
+    return tuple(result), tuple(cost_adjustments)
 
 
 @dataclass(frozen=True)
@@ -216,21 +241,23 @@ class P6EarnedValueReadModelService:
                 f"EVM_BASELINE_ACTIVITIES_EMPTY:{baseline_id}"
             )
         try:
+            progress, cost_adjustments = _progress_rows(
+                baseline,
+                self.activities.list(scope),
+                self.actuals.list(scope),
+                self.expenses.list(scope),
+                currency=currency,
+            )
             result = select_earned_value_sources(
                 (item.to_value() for item in baseline),
-                _progress_rows(
-                    baseline,
-                    self.activities.list(scope),
-                    self.actuals.list(scope),
-                    self.expenses.list(scope),
-                    currency=currency,
-                ),
+                progress,
                 baseline_id=baseline_id,
                 data_date=data_date,
                 currency=currency,
                 resolver=self.resolver,
                 etc_method=etc_method,
                 performance_factor=performance_factor,
+                cost_adjustments=cost_adjustments,
             )
         except EarnedValueSourceError as exc:
             raise P6EarnedValueReadModelError(str(exc)) from exc

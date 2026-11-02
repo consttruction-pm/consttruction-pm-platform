@@ -160,6 +160,40 @@ class EarnedValueProgress:
 
 
 @dataclass(frozen=True)
+class EarnedValueCostAdjustment:
+    """Actual/remaining cost that belongs to a WBS or the project, not an activity.
+
+    Persisted expense rows may target a WBS or the whole project. They are real
+    cost facts for AC/ETC and must not be silently dropped, but they also must
+    not be spread across activity rows. ``wbs_id`` is ``None`` for a
+    project-level expense; a WBS expense must reference a WBS that exists in the
+    selected baseline so the rollup attribution stays traceable.
+    """
+
+    wbs_id: str | None
+    actual_cost: Decimal
+    remaining_cost: Decimal | None = None
+
+    def __post_init__(self) -> None:
+        if self.wbs_id is not None:
+            _identifier(self.wbs_id, "EVM_COST_ADJUSTMENT_WBS_ID_INVALID")
+        object.__setattr__(
+            self,
+            "actual_cost",
+            _decimal(self.actual_cost, "EVM_COST_ADJUSTMENT_ACTUAL_INVALID"),
+        )
+        if self.remaining_cost is not None:
+            object.__setattr__(
+                self,
+                "remaining_cost",
+                _decimal(
+                    self.remaining_cost,
+                    "EVM_COST_ADJUSTMENT_REMAINING_INVALID",
+                ),
+            )
+
+
+@dataclass(frozen=True)
 class EarnedValueActivitySource:
     baseline_id: str
     activity_id: str
@@ -224,6 +258,7 @@ class EarnedValueSourceResult:
     activities: tuple[EarnedValueActivitySource, ...]
     wbs_rollups: tuple[EarnedValueWBSRollup, ...]
     earned_value: EarnedValueResult
+    cost_adjustments: tuple[EarnedValueCostAdjustment, ...] = ()
 
     def canonical_payload(self) -> dict[str, object]:
         return {
@@ -233,6 +268,16 @@ class EarnedValueSourceResult:
             "pv_method": self.pv_method,
             "activities": [item.to_payload() for item in self.activities],
             "wbs_rollups": [item.to_payload() for item in self.wbs_rollups],
+            "cost_adjustments": [
+                {
+                    "wbs_id": item.wbs_id,
+                    "actual_cost": str(item.actual_cost),
+                    "remaining_cost": (
+                        None if item.remaining_cost is None else str(item.remaining_cost)
+                    ),
+                }
+                for item in self.cost_adjustments
+            ],
             "earned_value": self.earned_value.canonical_snapshot(),
         }
 
@@ -348,6 +393,7 @@ def select_earned_value_sources(
     resolver: WorkingTimeResolver,
     etc_method: str = ETC_REMAINING_COST,
     performance_factor: Decimal | None = None,
+    cost_adjustments: Iterable[EarnedValueCostAdjustment] = (),
 ) -> EarnedValueSourceResult:
     """Resolve one baseline/status-date measurement and run the EVM identities."""
 
@@ -400,17 +446,37 @@ def select_earned_value_sources(
         sources.append(source)
         rollups.setdefault(activity.wbs_id, []).append(source)
 
+    baseline_wbs_ids = {
+        activity.wbs_id for activity in activities if activity.wbs_id is not None
+    }
+    adjustments = tuple(cost_adjustments)
+    for adjustment in adjustments:
+        if not isinstance(adjustment, EarnedValueCostAdjustment):
+            raise EarnedValueSourceError("EVM_COST_ADJUSTMENT_REQUIRED")
+        if adjustment.wbs_id is not None and adjustment.wbs_id not in baseline_wbs_ids:
+            raise EarnedValueSourceError(
+                f"EVM_COST_ADJUSTMENT_WBS_NOT_IN_BASELINE:{adjustment.wbs_id}"
+            )
+
     total_pv = sum((item.planned_value for item in sources), Decimal("0"))
     total_ev = sum((item.earned_value for item in sources), Decimal("0"))
-    total_ac = sum((item.actual_cost for item in sources), Decimal("0"))
+    total_ac = sum((item.actual_cost for item in sources), Decimal("0")) + sum(
+        (item.actual_cost for item in adjustments), Decimal("0")
+    )
     total_bac = sum((item.budget_at_completion for item in sources), Decimal("0"))
 
     remaining_values = [progress_by_id[item.activity_id].remaining_cost for item in activities]
-    remaining_cost = (
-        None
-        if any(value is None for value in remaining_values)
-        else sum((value for value in remaining_values if value is not None), Decimal("0"))
-    )
+    if any(item.remaining_cost is None for item in adjustments):
+        remaining_cost = None
+    elif any(value is None for value in remaining_values):
+        remaining_cost = None
+    else:
+        remaining_cost = sum(
+            (value for value in remaining_values if value is not None), Decimal("0")
+        ) + sum(
+            (item.remaining_cost for item in adjustments if item.remaining_cost is not None),
+            Decimal("0"),
+        )
     try:
         earned_value = calculate_earned_value(
             EarnedValueInput(
@@ -426,13 +492,24 @@ def select_earned_value_sources(
     except EarnedValueError as exc:
         raise EarnedValueSourceError(str(exc)) from exc
 
+    adjustment_actual_by_wbs: dict[str, Decimal] = {}
+    for adjustment in adjustments:
+        if adjustment.wbs_id is None:
+            continue
+        adjustment_actual_by_wbs[adjustment.wbs_id] = (
+            adjustment_actual_by_wbs.get(adjustment.wbs_id, Decimal("0"))
+            + adjustment.actual_cost
+        )
+
     wbs_rollups = tuple(
         EarnedValueWBSRollup(
             wbs_id=wbs_id,
             activity_count=len(items),
             planned_value=sum((item.planned_value for item in items), Decimal("0")),
             earned_value=sum((item.earned_value for item in items), Decimal("0")),
-            actual_cost=sum((item.actual_cost for item in items), Decimal("0")),
+            actual_cost=sum(
+                (item.actual_cost for item in items), Decimal("0")
+            ) + (adjustment_actual_by_wbs.get(wbs_id, Decimal("0")) if wbs_id else Decimal("0")),
             budget_at_completion=sum(
                 (item.budget_at_completion for item in items), Decimal("0")
             ),
@@ -451,12 +528,14 @@ def select_earned_value_sources(
         activities=tuple(sources),
         wbs_rollups=wbs_rollups,
         earned_value=earned_value,
+        cost_adjustments=adjustments,
     )
 
 
 __all__ = [
     "BaselineValueActivity",
     "EarnedValueActivitySource",
+    "EarnedValueCostAdjustment",
     "EarnedValueProgress",
     "EarnedValueSourceError",
     "EarnedValueSourceResult",

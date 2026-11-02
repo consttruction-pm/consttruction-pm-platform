@@ -95,14 +95,22 @@ def actual(activity_id: str, cost: str, currency: str = "USD") -> P6ActivityPeri
 
 
 def expense(
-    activity_id: str, remaining: str, currency: str = "USD"
+    activity_id: str | None,
+    remaining: str,
+    currency: str = "USD",
+    *,
+    actual: str | None = None,
+    wbs_id: str | None = None,
+    expense_id: str | None = None,
 ) -> P6Expense:
     return P6Expense(
         scope=scope(),
-        expense_id=f"E-{activity_id}",
+        expense_id=expense_id or f"E-{activity_id or wbs_id or 'project'}",
         name="Remaining",
         category="cost",
         activity_id=activity_id,
+        wbs_id=wbs_id,
+        actual_cost=None if actual is None else Decimal(actual),
         remaining_cost=Decimal(remaining),
         currency=currency,
     )
@@ -305,3 +313,100 @@ def test_api_rejects_datetime_status_date():
             currency="USD",
             auth_context=auth,
         )
+
+
+def test_expense_actual_cost_and_wbs_or_project_costs_are_not_dropped():
+    svc = service(
+        (baseline("A", "W-1", "1000"),),
+        (
+            current(
+                "A", percent=50.0, status=ActivityStatus.IN_PROGRESS,
+                actual_start=date(2026, 11, 2),
+            ),
+        ),
+        actuals=(actual("A", "100"),),
+        expenses=(
+            expense("A", "300", actual="50", expense_id="E-A"),
+            expense(None, "100", actual="25", wbs_id="W-1", expense_id="E-WBS"),
+            expense(None, "50", actual="75", expense_id="E-PROJECT"),
+        ),
+    )
+
+    result = svc.read(scope(), "B-1", data_date=date(2026, 11, 4), currency="USD")
+
+    # AC includes period actuals plus activity, WBS and project expense actuals.
+    assert result.result.earned_value.actual_cost == Decimal("250")
+    assert result.result.earned_value.estimate_to_complete == Decimal("450")
+    assert result.result.earned_value.estimate_at_completion == Decimal("700")
+    assert result.result.earned_value.variance_at_completion == Decimal("300")
+    # The WBS rollup includes its own expense, but not project-level cost.
+    assert result.result.wbs_rollups[0].actual_cost == Decimal("175")
+    assert len(result.result.cost_adjustments) == 2
+    assert result.to_payload()["cost_adjustments"][0]["wbs_id"] == "W-1"
+
+
+def test_cost_rows_outside_the_selected_baseline_fail_closed():
+    common = (
+        (baseline("A", "W-1", "100"),),
+        (
+            current(
+                "A", percent=10.0, status=ActivityStatus.IN_PROGRESS,
+                actual_start=date(2026, 11, 2),
+            ),
+        ),
+    )
+    with pytest.raises(
+        P6EarnedValueReadModelError,
+        match="EVM_ACTUAL_ACTIVITY_NOT_IN_BASELINE:B",
+    ):
+        service(*common, actuals=(actual("B", "10"),)).read(
+            scope(), "B-1", data_date=date(2026, 11, 4), currency="USD"
+        )
+
+    with pytest.raises(
+        P6EarnedValueReadModelError,
+        match="EVM_EXPENSE_ACTIVITY_NOT_IN_BASELINE:B",
+    ):
+        service(*common, expenses=(expense("B", "10"),)).read(
+            scope(), "B-1", data_date=date(2026, 11, 4), currency="USD"
+        )
+
+    with pytest.raises(
+        P6EarnedValueReadModelError,
+        match="EVM_COST_ADJUSTMENT_WBS_NOT_IN_BASELINE:W-9",
+    ):
+        service(
+            *common,
+            expenses=(expense(None, "10", wbs_id="W-9"),),
+        ).read(scope(), "B-1", data_date=date(2026, 11, 4), currency="USD")
+
+
+def test_missing_remaining_cost_for_unfinished_work_fails_closed_but_completed_is_zero():
+    svc = service(
+        (baseline("A", "W-1", "100"),),
+        (
+            current(
+                "A", percent=50.0, status=ActivityStatus.IN_PROGRESS,
+                actual_start=date(2026, 11, 2),
+            ),
+        ),
+        actuals=(actual("A", "40"),),
+    )
+    with pytest.raises(
+        P6EarnedValueReadModelError, match="EARNED_VALUE_REMAINING_COST_REQUIRED"
+    ):
+        svc.read(scope(), "B-1", data_date=date(2026, 11, 4), currency="USD")
+
+    completed = service(
+        (baseline("A", "W-1", "100"),),
+        (
+            current(
+                "A", percent=100.0, status=ActivityStatus.COMPLETED,
+                actual_start=date(2026, 11, 2),
+                actual_finish=date(2026, 11, 6),
+            ),
+        ),
+        actuals=(actual("A", "90"),),
+    ).read(scope(), "B-1", data_date=date(2026, 11, 6), currency="USD")
+    assert completed.result.earned_value.estimate_to_complete == Decimal("0")
+    assert completed.result.earned_value.estimate_at_completion == Decimal("90")

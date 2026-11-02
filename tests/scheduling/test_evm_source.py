@@ -15,6 +15,7 @@ from construction_pm.scheduling.evm_source import (
     EVM_TECHNIQUE_WBS_MILESTONE,
     EVM_TECHNIQUE_ZERO_HUNDRED,
     BaselineValueActivity,
+    EarnedValueCostAdjustment,
     EarnedValueProgress,
     EarnedValueSourceError,
     select_earned_value_sources,
@@ -389,3 +390,51 @@ def test_result_payload_is_canonical_and_includes_the_pv_method():
     assert payload["data_date"] == "2026-11-04"
     assert Decimal(payload["activities"][0]["planned_value"]) == Decimal("60")
     assert payload["earned_value"]["etc_method"] == "PF_ONE"
+    assert payload["cost_adjustments"] == []
+
+
+def test_wbs_and_project_cost_adjustments_are_attributed_without_rebudgeting():
+    result = select_earned_value_sources(
+        (
+            baseline(
+                "A", start=date(2026, 11, 2), finish=date(2026, 11, 6),
+                budget="1000", wbs_id="W-1",
+            ),
+        ),
+        (progress("A", percent="50", started=True, actual_cost="100",
+                  remaining_cost="300"),),
+        baseline_id="B-1", data_date=date(2026, 11, 4),
+        currency="USD", resolver=resolver(),
+        cost_adjustments=(
+            EarnedValueCostAdjustment("W-1", Decimal("25"), Decimal("100")),
+            EarnedValueCostAdjustment(None, Decimal("75"), Decimal("50")),
+        ),
+    )
+
+    assert result.earned_value.actual_cost == Decimal("200")
+    assert result.earned_value.estimate_to_complete == Decimal("450")
+    assert result.earned_value.estimate_at_completion == Decimal("650")
+    assert result.earned_value.budget_at_completion == Decimal("1000")
+    # The WBS adjustment is in its own rollup; the project adjustment is only
+    # in the project total and must not be spread across activity/WBS rows.
+    assert result.wbs_rollups[0].actual_cost == Decimal("125")
+    assert result.wbs_rollups[0].budget_at_completion == Decimal("1000")
+
+
+def test_cost_adjustment_must_reference_a_baseline_wbs():
+    with pytest.raises(
+        EarnedValueSourceError,
+        match="EVM_COST_ADJUSTMENT_WBS_NOT_IN_BASELINE:W-9",
+    ):
+        select_earned_value_sources(
+            (
+                baseline(
+                    "A", start=date(2026, 11, 2), finish=date(2026, 11, 6),
+                    budget="100", wbs_id="W-1",
+                ),
+            ),
+            (progress("A"),),
+            baseline_id="B-1", data_date=date(2026, 11, 4),
+            currency="USD", resolver=resolver(),
+            cost_adjustments=(EarnedValueCostAdjustment("W-9", Decimal("5")),),
+        )
