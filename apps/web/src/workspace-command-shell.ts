@@ -1,3 +1,5 @@
+import { translateWorkspaceText } from "./workspace-localization.js";
+
 /**
  * CUBI visual command surface.
  *
@@ -88,7 +90,8 @@ const faCommandLabels: Record<string, string> = {
 };
 
 function commandLabel(locale: string, value: string): string {
-  return locale === "fa" ? (faCommandLabels[value] ?? value) : value;
+  if (locale.split("-")[0].toLowerCase() === "fa") return faCommandLabels[value] ?? value;
+  return translateWorkspaceText(locale, `command.${value}`, value);
 }
 
 function esc(value: string): string {
