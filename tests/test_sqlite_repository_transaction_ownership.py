@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 
 import pytest
 
@@ -18,7 +19,12 @@ from construction_pm.p6_resource_assignment_repository import (
 )
 from construction_pm.p6_resource_capacity_repository import SQLiteP6ResourceCapacityRepository
 from construction_pm.p6_resource_spread_repository import SQLiteP6ResourceSpreadRepository
-from construction_pm.resources.persistence import ContextScopedSQLiteResourceRepository
+from construction_pm.resources.persistence import (
+    ContextScopedSQLiteResourceRepository,
+    SQLiteResourceRepository,
+)
+from construction_pm.resources.context import ProjectContext
+from construction_pm.resources.models import CostBasis, Resource, ResourceRate, ResourceType
 from construction_pm.p6_role_repository import P6Role, SQLiteP6RoleRepository
 from construction_pm.project_schedule_settings_repository import SQLiteProjectScheduleSettingsRepository
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository
@@ -42,6 +48,7 @@ REPOSITORIES = [
     pytest.param(SQLiteCalculationContextRepository, id="calculation-context"),
     pytest.param(SQLiteScheduleInputSnapshotRepository, id="schedule-snapshot"),
     pytest.param(ContextScopedSQLiteResourceRepository, id="context-scoped-resources"),
+    pytest.param(SQLiteResourceRepository, id="legacy-resource-schema"),
 ]
 
 
@@ -101,3 +108,45 @@ def test_role_repository_save_participates_in_caller_transaction():
 
     assert repository.get("tenant-1", "project-1", 3, "ROLE-1") is None
     connection.close()
+
+
+
+def test_context_scoped_resource_repository_persists_and_isolates_project_data(tmp_path):
+    database = tmp_path / "project-resources.sqlite3"
+    owner = ProjectContext("tenant-1", "company-1", "project-1")
+    other_project = ProjectContext("tenant-1", "company-1", "project-2")
+    resource = Resource(
+        id="MAT-001",
+        code="CONC-40",
+        name="Ready-mix concrete",
+        resource_type=ResourceType.MATERIAL,
+        unit="m3",
+        rates=[
+            ResourceRate(
+                rate=Decimal("115.25"),
+                basis=CostBasis.PER_UNIT,
+                currency="EUR",
+                version=1,
+            )
+        ],
+    )
+
+    connection = sqlite3.connect(database)
+    repository = ContextScopedSQLiteResourceRepository(connection)
+    repository.save_resource(owner, resource, expected_revision=0)
+    assert repository.get_resource_revision(owner, "MAT-001") == 1
+    assert repository.get_resource(other_project, "MAT-001") is None
+    connection.close()
+
+    reopened = sqlite3.connect(database)
+    restored = ContextScopedSQLiteResourceRepository(reopened)
+    value = restored.get_resource(owner, "MAT-001")
+    assert value is not None
+    assert value.name == "Ready-mix concrete"
+    assert value.rates[0].rate == Decimal("115.25")
+    assert restored.get_resource(other_project, "MAT-001") is None
+    assert reopened.execute(
+        "SELECT version FROM cubi_local_schema_versions WHERE component=?",
+        ("context_scoped_resource_repository",),
+    ).fetchone() == (1,)
+    reopened.close()
