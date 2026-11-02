@@ -157,6 +157,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> P6ResourceAssignm
 class SQLiteP6ResourceAssignmentRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         self.connection.execute(
@@ -202,7 +203,8 @@ class SQLiteP6ResourceAssignmentRepository:
             ON p6_resource_assignment
             (tenant_id, project_id, project_revision, activity_id, resource_id, assignment_id)"""
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def upsert(self, assignment: P6ResourceAssignment) -> P6ResourceAssignment:
         assignment.validate()
@@ -525,6 +527,7 @@ def _period_from_row(
 class SQLiteP6ResourceAssignmentPeriodRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         self.connection.execute(
@@ -546,7 +549,8 @@ class SQLiteP6ResourceAssignmentPeriodRepository:
             ON p6_resource_assignment_period_value
             (tenant_id, project_id, project_revision, activity_id, resource_id, period_start)"""
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def upsert(self, value: P6ResourceAssignmentPeriodValue) -> P6ResourceAssignmentPeriodValue:
         value.validate()
