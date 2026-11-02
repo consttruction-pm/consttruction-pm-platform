@@ -632,6 +632,17 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     settings: "settings",
   };
   const activityFilterLabel = state.activityFilter.trim() || uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
+  const windowTabs = ([
+    ["project", uiText(state.locale, "Projects", "پروژه‌ها")],
+    ["schedule", uiText(state.locale, "Activities", "فعالیت‌ها")],
+    ["progress", uiText(state.locale, "Progress", "پیشرفت")],
+    ["resources", uiText(state.locale, "Resources", "منابع")],
+    ["cost", uiText(state.locale, "Cost", "هزینه")],
+    ["documents", uiText(state.locale, "Documents", "اسناد")],
+    ["reports", uiText(state.locale, "Reports", "گزارش‌ها")],
+    ["control", uiText(state.locale, "Project Controls", "کنترل پروژه")],
+    ["settings", uiText(state.locale, "Settings", "تنظیمات")],
+  ] as const);
 
   container.innerHTML = `
     <section class="cp-workspace cp-p6-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}">
@@ -642,28 +653,42 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         <button type="button" id="cp-project-settings-open" class="cp-project-settings-open" data-project-settings aria-label="${escapeAttribute(t.projectSettings)}">${escapeHtml(t.projectSettings)}</button>
       </header>
       <div class="cp-p6-shell">
-        <nav class="cp-menu cp-p6-rail" aria-label="${escapeAttribute(t.mainMenu)}">
-          <button type="button" class="cp-rail-button cp-rail-theme" data-rail-action="navigation" title="${escapeAttribute(rail.menu)}" aria-label="${escapeAttribute(rail.menu)}">${workspaceIcon("group")}<span class="cp-rail-label">${escapeHtml(rail.menu)}</span></button>
-          ${(Object.keys(railMenuIcons) as WorkspaceState["activeMenu"][]).map((key) => menuButton(key, key === "schedule" ? t.schedule : key === "project" ? t.project : key === "progress" ? t.progress : key === "resources" ? t.resources : key === "cost" ? t.cost : key === "documents" ? t.documents : key === "reports" ? t.reports : key === "control" ? t.control : t.settings, state, railMenuIcons[key])).join("")}
-          <span class="cp-rail-separator" aria-hidden="true"></span>
-          ${railActionButton("projects", rail.projects, "folder")}
-          ${railActionButton("eps", rail.eps, "portfolio")}
-          ${railActionButton("wbs", rail.wbs, "wbs")}
-          ${railActionButton("activities", rail.activities, "activity")}
-          ${railActionButton("resources", rail.resources, "resource")}
-          ${railActionButton("assignments", rail.assignments, "link")}
-          ${railActionButton("reports", rail.reports, "print")}
-          ${railActionButton("documents", rail.documents, "file")}
-          ${railActionButton("expenses", rail.expenses, "money")}
-          ${railActionButton("risks", rail.risks, "warning")}
-          ${railActionButton("issues", rail.issues, "warning")}
-          ${railActionButton("forms", rail.forms, "forms")}
-          ${railActionButton("settings", rail.settings, "settings")}
-          <span class="cp-rail-separator" aria-hidden="true"></span>
-          ${railActionButton("tools", rail.tools, "tools")}
+        <nav class="cp-menu cp-p6-rail cp-navigation-tree" aria-label="${escapeAttribute(t.mainMenu)}">
+          <div class="cp-nav-tree-title">${workspaceIcon("group")}<strong>${escapeHtml(rail.menu)}</strong></div>
+          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
+            ${menuButton("project", t.project, state, railMenuIcons.project)}
+            ${railActionButton("eps", rail.eps, "portfolio")}
+            ${railActionButton("wbs", rail.wbs, "wbs")}
+          </div>
+          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Planning & execution", "برنامه‌ریزی و اجرا"))}</span>
+            ${menuButton("schedule", t.schedule, state, railMenuIcons.schedule)}
+            ${railActionButton("activities", rail.activities, "activity")}
+            ${menuButton("progress", t.progress, state, railMenuIcons.progress)}
+          </div>
+          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Resources & cost", "منابع و هزینه"))}</span>
+            ${menuButton("resources", t.resources, state, railMenuIcons.resources)}
+            ${railActionButton("assignments", rail.assignments, "link")}
+            ${menuButton("cost", t.cost, state, railMenuIcons.cost)}
+            ${railActionButton("expenses", rail.expenses, "money")}
+          </div>
+          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project information", "اطلاعات پروژه"))}</span>
+            ${menuButton("documents", t.documents, state, railMenuIcons.documents)}
+            ${railActionButton("reports", rail.reports, "print")}
+            ${menuButton("control", t.control, state, railMenuIcons.control)}
+            ${railActionButton("risks", rail.risks, "warning")}
+            ${railActionButton("issues", rail.issues, "warning")}
+          </div>
+          <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "CUBI tools & administration", "ابزارها و مدیریت CUBI"))}</span>
+            ${railActionButton("forms", uiText(state.locale, "Form Builder", "فرم‌ساز"), "forms")}
+            ${menuButton("settings", t.settings, state, railMenuIcons.settings)}
+            ${railActionButton("tools", rail.tools, "tools")}
+          </div>
         </nav>
         <div class="cp-p6-body">
           ${renderWorkspaceCommandShell(state.locale)}
+          <nav class="cp-window-tabs" aria-label="${escapeAttribute(uiText(state.locale, "Workspace windows", "پنجره‌های محیط کار"))}" role="tablist">
+            ${windowTabs.map(([key, label]) => `<button type="button" role="tab" data-menu="${key}" aria-selected="${key === state.activeMenu}" aria-current="${key === state.activeMenu ? "page" : "false"}" class="cp-window-tab${key === state.activeMenu ? " is-active" : ""}">${escapeHtml(label)}</button>`).join("")}
+          </nav>
           <header class="cp-p6-activity-header" data-activity-header>
             <span class="cp-p6-activity-heading">
               <strong>${escapeHtml(navigationLabel)}</strong>
@@ -742,7 +767,15 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             </aside>
           </div>
         </div>
-        <aside class="cp-comments-dock-rail" aria-label="${escapeAttribute(rail.comments)}">
+        <aside class="cp-comments-dock-rail cp-context-command-rail" aria-label="${escapeAttribute(uiText(state.locale, "Contextual commands", "فرمان‌های زمینه‌ای"))}">
+          <details class="cp-context-add-menu">
+            <summary title="${escapeAttribute(uiText(state.locale, "Add", "افزودن"))}" aria-label="${escapeAttribute(uiText(state.locale, "Add", "افزودن"))}">+</summary>
+            <div class="cp-context-add-popup" role="menu" aria-label="${escapeAttribute(uiText(state.locale, "Add to current window", "افزودن به پنجره جاری"))}">
+              <strong>${escapeHtml(uiText(state.locale, "Add to current window", "افزودن به پنجره جاری"))}</strong>
+              ${["Activity","WBS element","Relationship","Resource assignment","Expense","Document","Issue","Risk"].map((label) => `<button type="button" role="menuitem" disabled title="${escapeAttribute(uiText(state.locale, "Visual entry only; the owning create workflow is not connected yet.", "گزینه نمایشی است؛ گردش‌کار ایجاد هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, label, label))}</button>`).join("")}
+            </div>
+          </details>
+          <span class="cp-rail-separator" aria-hidden="true"></span>
           <button type="button" class="cp-rail-button cp-comments-toggle" data-comments-toggle title="${escapeAttribute(rail.comments)}" aria-label="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span class="cp-rail-label">${escapeHtml(rail.comments)}</span></button>
           <button type="button" class="cp-rail-button" data-rail-action="notebook" title="${escapeAttribute(rail.notes)}" aria-label="${escapeAttribute(rail.notes)}">${workspaceIcon("book")}<span class="cp-rail-label">${escapeHtml(rail.notes)}</span></button>
           <button type="button" class="cp-rail-button" data-rail-action="documents" title="${escapeAttribute(rail.documents)}" aria-label="${escapeAttribute(rail.documents)}">${workspaceIcon("file")}<span class="cp-rail-label">${escapeHtml(rail.documents)}</span></button>
