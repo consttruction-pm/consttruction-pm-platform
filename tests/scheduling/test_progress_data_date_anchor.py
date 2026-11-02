@@ -75,7 +75,10 @@ def test_successor_is_driven_by_data_date_anchored_remaining_finish(resolver):
     assert result.early_activities["B"].finish == date(2026, 9, 29)
 
 
-def test_unstarted_activity_is_not_scheduled_before_the_data_date(resolver):
+def test_unstarted_activity_keeps_its_logical_early_date(resolver):
+    # P6 keeps the remaining early dates of an activity without progress equal
+    # to its early dates; the data date anchors remaining work of progressed
+    # activities, it does not postpone unstarted work to the reporting date.
     result = schedule(
         [Activity("P", 2), Activity("S", 2)],
         [Relationship("P", "S", RelationshipType.FS)],
@@ -85,9 +88,10 @@ def test_unstarted_activity_is_not_scheduled_before_the_data_date(resolver):
         options=ScheduleOptions(data_date=date(2026, 9, 24)),
     )
 
-    assert result.early_activities["P"].start == date(2026, 9, 24)
-    assert result.early_activities["P"].finish == date(2026, 9, 25)
-    assert result.early_activities["S"].start == date(2026, 9, 28)
+    assert result.early_activities["P"].start == date(2026, 9, 21)
+    assert result.early_activities["P"].finish == date(2026, 9, 22)
+    assert result.early_activities["S"].start == date(2026, 9, 23)
+    assert result.early_activities["S"].finish == date(2026, 9, 24)
 
 
 def test_retained_logic_waits_for_predecessor_and_data_date(resolver):
@@ -107,12 +111,13 @@ def test_retained_logic_waits_for_predecessor_and_data_date(resolver):
         ),
     )
 
-    # P is rescheduled from the data date and finishes 9/28. S started out of
-    # sequence (9/22), so retained logic places its remaining work after P.
-    assert result.early_activities["P"].start == date(2026, 9, 23)
-    assert result.early_activities["P"].finish == date(2026, 9, 28)
-    assert result.early_activities["S"].remaining_start == date(2026, 9, 29)
-    assert result.early_activities["S"].finish == date(2026, 9, 30)
+    # P is unstarted and keeps its logical early dates (9/21-9/24). S started
+    # out of sequence (9/22), so retained logic places its remaining work
+    # after P's finish.
+    assert result.early_activities["P"].start == date(2026, 9, 21)
+    assert result.early_activities["P"].finish == date(2026, 9, 24)
+    assert result.early_activities["S"].remaining_start == date(2026, 9, 25)
+    assert result.early_activities["S"].finish == date(2026, 9, 28)
 
 
 def test_progress_override_ignores_predecessor_for_remaining_work(resolver):
@@ -190,9 +195,12 @@ def test_completed_activity_keeps_actual_dates_in_every_mode(resolver, mode):
     assert early.remaining_finish is None
 
 
-def test_data_date_on_nonwork_day_moves_to_next_working_day(resolver):
+def test_data_date_on_nonwork_day_moves_remaining_start_to_next_working_day(resolver):
+    activity = Activity(
+        "A", 5, actual_start=date(2026, 9, 21), remaining_duration=2
+    )
     result = schedule(
-        [Activity("A", 2)],
+        [activity],
         [],
         PROJECT_START,
         resolver,
@@ -200,7 +208,8 @@ def test_data_date_on_nonwork_day_moves_to_next_working_day(resolver):
         options=ScheduleOptions(data_date=date(2026, 9, 26)),
     )
 
-    assert result.early_activities["A"].start == date(2026, 9, 28)
+    assert result.early_activities["A"].remaining_start == date(2026, 9, 28)
+    assert result.early_activities["A"].finish == date(2026, 9, 29)
 
 
 def test_backward_pass_uses_remaining_duration_not_at_completion_duration(resolver):

@@ -158,12 +158,14 @@ def test_preview_runtime_serves_real_calculated_reads_and_rejects_stale_revision
         )
         assert a130["wbs_id"] == "2 Civil works"
         assert a130["cells"]["activity.early_start"] == "2026-10-07"
-        assert a130["cells"]["activity.early_finish"] == "2026-10-13"
-        assert a130["cells"]["activity.total_float"] == -3
+        # Remaining work cannot be performed before the data date (2026-10-12):
+        # five remaining working days project the finish to 2026-10-16.
+        assert a130["cells"]["activity.early_finish"] == "2026-10-16"
+        assert a130["cells"]["activity.total_float"] == 0
         assert a130["cells"]["activity.is_critical"] is True
         assert a130["gantt"] == {
             "start": "2026-10-07",
-            "finish": "2026-10-13",
+            "finish": "2026-10-16",
             "progressPercent": 37.5,
             "critical": True,
         }

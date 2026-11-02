@@ -270,15 +270,6 @@ def forward_pass(
             ]
             logic_start = activity_resolver.normalize_start(max(start_requirements))
 
-        if not progressed and data_date is not None:
-            # When a Data Date is supplied, P6 schedules every remaining
-            # activity from that date, so unstarted work whose logical
-            # predecessors finished earlier cannot be placed before the start
-            # of the current work period.
-            logic_start = activity_resolver.normalize_start(
-                max(logic_start, data_date)
-            )
-
         if completed:
             if activity.actual_start is None or activity.actual_finish is None:
                 raise ValueError("completed activity requires actual dates")
