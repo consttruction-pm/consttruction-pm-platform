@@ -16,6 +16,10 @@ const localeDefinitions = new Map<string, WorkspaceLocaleDefinition>([
   ["fa", { locale: "fa", displayName: "فارسی", direction: "rtl", translations: {} }],
   ["de", { locale: "de", displayName: "Deutsch", direction: "ltr", translations: {} }],
   ["zh", { locale: "zh", displayName: "中文", direction: "ltr", translations: {} }],
+  ["ar", { locale: "ar", displayName: "العربية", direction: "rtl", translations: {} }],
+  ["fr", { locale: "fr", displayName: "Français", direction: "ltr", translations: {} }],
+  ["ja", { locale: "ja", displayName: "日本語", direction: "ltr", translations: {} }],
+  ["ko", { locale: "ko", displayName: "한국어", direction: "ltr", translations: {} }],
 ]);
 
 /** Register translations from a verified, activated language pack. Keys are stable IDs, not English labels. */
