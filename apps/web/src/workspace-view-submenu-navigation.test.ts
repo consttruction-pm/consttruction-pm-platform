@@ -9,7 +9,7 @@ type RenderContainer = {
   querySelectorAll: () => HTMLElement[];
 };
 
-function render(activeMenu: "schedule" | "reports"): string {
+function render(activeMenu: "schedule" | "reports" | "tracking"): string {
   const state = {
     ...createWorkspaceState(
       { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
@@ -34,10 +34,22 @@ test("implemented submenu items navigate to the corresponding workspace panels",
   assert.match(html, /id="cp-gantt"/);
 });
 
-test("preview-only submenu items remain non-interactive", () => {
+test("Reports submenu items open their read-only report center tabs", () => {
   const html = render("reports");
 
-  assert.match(html, /<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">Reports<\/span>/);
-  assert.match(html, /<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">Print<\/span>/);
+  assert.match(html, /data-navigation-action="reports-tab:library"/);
+  assert.match(html, /data-navigation-action="reports-tab:layouts"/);
+  assert.match(html, /data-navigation-action="reports-tab:page-setup"/);
+  assert.match(html, /data-navigation-action="reports-tab:export"/);
+  assert.match(html, /class="cp-reports-center"/);
+  assert.match(html, /disabled until the report service is connected/);
   assert.doesNotMatch(html, /href="#cp-/);
+});
+
+test("unimplemented Tracking submenu items remain non-interactive", () => {
+  const html = render("tracking");
+
+  assert.match(html, /<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">Project Table<\/span>/);
+  assert.match(html, /<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">Resource Analysis<\/span>/);
+  assert.doesNotMatch(html, /data-navigation-action="tracking-layout/);
 });
