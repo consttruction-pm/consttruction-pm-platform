@@ -547,7 +547,7 @@ export function renderCapacityPanel(
       <label>${escapeHtml(labels.resolveHours)}
         <input type="text" inputmode="decimal" data-capacity-resolve-hours autocomplete="off" disabled>
       </label>
-      <button type="submit" data-capacity-resolve>${escapeHtml(
+      <button type="button" data-capacity-resolve>${escapeHtml(
         labels.resolveAction,
       )}</button>
     </form>
