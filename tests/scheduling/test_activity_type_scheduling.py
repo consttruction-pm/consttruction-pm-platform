@@ -432,3 +432,85 @@ def test_start_and_finish_milestones_are_zero_duration_events_in_network(resolve
         date(2026, 11, 6),
     )
     assert result["SM"].duration == result["FM"].duration == 0
+
+
+@pytest.mark.parametrize(
+    "milestone_type",
+    [ActivityType.START_MILESTONE, ActivityType.FINISH_MILESTONE],
+)
+@pytest.mark.parametrize(
+    ("relationship_type", "expected_start", "expected_finish"),
+    [
+        (RelationshipType.FS, date(2026, 11, 3), date(2026, 11, 5)),
+        (RelationshipType.SS, date(2026, 11, 2), date(2026, 11, 4)),
+        (RelationshipType.FF, date(2026, 10, 29), date(2026, 11, 2)),
+        (RelationshipType.SF, date(2026, 10, 29), date(2026, 11, 2)),
+    ],
+)
+def test_milestone_predecessor_supports_every_relationship_type(
+    resolver, milestone_type, relationship_type, expected_start, expected_finish
+):
+    # P6 Release 24.12 removed the former milestone-only relationship
+    # restrictions: any relationship type may attach to a start or finish
+    # milestone. The milestone remains a zero-duration event at the project
+    # start and the successor is placed by the declared relationship end.
+    activities = [
+        _activity("M", 0, activity_type=milestone_type, wbs_id="W-ROOT"),
+        _activity("T", 3, wbs_id="W-ROOT"),
+    ]
+
+    result = forward_pass(
+        activities,
+        [Relationship("M", "T", relationship_type)],
+        date(2026, 11, 2),
+        resolver,
+    )
+
+    assert (result["M"].start, result["M"].finish) == (
+        date(2026, 11, 2),
+        date(2026, 11, 2),
+    )
+    assert result["M"].duration == 0
+    assert (result["T"].start, result["T"].finish) == (
+        expected_start,
+        expected_finish,
+    )
+
+
+@pytest.mark.parametrize(
+    "milestone_type",
+    [ActivityType.START_MILESTONE, ActivityType.FINISH_MILESTONE],
+)
+@pytest.mark.parametrize(
+    ("relationship_type", "expected_event_date"),
+    [
+        (RelationshipType.FS, date(2026, 11, 5)),
+        (RelationshipType.SS, date(2026, 11, 2)),
+        (RelationshipType.FF, date(2026, 11, 4)),
+        (RelationshipType.SF, date(2026, 11, 2)),
+    ],
+)
+def test_milestone_successor_supports_every_relationship_type(
+    resolver, milestone_type, relationship_type, expected_event_date
+):
+    activities = [
+        _activity("T", 3, wbs_id="W-ROOT"),
+        _activity("M", 0, activity_type=milestone_type, wbs_id="W-ROOT"),
+    ]
+
+    result = forward_pass(
+        activities,
+        [Relationship("T", "M", relationship_type)],
+        date(2026, 11, 2),
+        resolver,
+    )
+
+    assert (result["T"].start, result["T"].finish) == (
+        date(2026, 11, 2),
+        date(2026, 11, 4),
+    )
+    assert (result["M"].start, result["M"].finish) == (
+        expected_event_date,
+        expected_event_date,
+    )
+    assert result["M"].duration == 0

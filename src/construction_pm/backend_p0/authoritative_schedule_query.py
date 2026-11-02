@@ -181,6 +181,11 @@ def _date_activity_fact(value, floats) -> dict[str, object]:
         "late_finish": floats.late_finish.isoformat(),
         "total_float": floats.total_float,
         "free_float": floats.free_float,
+        # WBS Summary activities carry the aggregate of their descendants.
+        # Task rows report None because their source Activity row already owns
+        # the persisted progress facts.
+        "percent_complete": value.percent_complete,
+        "status": None if value.status is None else value.status.value,
     }
 
 

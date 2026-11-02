@@ -14,13 +14,14 @@ from construction_pm.control_intelligence.contracts import ControlScope
 from construction_pm.control_intelligence.query import ScheduleQueryRequest
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository, build_persisted_context
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, build_snapshot
-from construction_pm.scheduling.activity import Activity, ActivityType
+from construction_pm.scheduling.activity import Activity, ActivityStatus, ActivityType
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.resource_dependent import (
     ResourceDependentDemandPeriod,
     ResourceDependentDriverFact,
@@ -815,3 +816,174 @@ def test_query_translates_infeasible_snapshot_into_stable_validation_code():
         assert exc.code == "SCHEDULE_INFEASIBLE:CONSTRAINT_WINDOW_EMPTY"
     else:
         raise AssertionError("infeasible snapshot was accepted")
+
+
+def test_query_exposes_wbs_summary_aggregated_progress_from_persisted_ancestry():
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    calendar = CalendarReference("CAL-1", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-WBS-PROGRESS",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(
+            Activity(
+                "DONE",
+                2,
+                actual_start=date(2026, 11, 2),
+                actual_finish=date(2026, 11, 3),
+                remaining_duration=0,
+                percent_complete=100,
+                status=ActivityStatus.COMPLETED,
+                wbs_id="W-CHILD",
+                wbs_ancestry=("W-ROOT",),
+            ),
+            Activity(
+                "HALF",
+                4,
+                actual_start=date(2026, 11, 2),
+                remaining_duration=2,
+                percent_complete=50,
+                status=ActivityStatus.IN_PROGRESS,
+                wbs_id="W-ROOT",
+            ),
+            Activity("NEW", 3, wbs_id="W-ROOT"),
+            Activity(
+                "WBS",
+                0,
+                activity_type=ActivityType.WBS_SUMMARY,
+                wbs_id="W-ROOT",
+            ),
+        ),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 11, 2),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-WBS-PROGRESS",
+        tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    request = ScheduleQueryRequest(
+        "Q-WBS-PROGRESS",
+        ControlScope("T-1", "P-1", 9),
+        "user-1",
+        "wbs summary progress",
+        constraints={"snapshot_id": "S-WBS-PROGRESS"},
+    )
+    answer = service.execute(
+        request,
+        auth_context=AuthorizationContext(
+            "T-1", "P-1", "user-1", frozenset({"viewer"})
+        ),
+        calculation_context=context,
+    )
+
+    summary = answer.data["activities"]["WBS"]
+    # (100 + 50 + 0) / 3 over the same and subordinate WBS descendants.
+    assert summary["percent_complete"] == 50.0
+    assert summary["status"] == "In Progress"
+    # Task rows do not duplicate persisted progress in the schedule answer.
+    assert answer.data["activities"]["NEW"]["percent_complete"] is None
+    assert answer.data["activities"]["NEW"]["status"] is None
+
+
+def test_persisted_start_and_finish_milestones_place_successors_from_their_event():
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    calendar = CalendarReference("CAL-1", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-MILESTONES",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(
+            Activity(
+                "SM",
+                0,
+                activity_type=ActivityType.START_MILESTONE,
+                wbs_id="W-ROOT",
+            ),
+            Activity("A", 3, wbs_id="W-ROOT"),
+            Activity(
+                "FM",
+                0,
+                activity_type=ActivityType.FINISH_MILESTONE,
+                wbs_id="W-ROOT",
+            ),
+        ),
+        relationships=(
+            Relationship("SM", "A", RelationshipType.FS),
+            Relationship("A", "FM", RelationshipType.FS),
+        ),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 11, 2),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-MILESTONES",
+        tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    request = ScheduleQueryRequest(
+        "Q-MILESTONES",
+        ControlScope("T-1", "P-1", 9),
+        "user-1",
+        "milestone placement",
+        constraints={"snapshot_id": "S-MILESTONES"},
+    )
+    answer = service.execute(
+        request,
+        auth_context=AuthorizationContext(
+            "T-1", "P-1", "user-1", frozenset({"viewer"})
+        ),
+        calculation_context=context,
+    )
+
+    facts = answer.data["activities"]
+    assert (facts["SM"]["start"], facts["SM"]["finish"]) == (
+        "2026-11-02",
+        "2026-11-02",
+    )
+    assert (facts["A"]["start"], facts["A"]["finish"]) == (
+        "2026-11-03",
+        "2026-11-05",
+    )
+    assert (facts["FM"]["start"], facts["FM"]["finish"]) == (
+        "2026-11-06",
+        "2026-11-06",
+    )
