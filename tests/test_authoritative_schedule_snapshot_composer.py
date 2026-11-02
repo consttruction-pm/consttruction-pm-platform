@@ -202,6 +202,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         resource_assignment_repository=resource_assignments,
         resource_period_repository=resource_periods,
         project_schedule_settings_repository=settings_repo,
+        wbs_repository=wbs_repo,
     )
     if fail_context_write:
         class FailingContextRepository:
@@ -260,6 +261,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "connection": connection,
         "scope": scope,
         "activity_repo": activity_repo,
+        "wbs_repo": wbs_repo,
         "relationship_repo": relationship_repo,
         "snapshot_repo": snapshot_repo,
         "context_repo": context_repo,
@@ -1763,40 +1765,204 @@ def test_resource_dependent_activity_publication_fails_closed_for_unknown_drivin
     fixture["connection"].close()
 
 
-@pytest.mark.parametrize(
-    ("activity_type", "code"),
-    [
-        (ActivityType.LEVEL_OF_EFFORT, "LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED"),
-        (ActivityType.WBS_SUMMARY, "WBS_SUMMARY_SCHEDULING_UNSUPPORTED"),
-    ],
-)
-def test_unsupported_activity_types_fail_closed_before_scheduling(
-    tmp_path, activity_type, code
-):
+def test_level_of_effort_and_wbs_summary_schedule_end_to_end(tmp_path):
     fixture = _fixture(tmp_path)
     app = fixture["app"]
     scope = fixture["scope"]
-    activity_id = "UNSUPPORTED-TYPE"
-    status, _ = _request(
-        app,
-        "POST",
-        "/api/projects/p1/p6/activities",
+    fixture["wbs_repo"].save(
+        WBSMaster(
+            scope,
+            "W-CHILD",
+            WBSParentKind.WBS,
+            "W-ROOT",
+            "1.1",
+            "Child Work",
+            0,
+        )
+    )
+
+    for activity in (
         {
-            "contract_version": "p6-activity-master-api.v1",
-            "activity_id": activity_id,
-            "name": "Type-specific semantics not implemented",
+            "activity_id": "LOE-P",
+            "name": "Predecessor",
+            "duration_value": "3",
+            "activity_type": ActivityType.TASK_DEPENDENT.value,
+            "wbs_id": "W-CHILD",
+        },
+        {
+            "activity_id": "LOE-S",
+            "name": "Finish successor",
+            "duration_value": "5",
+            "activity_type": ActivityType.TASK_DEPENDENT.value,
+            "wbs_id": "W-CHILD",
+        },
+        {
+            "activity_id": "LOE-1",
+            "name": "Ongoing effort",
             "duration_value": "1",
-            "duration_unit": "working-day",
-            "activity_type": activity_type.value,
+            "activity_type": ActivityType.LEVEL_OF_EFFORT.value,
+            "wbs_id": "W-CHILD",
+        },
+        {
+            "activity_id": "WBS-1",
+            "name": "Work summary",
+            "duration_value": "0",
+            "activity_type": ActivityType.WBS_SUMMARY.value,
             "wbs_id": "W-ROOT",
         },
-    )
-    assert status == "201 Created"
+    ):
+        status, _ = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/activities",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "duration_unit": "working-day",
+                **activity,
+            },
+        )
+        assert status == "201 Created"
+
+    for relationship in (
+        ("REL-LOE-SS", "LOE-P", "LOE-1", "SS", "0"),
+        ("REL-LOE-FF", "LOE-1", "LOE-S", "FF", "0"),
+        ("REL-P-S", "LOE-P", "LOE-S", "FS", "2"),
+        # WBS Summary relationships are ignored during scheduling.
+        ("REL-WBS-SS", "WBS-1", "LOE-S", "SS", "0"),
+    ):
+        relationship_id, predecessor, successor, rel_type, lag = relationship
+        status, _ = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/relationships",
+            {
+                "relationship_id": relationship_id,
+                "predecessor_id": predecessor,
+                "successor_id": successor,
+                "relationship_type": rel_type,
+                "lag_value": lag,
+                "lag_unit": DurationUnit.WORKING_DAY.value,
+            },
+        )
+        assert status == "200 OK"
 
     settings_status, _ = _save_settings(
         app,
-        options=ScheduleOptions(level_all_resources=True),
-        project_start=date(2026, 10, 19),
+        options=ScheduleOptions(data_date=date(2026, 11, 2)),
+        project_start=date(2026, 11, 2),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    by_id = {item.id: item for item in materialized.schedule_input.activities}
+    assert by_id["LOE-P"].wbs_ancestry == ("W-ROOT",)
+    assert by_id["LOE-1"].wbs_id == "W-CHILD"
+    assert by_id["WBS-1"].wbs_id == "W-ROOT"
+    assert by_id["WBS-1"].wbs_ancestry == ()
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-ACTIVITY-TYPES",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "schedule level of effort and WBS summary activities",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    facts = query_result["data"]["activities"]
+    assert (facts["LOE-P"]["start"], facts["LOE-P"]["finish"]) == (
+        "2026-11-02",
+        "2026-11-04",
+    )
+    assert (facts["LOE-S"]["start"], facts["LOE-S"]["finish"]) == (
+        "2026-11-09",
+        "2026-11-13",
+    )
+    assert (facts["LOE-1"]["start"], facts["LOE-1"]["finish"]) == (
+        "2026-11-02",
+        "2026-11-13",
+    )
+    assert facts["LOE-1"]["duration"] == 10
+    assert facts["LOE-1"]["critical"] is False
+    assert (facts["WBS-1"]["start"], facts["WBS-1"]["finish"]) == (
+        "2026-11-02",
+        "2026-11-13",
+    )
+    assert facts["WBS-1"]["duration"] == 10
+    assert facts["WBS-1"]["critical"] is False
+    fixture["connection"].close()
+
+
+def test_level_of_effort_constraint_fails_closed_at_composition(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    for activity in (
+        {"activity_id": "P", "duration_value": "2"},
+        {
+            "activity_id": "LOE",
+            "duration_value": "1",
+            "activity_type": ActivityType.LEVEL_OF_EFFORT.value,
+        },
+    ):
+        status, _ = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/activities",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "name": activity["activity_id"],
+                "duration_unit": "working-day",
+                "wbs_id": "W-ROOT",
+                **activity,
+            },
+        )
+        assert status == "201 Created"
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/relationships",
+        {
+            "relationship_id": "REL-P-LOE",
+            "predecessor_id": "P",
+            "successor_id": "LOE",
+            "relationship_type": "SS",
+            "lag_value": "0",
+            "lag_unit": DurationUnit.WORKING_DAY.value,
+        },
+    )
+    assert status == "200 OK"
+    fixture["constraint_repo"].save(
+        ConstraintMaster(
+            scope=scope,
+            constraint_id="CON-LOE",
+            activity_id="LOE",
+            constraint_type=ConstraintType.START_NO_EARLIER_THAN,
+            constraint_date=date(2026, 11, 10),
+        )
+    )
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(data_date=date(2026, 11, 2)),
+        project_start=date(2026, 11, 2),
     )
     assert settings_status == "201 Created"
     publication_status, error = _request(
@@ -1806,7 +1972,7 @@ def test_unsupported_activity_types_fail_closed_before_scheduling(
         {"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
     )
     assert publication_status == "400 Bad Request"
-    assert f"{code}:{activity_id}" in error["code"]
+    assert "LEVEL_OF_EFFORT_CONSTRAINT_UNSUPPORTED:LOE" in error["code"]
     assert fixture["snapshot_repo"].list(scope) == ()
     fixture["connection"].close()
 

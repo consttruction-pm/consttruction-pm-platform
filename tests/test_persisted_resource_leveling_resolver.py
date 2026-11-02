@@ -48,6 +48,7 @@ from construction_pm.scheduling.authoritative_schedule import AuthoritativeSched
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
+from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.schedule_options import PriorityListItem, PrioritySortOrder, ScheduleOptions
 
 
@@ -88,6 +89,7 @@ def make_fixture(
     add_resources: bool = True,
     schedule_options: ScheduleOptions | None = None,
     activities: tuple[Activity, ...] | None = None,
+    relationships: tuple[Relationship, ...] = (),
 ):
     connection = sqlite3.connect(":memory:")
     scope = BackendScope("T-1", "P-1", 7)
@@ -138,7 +140,7 @@ def make_fixture(
         mode=AuthoritativeScheduleMode.DATE_BASED,
         project_calendar=CalendarReference("CAL-1", "1"),
         activities=activities,
-        relationships=(),
+        relationships=relationships,
         activity_calendar_assignments=(),
         schedule_options=schedule_options,
         project_start=date(2026, 10, 19),
@@ -419,9 +421,17 @@ def test_resolver_excludes_wbs_summary_and_loe_from_leveling_candidates():
     fixture = make_fixture(
         add_resources=False,
         activities=(
-            Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH),
-            Activity("WBS-1", 1, activity_type=ActivityType.WBS_SUMMARY),
+            Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH, wbs_id="W-1"),
+            Activity(
+                "WBS-1",
+                1,
+                activity_type=ActivityType.WBS_SUMMARY,
+                wbs_id="W-1",
+            ),
             Activity("LOE-1", 1, activity_type=ActivityType.LEVEL_OF_EFFORT),
+        ),
+        relationships=(
+            Relationship("A", "LOE-1", RelationshipType.SS),
         ),
     )
     try:
@@ -439,8 +449,13 @@ def test_resolver_ignores_wbs_summary_assignments_from_demand_and_capacity():
     fixture = make_fixture(
         add_resources=False,
         activities=(
-            Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH),
-            Activity("WBS-1", 1, activity_type=ActivityType.WBS_SUMMARY),
+            Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH, wbs_id="W-1"),
+            Activity(
+                "WBS-1",
+                1,
+                activity_type=ActivityType.WBS_SUMMARY,
+                wbs_id="W-1",
+            ),
         ),
     )
     scope = fixture["scope"]
@@ -463,6 +478,52 @@ def test_resolver_ignores_wbs_summary_assignments_from_demand_and_capacity():
         assignment_id="AS-WBS",
         activity_id="WBS-1",
         resource_id="R-WBS",
+        period_start="2026-10-19",
+        units=Decimal("80"),
+        cost=Decimal("0"),
+    ))
+    try:
+        leveling = fixture["resolver"](
+            fixture["snapshot"], fixture["context"], fixture["registry"], auth()
+        )
+        assert [item.activity_id for item in leveling.forward_activities] == ["A"]
+        assert all(not item.resource_demands for item in leveling.forward_activities)
+        assert leveling.capacities == ()
+        assert len(leveling.resource_facts_hash) == 64
+    finally:
+        fixture["connection"].close()
+
+
+def test_resolver_ignores_level_of_effort_assignments_from_demand_and_capacity():
+    fixture = make_fixture(
+        add_resources=False,
+        activities=(
+            Activity("A", 1, leveling_priority=ActivityLevelingPriority.HIGH),
+            Activity("LOE-1", 1, activity_type=ActivityType.LEVEL_OF_EFFORT),
+        ),
+        relationships=(
+            Relationship("A", "LOE-1", RelationshipType.SS),
+        ),
+    )
+    scope = fixture["scope"]
+    assignment_repo = fixture["read_api"].assignment_service.repository
+    period_repo = fixture["read_api"].period_service.repository
+    # LOE activities are excluded when resources are leveled. Their rows must
+    # not be read as demand or used to choose a capacity calendar.
+    assignment_repo.upsert(P6ResourceAssignment(
+        scope=scope,
+        assignment_id="AS-LOE",
+        activity_id="LOE-1",
+        resource_id="R-LOE",
+        units=Decimal("80"),
+        calendar_id=None,
+        calendar_version=None,
+    ))
+    period_repo.upsert(P6ResourceAssignmentPeriodValue(
+        scope=scope,
+        assignment_id="AS-LOE",
+        activity_id="LOE-1",
+        resource_id="R-LOE",
         period_start="2026-10-19",
         units=Decimal("80"),
         cost=Decimal("0"),

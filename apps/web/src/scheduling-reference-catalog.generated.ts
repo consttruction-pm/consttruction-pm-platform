@@ -208,8 +208,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Finish Milestone",
         "WBS Summary"
       ],
-      "status": "KNOWN_GAP",
-      "gap": "Task Dependent and the supported Resource Dependent subset are scheduled through the shared core. Start and Finish Milestones reject nonzero duration, original duration or remaining duration at the Activity boundary, so composition fails with INVALID_PERSISTED_ACTIVITY instead of scheduling a milestone as task work. Level of Effort and WBS Summary are rejected at composition with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED instead of being run through the task-duration algorithm. Start-versus-finish milestone date placement conventions, type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup remain unimplemented until Version 26 fixtures prove them."
+      "status": "MAPPED_NOT_PROVEN",
+      "gap": "Task Dependent, zero-duration milestones, the Resource Dependent subset, Level of Effort and WBS Summary are scheduled by the shared core. Start and Finish Milestones are validated as zero-duration work; a persisted milestone that carries a duration, original duration or remaining duration fails closed with INVALID_PERSISTED_ACTIVITY rather than moving itself and its successors. LOE dates use the documented start/finish-linked neighbour span, never drive successors, reject constraints and are excluded from leveling. WBS Summary dates roll up the earliest start and latest finish of snapshot-bound WBS descendants and ignore relationships and constraints during scheduling and leveling. Version 26 reference fixtures are still required to prove numeric parity, and the public help does not define LOE or WBS Summary late dates/float, so those values follow the shared project-finish boundary and remain explicitly unverified. WBS Summary percent-complete/status aggregation and start-versus-finish milestone relationship placement restrictions are not implemented."
     },
     {
       "id": "ACT-002",
@@ -1638,8 +1638,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Resource Dependent with missing driving flag",
         "Mixed calendars"
       ],
-      "status": "KNOWN_GAP",
-      "gap": "Start and Finish Milestones enforce zero duration, original duration and remaining duration at the Activity boundary, and the composer rejects an invalid persisted milestone with INVALID_PERSISTED_ACTIVITY; these paths are covered by internal reference and internal reference The composer also rejects Level of Effort and WBS Summary with LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED / WBS_SUMMARY_SCHEDULING_UNSUPPORTED rather than applying the task-duration algorithm. Start-versus-finish milestone date placement, type-specific LOE start/finish-linked date derivation and WBS Summary descendant rollup still require Version 26 fixtures, so this entry does not invent a single formula for them."
+      "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+      "gap": "Start and Finish Milestones enforce zero duration, original duration and remaining duration at the Activity boundary. Level of Effort start and finish are derived from the documented earliest-start/latest-finish span of activities linked to its start and finish ends; LOE never drives a successor, rejects constraints and is excluded from leveling. WBS Summary dates aggregate the earliest start and latest finish of activities in its own and subordinate snapshot-bound WBS elements, and its relationships and constraints are ignored for scheduling and leveling. Independent Version 26 fixtures are still required to prove numeric parity; the help does not define LOE or WBS Summary late dates/float, and WBS Summary percent-complete/status aggregation plus start-versus-finish milestone relationship restrictions remain unimplemented."
     },
     {
       "id": "FRM-COST-001",

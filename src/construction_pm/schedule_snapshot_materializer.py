@@ -466,6 +466,25 @@ def _materialize_payload(
                 or any(character not in "0123456789abcdef" for character in raw_resource_dependent_hash)
             ):
                 raise SnapshotMaterializationError("INVALID_RESOURCE_DEPENDENT_INPUT_HASH")
+            raw_wbs_id = item.get("wbs_id")
+            if raw_wbs_id is not None and (
+                not isinstance(raw_wbs_id, str) or not raw_wbs_id.strip()
+            ):
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_WBS_ID")
+            raw_wbs_ancestry = item.get("wbs_ancestry", ())
+            if not isinstance(raw_wbs_ancestry, (list, tuple)):
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_WBS_ANCESTRY")
+            wbs_ancestry_values: list[str] = []
+            for value in raw_wbs_ancestry:
+                if (
+                    not isinstance(value, str)
+                    or not value.strip()
+                    or value in wbs_ancestry_values
+                ):
+                    raise SnapshotMaterializationError("INVALID_ACTIVITY_WBS_ANCESTRY")
+                wbs_ancestry_values.append(value)
+            if raw_wbs_id is not None and raw_wbs_id in wbs_ancestry_values:
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_WBS_ANCESTRY")
 
             activities.append(
                 Activity(
@@ -486,6 +505,8 @@ def _materialize_payload(
                     planned_finish,
                     leveling_priority,
                     raw_resource_dependent_hash,
+                    raw_wbs_id,
+                    tuple(wbs_ancestry_values),
                 )
             )
         else:

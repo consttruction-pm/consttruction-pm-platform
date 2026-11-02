@@ -301,13 +301,13 @@ def build_persisted_resource_leveling_input_resolver(
         periods_dto = resource_read_api.list_assignment_periods(scope, auth_context=auth_context)
         typed_assignments: dict[str, dict] = {}
         kept_assignment_dtos: list[dict] = []
-        ignored_wbs_assignment_ids: set[str] = set()
+        ignored_nonleveled_assignment_ids: set[str] = set()
         for item in assignments_dto:
             assignment = _assignment_from_dto(scope, item)
             assignment_id = assignment.get("assignment_id")
             if not isinstance(assignment_id, str) or not assignment_id.strip():
                 raise PersistedResourceLevelingResolverError("INVALID_ASSIGNMENT_ID")
-            if assignment_id in typed_assignments or assignment_id in ignored_wbs_assignment_ids:
+            if assignment_id in typed_assignments or assignment_id in ignored_nonleveled_assignment_ids:
                 raise PersistedResourceLevelingResolverError("DUPLICATE_ASSIGNMENT_ID")
             activity_id = assignment.get("activity_id")
             if activity_id not in source_activities:
@@ -320,20 +320,15 @@ def build_persisted_resource_leveling_input_resolver(
                 "value",
                 assigned_activity.activity_type,
             )
-            if raw_activity_type == ActivityType.LEVEL_OF_EFFORT.value:
-                # LOE resource semantics are not implemented in this slice.
-                # Fail closed explicitly instead of inventing LOE levels or
-                # silently treating the assignment as Task Dependent.
-                raise PersistedResourceLevelingResolverError(
-                    "RESOURCE_LEVELING_LEVEL_OF_EFFORT_UNSUPPORTED:"
-                    f"{assigned_activity.id}:{assignment_id}"
-                )
-            if raw_activity_type == ActivityType.WBS_SUMMARY.value:
-                # WBS Summary activities are ignored by resource leveling. Their
+            if raw_activity_type in {
+                ActivityType.LEVEL_OF_EFFORT.value,
+                ActivityType.WBS_SUMMARY.value,
+            }:
+                # Neither type is included when resources are leveled. Their
                 # assignments and period rows must not be interpreted as demand
                 # or used to choose a resource calendar, and their mere presence
                 # must not fail the whole schedule query.
-                ignored_wbs_assignment_ids.add(assignment_id)
+                ignored_nonleveled_assignment_ids.add(assignment_id)
                 continue
             calendar_id = assignment.get("calendar_id")
             calendar_version = assignment.get("calendar_version")
@@ -345,15 +340,16 @@ def build_persisted_resource_leveling_input_resolver(
             kept_assignment_dtos.append(item)
 
         # Index persisted time-phased demand by assignment before verifying the
-        # immutable Resource Dependent assignment facts. Ignored WBS rows are
-        # excluded here as well so the adapter cannot read them back as capacity.
+        # immutable Resource Dependent assignment facts. Ignored WBS Summary and
+        # LOE rows are excluded here as well so the adapter cannot read them back
+        # as capacity.
         periods_by_assignment: dict[str, list[ResourceDependentDemandPeriod]] = {}
         period_dates_by_activity: dict[str, list[date]] = {}
         kept_period_dtos: list[dict] = []
         for item in periods_dto:
             period = _period_from_dto(scope, item)
             assignment_id = period.get("assignment_id")
-            if assignment_id in ignored_wbs_assignment_ids:
+            if assignment_id in ignored_nonleveled_assignment_ids:
                 continue
             assignment = typed_assignments.get(assignment_id)
             if assignment is None:

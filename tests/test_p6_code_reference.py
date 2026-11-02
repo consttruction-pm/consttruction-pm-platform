@@ -149,22 +149,23 @@ def test_curve_earned_value_formula_is_separately_tracked():
 
 
 
-def test_level_of_effort_and_wbs_summary_are_explicit_fail_closed_gaps():
+def test_level_of_effort_and_wbs_summary_are_implemented_with_parity_pending():
     item = get_formula_reference("FRM-ACT-TYPES-001")
-    assert item.status == KNOWN_GAP
-    assert "LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED" in item.known_gap
-    assert "WBS_SUMMARY_SCHEDULING_UNSUPPORTED" in item.known_gap
+    assert item.status == "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN"
+    assert "earliest-start/latest-finish span" in item.known_gap
+    assert "snapshot-bound WBS elements" in item.known_gap
+    assert "late dates/float" in item.known_gap
     assert any(
-        path.endswith("test_authoritative_schedule_snapshot_composer.py")
+        path.endswith("test_activity_type_scheduling.py")
         for path in item.regression_tests
     )
     activity = get_reference("ACT-001")
-    assert activity.coverage == KNOWN_GAP
-    assert "LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED" in activity.known_gap
-    assert "WBS_SUMMARY_SCHEDULING_UNSUPPORTED" in activity.known_gap
+    assert activity.coverage == MAPPED_NOT_PROVEN
+    assert "start/finish-linked neighbour span" in activity.known_gap
+    assert "roll up the earliest start and latest finish" in activity.known_gap
     assert "INVALID_PERSISTED_ACTIVITY" in activity.known_gap
     assert any(
-        path.endswith("test_scheduling_activity_semantics.py")
+        path.endswith("test_activity_type_scheduling.py")
         for path in activity.regression_tests
     )
 

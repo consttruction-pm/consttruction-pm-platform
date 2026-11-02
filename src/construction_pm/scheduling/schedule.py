@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Callable, Iterable, Mapping
 
-from .activity import Activity
+from .activity import Activity, ActivityType
 from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
 from .constraints import (
@@ -13,7 +13,15 @@ from .constraints import (
     validate_constraint_set,
     validate_late_constraint_window,
 )
-from .forward_pass import ScheduledActivity, _shift_working_date, _successor_start, _topological_order, forward_pass
+from .forward_pass import (
+    ScheduledActivity,
+    _shift_working_date,
+    _successor_start,
+    _topological_order,
+    driving_relationships,
+    forward_pass,
+    is_non_driving_activity,
+)
 from .relationships import Relationship, RelationshipType
 from .schedule_options import (
     CriticalActivityPathType,
@@ -135,10 +143,21 @@ def backward_pass(
         raise ValueError("forward schedule must contain every activity")
 
     for activity_id, activity_constraints in constraint_map.items():
+        activity = activity_map[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
+        if (
+            activity.activity_type is ActivityType.LEVEL_OF_EFFORT
+            and activity_constraints
+        ):
+            raise ValueError(
+                f"level-of-effort activities cannot carry constraints:{activity_id}"
+            )
+        if activity.activity_type is ActivityType.WBS_SUMMARY:
+            # Constraints are not considered for WBS Summary activities.
+            continue
         validate_constraint_set(
             activity_constraints,
-            _remaining_cpm_duration(activity_map[activity_id]),
+            _remaining_cpm_duration(activity),
             activity_resolver,
         )
 
@@ -149,16 +168,36 @@ def backward_pass(
     early_project_finish = max(item.finish for item in forward.values())
     finish = resolver.normalize_finish(project_finish or early_project_finish)
 
+    # Edges touching an LOE or WBS Summary activity are not part of the CPM
+    # network; those activities never constrain a successor in either pass.
+    network_relationships = driving_relationships(activity_list, relationship_list)
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
-    for rel in relationship_list:
+    for rel in network_relationships:
         outgoing[rel.predecessor_id].append(rel)
 
-    order = _topological_order(activity_map, relationship_list)
+    order = _topological_order(activity_map, network_relationships)
     result: dict[str, ScheduledActivity] = {}
 
     for activity_id in reversed(order):
         activity = activity_map[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
+        if is_non_driving_activity(activity):
+            # Neither type has predecessor/successor-driven late dates. Use the
+            # derived forward span at the project float boundary. The reference
+            # documentation does not define their float, so the ledger records
+            # this as an explicit parity uncertainty rather than a proven rule.
+            duration = forward[activity_id].duration
+            late_finish = activity_resolver.normalize_finish(finish)
+            late_start = activity_resolver.subtract_working_duration(
+                late_finish, duration
+            )
+            result[activity_id] = ScheduledActivity(
+                activity_id=activity_id,
+                start=late_start,
+                finish=late_finish,
+                duration=duration,
+            )
+            continue
         successors = outgoing[activity_id]
         remaining_duration = _remaining_cpm_duration(activity)
 
@@ -211,7 +250,7 @@ def backward_pass(
     # early dates only. They reduce float rather than moving the late schedule.
     # Upper-bound and mandatory constraints remain validated below.
 
-    for relationship in relationship_list:
+    for relationship in network_relationships:
         if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver, (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id))):
             raise ValueError(
                 f"backward schedule violates relationship {relationship.predecessor_id} -> "
@@ -537,8 +576,13 @@ def _multiple_float_paths(
     if not options.multiple_float_paths_enabled or options.maximum_multiple_float_paths == 0:
         return ()
 
-    activity_map = {activity.id: activity for activity in activities}
-    relationship_list = list(relationships)
+    activity_list = list(activities)
+    activity_map = {
+        activity.id: activity
+        for activity in activity_list
+        if not is_non_driving_activity(activity)
+    }
+    relationship_list = driving_relationships(activity_list, relationships)
     if not activity_map:
         return ()
 
@@ -693,15 +737,29 @@ def calculate_floats(
 ) -> Mapping[str, FloatActivity]:
     """Calculate relationship-aware Total Float and Free Float."""
     selected_options = options or ScheduleOptions()
+    activity_list = list(activities)
+    relationship_list = list(relationships)
+    activity_map = {activity.id: activity for activity in activity_list}
+    network_relationships = driving_relationships(activity_list, relationship_list)
+    driving_activities = [
+        activity
+        for activity in activity_list
+        if not is_non_driving_activity(activity)
+    ]
     longest_path_ids = (
-        _longest_path_activity_ids(activities, relationships, early_schedule, resolver, relationship_lag_resolvers)
+        _longest_path_activity_ids(
+            driving_activities,
+            network_relationships,
+            early_schedule,
+            resolver,
+            relationship_lag_resolvers,
+        )
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH
         else frozenset()
     )
 
-    activity_map = {activity.id: activity for activity in activities}
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
-    for rel in relationships:
+    for rel in network_relationships:
         outgoing[rel.predecessor_id].append(rel)
 
     result: dict[str, FloatActivity] = {}
@@ -709,7 +767,9 @@ def calculate_floats(
         early = early_schedule[activity_id]
         late = late_schedule[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
-        completed = activity_map[activity_id].actual_finish is not None
+        activity = activity_map[activity_id]
+        non_driving = is_non_driving_activity(activity)
+        completed = activity.actual_finish is not None
         if completed:
             # A completed activity has no remaining start. Its float is the
             # finish float; using the elapsed actual start would report float
@@ -733,7 +793,7 @@ def calculate_floats(
         else:
             total = start_float
         free = _free_float(
-            activity_map[activity_id],
+            activity,
             early,
             outgoing[activity_id],
             early_schedule,
@@ -742,7 +802,11 @@ def calculate_floats(
             activity_resolvers,
         )
         free = max(0, min(total, free))
-        if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
+        if non_driving:
+            # Neither LOE nor WBS Summary participates in the critical path or
+            # open-ended criticality rules; their derived span is not task work.
+            critical = False
+        elif selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
             critical = activity_id in longest_path_ids
         else:
             critical = (

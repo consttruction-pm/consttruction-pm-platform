@@ -51,6 +51,11 @@ from .scheduling.calendar_system import CalendarSystem
 from .scheduling.constraints import ActivityConstraint
 from .scheduling.relationships import Relationship
 from .scheduling.time_duration import DurationUnit
+from .wbs_master_repository import (
+    WBSParentKind,
+    WBSPersistenceError,
+    WBSMasterRepository,
+)
 
 
 class ScheduleInputCompositionError(ValueError):
@@ -77,6 +82,7 @@ class AuthoritativeScheduleInputComposer:
         resource_assignment_repository: P6ResourceAssignmentRepository,
         resource_period_repository: P6ResourceAssignmentPeriodRepository,
         project_schedule_settings_repository: ProjectScheduleSettingsRepository,
+        wbs_repository: WBSMasterRepository | None = None,
     ) -> None:
         self.activity_repository = activity_repository
         self.relationship_repository = relationship_repository
@@ -87,6 +93,7 @@ class AuthoritativeScheduleInputComposer:
         self.resource_assignment_repository = resource_assignment_repository
         self.resource_period_repository = resource_period_repository
         self.project_schedule_settings_repository = project_schedule_settings_repository
+        self.wbs_repository = wbs_repository
 
     @staticmethod
     def _date_value(value: date | datetime | None, *, field_name: str, activity_id: str) -> date | None:
@@ -195,6 +202,83 @@ class AuthoritativeScheduleInputComposer:
             raise ScheduleInputCompositionError("INVALID_CALENDAR_HOURS_PER_DAY")
         return value
 
+    def _wbs_ancestry_map(
+        self,
+        scope: BackendScope,
+        persisted_activities: tuple[object, ...],
+    ) -> dict[str, tuple[str, ...]]:
+        """Return root-to-parent WBS ancestry for every persisted WBS node.
+
+        A WBS Summary must aggregate activities in its own and subordinate WBS
+        elements semantics. The immutable snapshot therefore binds the WBS
+        hierarchy instead of letting the scheduler read live persistence.
+        """
+        requires_wbs = any(
+            getattr(item.activity_type, "value", item.activity_type)
+            == ActivityType.WBS_SUMMARY.value
+            for item in persisted_activities
+        )
+        if self.wbs_repository is None:
+            if requires_wbs:
+                raise ScheduleInputCompositionError(
+                    "WBS_SUMMARY_WBS_REPOSITORY_REQUIRED"
+                )
+            return {}
+        try:
+            records = self.wbs_repository.list(scope)
+        except WBSPersistenceError as exc:
+            raise ScheduleInputCompositionError(str(exc)) from exc
+        nodes: dict[str, object] = {}
+        for record in records:
+            try:
+                record.validate()
+            except WBSPersistenceError as exc:
+                raise ScheduleInputCompositionError(str(exc)) from exc
+            if record.scope != scope:
+                raise ScheduleInputCompositionError(
+                    f"WBS_SCOPE_MISMATCH:{record.wbs_id}"
+                )
+            if record.wbs_id in nodes:
+                raise ScheduleInputCompositionError(
+                    f"DUPLICATE_PERSISTED_WBS_ID:{record.wbs_id}"
+                )
+            nodes[record.wbs_id] = record
+
+        cache: dict[str, tuple[str, ...]] = {}
+
+        def ancestry(wbs_id: str) -> tuple[str, ...]:
+            cached = cache.get(wbs_id)
+            if cached is not None:
+                return cached
+            path: list[str] = []
+            seen: set[str] = set()
+            current = wbs_id
+            while True:
+                if current in seen:
+                    raise ScheduleInputCompositionError(
+                        f"WBS_ANCESTRY_CYCLE:{wbs_id}"
+                    )
+                seen.add(current)
+                node = nodes.get(current)
+                if node is None:
+                    raise ScheduleInputCompositionError(
+                        f"WBS_ANCESTRY_INCOMPLETE:{wbs_id}:{current}"
+                    )
+                if node.parent_kind is WBSParentKind.PROJECT:
+                    break
+                parent = node.parent_wbs_id
+                if parent is None:
+                    raise ScheduleInputCompositionError(
+                        f"WBS_ANCESTRY_INCOMPLETE:{wbs_id}:{current}"
+                    )
+                path.append(parent)
+                current = parent
+            value = tuple(reversed(path))
+            cache[wbs_id] = value
+            return value
+
+        return {wbs_id: ancestry(wbs_id) for wbs_id in sorted(nodes)}
+
     def compose(
         self,
         scope: BackendScope,
@@ -248,6 +332,7 @@ class AuthoritativeScheduleInputComposer:
         activity_ids = {item.activity_id for item in persisted_activities}
         if len(activity_ids) != len(persisted_activities):
             raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_ACTIVITY_ID")
+        wbs_ancestry_map = self._wbs_ancestry_map(scope, persisted_activities)
 
         # Resource assignments and period values remain in their own immutable,
         # revision-scoped repositories and are bound by the leveler's companion
@@ -338,6 +423,21 @@ class AuthoritativeScheduleInputComposer:
                 )
 
             raw_activity_type = getattr(item.activity_type, "value", item.activity_type)
+            activity_wbs_id = item.wbs_id
+            activity_wbs_ancestry: tuple[str, ...] = ()
+            if activity_wbs_id is not None:
+                if (
+                    self.wbs_repository is not None
+                    and activity_wbs_id not in wbs_ancestry_map
+                ):
+                    raise ScheduleInputCompositionError(
+                        f"ACTIVITY_WBS_NOT_FOUND:{item.activity_id}:{activity_wbs_id}"
+                    )
+                activity_wbs_ancestry = wbs_ancestry_map.get(activity_wbs_id, ())
+            elif raw_activity_type == ActivityType.WBS_SUMMARY.value:
+                raise ScheduleInputCompositionError(
+                    f"WBS_SUMMARY_REQUIRES_WBS_ASSIGNMENT:{item.activity_id}"
+                )
             resource_dependent = raw_activity_type == ActivityType.RESOURCE_DEPENDENT.value
             derived = None
             remaining_duration_value = item.remaining_duration
@@ -624,21 +724,9 @@ class AuthoritativeScheduleInputComposer:
                     raise ScheduleInputCompositionError(
                         f"IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START:{item.activity_id}"
                     )
-                if raw_activity_type == ActivityType.LEVEL_OF_EFFORT.value:
-                    # LOE dates come from its start/finish-linked
-                    # predecessors and successors, not from a task duration.
-                    # Scheduling it as an ordinary task would emit silently
-                    # wrong dates, so fail closed until that rule is proven.
-                    raise ScheduleInputCompositionError(
-                        f"LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED:{item.activity_id}"
-                    )
-                if raw_activity_type == ActivityType.WBS_SUMMARY.value:
-                    # WBS Summary dates roll up from descendant activities,
-                    # which are not part of this snapshot contract. A stored
-                    # duration is not a substitute for that rollup.
-                    raise ScheduleInputCompositionError(
-                        f"WBS_SUMMARY_SCHEDULING_UNSUPPORTED:{item.activity_id}"
-                    )
+                # Level of Effort and WBS Summary dates are derived by the
+                # shared scheduler from linked-neighbour spans and WBS
+                # descendants; a stored task duration is not used for them.
                 value = item.duration_value
                 if not isinstance(value, Decimal) or not value.is_finite() or value != value.to_integral_value():
                     raise ScheduleInputCompositionError(f"NON_INTEGRAL_WORKING_DAY_DURATION:{item.activity_id}")
@@ -663,6 +751,8 @@ class AuthoritativeScheduleInputComposer:
                         planned_finish=self._date_value(item.planned_finish, field_name="planned_finish", activity_id=item.activity_id),
                         leveling_priority=item.leveling_priority,
                         resource_dependent_input_hash=None if derived is None else derived.input_hash,
+                        wbs_id=activity_wbs_id,
+                        wbs_ancestry=activity_wbs_ancestry,
                     )
                 )
             except (TypeError, ValueError, ArithmeticError) as exc:
@@ -719,6 +809,17 @@ class AuthoritativeScheduleInputComposer:
                 raise ScheduleInputCompositionError(
                     f"INVALID_PERSISTED_CONSTRAINT:{item.constraint_id}:{exc}"
                 ) from exc
+
+        activity_type_by_id = {item.id: item.activity_type for item in activities}
+        for constraint in constraints:
+            if (
+                activity_type_by_id.get(constraint.activity_id)
+                is ActivityType.LEVEL_OF_EFFORT
+            ):
+                raise ScheduleInputCompositionError(
+                    "LEVEL_OF_EFFORT_CONSTRAINT_UNSUPPORTED:"
+                    f"{constraint.activity_id}"
+                )
 
         known_calendar_assignments: dict[str, ActivityCalendarAssignment] = {}
         for assignment in activity_calendar_assignments:
