@@ -359,25 +359,53 @@ function projectTabBody(tab: string, input: ActivityDetailsInput, state: Workspa
         ${field(locale, t(locale, "Planned finish", "پایان برنامه‌ای"), "")}
         ${field(locale, t(locale, "Actual start", "شروع واقعی"), "")}
         ${field(locale, t(locale, "Actual finish", "پایان واقعی"), "")}
+        ${field(locale, t(locale, "Anticipated start", "شروع مورد انتظار"), "")}
+        ${field(locale, t(locale, "Anticipated finish", "پایان مورد انتظار"), "")}
+        ${field(locale, t(locale, "Must finish by", "الزام پایان تا"), "")}
         ${field(locale, t(locale, "Data date", "تاریخ داده"), input.dataDate === "—" ? "" : input.dataDate)}
-        ${field(locale, t(locale, "Calendar", "تقویم"), state.calendarMode === "jalali" ? t(locale, "Jalali", "شمسی") : t(locale, "Gregorian", "میلادی"))}
+        ${field(locale, t(locale, "Scheduled start", "شروع زمان‌بندی‌شده"), "")}
+        ${field(locale, t(locale, "Scheduled finish", "پایان زمان‌بندی‌شده"), "")}
+        ${field(locale, t(locale, "Baseline start", "شروع مبنا"), "")}
+        ${field(locale, t(locale, "Baseline finish", "پایان مبنا"), "")}
+        ${field(locale, t(locale, "Date display calendar", "تقویم نمایش تاریخ"), state.calendarMode === "jalali" ? t(locale, "Jalali", "شمسی") : t(locale, "Gregorian", "میلادی"))}
       </div>
-      <p class="cp-detail-hint">${esc(t(locale, "Project date facts are not returned by the workspace read model.", "واقعیت‌های تاریخ پروژه توسط مدل خواندن محیط کار برگردانده نمی‌شوند."))}</p>`;
+      <p class="cp-detail-hint">${esc(t(locale, "Only the date display preference and Data Date context are currently available here. Project date facts require the project and scheduling read models.", "در حال حاضر فقط ترجیح نمایش تاریخ و زمینه تاریخ داده در دسترس است. تاریخ‌های پروژه به مدل‌های خواندن پروژه و زمان‌بندی نیاز دارند."))}</p>`
     case "settings":
       return `<div class="cp-detail-grid">
-        ${field(locale, t(locale, "Locale", "زبان"), state.locale)}
-        ${field(locale, t(locale, "Direction", "جهت"), state.direction)}
-        ${field(locale, t(locale, "Group by", "گروه‌بندی"), state.activityGroupBy)}
-        ${field(locale, t(locale, "Gantt scale", "مقیاس گانت"), state.ganttScale)}
+        ${field(locale, t(locale, "Scheduling mode", "حالت زمان‌بندی"), "")}
+        ${field(locale, t(locale, "Duration calculation basis", "مبنای محاسبه مدت"), "")}
+        ${field(locale, t(locale, "Project calendar", "تقویم پروژه"), "")}
+        ${field(locale, t(locale, "Lag calendar", "تقویم وقفه"), "")}
+        ${field(locale, t(locale, "Constraint policy", "سیاست محدودیت‌ها"), "")}
+        ${field(locale, t(locale, "Critical activity definition", "تعریف فعالیت بحرانی"), "")}
+        ${field(locale, t(locale, "Total Float threshold", "آستانه شناوری کل"), "")}
+        ${field(locale, t(locale, "Out-of-sequence progress policy", "سیاست پیشرفت خارج از توالی"), "")}
+        ${field(locale, t(locale, "Actual-date handling", "نحوه مدیریت تاریخ واقعی"), "")}
+        ${field(locale, t(locale, "Resource leveling policy", "سیاست تسطیح منابع"), "")}
+        ${field(locale, t(locale, "Fiscal year start", "شروع سال مالی"), "")}
+        ${field(locale, t(locale, "Currency", "واحد پول"), "")}
+        ${field(locale, t(locale, "Date and number formats", "قالب تاریخ و اعداد"), "")}
       </div>
-      <button type="button" class="cp-p6-module-button" data-project-settings>${esc(t(locale, "Open project properties", "بازکردن مشخصات پروژه"))}</button>`;
+      <p class="cp-detail-hint">${esc(t(locale, "Project scheduling and financial settings are not yet exposed by a complete project-settings contract. These values are intentionally not inferred from the current workspace display preferences.", "تنظیمات زمان‌بندی و مالی پروژه هنوز از طریق قرارداد کامل تنظیمات پروژه ارائه نشده‌اند. این مقادیر عمداً از ترجیحات نمایشی محیط کار حدس زده نمی‌شوند."))}</p>
+      <button type="button" class="cp-p6-module-button" data-project-settings>${esc(t(locale, "Edit supported project properties", "ویرایش مشخصات پشتیبانی‌شده پروژه"))}</button>`
     case "defaults":
       return `<div class="cp-detail-grid">
-        ${field(locale, t(locale, "Calendar mode", "حالت تقویم"), state.calendarMode)}
-        ${field(locale, t(locale, "Default grouping", "گروه‌بندی پیش‌فرض"), state.activityGroupBy)}
-        ${field(locale, t(locale, "Relationships on Gantt", "روابط در گانت"), state.showGanttRelationships ? t(locale, "Shown", "نمایش") : t(locale, "Hidden", "پنهان"))}
-        ${field(locale, t(locale, "Visible panels", "پنل‌های نمایان"), Object.entries(state.visiblePanels).filter(([, visible]) => visible).map(([key]) => key).join(", "))}
-      </div>`;
+        ${field(locale, t(locale, "Default activity type", "نوع پیش‌فرض فعالیت"), "")}
+        ${field(locale, t(locale, "Default duration type", "نوع پیش‌فرض مدت"), "")}
+        ${field(locale, t(locale, "Default percent complete type", "نوع پیش‌فرض درصد پیشرفت"), "")}
+        ${field(locale, t(locale, "Default activity calendar", "تقویم پیش‌فرض فعالیت"), "")}
+        ${field(locale, t(locale, "Default cost account", "حساب هزینه پیش‌فرض"), "")}
+        ${field(locale, t(locale, "Default activity priority", "اولویت پیش‌فرض فعالیت"), "")}
+        ${field(locale, t(locale, "Default WBS", "WBS پیش‌فرض"), "")}
+        ${field(locale, t(locale, "Activity ID prefix", "پیشوند شناسه فعالیت"), "")}
+        ${field(locale, t(locale, "Activity ID start number", "شماره شروع شناسه فعالیت"), "")}
+        ${field(locale, t(locale, "Activity ID increment", "افزایش شناسه فعالیت"), "")}
+        ${field(locale, t(locale, "Automatic Activity ID", "تولید خودکار شناسه فعالیت"), "")}
+        ${field(locale, t(locale, "Default rate type", "نوع نرخ پیش‌فرض"), "")}
+        ${field(locale, t(locale, "Default resource calendar", "تقویم پیش‌فرض منبع"), "")}
+        ${field(locale, t(locale, "WBS code separator", "جداکننده کد WBS"), "")}
+      </div>
+      <p class="cp-detail-hint">${esc(t(locale, "These project defaults are catalogued for the final design, but are not yet persisted by the current project metadata API. They remain read-only until a versioned settings contract is available.", "این پیش‌فرض‌های پروژه در طراحی نهایی تعریف شده‌اند، اما هنوز توسط API فراداده پروژه ذخیره نمی‌شوند. تا زمان ارائه قرارداد نسخه‌بندی‌شده تنظیمات، فقط‌خواندنی باقی می‌مانند."))}</p>`
     case "calculations":
       return `<p class="cp-detail-empty">${esc(t(locale, "Scheduling, float and cost calculations are performed by the authoritative core. Open Schedule (F9) to run them; this pane never recomputes values.", "زمان‌بندی، شناوری و محاسبات هزینه توسط هستهٔ مرجع انجام می‌شوند. برای اجرا، زمان‌بندی (F9) را باز کنید؛ این پنل هرگز مقادیر را بازمحاسبه نمی‌کند."))}</p>
         ${stateCounts(state)}`;
