@@ -40,6 +40,7 @@ def _from_row(row: tuple[object, ...]) -> P6Role:
 class SQLiteP6RoleRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS p6_role (
               tenant_id TEXT NOT NULL, project_id TEXT NOT NULL,
@@ -49,9 +50,11 @@ class SQLiteP6RoleRepository:
               PRIMARY KEY (tenant_id, project_id, role_id)
             )"""
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def save(self, role: P6Role, *, expected_revision: int | None = None) -> P6Role:
+        was_in_transaction = self.connection.in_transaction
         role.validate()
         row = self.connection.execute(
             "SELECT project_revision,name,description,record_revision FROM p6_role "
@@ -67,7 +70,8 @@ class SQLiteP6RoleRepository:
                 (stored.tenant_id, stored.project_id, stored.project_revision, stored.role_id,
                  stored.name, stored.description, stored.record_revision),
             )
-            self.connection.commit()
+            if not was_in_transaction:
+                self.connection.commit()
             return stored
         current = int(row[3])
         if expected_revision is not None and expected_revision != current:
@@ -84,7 +88,8 @@ class SQLiteP6RoleRepository:
         )
         if self.connection.execute("SELECT changes()").fetchone()[0] != 1:
             raise ValueError("REVISION_CONFLICT")
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
         return stored
 
     def get(self, tenant_id: str, project_id: str, project_revision: int, role_id: str) -> P6Role | None:
