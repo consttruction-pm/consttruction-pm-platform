@@ -1827,8 +1827,28 @@ function renderBootstrapState(
       startDateInput.value = canonical;
       clearDateError();
     };
-    dateSystemSelect.addEventListener("change", syncStartDateInput);
-    startDateInput.addEventListener("input", clearDateError);
+    const validateStartDateInput = (): void => {
+      const raw = startDateInput.value.trim();
+      if (!raw) {
+        clearDateError();
+        return;
+      }
+      const completeDate = /^\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}$/.test(raw);
+      if (dateSystemSelect.value === "jalali") {
+        const canonical = parseJalaliDateInput(raw)
+          ?? (isValidCanonicalIsoDate(raw) ? raw : null);
+        if (canonical || !completeDate) clearDateError();
+        else showDateError();
+        return;
+      }
+      if (isValidCanonicalIsoDate(raw) || !completeDate) clearDateError();
+      else showDateError();
+    };
+    dateSystemSelect.addEventListener("change", () => {
+      syncStartDateInput();
+      validateStartDateInput();
+    });
+    startDateInput.addEventListener("input", validateStartDateInput);
 
     const errorMessage = document.createElement("p");
     errorMessage.id = errorId;
