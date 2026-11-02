@@ -304,6 +304,35 @@ test("Activity Details tab editor transfers tabs, reorders them and applies the 
   assert.ok(details.innerHTML.includes('data-activity-detail-tab="status"'));
 });
 
+test("Progress window displays entered activity values and field evidence without recalculation", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const state = {
+    ...withActivities(base, [{
+      id: "ACT-301", wbsId: "WBS-3", code: "A-301", name: "Pour Concrete",
+      cells: { start: "2026-11-03", finish: "2026-11-08", progress: 42, actual_start: "2026-11-03" },
+      gantt: { start: "2026-11-03", finish: "2026-11-08", progressPercent: 42, critical: false },
+    }]),
+    activeMenu: "progress" as const,
+  };
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /Activity Progress Register/);
+  assert.match(container.innerHTML, /ACT-301/);
+  assert.match(container.innerHTML, /Pour Concrete/);
+  assert.match(container.innerHTML, /42/);
+  assert.match(container.innerHTML, /Field Evidence/);
+  assert.match(container.innerHTML, /Progress values shown here are read from saved activity fields/);
+  const target = { dataset: { progressActivitySelect: "ACT-301" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.match(container.innerHTML, /aria-pressed="true"/);
+  assert.match(container.innerHTML, /Actual Start/);
+});
+
 test("Documents window renders real records and navigable detail tabs", () => {
   const document = {
     documentId: "DOC-101",
@@ -1953,7 +1982,7 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 
   const progress = render("fa", "progress");
   assert.match(progress, /data-workspace-menu="progress"/);
-  assert.match(progress, /داشبورد و نمودارهای اختصاصی پیشرفت/);
+  assert.match(progress, /فهرست پیشرفت فعالیت‌ها/);
   assert.match(progress, /href="#cp-site-logs"/, "empty progress registers remain reachable");
   assert.match(progress, /href="#cp-field-operations"/, "empty field-operation registers remain reachable");
   assert.doesNotMatch(progress, /data-submenu-status="preview"/, "existing empty-state destinations are not disabled");
