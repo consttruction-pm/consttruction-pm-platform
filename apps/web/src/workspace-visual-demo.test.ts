@@ -101,3 +101,39 @@ test("relationship register has Persian labels and preserves the RTL visual shel
   assert.match(html, /تأخیر \/ پیش‌افتادگی/);
   assert.match(html, /ذخیره یا در موتور زمان‌بندی استفاده نمی‌شوند/);
 });
+
+
+test("selected activity details show configured predecessor and successor relationship type and signed lag", () => {
+  const state = createVisualDemoState("en");
+  state.activityId = "A1320";
+  state.detailTab = "predecessors";
+  let html = renderVisualDemo(state);
+  assert.match(html, /A1310/);
+  assert.match(html, /FS/);
+  assert.match(html, /0 d/);
+  assert.match(html, /Activity name/);
+
+  state.detailTab = "successors";
+  html = renderVisualDemo(state);
+  assert.match(html, /A1330/);
+  assert.match(html, /SS/);
+  assert.match(html, /\\+8 h/);
+
+  state.detailTab = "relationships";
+  html = renderVisualDemo(state);
+  assert.match(html, /Predecessors/);
+  assert.match(html, /Successors/);
+  assert.match(html, /Relationship type and signed lag are shown exactly/);
+});
+
+test("activity relationship detail tabs retain Persian labels and left-to-right IDs and lag values", () => {
+  const state = createVisualDemoState("fa");
+  state.activityId = "A1320";
+  state.detailTab = "successors";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  assert.match(html, /شناسه فعالیت/);
+  assert.match(html, /نام فعالیت/);
+  assert.match(html, /A1330/);
+  assert.match(html, /<bdi dir="ltr">\\+8 h<\\/bdi>/);
+});
