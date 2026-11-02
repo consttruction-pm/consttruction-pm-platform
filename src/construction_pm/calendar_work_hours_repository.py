@@ -84,6 +84,7 @@ class CalendarWorkHourRepository(Protocol):
 class SQLiteCalendarWorkHourRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS calendar_work_hour_rule (
                 tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL,
@@ -95,7 +96,8 @@ class SQLiteCalendarWorkHourRepository:
                     REFERENCES calendar_master(tenant_id, project_id, calendar_id, calendar_version)
             )"""
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def save(self, rule: CalendarWorkHourRule) -> CalendarWorkHourRule:
         was_in_transaction = self.connection.in_transaction
