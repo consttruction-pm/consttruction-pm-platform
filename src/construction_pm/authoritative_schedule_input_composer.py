@@ -306,19 +306,34 @@ class AuthoritativeScheduleInputComposer:
             if resource_dependent:
                 raw_status = getattr(item.status, "value", item.status)
                 in_progress = raw_status == ActivityStatus.IN_PROGRESS.value
-                if (
+                completed = (
                     raw_status == ActivityStatus.COMPLETED.value
                     or item.actual_finish is not None
-                ):
-                    # A completed Resource Dependent activity is governed by its
-                    # actual duration, which is not derivable from the planned
-                    # assignment units. Do not substitute a planned duration.
-                    raise ScheduleInputCompositionError(
-                        f"RESOURCE_DEPENDENT_COMPLETED_DERIVATION_UNSUPPORTED:{item.activity_id}"
-                    )
+                )
+                if completed:
+                    # A completed Resource Dependent activity is scheduled from
+                    # its actual dates. The planned duration is still derived
+                    # from the assignment facts for audit, while the persisted
+                    # at-completion duration remains the reported duration.
+                    if item.actual_start is None or item.actual_finish is None:
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_COMPLETED_ACTUAL_DATES_REQUIRED:"
+                            f"{item.activity_id}"
+                        )
+                    if item.actual_finish < item.actual_start:
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_COMPLETED_ACTUAL_DATES_INVALID:"
+                            f"{item.activity_id}"
+                        )
+                    if remaining_duration_value not in (None, 0):
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_COMPLETED_REMAINING_DURATION:"
+                            f"{item.activity_id}:{remaining_duration_value}"
+                        )
                 if raw_status not in (
                     ActivityStatus.NOT_STARTED.value,
                     ActivityStatus.IN_PROGRESS.value,
+                    ActivityStatus.COMPLETED.value,
                 ):
                     raise ScheduleInputCompositionError(
                         f"RESOURCE_DEPENDENT_STATUS_UNSUPPORTED:{item.activity_id}:{raw_status}"
@@ -328,7 +343,7 @@ class AuthoritativeScheduleInputComposer:
                         raise ScheduleInputCompositionError(
                             f"RESOURCE_DEPENDENT_IN_PROGRESS_ACTUAL_START_REQUIRED:{item.activity_id}"
                         )
-                elif item.actual_start is not None:
+                elif not completed and item.actual_start is not None:
                     raise ScheduleInputCompositionError(
                         f"RESOURCE_DEPENDENT_ACTUAL_START_REQUIRES_IN_PROGRESS:{item.activity_id}"
                     )
@@ -360,6 +375,33 @@ class AuthoritativeScheduleInputComposer:
                                 "RESOURCE_DEPENDENT_PROGRESS_UNITS_MISMATCH:"
                                 f"{item.activity_id}:{assignment.assignment_id}"
                             )
+                    elif completed:
+                        # Completed work has consumed all assigned units. When
+                        # progress units are persisted they must reconcile and
+                        # leave no remaining demand.
+                        if (
+                            assignment.actual_units is not None
+                            or assignment.remaining_units is not None
+                        ):
+                            if (
+                                assignment.actual_units is None
+                                or assignment.remaining_units is None
+                            ):
+                                raise ScheduleInputCompositionError(
+                                    "RESOURCE_DEPENDENT_PROGRESS_ASSIGNMENT_UNITS_REQUIRED:"
+                                    f"{item.activity_id}:{assignment.assignment_id}"
+                                )
+                            if assignment.units is None:
+                                continue
+                            if (
+                                assignment.actual_units < 0
+                                or assignment.remaining_units != 0
+                                or assignment.actual_units != assignment.units
+                            ):
+                                raise ScheduleInputCompositionError(
+                                    "RESOURCE_DEPENDENT_COMPLETED_UNITS_MISMATCH:"
+                                    f"{item.activity_id}:{assignment.assignment_id}"
+                                )
                     elif (
                         assignment.remaining_units is not None
                         and assignment.units is not None
@@ -454,37 +496,53 @@ class AuthoritativeScheduleInputComposer:
                         f"{exc}:{item.activity_id}"
                     ) from exc
                 resource_dependent_durations[item.activity_id] = derived
-                value = Decimal(derived.duration_working_days)
-                if derived.remaining_duration_working_days is not None:
-                    # A progressed activity's Remaining Duration is the
-                    # calculation output. Persisted progress is authoritative
-                    # only when it agrees with the assignment facts.
+                if completed:
+                    # The persisted at-completion duration is authoritative for
+                    # completed work; the derived value describes the planned
+                    # assignment contract and is bound in the input hash.
+                    value = item.duration_value
                     if (
-                        remaining_duration_value is not None
-                        and remaining_duration_value
-                        != derived.remaining_duration_working_days
+                        not isinstance(value, Decimal)
+                        or not value.is_finite()
+                        or value != value.to_integral_value()
+                        or value < 0
                     ):
+                        raise ScheduleInputCompositionError(
+                            f"NON_INTEGRAL_WORKING_DAY_DURATION:{item.activity_id}"
+                        )
+                    remaining_duration_value = 0
+                else:
+                    value = Decimal(derived.duration_working_days)
+                    if derived.remaining_duration_working_days is not None:
+                        # A progressed activity's Remaining Duration is the
+                        # calculation output. Persisted progress is authoritative
+                        # only when it agrees with the assignment facts.
+                        if (
+                            remaining_duration_value is not None
+                            and remaining_duration_value
+                            != derived.remaining_duration_working_days
+                        ):
+                            raise ScheduleInputCompositionError(
+                                "RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH:"
+                                f"{item.activity_id}:{remaining_duration_value}:"
+                                f"{derived.remaining_duration_working_days}"
+                            )
+                        remaining_duration_value = (
+                            derived.remaining_duration_working_days
+                        )
+                    elif (
+                        remaining_duration_value is not None
+                        and remaining_duration_value != derived.duration_working_days
+                    ):
+                        # A not-started activity has no consumed work, so its
+                        # Remaining Duration must equal the derived duration.
+                        # Accepting a shorter persisted value would silently
+                        # compress the schedule.
                         raise ScheduleInputCompositionError(
                             "RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH:"
                             f"{item.activity_id}:{remaining_duration_value}:"
-                            f"{derived.remaining_duration_working_days}"
+                            f"{derived.duration_working_days}"
                         )
-                    remaining_duration_value = (
-                        derived.remaining_duration_working_days
-                    )
-                elif (
-                    remaining_duration_value is not None
-                    and remaining_duration_value != derived.duration_working_days
-                ):
-                    # A not-started activity has no consumed work, so its
-                    # Remaining Duration must equal the derived duration.
-                    # Accepting a shorter persisted value would silently
-                    # compress the schedule.
-                    raise ScheduleInputCompositionError(
-                        "RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH:"
-                        f"{item.activity_id}:{remaining_duration_value}:"
-                        f"{derived.duration_working_days}"
-                    )
             else:
                 raw_status = getattr(item.status, "value", item.status)
                 if (

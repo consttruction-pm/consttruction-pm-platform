@@ -168,6 +168,12 @@ def _date_activity_fact(value, floats) -> dict[str, object]:
         "start": value.start.isoformat(),
         "finish": value.finish.isoformat(),
         "duration": value.duration,
+        "remaining_start": (
+            None if value.remaining_start is None else value.remaining_start.isoformat()
+        ),
+        "remaining_finish": (
+            None if value.remaining_finish is None else value.remaining_finish.isoformat()
+        ),
         "critical": floats.critical,
         "early_start": floats.early_start.isoformat(),
         "early_finish": floats.early_finish.isoformat(),

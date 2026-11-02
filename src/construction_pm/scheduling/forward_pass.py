@@ -13,7 +13,6 @@ from .constraints import (
     validate_constraint_set,
     validate_upper_bound,
 )
-from .out_of_sequence import ProgressRelationAction, resolve_out_of_sequence_action
 from .relationships import Relationship, RelationshipType
 from .schedule_options import OutOfSequenceScheduleType, StartToStartLagCalculationType
 
@@ -28,6 +27,17 @@ class ScheduledActivity:
     start: date
     finish: date
     duration: int
+    # Early start of the work that still has to be placed. For an in-progress
+    # activity this is anchored on the Data Date (or later logic), while
+    # ``start`` keeps the reported early/actual start. Completed activities
+    # have no remaining work, so both fields are None.
+    remaining_start: date | None = None
+    remaining_finish: date | None = None
+
+    def __post_init__(self) -> None:
+        if self.remaining_start is not None and self.remaining_finish is not None:
+            if self.remaining_finish < self.remaining_start:
+                raise ValueError("remaining_finish must not precede remaining_start")
 
 
 def _shift_working_date(
@@ -212,26 +222,29 @@ def forward_pass(
     order = _topological_order(activity_map, relationship_list)
     result: dict[str, ScheduledActivity] = {}
 
+    # P6 schedules from the project data date, using the project start date as
+    # the initial data date. Remaining work of a progressed activity can never
+    # be placed before the start of the current work period.
+    effective_data_date = data_date or project_start
+
     for activity_id in order:
         activity = activity_map[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
         progressed = activity.actual_start is not None
+        completed = activity.actual_finish is not None
+        # Remaining duration drives the forward pass for progressed work. A
+        # completed activity has no remaining work; its actual dates are kept.
         scheduled_duration = (
-            activity.remaining_duration
-            if progressed and activity.actual_finish is None and activity.remaining_duration is not None
-            else activity.duration
+            0
+            if completed
+            else (
+                activity.remaining_duration
+                if progressed and activity.remaining_duration is not None
+                else activity.duration
+            )
         )
-        if not incoming[activity_id]:
-            start = activity_resolver.normalize_start(project_start)
-            oos_action = ProgressRelationAction.APPLY_LOGIC
-            if progressed and activity.actual_start is not None:
-                if data_date is not None and data_date < activity.actual_start:
-                    raise ValueError("data_date must not precede actual_start for progressed activity")
-                start = max(
-                    start,
-                    activity_resolver.normalize_start(activity.actual_start),
-                )
-        else:
+        logic_start = activity_resolver.normalize_start(project_start)
+        if incoming[activity_id]:
             start_requirements = [
                 _successor_start(
                     rel,
@@ -240,7 +253,7 @@ def forward_pass(
                     resolver,
                     activity_map[rel.predecessor_id],
                     start_to_start_lag_calculation_type,
-                    data_date,
+                    effective_data_date,
                     (relationship_lag_resolvers or {}).get(
                         (rel.predecessor_id, rel.successor_id)
                     ),
@@ -255,47 +268,79 @@ def forward_pass(
                     ),
                 )
             ]
-            start = activity_resolver.normalize_start(max(start_requirements))
-            oos_action = ProgressRelationAction.APPLY_LOGIC
-            if progressed and activity.actual_start is not None:
-                if data_date is not None and data_date < activity.actual_start:
-                    raise ValueError("data_date must not precede actual_start for progressed activity")
-                if activity.actual_start >= start:
-                    start = activity_resolver.normalize_start(activity.actual_start)
-                else:
-                    if data_date is None:
-                        raise ValueError("data_date is required for out-of-sequence progress")
-                    oos_action = resolve_out_of_sequence_action(
-                        activity,
-                        relationship_required_start=start,
-                        data_date=data_date,
-                        mode=out_of_sequence_schedule_type,
-                    )
-                    if oos_action is ProgressRelationAction.IGNORE_LOGIC:
-                        if activity.actual_finish is not None:
-                            start = activity_resolver.normalize_start(activity.actual_start)
-                            scheduled_duration = 0
-                        else:
-                            start = activity_resolver.normalize_start(data_date)
-                    elif oos_action is ProgressRelationAction.USE_ACTUAL_DATES:
-                        if activity.actual_finish is not None:
-                            start = activity_resolver.normalize_start(activity.actual_start)
-                            scheduled_duration = 0
+            logic_start = activity_resolver.normalize_start(max(start_requirements))
 
-        for constraint in sorted(
-            constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
-        ):
-            start = apply_earliest_constraint(
-                constraint, start, scheduled_duration, activity_resolver
+        if not progressed and data_date is not None:
+            # When a Data Date is supplied, P6 schedules every remaining
+            # activity from that date, so unstarted work whose logical
+            # predecessors finished earlier cannot be placed before the start
+            # of the current work period.
+            logic_start = activity_resolver.normalize_start(
+                max(logic_start, data_date)
             )
 
-        if not (oos_action is ProgressRelationAction.USE_ACTUAL_DATES and activity.actual_finish is not None):
-            start = _apply_expected_finish_target(
-                start, activity, activity_resolver, use_expected_finish_dates
-            )
-            finish = activity_resolver.add_working_duration(start, scheduled_duration)
-        else:
+        if completed:
+            if activity.actual_start is None or activity.actual_finish is None:
+                raise ValueError("completed activity requires actual dates")
+            start = activity_resolver.normalize_start(activity.actual_start)
             finish = activity_resolver.normalize_finish(activity.actual_finish)
+            remaining_start = None
+            remaining_finish = None
+        elif progressed:
+            actual_start = activity_resolver.normalize_start(activity.actual_start)
+            data_date_bound = (
+                activity_resolver.normalize_start(data_date)
+                if data_date is not None
+                else actual_start
+            )
+            out_of_sequence = actual_start < logic_start
+            if out_of_sequence_schedule_type is OutOfSequenceScheduleType.PROGRESS_OVERRIDE:
+                # Network logic is ignored for the remaining work, which can
+                # proceed from the later of the actual start and the data date.
+                remaining_start = max(actual_start, data_date_bound)
+                start = remaining_start if out_of_sequence else actual_start
+            elif out_of_sequence_schedule_type is OutOfSequenceScheduleType.ACTUAL_DATES:
+                # Forward and backward passes use actual dates. Keeping the
+                # remaining work anchored on the actual start is what can make
+                # an activity that is actually late finish after the data date
+                # and therefore carry negative total float.
+                remaining_start = actual_start
+                start = actual_start
+            else:
+                # Retained Logic: remaining work is not scheduled until all
+                # predecessors are complete, and never before the data date.
+                remaining_start = max(logic_start, actual_start, data_date_bound)
+                start = remaining_start if out_of_sequence else actual_start
+            remaining_start = activity_resolver.normalize_start(remaining_start)
+            for constraint in sorted(
+                constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
+            ):
+                remaining_start = apply_earliest_constraint(
+                    constraint, remaining_start, scheduled_duration, activity_resolver
+                )
+            remaining_start = _apply_expected_finish_target(
+                remaining_start, activity, activity_resolver, use_expected_finish_dates
+            )
+            finish = activity_resolver.add_working_duration(
+                remaining_start, scheduled_duration
+            )
+            remaining_finish = finish
+        else:
+            remaining_start = logic_start
+            for constraint in sorted(
+                constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
+            ):
+                remaining_start = apply_earliest_constraint(
+                    constraint, remaining_start, scheduled_duration, activity_resolver
+                )
+            remaining_start = _apply_expected_finish_target(
+                remaining_start, activity, activity_resolver, use_expected_finish_dates
+            )
+            start = remaining_start
+            finish = activity_resolver.add_working_duration(
+                remaining_start, scheduled_duration
+            )
+            remaining_finish = finish
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
@@ -303,7 +348,12 @@ def forward_pass(
             validate_upper_bound(constraint, start, finish, activity_resolver)
 
         result[activity_id] = ScheduledActivity(
-            activity_id=activity_id, start=start, finish=finish, duration=scheduled_duration
+            activity_id=activity_id,
+            start=start,
+            finish=finish,
+            duration=scheduled_duration,
+            remaining_start=remaining_start,
+            remaining_finish=remaining_finish,
         )
 
     return result

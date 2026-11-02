@@ -55,6 +55,20 @@ class ScheduleResult:
     float_paths: tuple[MultipleFloatPath, ...] = ()
 
 
+def _remaining_cpm_duration(activity: Activity) -> int:
+    """Duration of the work the backward pass still has to place.
+
+    A progressed activity is governed by its Remaining Duration, and a
+    completed activity has no remaining work. Using the at-completion duration
+    here would inflate float and let late dates cross the progress boundary.
+    """
+    if activity.actual_finish is not None:
+        return 0
+    if activity.actual_start is not None and activity.remaining_duration is not None:
+        return activity.remaining_duration
+    return activity.duration
+
+
 def _inverse_event_shift(successor_event: date, lag: int, resolver: WorkingTimeResolver) -> date:
     if lag >= 0:
         return resolver.previous_working_day(
@@ -123,7 +137,9 @@ def backward_pass(
     for activity_id, activity_constraints in constraint_map.items():
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
         validate_constraint_set(
-            activity_constraints, activity_map[activity_id].duration, activity_resolver
+            activity_constraints,
+            _remaining_cpm_duration(activity_map[activity_id]),
+            activity_resolver,
         )
 
     for rel in relationship_list:
@@ -144,14 +160,15 @@ def backward_pass(
         activity = activity_map[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
         successors = outgoing[activity_id]
+        remaining_duration = _remaining_cpm_duration(activity)
 
         if not successors:
             late_finish = activity_resolver.normalize_finish(finish)
-            late_start = activity_resolver.subtract_working_duration(late_finish, activity.duration)
+            late_start = activity_resolver.subtract_working_duration(late_finish, remaining_duration)
         else:
             late_start = min(
                 _latest_predecessor_start(
-                    rel, result[rel.successor_id], activity.duration, activity_resolver,
+                    rel, result[rel.successor_id], remaining_duration, activity_resolver,
                     (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
                 )
                 for rel in sorted(
@@ -162,18 +179,18 @@ def backward_pass(
                 )
             )
             latest_by_project_finish = activity_resolver.subtract_working_duration(
-                activity_resolver.normalize_finish(finish), activity.duration
+                activity_resolver.normalize_finish(finish), remaining_duration
             )
             late_start = min(late_start, latest_by_project_finish)
-            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, remaining_duration)
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
             late_start = apply_latest_constraint(
-                constraint, late_start, activity.duration, activity_resolver
+                constraint, late_start, remaining_duration, activity_resolver
             )
-            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, remaining_duration)
 
         if late_finish > activity_resolver.normalize_finish(finish):
             raise ValueError(f"backward schedule exceeds project finish for {activity_id}")
@@ -187,7 +204,7 @@ def backward_pass(
             activity_id=activity_id,
             start=late_start,
             finish=late_finish,
-            duration=activity.duration,
+            duration=remaining_duration,
         )
 
     # P6 lower-bound constraints (Start/Finish No Earlier Than) affect
@@ -293,6 +310,7 @@ def _free_float(
 
     limits: list[int] = []
     activity_resolver = (activity_resolvers or {}).get(activity.id, resolver)
+    duration = _remaining_cpm_duration(activity)
     for rel in successors:
         successor = early_schedule[rel.successor_id]
         lag_resolver = (relationship_lag_resolvers or {}).get(
@@ -304,8 +322,8 @@ def _free_float(
             candidate = ScheduledActivity(
                 activity_id=early.activity_id,
                 start=candidate_start,
-                finish=activity_resolver.add_working_duration(candidate_start, activity.duration),
-                duration=activity.duration,
+                finish=activity_resolver.add_working_duration(candidate_start, duration),
+                duration=duration,
             )
             return _relationship_holds(rel, candidate, successor, activity_resolver, lag_resolver)
 
@@ -399,14 +417,15 @@ def _relationship_free_float(
 ) -> int:
     lag_resolver = lag_resolver or resolver
     activity_resolver = (activity_resolvers or {}).get(predecessor_activity.id, resolver)
+    duration = _remaining_cpm_duration(predecessor_activity)
 
     def holds(delay: int) -> bool:
         candidate_start = activity_resolver.add_working_duration(predecessor.start, delay)
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
             start=candidate_start,
-            finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
-            duration=predecessor_activity.duration,
+            finish=activity_resolver.add_working_duration(candidate_start, duration),
+            duration=duration,
         )
         return _relationship_holds(relationship, candidate, successor, resolver, lag_resolver)
 
@@ -424,14 +443,15 @@ def _relationship_total_float(
 ) -> int:
     lag_resolver = lag_resolver or resolver
     activity_resolver = (activity_resolvers or {}).get(predecessor_activity.id, resolver)
+    duration = _remaining_cpm_duration(predecessor_activity)
 
     def holds(delay: int) -> bool:
         candidate_start = activity_resolver.add_working_duration(predecessor.start, delay)
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
             start=candidate_start,
-            finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
-            duration=predecessor_activity.duration,
+            finish=activity_resolver.add_working_duration(candidate_start, duration),
+            duration=duration,
         )
         return _relationship_holds(relationship, candidate, successor_late, resolver, lag_resolver)
 
@@ -689,7 +709,20 @@ def calculate_floats(
         early = early_schedule[activity_id]
         late = late_schedule[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
-        start_float = _working_delay_between(early.start, late.start, activity_resolver)
+        completed = activity_map[activity_id].actual_finish is not None
+        if completed:
+            # A completed activity has no remaining start. Its float is the
+            # finish float; using the elapsed actual start would report float
+            # for work that can no longer move.
+            start_float = _working_delay_between(early.finish, late.finish, activity_resolver)
+        elif early.remaining_start is not None:
+            # Remaining work is anchored on the data date, so float is measured
+            # from that anchor rather than from the elapsed actual start.
+            start_float = _working_delay_between(
+                early.remaining_start, late.start, activity_resolver
+            )
+        else:
+            start_float = _working_delay_between(early.start, late.start, activity_resolver)
         finish_float = _working_delay_between(early.finish, late.finish, activity_resolver)
         # P6 can calculate total float from Start Float, Finish Float, or the
         # smaller of the two. Negative float remains a valid reportable value.

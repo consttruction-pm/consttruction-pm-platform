@@ -406,9 +406,12 @@ def build_persisted_resource_leveling_input_resolver(
             ))
             # The composer binds progress units into the immutable facts only
             # for an in-progress activity. Remaining Units stored on a
-            # not-started assignment are not an input to its planned duration
-            # and must not make the replay look changed.
-            progressed = activity.actual_start is not None
+            # not-started or completed assignment are not an input to its
+            # planned duration and must not make the replay look changed.
+            progressed = (
+                activity.actual_start is not None
+                and activity.actual_finish is None
+            )
             persisted_facts = tuple(
                 ResourceDependentDriverFact(
                     assignment_id=str(value.get("assignment_id", "")),
@@ -490,9 +493,16 @@ def build_persisted_resource_leveling_input_resolver(
                 raise PersistedResourceLevelingResolverError(
                     f"{exc}:{activity.id}"
                 ) from exc
+            # Completed work keeps its persisted at-completion duration as the
+            # reported value while the immutable facts still bind the planned
+            # assignment contract. Only the input hash must match in that case.
+            completed = activity.actual_finish is not None
             if (
                 derivation.input_hash != activity.resource_dependent_input_hash
-                or derivation.duration_working_days != activity.duration
+                or (
+                    not completed
+                    and derivation.duration_working_days != activity.duration
+                )
             ):
                 raise PersistedResourceLevelingResolverError(
                     f"RESOURCE_DEPENDENT_SOURCE_CHANGED:{activity.id}"

@@ -1108,6 +1108,206 @@ def test_resource_dependent_in_progress_activity_uses_remaining_units(tmp_path):
     connection.close()
 
 
+def test_resource_dependent_completed_activity_keeps_actual_dates(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-C",
+            "name": "Completed resource dependent work",
+            "duration_value": "3",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.COMPLETED.value,
+            "status_code": ActivityStatusCode.ACTIVE.value,
+            "actual_start": "2026-10-19",
+            "actual_finish": "2026-10-21",
+            "remaining_duration": 0,
+            "percent_complete": 100,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-C-AS",
+            activity_id="RD-C",
+            resource_id="RD-C-RES",
+            units=Decimal("12"),
+            actual_units=Decimal("12"),
+            remaining_units=Decimal("0"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    for period_start in ("2026-10-19", "2026-10-20", "2026-10-21"):
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-C-AS",
+                activity_id="RD-C",
+                resource_id="RD-C-RES",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 22),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    activity = next(
+        item for item in materialized.schedule_input.activities if item.id == "RD-C"
+    )
+    # The persisted at-completion duration is the reported duration, but no
+    # remaining work is derived for a completed activity.
+    assert activity.duration == 3
+    assert activity.remaining_duration == 0
+    assert activity.actual_start == date(2026, 10, 19)
+    assert activity.actual_finish == date(2026, 10, 21)
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-RD-COMPLETED",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "calculate the completed resource-dependent activity",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK", query_result
+    fact = query_result["data"]["activities"]["RD-C"]
+    assert fact["start"] == "2026-10-19"
+    assert fact["finish"] == "2026-10-21"
+    assert fact["duration"] == 0
+    assert fact["remaining_start"] is None
+    assert fact["remaining_finish"] is None
+    assert query_result["data"]["resource_dependent_placement"]["status"] == "COMPLETE"
+    connection.close()
+
+
+def test_resource_dependent_completed_without_actual_dates_fails_closed(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-C-BAD",
+            "name": "Completed without actual dates",
+            "duration_value": "1",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.COMPLETED.value,
+            "status_code": ActivityStatusCode.ACTIVE.value,
+            "remaining_duration": 0,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-C-BAD-AS",
+            activity_id="RD-C-BAD",
+            resource_id="RD-C-RES",
+            units=Decimal("4"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    fixture["resource_periods"].upsert(
+        P6ResourceAssignmentPeriodValue(
+            scope=scope,
+            assignment_id="RD-C-BAD-AS",
+            activity_id="RD-C-BAD",
+            resource_id="RD-C-RES",
+            period_start="2026-10-19",
+            units=Decimal("4"),
+            cost=Decimal("0"),
+        )
+    )
+    connection.commit()
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "400 Bad Request"
+    assert "RESOURCE_DEPENDENT_COMPLETED_ACTUAL_DATES_REQUIRED:RD-C-BAD" in json.dumps(error)
+    connection.close()
+
+
 def test_resource_dependent_in_progress_publication_rejects_ambiguous_remaining_duration(tmp_path):
     fixture = _fixture(tmp_path)
     app = fixture["app"]
