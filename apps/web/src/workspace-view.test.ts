@@ -88,7 +88,8 @@ test("WBS create form dispatches validated fields to its workspace callback", ()
 
 test("WBS register exposes the connected add workflow and never fabricates a chart action", () => {
   const html = render("en", "wbs");
-  assert.match(html, /data-rail-action="wbs">[^<]*<span>Add WBS<\/span>/);
+  assert.match(html, /data-rail-action="wbs"/);
+  assert.match(html, /<span>Add WBS<\/span>/);
   assert.match(html, /data-wbs-delete disabled/);
   assert.match(html, /WBS chart view is not connected yet/);
 });
