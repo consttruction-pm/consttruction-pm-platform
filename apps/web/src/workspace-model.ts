@@ -30,6 +30,7 @@ export type WorkspaceCalendarCatalog = {
   errorCode: string | null;
 };
 export type WorkspacePanel = "project_wbs" | "activity_grid" | "gantt" | "details";
+export type WorkspaceLayout = "split" | "grid" | "gantt";
 export type WorkspaceMenuKey =
   | "project"
   | "wbs"
@@ -165,6 +166,7 @@ export type WorkspaceState = {
   calendarMode: WorkspaceCalendarMode;
   calendarCatalog: WorkspaceCalendarCatalog;
   ganttScale: WorkspaceGanttScale;
+  workspaceLayout: WorkspaceLayout;
   showGanttRelationships: boolean;
   activeMenu: WorkspaceMenuKey;
   visiblePanels: Record<WorkspacePanel, boolean>;
@@ -238,6 +240,7 @@ export function createWorkspaceState(
     calendarMode,
     calendarCatalog: { status: "not-loaded", calendars: [], errorCode: null },
     ganttScale: "day",
+    workspaceLayout: "split",
     showGanttRelationships: true,
     activeMenu: "schedule",
     visiblePanels: {
@@ -368,6 +371,22 @@ export function setGanttScale(
   }
   if (state.ganttScale === ganttScale) return state;
   return { ...state, ganttScale };
+}
+
+export function setWorkspaceLayout(state: WorkspaceState, workspaceLayout: WorkspaceLayout): WorkspaceState {
+  if (workspaceLayout !== "split" && workspaceLayout !== "grid" && workspaceLayout !== "gantt") {
+    throw new Error("INVALID_WORKSPACE_LAYOUT");
+  }
+  if (state.workspaceLayout === workspaceLayout) return state;
+  return {
+    ...state,
+    workspaceLayout,
+    visiblePanels: {
+      ...state.visiblePanels,
+      activity_grid: workspaceLayout !== "gantt",
+      gantt: workspaceLayout !== "grid",
+    },
+  };
 }
 
 /** Toggles relationship-link drawing only; it never alters schedule relationships. */
