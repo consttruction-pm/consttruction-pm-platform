@@ -1473,7 +1473,7 @@ test("WBS, assignments, expenses, issues, risks and thresholds have separate reg
   ];
   for (const [menu, title] of cases) {
     const html = render("en", menu);
-    assert.match(html, new RegExp(title.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\test("Roles and Tracking are first-class windows with their documented visual surfaces", () => {")));
+    assert.ok(html.includes(title), `missing register surface: ${title}`);
     assert.match(html, /No records are loaded for this project|WBS hierarchy/);
   }
 });
