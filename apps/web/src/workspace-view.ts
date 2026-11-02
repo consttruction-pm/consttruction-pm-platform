@@ -287,11 +287,26 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.shellCommand) {
+      const command = target.dataset.shellCommand;
+      if (command === "Timescale") {
+        const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
+      } else if (command === "Columns" || command === "Bars" || command === "Bar Chart Options") {
+        openToolsDrawer(container);
+      } else if (command === "Filter By") {
+        container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
+      } else if (command === "Group and Sort By") {
+        container.querySelector<HTMLSelectElement>("[data-activity-group]")?.focus();
+      }
+      return;
+    }
     if ("projectSettings" in target.dataset) return void options.onProjectSettings?.();
     if (target.dataset.toolsOpen !== undefined) { openToolsDrawer(container); return; }
     if (target.dataset.toolsClose !== undefined) { closeDrawer(container, "[data-tools-drawer]"); return; }
