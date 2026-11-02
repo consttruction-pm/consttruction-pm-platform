@@ -20,6 +20,7 @@ from construction_pm.scheduling.activity import (
 )
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleMode
 from construction_pm.scheduling.constraints import ConstraintType
+from construction_pm.constraint_master_repository import ConstraintMaster
 from construction_pm.scheduling.calendar import WorkingCalendar
 from construction_pm.scheduling.calendar_context import CalendarReference
 from construction_pm.scheduling.calendar_system import CalendarSystem
