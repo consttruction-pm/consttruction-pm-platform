@@ -119,6 +119,11 @@ test("Version 26 menu inventory is represented in CUBI menus without exposing so
   assert.doesNotMatch(activityHtml, /data-shell-command="Activity Details"[^>]*disabled/);
   assert.doesNotMatch(activityHtml, /data-shell-command="Table"[^>]*disabled/);
   assert.doesNotMatch(activityHtml, /data-shell-command="Gantt Chart"[^>]*disabled/);
+  for (const command of ["Add Activity", "Add WBS", "Add Relationship", "Link Activities", "Find"]) {
+    assert.doesNotMatch(activityHtml, new RegExp(`data-shell-command="${command}"[^>]*disabled`));
+  }
+  assert.doesNotMatch(projectHtml, /data-shell-command="Add WBS"[^>]*disabled/);
+  assert.match(projectHtml, /data-shell-command="Add Activity"[^>]*disabled/);
   const projectHtml = renderWorkspaceCommandShell("en", "project");
   assert.match(projectHtml, /data-shell-command="Bottom Layout Options"[^>]*disabled/);
 });
