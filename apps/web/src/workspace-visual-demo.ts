@@ -12,7 +12,7 @@ import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspace
 import { LANDING_LOCALE_STORAGE_KEY, rememberWorkspaceLocale, writeStoredValue } from "./workspace-preferences.js";
 
 export type DemoWindowId =
-  | "projects" | "wbs" | "activities" | "assignments" | "resources" | "calendars" | "reports"
+  | "projects" | "wbs" | "activities" | "assignments" | "resources" | "roles" | "calendars" | "reports"
   | "tracking" | "documents" | "expenses" | "thresholds" | "issues" | "risks" | "administration"
   | "network" | "trace" | "timeline" | "activity-profile" | "resource-profile" | "activity-sheet" | "resource-sheet";
 
@@ -25,6 +25,7 @@ const WINDOWS: Array<{ id: DemoWindowId; en: string; fa: string }> = [
   { id: "activities", en: "Activities", fa: "فعالیت‌ها" },
   { id: "assignments", en: "Resource Assignments", fa: "تخصیص منابع" },
   { id: "resources", en: "Resources", fa: "منابع" },
+  { id: "roles", en: "Roles", fa: "نقش‌ها" },
   { id: "calendars", en: "Calendars", fa: "تقویم‌ها" },
   { id: "reports", en: "Reports", fa: "گزارش‌ها" },
   { id: "tracking", en: "Tracking", fa: "پیگیری" },
@@ -135,6 +136,21 @@ const WBS_TREE = [
   { code: "1.3", name: "Procurement", level: 1, total: 3 },
   { code: "1.4", name: "Construction", level: 1, total: 6 },
   { code: "1.5", name: "Testing & Commissioning", level: 1, total: 4 },
+];
+
+const DEMO_ROLES = [
+  { id: "ROLE-PLN", name: "Planner", discipline: "Project Controls", rate: 95, capacity: 2, assigned: 1 },
+  { id: "ROLE-CST", name: "Cost Engineer", discipline: "Cost Control", rate: 88, capacity: 2, assigned: 1 },
+  { id: "ROLE-SIT", name: "Site Engineer", discipline: "Construction", rate: 85, capacity: 6, assigned: 2 },
+  { id: "ROLE-QA", name: "QA/QC Inspector", discipline: "Quality", rate: 78, capacity: 4, assigned: 1 },
+  { id: "ROLE-HSE", name: "HSE Officer", discipline: "HSE", rate: 82, capacity: 3, assigned: 1 },
+];
+const DEMO_ROLE_ASSIGNMENTS = [
+  { activity: "A1020", role: "Cost Engineer", budget: 80, actual: 44, remaining: 36, rate: 88 },
+  { activity: "A1310", role: "Site Engineer", budget: 240, actual: 72, remaining: 168, rate: 85 },
+  { activity: "A1320", role: "Site Engineer", budget: 320, actual: 96, remaining: 224, rate: 85 },
+  { activity: "A1340", role: "QA/QC Inspector", budget: 120, actual: 0, remaining: 120, rate: 78 },
+  { activity: "A1500", role: "HSE Officer", budget: 160, actual: 0, remaining: 160, rate: 82 },
 ];
 
 const RESOURCES = [
@@ -684,12 +700,11 @@ function renderWindow(state: DemoState): string {
         ${renderDetails(state)}
       </section>`;
     case "assignments":
-      return renderTableWindow(state, { en: "Resource Assignments", fa: "تخصیص منابع" }, ["Activity ID", "Activity name", "Resource", "Budgeted units", "Actual units", "Remaining units", "Cost"], ACTIVITIES.filter((row) => row.res !== "—").slice(0, 12).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Resource: row.res, "Budgeted units": row.budgetUnits, "Actual units": row.actualUnits, "Remaining units": row.remainingUnits, Cost: row.budgetCost.toLocaleString("en-US") })), ["assign-resources", "assign-roles"]);
+      return renderAssignmentsWindow(state);
     case "resources":
-      return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Resources", "منابع"))}</h2><div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="assign-resources">${esc(t(state.locale, "Assign resources", "تخصیص منابع"))}</button></div></header>
-        <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>Resource ID</th><th>Resource name</th><th>Type</th><th class="is-numeric">Budgeted units</th><th class="is-numeric">Cost</th><th>Histogram</th></tr></thead><tbody>
-        ${RESOURCES.map((row) => `<tr><td>${esc(row.id)}</td><td>${esc(row.name)}</td><td>${esc(row.type)}</td><td class="is-numeric">${row.units}</td><td class="is-numeric">${row.cost.toLocaleString("en-US")}</td><td><span class="cp-vd-minibar" style="width:${Math.min(100, row.cost / 2500)}%"></span></td></tr>`).join("")}
-        </tbody></table></div></section>`;
+      return renderResourcesWindow(state);
+    case "roles":
+      return renderRolesWindow(state);
     case "calendars":
       return renderCalendars(state);
     case "reports":
