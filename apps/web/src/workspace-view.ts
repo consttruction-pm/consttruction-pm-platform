@@ -705,7 +705,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project information", "اطلاعات پروژه"))}</span>
             ${menuButton("documents", t.documents, state, railMenuIcons.documents)}
-            ${railActionButton("reports", rail.reports, "print")}
+            ${menuButton("reports", t.reports, state, railMenuIcons.reports)}
             <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Tracking window design is catalogued; its page is not implemented yet.", "پنجره رهگیری ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">▤</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Tracking", "رهگیری"))}</span></button>
             ${menuButton("control", t.control, state, railMenuIcons.control)}
             <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Thresholds window design is catalogued; its page is not implemented yet.", "پنجره آستانه‌ها ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">⌁</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Thresholds", "آستانه‌ها"))}</span></button>
