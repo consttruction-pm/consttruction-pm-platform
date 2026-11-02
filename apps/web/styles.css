@@ -6559,3 +6559,11 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   background: transparent;
 }
 .cp-p6 .cp-navigation-tree .cp-nav-unavailable:hover { background: transparent; color: #3a4b60; }
+
+@media (max-width: 900px) {
+  .cp-p6 .cp-p6-body,
+  .cp-p6 .cp-p6-body > * { min-width: 0; max-width: 100%; }
+  .cp-p6 .cubi-command-shell { min-width: 0; max-width: 100%; overflow: hidden; }
+  .cp-p6 .cubi-command-menubar { min-width: 0; max-width: 100%; overflow-x: auto; overflow-y: visible; }
+  .cp-p6 .cubi-toolbar { min-width: 0; max-width: 100%; }
+}
