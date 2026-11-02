@@ -1,6 +1,7 @@
 # CUBI Workspace Navigation Map
 
 Status: Phase 3 blueprint.
+Tracked implementation: [Issue #1669](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1669) — CMP-01; menu/window entries below are design requirements only until real behavior is implemented and verified.
 Companion to `workspace-information-architecture.md`. This file defines where every user-facing entry point goes. Implementation status is tracked in `workspace-window-inventory.md`; no entry may be rendered without a target.
 
 ## Vocabulary
@@ -64,12 +65,12 @@ Companion to `workspace-information-architecture.md`. This file defines where ev
 | Item | Target | Notes |
 | --- | --- | --- |
 | Activities | `window:activities` | Primary workspace |
-| Comparisons | `window:comparisons` | Saved comparison runs and reports; New Comparison opens `dialog:project-comparison` |
+| Comparisons | `window:comparisons` | **CMP-01 / Issue #1669**; planned/disabled until implemented; saved comparison runs and reports; New Comparison opens `dialog:project-comparison` |
 | Additional Activities View | `window:activities-2` | Secondary activities analysis/layout view; comparison drill-through only, not the comparison engine or saved-run history |
 | WBS | `window:wbs` | Hierarchy editing |
 | Resource Assignments | `window:resource-assignments` | Grouped by resource |
 | Baselines → Assign / Maintain | `dialog:assign-baselines` / `dialog:maintain-baselines` | Disabled until baseline UI lands |
-| Compare Projects… | `dialog:project-comparison` | Unified entry for project/project, revision/revision and project/baseline comparison; keep separate from baseline assignment/maintenance |
+| Compare Projects… | `dialog:project-comparison` | **CMP-01 / Issue #1669**; unified entry for project/project, revision/revision and project/baseline comparison; planned/disabled until end-to-end implementation; separate from baseline assignment/maintenance |
 | Expenses | `window:expenses` | Project expense register |
 | Documents | `window:documents` | WPs & Docs equivalent |
 | Thresholds | `window:thresholds` | Disabled until threshold API exists |
