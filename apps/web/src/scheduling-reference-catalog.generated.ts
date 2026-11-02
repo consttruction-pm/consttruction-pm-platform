@@ -385,7 +385,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "WBS-specific setting"
       ],
       "status": "INVENTORY_REQUIRED",
-      "gap": "Exact mapping of all reference scheduler WBS Earned Value choices to CUBI persistence and EVM calculations needs a dedicated field/formula audit."
+      "gap": "Activity-level earned-value techniques and all documented ETC estimators are implemented and tested. Still open: inheritance and overrides of the technique at WBS level, weighted WBS milestones (whose required facts are not yet persisted and therefore fail closed), and an end-to-end field audit of every WBS Earned Value setting."
     },
     {
       "id": "EVM-002",
@@ -415,7 +415,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Tertiary"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": ""
+      "gap": "Project/primary/secondary/tertiary baseline identity, scoped reads, revision conflicts and immutable baseline-activity values are implemented and tested against both SQLite and PostgreSQL repositories. Still open: converting another project into a baseline, selective baseline update (#1483 scope) and assignment of baselines to live project summary fields."
     },
     {
       "id": "BAS-002",
@@ -1137,7 +1137,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Financial/reporting period"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": "The shared formula core implements CV/SV, CPI/SPI and every documented ETC estimator with explicit zero-denominator, missing-input and user-PF rules, and the resource EVM bridge delegates to it. Still open: selecting and proving EV/PV/AC from the chosen baseline, Data Date and WBS percent-complete/EV technique, currency and financial-period conversion, WBS overrides, manual future-period buckets and resource-curve methods. The native field inventory remains evidence-only."
+      "gap": "EV/PV/AC/BAC are now selected from one immutable baseline-activity snapshot and one explicit status/Data Date, with the persisted read model composing current percent complete, actual cost and remaining cost without reading live activity rows during measurement. Activity-level techniques ACTIVITY_PERCENT_COMPLETE, CUSTOM_PERCENT_COMPLETE, ZERO_HUNDRED and FIFTY_FIFTY are implemented; WBS_MILESTONE fails closed until milestone facts exist. Planned Value currently uses the explicit LINEAR_WORKING_DAYS_ACTIVITY_BUDGET distribution and records that method in every result. Still open: per-WBS technique inheritance/overrides, weighted WBS milestones, resource-curve or manual future-period PV buckets, multi-currency/financial-period conversion (a mixed-currency input fails closed), and Version 26 parity fixtures for these remaining methods."
     },
     {
       "id": "SCH-014",
