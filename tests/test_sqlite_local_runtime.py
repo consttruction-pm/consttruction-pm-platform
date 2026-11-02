@@ -266,7 +266,6 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snap
         "language": "en",
         "constraints": {"snapshot_id": published["snapshot_id"]},
     }
-    import json
     response = json.loads(
         runtime.schedule_runtime(scope).dispatch_json(
             json.dumps({
