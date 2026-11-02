@@ -18,6 +18,7 @@ from construction_pm.p6_resource_assignment_repository import (
 )
 from construction_pm.p6_resource_capacity_repository import SQLiteP6ResourceCapacityRepository
 from construction_pm.p6_resource_spread_repository import SQLiteP6ResourceSpreadRepository
+from construction_pm.resources.persistence import ContextScopedSQLiteResourceRepository
 from construction_pm.p6_role_repository import P6Role, SQLiteP6RoleRepository
 from construction_pm.project_schedule_settings_repository import SQLiteProjectScheduleSettingsRepository
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository
@@ -40,6 +41,7 @@ REPOSITORIES = [
     pytest.param(SQLiteProjectScheduleSettingsRepository, id="schedule-settings"),
     pytest.param(SQLiteCalculationContextRepository, id="calculation-context"),
     pytest.param(SQLiteScheduleInputSnapshotRepository, id="schedule-snapshot"),
+    pytest.param(ContextScopedSQLiteResourceRepository, id="context-scoped-resources"),
 ]
 
 
