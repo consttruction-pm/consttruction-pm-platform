@@ -6648,3 +6648,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 /* Activity details calendar action row */
 .cp-vd-detail-actions { display:flex; justify-content:flex-start; gap:6px; margin:8px 0; }
 .cp-vd-detail-actions button { min-height:28px; padding:4px 10px; border:1px solid #9fb2c8; border-radius:2px; background:#edf3f9; color:#173d68; font-size:10px; cursor:pointer; }
+
+/* Activity relationship detail sections */
+.cp-vd-detail-section { margin:8px 0; min-width:0; }
+.cp-vd-detail-section h4 { margin:0 0 6px; padding:5px 8px; border-inline-start:3px solid #6d8fb5; background:#f1f4f8; color:#31445b; font-size:11px; font-weight:700; }
