@@ -292,11 +292,23 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.registerTab) {
+      const tab = target.dataset.registerTab;
+      container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
+        const active = button.dataset.registerTab === tab;
+        button.setAttribute("aria-selected", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      container.querySelectorAll<HTMLElement>("[data-register-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.registerPanel !== tab;
+      });
+      return;
+    }
     if (target.dataset.calendarEditorTab) {
       const tab = target.dataset.calendarEditorTab;
       container.querySelectorAll<HTMLElement>("[data-calendar-editor-tab]").forEach((button) => {
@@ -519,6 +531,15 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       ? event.target as HTMLElement
       : null;
     if (!element) return;
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "trackingLayout")) {
+      const value = (element as HTMLSelectElement).value;
+      const surface = container.querySelector<HTMLElement>("[data-tracking-surface]");
+      const label = element.querySelector<HTMLOptionElement>("option:checked")?.textContent ?? "";
+      if (surface) surface.dataset.trackingSurface = value;
+      const heading = container.querySelector<HTMLElement>("[data-tracking-layout-label]");
+      if (heading) heading.textContent = label;
+      return;
+    }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutTimescale")) {
       const mode = (element as HTMLSelectElement).value;
       if (mode === "day" || mode === "week" || mode === "month" || mode === "quarter" || mode === "year") {
@@ -1113,7 +1134,7 @@ function renderP6ModuleStage(state: WorkspaceState, t: WorkspaceLabels): string 
         <div class="cp-register-window cp-roles-window">
           <div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Role Register", "فهرست نقش‌ها"))}</strong><div><button type="button" disabled>${escapeHtml(uiText(state.locale, "New Role", "نقش جدید"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Edit", "ویرایش"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button></div></div>
           <div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale, "Role ID", "شناسه نقش"))}</th><th>${escapeHtml(uiText(state.locale, "Role Name", "نام نقش"))}</th><th>${escapeHtml(uiText(state.locale, "Category", "دسته"))}</th><th>${escapeHtml(uiText(state.locale, "Max Units / Time", "حداکثر واحد / زمان"))}</th><th>${escapeHtml(uiText(state.locale, "Default Rate", "نرخ پیش‌فرض"))}</th><th>${escapeHtml(uiText(state.locale, "Rate Type", "نوع نرخ"))}</th><th>${escapeHtml(uiText(state.locale, "Currency", "ارز"))}</th></tr></thead><tbody><tr><td colspan="7">${escapeHtml(uiText(state.locale, "No role records are loaded for this project.", "هیچ رکورد نقشی برای این پروژه بارگذاری نشده است."))}</td></tr></tbody></table></div>
-          <section class="cp-register-details"><header><strong>${escapeHtml(uiText(state.locale, "Role Details", "جزئیات نقش"))}</strong><span>${escapeHtml(uiText(state.locale, "No selection", "بدون انتخاب"))}</span></header><nav class="cp-register-detail-tabs" role="tablist">${[["general","General","عمومی"],["limits","Limits","محدودیت‌ها"],["rates","Rates","نرخ‌ها"],["assignments","Assignments","تخصیص‌ها"],["notes","Notes","یادداشت‌ها"],["udfs","UDFs","فیلدهای کاربر"]].map(([key,en,fa],i)=>`<button type="button" role="tab" data-register-tab="roles:${key}" aria-selected="${i===0}" class="${i===0?"is-active":""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}</nav><div class="cp-register-detail-content"><p>${escapeHtml(uiText(state.locale, "Select a role to view its general properties, time-phased limits, price/unit rates and assignments. No role data is fabricated.", "برای مشاهده مشخصات عمومی، محدودیت‌های زمان‌مند، نرخ‌های قیمت/واحد و تخصیص‌ها یک نقش انتخاب کنید. هیچ داده‌ای برای نقش ساخته نشده است."))}</p></div></section>
+          <section class="cp-register-details"><header><strong>${escapeHtml(uiText(state.locale, "Role Details", "جزئیات نقش"))}</strong><span>${escapeHtml(uiText(state.locale, "No selection", "بدون انتخاب"))}</span></header><nav class="cp-register-detail-tabs" role="tablist">${[["general","General","عمومی"],["limits","Limits","محدودیت‌ها"],["rates","Rates","نرخ‌ها"],["assignments","Assignments","تخصیص‌ها"],["notes","Notes","یادداشت‌ها"],["udfs","UDFs","فیلدهای کاربر"]].map(([key,en,fa],i)=>`<button type="button" role="tab" data-register-tab="roles:${key}" aria-selected="${i===0}" class="${i===0?"is-active":""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}</nav><div class="cp-register-detail-content">${[["general","General","عمومی"],["limits","Limits","محدودیت‌ها"],["rates","Rates","نرخ‌ها"],["assignments","Assignments","تخصیص‌ها"],["notes","Notes","یادداشت‌ها"],["udfs","UDFs","فیلدهای کاربر"]].map(([key,en,fa],i)=>`<section data-register-panel="roles:${key}"${i===0?"":" hidden"}><p>${escapeHtml(uiText(state.locale, `Select a role to view its ${en.toLowerCase()} information. No role data is fabricated.`, `برای مشاهده اطلاعات بخش «${fa}» یک نقش انتخاب کنید. هیچ داده‌ای برای نقش ساخته نشده است.`))}</p></section>`).join("")}</div></section>
           <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Role management is a visual shell only until role CRUD, rate history and resource assignment services are connected.", "مدیریت نقش تا اتصال سرویس‌های ایجاد/ویرایش نقش، تاریخچه نرخ و تخصیص منابع صرفاً پوسته بصری است."))}</p>
         </div>`;
       break;
@@ -1170,7 +1191,7 @@ function renderP6ModuleStage(state: WorkspaceState, t: WorkspaceLabels): string 
       body = `
         <div class="cp-tracking-window">
           <div class="cp-tracking-toolbar"><strong>${escapeHtml(uiText(state.locale, "Tracking Layout", "چیدمان رهگیری"))}</strong><label>${escapeHtml(uiText(state.locale, "Layout Type", "نوع چیدمان"))}<select data-tracking-layout><option value="table">${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</option><option value="bar-chart">${escapeHtml(uiText(state.locale, "Project Bar Chart", "نمودار میله‌ای پروژه"))}</option><option value="gantt-profile">${escapeHtml(uiText(state.locale, "Project Gantt / Profile", "گانت / منحنی پروژه"))}</option><option value="resource-analysis">${escapeHtml(uiText(state.locale, "Resource Analysis", "تحلیل منابع"))}</option></select></label><button type="button" disabled>${escapeHtml(uiText(state.locale, "Refresh Data", "به‌روزرسانی داده"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Save Layout", "ذخیره چیدمان"))}</button></div>
-          <div class="cp-tracking-layout"><aside><strong>${escapeHtml(uiText(state.locale, "Projects", "پروژه‌ها"))}</strong><p>${escapeHtml(uiText(state.locale, "No project set is available for tracking.", "مجموعه پروژه‌ای برای رهگیری در دسترس نیست."))}</p></aside><section class="cp-tracking-chart" data-tracking-surface="table"><div class="cp-tracking-chart-head"><strong>${escapeHtml(uiText(state.locale, "Project Tracking", "رهگیری پروژه"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty">${escapeHtml(uiText(state.locale, "Select a tracking layout and load project data to display a table, bar chart, Gantt/profile or resource analysis.", "برای نمایش جدول، نمودار میله‌ای، گانت/منحنی یا تحلیل منابع، یک چیدمان رهگیری انتخاب و داده پروژه بارگذاری کنید."))}</div></section></div>
+          <div class="cp-tracking-layout"><aside><strong>${escapeHtml(uiText(state.locale, "Projects", "پروژه‌ها"))}</strong><p>${escapeHtml(uiText(state.locale, "No project set is available for tracking.", "مجموعه پروژه‌ای برای رهگیری در دسترس نیست."))}</p></aside><section class="cp-tracking-chart" data-tracking-surface="table"><div class="cp-tracking-chart-head"><strong data-tracking-layout-label>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty">${escapeHtml(uiText(state.locale, "Select a tracking layout and load project data to display a table, bar chart, Gantt/profile or resource analysis.", "برای نمایش جدول، نمودار میله‌ای، گانت/منحنی یا تحلیل منابع، یک چیدمان رهگیری انتخاب و داده پروژه بارگذاری کنید."))}</div></section></div>
           <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Tracking layout types are exposed for visual parity. Project selection, summarization, chart rendering and saved tracking layouts are not connected yet.", "انواع چیدمان رهگیری برای تطابق بصری نمایش داده شده‌اند؛ انتخاب پروژه، خلاصه‌سازی، ترسیم نمودار و ذخیره چیدمان رهگیری هنوز متصل نیستند."))}</p>
         </div>`;
       break;
