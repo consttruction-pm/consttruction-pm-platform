@@ -87,3 +87,126 @@ Supported language targets: English (en), Persian (fa), German (de), Chinese Sim
 - Translation packs use stable translation IDs and are verified/activated through the existing language-pack lifecycle. The visual command shell and generic UI translation helpers must resolve activated pack strings before English fallback.
 - Fonts must cover Arabic/Persian shaping, French diacritics, Japanese kana/kanji, Korean Hangul and Chinese glyphs. Layouts must be checked for clipping, wrapping, line height, mixed-direction identifiers, numbers and dates.
 - Acceptance: complete translation coverage report for every shipped page and workspace surface; RTL/LTR visual tests; locale-specific SEO route tests; language-switch preservation tests; screenshots for all eight languages at desktop and mobile breakpoints.
+
+
+## Desktop-style visual composition and no-flat-page rule (mandatory)
+
+The workspace is a multi-window desktop workbench, not one long web page and not a dashboard of full-width cards. The following geometry is mandatory at desktop widths:
+
+```
+┌ CUBI identity / project context / user / sync / language / theme ┐
+├ Menu bar: Workspace | Edit | View | Project | Organization | Tools | Administration | Help ┤
+├ Standard toolbar / Project toolbar / Layout toolbar / Schedule toolbar ┤
+├ Window tabs: Projects × | Activities × | WBS × | Resources × | ... ┤
+├ Project breadcrumb + Data Date + active baseline + layout name ┤
+├ Navigation tree ┬ Contextual page command bar (horizontal) ┬ Right Add (+) rail ┤
+│                 ├ Top layout: register/grid | chart/Gantt/network ┤
+│                 ├ Bottom layout: page-specific Details tabs ┤
+├ Status bar: selection count | filter | grouping | revision | save/sync | hints ┤
+```
+
+- The navigation tree is a collapsible, independently resizable left pane. It contains expandable Organization, Projects, Current Project, Resources & Calendars, Reports & Tracking, CUBI Controls, and Administration nodes. Tree expansion, selected node and width are retained per user.
+- The center is a window surface. Each open window is a tab, not a stacked full-page route. Switching tabs preserves that window's layout, selection, scroll position, filter, grouping, sort, column widths and detail-tab choice. Closing a dirty window prompts Save / Discard / Cancel.
+- The active window has its own page title, breadcrumb, contextual horizontal command bar, layout-options strip and content. Commands are enabled/disabled by active window, selection, permission and layout.
+- The right-edge Add (+) rail is a narrow icon-only vertical strip, independent of the horizontal page command bar. It must not cover the grid, Gantt, details pane or status bar. Its contextual command opens a compact anchored menu/dialog, not a full-width page.
+- Top and bottom layouts are separated by a draggable splitter. The top layout may itself split horizontally between a table/tree and a synchronized chart. Left navigation, top/bottom and table/chart splitters have minimum/maximum bounds, keyboard adjustment and reset-to-default.
+- The Details area is docked below the active window's main view by default, with configurable top/bottom/left/right/hidden placement. It is not a generic full-width section appended beneath the whole site. It has a title strip, record identity, tab strip, tab content and independent scroll.
+- At narrow widths, use a deliberate compact workspace mode: collapsible navigation drawer, horizontal window-tab scroller, overflow menus, and stacked top/details panes with explicit splitter/expand controls. Never shrink desktop controls into an unreadable single horizontal strip.
+- No page may render every control, form and tab as one uninterrupted wide column. Use compact toolbars, tabbed dialogs, grouped property panels, anchored menus, split panes and modal/wizard flows.
+
+## Window-specific top-layout and visual mode matrix
+
+| Window | Primary modes | Secondary/bottom modes | Required visual controls |
+|---|---|---|---|
+| Projects | Project table; project bar chart; project Gantt/profile; hierarchy/register | Project Details; budget/spending profile | EPS/domain/portfolio tree, project table columns, grouping/sorting/filtering, top/bottom selectors, timescale, bars, chart labels, project defaults |
+| Activities | Activity table; Gantt; Activity Network; activity usage spreadsheet | Activity Details; Resource Usage spreadsheet/profile; Trace Logic | WBS grouping, line numbers, multi-level group/sort, multi-filter, columns, bars, relationships, baseline/progress/data-date lines, critical path, timescale, zoom, row/font controls |
+| WBS | WBS table/tree; WBS chart | WBS Details; earned-value/profile where applicable | hierarchy expand/collapse, indent/outdent, child/sibling, WBS code/sequence, chart style, group/sort/filter |
+| Resource Assignments | Assignment table; resource usage spreadsheet; resource profile/histogram | Assignment Details; Activity/Resource details | group by resource/activity, units/time, cost/time, curves, period scale, over-allocation indicators |
+| Resources | Resource hierarchy/table; resource usage/profile | Resource Details; role/rate/calendar details | resource breakdown, availability, max units/time, price/rate types, roles, calendars, shifts, curves |
+| Roles | Role hierarchy/table; role rate chart | Role Details | role limits, price/unit rates, effective dates, resources using role |
+| Calendars | Calendar register; workweek editor; time-scale preview | Calendar Details; assignment/use list | global/project/resource calendar scope, standard workweek, per-day work intervals, exceptions, holidays, recurring patterns, effective dates, copy calendar, assign calendar |
+| Documents | Document register/list | Document Details; linked activities/WBS | file location, version/revision, status, category, permissions, launch/preview, links |
+| Expenses | Expense table; cost/time profile | Expense Details | accrual type, amount, unit, activity, category, dates, cost account, actual/planned |
+| Thresholds | Threshold register; monitoring chart | Threshold Details; affected objects | parameter, threshold type, WBS/activity scope, tolerance, monitor/alert state |
+| Issues | Issue register; priority/status chart | Issue Details; activity/WBS links, history | owner, responsible, priority, status, due date, notes, notifications, documents |
+| Risks | Risk register; probability-impact matrix; exposure chart | Risk Details; response and impact | probability, impact dimensions, expected value, response, owner, schedule/cost exposure, links |
+| Reports | Report catalog; groups; batches | Definition/parameters; preview; run history | wizard, data scope, filters, columns, grouping, sorting, page setup, print/export, distribution |
+| Tracking | Project table; project bar chart; project Gantt/profile; resource analysis | Tracking Details; spreadsheet/profile | global/user layouts, project explorer, summarize state, cost/schedule/EVM, resource spread |
+| Form Builder (CUBI) | Designer canvas + field palette + properties inspector | Form preview; validation/workflow/version tabs | organization library vs project library, header image JPG/PNG, transparent PNG, sections, field types, required rules, conditions, approvals, responsive preview |
+
+Every mode above must be selectable through the active window's Top Layout / Bottom Layout / Layout Options controls. A missing capability must be explicitly marked as not yet available; it must not be silently omitted from the design catalogue.
+
+## Complete layout, menu and dialog inventory
+
+### Layout and view dialogs
+- New/Open/Save/Save As Layout; layout scope (private user / shared project); import/export; duplicate, rename, delete and restore default.
+- Top Layout selector; Bottom Layout selector; Bottom Layout Options; Show/Hide Details; reset pane arrangement.
+- Columns dialog: available/selected columns, search, add/remove, reorder, width, alignment, title override, freeze/pin, auto-fit and restore defaults.
+- Filters dialog: standard and user filters, nested AND/OR groups, field/operator/value, null/blank checks, date-relative values, save/share/duplicate/delete, combine filters and clear all.
+- Group & Sort dialog: multiple grouping levels, hierarchy/path grouping, multiple sort keys, ascending/descending, group band formatting, empty groups, page breaks, auto-reorganize.
+- Timescale dialog: calendar basis, major/minor intervals, labels, fiscal periods, week/month/quarter/year, start/end, non-work time display, zoom presets and fit project.
+- Bars dialog: bar definitions, order, show/hide, shape, pattern, fill/outline, labels above/inside/below, left/right label fields, filter, legend and baseline/actual/remaining/critical/summary/milestone/relationship styles.
+- Gantt/chart options: gridlines, non-work shading, data-date line, progress line, baseline bars, relationship lines, critical highlighting, bar labels, legend, chart scale, print scale.
+- Network options: activity node fields, node size, relationship type labels, lag labels, critical path emphasis, layout direction, spacing, align/arrange, zoom and fit.
+- Usage spreadsheet/profile options: time period, bucket size, units/cost/remaining/actual, cumulative/non-cumulative, curves, histogram, stacked/overlay, limits and over-allocation bands.
+- Font/Color/Row dialog: font family/size, row height, group band styles, semantic status colors, high contrast and restore defaults.
+- Tab configuration: available tabs, shown tabs, order, default tab, per-window saved configuration.
+
+### Calendar windows and dialogs
+- Calendar scope selector: Global / Project / Resource; calendar register with name, type, owner, hours per day/week/year, base calendar and status.
+- Workweek editor: each weekday individually marked working/non-working; one or more work intervals per day; split shifts; overnight shift handling; copy day; apply pattern to selected weekdays.
+- Exceptions: date range, one-off or recurring, working/non-working, replacement hours, description/category; public holidays and project shutdowns.
+- Calendar preview: month and week views with working/non-working days, exception markers, selected date details and effective working hours.
+- Assignment dialog: assign project calendar, activity calendar and resource calendar; show inheritance/source and override; compare calendars.
+- Date presentation calendar (Jalali/Gregorian) is independent of the working-time calendar and independent of UI language. Show both concepts separately in labels and selectors.
+- Calendar chooser must support search, favorites/recent, preview and explicit scope; never conflate a Jalali display setting with a working calendar definition.
+
+### Project and object property dialogs
+- Project Properties wizard/dialog uses tabbed sections: General, Dates, Defaults, Resources, Settings, Codes, Notebook, Budget, Funding, Baselines, Documents, UDFs and History.
+- Activity Properties dialog: General, Status, Dates, Duration, Constraints, Relationships, Resources, Codes, Steps, Expenses, Documents, Issues/Risks, UDFs and History.
+- WBS Properties dialog: General, Status, Responsible, Dates, Resources, Earned Value, Codes, Documents, Notebook, Issues/Risks, UDFs and History.
+- Resource/Role Properties dialog: General, Details, Units & Prices, Availability, Roles, Calendars, Shifts, Curves, Codes, UDFs and History.
+- Relationship dialog: predecessor, successor, FS/SS/FF/SF type, lag/lead value and unit, lag calendar, relationship notes and validation summary.
+- Baseline dialog: create, assign primary/secondary/tertiary, copy, compare, restore/replace and remove, with impact confirmation.
+- Schedule dialog: data date, selected/all projects, scheduling options summary, log/detail options, schedule/check schedule actions and results summary. This is a visual inventory only; calculations remain outside the shell scope.
+- Resource Leveling dialog: selected/all resources, priority rules, preserve minimum float, within-float option, date range, level all/selected and result summary.
+- Import/Export wizard: source/target, format, mapping, calendar/date-system mapping, code mapping, validation preview, warnings/errors and completion summary.
+- Print/Page Setup: page size, orientation, margins, scaling, repeat headers, date/calendar display, legend, title/footer, page breaks and print preview.
+
+### Workspace, organization and administration dialogs
+- Open Project / Project Picker: searchable hierarchy, recent/favorites, status, owner, date, permission, open/close and multi-project selection where allowed.
+- User Preferences: language, direction, date display calendar, number format, units, time zone, theme, default window, startup layout, tooltips, shortcuts and accessibility.
+- Organization dictionaries: codes/categories, UDF definitions, cost accounts, currencies, financial periods, funding sources, resource curves and shifts.
+- Access dialogs: users, teams, roles, profiles, project membership, invitation, permission matrix and effective-access preview.
+- Recovery dialogs: unsaved changes, autosave/recovery list, backup/restore, revision history and restore-point confirmation.
+- Find/Search: scope, object type, fields, exact/contains, filters, result list and navigate-to-record.
+- Global Change: selection criteria, fields/values, preview of affected records, validation, approval and execution confirmation; visual-only until separately implemented.
+
+## Menu chart and command presentation rules
+
+- Menus are real hierarchical dropdowns with submenu arrows, separators, icons, disabled states, keyboard mnemonics and shortcut hints. Hover/focus opens submenus without navigating away; click/Enter activates; Escape closes; arrow keys navigate; focus is trapped only inside modal dialogs.
+- Menu contents are context-sensitive. A command not applicable to the active window is disabled with a concise reason, not removed from the global menu.
+- Toolbar groups use compact labeled icons and separators. Each command has tooltip, accessible name, shortcut, enabled state and overflow placement at smaller widths.
+- The contextual command bar changes with the active window and selected record; it is never a second global menu and never duplicates every possible command at once.
+- Selection-sensitive actions show the target object and affected count before destructive changes. Dialogs use tabs/sections and scroll within their own body; the entire workspace must not become a long scrolling form.
+- Window tabs, menus, toolbars, navigation, content and Details are separate regions with independent scroll where appropriate. The browser page itself should not horizontally scroll at standard desktop resolutions.
+- Icons must have consistent CUBI meaning across themes. Use a centralized icon registry; do not expose competitor branding or source UI labels.
+
+## Additional parity coverage and source map
+
+The Version 26 desktop guide explicitly describes eleven main windows, independent window tabs, per-window Display/Layout Options bars, top/bottom layouts, columns, grouping/sorting/filtering and tracking layouts. The visual audit must cover the desktop Professional client, not substitute a web-only project page or EPPM page.
+
+Primary official desktop references:
+- User Guide contents and chapter map: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm
+- Main windows and tabbed window behavior: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/using_main_windows.htm
+- View menu and Top/Bottom Layout/Bottom Layout Options: https://docs.oracle.com/cd/G48902_01/client_help/en_US/49095.htm
+- Activities window and its grid/Gantt/network/detail windows: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-help/89935.html
+- Tracking and tracking layouts: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/tracking.htm
+- Tracking layout types: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/types_of_tracking_layouts.htm
+- Project Details and project defaults: https://docs.oracle.com/cd/F74771_01/English/User_Guides/p6_pro_user/defining_project_details.htm
+- Project Defaults tab and activity ID numbering: https://docs.oracle.com/cd/F51303_01/client_help/en_US/defaults_tab_-_project_details.htm
+- P6 Professional Version 26 complete help index: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html
+
+## Audit gate and current state
+
+This document is the target design inventory, not proof that the current app already renders these elements. Current branch implementation remains partial: the Projects surface has a first register/details composition and the global menu/toolbar shell is a visual catalogue. The complete independent windows, navigation tree, multi-window tabs, contextual bars, calendar editor, all view/layout dialogs and all page-specific Details surfaces remain acceptance-gated. Do not call the skin complete until each item is represented in the running application and exercised in browser screenshots/E2E at desktop and responsive breakpoints.
