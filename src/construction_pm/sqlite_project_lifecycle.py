@@ -10,7 +10,14 @@ import sqlite3
 from datetime import date
 from typing import Any
 
-from construction_pm.application.project_lifecycle import ProjectRepository, ProjectSummary
+from construction_pm.application.authorization import RoleBasedAuthorizationPolicy
+from construction_pm.application.project_lifecycle import (
+    ProjectLifecycleService,
+    ProjectRepository,
+    ProjectSummary,
+    SessionRepository,
+)
+from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 
 
@@ -205,4 +212,19 @@ class SQLiteProjectRepository(ProjectRepository):
             return self.get_for_user(tenant_id, project_id, user_id)
 
 
-__all__ = ["SQLiteProjectRepository"]
+def build_sqlite_project_lifecycle_api(
+    connection: sqlite3.Connection,
+    sessions: SessionRepository,
+    authorization_policy: RoleBasedAuthorizationPolicy,
+) -> ProjectLifecycleAPI:
+    """Compose the existing lifecycle application service over local SQLite.
+
+    The native host remains responsible for supplying a trusted local session
+    and offline-entitlement-aware authorization policy.
+    """
+    repository = SQLiteProjectRepository(connection)
+    service = ProjectLifecycleService(sessions, repository, authorization_policy)
+    return ProjectLifecycleAPI(service)
+
+
+__all__ = ["SQLiteProjectRepository", "build_sqlite_project_lifecycle_api"]

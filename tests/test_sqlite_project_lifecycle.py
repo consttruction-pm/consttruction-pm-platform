@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from construction_pm.application.project_lifecycle import ProjectSummary
-from construction_pm.sqlite_project_lifecycle import SQLiteProjectRepository
+from construction_pm.application.authorization import default_project_policy
+from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectSummary
+from construction_pm.sqlite_project_lifecycle import (
+    SQLiteProjectRepository,
+    build_sqlite_project_lifecycle_api,
+)
 
 
 def test_sqlite_project_repository_create_list_get_and_membership_scope():
@@ -111,4 +116,59 @@ def test_sqlite_project_repository_duplicate_create_is_rejected_atomically():
 
     assert repository.get_for_user("t", "p", "u") is not None
     assert repository.get_for_user("t", "p", "u2") is None
+    connection.close()
+
+
+
+class LocalSessions:
+    def __init__(self, session):
+        self.session = session
+
+    def get(self, session_id):
+        return self.session if session_id == self.session.session_id else None
+
+
+def test_sqlite_project_repository_composes_with_shared_lifecycle_api():
+    now = datetime(2026, 11, 3, 10, 0, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "offline-session",
+        "local-user",
+        "local-tenant",
+        frozenset({"project_admin"}),
+        now + timedelta(days=2),
+    )
+    connection = sqlite3.connect(":memory:")
+    api = build_sqlite_project_lifecycle_api(
+        connection,
+        LocalSessions(session),
+        default_project_policy(),
+    )
+
+    created = api.create_project(
+        "offline-session",
+        "project-1",
+        "Offline project",
+        start_date="2026-11-03",
+        date_system="jalali",
+        now=now,
+    )
+    assert created.context.tenant_id == "local-tenant"
+    assert created.context.project_id == "project-1"
+
+    project = api.get_project("offline-session", "project-1", now=now)
+    assert project.name == "Offline project"
+    assert project.start_date == "2026-11-03"
+    assert project.date_system == "jalali"
+
+    updated = api.update_project(
+        "offline-session",
+        "project-1",
+        name="Offline project revised",
+        expected_revision=project.settings_revision,
+        now=now,
+    )
+    assert updated.name == "Offline project revised"
+    assert updated.revision == 0
+    assert updated.settings_revision == 1
+    assert api.open_project("offline-session", "project-1", now=now).context.revision == 0
     connection.close()

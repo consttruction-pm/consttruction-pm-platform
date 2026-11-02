@@ -20,7 +20,7 @@ Provide a production local-client SQLite adapter for the existing Python `Projec
 
 ## Usage
 
-A trusted local application host opens a persistent SQLite file, creates this repository over the shared connection and composes the existing `ProjectLifecycleService` with its own authenticated local session/entitlement provider and authorization policy. Identity issuance and offline entitlement verification are not performed by this repository.
+A trusted local application host opens a persistent SQLite file and uses `build_sqlite_project_lifecycle_api` to compose this repository with the existing `ProjectLifecycleService` and `ProjectLifecycleAPI`. The host supplies its authenticated local session provider and offline-entitlement-aware authorization policy. Identity issuance and offline entitlement verification are not performed by this repository.
 
 The same connection can be shared with other SQLite domain repositories and the durable outbox. The host must wrap a local domain mutation and outbox append in the same `SQLiteTransactionManager.transaction()` boundary; this class does not claim to implement that broader atomic workflow by itself.
 
