@@ -135,7 +135,7 @@ test("activity relationship detail tabs retain Persian labels and left-to-right 
   assert.match(html, /شناسه فعالیت/);
   assert.match(html, /نام فعالیت/);
   assert.match(html, /A1330/);
-  assert.match(html, /<bdi dir="ltr">\+8 h<\/bdi>/);
+  assert.ok(html.includes('<bdi dir="ltr">+8 h</bdi>'));
 });
 
 
