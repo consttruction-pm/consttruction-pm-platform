@@ -186,12 +186,19 @@ function workspaceSnapshot(): WorkspaceControlRoomReadSnapshot {
 class StubTransport implements ApiTransport {
   public path = "";
   public context: ProjectContext | null = null;
+  private callCount = 0;
 
   constructor(private readonly result: ApiResult<WorkspaceControlRoomReadSnapshot>) {}
 
   async get<T>(path: string, contextValue: ProjectContext): Promise<ApiResult<T>> {
-    this.path = path;
-    this.context = contextValue;
+    this.callCount += 1;
+    if (this.callCount === 1) {
+      this.path = path;
+      this.context = contextValue;
+    }
+    if (this.callCount > 1) {
+      return { ok: false, error: { code: "ROUTE_NOT_FOUND", retryable: false, message_key: "error.route.not_found", available_actions: [] } } as ApiResult<T>;
+    }
     return this.result as ApiResult<T>;
   }
 
