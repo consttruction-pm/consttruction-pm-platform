@@ -216,6 +216,534 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   if (typeof container.addEventListener !== "function" || workspaceEventDelegation.has(container)) return;
   workspaceEventDelegation.add(container);
   container.addEventListener("pointerdown", (event) => {
+    const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
+    if (!splitter) return;
+    const split = splitter.closest<HTMLElement>("[data-panel-split]");
+    if (!split) return;
+    event.preventDefault();
+    const move = (moveEvent: PointerEvent): void => {
+      const rect = split.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const percent = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+      const clamped = Math.min(70, Math.max(30, percent));
+      split.style.setProperty("--cp-split-table", `${clamped.toFixed(2)}%`);
+      splitter.setAttribute("aria-valuenow", clamped.toFixed(0));
+    };
+    const stop = (): void => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop, { once: true });
+  });
+  container.addEventListener("input", (event) => {
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
+      ? event.target as HTMLElement
+      : null;
+    if (!target) return;
+    const filterInput = target.closest<HTMLInputElement>("[data-activity-filter]");
+    if (filterInput) {
+      const record = workspaceRenderRecords.get(container);
+      if (!record) return;
+      record.options.onActivityFilterChange?.(filterInput.value);
+      const next = container.querySelector<HTMLInputElement>("[data-activity-filter]");
+      if (next) {
+        next.focus({ preventScroll: true });
+        next.setSelectionRange(next.value.length, next.value.length);
+      }
+      return;
+    }
+    const searchInput = target.closest<HTMLInputElement>("[data-reference-search-input]");
+    if (!searchInput) return;
+    const query = searchInput.value.trim().toLocaleLowerCase();
+    const entries = Array.from(container.querySelectorAll<HTMLElement>("[data-reference-search]"));
+    let visible = 0;
+    for (const entry of entries) {
+      const match = !query || (entry.dataset.referenceSearch ?? "").includes(query);
+      entry.hidden = !match;
+      if (match) visible++;
+    }
+    container.querySelectorAll<HTMLElement>("[data-reference-group]").forEach((group) => {
+      group.hidden = !Array.from(group.querySelectorAll<HTMLElement>("[data-reference-search]")).some((entry) => !entry.hidden);
+    });
+    const empty = container.querySelector<HTMLElement>("[data-reference-no-matches]");
+    if (empty) empty.hidden = visible > 0;
+  });
+  container.addEventListener("submit", (event) => {
+    const form = event.target && typeof (event.target as { matches?: unknown }).matches === "function" ? event.target as HTMLFormElement : null;
+    if (!form) return;
+    const record = workspaceRenderRecords.get(container);
+    if (!record) return;
+    const readText = (name: string): string => form.querySelector<HTMLInputElement>(`[name="${name}"]`)?.value.trim() ?? "";
+    const sequenceRaw = form.querySelector<HTMLInputElement>('[name="sequence_number"]')?.value ?? "0";
+    const sequenceNumber = Number.parseInt(sequenceRaw, 10);
+    if (form.matches("[data-activity-create-form]")) {
+      event.preventDefault();
+      const durationValue = Number(form.querySelector<HTMLInputElement>('[name="duration_value"]')?.value ?? "");
+      const wbsId = form.querySelector<HTMLSelectElement>('[name="wbs_id"]')?.value ?? "";
+      if (!readText("activity_id") || !readText("name") || !Number.isFinite(durationValue) || durationValue < 0 || !wbsId) return;
+      const selected = (name: string, fallback: string): string => form.querySelector<HTMLSelectElement>(`[name="${name}"]`)?.value ?? fallback;
+      void record.options.onActivityCreate?.({
+        activityId: readText("activity_id"),
+        name: readText("name"),
+        durationValue,
+        durationUnit: selected("duration_unit", "working-day"),
+        wbsId,
+        activityType: selected("activity_type", "Task Dependent"),
+        status: selected("status", "Not Started"),
+        statusCode: selected("status_code", "Planned"),
+        percentCompleteType: selected("percent_complete_type", "DURATION"),
+        levelingPriority: selected("leveling_priority", "Normal"),
+      });
+    } else if (form.matches("[data-relationship-create-form]")) {
+      event.preventDefault();
+      const predecessorId = form.querySelector<HTMLSelectElement>('[name="predecessor_id"]')?.value ?? "";
+      const successorId = form.querySelector<HTMLSelectElement>('[name="successor_id"]')?.value ?? "";
+      const type = form.querySelector<HTMLSelectElement>('[name="relationship_type"]')?.value ?? "FS";
+      const lagValue = form.querySelector<HTMLInputElement>('[name="lag_value"]')?.value.trim() ?? "";
+      const lagUnit = form.querySelector<HTMLSelectElement>('[name="lag_unit"]')?.value ?? "working-day";
+      if (
+        !predecessorId || !successorId || predecessorId === successorId ||
+        !["FS", "SS", "FF", "SF"].includes(type) ||
+        !/^-?\d+(\.\d+)?$/.test(lagValue) ||
+        !["working-day", "working-hour"].includes(lagUnit)
+      ) return;
+      void record.options.onRelationshipCreate?.({
+        predecessorId,
+        successorId,
+        type: type as WorkspaceRelationshipType,
+        lagValue,
+        lagUnit,
+      });
+    } else if (form.matches("[data-relationship-edit-form]")) {
+      event.preventDefault();
+      const relationshipId = form.dataset.relationshipEditForm ?? "";
+      const recordRevision = Number(form.dataset.relationshipRevision ?? "");
+      const predecessorId = form.querySelector<HTMLSelectElement>('[name="predecessor_id"]')?.value ?? "";
+      const successorId = form.querySelector<HTMLSelectElement>('[name="successor_id"]')?.value ?? "";
+      const type = form.querySelector<HTMLSelectElement>('[name="relationship_type"]')?.value ?? "FS";
+      const lagValue = form.querySelector<HTMLInputElement>('[name="lag_value"]')?.value.trim() ?? "";
+      const lagUnit = form.querySelector<HTMLSelectElement>('[name="lag_unit"]')?.value ?? "working-day";
+      if (
+        !relationshipId || !Number.isInteger(recordRevision) || recordRevision < 1 ||
+        !predecessorId || !successorId || predecessorId === successorId ||
+        !["FS", "SS", "FF", "SF"].includes(type) ||
+        !/^-?\d+(\.\d+)?$/.test(lagValue) ||
+        !["working-day", "working-hour"].includes(lagUnit)
+      ) return;
+      void record.options.onRelationshipUpdate?.(relationshipId, recordRevision, {
+        predecessorId,
+        successorId,
+        type: type as WorkspaceRelationshipType,
+        lagValue,
+        lagUnit,
+      });
+    } else if (!Number.isInteger(sequenceNumber) || sequenceNumber < 0) return;
+    else if (form.matches("[data-wbs-create-form]")) {
+      event.preventDefault();
+      const parentWbsId = form.querySelector<HTMLSelectElement>('[name="parent_wbs_id"]')?.value || null;
+      void record.options.onWbsCreate?.({ code: readText("code"), name: readText("name"), sequenceNumber, parentWbsId });
+    } else if (form.matches("[data-wbs-edit-form]")) {
+      event.preventDefault();
+      const wbsId = form.dataset.wbsEditForm;
+      if (wbsId) void record.options.onWbsUpdate?.(wbsId, { code: readText("code"), name: readText("name"), sequenceNumber });
+    }
+  });
+  container.addEventListener("click", (event) => {
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    if (!target) return;
+    const record = workspaceRenderRecords.get(container);
+    if (!record) return;
+    const { state, options } = record;
+    if (target.dataset.navigationAction) {
+      const separator = target.dataset.navigationAction.indexOf(":");
+      const kind = separator >= 0 ? target.dataset.navigationAction.slice(0, separator) : target.dataset.navigationAction;
+      const value = separator >= 0 ? target.dataset.navigationAction.slice(separator + 1) : "";
+      if (kind === "register-tab") {
+        container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
+          if (button.dataset.registerTab === value) button.click();
+        });
+      } else if (kind === "calendar-tab") {
+        container.querySelector<HTMLElement>("[data-calendar-editor-tab='" + value + "']")?.click();
+      } else if (kind === "wbs-detail-tab") {
+        container.querySelector<HTMLElement>("[data-wbs-detail-tab='" + value + "']")?.click();
+      } else if (kind === "tracking-layout") {
+        const select = container.querySelector<HTMLSelectElement>("[data-tracking-layout]");
+        if (select) {
+          select.value = value;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+      return;
+    }
+    if (target.dataset.workspaceLayout) {
+      const layout = target.dataset.workspaceLayout;
+      if (layout === "split" || layout === "grid" || layout === "gantt") options.onWorkspaceLayoutChange?.(layout);
+      return;
+    }
+    if (target.dataset.workspaceCommand) {
+      const command = target.dataset.workspaceCommand;
+      if (command === "toggle-relationships") {
+        options.onGanttRelationshipsChange?.(!state.showGanttRelationships);
+        return;
+      }
+      if (command === "new-activity") {
+        openToolsDrawer(container);
+        container.querySelector<HTMLInputElement>('[data-activity-create-form] [name="activity_id"]')?.focus({ preventScroll: true });
+        return;
+      }
+      if (command === "new-wbs") {
+        openWbsDrawer(container);
+        container.querySelector<HTMLInputElement>('[data-wbs-create-form] [name="code"]')?.focus({ preventScroll: true });
+        return;
+      }
+      const destinations: Record<string, string> = {
+        "schedule-options": "#cp-schedule-options",
+        "run-schedule": "#cp-schedule-run",
+        relationships: "#cp-logic",
+      };
+      const destination = destinations[command];
+      if (!destination) return;
+      options.onWorkspaceLayoutChange?.("split");
+      const panel = container.querySelector<HTMLElement>(destination);
+      panel?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+      panel?.querySelector<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled])')?.focus({ preventScroll: true });
+      return;
+    }
+    if (target.dataset.registerTab) {
+      const tab = target.dataset.registerTab;
+      container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
+        const active = button.dataset.registerTab === tab;
+        button.setAttribute("aria-selected", String(active));
+        button.tabIndex = active ? 0 : -1;
+        button.classList.toggle("is-active", active);
+      });
+      container.querySelectorAll<HTMLElement>("[data-register-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.registerPanel !== tab;
+      });
+      return;
+    }
+    if (target.dataset.calendarEditorTab) {
+      const tab = target.dataset.calendarEditorTab;
+      container.querySelectorAll<HTMLElement>("[data-calendar-editor-tab]").forEach((button) => {
+        const active = button.dataset.calendarEditorTab === tab;
+        button.setAttribute("aria-selected", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      container.querySelectorAll<HTMLElement>("[data-calendar-editor-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.calendarEditorPanel !== tab;
+      });
+      return;
+    }
+    if (target.dataset.wbsDetailTab) {
+      const tab = target.dataset.wbsDetailTab;
+      wbsDetailsTabByContainer.set(container, tab);
+      container.querySelectorAll<HTMLElement>("[data-wbs-detail-tab]").forEach((button) => {
+        const active = button.dataset.wbsDetailTab === tab;
+        button.setAttribute("aria-selected", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      container.querySelectorAll<HTMLElement>("[data-wbs-detail-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.wbsDetailPanel !== tab;
+      });
+      return;
+    }
+    if (target.dataset.projectDetailTab) {
+      const tab = target.dataset.projectDetailTab;
+      projectDetailsTabByContainer.set(container, tab);
+      container.querySelectorAll<HTMLElement>("[data-project-detail-tab]").forEach((button) => {
+        const active = button.dataset.projectDetailTab === tab;
+        button.setAttribute("aria-selected", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      container.querySelectorAll<HTMLElement>("[data-project-detail-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.projectDetailPanel !== tab;
+      });
+      return;
+    }
+    if (target.dataset.activityDetailsOptionsOpen !== undefined || target.dataset.activityDetailsOptionsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
+      if (target.dataset.activityDetailsOptionsOpen !== undefined) {
+        const visible = getActivityDetailsVisibleTabs(container);
+        dialog?.querySelectorAll<HTMLInputElement>("[data-activity-detail-visible]").forEach((input) => {
+          input.checked = visible.has(input.dataset.activityDetailVisible ?? "");
+        });
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
+      } else if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.activityDetailsApply !== undefined) {
+      const dialog = container.querySelector<HTMLElement>("[data-activity-details-options-dialog]");
+      const selected = new Set(Array.from(dialog?.querySelectorAll<HTMLInputElement>("[data-activity-detail-visible]") ?? [])
+        .filter((input) => input.checked)
+        .map((input) => input.dataset.activityDetailVisible ?? ""));
+      if (!selected.size) return;
+      activityDetailsVisibleTabsByContainer.set(container, selected);
+      try { window.localStorage.setItem(ACTIVITY_DETAILS_TABS_STORAGE_KEY, JSON.stringify([...selected])); } catch { /* optional local preference storage */ }
+      const currentTab = activityDetailsTabByContainer.get(container) ?? "general";
+      const nextTab = selected.has(currentTab) ? currentTab : ACTIVITY_DETAIL_TABS.find(([key]) => selected.has(key))?.[0] ?? "general";
+      activityDetailsTabByContainer.set(container, nextTab);
+      const record = workspaceRenderRecords.get(container);
+      const details = container.querySelector<HTMLElement>("#cp-details");
+      if (record && details) details.innerHTML = renderActivityDetailsPanel(record.state, getWorkspaceLabels(record.state.locale), nextTab, selected);
+      const optionsDialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
+      if (optionsDialog && typeof optionsDialog.close === "function") optionsDialog.close();
+      else optionsDialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.activityDetailTab) {
+      const tab = target.dataset.activityDetailTab;
+      activityDetailsTabByContainer.set(container, tab);
+      container.querySelectorAll<HTMLElement>("[data-activity-detail-tab]").forEach((button) => {
+        const active = button.dataset.activityDetailTab === tab;
+        button.setAttribute("aria-selected", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      container.querySelectorAll<HTMLElement>("[data-activity-detail-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.activityDetailPanel !== tab;
+      });
+      return;
+    }
+    if (target.dataset.windowClose) {
+      if (["project", "schedule", "progress", "resources", "cost", "documents", "reports", "control", "settings"].includes(target.dataset.windowClose)) {
+        options.onWindowClose?.(target.dataset.windowClose as WorkspaceState["activeMenu"]);
+      }
+      return;
+    }
+    if (target.dataset.shellCommand) {
+      const command = target.dataset.shellCommand;
+      if (command === "Timescale") {
+        const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
+      } else if (command === "Columns") {
+        openToolsDrawer(container);
+      } else if (command === "Bars" || command === "Bar Chart Options") {
+        const dialog = container.querySelector<HTMLDialogElement>(command === "Bars" ? "[data-bars-dialog]" : "[data-bar-chart-options-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
+      } else if (command === "Filter By") {
+        container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
+      } else if (command === "Group and Sort By") {
+        const dialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
+      } else if (command === "Bottom Layout Options") {
+        container.querySelector<HTMLElement>("[data-activity-details-options-open]")?.click();
+      } else if (command === "Activity Details") {
+        container.querySelector<HTMLElement>("#cp-details")?.scrollIntoView?.({ behavior: "smooth", block: "end" });
+      }
+      return;
+    }
+    if ("projectSettings" in target.dataset) return void options.onProjectSettings?.();
+    if (target.dataset.toolsOpen !== undefined) { openToolsDrawer(container); return; }
+    if (target.dataset.toolsClose !== undefined) { closeDrawer(container, "[data-tools-drawer]"); return; }
+    if (target.dataset.wbsDrawerClose !== undefined) { closeDrawer(container, "[data-wbs-drawer]"); return; }
+    if (target.dataset.railAction) {
+      const action = target.dataset.railAction;
+      if (action === "navigation") { toggleDrawer(container, "[data-nav-flyout]"); return; }
+      if (action === "wbs") { openWbsDrawer(container); return; }
+      if (action === "tools") { toggleDrawer(container, "[data-tools-drawer]"); return; }
+      options.onRailAction?.(action);
+      return;
+    }
+    if (target.dataset.menu) {
+      closeDrawer(container, "[data-nav-flyout]");
+      return void options.onMenuSelect?.(target.dataset.menu as WorkspaceState["activeMenu"]);
+    }
+    if (target.dataset.activityEdit) return void options.onActivityEdit?.(target.dataset.activityEdit);
+    if (target.dataset.activitySortDirection !== undefined) return void options.onActivitySortDirectionToggle?.();
+    if (target.dataset.wbsId) return void options.onWbsSelect?.(target.dataset.wbsId);
+    if ("wbsDelete" in target.dataset) { const selectedId = state.selectedWbsId ?? ""; if (selectedId && window.confirm(getWorkspaceLabels(state.locale).wbsDeleteConfirm)) void options.onWbsDelete?.(selectedId); return; }
+    if (target.dataset.relationshipDelete) {
+      const revision = Number.parseInt(target.dataset.relationshipRevision ?? "", 10);
+      if (!Number.isInteger(revision) || revision < 1) return;
+      void options.onRelationshipDelete?.(target.dataset.relationshipDelete, revision);
+      return;
+    }
+    if ("p6LayoutUndo" in target.dataset) return void options.onP6LayoutUndo?.();
+    if ("p6LayoutRedo" in target.dataset) return void options.onP6LayoutRedo?.();
+    if ("p6LayoutRestore" in target.dataset) {
+      const selected = container.querySelector<HTMLSelectElement>("[data-p6-layout-revision-select]")?.value ?? "";
+      const revision = Number.parseInt(selected, 10);
+      if (Number.isInteger(revision)) options.onP6LayoutRestore?.(revision);
+      return;
+    }
+    if (target.dataset.p6FieldAdd) return void options.onP6FieldAdd?.(target.dataset.p6FieldAdd);
+    if (target.dataset.p6FieldRemove) return void options.onP6FieldRemove?.(target.dataset.p6FieldRemove);
+    if (target.dataset.p6FieldVisibility) return void options.onP6FieldVisibilityChange?.(target.dataset.p6FieldVisibility, target.dataset.p6FieldVisible === "true");
+    if (target.dataset.p6FieldWidth) {
+      const delta = target.dataset.p6FieldWidthDelta;
+      if (delta !== "increase" && delta !== "decrease") return;
+      const column = state.p6Layout?.columns.find((item) => item.field_id === target.dataset.p6FieldWidth);
+      if (column) options.onP6FieldWidthChange?.(target.dataset.p6FieldWidth, Math.max(40, column.width + (delta === "increase" ? 20 : -20)));
+      return;
+    }
+    if (target.dataset.p6FieldAlignment) {
+      const alignment = target.dataset.p6FieldAlignmentValue;
+      if (alignment === "start" || alignment === "center" || alignment === "end") options.onP6FieldPresentationChange?.(target.dataset.p6FieldAlignment, { alignment });
+      return;
+    }
+    if (target.dataset.p6FieldPin) return void options.onP6FieldPresentationChange?.(target.dataset.p6FieldPin, { pinned: target.dataset.p6FieldPinned !== "true" });
+    if (target.dataset.p6FieldFreeze) return void options.onP6FieldPresentationChange?.(target.dataset.p6FieldFreeze, { frozen: target.dataset.p6FieldFrozen !== "true" });
+    if (target.dataset.p6FieldMove) {
+      const direction = target.dataset.p6FieldDirection;
+      if (direction !== "up" && direction !== "down") return;
+      const fieldId = target.dataset.p6FieldMove;
+      const visible = state.p6Layout?.columns.filter((column) => column.visible).sort((a, b) => a.order - b.order) ?? [];
+      const ordered = state.p6Layout?.columns.slice().sort((a, b) => a.order - b.order).map((column) => column.field_id) ?? [];
+      const index = ordered.indexOf(fieldId);
+      const visibleIndex = visible.findIndex((column) => column.field_id === fieldId);
+      const nextVisibleIndex = direction === "up" ? visibleIndex - 1 : visibleIndex + 1;
+      if (visibleIndex < 0 || nextVisibleIndex < 0 || nextVisibleIndex >= visible.length || index < 0) return;
+      const adjacentIndex = ordered.indexOf(visible[nextVisibleIndex].field_id);
+      if (adjacentIndex < 0) return;
+      [ordered[index], ordered[adjacentIndex]] = [ordered[adjacentIndex], ordered[index]];
+      options.onP6FieldReorder?.(ordered);
+      return;
+    }
+    if (target.dataset.layoutOptionsOpen !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
+      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+      else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.dataset.barsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-bars-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.barChartOptionsOpen !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-bar-chart-options-dialog]");
+      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+      else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.dataset.barOptionsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-bar-chart-options-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.barsTab) {
+      const active = target.dataset.barsTab;
+      container.querySelectorAll<HTMLElement>("[data-bars-tab]").forEach((button) => {
+        const selected = button.dataset.barsTab === active;
+        button.setAttribute("aria-selected", String(selected));
+        button.classList.toggle("is-active", selected);
+      });
+      container.querySelectorAll<HTMLElement>("[data-bars-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.barsPanel !== active;
+      });
+      return;
+    }
+    if (target.dataset.barOptionsTab) {
+      const active = target.dataset.barOptionsTab;
+      container.querySelectorAll<HTMLElement>("[data-bar-options-tab]").forEach((button) => {
+        const selected = button.dataset.barOptionsTab === active;
+        button.setAttribute("aria-selected", String(selected));
+        button.classList.toggle("is-active", selected);
+      });
+      container.querySelectorAll<HTMLElement>("[data-bar-options-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.barOptionsPanel !== active;
+      });
+      return;
+    }
+    if (target.dataset.groupSortClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.groupSortApply !== undefined) {
+      const dialog = container.querySelector<HTMLElement>("[data-group-sort-dialog]");
+      const group = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-group]")?.value;
+      const field = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-field]")?.value ?? "";
+      const direction = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-direction]")?.value;
+      if ((group === "wbs" || group === "none") && (direction === "asc" || direction === "desc")) {
+        const validField = field === "" || state.columns.some((column) => column.id === field);
+        if (validField && options.onActivityGroupSortChange) {
+          options.onActivityGroupSortChange(group, field || null, direction);
+        } else if (validField) {
+          options.onActivityGroupByChange?.(group);
+          options.onActivitySortChange?.(field || null);
+        }
+      }
+      const groupDialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
+      if (groupDialog && typeof groupDialog.close === "function") groupDialog.close();
+      else groupDialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.layoutOptionsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.ganttScale) {
+      const mode = target.dataset.ganttScale;
+      if (mode === "day" || mode === "week" || mode === "month" || mode === "quarter" || mode === "year") options.onGanttScaleChange?.(mode);
+      return;
+    }
+    if (target.dataset.ganttRelationshipsToggle !== undefined) {
+      options.onGanttRelationshipsChange?.(target.dataset.ganttRelationshipsToggle === "true");
+      return;
+    }
+    if (target.dataset.ganttActivityId) return void options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
+    if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
+  });
+  container.addEventListener("keydown", (event) => {
+    const projectSplitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter]");
+    if (projectSplitter?.dataset && "projectDetailsSplitter" in projectSplitter.dataset) {
+      const current = readProjectDetailsHeight();
+      let next = current;
+      if (event.key === "ArrowUp") next += 16;
+      else if (event.key === "ArrowDown") next -= 16;
+      else if (event.key === "Home") next = PROJECT_DETAILS_HEIGHT_MIN;
+      else if (event.key === "End") next = projectDetailsHeightMax();
+      else return;
+      event.preventDefault();
+      setProjectDetailsHeight(container, next);
+      return;
+    }
+    const activitySplitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-activity-details-splitter]");
+    if (activitySplitter?.dataset && "activityDetailsSplitter" in activitySplitter.dataset) {
+      const current = readActivityDetailsHeight();
+      let next = current;
+      if (event.key === "ArrowUp") next += 16;
+      else if (event.key === "ArrowDown") next -= 16;
+      else if (event.key === "Home") next = ACTIVITY_DETAILS_HEIGHT_MIN;
+      else if (event.key === "End") next = activityDetailsHeightMax();
+      else return;
+      event.preventDefault();
+      setActivityDetailsHeight(container, next);
+      return;
+    }
+    const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
+    if (splitter && splitter.dataset && "panelSplitter" in splitter.dataset) {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const split = splitter.closest<HTMLElement>("[data-panel-split]");
+      if (!split) return;
+      event.preventDefault();
+      const current = Number.parseFloat(split.style.getPropertyValue("--cp-split-table")) || 53.5;
+      const next = Math.min(70, Math.max(30, current + (event.key === "ArrowRight" ? 2 : -2)));
+      split.style.setProperty("--cp-split-table", `${next}%`);
+      splitter.setAttribute("aria-valuenow", next.toFixed(0));
+      return;
+    }
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id]") : null;
+    if (!target) return;
+    event.preventDefault();
+    const record = workspaceRenderRecords.get(container);
+    if (!record) return;
+    if (target.dataset.ganttActivityId) record.options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
+    else if (target.dataset.activityId) record.options.onActivitySelect?.(target.dataset.activityId);
+  });
+  container.addEventListener("pointerdown", (event) => {
     const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter],[data-activity-details-splitter]");
     if (!target) return;
     const details = container.querySelector<HTMLElement>("#cp-details");
