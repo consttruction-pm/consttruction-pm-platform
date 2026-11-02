@@ -504,6 +504,7 @@ test("module navigation submenus route to real registers, detail tabs and tracki
   assert.match(documents, /data-navigation-action="document-detail-tab:links"/);
   assert.match(documents, /data-navigation-action="document-detail-tab:integrity"/);
   assert.match(documents, /data-navigation-action="document-detail-tab:revisions"/);
+  assert.match(documents, /data-navigation-action="document-type:evidence"/);
 
   const assignments = render("en", "assignments");
   assert.match(assignments, /data-navigation-action="register-tab:assignments:general"/);
