@@ -15,6 +15,7 @@ from typing import Callable, Protocol
 
 from construction_pm.application.authorization import (
     AuthorizationContext,
+    AuthorizationError,
     Permission,
     RoleBasedAuthorizationPolicy,
 )
@@ -152,7 +153,15 @@ class _RuntimeResourceAuthorizationPolicy:
                 "CROSS_SCOPE_ACCESS",
                 "The resource operation is outside the authenticated project scope.",
             )
-        self.authorization_policy.require(self.auth_context, Permission.PROJECT_WRITE)
+        permission = (
+            Permission.PROJECT_READ
+            if operation in {"get_resource", "list_resources", "list_assignments"}
+            else Permission.PROJECT_WRITE
+        )
+        try:
+            self.authorization_policy.require(self.auth_context, permission)
+        except AuthorizationError as exc:
+            raise authorization_error("FORBIDDEN", str(exc)) from exc
 
 
 def build_sqlite_calendar_resolver_registry(
