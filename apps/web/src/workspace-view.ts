@@ -287,11 +287,17 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.windowClose) {
+      if (["project", "schedule", "progress", "resources", "cost", "documents", "reports", "control", "settings"].includes(target.dataset.windowClose)) {
+        options.onWindowClose?.(target.dataset.windowClose as WorkspaceState["activeMenu"]);
+      }
+      return;
+    }
     if (target.dataset.shellCommand) {
       const command = target.dataset.shellCommand;
       if (command === "Timescale") {
@@ -560,6 +566,8 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
 
 export type WorkspaceRendererOptions = {
   onMenuSelect?: (menu: WorkspaceState["activeMenu"]) => void;
+  openWindows?: readonly WorkspaceState["activeMenu"][];
+  onWindowClose?: (menu: WorkspaceState["activeMenu"]) => void;
   onWbsSelect?: (wbsId: string) => void;
   onWbsCreate?: (input: { code: string; name: string; sequenceNumber: number; parentWbsId: string | null }) => void | Promise<void>;
   onWbsUpdate?: (wbsId: string, input: { code: string; name: string; sequenceNumber: number }) => void | Promise<void>;
@@ -684,7 +692,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     ["reports", uiText(state.locale, "Reports", "گزارش‌ها")],
     ["control", uiText(state.locale, "Project Controls", "کنترل پروژه")],
     ["settings", uiText(state.locale, "Settings", "تنظیمات")],
-  ] as const);
+  ] as const).filter(([key]) => (options.openWindows ?? [state.activeMenu]).includes(key));
   const contextCommands: Array<{ label: string; action?: "project-settings" | "wbs" | "tools"; disabled?: boolean }> = state.activeMenu === "project"
     ? [
       { label: uiText(state.locale, "Project properties", "مشخصات پروژه"), action: "project-settings" },
@@ -759,7 +767,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         <div class="cp-p6-body">
           ${renderWorkspaceCommandShell(state.locale, state.activeMenu)}
           <nav class="cp-window-tabs" aria-label="${escapeAttribute(uiText(state.locale, "Workspace windows", "پنجره‌های محیط کار"))}" role="tablist">
-            ${windowTabs.map(([key, label]) => `<button type="button" role="tab" data-window-tab="${key}" data-menu="${key}" aria-selected="${key === state.activeMenu}" aria-current="${key === state.activeMenu ? "page" : "false"}" class="cp-window-tab${key === state.activeMenu ? " is-active" : ""}">${escapeHtml(label)}</button>`).join("")}
+            ${windowTabs.map(([key, label]) => `<span class="cp-window-tab-item"><button type="button" role="tab" data-window-tab="${key}" data-menu="${key}" aria-selected="${key === state.activeMenu}" aria-current="${key === state.activeMenu ? "page" : "false"}" class="cp-window-tab${key === state.activeMenu ? " is-active" : ""}">${escapeHtml(label)}</button>${windowTabs.length > 1 ? `<button type="button" class="cp-window-tab-close" data-window-close="${key}" aria-label="${escapeAttribute(uiText(state.locale, `Close ${label}`, `بستن ${label}`))}" title="${escapeAttribute(uiText(state.locale, `Close ${label}`, `بستن ${label}`))}">×</button>` : ""}</span>`).join("")}
           </nav>
           <header class="cp-p6-activity-header" data-activity-header>
             <span class="cp-p6-activity-heading">
