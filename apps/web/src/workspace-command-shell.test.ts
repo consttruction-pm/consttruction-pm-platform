@@ -16,6 +16,11 @@ test("visual command shell exposes all global menu families and toolbar groups",
   assert.match(html, /Group and Sort By/);
   assert.match(html, /Activity Network/);
   assert.match(html, /disabled/);
+  assert.match(html, /data-shell-command="Timescale" title="Open the corresponding options for the current view"/);
+  assert.match(html, /data-shell-command="Columns" title="Open the corresponding options for the current view"/);
+  assert.doesNotMatch(html, /data-shell-command="Timescale"[^>]*disabled/);
+  assert.doesNotMatch(html, /data-shell-command="Columns"[^>]*disabled/);
+  assert.match(html, /data-shell-command="Save"[^>]*disabled/);
 });
 
 test("CUBI Form Builder is additive and exposes both governed libraries", () => {
