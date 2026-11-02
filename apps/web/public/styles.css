@@ -6999,3 +6999,46 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
     grid-row: 2;
   }
 }
+
+/* Activities window: Activity Details is the bottom layout, not a right-side inspector. */
+.cp-workspace[data-active-menu="schedule"] .cp-main {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 6px;
+}
+.cp-workspace[data-active-menu="schedule"] .cp-main > .cp-p6-primary,
+.cp-workspace[data-active-menu="schedule"] .cp-main > .cp-activity-details-splitter,
+.cp-workspace[data-active-menu="schedule"] .cp-main > #cp-details.cp-activity-details-dock {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.cp-workspace[data-active-menu="schedule"] .cp-main > #cp-details.cp-activity-details-dock {
+  width: 100%;
+  height: var(--cp-activity-details-height, 220px);
+  min-height: 140px;
+  max-height: 45vh;
+  overflow: auto;
+  padding: 0;
+}
+.cp-activity-details-splitter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 8px;
+  min-height: 8px;
+  border-radius: 4px;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+}
+.cp-activity-details-splitter span {
+  width: 58px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--cubi-brushed-titanium);
+}
+.cp-activity-details-splitter:hover span,
+.cp-activity-details-splitter:focus-visible span {
+  width: 82px;
+  background: var(--cubi-engineering-blue);
+}
