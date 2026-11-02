@@ -640,7 +640,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     const kind = container.querySelector<HTMLElement>("[data-activity-header] .cp-p6-activity-heading span");
     if (kind) kind.textContent = next.activeMenu === "schedule" ? uiText(next.locale, "Activity workspace", "محیط کار فعالیت") : uiText(next.locale, "Workspace page", "صفحهٔ محیط کار");
     const stage = container.querySelector<HTMLElement>("#cp-p6-module-stage");
-    if (stage) stage.outerHTML = renderP6ModuleStage(next, labels);
+    if (stage) stage.outerHTML = renderP6ModuleStage(container, next, labels);
     container.querySelector<HTMLElement>("[data-nav-flyout]")?.setAttribute("hidden", "");
     const schedulingReference = container.querySelector<HTMLElement>("#cp-scheduling-reference");
     if (schedulingReference) schedulingReference.hidden = next.activeMenu !== "schedule";
@@ -946,7 +946,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}
                 </section>
               </section>
-              ${renderP6ModuleStage(state, t)}
+              ${renderP6ModuleStage(container, state, t)}
             </div>
             <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading">${renderWindowDetailsPanel(state, t, container)}</aside>
           </main>
@@ -1067,7 +1067,7 @@ function renderRegisterWindow(
   </div>`;
 }
 
-function renderP6ModuleStage(state: WorkspaceState, t: WorkspaceLabels): string {
+function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: WorkspaceLabels): string {
   if (state.activeMenu === "schedule") return `<section id="cp-p6-module-stage" class="cp-p6-module-stage" data-workspace-menu="schedule" hidden></section>`;
   const navigation = getWorkspaceNavigation(state.activeMenu);
   const title = getWorkspaceNavigationLabel(navigation, state.locale);
