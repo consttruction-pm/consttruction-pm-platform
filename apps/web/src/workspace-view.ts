@@ -2320,35 +2320,71 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): s
     quarter: t.scaleQuarter,
     year: t.scaleYear,
   };
+  const intervalOptions = [
+    ["quarter-month", "Quarter / Month"],
+    ["month-week", "Month / Week"],
+    ["week-day-1", "Week / Day 1"],
+    ["week-day-2", "Week / Day 2"],
+    ["day-shift", "Day / Shift"],
+    ["day-hour", "Day / Hour"],
+    ["year-financial-period", "Year / Financial Period"],
+    ["quarter-financial-period", "Quarter / Financial Period"],
+  ] as const;
+  const action = (label: string, close = false, disabled = false): string =>
+    `<button type="button"${close ? " data-layout-options-close" : ""}${disabled ? " disabled" : ""}>${escapeHtml(label)}</button>`;
   return `<dialog class="cp-layout-options-dialog" data-layout-options-dialog aria-labelledby="cp-layout-options-title">
     <form method="dialog" class="cp-layout-options-form">
       <header><div><small>${escapeHtml(uiText(state.locale, "Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-layout-options-title">${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</h2></div><button type="button" data-layout-options-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
-      <section class="cp-layout-options-section">
-        <h3>${escapeHtml(uiText(state.locale, "Top Layout", "چیدمان بالا"))}</h3>
-        <label>${escapeHtml(uiText(state.locale, "Primary view", "نمای اصلی"))}
-          <select data-top-layout><option value="table-gantt" selected>${escapeHtml(uiText(state.locale, "Activity Table + Gantt Chart", "جدول فعالیت‌ها + نمودار گانت"))}</option><option value="activity-network" disabled>Activity Network</option><option value="activity-usage-spreadsheet" disabled>Activity Usage Spreadsheet</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="resource-usage-spreadsheet" disabled>Resource Usage Spreadsheet</option><option value="resource-usage-profile" disabled>Resource Usage Profile</option><option value="trace-logic" disabled>Trace Logic</option></select>
-        </label>
-        <h3>${escapeHtml(uiText(state.locale, "Bottom Layout", "چیدمان پایین"))}</h3>
-        <label>${escapeHtml(uiText(state.locale, "Details view", "نمای جزئیات"))}
-          <select data-bottom-layout><option value="activity-details" selected>Activity Details</option><option value="activity-network" disabled>Activity Network</option><option value="trace-logic" disabled>Trace Logic</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option></select>
-        </label>
-      </section>
-      <section class="cp-layout-options-section">
-        <h3>${escapeHtml(uiText(state.locale, "Timescale", "مقیاس زمانی"))}</h3>
-        <label>${escapeHtml(uiText(state.locale, "Display interval", "بازه نمایش"))}
-          <select data-layout-timescale>${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<option value="${mode}"${state.ganttScale === mode ? " selected" : ""}>${escapeHtml(scaleLabels[mode])}</option>`).join("")}</select>
-        </label>
-      </section>
-      <section class="cp-layout-options-section">
-        <h3>${escapeHtml(uiText(state.locale, "Gantt display", "نمایش گانت"))}</h3>
-        <label class="cp-layout-options-check"><input type="checkbox" data-layout-links${state.showGanttRelationships ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show relationship lines", "نمایش خطوط روابط"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show critical path", "نمایش مسیر بحرانی"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show progress line", "نمایش خط پیشرفت"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show baseline bars", "نمایش میله‌های مبنا"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
-        <p>${escapeHtml(uiText(state.locale, "Only relationship-line visibility and timescale are connected in this slice. Other options remain visibly present but disabled until their renderer and state contract are implemented.", "در این بخش فقط نمایش خطوط روابط و مقیاس زمانی متصل هستند. گزینه‌های دیگر تا پیاده‌سازی رندرکننده و قرارداد وضعیت، نمایش داده می‌شوند اما غیرفعال‌اند."))}</p>
-      </section>
-      <footer><button type="button" data-layout-options-close>${escapeHtml(uiText(state.locale, "Close", "بستن"))}</button></footer>
+      <div class="cp-layout-options-dialog-body">
+        <div class="cp-layout-options-main">
+          <fieldset class="cp-layout-options-section">
+            <legend>${escapeHtml(uiText(state.locale, "Top Layout", "چیدمان بالا"))}</legend>
+            <label>${escapeHtml(uiText(state.locale, "Primary view", "نمای اصلی"))}
+              <select data-top-layout><option value="table-gantt" selected>${escapeHtml(uiText(state.locale, "Activity Table + Gantt Chart", "جدول فعالیت‌ها + نمودار گانت"))}</option><option value="activity-network" disabled>Activity Network</option><option value="activity-usage-spreadsheet" disabled>Activity Usage Spreadsheet</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="resource-usage-spreadsheet" disabled>Resource Usage Spreadsheet</option><option value="resource-usage-profile" disabled>Resource Usage Profile</option><option value="trace-logic" disabled>Trace Logic</option></select>
+            </label>
+          </fieldset>
+          <fieldset class="cp-layout-options-section">
+            <legend>${escapeHtml(uiText(state.locale, "Bottom Layout", "چیدمان پایین"))}</legend>
+            <label>${escapeHtml(uiText(state.locale, "Details view", "نمای جزئیات"))}
+              <select data-bottom-layout><option value="activity-details" selected>Activity Details</option><option value="activity-network" disabled>Activity Network</option><option value="trace-logic" disabled>Trace Logic</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="none" disabled>None</option></select>
+            </label>
+            <button type="button" data-activity-details-options-open>${escapeHtml(uiText(state.locale, "Customize detail tabs", "سفارشی‌سازی زبانه‌های جزئیات"))}</button>
+          </fieldset>
+          <fieldset class="cp-layout-options-section">
+            <legend>${escapeHtml(uiText(state.locale, "Timescale", "مقیاس زمانی"))}</legend>
+            <div class="cp-layout-options-radio-row" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Timescale format", "قالب مقیاس زمانی"))}">
+              <label><input type="radio" name="timescale-format" value="two-lines" checked disabled> ${escapeHtml(uiText(state.locale, "Two Lines", "دو خط"))}</label>
+              <label><input type="radio" name="timescale-format" value="three-lines" disabled> ${escapeHtml(uiText(state.locale, "Three Lines", "سه خط"))}</label>
+            </div>
+            <label>${escapeHtml(uiText(state.locale, "Display interval", "بازه نمایش"))}
+              <select data-layout-timescale>${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<option value="${mode}"${state.ganttScale === mode ? " selected" : ""}>${escapeHtml(scaleLabels[mode])}</option>`).join("")}</select>
+            </label>
+            <label>${escapeHtml(uiText(state.locale, "Timescale start", "شروع مقیاس زمانی"))}<span class="cp-layout-options-input-with-button"><input type="text" disabled placeholder="—"><button type="button" disabled aria-label="${escapeAttribute(uiText(state.locale, "Browse", "مرور"))}">…</button></span></label>
+            <label>${escapeHtml(uiText(state.locale, "Date format", "قالب تاریخ"))}<select disabled><option>Calendar</option></select></label>
+            <label>${escapeHtml(uiText(state.locale, "Date interval", "فاصله تاریخ"))}<select disabled><option value="">${escapeHtml(uiText(state.locale, "Select interval", "انتخاب فاصله"))}</option>${intervalOptions.map(([value,label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("")}</select></label>
+            <label>${escapeHtml(uiText(state.locale, "Shift calendar", "تقویم شیفت"))}<select disabled><option>—</option></select></label>
+            <div class="cp-layout-options-radio-row"><label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show ordinal dates", "نمایش تاریخ ترتیبی"))}</label></div>
+            <label>${escapeHtml(uiText(state.locale, "Ordinal start", "شروع ترتیبی"))}<input type="text" disabled placeholder="—"></label>
+            <label>${escapeHtml(uiText(state.locale, "Ordinal date interval", "فاصله تاریخ ترتیبی"))}<select disabled><option>—</option></select></label>
+            <div class="cp-layout-options-font-row"><button type="button" disabled>${escapeHtml(uiText(state.locale, "Font & Color", "قلم و رنگ"))} · AaBbYyZz</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Default Font", "قلم پیش‌فرض"))}</button></div>
+          </fieldset>
+          <fieldset class="cp-layout-options-section">
+            <legend>${escapeHtml(uiText(state.locale, "Gantt display", "نمایش گانت"))}</legend>
+            <label class="cp-layout-options-check"><input type="checkbox" data-layout-links${state.showGanttRelationships ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show relationship lines", "نمایش خطوط روابط"))}</label>
+            <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show critical path", "نمایش مسیر بحرانی"))}</label>
+            <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show progress line", "نمایش خط پیشرفت"))}</label>
+            <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show baseline bars", "نمایش میله‌های مبنا"))}</label>
+            <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
+          </fieldset>
+        </div>
+        <aside class="cp-layout-options-actions" aria-label="${escapeAttribute(uiText(state.locale, "Dialog actions", "فرمان‌های پنجره"))}">
+          ${action(uiText(state.locale, "OK", "تأیید"), true)}
+          ${action(uiText(state.locale, "Cancel", "انصراف"), true)}
+          ${action(uiText(state.locale, "Apply", "اعمال"), false, true)}
+          ${action(uiText(state.locale, "Help", "راهنما"), false, true)}
+        </aside>
+      </div>
+      <p class="cp-layout-options-notice">${escapeHtml(uiText(state.locale, "Only the display interval and relationship-line visibility are connected in this slice. Other controls are shown for visual completeness but remain disabled until their renderer and persistence contract are implemented.", "در این بخش فقط بازه نمایش و وضعیت خطوط روابط متصل هستند. سایر کنترل‌ها برای تکمیل ساختار بصری نمایش داده شده‌اند اما تا پیاده‌سازی رندرکننده و قرارداد ذخیره‌سازی غیرفعال می‌مانند."))}</p>
     </form>
   </dialog>`;
 }
