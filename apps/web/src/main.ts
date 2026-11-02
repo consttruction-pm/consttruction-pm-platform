@@ -1459,6 +1459,10 @@ function renderApp(
     onActivityGroupByChange: (groupBy) => {
       renderApp(container, setActivityGroupBy(state, groupBy), persistence);
     },
+    onActivityGroupSortChange: (groupBy, columnId, direction) => {
+      const grouped = setActivityGroupBy(state, groupBy);
+      renderApp(container, setActivitySort(grouped, columnId, direction), persistence);
+    },
     onActivitySortChange: (columnId) => {
       const direction = state.activitySort?.columnId === columnId
         ? state.activitySort.direction
