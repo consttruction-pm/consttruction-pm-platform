@@ -1403,3 +1403,25 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
   const settings = render("en", "settings");
   assert.match(settings, /id="cp-settings-panel"[^>]*data-workspace-menu="settings"/);
 });
+
+
+test("desktop workbench renders a grouped navigation tree, window tabs and contextual command rail", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /class="cp-navigation-tree"/);
+  assert.match(html, /Project workspace/);
+  assert.match(html, /Planning &amp; execution/);
+  assert.match(html, /Resources &amp; cost/);
+  assert.match(html, /class="cp-window-tabs"/);
+  assert.match(html, /role="tab" data-menu="schedule" aria-selected="true"/);
+  assert.match(html, /class="cp-context-command-bar"/);
+  assert.match(html, /Current window commands/);
+  assert.match(html, /class="cp-context-command-rail"/);
+  assert.match(html, /class="cp-context-add-menu"/);
+  assert.match(html, /Add to current window/);
+});
+
+test("desktop workbench keeps contextual Add actions visibly unavailable until workflows exist", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /role="menuitem" disabled/);
+  assert.match(html, /create workflow is not connected yet/);
+});
