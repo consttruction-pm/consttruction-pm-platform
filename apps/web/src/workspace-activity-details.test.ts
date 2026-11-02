@@ -37,7 +37,7 @@ test("activity details renders an explicit placeholder when nothing is selected"
 
 test("Projects window keeps the bottom pane scoped to Project Details", () => {
   const state = createWorkspaceState({
-    tenant_id: "tenant-1", project_id: "project-1", revision: 7, user_id: "user-1",
+    tenant_id: "tenant-1", project_id: "project-1", revision: 7,
   });
   const projectState = {
     ...state,
