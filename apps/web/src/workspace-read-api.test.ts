@@ -154,7 +154,7 @@ test("workspace read client loads the authenticated project calendar catalogue",
       data: {
         contract_version: "p6-calendar-read-api.v1",
         kind: "calendar_catalog",
-        scope: context,
+        scope: { tenant_id: context.tenant_id, project_id: context.project_id, project_revision: context.revision },
         calendars: [{
           calendar_id: "CAL-PROJECT",
           calendar_version: "v3",
