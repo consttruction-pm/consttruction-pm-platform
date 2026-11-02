@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Iterable, Mapping, Sequence
 
-from .activity import Activity, ActivityType
+from .activity import Activity, ActivityStatus, ActivityType
 from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
 from .diagnostics import ScheduleDiagnosticCode, ScheduleInfeasibilityError
@@ -37,11 +37,25 @@ class ScheduledActivity:
     # have no remaining work, so both fields are None.
     remaining_start: date | None = None
     remaining_finish: date | None = None
+    # Aggregated Activity % Complete / Status for a WBS Summary. Task
+    # activities leave these as None because their own percent complete is
+    # already carried by the source Activity row.
+    percent_complete: float | None = None
+    status: ActivityStatus | None = None
 
     def __post_init__(self) -> None:
         if self.remaining_start is not None and self.remaining_finish is not None:
             if self.remaining_finish < self.remaining_start:
                 raise ValueError("remaining_finish must not precede remaining_start")
+        if self.percent_complete is not None:
+            if (
+                isinstance(self.percent_complete, bool)
+                or not isinstance(self.percent_complete, (int, float))
+                or not 0 <= self.percent_complete <= 100
+            ):
+                raise ValueError("percent_complete must be between 0 and 100")
+        if self.status is not None and not isinstance(self.status, ActivityStatus):
+            raise TypeError("status must be an ActivityStatus or None")
 
 
 # Level of Effort and WBS Summary activities do not participate in the
@@ -393,6 +407,65 @@ def _schedule_level_of_effort(
     )
 
 
+def _effective_activity_status(activity: Activity) -> ActivityStatus:
+    """Resolve the status that progress facts imply for rollup purposes."""
+    if activity.actual_finish is not None or activity.status is ActivityStatus.COMPLETED:
+        return ActivityStatus.COMPLETED
+    if activity.actual_start is not None or activity.status is ActivityStatus.IN_PROGRESS:
+        return ActivityStatus.IN_PROGRESS
+    return ActivityStatus.NOT_STARTED
+
+
+def _activity_percent_complete(activity: Activity) -> float | None:
+    """Return Activity % Complete, deriving it only from authoritative facts.
+
+    A stored percentage wins. Otherwise completed/not-started status is exact,
+    and in-progress duration percent is derived from at-completion duration and
+    remaining duration. If none of those facts exist the value stays unknown
+    instead of being invented.
+    """
+    if activity.percent_complete is not None:
+        return float(activity.percent_complete)
+    status = _effective_activity_status(activity)
+    if status is ActivityStatus.COMPLETED:
+        return 100.0
+    if status is ActivityStatus.NOT_STARTED:
+        return 0.0
+    if activity.duration > 0 and activity.remaining_duration is not None:
+        completed = activity.duration - activity.remaining_duration
+        return max(0.0, min(100.0, completed * 100.0 / activity.duration))
+    return None
+
+
+def _wbs_summary_progress(
+    members: Sequence[Activity],
+) -> tuple[float | None, ActivityStatus]:
+    """Aggregate Activity % Complete and Status over WBS descendants.
+
+    The documented WBS Summary behavior averages the Activity % Complete of
+    the summarized activities and updates status to match them. Members whose
+    percentage cannot be derived from authoritative facts do not contribute a
+    fabricated zero; when no member exposes a percentage the summary reports
+    None. Status is Completed only when every member is completed, Not Started
+    only when every member has not started, and In Progress otherwise.
+    """
+    statuses = [_effective_activity_status(member) for member in members]
+    if all(status is ActivityStatus.COMPLETED for status in statuses):
+        summary_status = ActivityStatus.COMPLETED
+    elif all(status is ActivityStatus.NOT_STARTED for status in statuses):
+        summary_status = ActivityStatus.NOT_STARTED
+    else:
+        summary_status = ActivityStatus.IN_PROGRESS
+
+    percentages = [
+        value
+        for value in (_activity_percent_complete(member) for member in members)
+        if value is not None
+    ]
+    average = sum(percentages) / len(percentages) if percentages else None
+    return average, summary_status
+
+
 def _schedule_wbs_summary(
     activity: Activity,
     activity_map: Mapping[str, Activity],
@@ -429,6 +502,7 @@ def _schedule_wbs_summary(
         member_schedules.append(value)
     start = min(value.start for value in member_schedules)
     finish = max(value.finish for value in member_schedules)
+    percent_complete, status = _wbs_summary_progress(members)
     return ScheduledActivity(
         activity_id=activity.id,
         start=start,
@@ -436,6 +510,8 @@ def _schedule_wbs_summary(
         duration=resolver.calculate_duration(start, finish),
         remaining_start=start,
         remaining_finish=finish,
+        percent_complete=percent_complete,
+        status=status,
     )
 
 

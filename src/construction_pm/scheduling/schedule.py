@@ -215,6 +215,10 @@ def backward_pass(
                 start=late_start,
                 finish=late_finish,
                 duration=duration,
+                # The late-date output must expose the same aggregated summary
+                # progress as the early pass; dates are the only ALAP change.
+                percent_complete=forward[activity_id].percent_complete,
+                status=forward[activity_id].status,
             )
             continue
         successors = outgoing[activity_id]

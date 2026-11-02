@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from construction_pm.scheduling.activity import Activity, ActivityType
+from construction_pm.scheduling.activity import Activity, ActivityStatus, ActivityType
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.forward_pass import forward_pass
@@ -298,3 +298,100 @@ def test_level_of_effort_and_wbs_summary_are_not_critical(resolver):
         "LOE" not in path.activity_ids and "WBS" not in path.activity_ids
         for path in result.float_paths
     )
+
+
+def test_wbs_summary_averages_member_percent_complete_and_derives_status(resolver):
+    activities = [
+        Activity(
+            "DONE",
+            2,
+            actual_start=date(2026, 11, 2),
+            actual_finish=date(2026, 11, 3),
+            remaining_duration=0,
+            percent_complete=100,
+            status=ActivityStatus.COMPLETED,
+            wbs_id="W-CHILD",
+            wbs_ancestry=("W-ROOT",),
+        ),
+        Activity(
+            "HALF",
+            4,
+            actual_start=date(2026, 11, 2),
+            remaining_duration=2,
+            status=ActivityStatus.IN_PROGRESS,
+            wbs_id="W-ROOT",
+        ),
+        Activity("NEW", 3, wbs_id="W-ROOT"),
+        Activity(
+            "WBS",
+            0,
+            activity_type=ActivityType.WBS_SUMMARY,
+            wbs_id="W-ROOT",
+        ),
+    ]
+
+    result = forward_pass(activities, [], date(2026, 11, 2), resolver)
+
+    summary = result["WBS"]
+    # (100 + 50 + 0) / 3, the documented average over the summarized activities.
+    assert summary.percent_complete == pytest.approx(50.0)
+    assert summary.status is ActivityStatus.IN_PROGRESS
+    assert (summary.start, summary.finish) == (
+        date(2026, 11, 2),
+        date(2026, 11, 4),
+    )
+
+
+def test_wbs_summary_status_and_percent_for_uniform_members(resolver):
+    completed = Activity(
+        "C",
+        2,
+        actual_start=date(2026, 11, 2),
+        actual_finish=date(2026, 11, 3),
+        remaining_duration=0,
+        status=ActivityStatus.COMPLETED,
+        wbs_id="W-ROOT",
+    )
+    summary = Activity(
+        "WBS", 0, activity_type=ActivityType.WBS_SUMMARY, wbs_id="W-ROOT"
+    )
+
+    finished = forward_pass([completed, summary], [], date(2026, 11, 2), resolver)
+    assert finished["WBS"].percent_complete == 100.0
+    assert finished["WBS"].status is ActivityStatus.COMPLETED
+
+    planned = forward_pass(
+        [Activity("P", 2, wbs_id="W-ROOT"), summary],
+        [],
+        date(2026, 11, 2),
+        resolver,
+    )
+    assert planned["WBS"].percent_complete == 0.0
+    assert planned["WBS"].status is ActivityStatus.NOT_STARTED
+
+
+def test_wbs_summary_progress_is_preserved_in_late_date_output(resolver):
+    activities = [
+        Activity(
+            "HALF",
+            4,
+            actual_start=date(2026, 11, 2),
+            remaining_duration=2,
+            percent_complete=50,
+            status=ActivityStatus.IN_PROGRESS,
+            wbs_id="W-ROOT",
+        ),
+        Activity(
+            "WBS",
+            0,
+            activity_type=ActivityType.WBS_SUMMARY,
+            wbs_id="W-ROOT",
+        ),
+    ]
+
+    result = schedule(activities, [], date(2026, 11, 2), resolver)
+
+    assert result.early_activities["WBS"].percent_complete == 50.0
+    assert result.early_activities["WBS"].status is ActivityStatus.IN_PROGRESS
+    assert result.late_activities["WBS"].percent_complete == 50.0
+    assert result.late_activities["WBS"].status is ActivityStatus.IN_PROGRESS
