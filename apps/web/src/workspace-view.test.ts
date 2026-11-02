@@ -1467,7 +1467,7 @@ test("Roles and Tracking are first-class windows with their documented visual su
   assert.match(roles, /Role Register/);
   assert.match(roles, /Max Units \/ Time/);
   assert.match(roles, /data-register-tab="roles:rates"/);
-  assert.match(roles, /time-phased limits/);
+  assert.match(roles, /Select a role to view its limits information/);
   const tracking = render("en", "tracking");
   assert.match(tracking, /Tracking Layout/);
   assert.match(tracking, /Project Table/);
