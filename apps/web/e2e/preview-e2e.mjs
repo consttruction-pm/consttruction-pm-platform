@@ -2470,6 +2470,8 @@ async function main() {
       `document.querySelector(".cp-navigation-surface strong")?.textContent.trim() === "Resources"`,
       "resources surface after menu selection",
     );
+    await page.click('[data-rail-action="tools"][title="Open resource capacity"]');
+    await page.waitFor("document.querySelector(\"[data-tools-drawer]\")?.hidden === false", "resource capacity tools drawer");
     await page.scrollTo("#cp-resource-capacity");
     await page.waitForSelector(
       "[data-capacity-write-form]",
