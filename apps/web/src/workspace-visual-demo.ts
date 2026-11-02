@@ -807,17 +807,15 @@ function renderWindow(state: DemoState): string {
 }
 
 const NETWORK_NODES: Array<{ id: string; col: number; row: number }> = [
-  { id: "A1010", col: 0, row: 0 }, { id: "A1020", col: 0, row: 1 }, { id: "A1210", col: 0, row: 2 },
-  { id: "A1110", col: 1, row: 0 }, { id: "A1120", col: 1, row: 1 }, { id: "A1220", col: 1, row: 2 },
-  { id: "A1130", col: 2, row: 0 }, { id: "A1310", col: 2, row: 1 }, { id: "A1320", col: 2, row: 2 },
-  { id: "A1330", col: 3, row: 0 }, { id: "A1340", col: 3, row: 1 }, { id: "A1500", col: 3, row: 2 },
+  { id: "A1010", col: 0, row: 0 }, { id: "A1210", col: 0, row: 1 },
+  { id: "A1110", col: 1, row: 0 }, { id: "A1220", col: 1, row: 1 },
+  { id: "A1120", col: 2, row: 0 }, { id: "A1310", col: 2, row: 1 },
+  { id: "A1130", col: 3, row: 0 }, { id: "A1320", col: 3, row: 1 },
+  { id: "A1330", col: 4, row: 0 }, { id: "A1340", col: 4, row: 1 },
+  { id: "A1350", col: 5, row: 0 }, { id: "A1500", col: 5, row: 1 },
 ];
-// Finish-to-start relationships exactly as they exist in the demo successor data.
-const NETWORK_LINKS: Array<[string, string]> = [
-  ["A1010", "A1110"], ["A1020", "A1110"], ["A1110", "A1120"], ["A1110", "A1130"], ["A1120", "A1130"],
-  ["A1210", "A1220"], ["A1130", "A1320"], ["A1310", "A1320"], ["A1320", "A1330"], ["A1330", "A1340"],
-  ["A1340", "A1500"],
-];
+// The network uses the same typed relationship register as the Activity Details view.
+const NETWORK_LINKS = DEMO_RELATIONSHIPS;
 
 const NETWORK_DEFS = `<defs>
   <marker id="cp-vd-net-arrow" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill="#44536a"></path></marker>
@@ -827,9 +825,9 @@ const NETWORK_DEFS = `<defs>
 function renderNetwork(state: DemoState): string {
   const nodes = NETWORK_NODES.map((node) => {
     const row = ACTIVITIES.find((item) => item.id === node.id) ?? ACTIVITIES[0];
-    return `<div class="cp-vd-node ${row.critical ? "is-critical" : ""}" data-vd-node="${esc(node.id)}" style="inset-inline-start:${3 + node.col * 23.5}%;top:${8 + node.row * 28}%"><span>${esc(row.id)}</span><strong>${esc(row.name)}</strong><em>${row.od}d · ${row.pct}%</em></div>`;
+    return `<div class="cp-vd-node ${row.critical ? "is-critical" : ""}" data-vd-node="${esc(node.id)}" style="inset-inline-start:${2 + node.col * 15.8}%;top:${14 + node.row * 42}%"><span>${esc(row.id)}</span><strong>${esc(row.name)}</strong><em>${row.od}d · ${row.pct}%</em></div>`;
   }).join("");
-  return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Activity Network", "شبکه فعالیت"))}</h2><div class="cp-vd-winactions"><span class="cp-vd-chip">${esc(t(state.locale, "12 boxes · 11 links", "۱۲ جعبه · ۱۱ رابطه"))}</span><button type="button" class="cp-vd-btn" data-vd-dialog="network-options">${esc(t(state.locale, "Layout options", "تنظیمات چیدمان"))}</button></div></header>
+  return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Activity Network", "شبکه فعالیت"))}</h2><div class="cp-vd-winactions"><span class="cp-vd-chip">${esc(t(state.locale, "12 boxes · 8 typed links", "۱۲ جعبه · ۸ رابطهٔ نوع‌دار"))}</span><button type="button" class="cp-vd-btn" data-vd-dialog="network-options">${esc(t(state.locale, "Layout options", "تنظیمات چیدمان"))}</button></div></header>
     <div class="cp-vd-network" data-vd-network>
       ${nodes}
       <svg class="cp-vd-node-links" data-vd-netlinks aria-hidden="true">${NETWORK_DEFS}</svg>
@@ -1385,15 +1383,18 @@ function layoutConnectors(root: HTMLElement): void {
   const networkSvg = network?.querySelector<SVGSVGElement>("[data-vd-netlinks]");
   if (network && networkSvg) {
     const origin = network.getBoundingClientRect();
-    const paths = NETWORK_LINKS.map(([from, to]) => {
-      const start = boxOf(network.querySelector(`[data-vd-node="${from}"]`), origin);
-      const end = boxOf(network.querySelector(`[data-vd-node="${to}"]`), origin);
+    const paths = NETWORK_LINKS.map((link) => {
+      const start = boxOf(network.querySelector(`[data-vd-node="${link.predecessor}"]`), origin);
+      const end = boxOf(network.querySelector(`[data-vd-node="${link.successor}"]`), origin);
       if (!start || !end) return "";
       const critical = Boolean(
-        ACTIVITIES.find((item) => item.id === from)?.critical && ACTIVITIES.find((item) => item.id === to)?.critical,
+        ACTIVITIES.find((item) => item.id === link.predecessor)?.critical && ACTIVITIES.find((item) => item.id === link.successor)?.critical,
       );
       const marker = critical ? "cp-vd-net-arrow-critical" : "cp-vd-net-arrow";
-      return `<path d="${routeLink(start, end, outward)}" class="${critical ? "is-critical" : ""}" marker-end="url(#${marker})"></path>`;
+      const label = `${link.type} ${link.lag > 0 ? "+" : ""}${link.lag}${link.unit}`;
+      const labelX = (start.centerX + end.centerX) / 2;
+      const labelY = (start.middle + end.middle) / 2 - 7;
+      return `<path d="${routeLink(start, end, outward)}" class="${critical ? "is-critical" : ""}" data-link-type="${link.type}" marker-end="url(#${marker})"></path><text class="cp-vd-network-link-label" x="${labelX}" y="${labelY}" text-anchor="middle">${esc(label)}</text>`;
     }).join("");
     networkSvg.innerHTML = NETWORK_DEFS + paths;
   }
