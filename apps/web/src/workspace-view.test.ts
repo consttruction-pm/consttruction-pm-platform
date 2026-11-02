@@ -496,6 +496,7 @@ test("Show on Bottom Activity Details command scrolls to the docked details pane
 test("Projects window docks Project Details below the register with the full detail-tab strip", () => {
   const html = render("en", "project");
   assert.match(html, /class="cp-project-details-splitter"[^>]*role="separator" aria-orientation="horizontal"/);
+  assert.match(html, /data-project-structure-splitter role="separator" aria-orientation="vertical"/);
   assert.match(html, /id="cp-details" class="cp-panel cp-details cp-project-details-dock"/);
   assert.match(html, /aria-label="Project detail tabs"/);
   for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "planning-resources", "contract-management", "udfs"]) {
