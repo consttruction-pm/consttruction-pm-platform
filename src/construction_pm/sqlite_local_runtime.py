@@ -10,12 +10,10 @@ offline-aware authorization policy.
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Callable
 
 from construction_pm.application.authorization import (
-    AuthorizationContext,
-    AuthorizationPolicy,
     RoleBasedAuthorizationPolicy,
 )
 from construction_pm.application.project_lifecycle import (
@@ -38,7 +36,7 @@ from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotR
 from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHourRepository
 from construction_pm.constraint_master_repository import SQLiteConstraintMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
-from construction_pm.p6_activity_master_repository import SQLiteActivityMasterRepository
+from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
 from construction_pm.p6_baseline_repository import SQLiteP6BaselineRepository
 from construction_pm.p6_calendar_api import P6CalendarAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
@@ -77,7 +75,6 @@ from construction_pm.shared_core_runtime import SharedCoreRuntime, build_shared_
 from construction_pm.scheduling.calendar import WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
-from construction_pm.scheduling.calendar_system import CalendarSystem
 from construction_pm.scheduling.time_calendar import TimeAwareWorkingTimeResolver
 from construction_pm.scheduling.calendar import WorkingCalendar
 from construction_pm.scheduling.time_calendar import WorkingTimeCalendar
@@ -90,16 +87,8 @@ from construction_pm.p6_versioned_resource_calendar_resolver import (
     _load_work_rules,
     _persisted_exception_to_core,
 )
-from construction_pm.p6_resource_assignment_repository import (
-    P6ResourceAssignmentPeriodApplicationService,
-)
 from construction_pm.p6_resource_spread_repository import P6ResourceSpreadApplicationService
 from construction_pm.p6_resource_capacity_repository import P6ResourceCapacityApplicationService
-from construction_pm.p6_versioned_resource_calendar_resolver import (
-    resolve_p6_resource_calendar,
-)
-from construction_pm.scheduling.calendar import WorkingCalendar
-from construction_pm.scheduling.time_calendar import WorkingTimeCalendar
 
 
 def build_sqlite_calendar_resolver_registry(
