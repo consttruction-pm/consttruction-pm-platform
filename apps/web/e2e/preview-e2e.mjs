@@ -2445,9 +2445,13 @@ async function main() {
         `${surface.label} navigation surface`,
       );
       const status = await page.text(".cp-navigation-surface [data-surface-status]");
+      const statusContract = await page.evaluate(`(() => ({
+        code: document.querySelector(".cp-navigation-surface [data-surface-status]")?.getAttribute("data-surface-status") ?? null,
+        label: document.documentElement.lang === "fa" ? "جزئی" : "Partial",
+      }))()`);
       assert(
-        status === surface.status,
-        `${surface.label} status must be ${surface.status}, got ${status}`,
+        statusContract.code === surface.status.toLowerCase() && status === statusContract.label,
+        `${surface.label} status must match the honest localized ${surface.status} contract, got ${JSON.stringify({ status, statusContract })}`,
       );
       const submenus = await page.count(
         ".cp-navigation-surface a.cp-submenu-item, .cp-navigation-surface span.cp-submenu-item",
