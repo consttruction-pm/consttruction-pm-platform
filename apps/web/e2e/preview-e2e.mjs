@@ -2538,6 +2538,24 @@ async function main() {
       return element.checked;
     })()`);
     assert(closeChecked, "the effective change must request closing the open segment");
+    const writeInputsBeforeSubmit = await page.evaluate(`(() => {
+      const form = document.querySelector("[data-capacity-write-form]");
+      return form ? Array.from(form.querySelectorAll("input,select")).map((field) => ({
+        selector: field.getAttribute("data-capacity-resource") !== null ? "resource" :
+          field.getAttribute("data-capacity-max-units") !== null ? "maxUnits" :
+          field.getAttribute("data-capacity-unit-basis") !== null ? "basis" :
+          field.getAttribute("data-capacity-hours") !== null ? "hours" :
+          field.getAttribute("data-capacity-from") !== null ? "from" :
+          field.getAttribute("data-capacity-to") !== null ? "to" : "close",
+        value: field.type === "checkbox" ? field.checked : field.value,
+      })) : [];
+    })()`);
+    assert(
+      writeInputsBeforeSubmit.some((field) => field.selector === "maxUnits" && field.value === "10") &&
+        writeInputsBeforeSubmit.some((field) => field.selector === "hours" && field.value === "8") &&
+        writeInputsBeforeSubmit.some((field) => field.selector === "from" && field.value === "2026-11-01"),
+      "capacity write fields must retain their values before submit: " + JSON.stringify(writeInputsBeforeSubmit),
+    );
     await page.click("[data-capacity-save]");
     await page.waitFor(
       `Boolean(document.querySelector("[data-capacity-write-result] [data-capacity-write-success]"))`,
