@@ -548,6 +548,25 @@ def test_local_runtime_composes_scoped_resource_master_api_and_atomic_outbox():
     assert saved_assignment["revision"] == 1
     assert api.list_assignments("A-001")[0]["resource_id"] == "LAB-001"
 
+    viewer_auth = project.authorization_context(frozenset({"viewer"}))
+    viewer_api = runtime.resource_api(scope, viewer_auth, company_id="company-1")
+    assert viewer_api.list_resources()[0]["id"] == "LAB-001"
+    denied_write = viewer_api.create_resource(
+        Resource(
+            id="LAB-READONLY",
+            code="RO",
+            name="Should not write",
+            resource_type=ResourceType.OTHER,
+            unit="unit",
+        ),
+        expected_revision=0,
+    )
+    assert denied_write["error"]["category"] == "authorization"
+    assert denied_write["error"]["code"] == "FORBIDDEN"
+
+    other_company_api = runtime.resource_api(scope, auth, company_id="company-2")
+    assert other_company_api.list_resources() == ()
+
     mutation = OfflineMutation(
         mutation_id="resource-mutation-1",
         tenant_id=scope.tenant_id,
