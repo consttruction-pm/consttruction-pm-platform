@@ -145,6 +145,7 @@ def build_snapshot(
 class SQLiteScheduleInputSnapshotRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute(
             """CREATE TABLE IF NOT EXISTS schedule_input_snapshot (
                 tenant_id TEXT NOT NULL,
@@ -175,7 +176,8 @@ class SQLiteScheduleInputSnapshotRepository:
             "CREATE INDEX IF NOT EXISTS idx_schedule_input_snapshot_revision "
             "ON schedule_input_snapshot(tenant_id, project_id, project_revision, snapshot_id)"
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def save(self, snapshot: ScheduleInputSnapshot) -> ScheduleInputSnapshot:
         snapshot.validate()
