@@ -472,10 +472,8 @@ function countGrid(locale: string, counts: Array<[string, number]>): string {
 function entityTabBody(tab: string, input: ActivityDetailsInput, state: WorkspaceState): string {
   const locale = input.locale;
   switch (state.activeMenu) {
-    case "project": {
-      const selected = state.wbsNodes.find((node) => node.id === state.selectedWbsId);
-      return selected ? wbsTabBody(tab, input, state, selected) : projectTabBody(tab, input, state);
-    }
+    case "project":
+      return projectTabBody(tab, input, state);
     case "resources":
       return resourceTabBody(tab, locale);
     case "documents":
@@ -542,7 +540,7 @@ function tabsFor(input: ActivityDetailsInput): readonly TabLabel[] {
   const state = input.state;
   if (!state || state.activeMenu === "schedule") return ACTIVITY_DETAILS_TABS;
   switch (state.activeMenu) {
-    case "project": return state.selectedWbsId ? WBS_DETAILS_TABS : PROJECT_DETAILS_TABS;
+    case "project": return PROJECT_DETAILS_TABS;
     case "resources": return RESOURCE_DETAILS_TABS;
     case "documents": return DOCUMENT_DETAILS_TABS;
     case "cost": return COST_DETAILS_TABS;
@@ -559,7 +557,7 @@ function titleFor(input: ActivityDetailsInput): string {
   if (!state || state.activeMenu === "schedule") return t(input.locale, "Activity Details", "جزئیات فعالیت");
   switch (state.activeMenu) {
     case "project":
-      return state.selectedWbsId ? t(input.locale, "WBS Details", "جزئیات WBS") : t(input.locale, "Project Details", "جزئیات پروژه");
+      return t(input.locale, "Project Details", "جزئیات پروژه");
     case "resources": return t(input.locale, "Resource Details", "جزئیات منبع");
     case "documents": return t(input.locale, "Document Details", "جزئیات سند");
     case "cost": return t(input.locale, "Cost Details", "جزئیات هزینه");
@@ -577,10 +575,7 @@ function identityFor(input: ActivityDetailsInput): string {
     const activity = input.activities.find((row) => row.id === input.selectedActivityId);
     return activity?.code ?? "—";
   }
-  if (state.activeMenu === "project") {
-    const node = state.wbsNodes.find((item) => item.id === state.selectedWbsId);
-    return node?.localCode ?? state.context.project_id;
-  }
+  if (state.activeMenu === "project") return state.context.project_id;
   return state.context.project_id;
 }
 
