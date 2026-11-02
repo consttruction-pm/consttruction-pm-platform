@@ -126,3 +126,62 @@ def test_postgres_baseline_activity_requires_the_parent_baseline(connection):
         match="BASELINE_ACTIVITY_PARENT_BASELINE_REQUIRED",
     ):
         repository.save_many((_activity(scope),))
+
+
+def test_postgres_selective_update_persists_a_new_baseline(connection):
+    from construction_pm.p6_baseline_update import (
+        P6BaselineUpdateSelection,
+        P6BaselineUpdateService,
+    )
+
+    class _Tx:
+        def transaction(self):
+            return connection.transaction()
+
+    baselines, repository = _repositories(connection)
+    scope = _scope()
+    with connection.transaction():
+        baselines.upsert(_baseline(scope))
+        baselines.upsert(
+            P6Baseline(
+                scope,
+                "baseline-2",
+                "Updated Baseline",
+                "USER_SELECTED",
+                scope.project_revision,
+                "2026-11-02T11:00:00Z",
+            )
+        )
+    original = (_activity(scope, "A"), _activity(scope, "B", "500"))
+    repository.save_many(original)
+
+    service = P6BaselineUpdateService(repository, _Tx())
+    plan = service.apply(
+        scope,
+        "baseline-1",
+        "baseline-2",
+        (
+            P6BaselineActivity(
+                scope, "baseline-1", "A", date(2026, 11, 3),
+                date(2026, 11, 10), Decimal("1500"), "USD", "W-2",
+                "ACTIVITY_PERCENT_COMPLETE",
+            ),
+            P6BaselineActivity(
+                scope, "baseline-1", "B", date(2026, 11, 2),
+                date(2026, 11, 6), Decimal("900"), "USD", "W-1",
+                "ACTIVITY_PERCENT_COMPLETE",
+            ),
+        ),
+        P6BaselineUpdateSelection(
+            activity_ids=frozenset({"A"}),
+            fields=frozenset({"budgeted_cost"}),
+        ),
+    )
+
+    assert plan.updated_activity_ids == ("A",)
+    stored = repository.list(scope, "baseline-2")
+    assert [(row.activity_id, row.budgeted_cost) for row in stored] == [
+        ("A", Decimal("1500")),
+        ("B", Decimal("500")),
+    ]
+    assert repository.list(scope, "baseline-1") == original
