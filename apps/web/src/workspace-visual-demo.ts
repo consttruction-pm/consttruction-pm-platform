@@ -1066,7 +1066,38 @@ function dialogContent(name: string, state: DemoState): string {
     case "project-properties":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Project ID", "شناسهٔ پروژه"))}<input value="CUBI-DEMO-001" readonly></label><label>${esc(t(state.locale, "Name", "نام"))}<input value="Riverside Pump Station Upgrade"></label><label>${esc(t(state.locale, "Data date", "تاریخ داده"))}<input value="2026-12-03"></label></div>`;
     case "calendar":
-      return `<div class="cp-vd-two"><div class="cp-vd-calendar"><div class="cp-vd-cal-head"><button type="button" aria-label="${esc(t(state.locale, "Previous month", "ماه قبل"))}">‹</button><strong>${esc(t(state.locale, "December 2026", "دسامبر ۲۰۲۶"))}</strong><button type="button" aria-label="${esc(t(state.locale, "Next month", "ماه بعد"))}">›</button></div><div class="cp-vd-cal-grid">${calendarGrid(state.locale, 2026, 11)}</div></div><div class="cp-vd-form"><label>${esc(t(state.locale, "Work hours", "ساعت کار"))}<input value="08:00 – 16:00"></label><label>${esc(t(state.locale, "Nonwork", "غیرکاری"))}<input value="${esc(t(state.locale, "Thursday, Friday", "پنجشنبه، جمعه"))}"></label></div></div>`;
+      return `<div class="cp-vd-calendar-editor">
+        <div class="cp-vd-calendar-editor-main">
+          <div class="cp-vd-calendar-properties">
+            <h3>${esc(t(state.locale, "Calendar properties", "مشخصات تقویم"))}</h3>
+            <div class="cp-vd-form cp-vd-calendar-fields">
+              <label>${esc(t(state.locale, "Calendar name", "نام تقویم"))}<input value="5-Day Workweek" readonly></label>
+              <label>${esc(t(state.locale, "Calendar type", "نوع تقویم"))}<select disabled><option>Global</option><option>Project</option><option>Resource</option></select></label>
+              <label>${esc(t(state.locale, "Hours per day", "ساعت در روز"))}<input value="8" readonly></label>
+              <label>${esc(t(state.locale, "Hours per week", "ساعت در هفته"))}<input value="40" readonly></label>
+              <label>${esc(t(state.locale, "Hours per month", "ساعت در ماه"))}<input value="176" readonly></label>
+              <label>${esc(t(state.locale, "Hours per year", "ساعت در سال"))}<input value="2080" readonly></label>
+              <label>${esc(t(state.locale, "Parent calendar", "تقویم والد"))}<input value="None — base calendar" readonly></label>
+              <label>${esc(t(state.locale, "Effective from", "اعتبار از"))}<input value="2026-01-01" readonly></label>
+            </div>
+          </div>
+          <div class="cp-vd-calendar-workweek">
+            <h3>${esc(t(state.locale, "Workweek", "هفته کاری"))}</h3>
+            <table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Day", "روز"))}</th><th>${esc(t(state.locale, "Working time", "زمان کاری"))}</th><th>${esc(t(state.locale, "Status", "وضعیت"))}</th></tr></thead><tbody>
+              ${[[ "Saturday", "شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Sunday", "یکشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Monday", "دوشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Tuesday", "سه‌شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Wednesday", "چهارشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Thursday", "پنجشنبه", "—", false ],[ "Friday", "جمعه", "—", false ]].map(([en, fa, hours, working]) => `<tr><td>${esc(t(state.locale, String(en), String(fa)))}</td><td><bdi dir="ltr">${esc(String(hours))}</bdi></td><td><span class="cp-vd-calendar-day-status ${working ? "is-working" : "is-nonwork"}">${esc(t(state.locale, working ? "Working" : "Nonwork", working ? "کاری" : "تعطیل"))}</span></td></tr>`).join("")}
+            </tbody></table>
+          </div>
+        </div>
+        <aside class="cp-vd-calendar-editor-side">
+          <h3>${esc(t(state.locale, "Exceptions and holidays", "استثناها و تعطیلات"))}</h3>
+          <table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Date", "تاریخ"))}</th><th>${esc(t(state.locale, "Description", "شرح"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th></tr></thead><tbody>
+            <tr><td><bdi dir="ltr">2026-12-21</bdi></td><td>${esc(t(state.locale, "Winter solstice adjustment", "تغییر ساعت انقلاب زمستانی"))}</td><td>${esc(t(state.locale, "Nonwork", "تعطیل"))}</td></tr>
+            <tr><td><bdi dir="ltr">2027-03-20</bdi></td><td>${esc(t(state.locale, "Local holiday", "تعطیل محلی"))}</td><td>${esc(t(state.locale, "Nonwork", "تعطیل"))}</td></tr>
+          </tbody></table>
+          <div class="cp-vd-calendar-legend"><span class="is-working">${esc(t(state.locale, "Working day", "روز کاری"))}</span><span class="is-nonwork">${esc(t(state.locale, "Nonwork day", "روز تعطیل"))}</span><span class="is-exception">${esc(t(state.locale, "Exception", "استثنا"))}</span></div>
+          <p class="cp-vd-note">${esc(t(state.locale, "Visual sample only. Calendar rules, exceptions and inherited settings are not saved or used for scheduling.", "صرفاً نمونه بصری. قوانین تقویم، استثناها و تنظیمات ارث‌بری ذخیره یا در زمان‌بندی استفاده نمی‌شوند."))}</p>
+        </aside>
+      </div>`;
     case "schedule":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Data date", "تاریخ داده"))}<input value="2026-12-03"></label><label>${esc(t(state.locale, "Schedule mode", "حالت زمان‌بندی"))}<select><option>Forward and backward</option><option>Forward only</option></select></label><label class="cp-vd-check"><input type="checkbox" checked> ${esc(t(state.locale, "Level resources", "تسطیح منابع"))}</label><p class="cp-vd-note">${esc(t(state.locale, "Visual demo: no schedule run is executed.", "نمایش بصری: هیچ محاسبهٔ زمان‌بندی اجرا نمی‌شود."))}</p></div>`;
     case "level":
