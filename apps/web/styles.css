@@ -6670,3 +6670,10 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
  .cp-vd-resource-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .cp-vd-resource-type-grid { grid-template-columns:1fr; }
 }
+
+.cp-vd-calendar-registers { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:10px; margin-top:12px; align-items:start; }
+.cp-vd-calendar-registers section { min-width:0; border:1px solid #cbd4df; background:#fff; }
+.cp-vd-calendar-registers h3 { margin:0; padding:8px 10px; border-bottom:1px solid #cbd4df; background:#edf2f7; color:#263f5b; font-size:11px; font-weight:700; }
+.cp-vd-calendar-registers .cp-vd-table { min-width:620px; }
+.cp-vd-calendar-registers + .cp-vd-note { margin-top:8px; }
+@media (max-width:900px) { .cp-vd-calendar-registers { grid-template-columns:1fr; } }
