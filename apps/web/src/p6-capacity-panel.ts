@@ -805,8 +805,13 @@ export function mountCapacityPanel(
     }
   });
 
-  // The resolver is a real form submission. Bind directly to the current form
-  // after every mount so refreshed drawer contents cannot retain stale handlers.
+  // The resolver is a real form submission. Bind directly to the current
+  // button and form after every mount so refreshed drawer contents cannot retain
+  // stale handlers. requestSubmit also works if the host webview reparents controls.
+  resolveButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    resolveForm.requestSubmit();
+  });
   resolveForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const binding = capacityPanelBindings.get(panel);
