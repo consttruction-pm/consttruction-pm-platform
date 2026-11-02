@@ -536,12 +536,13 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const group = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-group]")?.value;
       const field = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-field]")?.value ?? "";
       const direction = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-direction]")?.value;
-      if (group === "wbs" || group === "none") options.onActivityGroupByChange?.(group);
-      if (field === "") options.onActivitySortChange?.(null);
-      else if (state.columns.some((column) => column.id === field)) {
-        options.onActivitySortChange?.(field);
-        if ((direction === "asc" || direction === "desc") && direction !== (state.activitySort?.direction ?? "asc")) {
-          options.onActivitySortDirectionToggle?.();
+      if ((group === "wbs" || group === "none") && (direction === "asc" || direction === "desc")) {
+        const validField = field === "" || state.columns.some((column) => column.id === field);
+        if (validField && options.onActivityGroupSortChange) {
+          options.onActivityGroupSortChange(group, field || null, direction);
+        } else if (validField) {
+          options.onActivityGroupByChange?.(group);
+          options.onActivitySortChange?.(field || null);
         }
       }
       const groupDialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
@@ -762,6 +763,7 @@ export type WorkspaceRendererOptions = {
   onActivityFilterChange?: (filterText: string) => void;
   onActivitySortChange?: (columnId: string | null) => void;
   onActivityGroupByChange?: (groupBy: "wbs" | "none") => void;
+  onActivityGroupSortChange?: (groupBy: "wbs" | "none", columnId: string | null, direction: "asc" | "desc") => void;
   onActivitySortDirectionToggle?: () => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
