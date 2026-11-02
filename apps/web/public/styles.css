@@ -6930,3 +6930,11 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-bar-options-panel input:not([type=checkbox]),.cp-bar-options-panel select{min-height:28px;border:1px solid #b8c5d3;background:#edf0f3;padding:4px}
 .cp-bar-options-dialog footer{display:flex;justify-content:flex-end;gap:7px;padding:10px;border-top:1px solid #d5dde6}
 @media(max-width:620px){.cp-bars-body{grid-template-columns:minmax(0,1fr)}.cp-bars-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.cp-bar-options-panel,.cp-bars-fields{grid-template-columns:minmax(0,1fr)}}
+
+/* Persistent six-pane workspace status bar. */
+.cp-workspace-statusbar{display:flex;align-items:stretch;gap:0;min-height:25px;border-top:1px solid #aeb8c4;background:linear-gradient(#f2f4f7,#e4e8ed);color:#35485c;font-size:10px;overflow-x:auto;white-space:nowrap}
+.cp-workspace-status-pane{display:flex;align-items:center;gap:6px;padding:4px 9px;border-inline-end:1px solid #c4ccd5;min-width:0}
+.cp-workspace-status-pane strong{font-weight:750;color:#526477}
+.cp-workspace-status-pane span{color:#33465a}
+.cp-workspace-status-revision{display:flex;align-items:center;margin-inline-start:auto;padding:4px 10px;font-weight:750;color:#526477}
+@media(max-width:700px){.cp-workspace-statusbar{font-size:9px}.cp-workspace-status-pane{padding-inline:6px;gap:4px}}
