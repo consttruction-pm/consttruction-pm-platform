@@ -76,6 +76,10 @@ For a submenu implemented as a detail-tab action, activation must reuse the modu
 - View → Show on Top → Table and Gantt Chart are connected to the real workspace layout state. Activity Network and usage/profile layouts remain disabled until their renderers and data contracts exist.
 - Pane sizes are visual preferences only. They are stored locally and do not alter project data, schedule calculations or permissions.
 
+### Activity Details tab customization parity — 2026-11-02
+
+The Activity Details customization dialog now uses separate Available Tabs and Display Tabs listboxes. It includes Add, Add All, Remove, Remove All, Move Up, Move Down, Default, Cancel, Apply and OK controls. The displayed order is preserved when applied and used by the Activity Details tab strip; it is not merely a checked/unchecked list. The selected tab order is stored as a browser-local layout preference, separate from project schedule data. Help remains disabled until a contextual help target is connected.
+
 ### Dialog and window audit gates
 
 - A menu command must open its named dialog/window or be disabled with a truthful explanation; it must never be an inert enabled button.
