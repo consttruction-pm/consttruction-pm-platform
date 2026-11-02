@@ -3324,10 +3324,28 @@ async function main() {
       "1405/13/01",
     );
     await page.click('[data-schedule-settings-form] button[type="submit"]');
-    await page.waitFor(
-      `document.querySelector("[data-settings-status]")?.textContent.includes("INVALID_PROJECT_START")`,
-      "explicit invalid Jalali date error",
-    );
+    try {
+      await page.waitFor(
+        `document.querySelector("[data-settings-status]")?.textContent.includes("INVALID_PROJECT_START")`,
+        "explicit invalid Jalali date error",
+      );
+    } catch (error) {
+      const diagnostic = await page.evaluate(`(() => {
+        const form = document.querySelector("[data-schedule-settings-form]");
+        const input = form?.querySelector('input[name="project_start"]');
+        return {
+          lang: document.documentElement.lang,
+          formValid: form instanceof HTMLFormElement ? form.checkValidity() : null,
+          inputType: input?.type ?? null,
+          inputValue: input?.value ?? null,
+          dateSystem: input?.dataset.dateSystem ?? null,
+          iso: input?.dataset.iso ?? null,
+          status: document.querySelector("[data-settings-status]")?.textContent?.trim() ?? "",
+          submitDisabled: form?.querySelector('button[type="submit"]')?.disabled ?? null,
+        };
+      })()`);
+      throw new Error("JALALI_SETTINGS_DIAGNOSTIC: " + JSON.stringify(diagnostic) + "; " + error.message);
+    }
     const invalidJalaliSettings = await page.evaluate(
       `(async () => {
         const headers = {
