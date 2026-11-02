@@ -92,6 +92,7 @@ from construction_pm.schedule_calculation_context_repository import SQLiteCalcul
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository
 from construction_pm.schedule_snapshot_publisher import AuthoritativeScheduleSnapshotPublisher
 from construction_pm.shared_core_runtime import build_shared_core_runtime
+from construction_pm.shared_core_domain_operations import build_project_domain_operations
 from construction_pm.scheduling.calendar import WorkingTimeResolver
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
 from construction_pm.scheduling.calendar_exception_overlay import CalendarExceptionLayers
@@ -423,6 +424,12 @@ class SQLiteLocalApplicationRuntime:
             calculation_context_repository=self.calculation_context_repository,
             authorization_policy=self.authorization_policy,
             leveling_input_resolver=resolver,
+            operations=build_project_domain_operations(
+                activity_api=self.activity_api,
+                wbs_api=self.wbs_api,
+                relationship_api=self.relationship_api,
+                constraint_api=self.constraint_api,
+            ),
         )
 
 
