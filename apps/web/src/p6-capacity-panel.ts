@@ -121,8 +121,10 @@ function installCapacityDraftCapture(workspace: HTMLElement): void {
     const panel = target.closest<HTMLElement>("#cp-resource-capacity [data-capacity-panel]");
     if (panel) capacityPanelDrafts.set(workspace, readCapacityDraft(panel));
   };
-  workspace.addEventListener("input", capture);
-  workspace.addEventListener("change", capture);
+  // Capture before the workspace's bubbling handlers: those handlers may
+  // synchronously replace the rendered panel as part of a state refresh.
+  workspace.addEventListener("input", capture, true);
+  workspace.addEventListener("change", capture, true);
 }
 
 const BASIS_LABELS: Record<CapacityBasis, { en: string; fa: string }> = {
