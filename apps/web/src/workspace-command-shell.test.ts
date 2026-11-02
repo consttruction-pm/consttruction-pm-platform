@@ -5,7 +5,7 @@ import { renderWorkspaceCommandShell } from "./workspace-command-shell.js";
 
 test("visual command shell exposes all global menu families and toolbar groups", () => {
   const html = renderWorkspaceCommandShell("en");
-  for (const label of ["File", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help"]) {
+  for (const label of ["Workspace", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help"]) {
     assert.ok(html.includes(`<summary>${label}</summary>`), `missing ${label} menu`);
   }
   for (const group of ["Standard", "Project", "Layout", "Schedule", "CUBI Tools"]) {
