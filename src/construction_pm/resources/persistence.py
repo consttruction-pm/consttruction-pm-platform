@@ -393,6 +393,27 @@ class ContextScopedSQLiteResourceRepository:
                     ON context_resources(tenant_id, company_id, project_id, resource_id);
                 CREATE INDEX IF NOT EXISTS idx_context_resource_assignments_scope
                     ON context_resource_assignments(tenant_id, company_id, project_id, activity_id, resource_id);
+                CREATE TRIGGER IF NOT EXISTS context_resource_assignment_resource_insert
+                BEFORE INSERT ON context_resource_assignments
+                WHEN NOT EXISTS (
+                    SELECT 1 FROM context_resources
+                    WHERE tenant_id=NEW.tenant_id AND company_id=NEW.company_id
+                      AND project_id=NEW.project_id AND resource_id=NEW.resource_id
+                )
+                BEGIN
+                    SELECT RAISE(ABORT, 'RESOURCE_NOT_FOUND');
+                END;
+                CREATE TRIGGER IF NOT EXISTS context_resource_assignment_resource_update
+                BEFORE UPDATE OF tenant_id, company_id, project_id, resource_id
+                ON context_resource_assignments
+                WHEN NOT EXISTS (
+                    SELECT 1 FROM context_resources
+                    WHERE tenant_id=NEW.tenant_id AND company_id=NEW.company_id
+                      AND project_id=NEW.project_id AND resource_id=NEW.resource_id
+                )
+                BEGIN
+                    SELECT RAISE(ABORT, 'RESOURCE_NOT_FOUND');
+                END;
                 CREATE TABLE IF NOT EXISTS cubi_local_schema_versions (
                     component TEXT PRIMARY KEY,
                     version INTEGER NOT NULL CHECK (version >= 1)
@@ -406,9 +427,14 @@ class ContextScopedSQLiteResourceRepository:
             if row is None:
                 self.connection.execute(
                     "INSERT INTO cubi_local_schema_versions(component, version) VALUES (?, ?)",
-                    ("context_scoped_resource_repository", 1),
+                    ("context_scoped_resource_repository", 2),
                 )
-            elif int(row[0]) != 1:
+            elif int(row[0]) == 1:
+                self.connection.execute(
+                    "UPDATE cubi_local_schema_versions SET version=2 WHERE component=?",
+                    ("context_scoped_resource_repository",),
+                )
+            elif int(row[0]) != 2:
                 raise ValueError("UNSUPPORTED_CONTEXT_RESOURCE_SCHEMA_VERSION")
 
     @staticmethod
