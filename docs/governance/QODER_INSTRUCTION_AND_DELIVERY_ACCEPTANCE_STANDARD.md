@@ -45,7 +45,7 @@ If the product owner explicitly changes the visual baseline version, update this
 
 The current scheduling semantics target is **P6 Professional Version 26**, as identified by the core compatibility registry and its source links. Every row must identify the exact release/help section that governs it. If behavior changed between versions, document the applicable version and compatibility decision; do not blend versions.
 
-The Version 26 target does not mean CUBI has been numerically parity-tested. If no licensed reference installation/project or otherwise authoritative numeric fixture is available, the status remains parity-pending. Never infer parity from a prose description alone.
+The Version 26 target does not mean CUBI has been numerically parity-tested. Absence of a licensed P6 installation or direct P6 output is not a reason to stop implementation, local testing, or acceptance of engineering work that can be verified. Qoder must build and run exact numeric golden cases from official documented examples, formulae, boundary rules, and independently derived fixtures with transparent derivations. The assistant then independently checks formulas, units, calendars, expected values, actual outputs, and the authoritative persisted/API path. Record direct execution against the same licensed P6 scenario as a separate DIRECT_REFERENCE_COMPARISON evidence field/status. If that external comparison is unavailable, only the claim of direct product-to-product parity remains pending; do not downgrade completed implementation or local numeric verification, and do not claim direct parity.
 
 ### 2.3 Source precedence
 
@@ -212,7 +212,7 @@ For each matrix row, add:
 
 A test that merely asserts that a field exists or an exception is raised is not sufficient when the requirement is a date, duration, float, capacity, cost or EVM result. Assert exact expected values and units.
 
-Do not change a row's status from parity-pending to parity-tested because CI is green. If licensed reference execution is unavailable, preserve the pending status and state precisely what reference fixture is missing.
+Do not change a row's status based on CI green alone. Distinguish (a) documented-rule/golden-case numeric verification, (b) independent code/output review, and (c) direct P6 execution comparison. If licensed reference execution is unavailable, mark only (c) unavailable/pending and state precisely what external scenario is missing; continue all work in (a) and (b).
 
 ---
 
@@ -230,7 +230,7 @@ The assistant must prepare one complete, repository-aware execution instruction 
 8. **Acceptance tests:** exact test names/commands plus expected numeric/UI/runtime results.
 9. **Browser/runtime evidence:** exact routes, workflows, viewports, locales and screenshot artifacts required.
 10. **Regression protection:** existing behavior that must remain unchanged.
-11. **Execution order:** inspect → map → implement → targeted tests → full tests → browser/API integration → fix all failures → exact-head CI → final audit.
+11. **Execution order:** inspect → map → implement → targeted tests → full tests → browser/API integration → fix all failures → Qoder-local final verification on the final commit → return evidence package. GitHub CI/PR queue is a later release/merge gate, not the primary place to discover whether Qoder's implementation works.
 12. **Commit/PR discipline:** work on the existing authorized branch/PR where appropriate; no unrelated PR; commit coherent slices; update the matrix/ledger and PR body.
 13. **Stop conditions:** stop and report a source conflict, missing required input, inaccessible licensed reference, unsafe migration or scope change; do not fabricate a pass.
 14. **Final report schema:** the evidence package in Section 8.
@@ -295,6 +295,68 @@ Qoder execution is costly. The assistant must reduce avoidable repeat work:
 - Before any new prompt, compare it against the prior prompt, response, commits and open acceptance rows. State exactly why another execution is necessary and what new evidence/implementation it will produce.
 - Record reported agent/token consumption when available, but do not infer token usage from code size or commit count.
 
+
+### 10.1 What consumes Qoder Credits (official published guidance)
+
+Qoder's published billing unit is Credits, not a fixed number of raw prompt tokens. Treat the user's stated daily allowance of 100 as 100 Credits only if that is what the account Usage panel labels it; never silently convert Credits to raw tokens.
+
+Official references (check rates again before relying on them because Qoder changes models and pricing):
+- Credits and task consumption: https://docs.qoder.com/Credits
+- Desktop model selector and tier rates: https://docs.qoder.com/user-guide/chat/model-tier-selector
+- Usage page: IDE bottom-right Credits usage; website Settings → Usage.
+
+Published reference figures are estimates, not guaranteed per-request prices:
+- Editor Ask Mode: median about 3 Credits/request at 50K context, 4 at 200K.
+- Editor Agent Mode: median about 7 Credits/request at 50K, 12 at 200K.
+- Quest Agent Mode: about 50 Credits/request at 200K.
+- Quest Experts Mode: about 75 Credits/request at 200K.
+- Repo Wiki generation: about 50 Credits/repository.
+- Model selector examples for a moderately complex coding task: Auto ~10, Ultimate ~20, Performance ~11, Efficient ~3, Lite 0. These are tier examples and must not be conflated with the separate median task table above.
+- Actual charge depends on selected model/tier, input/output tokens, context window, thinking/parameters, tool activity and task complexity. The current composer/model selector and Usage panel are authoritative for the user's account.
+- Successful model API calls consume Credits; failed model requests are not charged according to Qoder's Credits page.
+
+### 10.2 Operations that normally do not consume model Credits
+
+The following are ordinary local/editor/repository operations and do not themselves call a paid model, so they normally do not consume Qoder model Credits:
+- Reading, scrolling, searching and navigating files manually.
+- Selecting text, editing/typing code manually, and saving files.
+- Ordinary local terminal commands such as git status/diff/log, grep/ripgrep, find, cat, file inspection, running tests, linters, formatters, type checks, builds and local scripts.
+- Local Git operations (status, diff, add, commit, branch, log) and ordinary GitHub web/API operations performed manually or through non-AI integrations.
+- Opening existing test output, logs, screenshots, browser pages and generated artifacts.
+- Writing/planning the prompt outside Qoder and inspecting the response manually.
+
+Important qualification: if an AI agent is asked to interpret logs, explain code, generate/fix tests, edit code, summarize files, or use tools as part of an Agent task, the model calls involved consume Credits even though the underlying shell/test/Git operation itself is free. Inline Chat, Ask, Agent, Quest, Repo Wiki/Knowledge generation and AI autocomplete features are AI/model requests and may consume Credits according to the current product configuration. Do not promise that every autocomplete or plugin feature is free; inspect the current account/model display.
+
+### 10.3 Budgeting a daily 100-Credit allowance
+
+Use the following as planning ranges only, based on published estimates, not a promise:
+- Low-cost clarification/review via Ask: roughly 3–4 Credits each.
+- Focused Editor Agent task: roughly 7–12 Credits at the published median context sizes.
+- One Quest Agent task: roughly 50 Credits at 200K context.
+- One Quest Experts task: roughly 75 Credits at 200K context.
+- A moderately complex task on Efficient tier: example ~3 Credits; Auto ~10; Ultimate ~20.
+
+For a 100-Credit day, default to one bounded implementation task in Editor Agent/appropriate efficient tier plus a reserve for one targeted correction/review, rather than starting a large Quest/Experts run by habit. A large Quest/Experts run can consume most of the daily budget in one request. Before sending, inspect the displayed estimate/model/tier and context size. Use Lite/free tier for simple clarification or mechanical checks when available; use a stronger tier only where the task's risk justifies it. Do not select a large context window by default: include only relevant files and requirements, and compact/summarize long conversation context before it bloats the next request.
+
+### 10.4 Mandatory preflight and postflight accounting
+
+Before each Qoder request, the assistant's prompt-preparation checklist must record:
+1. Task class: Ask / Editor Agent / Quest Agent / Experts / Knowledge.
+2. Selected model/tier and context window, if visible.
+3. Qoder's displayed estimate (or NOT_DISPLAYED).
+4. Expected budget band and remaining daily Credits as reported by the user.
+5. Why the selected mode is necessary and why a cheaper mode is insufficient.
+6. Exact bounded deliverable and known files/tests to avoid rediscovery.
+
+After the response, record:
+1. Actual Credits before/after from Qoder Usage panel/log if the user provides it (NOT_AVAILABLE otherwise).
+2. Final commit SHA and work completed.
+3. Tests/build/browser/API commands and results run locally in Qoder.
+4. Defects fixed in the same run and remaining gaps.
+5. Whether another model call is genuinely necessary and its precise delta.
+
+Never claim exact token/Credit use without the Usage panel/log. Do not estimate actual spend from prompt length, code diff size, line count or elapsed time. The assistant should prepare a token-efficient instruction; Qoder's actual cost is measured from account usage.
+
 The user should not have to pay twice for the same requirement because the assistant failed to specify it or failed to verify it. If a repeat run is necessary due to a genuine new defect or changed requirement, identify that reason and the exact delta.
 
 ---
@@ -329,8 +391,8 @@ These are concrete reasons this standard is mandatory:
 - PR #1668 contains substantial core implementation and exact-head green CI evidence, but remains Draft/open.
 - The execution ledger records 24 rows as `IMPLEMENTED_TESTED_PARITY_PENDING` and zero as `IMPLEMENTED_AND_PARITY_TESTED`, because no licensed Version 26 reference run was available.
 - The latest PR body and ledger were inconsistent: the PR body retained an older test count and listed some rows as open that the later ledger stage records as implemented. This is a documentation/reconciliation defect and must be fixed before acceptance.
-- Green CI proves the recorded test suite passed on its SHA; it does not prove Version 26 numerical equivalence.
-- The user's reported Qoder token expenditure is not independently verifiable from GitHub and must not be represented as measured by the assistant.
+- Green CI proves the recorded test suite passed on its SHA; it does not by itself prove calculation correctness. Lack of a licensed P6 run must not block local numeric verification against documented rules and transparent golden fixtures; direct P6 comparison is a separately reported evidence level.
+- The user's reported Qoder daily allowance is treated as a planning constraint. Qoder's official metering is Credits (not a fixed prompt-token count); actual account usage is only known from the Usage panel/log. Record actual usage only when observed.
 
 These lessons are not permission to restart or rewrite the work. The next task must preserve accepted code, reconcile the evidence and complete only the actual open rows.
 
@@ -341,3 +403,13 @@ These lessons are not permission to restart or rewrite the work. The next task m
 This standard applies automatically to all future instructions the assistant prepares for Qoder or other coding agents on CUBI. It must be consulted before issuing a new implementation prompt and before approving a completion report.
 
 If this standard conflicts with an older generic workflow note, this standard controls unless the product owner explicitly records a newer decision.
+
+## 14. Owner's operating decision — Qoder-first verification and cost discipline (2026-11-02)
+
+The product owner confirms the preferred high-speed workflow:
+- Qoder must implement, run tests, fix failures and perform its final verification inside its own local/IDE environment before reporting back.
+- The assistant must then independently inspect the returned code, exact commit, test evidence and calculation/UI behavior. The assistant's review is not replaced by Qoder's self-report.
+- GitHub CI is a later integration/merge gate. Do not make GitHub Actions queue time the primary feedback loop or wait for it before reviewing Qoder's local evidence.
+- Direct licensed P6 numeric comparison is desirable evidence when available, but it is not a prerequisite for implementing or testing documented rules. Only the direct product-to-product parity claim remains unavailable until such a comparison exists.
+- The user's daily Qoder budget is limited (reported as 100 per day). Every prompt must therefore be complete, scoped, repository-aware, and designed to maximize finished work per successful model request while preserving correctness.
+- The assistant must not send a new Qoder prompt until it has inspected the previous response and identified the exact remaining delta. No vague continuation prompts, repetitive rediscovery, unnecessary retries, or cosmetic micro-prompts.
