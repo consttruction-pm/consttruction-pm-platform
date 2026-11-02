@@ -202,6 +202,20 @@ test("Activity Details exposes the Bottom Layout Options tab customization dialo
   assert.match(html, /Choose which detail tabs are visible/);
 });
 
+test("Activities Layout Options inventories top and bottom chart layouts without enabling unimplemented renderers", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-top-layout/);
+  assert.match(html, /Activity Table \\+ Gantt Chart/);
+  assert.match(html, /Activity Network/);
+  assert.match(html, /Activity Usage Spreadsheet/);
+  assert.match(html, /Resource Usage Profile/);
+  assert.match(html, /data-bottom-layout/);
+  assert.match(html, /Show critical path/);
+  assert.match(html, /Show progress line/);
+  assert.match(html, /Show baseline bars/);
+  assert.match(html, /disabled>Activity Network/);
+});
+
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
   const html = render("en", "schedule");
   for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "tasks", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
