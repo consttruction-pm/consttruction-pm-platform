@@ -36,7 +36,7 @@ The same SQLiteTransactionManager is passed to application services and snapshot
 2. Existing application APIs create/update project, WBS, activity, relationship and calendar records under the supplied AuthorizationContext.
 3. Schedule settings are stored against the exact project revision.
 4. `P6ScheduleSnapshotPublicationAPI.publish` performs fresh persisted reads and creates an immutable versioned snapshot/context in one SQLite transaction.
-5. `runtime.schedule_runtime(scope)` creates the SharedCoreRuntime bound to the project's local exact-version calendar registry and resource-leveling resolver.
+5. `runtime.schedule_runtime(scope)` delegates to the host-supplied versioned Shared Core runtime factory. The host factory must call `build_shared_core_runtime` from the Shared Python Runtime package, binding this runtime's snapshot/context repositories, exact-version calendar registry and persisted resource-leveling resolver. A missing factory fails closed.
 6. `schedule.query` runs the same `AuthoritativeScheduleQueryProvider` and Python Shared Core evaluator used by Web.
 
 The native bridge must pass trusted AuthorizationContext and current project revision out-of-band. JSON input cannot grant identity, roles, permissions or a revision.
@@ -47,5 +47,6 @@ The native bridge must pass trusted AuthorizationContext and current project rev
 - Flutter Android/iOS embedded Python, native bridge and release pipelines.
 - Complete durable outbox atomic integration, attachment binary storage, project-wide backup/restore and Undo/Redo.
 - Full cost/baseline/expense application APIs and every project module's write workflow (the repositories are exposed for subsequent API composition).
+- The concrete SharedCoreRuntime package dependency; the native host injects the versioned runtime factory to keep independently released client packages compatible.
 - Signed offline session/entitlement provider and OS secure storage.
 - Device/process-kill/offline restart tests and cross-runtime golden-result parity.

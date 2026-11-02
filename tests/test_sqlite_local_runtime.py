@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
+
+import pytest
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -58,7 +60,7 @@ def _open_runtime(connection):
     return runtime, now
 
 
-def test_local_runtime_composes_project_wbs_activity_calendar_and_authoritative_schedule():
+def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snapshot():
     connection = sqlite3.connect(":memory:")
     runtime, now = _open_runtime(connection)
     project_context = runtime.project_lifecycle_api.create_project(
@@ -148,38 +150,20 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_authoritative_
         auth_context=auth,
         request_id="local-runtime-test",
     )
-    query = {
-        "contract_version": "schedule-query.v1",
-        "query_id": "Q-LOCAL-1",
-        "scope": {
-            "tenant_id": scope.tenant_id,
-            "project_id": scope.project_id,
-            "project_revision": scope.project_revision,
-        },
-        "requested_by": auth.user_id,
-        "query_text": "Return authoritative schedule facts",
-        "kind": "fact",
-        "language": "en",
-        "constraints": {"snapshot_id": published["snapshot_id"]},
-    }
-    response = json.loads(
-        runtime.schedule_runtime(scope).dispatch_json(
-            json.dumps({
-                "contract_version": "cubi.shared-core-runtime.v1",
-                "operation": "schedule.query",
-                "payload": query,
-            }),
-            auth_context=auth,
-            expected_project_revision=scope.project_revision,
-        )
+    snapshot = runtime.schedule_snapshot_repository.get(scope, published["snapshot_id"])
+    calculation_context = runtime.calculation_context_repository.get(
+        scope,
+        published["snapshot_id"],
+        expected_calculation_identity=published["calculation_identity"],
     )
-    result = response["result"]
-    assert result["contract_version"] == "schedule-query-result.v1"
-    assert result["data"]["calculation_run_identity"]
-    assert result["data"]["activities"]["A1"]["start"] == "2026-11-03"
-    assert result["data"]["activities"]["A1"]["finish"] == "2026-11-04"
-    assert result["data"]["activities"]["A2"]["start"] == "2026-11-05"
-    assert result["data"]["activities"]["A2"]["finish"] == "2026-11-05"
+    assert snapshot is not None
+    assert calculation_context is not None
+    assert snapshot.snapshot_hash == published["snapshot_hash"]
+    assert {item.activity_id for item in snapshot.activities} == {"A1", "A2"}
+    assert len(snapshot.relationships) == 1
+    assert snapshot.relationships[0].predecessor_id == "A1"
+    assert snapshot.relationships[0].successor_id == "A2"
+    assert runtime.calendar_registry(scope).resolve(calendar_reference)
     connection.close()
 
 
@@ -203,3 +187,40 @@ def test_local_runtime_is_built_over_one_shared_connection_and_schema_is_restart
     )
     assert [item.project_id for item in projects] == ["project-reopen"]
     second.close()
+
+
+
+def test_local_runtime_requires_a_trusted_shared_core_runtime_factory():
+    connection = sqlite3.connect(":memory:")
+    runtime, _ = _open_runtime(connection)
+    with pytest.raises(ValueError, match="LOCAL_SCHEDULE_RUNTIME_FACTORY_REQUIRED"):
+        runtime.schedule_runtime(BackendScope("local-tenant", "p1", 0))
+    connection.close()
+
+
+def test_local_runtime_delegates_to_host_shared_core_runtime_factory():
+    connection = sqlite3.connect(":memory:")
+    calls = []
+    fake_runtime = object()
+    now = datetime(2026, 11, 3, 10, 0, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "offline-session", "local-user", "local-tenant",
+        frozenset({"project_admin"}), now + timedelta(days=2),
+    )
+
+    def factory(runtime, scope):
+        calls.append((runtime, scope))
+        return fake_runtime
+
+    runtime = build_sqlite_local_application_runtime(
+        connection,
+        sessions=LocalSessions(session),
+        authorization_policy=default_project_policy(),
+        rules_version="cubi-rules-v1",
+        engine_version="cubi-engine-v1",
+        schedule_runtime_factory=factory,
+    )
+    scope = BackendScope("local-tenant", "p1", 0)
+    assert runtime.schedule_runtime(scope) is fake_runtime
+    assert calls == [(runtime, scope)]
+    connection.close()
