@@ -199,6 +199,7 @@ const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>()
 const activityDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const documentSelectionByContainer = new WeakMap<HTMLElement, string>();
 const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
+const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
 const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<string>>();
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
@@ -376,11 +377,17 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-document-select],[data-document-detail-tab],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.documentTypeFilterClear !== undefined) {
+      documentTypeFilterByContainer.delete(container);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
     if (target.dataset.documentSelect !== undefined) {
       documentSelectionByContainer.set(container, target.dataset.documentSelect);
       const record = workspaceRenderRecords.get(container);
@@ -405,6 +412,10 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         container.querySelector<HTMLElement>("[data-calendar-editor-tab='" + value + "']")?.click();
       } else if (kind === "wbs-detail-tab") {
         container.querySelector<HTMLElement>("[data-wbs-detail-tab='" + value + "']")?.click();
+      } else if (kind === "document-type") {
+        documentTypeFilterByContainer.set(container, value);
+        const record = workspaceRenderRecords.get(container);
+        if (record) renderMainWorkspace(container, record.state, record.options);
       } else if (kind === "document-detail-tab") {
         documentDetailTabByContainer.set(container, value);
         const record = workspaceRenderRecords.get(container);
@@ -1501,7 +1512,9 @@ function renderRegisterWindow(
 
 function renderDocumentRegisterWindow(container: HTMLElement, state: WorkspaceState): string {
   const selectedId = documentSelectionByContainer.get(container) ?? null;
-  const selected = state.documents.find((document) => document.documentId === selectedId) ?? null;
+  const typeFilter = documentTypeFilterByContainer.get(container) ?? null;
+  const visibleDocuments = typeFilter ? state.documents.filter((document) => document.resourceType === typeFilter) : state.documents;
+  const selected = visibleDocuments.find((document) => document.documentId === selectedId) ?? null;
   const tabs = [
     ["general", "General", "عمومی"],
     ["links", "Links", "پیوندها"],
@@ -1525,9 +1538,9 @@ function renderDocumentRegisterWindow(container: HTMLElement, state: WorkspaceSt
   }
   const columns = [["Document ID","شناسه سند"],["Title","عنوان"],["Type","نوع"],["Status","وضعیت"],["Revision","بازنگری"],["Linked Records","رکوردهای پیوندشده"]] as const;
   return `<div class="cp-documents-window">
-    <section class="cp-documents-register"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Project Documents", "اسناد پروژه"))}</strong><span>${escapeHtml(String(state.documents.length))} ${escapeHtml(uiText(state.locale, "documents", "سند"))}</span></div>
+    <section class="cp-documents-register"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, typeFilter === "evidence" ? "Evidence Documents" : "Project Documents", typeFilter === "evidence" ? "اسناد شواهد" : "اسناد پروژه"))}</strong><span>${escapeHtml(String(visibleDocuments.length))} ${escapeHtml(uiText(state.locale, "documents", "سند"))}</span>${typeFilter ? `<button type="button" data-document-type-filter-clear>${escapeHtml(uiText(state.locale, "All documents", "همه اسناد"))}</button>` : ""}</div>
       <div class="cp-register-table-wrap"><table><thead><tr>${columns.map(([en,fa])=>`<th>${escapeHtml(uiText(state.locale,en,fa))}</th>`).join("")}</tr></thead><tbody>
-      ${state.documents.length ? state.documents.map((document) => `<tr class="${document.documentId === selectedId ? "is-selected" : ""}"><td><button type="button" data-document-select="${escapeAttribute(document.documentId)}" aria-pressed="${document.documentId === selectedId}">${escapeHtml(document.documentId)}</button></td><td>${escapeHtml(document.title)}</td><td>${escapeHtml(document.resourceType)}</td><td>${escapeHtml(document.status)}</td><td>${escapeHtml(String(document.revision))}</td><td>${escapeHtml(String(document.linkedEntityRefs.length))}</td></tr>`).join("") : `<tr><td colspan="${columns.length}">${escapeHtml(uiText(state.locale, "No project documents have been recorded yet.", "هنوز سندی برای این پروژه ثبت نشده است."))}</td></tr>`}
+      ${visibleDocuments.length ? visibleDocuments.map((document) => `<tr class="${document.documentId === selectedId ? "is-selected" : ""}"><td><button type="button" data-document-select="${escapeAttribute(document.documentId)}" aria-pressed="${document.documentId === selectedId}">${escapeHtml(document.documentId)}</button></td><td>${escapeHtml(document.title)}</td><td>${escapeHtml(document.resourceType)}</td><td>${escapeHtml(document.status)}</td><td>${escapeHtml(String(document.revision))}</td><td>${escapeHtml(String(document.linkedEntityRefs.length))}</td></tr>`).join("") : `<tr><td colspan="${columns.length}">${escapeHtml(uiText(state.locale, typeFilter === "evidence" ? "No evidence documents are loaded." : "No project documents have been recorded yet.", typeFilter === "evidence" ? "سند شواهدی بارگذاری نشده است." : "هنوز سندی برای این پروژه ثبت نشده است."))}</td></tr>`}
       </tbody></table></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Create, edit, delete and upload actions remain disabled until the document service exposes the corresponding write workflows.", "عملیات ایجاد، ویرایش، حذف و بارگذاری تا ارائه گردش‌کار نوشتن توسط سرویس اسناد غیرفعال هستند."))}</p></section>
     <section class="cp-document-details"><header><strong>${escapeHtml(uiText(state.locale, "Document Details", "جزئیات سند"))}</strong><span>${escapeHtml(selected?.documentId ?? uiText(state.locale, "No selection", "بدون انتخاب"))}</span></header>
       <nav role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Document detail tabs", "زبانه‌های جزئیات سند"))}">${tabs.map(([key,en,fa])=>`<button type="button" role="tab" data-document-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}</nav><div class="cp-document-detail-content">${detail}</div></section>
@@ -1857,7 +1870,7 @@ function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: numb
   const actions: Partial<Record<WorkspaceState["activeMenu"], readonly ({ kind: string; value: string } | null)[]>> = {
     wbs: [null, { kind: "wbs-detail-tab", value: "general" }, null],
     resources: [null, null, { kind: "register-tab", value: "resources:assignments" }, { kind: "register-tab", value: "resources:codes" }, { kind: "register-tab", value: "resources:roles" }],
-    documents: [null, { kind: "document-detail-tab", value: "links" }, { kind: "document-detail-tab", value: "integrity" }, { kind: "document-detail-tab", value: "revisions" }, null],
+    documents: [null, { kind: "document-detail-tab", value: "links" }, { kind: "document-detail-tab", value: "integrity" }, { kind: "document-detail-tab", value: "revisions" }, { kind: "document-type", value: "evidence" }],
     cost: [null, { kind: "register-tab", value: "cost:general" }, { kind: "register-tab", value: "cost:budget" }, { kind: "register-tab", value: "cost:cash-flow" }, { kind: "register-tab", value: "cost:evm" }, null, null],
     assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
     expenses: [null, null, { kind: "register-tab", value: "expenses:general" }],
