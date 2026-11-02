@@ -200,8 +200,8 @@ repository; they are not waiting on external input.
 - Commits: `750d721f`, `4d569a1c`, `78d78414`.
 - Tests: local full suite 3055 passed / 132 skipped; exact-head CI 9/9 on
   `78d78414` (Python 3.11/3.12/3.13, Web, PostgreSQL, four client typechecks).
-- Open: PR remains Draft; Ready/merge requires authenticated GitHub write
-  access and the acceptance criteria below are not all met.
+- Open: PR remains Draft because the acceptance criteria below are not all
+  met; marking Ready or merging now would present incomplete rows as complete.
 - Next: implement the remaining matrix rows or obtain a licensed reference run
   before claiming parity.
 - Acceptance criterion: CI is green on the exact pushed head with no weakened
