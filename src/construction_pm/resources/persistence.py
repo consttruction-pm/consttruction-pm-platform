@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 from typing import Iterator
 
+from ..backend_p0.transactions import SQLiteTransactionManager, execute_sqlite_script
+from .context import ProjectContext
 from .errors import OptimisticLockError
 from .models import CostBasis, Resource, ResourceAssignment, ResourceRate, ResourceType
+
 
 SCHEMA_VERSION = 3
 
@@ -337,60 +341,280 @@ class SQLiteResourceRepository:
 import json
 from .context import ProjectContext
 
+
+
 class ContextScopedSQLiteResourceRepository:
-    """SQLite persistence adapter with explicit tenant/company/project scope."""
-    def __init__(self, connection: sqlite3.Connection) -> None:
-        self.connection=connection; self.connection.execute("PRAGMA foreign_keys = ON")
-        self.connection.executescript("""CREATE TABLE IF NOT EXISTS context_resources (tenant_id TEXT NOT NULL, company_id TEXT NOT NULL, project_id TEXT NOT NULL, resource_id TEXT NOT NULL, resource_json TEXT NOT NULL, revision INTEGER NOT NULL, PRIMARY KEY (tenant_id,company_id,project_id,resource_id)); CREATE TABLE IF NOT EXISTS context_resource_assignments (tenant_id TEXT NOT NULL, company_id TEXT NOT NULL, project_id TEXT NOT NULL, activity_id TEXT NOT NULL, resource_id TEXT NOT NULL, assignment_json TEXT NOT NULL, revision INTEGER NOT NULL, PRIMARY KEY (tenant_id,company_id,project_id,activity_id,resource_id));"""); self.connection.commit()
+    """Durable resource master/assignment storage scoped by tenant, company and project."""
+
+    def __init__(
+        self,
+        connection: sqlite3.Connection,
+        transaction_manager: SQLiteTransactionManager | None = None,
+    ) -> None:
+        self.connection = connection
+        self.transaction_manager = transaction_manager or SQLiteTransactionManager(connection)
+        with self.transaction_manager.transaction():
+            execute_sqlite_script(
+                self.connection,
+                """
+                CREATE TABLE IF NOT EXISTS context_resources (
+                    tenant_id TEXT NOT NULL,
+                    company_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL,
+                    resource_id TEXT NOT NULL,
+                    resource_json TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    PRIMARY KEY (tenant_id, company_id, project_id, resource_id)
+                );
+                CREATE TABLE IF NOT EXISTS context_resource_assignments (
+                    tenant_id TEXT NOT NULL,
+                    company_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL,
+                    activity_id TEXT NOT NULL,
+                    resource_id TEXT NOT NULL,
+                    assignment_json TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    PRIMARY KEY (tenant_id, company_id, project_id, activity_id, resource_id),
+                    FOREIGN KEY (tenant_id, company_id, project_id, resource_id)
+                        REFERENCES context_resources(tenant_id, company_id, project_id, resource_id)
+                        ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS idx_context_resources_scope
+                    ON context_resources(tenant_id, company_id, project_id, resource_id);
+                CREATE INDEX IF NOT EXISTS idx_context_resource_assignments_scope
+                    ON context_resource_assignments(tenant_id, company_id, project_id, activity_id, resource_id);
+                """,
+            )
+
     @staticmethod
-    def _validate(c:ProjectContext)->None: c.validate()
+    def _validate(context: ProjectContext) -> None:
+        context.validate()
+
     @staticmethod
-    def _rjson(r:Resource)->str: return json.dumps({"id":r.id,"code":r.code,"name":r.name,"resource_type":r.resource_type.value,"unit":r.unit,"calendar_id":r.calendar_id,"active":r.active,"rates":[{"rate":str(x.rate),"basis":x.basis.value,"currency":x.currency,"effective_from":None if x.effective_from is None else x.effective_from.isoformat(),"effective_to":None if x.effective_to is None else x.effective_to.isoformat(),"version":x.version} for x in r.rates]},sort_keys=True,separators=(",",":"))
-    @staticmethod
-    def _rfrom(p:str)->Resource:
-        d=json.loads(p); return Resource(id=d["id"],code=d["code"],name=d["name"],resource_type=ResourceType(d["resource_type"]),unit=d["unit"],calendar_id=d["calendar_id"],active=bool(d["active"]),rates=tuple(ResourceRate(rate=Decimal(x["rate"]),basis=CostBasis(x["basis"]),currency=x["currency"],effective_from=None if x["effective_from"] is None else date.fromisoformat(x["effective_from"]),effective_to=None if x["effective_to"] is None else date.fromisoformat(x["effective_to"]),version=int(x["version"])) for x in d["rates"]))
-    @staticmethod
-    def _ajson(a:ResourceAssignment)->str: return json.dumps({"activity_id":a.activity_id,"resource_id":a.resource_id,"planned_units":str(a.planned_units),"actual_units":str(a.actual_units),"remaining_units":None if a.remaining_units is None else str(a.remaining_units),"planned_cost":None if a.planned_cost is None else str(a.planned_cost),"actual_cost":None if a.actual_cost is None else str(a.actual_cost),"remaining_cost":None if a.remaining_cost is None else str(a.remaining_cost)},sort_keys=True,separators=(",",":"))
-    @staticmethod
-    def _afrom(p:str)->ResourceAssignment:
-        d=json.loads(p); return ResourceAssignment(activity_id=d["activity_id"],resource_id=d["resource_id"],planned_units=Decimal(d["planned_units"]),actual_units=Decimal(d["actual_units"]),remaining_units=None if d["remaining_units"] is None else Decimal(d["remaining_units"]),planned_cost=None if d["planned_cost"] is None else Decimal(d["planned_cost"]),actual_cost=None if d["actual_cost"] is None else Decimal(d["actual_cost"]),remaining_cost=None if d["remaining_cost"] is None else Decimal(d["remaining_cost"]))
-    def save_resource(self,c:ProjectContext,r:Resource,expected_revision:int|None=None)->Resource:
-        self._validate(c); k=(c.tenant_id,c.company_id,c.project_id,r.id); row=self.connection.execute("SELECT revision FROM context_resources WHERE tenant_id=? AND company_id=? AND project_id=? AND resource_id=?",k).fetchone(); cur=None if row is None else int(row[0])
-        if expected_revision is not None and cur!=expected_revision: raise OptimisticLockError(f"Stale resource revision for {r.id}: expected {expected_revision}")
-        rev=1 if cur is None else cur+1
-        owns_transaction = not self.connection.in_transaction
-        self.connection.execute(
-            "INSERT INTO context_resources VALUES (?,?,?,?,?,?) "
-            "ON CONFLICT(tenant_id,company_id,project_id,resource_id) DO UPDATE SET "
-            "resource_json=excluded.resource_json,revision=excluded.revision",
-            (*k, self._rjson(r), rev),
+    def _resource_json(resource: Resource) -> str:
+        return json.dumps(
+            {
+                "id": resource.id,
+                "code": resource.code,
+                "name": resource.name,
+                "resource_type": resource.resource_type.value,
+                "unit": resource.unit,
+                "calendar_id": resource.calendar_id,
+                "active": resource.active,
+                "rates": [
+                    {
+                        "rate": str(rate.rate),
+                        "basis": rate.basis.value,
+                        "currency": rate.currency,
+                        "effective_from": None if rate.effective_from is None else rate.effective_from.isoformat(),
+                        "effective_to": None if rate.effective_to is None else rate.effective_to.isoformat(),
+                        "version": rate.version,
+                    }
+                    for rate in resource.rates
+                ],
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
         )
-        if owns_transaction:
-            self.connection.commit()
-        return r
-    def get_resource(self,c:ProjectContext,resource_id:str)->Resource|None:
-        self._validate(c); row=self.connection.execute("SELECT resource_json FROM context_resources WHERE tenant_id=? AND company_id=? AND project_id=? AND resource_id=?",(c.tenant_id,c.company_id,c.project_id,resource_id)).fetchone(); return None if row is None else self._rfrom(row[0])
-    def get_resource_revision(self,c:ProjectContext,resource_id:str)->int|None:
-        self._validate(c); row=self.connection.execute("SELECT revision FROM context_resources WHERE tenant_id=? AND company_id=? AND project_id=? AND resource_id=?",(c.tenant_id,c.company_id,c.project_id,resource_id)).fetchone(); return None if row is None else int(row[0])
-    def list_resources(self,c:ProjectContext)->list[Resource]:
-        self._validate(c); rows=self.connection.execute("SELECT resource_json FROM context_resources WHERE tenant_id=? AND company_id=? AND project_id=? ORDER BY resource_id",(c.tenant_id,c.company_id,c.project_id)).fetchall(); return [self._rfrom(x[0]) for x in rows]
-    def save_assignment(self,c:ProjectContext,a:ResourceAssignment,expected_revision:int|None=None)->ResourceAssignment:
-        self._validate(c); k=(c.tenant_id,c.company_id,c.project_id,a.activity_id,a.resource_id); row=self.connection.execute("SELECT revision FROM context_resource_assignments WHERE tenant_id=? AND company_id=? AND project_id=? AND activity_id=? AND resource_id=?",k).fetchone(); cur=None if row is None else int(row[0])
-        if expected_revision is not None and cur!=expected_revision: raise OptimisticLockError(f"Stale assignment revision for {a.activity_id}/{a.resource_id}: expected {expected_revision}")
-        rev=1 if cur is None else cur+1
-        owns_transaction = not self.connection.in_transaction
-        self.connection.execute(
-            "INSERT INTO context_resource_assignments VALUES (?,?,?,?,?,?,?) "
-            "ON CONFLICT(tenant_id,company_id,project_id,activity_id,resource_id) DO UPDATE SET "
-            "assignment_json=excluded.assignment_json,revision=excluded.revision",
-            (*k, self._ajson(a), rev),
+
+    @staticmethod
+    def _resource_from_json(payload: str) -> Resource:
+        data = json.loads(payload)
+        return Resource(
+            id=data["id"],
+            code=data["code"],
+            name=data["name"],
+            resource_type=ResourceType(data["resource_type"]),
+            unit=data["unit"],
+            calendar_id=data["calendar_id"],
+            active=bool(data["active"]),
+            rates=[
+                ResourceRate(
+                    rate=Decimal(item["rate"]),
+                    basis=CostBasis(item["basis"]),
+                    currency=item["currency"],
+                    effective_from=None if item["effective_from"] is None else date.fromisoformat(item["effective_from"]),
+                    effective_to=None if item["effective_to"] is None else date.fromisoformat(item["effective_to"]),
+                    version=int(item["version"]),
+                )
+                for item in data["rates"]
+            ],
         )
-        if owns_transaction:
-            self.connection.commit()
-        return a
-    def get_assignment_revision(self,c:ProjectContext,activity_id:str,resource_id:str)->int|None:
-        self._validate(c); row=self.connection.execute("SELECT revision FROM context_resource_assignments WHERE tenant_id=? AND company_id=? AND project_id=? AND activity_id=? AND resource_id=?",(c.tenant_id,c.company_id,c.project_id,activity_id,resource_id)).fetchone(); return None if row is None else int(row[0])
-    def list_assignments(self,c:ProjectContext,activity_id:str|None=None)->list[ResourceAssignment]:
-        self._validate(c); sql="SELECT assignment_json FROM context_resource_assignments WHERE tenant_id=? AND company_id=? AND project_id=?"; p=(c.tenant_id,c.company_id,c.project_id)
-        if activity_id is not None: sql+=" AND activity_id=?"; p+=(activity_id,)
-        sql+=" ORDER BY activity_id,resource_id"; return [self._afrom(x[0]) for x in self.connection.execute(sql,p).fetchall()]
+
+    @staticmethod
+    def _assignment_json(assignment: ResourceAssignment) -> str:
+        def decimal(value: Decimal | None) -> str | None:
+            return None if value is None else str(value)
+
+        return json.dumps(
+            {
+                "activity_id": assignment.activity_id,
+                "resource_id": assignment.resource_id,
+                "planned_units": decimal(assignment.planned_units),
+                "actual_units": decimal(assignment.actual_units),
+                "remaining_units": decimal(assignment.remaining_units),
+                "planned_cost": decimal(assignment.planned_cost),
+                "actual_cost": decimal(assignment.actual_cost),
+                "remaining_cost": decimal(assignment.remaining_cost),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+
+    @staticmethod
+    def _assignment_from_json(payload: str) -> ResourceAssignment:
+        data = json.loads(payload)
+
+        def decimal(value: str | None) -> Decimal | None:
+            return None if value is None else Decimal(value)
+
+        return ResourceAssignment(
+            activity_id=data["activity_id"],
+            resource_id=data["resource_id"],
+            planned_units=Decimal(data["planned_units"]),
+            actual_units=Decimal(data["actual_units"]),
+            remaining_units=decimal(data["remaining_units"]),
+            planned_cost=decimal(data["planned_cost"]),
+            actual_cost=decimal(data["actual_cost"]),
+            remaining_cost=decimal(data["remaining_cost"]),
+        )
+
+    def save_resource(
+        self,
+        context: ProjectContext,
+        resource: Resource,
+        expected_revision: int | None = None,
+    ) -> Resource:
+        self._validate(context)
+        if not isinstance(resource, Resource):
+            raise ValueError("INVALID_RESOURCE")
+        resource_payload = self._resource_json(resource)
+        key = (context.tenant_id, context.company_id, context.project_id, resource.id)
+        with self.transaction_manager.transaction():
+            row = self.connection.execute(
+                """SELECT revision FROM context_resources
+                   WHERE tenant_id=? AND company_id=? AND project_id=? AND resource_id=?""",
+                key,
+            ).fetchone()
+            current = None if row is None else int(row[0])
+            if expected_revision is not None:
+                expected = 0 if current is None and expected_revision == 0 else expected_revision
+                if expected != (0 if current is None else current):
+                    raise OptimisticLockError(
+                        f"Stale resource revision for {resource.id}: expected {expected_revision}"
+                    )
+            revision = 1 if current is None else current + 1
+            self.connection.execute(
+                """INSERT INTO context_resources
+                   (tenant_id, company_id, project_id, resource_id, resource_json, revision)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(tenant_id, company_id, project_id, resource_id)
+                   DO UPDATE SET resource_json=excluded.resource_json, revision=excluded.revision""",
+                (*key, resource_payload, revision),
+            )
+        return resource
+
+    def get_resource(self, context: ProjectContext, resource_id: str) -> Resource | None:
+        self._validate(context)
+        row = self.connection.execute(
+            """SELECT resource_json FROM context_resources
+               WHERE tenant_id=? AND company_id=? AND project_id=? AND resource_id=?""",
+            (context.tenant_id, context.company_id, context.project_id, resource_id),
+        ).fetchone()
+        return None if row is None else self._resource_from_json(row[0])
+
+    def get_resource_revision(self, context: ProjectContext, resource_id: str) -> int | None:
+        self._validate(context)
+        row = self.connection.execute(
+            """SELECT revision FROM context_resources
+               WHERE tenant_id=? AND company_id=? AND project_id=? AND resource_id=?""",
+            (context.tenant_id, context.company_id, context.project_id, resource_id),
+        ).fetchone()
+        return None if row is None else int(row[0])
+
+    def list_resources(self, context: ProjectContext) -> list[Resource]:
+        self._validate(context)
+        rows = self.connection.execute(
+            """SELECT resource_json FROM context_resources
+               WHERE tenant_id=? AND company_id=? AND project_id=?
+               ORDER BY resource_id""",
+            (context.tenant_id, context.company_id, context.project_id),
+        ).fetchall()
+        return [self._resource_from_json(row[0]) for row in rows]
+
+    def save_assignment(
+        self,
+        context: ProjectContext,
+        assignment: ResourceAssignment,
+        expected_revision: int | None = None,
+    ) -> ResourceAssignment:
+        self._validate(context)
+        if not isinstance(assignment, ResourceAssignment):
+            raise ValueError("INVALID_RESOURCE_ASSIGNMENT")
+        key = (
+            context.tenant_id,
+            context.company_id,
+            context.project_id,
+            assignment.activity_id,
+            assignment.resource_id,
+        )
+        payload = self._assignment_json(assignment)
+        with self.transaction_manager.transaction():
+            resource = self.get_resource(context, assignment.resource_id)
+            if resource is None:
+                raise ValueError("RESOURCE_NOT_FOUND")
+            row = self.connection.execute(
+                """SELECT revision FROM context_resource_assignments
+                   WHERE tenant_id=? AND company_id=? AND project_id=?
+                     AND activity_id=? AND resource_id=?""",
+                key,
+            ).fetchone()
+            current = None if row is None else int(row[0])
+            if expected_revision is not None and expected_revision != (0 if current is None else current):
+                raise OptimisticLockError(
+                    f"Stale assignment revision for {assignment.activity_id}/{assignment.resource_id}: expected {expected_revision}"
+                )
+            revision = 1 if current is None else current + 1
+            self.connection.execute(
+                """INSERT INTO context_resource_assignments
+                   (tenant_id, company_id, project_id, activity_id, resource_id, assignment_json, revision)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(tenant_id, company_id, project_id, activity_id, resource_id)
+                   DO UPDATE SET assignment_json=excluded.assignment_json, revision=excluded.revision""",
+                (*key, payload, revision),
+            )
+        return assignment
+
+    def get_assignment_revision(
+        self,
+        context: ProjectContext,
+        activity_id: str,
+        resource_id: str,
+    ) -> int | None:
+        self._validate(context)
+        row = self.connection.execute(
+            """SELECT revision FROM context_resource_assignments
+               WHERE tenant_id=? AND company_id=? AND project_id=?
+                 AND activity_id=? AND resource_id=?""",
+            (context.tenant_id, context.company_id, context.project_id, activity_id, resource_id),
+        ).fetchone()
+        return None if row is None else int(row[0])
+
+    def list_assignments(
+        self,
+        context: ProjectContext,
+        activity_id: str | None = None,
+    ) -> list[ResourceAssignment]:
+        self._validate(context)
+        sql = """SELECT assignment_json FROM context_resource_assignments
+                 WHERE tenant_id=? AND company_id=? AND project_id=?"""
+        params: tuple[object, ...] = (context.tenant_id, context.company_id, context.project_id)
+        if activity_id is not None:
+            sql += " AND activity_id=?"
+            params += (activity_id,)
+        sql += " ORDER BY activity_id, resource_id"
+        rows = self.connection.execute(sql, params).fetchall()
+        return [self._assignment_from_json(row[0]) for row in rows]
