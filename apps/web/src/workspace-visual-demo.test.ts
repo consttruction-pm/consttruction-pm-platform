@@ -158,3 +158,16 @@ test("activity Calendar details link to the visual calendar editor and disclose 
   assert.match(html, /تقویم فعالیت/);
   assert.match(html, /ذخیره تغییرات و اتصال به زمان‌بندی در این پیش‌نمایش فعال نیست/);
 });
+
+
+test("activity Resources details expose budgeted, actual and remaining units and costs", () => {
+  const state = createVisualDemoState("en");
+  state.activityId = "A1320";
+  state.detailTab = "resources";
+  const html = renderVisualDemo(state);
+  for (const label of ["Resource type", "Budgeted units", "Actual units", "Remaining units", "Budgeted cost", "Actual cost", "Remaining cost", "Concrete crew", "Labor"]) {
+    assert.match(html, new RegExp(label));
+  }
+  assert.match(html, /Illustrative assignment values only/);
+  assert.match(html, /does not save resource assignments or recalculate costs/);
+});
