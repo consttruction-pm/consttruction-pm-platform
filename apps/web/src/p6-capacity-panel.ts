@@ -806,18 +806,21 @@ export function mountCapacityPanel(
     }
   });
 
-  // A direct button action dispatches a cancellable submit event on the current form.
-  // This avoids native navigation if a host layout re-parents the panel during interaction.
-  resolveButton.addEventListener("click", (event) => {
-    event.preventDefault();
-    resolveForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-  });
-
   // Delegate resolver submission from the stable panel rather than its inner form.
   // The panel contents are rebuilt during workspace refreshes; a form-level listener can
   // otherwise disappear between filling the fields and submitting the request.
   if (!capacityResolveSubmitBound.has(panel)) {
     capacityResolveSubmitBound.add(panel);
+    panel.addEventListener("click", (event) => {
+      const target = event.target instanceof Element
+        ? event.target.closest<HTMLElement>("[data-capacity-resolve]")
+        : null;
+      if (!target) return;
+      const form = target.closest<HTMLFormElement>("[data-capacity-resolve-form]");
+      if (!form) return;
+      event.preventDefault();
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
     panel.addEventListener("submit", async (event) => {
       const form = event.target instanceof HTMLFormElement ? event.target : null;
       if (!form || !form.matches("[data-capacity-resolve-form]")) return;
