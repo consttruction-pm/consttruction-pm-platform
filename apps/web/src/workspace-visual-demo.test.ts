@@ -36,6 +36,30 @@ test("full-screen control changes to return-to-normal-view while active", () => 
   assert.match(html, />Return to normal view<\/button>/);
 });
 
+test("WBS Activities and Dates tabs show scoped activity records and derived sample date bounds", () => {
+  const activities = createVisualDemoState("en");
+  activities.window = "wbs";
+  activities.selectedWbsCode = "1.2";
+  activities.wbsDetailTab = "activities";
+  const activityHtml = renderVisualDemo(activities);
+
+  assert.match(activityHtml, /cp-vd-wbs-activity-table/);
+  assert.match(activityHtml, /A1110/);
+  assert.match(activityHtml, /Process and hydraulic design/);
+  assert.match(activityHtml, /Civil and structural design/);
+  assert.match(activityHtml, /% complete/);
+
+  const dates = createVisualDemoState("en");
+  dates.window = "wbs";
+  dates.selectedWbsCode = "1.2";
+  dates.wbsDetailTab = "dates";
+  const dateHtml = renderVisualDemo(dates);
+  assert.match(dateHtml, /Earliest activity start/);
+  assert.match(dateHtml, /Latest activity finish/);
+  assert.match(dateHtml, /02\/11\/26/);
+  assert.match(dateHtml, /18\/12\/26/);
+});
+
 test("WBS window renders a selectable hierarchy and a dedicated details inspector", () => {
   const state = createVisualDemoState("en");
   state.window = "wbs";
