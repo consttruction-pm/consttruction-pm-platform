@@ -2319,6 +2319,36 @@ async function main() {
       menuLabels.includes("Schedule") && menuLabels.includes("Resources"),
       "main menu labels must be bilingual-ready English defaults",
     );
+    await page.click('[data-workspace-layout="grid"]');
+    assert(
+      await page.evaluate(() => {
+        const workspace = document.querySelector(".cp-p6-workspace");
+        return workspace?.getAttribute("data-workspace-layout") === "grid" &&
+          getComputedStyle(document.querySelector("#cp-gantt")).display === "none" &&
+          getComputedStyle(document.querySelector("#cp-activity-grid")).display !== "none";
+      }),
+      "Grid only must show the activity register and hide Gantt",
+    );
+    await page.click('[data-workspace-layout="gantt"]');
+    assert(
+      await page.evaluate(() => {
+        const workspace = document.querySelector(".cp-p6-workspace");
+        return workspace?.getAttribute("data-workspace-layout") === "gantt" &&
+          getComputedStyle(document.querySelector("#cp-activity-grid")).display === "none" &&
+          getComputedStyle(document.querySelector("#cp-gantt")).display !== "none";
+      }),
+      "Gantt only must show the chart and hide the activity register",
+    );
+    await page.click('[data-workspace-layout="split"]');
+    assert(
+      await page.evaluate(() => {
+        const workspace = document.querySelector(".cp-p6-workspace");
+        return workspace?.getAttribute("data-workspace-layout") === "split" &&
+          getComputedStyle(document.querySelector("#cp-activity-grid")).display !== "none" &&
+          getComputedStyle(document.querySelector("#cp-gantt")).display !== "none";
+      }),
+      "Split must restore both synchronized schedule panes",
+    );
     assert(
       (await page.text(".cp-navigation-surface strong")) === "Schedule",
       "schedule is the initial workspace surface",
