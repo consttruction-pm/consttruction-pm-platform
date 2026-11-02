@@ -63,10 +63,12 @@ test("window titles cover every navigation surface and avoid third-party product
     "schedule",
     "progress",
     "resources",
+    "roles",
     "calendars",
     "cost",
     "documents",
     "reports",
+    "tracking",
     "control",
     "settings",
   ]);
