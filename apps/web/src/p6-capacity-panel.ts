@@ -562,6 +562,7 @@ function errorCode(error: unknown): string {
 }
 
 async function submitCapacityResolution(panel: HTMLElement, form: HTMLFormElement): Promise<void> {
+  panel.dataset.capacityResolveHandled = "true";
   const binding = capacityPanelBindings.get(panel);
   if (!binding) return;
   const resourceField = form.querySelector<HTMLInputElement>("[data-capacity-resolve-resource]");
@@ -618,6 +619,7 @@ export function mountCapacityPanel(
   panel.innerHTML = renderCapacityPanel([], labels, locale);
   const client = createP6CapacityClient(transport, context);
   capacityPanelBindings.set(panel, { client, labels, locale });
+  panel.dataset.capacityResolveBound = "true";
 
   const resourceSelect = panel.querySelector<HTMLSelectElement>(
     "[data-capacity-resource-select]",
@@ -860,6 +862,7 @@ export function mountCapacityPanel(
       const form = target.closest<HTMLFormElement>("[data-capacity-resolve-form]");
       const boundPanel = target.closest<HTMLElement>("[data-capacity-panel]");
       if (!form || !boundPanel) return;
+      boundPanel.dataset.capacityResolveClicked = "true";
       event.preventDefault();
       void submitCapacityResolution(boundPanel, form);
     });
