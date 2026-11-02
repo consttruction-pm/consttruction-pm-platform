@@ -84,3 +84,18 @@ Status values: **Implemented** = usable with real data; **Partial** = some real 
 - `apps/web/src/workspace-view.ts`, `workspace-model.ts`, `workspace-navigation.ts`, `workspace-preferences.ts`, `workspace-filter-sort.ts`, `schedule-cycle.ts`, `main.ts`.
 - `apps/web/styles.css` grid definitions.
 - Read-only audit on 2026-10-30 (file/line references above reflect that revision).
+
+
+## Master visual-shell audit status (2026-11-02)
+
+The full target inventory is now documented in [workspace-visual-shell-master-audit.md](./workspace-visual-shell-master-audit.md). Current UI remains substantially incomplete relative to that target:
+
+- The new global menu/toolbar catalogue is rendered as a visual-only shell; command entries are intentionally not wired to APIs or actions.
+- The existing left rail is still not the complete hierarchical navigation tree.
+- Most listed windows remain partial, preview, or missing; they are not yet independently navigable as real window tabs.
+- Page-specific Details inventories are now specified, but only the existing partial Project Details/Activity Details surfaces are rendered; the other page-specific detail tabs are not complete.
+- Contextual command bars for each window are not complete. The right-side CUBI Add (+) command bar remains a separately tracked requirement.
+- Layout dialogs for network/chart/profile/spreadsheet, advanced filters, multi-level group/sort, bar styles, tab groups, and all per-window layouts remain visual work.
+- Form Builder is a CUBI addition and must coexist with the complete baseline window/menu set; its organization and project libraries remain distinct.
+
+Do not mark the visual shell complete based on this catalogue or the presence of disabled menu labels. Completion requires the running-app acceptance evidence listed in the master audit. This inventory is a visual status only and makes no statement about API readiness.
