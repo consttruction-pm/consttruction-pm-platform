@@ -54,8 +54,34 @@ test("schedule navigation exposes run controls and every reference section witho
 test("unsupported V1 surfaces are explicitly marked preview instead of being presented as implemented", () => {
   assert.equal(getWorkspaceNavigation("progress").status, "preview");
   assert.equal(getWorkspaceNavigation("resources").status, "partial");
-  assert.equal(getWorkspaceNavigation("cost").status, "preview");
+  assert.equal(getWorkspaceNavigation("cost").status, "partial");
   assert.equal(getWorkspaceNavigation("reports").status, "preview");
+});
+
+test("resource, cost and document windows expose their navigable register/detail surfaces", () => {
+  assert.deepEqual(getWorkspaceNavigation("resources").submenus.map((item) => item.en), [
+    "Resource Register",
+    "Max units / time",
+    "Assignments",
+    "Resource Codes",
+    "Roles",
+  ]);
+  assert.deepEqual(getWorkspaceNavigation("cost").submenus.map((item) => item.en), [
+    "Cost Overview",
+    "Cost Accounts",
+    "Budget",
+    "Cash Flow",
+    "Earned Value",
+    "Procurement",
+    "Changes & Claims",
+  ]);
+  assert.deepEqual(getWorkspaceNavigation("documents").submenus.map((item) => item.en), [
+    "Document Register",
+    "Links",
+    "Integrity",
+    "Revisions",
+    "Evidence",
+  ]);
 });
 
 test("navigation status follows the workspace active menu", () => {
