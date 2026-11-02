@@ -68,7 +68,12 @@ CREATE TABLE IF NOT EXISTS mutation_idempotency (
 
 
 class SQLiteResourceRepository:
-    """SQLite infrastructure adapter with explicit transaction boundaries."""
+    """Legacy single-scope adapter; use ContextScopedSQLiteResourceRepository for projects.
+
+    This compatibility adapter retains its original unscoped schema and must not
+    be used by multi-tenant or multi-project application composition.
+    """
+
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
@@ -355,6 +360,8 @@ class ContextScopedSQLiteResourceRepository:
         transaction_manager: SQLiteTransactionManager | None = None,
     ) -> None:
         self.connection = connection
+        self.connection.execute("PRAGMA foreign_keys = ON")
+        self.connection.execute("PRAGMA busy_timeout = 5000")
         self.transaction_manager = transaction_manager or SQLiteTransactionManager(connection)
         with self.transaction_manager.transaction():
             execute_sqlite_script(
