@@ -30,6 +30,9 @@ from construction_pm.scheduling.constraints import ConstraintType
 from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.shared_core_runtime import SharedCoreOperation
+from construction_pm.calendar_work_hours_repository import CalendarWorkHourRule
+from construction_pm.p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDAR_API_VERSION
+from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
 from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
 
 
@@ -103,6 +106,8 @@ def build_project_domain_operations(
     wbs_api: P6WBSMasterAPI | None = None,
     relationship_api: P6RelationshipAPI | None = None,
     constraint_api: P6ConstraintAPI | None = None,
+    calendar_api: P6CalendarAPI | None = None,
+    calendar_read_api: P6CalendarReadAPI | None = None,
 ) -> dict[str, SharedCoreOperation]:
     """Build the same allow-listed CRUD ABI over server or local typed APIs."""
     operations: dict[str, SharedCoreOperation] = {}
@@ -372,6 +377,199 @@ def build_project_domain_operations(
                 allowed_fields=frozenset(allowed),
                 handler=handler,
             )
+
+
+    if calendar_api is not None:
+        def calendar_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return calendar_api.list(_scope(actor, revision), auth_context=actor)
+
+        def calendar_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                calendar_api.get(
+                    _scope(actor, revision),
+                    str(payload["calendar_id"]),
+                    str(payload["calendar_version"]),
+                    auth_context=actor,
+                )
+            )
+
+        def calendar_create_or_update_request(payload: Mapping[str, object]) -> P6CalendarCreateRequest:
+            raw = _fields(
+                payload["calendar"],
+                required={"calendar_id", "calendar_version", "calendar_type", "kind", "name"},
+                allowed={
+                    "calendar_id", "calendar_version", "calendar_type", "kind", "name",
+                    "base_calendar_id", "base_calendar_version", "expected_revision",
+                },
+                code="INVALID_CALENDAR_PAYLOAD",
+            )
+            expected = raw.get("expected_revision")
+            if expected is not None and (
+                isinstance(expected, bool) or not isinstance(expected, int) or expected < 0
+            ):
+                raise ValueError("INVALID_EXPECTED_REVISION")
+            return P6CalendarCreateRequest(
+                contract_version=P6_CALENDAR_API_VERSION,
+                calendar_id=raw["calendar_id"],
+                calendar_version=raw["calendar_version"],
+                calendar_type=raw["calendar_type"],
+                kind=raw["kind"],
+                name=raw["name"],
+                expected_revision=expected,
+                base_calendar_id=raw.get("base_calendar_id"),
+                base_calendar_version=raw.get("base_calendar_version"),
+            )
+
+        def calendar_create(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                calendar_api.create(
+                    _scope(actor, revision),
+                    calendar_create_or_update_request(payload),
+                    auth_context=actor,
+                )
+            )
+
+        def calendar_update(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                calendar_api.update(
+                    _scope(actor, revision),
+                    calendar_create_or_update_request(payload),
+                    auth_context=actor,
+                )
+            )
+
+        def calendar_delete(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result({
+                "deleted": calendar_api.delete(
+                    _scope(actor, revision),
+                    str(payload["calendar_id"]),
+                    str(payload["calendar_version"]),
+                    expected_revision=_record_revision(payload["expected_revision"]),
+                    auth_context=actor,
+                )
+            })
+
+        for name, permission, required, allowed, handler in (
+            ("calendar.list", Permission.PROJECT_READ, set(), set(), calendar_list),
+            ("calendar.get", Permission.PROJECT_READ, {"calendar_id", "calendar_version"}, {"calendar_id", "calendar_version"}, calendar_get),
+            ("calendar.create", Permission.PROJECT_WRITE, {"calendar"}, {"calendar"}, calendar_create),
+            ("calendar.update", Permission.PROJECT_WRITE, {"calendar"}, {"calendar"}, calendar_update),
+            ("calendar.delete", Permission.PROJECT_WRITE, {"calendar_id", "calendar_version", "expected_revision"}, {"calendar_id", "calendar_version", "expected_revision"}, calendar_delete),
+        ):
+            operations[name] = SharedCoreOperation(
+                contract_version=P6_CALENDAR_API_VERSION,
+                permission=permission,
+                required_fields=frozenset(required),
+                allowed_fields=frozenset(allowed),
+                handler=handler,
+            )
+
+        def calendar_exception_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _list_result(
+                calendar_api.list_exceptions(
+                    _scope(actor, revision),
+                    str(payload["calendar_id"]),
+                    str(payload["calendar_version"]),
+                    auth_context=actor,
+                )
+            )
+
+        operations["calendar.exception_list"] = SharedCoreOperation(
+            contract_version=P6_CALENDAR_API_VERSION,
+            permission=Permission.PROJECT_READ,
+            required_fields=frozenset({"calendar_id", "calendar_version"}),
+            allowed_fields=frozenset({"calendar_id", "calendar_version"}),
+            handler=calendar_exception_list,
+        )
+
+        def calendar_work_hours_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            kind = payload["kind"]
+            if not isinstance(kind, str):
+                raise ValueError("INVALID_WORK_HOUR_KIND")
+            return _list_result(
+                calendar_api.list_work_hours(
+                    _scope(actor, revision),
+                    str(payload["calendar_id"]),
+                    str(payload["calendar_version"]),
+                    kind,
+                    auth_context=actor,
+                )
+            )
+
+        def calendar_work_hours_save(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["rule"],
+                required={"calendar_id", "calendar_version", "kind"},
+                allowed={
+                    "calendar_id", "calendar_version", "kind", "weekday",
+                    "is_working_day", "total_work_hours", "intervals",
+                },
+                code="INVALID_WORK_HOUR_PAYLOAD",
+            )
+            raw_intervals = raw.get("intervals", [])
+            if not isinstance(raw_intervals, list):
+                raise ValueError("INVALID_WORK_HOUR_INTERVALS")
+            intervals: list[tuple[str, str]] = []
+            for pair in raw_intervals:
+                if (
+                    not isinstance(pair, list)
+                    or len(pair) != 2
+                    or any(not isinstance(item, str) for item in pair)
+                ):
+                    raise ValueError("INVALID_WORK_HOUR_INTERVALS")
+                intervals.append((pair[0], pair[1]))
+            total = raw.get("total_work_hours")
+            return _record_result(
+                calendar_api.save_work_hours(
+                    CalendarWorkHourRule(
+                        scope=_scope(actor, revision),
+                        calendar_id=raw["calendar_id"],
+                        calendar_version=raw["calendar_version"],
+                        kind=raw["kind"],
+                        weekday=raw.get("weekday"),
+                        is_working_day=raw.get("is_working_day"),
+                        total_work_hours=None if total is None else _decimal(total, "INVALID_TOTAL_WORK_HOURS"),
+                        intervals=tuple(intervals),
+                    ),
+                    auth_context=actor,
+                )
+            )
+
+        operations["calendar.work_hours.list"] = SharedCoreOperation(
+            contract_version=P6_CALENDAR_API_VERSION,
+            permission=Permission.PROJECT_READ,
+            required_fields=frozenset({"calendar_id", "calendar_version", "kind"}),
+            allowed_fields=frozenset({"calendar_id", "calendar_version", "kind"}),
+            handler=calendar_work_hours_list,
+        )
+        operations["calendar.work_hours.save"] = SharedCoreOperation(
+            contract_version=P6_CALENDAR_API_VERSION,
+            permission=Permission.PROJECT_WRITE,
+            required_fields=frozenset({"rule"}),
+            allowed_fields=frozenset({"rule"}),
+            handler=calendar_work_hours_save,
+        )
+
+    if calendar_read_api is not None:
+        from construction_pm.p6_calendar_read_api import P6_CALENDAR_READ_API_VERSION
+
+        def calendar_snapshot_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                calendar_read_api.get_snapshot(
+                    _scope(actor, revision),
+                    str(payload["calendar_id"]),
+                    str(payload["calendar_version"]),
+                    auth_context=actor,
+                )
+            )
+
+        operations["calendar.snapshot_get"] = SharedCoreOperation(
+            contract_version=P6_CALENDAR_READ_API_VERSION,
+            permission=Permission.PROJECT_READ,
+            required_fields=frozenset({"calendar_id", "calendar_version"}),
+            allowed_fields=frozenset({"calendar_id", "calendar_version"}),
+            handler=calendar_snapshot_get,
+        )
 
     return operations
 
