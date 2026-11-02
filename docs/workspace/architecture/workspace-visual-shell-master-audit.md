@@ -308,3 +308,11 @@ Official references:
 - The editor tab strip is interactive; selecting General, Workweek, Exceptions or Assignments switches the visible panel.
 
 Remaining: real calendar CRUD, calendar inheritance and assignment API, interval validation, exception recurrence, timezone/Jalali display handling, calendar preview, and direct schedule recalculation integration. The visual editor shell is not the completed calendar subsystem.
+
+
+### Roles and Tracking windows — first-class navigation shells
+
+- Roles and Tracking are now first-class workspace window keys, navigation surfaces, desktop window titles and persisted open tabs.
+- Roles includes a register grid with Role ID, Role Name, Category, Max Units/Time, Default Rate, Rate Type and Currency, plus General, Limits, Rates, Assignments, Notes and UDFs detail tabs. The tabs switch panels; records remain empty until role/rate services are connected.
+- Tracking includes a layout selector for Project Table, Project Bar Chart, Project Gantt/Profile and Resource Analysis, with a project selector pane and chart/table surface. The selected layout updates the active surface label; no chart data is fabricated.
+- Mutation, data refresh and layout save controls remain disabled until authoritative resource/role and tracking services exist. These are honest visual shells, not claims that those modules are functionally complete.
