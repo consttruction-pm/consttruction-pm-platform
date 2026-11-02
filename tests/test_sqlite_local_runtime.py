@@ -624,3 +624,106 @@ def test_local_runtime_composes_scoped_resource_master_api_and_atomic_outbox():
         "MACH-003",
     ) is None
     connection.close()
+
+
+def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_constraint_operations():
+    connection = sqlite3.connect(":memory:")
+    runtime, now = _open_runtime(connection)
+    try:
+        created = runtime.project_lifecycle_api.create_project(
+            "offline-session",
+            "runtime-project",
+            "Runtime project",
+            start_date="2026-11-03",
+            now=now,
+        )
+        scope = BackendScope(
+            created.context.tenant_id,
+            created.context.project_id,
+            created.context.revision,
+        )
+        auth = created.context.authorization_context(frozenset({"project_admin"}))
+        shared = runtime.schedule_runtime(scope)
+
+        def invoke(operation, version, payload):
+            envelope = {
+                "contract_version": "cubi.shared-core-runtime.v1",
+                "operation": operation,
+                "payload": {
+                    "contract_version": version,
+                    "scope": {
+                        "tenant_id": scope.tenant_id,
+                        "project_id": scope.project_id,
+                        "project_revision": scope.project_revision,
+                    },
+                    **payload,
+                },
+            }
+            return json.loads(
+                shared.dispatch_json(
+                    json.dumps(envelope),
+                    auth_context=auth,
+                    expected_project_revision=scope.project_revision,
+                )
+            )
+
+        wbs_version = "p6-wbs-master-api.v1"
+        activity_version = "p6-activity-master-api.v1"
+        relationship_version = "p6-relationship-api.v1"
+        constraint_version = "p6-constraint-master-api.v1"
+
+        root = invoke("wbs.create", wbs_version, {
+            "wbs": {
+                "wbs_id": "WBS-ROOT",
+                "parent_kind": "project",
+                "parent_wbs_id": None,
+                "code": "1",
+                "name": "Project",
+                "sequence_number": 0,
+            }
+        })
+        assert root["result"]["item"]["wbs"]["wbs_id"] == "WBS-ROOT"
+
+        for activity_id in ("A1", "A2"):
+            created_activity = invoke("activity.create", activity_version, {
+                "activity": {
+                    "activity_id": activity_id,
+                    "name": f"Activity {activity_id}",
+                    "duration_value": "2",
+                    "duration_unit": DurationUnit.WORKING_DAY.value,
+                    "wbs_id": "WBS-ROOT",
+                }
+            })
+            assert created_activity["result"]["item"]["activity"]["activity_id"] == activity_id
+
+        relationship = invoke("relationship.create", relationship_version, {
+            "relationship": {
+                "relationship_id": "REL-1",
+                "predecessor_id": "A1",
+                "successor_id": "A2",
+                "relationship_type": RelationshipType.FS.value,
+                "lag_value": "0",
+                "lag_unit": DurationUnit.WORKING_DAY.value,
+            }
+        })
+        assert relationship["result"]["item"]["relationship"]["relationship_type"] == "FS"
+
+        constraint = invoke("constraint.create", constraint_version, {
+            "constraint": {
+                "constraint_id": "C-1",
+                "activity_id": "A2",
+                "constraint_type": ConstraintType.START_NO_EARLIER_THAN.value,
+                "constraint_date": "2026-11-05",
+            }
+        })
+        assert constraint["result"]["item"]["constraint"]["constraint_id"] == "C-1"
+
+        assert invoke("wbs.list", wbs_version, {})["result"]["count"] == 1
+        assert invoke("activity.list", activity_version, {})["result"]["count"] == 2
+        assert invoke("relationship.list", relationship_version, {})["result"]["count"] == 1
+        assert invoke("constraint.list", constraint_version, {})["result"]["count"] == 1
+
+        advertised = {item["operation"] for item in shared.supported_operations}
+        assert {"schedule.query", "wbs.create", "activity.create", "relationship.create", "constraint.create"} <= advertised
+    finally:
+        connection.close()
