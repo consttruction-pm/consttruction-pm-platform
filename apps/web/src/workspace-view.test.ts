@@ -304,6 +304,30 @@ test("Activity Details tab editor transfers tabs, reorders them and applies the 
   assert.ok(details.innerHTML.includes('data-activity-detail-tab="status"'));
 });
 
+test("Reports navigation selects report layout and page setup tabs without generating output", () => {
+  const html = render("en", "reports");
+  assert.match(html, /class="cp-reports-center"/);
+  assert.match(html, /data-report-tab="library"/);
+  assert.match(html, /data-navigation-action="reports-tab:layouts"/);
+  assert.match(html, /data-navigation-action="reports-tab:page-setup"/);
+  assert.match(html, /data-navigation-action="reports-tab:export"/);
+  assert.match(html, /data-report-tab="custom"/);
+  assert.match(html, /disabled/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "reports" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { navigationAction: "reports-tab:page-setup" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.match(container.innerHTML, /data-report-tab="page-setup" aria-selected="true"/);
+  assert.match(container.innerHTML, /Paper Size/);
+  assert.match(container.innerHTML, /Orientation/);
+});
+
 test("Progress Update and Period Performance submenus open complete read-only dialog inventories", () => {
   const html = render("en", "progress");
   assert.match(html, /data-progress-dialog="update"/);
@@ -2022,7 +2046,10 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
   const reports = render("en", "reports");
   assert.match(reports, /data-workspace-menu="reports"/);
   assert.match(reports, /Reports &amp; print/);
-  assert.match(reports, /not available in this preview yet/);
+  assert.match(reports, /Report Library/);
+  assert.match(reports, /Page Setup/);
+  assert.match(reports, /Export Options/);
+  assert.match(reports, /disabled until the report service is connected/);
 
   const progress = render("fa", "progress");
   assert.match(progress, /data-workspace-menu="progress"/);
