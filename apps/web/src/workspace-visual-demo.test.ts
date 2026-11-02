@@ -117,7 +117,7 @@ test("selected activity details show configured predecessor and successor relati
   html = renderVisualDemo(state);
   assert.match(html, /A1330/);
   assert.match(html, /SS/);
-  assert.match(html, /\\+8 h/);
+  assert.match(html, /\+8 h/);
 
   state.detailTab = "relationships";
   html = renderVisualDemo(state);
@@ -135,7 +135,7 @@ test("activity relationship detail tabs retain Persian labels and left-to-right 
   assert.match(html, /شناسه فعالیت/);
   assert.match(html, /نام فعالیت/);
   assert.match(html, /A1330/);
-  assert.match(html, /<bdi dir="ltr">\\+8 h<\\/bdi>/);
+  assert.match(html, /<bdi dir="ltr">\+8 h<\/bdi>/);
 });
 
 
