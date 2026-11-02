@@ -99,3 +99,20 @@ The full target inventory is documented in [workspace-visual-shell-master-audit.
 - Form Builder is additive and must coexist with all baseline windows; its organization and project libraries remain distinct.
 
 Do not mark the visual shell complete based on this catalogue or disabled menu labels. Completion requires running-app acceptance evidence listed in the master audit. This inventory is visual-only and makes no statement about API readiness.
+
+
+## Detailed desktop visual parity gate (2026-11-02)
+
+The master audit now contains the full visual composition rule, window/mode matrix, layout dialogs, calendar editor, object-property dialogs and menu/command presentation requirements. This is the normative design inventory for the skin-only phase.
+
+**Critical layout rule:** the application must not become one wide page containing every control. It must render as a desktop workbench with independent window tabs, a collapsible/resizable left navigation tree, a compact global menu and toolbar, a page-specific horizontal command bar, a central top-layout surface (table/tree synchronized with Gantt/network/chart where relevant), and a docked page-specific bottom Details pane. The right-edge CUBI Add (+) rail remains a separate narrow strip. Panes and splitters are independently adjustable. Responsive mode may reflow these regions but must preserve their identity and interaction.
+
+**Visual parity inventory includes:**
+- Projects, Activities, WBS, Resource Assignments, Resources, Roles, Calendars, Documents, Expenses, Thresholds, Issues, Risks, Reports and Tracking windows.
+- CUBI-only Form Builder, Cost & Financial Control, Progress & Field Control, Procurement, Changes & Claims and Engineering Intelligence surfaces.
+- Grid/table, Gantt, project bar chart, network diagram, usage spreadsheet, resource profile/histogram and tracking profile modes.
+- Layout open/save/import/export, columns, advanced filters, multi-level grouping/sorting, timescale, bars/labels/legend, Gantt/network/profile options, tab configuration and font/row/color dialogs.
+- Calendar register, workweek and split-shift editor, recurring and one-off exceptions, holidays, calendar preview and assignment dialogs.
+- Project/activity/WBS/resource/role properties, relationships, baselines, schedule, resource leveling, import/export, print/page setup, preferences, security, search, global change and recovery dialogs.
+
+**Status:** this is a completed target inventory only. It does not mean those visual surfaces have all been implemented. The running application remains partial until each window, pane, menu, submenu, dialog and layout mode exists and is proven in browser interaction and screenshots. Do not merge or mark skin complete based on the written catalogue.
