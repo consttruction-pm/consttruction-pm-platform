@@ -338,12 +338,21 @@ function projectTabBody(tab: string, input: ActivityDetailsInput, state: Workspa
       return `<div class="cp-detail-grid">
         ${field(locale, t(locale, "Project ID", "شناسهٔ پروژه"), state.context.project_id)}
         ${field(locale, t(locale, "Project name", "نام پروژه"), input.projectName)}
-        ${field(locale, t(locale, "EPS", "EPS"), "")}
-        ${field(locale, t(locale, "OBS", "OBS"), "")}
+        ${field(locale, t(locale, "Business Domain", "حوزه کسب‌وکار"), "")}
+        ${field(locale, t(locale, "Portfolio", "سبد پروژه"), "")}
         ${field(locale, t(locale, "Responsible manager", "مدیر مسئول"), "")}
-        ${field(locale, t(locale, "Status", "وضعیت"), "")}
+        ${field(locale, t(locale, "Project owner", "مالک پروژه"), "")}
+        ${field(locale, t(locale, "Project status", "وضعیت پروژه"), "")}
+        ${field(locale, t(locale, "Project priority", "اولویت پروژه"), "")}
+        ${field(locale, t(locale, "Project type", "نوع پروژه"), "")}
+        ${field(locale, t(locale, "Location", "موقعیت"), "")}
+        ${field(locale, t(locale, "Currency", "واحد پول"), "")}
+        ${field(locale, t(locale, "Time zone", "منطقه زمانی"), "")}
         ${field(locale, t(locale, "Revision", "ویرایش"), `R${state.context.revision}`)}
-      </div>${stateCounts(state)}`;
+      </div>
+      <p class="cp-detail-hint">${esc(t(locale, "Only values supplied by the project service are displayed. Missing project metadata is not inferred.", "فقط مقادیری نمایش داده می‌شوند که سرویس پروژه ارائه کرده است. اطلاعات مفقود پروژه حدس زده نمی‌شود."))}</p>
+      <button type="button" class="cp-p6-module-button" data-project-settings>${esc(t(locale, "Edit project properties", "ویرایش مشخصات پروژه"))}</button>
+      ${stateCounts(state)}`;
     case "dates":
       return `<div class="cp-detail-grid">
         ${field(locale, t(locale, "Planned start", "شروع برنامه‌ای"), "")}
