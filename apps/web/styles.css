@@ -6623,3 +6623,23 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-vd-calendar-legend span{padding:4px 8px;border-radius:12px;font-size:11px}
 .cp-vd-calendar-legend .is-exception{background:#fff1df;color:#8a4b08}
 @media(max-width:760px){.cp-vd-calendar-editor{grid-template-columns:minmax(0,1fr)}.cp-vd-calendar-fields{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Activity relationship register: compact engineering grid, not a wide form. */
+.cp-vd-view-switch { display:flex; align-items:center; gap:3px; flex-wrap:wrap; }
+.cp-vd-view-switch button { min-height:28px; padding:4px 10px; border:1px solid #b8c4d2; border-radius:2px; background:#f7f9fc; color:#31445b; font-size:10px; cursor:pointer; }
+.cp-vd-view-switch button.is-active { background:#dce8f5; border-color:#6d8fb5; color:#123a68; font-weight:700; }
+.cp-vd-relationship-register { display:flex; flex-direction:column; gap:8px; min-width:0; min-height:220px; padding:8px; border:1px solid #cbd4df; background:#fff; }
+.cp-vd-relationship-summary { display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding:5px 8px; background:#f1f4f8; border:1px solid #d8e0e9; color:#40536b; font-size:10px; }
+.cp-vd-relationship-summary strong { color:#173d68; font-size:16px; }
+.cp-vd-relationship-summary .cp-vd-note { margin:0; }
+.cp-vd-relationship-table { min-width:760px; }
+.cp-vd-relationship-table td:nth-child(1), .cp-vd-relationship-table td:nth-child(3), .cp-vd-relationship-table td:nth-child(4), .cp-vd-relationship-table td:nth-child(5) { white-space:nowrap; }
+.cp-vd-rel-type { display:inline-flex; min-width:30px; justify-content:center; padding:2px 5px; border:1px solid #9eb2c8; border-radius:2px; background:#edf3f9; color:#173d68; font-size:10px; font-weight:700; }
+.cp-vd-relationship-register > .cp-vd-note { margin:0; }
+@media (max-width:640px) {
+  .cp-vd-relationship-register { padding:5px; }
+  .cp-vd-relationship-summary { align-items:flex-start; }
+  .cp-vd-view-switch { width:100%; }
+  .cp-vd-view-switch button { flex:1 1 auto; }
+}
