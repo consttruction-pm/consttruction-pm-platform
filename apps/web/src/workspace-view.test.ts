@@ -344,6 +344,25 @@ test("module navigation submenus route to real registers, detail tabs and tracki
   }
 });
 
+test("module navigation action activates a namespaced register detail tab", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let activated = 0;
+  const tab = { dataset: { registerTab: "roles:rates" }, click: () => { activated += 1; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector?: string) => selector === "[data-register-tab]" ? [tab] : [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "roles" as const,
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { navigationAction: "register-tab:roles:rates" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(activated, 1);
+});
+
 test("rendered navigation surface follows Persian locale and RTL direction", () => {
   const html = render("fa", "schedule");
 
