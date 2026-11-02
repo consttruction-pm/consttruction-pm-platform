@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -65,8 +66,8 @@ def _activity(
         scope,
         "baseline-1",
         activity_id,
-        "2026-11-02",
-        "2026-11-06",
+        date(2026, 11, 2),
+        date(2026, 11, 6),
         Decimal(budget),
         "USD",
         wbs_id,
