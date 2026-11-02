@@ -6709,3 +6709,27 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-window-tab-item .cp-window-tab-close{width:20px;min-width:20px;height:25px;padding:0;border:1px solid #c5cfdb;border-bottom:0;border-inline-start:0;border-radius:0 3px 0 0;background:#edf1f6;color:#63748a;font-size:14px;line-height:1;cursor:pointer}
 .cp-p6 .cp-window-tab-item .cp-window-tab-close:hover{background:#fbe9e7;border-color:#d7a39d;color:#9b332a}
 .cp-p6 .cp-window-tab-item:has(.cp-window-tab[aria-selected="true"]) .cp-window-tab-close{background:#fff;border-color:#9fb2c8;color:#53657b}
+
+
+/* Version 26 Activity Details: tabbed lower layout with record-backed panels. */
+.cp-p6 .cp-activity-details{display:flex;flex-direction:column;min-width:0;min-height:0;height:100%;background:#fff}
+.cp-p6 .cp-activity-details-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:34px;padding:4px 8px;border-bottom:1px solid #d5dde7;background:#f5f7fa}
+.cp-p6 .cp-activity-details-heading h2{margin:0;color:#173d68;font-size:11px}
+.cp-p6 .cp-activity-details-heading span,.cp-p6 .cp-activity-details-heading small{color:#68798d;font-size:9px}
+.cp-p6 .cp-activity-detail-tabs{display:flex;align-items:stretch;gap:2px;min-height:30px;overflow-x:auto;overflow-y:hidden;padding:3px 5px 0;border-bottom:1px solid #b9c6d5;background:#edf1f6;scrollbar-width:thin}
+.cp-p6 .cp-activity-detail-tabs button{flex:0 0 auto;min-height:27px;padding:4px 9px;border:1px solid transparent;border-bottom:0;border-radius:3px 3px 0 0;background:transparent;color:#52657a;font:inherit;font-size:9px;white-space:nowrap;cursor:pointer}
+.cp-p6 .cp-activity-detail-tabs button:hover{background:#fff;color:#173d68}
+.cp-p6 .cp-activity-detail-tabs button.is-active{border-color:#b9c6d5;background:#fff;color:#173d68;font-weight:700;box-shadow:inset 0 2px 0 #c66a36}
+.cp-p6 .cp-activity-detail-panel{flex:1 1 auto;min-height:0;overflow:auto;padding:8px}
+.cp-p6 .cp-activity-detail-panel[hidden]{display:none!important}
+.cp-p6 .cp-activity-detail-fields{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:6px}
+.cp-p6 .cp-activity-detail-field{display:flex;flex-direction:column;gap:3px;min-width:0;padding:6px 8px;border:1px solid #e0e6ed;background:#fbfcfe}
+.cp-p6 .cp-activity-detail-field span{color:#718096;font-size:9px;text-transform:capitalize}
+.cp-p6 .cp-activity-detail-field strong{overflow-wrap:anywhere;color:#263c55;font-size:10px;font-weight:600}
+.cp-p6 .cp-activity-detail-empty{margin:0;padding:16px;color:#718096;font-size:10px;text-align:center}
+.cp-p6 .cp-activity-detail-table-wrap{max-width:100%;overflow:auto}
+.cp-p6 .cp-activity-detail-table{width:100%;min-width:520px;border-collapse:collapse;font-size:10px}
+.cp-p6 .cp-activity-detail-table th,.cp-p6 .cp-activity-detail-table td{padding:6px 8px;border:1px solid #e0e6ed;text-align:start}
+.cp-p6 .cp-activity-detail-table th{background:#f1f4f8;color:#53657b;font-weight:700}
+@media(max-width:900px){.cp-p6 .cp-activity-detail-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.cp-p6 .cp-activity-detail-fields{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-activity-details-heading{align-items:flex-start;flex-direction:column;gap:2px}}
