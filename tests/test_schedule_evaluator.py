@@ -510,3 +510,45 @@ def test_evaluator_preserves_stable_diagnostic_code_for_infeasible_constraints()
         ScheduleEvaluationError, match="SCHEDULE_INFEASIBLE:CONSTRAINT_WINDOW_EMPTY"
     ):
         evaluate_schedule_snapshot(snapshot, context, registry())
+
+
+def test_evaluator_preserves_stable_code_for_constraint_logic_conflict():
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-LOGIC-CONFLICT",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=7,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 2), Activity("B", 1)),
+        relationships=(Relationship("A", "B"),),
+        activity_calendar_assignments=(),
+        constraints=(
+            ActivityConstraint("B", ConstraintType.MANDATORY_START, date(2026, 9, 21)),
+        ),
+        schedule_options=ScheduleOptions(),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=7,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-LOGIC-CONFLICT",
+        tenant_id="T-1",
+    )
+    snapshot = build_snapshot(
+        source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)
+    )
+
+    # The mandatory start precedes A's finish, so predecessor logic cannot be
+    # satisfied. The evaluator must expose the stable core code, not prose.
+    with pytest.raises(
+        ScheduleEvaluationError,
+        match="SCHEDULE_INFEASIBLE:CONSTRAINT_MANDATORY_UNSATISFIABLE",
+    ):
+        evaluate_schedule_snapshot(snapshot, context, registry())

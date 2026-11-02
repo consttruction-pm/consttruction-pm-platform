@@ -101,6 +101,10 @@ class InfeasibilityCase:
     condition: str
     code: ScheduleDiagnosticCode
     fail_closed: bool = True
+    # A defensive guard protects the invariant even though the current CPM
+    # algorithm cannot reach it from valid public inputs. It remains fail
+    # closed so a future pass change cannot silently emit an out-of-bound date.
+    defensive: bool = False
 
 
 # Explicit, reviewable matrix of the conditions that can make a schedule
@@ -116,7 +120,11 @@ INFEASIBILITY_MATRIX: tuple[InfeasibilityCase, ...] = (
     InfeasibilityCase("lower-bound constraint is earlier than the computed event", ScheduleDiagnosticCode.CONSTRAINT_LOWER_BOUND_VIOLATED),
     InfeasibilityCase("upper-bound constraint is later than the computed event", ScheduleDiagnosticCode.CONSTRAINT_UPPER_BOUND_VIOLATED),
     InfeasibilityCase("backward pass cannot satisfy a relationship", ScheduleDiagnosticCode.BACKWARD_RELATIONSHIP_VIOLATED),
-    InfeasibilityCase("late dates exceed the project-finish boundary", ScheduleDiagnosticCode.BACKWARD_EXCEEDS_PROJECT_FINISH),
+    InfeasibilityCase(
+        "late dates exceed the project-finish boundary",
+        ScheduleDiagnosticCode.BACKWARD_EXCEEDS_PROJECT_FINISH,
+        defensive=True,
+    ),
     InfeasibilityCase("Data Date is not a valid calendar date", ScheduleDiagnosticCode.INVALID_DATA_DATE),
     InfeasibilityCase("negative total float (reported, not rewritten)", ScheduleDiagnosticCode.NEGATIVE_FLOAT, fail_closed=False),
 )

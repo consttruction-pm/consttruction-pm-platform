@@ -8,6 +8,7 @@ from construction_pm.scheduling.constraints import (
     ActivityConstraint,
     ConstraintType,
     ConstraintViolation,
+    validate_constraint_window,
 )
 from construction_pm.scheduling.diagnostics import (
     INFEASIBILITY_MATRIX,
@@ -40,6 +41,22 @@ def test_infeasibility_matrix_is_unique_and_covers_every_code():
         if case.code is ScheduleDiagnosticCode.NEGATIVE_FLOAT
     )
     assert negative.fail_closed is False
+    # A defensive entry documents an invariant guard that the current CPM
+    # passes cannot reach from valid public inputs. It must stay fail closed.
+    by_code = {case.code: case for case in INFEASIBILITY_MATRIX}
+    backward_finish = by_code[ScheduleDiagnosticCode.BACKWARD_EXCEEDS_PROJECT_FINISH]
+    assert backward_finish.defensive is True
+    assert backward_finish.fail_closed is True
+    assert [
+        case.code
+        for case in INFEASIBILITY_MATRIX
+        if case.defensive
+    ] == [ScheduleDiagnosticCode.BACKWARD_EXCEEDS_PROJECT_FINISH]
+    assert [
+        case.code
+        for case in INFEASIBILITY_MATRIX
+        if not case.fail_closed
+    ] == [ScheduleDiagnosticCode.NEGATIVE_FLOAT]
 
 
 def test_duplicate_activity_ids_fail_closed_with_stable_code(resolver):
@@ -149,6 +166,37 @@ def test_upper_bound_violation_has_stable_code(resolver):
             ],
         )
     assert _code(caught.value) is ScheduleDiagnosticCode.CONSTRAINT_UPPER_BOUND_VIOLATED
+
+
+def test_lower_bound_start_violation_has_stable_code(resolver):
+    # The scheduler never produces an early date below a no-earlier-than
+    # target, so the boundary validator is exercised directly to prove the
+    # stable code remains assigned to that condition.
+    with pytest.raises(ConstraintViolation) as caught:
+        validate_constraint_window(
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 11, 5)
+            ),
+            date(2026, 11, 4),
+            date(2026, 11, 5),
+            resolver,
+        )
+    assert _code(caught.value) is ScheduleDiagnosticCode.CONSTRAINT_LOWER_BOUND_VIOLATED
+    assert caught.value.diagnostic.activity_id == "A"
+
+
+def test_lower_bound_finish_violation_has_stable_code(resolver):
+    with pytest.raises(ConstraintViolation) as caught:
+        validate_constraint_window(
+            ActivityConstraint(
+                "A", ConstraintType.FINISH_NO_EARLIER_THAN, date(2026, 11, 5)
+            ),
+            date(2026, 11, 3),
+            date(2026, 11, 4),
+            resolver,
+        )
+    assert _code(caught.value) is ScheduleDiagnosticCode.CONSTRAINT_LOWER_BOUND_VIOLATED
+    assert caught.value.diagnostic.activity_id == "A"
 
 
 def test_negative_float_is_reported_without_rewriting_dates(resolver):

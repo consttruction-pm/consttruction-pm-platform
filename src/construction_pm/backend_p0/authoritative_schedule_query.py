@@ -261,6 +261,25 @@ def _validate_leveling_input_binding(
         raise ScheduleEvaluationError("LEVELING_INPUT_CALCULATION_IDENTITY_MISMATCH")
 
 
+def _diagnostic_payload(
+    result: ScheduleEvaluationResult,
+    selected_ids: set[str] | None = None,
+) -> list[dict[str, object]]:
+    """Expose stable CPM diagnostics without resolving them into prose.
+
+    A diagnostic without an activity (for example, a future schedule-wide
+    check) always remains visible. Activity-scoped findings follow the selected
+    activity set so a filter answer never reports another activity's warning.
+    """
+    return [
+        item.to_payload()
+        for item in result.diagnostics
+        if item.activity_id is None
+        or selected_ids is None
+        or item.activity_id in selected_ids
+    ]
+
+
 def _project_result(
     request: ScheduleQueryRequest,
     result: ScheduleEvaluationResult | None,
@@ -286,6 +305,7 @@ def _project_result(
                     key: _date_activity_fact(value, result.date_result.floats[key])
                     for key, value in sorted(activities.items())
                 },
+                "diagnostics": _diagnostic_payload(result),
             }
             if placement is not None:
                 data["resource_dependent_placement"] = placement
@@ -308,6 +328,7 @@ def _project_result(
                 "calculation_run_identity": result.calculation_run_identity,
                 "activities": selected,
                 "count": len(selected),
+                "diagnostics": _diagnostic_payload(result, selected_ids),
             }
             if placement is not None:
                 filtered["resource_dependent_placement"] = placement
@@ -319,6 +340,7 @@ def _project_result(
                 "project_finish": result.project_finish.isoformat(),
                 "activity_count": len(activities),
                 "explanation_key": "schedule.query.explanation.calculated_from_snapshot",
+                "diagnostics": _diagnostic_payload(result),
             }
             if placement is not None:
                 explanation["resource_dependent_placement"] = placement

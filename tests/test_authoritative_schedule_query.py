@@ -19,6 +19,7 @@ from construction_pm.scheduling.authoritative_schedule import AuthoritativeSched
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
+from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.resource_dependent import (
     ResourceDependentDemandPeriod,
@@ -636,3 +637,181 @@ def test_resource_leveling_activation_options_still_request_leveling():
     )
 
     assert _snapshot_requests_resource_leveling(snapshot) is True
+
+
+def _negative_float_query_service(snapshot_id: str = "S-NF"):
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    calendar = CalendarReference("CAL-1", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id=snapshot_id,
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(Activity("A", 5), Activity("B", 1)),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 9, 21),
+        project_finish=date(2026, 9, 23),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id=snapshot_id,
+        tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    return service, context
+
+
+def test_query_exposes_negative_float_diagnostic_in_fact_and_explanation():
+    from construction_pm.control_intelligence.query import ScheduleQueryKind
+
+    service, context = _negative_float_query_service("S-NF-FACT")
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+    scope = ControlScope("T-1", "P-1", 9)
+
+    fact = service.execute(
+        ScheduleQueryRequest(
+            "Q-NF-F",
+            scope,
+            "user-1",
+            "show negative float",
+            constraints={"snapshot_id": "S-NF-FACT"},
+        ),
+        auth_context=auth,
+        calculation_context=context,
+    )
+    findings = fact.data["diagnostics"]
+    assert [item["code"] for item in findings] == ["NEGATIVE_FLOAT"]
+    assert findings[0]["activity_id"] == "A"
+    assert findings[0]["severity"] == "WARNING"
+
+    explanation = service.execute(
+        ScheduleQueryRequest(
+            "Q-NF-E",
+            scope,
+            "user-1",
+            "explain negative float",
+            kind=ScheduleQueryKind.EXPLANATION,
+            constraints={"snapshot_id": "S-NF-FACT"},
+        ),
+        auth_context=auth,
+        calculation_context=context,
+    )
+    assert [item["code"] for item in explanation.data["diagnostics"]] == [
+        "NEGATIVE_FLOAT"
+    ]
+
+
+def test_filter_projection_scopes_diagnostics_to_selected_activity():
+    from construction_pm.control_intelligence.query import ScheduleQueryKind
+
+    service, context = _negative_float_query_service("S-NF-FILTER")
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+    scope = ControlScope("T-1", "P-1", 9)
+
+    def run(query_id: str, activity_ids: list[str]):
+        return service.execute(
+            ScheduleQueryRequest(
+                query_id,
+                scope,
+                "user-1",
+                "filter",
+                kind=ScheduleQueryKind.FILTER,
+                constraints={
+                    "activity_ids": activity_ids,
+                    "snapshot_id": "S-NF-FILTER",
+                },
+            ),
+            auth_context=auth,
+            calculation_context=context,
+        )
+
+    selected_a = run("Q-NF-FA", ["A"])
+    assert [item["code"] for item in selected_a.data["diagnostics"]] == [
+        "NEGATIVE_FLOAT"
+    ]
+
+    # B has float under the same constraint, so its answer must not inherit A's
+    # activity-scoped warning.
+    selected_b = run("Q-NF-FB", ["B"])
+    assert selected_b.data["diagnostics"] == []
+
+
+def test_query_translates_infeasible_snapshot_into_stable_validation_code():
+    from construction_pm.backend_p0.errors import BackendApplicationError
+
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    calendar = CalendarReference("CAL-1", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-INFEASIBLE-QUERY",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(Activity("A", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        constraints=(
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 25)
+            ),
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_LATER_THAN, date(2026, 9, 22)
+            ),
+        ),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-INFEASIBLE-QUERY",
+        tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+
+    request = ScheduleQueryRequest(
+        "Q-INFEASIBLE",
+        ControlScope("T-1", "P-1", 9),
+        "user-1",
+        "show schedule",
+        constraints={"snapshot_id": "S-INFEASIBLE-QUERY"},
+    )
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+    try:
+        service.execute(request, auth_context=auth, calculation_context=context)
+    except BackendApplicationError as exc:
+        assert exc.code == "SCHEDULE_INFEASIBLE:CONSTRAINT_WINDOW_EMPTY"
+    else:
+        raise AssertionError("infeasible snapshot was accepted")
