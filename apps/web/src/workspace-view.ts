@@ -755,6 +755,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     schedule: "activity",
     progress: "progress",
     resources: "resource",
+    calendars: "calendar",
     cost: "money",
     documents: "file",
     reports: "print",
@@ -767,6 +768,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     ["schedule", uiText(state.locale, "Activities", "فعالیت‌ها")],
     ["progress", uiText(state.locale, "Progress", "پیشرفت")],
     ["resources", uiText(state.locale, "Resources", "منابع")],
+    ["calendars", uiText(state.locale, "Calendars", "تقویم‌ها")],
     ["cost", uiText(state.locale, "Cost", "هزینه")],
     ["documents", uiText(state.locale, "Documents", "اسناد")],
     ["reports", uiText(state.locale, "Reports", "گزارش‌ها")],
@@ -824,7 +826,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Resources & cost", "منابع و هزینه"))}</span>
             ${menuButton("resources", t.resources, state, railMenuIcons.resources)}
             ${railActionButton("assignments", rail.assignments, "link")}
-            <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Calendar window design is catalogued; its page is not implemented yet.", "پنجره تقویم در فهرست طراحی ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">▦</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Calendars", "تقویم‌ها"))}</span></button>
+            ${menuButton("calendars", uiText(state.locale, "Calendars", "تقویم‌ها"), state, railMenuIcons.calendars)}
             <button type="button" class="cp-rail-button cp-nav-unavailable" disabled aria-disabled="true" title="${escapeAttribute(uiText(state.locale, "Role management window is catalogued; its page is not implemented yet.", "پنجره مدیریت نقش‌ها ثبت شده، اما صفحه آن هنوز پیاده‌سازی نشده است."))}"><span aria-hidden="true">♙</span><span class="cp-rail-label">${escapeHtml(uiText(state.locale, "Roles", "نقش‌ها"))}</span></button>
             ${menuButton("cost", t.cost, state, railMenuIcons.cost)}
             ${railActionButton("expenses", rail.expenses, "money")}
@@ -1040,6 +1042,56 @@ function renderP6ModuleStage(state: WorkspaceState, t: WorkspaceLabels): string 
         <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "This build displays the project authorized for the current session. Organization-wide domains, portfolios and additional projects are not invented when the API does not provide them.", "این نسخه پروژه مجاز برای نشست جاری را نمایش می‌دهد. حوزه‌های سازمانی، سبدها و پروژه‌های دیگر در صورت نبود داده از API ساخته یا حدس زده نمی‌شوند."))}</p>`;
       break;
     }
+    case "calendars":
+      body = `
+        <div class="cp-calendar-window">
+          <div class="cp-calendar-window-toolbar">
+            <strong>${escapeHtml(uiText(state.locale, "Calendar Register", "فهرست تقویم‌ها"))}</strong>
+            <div><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Calendar persistence is not connected yet.", "ذخیره‌سازی تقویم هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, "New Calendar", "تقویم جدید"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Edit", "ویرایش"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button></div>
+          </div>
+          <div class="cp-calendar-window-layout">
+            <section class="cp-calendar-register">
+              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Available Calendars", "تقویم‌های موجود"))}</strong><span>0</span></div>
+              <div class="cp-calendar-empty">${escapeHtml(uiText(state.locale, "No calendar records have been loaded for this project.", "هیچ رکورد تقویمی برای این پروژه بارگذاری نشده است."))}</div>
+            </section>
+            <section class="cp-calendar-editor">
+              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Calendar Details", "جزئیات تقویم"))}</strong><span>${escapeHtml(uiText(state.locale, "No selection", "بدون انتخاب"))}</span></div>
+              <div class="cp-calendar-editor-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Calendar detail tabs", "زبانه‌های جزئیات تقویم"))}">
+                ${[["general","General","عمومی"],["workweek","Workweek","هفته کاری"],["exceptions","Exceptions","استثناها"],["assignments","Assignments","تخصیص‌ها"]].map(([key,en,fa],index)=>`<button type="button" role="tab" aria-selected="${index===0}" class="${index===0?"is-active":""}" data-calendar-editor-tab="${key}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}
+              </div>
+              <div class="cp-calendar-editor-content">
+                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="general">
+                  <div class="cp-calendar-fields">
+                    <label>${escapeHtml(uiText(state.locale, "Calendar Name", "نام تقویم"))}<input disabled placeholder="${escapeAttribute(uiText(state.locale, "Select or create a calendar", "یک تقویم انتخاب یا ایجاد کنید"))}"></label>
+                    <label>${escapeHtml(uiText(state.locale, "Calendar Scope", "دامنه تقویم"))}<select disabled><option>${escapeHtml(uiText(state.locale, "Select scope", "انتخاب دامنه"))}</option><option>Global</option><option>Project</option><option>Resource</option></select></label>
+                    <label>${escapeHtml(uiText(state.locale, "Parent Calendar", "تقویم والد"))}<select disabled><option>—</option></select></label>
+                    <label>${escapeHtml(uiText(state.locale, "Hours per Day", "ساعت در روز"))}<input type="number" disabled placeholder="—"></label>
+                    <label>${escapeHtml(uiText(state.locale, "Hours per Week", "ساعت در هفته"))}<input type="number" disabled placeholder="—"></label>
+                    <label>${escapeHtml(uiText(state.locale, "Hours per Month", "ساعت در ماه"))}<input type="number" disabled placeholder="—"></label>
+                    <label>${escapeHtml(uiText(state.locale, "Hours per Year", "ساعت در سال"))}<input type="number" disabled placeholder="—"></label>
+                    <label>${escapeHtml(uiText(state.locale, "Effective From", "اعتبار از"))}<input type="date" disabled></label>
+                  </div>
+                </section>
+                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="workweek" hidden>
+                  <div class="cp-calendar-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale, "Day", "روز"))}</th><th>${escapeHtml(uiText(state.locale, "Working Day", "روز کاری"))}</th><th>${escapeHtml(uiText(state.locale, "Start", "شروع"))}</th><th>${escapeHtml(uiText(state.locale, "Finish", "پایان"))}</th><th>${escapeHtml(uiText(state.locale, "Break", "وقفه"))}</th><th>${escapeHtml(uiText(state.locale, "Add Interval", "افزودن بازه"))}</th></tr></thead><tbody>
+                    ${[["Saturday","شنبه"],["Sunday","یکشنبه"],["Monday","دوشنبه"],["Tuesday","سه‌شنبه"],["Wednesday","چهارشنبه"],["Thursday","پنجشنبه"],["Friday","جمعه"]].map(([en,fa])=>`<tr><th>${escapeHtml(uiText(state.locale,en,fa))}</th><td><input type="checkbox" disabled aria-label="${escapeAttribute(uiText(state.locale,"Working day","روز کاری"))}"></td><td><input type="time" disabled></td><td><input type="time" disabled></td><td><input type="text" disabled placeholder="—"></td><td><button type="button" disabled>+</button></td></tr>`).join("")}
+                  </tbody></table></div>
+                  <p class="cp-calendar-hint">${escapeHtml(uiText(state.locale, "Supports split shifts, multiple work intervals, overnight shifts and nonworking days.", "پشتیبانی از شیفت‌های چندبخشی، چند بازه کاری، شیفت شبانه و روزهای غیرکاری."))}</p>
+                </section>
+                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="exceptions" hidden>
+                  <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Exceptions and Holidays", "استثناها و تعطیلات"))}</strong><button type="button" disabled>${escapeHtml(uiText(state.locale, "Add Exception", "افزودن استثنا"))}</button></div>
+                  <div class="cp-calendar-empty">${escapeHtml(uiText(state.locale, "No exceptions are loaded.", "هیچ استثنایی بارگذاری نشده است."))}</div>
+                  <p class="cp-calendar-hint">${escapeHtml(uiText(state.locale, "Exception types include nonworking days, modified working hours and recurring holidays.", "انواع استثنا شامل روز غیرکاری، ساعات کاری اصلاح‌شده و تعطیلات تکرارشونده است."))}</p>
+                </section>
+                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="assignments" hidden>
+                  <div class="cp-calendar-empty">${escapeHtml(uiText(state.locale, "No project, resource or activity calendar assignments are loaded.", "هیچ تخصیص تقویم پروژه، منبع یا فعالیت بارگذاری نشده است."))}</div>
+                </section>
+              </div>
+              <p class="cp-calendar-notice">${escapeHtml(uiText(state.locale, "Visual editor structure is present. Editing and saving are disabled until the authoritative calendar service and scheduling-core assignment contract are connected; no sample calendar values are fabricated.", "ساختار ویرایشگر بصری آماده است. ویرایش و ذخیره تا اتصال سرویس مرجع تقویم و قرارداد تخصیص هسته زمان‌بندی غیرفعال است؛ هیچ مقدار نمونه‌ای ساخته نشده است."))}</p>
+            </section>
+          </div>
+        </div>`;
+      break;
     case "resources":
       body = `
         <p>${escapeHtml(uiText(state.locale, "Resource capacity and assignment surfaces are kept in the workspace tools. Existing capacity limits and assignments are read from the project service; this page does not invent resource values.", "سطوح ظرفیت و تخصیص منابع در ابزارهای محیط کار نگهداری می‌شوند. محدودیت‌های ظرفیت و تخصیص‌های موجود از سرویس پروژه خوانده می‌شوند؛ این صفحه مقدار ساختگی منبع نمی‌سازد."))}</p>
@@ -1184,6 +1236,8 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
       return ["#cp-site-logs", "#cp-field-operations"];
     case "resources":
       return ["#cp-resource-capacity", "#cp-field-operations"];
+    case "calendars":
+      return [];
     case "cost":
       return ["#cp-procurement", "#cp-change-claim"];
     case "documents":
