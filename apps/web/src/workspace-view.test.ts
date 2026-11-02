@@ -27,7 +27,7 @@ function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
 }
 
 test("workspace shell uses the canonical CUBI logo and focused module layout contracts", () => {
-  for (const menu of ["project", "schedule", "progress", "resources", "roles", "calendars", "cost", "documents", "reports", "tracking", "control", "settings"] as const) {
+  for (const menu of ["project", "wbs", "schedule", "progress", "resources", "assignments", "roles", "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues", "risks", "thresholds", "control", "settings"] as const) {
     const html = render("en", menu);
     assert.match(html, new RegExp(`data-active-menu="${menu}"`));
     assert.ok(html.includes('class="cp-brand-logo"'));
@@ -1462,6 +1462,22 @@ test("project settings button dispatches a single open request", () => {
   assert.equal(opened, 1);
 });
 
+test("WBS, assignments, expenses, issues, risks and thresholds have separate register windows", () => {
+  const cases: Array<[WorkspaceMenuKey, string]> = [
+    ["wbs", "Work Breakdown Structure"],
+    ["assignments", "Resource Assignments"],
+    ["expenses", "Project Expenses"],
+    ["issues", "Project Issues"],
+    ["risks", "Project Risks"],
+    ["thresholds", "Project Thresholds"],
+  ];
+  for (const [menu, title] of cases) {
+    const html = render("en", menu);
+    assert.match(html, new RegExp(title.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\test("Roles and Tracking are first-class windows with their documented visual surfaces", () => {")));
+    assert.match(html, /No records are loaded for this project|WBS hierarchy/);
+  }
+});
+
 test("Roles and Tracking are first-class windows with their documented visual surfaces", () => {
   const roles = render("en", "roles");
   assert.match(roles, /Role Register/);
@@ -1537,7 +1553,7 @@ test("desktop workbench renders a grouped navigation tree, window tabs and conte
   const navigationStart = html.indexOf('class="cp-menu cp-p6-rail cp-navigation-tree"');
   const navigationEnd = html.indexOf("</nav>", navigationStart);
   const navigationMarkup = html.slice(navigationStart, navigationEnd + 6);
-  assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 12);
+  assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 18);
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
   assert.match(html, /Resources &amp; cost/);
