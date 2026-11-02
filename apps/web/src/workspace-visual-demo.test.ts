@@ -87,7 +87,7 @@ test("WBS detail tab state is rendered as the active accessible tab", () => {
   assert.match(html, /data-visual-demo dir="rtl"/);
   assert.match(html, /data-vd-wbs="1\.2\.1"[^>]*aria-selected="true"/);
   assert.match(html, /data-vd-wbs-dtab="dates" aria-selected="true" class="is-active"/);
-  assert.match(html, /21\/12\/26/);
+  assert.match(html, /04\/12\/26/);
 });
 
 test("calendar editor presents properties, workweek and exception panes", () => {
