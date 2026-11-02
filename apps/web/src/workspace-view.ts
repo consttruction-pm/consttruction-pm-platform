@@ -350,7 +350,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -529,7 +529,9 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
       } else if (command === "Filter By") {
-        container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
+        const dialog = container.querySelector<HTMLDialogElement>("[data-filters-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
       } else if (command === "Group and Sort By") {
         const dialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
@@ -612,6 +614,21 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
       if (dialog && typeof dialog.showModal === "function") dialog.showModal();
       else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.dataset.filtersClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-filters-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.filtersApply !== undefined || target.dataset.filtersClear !== undefined) {
+      const search = container.querySelector<HTMLInputElement>("[data-filters-search]");
+      const value = target.dataset.filtersClear !== undefined ? "" : search?.value ?? "";
+      options.onActivityFilterChange?.(value);
+      const dialog = container.querySelector<HTMLDialogElement>("[data-filters-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
       return;
     }
     if (target.dataset.barsClose !== undefined) {
@@ -1176,7 +1193,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
             <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>` : ""}
           </div>
-          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderGroupSortDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderBarsDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarChartOptionsDialog(state) : ""}
+          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderGroupSortDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderFiltersDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarsDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarChartOptionsDialog(state) : ""}
           ${state.activeMenu === "schedule" ? renderWorkspaceCommandRibbon(state, t) : ""}
           <main class="cp-main">
             <div class="cp-p6-primary">
@@ -2795,6 +2812,37 @@ function renderBarChartOptionsDialog(state: WorkspaceState): string {
         </fieldset>
       </section>
       <footer><button type="button" data-bar-options-close>${escapeHtml(text("OK", "تأیید"))}</button><button type="button" data-bar-options-close>${escapeHtml(text("Cancel", "انصراف"))}</button><button type="button" disabled>${escapeHtml(text("Help", "راهنما"))}</button></footer>
+    </form>
+  </dialog>`;
+}
+
+function renderFiltersDialog(state: WorkspaceState): string {
+  const locale = state.locale;
+  const text = (en: string, fa: string): string => uiText(locale, en, fa);
+  const disabled = (en: string, fa: string): string => `<button type="button" disabled>${escapeHtml(text(en,fa))}</button>`;
+  return `<dialog class="cp-filters-dialog" data-filters-dialog aria-labelledby="cp-filters-title">
+    <form method="dialog">
+      <header><div><small>${escapeHtml(text("Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-filters-title">${escapeHtml(text("Filters", "فیلترها"))}</h2></div><button type="button" data-filters-close aria-label="${escapeAttribute(text("Close", "بستن"))}">×</button></header>
+      <div class="cp-filters-body">
+        <section class="cp-filters-main">
+          <fieldset><legend>${escapeHtml(text("Available Filters", "فیلترهای موجود"))}</legend>
+            <label>${escapeHtml(text("Filter", "فیلتر"))}<select data-filters-preset><option value="all"${state.activityFilter ? "" : " selected"}>${escapeHtml(text("All Activities", "همه فعالیت‌ها"))}</option><option value="text"${state.activityFilter ? " selected" : ""}>${escapeHtml(text("Current Text Search", "جست‌وجوی متنی جاری"))}</option></select></label>
+            <p class="cp-filters-empty">${escapeHtml(text("Saved filter definitions are not loaded in this workspace.", "تعریف فیلترهای ذخیره‌شده در این محیط بارگذاری نشده‌اند."))}</p>
+          </fieldset>
+          <fieldset><legend>${escapeHtml(text("Filter Criteria", "معیارهای فیلتر"))}</legend>
+            <div class="cp-filters-match" role="group" aria-label="${escapeAttribute(text("Match criteria", "تطبیق معیارها"))}">
+              <label><input type="radio" name="filter-match" checked disabled> ${escapeHtml(text("Match all of the following", "تطبیق همه موارد زیر"))}</label>
+              <label><input type="radio" name="filter-match" disabled> ${escapeHtml(text("Match any of the following", "تطبیق هر یک از موارد زیر"))}</label>
+            </div>
+            <div class="cp-filters-criteria"><span>${escapeHtml(text("Search text", "متن جست‌وجو"))}</span><span>${escapeHtml(text("Contains", "شامل"))}</span><input type="text" data-filters-search value="${escapeAttribute(state.activityFilter)}" placeholder="${escapeAttribute(text("Enter text to filter activities", "متن مورد نظر برای فیلتر فعالیت‌ها"))}"></div>
+            <p>${escapeHtml(text("The connected search filters the current activity register. Advanced multi-condition and saved-filter rules are not connected yet.", "جست‌وجوی متصل، دفتر فعالیت جاری را فیلتر می‌کند. قواعد چندشرطی پیشرفته و فیلترهای ذخیره‌شده هنوز متصل نیستند."))}</p>
+          </fieldset>
+        </section>
+        <aside class="cp-filters-actions" aria-label="${escapeAttribute(text("Dialog actions", "فرمان‌های پنجره"))}">
+          <button type="button" data-filters-apply>${escapeHtml(text("Apply", "اعمال"))}</button><button type="button" data-filters-clear>${escapeHtml(text("Clear", "پاک‌کردن"))}</button><button type="button" data-filters-close>${escapeHtml(text("Cancel", "انصراف"))}</button>
+          ${disabled("New", "جدید")}${disabled("Delete", "حذف")}${disabled("Modify", "ویرایش")}${disabled("Copy", "کپی")}${disabled("Help", "راهنما")}
+        </aside>
+      </div>
     </form>
   </dialog>`;
 }
