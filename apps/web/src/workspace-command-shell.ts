@@ -1,4 +1,4 @@
-import { translateWorkspaceText } from "./workspace-localization.js";
+import { getWorkspaceLocaleDirection, translateWorkspaceText } from "./workspace-localization.js";
 
 /**
  * CUBI visual command surface.
@@ -107,9 +107,10 @@ function renderEntry(entry: MenuEntry, locale: string): string {
 }
 
 export function renderWorkspaceCommandShell(locale: string): string {
-  const isFa = locale === "fa";
-  const menuMarkup = menus.map((menu) => `<li class="cubi-menu-root"><details><summary>${isFa ? menu.fa : menu.en}</summary><ul class="cubi-menu-popup" role="menu" aria-label="${isFa ? menu.fa : menu.en}">${menu.entries.map((entry) => renderEntry(entry, locale)).join("")}</ul></details></li>`).join("");
-  const toolbar = toolbarGroups.map((group) => `<section class="cubi-toolbar-group"><strong>${isFa ? group.fa : group.en}</strong><div>${group.items.map((item) => `<button type="button" data-shell-command="${esc(item)}" aria-disabled="true" disabled title="${isFa ? "فرمان نمایشی؛ اتصال عملکرد در مرحله بعد انجام می‌شود" : "Visual shell item; command wiring is a later phase"}">${esc(commandLabel(locale, item))}</button>`).join("")}</div></section>`).join("");
+  const isFa = locale.split("-")[0].toLowerCase() === "fa";
+  const direction = getWorkspaceLocaleDirection(locale);
+  const menuMarkup = menus.map((menu) => { const label = isFa ? menu.fa : commandLabel(locale, menu.en); return `<li class="cubi-menu-root"><details><summary>${label}</summary><ul class="cubi-menu-popup" role="menu" aria-label="${label}">${menu.entries.map((entry) => renderEntry(entry, locale)).join("")}</ul></details></li>`; }).join("");
+  const toolbar = toolbarGroups.map((group) => `<section class="cubi-toolbar-group"><strong>${isFa ? group.fa : commandLabel(locale, group.en)}</strong><div>${group.items.map((item) => `<button type="button" data-shell-command="${esc(item)}" aria-disabled="true" disabled title="${isFa ? "فرمان نمایشی؛ اتصال عملکرد در مرحله بعد انجام می‌شود" : "Visual shell item; command wiring is a later phase"}">${esc(commandLabel(locale, item))}</button>`).join("")}</div></section>`).join("");
   return `<style>
   .cubi-command-shell{position:relative;z-index:12;background:#f7f9fc;border-bottom:1px solid #aebdce;color:#172b43;font:12px Inter,Vazirmatn, sans-serif}
   .cubi-command-menubar{display:flex;align-items:center;gap:2px;min-height:30px;padding:2px 8px;border-bottom:1px solid #d7dee8;background:#edf2f8;list-style:none;margin:0}
@@ -130,8 +131,8 @@ export function renderWorkspaceCommandShell(locale: string): string {
   [dir=rtl] .cubi-command-menubar{flex-direction:row-reverse}
   @media(max-width:720px){.cubi-command-menubar{overflow-x:auto}.cubi-menu-popup{position:fixed;top:auto;inset-inline-start:8px;max-width:calc(100vw - 24px)}.cubi-toolbar-group{padding-inline:6px}}
   </style>
-  <div class="cubi-command-shell" dir="${isFa ? "rtl" : "ltr"}" aria-label="${isFa ? "نوار فرمان محیط کار" : "Workspace command surface"}">
+  <div class="cubi-command-shell" dir="${direction}" aria-label="${isFa ? "نوار فرمان محیط کار" : commandLabel(locale, "Workspace command surface")}">
     <ul class="cubi-command-menubar" role="menubar">${menuMarkup}</ul>
-    <div class="cubi-toolbar" role="toolbar" aria-label="${isFa ? "نوار ابزار اصلی" : "Main toolbar"}">${toolbar}</div>
+    <div class="cubi-toolbar" role="toolbar" aria-label="${isFa ? "نوار ابزار اصلی" : commandLabel(locale, "Main toolbar")}">${toolbar}</div>
   </div>`;
 }
