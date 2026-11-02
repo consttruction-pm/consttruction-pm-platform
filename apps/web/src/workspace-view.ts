@@ -446,7 +446,9 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       } else if (command === "Filter By") {
         container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
       } else if (command === "Group and Sort By") {
-        container.querySelector<HTMLSelectElement>("[data-activity-group]")?.focus();
+        const dialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
       }
       return;
     }
@@ -521,6 +523,30 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
       if (dialog && typeof dialog.showModal === "function") dialog.showModal();
       else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.dataset.groupSortClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.groupSortApply !== undefined) {
+      const dialog = container.querySelector<HTMLElement>("[data-group-sort-dialog]");
+      const group = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-group]")?.value;
+      const field = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-field]")?.value ?? "";
+      const direction = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-direction]")?.value;
+      if (group === "wbs" || group === "none") options.onActivityGroupByChange?.(group);
+      if (field === "") options.onActivitySortChange?.(null);
+      else if (state.columns.some((column) => column.id === field)) {
+        options.onActivitySortChange?.(field);
+        if ((direction === "asc" || direction === "desc") && direction !== (state.activitySort?.direction ?? "asc")) {
+          options.onActivitySortDirectionToggle?.();
+        }
+      }
+      const groupDialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
+      if (groupDialog && typeof groupDialog.close === "function") groupDialog.close();
+      else groupDialog?.removeAttribute("open");
       return;
     }
     if (target.dataset.layoutOptionsClose !== undefined) {
@@ -954,7 +980,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
             <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>` : ""}
           </div>
-          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}
+          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderGroupSortDialog(state, t) : ""}
           ${state.activeMenu === "schedule" ? renderWorkspaceCommandRibbon(state, t) : ""}
           <main class="cp-main">
             <div class="cp-p6-primary">
@@ -2385,6 +2411,59 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): s
         </aside>
       </div>
       <p class="cp-layout-options-notice">${escapeHtml(uiText(state.locale, "Only the display interval and relationship-line visibility are connected in this slice. Other controls are shown for visual completeness but remain disabled until their renderer and persistence contract are implemented.", "در این بخش فقط بازه نمایش و وضعیت خطوط روابط متصل هستند. سایر کنترل‌ها برای تکمیل ساختار بصری نمایش داده شده‌اند اما تا پیاده‌سازی رندرکننده و قرارداد ذخیره‌سازی غیرفعال می‌مانند."))}</p>
+    </form>
+  </dialog>`;
+}
+
+function renderGroupSortDialog(state: WorkspaceState, t: WorkspaceLabels): string {
+  const groupOptions = [
+    ["wbs", t.activityWbs],
+    ["none", t.groupNone],
+  ] as const;
+  const sortOptions = state.columns
+    .filter((column) => column.id !== "wbs")
+    .map((column) => `<option value="${escapeAttribute(column.id)}"${state.activitySort?.columnId === column.id ? " selected" : ""}>${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}</option>`)
+    .join("");
+  return `<dialog class="cp-group-sort-dialog" data-group-sort-dialog aria-labelledby="cp-group-sort-title">
+    <form method="dialog">
+      <header><div><small>${escapeHtml(uiText(state.locale, "Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-group-sort-title">${escapeHtml(uiText(state.locale, "Group and Sort", "گروه‌بندی و مرتب‌سازی"))}</h2></div><button type="button" data-group-sort-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
+      <div class="cp-group-sort-body">
+        <section class="cp-group-sort-options">
+          <fieldset><legend>${escapeHtml(uiText(state.locale, "Display Options", "گزینه‌های نمایش"))}</legend>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Group Totals", "نمایش جمع گروه"))}</label>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Grand Total", "نمایش جمع کل"))}</label>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Summaries", "نمایش خلاصه‌ها"))}</label>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Shrink vertical groups", "فشرده‌سازی گروه‌های عمودی"))}</label>
+          </fieldset>
+          <fieldset><legend>${escapeHtml(uiText(state.locale, "Group By", "گروه‌بندی بر اساس"))}</legend>
+            <label>${escapeHtml(uiText(state.locale, "Group field", "فیلد گروه‌بندی"))}<select data-group-sort-group>${groupOptions.map(([value,label]) => `<option value="${value}"${state.activityGroupBy === value ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select></label>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Hide if empty", "پنهان‌سازی در صورت خالی بودن"))}</label>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Sort bands alphabetically", "مرتب‌سازی نوارها بر اساس حروف"))}</label>
+            <div class="cp-group-sort-subheading">${escapeHtml(uiText(state.locale, "Show", "نمایش"))}</div>
+            <label><input type="checkbox" checked disabled> ${escapeHtml(uiText(state.locale, "Title", "عنوان"))}</label>
+            <label><input type="checkbox" checked disabled> ${escapeHtml(uiText(state.locale, "ID / Code", "شناسه / کد"))}</label>
+            <label><input type="checkbox" checked disabled> ${escapeHtml(uiText(state.locale, "Name / Description", "نام / توضیحات"))}</label>
+          </fieldset>
+        </section>
+        <section class="cp-group-sort-order">
+          <fieldset><legend>${escapeHtml(uiText(state.locale, "Sort", "مرتب‌سازی"))}</legend>
+            <label>${escapeHtml(uiText(state.locale, "Field Name", "نام فیلد"))}<select data-group-sort-field><option value="">${escapeHtml(uiText(state.locale, "None", "هیچ‌کدام"))}</option>${sortOptions}</select></label>
+            <label>${escapeHtml(uiText(state.locale, "Sort Order", "ترتیب مرتب‌سازی"))}<select data-group-sort-direction><option value="asc"${(state.activitySort?.direction ?? "asc") === "asc" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Ascending", "صعودی"))}</option><option value="desc"${state.activitySort?.direction === "desc" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Descending", "نزولی"))}</option></select></label>
+          </fieldset>
+          <p>${escapeHtml(uiText(state.locale, "Group and sort selections apply to the current activity register only. Totals, custom band fields and advanced sort levels remain unavailable until supported by the persisted layout contract.", "گروه‌بندی و مرتب‌سازی فقط بر دفتر فعالیت جاری اعمال می‌شود. جمع‌ها، فیلدهای سفارشی گروه و سطوح پیشرفته مرتب‌سازی تا پشتیبانی قرارداد چیدمان ذخیره‌شده در دسترس نیستند."))}</p>
+        </section>
+        <aside class="cp-group-sort-actions" aria-label="${escapeAttribute(uiText(state.locale, "Dialog actions", "فرمان‌های پنجره"))}">
+          <button type="button" data-group-sort-apply>${escapeHtml(uiText(state.locale, "OK", "تأیید"))}</button>
+          <button type="button" data-group-sort-close>${escapeHtml(uiText(state.locale, "Cancel", "انصراف"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Apply", "اعمال"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Add", "افزودن"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Move Up", "انتقال به بالا"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Move Down", "انتقال به پایین"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Default", "پیش‌فرض"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Help", "راهنما"))}</button>
+        </aside>
+      </div>
     </form>
   </dialog>`;
 }
