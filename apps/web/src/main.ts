@@ -22,6 +22,7 @@ import {
   setCalendarMode,
   setGanttScale,
   setGanttRelationshipsVisible,
+  setWorkspaceLayout,
   type WorkspaceLocale,
   type WorkspaceMenuKey,
   type WorkspaceState,
@@ -1445,6 +1446,9 @@ function renderApp(
     },
     onGanttRelationshipsChange: (visible) => {
       renderApp(container, setGanttRelationshipsVisible(state, visible), persistence);
+    },
+    onWorkspaceLayoutChange: (workspaceLayout) => {
+      renderApp(container, setWorkspaceLayout(state, workspaceLayout), persistence);
     },
     onProjectSettings: () => {
       openProjectSettings(container, state, persistence);
