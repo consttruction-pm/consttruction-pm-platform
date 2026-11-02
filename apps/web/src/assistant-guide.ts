@@ -334,7 +334,7 @@ const WORKSPACE_STATE_GUIDES: Record<
   },
 };
 
-const MENU_GUIDES: Partial<Record<WorkspaceMenuKey, GuideShape>> = {
+const MENU_GUIDES: Record<WorkspaceMenuKey, GuideShape> = {
   project: {
     purpose: {
       en: "Work breakdown, activity details and project interchange for the open project.",
@@ -583,6 +583,72 @@ const MENU_GUIDES: Partial<Record<WorkspaceMenuKey, GuideShape>> = {
       target: ".cp-control-summary",
     },
   },
+
+  wbs: {
+    purpose: { en: "The project's work breakdown hierarchy and WBS-level details.", fa: "سلسله‌مراتب شکست کار پروژه و جزئیات سطح WBS." },
+    steps: [
+      { en: "Review the hierarchy and select the WBS element you need.", fa: "سلسله‌مراتب را بررسی و عنصر WBS موردنظر را انتخاب کنید." },
+      { en: "Inspect General, milestones and earned-value detail tabs.", fa: "زبانه‌های عمومی، نقاط عطف و جزئیات ارزش کسب‌شده را بررسی کنید." },
+    ],
+    commonError: { en: "An empty hierarchy means no WBS records were returned; it does not mean the project has no scope.", fa: "سلسله‌مراتب خالی یعنی رکورد WBS بازگردانده نشده است؛ به معنی نداشتن دامنه پروژه نیست." },
+  },
+  assignments: {
+    purpose: { en: "Resource and role assignments, units, costs and time-phased usage.", fa: "تخصیص منابع و نقش‌ها، واحدها، هزینه‌ها و مصرف زمان‌مند." },
+    steps: [
+      { en: "Review activity, resource, role and calendar context for each assignment.", fa: "زمینه فعالیت، منبع، نقش و تقویم هر تخصیص را بررسی کنید." },
+      { en: "Compare budgeted, actual and remaining units and costs.", fa: "واحدها و هزینه‌های بودجه‌ای، واقعی و باقی‌مانده را مقایسه کنید." },
+    ],
+    commonError: { en: "Missing assignment data is not treated as zero units or zero cost.", fa: "نبود داده تخصیص به‌عنوان واحد یا هزینه صفر تلقی نمی‌شود." },
+  },
+  roles: {
+    purpose: { en: "Role definitions, effective-dated rates, limits and resource assignment context.", fa: "تعریف نقش‌ها، نرخ‌های تاریخ‌دار، محدودیت‌ها و زمینه تخصیص منابع." },
+    steps: [
+      { en: "Review role category and Max Units / Time.", fa: "دسته نقش و حداکثر واحد/زمان را بررسی کنید." },
+      { en: "Inspect effective-dated price/unit rates and assignments.", fa: "نرخ‌های قیمت/واحد تاریخ‌دار و تخصیص‌ها را بررسی کنید." },
+    ],
+    commonError: { en: "No role rate is assumed when the project service has not returned one.", fa: "وقتی سرویس پروژه نرخ نقشی بازنگردانده، هیچ نرخی فرض نمی‌شود." },
+  },
+  expenses: {
+    purpose: { en: "Project expense register and activity/WBS cost context.", fa: "فهرست هزینه‌های پروژه و زمینه هزینه فعالیت/WBS." },
+    steps: [
+      { en: "Review expense item, cost account and accrual type.", fa: "شرح هزینه، حساب هزینه و نوع تعهد را بررسی کنید." },
+      { en: "Compare budgeted and actual costs against source records.", fa: "هزینه‌های بودجه‌ای و واقعی را با سوابق منبع مقایسه کنید." },
+    ],
+    commonError: { en: "An empty expense register is not evidence of zero project expenses.", fa: "فهرست هزینه خالی، دلیل صفر بودن هزینه‌های پروژه نیست." },
+  },
+  tracking: {
+    purpose: { en: "Project table, bar chart, Gantt/profile and resource-analysis tracking layouts.", fa: "چیدمان‌های رهگیری جدول پروژه، نمودار میله‌ای، گانت/منحنی و تحلیل منابع." },
+    steps: [
+      { en: "Choose the tracking layout appropriate to the question.", fa: "چیدمان رهگیری متناسب با پرسش را انتخاب کنید." },
+      { en: "Load project data and verify the source time before interpreting the chart.", fa: "داده پروژه را بارگذاری و پیش از تفسیر نمودار زمان منبع را بررسی کنید." },
+    ],
+    commonError: { en: "A chart placeholder is not a project result; no tracking data is currently loaded.", fa: "جای‌نگهدار نمودار نتیجه پروژه نیست؛ اکنون داده رهگیری بارگذاری نشده است." },
+  },
+  issues: {
+    purpose: { en: "Project issue register, priority, ownership and due-date follow-up.", fa: "فهرست مسائل پروژه، اولویت، مسئولیت و پیگیری موعد." },
+    steps: [
+      { en: "Review issue status, priority, owner and due date.", fa: "وضعیت، اولویت، مسئول و موعد مسئله را بررسی کنید." },
+      { en: "Trace each issue to its source evidence before closing it.", fa: "پیش از بستن هر مسئله، آن را به شواهد منبع مرتبط کنید." },
+    ],
+    commonError: { en: "No issue record is invented when the service returns an empty register.", fa: "وقتی سرویس فهرست خالی برمی‌گرداند، هیچ مسئله‌ای ساخته نمی‌شود." },
+  },
+  risks: {
+    purpose: { en: "Project risk register, probability, impact, response and ownership.", fa: "فهرست ریسک پروژه، احتمال، اثر، پاسخ و مسئولیت." },
+    steps: [
+      { en: "Review probability and impact separately before evaluating a risk.", fa: "پیش از ارزیابی ریسک، احتمال و اثر را جداگانه بررسی کنید." },
+      { en: "Inspect response strategy, mitigation actions and owner.", fa: "راهبرد پاسخ، اقدامات کاهش اثر و مسئول را بررسی کنید." },
+    ],
+    commonError: { en: "A missing risk score is not replaced with a guessed value.", fa: "امتیاز ریسک مفقود با مقدار حدسی جایگزین نمی‌شود." },
+  },
+  thresholds: {
+    purpose: { en: "Project monitoring thresholds, warning levels and issue escalation rules.", fa: "آستانه‌های پایش پروژه، سطوح هشدار و قواعد ارجاع مسئله." },
+    steps: [
+      { en: "Review the monitored subject and threshold parameter.", fa: "موضوع پایش و پارامتر آستانه را بررسی کنید." },
+      { en: "Check warning and issue levels with the responsible manager.", fa: "سطوح هشدار و مسئله را همراه مدیر مسئول بررسی کنید." },
+    ],
+    commonError: { en: "An unavailable threshold is shown as not configured, not as a safe result.", fa: "آستانه در دسترس‌نبوده به‌صورت تنظیم‌نشده نمایش داده می‌شود، نه نتیجه ایمن." },
+  },
+
   settings: {
     purpose: {
       en: "Language and workspace preferences for this browser.",
