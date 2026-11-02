@@ -2123,6 +2123,7 @@ function renderGantt(
 
 const WBS_DETAIL_TABS = [
   ["general", "General", "عمومی"],
+  ["activities", "Activities", "فعالیت‌ها"],
   ["notebook", "Notebook", "دفترچه"],
   ["budget-log", "Budget Log", "دفتر ثبت بودجه"],
   ["spending-plan", "Spending Plan", "برنامه هزینه"],
@@ -2149,6 +2150,19 @@ function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
         [uiText(state.locale, "Record revision", "ویرایش رکورد"), String(node.recordRevision)],
       ];
       return `<div class="cp-activity-detail-fields">${fields.map(([label, value]) => `<div class="cp-activity-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>`;
+    }
+    if (tab === "activities") {
+      const linkedActivities = state.activities.filter((activity) => activity.wbsId === node.id);
+      if (!linkedActivities.length) return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, "No activities are assigned directly to this WBS element.", "هیچ فعالیتی مستقیماً به این عنصر ساختار شکست تخصیص نیافته است."))}</p>`;
+      const headings = [["Activity ID", "شناسه فعالیت"], ["Activity Name", "نام فعالیت"], ["Start", "شروع"], ["Finish", "پایان"], ["Progress", "پیشرفت"]];
+      const head = headings.map(([en, fa]) => `<th>${escapeHtml(uiText(state.locale, en, fa))}</th>`).join("");
+      const rows = linkedActivities.map((activity) => {
+        const cell = (key: string): string => { const raw = activity.cells?.[key]; return raw === null || raw === undefined || raw === "" ? "—" : String(raw); };
+        const start = activity.gantt?.start ?? cell("start");
+        const finish = activity.gantt?.finish ?? cell("finish");
+        return `<tr data-wbs-linked-activity="${escapeAttribute(activity.id)}"><td>${escapeHtml(activity.id)}</td><td>${escapeHtml(activity.name)}</td><td>${escapeHtml(start)}</td><td>${escapeHtml(finish)}</td><td>${escapeHtml(cell("progress"))}</td></tr>`;
+      }).join("");
+      return `<div class="cp-activity-detail-table-wrap"><table class="cp-activity-detail-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div><p class="cp-activity-detail-footnote">${escapeHtml(uiText(state.locale, `${linkedActivities.length} activity record(s) loaded from this project.`, `${linkedActivities.length} رکورد فعالیت از این پروژه بارگذاری شده است.`))}</p>`;
     }
     const tabInfo = WBS_DETAIL_TABS.find(([key]) => key === tab);
     return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, `No authoritative ${tabInfo?.[1] ?? "WBS"} records are loaded for this element.`, `اطلاعات مرجع بخش «${tabInfo?.[2] ?? "جزئیات WBS"}» برای این عنصر بارگذاری نشده است.`))}</p>`;
