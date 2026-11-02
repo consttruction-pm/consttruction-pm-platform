@@ -34,12 +34,15 @@ from .earned_value import (
 )
 
 EVM_PV_METHOD_LINEAR_WORKING_DAYS = "LINEAR_WORKING_DAYS_ACTIVITY_BUDGET"
+EVM_PV_METHOD_PERIOD_BUCKET = "PERIOD_BUCKET_PV"
+EVM_PV_METHOD_MIXED = "MIXED_LINEAR_AND_PERIOD_BUCKET_PV"
 
 EVM_TECHNIQUE_ACTIVITY_PERCENT_COMPLETE = "ACTIVITY_PERCENT_COMPLETE"
 EVM_TECHNIQUE_CUSTOM_PERCENT_COMPLETE = "CUSTOM_PERCENT_COMPLETE"
 EVM_TECHNIQUE_ZERO_HUNDRED = "ZERO_HUNDRED"
 EVM_TECHNIQUE_FIFTY_FIFTY = "FIFTY_FIFTY"
 EVM_TECHNIQUE_WBS_MILESTONE = "WBS_MILESTONE"
+EVM_TECHNIQUE_RESOURCE_CURVE = "RESOURCE_CURVE"
 
 EVM_TECHNIQUES = frozenset(
     {
@@ -48,6 +51,7 @@ EVM_TECHNIQUES = frozenset(
         EVM_TECHNIQUE_ZERO_HUNDRED,
         EVM_TECHNIQUE_FIFTY_FIFTY,
         EVM_TECHNIQUE_WBS_MILESTONE,
+        EVM_TECHNIQUE_RESOURCE_CURVE,
     }
 )
 
@@ -94,6 +98,10 @@ class BaselineValueActivity:
     currency: str
     wbs_id: str | None = None
     earned_value_technique: str = EVM_TECHNIQUE_ACTIVITY_PERCENT_COMPLETE
+    # Ordered from the project root down to the direct parent. It lets a WBS
+    # technique/milestone setting at an ancestor apply to a descendant
+    # activity without live repository reads during measurement.
+    wbs_ancestry: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _identifier(self.baseline_id, "EVM_BASELINE_ID_REQUIRED")
@@ -115,6 +123,83 @@ class BaselineValueActivity:
             or self.earned_value_technique not in EVM_TECHNIQUES
         ):
             raise EarnedValueSourceError("EVM_TECHNIQUE_UNSUPPORTED")
+        if not isinstance(self.wbs_ancestry, tuple):
+            raise EarnedValueSourceError("EVM_BASELINE_WBS_ANCESTRY_INVALID")
+        if self.wbs_ancestry and self.wbs_id is None:
+            raise EarnedValueSourceError("EVM_BASELINE_WBS_ANCESTRY_REQUIRES_WBS")
+        if any(
+            not isinstance(value, str) or not value.strip() for value in self.wbs_ancestry
+        ):
+            raise EarnedValueSourceError("EVM_BASELINE_WBS_ANCESTRY_INVALID")
+        if len(set(self.wbs_ancestry)) != len(self.wbs_ancestry):
+            raise EarnedValueSourceError("EVM_BASELINE_WBS_ANCESTRY_INVALID")
+
+
+@dataclass(frozen=True)
+class EarnedValueTechniqueOverride:
+    """A WBS-level earned-value technique applied to the WBS subtree.
+
+    The nearest override on the activity's WBS chain wins; an activity without
+    an applicable override keeps its own explicit technique.
+    """
+
+    wbs_id: str
+    technique: str
+
+    def __post_init__(self) -> None:
+        _identifier(self.wbs_id, "EVM_TECHNIQUE_OVERRIDE_WBS_ID_INVALID")
+        if not isinstance(self.technique, str) or self.technique not in EVM_TECHNIQUES:
+            raise EarnedValueSourceError("EVM_TECHNIQUE_UNSUPPORTED")
+
+
+@dataclass(frozen=True)
+class EarnedValueWBSMilestone:
+    """One weighted WBS milestone used by the WBS_MILESTONE technique.
+
+    P6 computes the WBS performance percent as the completed milestone weight
+    divided by the total possible weight of all milestones on that WBS.
+    """
+
+    wbs_id: str
+    milestone_id: str
+    weight: Decimal
+    completed: bool = False
+
+    def __post_init__(self) -> None:
+        _identifier(self.wbs_id, "EVM_WBS_MILESTONE_WBS_ID_INVALID")
+        _identifier(self.milestone_id, "EVM_WBS_MILESTONE_ID_INVALID")
+        weight = _decimal(self.weight, "EVM_WBS_MILESTONE_WEIGHT_INVALID")
+        if weight <= 0:
+            raise EarnedValueSourceError("EVM_WBS_MILESTONE_WEIGHT_INVALID")
+        object.__setattr__(self, "weight", weight)
+        if not isinstance(self.completed, bool):
+            raise EarnedValueSourceError("EVM_WBS_MILESTONE_COMPLETED_INVALID")
+
+
+@dataclass(frozen=True)
+class EarnedValuePVBucket:
+    """One manual future-period planned-value bucket for an activity.
+
+    Buckets are future-period values, not a resliced baseline budget: their
+    values must sum exactly to the activity's budgeted cost. A bucket whose
+    period ends on or before the Data Date is fully planned; inside a bucket
+    the value accrues linearly across calendar days.
+    """
+
+    activity_id: str
+    period_start: date
+    period_finish: date
+    value: Decimal
+
+    def __post_init__(self) -> None:
+        _identifier(self.activity_id, "EVM_PV_BUCKET_ACTIVITY_ID_INVALID")
+        _calendar_date(self.period_start, "EVM_PV_BUCKET_PERIOD_INVALID")
+        _calendar_date(self.period_finish, "EVM_PV_BUCKET_PERIOD_INVALID")
+        if self.period_finish < self.period_start:
+            raise EarnedValueSourceError("EVM_PV_BUCKET_PERIOD_INVALID")
+        object.__setattr__(
+            self, "value", _decimal(self.value, "EVM_PV_BUCKET_VALUE_INVALID")
+        )
 
 
 @dataclass(frozen=True)
@@ -128,6 +213,9 @@ class EarnedValueProgress:
     actual_cost: Decimal
     currency: str
     remaining_cost: Decimal | None = None
+    # Units Percent Complete is the resource-curve earning input. It is kept
+    # separate from Activity Percent Complete because the two can differ.
+    units_percent_complete: Decimal | None = None
 
     def __post_init__(self) -> None:
         _identifier(self.activity_id, "EVM_PROGRESS_ACTIVITY_ID_REQUIRED")
@@ -157,6 +245,16 @@ class EarnedValueProgress:
                 "remaining_cost",
                 _decimal(self.remaining_cost, "EVM_PROGRESS_REMAINING_COST_INVALID"),
             )
+        if self.units_percent_complete is not None:
+            units_percent = _decimal(
+                self.units_percent_complete,
+                "EVM_PROGRESS_UNITS_PERCENT_COMPLETE_INVALID",
+            )
+            if units_percent > 100:
+                raise EarnedValueSourceError(
+                    "EVM_PROGRESS_UNITS_PERCENT_COMPLETE_INVALID"
+                )
+            object.__setattr__(self, "units_percent_complete", units_percent)
 
 
 @dataclass(frozen=True)
@@ -208,6 +306,7 @@ class EarnedValueActivitySource:
     budget_at_completion: Decimal
     currency: str
     earned_value_technique: str
+    planned_value_method: str = EVM_PV_METHOD_LINEAR_WORKING_DAYS
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -224,6 +323,7 @@ class EarnedValueActivitySource:
             "budget_at_completion": str(self.budget_at_completion),
             "currency": self.currency,
             "earned_value_technique": self.earned_value_technique,
+            "planned_value_method": self.planned_value_method,
         }
 
 
@@ -306,10 +406,48 @@ def _planned_percent(
     return Decimal(elapsed_days) / Decimal(total_days) * Decimal("100")
 
 
-def _earned_percent(
-    activity: BaselineValueActivity, progress: EarnedValueProgress
+def _wbs_chain(activity: BaselineValueActivity) -> tuple[str, ...]:
+    """Return the activity's WBS from itself up through its ancestors."""
+    if activity.wbs_id is None:
+        return ()
+    return (activity.wbs_id, *reversed(activity.wbs_ancestry))
+
+
+def _effective_technique(
+    activity: BaselineValueActivity,
+    overrides: Mapping[str, str],
+) -> str:
+    """Resolve the nearest WBS override, else the activity's own technique."""
+    for wbs_id in _wbs_chain(activity):
+        technique = overrides.get(wbs_id)
+        if technique is not None:
+            return technique
+    return activity.earned_value_technique
+
+
+def _wbs_milestone_percent(
+    activity: BaselineValueActivity,
+    milestones_by_wbs: Mapping[str, tuple[EarnedValueWBSMilestone, ...]],
 ) -> Decimal:
-    technique = activity.earned_value_technique
+    """Completed weight / total possible weight for the nearest milestone WBS."""
+    for wbs_id in _wbs_chain(activity):
+        milestones = milestones_by_wbs.get(wbs_id)
+        if milestones:
+            total_weight = sum((item.weight for item in milestones), Decimal("0"))
+            completed_weight = sum(
+                (item.weight for item in milestones if item.completed), Decimal("0")
+            )
+            return completed_weight / total_weight * Decimal("100")
+    raise EarnedValueSourceError("EVM_WBS_MILESTONE_FACTS_REQUIRED")
+
+
+def _earned_percent(
+    activity: BaselineValueActivity,
+    progress: EarnedValueProgress,
+    *,
+    technique: str,
+    milestone_percent: Decimal | None,
+) -> Decimal:
     if technique in {
         EVM_TECHNIQUE_ACTIVITY_PERCENT_COMPLETE,
         EVM_TECHNIQUE_CUSTOM_PERCENT_COMPLETE,
@@ -322,8 +460,37 @@ def _earned_percent(
             return Decimal("100")
         return Decimal("50") if progress.started else Decimal("0")
     if technique == EVM_TECHNIQUE_WBS_MILESTONE:
-        raise EarnedValueSourceError("EVM_WBS_MILESTONE_FACTS_REQUIRED")
+        if milestone_percent is None:
+            raise EarnedValueSourceError("EVM_WBS_MILESTONE_FACTS_REQUIRED")
+        return milestone_percent
+    if technique == EVM_TECHNIQUE_RESOURCE_CURVE:
+        # Documented resource-curve earning: EV = Units Percent Complete x BAC.
+        if progress.units_percent_complete is None:
+            raise EarnedValueSourceError("EVM_UNITS_PERCENT_COMPLETE_REQUIRED")
+        return progress.units_percent_complete
     raise EarnedValueSourceError("EVM_TECHNIQUE_UNSUPPORTED")
+
+
+def _bucket_planned_value(
+    buckets: tuple[EarnedValuePVBucket, ...],
+    data_date: date,
+) -> Decimal:
+    """Planned value through the Data Date from manual future-period buckets.
+
+    Buckets that ended on or before the Data Date contribute fully. A bucket
+    that is in progress contributes linearly across its calendar-day span; a
+    future bucket contributes nothing.
+    """
+    total = Decimal("0")
+    for bucket in buckets:
+        if data_date >= bucket.period_finish:
+            total += bucket.value
+        elif data_date > bucket.period_start:
+            span = (bucket.period_finish - bucket.period_start).days
+            elapsed = (data_date - bucket.period_start).days
+            if span > 0:
+                total += bucket.value * Decimal(elapsed) / Decimal(span)
+    return total
 
 
 def _validate_baseline_rows(
@@ -383,6 +550,89 @@ def _validate_progress(
     return result
 
 
+def _validate_wbs_settings(
+    activities: tuple[BaselineValueActivity, ...],
+    overrides: Iterable[EarnedValueTechniqueOverride],
+    milestones: Iterable[EarnedValueWBSMilestone],
+) -> tuple[dict[str, str], dict[str, tuple[EarnedValueWBSMilestone, ...]]]:
+    """Validate WBS-scoped technique and weighted-milestone facts."""
+    known_wbs: set[str] = set()
+    for activity in activities:
+        known_wbs.update(_wbs_chain(activity))
+
+    override_map: dict[str, str] = {}
+    for override in overrides:
+        if not isinstance(override, EarnedValueTechniqueOverride):
+            raise EarnedValueSourceError("EVM_TECHNIQUE_OVERRIDE_REQUIRED")
+        if override.wbs_id in override_map:
+            raise EarnedValueSourceError("EVM_DUPLICATE_TECHNIQUE_OVERRIDE")
+        if override.wbs_id not in known_wbs:
+            raise EarnedValueSourceError(
+                f"EVM_TECHNIQUE_OVERRIDE_WBS_NOT_IN_BASELINE:{override.wbs_id}"
+            )
+        override_map[override.wbs_id] = override.technique
+
+    milestone_map: dict[str, list[EarnedValueWBSMilestone]] = {}
+    seen_milestones: set[tuple[str, str]] = set()
+    for milestone in milestones:
+        if not isinstance(milestone, EarnedValueWBSMilestone):
+            raise EarnedValueSourceError("EVM_WBS_MILESTONE_REQUIRED")
+        if milestone.wbs_id not in known_wbs:
+            raise EarnedValueSourceError(
+                f"EVM_WBS_MILESTONE_WBS_NOT_IN_BASELINE:{milestone.wbs_id}"
+            )
+        key = (milestone.wbs_id, milestone.milestone_id)
+        if key in seen_milestones:
+            raise EarnedValueSourceError("EVM_DUPLICATE_WBS_MILESTONE")
+        seen_milestones.add(key)
+        milestone_map.setdefault(milestone.wbs_id, []).append(milestone)
+
+    return override_map, {
+        wbs_id: tuple(sorted(items, key=lambda item: item.milestone_id))
+        for wbs_id, items in milestone_map.items()
+    }
+
+
+def _validate_pv_buckets(
+    buckets: Iterable[EarnedValuePVBucket],
+    activities: Mapping[str, BaselineValueActivity],
+) -> dict[str, tuple[EarnedValuePVBucket, ...]]:
+    """Validate manual future-period values and their reconciliation rules."""
+    grouped: dict[str, list[EarnedValuePVBucket]] = {}
+    for bucket in buckets:
+        if not isinstance(bucket, EarnedValuePVBucket):
+            raise EarnedValueSourceError("EVM_PV_BUCKET_REQUIRED")
+        activity = activities.get(bucket.activity_id)
+        if activity is None:
+            raise EarnedValueSourceError(
+                f"EVM_PV_BUCKET_ACTIVITY_NOT_IN_BASELINE:{bucket.activity_id}"
+            )
+        if (
+            bucket.period_start < activity.planned_start
+            or bucket.period_finish > activity.planned_finish
+        ):
+            raise EarnedValueSourceError(
+                f"EVM_PV_BUCKET_OUTSIDE_BASELINE_WINDOW:{bucket.activity_id}"
+            )
+        grouped.setdefault(bucket.activity_id, []).append(bucket)
+
+    result: dict[str, tuple[EarnedValuePVBucket, ...]] = {}
+    for activity_id, items in grouped.items():
+        ordered = tuple(sorted(items, key=lambda item: (item.period_start, item.period_finish)))
+        for previous, current in zip(ordered, ordered[1:]):
+            if current.period_start <= previous.period_finish:
+                raise EarnedValueSourceError(
+                    f"EVM_PV_BUCKETS_OVERLAP:{activity_id}"
+                )
+        total = sum((item.value for item in ordered), Decimal("0"))
+        if total != activities[activity_id].budgeted_cost:
+            raise EarnedValueSourceError(
+                f"EVM_PV_BUCKETS_DO_NOT_RECONCILE:{activity_id}"
+            )
+        result[activity_id] = ordered
+    return result
+
+
 def select_earned_value_sources(
     baseline_activities: Iterable[BaselineValueActivity],
     progress_rows: Iterable[EarnedValueProgress],
@@ -394,6 +644,9 @@ def select_earned_value_sources(
     etc_method: str = ETC_REMAINING_COST,
     performance_factor: Decimal | None = None,
     cost_adjustments: Iterable[EarnedValueCostAdjustment] = (),
+    technique_overrides: Iterable[EarnedValueTechniqueOverride] = (),
+    wbs_milestones: Iterable[EarnedValueWBSMilestone] = (),
+    pv_buckets: Iterable[EarnedValuePVBucket] = (),
 ) -> EarnedValueSourceResult:
     """Resolve one baseline/status-date measurement and run the EVM identities."""
 
@@ -415,18 +668,48 @@ def select_earned_value_sources(
         currency=currency,
     )
 
+    activities_by_id = {item.activity_id: item for item in activities}
+    override_map, milestones_by_wbs = _validate_wbs_settings(
+        activities, technique_overrides, wbs_milestones
+    )
+    buckets_by_activity = _validate_pv_buckets(pv_buckets, activities_by_id)
+
     sources: list[EarnedValueActivitySource] = []
     rollups: dict[str | None, list[EarnedValueActivitySource]] = {}
+    planned_value_methods: set[str] = set()
     for activity in activities:
         progress = progress_by_id[activity.activity_id]
-        planned_percent = _planned_percent(
-            activity.planned_start,
-            activity.planned_finish,
-            data_date,
-            resolver,
+        technique = _effective_technique(activity, override_map)
+        milestone_percent = (
+            _wbs_milestone_percent(activity, milestones_by_wbs)
+            if technique == EVM_TECHNIQUE_WBS_MILESTONE
+            else None
         )
-        earned_percent = _earned_percent(activity, progress)
-        planned_value = activity.budgeted_cost * planned_percent / Decimal("100")
+        buckets = buckets_by_activity.get(activity.activity_id)
+        if buckets is None:
+            planned_percent = _planned_percent(
+                activity.planned_start,
+                activity.planned_finish,
+                data_date,
+                resolver,
+            )
+            planned_value = activity.budgeted_cost * planned_percent / Decimal("100")
+            planned_value_method = EVM_PV_METHOD_LINEAR_WORKING_DAYS
+        else:
+            planned_value = _bucket_planned_value(buckets, data_date)
+            planned_percent = (
+                planned_value / activity.budgeted_cost * Decimal("100")
+                if activity.budgeted_cost > 0
+                else Decimal("0")
+            )
+            planned_value_method = EVM_PV_METHOD_PERIOD_BUCKET
+        planned_value_methods.add(planned_value_method)
+        earned_percent = _earned_percent(
+            activity,
+            progress,
+            technique=technique,
+            milestone_percent=milestone_percent,
+        )
         earned_value = activity.budgeted_cost * earned_percent / Decimal("100")
         source = EarnedValueActivitySource(
             baseline_id=baseline_id,
@@ -441,7 +724,8 @@ def select_earned_value_sources(
             actual_cost=progress.actual_cost,
             budget_at_completion=activity.budgeted_cost,
             currency=currency,
-            earned_value_technique=activity.earned_value_technique,
+            earned_value_technique=technique,
+            planned_value_method=planned_value_method,
         )
         sources.append(source)
         rollups.setdefault(activity.wbs_id, []).append(source)
@@ -520,11 +804,16 @@ def select_earned_value_sources(
         )
     )
 
+    if len(planned_value_methods) == 1:
+        pv_method = next(iter(planned_value_methods))
+    else:
+        pv_method = EVM_PV_METHOD_MIXED
+
     return EarnedValueSourceResult(
         baseline_id=baseline_id,
         data_date=data_date,
         currency=currency,
-        pv_method=EVM_PV_METHOD_LINEAR_WORKING_DAYS,
+        pv_method=pv_method,
         activities=tuple(sources),
         wbs_rollups=wbs_rollups,
         earned_value=earned_value,
@@ -536,15 +825,21 @@ __all__ = [
     "BaselineValueActivity",
     "EarnedValueActivitySource",
     "EarnedValueCostAdjustment",
+    "EarnedValuePVBucket",
     "EarnedValueProgress",
     "EarnedValueSourceError",
     "EarnedValueSourceResult",
+    "EarnedValueTechniqueOverride",
+    "EarnedValueWBSMilestone",
     "EarnedValueWBSRollup",
     "EVM_PV_METHOD_LINEAR_WORKING_DAYS",
+    "EVM_PV_METHOD_MIXED",
+    "EVM_PV_METHOD_PERIOD_BUCKET",
     "EVM_TECHNIQUES",
     "EVM_TECHNIQUE_ACTIVITY_PERCENT_COMPLETE",
     "EVM_TECHNIQUE_CUSTOM_PERCENT_COMPLETE",
     "EVM_TECHNIQUE_FIFTY_FIFTY",
+    "EVM_TECHNIQUE_RESOURCE_CURVE",
     "EVM_TECHNIQUE_WBS_MILESTONE",
     "EVM_TECHNIQUE_ZERO_HUNDRED",
     "select_earned_value_sources",
