@@ -169,6 +169,21 @@ test("rendered schedule surface exposes localized label and implemented status",
   assert.match(html, /Gantt Chart/);
 });
 
+test("Activities window exposes a real Layout Options dialog with current timescale and relationship visibility", () => {
+  const english = render("en", "schedule");
+  assert.match(english, /data-layout-options-open/);
+  assert.match(english, /data-layout-options-dialog/);
+  assert.match(english, /data-layout-timescale/);
+  assert.match(english, /data-layout-links/);
+  assert.match(english, /Show relationship lines/);
+  assert.match(english, /Display interval/);
+
+  const persian = render("fa", "schedule");
+  assert.match(persian, /گزینه‌های چیدمان/);
+  assert.match(persian, /مقیاس زمانی/);
+  assert.match(persian, /نمایش خطوط روابط/);
+});
+
 test("rendered preview surfaces remain explicitly marked", () => {
   const html = render("en", "reports");
 
