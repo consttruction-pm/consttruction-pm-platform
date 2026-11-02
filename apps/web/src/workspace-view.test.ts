@@ -1552,7 +1552,7 @@ test("Calendar Register opens as a first-class window with documented editor con
   assert.match(html, /Exceptions and Holidays/);
   assert.match(html, /Assignments/);
   assert.match(html, /split shifts, multiple work intervals, overnight shifts/);
-  assert.match(html, /editing and saving are disabled until the authoritative calendar service/);
+  assert.match(html, /Editing and saving are disabled until the authoritative calendar service/i);
 });
 
 test("Project and WBS Details use their Version 26 tab inventories and switch by window context", () => {
