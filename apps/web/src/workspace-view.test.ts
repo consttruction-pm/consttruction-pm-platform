@@ -1462,6 +1462,30 @@ test("project settings button dispatches a single open request", () => {
   assert.equal(opened, 1);
 });
 
+test("Project and WBS Details use their Version 26 tab inventories and switch by window context", () => {
+  const project = render("en", "project");
+  for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "planning-resources", "contract-management", "udfs"]) {
+    assert.ok(project.includes(`data-project-detail-tab="${tab}"`), `missing Project Details tab: ${tab}`);
+  }
+  const reports = render("en", "reports");
+  assert.doesNotMatch(reports, /data-activity-detail-tab=/);
+  assert.doesNotMatch(reports, /data-project-detail-tab=/);
+  assert.match(reports, /Select a record in this window to display its details/);
+
+  const base = withWbsNodes(
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    [{ id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1.1", name: "Structure", sequenceNumber: 1, recordRevision: 2 }],
+  );
+  const wbsState = { ...base, selectedWbsId: "WBS-1" };
+  const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(container as unknown as HTMLElement, wbsState);
+  for (const tab of ["general", "notebook", "budget-log", "spending-plan", "budget-summary", "milestones", "documents", "earned-value", "planning-resources", "udfs"]) {
+    assert.ok(container.innerHTML.includes(`data-wbs-detail-tab="${tab}"`), `missing WBS Details tab: ${tab}`);
+  }
+  assert.match(container.innerHTML, /WBS Details/);
+  assert.match(container.innerHTML, /Structure/);
+});
+
 test("empty and preview-only modules show an explicit truthful surface", () => {
   const reports = render("en", "reports");
   assert.match(reports, /data-workspace-menu="reports"/);
