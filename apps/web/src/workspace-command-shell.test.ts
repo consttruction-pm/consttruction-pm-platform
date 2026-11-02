@@ -99,6 +99,25 @@ test("View menu includes the complete Version 26 display toolbar commands in CUB
   }
 });
 
+test("Version 26 menu inventory is represented in CUBI menus without exposing source-product branding", () => {
+  const html = renderWorkspaceCommandShell("en");
+  for (const command of [
+    "Enterprise Project Structure", "Tracking", "Resource Codes", "Role Codes", "Stored Images",
+    "Schedule Visualization", "Project Comparison &amp; Variance", "Admin Categories",
+    "Financial Period Calendars", "Expand", "Bottom Layout Options", "Share Feedback",
+    "Exchange Data", "Select Project Portfolio", "Commit Changes", "Refresh Data",
+    "Progress Spotlight", "Activity Critical Path", "Check Schedule", "Tab Groups",
+    "Store Period Performance", "Issue Navigator", "Report Preferences",
+  ]) {
+    assert.ok(html.includes(command), `missing Version 26 menu item: ${command}`);
+  }
+  assert.doesNotMatch(html, /Oracle|Primavera|P6 Professional/i);
+  const activityHtml = renderWorkspaceCommandShell("en", "schedule");
+  assert.doesNotMatch(activityHtml, /data-shell-command="Bottom Layout Options"[^>]*disabled/);
+  const projectHtml = renderWorkspaceCommandShell("en", "project");
+  assert.match(projectHtml, /data-shell-command="Bottom Layout Options"[^>]*disabled/);
+});
+
 test("global menus include the remaining documented file, edit, organization, tools and help commands", () => {
   const html = renderWorkspaceCommandShell("en");
   for (const command of ["Commit Changes", "Refresh Data", "Print Setup", "Send Project", "Check In", "Check Out", "Select Project Portfolio", "Replace", "Spell Check", "Organizational Breakdown Structure", "Activity Step Templates", "External Applications", "Disable Auto-Reorganization", "Job Services", "Report Wizard", "Publish", "Local Help", "Online Help"]) {
