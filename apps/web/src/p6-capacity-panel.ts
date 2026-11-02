@@ -538,7 +538,7 @@ export function renderCapacityPanel(
       <label>${escapeHtml(labels.resolveHours)}
         <input type="text" inputmode="decimal" data-capacity-resolve-hours autocomplete="off" disabled>
       </label>
-      <button type="submit" data-capacity-resolve>${escapeHtml(
+      <button type="button" data-capacity-resolve>${escapeHtml(
         labels.resolveAction,
       )}</button>
     </form>
@@ -796,8 +796,8 @@ export function mountCapacityPanel(
     }
   });
 
-  resolveForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  const submitCapacityResolution = async (): Promise<void> => {
+    if (resolveButton.disabled) return;
     const basis = resolveBasis.value
       ? (resolveBasis.value as CapacityBasis)
       : null;
@@ -832,7 +832,15 @@ export function mountCapacityPanel(
       resolveButton.disabled = false;
       panel.removeAttribute("aria-busy");
     }
+  };
+
+  resolveForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void submitCapacityResolution();
   });
+  resolveButton.addEventListener("click", () => {
+    void submitCapacityResolution();
+  });;
 
   void loadAll();
 }
