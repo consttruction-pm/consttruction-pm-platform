@@ -376,11 +376,23 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-document-select],[data-document-detail-tab],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.documentSelect !== undefined) {
+      documentSelectionByContainer.set(container, target.dataset.documentSelect);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.documentDetailTab !== undefined) {
+      documentDetailTabByContainer.set(container, target.dataset.documentDetailTab);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
     if (target.dataset.navigationAction) {
       const separator = target.dataset.navigationAction.indexOf(":");
       const kind = separator >= 0 ? target.dataset.navigationAction.slice(0, separator) : target.dataset.navigationAction;
@@ -393,6 +405,10 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         container.querySelector<HTMLElement>("[data-calendar-editor-tab='" + value + "']")?.click();
       } else if (kind === "wbs-detail-tab") {
         container.querySelector<HTMLElement>("[data-wbs-detail-tab='" + value + "']")?.click();
+      } else if (kind === "document-detail-tab") {
+        documentDetailTabByContainer.set(container, value);
+        const record = workspaceRenderRecords.get(container);
+        if (record) renderMainWorkspace(container, record.state, record.options);
       } else if (kind === "tracking-layout") {
         const select = container.querySelector<HTMLSelectElement>("[data-tracking-layout]");
         if (select) {
