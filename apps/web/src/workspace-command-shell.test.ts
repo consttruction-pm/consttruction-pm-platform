@@ -146,3 +146,13 @@ test("Version 26 tools submenu inventory includes summarize scopes, approvals an
   assert.match(fa, /برگه‌های زمانی/);
   assert.match(fa, /ارسال بازخورد/);
 });
+
+test("View menu exposes the full toolbar catalogue and tab-group actions as nested menus", () => {
+  const html = renderWorkspaceCommandShell("en");
+  for (const command of ["Expand", "Action Toolbar", "Administrator Toolbar", "Assign Toolbar", "Bottom Layout Toolbar", "Dictionaries Toolbar", "Display Toolbar", "Edit Toolbar", "Enterprise Toolbar", "Find Toolbar", "Layout Toolbar", "Move Toolbar", "Print Toolbar", "Project Toolbar", "Publish Toolbar", "Reports Toolbar", "Standard Toolbar", "Tools Toolbar", "Top Layout Toolbar", "Merge Windows", "Create New Tab Group"]) {
+    assert.ok(html.includes(command), `missing toolbar/tab-group command: ${command}`);
+  }
+  const fa = renderWorkspaceCommandShell("fa");
+  assert.match(fa, /نوار ابزار چیدمان بالا/);
+  assert.match(fa, /ایجاد گروه زبانه جدید/);
+});
