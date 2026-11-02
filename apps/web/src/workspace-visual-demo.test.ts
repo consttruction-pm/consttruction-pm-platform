@@ -57,7 +57,7 @@ test("WBS Activities and Dates tabs show scoped activity records and derived sam
   assert.match(dateHtml, /Earliest activity start/);
   assert.match(dateHtml, /Latest activity finish/);
   assert.match(dateHtml, /02\/11\/26/);
-  assert.match(dateHtml, /18\/12\/26/);
+  assert.match(dateHtml, /21\\/12\\/26/);
 });
 
 test("WBS window renders a selectable hierarchy and a dedicated details inspector", () => {
@@ -87,7 +87,7 @@ test("WBS detail tab state is rendered as the active accessible tab", () => {
   assert.match(html, /data-visual-demo dir="rtl"/);
   assert.match(html, /data-vd-wbs="1\.2\.1"[^>]*aria-selected="true"/);
   assert.match(html, /data-vd-wbs-dtab="dates" aria-selected="true" class="is-active"/);
-  assert.match(html, /Not available in this visual sample/);
+  assert.match(html, /21\\/12\\/26/);
 });
 
 test("calendar editor presents properties, workweek and exception panes", () => {
