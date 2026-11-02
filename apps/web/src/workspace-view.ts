@@ -2226,6 +2226,16 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): s
     <form method="dialog" class="cp-layout-options-form">
       <header><div><small>${escapeHtml(uiText(state.locale, "Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-layout-options-title">${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</h2></div><button type="button" data-layout-options-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
       <section class="cp-layout-options-section">
+        <h3>${escapeHtml(uiText(state.locale, "Top Layout", "چیدمان بالا"))}</h3>
+        <label>${escapeHtml(uiText(state.locale, "Primary view", "نمای اصلی"))}
+          <select data-top-layout><option value="table-gantt" selected>${escapeHtml(uiText(state.locale, "Activity Table + Gantt Chart", "جدول فعالیت‌ها + نمودار گانت"))}</option><option value="activity-network" disabled>Activity Network</option><option value="activity-usage-spreadsheet" disabled>Activity Usage Spreadsheet</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="resource-usage-spreadsheet" disabled>Resource Usage Spreadsheet</option><option value="resource-usage-profile" disabled>Resource Usage Profile</option><option value="trace-logic" disabled>Trace Logic</option></select>
+        </label>
+        <h3>${escapeHtml(uiText(state.locale, "Bottom Layout", "چیدمان پایین"))}</h3>
+        <label>${escapeHtml(uiText(state.locale, "Details view", "نمای جزئیات"))}
+          <select data-bottom-layout><option value="activity-details" selected>Activity Details</option><option value="activity-network" disabled>Activity Network</option><option value="trace-logic" disabled>Trace Logic</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option></select>
+        </label>
+      </section>
+      <section class="cp-layout-options-section">
         <h3>${escapeHtml(uiText(state.locale, "Timescale", "مقیاس زمانی"))}</h3>
         <label>${escapeHtml(uiText(state.locale, "Display interval", "بازه نمایش"))}
           <select data-layout-timescale>${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<option value="${mode}"${state.ganttScale === mode ? " selected" : ""}>${escapeHtml(scaleLabels[mode])}</option>`).join("")}</select>
@@ -2234,7 +2244,11 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): s
       <section class="cp-layout-options-section">
         <h3>${escapeHtml(uiText(state.locale, "Gantt display", "نمایش گانت"))}</h3>
         <label class="cp-layout-options-check"><input type="checkbox" data-layout-links${state.showGanttRelationships ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show relationship lines", "نمایش خطوط روابط"))}</label>
-        <p>${escapeHtml(uiText(state.locale, "Changes apply to the current Activities view. Other chart and layout controls will appear when their corresponding view is implemented.", "تغییرات روی نمای فعلی فعالیت‌ها اعمال می‌شود. گزینه‌های سایر نمودارها و چیدمان‌ها پس از پیاده‌سازی نمای مربوط نمایش داده خواهند شد."))}</p>
+        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show critical path", "نمایش مسیر بحرانی"))}</label>
+        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show progress line", "نمایش خط پیشرفت"))}</label>
+        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show baseline bars", "نمایش میله‌های مبنا"))}</label>
+        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
+        <p>${escapeHtml(uiText(state.locale, "Only relationship-line visibility and timescale are connected in this slice. Other options remain visibly present but disabled until their renderer and state contract are implemented.", "در این بخش فقط نمایش خطوط روابط و مقیاس زمانی متصل هستند. گزینه‌های دیگر تا پیاده‌سازی رندرکننده و قرارداد وضعیت، نمایش داده می‌شوند اما غیرفعال‌اند."))}</p>
       </section>
       <footer><button type="button" data-layout-options-close>${escapeHtml(uiText(state.locale, "Close", "بستن"))}</button></footer>
     </form>
