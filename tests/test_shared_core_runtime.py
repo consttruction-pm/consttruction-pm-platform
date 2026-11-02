@@ -162,3 +162,109 @@ def test_shared_core_runtime_binds_request_actor_and_scope_to_host_identity():
         assert response["result"]["error"]["code"] == "FORBIDDEN"
     finally:
         connection.close()
+
+
+def test_shared_core_runtime_rejects_duplicate_json_keys_and_non_finite_constants():
+    runtime, auth, connection = _runtime()
+    try:
+        duplicate = (
+            '{"contract_version":"cubi.shared-core-runtime.v1",'
+            '"contract_version":"cubi.shared-core-runtime.v1",'
+            '"operation":"schedule.query","payload":{}}'
+        )
+        response = json.loads(
+            runtime.dispatch_json(duplicate, auth_context=auth, expected_project_revision=9)
+        )
+        assert response["result"]["error"]["code"] == "CORE_RUNTIME_REQUEST_INVALID"
+
+        non_finite = (
+            '{"contract_version":"cubi.shared-core-runtime.v1",'
+            '"operation":"schedule.query","payload":{"bad":NaN}}'
+        )
+        response = json.loads(
+            runtime.dispatch_json(non_finite, auth_context=auth, expected_project_revision=9)
+        )
+        assert response["result"]["error"]["code"] == "CORE_RUNTIME_REQUEST_INVALID"
+    finally:
+        connection.close()
+
+
+def test_shared_core_runtime_registered_operation_is_versioned_scoped_and_permission_checked():
+    from construction_pm.application.authorization import Permission
+    from construction_pm.shared_core_runtime import SharedCoreOperation, SharedCoreRuntime
+
+    base, auth, connection = _runtime()
+    try:
+        operation = SharedCoreOperation(
+            contract_version="p6-test-read.v1",
+            permission=Permission.PROJECT_READ,
+            required_fields=frozenset({"value"}),
+            allowed_fields=frozenset({"value"}),
+            handler=lambda payload, actor, revision: {
+                "value": payload["value"],
+                "host_user": actor.user_id,
+                "project_revision": revision,
+            },
+        )
+        runtime = SharedCoreRuntime(
+            schedule_query_api=base.schedule_query_api,
+            authorization_policy=base.authorization_policy,
+            operations={"project.test_read": operation},
+        )
+        envelope = {
+            "contract_version": CORE_RUNTIME_CONTRACT_VERSION,
+            "operation": "project.test_read",
+            "payload": {
+                "contract_version": "p6-test-read.v1",
+                "scope": {
+                    "tenant_id": "T-1",
+                    "project_id": "P-1",
+                    "project_revision": 9,
+                },
+                "value": "ok",
+            },
+        }
+        response = json.loads(
+            runtime.dispatch_json(json.dumps(envelope), auth_context=auth, expected_project_revision=9)
+        )
+        assert response["operation"] == "project.test_read"
+        assert response["result"] == {
+            "value": "ok",
+            "host_user": "u1",
+            "project_revision": 9,
+        }
+
+        bad_version = json.loads(json.dumps(envelope))
+        bad_version["payload"]["contract_version"] = "p6-test-read.v0"
+        response = json.loads(
+            runtime.dispatch_json(json.dumps(bad_version), auth_context=auth, expected_project_revision=9)
+        )
+        assert response["result"]["error"]["code"] == "UNSUPPORTED_OPERATION_CONTRACT"
+
+        unknown_field = json.loads(json.dumps(envelope))
+        unknown_field["payload"]["is_admin"] = True
+        response = json.loads(
+            runtime.dispatch_json(json.dumps(unknown_field), auth_context=auth, expected_project_revision=9)
+        )
+        assert response["result"]["error"]["code"] == "CORE_RUNTIME_REQUEST_INVALID"
+
+        cross_scope = json.loads(json.dumps(envelope))
+        cross_scope["payload"]["scope"]["tenant_id"] = "OTHER"
+        response = json.loads(
+            runtime.dispatch_json(json.dumps(cross_scope), auth_context=auth, expected_project_revision=9)
+        )
+        assert response["result"]["error"]["code"] == "CROSS_SCOPE_ACCESS"
+
+        denied = AuthorizationContext("T-1", "P-1", "u1", frozenset({"unprivileged"}))
+        response = json.loads(
+            runtime.dispatch_json(json.dumps(envelope), auth_context=denied, expected_project_revision=9)
+        )
+        assert response["result"]["error"]["code"] == "FORBIDDEN"
+
+        assert any(
+            item["operation"] == "project.test_read"
+            and item["contract_version"] == "p6-test-read.v1"
+            for item in runtime.supported_operations
+        )
+    finally:
+        connection.close()
