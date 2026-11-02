@@ -1407,7 +1407,7 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 
 test("desktop workbench renders a grouped navigation tree, window tabs and contextual command rail", () => {
   const html = render("en", "schedule");
-  assert.match(html, /class="cp-navigation-tree"/);
+  assert.match(html, /class="[^"]*cp-navigation-tree/);
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
   assert.match(html, /Resources &amp; cost/);
