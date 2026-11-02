@@ -137,3 +137,24 @@ test("activity relationship detail tabs retain Persian labels and left-to-right 
   assert.match(html, /A1330/);
   assert.match(html, /<bdi dir="ltr">\\+8 h<\\/bdi>/);
 });
+
+
+test("activity Status details expose early/late dates, actual dates, duration and float fields", () => {
+  const state = createVisualDemoState("en");
+  state.detailTab = "status";
+  const html = renderVisualDemo(state);
+  for (const label of ["Early start", "Early finish", "Late start", "Late finish", "Actual start", "Actual finish", "Original duration", "Remaining duration", "Total float", "Free float", "Critical"]) {
+    assert.match(html, new RegExp(label));
+  }
+});
+
+test("activity Calendar details link to the visual calendar editor and disclose sample-only values", () => {
+  const state = createVisualDemoState("fa");
+  state.detailTab = "calendar";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-vd-dtab="calendar"/);
+  assert.match(html, /data-vd-dialog="calendar"/);
+  assert.match(html, /باز کردن ویرایشگر تقویم/);
+  assert.match(html, /تقویم فعالیت/);
+  assert.match(html, /ذخیره تغییرات و اتصال به زمان‌بندی در این پیش‌نمایش فعال نیست/);
+});
