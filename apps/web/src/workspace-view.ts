@@ -114,6 +114,7 @@ function uiText(locale: string, en: string, fa: string): string {
 
 type WorkspaceRenderRecord = { state: WorkspaceState; options: WorkspaceRendererOptions };
 const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>();
+const activityDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
 
@@ -287,11 +288,24 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.activityDetailTab) {
+      const tab = target.dataset.activityDetailTab;
+      activityDetailsTabByContainer.set(container, tab);
+      container.querySelectorAll<HTMLElement>("[data-activity-detail-tab]").forEach((button) => {
+        const active = button.dataset.activityDetailTab === tab;
+        button.setAttribute("aria-selected", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      container.querySelectorAll<HTMLElement>("[data-activity-detail-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.activityDetailPanel !== tab;
+      });
+      return;
+    }
     if (target.dataset.windowClose) {
       if (["project", "schedule", "progress", "resources", "cost", "documents", "reports", "control", "settings"].includes(target.dataset.windowClose)) {
         options.onWindowClose?.(target.dataset.windowClose as WorkspaceState["activeMenu"]);
@@ -558,7 +572,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
   const details = container.querySelector<HTMLElement>("#cp-details");
   if (details) {
     const t = getWorkspaceLabels(next.locale);
-    details.innerHTML = `<h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${next.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(next.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}`;
+    details.innerHTML = renderActivityDetailsPanel(next, t, activityDetailsTabByContainer.get(container) ?? "general");
   }
   return true;
 }
@@ -817,7 +831,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               </section>
               ${renderP6ModuleStage(state, t)}
             </div>
-            <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading"><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2>${state.selectedActivityId ? `<div class="cp-detail-selected">${escapeHtml(state.selectedActivityId)}</div>` : `<div class="cp-empty">—</div>`}</aside>
+            <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading">${renderActivityDetailsPanel(state, t, activityDetailsTabByContainer.get(container) ?? "general")}</aside>
           </main>
           <div class="cp-p6-drawer cp-p6-wbs-drawer" data-wbs-drawer hidden aria-label="${escapeAttribute(t.wbs)}">
             <div class="cp-p6-drawer-head"><strong>${escapeHtml(t.wbs)}</strong><button type="button" data-wbs-drawer-close title="${escapeAttribute(rail.close)}" aria-label="${escapeAttribute(rail.close)}">${workspaceIcon("close")}</button></div>
@@ -1773,6 +1787,85 @@ function renderGantt(
   return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}">${toolbar}${axis}<div class="cp-gantt-chart" style="--cp-gantt-rows:${bars.length}">${rows}${linkSvg}</div></div>`;
 }
 
+
+
+const ACTIVITY_DETAIL_TABS = [
+  ["general", "General", "عمومی"],
+  ["status", "Status", "وضعیت"],
+  ["resources", "Resources", "منابع"],
+  ["predecessors", "Predecessors", "پیش‌نیازها"],
+  ["successors", "Successors", "پس‌نیازها"],
+  ["codes", "Codes", "کدها"],
+  ["tasks", "Tasks", "وظایف"],
+  ["discussion", "Discussion", "گفت‌وگو"],
+  ["notebook", "Notebook", "دفترچه"],
+  ["steps", "Steps", "گام‌ها"],
+  ["feedback", "Feedback", "بازخورد"],
+  ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
+  ["expenses", "Expenses", "هزینه‌ها"],
+  ["summary", "Summary", "خلاصه"],
+  ["relationships", "Relationships", "روابط"],
+  ["risks", "Risks", "ریسک‌ها"],
+  ["udfs", "UDFs", "فیلدهای کاربر"],
+] as const;
+
+function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, activeTab: string): string {
+  const activity = state.activities.find((item) => item.id === state.selectedActivityId);
+  const value = (key: string): string => {
+    if (!activity) return "—";
+    const raw = activity.cells?.[key];
+    if (raw !== undefined && raw !== null && raw !== "") return String(raw);
+    if (key === "activity_id" || key === "id") return activity.id;
+    if (key === "activity_name" || key === "name") return activity.name;
+    if (key === "wbs_id" || key === "wbs") return activity.wbsId;
+    return "—";
+  };
+  const field = (label: string, content: string): string =>
+    `<div class="cp-activity-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(content)}</strong></div>`;
+  const empty = (message: string): string => `<p class="cp-activity-detail-empty">${escapeHtml(message)}</p>`;
+  const relationshipRows = (kind: "predecessors" | "successors" | "relationships"): string => {
+    if (!activity) return empty(uiText(state.locale, "Select an activity to view its relationships.", "برای مشاهده روابط، یک فعالیت انتخاب کنید."));
+    const rows = state.relationships.filter((item) => kind === "predecessors"
+      ? item.successorId === activity.id
+      : kind === "successors" ? item.predecessorId === activity.id
+        : item.predecessorId === activity.id || item.successorId === activity.id);
+    if (!rows.length) return empty(uiText(state.locale, "No relationship records are available for this activity.", "برای این فعالیت رابطه‌ای ثبت نشده است."));
+    return `<div class="cp-activity-detail-table-wrap"><table class="cp-activity-detail-table"><thead><tr><th>${escapeHtml(uiText(state.locale, "Predecessor", "پیش‌نیاز"))}</th><th>${escapeHtml(uiText(state.locale, "Successor", "پس‌نیاز"))}</th><th>${escapeHtml(uiText(state.locale, "Type", "نوع"))}</th><th>${escapeHtml(uiText(state.locale, "Lag", "وقفه"))}</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.predecessorId)}</td><td>${escapeHtml(row.successorId)}</td><td>${row.type}</td><td>${escapeHtml(formatRelationshipLag(row.lagValue, row.lagUnit, t))}</td></tr>`).join("")}</tbody></table></div>`;
+  };
+  const contentFor = (tab: string): string => {
+    if (!activity) return empty(uiText(state.locale, "Select an activity in the table or Gantt chart to display its details.", "برای نمایش جزئیات، یک فعالیت را در جدول یا نمودار گانت انتخاب کنید."));
+    if (tab === "general") {
+      const coreFields = [
+        field(uiText(state.locale, "Activity ID", "شناسه فعالیت"), activity.id),
+        field(uiText(state.locale, "Activity Name", "نام فعالیت"), activity.name),
+        field(uiText(state.locale, "WBS", "ساختار شکست"), activity.wbsId),
+      ];
+      const mapped = state.columns.map((column) => {
+        const raw = activity.cells?.[column.id];
+        return raw === undefined || raw === null || raw === "" ? "" : field(localizeWorkspaceLabel(state.locale, column.label), String(raw));
+      }).filter(Boolean);
+      return `<div class="cp-activity-detail-fields">${coreFields.join("")}${mapped.join("")}</div>`;
+    }
+    if (tab === "status") {
+      const keys = ["status", "percent_complete", "duration", "remaining_duration", "actual_duration", "actual_start", "actual_finish", "early_start", "early_finish", "late_start", "late_finish", "total_float", "free_float"];
+      return `<div class="cp-activity-detail-fields">${keys.map((key) => field(key.replaceAll("_", " "), value(key))).join("")}</div>`;
+    }
+    if (tab === "predecessors" || tab === "successors" || tab === "relationships") return relationshipRows(tab);
+    if (tab === "summary") {
+      const facts = activity.gantt;
+      return facts ? `<div class="cp-activity-detail-fields">${field(uiText(state.locale, "Start", "شروع"), String(facts.start ?? "—"))}${field(uiText(state.locale, "Finish", "پایان"), String(facts.finish ?? "—"))}${field(uiText(state.locale, "Critical", "بحرانی"), facts.critical ? uiText(state.locale, "Yes", "بله") : uiText(state.locale, "No", "خیر"))}</div>` : empty(uiText(state.locale, "No authoritative schedule summary is available for this activity.", "خلاصه زمان‌بندی مرجع برای این فعالیت موجود نیست."));
+    }
+    const tabLabel = ACTIVITY_DETAIL_TABS.find(([key]) => key === tab);
+    return empty(uiText(state.locale, `No ${tabLabel?.[1] ?? "detail"} records are loaded for this activity.`, `برای این فعالیت هنوز سابقه‌ای در بخش «${tabLabel?.[2] ?? "جزئیات"}» بارگذاری نشده است.`));
+  };
+  return `<div class="cp-activity-details">
+    <header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2><span>${escapeHtml(activity ? `${activity.id} — ${activity.name}` : uiText(state.locale, "No activity selected", "فعالیتی انتخاب نشده است"))}</span></div><small>${escapeHtml(uiText(state.locale, "Activity Details", "جزئیات فعالیت"))}</small></header>
+    <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Activity detail tabs", "زبانه‌های جزئیات فعالیت"))}">
+      ${ACTIVITY_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-activity-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-activity-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
+    </nav>
+    ${ACTIVITY_DETAIL_TABS.map(([key]) => `<section id="cp-activity-detail-panel-${key}" class="cp-activity-detail-panel" role="tabpanel" data-activity-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${contentFor(key)}</section>`).join("")}
+  </div>`;
+}
 
 function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): string {
   const scaleLabels: Record<WorkspaceGanttScale, string> = {
