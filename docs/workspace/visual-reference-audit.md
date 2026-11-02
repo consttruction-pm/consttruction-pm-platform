@@ -57,7 +57,7 @@ Module submenus are not allowed to remain decorative labels when the destination
 | Roles | Role register, Rates and Assignments detail tabs | — |
 | Calendars | Calendar register, Workweek, Exceptions, Assignments tabs | Create/Edit/Delete while calendar persistence is not connected |
 | Expenses | Expense register, General details tab | Cost Accounts until the account register is connected |
-| Cost | Procurement records, Change/Claim records | Financial calculations outside the authoritative core |
+| Cost | Procurement/Change/Claim metrics plus Cost Accounts, Budget, Actuals, Forecast, Cash Flow, Earned Value, Financial Periods and Funding tabs | Account and financial registers remain empty until authoritative services return records; no client-side financial calculations |
 | Documents | Data-backed document register, selectable rows, General/Links/Integrity/Revisions/UDF detail tabs | Evidence panel until its own evidence view is available |
 | Reports | Preview only | Report generation and print layouts |
 | Tracking | Project Table, Bar Chart, Gantt/Profile and Resource Analysis layout selector | Data selection, summarization, chart rendering and saved layouts |
