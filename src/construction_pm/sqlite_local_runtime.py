@@ -36,6 +36,7 @@ from construction_pm.calendar_master_repository import (
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.calendar_work_hours_repository import SQLiteCalendarWorkHourRepository
 from construction_pm.constraint_master_repository import SQLiteConstraintMasterRepository
+from construction_pm.p6_constraint_api import P6ConstraintAPI
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.activity_master_repository import SQLiteActivityMasterRepository
 from construction_pm.p6_baseline_api import P6BaselineAPI
@@ -257,6 +258,7 @@ class SQLiteLocalApplicationRuntime:
     wbs_repository: SQLiteWBSMasterRepository
     relationship_repository: SQLiteRelationshipMasterRepository
     constraint_repository: SQLiteConstraintMasterRepository
+    constraint_api: P6ConstraintAPI
     calendar_repository: SQLiteCalendarMasterRepository
     calendar_assignment_repository: SQLiteCalendarAssignmentRepository
     calendar_snapshot_repository: SQLiteCalendarSnapshotRepository
@@ -363,6 +365,7 @@ def build_sqlite_local_application_runtime(
     activity_api = P6ActivityMasterAPI(activity_repository, authorization_policy)
     wbs_api = P6WBSMasterAPI(wbs_repository, authorization_policy)
     relationship_api = P6RelationshipAPI(relationship_repository, authorization_policy, activity_repository)
+    constraint_api = P6ConstraintAPI(constraint_repository, activity_repository, authorization_policy)
     calendar_api = P6CalendarAPI(
         calendar_repository,
         calendar_snapshot_repository,
@@ -419,6 +422,7 @@ def build_sqlite_local_application_runtime(
         activity_api=activity_api,
         wbs_api=wbs_api,
         relationship_api=relationship_api,
+        constraint_api=constraint_api,
         calendar_api=calendar_api,
         calendar_read_api=calendar_read_api,
         resource_read_api=resource_read_api,

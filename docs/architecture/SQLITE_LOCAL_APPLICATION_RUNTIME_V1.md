@@ -16,13 +16,13 @@ Module: `src/construction_pm/sqlite_local_runtime.py`.
 `build_sqlite_local_application_runtime(connection, sessions, authorization_policy, rules_version, engine_version)` composes over one caller-owned SQLite connection:
 
 - local ProjectRepository + existing ProjectLifecycleService/API;
-- WBS, Activity Master, Relationships and Constraints;
+- WBS, Activity Master, Relationships and the authenticated versioned Constraint Master API;
 - versioned project calendars, assignments, snapshots, exceptions and work-hour rules;
 - schedule settings, immutable schedule snapshots and CalculationContext;
 - resource assignments, periods, spreads and effective-dated capacity, including their existing authenticated APIs;
 - baselines, cost accounts and expenses, including their existing authenticated APIs;
 - baseline, cost-account and expense repositories;
-- the existing Project lifecycle, Activity/WBS/Relationship/Calendar/Resource/Resource Spread/Baseline/Cost Account/Expense APIs;
+- the existing Project lifecycle, Activity/WBS/Relationship/Constraint/Calendar/Resource/Resource Spread/Baseline/Cost Account/Expense APIs;
 - authoritative snapshot publication and the transport-independent SharedCoreRuntime.
 
 The same SQLiteTransactionManager is passed to application services and snapshot publication. The host must create this composition once at startup and must not instantiate repositories inside a user mutation transaction; the existing SQLite repository constructors perform their schema initialization at startup.

@@ -20,6 +20,7 @@ from construction_pm.scheduling.activity import (
     PercentCompleteType,
 )
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleMode
+from construction_pm.scheduling.constraints import ConstraintType
 from construction_pm.scheduling.calendar import WorkingCalendar
 from construction_pm.scheduling.calendar_context import CalendarReference
 from construction_pm.scheduling.calendar_system import CalendarSystem
@@ -131,6 +132,17 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snap
         expected_revision=0,
     )
 
+    runtime.constraint_api.create(
+        ConstraintMaster(
+            scope=scope,
+            constraint_id="C-1",
+            activity_id="A2",
+            constraint_type=ConstraintType.START_NO_EARLIER_THAN,
+            constraint_date=date(2026, 11, 5),
+        ),
+        auth_context=auth,
+    )
+
     runtime.baseline_api.create(
         P6Baseline(
             scope=scope,
@@ -227,6 +239,7 @@ def test_local_runtime_composes_project_wbs_activity_calendar_and_publishes_snap
     assert runtime.expense_api.list(scope, auth_context=auth)[0]["expense"]["expense_id"] == "EXP-1"
     assert runtime.resource_spread_api.list(scope, auth_context=auth)[0]["spread"]["spread_id"] == "SPREAD-1"
     assert len(snapshot.relationships) == 1
+    assert len(snapshot.constraints) == 1
     assert snapshot.relationships[0].predecessor_id == "A1"
     assert snapshot.relationships[0].successor_id == "A2"
     assert runtime.calendar_registry(scope).resolve(calendar_reference)
