@@ -355,19 +355,34 @@ def test_local_runtime_commits_domain_write_and_outbox_atomically():
         tenant_id=scope.tenant_id,
         project_id=scope.project_id,
         expected_revision=scope.project_revision,
-        operation="probe.insert",
-        payload={"value": "committed"},
+        operation="relationship.create",
+        payload={"relationship_id": "REL-OUTBOX-A"},
         idempotency_key="probe-key-1",
     )
+    first_relationship = RelationshipMaster(
+        scope=scope,
+        relationship_id="REL-OUTBOX-A",
+        predecessor_id="A1",
+        successor_id="A2",
+        relationship_type=RelationshipType.FS,
+        lag_value=Decimal("0"),
+        lag_unit=DurationUnit.WORKING_DAY,
+    )
+
+    def apply_first():
+        connection.execute(
+            "INSERT INTO local_outbox_probe(value) VALUES (?)", ("committed",)
+        )
+        return runtime.relationship_repository.save(first_relationship)
+
     result = runtime.apply_offline_mutation(
         scope,
         first_mutation,
         auth_context=auth,
-        apply=lambda: connection.execute(
-            "INSERT INTO local_outbox_probe(value) VALUES (?)", ("committed",)
-        ).rowcount,
+        apply=apply_first,
     )
-    assert result == 1
+    assert result.relationship_id == "REL-OUTBOX-A"
+    assert runtime.relationship_repository.get(scope, "REL-OUTBOX-A") is not None
     assert runtime.offline_mutation_store.pending() == (first_mutation,)
 
     duplicate_key_mutation = OfflineMutation(
@@ -375,22 +390,37 @@ def test_local_runtime_commits_domain_write_and_outbox_atomically():
         tenant_id=scope.tenant_id,
         project_id=scope.project_id,
         expected_revision=scope.project_revision,
-        operation="probe.insert",
-        payload={"value": "must-rollback"},
+        operation="relationship.create",
+        payload={"relationship_id": "REL-OUTBOX-B"},
         idempotency_key="probe-key-1",
     )
+    second_relationship = RelationshipMaster(
+        scope=scope,
+        relationship_id="REL-OUTBOX-B",
+        predecessor_id="A2",
+        successor_id="A3",
+        relationship_type=RelationshipType.FS,
+        lag_value=Decimal("0"),
+        lag_unit=DurationUnit.WORKING_DAY,
+    )
+
+    def apply_second():
+        connection.execute(
+            "INSERT INTO local_outbox_probe(value) VALUES (?)", ("must-rollback",)
+        )
+        return runtime.relationship_repository.save(second_relationship)
+
     with pytest.raises(ValueError, match="DUPLICATE_IDEMPOTENCY_KEY"):
         runtime.apply_offline_mutation(
             scope,
             duplicate_key_mutation,
             auth_context=auth,
-            apply=lambda: connection.execute(
-                "INSERT INTO local_outbox_probe(value) VALUES (?)", ("must-rollback",)
-            ).rowcount,
+            apply=apply_second,
         )
 
     assert connection.execute(
         "SELECT value FROM local_outbox_probe ORDER BY value"
     ).fetchall() == [("committed",)]
+    assert runtime.relationship_repository.get(scope, "REL-OUTBOX-B") is None
     assert runtime.offline_mutation_store.pending() == (first_mutation,)
     connection.close()
