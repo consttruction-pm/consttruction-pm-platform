@@ -148,5 +148,49 @@ def test_context_scoped_resource_repository_persists_and_isolates_project_data(t
     assert reopened.execute(
         "SELECT version FROM cubi_local_schema_versions WHERE component=?",
         ("context_scoped_resource_repository",),
-    ).fetchone() == (1,)
+    ).fetchone() == (2,)
     reopened.close()
+
+
+
+def test_context_scoped_resource_repository_upgrades_legacy_tables_without_data_loss():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE context_resources (
+            tenant_id TEXT NOT NULL, company_id TEXT NOT NULL, project_id TEXT NOT NULL,
+            resource_id TEXT NOT NULL, resource_json TEXT NOT NULL, revision INTEGER NOT NULL,
+            PRIMARY KEY (tenant_id, company_id, project_id, resource_id)
+        )"""
+    )
+    connection.execute(
+        """CREATE TABLE context_resource_assignments (
+            tenant_id TEXT NOT NULL, company_id TEXT NOT NULL, project_id TEXT NOT NULL,
+            activity_id TEXT NOT NULL, resource_id TEXT NOT NULL,
+            assignment_json TEXT NOT NULL, revision INTEGER NOT NULL,
+            PRIMARY KEY (tenant_id, company_id, project_id, activity_id, resource_id)
+        )"""
+    )
+    repository = ContextScopedSQLiteResourceRepository(connection)
+    context = ProjectContext("tenant-2", "company-2", "project-legacy")
+    resource = Resource(
+        id="EQ-001",
+        code="PUMP",
+        name="Concrete pump",
+        resource_type=ResourceType.MACHINERY,
+        unit="hour",
+    )
+    repository.save_resource(context, resource, expected_revision=0)
+    assert repository.get_resource(context, "EQ-001") is not None
+    assert connection.execute(
+        "SELECT version FROM cubi_local_schema_versions WHERE component=?",
+        ("context_scoped_resource_repository",),
+    ).fetchone() == (2,)
+
+    with pytest.raises(sqlite3.IntegrityError, match="RESOURCE_NOT_FOUND"):
+        connection.execute(
+            """INSERT INTO context_resource_assignments
+               (tenant_id, company_id, project_id, activity_id, resource_id, assignment_json, revision)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            ("tenant-2", "company-2", "project-legacy", "A-99", "MISSING", "{}", 1),
+        )
+    connection.close()
