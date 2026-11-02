@@ -508,7 +508,8 @@ test("Project Structure leading rail supports keyboard and pointer resizing", ()
   const listeners = new Map<string, (event: Event) => void>();
   const styles: Record<string, string> = {};
   const attributes: Record<string, string> = {};
-  const root = { style: { setProperty: (name: string, value: string) => { styles[name] = value; } }, getAttribute: () => "ltr" };
+  let direction = "ltr";
+  const root = { style: { setProperty: (name: string, value: string) => { styles[name] = value; } }, getAttribute: () => direction };
   const splitter = {
     dataset: { projectStructureSplitter: "" },
     setAttribute: (name: string, value: string) => { attributes[name] = value; },
@@ -539,6 +540,13 @@ test("Project Structure leading rail supports keyboard and pointer resizing", ()
   assert.equal(styles["--cp-project-structure-width"], "260px");
   assert.equal(attributes["aria-valuenow"], "260");
   listeners.get("pointerup")?.({ target, pointerId: 9 } as unknown as Event);
+  direction = "rtl";
+  listeners.get("keydown")?.({ target, key: "ArrowLeft", preventDefault: () => {} } as unknown as Event);
+  assert.equal(styles["--cp-project-structure-width"], "256px");
+  listeners.get("pointerdown")?.({ target, pointerId: 10, clientX: 300, preventDefault: () => {} } as unknown as Event);
+  listeners.get("pointermove")?.({ pointerId: 10, clientX: 280 } as unknown as Event);
+  assert.equal(styles["--cp-project-structure-width"], "260px");
+  listeners.get("pointerup")?.({ target, pointerId: 10 } as unknown as Event);
 });
 
 test("Project Details horizontal splitter supports keyboard resizing and persists its pane height", () => {
