@@ -350,7 +350,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -459,6 +459,12 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       container.querySelectorAll<HTMLElement>("[data-project-detail-panel]").forEach((panel) => {
         panel.hidden = panel.dataset.projectDetailPanel !== tab;
       });
+      return;
+    }
+    if (target.dataset.columnsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-columns-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
       return;
     }
     if (target.dataset.activityDetailAdd !== undefined || target.dataset.activityDetailAddAll !== undefined || target.dataset.activityDetailRemove !== undefined || target.dataset.activityDetailRemoveAll !== undefined || target.dataset.activityDetailMoveUp !== undefined || target.dataset.activityDetailMoveDown !== undefined || target.dataset.activityDetailDefault !== undefined) {
@@ -576,7 +582,9 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
       } else if (command === "Columns") {
-        openToolsDrawer(container);
+        const dialog = container.querySelector<HTMLDialogElement>("[data-columns-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
       } else if (command === "Bars" || command === "Bar Chart Options") {
         const dialog = container.querySelector<HTMLDialogElement>(command === "Bars" ? "[data-bars-dialog]" : "[data-bar-chart-options-dialog]");
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
@@ -1247,6 +1255,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>` : ""}
           </div>
           ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderGroupSortDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderFiltersDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarsDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarChartOptionsDialog(state) : ""}
+          ${state.activeMenu === "schedule" ? renderColumnsDialog(state, options.layoutHistory) : ""}
           ${state.activeMenu === "schedule" ? renderWorkspaceCommandRibbon(state, t) : ""}
           <main class="cp-main">
             <div class="cp-p6-primary">
@@ -2353,6 +2362,15 @@ function renderP6FieldChooser(
   </section>`;
 }
 
+function renderColumnsDialog(state: WorkspaceState, history?: WorkspaceRendererOptions["layoutHistory"]): string {
+  const t = getWorkspaceLabels(state.locale);
+  const chooser = renderP6FieldChooser(state, history);
+  return `<dialog class="cp-columns-dialog" data-columns-dialog aria-labelledby="cp-columns-title">
+    <header class="cp-columns-dialog-head"><div><h2 id="cp-columns-title">${escapeHtml(uiText(state.locale, "Columns", "ستون‌ها"))}</h2><p>${escapeHtml(uiText(state.locale, "Choose, arrange and configure the fields displayed in the activity table.", "فیلدهای جدول فعالیت را انتخاب و مرتب کنید و تنظیمات آن‌ها را انجام دهید."))}</p></div><button type="button" data-columns-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
+    ${chooser || `<p class="cp-columns-unavailable">${escapeHtml(uiText(state.locale, "The field registry is not available for this workspace.", "فهرست فیلدها برای این محیط کار در دسترس نیست."))}</p>`}
+    <footer><button type="button" data-columns-close>${escapeHtml(uiText(state.locale, "Close", "بستن"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Changes are saved by the field controls.", "تغییرات از طریق کنترل‌های فیلد ذخیره می‌شوند."))}">${escapeHtml(uiText(state.locale, "Apply", "اعمال"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Help", "راهنما"))}</button></footer>
+  </dialog>`;
+}
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState, stickyOffsets: ReadonlyMap<string, number>): string {
   const selected = activity.id === state.selectedActivityId;
   const predecessors = predecessorSummary(activity.id, state);
