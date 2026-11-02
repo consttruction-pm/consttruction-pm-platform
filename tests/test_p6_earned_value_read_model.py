@@ -16,14 +16,18 @@ from construction_pm.p6_earned_value_read_model import (
     P6_EARNED_VALUE_READ_MODEL_VERSION,
     P6EarnedValueReadModelError,
     P6EarnedValueReadModelService,
+    P6EarnedValueSettings,
 )
 from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
 from construction_pm.p6_expense_repository import P6Expense
 from construction_pm.scheduling.activity import ActivityStatus
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.evm_source import (
+    EVM_PV_METHOD_RESOURCE_CURVE,
     EVM_TECHNIQUE_ACTIVITY_PERCENT_COMPLETE,
     EVM_TECHNIQUE_ZERO_HUNDRED,
+    EarnedValuePVCurve,
+    EarnedValuePVCurvePoint,
 )
 from construction_pm.scheduling.time_duration import DurationUnit
 
@@ -470,3 +474,52 @@ def test_api_passes_wbs_settings_to_the_authoritative_service():
         EVM_TECHNIQUE_FIFTY_FIFTY
     )
     assert Decimal(payload["earned_value"]["earned_value"]) == Decimal("500.00")
+
+
+def test_read_model_applies_a_resource_curve_from_explicit_settings():
+    svc = service(
+        (
+            baseline(
+                "A",
+                "W-1",
+                "1000",
+                start=date(2026, 11, 2),
+                finish=date(2026, 11, 13),
+            ),
+        ),
+        (
+            current(
+                "A", percent=10.0, status=ActivityStatus.IN_PROGRESS,
+                actual_start=date(2026, 11, 2),
+            ),
+        ),
+        actuals=(actual("A", "100"),),
+        expenses=(expense("A", "900"),),
+    )
+
+    result = svc.read(
+        scope(),
+        "B-1",
+        data_date=date(2026, 11, 6),
+        currency="USD",
+        settings=P6EarnedValueSettings(
+            pv_curves=(
+                EarnedValuePVCurve(
+                    activity_id="A",
+                    curve_id="CURVE-1",
+                    points=(
+                        EarnedValuePVCurvePoint(Decimal("0"), Decimal("0")),
+                        EarnedValuePVCurvePoint(Decimal("50"), Decimal("40")),
+                        EarnedValuePVCurvePoint(Decimal("100"), Decimal("100")),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    activity = result.result.activities[0]
+    # Five of ten working days is offset 50%, where the curve plans 40%.
+    assert activity.planned_percent == Decimal("40")
+    assert activity.planned_value == Decimal("400.00")
+    assert result.result.pv_method == EVM_PV_METHOD_RESOURCE_CURVE
+    assert result.to_payload()["pv_method"] == EVM_PV_METHOD_RESOURCE_CURVE

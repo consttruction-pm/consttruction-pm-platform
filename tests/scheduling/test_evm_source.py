@@ -10,12 +10,16 @@ from construction_pm.scheduling.earned_value import (
 )
 from construction_pm.scheduling.evm_source import (
     EVM_PV_METHOD_LINEAR_WORKING_DAYS,
+    EVM_PV_METHOD_RESOURCE_CURVE,
     EVM_TECHNIQUE_ACTIVITY_PERCENT_COMPLETE,
     EVM_TECHNIQUE_FIFTY_FIFTY,
     EVM_TECHNIQUE_WBS_MILESTONE,
     EVM_TECHNIQUE_ZERO_HUNDRED,
     BaselineValueActivity,
     EarnedValueCostAdjustment,
+    EarnedValuePVBucket,
+    EarnedValuePVCurve,
+    EarnedValuePVCurvePoint,
     EarnedValueProgress,
     EarnedValueSourceError,
     select_earned_value_sources,
@@ -437,4 +441,162 @@ def test_cost_adjustment_must_reference_a_baseline_wbs():
             baseline_id="B-1", data_date=date(2026, 11, 4),
             currency="USD", resolver=resolver(),
             cost_adjustments=(EarnedValueCostAdjustment("W-9", Decimal("5")),),
+        )
+
+
+def _curve(**overrides) -> EarnedValuePVCurve:
+    values = {
+        "activity_id": "A",
+        "curve_id": "CURVE-1",
+        "points": (
+            EarnedValuePVCurvePoint(Decimal("0"), Decimal("0")),
+            EarnedValuePVCurvePoint(Decimal("50"), Decimal("40")),
+            EarnedValuePVCurvePoint(Decimal("100"), Decimal("100")),
+        ),
+    }
+    values.update(overrides)
+    return EarnedValuePVCurve(**values)
+
+
+def test_resource_curve_interpolates_pv_across_the_activity_working_window():
+    result = select_earned_value_sources(
+        (
+            baseline(
+                "A", start=date(2026, 11, 2), finish=date(2026, 11, 13),
+                budget="1000",
+            ),
+        ),
+        (progress("A", percent="10", started=True, actual_cost="100", remaining_cost="900"),),
+        baseline_id="B-1",
+        data_date=date(2026, 11, 6),
+        currency="USD",
+        resolver=resolver(),
+        pv_curves=(_curve(),),
+    )
+
+    activity = result.activities[0]
+    # Five of ten working days = offset 50%, where the curve plans 40%.
+    assert activity.planned_percent == Decimal("40")
+    assert activity.planned_value == Decimal("400.00")
+    assert activity.planned_value_method == EVM_PV_METHOD_RESOURCE_CURVE
+    assert result.pv_method == EVM_PV_METHOD_RESOURCE_CURVE
+
+
+def test_resource_curve_boundaries_and_weekend_measurement():
+    curve = _curve()
+
+    def measured(day: date) -> Decimal:
+        return select_earned_value_sources(
+            (
+                baseline(
+                    "A", start=date(2026, 11, 2), finish=date(2026, 11, 13),
+                    budget="1000",
+                ),
+            ),
+            (progress("A", remaining_cost="1000"),),
+            baseline_id="B-1", data_date=day, currency="USD",
+            resolver=resolver(), pv_curves=(curve,),
+        ).activities[0].planned_value
+
+    assert measured(date(2026, 10, 30)) == Decimal("0")
+    # Saturday measures through the previous Friday: offset 50 -> 40%.
+    assert measured(date(2026, 11, 7)) == Decimal("400.00")
+    # Monday of the second week: offset 60 -> 40 + 60 * (10 / 50) = 52%.
+    assert measured(date(2026, 11, 9)) == Decimal("520.00")
+    assert measured(date(2026, 11, 16)) == Decimal("1000.00")
+
+
+def test_resource_curve_and_bucket_inputs_are_mutually_exclusive():
+    bucket = EarnedValuePVBucket(
+        activity_id="A",
+        period_start=date(2026, 11, 2),
+        period_finish=date(2026, 11, 13),
+        value=Decimal("1000"),
+    )
+    with pytest.raises(
+        EarnedValueSourceError, match="EVM_PV_CURVE_AND_BUCKETS_CONFLICT:A"
+    ):
+        select_earned_value_sources(
+            (
+                baseline(
+                    "A", start=date(2026, 11, 2), finish=date(2026, 11, 13),
+                    budget="1000",
+                ),
+            ),
+            (progress("A"),),
+            baseline_id="B-1", data_date=date(2026, 11, 6), currency="USD",
+            resolver=resolver(), pv_buckets=(bucket,), pv_curves=(_curve(),),
+        )
+
+
+def test_resource_curve_validation_fails_closed():
+    with pytest.raises(EarnedValueSourceError, match="EVM_PV_CURVE_POINTS_INVALID"):
+        _curve(
+            points=(EarnedValuePVCurvePoint(Decimal("0"), Decimal("0")),)
+        )
+    with pytest.raises(EarnedValueSourceError, match="EVM_PV_CURVE_MUST_START_AT_ZERO"):
+        _curve(
+            points=(
+                EarnedValuePVCurvePoint(Decimal("0"), Decimal("10")),
+                EarnedValuePVCurvePoint(Decimal("100"), Decimal("100")),
+            )
+        )
+    with pytest.raises(EarnedValueSourceError, match="EVM_PV_CURVE_MUST_END_AT_FULL"):
+        _curve(
+            points=(
+                EarnedValuePVCurvePoint(Decimal("0"), Decimal("0")),
+                EarnedValuePVCurvePoint(Decimal("100"), Decimal("90")),
+            )
+        )
+    with pytest.raises(
+        EarnedValueSourceError, match="EVM_PV_CURVE_OFFSET_NOT_INCREASING"
+    ):
+        _curve(
+            points=(
+                EarnedValuePVCurvePoint(Decimal("0"), Decimal("0")),
+                EarnedValuePVCurvePoint(Decimal("60"), Decimal("40")),
+                EarnedValuePVCurvePoint(Decimal("50"), Decimal("80")),
+                EarnedValuePVCurvePoint(Decimal("100"), Decimal("100")),
+            )
+        )
+    with pytest.raises(
+        EarnedValueSourceError, match="EVM_PV_CURVE_CUMULATIVE_DECREASES"
+    ):
+        _curve(
+            points=(
+                EarnedValuePVCurvePoint(Decimal("0"), Decimal("0")),
+                EarnedValuePVCurvePoint(Decimal("50"), Decimal("60")),
+                EarnedValuePVCurvePoint(Decimal("75"), Decimal("40")),
+                EarnedValuePVCurvePoint(Decimal("100"), Decimal("100")),
+            )
+        )
+
+
+def test_orphan_and_duplicate_resource_curves_fail_closed():
+    with pytest.raises(
+        EarnedValueSourceError,
+        match="EVM_PV_CURVE_ACTIVITY_NOT_IN_BASELINE:B",
+    ):
+        select_earned_value_sources(
+            (
+                baseline(
+                    "A", start=date(2026, 11, 2), finish=date(2026, 11, 13),
+                    budget="1000",
+                ),
+            ),
+            (progress("A"),),
+            baseline_id="B-1", data_date=date(2026, 11, 6), currency="USD",
+            resolver=resolver(), pv_curves=(_curve(activity_id="B"),),
+        )
+    with pytest.raises(EarnedValueSourceError, match="EVM_DUPLICATE_PV_CURVE:A"):
+        select_earned_value_sources(
+            (
+                baseline(
+                    "A", start=date(2026, 11, 2), finish=date(2026, 11, 13),
+                    budget="1000",
+                ),
+            ),
+            (progress("A"),),
+            baseline_id="B-1", data_date=date(2026, 11, 6), currency="USD",
+            resolver=resolver(), pv_curves=(_curve(), _curve(curve_id="CURVE-2")),
         )

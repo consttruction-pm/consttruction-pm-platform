@@ -5,18 +5,19 @@ module owns the separate decision of *which* budget and progress values feed
 that arithmetic:
 
 * PV comes from the selected baseline's activity budget distributed linearly
-  across the baseline activity's working days, or from explicit future-period
-  buckets when the activity declares them. The status date (Data Date)
-  determines how much of each baseline activity is planned.
+  across the baseline activity's working days, from an explicit resource curve
+  when the activity declares one, or from explicit future-period buckets. The
+  status date (Data Date) determines how much of each baseline activity is
+  planned.
 * EV applies the activity's earned-value technique (including WBS milestone
   weights and resource-curve Units % Complete) to its current progress.
 * AC and BAC come from the current actual cost and the selected baseline budget.
 * A different baseline identity, mixed currencies, duplicate rows, orphaned
   progress or non-working baseline dates fail closed instead of being guessed.
 
-Assignment-level resource-curve PV profiles are not part of this contract.
-Callers that need curve-distributed PV must supply the equivalent future-period
-buckets; no curve is silently approximated by a linear distribution.
+The resource curve is a per-activity cumulative distribution over the activity's
+own working-day window. Curve and bucket inputs are mutually exclusive for one
+activity; no curve or bucket is approximated silently.
 """
 
 from __future__ import annotations
@@ -37,7 +38,8 @@ from .earned_value import (
 
 EVM_PV_METHOD_LINEAR_WORKING_DAYS = "LINEAR_WORKING_DAYS_ACTIVITY_BUDGET"
 EVM_PV_METHOD_PERIOD_BUCKET = "PERIOD_BUCKET_PV"
-EVM_PV_METHOD_MIXED = "MIXED_LINEAR_AND_PERIOD_BUCKET_PV"
+EVM_PV_METHOD_RESOURCE_CURVE = "RESOURCE_CURVE_PV"
+EVM_PV_METHOD_MIXED = "MIXED_PLANNED_VALUE_METHODS"
 
 EVM_TECHNIQUE_ACTIVITY_PERCENT_COMPLETE = "ACTIVITY_PERCENT_COMPLETE"
 EVM_TECHNIQUE_CUSTOM_PERCENT_COMPLETE = "CUSTOM_PERCENT_COMPLETE"
@@ -202,6 +204,66 @@ class EarnedValuePVBucket:
         object.__setattr__(
             self, "value", _decimal(self.value, "EVM_PV_BUCKET_VALUE_INVALID")
         )
+
+
+@dataclass(frozen=True)
+class EarnedValuePVCurvePoint:
+    """One cumulative point on a resource-curve planned-value distribution.
+
+    ``offset_percent`` is the position inside the activity's working-day
+    window (0 = planned start, 100 = planned finish) and
+    ``cumulative_percent`` is the share of the activity budget planned by that
+    position. Values between points are interpolated linearly.
+    """
+
+    offset_percent: Decimal
+    cumulative_percent: Decimal
+
+    def __post_init__(self) -> None:
+        offset = _decimal(self.offset_percent, "EVM_PV_CURVE_OFFSET_INVALID")
+        cumulative = _decimal(
+            self.cumulative_percent, "EVM_PV_CURVE_CUMULATIVE_INVALID"
+        )
+        if offset > 100 or cumulative > 100:
+            raise EarnedValueSourceError("EVM_PV_CURVE_VALUE_OUT_OF_RANGE")
+        object.__setattr__(self, "offset_percent", offset)
+        object.__setattr__(self, "cumulative_percent", cumulative)
+
+
+@dataclass(frozen=True)
+class EarnedValuePVCurve:
+    """A per-activity resource-curve distribution of its budgeted cost.
+
+    The first point is the activity start (offset 0, cumulative 0) and the
+    last point is the activity finish (offset 100, cumulative 100). Points are
+    strictly ordered by offset and cumulative values never decrease.
+    """
+
+    activity_id: str
+    curve_id: str
+    points: tuple[EarnedValuePVCurvePoint, ...]
+
+    def __post_init__(self) -> None:
+        _identifier(self.activity_id, "EVM_PV_CURVE_ACTIVITY_ID_INVALID")
+        _identifier(self.curve_id, "EVM_PV_CURVE_ID_INVALID")
+        try:
+            points = tuple(self.points)
+        except TypeError as exc:
+            raise EarnedValueSourceError("EVM_PV_CURVE_POINTS_INVALID") from exc
+        if len(points) < 2:
+            raise EarnedValueSourceError("EVM_PV_CURVE_POINTS_INVALID")
+        if any(not isinstance(item, EarnedValuePVCurvePoint) for item in points):
+            raise EarnedValueSourceError("EVM_PV_CURVE_POINT_REQUIRED")
+        if points[0].offset_percent != 0 or points[0].cumulative_percent != 0:
+            raise EarnedValueSourceError("EVM_PV_CURVE_MUST_START_AT_ZERO")
+        if points[-1].offset_percent != 100 or points[-1].cumulative_percent != 100:
+            raise EarnedValueSourceError("EVM_PV_CURVE_MUST_END_AT_FULL")
+        for previous, current in zip(points, points[1:]):
+            if current.offset_percent <= previous.offset_percent:
+                raise EarnedValueSourceError("EVM_PV_CURVE_OFFSET_NOT_INCREASING")
+            if current.cumulative_percent < previous.cumulative_percent:
+                raise EarnedValueSourceError("EVM_PV_CURVE_CUMULATIVE_DECREASES")
+        object.__setattr__(self, "points", points)
 
 
 @dataclass(frozen=True)
@@ -495,6 +557,45 @@ def _bucket_planned_value(
     return total
 
 
+def _curve_planned_percent(
+    curve: EarnedValuePVCurve,
+    activity: BaselineValueActivity,
+    data_date: date,
+    resolver: WorkingTimeResolver,
+) -> Decimal:
+    """Interpolate a resource curve at the Data Date's working-day offset."""
+    if data_date < activity.planned_start:
+        return Decimal("0")
+    if data_date >= activity.planned_finish:
+        return Decimal("100")
+    total_days = resolver.calculate_duration(
+        activity.planned_start, activity.planned_finish
+    )
+    if total_days <= 0:
+        raise EarnedValueSourceError("EVM_BASELINE_PLANNED_DURATION_INVALID")
+    measured_date = (
+        data_date
+        if resolver.is_working_day(data_date)
+        else resolver.previous_working_day(data_date)
+    )
+    if measured_date < activity.planned_start:
+        return Decimal("0")
+    elapsed_days = (
+        resolver.working_days_between(activity.planned_start, measured_date) + 1
+    )
+    offset = Decimal(elapsed_days) / Decimal(total_days) * Decimal("100")
+    if offset >= 100:
+        return Decimal("100")
+    for left, right in zip(curve.points, curve.points[1:]):
+        if offset <= right.offset_percent:
+            span = right.offset_percent - left.offset_percent
+            ratio = (offset - left.offset_percent) / span
+            return left.cumulative_percent + (
+                right.cumulative_percent - left.cumulative_percent
+            ) * ratio
+    return Decimal("100")
+
+
 def _validate_baseline_rows(
     baseline_activities: Iterable[BaselineValueActivity],
     *,
@@ -635,6 +736,32 @@ def _validate_pv_buckets(
     return result
 
 
+def _validate_pv_curves(
+    curves: Iterable[EarnedValuePVCurve],
+    activities: Mapping[str, BaselineValueActivity],
+    bucket_activity_ids: frozenset[str],
+) -> dict[str, EarnedValuePVCurve]:
+    """Validate resource curves and their mutual exclusion with buckets."""
+    result: dict[str, EarnedValuePVCurve] = {}
+    for curve in curves:
+        if not isinstance(curve, EarnedValuePVCurve):
+            raise EarnedValueSourceError("EVM_PV_CURVE_REQUIRED")
+        if curve.activity_id not in activities:
+            raise EarnedValueSourceError(
+                f"EVM_PV_CURVE_ACTIVITY_NOT_IN_BASELINE:{curve.activity_id}"
+            )
+        if curve.activity_id in result:
+            raise EarnedValueSourceError(
+                f"EVM_DUPLICATE_PV_CURVE:{curve.activity_id}"
+            )
+        if curve.activity_id in bucket_activity_ids:
+            raise EarnedValueSourceError(
+                f"EVM_PV_CURVE_AND_BUCKETS_CONFLICT:{curve.activity_id}"
+            )
+        result[curve.activity_id] = curve
+    return result
+
+
 def select_earned_value_sources(
     baseline_activities: Iterable[BaselineValueActivity],
     progress_rows: Iterable[EarnedValueProgress],
@@ -649,6 +776,7 @@ def select_earned_value_sources(
     technique_overrides: Iterable[EarnedValueTechniqueOverride] = (),
     wbs_milestones: Iterable[EarnedValueWBSMilestone] = (),
     pv_buckets: Iterable[EarnedValuePVBucket] = (),
+    pv_curves: Iterable[EarnedValuePVCurve] = (),
 ) -> EarnedValueSourceResult:
     """Resolve one baseline/status-date measurement and run the EVM identities."""
 
@@ -675,6 +803,11 @@ def select_earned_value_sources(
         activities, technique_overrides, wbs_milestones
     )
     buckets_by_activity = _validate_pv_buckets(pv_buckets, activities_by_id)
+    curves_by_activity = _validate_pv_curves(
+        pv_curves,
+        activities_by_id,
+        frozenset(buckets_by_activity),
+    )
 
     sources: list[EarnedValueActivitySource] = []
     rollups: dict[str | None, list[EarnedValueActivitySource]] = {}
@@ -688,7 +821,14 @@ def select_earned_value_sources(
             else None
         )
         buckets = buckets_by_activity.get(activity.activity_id)
-        if buckets is None:
+        curve = curves_by_activity.get(activity.activity_id)
+        if curve is not None:
+            planned_percent = _curve_planned_percent(
+                curve, activity, data_date, resolver
+            )
+            planned_value = activity.budgeted_cost * planned_percent / Decimal("100")
+            planned_value_method = EVM_PV_METHOD_RESOURCE_CURVE
+        elif buckets is None:
             planned_percent = _planned_percent(
                 activity.planned_start,
                 activity.planned_finish,
@@ -828,6 +968,8 @@ __all__ = [
     "EarnedValueActivitySource",
     "EarnedValueCostAdjustment",
     "EarnedValuePVBucket",
+    "EarnedValuePVCurve",
+    "EarnedValuePVCurvePoint",
     "EarnedValueProgress",
     "EarnedValueSourceError",
     "EarnedValueSourceResult",
@@ -837,6 +979,7 @@ __all__ = [
     "EVM_PV_METHOD_LINEAR_WORKING_DAYS",
     "EVM_PV_METHOD_MIXED",
     "EVM_PV_METHOD_PERIOD_BUCKET",
+    "EVM_PV_METHOD_RESOURCE_CURVE",
     "EVM_TECHNIQUES",
     "EVM_TECHNIQUE_ACTIVITY_PERCENT_COMPLETE",
     "EVM_TECHNIQUE_CUSTOM_PERCENT_COMPLETE",

@@ -23,6 +23,7 @@ from .scheduling.earned_value import ETC_REMAINING_COST
 from .scheduling.evm_source import (
     EarnedValueCostAdjustment,
     EarnedValuePVBucket,
+    EarnedValuePVCurve,
     EarnedValueProgress,
     EarnedValueSourceError,
     EarnedValueSourceResult,
@@ -83,6 +84,7 @@ class P6EarnedValueSettings:
     technique_overrides: tuple[EarnedValueTechniqueOverride, ...] = ()
     wbs_milestones: tuple[EarnedValueWBSMilestone, ...] = ()
     pv_buckets: tuple[EarnedValuePVBucket, ...] = ()
+    pv_curves: tuple[EarnedValuePVCurve, ...] = ()
 
     def validate(self) -> None:
         for values, expected, code in (
@@ -97,6 +99,7 @@ class P6EarnedValueSettings:
                 "EVM_WBS_MILESTONE_REQUIRED",
             ),
             (self.pv_buckets, EarnedValuePVBucket, "EVM_PV_BUCKET_REQUIRED"),
+            (self.pv_curves, EarnedValuePVCurve, "EVM_PV_CURVE_REQUIRED"),
         ):
             if not isinstance(values, tuple):
                 raise P6EarnedValueReadModelError(code)
@@ -392,6 +395,7 @@ class P6EarnedValueReadModelService:
                 technique_overrides=settings.technique_overrides,
                 wbs_milestones=settings.wbs_milestones,
                 pv_buckets=settings.pv_buckets,
+                pv_curves=settings.pv_curves,
             )
         except EarnedValueSourceError as exc:
             raise P6EarnedValueReadModelError(str(exc)) from exc
