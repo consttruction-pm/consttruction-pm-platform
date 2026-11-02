@@ -51,7 +51,8 @@ const menus: MenuDefinition[] = [
   { key: "tools", en: "Tools", fa: "ابزارها", entries: [
     { label: "Schedule", shortcut: "F9" }, { label: "Level Resources", shortcut: "Shift+F9" }, { label: "Apply Actuals" }, { label: "Update Progress" }, { label: "Recalculate Assignment Costs" },
     { label: "Summarize", children: [{ label: "Open Projects" }, { label: "All Projects" }] }, { label: "Disable Auto-Reorganization" }, { label: "Job Services" }, { label: "Job Status" }, { label: "Approvals", children: [{ label: "Timesheets" }] }, { label: "Report Wizard" }, { label: "Publish", children: [{ label: "Project Website" }, { label: "Activity Layouts" }, { label: "Tracking Layouts" }] }, { label: "Store Period Performance" }, { label: "Global Change" }, { label: "Monitor Thresholds" }, { label: "Issue Navigator" },
-    { label: "Reports", children: [{ label: "Reports" }, { label: "Report Groups" }, { label: "Report Batches" }, { label: "Run Report" }, { label: "Report Designer" }, { label: "Report Preferences" }] },\n    { label: "Schedule Visualization" }, { label: "Project Comparison & Variance" },
+    { label: "Reports", children: [{ label: "Reports" }, { label: "Report Groups" }, { label: "Report Batches" }, { label: "Run Report" }, { label: "Report Designer" }, { label: "Report Preferences" }] },
+    { label: "Schedule Visualization" }, { label: "Project Comparison & Variance" },
     { label: "Form Builder", children: [{ label: "Open Form Builder" }, { label: "Organization Form Library" }, { label: "Project Form Library" }, { label: "Form Templates" }, { label: "Form Versions" }, { label: "Form Preview" }] },
     { label: "Smart Guide" }, { label: "Assistant" }, { label: "Global Search" },
   ]},
