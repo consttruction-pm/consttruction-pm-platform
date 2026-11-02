@@ -52,10 +52,22 @@ test("schedule navigation exposes run controls and every reference section witho
 });
 
 test("unsupported V1 surfaces are explicitly marked preview instead of being presented as implemented", () => {
-  assert.equal(getWorkspaceNavigation("progress").status, "preview");
+  assert.equal(getWorkspaceNavigation("progress").status, "partial");
   assert.equal(getWorkspaceNavigation("resources").status, "partial");
   assert.equal(getWorkspaceNavigation("cost").status, "partial");
   assert.equal(getWorkspaceNavigation("reports").status, "preview");
+});
+
+test("Progress navigation exposes the live activity register and field evidence routes", () => {
+  assert.deepEqual(getWorkspaceNavigation("progress").submenus.map((item) => item.en), [
+    "Activity Progress",
+    "Site Daily Logs",
+    "Timecards",
+    "Equipment Reports",
+    "Field Issues",
+    "Update Progress",
+    "Period Performance",
+  ]);
 });
 
 test("resource, cost and document windows expose their navigable register/detail surfaces", () => {
