@@ -1575,14 +1575,23 @@ test("Project and WBS Details use their Version 26 tab inventories and switch by
     createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
     [{ id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1.1", name: "Structure", sequenceNumber: 1, recordRevision: 2 }],
   );
-  const wbsState = { ...base, selectedWbsId: "WBS-1" };
+  const withActivity = withActivities(base, [{
+    id: "ACT-101", wbsId: "WBS-1", code: "A-101", name: "Excavation",
+    cells: { start: "2026-11-03", finish: "2026-11-06", progress: 25 },
+    gantt: { start: "2026-11-03", finish: "2026-11-06", progressPercent: 25, critical: false },
+  }]);
+  const wbsState = { ...withActivity, selectedWbsId: "WBS-1" };
   const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
   renderMainWorkspace(container as unknown as HTMLElement, wbsState);
-  for (const tab of ["general", "notebook", "budget-log", "spending-plan", "budget-summary", "milestones", "documents", "earned-value", "planning-resources", "udfs"]) {
+  for (const tab of ["general", "activities", "notebook", "budget-log", "spending-plan", "budget-summary", "milestones", "documents", "earned-value", "planning-resources", "udfs"]) {
     assert.ok(container.innerHTML.includes(`data-wbs-detail-tab="${tab}"`), `missing WBS Details tab: ${tab}`);
   }
   assert.match(container.innerHTML, /WBS Details/);
   assert.match(container.innerHTML, /Structure/);
+  assert.match(container.innerHTML, /data-wbs-linked-activity="ACT-101"/);
+  assert.match(container.innerHTML, /Excavation/);
+  assert.match(container.innerHTML, /2026-11-03/);
+  assert.match(container.innerHTML, /25/);
 });
 
 test("empty and preview-only modules show an explicit truthful surface", () => {
