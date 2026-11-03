@@ -7908,3 +7908,11 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-project-portfolio-select{display:flex;align-items:center;gap:6px;color:#63758a;font-size:10px}
 .cp-p6 .cp-project-portfolio-select select{min-width:145px;min-height:27px;padding:4px 7px;border:1px solid #cbd5e1;background:#eef2f6;color:#64748b;font:inherit}
 .cp-p6 .cp-project-window-toolbar .cp-register-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+/* Resource register type filters. */
+.cp-p6 .cp-resource-window{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cp-p6 .cp-resource-window-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:7px 9px;border:1px solid #cbd5e1;background:#f3f6fa}
+.cp-p6 .cp-resource-window-toolbar>strong{color:#294763;font-size:11px}
+.cp-p6 .cp-resource-type-filter{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+.cp-p6 .cp-resource-type-filter button{padding:4px 8px;border:1px solid #cbd5e1;border-radius:3px;background:#fff;color:#52657a;font-size:9px}
+.cp-p6 .cp-resource-type-filter button.is-active{border-color:#6f9bc7;background:#e6f0fa;color:#173d68;font-weight:700;box-shadow:inset 0 -2px 0 #1c6bb7}
+.cp-p6 .cp-resource-filter-note{margin:0;padding:6px 8px;border-inline-start:3px solid #c18a4b;background:#faf7f1;color:#6b5a43;font-size:10px}
