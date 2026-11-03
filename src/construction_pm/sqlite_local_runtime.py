@@ -390,6 +390,19 @@ class SQLiteLocalApplicationRuntime:
             raise ValueError("OFFLINE_MUTATION_PERMISSION_INVALID")
         self.authorization_policy.require(auth_context, permission)
         with self.transaction_manager.transaction():
+            # Reject a repeated pending delivery before invoking domain code.
+            # The outbox intentionally retains the original mutation until the
+            # server acknowledges it, so this guard prevents duplicate local
+            # side effects while a request is awaiting synchronization.
+            for pending in self.offline_mutation_store.pending():
+                if (
+                    pending.tenant_id == mutation.tenant_id
+                    and pending.project_id == mutation.project_id
+                ):
+                    if pending.mutation_id == mutation.mutation_id:
+                        raise ValueError("DUPLICATE_MUTATION_ID")
+                    if pending.idempotency_key == mutation.idempotency_key:
+                        raise ValueError("DUPLICATE_IDEMPOTENCY_KEY")
             result = apply()
             self.offline_mutation_store.append(mutation)
         return result
