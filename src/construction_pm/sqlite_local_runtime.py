@@ -432,6 +432,9 @@ class SQLiteLocalApplicationRuntime:
                 calendar_api=self.calendar_api,
                 calendar_read_api=self.calendar_read_api,
                 schedule_snapshot_api=self.schedule_snapshot_api,
+                baseline_api=self.baseline_api,
+                cost_account_api=self.cost_account_api,
+                expense_api=self.expense_api,
             ),
         )
 
