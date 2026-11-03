@@ -1496,15 +1496,22 @@ if (toolbarMenu) {
 }
 
 function renderMenus(state: DemoState): string {
-  // Toolbar entries are checkable: the tick reflects which toolbars are shown.
+  // Menu inventory is part of the visual shell: commands that are not wired to
+  // live project services must remain visible and selectable for UI auditing.
+  // Their reason is explanatory preview metadata, never a reason to hide/disable
+  // the option. Context-sensitive disabled states are handled by their own UI.
   const isChecked = (action?: MenuAction): boolean =>
     Boolean(action?.command?.startsWith("toolbar:") && state.toolbars.includes(action.command.slice(8)));
   const mark = (action?: MenuAction): string => `<span class="cp-vd-menutick" aria-hidden="true">${isChecked(action) ? "✓" : ""}</span>`;
+  const actionMarkup = (action?: MenuAction): string => `data-vd-action='${JSON.stringify(action ?? {})}'`;
+  const previewNote = (action?: MenuAction): string => action?.reason
+    ? `<small class="cp-vd-preview-note" title="${esc(label(action.reason, state.locale))}">${esc(t(state.locale, "Preview only", "صرفاً پیش‌نمایش"))}</small>`
+    : "";
   return `<div class="cp-vd-menubar" role="menubar">${MENUS.map((menu) => `<div class="cp-vd-menu" data-vd-menu="${menu.id}">
     <button type="button" class="cp-vd-menu-trigger" aria-haspopup="true" aria-expanded="false">${esc(label(menu.label, state.locale))}</button>
     <div class="cp-vd-popup" hidden>${menu.items.map((item) => item.children
-      ? `<div class="cp-vd-submenu"><button type="button" class="cp-vd-menu-item" data-vd-submenu>${esc(label(item.label, state.locale))}<span>▸</span></button><div class="cp-vd-subpopup" hidden>${item.children.map((child) => `<button type="button" class="cp-vd-menu-item${isChecked(child.action) ? " is-checked" : ""}${child.action?.reason ? " is-disabled" : ""}" ${child.action?.reason ? "disabled" : `data-vd-action='${JSON.stringify(child.action ?? {})}'`}>${mark(child.action)}${esc(label(child.label, state.locale))}${child.action?.reason ? `<small>${esc(label(child.action.reason, state.locale))}</small>` : ""}</button>`).join("")}</div></div>`
-      : `<button type="button" class="cp-vd-menu-item${item.action?.reason ? " is-disabled" : ""}" ${item.action?.reason ? "disabled" : `data-vd-action='${JSON.stringify(item.action ?? {})}'`}>${mark(item.action)}${esc(label(item.label, state.locale))}${item.shortcut ? `<kbd>${esc(item.shortcut)}</kbd>` : ""}${item.action?.reason ? `<small>${esc(label(item.action.reason, state.locale))}</small>` : ""}</button>`).join("")}</div>
+      ? `<div class="cp-vd-submenu"><button type="button" class="cp-vd-menu-item" data-vd-submenu>${esc(label(item.label, state.locale))}<span>▸</span></button><div class="cp-vd-subpopup" hidden>${item.children.map((child) => `<button type="button" class="cp-vd-menu-item${isChecked(child.action) ? " is-checked" : ""}${child.action?.reason ? " is-preview-only" : ""}" ${actionMarkup(child.action)}>${mark(child.action)}${esc(label(child.label, state.locale))}${previewNote(child.action)}</button>`).join("")}</div></div>`
+      : `<button type="button" class="cp-vd-menu-item${item.action?.reason ? " is-preview-only" : ""}" ${actionMarkup(item.action)}>${mark(item.action)}${esc(label(item.label, state.locale))}${item.shortcut ? `<kbd>${esc(item.shortcut)}</kbd>` : ""}${previewNote(item.action)}</button>`).join("")}</div>
   </div>`).join("")}</div>`;
 }
 
