@@ -2125,7 +2125,7 @@ test("Calendar Register opens as a first-class window with documented editor con
   assert.match(html, /Workweek/);
   assert.match(html, /Exceptions and Holidays/);
   assert.match(html, /Assignments/);
-  for (const tab of ["general", "workweek", "exceptions", "time-periods", "assignments"]) {
+  for (const tab of ["general", "calendar", "workweek", "exceptions", "time-periods", "assignments"]) {
     assert.ok(html.includes(`id="cp-calendar-tab-${tab}" aria-controls="cp-calendar-panel-${tab}"`));
     assert.ok(html.includes(`role="tabpanel" id="cp-calendar-panel-${tab}" aria-labelledby="cp-calendar-tab-${tab}"`));
   }
@@ -2135,8 +2135,33 @@ test("Calendar Register opens as a first-class window with documented editor con
   assert.match(html, /Interval 1 Start/);
   assert.match(html, /Interval 2 Finish/);
   assert.match(html, /Time Period/);
+  assert.match(html, /data-calendar-month-action="previous"/);
+  assert.match(html, /data-calendar-month-action="today"/);
+  assert.match(html, /data-calendar-month-action="next"/);
+  assert.match(html, /role="grid"/);
+  assert.equal([...html.matchAll(/class="cp-calendar-day/g)].length, 42);
+  assert.match(html, /Legend only — no work\/nonwork classification is loaded/);
   assert.match(html, /split shifts, multiple work intervals, overnight shifts/);
   assert.match(html, /Editing remains disabled until the authoritative calendar service/i);
+});
+
+test("Calendar month navigation advances the visible month without inventing work status", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "calendars" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const before = container.innerHTML.match(/data-calendar-month-action="next"[^>]*><\/button><strong>([^<]+)<\/strong>/)?.[1];
+  const target = { dataset: { calendarMonthAction: "next" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.notEqual(container.innerHTML, "");
+  assert.match(container.innerHTML, /Working status not loaded/);
+  assert.match(container.innerHTML, /data-calendar-month-action="previous"/);
+  const after = container.innerHTML.match(/data-calendar-month-action="next"[^>]*><\/button><strong>([^<]+)<\/strong>/)?.[1];
+  assert.ok(after);
+  assert.ok(before === undefined || after !== before);
 });
 
 test("Calendar editor tab selection updates ARIA state and keeps the selected tab across renders", () => {
