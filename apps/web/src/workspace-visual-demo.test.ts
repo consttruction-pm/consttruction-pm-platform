@@ -711,3 +711,27 @@ test("Print preview and Page Setup localize orientation, margins and sheet contr
     assert.ok(html.includes(label), `missing Persian print label: ${label}`);
   }
 });
+
+
+test("Enterprise code dictionaries distinguish activity, project, resource and role scopes", () => {
+  const state = createVisualDemoState("en");
+  state.window = "administration";
+  state.adminSection = "codes";
+  const html = renderVisualDemo(state);
+  for (const label of ["Code dictionary", "All code types", "Activity", "Project", "Resource", "Role", "Global", "EPS", "PHASE", "DISC", "AREA", "CONTRACT", "TRADE", "DISC-ROLE", "Value colors", "Promote Scope…", "Assigned", "Activity codes can be global, EPS-level or project-level"]) {
+    assert.ok(html.includes(label), `missing code dictionary control: ${label}`);
+  }
+  assert.match(html, /cp-vd-code-dictionary/);
+  assert.match(html, /cp-vd-code-swatch/);
+});
+
+test("Enterprise code dictionary labels are localized in Persian RTL", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "administration";
+  state.adminSection = "codes";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["واژه‌نامه کد", "نوع کد", "دامنه", "مقادیر", "رنگ مقادیر", "تخصیص‌یافته", "ارتقای دامنه…", "کدهای پروژه، منبع و نقش واژه‌نامه مستقل دارند"]) {
+    assert.ok(html.includes(label), `missing Persian code dictionary label: ${label}`);
+  }
+});
