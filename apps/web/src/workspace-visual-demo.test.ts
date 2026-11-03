@@ -455,3 +455,23 @@ test("Filters dialog presents localized Persian controls and truthful preview-on
   }
   assert.match(html, /هیچ موردی اعمال یا ذخیره نمی‌شود/);
 });
+
+
+test("Group and Sort dialog supports hierarchical grouping, multiple sort levels and complete band formatting controls", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const label of ["Group By", "Up to 20 grouping levels", "WBS Path", "To level", "All levels", "Font & Color", "Show field title", "Show ID / Code", "Show Name / Description", "Show empty title bands", "Page break after group band", "Show group totals", "Show grand total", "Multiple sort criteria", "Hierarchical", "Grouping is applied before sorting"]) {
+    assert.ok(html.includes(label), `missing Group and Sort control: ${label}`);
+  }
+  assert.match(html, /cp-vd-group-sort/);
+  assert.match(html, /aria-label="Group field"/);
+  assert.match(html, /aria-label="Sort field"/);
+  assert.match(html, /Group levels, sort criteria, band formatting/);
+});
+
+test("Group and Sort dialog exposes Persian RTL labels and the WBS-first default", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["گروه‌بندی بر اساس", "تا ۲۰ سطح گروه‌بندی", "مرتب‌سازی", "تا سطح", "قلم و رنگ", "گروه‌بندی پیش از مرتب‌سازی اعمال می‌شود"]) {
+    assert.ok(html.includes(label), `missing Persian Group and Sort label: ${label}`);
+  }
+});
