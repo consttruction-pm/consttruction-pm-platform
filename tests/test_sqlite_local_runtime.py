@@ -985,6 +985,20 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
             auth_context=auth,
         )
 
+        activity = invoke(
+            "activity.create",
+            {
+                "activity": {
+                    "activity_id": "CAL-ACT-01",
+                    "name": "Calendar acceptance activity",
+                    "duration_value": "1",
+                    "duration_unit": DurationUnit.WORKING_DAY.value,
+                }
+            },
+            version="p6-activity-master-api.v1",
+        )
+        assert activity["result"]["item"]["activity"]["activity_id"] == "CAL-ACT-01"
+
         published = invoke(
             "schedule.publish",
             {"timezone_name": "UTC", "request_id": "runtime-abi-test"},
@@ -1026,8 +1040,8 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
         assert schedule_response["result"]["data"]["calculation_run_identity"]
 
         queued = runtime.offline_mutation_store.pending()
-        assert len(queued) == 2
-        assert {item.operation for item in queued} == {"calendar.create", "schedule.publish"}
+        assert len(queued) == 3
+        assert {item.operation for item in queued} == {"calendar.create", "activity.create", "schedule.publish"}
     finally:
         connection.close()
 
