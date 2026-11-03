@@ -651,9 +651,13 @@ test("module navigation submenus route to real registers, detail tabs and tracki
   assert.match(resources, /class="cp-register-window"/);
   assert.match(resources, /Resource ID/);
   assert.match(resources, /Max Units \/ Time/);
-  assert.match(resources, /data-navigation-action="register-tab:resources:assignments"/);
-  assert.match(resources, /data-navigation-action="register-tab:resources:codes"/);
-  assert.match(resources, /data-navigation-action="register-tab:resources:roles"/);
+  for (const tab of ["general", "codes", "details", "units-prices", "roles", "notes", "udfs"]) {
+    assert.match(resources, new RegExp(`data-navigation-action="register-tab:resources:${tab}"`));
+    assert.match(resources, new RegExp(`data-register-tab="resources:${tab}"`));
+  }
+  assert.doesNotMatch(resources, /data-register-tab="resources:assignments"/);
+  assert.match(resources, /Unit of Measure/);
+  assert.match(resources, /Progress Reporter tab is excluded because it is EPPM-only/);
   assert.match(resources, /Resource records are not yet returned by the project API/);
 
   const control = render("en", "control");
