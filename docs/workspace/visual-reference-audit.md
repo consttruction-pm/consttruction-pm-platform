@@ -393,3 +393,11 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - The visual toolbar now includes the documented Total work hours/day and Detailed work hours/day display modes, Work / Nonwork / Standard commands, and direct navigation to Workweek and Time Periods. Date classification and write actions remain disabled until calendar records and permissions are supplied. The General panel includes the global-calendar inheritance selector, also disabled until authoritative values are loaded.
 - Regression tests cover month navigation, both calendar display modes, the 42-day grid, explicit unknown work-status state, the documented work-hour controls and navigation.
 - Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/calendar_dialog_box.htm.
+
+## Resource Details and navigation inventory — 2026-11-03
+
+- The Professional desktop Resource Details inventory is General, Codes, Details, Units & Prices, Roles, Notes and UDFs. Progress Reporter is explicitly EPPM-only and is excluded from the desktop resource window.
+- CUBI correction: the Resource register now uses the desktop detail-tab inventory, removes duplicate Rates (covered by Units & Prices) and non-native Assignments / Calendars tabs from Resource Details, adds the missing Details and Unit of Measure fields, and aligns the resource submenu actions with the seven desktop tabs. Resource Assignments remains a separate window.
+- Resource records and hierarchy are not yet supplied by the resource service, so the register stays an honest empty state and all write/move operations remain unavailable. The visual shell does not invent resource IDs, rates, availability, or hierarchy nodes.
+- Remaining parity work: resource hierarchy/list switch, move toolbar, full Details and Units & Prices forms, rate history, resource shifts and resource calendar assignments after authoritative records are available.
+- Reference: https://docs.oracle.com/cd/F74771_01/client_help/en_US/resource_details.htm and Version 26 Professional User Guide, Resources chapter: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/resources.htm.
