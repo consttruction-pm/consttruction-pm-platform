@@ -114,6 +114,40 @@ test("Calendar Register displays only authenticated project calendar records", (
   assert.doesNotMatch(container.innerHTML, />0<\/span>/);
 });
 
+test("Calendar register selection drives the details header and read-only identity summary", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "calendars" as const,
+    calendarCatalog: {
+      status: "loaded" as const,
+      calendars: [{
+        calendarId: "CAL-01",
+        calendarVersion: "v2",
+        kind: "working-time",
+        calendarType: "project",
+        name: "Project Standard",
+        recordRevision: 5,
+      }],
+      errorCode: null,
+    },
+  };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-calendar-select="CAL-01"/);
+  assert.match(container.innerHTML, /Calendar Details<\/strong><span>No selection/);
+  const target = { dataset: { calendarSelect: "CAL-01" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.match(container.innerHTML, /Calendar Details<\/strong><span>Project Standard/);
+  assert.match(container.innerHTML, /Calendar Type<\/span><strong>project/);
+  assert.match(container.innerHTML, /Calendar Version<\/span><strong>v2/);
+  assert.match(container.innerHTML, /data-calendar-select="CAL-01" aria-pressed="true"/);
+});
+
 test("WBS register exposes the connected add workflow and working chart presentation", () => {
   const html = render("en", "wbs");
   assert.match(html, /data-rail-action="wbs"/);
