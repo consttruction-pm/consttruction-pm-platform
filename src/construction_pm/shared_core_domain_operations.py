@@ -829,9 +829,13 @@ def build_project_domain_operations(
                 if isinstance(exc, ValueError) and str(exc).isupper():
                     raise
                 raise ValueError("INVALID_PROJECT_SCHEDULE_SETTINGS_PAYLOAD") from exc
-            expected_revision = _record_revision(payload["expected_revision"]) if "expected_revision" in payload else None
-            if expected_revision is None:
-                raise ValueError("EXPECTED_REVISION_REQUIRED")
+            expected_revision = payload.get("expected_revision")
+            if (
+                isinstance(expected_revision, bool)
+                or not isinstance(expected_revision, int)
+                or expected_revision < 0
+            ):
+                raise ValueError("INVALID_EXPECTED_REVISION")
             return _record_result(
                 schedule_snapshot_api.save_settings(
                     _scope(actor, revision),
