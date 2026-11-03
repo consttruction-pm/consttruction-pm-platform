@@ -20,11 +20,15 @@ from construction_pm.p6_earned_value_read_model import (
 )
 from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
 from construction_pm.p6_expense_repository import P6Expense
+from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+)
 from construction_pm.scheduling.activity import ActivityStatus
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.evm_source import (
     EVM_PV_METHOD_RESOURCE_CURVE,
     EVM_TECHNIQUE_ACTIVITY_PERCENT_COMPLETE,
+    EVM_TECHNIQUE_RESOURCE_CURVE,
     EVM_TECHNIQUE_ZERO_HUNDRED,
     EarnedValuePVCurve,
     EarnedValuePVCurvePoint,
@@ -125,6 +129,7 @@ def service(
     activities,
     actuals=(),
     expenses=(),
+    assignments=None,
 ) -> P6EarnedValueReadModelService:
     sources = SimpleNamespace(
         list_baselines=lambda scope, baseline_id: tuple(baselines),
@@ -140,6 +145,13 @@ def service(
         actuals=SimpleNamespace(list=sources.list_actuals),
         expenses=SimpleNamespace(list=sources.list_expenses),
         resolver=resolver(),
+        resource_assignments=(
+            None
+            if assignments is None
+            else SimpleNamespace(
+                list=lambda scope, activity_id=None: tuple(assignments)
+            )
+        ),
     )
 
 
@@ -523,3 +535,134 @@ def test_read_model_applies_a_resource_curve_from_explicit_settings():
     assert activity.planned_value == Decimal("400.00")
     assert result.result.pv_method == EVM_PV_METHOD_RESOURCE_CURVE
     assert result.to_payload()["pv_method"] == EVM_PV_METHOD_RESOURCE_CURVE
+
+
+def assignment(
+    activity_id: str,
+    assignment_id: str,
+    planned_cost: str,
+    *,
+    units: str | None = None,
+    actual_units: str | None = None,
+    currency: str | None = "USD",
+) -> P6ResourceAssignment:
+    return P6ResourceAssignment(
+        scope=scope(),
+        assignment_id=assignment_id,
+        activity_id=activity_id,
+        resource_id=f"R-{assignment_id}",
+        units=None if units is None else Decimal(units),
+        actual_units=None if actual_units is None else Decimal(actual_units),
+        planned_cost=Decimal(planned_cost),
+        currency=currency,
+    )
+
+
+def test_read_model_decomposes_persisted_assignment_costs_and_units_percent():
+    svc = service(
+        (
+            baseline(
+                "A",
+                "W-1",
+                "1000",
+                technique=EVM_TECHNIQUE_RESOURCE_CURVE,
+            ),
+            baseline("B", "W-2", "500"),
+        ),
+        (
+            current(
+                "A", percent=0.0, status=ActivityStatus.IN_PROGRESS,
+                actual_start=date(2026, 11, 2),
+            ),
+            current("B", percent=0.0, status=ActivityStatus.NOT_STARTED),
+        ),
+        expenses=(expense("A", "600", actual="0"), expense("B", "500", actual="0")),
+        assignments=(
+            assignment("A", "AS-1", "600", units="10", actual_units="5"),
+            assignment("A", "AS-2", "400", units="8", actual_units="2"),
+            assignment("X", "AS-3", "100", units="1", actual_units="0"),
+        ),
+    )
+
+    result = svc.read(
+        scope(),
+        "B-1",
+        data_date=date(2026, 11, 4),
+        currency="USD",
+    )
+
+    activity = result.result.activities[0]
+    assert activity.activity_id == "A"
+    assert [item.assignment_id for item in activity.assignments] == ["AS-1", "AS-2"]
+    assert [item.units_percent_complete for item in activity.assignments] == [
+        Decimal("50.0"),
+        Decimal("25.00"),
+    ]
+    assert [item.earned_value for item in activity.assignments] == [
+        Decimal("300"),
+        Decimal("100"),
+    ]
+    assert activity.earned_value == Decimal("400")
+    assert activity.earned_percent == Decimal("40.0")
+    assert result.result.earned_value.earned_value == Decimal("400")
+    payload = result.to_payload()
+    assert payload["activities"][0]["assignments"][0]["assignment_id"] == "AS-1"
+    assert payload["activities"][0]["assignments"][0]["planned_cost"] == "600"
+
+
+def test_read_model_fails_closed_on_unprovable_assignment_costs():
+    rows = (
+        baseline("A", "W-1", "1000"),
+        baseline("B", "W-2", "500"),
+    )
+    activities = (
+        current("A", percent=0.0, status=ActivityStatus.IN_PROGRESS),
+        current("B", percent=0.0, status=ActivityStatus.NOT_STARTED),
+    )
+
+    with pytest.raises(
+        P6EarnedValueReadModelError,
+        match="EVM_ASSIGNMENT_PLANNED_COST_MISSING:AS-1",
+    ):
+        service(
+            rows, activities,
+            assignments=(
+                P6ResourceAssignment(
+                    scope=scope(), assignment_id="AS-1", activity_id="A",
+                    resource_id="R-1", currency="USD",
+                ),
+            ),
+        ).read(scope(), "B-1", data_date=date(2026, 11, 4), currency="USD")
+
+    with pytest.raises(
+        P6EarnedValueReadModelError,
+        match="EVM_ASSIGNMENT_CURRENCY_REQUIRED:AS-1",
+    ):
+        service(
+            rows, activities,
+            assignments=(
+                assignment("A", "AS-1", "1000", currency=None),
+            ),
+        ).read(scope(), "B-1", data_date=date(2026, 11, 4), currency="USD")
+
+    with pytest.raises(
+        P6EarnedValueReadModelError,
+        match="EVM_ASSIGNMENT_UNITS_PERCENT_INVALID:AS-1",
+    ):
+        service(
+            rows, activities,
+            assignments=(
+                assignment("A", "AS-1", "1000", units="10", actual_units="11"),
+            ),
+        ).read(scope(), "B-1", data_date=date(2026, 11, 4), currency="USD")
+
+    with pytest.raises(
+        P6EarnedValueReadModelError,
+        match="EVM_ASSIGNMENT_BUDGET_DOES_NOT_RECONCILE:A",
+    ):
+        service(
+            rows, activities,
+            assignments=(
+                assignment("A", "AS-1", "999"),
+            ),
+        ).read(scope(), "B-1", data_date=date(2026, 11, 4), currency="USD")

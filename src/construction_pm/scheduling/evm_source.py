@@ -356,6 +356,76 @@ class EarnedValueCostAdjustment:
 
 
 @dataclass(frozen=True)
+class EarnedValueAssignment:
+    """One planned-cost assignment that decomposes an activity budget.
+
+    Assignments are accepted only when their planned costs reconcile exactly to
+    the immutable activity budget. ``units_percent_complete`` is the
+    resource-curve earning input; it is optional so cost-only decompositions
+    remain possible, but a RESOURCE_CURVE activity must supply it for every
+    assignment or for none.
+    """
+
+    activity_id: str
+    assignment_id: str
+    planned_cost: Decimal
+    currency: str
+    units_percent_complete: Decimal | None = None
+
+    def __post_init__(self) -> None:
+        _identifier(self.activity_id, "EVM_ASSIGNMENT_ACTIVITY_ID_INVALID")
+        _identifier(self.assignment_id, "EVM_ASSIGNMENT_ID_INVALID")
+        object.__setattr__(
+            self,
+            "planned_cost",
+            _decimal(self.planned_cost, "EVM_ASSIGNMENT_PLANNED_COST_INVALID"),
+        )
+        _identifier(self.currency, "EVM_ASSIGNMENT_CURRENCY_REQUIRED")
+        if self.units_percent_complete is not None:
+            units_percent = _decimal(
+                self.units_percent_complete,
+                "EVM_ASSIGNMENT_UNITS_PERCENT_INVALID",
+            )
+            if units_percent > 100:
+                raise EarnedValueSourceError(
+                    "EVM_ASSIGNMENT_UNITS_PERCENT_INVALID"
+                )
+            object.__setattr__(
+                self, "units_percent_complete", units_percent
+            )
+
+
+@dataclass(frozen=True)
+class EarnedValueAssignmentSource:
+    """One assignment's decomposed planned value and earned value."""
+
+    activity_id: str
+    assignment_id: str
+    currency: str
+    planned_cost: Decimal
+    planned_value: Decimal
+    earned_value: Decimal
+    earned_percent: Decimal
+    units_percent_complete: Decimal | None = None
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "activity_id": self.activity_id,
+            "assignment_id": self.assignment_id,
+            "currency": self.currency,
+            "planned_cost": str(self.planned_cost),
+            "planned_value": str(self.planned_value),
+            "earned_value": str(self.earned_value),
+            "earned_percent": str(self.earned_percent),
+            "units_percent_complete": (
+                None
+                if self.units_percent_complete is None
+                else str(self.units_percent_complete)
+            ),
+        }
+
+
+@dataclass(frozen=True)
 class EarnedValueActivitySource:
     baseline_id: str
     activity_id: str
@@ -371,6 +441,7 @@ class EarnedValueActivitySource:
     currency: str
     earned_value_technique: str
     planned_value_method: str = EVM_PV_METHOD_LINEAR_WORKING_DAYS
+    assignments: tuple[EarnedValueAssignmentSource, ...] = ()
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -388,6 +459,7 @@ class EarnedValueActivitySource:
             "currency": self.currency,
             "earned_value_technique": self.earned_value_technique,
             "planned_value_method": self.planned_value_method,
+            "assignments": [item.to_payload() for item in self.assignments],
         }
 
 
@@ -762,6 +834,131 @@ def _validate_pv_curves(
     return result
 
 
+def _validate_assignments(
+    assignments: Iterable[EarnedValueAssignment],
+    activities: Mapping[str, BaselineValueActivity],
+    *,
+    currency: str,
+) -> dict[str, tuple[EarnedValueAssignment, ...]]:
+    """Validate per-activity cost decomposition and exact budget reconciliation."""
+    grouped: dict[str, list[EarnedValueAssignment]] = {}
+    seen: set[tuple[str, str]] = set()
+    for assignment in assignments:
+        if not isinstance(assignment, EarnedValueAssignment):
+            raise EarnedValueSourceError("EVM_ASSIGNMENT_REQUIRED")
+        activity = activities.get(assignment.activity_id)
+        if activity is None:
+            raise EarnedValueSourceError(
+                f"EVM_ASSIGNMENT_ACTIVITY_NOT_IN_BASELINE:{assignment.activity_id}"
+            )
+        if assignment.currency != currency or assignment.currency != activity.currency:
+            raise EarnedValueSourceError(
+                f"EVM_ASSIGNMENT_CURRENCY_MISMATCH:{assignment.assignment_id}"
+            )
+        key = (assignment.activity_id, assignment.assignment_id)
+        if key in seen:
+            raise EarnedValueSourceError(
+                f"EVM_DUPLICATE_ASSIGNMENT:{assignment.assignment_id}"
+            )
+        seen.add(key)
+        grouped.setdefault(assignment.activity_id, []).append(assignment)
+
+    result: dict[str, tuple[EarnedValueAssignment, ...]] = {}
+    for activity_id, items in grouped.items():
+        total = sum((item.planned_cost for item in items), Decimal("0"))
+        if total != activities[activity_id].budgeted_cost:
+            raise EarnedValueSourceError(
+                f"EVM_ASSIGNMENT_BUDGET_DOES_NOT_RECONCILE:{activity_id}"
+            )
+        result[activity_id] = tuple(
+            sorted(items, key=lambda item: item.assignment_id)
+        )
+    return result
+
+
+def _assignment_values(
+    activity: BaselineValueActivity,
+    assignments: tuple[EarnedValueAssignment, ...],
+    *,
+    technique: str,
+    planned_value: Decimal,
+    earned_percent: Decimal,
+) -> tuple[tuple[EarnedValueAssignmentSource, ...], Decimal, Decimal]:
+    """Decompose one activity's PV/EV across its reconciled assignments.
+
+    Cost-only decompositions split the activity ratio pro rata. For a
+    RESOURCE_CURVE activity whose assignments carry Units Percent Complete, each
+    assignment earns independently and the activity earned value is their sum;
+    that weighted result is what the activity row reports.
+    """
+    if not assignments:
+        earned_value = activity.budgeted_cost * earned_percent / Decimal("100")
+        return (), earned_value, earned_percent
+
+    with_units = tuple(
+        item for item in assignments if item.units_percent_complete is not None
+    )
+    if technique == EVM_TECHNIQUE_RESOURCE_CURVE and with_units:
+        if len(with_units) != len(assignments):
+            raise EarnedValueSourceError(
+                f"EVM_ASSIGNMENT_UNITS_PERCENT_INCOMPLETE:{activity.activity_id}"
+            )
+        planned_ratio = (
+            planned_value / activity.budgeted_cost
+            if activity.budgeted_cost > 0
+            else Decimal("0")
+        )
+        sources = tuple(
+            EarnedValueAssignmentSource(
+                activity_id=activity.activity_id,
+                assignment_id=item.assignment_id,
+                currency=item.currency,
+                planned_cost=item.planned_cost,
+                planned_value=item.planned_cost * planned_ratio,
+                earned_value=(
+                    item.planned_cost
+                    * item.units_percent_complete
+                    / Decimal("100")
+                ),
+                earned_percent=item.units_percent_complete,
+                units_percent_complete=item.units_percent_complete,
+            )
+            for item in assignments
+        )
+        earned_value = sum(
+            (item.earned_value for item in sources), Decimal("0")
+        )
+        activity_earned_percent = (
+            earned_value / activity.budgeted_cost * Decimal("100")
+            if activity.budgeted_cost > 0
+            else Decimal("0")
+        )
+        return sources, earned_value, activity_earned_percent
+
+    planned_ratio = (
+        planned_value / activity.budgeted_cost
+        if activity.budgeted_cost > 0
+        else Decimal("0")
+    )
+    sources = tuple(
+        EarnedValueAssignmentSource(
+            activity_id=activity.activity_id,
+            assignment_id=item.assignment_id,
+            currency=item.currency,
+            planned_cost=item.planned_cost,
+            planned_value=item.planned_cost * planned_ratio,
+            earned_value=(
+                item.planned_cost * earned_percent / Decimal("100")
+            ),
+            earned_percent=earned_percent,
+            units_percent_complete=item.units_percent_complete,
+        )
+        for item in assignments
+    )
+    earned_value = activity.budgeted_cost * earned_percent / Decimal("100")
+    return sources, earned_value, earned_percent
+
+
 def select_earned_value_sources(
     baseline_activities: Iterable[BaselineValueActivity],
     progress_rows: Iterable[EarnedValueProgress],
@@ -777,6 +974,7 @@ def select_earned_value_sources(
     wbs_milestones: Iterable[EarnedValueWBSMilestone] = (),
     pv_buckets: Iterable[EarnedValuePVBucket] = (),
     pv_curves: Iterable[EarnedValuePVCurve] = (),
+    assignments: Iterable[EarnedValueAssignment] = (),
 ) -> EarnedValueSourceResult:
     """Resolve one baseline/status-date measurement and run the EVM identities."""
 
@@ -807,6 +1005,9 @@ def select_earned_value_sources(
         pv_curves,
         activities_by_id,
         frozenset(buckets_by_activity),
+    )
+    assignments_by_activity = _validate_assignments(
+        assignments, activities_by_id, currency=currency
     )
 
     sources: list[EarnedValueActivitySource] = []
@@ -846,13 +1047,35 @@ def select_earned_value_sources(
             )
             planned_value_method = EVM_PV_METHOD_PERIOD_BUCKET
         planned_value_methods.add(planned_value_method)
-        earned_percent = _earned_percent(
-            activity,
-            progress,
-            technique=technique,
-            milestone_percent=milestone_percent,
+        assignment_rows = assignments_by_activity.get(activity.activity_id, ())
+        # When every assignment of a RESOURCE_CURVE activity carries Units
+        # Percent Complete, the weighted assignment result defines the activity
+        # earned percent; an activity-level input is not required.
+        assignment_units_available = (
+            technique == EVM_TECHNIQUE_RESOURCE_CURVE
+            and bool(assignment_rows)
+            and all(
+                item.units_percent_complete is not None
+                for item in assignment_rows
+            )
         )
-        earned_value = activity.budgeted_cost * earned_percent / Decimal("100")
+        earned_percent = (
+            Decimal("0")
+            if assignment_units_available
+            else _earned_percent(
+                activity,
+                progress,
+                technique=technique,
+                milestone_percent=milestone_percent,
+            )
+        )
+        assignment_sources, earned_value, earned_percent = _assignment_values(
+            activity,
+            assignment_rows,
+            technique=technique,
+            planned_value=planned_value,
+            earned_percent=earned_percent,
+        )
         source = EarnedValueActivitySource(
             baseline_id=baseline_id,
             activity_id=activity.activity_id,
@@ -868,6 +1091,7 @@ def select_earned_value_sources(
             currency=currency,
             earned_value_technique=technique,
             planned_value_method=planned_value_method,
+            assignments=assignment_sources,
         )
         sources.append(source)
         rollups.setdefault(activity.wbs_id, []).append(source)
@@ -966,6 +1190,8 @@ def select_earned_value_sources(
 __all__ = [
     "BaselineValueActivity",
     "EarnedValueActivitySource",
+    "EarnedValueAssignment",
+    "EarnedValueAssignmentSource",
     "EarnedValueCostAdjustment",
     "EarnedValuePVBucket",
     "EarnedValuePVCurve",

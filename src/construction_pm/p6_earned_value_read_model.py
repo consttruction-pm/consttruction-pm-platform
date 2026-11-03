@@ -21,6 +21,7 @@ from .p6_expense_repository import P6Expense
 from .scheduling.calendar import WorkingTimeResolver
 from .scheduling.earned_value import ETC_REMAINING_COST
 from .scheduling.evm_source import (
+    EarnedValueAssignment,
     EarnedValueCostAdjustment,
     EarnedValuePVBucket,
     EarnedValuePVCurve,
@@ -70,6 +71,12 @@ class ExpenseSource(Protocol):
 
 class WBSHierarchySource(Protocol):
     def list(self, scope: BackendScope) -> tuple[object, ...]: ...
+
+
+class AssignmentCostSource(Protocol):
+    def list(
+        self, scope: BackendScope, activity_id: str | None = None
+    ) -> tuple[object, ...]: ...
 
 
 @dataclass(frozen=True)
@@ -313,6 +320,69 @@ def _progress_rows(
     return tuple(result), tuple(cost_adjustments)
 
 
+def _assignment_rows(
+    assignments: Iterable[object],
+    baseline_ids: frozenset[str],
+    *,
+    currency: str,
+) -> tuple[EarnedValueAssignment, ...]:
+    """Convert persisted assignment costs into explicit EVM decompositions.
+
+    Assignments for activities outside the selected baseline are ignored, just
+    as current activities outside the baseline are ignored by progress. Inside
+    the baseline, a missing planned cost or currency is a traceability failure,
+    never an implicit zero or project-currency assumption. Units Percent
+    Complete is derived only when both budgeted and actual units exist.
+    """
+    rows: list[EarnedValueAssignment] = []
+    for item in assignments:
+        activity_id = str(getattr(item, "activity_id", ""))
+        if activity_id not in baseline_ids:
+            continue
+        assignment_id = str(getattr(item, "assignment_id", ""))
+        planned_cost = getattr(item, "planned_cost", None)
+        if planned_cost is None:
+            raise P6EarnedValueReadModelError(
+                f"EVM_ASSIGNMENT_PLANNED_COST_MISSING:{assignment_id}"
+            )
+        assignment_currency = getattr(item, "currency", None)
+        if assignment_currency is None:
+            raise P6EarnedValueReadModelError(
+                f"EVM_ASSIGNMENT_CURRENCY_REQUIRED:{assignment_id}"
+            )
+        if assignment_currency != currency:
+            raise P6EarnedValueReadModelError(
+                f"EVM_ASSIGNMENT_CURRENCY_MISMATCH:{assignment_id}"
+            )
+        units = getattr(item, "units", None)
+        actual_units = getattr(item, "actual_units", None)
+        units_percent: Decimal | None = None
+        if units is not None and actual_units is not None:
+            if (
+                not isinstance(units, Decimal)
+                or not units.is_finite()
+                or units <= 0
+                or not isinstance(actual_units, Decimal)
+                or not actual_units.is_finite()
+                or actual_units < 0
+                or actual_units > units
+            ):
+                raise P6EarnedValueReadModelError(
+                    f"EVM_ASSIGNMENT_UNITS_PERCENT_INVALID:{assignment_id}"
+                )
+            units_percent = actual_units / units * Decimal("100")
+        rows.append(
+            EarnedValueAssignment(
+                activity_id=activity_id,
+                assignment_id=assignment_id,
+                planned_cost=planned_cost,
+                currency=assignment_currency,
+                units_percent_complete=units_percent,
+            )
+        )
+    return tuple(rows)
+
+
 @dataclass(frozen=True)
 class P6EarnedValueReadModelService:
     baseline_activities: BaselineActivitySource
@@ -321,6 +391,7 @@ class P6EarnedValueReadModelService:
     expenses: ExpenseSource
     resolver: WorkingTimeResolver
     wbs_repository: WBSHierarchySource | None = None
+    resource_assignments: AssignmentCostSource | None = None
 
     def _ancestry_map(
         self,
@@ -365,6 +436,13 @@ class P6EarnedValueReadModelService:
                 f"EVM_BASELINE_ACTIVITIES_EMPTY:{baseline_id}"
             )
         ancestry_by_wbs = self._ancestry_map(scope, settings)
+        assignment_rows: tuple[EarnedValueAssignment, ...] = ()
+        if self.resource_assignments is not None:
+            assignment_rows = _assignment_rows(
+                self.resource_assignments.list(scope),
+                frozenset(item.activity_id for item in baseline),
+                currency=currency,
+            )
         try:
             progress, cost_adjustments = _progress_rows(
                 baseline,
@@ -396,6 +474,7 @@ class P6EarnedValueReadModelService:
                 wbs_milestones=settings.wbs_milestones,
                 pv_buckets=settings.pv_buckets,
                 pv_curves=settings.pv_curves,
+                assignments=assignment_rows,
             )
         except EarnedValueSourceError as exc:
             raise P6EarnedValueReadModelError(str(exc)) from exc

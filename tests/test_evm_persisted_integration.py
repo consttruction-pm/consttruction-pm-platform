@@ -309,3 +309,113 @@ def test_wbs_settings_require_the_persisted_hierarchy():
                 ),
             ),
         )
+
+
+def test_persisted_assignment_costs_decompose_evm_and_derive_units_percent():
+    from construction_pm.p6_resource_assignment_repository import (
+        P6ResourceAssignment,
+        SQLiteP6ResourceAssignmentRepository,
+    )
+    from construction_pm.scheduling.evm_source import (
+        EVM_TECHNIQUE_RESOURCE_CURVE,
+    )
+
+    scope = BackendScope("tenant-a", "project-a", 7)
+    connection = sqlite3.connect(":memory:")
+
+    baselines = SQLiteP6BaselineRepository(connection)
+    baselines.upsert(
+        P6Baseline(
+            scope, "B-1", "Approved Baseline", "PRIMARY", 3,
+            "2026-11-01T10:00:00Z", None,
+        )
+    )
+    baseline_activities = SQLiteP6BaselineActivityRepository(connection)
+    baseline_activities.save_many(
+        (
+            P6BaselineActivity(
+                scope, "B-1", "A", date(2026, 11, 2), date(2026, 11, 6),
+                Decimal("1000"), "USD", "W-1", EVM_TECHNIQUE_RESOURCE_CURVE,
+            ),
+        )
+    )
+    activities = SQLiteActivityMasterRepository(connection)
+    activities.save(
+        ActivityMaster(
+            scope=scope,
+            activity_id="A",
+            duration_value=Decimal("5"),
+            duration_unit=DurationUnit.WORKING_DAY,
+            actual_start=date(2026, 11, 2),
+            percent_complete=0.0,
+            status=ActivityStatus.IN_PROGRESS,
+        )
+    )
+    expenses = SQLiteP6ExpenseRepository(connection)
+    expenses.upsert(
+        P6Expense(
+            scope, "E-A", "Activity expense", "cost", activity_id="A",
+            actual_cost=Decimal("0"), remaining_cost=Decimal("600"),
+            currency="USD",
+        )
+    )
+
+    assignments = SQLiteP6ResourceAssignmentRepository(connection)
+    assignments.upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="AS-1",
+            activity_id="A",
+            resource_id="R-1",
+            units=Decimal("10"),
+            actual_units=Decimal("5"),
+            planned_cost=Decimal("600"),
+            unit="crew-day",
+            currency="USD",
+        )
+    )
+    assignments.upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="AS-2",
+            activity_id="A",
+            resource_id="R-2",
+            units=Decimal("8"),
+            actual_units=Decimal("2"),
+            planned_cost=Decimal("400"),
+            unit="crew-day",
+            currency="USD",
+        )
+    )
+
+    service = P6EarnedValueReadModelService(
+        baseline_activities=baseline_activities,
+        activities=activities,
+        actuals=SQLiteP6ActivityPeriodActualRepository(connection),
+        expenses=expenses,
+        resolver=WorkingTimeResolver(
+            WorkingCalendar(
+                working_weekdays=frozenset({0, 1, 2, 3, 4}),
+                holidays=frozenset(),
+            )
+        ),
+        resource_assignments=assignments,
+    )
+
+    result = service.read(
+        scope, "B-1", data_date=date(2026, 11, 4), currency="USD"
+    ).result
+
+    activity = result.activities[0]
+    assert [item.assignment_id for item in activity.assignments] == ["AS-1", "AS-2"]
+    assert [item.units_percent_complete for item in activity.assignments] == [
+        Decimal("50.0"),
+        Decimal("25.00"),
+    ]
+    assert [item.earned_value for item in activity.assignments] == [
+        Decimal("300"),
+        Decimal("100"),
+    ]
+    assert activity.earned_value == Decimal("400")
+    assert activity.earned_percent == Decimal("40.0")
+    assert result.earned_value.earned_value == Decimal("400")

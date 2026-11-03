@@ -13,9 +13,11 @@ from construction_pm.scheduling.evm_source import (
     EVM_PV_METHOD_RESOURCE_CURVE,
     EVM_TECHNIQUE_ACTIVITY_PERCENT_COMPLETE,
     EVM_TECHNIQUE_FIFTY_FIFTY,
+    EVM_TECHNIQUE_RESOURCE_CURVE,
     EVM_TECHNIQUE_WBS_MILESTONE,
     EVM_TECHNIQUE_ZERO_HUNDRED,
     BaselineValueActivity,
+    EarnedValueAssignment,
     EarnedValueCostAdjustment,
     EarnedValuePVBucket,
     EarnedValuePVCurve,
@@ -599,4 +601,205 @@ def test_orphan_and_duplicate_resource_curves_fail_closed():
             (progress("A"),),
             baseline_id="B-1", data_date=date(2026, 11, 6), currency="USD",
             resolver=resolver(), pv_curves=(_curve(), _curve(curve_id="CURVE-2")),
+        )
+
+
+def test_assignment_cost_decomposition_reconciles_and_splits_pv_ev_pro_rata():
+    result = select_earned_value_sources(
+        (
+            baseline(
+                "A",
+                start=date(2026, 11, 2),
+                finish=date(2026, 11, 6),
+                budget="1000",
+            ),
+        ),
+        (
+            progress(
+                "A", percent="50", started=True, actual_cost="300",
+                remaining_cost="400",
+            ),
+        ),
+        baseline_id="B-1",
+        data_date=date(2026, 11, 4),
+        currency="USD",
+        resolver=resolver(),
+        assignments=(
+            EarnedValueAssignment("A", "AS-2", Decimal("250"), "USD"),
+            EarnedValueAssignment("A", "AS-1", Decimal("750"), "USD"),
+        ),
+    )
+
+    activity = result.activities[0]
+    assert [item.assignment_id for item in activity.assignments] == ["AS-1", "AS-2"]
+    assert [item.planned_cost for item in activity.assignments] == [
+        Decimal("750"),
+        Decimal("250"),
+    ]
+    assert [item.planned_value for item in activity.assignments] == [
+        Decimal("450.0"),
+        Decimal("150.0"),
+    ]
+    assert [item.earned_value for item in activity.assignments] == [
+        Decimal("375"),
+        Decimal("125"),
+    ]
+    assert sum(
+        (item.earned_value for item in activity.assignments), Decimal("0")
+    ) == activity.earned_value
+    payload = activity.to_payload()
+    assert payload["assignments"][0]["assignment_id"] == "AS-1"
+    assert payload["assignments"][0]["currency"] == "USD"
+    assert payload["assignments"][0]["planned_value"] == "450.0"
+    assert payload["assignments"][0]["units_percent_complete"] is None
+
+
+def test_assignment_cost_decomposition_must_reconcile_to_the_activity_budget():
+    with pytest.raises(
+        EarnedValueSourceError,
+        match="EVM_ASSIGNMENT_BUDGET_DOES_NOT_RECONCILE:A",
+    ):
+        select_earned_value_sources(
+            (
+                baseline(
+                    "A",
+                    start=date(2026, 11, 2),
+                    finish=date(2026, 11, 6),
+                    budget="1000",
+                ),
+            ),
+            (progress("A"),),
+            baseline_id="B-1",
+            data_date=date(2026, 11, 4),
+            currency="USD",
+            resolver=resolver(),
+            assignments=(
+                EarnedValueAssignment("A", "AS-1", Decimal("999"), "USD"),
+            ),
+        )
+
+
+def test_assignment_cost_decomposition_rejects_duplicate_and_foreign_rows():
+    rows = (
+        baseline(
+            "A", start=date(2026, 11, 2), finish=date(2026, 11, 6), budget="1000"
+        ),
+    )
+    with pytest.raises(EarnedValueSourceError, match="EVM_DUPLICATE_ASSIGNMENT:AS-1"):
+        select_earned_value_sources(
+            rows,
+            (progress("A"),),
+            baseline_id="B-1", data_date=date(2026, 11, 4), currency="USD",
+            resolver=resolver(),
+            assignments=(
+                EarnedValueAssignment("A", "AS-1", Decimal("400"), "USD"),
+                EarnedValueAssignment("A", "AS-1", Decimal("600"), "USD"),
+            ),
+        )
+    with pytest.raises(
+        EarnedValueSourceError,
+        match="EVM_ASSIGNMENT_ACTIVITY_NOT_IN_BASELINE:B",
+    ):
+        select_earned_value_sources(
+            rows,
+            (progress("A"),),
+            baseline_id="B-1", data_date=date(2026, 11, 4), currency="USD",
+            resolver=resolver(),
+            assignments=(
+                EarnedValueAssignment("B", "AS-9", Decimal("1000"), "USD"),
+            ),
+        )
+    with pytest.raises(
+        EarnedValueSourceError, match="EVM_ASSIGNMENT_CURRENCY_MISMATCH:AS-1"
+    ):
+        select_earned_value_sources(
+            rows,
+            (progress("A"),),
+            baseline_id="B-1", data_date=date(2026, 11, 4), currency="USD",
+            resolver=resolver(),
+            assignments=(
+                EarnedValueAssignment("A", "AS-1", Decimal("1000"), "EUR"),
+            ),
+        )
+
+
+def test_resource_curve_earns_each_assignment_from_its_units_percent_complete():
+    result = select_earned_value_sources(
+        (
+            baseline(
+                "A",
+                start=date(2026, 11, 2),
+                finish=date(2026, 11, 6),
+                budget="1000",
+                technique=EVM_TECHNIQUE_RESOURCE_CURVE,
+            ),
+        ),
+        (
+            EarnedValueProgress(
+                activity_id="A",
+                percent_complete=Decimal("0"),
+                started=True,
+                completed=False,
+                actual_cost=Decimal("0"),
+                currency="USD",
+                remaining_cost=Decimal("600"),
+                units_percent_complete=Decimal("10"),
+            ),
+        ),
+        baseline_id="B-1",
+        data_date=date(2026, 11, 4),
+        currency="USD",
+        resolver=resolver(),
+        assignments=(
+            EarnedValueAssignment(
+                "A", "AS-1", Decimal("600"), "USD", Decimal("50")
+            ),
+            EarnedValueAssignment(
+                "A", "AS-2", Decimal("400"), "USD", Decimal("25")
+            ),
+        ),
+    )
+
+    activity = result.activities[0]
+    assert [item.earned_value for item in activity.assignments] == [
+        Decimal("300"),
+        Decimal("100"),
+    ]
+    assert activity.earned_value == Decimal("400")
+    assert activity.earned_percent == Decimal("40.0")
+    assert result.earned_value.earned_value == Decimal("400")
+
+
+def test_resource_curve_assignment_units_must_be_complete():
+    with pytest.raises(
+        EarnedValueSourceError,
+        match="EVM_ASSIGNMENT_UNITS_PERCENT_INCOMPLETE:A",
+    ):
+        select_earned_value_sources(
+            (
+                baseline(
+                    "A",
+                    start=date(2026, 11, 2),
+                    finish=date(2026, 11, 6),
+                    budget="1000",
+                    technique=EVM_TECHNIQUE_RESOURCE_CURVE,
+                ),
+            ),
+            (
+                EarnedValueProgress(
+                    activity_id="A",
+                    percent_complete=Decimal("0"),
+                    started=True,
+                    completed=False,
+                    actual_cost=Decimal("0"),
+                    currency="USD",
+                    units_percent_complete=Decimal("10"),
+                ),
+            ),
+            baseline_id="B-1", data_date=date(2026, 11, 4), currency="USD",
+            resolver=resolver(),
+            assignments=(
+                EarnedValueAssignment("A", "AS-1", Decimal("600"), "USD", Decimal("50")),
+                EarnedValueAssignment("A", "AS-2", Decimal("400"), "USD"),
+            ),
         )
