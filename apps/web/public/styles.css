@@ -6987,3 +6987,14 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-vd-page-setup-section input:not([type=radio]):not([type=checkbox]),.cp-p6 .cp-vd-page-setup-section select{max-width:120px;min-height:24px;padding:3px 5px;border:1px solid #c5cfdb;background:#f8fafc;color:#52657a;font:inherit}
 .cp-p6 .cp-vd-page-setup-section .cp-vd-form{flex:1 1 100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
 @media(max-width:760px){.cp-p6 .cp-vd-print-page{min-width:500px;padding:22px}.cp-p6 .cp-vd-page-setup-section .cp-vd-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Enterprise code dictionaries: type/scope/value register and value-color swatches. */
+.cp-p6 .cp-vd-code-dictionary{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cp-p6 .cp-vd-code-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:6px;border:1px solid #cbd5e1;background:#f2f5f9}
+.cp-p6 .cp-vd-code-toolbar>div{display:flex;gap:4px;flex-wrap:wrap}
+.cp-p6 .cp-vd-code-toolbar button{padding:5px 8px;border:1px solid #c5cfdb;background:#fff;color:#40566e;font-size:9px}
+.cp-p6 .cp-vd-code-toolbar button:disabled{opacity:.48}
+.cp-p6 .cp-vd-code-toolbar label{display:flex;align-items:center;gap:6px;color:#52657a;font-size:9px}
+.cp-p6 .cp-vd-code-toolbar select{min-height:25px;padding:3px 6px;border:1px solid #b9c6d5;background:#fff;color:#31465e;font:inherit;font-size:9px}
+.cp-p6 .cp-vd-code-dictionary .cp-vd-table{min-width:800px}
+.cp-p6 .cp-vd-code-swatch{display:inline-block;width:13px;height:13px;border:1px solid #64748b;border-radius:2px;vertical-align:middle}
