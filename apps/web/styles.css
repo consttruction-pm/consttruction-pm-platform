@@ -7124,3 +7124,155 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-vd-admin-security-grid .cp-vd-table{min-width:460px}
 .cp-vd-admin-security-grid .cp-vd-table td,.cp-vd-admin-security-grid .cp-vd-table th{white-space:normal;vertical-align:top}
 @media(max-width:760px){.cp-vd-admin-security-grid{grid-template-columns:1fr}}
+
+/* CUBI professional workspace theme reconciliation — Version 26 visual audit.
+   Brand colors are defaults; semantic status colors and user-defined chart styles remain distinct. */
+:root {
+  --cp-ui-window: var(--cp-bg);
+  --cp-ui-surface: var(--cp-surface);
+  --cp-ui-chrome: var(--cubi-titanium-light);
+  --cp-ui-border: var(--cp-border);
+  --cp-ui-grid: var(--cubi-neutral-divider);
+  --cp-ui-primary: var(--cp-navy);
+  --cp-ui-primary-strong: var(--cp-navy-dark);
+  --cp-ui-selected: color-mix(in srgb, var(--cp-blue) 14%, var(--cp-surface));
+  --cp-ui-bar: var(--cp-blue);
+  --cp-ui-summary: var(--cp-success);
+  --cp-ui-milestone: var(--cp-copper);
+  --cp-ui-node: color-mix(in srgb, var(--cp-copper) 22%, var(--cp-surface));
+  --cp-ui-status: var(--cp-navy-dark);
+}
+.cp-p6 .cp-titlebar {
+  border-bottom: 2px solid var(--cp-copper);
+  background: linear-gradient(180deg, var(--cp-navy), var(--cp-navy-dark));
+}
+.cp-p6 .cp-menubar {
+  border-bottom-color: var(--cp-border);
+  background: var(--cubi-titanium-light);
+}
+.cp-p6 .cp-menubar-trigger { color: var(--cp-navy); }
+.cp-p6 .cp-menubar-trigger:hover,
+.cp-p6 .cp-menubar-trigger[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--cp-blue) 35%, var(--cp-border));
+  background: var(--cp-surface);
+  box-shadow: inset 0 -2px 0 var(--cp-copper);
+}
+.cp-p6 .cp-menubar-popup {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+}
+.cp-p6 .cp-menubar-item { color: var(--cp-text); }
+.cp-p6 .cp-menubar-item:hover,
+.cp-p6 .cp-menubar-item:focus-visible {
+  background: color-mix(in srgb, var(--cp-blue) 10%, var(--cp-surface));
+  color: var(--cp-navy);
+}
+.cp-p6 .cp-toolbar {
+  border-bottom-color: var(--cp-border);
+  background: var(--cp-surface);
+}
+.cp-p6 .cp-toolbar-button {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-navy);
+}
+.cp-p6 .cp-toolbar-button:hover:not(:disabled) {
+  border-color: var(--cp-blue);
+  background: color-mix(in srgb, var(--cp-blue) 7%, var(--cp-surface));
+}
+.cp-p6 .cp-toolbar-button[aria-pressed="true"] {
+  border-color: var(--cp-blue);
+  background: color-mix(in srgb, var(--cp-blue) 12%, var(--cp-surface));
+  color: var(--cp-navy);
+  box-shadow: inset 0 -2px 0 var(--cp-copper);
+}
+.cp-p6 .cp-window-tabs { background: var(--cubi-titanium-light); }
+.cp-p6 .cp-window-tab.is-active {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+  box-shadow: inset 0 -2px 0 var(--cp-copper);
+}
+.cp-p6 .cp-window-tab-label,
+.cp-p6 .cp-window-tab-close { color: var(--cp-navy); }
+.cp-p6 .cp-detail-tabs {
+  border-bottom-color: var(--cp-border);
+  background: var(--cp-bg);
+}
+.cp-p6 .cp-detail-tab { color: var(--cp-text); }
+.cp-p6 .cp-detail-tab.is-active {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-navy);
+  box-shadow: inset 0 -2px 0 var(--cp-copper);
+}
+.cp-p6 #cp-activity-grid thead th {
+  background: var(--cubi-titanium-light);
+  color: var(--cp-navy);
+  border-bottom-color: var(--cp-border);
+}
+.cp-p6 #cp-activity-grid tbody tr:hover td {
+  background: color-mix(in srgb, var(--cp-blue) 6%, var(--cp-surface));
+}
+.cp-p6 #cp-activity-grid tbody tr.is-selected td {
+  background: var(--cp-ui-selected);
+}
+.cp-p6 .cp-vd-dialog {
+  border-color: var(--cp-border);
+  background: var(--cp-bg);
+  color: var(--cp-text);
+}
+.cp-p6 .cp-vd-dialog-title {
+  border-bottom: 2px solid var(--cp-copper);
+  background: linear-gradient(180deg, var(--cp-navy), var(--cp-navy-dark));
+}
+.cp-p6 .cp-vd-dialog fieldset,
+.cp-p6 .cp-vd-dialog section {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+}
+.cp-p6 .cp-vd-dialog legend,
+.cp-p6 .cp-vd-dialog h3 { color: var(--cp-navy); }
+.cp-p6 .cp-vd-dialog input,
+.cp-p6 .cp-vd-dialog select,
+.cp-p6 .cp-vd-dialog textarea {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+}
+.cp-p6 .cp-vd-dialog button:not(:disabled) {
+  accent-color: var(--cp-blue);
+}
+.cp-p6 .cp-vd-dialog button:focus-visible,
+.cp-p6 .cp-toolbar-button:focus-visible,
+.cp-p6 .cp-menubar-trigger:focus-visible {
+  outline: 2px solid var(--cp-blue);
+  outline-offset: 2px;
+}
+.cp-p6 .cp-vd-gantt-command-group button,
+.cp-p6 .cp-vd-layout-toolbar button,
+.cp-p6 .cp-vd-inline-actions button {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-navy);
+}
+.cp-p6 .cp-vd-gantt-command-group button:hover,
+.cp-p6 .cp-vd-layout-toolbar button:hover,
+.cp-p6 .cp-vd-inline-actions button:hover {
+  border-color: var(--cp-blue);
+  background: color-mix(in srgb, var(--cp-blue) 8%, var(--cp-surface));
+}
+.cp-p6 .cp-gantt-bar { background: var(--cp-ui-bar); }
+.cp-p6 .cp-gantt-bar.is-critical { outline-color: var(--cp-error); }
+.cp-p6 .cp-gantt-bar.is-milestone { background: var(--cp-copper); }
+.cp-p6 .cp-gantt-row.is-selected { background: var(--cp-ui-selected); }
+.cp-p6 .cp-app-status {
+  border-top-color: var(--cp-border);
+  background: var(--cubi-titanium-light);
+  color: var(--cp-navy);
+}
+.cp-p6 .cp-app-status button {
+  border-color: var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-navy);
+}
+.cp-p6 .cp-app-status button:hover { border-color: var(--cp-copper); }
