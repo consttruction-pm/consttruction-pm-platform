@@ -6,8 +6,30 @@ import { createVisualDemoState, renderVisualDemo } from "./workspace-visual-demo
 import {
   liveWorkspaceProjectHref,
   shouldRenderVisualWorkspaceDemo,
+  workspaceLoginNextPath,
   VISUAL_WORKSPACE_PREVIEW_PROJECT_ID,
 } from "./workspace-visual-demo-route.js";
+
+
+test("a direct post-login app entry defaults to the visual workspace", () => {
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", ""), true);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?locale=fa"), true);
+});
+
+test("session recovery returns to the visual workspace unless another project was explicitly selected", () => {
+  assert.equal(
+    workspaceLoginNextPath(null),
+    `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`,
+  );
+  assert.equal(
+    workspaceLoginNextPath(VISUAL_WORKSPACE_PREVIEW_PROJECT_ID),
+    `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`,
+  );
+  assert.equal(
+    workspaceLoginNextPath("project-123"),
+    "/app?project=project-123&view=live",
+  );
+});
 
 test("the shared preview project opens the visual workspace at its canonical URL", () => {
   assert.equal(
