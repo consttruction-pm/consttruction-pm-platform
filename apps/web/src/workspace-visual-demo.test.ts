@@ -493,3 +493,22 @@ test("Timescale dialog localizes Persian headings and preserves the visual RTL s
     assert.ok(html.includes(label), `missing Persian Timescale label: ${label}`);
   }
 });
+
+
+test("Columns dialog exposes available/selected lists, transfer, ordering, title, width, alignment and copy-from controls", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const label of ["Available Columns Options", "Find a column", "Group available columns", "Expand All", "Collapse All", "Available Columns", "Selected Options", "Edit Column", "Column title", "Width", "Alignment", "Visible", "Copy From", "Default", "at least one visible column"]) {
+    assert.ok(html.includes(label), `missing Columns control: ${label}`);
+  }
+  assert.match(html, /cp-vd-columns-transfer/);
+  assert.match(html, /data-vd-selected-column=/);
+  assert.match(html, /title="Preview only"/);
+});
+
+test("Columns dialog localizes Persian labels and shows the one-column minimum", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["ستون‌های موجود", "گزینه‌های انتخاب‌شده", "ویرایش ستون", "عنوان ستون", "عرض", "تراز", "کپی از", "هر چیدمان باید دست‌کم یک ستون نمایان داشته باشد"]) {
+    assert.ok(html.includes(label), `missing Persian Columns label: ${label}`);
+  }
+});
