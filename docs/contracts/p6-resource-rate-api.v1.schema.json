@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://construction-pm.local/contracts/v1/p6-resource-rate-api.schema.json",
+  "title": "P6 Resource Rate API Contract v1",
+  "description": "Typed read/write contract for effective-dated resource price facts. Clients never send an identity or provenance: the server derives the content-addressed identity and the authenticated source. Numeric values are serialized as exact decimal strings.",
+  "oneOf": [
+    { "$ref": "#/$defs/list_envelope" },
+    { "$ref": "#/$defs/profile" },
+    { "$ref": "#/$defs/value" },
+    { "$ref": "#/$defs/write_result" }
+  ],
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "required": ["tenant_id", "project_id", "project_revision"],
+      "properties": {
+        "tenant_id": { "type": "string", "minLength": 1 },
+        "project_id": { "type": "string", "minLength": 1 },
+        "project_revision": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "fact": {
+      "type": "object",
+      "required": [
+        "resource_id",
+        "identity",
+        "rate",
+        "basis",
+        "currency",
+        "unit",
+        "effective_from",
+        "effective_to",
+        "source"
+      ],
+      "properties": {
+        "resource_id": { "type": "string", "minLength": 1 },
+        "identity": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "rate": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$" },
+        "basis": { "enum": ["per_unit", "per_hour", "per_day", "lump_sum"] },
+        "currency": { "type": "string", "minLength": 1 },
+        "unit": { "type": "string", "minLength": 1 },
+        "effective_from": { "type": "string", "format": "date" },
+        "effective_to": { "type": ["string", "null"], "format": "date" },
+        "source": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "list_envelope": {
+      "type": "object",
+      "required": ["contract_version", "rates"],
+      "properties": {
+        "contract_version": { "const": "p6-resource-rate-read-api.v1" },
+        "rates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fact" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "required": [
+        "contract_version",
+        "kind",
+        "scope",
+        "resource_id",
+        "rates",
+        "status"
+      ],
+      "properties": {
+        "contract_version": { "const": "p6-resource-rate-read-api.v1" },
+        "kind": { "const": "resource_rate_profile" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "resource_id": { "type": "string", "minLength": 1 },
+        "rates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fact" }
+        },
+        "status": { "const": "REGISTERED" }
+      },
+      "additionalProperties": false
+    },
+    "value": {
+      "type": "object",
+      "required": [
+        "contract_version",
+        "kind",
+        "scope",
+        "resource_id",
+        "period",
+        "rate",
+        "basis",
+        "currency",
+        "unit",
+        "source",
+        "identity",
+        "status"
+      ],
+      "properties": {
+        "contract_version": { "const": "p6-resource-rate-read-api.v1" },
+        "kind": { "const": "resource_rate_value" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "resource_id": { "type": "string", "minLength": 1 },
+        "period": { "type": "string", "format": "date" },
+        "rate": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$" },
+        "basis": { "enum": ["per_unit", "per_hour", "per_day", "lump_sum"] },
+        "currency": { "type": "string", "minLength": 1 },
+        "unit": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "identity": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "status": { "const": "RESOLVED" }
+      },
+      "additionalProperties": false
+    },
+    "superseded": {
+      "type": "object",
+      "required": ["identity", "replacement_identity", "effective_to"],
+      "properties": {
+        "identity": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "replacement_identity": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "effective_to": { "type": "string", "format": "date" }
+      },
+      "additionalProperties": false
+    },
+    "write_result": {
+      "type": "object",
+      "required": [
+        "contract_version",
+        "kind",
+        "scope",
+        "rate",
+        "superseded",
+        "status"
+      ],
+      "properties": {
+        "contract_version": { "const": "p6-resource-rate-write-api.v1" },
+        "kind": { "const": "resource_rate_write" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "rate": { "$ref": "#/$defs/fact" },
+        "superseded": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/superseded" }
+          ]
+        },
+        "status": { "const": "REGISTERED" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

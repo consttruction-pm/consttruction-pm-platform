@@ -114,6 +114,14 @@ from ..p6_resource_capacity_write_api import (
     P6ResourceCapacityWriteAPI,
     P6_RESOURCE_CAPACITY_WRITE_API_VERSION,
 )
+from ..p6_resource_rate_read_api import (
+    P6ResourceRateReadAPI,
+    P6_RESOURCE_RATE_READ_API_VERSION,
+)
+from ..p6_resource_rate_write_api import (
+    P6ResourceRateWriteAPI,
+    P6_RESOURCE_RATE_WRITE_API_VERSION,
+)
 from ..resources.max_units_time import ResourceCapacityBasis
 from ..p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
 from ..p6_resource_assignment_repository import (
@@ -182,6 +190,8 @@ class ProjectLifecycleHttpRoutes:
         p6_resource_read_api: P6ResourceReadAPI | None = None,
         p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
         p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
+        p6_resource_rate_read_api: P6ResourceRateReadAPI | None = None,
+        p6_resource_rate_write_api: P6ResourceRateWriteAPI | None = None,
         p6_resource_write_api: P6ResourceWriteAPI | None = None,
         p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
         p6_code_api: P6CodeAPI | None = None,
@@ -218,6 +228,8 @@ class ProjectLifecycleHttpRoutes:
         self._p6_resource_read_api = p6_resource_read_api
         self._p6_resource_capacity_read_api = p6_resource_capacity_read_api
         self._p6_resource_capacity_write_api = p6_resource_capacity_write_api
+        self._p6_resource_rate_read_api = p6_resource_rate_read_api
+        self._p6_resource_rate_write_api = p6_resource_rate_write_api
         self._p6_resource_write_api = p6_resource_write_api
         self._p6_resource_spread_api = p6_resource_spread_api
         self._p6_code_api = p6_code_api
@@ -1949,6 +1961,159 @@ class ProjectLifecycleHttpRoutes:
                     if code in {"CAPACITY_SEGMENT_NOT_EFFECTIVE", "CAPACITY_SEGMENTS_OVERLAP"}:
                         return self._error(409, code, "error.p6.resource_capacity.conflict")
                     return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-rates"):
+                if self._p6_resource_rate_write_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-rates")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("contract_version") != P6_RESOURCE_RATE_WRITE_API_VERSION
+                ):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    result = self._p6_resource_rate_write_api.save_effective_change(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id=payload.get("resource_id"),
+                        rate=payload.get("rate"),
+                        basis=payload.get("basis"),
+                        currency=payload.get("currency"),
+                        unit=payload.get("unit"),
+                        effective_from=payload.get("effective_from"),
+                        effective_to=payload.get("effective_to"),
+                        expected_revision=payload.get("expected_revision"),
+                        close_open_segment=payload.get("close_open_segment", False),
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code in {
+                        "REVISION_CONFLICT",
+                        "RATE_INTERVALS_OVERLAP",
+                        "IMMUTABLE_RESOURCE_RATE_FACT",
+                        "RESOURCE_RATE_INSERT_CONFLICT",
+                    }:
+                        return self._error(409, code, "error.p6.resource_rate.conflict")
+                    if code == "RESOURCE_RATE_WRITE_SERVICE_NOT_CONFIGURED":
+                        return self._error(503, code, "error.p6.resource_rate.unavailable")
+                    if code.startswith("INVALID_") or code.startswith("RATE_"):
+                        return self._error(400, code, "error.request.invalid")
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and "/p6/resource-rates/" in path and path.endswith("/resolve"):
+                if self._p6_resource_rate_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, suffix = path.split("/p6/resource-rates/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                resource_id = suffix[: -len("/resolve")].rstrip("/")
+                if not project_id or not resource_id or "/" in resource_id:
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("contract_version") != P6_RESOURCE_RATE_READ_API_VERSION
+                ):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    period_raw = payload.get("period")
+                    if not isinstance(period_raw, str) or not period_raw.strip():
+                        raise ValueError("INVALID_RATE_EFFECTIVE_DATE")
+                    result = self._p6_resource_rate_read_api.rate_on(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id,
+                        date.fromisoformat(period_raw),
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code == "RESOURCE_RATE_NOT_REGISTERED":
+                        return self._error(404, code, "error.p6.resource_rate.not_registered")
+                    if code in {"RATE_NOT_EFFECTIVE", "RATE_INTERVALS_OVERLAP"}:
+                        return self._error(409, code, "error.p6.resource_rate.conflict")
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-rates"):
+                if self._p6_resource_rate_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-rates")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    session = self._api.get_session(session_id, now=now)
+                    auth = context.authorization_context(session.roles)
+                    result = self._p6_resource_rate_read_api.list_rates(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        None,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    return self._error(400, str(exc), "error.request.invalid")
+                return self._json(200, {
+                    "contract_version": P6_RESOURCE_RATE_READ_API_VERSION,
+                    "rates": list(result),
+                })
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/resource-rates/" in path:
+                if self._p6_resource_rate_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, resource_id = path.split("/p6/resource-rates/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                resource_id = resource_id.rstrip("/")
+                if not project_id or not resource_id or "/" in resource_id:
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    session = self._api.get_session(session_id, now=now)
+                    auth = context.authorization_context(session.roles)
+                    result = self._p6_resource_rate_read_api.get_profile(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code == "RESOURCE_RATE_NOT_REGISTERED":
+                        return self._error(404, code, "error.p6.resource_rate.not_registered")
+                    if code in {"RATE_NOT_EFFECTIVE", "RATE_INTERVALS_OVERLAP"}:
+                        return self._error(409, code, "error.p6.resource_rate.conflict")
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignment-periods"):
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")

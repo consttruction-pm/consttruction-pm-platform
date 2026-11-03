@@ -14,6 +14,7 @@ from decimal import Decimal
 from typing import Mapping
 
 from construction_pm.resources.max_units_time import ResourceCapacityBasis
+from construction_pm.resources.models import CostBasis
 from construction_pm.scheduling.activity import (
     ActivityLevelingPriority,
     ActivityStatus,
@@ -139,6 +140,24 @@ class DemoCapacitySegment:
 
 
 @dataclass(frozen=True)
+class DemoRateFact:
+    """A reproducible, explicit effective-dated resource price fact.
+
+    The preview seeds these through the real typed rate repository. They are
+    never derived from assignment costs or a global default price.
+    """
+
+    resource_id: str
+    rate: Decimal
+    currency: str
+    unit: str
+    effective_from: date
+    effective_to: date | None
+    source: str
+    basis: CostBasis = CostBasis.PER_DAY
+
+
+@dataclass(frozen=True)
 class DemoWbsNode:
     """Explicit WBS fixture node; never derived from activity rows at read time."""
 
@@ -169,6 +188,7 @@ class DemoProjectFixture:
     wbs_nodes: tuple[DemoWbsNode, ...] = ()
     data_date: date | None = None
     capacities: tuple[DemoCapacitySegment, ...] = ()
+    rates: tuple[DemoRateFact, ...] = ()
 
 
 RPS_CALENDAR_ID = "CUBI-RPS-CAL"
@@ -353,6 +373,26 @@ DEMO_PROJECTS: tuple[DemoProjectFixture, ...] = (
                 source="preview-fixture:RPS-rev7-capacity-2",
             ),
         ),
+        rates=(
+            DemoRateFact(
+                resource_id="RPS-CIVIL-CREW",
+                rate=Decimal("480.00"),
+                currency="USD",
+                unit="crew-day",
+                effective_from=date(2026, 9, 21),
+                effective_to=date(2026, 10, 14),
+                source="preview-fixture:RPS-rev7-rate-1",
+            ),
+            DemoRateFact(
+                resource_id="RPS-CIVIL-CREW",
+                rate=Decimal("525.00"),
+                currency="USD",
+                unit="crew-day",
+                effective_from=date(2026, 10, 15),
+                effective_to=None,
+                source="preview-fixture:RPS-rev7-rate-2",
+            ),
+        ),
     ),
     DemoProjectFixture(
         project_id="preview-nse-02",
@@ -379,6 +419,17 @@ DEMO_PROJECTS: tuple[DemoProjectFixture, ...] = (
                 effective_from=date(2027, 2, 2),
                 effective_to=None,
                 source="preview-fixture:NSE-rev2-capacity-1",
+            ),
+        ),
+        rates=(
+            DemoRateFact(
+                resource_id="NSE-DESIGN-TEAM",
+                rate=Decimal("19000000"),
+                currency="IRR",
+                unit="team-day",
+                effective_from=date(2027, 2, 2),
+                effective_to=None,
+                source="preview-fixture:NSE-rev2-rate-1",
             ),
         ),
     ),
@@ -409,6 +460,7 @@ __all__ = [
     "DemoActivity",
     "DemoCapacitySegment",
     "DemoProjectFixture",
+    "DemoRateFact",
     "DemoRelationship",
     "DemoWbsNode",
     "LAYOUT_COLUMNS",

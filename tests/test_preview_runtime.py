@@ -1356,6 +1356,7 @@ def test_public_demo_login_is_read_only_and_warns_about_shared_fixture_data(
             "activity_count",
             "wbs_node_count",
             "capacity_segment_count",
+            "rate_fact_count",
             "session_count",
             "assistant",
         ):
@@ -1524,3 +1525,259 @@ def test_expired_preview_session_recovers_through_login_and_clears_stale_cookie(
         assert json.loads(body)["roles"] == ["planner"]
     finally:
         runtime.close()
+
+
+def test_preview_resource_rate_read_uses_registered_effective_dated_prices(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview.sqlite3"
+    list_path = f"/api/projects/{RPS_PROJECT}/p6/resource-rates"
+    profile_path = f"{list_path}/RPS-CIVIL-CREW"
+
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        assert runtime.health()["rate_fact_count"] == 3
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            list_path,
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        payload = json.loads(body)
+        assert payload["contract_version"] == "p6-resource-rate-read-api.v1"
+        assert len(payload["rates"]) == 2
+        first, second = payload["rates"]
+        assert first["resource_id"] == "RPS-CIVIL-CREW"
+        assert first["rate"] == "480"
+        assert first["basis"] == "per_day"
+        assert first["currency"] == "USD"
+        assert first["unit"] == "crew-day"
+        assert first["effective_from"] == "2026-09-21"
+        assert first["effective_to"] == "2026-10-14"
+        assert first["source"] == "preview-fixture:RPS-rev7-rate-1"
+        assert second["rate"] == "525"
+        assert second["effective_from"] == "2026-10-15"
+        assert second["effective_to"] is None
+        assert len(first["identity"]) == 64
+        assert first["identity"] != second["identity"]
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            profile_path,
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        profile = json.loads(body)
+        assert profile["kind"] == "resource_rate_profile"
+        assert profile["status"] == "REGISTERED"
+        assert profile["resource_id"] == "RPS-CIVIL-CREW"
+        assert [item["rate"] for item in profile["rates"]] == ["480", "525"]
+
+        resolve_path = f"{profile_path}/resolve"
+
+        def resolve(period: str):
+            return _request(
+                runtime.app,
+                "POST",
+                resolve_path,
+                cookie=planner.session_id,
+                headers=_scope_headers(),
+                body=json.dumps(
+                    {
+                        "contract_version": "p6-resource-rate-read-api.v1",
+                        "period": period,
+                    }
+                ).encode("utf-8"),
+            )
+
+        status, _, body = resolve("2026-10-01")
+        assert status == 200
+        resolved = json.loads(body)
+        assert resolved["kind"] == "resource_rate_value"
+        assert resolved["status"] == "RESOLVED"
+        assert resolved["rate"] == "480"
+        assert resolved["source"] == "preview-fixture:RPS-rev7-rate-1"
+
+        status, _, body = resolve("2026-10-20")
+        assert status == 200
+        assert json.loads(body)["rate"] == "525"
+
+        status, _, body = resolve("2026-09-01")
+        assert status == 409
+        assert json.loads(body)["code"] == "RATE_NOT_EFFECTIVE"
+
+        viewer = runtime.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            profile_path,
+            cookie=viewer.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        assert json.loads(body)["status"] == "REGISTERED"
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            f"{list_path}/UNREGISTERED-RESOURCE",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 404
+        assert json.loads(body)["code"] == "RESOURCE_RATE_NOT_REGISTERED"
+    finally:
+        runtime.close()
+
+    reopened = open_preview_runtime(database)
+    try:
+        planner = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            reopened.app,
+            "GET",
+            profile_path,
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        persisted = json.loads(body)
+        assert [item["rate"] for item in persisted["rates"]] == ["480", "525"]
+        assert persisted["rates"][1]["source"] == "preview-fixture:RPS-rev7-rate-2"
+    finally:
+        reopened.close()
+
+
+def test_preview_resource_rate_write_closes_open_interval_and_persists(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview.sqlite3"
+    list_path = f"/api/projects/{RPS_PROJECT}/p6/resource-rates"
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        viewer = runtime.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
+
+        payload = {
+            "contract_version": "p6-resource-rate-write-api.v1",
+            "expected_revision": RPS_REVISION,
+            "resource_id": "RPS-CIVIL-CREW",
+            "rate": "600",
+            "basis": "per_day",
+            "currency": "USD",
+            "unit": "crew-day",
+            "effective_from": "2026-11-01",
+            "effective_to": None,
+            "close_open_segment": True,
+        }
+
+        def submit(body: dict, cookie: str):
+            return _request(
+                runtime.app,
+                "POST",
+                list_path,
+                cookie=cookie,
+                headers=_scope_headers(),
+                body=json.dumps(body).encode("utf-8"),
+            )
+
+        status, _, body = submit(payload, viewer.session_id)
+        assert status == 403
+        assert "project.write" in json.loads(body)["code"]
+
+        status, _, body = submit(
+            {**payload, "expected_revision": RPS_REVISION - 1},
+            planner.session_id,
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "REVISION_CONFLICT"
+
+        status, _, body = submit(
+            {
+                **payload,
+                "rate": "510",
+                "effective_from": "2026-10-20",
+                "close_open_segment": False,
+            },
+            planner.session_id,
+        )
+        assert status == 409
+        assert json.loads(body)["code"] == "RATE_INTERVALS_OVERLAP"
+
+        status, _, body = submit(payload, planner.session_id)
+        assert status == 200
+        written = json.loads(body)
+        assert written["contract_version"] == "p6-resource-rate-write-api.v1"
+        assert written["kind"] == "resource_rate_write"
+        assert written["status"] == "REGISTERED"
+        assert written["rate"]["rate"] == "600"
+        assert written["rate"]["effective_from"] == "2026-11-01"
+        assert written["rate"]["effective_to"] is None
+        assert written["rate"]["source"] == "manual-entry:preview-planner"
+        assert len(written["rate"]["identity"]) == 64
+        assert written["superseded"]["effective_to"] == "2026-10-31"
+        assert written["superseded"]["identity"] != written["superseded"][
+            "replacement_identity"
+        ]
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            list_path,
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        active = json.loads(body)["rates"]
+        assert [
+            (item["rate"], item["effective_from"], item["effective_to"])
+            for item in active
+        ] == [
+            ("480", "2026-09-21", "2026-10-14"),
+            ("525", "2026-10-15", "2026-10-31"),
+            ("600", "2026-11-01", None),
+        ]
+        assert written["superseded"]["identity"] not in {
+            item["identity"] for item in active
+        }
+
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"{list_path}/RPS-CIVIL-CREW/resolve",
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+            body=json.dumps(
+                {
+                    "contract_version": "p6-resource-rate-read-api.v1",
+                    "period": "2026-11-02",
+                }
+            ).encode("utf-8"),
+        )
+        assert status == 200
+        resolved = json.loads(body)
+        assert resolved["rate"] == "600"
+        assert resolved["source"] == "manual-entry:preview-planner"
+    finally:
+        runtime.close()
+
+    reopened = open_preview_runtime(database)
+    try:
+        planner = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            reopened.app,
+            "GET",
+            list_path,
+            cookie=planner.session_id,
+            headers=_scope_headers(),
+        )
+        assert status == 200
+        persisted = json.loads(body)["rates"]
+        assert [item["rate"] for item in persisted] == ["480", "525", "600"]
+        assert persisted[-1]["source"] == "manual-entry:preview-planner"
+    finally:
+        reopened.close()

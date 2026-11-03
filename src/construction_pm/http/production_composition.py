@@ -28,6 +28,8 @@ from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_persisted_resource_leveling_resolver import build_persisted_resource_leveling_input_resolver
 from construction_pm.p6_resource_capacity_read_api import P6ResourceCapacityReadAPI
 from construction_pm.p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
+from construction_pm.p6_resource_rate_read_api import P6ResourceRateReadAPI
+from construction_pm.p6_resource_rate_write_api import P6ResourceRateWriteAPI
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
@@ -54,6 +56,7 @@ from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnap
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.leveling_cost_recalculation import LevelingCostInputs
 
 
 def build_project_lifecycle_wsgi_app(
@@ -83,10 +86,13 @@ def build_project_lifecycle_wsgi_app(
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
     ai_assistant_provider: AIChatProvider | None = None,
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
+    cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
     p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
     p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
+    p6_resource_rate_read_api: P6ResourceRateReadAPI | None = None,
+    p6_resource_rate_write_api: P6ResourceRateWriteAPI | None = None,
     resource_calendar_master_repository: CalendarMasterRepository | None = None,
     resource_calendar_snapshot_repository: CalendarSnapshotRepository | None = None,
     resource_calendar_exception_repository: CalendarExceptionRepository | None = None,
@@ -102,6 +108,10 @@ def build_project_lifecycle_wsgi_app(
     AI action runtime exposes proposal/approval/execution routes only when a
     deployment supplies its current grant provider, durable store, and real
     application-tool handlers. There is deliberately no permissive fallback.
+    The optional ``cost_inputs_resolver`` is the application-bound seam that
+    supplies persisted, effective-dated rate facts and assignments when a
+    schedule requests post-leveling cost recalculation; the evaluator itself
+    never reads a repository.
     The assistant provider is wired only through an explicit dependency or
     CUBI_AI_ENABLED=true with server-only CUBI_AI_* environment configuration.
     """
@@ -137,6 +147,7 @@ def build_project_lifecycle_wsgi_app(
         calendar_registry_factory=calendar_registry_factory,
         calculation_context_repository=calculation_context_repository,
         leveling_input_resolver=leveling_input_resolver,
+        cost_inputs_resolver=cost_inputs_resolver,
     )
     schedule_query_api = ScheduleQueryAPI(
         ScheduleQueryApplicationService(
@@ -226,6 +237,8 @@ def build_project_lifecycle_wsgi_app(
         p6_resource_write_api=resource_write_api,
         p6_resource_capacity_read_api=p6_resource_capacity_read_api,
         p6_resource_capacity_write_api=p6_resource_capacity_write_api,
+        p6_resource_rate_read_api=p6_resource_rate_read_api,
+        p6_resource_rate_write_api=p6_resource_rate_write_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
         ai_action_runtime=ai_action_runtime,
