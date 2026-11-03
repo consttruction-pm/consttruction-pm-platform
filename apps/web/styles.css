@@ -7811,3 +7811,24 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-wbs-chart-view .cp-wbs-children{display:flex;align-items:flex-start;justify-content:center;gap:12px;padding-top:12px;position:relative}
 .cp-p6 .cp-wbs-chart-view .cp-wbs-node{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:145px;max-width:210px;padding:9px 11px;border:1px solid #9aaabd;border-radius:5px;background:#f7f9fc;box-shadow:0 1px 2px #172b4412}
 .cp-p6 .cp-wbs-chart-view .cp-wbs-node:hover,.cp-p6 .cp-wbs-chart-view .cp-wbs-node.is-selected{border-color:#1c6bb7;background:#eaf3fc;box-shadow:0 0 0 2px #1c6bb71a}
+
+/* Calendar month canvas: dates are real calendar dates; work classification remains explicitly unknown. */
+.cp-p6 .cp-calendar-month-view{display:flex;flex-direction:column;gap:9px;min-width:0;padding:10px;border:1px solid #c6d1de;background:#fff}
+.cp-p6 .cp-calendar-month-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:5px 7px;border:1px solid #d1dbe6;background:#f3f6fa}
+.cp-p6 .cp-calendar-month-toolbar>div{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cp-p6 .cp-calendar-month-toolbar button{min-width:30px;min-height:27px;padding:3px 8px;border:1px solid #b9c7d6;border-radius:3px;background:#fff;color:#2d4967;font-size:11px}
+.cp-p6 .cp-calendar-month-toolbar strong{margin-inline-start:8px;color:#263d56;font-size:13px}
+.cp-p6 .cp-calendar-month-toolbar>span{color:#687b90;font-size:10px}
+.cp-p6 .cp-calendar-month-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:3px}
+.cp-p6 .cp-calendar-weekdays,.cp-p6 .cp-calendar-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.cp-p6 .cp-calendar-weekdays span{padding:6px 3px;background:#eaf0f6;color:#40566f;font-size:10px;font-weight:700;text-align:center}
+.cp-p6 .cp-calendar-day{display:flex;align-items:flex-start;justify-content:flex-start;min-height:52px;padding:6px;border:1px solid #d8e0e8;border-radius:2px;background:#fbfcfe;color:#344b63;font-size:11px}
+.cp-p6 .cp-calendar-day.is-outside-month{background:#f3f5f8;color:#a0aab6}
+.cp-p6 .cp-calendar-month-legend{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-top:6px;border-top:1px solid #e0e6ed;color:#566a80;font-size:10px}
+.cp-p6 .cp-calendar-month-legend span{display:inline-flex;align-items:center;gap:5px}
+.cp-p6 .cp-calendar-month-legend i{width:10px;height:10px;border:1px solid #aebdcd;border-radius:2px}
+.cp-p6 .cp-calendar-month-legend i.is-standard{background:#e4f1e8}
+.cp-p6 .cp-calendar-month-legend i.is-exception{background:#fff0d8}
+.cp-p6 .cp-calendar-month-legend i.is-nonwork{background:#e8edf3}
+.cp-p6 .cp-calendar-month-legend em{flex:1 1 100%;color:#7b8795;font-style:normal}
+@media(max-width:680px){.cp-p6 .cp-calendar-day{min-height:38px;padding:4px}.cp-p6 .cp-calendar-month-view{padding:6px}.cp-p6 .cp-calendar-month-legend{gap:7px}}
