@@ -1394,10 +1394,45 @@ function dialogContent(name: string, state: DemoState): string {
         <label>${esc(t(state.locale, "Status", "وضعیت"))}<select name="status"><option>Draft</option><option>For review</option><option>Approved</option><option>On hold</option></select></label>
         <p class="cp-vd-note">${esc(t(state.locale, "Visual preview only — no project record will be created or modified.", "صرفاً پیش‌نمایش بصری — هیچ رکوردی در پروژه ایجاد یا تغییر نمی‌کند."))}</p>
       </div>`;
-    case "columns":
-      return state.window === "activities"
-        ? `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available columns", "ستون‌های موجود"))}</strong><ul>${ACTIVITY_COLUMNS.map((column) => `<li><label><input type="checkbox" name="${column.id}" ${state.columns.includes(column.id) ? "checked" : ""}> ${esc(label(column, state.locale))}</label></li>`).join("")}</ul></div><div class="cp-vd-hintbox">${esc(t(state.locale, "Tick a column to add it to the activity table. Order follows the list.", "برای افزودن ستون به جدول آن را علامت بزنید. ترتیب مطابق فهرست است."))}</div></div>`
-        : `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available columns", "ستون‌های موجود"))}</strong><ul>${state.moduleAvailableColumns.map((column) => `<li><label><input type="checkbox" name="${esc(column)}" ${state.moduleColumns.includes(column) ? "checked" : ""}> ${esc(column)}</label></li>`).join("")}</ul></div><div class="cp-vd-hintbox">${esc(t(state.locale, "Choose the fields visible in this register. Detail tabs retain the complete record.", "فیلدهای نمایان این فهرست را انتخاب کنید. زبانه‌های جزئیات کل رکورد را حفظ می‌کنند."))}</div></div>`;
+    case "columns": {
+      const availableColumns = state.window === "activities"
+        ? ACTIVITY_COLUMNS.filter((column) => !state.columns.includes(column.id))
+        : state.moduleAvailableColumns.filter((column) => !state.moduleColumns.includes(column));
+      const selectedColumns = state.window === "activities"
+        ? ACTIVITY_COLUMNS.filter((column) => state.columns.includes(column.id))
+        : state.moduleAvailableColumns.filter((column) => state.moduleColumns.includes(column));
+      const availableRows = availableColumns.map((column) => {
+        const id = typeof column === "string" ? column : column.id;
+        const title = typeof column === "string" ? column : label(column, state.locale);
+        return `<li><label><input type="checkbox" name="available-${esc(id)}"> ${esc(title)}</label></li>`;
+      }).join("");
+      const selectedRows = selectedColumns.map((column) => {
+        const id = typeof column === "string" ? column : column.id;
+        const title = typeof column === "string" ? column : label(column, state.locale);
+        const width = typeof column === "string" ? 120 : column.width;
+        return `<li data-vd-selected-column="${esc(id)}"><label><input type="checkbox" name="selected-${esc(id)}" checked> ${esc(title)}</label><span class="cp-vd-column-width">${width}px</span></li>`;
+      }).join("");
+      return `<div class="cp-vd-columns-editor">
+        <div class="cp-vd-columns-toolbar">
+          <label>${esc(t(state.locale, "Available Columns Options", "گزینه‌های ستون‌های موجود"))}<input type="search" placeholder="${esc(t(state.locale, "Find a column…", "یافتن ستون…"))}"></label>
+          <label>${esc(t(state.locale, "Group available columns", "گروه‌بندی ستون‌های موجود"))}<select><option>By category</option><option>Alphabetically</option><option>By data type</option></select></label>
+          <button type="button" disabled>Expand All</button><button type="button" disabled>Collapse All</button>
+        </div>
+        <div class="cp-vd-columns-transfer">
+          <section class="cp-vd-columns-list"><strong>${esc(t(state.locale, "Available Columns", "ستون‌های موجود"))}</strong><ul>${availableRows || `<li class="cp-vd-note">${esc(t(state.locale, "All available columns are selected.", "همه ستون‌های موجود انتخاب شده‌اند."))}</li>`}</ul></section>
+          <div class="cp-vd-columns-transfer-actions"><button type="button" disabled title="Preview only">▶</button><button type="button" disabled title="Preview only">▶▶</button><button type="button" disabled title="Preview only">◀</button><button type="button" disabled title="Preview only">◀◀</button></div>
+          <section class="cp-vd-columns-list"><strong>${esc(t(state.locale, "Selected Options", "گزینه‌های انتخاب‌شده"))}</strong><ul>${selectedRows || `<li class="cp-vd-note">${esc(t(state.locale, "Select at least one column.", "حداقل یک ستون را انتخاب کنید."))}</li>`}</ul><div class="cp-vd-inline-actions"><button type="button" disabled>▲</button><button type="button" disabled>▼</button></div></section>
+        </div>
+        <section class="cp-vd-column-properties"><h4>${esc(t(state.locale, "Edit Column", "ویرایش ستون"))}</h4><div class="cp-vd-form">
+          <label>${esc(t(state.locale, "Column title", "عنوان ستون"))}<input value="${esc(selectedColumns[0] ? (typeof selectedColumns[0] === "string" ? selectedColumns[0] : label(selectedColumns[0], state.locale)) : "")}" readonly></label>
+          <label>${esc(t(state.locale, "Width", "عرض"))}<input type="number" value="${selectedColumns[0] && typeof selectedColumns[0] !== "string" ? selectedColumns[0].width : 120}" min="24" max="1200"></label>
+          <label>${esc(t(state.locale, "Alignment", "تراز"))}<select><option>Default</option><option>Left</option><option>Center</option><option>Right</option></select></label>
+          <label class="cp-vd-check"><input type="checkbox" checked> ${esc(t(state.locale, "Visible", "نمایان"))}</label>
+        </div></section>
+        <div class="cp-vd-columns-footer"><label>${esc(t(state.locale, "Copy From", "کپی از"))}<select><option>CUBI Classic Schedule Layout</option><option>Cost and Resource Layout</option><option>Commissioning Look-ahead</option></select></label><button type="button" disabled>Open</button><button type="button" disabled>Default</button></div>
+        <p class="cp-vd-note">${esc(t(state.locale, "A layout must retain at least one visible column. Transfer, reorder, copy and edit controls are visual-only in this preview.", "هر چیدمان باید دست‌کم یک ستون نمایان داشته باشد. انتقال، مرتب‌سازی، کپی و ویرایش ستون‌ها در این پیش‌نمایش صرفاً نمایشی است."))}</p>
+      </div>`;
+    }
     case "filters":
       return `<div class="cp-vd-filter-manager">
         <div class="cp-vd-filter-library">
