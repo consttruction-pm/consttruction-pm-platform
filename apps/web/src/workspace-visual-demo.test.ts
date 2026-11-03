@@ -278,6 +278,14 @@ test("Gantt exposes direct presentation commands and a complete visual bar-defin
   assert.match(markup, /Level of Effort/);
   assert.match(markup, /Milestone/);
   assert.match(markup, /Bar label position/);
+  assert.match(markup, /Bar Style/);
+  assert.match(markup, /Bar Settings/);
+  assert.match(markup, /Bar Labels/);
+  assert.match(markup, /Copy From…/);
+  assert.match(markup, /Necking/);
+  assert.match(markup, /Left label/);
+  assert.match(markup, /Right label/);
+  assert.match(markup, /Live style preview/);
   assert.match(markup, /Show relationship lines/);
 });
 
