@@ -6,7 +6,7 @@ These adapters contain DTO decoding only. Validation, authorization, persistence
 and domain semantics remain in the existing typed APIs and Shared Core.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping
 
@@ -33,7 +33,9 @@ from construction_pm.scheduling.constraints import ConstraintType
 from construction_pm.scheduling.time_duration import DurationUnit
 from construction_pm.scheduling.relationships import RelationshipType
 from construction_pm.shared_core_runtime import SharedCoreOperation
+from construction_pm.calendar_exception_repository import CalendarException
 from construction_pm.calendar_work_hours_repository import CalendarWorkHourRule
+from construction_pm.scheduling.calendar_system import CalendarSystem, JalaliDate
 from construction_pm.p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDAR_API_VERSION
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
 from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
@@ -504,6 +506,120 @@ def build_project_domain_operations(
                 allowed_fields=frozenset(allowed),
                 handler=handler,
                 mutates=permission is Permission.PROJECT_WRITE,
+            )
+
+
+        def calendar_copy(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["copy"],
+                required={
+                    "source_calendar_id", "source_calendar_version",
+                    "target_calendar_id", "target_calendar_version",
+                },
+                allowed={
+                    "source_calendar_id", "source_calendar_version",
+                    "target_calendar_id", "target_calendar_version",
+                },
+                code="INVALID_CALENDAR_COPY_PAYLOAD",
+            )
+            return _record_result(
+                calendar_api.copy(
+                    _scope(actor, revision),
+                    str(raw["source_calendar_id"]),
+                    str(raw["source_calendar_version"]),
+                    str(raw["target_calendar_id"]),
+                    str(raw["target_calendar_version"]),
+                    auth_context=actor,
+                )
+            )
+
+        def calendar_replace(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["replace"],
+                required={
+                    "target_calendar_id", "target_calendar_version",
+                    "source_calendar_id", "source_calendar_version",
+                },
+                allowed={
+                    "target_calendar_id", "target_calendar_version",
+                    "source_calendar_id", "source_calendar_version",
+                },
+                code="INVALID_CALENDAR_REPLACE_PAYLOAD",
+            )
+            return _record_result(
+                calendar_api.replace(
+                    _scope(actor, revision),
+                    str(raw["target_calendar_id"]),
+                    str(raw["target_calendar_version"]),
+                    str(raw["source_calendar_id"]),
+                    str(raw["source_calendar_version"]),
+                    auth_context=actor,
+                )
+            )
+
+        def calendar_exception_save(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["exception"],
+                required={"calendar_id", "calendar_version", "exception_date", "mode"},
+                allowed={
+                    "calendar_id", "calendar_version", "exception_date", "mode",
+                    "system", "total_work_hours", "intervals",
+                },
+                code="INVALID_CALENDAR_EXCEPTION_PAYLOAD",
+            )
+            raw_date = raw["exception_date"]
+            if not isinstance(raw_date, str):
+                raise ValueError("INVALID_EXCEPTION_DATE")
+            try:
+                system = CalendarSystem(raw.get("system", CalendarSystem.GREGORIAN.value))
+                if system is CalendarSystem.JALALI:
+                    parts = raw_date.replace("/", "-").split("-")
+                    if len(parts) != 3:
+                        raise ValueError("INVALID_EXCEPTION_DATE")
+                    exception_date: date | JalaliDate = JalaliDate(*(int(part) for part in parts))
+                else:
+                    exception_date = date.fromisoformat(raw_date)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("INVALID_EXCEPTION_DATE") from exc
+            raw_intervals = raw.get("intervals", [])
+            if not isinstance(raw_intervals, list):
+                raise ValueError("INVALID_EXCEPTION_INTERVALS")
+            intervals: list[tuple[time, time]] = []
+            for pair in raw_intervals:
+                if (
+                    not isinstance(pair, list) or len(pair) != 2
+                    or any(not isinstance(item, str) for item in pair)
+                ):
+                    raise ValueError("INVALID_EXCEPTION_INTERVALS")
+                try:
+                    intervals.append((time.fromisoformat(pair[0]), time.fromisoformat(pair[1])))
+                except ValueError as exc:
+                    raise ValueError("INVALID_EXCEPTION_INTERVALS") from exc
+            total = raw.get("total_work_hours")
+            exception = CalendarException(
+                scope=_scope(actor, revision),
+                calendar_id=raw["calendar_id"],
+                calendar_version=raw["calendar_version"],
+                exception_date=exception_date,
+                mode=raw["mode"],
+                total_work_hours=None if total is None else _decimal(total, "INVALID_EXCEPTION_TOTAL_WORK_HOURS"),
+                intervals=tuple(intervals),
+                system=system,
+            )
+            return _record_result(calendar_api.save_exception(exception, auth_context=actor))
+
+        for name, required, allowed, handler in (
+            ("calendar.copy", {"copy"}, {"copy"}, calendar_copy),
+            ("calendar.replace", {"replace"}, {"replace"}, calendar_replace),
+            ("calendar.exception.save", {"exception"}, {"exception"}, calendar_exception_save),
+        ):
+            operations[name] = SharedCoreOperation(
+                contract_version=P6_CALENDAR_API_VERSION,
+                permission=Permission.PROJECT_WRITE,
+                required_fields=frozenset(required),
+                allowed_fields=frozenset(allowed),
+                handler=handler,
+                mutates=True,
             )
 
         def calendar_exception_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
