@@ -7725,3 +7725,22 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-children{display:flex;align-items:flex-start;justify-content:center;gap:12px;padding-top:12px;position:relative}
 .cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-node{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:145px;max-width:210px;padding:9px 11px;border:1px solid #9aaabd;border-radius:5px;background:#f7f9fc;box-shadow:0 1px 2px #172b4412}
 .cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-node:hover,.cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-node.is-selected{border-color:#1c6bb7;background:#eaf3fc;box-shadow:0 0 0 2px #1c6bb71a}
+/* Tracking window mirrors the desktop explorer/top-layout and optional lower-pane structure. */
+.cp-p6 .cp-tracking-layout{display:grid;grid-template-columns:minmax(170px,.52fr) minmax(0,1.48fr);grid-template-rows:minmax(180px,1fr) minmax(150px,.8fr);gap:8px;flex:1 1 auto;min-height:0}
+.cp-p6 .cp-tracking-layout[data-tracking-layout-type="table"],.cp-p6 .cp-tracking-layout[data-tracking-layout-type="bar-chart"]{grid-template-rows:minmax(180px,1fr)}
+.cp-p6 .cp-tracking-project-explorer{grid-column:1;grid-row:1}
+.cp-p6 .cp-tracking-chart{grid-column:2;grid-row:1}
+.cp-p6 .cp-tracking-resource-explorer{grid-column:1;grid-row:2}
+.cp-p6 .cp-tracking-bottom-layout{grid-column:2;grid-row:2;display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-tracking-bottom-layout[hidden],.cp-p6 .cp-tracking-resource-explorer[hidden],.cp-p6 [data-tracking-content][hidden]{display:none!important}
+.cp-p6 .cp-tracking-layout>aside{min-width:0;min-height:0;border:1px solid #cbd5e1;background:#fff;padding:8px;color:#244463;font-size:10px}
+.cp-p6 .cp-tracking-layout>aside p{color:#77869a;font-size:9px;line-height:1.5}
+.cp-p6 .cp-tracking-empty-grid{display:grid;grid-template-columns:repeat(5,minmax(65px,1fr));width:100%;border:1px solid #d8e0e9;background:linear-gradient(#eef2f7 0 28px,transparent 28px);padding-top:28px;min-height:72px}
+.cp-p6 .cp-tracking-empty-grid span{padding:6px;border-right:1px solid #e0e6ed;border-top:1px solid #e0e6ed;font-size:9px;color:#718096}
+.cp-p6 .cp-tracking-chart-placeholder,.cp-p6 .cp-tracking-gantt-placeholder,.cp-p6 .cp-tracking-resource-placeholder{gap:10px}
+.cp-p6 .cp-tracking-axis{display:flex;align-items:flex-end;justify-content:space-around;gap:10px;width:min(75%,420px);height:100px;border-left:1px solid #9aaabd;border-bottom:1px solid #9aaabd;padding:8px}
+.cp-p6 .cp-tracking-axis i{display:block;width:12%;height:35%;border:1px solid #8da6bf;background:#dbe7f2}
+.cp-p6 .cp-tracking-axis i:nth-child(2){height:55%}.cp-p6 .cp-tracking-axis i:nth-child(3){height:72%}.cp-p6 .cp-tracking-axis i:nth-child(4){height:48%}.cp-p6 .cp-tracking-axis i:nth-child(5){height:88%}
+.cp-p6 .cp-tracking-gantt-ruler{display:grid;grid-template-columns:repeat(4,1fr);width:100%;border-bottom:1px solid #b9c6d5;color:#718096;font-size:9px}
+.cp-p6 .cp-tracking-gantt-ruler span{padding:5px;border-left:1px solid #d8e0e9}
+@media(max-width:800px){.cp-p6 .cp-tracking-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(180px,1fr) auto auto}.cp-p6 .cp-tracking-project-explorer,.cp-p6 .cp-tracking-chart,.cp-p6 .cp-tracking-resource-explorer,.cp-p6 .cp-tracking-bottom-layout{grid-column:1;grid-row:auto}}
