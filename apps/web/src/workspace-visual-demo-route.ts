@@ -15,7 +15,7 @@ export function shouldRenderVisualWorkspaceDemo(
   if (parameters.get("view") === "visual") return true;
   // Login/assistant links may include a trailing slash. Treat /app and /app/
   // as the same route so the visual entry cannot fall through to the live shell.
-  const normalizedPathname = pathname.replace(/\\/+$/, "") || "/";
+  const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
   if (normalizedPathname !== "/app") return false;
 
   // The accepted entry flow is Home → Login → Visual Workspace. A direct
