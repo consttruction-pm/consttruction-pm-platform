@@ -13,10 +13,13 @@ export function shouldRenderVisualWorkspaceDemo(
   const parameters = new URLSearchParams(search);
   if (parameters.get("view") === "live") return false;
   if (parameters.get("view") === "visual") return true;
-  return (
-    pathname === "/app" &&
-    parameters.get("project") === VISUAL_WORKSPACE_PREVIEW_PROJECT_ID
-  );
+  if (pathname !== "/app") return false;
+
+  // The accepted entry flow is Home → Login → Visual Workspace. A direct
+  // login with no project context must land in the visual shell. An explicit
+  // non-preview project continues to select the authenticated live workspace.
+  const projectId = parameters.get("project");
+  return !projectId || projectId === VISUAL_WORKSPACE_PREVIEW_PROJECT_ID;
 }
 
 /**
