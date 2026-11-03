@@ -441,3 +441,9 @@ The Version 26 Activity Details page lists **Summary** as a native tab, and the 
 - Version 26 Professional resource records distinguish Labor, Nonlabor and Material resource types. The Resources window includes a resource register and Resource Details tabs General, Codes, Details, Units & Prices, Roles, Notes and UDFs; Progress Reporter is EPPM-only.
 - CUBI correction: added All Types, Labor, Nonlabor and Material filter controls with selected-state behavior. The current project API does not return resource rows, so the filter state is reflected without creating sample labor, equipment or material records. Resource creation, hierarchy changes, pricing and assignment calculations remain unavailable until the authoritative resource service is connected.
 - Reference: Version 26 Professional Help, Table of Contents → Defining Resources and Roles → Resources; Details Windows index: https://docs.oracle.com/cd/G48902_01/client_help/en_US/detailswindows-postdropdowns.htm.
+## Activity Details record navigator — 2026-11-03
+
+- Version 26 Activity Details provides Previous and Next navigation plus Activity ID, Activity Name and Project fields above the tab strip. The Summary tab is part of the native desktop inventory; it is no longer labeled or tagged as a CUBI extension.
+- CUBI correction: added Previous/Next navigation across the currently loaded activity order and read-only Activity ID, Activity Name and Project fields. Navigation calls the existing activity-selection callback; identity fields remain read-only until the authorized activity update workflow is available.
+- Regression coverage verifies adjacent-record navigation, displayed identity values and native Summary provenance.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/activity_details.htm.
