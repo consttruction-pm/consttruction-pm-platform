@@ -427,7 +427,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-project-view-toggle],[data-resource-type-filter],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-calendar-pool],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-wbs-chart-options-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-assignment-usage-fields-open],[data-assignment-usage-fields-close],[data-assignment-usage-fields-apply],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-activity-navigate],[data-project-view-toggle],[data-resource-type-filter],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-calendar-pool],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-wbs-chart-options-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-assignment-usage-fields-open],[data-assignment-usage-fields-close],[data-assignment-usage-fields-apply],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -1034,6 +1034,13 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
     if (target.dataset.ganttRelationshipsToggle !== undefined) {
       options.onGanttRelationshipsChange?.(target.dataset.ganttRelationshipsToggle === "true");
+      return;
+    }
+    if (target.dataset.activityNavigate) {
+      const currentIndex = state.activities.findIndex((item) => item.id === state.selectedActivityId);
+      const nextIndex = target.dataset.activityNavigate === "previous" ? currentIndex - 1 : currentIndex + 1;
+      const nextActivity = state.activities[nextIndex];
+      if (nextActivity) options.onActivitySelect?.(nextActivity.id);
       return;
     }
     if (target.dataset.ganttActivityId) return void options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
@@ -3093,6 +3100,7 @@ function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
   };
   return `<section class="cp-wbs-details">
     <header class="cp-wbs-details-heading"><strong>${escapeHtml(uiText(state.locale, "WBS Details", "جزئیات ساختار شکست"))}</strong><span>${escapeHtml(node?.localCode ?? "—")}</span></header>
+    ${navigator}
     <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "WBS detail tabs", "زبانه‌های جزئیات WBS"))}">
       ${WBS_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-wbs-detail-tab="${key}" title="${key === "activities" ? escapeAttribute(uiText(state.locale, "CUBI extension; not part of the native WBS Details tab inventory.", "افزوده CUBI؛ جزو فهرست بومی زبانه‌های جزئیات WBS نیست.")) : ""}" data-detail-origin="${key === "activities" ? "cubi-extension" : "desktop-reference"}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-wbs-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
     </nav>
@@ -3143,6 +3151,16 @@ function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, con
     </div>`;
   }
   const title = getWorkspaceNavigationLabel(getWorkspaceNavigation(state.activeMenu), state.locale);
+  const activityIndex = activity ? state.activities.findIndex((item) => item.id === activity.id) : -1;
+  const previousAvailable = activityIndex > 0;
+  const nextAvailable = activityIndex >= 0 && activityIndex < state.activities.length - 1;
+  const navigator = `<div class="cp-activity-detail-navigator" aria-label="${escapeAttribute(uiText(state.locale, "Activity record navigation", "پیمایش رکورد فعالیت"))}">
+    <button type="button" data-activity-navigate="previous" ${previousAvailable ? "" : "disabled"} title="${escapeAttribute(uiText(state.locale,"Previous activity","فعالیت قبلی"))}">◀ ${escapeHtml(uiText(state.locale,"Previous","قبلی"))}</button>
+    <button type="button" data-activity-navigate="next" ${nextAvailable ? "" : "disabled"} title="${escapeAttribute(uiText(state.locale,"Next activity","فعالیت بعدی"))}">${escapeHtml(uiText(state.locale,"Next","بعدی"))} ▶</button>
+    <label>${escapeHtml(uiText(state.locale,"Activity ID","شناسه فعالیت"))}<input readonly value="${escapeAttribute(activity?.id ?? "")}" placeholder="—"></label>
+    <label>${escapeHtml(uiText(state.locale,"Activity Name","نام فعالیت"))}<input readonly value="${escapeAttribute(activity?.name ?? "")}" placeholder="—"></label>
+    <label>${escapeHtml(uiText(state.locale,"Project","پروژه"))}<input readonly value="${escapeAttribute(state.context.project_id)}"></label>
+  </div>`;
   return `<div class="cp-activity-details"><header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(uiText(state.locale, "Details", "جزئیات"))}</h2><span>${escapeHtml(title)}</span></div></header><p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, "Select a record in this window to display its details. This window's detail tabs are not implemented yet.", "برای نمایش جزئیات، یک رکورد در این پنجره انتخاب کنید. زبانه‌های اختصاصی این پنجره هنوز پیاده‌سازی نشده‌اند."))}</p></div>`;
 }
 
@@ -3221,7 +3239,7 @@ function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, a
   return `<div class="cp-activity-details">
     <header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2><span>${escapeHtml(activity ? `${activity.id} — ${activity.name}` : state.selectedActivityId ?? "—")}</span></div><div class="cp-activity-details-heading-actions"><small>${escapeHtml(uiText(state.locale, "Activity Details", "جزئیات فعالیت"))}</small><button type="button" data-activity-details-options-open>${escapeHtml(uiText(state.locale, "Customize Tabs", "تنظیم زبانه‌ها"))}</button></div></header>
     <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Activity detail tabs", "زبانه‌های جزئیات فعالیت"))}">
-      ${displayedTabs.map(([key, en, fa]) => `<button type="button" role="tab" data-activity-detail-tab="${key}" data-detail-origin="desktop-reference" title="" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-activity-detail-panel-${key}">${escapeHtml(uiText(state.locale, key === "summary" ? "Summary (CUBI extension)" : en, key === "summary" ? "خلاصه (افزوده CUBI)" : fa))}</button>`).join("")}
+      ${displayedTabs.map(([key, en, fa]) => `<button type="button" role="tab" data-activity-detail-tab="${key}" data-detail-origin="desktop-reference" title="" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-activity-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
     </nav>
     ${displayedTabs.map(([key]) => `<section id="cp-activity-detail-panel-${key}" class="cp-activity-detail-panel" role="tabpanel" data-activity-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${contentFor(key)}</section>`).join("")}
   </div>${renderActivityDetailsOptionsDialog(state, visibleTabs)}`;
