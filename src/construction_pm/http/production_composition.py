@@ -12,8 +12,8 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.ai_action_boundary import AIToolPermissionAdapter
 from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.backend_p0.api import BackendP0API
-from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
-from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
+from construction_pm.shared_core_runtime import build_shared_core_runtime
+from construction_pm.shared_core_domain_operations import build_project_domain_operations
 from construction_pm.activity_master_repository import ActivityMasterRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_wbs_master_api import P6WBSMasterAPI
@@ -28,8 +28,14 @@ from construction_pm.p6_resource_capacity_read_api import P6ResourceCapacityRead
 from construction_pm.p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
+from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI
+from construction_pm.resources.api import ResourceAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
+from construction_pm.p6_constraint_api import P6ConstraintAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
+from construction_pm.p6_baseline_api import P6BaselineAPI
+from construction_pm.p6_cost_account_api import P6CostAccountAPI
+from construction_pm.p6_expense_api import P6ExpenseAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.wbs_master_repository import WBSMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
@@ -65,7 +71,11 @@ def build_project_lifecycle_wsgi_app(
     wbs_master_repository: WBSMasterRepository | None = None,
     workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
     relationship_master_repository: RelationshipMasterRepository | None = None,
+    constraint_api: P6ConstraintAPI | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
+    baseline_api: P6BaselineAPI | None = None,
+    cost_account_api: P6CostAccountAPI | None = None,
+    expense_api: P6ExpenseAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
     p6_field_registry_api: P6FieldRegistryAPI | None = None,
     p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
@@ -81,8 +91,10 @@ def build_project_lifecycle_wsgi_app(
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
+    resource_spread_api: P6ResourceSpreadAPI | None = None,
     p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
     p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
+    resource_master_api_factory: Callable[[AuthorizationContext], ResourceAPI] | None = None,
     resource_calendar_master_repository: CalendarMasterRepository | None = None,
     resource_calendar_snapshot_repository: CalendarSnapshotRepository | None = None,
     resource_calendar_exception_repository: CalendarExceptionRepository | None = None,
@@ -128,18 +140,51 @@ def build_project_lifecycle_wsgi_app(
             calendar_exception_repository=resource_calendar_exception_repository,
             calendar_work_hours_repository=resource_calendar_work_hours_repository,
         )
-    provider = AuthoritativeScheduleQueryProvider(
+    activity_master_api = (
+        None
+        if activity_master_repository is None
+        else P6ActivityMasterAPI(activity_master_repository, authorization_policy)
+    )
+    wbs_master_api = (
+        None
+        if wbs_master_repository is None
+        else P6WBSMasterAPI(wbs_master_repository, authorization_policy)
+    )
+    relationship_api = (
+        None
+        if relationship_master_repository is None
+        else P6RelationshipAPI(
+            relationship_master_repository,
+            authorization_policy,
+            activity_master_repository,
+        )
+    )
+    shared_core_runtime = build_shared_core_runtime(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,
         calculation_context_repository=calculation_context_repository,
+        authorization_policy=authorization_policy,
         leveling_input_resolver=leveling_input_resolver,
+        operations=build_project_domain_operations(
+            activity_api=activity_master_api,
+            wbs_api=wbs_master_api,
+            relationship_api=relationship_api,
+            constraint_api=constraint_api,
+            calendar_api=p6_calendar_api,
+            calendar_read_api=p6_calendar_read_api,
+            schedule_snapshot_api=schedule_snapshot_publication_api,
+            baseline_api=baseline_api,
+            cost_account_api=cost_account_api,
+            expense_api=expense_api,
+            resource_read_api=resource_read_api,
+            resource_write_api=resource_write_api,
+            resource_spread_api=resource_spread_api,
+            resource_capacity_read_api=p6_resource_capacity_read_api,
+            resource_capacity_write_api=p6_resource_capacity_write_api,
+            resource_master_api_factory=resource_master_api_factory,
+        ),
     )
-    schedule_query_api = ScheduleQueryAPI(
-        ScheduleQueryApplicationService(
-            provider=provider,
-            authorization_policy=authorization_policy,
-        )
-    )
+    schedule_query_api = shared_core_runtime.schedule_query_api
     runtime_config_requested = (
         ai_action_permission_adapter is not None
         or ai_action_transaction_manager is not None
@@ -170,25 +215,6 @@ def build_project_lifecycle_wsgi_app(
             action_runtime=ai_action_runtime,
         )
 
-    activity_master_api = (
-        None
-        if activity_master_repository is None
-        else P6ActivityMasterAPI(activity_master_repository, authorization_policy)
-    )
-    wbs_master_api = (
-        None
-        if wbs_master_repository is None
-        else P6WBSMasterAPI(wbs_master_repository, authorization_policy)
-    )
-    relationship_api = (
-        None
-        if relationship_master_repository is None
-        else P6RelationshipAPI(
-            relationship_master_repository,
-            authorization_policy,
-            activity_master_repository,
-        )
-    )
     if (
         workspace_read_v2_service is None
         and activity_master_repository is not None

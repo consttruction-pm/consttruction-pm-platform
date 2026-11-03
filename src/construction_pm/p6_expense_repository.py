@@ -64,11 +64,13 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> P6Expense:
 class SQLiteP6ExpenseRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         self.connection.execute("CREATE TABLE IF NOT EXISTS p6_expense (tenant_id TEXT NOT NULL, project_id TEXT NOT NULL, project_revision INTEGER NOT NULL, expense_id TEXT NOT NULL, name TEXT NOT NULL, category TEXT NOT NULL, activity_id TEXT, wbs_id TEXT, expense_date TEXT, planned_cost TEXT, actual_cost TEXT, remaining_cost TEXT, currency TEXT, note TEXT, PRIMARY KEY (tenant_id, project_id, expense_id))")
         self.connection.execute("CREATE INDEX IF NOT EXISTS idx_p6_expense_scope ON p6_expense(tenant_id, project_id, activity_id, wbs_id, expense_id)")
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def upsert(self, expense: P6Expense) -> P6Expense:
         expense.validate()

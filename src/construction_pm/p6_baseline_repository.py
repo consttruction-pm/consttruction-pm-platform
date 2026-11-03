@@ -68,6 +68,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> P6Baseline:
 class SQLiteP6BaselineRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         self.connection.execute(
@@ -86,7 +87,8 @@ class SQLiteP6BaselineRepository:
             )
             """
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def upsert(self, baseline: P6Baseline) -> P6Baseline:
         baseline.validate()

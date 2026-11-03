@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from enum import Enum
@@ -38,14 +38,24 @@ class ResourceRate:
 
 @dataclass
 class Resource:
+    """Resource master data with rates stored as a stable immutable value sequence.
+
+    Callers may pass any iterable (including legacy lists); normalize it at the
+    domain boundary so repository round-trips and equality do not depend on the
+    container chosen by an API or persistence adapter.
+    """
+
     id: str
     code: str
     name: str
     resource_type: ResourceType
     unit: str
-    rates: list[ResourceRate] = field(default_factory=list)
+    rates: tuple[ResourceRate, ...] = ()
     calendar_id: str | None = None
     active: bool = True
+
+    def __post_init__(self) -> None:
+        self.rates = tuple(self.rates)
 
     def rate_on(self, as_of: date) -> ResourceRate:
         candidates = [r for r in self.rates if r.is_effective_on(as_of)]

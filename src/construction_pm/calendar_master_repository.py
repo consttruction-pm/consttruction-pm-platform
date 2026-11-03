@@ -103,6 +103,7 @@ class CalendarMasterRepository(Protocol):
 class SQLiteCalendarMasterRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        was_in_transaction = connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         self.connection.execute(
@@ -144,7 +145,8 @@ class SQLiteCalendarMasterRepository:
                 PRIMARY KEY (tenant_id, project_id, relationship_id)
             )"""
         )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
     def save(self, calendar: CalendarMaster, expected_revision: int | None = None) -> CalendarMaster:
         was_in_transaction = self.connection.in_transaction

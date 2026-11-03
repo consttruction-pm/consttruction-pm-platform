@@ -72,6 +72,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ConstraintMaster:
 class SQLiteConstraintMasterRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        caller_owns_transaction = connection.in_transaction
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.execute("PRAGMA busy_timeout = 5000")
         self.connection.execute(
@@ -91,9 +92,11 @@ class SQLiteConstraintMasterRepository:
             "CREATE INDEX IF NOT EXISTS idx_constraint_master_revision "
             "ON constraint_master(tenant_id, project_id, project_revision, constraint_id)"
         )
-        self.connection.commit()
+        if not caller_owns_transaction:
+            self.connection.commit()
 
     def save(self, constraint: ConstraintMaster, expected_revision: int | None = None) -> ConstraintMaster:
+        caller_owns_transaction = self.connection.in_transaction
         constraint.validate()
         if expected_revision is not None and (
             isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0
@@ -123,7 +126,8 @@ class SQLiteConstraintMasterRepository:
                     stored.constraint_date.isoformat(), stored.record_revision,
                 ),
             )
-            self.connection.commit()
+            if not caller_owns_transaction:
+                self.connection.commit()
             return stored
 
         if int(row[4]) != constraint.scope.project_revision:
@@ -156,9 +160,11 @@ class SQLiteConstraintMasterRepository:
             ),
         )
         if cursor.rowcount != 1:
-            self.connection.rollback()
+            if not caller_owns_transaction:
+                self.connection.rollback()
             raise ConstraintPersistenceError("REVISION_CONFLICT")
-        self.connection.commit()
+        if not caller_owns_transaction:
+            self.connection.commit()
         return stored
 
     def get(self, scope: BackendScope, constraint_id: str) -> ConstraintMaster | None:
