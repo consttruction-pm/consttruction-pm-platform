@@ -2522,6 +2522,18 @@ function bind(root: HTMLElement): void {
     const top = Math.min(event.clientY, Math.max(8, window.innerHeight - menu.offsetHeight - 8));
     menu.style.left = `${left}px`;
     menu.style.top = `${top}px`;
+    panel.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+  });
+
+  root.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const menu = root.querySelector<HTMLElement>("[data-vd-context-menu]");
+    if (!menu || menu.hidden) return;
+    menu.hidden = true;
+    const activePanel = menu.querySelector<HTMLElement>('[data-vd-context-panel]:not([hidden])');
+    const kind = activePanel?.dataset.vdContextPanel;
+    const selector = kind === "activity" ? `[data-vd-activity="${state.activityId}"]` : `[data-vd-wbs="${state.selectedWbsCode}"]`;
+    root.querySelector<HTMLElement>(selector)?.focus();
   });
 
   root.addEventListener("click", (event) => {
