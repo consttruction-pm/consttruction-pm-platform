@@ -1717,6 +1717,10 @@ function dialogContent(name: string, state: DemoState): string {
             <label>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}<input type="number" min="0" step="0.01" value="40" disabled></label>
             <label>${esc(t(state.locale, "Units / time", "واحد / زمان"))}<input type="number" min="0" step="0.01" value="1" disabled></label>
             <label>${esc(t(state.locale, "Rate type", "نوع نرخ"))}<select disabled><option>Price per Unit</option><option>Price per Time</option></select></label>
+            <label>${esc(t(state.locale, "Rate source", "منبع نرخ"))}<select disabled><option>Resource</option><option>Role</option><option>Override</option></select></label>
+            <label>${esc(t(state.locale, "Price / unit override", "قیمت / واحد جایگزین"))}<input type="number" min="0" step="0.01" disabled></label>
+            <label>${esc(t(state.locale, "Overtime factor", "ضریب اضافه‌کاری"))}<input type="number" min="0" step="0.01" value="1" disabled></label>
+            <label class="cp-vd-assignment-check"><input type="checkbox" disabled> ${esc(t(state.locale, "Primary resource", "منبع اصلی"))}</label>
             <label>${esc(t(state.locale, "Resource calendar", "تقویم منبع"))}<select disabled><option>Use resource calendar</option><option>Use activity calendar</option></select></label>
             <label>${esc(t(state.locale, "Assignment start", "شروع تخصیص"))}<input type="date" value="${esc(activity?.start ?? "")}" disabled></label>
             <label>${esc(t(state.locale, "Assignment finish", "پایان تخصیص"))}<input type="date" value="${esc(activity?.finish ?? "")}" disabled></label>
