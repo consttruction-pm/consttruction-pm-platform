@@ -994,6 +994,7 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
                 "target_calendar_version": "1",
             }
         })
+        assert "item" in copied["result"], copied
         assert copied["result"]["item"]["calendar_id"] == "CAL-COPY"
         assert invoke("calendar.exception_list", {
             "calendar_id": "CAL-COPY",
