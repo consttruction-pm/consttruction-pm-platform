@@ -2043,6 +2043,20 @@ test("Tracking layout selection switches desktop panes and persists across rende
   assert.match(container.innerHTML, /option value="gantt-profile" selected/);
 });
 
+test("Tracking display options toggle each documented pane and persist across render", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = { innerHTML: "", addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener) };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "tracking" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-tracking-display="project-explorer" aria-pressed="true"/);
+  const displayTarget = { dataset: { trackingDisplay: "project-explorer" }, closest: () => displayTarget };
+  listeners.get("click")?.({ target: displayTarget } as unknown as Event);
+  assert.match(container.innerHTML, /data-tracking-pane="project-explorer" hidden/);
+  assert.match(container.innerHTML, /data-tracking-display="project-explorer" aria-pressed="false"/);
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-tracking-pane="project-explorer" hidden/);
+});
+
 test("Calendar Register opens as a first-class window with documented editor controls", () => {
   const html = render("en", "calendars");
   assert.match(html, /data-active-menu="calendars"/);
