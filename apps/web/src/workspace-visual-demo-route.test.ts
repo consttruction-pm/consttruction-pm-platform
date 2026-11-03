@@ -134,6 +134,7 @@ test("module registers expose searchable and sortable row controls with an empty
   const markup = renderVisualDemo(state);
   assert.match(markup, /data-vd-module-search value="no-match"/);
   assert.match(markup, /data-vd-module-sort/);
+  assert.match(markup, /data-vd-module-sort-field/);
   assert.match(markup, /value="ascending" selected/);
   assert.match(markup, /No records match this search/);
 });
