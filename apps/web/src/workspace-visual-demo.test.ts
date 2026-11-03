@@ -647,3 +647,31 @@ test("Calendar dictionary and editor expose Persian RTL labels and conversion wa
     assert.ok(html.includes(label), `missing Persian calendar label: ${label}`);
   }
 });
+
+
+test("Resource dictionary follows desktop columns and exposes the resource detail pane", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const label of ["Resource hierarchy and dictionary", "Resource ID", "Resource name", "Unit of measure", "Primary role", "Default units/time", "Calendar", "Average unit rate", "Delete / Merge", "Resource Details", "Ready-mix concrete C30", "Material"]) {
+    assert.ok(html.includes(label), `missing resource dictionary control: ${label}`);
+  }
+  assert.match(html, /cp-vd-resource-table/);
+  assert.match(html, /data-vd-dialog="resource-details"/);
+  assert.match(html, /resource rates over time, shifts, calendars, roles, codes/);
+});
+
+test("Resource Details follows the desktop General, Codes, Details, Units & Prices, Roles, Notes and Custom Fields tabs", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const label of ["Resource detail sections", "Units & Prices", "Employee ID", "E-mail address", "Office phone", "Active resource — available for assignment", "Maximum units/time", "Price factor", "Assigned roles", "Resource codes", "Progress Reporter tab is excluded"]) {
+    assert.ok(html.includes(label), `missing Resource Details field or tab: ${label}`);
+  }
+  assert.match(html, /data-vd-dialog="resource-details"/);
+  assert.match(html, /cp-vd-resource-detail-body/);
+});
+
+test("Resource Details exposes localized tabs and fields in Persian RTL", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["جزئیات منبع", "کدها", "واحدها و قیمت‌ها", "شناسه کارمند", "تقویم منبع", "شیفت", "نقش‌ها و کدها", "فیلدهای سفارشی"]) {
+    assert.ok(html.includes(label), `missing Persian Resource Details label: ${label}`);
+  }
+});
