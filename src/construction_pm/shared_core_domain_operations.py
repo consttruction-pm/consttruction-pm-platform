@@ -58,6 +58,13 @@ from construction_pm.p6_resource_capacity_write_api import (
     P6_RESOURCE_CAPACITY_WRITE_API_VERSION,
 )
 from construction_pm.resources.max_units_time import ResourceCapacityBasis
+from construction_pm.resources.api import ResourceAPI
+from construction_pm.resources.models import (
+    CostBasis,
+    Resource,
+    ResourceRate,
+    ResourceType,
+)
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6ScheduleSnapshotPublicationAPI,
     P6_SCHEDULE_SNAPSHOT_API_VERSION,
@@ -147,6 +154,7 @@ def build_project_domain_operations(
     resource_spread_api: P6ResourceSpreadAPI | None = None,
     resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
     resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
+    resource_master_api_factory: Callable[[AuthorizationContext], ResourceAPI] | None = None,
 ) -> dict[str, SharedCoreOperation]:
     """Build the same allow-listed CRUD ABI over server or local typed APIs."""
     operations: dict[str, SharedCoreOperation] = {}
@@ -935,6 +943,104 @@ def build_project_domain_operations(
                 mutates=permission is Permission.PROJECT_WRITE,
             )
 
+
+
+    if resource_master_api_factory is not None:
+        from datetime import date as _date
+
+        def resource_master_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            api = resource_master_api_factory(actor)
+            return _list_result(api.list_resources())
+
+        def resource_master_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            api = resource_master_api_factory(actor)
+            return _record_result(api.get_resource(str(payload["resource_id"])))
+
+        def resource_master_save(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["resource"],
+                required={"id", "code", "name", "type", "unit"},
+                allowed={"id", "code", "name", "type", "unit", "calendar_id", "active", "rates"},
+                code="INVALID_RESOURCE_MASTER_PAYLOAD",
+            )
+            active = raw.get("active", True)
+            if not isinstance(active, bool):
+                raise ValueError("INVALID_RESOURCE_ACTIVE_FLAG")
+            raw_rates = raw.get("rates", [])
+            if not isinstance(raw_rates, list):
+                raise ValueError("INVALID_RESOURCE_RATES")
+            rates: list[ResourceRate] = []
+            for raw_rate in raw_rates:
+                rate = _fields(
+                    raw_rate,
+                    required={"rate", "basis"},
+                    allowed={"rate", "basis", "currency", "effective_from", "effective_to", "version"},
+                    code="INVALID_RESOURCE_RATE",
+                )
+                effective_from = rate.get("effective_from")
+                effective_to = rate.get("effective_to")
+                try:
+                    start_date = None if effective_from is None else _date.fromisoformat(str(effective_from))
+                    end_date = None if effective_to is None else _date.fromisoformat(str(effective_to))
+                except ValueError as exc:
+                    raise ValueError("INVALID_RESOURCE_RATE_DATE") from exc
+                version = rate.get("version", 1)
+                if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+                    raise ValueError("INVALID_RESOURCE_RATE_VERSION")
+                rates.append(
+                    ResourceRate(
+                        rate=_decimal(rate["rate"], "INVALID_RESOURCE_RATE_VALUE"),
+                        basis=CostBasis(rate["basis"]),
+                        currency=rate.get("currency", "USD"),
+                        effective_from=start_date,
+                        effective_to=end_date,
+                        version=version,
+                    )
+                )
+            resource = Resource(
+                id=raw["id"],
+                code=raw["code"],
+                name=raw["name"],
+                resource_type=ResourceType(raw["type"]),
+                unit=raw["unit"],
+                calendar_id=raw.get("calendar_id"),
+                active=active,
+                rates=tuple(rates),
+            )
+            expected = payload.get("expected_revision")
+            if expected is not None and (
+                isinstance(expected, bool) or not isinstance(expected, int) or expected < 1
+            ):
+                raise ValueError("INVALID_RESOURCE_EXPECTED_REVISION")
+            idempotency_key = payload.get("idempotency_key")
+            if idempotency_key is not None and (
+                not isinstance(idempotency_key, str) or not idempotency_key.strip()
+            ):
+                raise ValueError("INVALID_RESOURCE_IDEMPOTENCY_KEY")
+            result = resource_master_api_factory(actor).create_resource(
+                resource,
+                expected_revision=expected,
+                idempotency_key=idempotency_key,
+            )
+            if isinstance(result, Mapping) and isinstance(result.get("error"), Mapping):
+                error = result["error"]
+                code = error.get("code")
+                raise ValueError(code if isinstance(code, str) else "RESOURCE_MASTER_OPERATION_FAILED")
+            return _record_result(result)
+
+        for name, required, allowed, handler in (
+            ("resource.master.list", set(), set(), resource_master_list),
+            ("resource.master.get", {"resource_id"}, {"resource_id"}, resource_master_get),
+            ("resource.master.save", {"resource"}, {"resource", "expected_revision", "idempotency_key"}, resource_master_save),
+        ):
+            operations[name] = SharedCoreOperation(
+                contract_version="resource.v1",
+                permission=Permission.PROJECT_READ if name != "resource.master.save" else Permission.PROJECT_WRITE,
+                required_fields=frozenset(required),
+                allowed_fields=frozenset(allowed),
+                handler=handler,
+                mutates=name == "resource.master.save",
+            )
 
     if resource_read_api is not None:
         def assignment_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
