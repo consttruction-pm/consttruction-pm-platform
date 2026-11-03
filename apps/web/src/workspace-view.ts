@@ -201,6 +201,7 @@ const documentSelectionByContainer = new WeakMap<HTMLElement, string>();
 const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
 const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
 const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart" | "gantt">();
+const projectPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart" | "gantt">();
 type WbsChartAppearance = { template: "code-name" | "name-only" | "code-only"; font: "Inter" | "Arial" | "Georgia"; size: 10 | 12 | 14 | 16 | 18; background: "#f7f9fc" | "#eef5fb" | "#fffaf0"; box: "#ffffff" | "#eef5fb" | "#fffaf0" };
 const wbsChartAppearanceByContainer = new WeakMap<HTMLElement, WbsChartAppearance>();
 const wbsChartOptionsOpenByContainer = new WeakMap<HTMLElement, boolean>();
@@ -425,7 +426,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-calendar-pool],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-wbs-chart-options-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-assignment-usage-fields-open],[data-assignment-usage-fields-close],[data-assignment-usage-fields-apply],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-project-view-toggle],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-calendar-pool],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-wbs-chart-options-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-assignment-usage-fields-open],[data-assignment-usage-fields-close],[data-assignment-usage-fields-apply],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -452,7 +453,17 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       renderMainWorkspace(container, state, options);
       return;
     }
-    if (target.dataset.assignmentUsageToggle !== undefined) {
+    if (target.dataset.projectViewToggle !== undefined) {
+      const view = target.dataset.projectViewToggle === "chart" || target.dataset.projectViewToggle === "gantt" ? target.dataset.projectViewToggle : "table";
+      projectPresentationByContainer.set(container, view);
+      container.querySelectorAll<HTMLElement>("[data-project-view]").forEach((panel) => { panel.hidden = panel.dataset.projectView !== view; });
+      container.querySelectorAll<HTMLElement>("[data-project-view-toggle]").forEach((button) => {
+        const active = button.dataset.projectViewToggle === view;
+        button.setAttribute("aria-pressed", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      return;
+    }    if (target.dataset.assignmentUsageToggle !== undefined) {
       const visible = !(assignmentUsageVisibleByContainer.get(container) ?? false);
       assignmentUsageVisibleByContainer.set(container, visible);
       const panel = container.querySelector<HTMLElement>("[data-assignment-usage-panel]");
@@ -2045,7 +2056,13 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         <div class="cp-project-window-toolbar">
           ${controls(`${moduleButton("wbs", "wbs", uiText(state.locale, "Open WBS structure", "بازکردن ساختار WBS"))}${moduleButton("tools", "tools", uiText(state.locale, "Import / Export", "ورود / خروجی"))}${projectSettingsButton(state, t)}`)}
           <span class="cp-project-window-scope">${escapeHtml(uiText(state.locale, "Current project · server-authorized session", "پروژه جاری · نشست تأییدشده توسط سرور"))}</span>
+          <div class="cp-project-view-toolbar" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Top Layout", "چیدمان بالا"))}">
+            <button type="button" data-project-view-toggle="table" aria-pressed="${(projectPresentationByContainer.get(container) ?? "table") === "table"}" class="${(projectPresentationByContainer.get(container) ?? "table") === "table" ? "is-active" : ""}">${escapeHtml(uiText(state.locale,"Project Table","جدول پروژه"))}</button>
+            <button type="button" data-project-view-toggle="chart" aria-pressed="${projectPresentationByContainer.get(container) === "chart"}" class="${projectPresentationByContainer.get(container) === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale,"Project Chart","نمودار پروژه"))}</button>
+            <button type="button" data-project-view-toggle="gantt" aria-pressed="${projectPresentationByContainer.get(container) === "gantt"}" class="${projectPresentationByContainer.get(container) === "gantt" ? "is-active" : ""}">${escapeHtml(uiText(state.locale,"Gantt Chart","نمودار گانت"))}</button>
+          </div>
         </div>
+        <div class="cp-project-view-panel" data-project-view="table" ${(projectPresentationByContainer.get(container) ?? "table") !== "table" ? "hidden" : ""}>
         <div class="cp-project-window-overview">
           <section class="cp-project-register" aria-label="${escapeAttribute(uiText(state.locale, "Current project register", "دفتر ثبت پروژه جاری"))}">
             <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Register", "دفتر ثبت پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Current session project", "پروژه نشست جاری"))}</span></div>
@@ -2059,6 +2076,14 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
             ${state.wbsNodes.length ? `<div class="cp-project-wbs-list">${state.wbsNodes.map((node) => `<div class="cp-project-wbs-row"><span>${escapeHtml(node.localCode)}</span><strong>${escapeHtml(node.name)}</strong><small>R${node.recordRevision}</small></div>`).join("")}</div>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No WBS elements are loaded for this project.", "هیچ عنصر WBS برای این پروژه بارگذاری نشده است."))}</p>`}
           </section>
           <div class="cp-project-structure-splitter" data-project-structure-splitter role="separator" aria-orientation="vertical" aria-valuemin="${PROJECT_STRUCTURE_WIDTH_MIN}" aria-valuemax="${PROJECT_STRUCTURE_WIDTH_MAX}" aria-valuenow="${readProjectStructureWidth()}" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize Project Structure pane", "تغییر عرض پنل ساختار پروژه"))}"><span></span></div>
+        </div>
+        </div>
+        <div class="cp-project-view-panel cp-project-chart-view" data-project-view="chart" ${projectPresentationByContainer.get(container) === "chart" ? "" : "hidden"}>
+          <div class="cp-project-chart-card"><span>${escapeHtml(uiText(state.locale,"Current authorized project","پروژه مجاز جاری"))}</span><strong>${escapeHtml(state.context.project_id)}</strong><div><small>${state.wbsNodes.length} ${escapeHtml(uiText(state.locale,"WBS elements","عنصر WBS"))}</small><small>${state.activities.length} ${escapeHtml(uiText(state.locale,"activities","فعالیت"))}</small></div></div>
+          <p class="cp-project-window-note">${escapeHtml(uiText(state.locale,"Only the current session project is loaded. No EPS siblings or portfolio nodes are invented.","فقط پروژه نشست جاری بارگذاری شده است؛ گره‌های هم‌سطح EPS یا سبد پروژه ساخته یا حدس زده نمی‌شوند."))}</p>
+        </div>
+        <div class="cp-project-view-panel cp-project-gantt-view" data-project-view="gantt" ${projectPresentationByContainer.get(container) === "gantt" ? "" : "hidden"}>
+          <div class="cp-project-gantt-empty"><strong>${escapeHtml(uiText(state.locale,"Project Gantt Chart","نمودار گانت پروژه"))}</strong><span>${escapeHtml(uiText(state.locale,"Project start and finish dates are not available in the current session record. The timeline is not fabricated.","تاریخ شروع و پایان پروژه در رکورد نشست جاری موجود نیست؛ خط زمانی ساختگی نمایش داده نمی‌شود."))}</span></div>
         </div>
         <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "This build displays the project authorized for the current session. Organization-wide domains, portfolios and additional projects are not invented when the API does not provide them.", "این نسخه پروژه مجاز برای نشست جاری را نمایش می‌دهد. حوزه‌های سازمانی، سبدها و پروژه‌های دیگر در صورت نبود داده از API ساخته یا حدس زده نمی‌شوند."))}</p>`;
       break;
