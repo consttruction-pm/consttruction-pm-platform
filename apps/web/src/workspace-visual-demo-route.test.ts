@@ -69,9 +69,9 @@ test("real project URLs preserve live mode across refresh and unrelated query pa
 test("all expanded control modules render as navigable visual workspace windows", () => {
   const modules = [
     ["cost-control", "Cost &amp; Financial Control"],
-    ["progress-control", "Progress & Field Control"],
+    ["progress-control", "Progress &amp; Field Control"],
     ["procurement", "Procurement & Materials"],
-    ["changes-claims", "Changes & Claims"],
+    ["changes-claims", "Changes &amp; Claims"],
     ["form-builder", "Form Builder"],
     ["organization", "Organization"],
     ["smart-guide", "Smart Guide"],
