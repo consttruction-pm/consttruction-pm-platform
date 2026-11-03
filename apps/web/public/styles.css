@@ -7880,3 +7880,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-assignment-main-layout:has(.cp-assignment-usage-panel[hidden]){grid-template-columns:minmax(0,1fr)}
 .cp-p6 .cp-assignment-main-layout:has(.cp-assignment-usage-panel[hidden]) .cp-assignment-usage-pane{display:none}
 @media(max-width:900px){.cp-p6 .cp-assignment-main-layout{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-assignment-register-pane .cp-register-table-wrap{max-height:220px}}
+
+.cp-p6 .cp-document-file-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0}
+.cp-p6 .cp-document-file-actions button{min-height:26px;padding:4px 9px;border:1px solid #bdc9d7;border-radius:3px;background:#f7f9fc;color:#36536f;font:inherit;font-size:10px}
+.cp-p6 .cp-document-file-actions button:disabled{opacity:.5;cursor:not-allowed}
