@@ -692,3 +692,22 @@ test("Resource shift dialog has Persian RTL labels", () => {
     assert.ok(html.includes(label), `missing Persian resource shift label: ${label}`);
   }
 });
+
+
+test("Print preview and Page Setup expose page navigation, scaling, paper, margins, headers and sheet options", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const label of ["Print preview toolbar", "Page 1 of 3", "Page Setup…", "Print Setup…", "Activity Schedule", "Portrait", "Landscape", "Page", "Margins", "Header/Footer", "Sheet", "Adjust to", "Fit to", "Fit timescale to", "Paper size", "A4", "Top", "Bottom", "Header left", "Footer right", "Date range", "Pages wide", "Columns to print", "Repeat table on every page", "Print with gradient", "Tiled page order", "Printer selection and properties", "Save as PDF"]) {
+    assert.ok(html.includes(label), `missing print/page setup control: ${label}`);
+  }
+  assert.match(html, /data-vd-dialog="page-setup"/);
+  assert.match(html, /data-vd-dialog="print-setup"/);
+  assert.match(html, /cp-vd-print-stage/);
+});
+
+test("Print preview and Page Setup localize orientation, margins and sheet controls in Persian RTL", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["پیش‌نمایش چاپ", "تنظیم صفحه…", "تنظیم چاپ…", "جهت صفحه", "عمودی", "افقی", "مقیاس‌بندی", "اندازه کاغذ", "حاشیه‌ها", "سربرگ / پابرگ", "گزینه‌های برگه", "تکرار جدول در همه صفحات", "ترتیب صفحات کاشی‌شده", "انتخاب چاپگر و مشخصات آن"]) {
+    assert.ok(html.includes(label), `missing Persian print label: ${label}`);
+  }
+});
