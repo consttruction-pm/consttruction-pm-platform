@@ -77,3 +77,34 @@ Conversely, the Risks view and Activity Details > Risks are Professional-only an
 - `../architecture/workspace-layout-specification.md`
 - `../architecture/p6-to-cubi-mapping-matrix.md`
 - `../workspace-execution-log.md`
+
+## Latest Version 26 documentation refresh — 2026-11-03
+
+The controlling source was rechecked against Oracle's current Version 26 documentation landing page on 2026-11-03. The current Professional User Guide is document **G57529-01, October 2026**; use this guide and the current English Help as the controlling source set. Do not use the older Version 25 (October 2025) guide or archived Version 22/25 screenshots as the current acceptance baseline.
+
+| Source | Official reference | Audit use |
+|---|---|---|
+| Version 26 documentation landing page | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/ | Confirms current release documentation family and current documentation updates |
+| Version 26 User Guide — October 2026, G57529-01 | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html | Primary desktop Professional workflow and chapter reference |
+| Version 26 User Guide table of contents | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm | Current inventory for WBS, resources/roles, calendars, activities, relationships, budgeting, earned value, progress, scheduling, leveling, layouts, Gantt, Network, Trace Logic, tracking and reports |
+| Version 26 Professional Help | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm | Context-sensitive desktop menus, commands, dialogs and window behavior |
+| Version 26 all-guides index | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/books.html | Cross-checks the full official guide set, including Administration, Reporting and Visualizer |
+| Version 26 Gantt bar configuration | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/change_a_bar_in_the_gantt_chart.htm | Confirms the Bars workflow: Display, Name, Timescale, Filter, Bar Style, Bar Settings, Bar Labels and Apply |
+| Version 26 calendar hierarchy | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/globalcalendars.htm | Confirms Global Calendar scope and create/edit/delete/default/assignment workflows |
+| Version 26 resource and shift workflow | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/resources.htm | Confirms resource register, shifts, resource details and multiple-rate costing |
+| Version 26 tracking layout types | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/types_of_tracking_layouts.htm | Confirms Project Table, Project Bar Chart, Project Gantt/Profile and Resource Analysis layout families |
+| Version 26 tracking layout grouping/filtering | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/62638.htm | Confirms tracking-specific grouping, sorting and filtering surfaces |
+
+### Version 26 coverage corrections applied to the audit baseline
+
+1. **Professional desktop edition remains the target.** EPPM-only capabilities must not be introduced merely because they appear in a shared help family. Edition qualifiers must be recorded for every command/tab before adding it to CUBI.
+2. **Gantt Bars is a multi-tab configuration workflow**, not a single color picker. The visual inventory must separately represent bar display/name/timescale/filter, style, settings/grouping/necking, labels and label positions, plus Apply/OK behavior.
+3. **Calendar scope and assignment are separate concerns.** Global, Project and Resource calendar pools, calendar inheritance/assignment, workweek, detailed hours, exceptions, and hours-per-time-period settings must not be collapsed into one generic calendar form. Jalali/Gregorian date presentation is a separate preference and is not a working-time calendar.
+4. **Resource coverage includes shifts and effective rates.** The visual inventory must include resource shifts and multiple-rate cost behavior in addition to the resource dictionary and assignment table.
+5. **Tracking is not interchangeable with Activity layouts.** The four documented tracking layout families require their own layout, grouping/filtering, timescale and lower-pane options.
+6. **Visual color matching is evidence-gated.** The old screenshot color samples in `visual-reference-audit.md` are approximate observations, not Oracle design tokens or a current Version 26 palette specification. Keep CUBI brand tokens authoritative; do not copy sampled legacy colors into the brand theme or claim pixel parity without current-release screenshots.
+7. **Latest official guide date is not a proof of latest installed client build.** Record the exact installed Professional client build separately if a direct client comparison becomes available. Do not infer installed patch level from the documentation publication date.
+
+### Audit evidence boundary
+
+This refresh verifies the current official documentation set and updates the source baseline. It does **not** certify the running CUBI UI, pixel-level color parity, all window interactions, or browser screenshots. Those remain separate acceptance gates in the master audit and parent issue #1691.
