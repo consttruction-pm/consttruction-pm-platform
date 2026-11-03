@@ -185,6 +185,8 @@ type DemoState = {
   detailTab: string;
   moduleDetailTab: "general" | "status" | "relationships" | "comments" | "history";
   moduleSelectedRow: number;
+  moduleSearch: string;
+  moduleSort: "default" | "ascending" | "descending";
   calendarMonth: number;
   adminSection: string;
   filter: string;
@@ -629,6 +631,14 @@ function renderAdministration(state: DemoState): string {
 }
 
 function renderTableWindow(state: DemoState, title: Label, headers: string[], rows: Row[], actions: string[] = []): string {
+  const searchableRows = rows.map((row, index) => ({ row, index })).filter(({ row }) =>
+    !state.moduleSearch.trim() || headers.some((header) => String(row[header] ?? "").toLowerCase().includes(state.moduleSearch.trim().toLowerCase())),
+  );
+  if (state.moduleSort !== "default") searchableRows.sort((a, b) => {
+    const left = String(a.row[headers[0]] ?? "").toLocaleLowerCase();
+    const right = String(b.row[headers[0]] ?? "").toLocaleLowerCase();
+    return (left.localeCompare(right, undefined, { numeric: true }) || a.index - b.index) * (state.moduleSort === "ascending" ? 1 : -1);
+  });
   const selected = rows[Math.min(state.moduleSelectedRow, Math.max(0, rows.length - 1))] ?? {};
   const detailTabs: Array<[DemoState["moduleDetailTab"], string, string]> = [
     ["general", "General", "عمومی"], ["status", "Status", "وضعیت"], ["relationships", "Relationships", "روابط"],
@@ -649,10 +659,13 @@ function renderTableWindow(state: DemoState, title: Label, headers: string[], ro
       <button type="button" disabled title="${esc(t(state.locale, "Preview only — delete is not connected", "پیش‌نمایش — حذف متصل نیست"))}">⌫ ${esc(t(state.locale, "Delete", "حذف"))}</button>
       <button type="button" data-vd-dialog="filters">▽ ${esc(t(state.locale, "Filter", "فیلتر"))}</button>
       <button type="button" data-vd-dialog="columns">▦ ${esc(t(state.locale, "Columns", "ستون‌ها"))}</button>
+      <label class="cp-vd-register-search"><span>${esc(t(state.locale, "Find in register", "جست‌وجو در فهرست"))}</span><input type="search" data-vd-module-search value="${esc(state.moduleSearch)}" placeholder="${esc(t(state.locale, "Search visible fields…", "جست‌وجوی فیلدهای نمایان…"))}"></label>
+      <label class="cp-vd-register-sort"><span>${esc(t(state.locale, "Sort", "ترتیب"))}</span><select data-vd-module-sort><option value="default" ${state.moduleSort === "default" ? "selected" : ""}>${esc(t(state.locale, "Original order", "ترتیب اصلی"))}</option><option value="ascending" ${state.moduleSort === "ascending" ? "selected" : ""}>${esc(t(state.locale, "Ascending", "صعودی"))}</option><option value="descending" ${state.moduleSort === "descending" ? "selected" : ""}>${esc(t(state.locale, "Descending", "نزولی"))}</option></select></label>
+      <span class="cp-vd-register-count">${searchableRows.length} / ${rows.length}</span>
       <span class="cp-vd-note">${esc(t(state.locale, "Visual preview — not connected", "پیش‌نمایش بصری — متصل نیست"))}</span>
     </div>
     <div class="cp-vd-module-split">
-      <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>#</th>${headers.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row, index) => `<tr class="cp-vd-row${index === state.moduleSelectedRow ? " is-selected" : ""}" data-vd-module-row="${index}"><td class="cp-vd-rownum">${index + 1}</td>${headers.map((header) => `<td>${esc(row[header] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>#</th>${headers.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${searchableRows.map(({ row, index }) => `<tr class="cp-vd-row${index === state.moduleSelectedRow ? " is-selected" : ""}" data-vd-module-row="${index}" aria-selected="${index === state.moduleSelectedRow}"><td class="cp-vd-rownum">${index + 1}</td>${headers.map((header) => `<td>${esc(row[header] ?? "")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${headers.length + 1}" class="cp-vd-empty-state">${esc(t(state.locale, "No records match this search.", "رکوردی با این جست‌وجو پیدا نشد."))}</td></tr>`}</tbody></table></div>
       <aside class="cp-vd-module-details"><div class="cp-vd-detail-heading"><strong>${esc(t(state.locale, "Details", "جزئیات"))}</strong><span>${esc(String(selected[headers[0]] ?? "—"))}</span></div>
         <div class="cp-vd-detail-tabs" role="tablist">${detailTabs.map(([id, en, fa]) => `<button type="button" role="tab" aria-selected="${state.moduleDetailTab === id}" class="${state.moduleDetailTab === id ? "is-active" : ""}" data-vd-module-tab="${id}">${esc(t(state.locale, en, fa))}</button>`).join("")}</div>
         <div class="cp-vd-module-detail-panel">${detail}</div>
@@ -1457,7 +1470,7 @@ export function renderVisualDemo(state: DemoState): string {
   .cp-vd-rail-add span{font-size:10px;font-weight:700}
   @media(max-width:900px){.cp-vd-workspace-grid{grid-template-columns:minmax(0,1fr) 42px}.cp-vd-left-nav{grid-column:1/-1;display:flex;gap:4px;overflow-x:auto;border-inline-end:0;border-bottom:1px solid #c7d2df;max-height:54px}.cp-vd-nav-heading{display:none}.cp-vd-nav-link{width:auto;white-space:nowrap;flex:0 0 auto}.cp-vd-main{grid-column:1}.cp-vd-right-rail{grid-column:2;grid-row:2;position:sticky;top:0}.cp-vd-right-rail button{width:34px}}
   @media(max-width:560px){.cp-vd-workspace-grid{grid-template-columns:minmax(0,1fr)}.cp-vd-left-nav{grid-column:1}.cp-vd-main{grid-column:1}.cp-vd-right-rail{grid-column:1;grid-row:auto;position:sticky;bottom:0;flex-direction:row;justify-content:space-around;z-index:5;border-inline-start:0;border-top:1px solid #c7d2df}.cp-vd-right-rail button{min-height:34px}.cp-vd-right-rail .cp-vd-rail-add{min-height:38px}}
-</style><div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
+.cp-vd-register-search,.cp-vd-register-sort{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-register-search input,.cp-vd-register-sort select{min-width:118px;max-width:190px;height:29px;border:1px solid var(--cp-vd-border);border-radius:5px;background:var(--cp-vd-panel);color:var(--cp-vd-text);padding:3px 7px}.cp-vd-register-search input{min-width:170px}.cp-vd-register-count{font-size:11px;font-weight:700;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-empty-state{text-align:center;padding:28px!important;color:var(--cp-vd-muted)}@media(max-width:760px){.cp-vd-register-search,.cp-vd-register-sort{width:100%;justify-content:space-between}.cp-vd-register-search input,.cp-vd-register-sort select{flex:1;max-width:none}.cp-vd-register-count{margin-inline-start:auto}}</style><div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
     <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span>${renderLanguageSwitch(state)}<button type="button" class="cp-vd-fullscreen" data-vd-fullscreen aria-pressed="${state.fullscreen ? "true" : "false"}" title="${esc(t(state.locale, "Toggle full screen", "تغییر حالت تمام‌صفحه"))}">${esc(state.fullscreen ? t(state.locale, "Return to normal view", "بازگشت به نمای اصلی") : t(state.locale, "Full screen", "تمام‌صفحه"))}</button><button type="button" class="cp-vd-exit" data-vd-action='{"command":"sign-out"}' title="${esc(t(state.locale, "Sign out and return to home page", "خروج از حساب و بازگشت به صفحه اصلی"))}">${esc(t(state.locale, "Sign out", "خروج از حساب"))}</button></div>
     ${renderMenus(state)}
     ${renderToolbars(state)}
@@ -1500,6 +1513,8 @@ export function createVisualDemoState(locale: string): DemoState {
     detailTab: "general",
     moduleDetailTab: "general",
     moduleSelectedRow: 0,
+    moduleSearch: "",
+    moduleSort: "default",
     calendarMonth: 1,
     adminSection: "users",
     filter: "",
@@ -1874,8 +1889,34 @@ function bind(root: HTMLElement): void {
     draw();
   });
 
+  root.addEventListener("input", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.matches("[data-vd-module-search]")) {
+      state.moduleSearch = target.value;
+      const selection = root.querySelector<HTMLElement>("[data-vd-module-row].is-selected");
+      if (selection && !selection.isConnected) state.moduleSelectedRow = 0;
+      const active = document.activeElement === target;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      draw();
+      if (active) {
+        const replacement = root.querySelector<HTMLInputElement>("[data-vd-module-search]");
+        replacement?.focus();
+        if (start !== null && end !== null) replacement?.setSelectionRange(start, end);
+      }
+    }
+  });
+
   root.addEventListener("change", (event) => {
     const target = event.target as HTMLElement | null;
+    if (target instanceof HTMLSelectElement && target.matches("[data-vd-module-sort]")) {
+      const next = target.value;
+      if (next === "default" || next === "ascending" || next === "descending") {
+        state.moduleSort = next;
+        draw();
+      }
+      return;
+    }
     if (!target || target.getAttribute("type") !== "checkbox") return;
     const column = target.getAttribute("data-vd-column");
     if (!column) return;
