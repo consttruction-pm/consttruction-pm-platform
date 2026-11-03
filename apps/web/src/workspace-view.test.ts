@@ -463,7 +463,7 @@ test("Activities Layout Options inventories top and bottom chart layouts without
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
   assert.doesNotMatch(render("en", "schedule"), /data-activity-detail-tab="tasks"/);
   const html = render("en", "schedule");
-  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
+  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "discussion", "notebook", "steps", "feedback", "update-history", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
     assert.ok(html.includes(`data-activity-detail-tab="${tab}"`), `missing Activity Details tab: ${tab}`);
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
