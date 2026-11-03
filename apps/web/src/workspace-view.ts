@@ -200,7 +200,7 @@ const activityDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const documentSelectionByContainer = new WeakMap<HTMLElement, string>();
 const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
 const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
-const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart">();
+const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart" | "gantt">();
 const calendarEditorTabByContainer = new WeakMap<HTMLElement, "general" | "workweek" | "exceptions" | "time-periods" | "assignments">();
 const calendarMonthAnchorByContainer = new WeakMap<HTMLElement, Date>();
 const calendarSelectionByContainer = new WeakMap<HTMLElement, string>();
@@ -694,13 +694,13 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if (target.dataset.wbsViewToggle) {
-      const chart = target.dataset.wbsViewToggle === "chart";
-      wbsPresentationByContainer.set(container, chart ? "chart" : "table");
+      const view = target.dataset.wbsViewToggle === "chart" || target.dataset.wbsViewToggle === "gantt" ? target.dataset.wbsViewToggle : "table";
+      wbsPresentationByContainer.set(container, view);
       container.querySelectorAll<HTMLElement>("[data-wbs-view]").forEach((panel) => {
-        panel.hidden = panel.dataset.wbsView !== (chart ? "chart" : "table");
+        panel.hidden = panel.dataset.wbsView !== view;
       });
       container.querySelectorAll<HTMLElement>("[data-wbs-view-toggle]").forEach((button) => {
-        const active = button.dataset.wbsViewToggle === (chart ? "chart" : "table");
+        const active = button.dataset.wbsViewToggle === view;
         button.setAttribute("aria-pressed", String(active));
         button.classList.toggle("is-active", active);
       });
@@ -1938,7 +1938,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       break;
     }
     case "wbs":
-      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type="button" data-wbs-view-toggle="table" aria-pressed="${wbsPresentationByContainer.get(container) !== "chart"}" class="${wbsPresentationByContainer.get(container) !== "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Table View", "نمای جدولی"))}</button><button type="button" data-wbs-view-toggle="chart" aria-pressed="${wbsPresentationByContainer.get(container) === "chart"}" class="${wbsPresentationByContainer.get(container) === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></div></div><div class="cp-wbs-window-layout"><section class="cp-wbs-hierarchy-pane"><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div class="cp-wbs-view-panel" data-wbs-view="table" ${wbsPresentationByContainer.get(container) === "chart" ? "hidden" : ""}>${renderWbsTable(state.wbsNodes, state.selectedWbsId, t, state.locale)}</div><div class="cp-wbs-view-panel cp-wbs-chart-view" data-wbs-view="chart" ${wbsPresentationByContainer.get(container) === "chart" ? "" : "hidden"}>${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "WBS table and chart views use the current project hierarchy. Advanced chart formatting and additional WBS detail data remain pending.", "نمای جدولی و نموداری WBS از سلسله‌مراتب فعلی پروژه استفاده می‌کنند. قالب‌بندی پیشرفته نمودار و سایر داده‌های جزئیات WBS هنوز تکمیل نشده‌اند."))}</p></div>`;
+      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type="button" data-wbs-view-toggle="table" aria-pressed="${(wbsPresentationByContainer.get(container) ?? "table") === "table"}" class="${(wbsPresentationByContainer.get(container) ?? "table") === "table" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Table View", "نمای جدولی"))}</button><button type="button" data-wbs-view-toggle="chart" aria-pressed="${wbsPresentationByContainer.get(container) === "chart"}" class="${wbsPresentationByContainer.get(container) === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button><button type="button" data-wbs-view-toggle="gantt" aria-pressed="${wbsPresentationByContainer.get(container) === "gantt"}" class="${wbsPresentationByContainer.get(container) === "gantt" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Gantt Chart", "نمودار گانت"))}</button></div></div><div class="cp-wbs-window-layout"><section class="cp-wbs-hierarchy-pane"><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div class="cp-wbs-view-panel" data-wbs-view="table" ${wbsPresentationByContainer.get(container) === "chart" ? "hidden" : ""}>${renderWbsTable(state.wbsNodes, state.selectedWbsId, t, state.locale)}</div><div class="cp-wbs-view-panel cp-wbs-chart-view" data-wbs-view="chart" ${wbsPresentationByContainer.get(container) === "chart" ? "" : "hidden"}>${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</div><div class="cp-wbs-view-panel cp-wbs-gantt-view" data-wbs-view="gantt" ${wbsPresentationByContainer.get(container) === "gantt" ? "" : "hidden"}><div class="cp-wbs-gantt-empty"><strong>${escapeHtml(uiText(state.locale,"WBS Gantt Chart","نمودار گانت WBS"))}</strong><span>${escapeHtml(uiText(state.locale,"WBS start and finish dates are not present in the loaded WBS records. The timeline is not fabricated.","تاریخ شروع و پایان WBS در رکوردهای بارگذاری‌شده وجود ندارد؛ خط زمانی ساختگی نمایش داده نمی‌شود."))}</span></div></div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "WBS table and chart views use the current project hierarchy. Advanced chart formatting and additional WBS detail data remain pending.", "نمای جدولی و نموداری WBS از سلسله‌مراتب فعلی پروژه استفاده می‌کنند. قالب‌بندی پیشرفته نمودار و سایر داده‌های جزئیات WBS هنوز تکمیل نشده‌اند."))}</p></div>`;
       break;
     case "calendars":
       body = `
