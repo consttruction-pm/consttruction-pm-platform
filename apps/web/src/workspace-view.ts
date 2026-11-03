@@ -154,6 +154,44 @@ function openWbsDrawer(container: HTMLElement): void {
   drawer.hidden = false;
 }
 
+const WORKSPACE_SPLIT_DEFAULT = 53.5;
+const WORKSPACE_SPLIT_MIN = 30;
+const WORKSPACE_SPLIT_MAX = 70;
+const WORKSPACE_SPLIT_STORAGE_PREFIX = "cubi:workspace-split:v1:";
+
+function workspaceSplitStorageKey(split: HTMLElement): string {
+  const workspace = split.closest<HTMLElement>(".cp-p6-workspace");
+  const project = workspace?.dataset.project ?? "default";
+  const menu = split.dataset.workspaceMenu ?? "schedule";
+  return `${WORKSPACE_SPLIT_STORAGE_PREFIX}${encodeURIComponent(project)}:${menu}`;
+}
+
+function applyWorkspaceSplit(split: HTMLElement, splitter: HTMLElement, value: number, persist: boolean): void {
+  const clamped = Math.min(WORKSPACE_SPLIT_MAX, Math.max(WORKSPACE_SPLIT_MIN, value));
+  split.style.setProperty("--cp-split-table", `${clamped.toFixed(2)}%`);
+  splitter.setAttribute("aria-valuenow", clamped.toFixed(0));
+  if (persist) persistWorkspaceSplit(split);
+}
+
+function persistWorkspaceSplit(split: HTMLElement): void {
+  try {
+    const value = Number.parseFloat(split.style.getPropertyValue("--cp-split-table"));
+    if (Number.isFinite(value)) window.localStorage.setItem(workspaceSplitStorageKey(split), String(value));
+  } catch {
+    // Resizing remains usable when browser storage is blocked or unavailable.
+  }
+}
+
+function restoreWorkspaceSplit(container: HTMLElement): void {
+  const split = container.querySelector<HTMLElement>("[data-panel-split]");
+  const splitter = split?.querySelector<HTMLElement>("[data-panel-splitter]");
+  if (!split || !splitter) return;
+  let stored: string | null = null;
+  try { stored = window.localStorage.getItem(workspaceSplitStorageKey(split)); } catch { /* storage may be blocked */ }
+  const value = stored === null ? WORKSPACE_SPLIT_DEFAULT : Number.parseFloat(stored);
+  applyWorkspaceSplit(split, splitter, Number.isFinite(value) ? value : WORKSPACE_SPLIT_DEFAULT, false);
+}
+
 function bindWorkspaceEvents(container: HTMLElement): void {
   if (typeof container.addEventListener !== "function" || workspaceEventDelegation.has(container)) return;
   workspaceEventDelegation.add(container);
@@ -163,20 +201,27 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const split = splitter.closest<HTMLElement>("[data-panel-split]");
     if (!split) return;
     event.preventDefault();
+    const pointerId = event.pointerId;
     const move = (moveEvent: PointerEvent): void => {
+      if (moveEvent.pointerId !== pointerId) return;
       const rect = split.getBoundingClientRect();
       if (rect.width <= 0) return;
-      const percent = ((moveEvent.clientX - rect.left) / rect.width) * 100;
-      const clamped = Math.min(70, Math.max(30, percent));
-      split.style.setProperty("--cp-split-table", `${clamped.toFixed(2)}%`);
-      splitter.setAttribute("aria-valuenow", clamped.toFixed(0));
+      const rtl = getComputedStyle(split).direction === "rtl";
+      const logicalOffset = rtl ? rect.right - moveEvent.clientX : moveEvent.clientX - rect.left;
+      const percent = (logicalOffset / rect.width) * 100;
+      applyWorkspaceSplit(split, splitter, percent, false);
     };
-    const stop = (): void => {
+    const stop = (stopEvent?: PointerEvent): void => {
+      if (stopEvent && stopEvent.pointerId !== pointerId) return;
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+      persistWorkspaceSplit(split);
     };
+    try { splitter.setPointerCapture(pointerId); } catch { /* capture is optional in older browsers */ }
     window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stop, { once: true });
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
   });
   container.addEventListener("input", (event) => {
     const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
@@ -507,14 +552,19 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   container.addEventListener("keydown", (event) => {
     const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
     if (splitter && splitter.dataset && "panelSplitter" in splitter.dataset) {
-      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       const split = splitter.closest<HTMLElement>("[data-panel-split]");
       if (!split) return;
+      const rtl = getComputedStyle(split).direction === "rtl";
+      const current = Number.parseFloat(split.style.getPropertyValue("--cp-split-table")) || WORKSPACE_SPLIT_DEFAULT;
+      let next: number;
+      if (event.key === "Home") next = WORKSPACE_SPLIT_MIN;
+      else if (event.key === "End") next = WORKSPACE_SPLIT_MAX;
+      else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        const towardTable = rtl ? event.key === "ArrowRight" : event.key === "ArrowLeft";
+        next = current + (towardTable ? -2 : 2);
+      } else return;
       event.preventDefault();
-      const current = Number.parseFloat(split.style.getPropertyValue("--cp-split-table")) || 53.5;
-      const next = Math.min(70, Math.max(30, current + (event.key === "ArrowRight" ? 2 : -2)));
-      split.style.setProperty("--cp-split-table", `${next}%`);
-      splitter.setAttribute("aria-valuenow", next.toFixed(0));
+      applyWorkspaceSplit(split, splitter, next, true);
       return;
     }
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -937,7 +987,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                     </table>
                   </div>
                 </section>
-                <div class="cp-p6-splitter" data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize table and Gantt", "تغییر اندازهٔ جدول و گانت"))}"><span></span></div>
+                <div class="cp-p6-splitter" data-panel-splitter role="separator" aria-orientation="vertical" aria-valuemin="30" aria-valuemax="70" aria-valuenow="54" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize table and Gantt", "تغییر اندازهٔ جدول و گانت"))}"><span></span></div>
                 <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
@@ -1047,6 +1097,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     </section>
   `;
 
+  restoreWorkspaceSplit(container);
   workspaceRenderRecords.set(container, { state, options });
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
 }
