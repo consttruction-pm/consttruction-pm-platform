@@ -748,12 +748,12 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
         auth = created.context.authorization_context(frozenset({"project_admin"}))
         shared = runtime.schedule_runtime(scope)
 
-        def invoke(operation, payload):
+        def invoke(operation, payload, version="p6-calendar.v1"):
             envelope = {
                 "contract_version": "cubi.shared-core-runtime.v1",
                 "operation": operation,
                 "payload": {
-                    "contract_version": "p6-calendar.v1",
+                    "contract_version": version,
                     "scope": {
                         "tenant_id": scope.tenant_id,
                         "project_id": scope.project_id,
@@ -793,5 +793,63 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
 
         advertised = {item["operation"] for item in shared.supported_operations}
         assert {"calendar.create", "calendar.list", "calendar.get", "calendar.delete"} <= advertised
+
+        calendar_master = runtime.calendar_repository.get(scope, "CAL-P", "1")
+        assert calendar_master is not None
+        runtime.calendar_snapshot_repository.save(calendar_master, WorkingCalendar())
+        runtime.schedule_snapshot_api.save_settings(
+            scope,
+            settings=ProjectScheduleSettings(
+                scope=scope,
+                mode=AuthoritativeScheduleMode.DATE_BASED,
+                project_calendar=CalendarReference(
+                    "CAL-P", "1", "working-day", CalendarSystem.GREGORIAN
+                ),
+                project_start=date(2026, 11, 3),
+                schedule_options=ScheduleOptions(),
+                project_leveling_priority=50,
+            ),
+            expected_revision=0,
+            auth_context=auth,
+        )
+
+        published = invoke(
+            "schedule.publish",
+            {"timezone_name": "UTC", "request_id": "runtime-abi-test"},
+            version="p6-schedule-snapshot-api.v1",
+        )
+        assert published["result"]["item"]["snapshot_id"]
+        settings = invoke(
+            "schedule.settings.get",
+            {},
+            version="p6-project-schedule-settings-api.v1",
+        )
+        assert settings["result"]["item"]["project_calendar"]["calendar_id"] == "CAL-P"
+
+        schedule_payload = {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-CALENDAR-ABI",
+            "scope": {
+                "tenant_id": scope.tenant_id,
+                "project_id": scope.project_id,
+                "project_revision": scope.project_revision,
+            },
+            "requested_by": auth.user_id,
+            "query_text": "Return authoritative schedule facts",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["result"]["item"]["snapshot_id"]},
+        }
+        schedule_response = json.loads(shared.dispatch_json(
+            json.dumps({
+                "contract_version": "cubi.shared-core-runtime.v1",
+                "operation": "schedule.query",
+                "payload": schedule_payload,
+            }),
+            auth_context=auth,
+            expected_project_revision=scope.project_revision,
+        ))
+        assert schedule_response["result"]["contract_version"] == "schedule-query-result.v1"
+        assert schedule_response["result"]["data"]["calculation_run_identity"]
     finally:
         connection.close()
