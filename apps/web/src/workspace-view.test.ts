@@ -114,6 +114,25 @@ test("Calendar Register displays only authenticated project calendar records", (
   assert.doesNotMatch(container.innerHTML, />0<\/span>/);
 });
 
+test("Calendar search filters only loaded calendar rows and exposes management actions", () => {
+  const html = render("en", "calendars");
+  assert.match(html, /data-calendar-search/);
+  assert.match(html, /data-calendar-pool="global"/);
+  assert.match(html, /Used By/);
+  assert.match(html, /To Global/);
+  assert.match(html, /To Shared/);
+  assert.match(html, /To Personal/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const rows = [{ dataset: { calendarSearch: "global standard" }, hidden: false }, { dataset: { calendarSearch: "project standard" }, hidden: false }];
+  const empty = { hidden: true };
+  const container = { innerHTML: "", querySelectorAll: (selector: string) => selector === "[data-calendar-row]" ? rows : [], querySelector: (selector: string) => selector === "[data-calendar-search-empty]" ? empty : null, addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener) };
+  renderMainWorkspace(container as unknown as HTMLElement, { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "calendars" as const });
+  const input = { value: "global", closest: (selector: string) => selector === "[data-calendar-search]" ? input : null };
+  listeners.get("input")?.({ target: input } as unknown as Event);
+  assert.equal(rows[0]?.hidden, false);
+  assert.equal(rows[1]?.hidden, true);
+  assert.equal(empty.hidden, false);
+});
 test("Calendar register selection drives the details header and read-only identity summary", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const state = {
