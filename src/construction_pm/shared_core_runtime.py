@@ -10,6 +10,9 @@ permissions or revision authority.
 
 import json
 import re
+from datetime import date, datetime
+from decimal import Decimal
+from enum import Enum
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -120,6 +123,19 @@ def _error(category: str, code: str, message: str) -> dict[str, object]:
     }
 
 
+def _json_default(value: object) -> object:
+    """Encode domain scalar values without losing Decimal precision."""
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            raise ValueError("NON_FINITE_DECIMAL_RESPONSE")
+        return format(value, "f")
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    if isinstance(value, Enum):
+        return value.value
+    raise TypeError(f"UNSUPPORTED_RUNTIME_RESPONSE_TYPE:{type(value).__name__}")
+
+
 def _response(operation: str, result: Mapping[str, object]) -> str:
     return json.dumps(
         {
@@ -131,6 +147,7 @@ def _response(operation: str, result: Mapping[str, object]) -> str:
         sort_keys=True,
         separators=(",", ":"),
         allow_nan=False,
+        default=_json_default,
     )
 
 
