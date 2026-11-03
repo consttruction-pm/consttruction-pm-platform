@@ -29,6 +29,11 @@ test("login recovery preserves an explicitly selected live project", () => {
   );
 });
 
+test("a direct app entry with no project context opens the visual workspace", () => {
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", ""), true);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?locale=fa"), true);
+});
+
 test("the shared preview project opens the visual workspace at its canonical URL", () => {
   assert.equal(
     shouldRenderVisualWorkspaceDemo(
