@@ -101,6 +101,7 @@ class DemoActivity:
     name: str
     duration: int
     wbs: str
+    short_name: str | None = None
     activity_type: ActivityType = ActivityType.TASK_DEPENDENT
     status: ActivityStatus = ActivityStatus.NOT_STARTED
     status_code: ActivityStatusCode = ActivityStatusCode.PLANNED

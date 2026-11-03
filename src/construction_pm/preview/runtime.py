@@ -560,6 +560,7 @@ def _to_activity(scope: BackendScope, item, wbs_id: str) -> ActivityMaster:
         leveling_priority=item.leveling_priority,
         original_duration=item.duration,
         name=item.name,
+        short_name=item.short_name,
         activity_type=item.activity_type,
         status=item.status,
         status_code=item.status_code,

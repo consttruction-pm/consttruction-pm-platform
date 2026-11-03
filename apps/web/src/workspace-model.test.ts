@@ -80,6 +80,37 @@ test("authoritative schedule facts update the grid and Gantt without client calc
   assert.equal(state.activities[0].cells?.start, "2026-10-19");
 });
 
+test("authoritative float path facts populate registry cells and ignore null", () => {
+  const state = withActivities(createWorkspaceState(context), [
+    { id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation" },
+  ]);
+  const next = applyAuthoritativeScheduleFacts(state, {
+    activities: {
+      "A-1": {
+        start: "2026-10-21",
+        finish: "2026-10-22",
+        float_path: 1,
+        float_path_order: 2,
+      },
+    },
+  });
+  assert.equal(next.activities[0].cells?.["activity.float_path"], 1);
+  assert.equal(next.activities[0].cells?.["activity.float_path_order"], 2);
+
+  const withoutPaths = applyAuthoritativeScheduleFacts(state, {
+    activities: {
+      "A-1": {
+        start: "2026-10-21",
+        finish: "2026-10-22",
+        float_path: null,
+        float_path_order: null,
+      },
+    },
+  });
+  assert.equal(withoutPaths.activities[0].cells?.["activity.float_path"], undefined);
+  assert.equal(withoutPaths.activities[0].cells?.["activity.float_path_order"], undefined);
+});
+
 test("authoritative schedule result rejects invalid date windows", () => {
   const state = withActivities(createWorkspaceState(context), [
     { id: "A-1", wbsId: "W-1", code: "A-1", name: "Foundation" },

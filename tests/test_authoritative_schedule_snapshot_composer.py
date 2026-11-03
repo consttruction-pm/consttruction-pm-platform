@@ -327,11 +327,11 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     }
     status_a, created_a = _request(
         app, "POST", "/api/projects/p1/p6/activities",
-        {**activity_payload, "activity_id": "A-1", "name": "Foundation"},
+        {**activity_payload, "activity_id": "A-1", "name": "Foundation", "short_name": "CP-START"},
     )
     status_b, created_b = _request(
         app, "POST", "/api/projects/p1/p6/activities",
-        {**activity_payload, "activity_id": "B-1", "name": "Columns", "duration_value": "1"},
+        {**activity_payload, "activity_id": "B-1", "name": "Columns", "duration_value": "1", "short_name": "CP-END"},
     )
     assert status_a == "201 Created"
     assert status_b == "201 Created"
@@ -400,6 +400,8 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     assert context is not None
     payload = json.loads(snapshot.canonical_payload)
     assert {item["id"]: item for item in payload["activities"]}["A-1"]["name"] == "Foundation"
+    assert {item["id"]: item for item in payload["activities"]}["A-1"]["short_name"] == "CP-START"
+    assert {item["id"]: item for item in payload["activities"]}["B-1"]["short_name"] == "CP-END"
     assert {item["id"]: item for item in payload["activities"]}["A-1"]["planned_finish"] == "2026-10-22"
     assert {item["id"]: item for item in payload["activities"]}["B-1"]["name"] == "Columns"
     assert len(payload["relationships"]) == 1
@@ -421,6 +423,8 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     materialized = materialize_schedule_snapshot(snapshot, registry)
     by_id = {item.id: item for item in materialized.schedule_input.activities}
     assert by_id["A-1"].name == "Foundation"
+    assert by_id["A-1"].short_name == "CP-START"
+    assert by_id["B-1"].short_name == "CP-END"
     assert by_id["A-1"].planned_finish == date(2026, 10, 22)
     assert by_id["A-1"].leveling_priority is ActivityLevelingPriority.HIGH
     assert by_id["A-1"].status is ActivityStatus.NOT_STARTED
@@ -461,6 +465,118 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     assert query_result["data"]["activities"]["A-1"]["start"] == "2026-10-19"
     assert query_result["data"]["activities"]["B-1"]["start"] == "2026-10-21"
     assert query_result["source_refs"][0]["source_id"] == published["snapshot_id"]
+    connection.close()
+
+
+def test_persisted_short_name_selects_multiple_float_path_endpoint_end_to_end(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    activity_payload = {
+        "contract_version": "p6-activity-master-api.v1",
+        "duration_unit": "working-day",
+        "duration_value": "2",
+        "percent_complete_type": "DURATION",
+        "activity_type": "Task Dependent",
+        "status": "Not Started",
+        "status_code": "Planned",
+        "wbs_id": "W-ROOT",
+    }
+    for activity_id, duration, short_name in (
+        ("A-1", "2", "CP-START"),
+        ("B-1", "1", "CP-END"),
+        ("C-1", "1", "CP-OTHER"),
+    ):
+        status, _created = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/activities",
+            {
+                **activity_payload,
+                "activity_id": activity_id,
+                "name": f"Activity {activity_id}",
+                "duration_value": duration,
+                "short_name": short_name,
+            },
+        )
+        assert status == "201 Created"
+    for relationship_id, predecessor, successor in (
+        ("REL-AB", "A-1", "B-1"),
+        ("REL-AC", "A-1", "C-1"),
+    ):
+        status, _created = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/relationships",
+            {
+                "relationship_id": relationship_id,
+                "predecessor_id": predecessor,
+                "successor_id": successor,
+                "relationship_type": "FS",
+                "lag_value": "0",
+                "lag_unit": DurationUnit.WORKING_DAY.value,
+            },
+        )
+        assert status == "200 OK"
+
+    settings_status, _settings = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            multiple_float_paths_enabled=True,
+            maximum_multiple_float_paths=2,
+            multiple_float_paths_ending_activity_short_name="CP-END",
+        ),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    payload = json.loads(snapshot.canonical_payload)
+    assert payload["schedule_options"]["multiple_float_paths_ending_activity_short_name"] == "CP-END"
+    stored = {item["id"]: item for item in payload["activities"]}
+    assert stored["B-1"]["short_name"] == "CP-END"
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-FLOAT-PATHS",
+            "scope": {
+                "tenant_id": "t1",
+                "project_id": "p1",
+                "project_revision": 2,
+            },
+            "requested_by": "u1",
+            "query_text": "show multiple float paths",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    activities = query_result["data"]["activities"]
+    assert activities["A-1"]["float_path"] == 1
+    assert activities["A-1"]["float_path_order"] == 1
+    assert activities["B-1"]["float_path"] == 1
+    assert activities["B-1"]["float_path_order"] == 2
+    assert activities["C-1"]["float_path"] == 2
+    assert activities["C-1"]["float_path_order"] == 1
     connection.close()
 
 

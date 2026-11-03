@@ -257,15 +257,17 @@ def test_activity_master_additively_migrates_legacy_schema_for_leveling_fields()
     connection.commit()
     repo = SQLiteActivityMasterRepository(connection)
     columns = {row[1] for row in connection.execute("PRAGMA table_info(activity_master)")}
-    assert {"planned_finish", "leveling_priority", "original_duration"}.issubset(columns)
+    assert {"planned_finish", "leveling_priority", "original_duration", "short_name"}.issubset(columns)
     stored = repo.save(
         replace(
             activity(),
             planned_finish=date(2026, 9, 28),
             leveling_priority=ActivityLevelingPriority.TOP,
             original_duration=14,
+            short_name="CP-1",
         )
     )
+    assert stored.short_name == "CP-1"
     assert repo.get(scope(), "A-1") == stored
 
 
@@ -309,6 +311,33 @@ def test_activity_master_round_trips_distinct_name_type_status_and_status_code()
     assert updated.status_code is ActivityStatusCode.INACTIVE
     assert repo.get(scope(), "A-1") == updated
 
+
+def test_activity_master_round_trips_and_updates_short_name():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteActivityMasterRepository(connection)
+
+    stored = repo.save(replace(activity(), name="Bridge Deck", short_name="CP-1"))
+    assert stored.short_name == "CP-1"
+    assert repo.get(scope(), "A-1") == stored
+
+    updated = repo.save(
+        replace(stored, short_name="CP-2"),
+        expected_revision=1,
+    )
+    assert updated.record_revision == 2
+    assert updated.short_name == "CP-2"
+    assert repo.get(scope(), "A-1") == updated
+
+    cleared = repo.save(replace(updated, short_name=None), expected_revision=2)
+    assert cleared.short_name is None
+    assert repo.get(scope(), "A-1") == cleared
+
+
+@pytest.mark.parametrize("value", ["", "   ", 7, True])
+def test_activity_master_rejects_invalid_short_name(value):
+    repo = SQLiteActivityMasterRepository(sqlite3.connect(":memory:"))
+    with pytest.raises(ActivityPersistenceError, match="INVALID_SHORT_NAME"):
+        repo.save(replace(activity(), short_name=value))
 
 
 def test_activity_master_persists_and_reassigns_canonical_wbs():

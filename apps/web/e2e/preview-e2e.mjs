@@ -5594,8 +5594,16 @@ async function main() {
         validTicks(monthGraph.ticks) &&
         dayGraph.ticks.length > weekGraph.ticks.length &&
         weekGraph.ticks[0].date === dayGraph.ticks[0].date &&
+        weekGraph.ticks.length >= 2 &&
+        // The weekly axis keeps the range-start label and then snaps to
+        // Mondays, so only the snapped ticks are required to be 7 days apart.
+        weekGraph.ticks.slice(1).every((tick) =>
+          new Date(tick.date + "T00:00:00Z").getUTCDay() === 1
+        ) &&
+        weekGraph.ticks.slice(2).every((tick, index) =>
+          Date.parse(tick.date) - Date.parse(weekGraph.ticks[index + 1].date) === 7 * 24 * 60 * 60 * 1000
+        ) &&
         monthGraph.ticks[0].date === dayGraph.ticks[0].date &&
-        weekGraph.ticks.some((tick) => tick.date.endsWith("-02")) &&
         monthAxisMatchesVisibleRange,
       "changing the Gantt scale must change only the rendered axis density: " +
         JSON.stringify({

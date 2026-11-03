@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from construction_pm.scheduling.activity import Activity
+from construction_pm.scheduling.activity import Activity, ActivityType
 from construction_pm.scheduling.forward_pass import ScheduledActivity, forward_pass
 from construction_pm.scheduling.relationships import Relationship, RelationshipType
 from construction_pm.scheduling.schedule_options import (
@@ -18,6 +18,7 @@ from construction_pm.scheduling.schedule import (
     TotalFloatCalculationType,
     _free_float,
     _multiple_float_paths,
+    _resolve_ending_activity_short_name,
     _relationship_free_float,
     _relationship_holds,
     _relationship_total_float,
@@ -636,6 +637,118 @@ def test_multiple_float_paths_rejects_unknown_explicit_ending_activity(resolver)
                 multiple_float_paths_ending_activity_object_id="MISSING",
             ),
         )
+
+
+def test_multiple_float_paths_resolve_unique_ending_activity_short_name(resolver):
+    activities = [
+        Activity("A", 1, short_name="START-A"),
+        Activity("B", 2, short_name="END-B"),
+        Activity("C", 1, short_name="END-C"),
+    ]
+    relationships = [Relationship("A", "B"), Relationship("A", "C")]
+
+    result = schedule(
+        activities,
+        relationships,
+        date(2026, 9, 21),
+        resolver,
+        options=ScheduleOptions(
+            multiple_float_paths_enabled=True,
+            maximum_multiple_float_paths=2,
+            multiple_float_paths_ending_activity_short_name=" END-B ",
+            multiple_float_paths_use_total_float=False,
+        ),
+    )
+
+    assert result.float_paths[0].activity_ids == ("A", "B")
+    assert result.floats["A"].float_path == 1
+    assert result.floats["A"].float_path_order == 1
+    assert result.floats["B"].float_path == 1
+    assert result.floats["B"].float_path_order == 2
+    assert result.float_paths[1].activity_ids == ("C",)
+    assert result.floats["C"].float_path == 2
+    assert result.floats["C"].float_path_order == 1
+
+
+def test_multiple_float_paths_reject_unknown_ending_activity_short_name(resolver):
+    with pytest.raises(ValueError, match="ending activity short name does not exist"):
+        schedule(
+            [Activity("A", 1, short_name="START-A")], [], date(2026, 9, 21), resolver,
+            options=ScheduleOptions(
+                multiple_float_paths_enabled=True,
+                maximum_multiple_float_paths=1,
+                multiple_float_paths_ending_activity_short_name="MISSING",
+            ),
+        )
+
+
+def test_multiple_float_paths_reject_ambiguous_ending_activity_short_name(resolver):
+    with pytest.raises(ValueError, match="ending activity short name is ambiguous: A, B"):
+        schedule(
+            [
+                Activity("A", 1, short_name="DUP"),
+                Activity("B", 1, short_name="DUP"),
+            ],
+            [],
+            date(2026, 9, 21),
+            resolver,
+            options=ScheduleOptions(
+                multiple_float_paths_enabled=True,
+                maximum_multiple_float_paths=1,
+                multiple_float_paths_ending_activity_short_name="DUP",
+            ),
+        )
+
+
+def test_multiple_float_paths_reject_conflicting_object_id_and_short_name(resolver):
+    activities = [
+        Activity("A", 1, short_name="START-A"),
+        Activity("B", 1, short_name="END-B"),
+    ]
+    with pytest.raises(
+        ValueError,
+        match="object id and short name identify different activities",
+    ):
+        schedule(
+            activities,
+            [Relationship("A", "B")],
+            date(2026, 9, 21),
+            resolver,
+            options=ScheduleOptions(
+                multiple_float_paths_enabled=True,
+                maximum_multiple_float_paths=1,
+                multiple_float_paths_ending_activity_object_id="A",
+                multiple_float_paths_ending_activity_short_name="END-B",
+            ),
+        )
+
+
+def test_multiple_float_paths_accept_matching_object_id_and_short_name(resolver):
+    result = schedule(
+        [
+            Activity("A", 1, short_name="START-A"),
+            Activity("B", 1, short_name="END-B"),
+        ],
+        [Relationship("A", "B")],
+        date(2026, 9, 21),
+        resolver,
+        options=ScheduleOptions(
+            multiple_float_paths_enabled=True,
+            maximum_multiple_float_paths=1,
+            multiple_float_paths_ending_activity_object_id="B",
+            multiple_float_paths_ending_activity_short_name="END-B",
+        ),
+    )
+
+    assert result.float_paths[0].activity_ids == ("A", "B")
+
+
+def test_short_name_endpoint_rejects_a_non_driving_match():
+    summary = Activity(
+        "S", 0, activity_type=ActivityType.WBS_SUMMARY, short_name="END"
+    )
+    with pytest.raises(ValueError, match="not a driving activity: S"):
+        _resolve_ending_activity_short_name([summary], {}, "END")
 
 
 @pytest.mark.parametrize("lag_mode", list(StartToStartLagCalculationType))

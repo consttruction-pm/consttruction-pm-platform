@@ -135,10 +135,10 @@ function extractAuthoritativeScheduleFacts(value: unknown): AuthoritativeSchedul
       if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) return null;
       optionalDates[key] = value;
     }
-    const optionalNumbers: Pick<AuthoritativeScheduleFacts["activities"][string], "total_float" | "free_float"> = {};
-    for (const key of ["total_float", "free_float"] as const) {
+    const optionalNumbers: Pick<AuthoritativeScheduleFacts["activities"][string], "total_float" | "free_float" | "float_path" | "float_path_order"> = {};
+    for (const key of ["total_float", "free_float", "float_path", "float_path_order"] as const) {
       const value = activity[key];
-      if (value === undefined) continue;
+      if (value === undefined || value === null) continue;
       if (typeof value !== "number" || !Number.isFinite(value)) return null;
       optionalNumbers[key] = value;
     }
@@ -170,7 +170,7 @@ function renderScheduleRunResult(
     return;
   }
   const entries = Object.entries(facts.activities).sort(([left], [right]) => left.localeCompare(right));
-  const showsFloat = entries.some(([, fact]) => fact.total_float !== undefined);
+  const showsFloat = entries.some(([, fact]) => fact.total_float !== undefined && fact.total_float !== null);
   const rows = entries.map(([id, fact]) => {
     const critical = fact.critical ? labels.yes : labels.no;
     const cells = [
@@ -178,7 +178,7 @@ function renderScheduleRunResult(
       `<td>${safe(fact.start)}</td>`,
       `<td>${safe(fact.finish)}</td>`,
       `<td>${fact.duration === undefined ? safe(labels.empty) : safe(fact.duration)}</td>`,
-      ...(showsFloat ? [`<td>${fact.total_float === undefined ? safe(labels.empty) : safe(fact.total_float)}</td>`] : []),
+      ...(showsFloat ? [`<td>${fact.total_float === undefined || fact.total_float === null ? safe(labels.empty) : safe(fact.total_float)}</td>`] : []),
       `<td>${safe(critical)}</td>`,
     ];
     return `<tr>${cells.join("")}</tr>`;

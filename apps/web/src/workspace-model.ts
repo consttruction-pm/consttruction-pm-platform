@@ -112,8 +112,11 @@ export type AuthoritativeScheduledActivity = {
   early_finish?: string;
   late_start?: string;
   late_finish?: string;
-  total_float?: number;
-  free_float?: number;
+  // The server serializes absent optional facts as JSON null.
+  total_float?: number | null;
+  free_float?: number | null;
+  float_path?: number | null;
+  float_path_order?: number | null;
 };
 
 export type AuthoritativeScheduleFacts = {
@@ -664,9 +667,10 @@ export function applyAuthoritativeScheduleFacts(
         throw new Error("INVALID_AUTHORITATIVE_ACTIVITY_RESULT:" + activity.id);
       }
     }
-    for (const key of ["total_float", "free_float"] as const) {
+    for (const key of ["total_float", "free_float", "float_path", "float_path_order"] as const) {
       const value = scheduled[key];
-      if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
+      if (value === undefined || value === null) continue;
+      if (typeof value !== "number" || !Number.isFinite(value)) {
         throw new Error("INVALID_AUTHORITATIVE_ACTIVITY_RESULT:" + activity.id);
       }
     }
@@ -694,6 +698,8 @@ export function applyAuthoritativeScheduleFacts(
     if (scheduled.late_finish !== undefined) cells["activity.late_finish"] = scheduled.late_finish;
     if (scheduled.total_float !== undefined) cells["activity.total_float"] = scheduled.total_float;
     if (scheduled.free_float !== undefined) cells["activity.free_float"] = scheduled.free_float;
+    if (scheduled.float_path !== undefined && scheduled.float_path !== null) cells["activity.float_path"] = scheduled.float_path;
+    if (scheduled.float_path_order !== undefined && scheduled.float_path_order !== null) cells["activity.float_path_order"] = scheduled.float_path_order;
     if (scheduled.critical !== undefined) cells["activity.is_critical"] = scheduled.critical;
     return Object.freeze({
       ...activity,

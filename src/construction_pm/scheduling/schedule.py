@@ -605,6 +605,39 @@ def _choose_default_float_path_endpoint(
         )
     return min(candidates)[1] if candidates else None
 
+def _resolve_ending_activity_short_name(
+    activities: Iterable[Activity],
+    activity_map: Mapping[str, Activity],
+    short_name: str | None,
+) -> str | None:
+    """Resolve the P6 short-name endpoint without guessing between matches."""
+    if short_name is None:
+        return None
+    target = short_name.strip()
+    matches = sorted(
+        activity.id
+        for activity in activities
+        if activity.short_name is not None
+        and activity.short_name.strip() == target
+    )
+    if not matches:
+        raise ValueError("multiple float paths ending activity short name does not exist")
+    if len(matches) > 1:
+        raise ValueError(
+            "multiple float paths ending activity short name is ambiguous: "
+            + ", ".join(matches)
+        )
+    endpoint = matches[0]
+    if endpoint not in activity_map:
+        # LOE and WBS Summary rows never own a float path. Returning the match
+        # would let the path builder silently start from a predecessor instead.
+        raise ValueError(
+            "multiple float paths ending activity short name is not a driving activity: "
+            + endpoint
+        )
+    return endpoint
+
+
 def _multiple_float_paths(
     activities: Iterable[Activity],
     relationships: Iterable[Relationship],
@@ -644,6 +677,19 @@ def _multiple_float_paths(
     explicit_endpoint = options.multiple_float_paths_ending_activity_object_id
     if explicit_endpoint is not None and explicit_endpoint not in activity_map:
         raise ValueError("multiple float paths ending activity does not exist")
+    short_name_endpoint = _resolve_ending_activity_short_name(
+        activity_list, activity_map, options.multiple_float_paths_ending_activity_short_name
+    )
+    if (
+        explicit_endpoint is not None
+        and short_name_endpoint is not None
+        and explicit_endpoint != short_name_endpoint
+    ):
+        raise ValueError(
+            "multiple float paths ending activity object id and short name identify different activities"
+        )
+    if explicit_endpoint is None:
+        explicit_endpoint = short_name_endpoint
 
     for path_number in range(1, options.maximum_multiple_float_paths + 1):
         if not remaining:
@@ -905,8 +951,6 @@ def _validate_supported_schedule_options(options: ScheduleOptions) -> None:
         unsupported.append("external_project_priority_limit")
     if options.preserve_scheduled_early_and_late_dates:
         unsupported.append("preserve_scheduled_early_and_late_dates")
-    if options.multiple_float_paths_ending_activity_short_name is not None:
-        unsupported.append("multiple_float_paths_ending_activity_short_name")
     if unsupported:
         raise UnsupportedScheduleOptionError(
             "unsupported schedule options: " + ", ".join(sorted(unsupported))

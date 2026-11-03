@@ -438,6 +438,11 @@ def _materialize_payload(
             raw_name = item.get("name", "")
             if not isinstance(raw_name, str):
                 raise SnapshotMaterializationError("INVALID_ACTIVITY_NAME")
+            raw_short_name = item.get("short_name")
+            if raw_short_name is not None and (
+                not isinstance(raw_short_name, str) or not raw_short_name.strip()
+            ):
+                raise SnapshotMaterializationError("INVALID_ACTIVITY_SHORT_NAME")
             raw_original_duration = item.get("original_duration")
             original_duration = (
                 _strict_integer(raw_original_duration, "INVALID_ACTIVITY_ORIGINAL_DURATION")
@@ -488,25 +493,26 @@ def _materialize_payload(
 
             activities.append(
                 Activity(
-                    activity_id,
-                    int(duration_value),
-                    _date(actual) if actual is not None else None,
-                    _date(item["actual_finish"]) if item.get("actual_finish") is not None else None,
-                    _strict_integer(item["remaining_duration"], "INVALID_ACTIVITY_REMAINING_DURATION") if item.get("remaining_duration") is not None else None,
-                    _date(item["remaining_start"]) if item.get("remaining_start") is not None else None,
-                    _finite_percent_complete(item["percent_complete"]) if item.get("percent_complete") is not None else None,
-                    percent_complete_type,
-                    _date(item["expected_finish"]) if item.get("expected_finish") is not None else None,
-                    status,
-                    activity_type,
-                    status_code,
-                    raw_name,
-                    original_duration,
-                    planned_finish,
-                    leveling_priority,
-                    raw_resource_dependent_hash,
-                    raw_wbs_id,
-                    tuple(wbs_ancestry_values),
+                    id=activity_id,
+                    duration=int(duration_value),
+                    actual_start=_date(actual) if actual is not None else None,
+                    actual_finish=_date(item["actual_finish"]) if item.get("actual_finish") is not None else None,
+                    remaining_duration=_strict_integer(item["remaining_duration"], "INVALID_ACTIVITY_REMAINING_DURATION") if item.get("remaining_duration") is not None else None,
+                    remaining_start=_date(item["remaining_start"]) if item.get("remaining_start") is not None else None,
+                    percent_complete=_finite_percent_complete(item["percent_complete"]) if item.get("percent_complete") is not None else None,
+                    percent_complete_type=percent_complete_type,
+                    expected_finish=_date(item["expected_finish"]) if item.get("expected_finish") is not None else None,
+                    status=status,
+                    activity_type=activity_type,
+                    status_code=status_code,
+                    name=raw_name,
+                    short_name=raw_short_name,
+                    original_duration=original_duration,
+                    planned_finish=planned_finish,
+                    leveling_priority=leveling_priority,
+                    resource_dependent_input_hash=raw_resource_dependent_hash,
+                    wbs_id=raw_wbs_id,
+                    wbs_ancestry=tuple(wbs_ancestry_values),
                 )
             )
         else:

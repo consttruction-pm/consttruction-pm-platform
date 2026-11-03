@@ -181,6 +181,10 @@ def _date_activity_fact(value, floats) -> dict[str, object]:
         "late_finish": floats.late_finish.isoformat(),
         "total_float": floats.total_float,
         "free_float": floats.free_float,
+        # Multiple Float Paths membership comes from the same shared CPM run;
+        # clients never infer a path number from float values.
+        "float_path": floats.float_path,
+        "float_path_order": floats.float_path_order,
         # WBS Summary activities carry the aggregate of their descendants.
         # Task rows report None because their source Activity row already owns
         # the persisted progress facts.

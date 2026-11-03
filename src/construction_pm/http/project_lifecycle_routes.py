@@ -1263,6 +1263,14 @@ class ProjectLifecycleHttpRoutes:
                         or not isinstance(raw_percent, (int, float))
                     ):
                         raise ValueError("INVALID_PERCENT_COMPLETE")
+                    raw_short_name = payload.get(
+                        "short_name",
+                        existing.short_name if existing is not None else None,
+                    )
+                    if raw_short_name is not None and (
+                        not isinstance(raw_short_name, str) or not raw_short_name.strip()
+                    ):
+                        raise ValueError("INVALID_SHORT_NAME")
                     return ActivityMaster(
                         scope=scope,
                         activity_id=activity_id,
@@ -1289,6 +1297,7 @@ class ProjectLifecycleHttpRoutes:
                         name=payload.get(
                             "name", existing.name if existing is not None else ""
                         ),
+                        short_name=raw_short_name,
                         activity_type=P6ActivityType.from_p6_value(
                             payload.get(
                                 "activity_type",

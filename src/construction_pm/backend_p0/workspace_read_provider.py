@@ -480,6 +480,8 @@ def _activity_payload(
             ("late_finish", "activity.late_finish"),
             ("total_float", "activity.total_float"),
             ("free_float", "activity.free_float"),
+            ("float_path", "activity.float_path"),
+            ("float_path_order", "activity.float_path_order"),
         ):
             value = fact.get(fact_key)
             if isinstance(value, str):

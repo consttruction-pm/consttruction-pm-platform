@@ -760,6 +760,7 @@ class AuthoritativeScheduleInputComposer:
                         activity_type=item.activity_type,
                         status_code=item.status_code,
                         name=item.name,
+                        short_name=item.short_name,
                         original_duration=item.original_duration,
                         planned_finish=self._date_value(item.planned_finish, field_name="planned_finish", activity_id=item.activity_id),
                         leveling_priority=item.leveling_priority,

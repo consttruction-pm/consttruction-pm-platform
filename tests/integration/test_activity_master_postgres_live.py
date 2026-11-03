@@ -56,6 +56,7 @@ def _source_activity(scope: BackendScope) -> ActivityMaster:
         leveling_priority=ActivityLevelingPriority.TOP,
         original_duration=14,
         name="Concrete Pour",
+        short_name="CP-1",
         activity_type=ActivityType.RESOURCE_DEPENDENT,
         status=ActivityStatus.IN_PROGRESS,
         status_code=ActivityStatusCode.ACTIVE,
@@ -90,9 +91,15 @@ def test_postgres_activity_master_preserves_all_progress_state():
         assert restored.leveling_priority is ActivityLevelingPriority.TOP
         assert restored.original_duration == 14
         assert restored.name == "Concrete Pour"
+        assert restored.short_name == "CP-1"
         assert restored.activity_type is ActivityType.RESOURCE_DEPENDENT
         assert restored.status is ActivityStatus.IN_PROGRESS
         assert restored.status_code is ActivityStatusCode.ACTIVE
+        column = connection.execute(
+            "SELECT data_type FROM information_schema.columns "
+            "WHERE table_name='activity_master' AND column_name='short_name'"
+        ).fetchone()
+        assert column == ("text",)
 
         connection.execute(
             "DELETE FROM activity_master WHERE tenant_id=%s AND project_id=%s",
@@ -133,6 +140,7 @@ def test_postgres_activity_master_updates_all_progress_state():
             leveling_priority=ActivityLevelingPriority.LOWEST,
             original_duration=18,
             name="Concrete Pour Complete",
+            short_name="CP-9",
             activity_type=ActivityType.TASK_DEPENDENT,
             status=ActivityStatus.COMPLETED,
             status_code=ActivityStatusCode.INACTIVE,
@@ -146,6 +154,7 @@ def test_postgres_activity_master_updates_all_progress_state():
         assert saved.planned_finish == date(2026, 10, 4)
         assert saved.leveling_priority is ActivityLevelingPriority.LOWEST
         assert saved.name == "Concrete Pour Complete"
+        assert saved.short_name == "CP-9"
         assert saved.activity_type is ActivityType.TASK_DEPENDENT
         assert saved.status is ActivityStatus.COMPLETED
         assert saved.status_code is ActivityStatusCode.INACTIVE

@@ -101,6 +101,9 @@ class Activity:
     activity_type: ActivityType = ActivityType.TASK_DEPENDENT
     status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
     name: str = ""
+    # P6's activity short name. Multiple Float Paths can select its ending
+    # activity by this label, so it must be a persisted scheduling input.
+    short_name: str | None = None
     original_duration: int | None = None
     planned_finish: date | None = None
     leveling_priority: ActivityLevelingPriority = ActivityLevelingPriority.NORMAL
@@ -126,6 +129,10 @@ class Activity:
                 raise ValueError("original_duration must be non-negative")
         if not isinstance(self.name, str):
             raise TypeError("name must be a string")
+        if self.short_name is not None and (
+            not isinstance(self.short_name, str) or not self.short_name.strip()
+        ):
+            raise ValueError("short_name must be a non-empty string or None")
         if self.resource_dependent_input_hash is not None:
             value = self.resource_dependent_input_hash
             if (

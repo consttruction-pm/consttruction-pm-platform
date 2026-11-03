@@ -48,6 +48,7 @@ class ActivityMaster:
     leveling_priority: ActivityLevelingPriority = ActivityLevelingPriority.NORMAL
     original_duration: int | None = None
     name: str = ""
+    short_name: str | None = None
     activity_type: ActivityType = ActivityType.TASK_DEPENDENT
     status: ActivityStatus = ActivityStatus.NOT_STARTED
     status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
@@ -59,6 +60,10 @@ class ActivityMaster:
             raise ActivityPersistenceError("INVALID_ACTIVITY_ID")
         if not isinstance(self.name, str):
             raise ActivityPersistenceError("INVALID_ACTIVITY_NAME")
+        if self.short_name is not None and (
+            not isinstance(self.short_name, str) or not self.short_name.strip()
+        ):
+            raise ActivityPersistenceError("INVALID_SHORT_NAME")
         if not isinstance(self.activity_type, ActivityType):
             raise ActivityPersistenceError("INVALID_ACTIVITY_TYPE")
         if not isinstance(self.status, ActivityStatus):
@@ -128,6 +133,7 @@ class ActivityMaster:
             self.status.value,
             self.status_code.value,
             self.wbs_id,
+            self.short_name,
         )
 
 
@@ -139,7 +145,8 @@ _ACTIVITY_MASTER_SELECT_COLUMNS = (
     "(SELECT assignment.wbs_id FROM activity_wbs_assignment AS assignment "
     "WHERE assignment.tenant_id=activity_master.tenant_id "
     "AND assignment.project_id=activity_master.project_id "
-    "AND assignment.activity_id=activity_master.activity_id) AS wbs_id"
+    "AND assignment.activity_id=activity_master.activity_id) AS wbs_id,"
+    "short_name"
 )
 
 
@@ -223,6 +230,12 @@ def _decode_activity_name(value: object) -> str:
     return value
 
 
+def _decode_short_name(value: object) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ActivityPersistenceError("INVALID_STORED_SHORT_NAME")
+    return value
+
+
 def _decode_activity_type(value: object) -> ActivityType:
     try:
         return ActivityType.from_p6_value(str(value))
@@ -267,6 +280,7 @@ def _from_row(scope: BackendScope, row: tuple[object, ...]) -> ActivityMaster:
             status=_decode_activity_status(row[16]),
             status_code=_decode_activity_status_code(row[17]),
             wbs_id=None if row[18] is None else str(row[18]),
+            short_name=None if row[19] is None else _decode_short_name(row[19]),
         )
         result.validate()
         return result
@@ -290,6 +304,7 @@ class SQLiteActivityMasterRepository:
             leveling_priority TEXT NOT NULL DEFAULT 'Normal', original_duration INTEGER,
             name TEXT NOT NULL DEFAULT '', activity_type TEXT NOT NULL DEFAULT 'Task Dependent',
             status TEXT NOT NULL DEFAULT 'Not Started', status_code TEXT NOT NULL DEFAULT 'Planned',
+            short_name TEXT,
             PRIMARY KEY (tenant_id, project_id, activity_id))""")
         columns = {row[1] for row in self.connection.execute("PRAGMA table_info(activity_master)").fetchall()}
         if "expected_finish" not in columns:
@@ -307,6 +322,7 @@ class SQLiteActivityMasterRepository:
             ("activity_type", "TEXT NOT NULL DEFAULT 'Task Dependent'"),
             ("status", "TEXT NOT NULL DEFAULT 'Not Started'"),
             ("status_code", "TEXT NOT NULL DEFAULT 'Planned'"),
+            ("short_name", "TEXT"),
         ):
             if column not in columns:
                 self.connection.execute(f"ALTER TABLE activity_master ADD COLUMN {column} {definition}")
@@ -404,8 +420,8 @@ class SQLiteActivityMasterRepository:
                     "(tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,"
                     "actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,"
                     "percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,"
-                    "original_duration,name,activity_type,status,status_code) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "original_duration,name,activity_type,status,status_code,short_name) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         stored.scope.tenant_id, stored.scope.project_id,
                         stored.scope.project_revision, stored.activity_id,
@@ -420,12 +436,12 @@ class SQLiteActivityMasterRepository:
                         None if stored.planned_finish is None else stored.planned_finish.isoformat(),
                         stored.leveling_priority.value, stored.original_duration,
                         stored.name, stored.activity_type.value, stored.status.value,
-                        stored.status_code.value,
+                        stored.status_code.value, stored.short_name,
                     ),
                 )
             else:
-                current = _from_row(activity.scope, row[:19])
-                if int(row[19]) != activity.scope.project_revision:
+                current = _from_row(activity.scope, row[:20])
+                if int(row[20]) != activity.scope.project_revision:
                     raise ActivityPersistenceError("REVISION_CONFLICT")
                 if expected_revision is None or expected_revision != current.record_revision:
                     raise ActivityPersistenceError("REVISION_CONFLICT")
@@ -434,7 +450,8 @@ class SQLiteActivityMasterRepository:
                     "UPDATE activity_master SET project_revision=?,duration_value=?,duration_unit=?,"
                     "actual_start=?,actual_finish=?,remaining_duration=?,remaining_start=?,percent_complete=?,"
                     "percent_complete_type=?,record_revision=?,expected_finish=?,planned_finish=?,"
-                    "leveling_priority=?,original_duration=?,name=?,activity_type=?,status=?,status_code=? "
+                    "leveling_priority=?,original_duration=?,name=?,activity_type=?,status=?,status_code=?,"
+                    "short_name=? "
                     "WHERE tenant_id=? AND project_id=? AND activity_id=? AND record_revision=?",
                     (
                         stored.scope.project_revision, str(stored.duration_value), stored.duration_unit.value,
@@ -446,6 +463,7 @@ class SQLiteActivityMasterRepository:
                         None if stored.planned_finish is None else stored.planned_finish.isoformat(),
                         stored.leveling_priority.value, stored.original_duration, stored.name,
                         stored.activity_type.value, stored.status.value, stored.status_code.value,
+                        stored.short_name,
                         stored.scope.tenant_id, stored.scope.project_id, stored.activity_id,
                         current.record_revision,
                     ),
@@ -471,9 +489,9 @@ class SQLiteActivityMasterRepository:
             (scope.tenant_id, scope.project_id, activity_id)).fetchone()
         if row is None:
             return None
-        if int(row[19]) != scope.project_revision:
+        if int(row[20]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        result = _from_row(scope, row[:19])
+        result = _from_row(scope, row[:20])
         self._validate_wbs_assignment(scope, result.wbs_id, require_assignment=False)
         return result
 
@@ -504,6 +522,7 @@ class PostgresActivityMasterRepository:
             "leveling_priority TEXT NOT NULL DEFAULT 'Normal', original_duration INTEGER, "
             "name TEXT NOT NULL DEFAULT '', activity_type TEXT NOT NULL DEFAULT 'Task Dependent', "
             "status TEXT NOT NULL DEFAULT 'Not Started', status_code TEXT NOT NULL DEFAULT 'Planned', "
+            "short_name TEXT, "
             "PRIMARY KEY (tenant_id, project_id, activity_id))")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS expected_finish TEXT")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS planned_finish TEXT")
@@ -515,6 +534,7 @@ class PostgresActivityMasterRepository:
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS activity_type TEXT NOT NULL DEFAULT 'Task Dependent'")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Not Started'")
         self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS status_code TEXT NOT NULL DEFAULT 'Planned'")
+        self.connection.execute("ALTER TABLE activity_master ADD COLUMN IF NOT EXISTS short_name TEXT")
         self.connection.execute(
             "ALTER TABLE activity_master ALTER COLUMN leveling_priority SET DEFAULT 'Normal'"
         )
@@ -574,7 +594,7 @@ class PostgresActivityMasterRepository:
                 raise ActivityPersistenceError("REVISION_CONFLICT")
             revision = 1
             self.connection.execute(
-                "INSERT INTO activity_master (tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "INSERT INTO activity_master (tenant_id,project_id,project_revision,activity_id,duration_value,duration_unit,actual_start,actual_finish,remaining_duration,remaining_start,percent_complete,percent_complete_type,record_revision,expected_finish,planned_finish,leveling_priority,original_duration,name,activity_type,status,status_code,short_name) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (activity.scope.tenant_id, activity.scope.project_id, activity.scope.project_revision, activity.activity_id,
                  str(activity.duration_value), activity.duration_unit.value,
                  None if activity.actual_start is None else activity.actual_start.isoformat(),
@@ -588,19 +608,20 @@ class PostgresActivityMasterRepository:
                  None if activity.planned_finish is None else activity.planned_finish.isoformat(),
                  activity.leveling_priority.value,
                  activity.original_duration,
-                 activity.name, activity.activity_type.value, activity.status.value, activity.status_code.value))
+                 activity.name, activity.activity_type.value, activity.status.value, activity.status_code.value,
+                 activity.short_name))
             stored = replace(activity, record_revision=revision)
             self._sync_wbs_assignment(stored)
             return stored
-        current = _from_row(activity.scope, row[:19])
-        if int(row[19]) != activity.scope.project_revision:
+        current = _from_row(activity.scope, row[:20])
+        if int(row[20]) != activity.scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         if expected_revision is None or expected_revision != current.record_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
         revision = current.record_revision + 1
         stored = replace(activity, record_revision=revision)
         self.connection.execute(
-            "UPDATE activity_master SET project_revision=%s,duration_value=%s,duration_unit=%s,actual_start=%s,actual_finish=%s,remaining_duration=%s,remaining_start=%s,percent_complete=%s,percent_complete_type=%s,record_revision=%s,expected_finish=%s,planned_finish=%s,leveling_priority=%s,original_duration=%s,name=%s,activity_type=%s,status=%s,status_code=%s WHERE tenant_id=%s AND project_id=%s AND activity_id=%s AND record_revision=%s",
+            "UPDATE activity_master SET project_revision=%s,duration_value=%s,duration_unit=%s,actual_start=%s,actual_finish=%s,remaining_duration=%s,remaining_start=%s,percent_complete=%s,percent_complete_type=%s,record_revision=%s,expected_finish=%s,planned_finish=%s,leveling_priority=%s,original_duration=%s,name=%s,activity_type=%s,status=%s,status_code=%s,short_name=%s WHERE tenant_id=%s AND project_id=%s AND activity_id=%s AND record_revision=%s",
             (activity.scope.project_revision, str(activity.duration_value), activity.duration_unit.value,
              None if activity.actual_start is None else activity.actual_start.isoformat(),
              None if activity.actual_finish is None else activity.actual_finish.isoformat(),
@@ -614,6 +635,7 @@ class PostgresActivityMasterRepository:
              activity.leveling_priority.value,
              activity.original_duration,
              activity.name, activity.activity_type.value, activity.status.value, activity.status_code.value,
+             activity.short_name,
              activity.scope.tenant_id, activity.scope.project_id, activity.activity_id, current.record_revision))
         self._sync_wbs_assignment(stored)
         return stored
@@ -625,9 +647,9 @@ class PostgresActivityMasterRepository:
             (scope.tenant_id, scope.project_id, activity_id)).fetchone()
         if row is None:
             return None
-        if int(row[19]) != scope.project_revision:
+        if int(row[20]) != scope.project_revision:
             raise ActivityPersistenceError("REVISION_CONFLICT")
-        result = _from_row(scope, row[:19])
+        result = _from_row(scope, row[:20])
         self._validate_wbs_assignment(scope, result.wbs_id, require_assignment=False)
         return result
 
