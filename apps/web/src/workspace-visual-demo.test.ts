@@ -557,3 +557,25 @@ test("Layout Manager localizes its scope and property controls in Persian RTL", 
     assert.ok(html.includes(label), `missing Persian Layout Manager label: ${label}`);
   }
 });
+
+
+test("Resource assignment dialog exposes resource catalogue and assignment parameters without mutating data", () => {
+  const state = createVisualDemoState("en");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  for (const label of ["Assign resources to activity", "Available resources", "Resource type", "Budget units", "Budget cost", "Rate / unit", "Assignment details", "Units / time", "Rate type", "Resource calendar", "Assignment start", "Assignment finish", "Resource curve", "Cost account", "Resource catalogue figures are demonstration data", "assignment, availability, cost recalculation"]) {
+    assert.ok(html.includes(label), `missing resource assignment control: ${label}`);
+  }
+  assert.match(html, /cp-vd-assignment-grid/);
+  assert.match(html, /data-vd-dialog="assign-resources"/);
+});
+
+test("Role assignment keeps role requirements distinct from resource assignments and localizes RTL", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["تخصیص نقش به فعالیت", "واحد نقش", "حداکثر واحد \/ زمان", "سطح مهارت", "منبع نامزد", "نیاز نقش و تخصیص منبع دو رکورد مستقل هستند"]) {
+    assert.ok(html.includes(label), `missing Persian role assignment control: ${label}`);
+  }
+});
