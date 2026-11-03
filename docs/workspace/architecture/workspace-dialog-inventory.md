@@ -24,14 +24,14 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Filters | Default/Global/Layout/User-Defined categories; selected-filter All/Any; named filter; criteria All/Any; Parameter/Is/Value rows; comparison and range operators; add/delete/reorder/optimize/make-global | Apply to table/Gantt; show filter name in layout bar | Visual preview implemented; filter execution/persistence not connected |
 | Group and Sort | Up to 20 grouping levels; hierarchical fields with To Level; multiple sort keys and ascending/descending/hierarchical order; Font & Color per band; indent/alphabetical bands; title/ID/code/name display; empty bands; page breaks; group/grand totals | WBS default; group before sort; persist per layout | Visual preview implemented; persistence not connected |
 | Timescale | Two/Three lines; Timescale Start; Primary/Ordinal dates; date type and interval; ordinal start/interval; Day/Shift calendar; financial-period calendar; Font & Color/default font | Gantt/profile/spreadsheet time axis | Visual preview implemented; settings persistence not connected |
-| Bars | Bar list, add/delete, style, label, filter, timescale, preview | Gantt bar rendering | Missing |
-| Bar Chart Options | Relationship lines, background lines, legend, data date line, progress line | Gantt display | Partial (link toggle only) |
-| Table Font and Row | Font scale, row height, colours | Table rendering | Missing |
-| Bottom Layout Options / Customize Details | Tab list, visible, order | Activity Details tabs | Missing |
+| Bars | Bar list, add/delete, style, label, filter, timescale, preview | Gantt bar rendering | Visual preview implemented; saved bar definitions and rendering engine not connected |
+| Bar Chart Options | Relationship lines, background lines, legend, data date line, progress line, line styles/colors | Gantt display | Visual preview implemented; display preference persistence not connected |
+| Table Font and Row | Font scale, row height, font family/size/style, text/background colors and group band formatting | Table rendering | Visual preview implemented; style persistence not connected |
+| Bottom Layout Options / Customize Details | Tab list, visible, order and active detail tab | Activity Details tabs | Visual preview implemented; tab visibility/order persistence not connected |
 | Layout Manager (New/Open/Apply/Save/Save As/Delete/Import/Export) | Available-layout list; name, description, modified date, owner, scope (All Users / Another User / Current User / Project), target user/project, default-for-project flag, Apply preview, multi-select export, `.PLF` import/export, unsaved-current-layout prompt, privilege-aware actions | Persist presentation options only; never project data. Scope and destructive actions require explicit privilege checks. | Visual preview implemented; layout service, file interchange and privilege checks not connected |
 | Collapse To | Group band | Collapse table to band | Missing |
-| Find / Replace | Field scope, text, direction, match case | Highlight/next | Missing |
-| Renumber Activity IDs | Prefix, start, increment, scope (selected/all) | Preview + apply; revision guard | Missing |
+| Find / Replace | Field scope, text, direction, match case | Highlight/next | Visual preview implemented; search/replace execution not connected |
+| Renumber Activity IDs | Prefix, start, increment, scope (selected/all) | Preview + apply; revision guard | Visual preview implemented; ID uniqueness preview and mutation not connected |
 
 ## Assignment and activity
 
@@ -68,8 +68,6 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Global Change | Object scope (activities, assignments, expenses), Available To, If conditions, Then/Else statements, reorder/copy, preview report, exception rows, save report, cancel/commit | Visual preview implemented; specification engine, permission enforcement, report persistence and transactional commit not connected |
 | Reports Library / Runner | Global/project reports, groups/batches, run, wizard/editor, import/export, parameters and output destination | Visual preview implemented; report definitions, execution engine, batch scheduler and file operations not connected |
 | Threshold Monitor / Issue Navigator | Threshold parameters and limits, monitoring frequency, responsibility, generated issues, priority/status, tracking layout and history | Visual preview implemented; threshold service, issue generation, notifications and history persistence not connected |
-| Recalculate Assignment Costs | Project/selected scope, rate source, effective date, currency, labor/non-labor/material/role options | Visual preview implemented; rate engine and assignment cost recalculation not connected |
-| Assign Activity Codes | Activity, code dictionary, global/EPS/project scope, value, description and assignment | Visual preview implemented; code assignment service not connected |
 
 ## Administration
 
