@@ -72,3 +72,7 @@ Do not start Unit B before Unit A is merged and its E2E is green on main.
 | 2026-10-30 | Four persistent toolbar groups instead of 18 strips | Usability; optional toolbars can be shown |
 | 2026-10-30 | Activities default grouping/sort = WBS | Required professional behaviour; matches current `activityGroupBy: "wbs"` |
 | 2026-10-30 | Discussion/Feedback/Tasks tabs deferred/retired for v1 | Desktop value and edition boundary; revisit with collaboration model |
+
+## Binding visual-audit continuation rule
+
+All subsequent visual work must follow [`reference/visual-audit-governing-principles.md`](reference/visual-audit-governing-principles.md). Record each page/window/menu/dialog/chart separately in GitHub with its Version 26 source, exact gaps, implementation paths, changes, tests, screenshot evidence, commit SHA and status. Do not report or mark a page complete from a catalogue or passing text test alone. Gantt and chart colour/style controls and their rendered effects are required in the current phase; only final CUBI-wide theme harmonization is deferred. Keep the PR unmerged while any required audit item is unverified or CI is failing.
