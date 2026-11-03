@@ -944,3 +944,14 @@ test("Visible CUBI workspace preview does not expose external product branding o
     assert.doesNotMatch(html, /Oracle|Primavera|P6 Professional|docs\.oracle\.com/i);
   }
 });
+
+
+test("Version 26 dialog registry renders resource assignment, resource details, shifts and print setup surfaces in both locales", () => {
+  for (const locale of ["en", "fa"] as const) {
+    const html = renderVisualDemo(createVisualDemoState(locale));
+    for (const dialog of ["assign-resources-by-role", "resource-details", "resource-shifts", "page-setup", "print-setup"]) {
+      assert.match(html, new RegExp(`data-vd-dialog="${dialog}"`), `missing ${dialog} dialog in ${locale}`);
+    }
+    assert.match(html, /Threshold Monitor \/ Issue Navigator|پایش آستانه \/ راهنمای مسائل/);
+  }
+});
