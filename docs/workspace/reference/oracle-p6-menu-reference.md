@@ -192,3 +192,7 @@ Legend for target: **W** = main window, **D** = dialog, **T** = toggle/command w
 3. Window-opening commands are idempotent: opening an already open window activates its tab instead of duplicating it, except Additional Activities View.
 4. Project windows close with the last open project; enterprise windows stay open.
 5. Keyboard access: every top-level menu has an Alt mnemonic; common commands add second-level mnemonics and function keys (F5, F9, Shift+F9, F3, Ctrl+F, Ctrl+P, Ctrl+F1).
+
+## Mandatory menu and toolbar visual audit
+
+Use [`visual-audit-governing-principles.md`](visual-audit-governing-principles.md) for every menu, submenu, toolbar and context menu. Validate exact Version 26 command membership and hierarchy, active-window enablement, icons, labels, separators, spacing, typography, colours, hover/focus/pressed/disabled states and resulting destination/action. Related-topic names must not be promoted to menu items without evidence. Each menu/toolbar requires its own GitHub audit evidence and tests; a textual inventory alone is not completion.
