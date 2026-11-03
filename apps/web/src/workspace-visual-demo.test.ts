@@ -735,3 +735,30 @@ test("Enterprise code dictionary labels are localized in Persian RTL", () => {
     assert.ok(html.includes(label), `missing Persian code dictionary label: ${label}`);
   }
 });
+
+
+test("Budget, earned value, expenses and cost-account dialogs expose the Version 26 financial workflow", () => {
+  const state = createVisualDemoState("en");
+  state.window = "cost-control";
+  const html = renderVisualDemo(state);
+  for (const label of ["Budget and Spending Plan", "Budget Log and Changes", "Funding Sources and Assignments", "Monthly Spending Plan", "Financial period", "Earned Value Analysis", "Earned Value Calculation Settings", "Planned Value (PV)", "Earned Value (EV)", "Actual Cost (AC)", "Schedule Variance (SV)", "Cost Variance (CV)", "SPI", "CPI", "Expense Details", "Accrual type", "Cost Account Dictionary"]) {
+    assert.ok(html.includes(label), `missing financial control: ${label}`);
+  }
+  for (const name of ["budgeting", "earned-value", "expense-details", "cost-accounts", "store-period-performance"]) {
+    assert.match(html, new RegExp(`data-vd-dialog="${name}"`));
+  }
+  assert.match(html, /not saved or posted/);
+});
+
+test("Progress update, apply actuals and period close dialogs are present and localized in Persian RTL", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "progress-control";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["به‌روزرسانی پیشرفت فعالیت", "نوع درصد پیشرفت", "درصد پیشرفت فیزیکی", "شروع واقعی", "مدت باقی‌مانده", "اعمال واقعیات", "تاریخ داده", "ثبت عملکرد دوره", "دوره مالی", "عملیات پیشرفت", "زمان‌بندی نمی‌کند"]) {
+    assert.ok(html.includes(label), `missing Persian progress control: ${label}`);
+  }
+  for (const name of ["update-progress", "apply-actuals", "store-period-performance"]) {
+    assert.match(html, new RegExp(`data-vd-dialog="${name}"`));
+  }
+});
