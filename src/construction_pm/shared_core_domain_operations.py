@@ -14,6 +14,9 @@ from construction_pm.application.authorization import AuthorizationContext, Perm
 from construction_pm.activity_master_repository import ActivityMaster
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.constraint_master_repository import ConstraintMaster
+from construction_pm.p6_baseline_repository import P6Baseline
+from construction_pm.p6_cost_account_repository import P6CostAccount
+from construction_pm.p6_expense_repository import P6Expense
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI, P6_ACTIVITY_MASTER_API_VERSION
 from construction_pm.p6_constraint_api import P6ConstraintAPI, P6_CONSTRAINT_API_VERSION
 from construction_pm.p6_relationship_api import P6RelationshipAPI, P6_RELATIONSHIP_API_VERSION
@@ -33,6 +36,9 @@ from construction_pm.shared_core_runtime import SharedCoreOperation
 from construction_pm.calendar_work_hours_repository import CalendarWorkHourRule
 from construction_pm.p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDAR_API_VERSION
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
+from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
+from construction_pm.p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
+from construction_pm.p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6ScheduleSnapshotPublicationAPI,
     P6_SCHEDULE_SNAPSHOT_API_VERSION,
@@ -114,6 +120,9 @@ def build_project_domain_operations(
     calendar_api: P6CalendarAPI | None = None,
     calendar_read_api: P6CalendarReadAPI | None = None,
     schedule_snapshot_api: P6ScheduleSnapshotPublicationAPI | None = None,
+    baseline_api: P6BaselineAPI | None = None,
+    cost_account_api: P6CostAccountAPI | None = None,
+    expense_api: P6ExpenseAPI | None = None,
 ) -> dict[str, SharedCoreOperation]:
     """Build the same allow-listed CRUD ABI over server or local typed APIs."""
     operations: dict[str, SharedCoreOperation] = {}
@@ -621,6 +630,162 @@ def build_project_domain_operations(
             allowed_fields=frozenset({"timezone_name", "request_id", "idempotency_key"}),
             handler=schedule_publish,
         )
+
+
+    if baseline_api is not None:
+        def baseline_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _list_result(baseline_api.list(_scope(actor, revision), auth_context=actor))
+
+        def baseline_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                baseline_api.get(_scope(actor, revision), str(payload["baseline_id"]), auth_context=actor)
+            )
+
+        def baseline_create(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["baseline"],
+                required={"baseline_id", "name", "baseline_type", "source_revision", "created_at"},
+                allowed={"baseline_id", "name", "baseline_type", "source_revision", "created_at", "notes"},
+                code="INVALID_BASELINE_PAYLOAD",
+            )
+            source_revision = raw["source_revision"]
+            if isinstance(source_revision, bool) or not isinstance(source_revision, int) or source_revision < 0:
+                raise ValueError("INVALID_SOURCE_REVISION")
+            return _record_result(
+                baseline_api.create(
+                    P6Baseline(
+                        scope=_scope(actor, revision),
+                        baseline_id=raw["baseline_id"],
+                        name=raw["name"],
+                        baseline_type=raw["baseline_type"],
+                        source_revision=source_revision,
+                        created_at=raw["created_at"],
+                        notes=raw.get("notes"),
+                    ),
+                    auth_context=actor,
+                )
+            )
+
+        for name, permission, required, allowed, handler in (
+            ("baseline.list", Permission.PROJECT_READ, set(), set(), baseline_list),
+            ("baseline.get", Permission.PROJECT_READ, {"baseline_id"}, {"baseline_id"}, baseline_get),
+            ("baseline.create", Permission.PROJECT_WRITE, {"baseline"}, {"baseline"}, baseline_create),
+        ):
+            operations[name] = SharedCoreOperation(
+                contract_version=P6_BASELINE_API_VERSION,
+                permission=permission,
+                required_fields=frozenset(required),
+                allowed_fields=frozenset(allowed),
+                handler=handler,
+            )
+
+    if cost_account_api is not None:
+        def cost_account_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _list_result(cost_account_api.list(_scope(actor, revision), auth_context=actor))
+
+        def cost_account_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                cost_account_api.get(_scope(actor, revision), str(payload["account_id"]), auth_context=actor)
+            )
+
+        def cost_account_create(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["cost_account"],
+                required={"account_id", "name"},
+                allowed={"account_id", "name", "parent_account_id", "description"},
+                code="INVALID_COST_ACCOUNT_PAYLOAD",
+            )
+            return _record_result(
+                cost_account_api.create(
+                    P6CostAccount(
+                        scope=_scope(actor, revision),
+                        account_id=raw["account_id"],
+                        name=raw["name"],
+                        parent_account_id=raw.get("parent_account_id"),
+                        description=raw.get("description"),
+                    ),
+                    auth_context=actor,
+                )
+            )
+
+        for name, permission, required, allowed, handler in (
+            ("cost_account.list", Permission.PROJECT_READ, set(), set(), cost_account_list),
+            ("cost_account.get", Permission.PROJECT_READ, {"account_id"}, {"account_id"}, cost_account_get),
+            ("cost_account.create", Permission.PROJECT_WRITE, {"cost_account"}, {"cost_account"}, cost_account_create),
+        ):
+            operations[name] = SharedCoreOperation(
+                contract_version=P6_COST_ACCOUNT_API_VERSION,
+                permission=permission,
+                required_fields=frozenset(required),
+                allowed_fields=frozenset(allowed),
+                handler=handler,
+            )
+
+    if expense_api is not None:
+        def expense_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            activity_id = payload.get("activity_id")
+            wbs_id = payload.get("wbs_id")
+            if activity_id is not None and not isinstance(activity_id, str):
+                raise ValueError("INVALID_ACTIVITY_ID")
+            if wbs_id is not None and not isinstance(wbs_id, str):
+                raise ValueError("INVALID_WBS_ID")
+            return _list_result(
+                expense_api.list(
+                    _scope(actor, revision),
+                    activity_id=activity_id,
+                    wbs_id=wbs_id,
+                    auth_context=actor,
+                )
+            )
+
+        def expense_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                expense_api.get(_scope(actor, revision), str(payload["expense_id"]), auth_context=actor)
+            )
+
+        def expense_create(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["expense"],
+                required={"expense_id", "name", "category"},
+                allowed={
+                    "expense_id", "name", "category", "activity_id", "wbs_id",
+                    "expense_date", "planned_cost", "actual_cost", "remaining_cost",
+                    "currency", "note",
+                },
+                code="INVALID_EXPENSE_PAYLOAD",
+            )
+            return _record_result(
+                expense_api.create(
+                    P6Expense(
+                        scope=_scope(actor, revision),
+                        expense_id=raw["expense_id"],
+                        name=raw["name"],
+                        category=raw["category"],
+                        activity_id=raw.get("activity_id"),
+                        wbs_id=raw.get("wbs_id"),
+                        expense_date=raw.get("expense_date"),
+                        planned_cost=None if raw.get("planned_cost") is None else _decimal(raw["planned_cost"], "INVALID_PLANNED_COST"),
+                        actual_cost=None if raw.get("actual_cost") is None else _decimal(raw["actual_cost"], "INVALID_ACTUAL_COST"),
+                        remaining_cost=None if raw.get("remaining_cost") is None else _decimal(raw["remaining_cost"], "INVALID_REMAINING_COST"),
+                        currency=raw.get("currency"),
+                        note=raw.get("note"),
+                    ),
+                    auth_context=actor,
+                )
+            )
+
+        for name, permission, required, allowed, handler in (
+            ("expense.list", Permission.PROJECT_READ, set(), {"activity_id", "wbs_id"}, expense_list),
+            ("expense.get", Permission.PROJECT_READ, {"expense_id"}, {"expense_id"}, expense_get),
+            ("expense.create", Permission.PROJECT_WRITE, {"expense"}, {"expense"}, expense_create),
+        ):
+            operations[name] = SharedCoreOperation(
+                contract_version=P6_EXPENSE_API_VERSION,
+                permission=permission,
+                required_fields=frozenset(required),
+                allowed_fields=frozenset(allowed),
+                handler=handler,
+            )
 
     return operations
 
