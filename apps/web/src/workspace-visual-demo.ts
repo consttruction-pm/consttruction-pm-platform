@@ -2437,7 +2437,7 @@ function bind(root: HTMLElement): void {
   };
   const run = (action: MenuAction | undefined): void => {
     if (!action || action.reason) return;
-    if (action.window) { if (action.adminSection && ADMIN_SECTIONS.some(([id]) => id === action.adminSection)) state.adminSection = action.adminSection; navigate(action.window); return; }
+    if (action.window) { if (action.adminSection && ADMIN_SECTIONS.some(([id]) => id === action.adminSection)) { state.adminSection = action.adminSection; if (action.window === state.window) { draw(); return; } } navigate(action.window); return; }
     if (action.dialog) { openDialog(action.dialog); return; }
     switch (action.command) {
       case "back": {
