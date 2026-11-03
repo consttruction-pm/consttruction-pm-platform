@@ -7905,3 +7905,6 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-project-register .cp-project-register-table th,.cp-p6 .cp-project-register .cp-project-register-table td{padding:8px 9px;border:1px solid #d5dde6;text-align:start;white-space:nowrap}
 .cp-p6 .cp-project-register .cp-project-register-table thead th{background:#eaf0f6;color:#33485e;font-weight:600}
 .cp-p6 .cp-project-register .cp-project-register-table tbody td{background:#fff;color:#244463}
+.cp-p6 .cp-project-portfolio-select{display:flex;align-items:center;gap:6px;color:#63758a;font-size:10px}
+.cp-p6 .cp-project-portfolio-select select{min-width:145px;min-height:27px;padding:4px 7px;border:1px solid #cbd5e1;background:#eef2f6;color:#64748b;font:inherit}
+.cp-p6 .cp-project-window-toolbar .cp-register-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
