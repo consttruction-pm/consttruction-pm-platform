@@ -1002,3 +1002,38 @@ test("Version 26 dialog registry renders resource assignment, resource details, 
     assert.match(html, /Threshold Monitor \/ Issue Navigator|پایش آستانه \/ راهنمای مسائل/);
   }
 });
+
+
+test("module windows expose page-specific Details tabs rather than one generic tab strip", () => {
+  const cases = [
+    ["resources", ["details", "units-prices", "roles", "calendars", "shifts", "curves", "custom-fields"]],
+    ["roles", ["price-rates", "limits", "codes"]],
+    ["calendars", ["workweek", "work-hours", "exceptions", "assignments", "resource-use"]],
+    ["documents", ["file-locations", "wbs-links", "activity-links", "revisions"]],
+    ["expenses", ["activity", "cost", "dates", "accrual", "category", "documents"]],
+    ["risks", ["probability-impact", "response", "owners", "schedule-impact", "cost-impact"]],
+    ["reports", ["definition", "parameters", "data-scope", "preview", "distribution", "run-history"]],
+    ["tracking", ["projects", "layout", "data", "profiles", "variance"]],
+    ["cost-control", ["budget", "actual-cost", "commitments", "forecast", "cash-flow", "evm", "funding"]],
+    ["progress-control", ["quantities", "physical-progress", "daily-reports", "labour", "equipment", "evidence", "approvals"]],
+    ["procurement", ["supplier", "package", "quantities", "delivery", "links", "documents"]],
+    ["changes-claims", ["notice", "change", "entitlement", "schedule-impact", "cost-impact", "decision", "evidence", "correspondence"]],
+  ] as const;
+  for (const [windowId, tabs] of cases) {
+    const state = createVisualDemoState("en");
+    state.window = windowId;
+    const html = renderVisualDemo(state);
+    for (const tab of tabs) {
+      assert.ok(html.includes('data-vd-module-tab="' + tab + '"'), windowId + " is missing Details tab " + tab);
+    }
+  }
+});
+
+test("page-specific Details tabs keep Persian labels and RTL document direction", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "procurement";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  assert.match(html, /data-vd-module-tab="supplier"[^>]*>تأمین‌کننده/);
+  assert.match(html, /data-vd-module-tab="delivery"[^>]*>تحویل/);
+});
