@@ -2176,9 +2176,13 @@ test("Resource Usage Spreadsheet timescale and field chooser are interactive pre
   assert.equal(dialogOpen, false);
   assert.match(container.innerHTML, /option value="budgeted-cost" selected/);
   assert.match(container.innerHTML, /value="Budgeted Cost" checked/);
+  const dataTarget = { dataset: { assignmentUsageData: "" }, value: "budgeted-cost", closest: () => dataTarget };
+  listeners.get("change")?.({ target: dataTarget } as unknown as Event);
+  assert.match(container.innerHTML, /Time-phased Budgeted Cost/);
   const timescaleTarget = { dataset: { assignmentUsageTimescale: "" }, value: "month", closest: () => timescaleTarget };
   listeners.get("change")?.({ target: timescaleTarget } as unknown as Event);
   assert.match(container.innerHTML, /option value="month" selected/);
+  assert.match(container.innerHTML, /Time-phased Budgeted Cost · Month/);
 });
 
 test("WBS, assignments, expenses, issues, risks and thresholds have separate register windows", () => {
