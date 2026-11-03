@@ -90,6 +90,13 @@ from construction_pm.p6_baseline_activity_repository import (
     SQLiteP6BaselineActivityRepository,
 )
 from construction_pm.p6_baseline_api import P6BaselineAPI
+from construction_pm.p6_baseline_assignment import (
+    P6BaselineAssignmentService,
+    SQLiteP6BaselineRoleAssignmentRepository,
+)
+from construction_pm.p6_baseline_assignment_api import P6BaselineAssignmentAPI
+from construction_pm.p6_baseline_conversion import P6BaselineConversionService
+from construction_pm.p6_baseline_conversion_api import P6BaselineConversionAPI
 from construction_pm.p6_baseline_repository import (
     P6BaselineApplicationService,
     SQLiteP6BaselineRepository,
@@ -258,6 +265,7 @@ class PreviewRepositories:
     contexts: SQLiteCalculationContextRepository
     baselines: SQLiteP6BaselineRepository
     baseline_activities: SQLiteP6BaselineActivityRepository
+    baseline_assignments: SQLiteP6BaselineRoleAssignmentRepository
     current_activity_values: SQLiteP6CurrentActivityRepository
     current_activity_service: P6CurrentActivityApplicationService
     transaction_manager: SQLiteTransactionManager
@@ -295,6 +303,7 @@ class PreviewRepositories:
         contexts = SQLiteCalculationContextRepository(connection)
         baselines = SQLiteP6BaselineRepository(connection)
         baseline_activities = SQLiteP6BaselineActivityRepository(connection)
+        baseline_assignments = SQLiteP6BaselineRoleAssignmentRepository(connection)
         current_activity_values = SQLiteP6CurrentActivityRepository(connection)
         current_activity_service = P6CurrentActivityApplicationService(
             current_activity_values, transaction_manager
@@ -326,6 +335,7 @@ class PreviewRepositories:
             contexts=contexts,
             baselines=baselines,
             baseline_activities=baseline_activities,
+            baseline_assignments=baseline_assignments,
             current_activity_values=current_activity_values,
             current_activity_service=current_activity_service,
             transaction_manager=transaction_manager,
@@ -1141,6 +1151,24 @@ def open_preview_runtime(
     baseline_update_api = P6BaselineUpdateAPI(
         baseline_update_service, policy
     )
+    baseline_assignment_api = P6BaselineAssignmentAPI(
+        P6BaselineAssignmentService(
+            repository=repositories.baseline_assignments,
+            baseline_repository=repositories.baselines,
+            baseline_activity_repository=repositories.baseline_activities,
+            transaction_manager=repositories.transaction_manager,
+        ),
+        policy,
+    )
+    baseline_conversion_api = P6BaselineConversionAPI(
+        P6BaselineConversionService(
+            baseline_repository=repositories.baselines,
+            baseline_activity_repository=repositories.baseline_activities,
+            current_source=repositories.current_activity_service,
+            transaction_manager=repositories.transaction_manager,
+        ),
+        policy,
+    )
 
     ai_assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
         "1", "true", "yes",
@@ -1231,6 +1259,8 @@ def open_preview_runtime(
         ),
         p6_baseline_api=baseline_api,
         p6_baseline_update_api=baseline_update_api,
+        p6_baseline_assignment_api=baseline_assignment_api,
+        p6_baseline_conversion_api=baseline_conversion_api,
         p6_interchange_api=P6InterchangeAPI(
             mapping_service=repositories.mapping_service,
             authorization_policy=policy,

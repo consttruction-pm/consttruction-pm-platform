@@ -57,6 +57,16 @@ from ..p6_baseline_update_api import (
 from ..p6_baseline_repository import P6Baseline
 from ..p6_baseline_activity_repository import P6BaselineActivityPersistenceError
 from ..p6_baseline_repository import P6BaselinePersistenceError
+from ..p6_baseline_assignment import P6BaselineAssignmentError
+from ..p6_baseline_assignment_api import (
+    P6_BASELINE_ASSIGNMENT_API_VERSION,
+    P6BaselineAssignmentAPI,
+)
+from ..p6_baseline_conversion import P6BaselineConversionError
+from ..p6_baseline_conversion_api import (
+    P6_BASELINE_CONVERSION_API_VERSION,
+    P6BaselineConversionAPI,
+)
 from ..p6_current_activity_value_repository import (
     P6CurrentActivityPersistenceError,
 )
@@ -175,6 +185,8 @@ class ProjectLifecycleHttpRoutes:
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
         p6_baseline_update_api: P6BaselineUpdateAPI | None = None,
+        p6_baseline_assignment_api: P6BaselineAssignmentAPI | None = None,
+        p6_baseline_conversion_api: P6BaselineConversionAPI | None = None,
         change_claim_api: ChangeClaimAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
@@ -213,6 +225,8 @@ class ProjectLifecycleHttpRoutes:
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
         self._p6_baseline_update_api = p6_baseline_update_api
+        self._p6_baseline_assignment_api = p6_baseline_assignment_api
+        self._p6_baseline_conversion_api = p6_baseline_conversion_api
         self._change_claim_api = change_claim_api
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
@@ -275,6 +289,11 @@ class ProjectLifecycleHttpRoutes:
             )
             if baseline_update_response is not None:
                 return baseline_update_response
+            baseline_role_response = self._handle_baseline_role_route(
+                method, path, session_id=session_id, now=now, body=body
+            )
+            if baseline_role_response is not None:
+                return baseline_role_response
             if method == "GET" and path == "/api/v1/schedule/code-reference":
                 # The catalogue contains no project records, but a valid active session is required.
                 self._api.get_session(session_id, now=now)
@@ -3153,6 +3172,207 @@ class ProjectLifecycleHttpRoutes:
             return self._error(400, code, "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return self._error(400, str(exc) or "INVALID_REQUEST", "error.request.invalid")
+
+    def _handle_baseline_role_route(
+        self,
+        method: str,
+        path: str,
+        *,
+        session_id: str,
+        now: datetime,
+        body: bytes,
+    ) -> tuple[int, dict[str, str], bytes] | None:
+        """Route BAS-01 summary-role assignment and cross-project conversion."""
+        marker = "/p6/baselines/"
+        if not path.startswith("/api/projects/") or marker not in path:
+            return None
+        prefix, remainder = path.split(marker, 1)
+        project_id = prefix[len("/api/projects/"):]
+        if not project_id:
+            return self._error(
+                400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid"
+            )
+        operation: str | None = None
+        baseline_id = ""
+        role = ""
+        if method == "GET" and remainder == "summary":
+            operation = "summary"
+        elif method == "POST" and remainder == "convert":
+            operation = "convert"
+        elif method == "POST" and remainder.endswith("/assign"):
+            baseline_id = remainder[: -len("/assign")]
+            operation = "assign"
+        elif (
+            method == "GET"
+            and remainder.startswith("roles/")
+            and remainder.endswith("/history")
+        ):
+            role = remainder[len("roles/"):-len("/history")]
+            operation = "history"
+        if operation is None:
+            return None
+        if "/" in baseline_id or "/" in role:
+            return self._error(
+                400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid"
+            )
+        if operation == "convert":
+            if self._p6_baseline_conversion_api is None:
+                return self._error(
+                    404, "ROUTE_NOT_FOUND", "error.route.not_found"
+                )
+        elif self._p6_baseline_assignment_api is None:
+            return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+        try:
+            context = self._api.open_project(
+                session_id, project_id, now=now
+            ).context
+        except ProjectLifecycleError as exc:
+            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                return self._error(403, str(exc), "error.authorization.denied")
+            raise
+        session = self._api.get_session(session_id, now=now)
+        auth = context.authorization_context(session.roles)
+        scope = BackendScope(
+            context.tenant_id, context.project_id, context.revision
+        )
+
+        if operation == "summary":
+            try:
+                result = self._p6_baseline_assignment_api.summary(
+                    scope, auth_context=auth
+                )
+            except AuthorizationError as exc:
+                return self._error(403, str(exc), "error.authorization.denied")
+            except P6BaselineAssignmentError as exc:
+                return self._baseline_role_error(exc)
+            return self._json(200, result)
+
+        if operation == "history":
+            try:
+                result = self._p6_baseline_assignment_api.history(
+                    scope, role, auth_context=auth
+                )
+            except AuthorizationError as exc:
+                return self._error(403, str(exc), "error.authorization.denied")
+            except P6BaselineAssignmentError as exc:
+                return self._baseline_role_error(exc)
+            return self._json(200, result)
+
+        try:
+            payload = json.loads(body.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return self._error(
+                400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid"
+            )
+        if not isinstance(payload, dict):
+            return self._error(
+                400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid"
+            )
+
+        try:
+            if operation == "assign":
+                if not baseline_id:
+                    raise P6BaselineAssignmentError(
+                        "P6_BASELINE_REQUEST_INVALID"
+                    )
+                result = self._p6_baseline_assignment_api.assign(
+                    scope,
+                    payload.get("role", ""),
+                    baseline_id,
+                    expected_revision=payload.get("expected_revision"),
+                    replace=payload.get("replace", False),
+                    auth_context=auth,
+                    contract_version=payload.get(
+                        "contract_version",
+                        P6_BASELINE_ASSIGNMENT_API_VERSION,
+                    ),
+                )
+                return self._json(200, result)
+
+            source_project_id = payload.get("source_project_id", "")
+            if not isinstance(source_project_id, str) or not source_project_id.strip():
+                return self._error(
+                    400,
+                    "P6_BASELINE_REQUEST_INVALID",
+                    "error.request.invalid",
+                )
+            try:
+                source_context = self._api.open_project(
+                    session_id, source_project_id, now=now
+                ).context
+            except ProjectLifecycleError as exc:
+                if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                    return self._error(
+                        403, str(exc), "error.authorization.denied"
+                    )
+                raise
+            source_auth = source_context.authorization_context(session.roles)
+            source_scope = BackendScope(
+                source_context.tenant_id,
+                source_context.project_id,
+                source_context.revision,
+            )
+            result = self._p6_baseline_conversion_api.convert(
+                source_scope,
+                scope,
+                source_baseline_id=payload.get("source_baseline_id"),
+                target_baseline_id=payload.get("target_baseline_id", ""),
+                target_name=payload.get("name", ""),
+                baseline_type=payload.get("baseline_type", "USER_SELECTED"),
+                notes=payload.get("notes"),
+                expected_revision=payload.get("expected_revision"),
+                auth_context=auth,
+                source_auth_context=source_auth,
+                contract_version=payload.get(
+                    "contract_version",
+                    P6_BASELINE_CONVERSION_API_VERSION,
+                ),
+            )
+            return self._json(200 if result["replayed"] else 201, result)
+        except AuthorizationError as exc:
+            return self._error(403, str(exc), "error.authorization.denied")
+        except P6BaselineAssignmentError as exc:
+            return self._baseline_role_error(exc)
+        except P6BaselineConversionError as exc:
+            return self._baseline_conversion_error(exc)
+        except (
+            P6BaselinePersistenceError,
+            P6BaselineActivityPersistenceError,
+            P6CurrentActivityPersistenceError,
+        ) as exc:
+            code = str(exc)
+            if code == "REVISION_CONFLICT":
+                return self._error(
+                    409, code, "error.p6.baseline.conflict"
+                )
+            return self._error(400, code, "error.p6.baseline.invalid")
+
+    @classmethod
+    def _baseline_role_error(
+        cls, exc: P6BaselineAssignmentError
+    ) -> tuple[int, dict[str, str], bytes]:
+        code = str(exc)
+        if code == "BASELINE_NOT_FOUND":
+            return cls._error(404, code, "error.p6.baseline.not_found")
+        if code == "REVISION_CONFLICT" or code.startswith(
+            "BASELINE_ROLE_ALREADY_ASSIGNED:"
+        ):
+            return cls._error(409, code, "error.p6.baseline.conflict")
+        return cls._error(400, code, "error.p6.baseline.invalid")
+
+    @classmethod
+    def _baseline_conversion_error(
+        cls, exc: P6BaselineConversionError
+    ) -> tuple[int, dict[str, str], bytes]:
+        code = str(exc)
+        if code == "BASELINE_CONVERSION_SOURCE_NOT_FOUND":
+            return cls._error(404, code, "error.p6.baseline.not_found")
+        if code in {
+            "BASELINE_CONVERSION_TARGET_EXISTS",
+            "BASELINE_CONVERSION_SOURCE_EMPTY",
+        }:
+            return cls._error(409, code, "error.p6.baseline.conflict")
+        return cls._error(400, code, "error.p6.baseline.invalid")
 
     def _handle_baseline_update_route(
         self,
