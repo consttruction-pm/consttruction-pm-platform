@@ -2012,9 +2012,10 @@ test("Calendar Register opens as a first-class window with documented editor con
 
 test("Project and WBS Details use their Version 26 tab inventories and switch by window context", () => {
   const project = render("en", "project");
-  for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "planning-resources", "contract-management", "udfs"]) {
+  for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "contract-management", "udfs"]) {
     assert.ok(project.includes(`data-project-detail-tab="${tab}"`), `missing Project Details tab: ${tab}`);
   }
+  assert.doesNotMatch(project, /data-project-detail-tab="planning-resources"/);
   const reports = render("en", "reports");
   assert.doesNotMatch(reports, /data-activity-detail-tab=/);
   assert.doesNotMatch(reports, /data-project-detail-tab=/);
@@ -2032,9 +2033,10 @@ test("Project and WBS Details use their Version 26 tab inventories and switch by
   const wbsState = { ...withActivity, selectedWbsId: "WBS-1" };
   const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
   renderMainWorkspace(container as unknown as HTMLElement, wbsState);
-  for (const tab of ["general", "activities", "notebook", "budget-log", "spending-plan", "budget-summary", "milestones", "documents", "earned-value", "planning-resources", "udfs"]) {
+  for (const tab of ["general", "activities", "notebook", "budget-log", "spending-plan", "budget-summary", "milestones", "documents", "earned-value", "udfs"]) {
     assert.ok(container.innerHTML.includes(`data-wbs-detail-tab="${tab}"`), `missing WBS Details tab: ${tab}`);
   }
+  assert.doesNotMatch(container.innerHTML, /data-wbs-detail-tab="planning-resources"/);
   assert.match(container.innerHTML, /WBS Details/);
   assert.match(container.innerHTML, /Structure/);
   assert.match(container.innerHTML, /data-wbs-linked-activity="ACT-101"/);
