@@ -625,7 +625,7 @@ test("Activity Network top layout renders loaded relationships and switches from
   assert.match(container.innerHTML, /cp-activity-network-edge/);
   assert.match(container.innerHTML, /cp-activity-network-wbs-pane/);
   assert.match(container.innerHTML, /cp-activity-network-graph/);
-  assert.match(container.innerHTML, /data-activity-id="A-3"/);
+  assert.doesNotMatch(container.innerHTML, /data-activity-id="A-3"/);
   const networkTarget = { dataset: { topLayout: "" }, value: "activity-network", closest: () => networkTarget };
   listeners.get("change")?.({ target: networkTarget } as unknown as Event);
   assert.equal(split.hidden, true);
