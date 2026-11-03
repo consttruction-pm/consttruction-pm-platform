@@ -596,14 +596,18 @@ test("Activities Details renders the complete Version 26 tab inventory without f
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
 test("Activity Network top layout renders loaded relationships and switches from table/Gantt", () => {
-  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const base = withWbsNodes(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [
+    { id: "W-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "WBS One", sequenceNumber: 0, recordRevision: 1 },
+    { id: "W-2", parentKind: "project", parentWbsId: null, localCode: "2", name: "WBS Two", sequenceNumber: 1, recordRevision: 1 },
+  ]);
   const withRows = withActivities(base, [
     { id: "A-1", wbsId: "W-1", code: "01", name: "Mobilize", cells: {} },
     { id: "A-2", wbsId: "W-1", code: "02", name: "Excavate", cells: {} },
+    { id: "A-3", wbsId: "W-2", code: "03", name: "Concrete", cells: {} },
   ]);
   const state = { ...withRelationships(withRows, [
     { id: "R-1", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
-  ]), activeMenu: "schedule" as const, selectedActivityId: "A-1" };
+  ]), activeMenu: "schedule" as const, selectedActivityId: "A-1", selectedWbsId: "W-1" };
   const listeners = new Map<string, (event: Event) => void>();
   const split = { hidden: false };
   const network = { hidden: true };
@@ -619,6 +623,9 @@ test("Activity Network top layout renders loaded relationships and switches from
   assert.match(container.innerHTML, /data-activity-id="A-1"/);
   assert.match(container.innerHTML, /data-activity-id="A-2"/);
   assert.match(container.innerHTML, /cp-activity-network-edge/);
+  assert.match(container.innerHTML, /cp-activity-network-wbs-pane/);
+  assert.match(container.innerHTML, /cp-activity-network-graph/);
+  assert.match(container.innerHTML, /data-activity-id="A-3"/);
   const networkTarget = { dataset: { topLayout: "" }, value: "activity-network", closest: () => networkTarget };
   listeners.get("change")?.({ target: networkTarget } as unknown as Event);
   assert.equal(split.hidden, true);
