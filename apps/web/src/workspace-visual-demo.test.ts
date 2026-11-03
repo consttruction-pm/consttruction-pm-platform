@@ -436,3 +436,22 @@ test("Activity Resources Details show capacity and assignment context fields wit
   }
   assert.match(html, /<td>—<\/td><td>—<\/td><td>—<\/td>/);
 });
+
+
+test("Filters dialog exposes categorized filters, All/Any matching, parameter/operator/value rows and management controls", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const text of ["Available filters", "Default", "Global", "Layout", "User-defined", "All selected filters", "Any selected filter", "Filter definition", "All of the following", "Any of the following", "Parameter", "Operator", "Value", "Is within range of", "Current Date + 6w", "Optimize", "Make Global"]) {
+    assert.ok(html.includes(text), `missing filter dialog control: ${text}`);
+  }
+  assert.match(html, /cp-vd-filter-manager/);
+  assert.match(html, /Criteria, operators, All\/Any logic/);
+});
+
+test("Filters dialog presents localized Persian controls and truthful preview-only status", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const text of ["فیلترهای موجود", "پیش‌فرض", "سراسری", "چیدمان", "تعریف‌شده توسط کاربر", "نمایش فعالیت‌های منطبق با", "همه موارد زیر", "هر یک از موارد زیر"]) {
+    assert.ok(html.includes(text), `missing Persian filter label: ${text}`);
+  }
+  assert.match(html, /هیچ موردی اعمال یا ذخیره نمی‌شود/);
+});
