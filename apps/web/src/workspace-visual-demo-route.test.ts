@@ -94,3 +94,21 @@ test("the visual workspace View > Layouts menu links to the added module windows
     assert.ok(markup.includes(`"window":"${windowId}"`));
   }
 });
+
+test("visual workspace exposes the hierarchical navigation tree and right-side Add rail", () => {
+  const markup = renderVisualDemo(createVisualDemoState("en"));
+  assert.match(markup, /aria-label="Workspace navigation"/);
+  assert.match(markup, /aria-label="Context commands"/);
+  assert.match(markup, /class="cp-vd-rail-add" data-vd-dialog="module-actions"/);
+  assert.match(markup, /data-vd-dialog="module-actions"/);
+  assert.match(markup, /data-vd-window="comments"/);
+});
+
+test("the Add command opens a clearly preview-only item editor with typed fields", () => {
+  const markup = renderVisualDemo(createVisualDemoState("en"));
+  assert.match(markup, /data-vd-dialog="module-actions"/);
+  assert.match(markup, /name="objectType"/);
+  assert.match(markup, /name="objectName"/);
+  assert.match(markup, /name="objectCode"/);
+  assert.match(markup, /Visual preview only/);
+});
