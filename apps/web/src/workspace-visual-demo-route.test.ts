@@ -116,6 +116,7 @@ test("the Add command opens a clearly preview-only item editor with typed fields
 test("module registers expose page commands, selectable rows, and contextual Details tabs", () => {
   const state = createVisualDemoState("en");
   state.window = "procurement";
+  state.moduleColumns = [];
   const markup = renderVisualDemo(state);
   assert.match(markup, /aria-label="Page commands"/);
   assert.match(markup, /data-vd-module-row="0"/);
