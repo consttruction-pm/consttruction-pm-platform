@@ -357,3 +357,10 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - Editing remains disabled until the authoritative calendar service is connected. This is a visual/navigation completion, not a claim that calendar editing or scheduling integration is complete.
 - Regression coverage checks the six detail tabs, 42-cell month canvas, navigation controls, and honest unknown-status state.
 - Reference: Version 26 Professional User Guide, “Edit a global calendar” and “Edit a project calendar”: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/edit_a_global_calendar.htm. The calendar dialog's month navigation, Work/Nonwork/Standard, Workweek, and Time Periods controls are also documented here: https://docs.oracle.com/cd/F51303_01/client_help/en_US/calendar_dialog_box.htm.
+
+
+## Project and Activity Details — additive CUBI tabs — 2026-11-03
+
+- The Version 26 Professional details index does not list Contract Management under Project Details or Summary under Activity Details. These remain useful CUBI additions, but must not be mistaken for native desktop tabs.
+- CUBI correction: both tabs are visibly labeled as CUBI extensions and carry `data-detail-origin="cubi-extension"` metadata and explanatory tooltips. Native detail tabs retain `desktop-reference` origin metadata.
+- References: https://docs.oracle.com/cd/G48902_01/client_help/en_US/detailswindows-postdropdowns.htm; https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_details.htm.
