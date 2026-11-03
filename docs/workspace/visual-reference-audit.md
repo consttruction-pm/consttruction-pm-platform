@@ -267,3 +267,10 @@ For each built surface, compare against the observations above:
 1. Image 1 could not be retrieved (HTTP 403 from Oracle, no archive). The "complete Activities workspace with the Edit menu open" therefore relies on the remaining screenshots and the Version 26 help pages.
 2. Images 2–10 are not Version 26. Features that exist only in newer releases were taken from the official help pages, not from screenshots.
 3. The reference screenshots are raster captures at 96 dpi on Windows 7/10; exact font metrics cannot be reproduced, only the hierarchy and density.
+
+
+### Desktop Professional edition tab correction — 2026-11-03
+
+The Version 26 desktop Professional Help index distinguishes desktop Activity Details from EPPM-only detail tabs. The visual shell previously exposed the **Tasks** tab in Activity Details and **Planning Resources** in Project Details, both explicitly marked EPPM-only by the official Details Windows index. These were removed from the desktop workspace tab inventories. This prevents the Professional desktop shell from presenting server-edition-only tabs as native desktop features. The Professional-only Activity Details > Risks tab remains in scope. Verification is covered by the Activity Details tab inventory test and the Project Details tab inventory test.
+
+Official reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/detailswindows-postdropdowns.htm
