@@ -2776,6 +2776,7 @@ const ACTIVITY_DETAIL_TABS = [
   ["notebook", "Notebook", "دفترچه"],
   ["steps", "Steps", "گام‌ها"],
   ["feedback", "Feedback", "بازخورد"],
+  ["update-history", "Update History", "تاریخچه به‌روزرسانی"],
   ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
   ["expenses", "Expenses", "هزینه‌ها"],
   ["summary", "Summary", "خلاصه"],
