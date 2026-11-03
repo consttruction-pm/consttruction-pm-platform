@@ -562,7 +562,7 @@ test("module navigation submenus route to real registers, detail tabs and tracki
   assert.match(wbs, /data-submenu-status="preview"/);
 
   const calendars = render("en", "calendars");
-  for (const action of ["calendar-tab:workweek", "calendar-tab:exceptions", "calendar-tab:assignments"]) {
+  for (const action of ["calendar-tab:workweek", "calendar-tab:exceptions", "calendar-tab:time-periods", "calendar-tab:assignments"]) {
     assert.match(calendars, new RegExp(`data-navigation-action="${action}"`));
   }
 
@@ -2065,14 +2065,43 @@ test("Calendar Register opens as a first-class window with documented editor con
   assert.match(html, /Workweek/);
   assert.match(html, /Exceptions and Holidays/);
   assert.match(html, /Assignments/);
-  for (const tab of ["general", "workweek", "exceptions", "assignments"]) {
+  for (const tab of ["general", "workweek", "exceptions", "time-periods", "assignments"]) {
     assert.ok(html.includes(`id="cp-calendar-tab-${tab}" aria-controls="cp-calendar-panel-${tab}"`));
     assert.ok(html.includes(`role="tabpanel" id="cp-calendar-panel-${tab}" aria-labelledby="cp-calendar-tab-${tab}"`));
   }
   assert.match(html, /tabindex="0" class="is-active" data-calendar-editor-tab="general"/);
   assert.match(html, /tabindex="-1" class=""/);
+  assert.match(html, /Interval 1 Start/);
+  assert.match(html, /Interval 2 Finish/);
+  assert.match(html, /Time Period/);
   assert.match(html, /split shifts, multiple work intervals, overnight shifts/);
-  assert.match(html, /Editing and saving are disabled until the authoritative calendar service/i);
+  assert.match(html, /Editing remains disabled until the authoritative calendar service/i);
+});
+
+test("Calendar editor tab selection updates ARIA state and keeps the selected tab across renders", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const buttons = ["general", "workweek", "exceptions", "time-periods", "assignments"].map((calendarEditorTab) => ({
+    dataset: { calendarEditorTab },
+    tabIndex: -1,
+    setAttribute: (_name: string, _value: string) => {},
+    classList: { toggle: (_name: string, _active: boolean) => {} },
+  }));
+  const panels = ["general", "workweek", "exceptions", "time-periods", "assignments"].map((calendarEditorPanel) => ({ dataset: { calendarEditorPanel }, hidden: true }));
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector: string) => selector === "[data-calendar-editor-tab]" ? buttons : selector === "[data-calendar-editor-panel]" ? panels : [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "calendars" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { calendarEditorTab: "time-periods" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(panels.find((panel) => panel.dataset.calendarEditorPanel === "time-periods")?.hidden, false);
+  assert.equal(panels.find((panel) => panel.dataset.calendarEditorPanel === "general")?.hidden, true);
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /aria-selected="true" tabindex="0" class="is-active" data-calendar-editor-tab="time-periods"/);
+  assert.match(container.innerHTML, /data-calendar-editor-panel="time-periods"[^>]*>/);
+  assert.doesNotMatch(container.innerHTML, /data-calendar-editor-panel="time-periods" hidden/);
 });
 
 test("Project and WBS Details use their Version 26 tab inventories and switch by window context", () => {
