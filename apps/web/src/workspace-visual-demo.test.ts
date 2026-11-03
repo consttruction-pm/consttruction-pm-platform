@@ -104,6 +104,20 @@ test("WBS detail tab state is rendered as the active accessible tab", () => {
   assert.match(html, /04\/12\/26/);
 });
 
+test("Gantt bar colour controls are bound to rendered preview tokens", () => {
+  const state = createVisualDemoState("en");
+  state.ganttBarColor = "#123456";
+  state.ganttBarBorderColor = "#654321";
+  state.ganttLabelColor = "#abcdef";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-vd-gantt-style="bar-color" value="#123456"/);
+  assert.match(html, /data-vd-gantt-style="bar-border" value="#654321"/);
+  assert.match(html, /data-vd-gantt-style="label-color" value="#abcdef"/);
+  assert.match(html, /--cp-vd-gantt-bar-color:#123456/);
+  assert.match(html, /--cp-vd-gantt-bar-border:#654321/);
+  assert.match(html, /--cp-vd-gantt-label-color:#abcdef/);
+});
+
 test("calendar editor presents properties, workweek and exception panes", () => {
   const html = renderVisualDemo(createVisualDemoState("en"));
   assert.match(html, /data-vd-dialog="calendar"/);
