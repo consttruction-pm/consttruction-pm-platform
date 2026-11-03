@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/p6-baseline-assignment-api/v1",
+  "title": "P6 Baseline Assignment API v1",
+  "type": "object",
+  "required": ["contract_version", "kind", "scope"],
+  "properties": {
+    "contract_version": {"const": "p6-baseline-assignment-api.v1"},
+    "kind": {
+      "enum": [
+        "p6_baseline_role_assignment",
+        "p6_baseline_summary",
+        "p6_baseline_role_history"
+      ]
+    },
+    "scope": {"$ref": "#/$defs/scope"},
+    "role": {
+      "enum": ["PROJECT", "PRIMARY", "SECONDARY", "TERTIARY"]
+    },
+    "assignment": {"$ref": "#/$defs/assignment"},
+    "replaced": {"type": "boolean"},
+    "roles": {
+      "type": "object",
+      "required": ["PROJECT", "PRIMARY", "SECONDARY", "TERTIARY"],
+      "properties": {
+        "PROJECT": {"oneOf": [{"$ref": "#/$defs/summaryEntry"}, {"type": "null"}]},
+        "PRIMARY": {"oneOf": [{"$ref": "#/$defs/summaryEntry"}, {"type": "null"}]},
+        "SECONDARY": {"oneOf": [{"$ref": "#/$defs/summaryEntry"}, {"type": "null"}]},
+        "TERTIARY": {"oneOf": [{"$ref": "#/$defs/summaryEntry"}, {"type": "null"}]}
+      },
+      "additionalProperties": false
+    },
+    "assigned_roles": {
+      "type": "array",
+      "items": {"enum": ["PROJECT", "PRIMARY", "SECONDARY", "TERTIARY"]},
+      "uniqueItems": true
+    },
+    "unassigned_roles": {
+      "type": "array",
+      "items": {"enum": ["PROJECT", "PRIMARY", "SECONDARY", "TERTIARY"]},
+      "uniqueItems": true
+    },
+    "history": {"type": "array", "items": {"$ref": "#/$defs/assignment"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "p6_baseline_role_assignment"}}},
+      "then": {"required": ["role", "assignment", "replaced"]}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "p6_baseline_summary"}}},
+      "then": {"required": ["roles", "assigned_roles", "unassigned_roles"]}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "p6_baseline_role_history"}}},
+      "then": {"required": ["role", "history"]}
+    }
+  ],
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "required": ["tenant_id", "project_id", "project_revision"],
+      "properties": {
+        "tenant_id": {"type": "string", "minLength": 1},
+        "project_id": {"type": "string", "minLength": 1},
+        "project_revision": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "assignment": {
+      "type": "object",
+      "required": [
+        "role",
+        "baseline_id",
+        "assigned_at",
+        "assigned_by",
+        "previous_baseline_id"
+      ],
+      "properties": {
+        "role": {"enum": ["PROJECT", "PRIMARY", "SECONDARY", "TERTIARY"]},
+        "baseline_id": {"type": "string", "minLength": 1},
+        "assigned_at": {"type": "string", "minLength": 1},
+        "assigned_by": {"type": "string", "minLength": 1},
+        "previous_baseline_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "summaryEntry": {
+      "type": "object",
+      "required": [
+        "role",
+        "baseline_id",
+        "name",
+        "baseline_type",
+        "source_revision",
+        "created_at",
+        "activity_count",
+        "assigned_at",
+        "assigned_by"
+      ],
+      "properties": {
+        "role": {"enum": ["PROJECT", "PRIMARY", "SECONDARY", "TERTIARY"]},
+        "baseline_id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "baseline_type": {
+          "enum": ["PRIMARY", "SECONDARY", "TERTIARY", "USER_SELECTED"]
+        },
+        "source_revision": {"type": "integer", "minimum": 0},
+        "created_at": {"type": "string", "minLength": 1},
+        "activity_count": {"type": "integer", "minimum": 0},
+        "assigned_at": {"type": "string", "minLength": 1},
+        "assigned_by": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
