@@ -2138,7 +2138,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         ${controls(`${moduleButton("tools", "resource", uiText(state.locale, "Open resource capacity", "بازکردن ظرفیت منابع"))}${moduleButton("assignments", "link", uiText(state.locale, "Resource assignments", "تخصیص منابع"))}`)}`;
       break;
     case "expenses":
-      body = renderRegisterWindow(state, uiText(state.locale, "Project Expenses", "هزینه‌های پروژه"), [["Expense Item","شرح هزینه"],["Expense ID","شناسه هزینه"],["Activity ID","شناسه فعالیت"],["WBS","ساختار شکست"],["Cost Account","حساب هزینه"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Accrual Type","نوع تعهد"],["Vendor","تأمین‌کننده"],["Status","وضعیت"]], [["general","General","عمومی"],["costs","Costs","هزینه‌ها"],["description","Description","شرح"],["documents","Documents","اسناد"],["udfs","UDFs","فیلدهای کاربر"]]);
+      body = renderRegisterWindow(state, uiText(state.locale, "Project Expenses", "هزینه‌های پروژه"), [["Expense Item","شرح هزینه"],["Expense ID","شناسه هزینه"],["Expense Category","دسته هزینه"],["Activity ID","شناسه فعالیت"],["WBS","ساختار شکست"],["Vendor","تأمین‌کننده"],["Document Number","شماره سند"],["Cost Account","حساب هزینه"],["Price / Unit","قیمت واحد"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Remaining Cost","هزینه باقیمانده"],["Accrual Type","نوع تعهد"],["Status","وضعیت"]], [["general","General","عمومی"],["activity","Activity","فعالیت"],["costs","Costs","هزینه‌ها"],["description","Description","شرح"]]);
       break;
     case "documents":
       body = renderDocumentRegisterWindow(container, state);
