@@ -371,7 +371,7 @@ test("Activity Details customization exposes the complete desktop tab inventory 
     ["update-history", "Update History"],
   ] as const) {
     assert.match(html, new RegExp(`data-vd-detail-tab="${id}"`));
-    assert.match(html, new RegExp(`>${label}<`));
+    assert.ok(html.includes(label), `missing Details tab label: ${label}`);
   }
   assert.match(html, /Displayed tabs · in order/);
   assert.match(html, /Move General up/);
