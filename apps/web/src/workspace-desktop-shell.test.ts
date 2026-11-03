@@ -108,6 +108,16 @@ test("disabled commands explain the missing precondition instead of failing sile
   assert.equal(byId.get("edit.group-wbs")?.checked, true, "WBS grouping is the default activity view");
 });
 
+test("Filters menu and toolbar open the dedicated activity filter dialog, not Find", () => {
+  const menus = getDesktopMenus(shellState());
+  const viewFilters = menus.find((menu) => menu.id === "view")?.items.find((item) => item.id === "view.filters");
+  assert.equal(viewFilters?.command, "view.filters");
+  assert.equal(viewFilters?.command === "edit.find", false);
+  const filters = getDesktopToolbar(shellState()).find((item) => item.id === "toolbar.find");
+  assert.equal(filters?.command, "view.filters");
+  assert.doesNotMatch(filters?.title.en ?? "", /search|find/i);
+});
+
 test("toolbar commands are real and track layout history and selection", () => {
   const toolbar = getDesktopToolbar(shellState());
   assert.ok(toolbar.length >= 8);
