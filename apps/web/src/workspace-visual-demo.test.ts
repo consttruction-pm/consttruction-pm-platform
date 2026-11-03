@@ -631,7 +631,9 @@ test("Project Details dialog localizes project tabs and date/default fields in P
 
 
 test("Calendar dictionary and editor expose all three pools, inheritance, exceptions and time-period conversion", () => {
-  const html = renderVisualDemo(createVisualDemoState("en"));
+  const state = createVisualDemoState("en");
+  state.window = "calendars";
+  const html = renderVisualDemo(state);
   for (const label of ["Global", "Project", "Resource", "Shared Resource Shift", "Personal Resource Calendar", "Add…", "Modify…", "Delete", "Used By…", "Calendar pool", "Parent global calendar", "Standard workweek", "Total work hours/day", "Detailed work hours/day", "Work", "Nonwork", "Standard", "Hours per time period", "Hours per week", "Hours per month", "Hours per year", "manual future-period assignment values"]) {
     assert.ok(html.includes(label), `missing calendar control or concept: ${label}`);
   }
@@ -641,7 +643,9 @@ test("Calendar dictionary and editor expose all three pools, inheritance, except
 });
 
 test("Calendar dictionary and editor expose Persian RTL labels and conversion warnings", () => {
-  const html = renderVisualDemo(createVisualDemoState("fa"));
+  const state = createVisualDemoState("fa");
+  state.window = "calendars";
+  const html = renderVisualDemo(state);
   assert.match(html, /data-visual-demo dir="rtl"/);
   for (const label of ["مخازن تقویم", "سراسری", "پروژه", "منبع", "تقویم والد", "هفته کاری استاندارد", "مجموع ساعات کاری روز", "جزئیات ساعات کاری روز", "ساعات هر دوره زمانی", "موارد استفاده…", "تقویم‌های پروژه و منابعِ پیوندخورده"]) {
     assert.ok(html.includes(label), `missing Persian calendar label: ${label}`);
@@ -650,7 +654,9 @@ test("Calendar dictionary and editor expose Persian RTL labels and conversion wa
 
 
 test("Resource dictionary follows desktop columns and exposes the resource detail pane", () => {
-  const html = renderVisualDemo(createVisualDemoState("en"));
+  const state = createVisualDemoState("en");
+  state.window = "resources";
+  const html = renderVisualDemo(state);
   for (const label of ["Resource hierarchy and dictionary", "Resource ID", "Resource name", "Unit of measure", "Primary role", "Default units/time", "Calendar", "Average unit rate", "Delete / Merge", "Resource Details", "Ready-mix concrete C30", "Material"]) {
     assert.ok(html.includes(label), `missing resource dictionary control: ${label}`);
   }
