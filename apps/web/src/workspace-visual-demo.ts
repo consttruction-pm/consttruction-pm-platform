@@ -1808,6 +1808,22 @@ export function renderVisualDemo(state: DemoState): string {
   .cp-vd-timescale-ruler span{padding:5px 3px;text-align:center;background:#e7edf4;border-inline-start:1px solid #cbd6e2;font-size:10px;color:#294765}
   .cp-vd-timescale-ruler.is-minor span{background:#fff;color:#6b7d91}
   @media(max-width:850px){.cp-vd-timescale-top,.cp-vd-timescale-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .cp-vd-columns-editor{display:grid;gap:10px;min-width:0}
+  .cp-vd-columns-toolbar,.cp-vd-columns-footer{display:flex;align-items:end;gap:8px;flex-wrap:wrap;padding:8px;background:#f5f7fa;border:1px solid #d8e0e9}
+  .cp-vd-columns-toolbar label,.cp-vd-columns-footer label{display:grid;gap:4px;font-size:10px;color:#526579;flex:1;min-width:160px}
+  .cp-vd-columns-toolbar input,.cp-vd-columns-toolbar select,.cp-vd-columns-footer select{min-width:0;padding:5px;border:1px solid #cbd6e2;background:#fff;font:11px Inter,Vazirmatn,sans-serif}
+  .cp-vd-columns-transfer{display:grid;grid-template-columns:minmax(0,1fr) 58px minmax(0,1fr);gap:8px;align-items:center}
+  .cp-vd-columns-list{min-width:0;border:1px solid #d8e0e9;background:#fff;padding:8px}
+  .cp-vd-columns-list>strong{display:block;color:#294765;font-size:11px;padding-bottom:6px;border-bottom:1px solid #e1e7ee}
+  .cp-vd-columns-list ul{list-style:none;padding:0;margin:7px 0;max-height:210px;overflow:auto;display:grid;gap:5px}
+  .cp-vd-columns-list li{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px}
+  .cp-vd-column-width{font-size:10px;color:#6b7d91}
+  .cp-vd-columns-transfer-actions{display:grid;gap:6px}
+  .cp-vd-columns-transfer-actions button{min-height:27px}
+  .cp-vd-column-properties{border:1px solid #d8e0e9;background:#fff;padding:9px}
+  .cp-vd-column-properties h4{margin:0 0 8px;color:#294765;font-size:11px}
+  .cp-vd-column-properties .cp-vd-form{grid-template-columns:repeat(4,minmax(0,1fr))}
+  @media(max-width:760px){.cp-vd-columns-transfer{grid-template-columns:1fr}.cp-vd-columns-transfer-actions{grid-template-columns:repeat(4,1fr)}.cp-vd-column-properties .cp-vd-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:850px){.cp-vd-filter-manager{grid-template-columns:1fr}.cp-vd-filter-library{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.cp-vd-filter-library-head{grid-column:1/-1}}
   .cp-vd-module-toolbar .cp-vd-note{margin-inline-start:auto}
   .cp-vd-module-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(245px,30%);min-height:350px}
