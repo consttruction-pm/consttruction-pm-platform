@@ -159,6 +159,7 @@ def build_project_lifecycle_wsgi_app(
             relationship_api=relationship_api,
             calendar_api=p6_calendar_api,
             calendar_read_api=p6_calendar_read_api,
+            schedule_snapshot_api=schedule_snapshot_publication_api,
         ),
     )
     schedule_query_api = shared_core_runtime.schedule_query_api
