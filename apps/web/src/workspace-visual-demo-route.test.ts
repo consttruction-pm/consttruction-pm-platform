@@ -194,7 +194,7 @@ test("register column chooser uses the current page fields instead of activity f
   state.window = "procurement";
   const markup = renderVisualDemo(state);
   assert.match(markup, /name="Package"/);
-  assert.match(markup, /name="Material / Equipment"/);
+  assert.match(markup, /name="Material \/ Equipment"/);
   assert.doesNotMatch(markup, /name="Activity ID"/);
 });
 test("scheduling dialogs expose the key CPM handling and baseline options", () => {
