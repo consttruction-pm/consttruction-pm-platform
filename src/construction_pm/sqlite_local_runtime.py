@@ -467,7 +467,7 @@ class SQLiteLocalApplicationRuntime:
                 apply=apply,
                 permission=(
                     Permission.PROJECT_SCHEDULE
-                    if operation == "schedule.publish"
+                    if operation.startswith("schedule.")
                     else Permission.PROJECT_WRITE
                 ),
             )
