@@ -85,6 +85,15 @@ from construction_pm.http.production_composition import (
 )
 from construction_pm.http.project_lifecycle_routes import Clock
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
+from construction_pm.p6_earned_value_read_model import (
+    P6EarnedValueReadModelError,
+    P6EarnedValueReadModelService,
+)
+from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
+from construction_pm.p6_activity_period_actual_repository import (
+    SQLiteP6ActivityPeriodActualRepository,
+)
+from construction_pm.p6_expense_repository import SQLiteP6ExpenseRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_baseline_activity_repository import (
     SQLiteP6BaselineActivityRepository,
@@ -1170,6 +1179,34 @@ def open_preview_runtime(
         policy,
     )
 
+    def _evm_resolver(scope: BackendScope) -> WorkingTimeResolver:
+        """Resolve the persisted project calendar for this EVM measurement."""
+        settings = repositories.settings.get(scope)
+        if settings is None:
+            raise P6EarnedValueReadModelError("EVM_PROJECT_CALENDAR_REQUIRED")
+        try:
+            registry = build_calendar_registry(connection)
+            return registry.resolve(settings.project_calendar)
+        except PreviewRuntimeError as exc:
+            raise P6EarnedValueReadModelError(exc.code) from exc
+        except (KeyError, TypeError, ValueError) as exc:
+            raise P6EarnedValueReadModelError(
+                "EVM_PROJECT_CALENDAR_UNRESOLVED"
+            ) from exc
+
+    earned_value_read_api = P6EarnedValueReadModelAPI(
+        P6EarnedValueReadModelService(
+            baseline_activities=repositories.baseline_activities,
+            activities=repositories.activities,
+            actuals=SQLiteP6ActivityPeriodActualRepository(connection),
+            expenses=SQLiteP6ExpenseRepository(connection),
+            resolver_provider=_evm_resolver,
+            wbs_repository=repositories.wbs,
+            resource_assignments=repositories.resource_assignments,
+        ),
+        policy,
+    )
+
     ai_assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
         "1", "true", "yes",
     }
@@ -1261,6 +1298,7 @@ def open_preview_runtime(
         p6_baseline_update_api=baseline_update_api,
         p6_baseline_assignment_api=baseline_assignment_api,
         p6_baseline_conversion_api=baseline_conversion_api,
+        p6_earned_value_read_api=earned_value_read_api,
         p6_interchange_api=P6InterchangeAPI(
             mapping_service=repositories.mapping_service,
             authorization_policy=policy,

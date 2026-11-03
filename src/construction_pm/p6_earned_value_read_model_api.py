@@ -48,6 +48,7 @@ class P6EarnedValueReadModelAPI:
         etc_method: str | None = None,
         performance_factor: Decimal | str | float | int | None = None,
         settings: P6EarnedValueSettings | None = None,
+        contract_version: str | None = None,
     ) -> dict[str, Any]:
         _require_scope(scope, auth_context)
         if not self.authorization_policy.is_allowed(
@@ -56,13 +57,29 @@ class P6EarnedValueReadModelAPI:
             raise AuthorizationError(
                 "authorization denied for permission=project.read"
             )
+        if (
+            contract_version is not None
+            and contract_version != P6_EARNED_VALUE_READ_MODEL_VERSION
+        ):
+            raise P6EarnedValueReadModelError(
+                "EVM_CONTRACT_VERSION_UNSUPPORTED"
+            )
         if isinstance(data_date, datetime):
             raise P6EarnedValueReadModelError("EVM_DATA_DATE_INVALID")
         kwargs: dict[str, Any] = {}
         if etc_method is not None:
             kwargs["etc_method"] = etc_method
         if performance_factor is not None:
-            kwargs["performance_factor"] = Decimal(str(performance_factor))
+            if isinstance(performance_factor, bool):
+                raise P6EarnedValueReadModelError(
+                    "EVM_PERFORMANCE_FACTOR_INVALID"
+                )
+            try:
+                kwargs["performance_factor"] = Decimal(str(performance_factor))
+            except (ArithmeticError, ValueError) as exc:
+                raise P6EarnedValueReadModelError(
+                    "EVM_PERFORMANCE_FACTOR_INVALID"
+                ) from exc
         if settings is not None:
             kwargs["settings"] = settings
         try:

@@ -3,12 +3,23 @@ from __future__ import annotations
 import gzip
 import json
 import sqlite3
+from datetime import date
+from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
 
+from construction_pm.backend_p0.models import BackendScope
+from construction_pm.p6_baseline_activity_repository import (
+    P6BaselineActivity,
+    SQLiteP6BaselineActivityRepository,
+)
+from construction_pm.p6_baseline_repository import (
+    P6Baseline,
+    SQLiteP6BaselineRepository,
+)
 from construction_pm.preview.runtime import PreviewRuntimeError, open_preview_runtime
 from construction_pm.preview.server import build_preview_application
 from construction_pm.preview.storage import DEMO_USERS_BY_ROLE
@@ -1781,3 +1792,70 @@ def test_preview_resource_rate_write_closes_open_interval_and_persists(
         assert persisted[-1]["source"] == "manual-entry:preview-planner"
     finally:
         reopened.close()
+
+
+def test_preview_earned_value_route_uses_persisted_baseline_and_project_calendar(
+    tmp_path: Path,
+) -> None:
+    runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        scope = BackendScope(RPS_TENANT, RPS_PROJECT, RPS_REVISION)
+        baselines = SQLiteP6BaselineRepository(runtime.connection)
+        baselines.upsert(
+            P6Baseline(
+                scope,
+                "EV-B1",
+                "EVM Preview Baseline",
+                "PRIMARY",
+                RPS_REVISION,
+                "2026-10-01T10:00:00Z",
+                None,
+            )
+        )
+        SQLiteP6BaselineActivityRepository(runtime.connection).save_many(
+            (
+                P6BaselineActivity(
+                    scope,
+                    "EV-B1",
+                    "A130",
+                    date(2026, 10, 5),
+                    date(2026, 10, 9),
+                    Decimal("1000"),
+                    "USD",
+                    None,
+                    "ACTIVITY_PERCENT_COMPLETE",
+                ),
+            )
+        )
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"/api/projects/{RPS_PROJECT}/p6/earned-value",
+            cookie=planner.session_id,
+            body=json.dumps(
+                {
+                    "baseline_id": "EV-B1",
+                    "data_date": "2026-10-12",
+                    "currency": "USD",
+                    "etc_method": "PF_ONE",
+                }
+            ).encode("utf-8"),
+        )
+        assert status == 200
+        measurement = json.loads(body)
+        assert measurement["contract_version"] == "p6-earned-value-read-model.v1"
+        assert measurement["kind"] == "p6_earned_value_read_model"
+        assert measurement["scope"]["project_revision"] == RPS_REVISION
+        assert Decimal(measurement["earned_value"]["planned_value"]) == Decimal(
+            "1000.00"
+        )
+        assert Decimal(measurement["earned_value"]["earned_value"]) == Decimal(
+            "375.00"
+        )
+        assert Decimal(
+            measurement["earned_value"]["estimate_to_complete"]
+        ) == Decimal("625.00")
+        assert measurement["earned_value"]["etc_method"] == "PF_ONE"
+    finally:
+        runtime.close()

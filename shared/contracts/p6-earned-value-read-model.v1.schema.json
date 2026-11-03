@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "constructionpm://contracts/p6-earned-value-read-model/v1",
+  "title": "P6 Earned Value Read Model v1",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "kind",
+    "scope",
+    "baseline_id",
+    "data_date",
+    "currency",
+    "pv_method",
+    "activities",
+    "wbs_rollups",
+    "cost_adjustments",
+    "earned_value"
+  ],
+  "properties": {
+    "contract_version": {"const": "p6-earned-value-read-model.v1"},
+    "kind": {"const": "p6_earned_value_read_model"},
+    "scope": {"$ref": "#/$defs/scope"},
+    "baseline_id": {"type": "string", "minLength": 1},
+    "data_date": {"type": "string", "format": "date"},
+    "currency": {"type": "string", "minLength": 1},
+    "pv_method": {"type": "string", "minLength": 1},
+    "activities": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/activity"}
+    },
+    "wbs_rollups": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/wbsRollup"}
+    },
+    "cost_adjustments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["wbs_id", "actual_cost", "remaining_cost"],
+        "properties": {
+          "wbs_id": {"type": ["string", "null"]},
+          "actual_cost": {"type": "string"},
+          "remaining_cost": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "earned_value": {
+      "type": "object",
+      "required": [
+        "planned_value",
+        "earned_value",
+        "actual_cost",
+        "cost_variance",
+        "schedule_variance",
+        "cost_performance_index",
+        "schedule_performance_index",
+        "etc_method",
+        "budget_at_completion",
+        "estimate_to_complete",
+        "estimate_at_completion",
+        "variance_at_completion",
+        "performance_factor"
+      ],
+      "properties": {
+        "planned_value": {"type": "string"},
+        "earned_value": {"type": "string"},
+        "actual_cost": {"type": "string"},
+        "cost_variance": {"type": "string"},
+        "schedule_variance": {"type": "string"},
+        "cost_performance_index": {"type": ["string", "null"]},
+        "schedule_performance_index": {"type": ["string", "null"]},
+        "etc_method": {"type": "string", "minLength": 1},
+        "budget_at_completion": {"type": ["string", "null"]},
+        "estimate_to_complete": {"type": "string"},
+        "estimate_at_completion": {"type": "string"},
+        "variance_at_completion": {"type": ["string", "null"]},
+        "performance_factor": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "required": ["tenant_id", "project_id", "project_revision"],
+      "properties": {
+        "tenant_id": {"type": "string", "minLength": 1},
+        "project_id": {"type": "string", "minLength": 1},
+        "project_revision": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "assignment": {
+      "type": "object",
+      "required": [
+        "activity_id",
+        "assignment_id",
+        "currency",
+        "planned_cost",
+        "planned_value",
+        "earned_value",
+        "earned_percent",
+        "units_percent_complete"
+      ],
+      "properties": {
+        "activity_id": {"type": "string", "minLength": 1},
+        "assignment_id": {"type": "string", "minLength": 1},
+        "currency": {"type": "string", "minLength": 1},
+        "planned_cost": {"type": "string"},
+        "planned_value": {"type": "string"},
+        "earned_value": {"type": "string"},
+        "earned_percent": {"type": "string"},
+        "units_percent_complete": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "activity": {
+      "type": "object",
+      "required": [
+        "baseline_id",
+        "activity_id",
+        "wbs_id",
+        "planned_start",
+        "planned_finish",
+        "planned_percent",
+        "earned_percent",
+        "planned_value",
+        "earned_value",
+        "actual_cost",
+        "budget_at_completion",
+        "currency",
+        "earned_value_technique",
+        "planned_value_method",
+        "assignments"
+      ],
+      "properties": {
+        "baseline_id": {"type": "string", "minLength": 1},
+        "activity_id": {"type": "string", "minLength": 1},
+        "wbs_id": {"type": ["string", "null"]},
+        "planned_start": {"type": "string", "format": "date"},
+        "planned_finish": {"type": "string", "format": "date"},
+        "planned_percent": {"type": "string"},
+        "earned_percent": {"type": "string"},
+        "planned_value": {"type": "string"},
+        "earned_value": {"type": "string"},
+        "actual_cost": {"type": "string"},
+        "budget_at_completion": {"type": "string"},
+        "currency": {"type": "string", "minLength": 1},
+        "earned_value_technique": {"type": "string", "minLength": 1},
+        "planned_value_method": {"type": "string", "minLength": 1},
+        "assignments": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/assignment"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "wbsRollup": {
+      "type": "object",
+      "required": [
+        "wbs_id",
+        "activity_count",
+        "planned_value",
+        "earned_value",
+        "actual_cost",
+        "budget_at_completion",
+        "currency"
+      ],
+      "properties": {
+        "wbs_id": {"type": ["string", "null"]},
+        "activity_count": {"type": "integer", "minimum": 0},
+        "planned_value": {"type": "string"},
+        "earned_value": {"type": "string"},
+        "actual_cost": {"type": "string"},
+        "budget_at_completion": {"type": "string"},
+        "currency": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

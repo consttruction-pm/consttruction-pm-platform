@@ -11,7 +11,7 @@ schedule dates in the client.
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Iterable, Protocol
+from typing import Any, Callable, Iterable, Protocol
 
 from .activity_master_repository import ActivityMaster
 from .backend_p0.models import BackendScope
@@ -389,9 +389,26 @@ class P6EarnedValueReadModelService:
     activities: CurrentActivitySource
     actuals: ActivityActualSource
     expenses: ExpenseSource
-    resolver: WorkingTimeResolver
+    resolver: WorkingTimeResolver | None = None
     wbs_repository: WBSHierarchySource | None = None
     resource_assignments: AssignmentCostSource | None = None
+    resolver_provider: Callable[[BackendScope], WorkingTimeResolver] | None = None
+
+    def _resolver_for(self, scope: BackendScope) -> WorkingTimeResolver:
+        """Resolve the project working calendar at read time.
+
+        A deployment can either bind one resolver or provide a scope-aware
+        provider. The provider exists so the HTTP boundary reads the persisted
+        project calendar instead of silently using a global default.
+        """
+        resolver = (
+            self.resolver_provider(scope)
+            if self.resolver_provider is not None
+            else self.resolver
+        )
+        if not isinstance(resolver, WorkingTimeResolver):
+            raise P6EarnedValueReadModelError("EVM_RESOLVER_REQUIRED")
+        return resolver
 
     def _ancestry_map(
         self,
@@ -466,7 +483,7 @@ class P6EarnedValueReadModelService:
                 baseline_id=baseline_id,
                 data_date=data_date,
                 currency=currency,
-                resolver=self.resolver,
+                resolver=self._resolver_for(scope),
                 etc_method=etc_method,
                 performance_factor=performance_factor,
                 cost_adjustments=cost_adjustments,

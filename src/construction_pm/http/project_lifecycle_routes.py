@@ -36,6 +36,14 @@ from ..p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDA
 from ..calendar_exception_repository import CalendarException
 from ..calendar_work_hours_repository import CalendarWorkHourRule
 from ..scheduling.calendar_system import CalendarSystem, JalaliDate
+from ..scheduling.evm_source import (
+    EarnedValuePVBucket,
+    EarnedValuePVCurve,
+    EarnedValuePVCurvePoint,
+    EarnedValueSourceError,
+    EarnedValueTechniqueOverride,
+    EarnedValueWBSMilestone,
+)
 from ..scheduling.activity import (
     ActivityLevelingPriority as P6ActivityLevelingPriority,
     ActivityStatus as P6ActivityStatus,
@@ -70,6 +78,16 @@ from ..p6_baseline_conversion_api import (
 from ..p6_current_activity_value_repository import (
     P6CurrentActivityPersistenceError,
 )
+from ..p6_earned_value_read_model import (
+    P6_EARNED_VALUE_READ_MODEL_VERSION,
+    P6EarnedValueReadModelError,
+    P6EarnedValueSettings,
+)
+from ..p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
+from ..p6_activity_period_actual_repository import (
+    P6ActivityPeriodActualPersistenceError,
+)
+from ..p6_expense_repository import P6ExpensePersistenceError
 from ..dependency_graph_api import DependencyGraphAPI
 from ..client_sync.api_endpoint import VersionedSyncEndpoint, VersionedSyncRevisionEndpoint
 from ..p6_field_registry import (
@@ -137,6 +155,7 @@ from ..p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VE
 from ..p6_resource_assignment_repository import (
     P6ResourceAssignment,
     P6ResourceAssignmentPeriodValue,
+    P6ResourceAssignmentPersistenceError,
 )
 from ..p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from ..p6_resource_spread_repository import P6ResourceSpreadBucket
@@ -187,6 +206,7 @@ class ProjectLifecycleHttpRoutes:
         p6_baseline_update_api: P6BaselineUpdateAPI | None = None,
         p6_baseline_assignment_api: P6BaselineAssignmentAPI | None = None,
         p6_baseline_conversion_api: P6BaselineConversionAPI | None = None,
+        p6_earned_value_read_api: P6EarnedValueReadModelAPI | None = None,
         change_claim_api: ChangeClaimAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
@@ -227,6 +247,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_baseline_update_api = p6_baseline_update_api
         self._p6_baseline_assignment_api = p6_baseline_assignment_api
         self._p6_baseline_conversion_api = p6_baseline_conversion_api
+        self._p6_earned_value_read_api = p6_earned_value_read_api
         self._change_claim_api = change_claim_api
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
@@ -294,6 +315,11 @@ class ProjectLifecycleHttpRoutes:
             )
             if baseline_role_response is not None:
                 return baseline_role_response
+            earned_value_response = self._handle_earned_value_route(
+                method, path, session_id=session_id, now=now, body=body
+            )
+            if earned_value_response is not None:
+                return earned_value_response
             if method == "GET" and path == "/api/v1/schedule/code-reference":
                 # The catalogue contains no project records, but a valid active session is required.
                 self._api.get_session(session_id, now=now)
@@ -3172,6 +3198,368 @@ class ProjectLifecycleHttpRoutes:
             return self._error(400, code, "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return self._error(400, str(exc) or "INVALID_REQUEST", "error.request.invalid")
+
+    def _handle_earned_value_route(
+        self,
+        method: str,
+        path: str,
+        *,
+        session_id: str,
+        now: datetime,
+        body: bytes,
+    ) -> tuple[int, dict[str, str], bytes] | None:
+        """Route one versioned project EVM measurement over the Shared Core.
+
+        The request selects the baseline, Data Date, currency and explicit EVM
+        settings only. Planned values, progress, actuals, expenses and
+        assignment costs are always read from persisted facts; the boundary
+        never accepts a client-computed earned value.
+        """
+        if method != "POST" or not path.startswith("/api/projects/"):
+            return None
+        marker = "/p6/earned-value"
+        if not path.endswith(marker):
+            return None
+        project_id = path[len("/api/projects/"):-len(marker)]
+        if not project_id or "/" in project_id:
+            return self._error(
+                400, "EVM_REQUEST_INVALID", "error.request.invalid"
+            )
+        if self._p6_earned_value_read_api is None:
+            return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+        try:
+            context = self._api.open_project(
+                session_id, project_id, now=now
+            ).context
+        except ProjectLifecycleError as exc:
+            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                return self._error(403, str(exc), "error.authorization.denied")
+            raise
+        session = self._api.get_session(session_id, now=now)
+        auth = context.authorization_context(session.roles)
+        scope = BackendScope(
+            context.tenant_id, context.project_id, context.revision
+        )
+        try:
+            payload = json.loads(body.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return self._error(
+                400, "EVM_REQUEST_INVALID", "error.request.invalid"
+            )
+        if not isinstance(payload, dict):
+            return self._error(
+                400, "EVM_REQUEST_INVALID", "error.request.invalid"
+            )
+        try:
+            self._reject_unknown_keys(
+                payload,
+                {
+                    "contract_version",
+                    "baseline_id",
+                    "data_date",
+                    "currency",
+                    "etc_method",
+                    "performance_factor",
+                    "settings",
+                },
+                "EVM_REQUEST_UNKNOWN_FIELD",
+            )
+            baseline_id = self._evm_required_string(
+                payload, "baseline_id", "EVM_BASELINE_ID_REQUIRED"
+            )
+            currency = self._evm_required_string(
+                payload, "currency", "EVM_CURRENCY_REQUIRED"
+            )
+            data_date = self._evm_date(payload.get("data_date"))
+            etc_method = payload.get("etc_method")
+            if etc_method is not None and (
+                not isinstance(etc_method, str) or not etc_method.strip()
+            ):
+                raise P6EarnedValueReadModelError("EVM_ETC_METHOD_INVALID")
+            performance_factor = payload.get("performance_factor")
+            if isinstance(performance_factor, bool) or (
+                performance_factor is not None
+                and not isinstance(performance_factor, (str, int, float))
+            ):
+                raise P6EarnedValueReadModelError(
+                    "EVM_PERFORMANCE_FACTOR_INVALID"
+                )
+            result = self._p6_earned_value_read_api.get(
+                scope,
+                baseline_id,
+                data_date=data_date,
+                currency=currency,
+                auth_context=auth,
+                etc_method=etc_method,
+                performance_factor=performance_factor,
+                settings=self._evm_settings(payload.get("settings")),
+                contract_version=payload.get(
+                    "contract_version", P6_EARNED_VALUE_READ_MODEL_VERSION
+                ),
+            )
+        except AuthorizationError as exc:
+            return self._error(403, str(exc), "error.authorization.denied")
+        except P6EarnedValueReadModelError as exc:
+            return self._evm_error(exc)
+        except (
+            P6BaselineActivityPersistenceError,
+            P6ActivityPeriodActualPersistenceError,
+            P6ExpensePersistenceError,
+            P6ResourceAssignmentPersistenceError,
+            WBSPersistenceError,
+            ProjectScheduleSettingsPersistenceError,
+        ) as exc:
+            code = str(exc)
+            if code == "REVISION_CONFLICT":
+                return self._error(409, code, "error.p6.evm.conflict")
+            return self._error(400, code, "error.p6.evm.invalid")
+        return self._json(200, result)
+
+    @staticmethod
+    def _reject_unknown_keys(
+        payload: Mapping[str, object],
+        allowed: set[str],
+        code: str,
+    ) -> None:
+        if set(payload) - allowed:
+            raise P6EarnedValueReadModelError(code)
+
+    @staticmethod
+    def _evm_required_string(
+        payload: Mapping[str, object], key: str, code: str
+    ) -> str:
+        value = payload.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise P6EarnedValueReadModelError(code)
+        return value
+
+    @classmethod
+    def _evm_date(
+        cls, value: object, code: str = "EVM_DATA_DATE_INVALID"
+    ) -> date:
+        if not isinstance(value, str):
+            raise P6EarnedValueReadModelError(code)
+        try:
+            return date.fromisoformat(value)
+        except ValueError as exc:
+            raise P6EarnedValueReadModelError(code) from exc
+
+    @classmethod
+    def _evm_decimal(cls, value: object, code: str) -> Decimal:
+        if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+            raise P6EarnedValueReadModelError(code)
+        try:
+            result = Decimal(str(value))
+        except (ArithmeticError, ValueError) as exc:
+            raise P6EarnedValueReadModelError(code) from exc
+        if not result.is_finite():
+            raise P6EarnedValueReadModelError(code)
+        return result
+
+    @classmethod
+    def _evm_settings(cls, value: object) -> P6EarnedValueSettings | None:
+        if value is None:
+            return None
+        if not isinstance(value, dict):
+            raise P6EarnedValueReadModelError("EVM_SETTINGS_INVALID")
+        cls._reject_unknown_keys(
+            value,
+            {
+                "technique_overrides",
+                "wbs_milestones",
+                "pv_buckets",
+                "pv_curves",
+            },
+            "EVM_SETTINGS_UNKNOWN_FIELD",
+        )
+        try:
+            return P6EarnedValueSettings(
+                technique_overrides=cls._evm_technique_overrides(
+                    value.get("technique_overrides", [])
+                ),
+                wbs_milestones=cls._evm_wbs_milestones(
+                    value.get("wbs_milestones", [])
+                ),
+                pv_buckets=cls._evm_pv_buckets(value.get("pv_buckets", [])),
+                pv_curves=cls._evm_pv_curves(value.get("pv_curves", [])),
+            )
+        except EarnedValueSourceError as exc:
+            raise P6EarnedValueReadModelError(str(exc)) from exc
+
+    @classmethod
+    def _evm_items(cls, value: object, code: str) -> tuple[dict, ...]:
+        if not isinstance(value, list):
+            raise P6EarnedValueReadModelError(code)
+        items: list[dict] = []
+        for item in value:
+            if not isinstance(item, dict):
+                raise P6EarnedValueReadModelError(code)
+            items.append(item)
+        return tuple(items)
+
+    @classmethod
+    def _evm_technique_overrides(
+        cls, value: object
+    ) -> tuple[EarnedValueTechniqueOverride, ...]:
+        rows: list[EarnedValueTechniqueOverride] = []
+        for item in cls._evm_items(value, "EVM_TECHNIQUE_OVERRIDE_INVALID"):
+            cls._reject_unknown_keys(
+                item,
+                {"wbs_id", "technique"},
+                "EVM_TECHNIQUE_OVERRIDE_INVALID",
+            )
+            rows.append(
+                EarnedValueTechniqueOverride(
+                    cls._evm_required_string(
+                        item,
+                        "wbs_id",
+                        "EVM_TECHNIQUE_OVERRIDE_WBS_ID_INVALID",
+                    ),
+                    cls._evm_required_string(
+                        item,
+                        "technique",
+                        "EVM_TECHNIQUE_UNSUPPORTED",
+                    ),
+                )
+            )
+        return tuple(rows)
+
+    @classmethod
+    def _evm_wbs_milestones(
+        cls, value: object
+    ) -> tuple[EarnedValueWBSMilestone, ...]:
+        rows: list[EarnedValueWBSMilestone] = []
+        for item in cls._evm_items(value, "EVM_WBS_MILESTONE_INVALID"):
+            cls._reject_unknown_keys(
+                item,
+                {"wbs_id", "milestone_id", "weight", "completed"},
+                "EVM_WBS_MILESTONE_INVALID",
+            )
+            completed = item.get("completed", False)
+            if not isinstance(completed, bool):
+                raise P6EarnedValueReadModelError(
+                    "EVM_WBS_MILESTONE_COMPLETED_INVALID"
+                )
+            rows.append(
+                EarnedValueWBSMilestone(
+                    cls._evm_required_string(
+                        item,
+                        "wbs_id",
+                        "EVM_WBS_MILESTONE_WBS_ID_INVALID",
+                    ),
+                    cls._evm_required_string(
+                        item,
+                        "milestone_id",
+                        "EVM_WBS_MILESTONE_ID_INVALID",
+                    ),
+                    cls._evm_decimal(
+                        item.get("weight"),
+                        "EVM_WBS_MILESTONE_WEIGHT_INVALID",
+                    ),
+                    completed,
+                )
+            )
+        return tuple(rows)
+
+    @classmethod
+    def _evm_pv_buckets(
+        cls, value: object
+    ) -> tuple[EarnedValuePVBucket, ...]:
+        rows: list[EarnedValuePVBucket] = []
+        for item in cls._evm_items(value, "EVM_PV_BUCKET_INVALID"):
+            cls._reject_unknown_keys(
+                item,
+                {"activity_id", "period_start", "period_finish", "value"},
+                "EVM_PV_BUCKET_INVALID",
+            )
+            rows.append(
+                EarnedValuePVBucket(
+                    cls._evm_required_string(
+                        item,
+                        "activity_id",
+                        "EVM_PV_BUCKET_ACTIVITY_ID_INVALID",
+                    ),
+                    cls._evm_date(
+                        item.get("period_start"), "EVM_PV_BUCKET_PERIOD_INVALID"
+                    ),
+                    cls._evm_date(
+                        item.get("period_finish"), "EVM_PV_BUCKET_PERIOD_INVALID"
+                    ),
+                    cls._evm_decimal(
+                        item.get("value"), "EVM_PV_BUCKET_VALUE_INVALID"
+                    ),
+                )
+            )
+        return tuple(rows)
+
+    @classmethod
+    def _evm_pv_curves(
+        cls, value: object
+    ) -> tuple[EarnedValuePVCurve, ...]:
+        rows: list[EarnedValuePVCurve] = []
+        for item in cls._evm_items(value, "EVM_PV_CURVE_INVALID"):
+            cls._reject_unknown_keys(
+                item,
+                {"activity_id", "curve_id", "points"},
+                "EVM_PV_CURVE_INVALID",
+            )
+            points: list[EarnedValuePVCurvePoint] = []
+            for point in cls._evm_items(
+                item.get("points"), "EVM_PV_CURVE_POINTS_INVALID"
+            ):
+                cls._reject_unknown_keys(
+                    point,
+                    {"offset_percent", "cumulative_percent"},
+                    "EVM_PV_CURVE_POINTS_INVALID",
+                )
+                points.append(
+                    EarnedValuePVCurvePoint(
+                        cls._evm_decimal(
+                            point.get("offset_percent"),
+                            "EVM_PV_CURVE_OFFSET_INVALID",
+                        ),
+                        cls._evm_decimal(
+                            point.get("cumulative_percent"),
+                            "EVM_PV_CURVE_CUMULATIVE_INVALID",
+                        ),
+                    )
+                )
+            rows.append(
+                EarnedValuePVCurve(
+                    cls._evm_required_string(
+                        item,
+                        "activity_id",
+                        "EVM_PV_CURVE_ACTIVITY_ID_INVALID",
+                    ),
+                    cls._evm_required_string(
+                        item, "curve_id", "EVM_PV_CURVE_ID_INVALID"
+                    ),
+                    tuple(points),
+                )
+            )
+        return tuple(rows)
+
+    @classmethod
+    def _evm_error(
+        cls, exc: P6EarnedValueReadModelError
+    ) -> tuple[int, dict[str, str], bytes]:
+        code = str(exc)
+        if code.startswith("EVM_BASELINE_ACTIVITIES_EMPTY:"):
+            return cls._error(404, code, "error.p6.baseline.not_found")
+        if code == "REVISION_CONFLICT" or code in {
+            "EVM_PROJECT_CALENDAR_REQUIRED",
+            "EVM_PROJECT_CALENDAR_UNRESOLVED",
+        }:
+            return cls._error(409, code, "error.p6.evm.conflict")
+        if code.startswith(
+            (
+                "EVM_ACTUAL_CURRENCY_MISMATCH",
+                "EVM_EXPENSE_CURRENCY_MISMATCH",
+                "EVM_ASSIGNMENT_CURRENCY_MISMATCH",
+            )
+        ):
+            return cls._error(409, code, "error.p6.evm.conflict")
+        return cls._error(400, code, "error.p6.evm.invalid")
 
     def _handle_baseline_role_route(
         self,
