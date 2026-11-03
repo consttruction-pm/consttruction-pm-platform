@@ -1194,7 +1194,7 @@ function renderSheet(state: DemoState, kind: "activity" | "resource"): string {
     </tbody></table></div></section>`;
 }
 
-type MenuAction = { window?: DemoWindowId; dialog?: string; command?: string; reason?: Label; adminSection?: string };
+type MenuAction = { window?: DemoWindowId; dialog?: string; command?: string; reason?: Label; disabled?: boolean; adminSection?: string };
 
 const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shortcut?: string; action?: MenuAction; checked?: string; children?: Array<{ label: Label; action?: MenuAction; checked?: string }> }> }> = [
   { id: "workspace", label: { en: "File", fa: "فایل" }, items: [
@@ -1224,9 +1224,9 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
     { label: { en: "Copy", fa: "رونوشت" }, shortcut: "Ctrl+C", action: { command: "noop" } },
     { label: { en: "Paste", fa: "چسباندن" }, shortcut: "Ctrl+V", action: { command: "noop", reason: { en: "Clipboard operations are not connected in this visual preview.", fa: "عملیات حافظهٔ موقت در این پیش‌نمایش بصری متصل نیست." } } },
     { label: { en: "Add…", fa: "افزودن…" }, action: { dialog: "add-activity" } },
-    { label: { en: "Delete", fa: "حذف" }, action: { command: "noop", reason: { en: "Delete requires a selected live project record and permission check.", fa: "حذف به رکورد انتخاب‌شده در پروژهٔ زنده و بررسی مجوز نیاز دارد." } } },
+    { label: { en: "Delete", fa: "حذف" }, action: { command: "noop", disabled: true, reason: { en: "Select a project record and pass the permission check before deleting.", fa: "برای حذف، ابتدا رکورد پروژه را انتخاب و مجوز آن را بررسی کنید." } } },
     { label: { en: "Dissolve", fa: "ادغام فعالیت" }, action: { dialog: "dissolve" } },
-    { label: { en: "Link Activities", fa: "پیوند فعالیت‌ها" }, action: { command: "noop", reason: { en: "Select multiple activities in a live project to create links.", fa: "برای ایجاد پیوند، چند فعالیت را در پروژهٔ زنده انتخاب کنید." } } },
+    { label: { en: "Link Activities", fa: "پیوند فعالیت‌ها" }, action: { command: "noop", disabled: true, reason: { en: "Select multiple activities before creating links.", fa: "برای ایجاد پیوند، ابتدا چند فعالیت را انتخاب کنید." } } },
     { label: { en: "Assign", fa: "تخصیص" }, children: [
       { label: { en: "Resources…", fa: "منابع…" }, action: { dialog: "assign-resources" } },
       { label: { en: "Resources by Role…", fa: "منابع بر اساس نقش…" }, action: { dialog: "assign-resources-by-role" } },
@@ -1235,11 +1235,11 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
       { label: { en: "Predecessors…", fa: "پیش‌نیازها…" }, action: { dialog: "assign-predecessors" } },
       { label: { en: "Successors…", fa: "جانشین‌ها…" }, action: { dialog: "assign-successors" } },
     ] },
-    { label: { en: "Unlink Activities", fa: "قطع پیوند فعالیت‌ها" }, action: { command: "noop", reason: { en: "Relationship editing is not connected in this visual preview.", fa: "ویرایش روابط در این پیش‌نمایش بصری متصل نیست." } } },
-    { label: { en: "Fill Down", fa: "تکثیر مقدار به پایین" }, shortcut: "Ctrl+D", action: { command: "noop", reason: { en: "Select a table range in a live project to fill values down.", fa: "برای تکثیر مقدار، محدوده‌ای از جدول را در پروژهٔ زنده انتخاب کنید." } } },
+    { label: { en: "Unlink Activities", fa: "قطع پیوند فعالیت‌ها" }, action: { command: "noop", disabled: true, reason: { en: "Select an existing relationship before unlinking.", fa: "برای قطع پیوند، ابتدا یک رابطهٔ موجود را انتخاب کنید." } } },
+    { label: { en: "Fill Down", fa: "تکثیر مقدار به پایین" }, shortcut: "Ctrl+D", action: { command: "noop", disabled: true, reason: { en: "Select a table range before filling values down.", fa: "برای تکثیر مقدار، ابتدا محدوده‌ای از جدول را انتخاب کنید." } } },
     { label: { en: "Select All", fa: "انتخاب همه" }, shortcut: "Ctrl+A", action: { command: "noop", reason: { en: "Selection commands require a live project data set.", fa: "فرمان انتخاب به دادهٔ واقعی پروژه نیاز دارد." } } },
     { label: { en: "Find…", fa: "یافتن…" }, shortcut: "Ctrl+F", action: { dialog: "find" } },
-    { label: { en: "Find Next", fa: "یافتن بعدی" }, shortcut: "F3", action: { command: "noop", reason: { en: "Run Find first in a live project.", fa: "ابتدا جست‌وجو را در پروژهٔ زنده اجرا کنید." } } },
+    { label: { en: "Find Next", fa: "یافتن بعدی" }, shortcut: "F3", action: { command: "noop", disabled: true, reason: { en: "Run Find first to establish a search result.", fa: "برای فعال شدن این فرمان، ابتدا جست‌وجو را اجرا کنید." } } },
     { label: { en: "Find and Replace…", fa: "یافتن و جایگزینی…" }, action: { dialog: "find-replace" } },
     { label: { en: "Spell Check", fa: "بررسی املا" }, action: { command: "noop", reason: { en: "Spell checking is not available in this visual preview.", fa: "بررسی املا در این پیش‌نمایش بصری فعال نیست." } } },
     { label: { en: "User Preferences…", fa: "ترجیحات کاربر…" }, action: { dialog: "preferences" } },
@@ -1318,7 +1318,7 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
     { label: { en: "Align Children", fa: "تراز فرزندان" }, action: { command: "noop", reason: { en: "Chart child alignment is not connected in this visual preview.", fa: "تراز فرزندان نمودار در این پیش‌نمایش بصری متصل نیست." } } },
     { label: { en: "Chart Box Template…", fa: "قالب کادر نمودار…" }, action: { command: "noop", reason: { en: "Chart box templates are not connected in this visual preview.", fa: "قالب‌های کادر نمودار در این پیش‌نمایش بصری متصل نیستند." } } },
     { label: { en: "Chart Font and Colors…", fa: "قلم و رنگ نمودار…" }, action: { command: "noop", reason: { en: "Chart font and color editing is not connected in this visual preview.", fa: "ویرایش قلم و رنگ نمودار در این پیش‌نمایش بصری متصل نیست." } } },
-    { label: { en: "Launch", fa: "اجرا" }, action: { command: "noop", reason: { en: "Launch requires a selected document with an authorized file location.", fa: "اجرا به سند انتخاب‌شده با مسیر فایل مجاز نیاز دارد." } } },
+    { label: { en: "Launch", fa: "اجرا" }, action: { command: "noop", disabled: true, reason: { en: "Select a document with an authorized file location before launching.", fa: "برای اجرا، ابتدا سندی با مسیر فایل مجاز انتخاب کنید." } } },
     { label: { en: "Hint Help", fa: "راهنمای زمینه‌ای" }, action: { command: "noop", reason: { en: "Hint Help is not connected in this visual preview.", fa: "راهنمای زمینه‌ای در این پیش‌نمایش بصری متصل نیست." } } },
     { label: { en: "Zoom", fa: "بزرگ‌نمایی" }, action: { command: "noop", reason: { en: "Timescaled zoom controls are not connected in this visual preview.", fa: "کنترل بزرگ‌نمایی محور زمان در این پیش‌نمایش بصری متصل نیست." } } },
     { label: { en: "Expand All", fa: "بازکردن همه" }, action: { command: "noop", reason: { en: "Expand All is not connected to the active hierarchy in this visual preview.", fa: "بازکردن همه به سلسله‌مراتب فعال در این پیش‌نمایش بصری متصل نیست." } } },
@@ -1496,10 +1496,9 @@ if (toolbarMenu) {
 }
 
 function renderMenus(state: DemoState): string {
-  // Menu inventory is part of the visual shell: commands that are not wired to
-  // live project services must remain visible and selectable for UI auditing.
-  // Their reason is explanatory preview metadata, never a reason to hide/disable
-  // the option. Context-sensitive disabled states are handled by their own UI.
+  // Every reference command remains in the menu inventory. "reason" describes
+  // preview-only wiring; only the explicit "disabled" flag represents a
+  // context-sensitive unavailable state (and still renders the menu item).
   const isChecked = (action?: MenuAction): boolean =>
     Boolean(action?.command?.startsWith("toolbar:") && state.toolbars.includes(action.command.slice(8)));
   const mark = (action?: MenuAction): string => `<span class="cp-vd-menutick" aria-hidden="true">${isChecked(action) ? "✓" : ""}</span>`;
@@ -1507,11 +1506,12 @@ function renderMenus(state: DemoState): string {
   const previewNote = (action?: MenuAction): string => action?.reason
     ? `<small class="cp-vd-preview-note" title="${esc(label(action.reason, state.locale))}">${esc(t(state.locale, "Preview only", "صرفاً پیش‌نمایش"))}</small>`
     : "";
+  const disabledAttrs = (action?: MenuAction): string => action?.disabled ? "disabled aria-disabled=\"true\"" : "";
   return `<div class="cp-vd-menubar" role="menubar">${MENUS.map((menu) => `<div class="cp-vd-menu" data-vd-menu="${menu.id}">
     <button type="button" class="cp-vd-menu-trigger" aria-haspopup="true" aria-expanded="false">${esc(label(menu.label, state.locale))}</button>
     <div class="cp-vd-popup" hidden>${menu.items.map((item) => item.children
-      ? `<div class="cp-vd-submenu"><button type="button" class="cp-vd-menu-item" data-vd-submenu>${esc(label(item.label, state.locale))}<span>▸</span></button><div class="cp-vd-subpopup" hidden>${item.children.map((child) => `<button type="button" class="cp-vd-menu-item${isChecked(child.action) ? " is-checked" : ""}${child.action?.reason ? " is-preview-only" : ""}" ${actionMarkup(child.action)}>${mark(child.action)}${esc(label(child.label, state.locale))}${previewNote(child.action)}</button>`).join("")}</div></div>`
-      : `<button type="button" class="cp-vd-menu-item${item.action?.reason ? " is-preview-only" : ""}" ${actionMarkup(item.action)}>${mark(item.action)}${esc(label(item.label, state.locale))}${item.shortcut ? `<kbd>${esc(item.shortcut)}</kbd>` : ""}${previewNote(item.action)}</button>`).join("")}</div>
+      ? `<div class="cp-vd-submenu"><button type="button" class="cp-vd-menu-item" data-vd-submenu>${esc(label(item.label, state.locale))}<span>▸</span></button><div class="cp-vd-subpopup" hidden>${item.children.map((child) => `<button type="button" class="cp-vd-menu-item${isChecked(child.action) ? " is-checked" : ""}${child.action?.disabled ? " is-disabled" : child.action?.reason ? " is-preview-only" : ""}" ${actionMarkup(child.action)} ${disabledAttrs(child.action)}>${mark(child.action)}${esc(label(child.label, state.locale))}${previewNote(child.action)}</button>`).join("")}</div></div>`
+      : `<button type="button" class="cp-vd-menu-item${item.action?.disabled ? " is-disabled" : item.action?.reason ? " is-preview-only" : ""}" ${actionMarkup(item.action)} ${disabledAttrs(item.action)}>${mark(item.action)}${esc(label(item.label, state.locale))}${item.shortcut ? `<kbd>${esc(item.shortcut)}</kbd>` : ""}${previewNote(item.action)}</button>`).join("")}</div>
   </div>`).join("")}</div>`;
 }
 
