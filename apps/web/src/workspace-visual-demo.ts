@@ -956,10 +956,28 @@ function renderTrackingWindow(state: DemoState): string {
     : state.trackingLayout === "project-bar-chart" ? bars()
     : state.trackingLayout === "project-gantt-profile" ? `<div class="cp-vd-tracking-split"><section><h3>${esc(t(state.locale, "Top layout · Project Gantt", "بخش بالا · گانت پروژه"))}</h3>${timeline}</section><section><h3>${esc(t(state.locale, "Bottom layout · Profile / Spreadsheet", "بخش پایین · پروفایل / صفحه گسترده"))}</h3>${bars()} ${rowTable()}</section></div>`
     : `<div class="cp-vd-tracking-split"><section><h3>${esc(t(state.locale, "Resource Analysis · Allocation", "تحلیل منابع · تخصیص"))}</h3>${rowTable(true)}</section><section><h3>${esc(t(state.locale, "Time-distributed usage", "مصرف توزیع‌شده در زمان"))}</h3>${bars(true)}${timeline}</section></div>`;
+  const detailTabs: Array<[string, string, string]> = [
+    ["projects", "Projects", "پروژه‌ها"], ["layout", "Layout", "چیدمان"],
+    ["data", "Data", "داده‌ها"], ["profiles", "Profiles", "پروفایل‌ها"],
+    ["variance", "Variance", "انحراف"], ["history", "History", "تاریخچه"],
+  ];
+  const detailCopy: Record<string, [string, string]> = {
+    projects: ["Project scope: Riverside Pump Station Upgrade · CUBI-DEMO-001. Additional portfolio projects are not loaded in this visual sample.", "دامنه پروژه: ارتقای ایستگاه پمپ ریورساید · CUBI-DEMO-001. پروژه‌های دیگر در این نمونه بصری بارگذاری نشده‌اند."],
+    layout: [`Selected layout: ${selected[1]}. Layout changes are preview-only and are not saved.`, `چیدمان انتخاب‌شده: ${selected[2]}. تغییرات چیدمان صرفاً نمایشی است و ذخیره نمی‌شود.`],
+    data: ["Data date: 03-Dec-2026 · Source: illustrative activity and resource records. No live project data is queried.", "تاریخ داده: ۰۳-دسامبر-۲۰۲۶ · منبع: رکوردهای نمونه فعالیت و منابع. داده زنده پروژه دریافت نمی‌شود."],
+    profiles: ["Profiles show illustrative time-distributed activity progress and resource usage. No profile calculation is performed.", "پروفایل‌ها پیشرفت زمانی فعالیت و مصرف منابع نمونه را نشان می‌دهند. محاسبه پروفایل انجام نمی‌شود."],
+    variance: ["Variance comparisons are not calculated in this preview. Baseline and actual values must be loaded before variance can be reported.", "انحراف در این پیش‌نمایش محاسبه نمی‌شود. برای گزارش انحراف باید مقادیر خط مبنا و واقعی بارگذاری شوند."],
+    history: ["Tracking layout and report history are not persisted in this visual preview.", "تاریخچه چیدمان و گزارش‌های پیگیری در این پیش‌نمایش ذخیره نمی‌شود."],
+  };
+  const activeDetail = detailCopy[state.moduleDetailTab] ?? detailCopy.projects;
   return `<section class="cp-vd-windowbody cp-vd-tracking"><header class="cp-vd-winhead"><div><h2>${esc(t(state.locale, "Tracking", "پیگیری"))}</h2><small>${esc(t(state.locale, "Cross-project schedule, cost and resource analysis · illustrative data", "تحلیل بین‌پروژه‌ای زمان، هزینه و منابع · داده‌های نمونه"))}</small></div><span class="cp-vd-chip">${esc(t(state.locale, selected[1], selected[2]))}</span></header>
     <nav class="cp-vd-tracking-layouts" role="tablist" aria-label="${esc(t(state.locale, "Tracking layout type", "نوع چیدمان پیگیری"))}">${layouts.map(([id,en,fa]) => `<button type="button" role="tab" aria-selected="${state.trackingLayout===id}" class="${state.trackingLayout===id ? "is-active" : ""}" data-vd-tracking-layout="${id}">${esc(t(state.locale,en,fa))}</button>`).join("")}</nav>
     <div class="cp-vd-module-toolbar"><button type="button" data-vd-dialog="filters">${esc(t(state.locale,"Filter","فیلتر"))}</button><button type="button" data-vd-dialog="group-sort">${esc(t(state.locale,"Group and Sort","گروه‌بندی و مرتب‌سازی"))}</button><button type="button" data-vd-dialog="timescale">${esc(t(state.locale,"Timescale","مقیاس زمانی"))}</button><button type="button" data-vd-dialog="columns">${esc(t(state.locale,"Columns","ستون‌ها"))}</button><span class="cp-vd-note">${esc(t(state.locale,"Preview only · layout configuration is not persisted","صرفاً پیش‌نمایش · تنظیمات چیدمان ذخیره نمی‌شود"))}</span></div>
     <div class="cp-vd-tracking-content">${content}</div>
+    <section class="cp-vd-module-details" aria-label="${esc(t(state.locale, "Tracking Details", "جزئیات پیگیری"))}">
+      <nav class="cp-vd-module-detail-tabs" role="tablist" aria-label="${esc(t(state.locale, "Tracking detail tabs", "زبانه‌های جزئیات پیگیری"))}">${detailTabs.map(([id,en,fa]) => `<button type="button" role="tab" data-vd-module-tab="${id}" aria-selected="${state.moduleDetailTab === id}" class="${state.moduleDetailTab === id ? "is-active" : ""}">${esc(t(state.locale,en,fa))}</button>`).join("")}</nav>
+      <div class="cp-vd-module-detail-panel" role="tabpanel">${esc(t(state.locale, activeDetail[0], activeDetail[1]))}</div>
+    </section>
   </section>`;
 }
 
