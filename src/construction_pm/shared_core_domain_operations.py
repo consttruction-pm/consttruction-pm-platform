@@ -33,6 +33,11 @@ from construction_pm.shared_core_runtime import SharedCoreOperation
 from construction_pm.calendar_work_hours_repository import CalendarWorkHourRule
 from construction_pm.p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDAR_API_VERSION
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
+from construction_pm.p6_schedule_snapshot_publication_api import (
+    P6ScheduleSnapshotPublicationAPI,
+    P6_SCHEDULE_SNAPSHOT_API_VERSION,
+    P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
+)
 from construction_pm.wbs_master_repository import WBSMaster, WBSParentKind
 
 
@@ -108,6 +113,7 @@ def build_project_domain_operations(
     constraint_api: P6ConstraintAPI | None = None,
     calendar_api: P6CalendarAPI | None = None,
     calendar_read_api: P6CalendarReadAPI | None = None,
+    schedule_snapshot_api: P6ScheduleSnapshotPublicationAPI | None = None,
 ) -> dict[str, SharedCoreOperation]:
     """Build the same allow-listed CRUD ABI over server or local typed APIs."""
     operations: dict[str, SharedCoreOperation] = {}
@@ -569,6 +575,51 @@ def build_project_domain_operations(
             required_fields=frozenset({"calendar_id", "calendar_version"}),
             allowed_fields=frozenset({"calendar_id", "calendar_version"}),
             handler=calendar_snapshot_get,
+        )
+
+
+    if schedule_snapshot_api is not None:
+        def schedule_settings_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                schedule_snapshot_api.get_settings(
+                    _scope(actor, revision),
+                    auth_context=actor,
+                )
+            )
+
+        def schedule_publish(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            timezone_name = payload["timezone_name"]
+            if not isinstance(timezone_name, str) or not timezone_name.strip():
+                raise ValueError("TIMEZONE_REQUIRED")
+            request_id = payload.get("request_id")
+            idempotency_key = payload.get("idempotency_key")
+            if request_id is not None and not isinstance(request_id, str):
+                raise ValueError("INVALID_REQUEST_ID")
+            if idempotency_key is not None and not isinstance(idempotency_key, str):
+                raise ValueError("INVALID_IDEMPOTENCY_KEY")
+            return _record_result(
+                schedule_snapshot_api.publish(
+                    _scope(actor, revision),
+                    timezone_name=timezone_name,
+                    auth_context=actor,
+                    request_id=request_id,
+                    idempotency_key=idempotency_key,
+                )
+            )
+
+        operations["schedule.settings.get"] = SharedCoreOperation(
+            contract_version=P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
+            permission=Permission.PROJECT_SCHEDULE,
+            required_fields=frozenset(),
+            allowed_fields=frozenset(),
+            handler=schedule_settings_get,
+        )
+        operations["schedule.publish"] = SharedCoreOperation(
+            contract_version=P6_SCHEDULE_SNAPSHOT_API_VERSION,
+            permission=Permission.PROJECT_SCHEDULE,
+            required_fields=frozenset({"timezone_name"}),
+            allowed_fields=frozenset({"timezone_name", "request_id", "idempotency_key"}),
+            handler=schedule_publish,
         )
 
     return operations
