@@ -286,3 +286,11 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - The filter dialog remains honest about current implementation boundaries: it applies the connected text criterion, while saved filter definitions and multi-condition criteria remain explicitly unavailable rather than being represented as working controls.
 - Regression coverage asserts that both the View menu and toolbar Filters entries target the dedicated filter-dialog command.
 - Reference pages: https://docs.oracle.com/cd/G48902_01/client_help/en_US/activities_window.htm and https://docs.oracle.com/cd/G48902_01/client_help/en_US/49095.htm.
+
+## WBS window — table/chart presentation — 2026-11-03
+
+- Version 26 desktop WBS window supports a WBS table and WBS chart in the top layout, WBS Details in the bottom layout, and hierarchy operations including expand/collapse and move controls.
+- CUBI correction: the WBS module's previously disabled Chart View control is now an active presentation toggle. It reuses the same ordered project WBS hierarchy and selected-node state, presenting the hierarchy as connected cards; Table View restores the hierarchy-list presentation. Selecting a node remains the same action in both views.
+- This is a visual presentation of current WBS records only; it does not invent missing WBS attributes, alter hierarchy data, or claim the full desktop WBS chart editing/formatting toolset is complete.
+- Regression coverage added for both view controls and chart-mode dispatch.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_window.htm.
