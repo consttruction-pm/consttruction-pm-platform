@@ -1996,6 +1996,28 @@ test("project settings button dispatches a single open request", () => {
   assert.equal(opened, 1);
 });
 
+test("Resource Assignments exposes a toggleable time-phased usage spreadsheet without fabricating values", () => {
+  const html = render("en", "assignments");
+  assert.match(html, /data-assignment-usage-toggle aria-pressed="false"/);
+  assert.match(html, /data-assignment-usage-panel hidden/);
+  assert.match(html, /Resource Usage Spreadsheet/);
+  assert.match(html, /No resource assignment time-phased values are loaded/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const panel = { hidden: true };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => selector === "[data-assignment-usage-panel]" ? panel : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "assignments" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { assignmentUsageToggle: "" }, setAttribute: (_name: string, _value: string) => {}, textContent: "", closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(panel.hidden, false);
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-assignment-usage-toggle aria-pressed="true"/);
+  assert.match(container.innerHTML, /data-assignment-usage-panel /);
+});
 test("WBS, assignments, expenses, issues, risks and thresholds have separate register windows", () => {
   const cases: Array<[WorkspaceMenuKey, string]> = [
     ["wbs", "Work Breakdown Structure"],
