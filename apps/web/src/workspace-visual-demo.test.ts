@@ -943,7 +943,7 @@ test("Import/export mapping workbench is mirrored for Persian RTL", () => {
 
 test("Workspace menu hierarchy exposes project, organization, tools and administration commands", () => {
   const html = renderVisualDemo(createVisualDemoState("en"));
-  for (const label of ["File", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help", "Close project", "Save layout as…", "Collapse To…", "Enterprise Project Structure", "Responsibility Structure (OBS)", "Currencies…", "Financial Periods…", "Administrative Categories…", "Global Change…", "Recalculate Assignment Costs…", "Threshold Monitor…", "Update Progress…", "Apply Actuals…", "Store Period Performance…", "Report Library / Runner…"]) {
+  for (const label of ["File", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help", "Close project", "Save layout as…", "Collapse To…", "Show on Top", "Show on Bottom", "Bottom Layout Options…", "Progress Line…", "Progress Spotlight", "Attachments…", "Line Numbers", "Activity Critical Path", "Check Schedule", "Activity Network Options…", "Arrange Children", "Align Children", "Chart Box Template…", "Chart Font and Colors…", "Launch", "Hint Help", "Zoom", "Expand All", "Collapse All", "Reset All Toolbars", "Lock All Toolbars", "Tab Groups", "Enterprise Project Structure", "Responsibility Structure (OBS)", "Currencies…", "Financial Periods…", "Administrative Categories…", "Global Change…", "Recalculate Assignment Costs…", "Threshold Monitor…", "Update Progress…", "Apply Actuals…", "Store Period Performance…", "Report Library / Runner…"]) {
     assert.ok(html.includes(label), "missing workspace menu entry: " + label);
   }
   assert.match(html, /adminSection&quot;|adminSection/);
@@ -957,6 +957,10 @@ test("Workspace menu hierarchy keeps Persian labels for key administration and p
   assert.match(html, /ارزها…/);
   assert.match(html, /تغییر سراسری…/);
   assert.match(html, /ثبت عملکرد دوره…/);
+  assert.match(html, /نمایش در بخش بالا/);
+  assert.match(html, /نمایش در بخش پایین/);
+  assert.match(html, /بازکردن همه/);
+  assert.match(html, /جمع‌کردن همه/);
 });
 
 
