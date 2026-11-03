@@ -7744,3 +7744,16 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-tracking-gantt-ruler{display:grid;grid-template-columns:repeat(4,1fr);width:100%;border-bottom:1px solid #b9c6d5;color:#718096;font-size:9px}
 .cp-p6 .cp-tracking-gantt-ruler span{padding:5px;border-left:1px solid #d8e0e9}
 @media(max-width:800px){.cp-p6 .cp-tracking-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(180px,1fr) auto auto}.cp-p6 .cp-tracking-project-explorer,.cp-p6 .cp-tracking-chart,.cp-p6 .cp-tracking-resource-explorer,.cp-p6 .cp-tracking-bottom-layout{grid-column:1;grid-row:auto}}
+
+/* Tracking display options mirror the desktop pane controls; pane visibility is per open window. */
+.cp-tracking-display-options{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:4px 7px;border:1px solid #cbd4df;border-radius:4px;background:#f4f7fa}
+.cp-tracking-display-options>span{font-size:11px;font-weight:700;color:#53657a;margin-inline-end:3px}
+.cp-tracking-display-options button{min-height:25px;padding:3px 7px;border:1px solid #b8c5d4;border-radius:3px;background:#fff;color:#31445b;font-size:11px}
+.cp-tracking-display-options button[aria-pressed=false]{opacity:.58;background:#edf0f4;text-decoration:line-through}
+.cp-tracking-display-options button[aria-pressed=true]{border-color:#3478b8;background:#eaf3fc;color:#174f83}
+.cp-tracking-layout>[hidden]{display:none!important}
+.cp-tracking-layout{grid-template-columns:minmax(190px,24%) minmax(0,1fr);grid-template-rows:minmax(180px,1fr) minmax(150px,.72fr)}
+.cp-tracking-layout>[data-tracking-pane=project-explorer]{grid-column:1;grid-row:1}
+.cp-tracking-layout>[data-tracking-pane=top-layout]{grid-column:2;grid-row:1}
+.cp-tracking-layout>[data-tracking-pane=resource-explorer]{grid-column:1;grid-row:2}
+.cp-tracking-layout>[data-tracking-pane=bottom-layout]{grid-column:2;grid-row:2}
