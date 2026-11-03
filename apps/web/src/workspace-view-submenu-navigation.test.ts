@@ -46,10 +46,16 @@ test("Reports submenu items open their read-only report center tabs", () => {
   assert.doesNotMatch(html, /href="#cp-/);
 });
 
-test("unimplemented Tracking submenu items remain non-interactive", () => {
+test("Tracking layout choices are selectable while data-dependent actions remain explicitly disabled", () => {
   const html = render("tracking");
 
-  assert.match(html, /<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">Project Table<\/span>/);
-  assert.match(html, /<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">Resource Analysis<\/span>/);
-  assert.doesNotMatch(html, /data-navigation-action="tracking-layout/);
+  assert.match(html, /data-tracking-layout/);
+  assert.match(html, /<option value="table">Project Table<\/option>/);
+  assert.match(html, /<option value="bar-chart">Project Bar Chart<\/option>/);
+  assert.match(html, /<option value="gantt-profile">Project Gantt \/ Profile<\/option>/);
+  assert.match(html, /<option value="resource-analysis">Resource Analysis<\/option>/);
+  assert.match(html, /data-tracking-surface="table"/);
+  assert.match(html, /No tracking data/);
+  assert.match(html, /<button type="button" disabled>Refresh Data<\/button>/);
+  assert.match(html, /<button type="button" disabled>Save Layout<\/button>/);
 });
