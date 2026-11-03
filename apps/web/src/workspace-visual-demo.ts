@@ -172,6 +172,7 @@ const RESOURCES = [
   { id: "R-150", name: "Steel crew", type: "Labor", units: 280, cost: 72000 },
   { id: "R-160", name: "Commissioning", type: "Labor", units: 180, cost: 36000 },
   { id: "E-210", name: "Mobile crane 50t", type: "Equipment", units: 60, cost: 18000 },
+  { id: "M-310", name: "Ready-mix concrete C30", type: "Material", units: 1200, cost: 108000 },
 ];
 
 type DemoState = {
@@ -1749,7 +1750,7 @@ function dialogContent(name: string, state: DemoState): string {
         <div class="cp-vd-assignment-filter"><label>${esc(t(state.locale, "Find resources", "جست‌وجوی منابع"))}<input type="search" placeholder="${esc(t(state.locale, "Search by ID or name…", "جست‌وجو با شناسه یا نام…"))}" disabled></label><label>${esc(t(state.locale, "Resource type", "نوع منبع"))}<select disabled><option>All types</option><option>Labor</option><option>Equipment</option><option>Material</option></select></label></div>
         <div class="cp-vd-assignment-grid">
           <section><h3>${esc(t(state.locale, "Available resources", "منابع موجود"))}</h3><div class="cp-vd-assignment-table"><table class="cp-vd-mini"><thead><tr><th></th><th>ID</th><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Budget units", "واحد بودجه"))}</th><th>${esc(t(state.locale, "Budget cost", "هزینه بودجه"))}</th><th>${esc(t(state.locale, "Rate / unit", "نرخ / واحد"))}</th></tr></thead><tbody>
-            ${availableResources.map((resource)=>`<tr><td><input type="checkbox" disabled aria-label="Select ${esc(resource.name)}"></td><td><bdi dir="ltr">${esc(resource.id)}</bdi></td><td>${esc(resource.name)}</td><td>${esc(t(state.locale,resource.type,resource.type==="Labor"?"نیروی انسانی":"تجهیزات"))}</td><td>${resource.units.toLocaleString("en-US")}</td><td>${resource.cost.toLocaleString("en-US")}</td><td>${resource.rate.toLocaleString("en-US")}</td></tr>`).join("")}
+            ${availableResources.map((resource)=>`<tr><td><input type="checkbox" disabled aria-label="Select ${esc(resource.name)}"></td><td><bdi dir="ltr">${esc(resource.id)}</bdi></td><td>${esc(resource.name)}</td><td>${esc(t(state.locale,resource.type,resource.type==="Labor"?"نیروی انسانی":resource.type==="Material"?"مصالح":"تجهیزات"))}</td><td>${resource.units.toLocaleString("en-US")}</td><td>${resource.cost.toLocaleString("en-US")}</td><td>${resource.rate.toLocaleString("en-US")}</td></tr>`).join("")}
           </tbody></table></div><p class="cp-vd-note">${esc(t(state.locale, "Resource catalogue figures are demonstration data; no availability reservation is implied.", "مقادیر فهرست منابع داده نمایشی هستند و به معنی رزرو ظرفیت نیستند."))}</p></section>
           <aside><h3>${esc(t(state.locale, "Assignment details", "جزئیات تخصیص"))}</h3><div class="cp-vd-form">
             <label>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}<input type="number" min="0" step="0.01" value="40" disabled></label>
