@@ -943,7 +943,7 @@ test("Import/export mapping workbench is mirrored for Persian RTL", () => {
 });
 
 
-test("Workspace menu hierarchy keeps every preview-only command visible and selectable for visual audit", () => {
+test("Workspace menus show every command; only explicit context states are disabled", () => {
   const html = renderVisualDemo(createVisualDemoState("en"));
   for (const label of ["File", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help", "Add…", "Delete", "Assign", "Resources by Role…", "Activity Codes…", "Predecessors…", "Successors…", "Recent Projects", "Refresh Project Data", "Sync Project Changes", "Resource Curves…", "Activity Step Templates…", "Summarize Project Data", "Project Checker…", "Auto-Reorganization", "Help Contents", "What&#39;s New", "Send Feedback", "Close project", "Save layout as…", "Collapse To…", "Show on Top", "Show on Bottom", "Bottom Layout Options…", "Progress Line…", "Progress Spotlight", "Attachments…", "Line Numbers", "Activity Critical Path", "Check Schedule", "Activity Network Options…", "Arrange Children", "Align Children", "Chart Box Template…", "Chart Font and Colors…", "Launch", "Hint Help", "Zoom", "Expand All", "Collapse All", "Reset All Toolbars", "Lock All Toolbars", "Tab Groups", "Enterprise Project Structure", "Responsibility Structure (OBS)", "Currencies…", "Financial Periods…", "Administrative Categories…", "Global Change…", "Recalculate Assignment Costs…", "Threshold Monitor…", "Update Progress…", "Apply Actuals…", "Store Period Performance…", "Report Library / Runner…"]) {
     assert.ok(html.includes(label), "missing workspace menu entry: " + label);
@@ -952,8 +952,10 @@ test("Workspace menu hierarchy keeps every preview-only command visible and sele
   assert.match(html, /data-vd-action='\{"command":"noop","reason":\{"en":"Refresh requires the live project data service\."/);
   assert.match(html, /class="cp-vd-menu-item is-preview-only" data-vd-action=/);
   assert.match(html, /<small class="cp-vd-preview-note"[^>]*>Preview only<\/small>/);
-  assert.doesNotMatch(html, /class="cp-vd-menu-item[^"]*is-disabled[^"]*"[^>]*disabled/);
-  assert.doesNotMatch(html, /disabled>Refresh Project Data/);
+  assert.match(html, /class="cp-vd-menu-item is-disabled" data-vd-action='\{"command":"noop","disabled":true/);
+  assert.match(html, /disabled aria-disabled="true">.*Delete/);
+  assert.match(html, /data-vd-action='\{"command":"noop","reason":\{"en":"Refresh requires the live project data service\."/);
+  assert.doesNotMatch(html, /disabled[^>]*>Refresh Project Data/);
   assert.ok(html.includes('data-vd-action=\'{"dialog":"assign-resources-by-role"}\''));
 });
 
