@@ -1719,6 +1719,15 @@ export function renderVisualDemo(state: DemoState): string {
   .cp-vd-filter-table{min-width:620px}
   .cp-vd-filter-table select,.cp-vd-filter-table input{width:100%;min-width:145px;max-width:100%;border:1px solid #cbd6e2;background:#fff;padding:5px;font:11px Inter,Vazirmatn,sans-serif}
   .cp-vd-filter-manager .cp-vd-form{grid-template-columns:minmax(0,1fr) minmax(0,180px)}
+  .cp-vd-group-sort{display:grid;gap:12px;min-width:0}
+  .cp-vd-group-sort-section{display:grid;gap:8px;min-width:0;border:1px solid #d8e0e9;background:#fff;padding:9px}
+  .cp-vd-group-table,.cp-vd-sort-table{min-width:650px}
+  .cp-vd-group-table select,.cp-vd-sort-table select{max-width:100%;min-width:115px;padding:4px;border:1px solid #cbd6e2;background:#fff;font:11px Inter,Vazirmatn,sans-serif}
+  .cp-vd-group-table td:last-child{white-space:nowrap}
+  .cp-vd-group-table td button{font-size:10px;padding:3px 5px;margin-inline-end:3px}
+  .cp-vd-group-band-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:8px;background:#f5f7fa;border:1px solid #e1e7ee}
+  .cp-vd-group-band-options label{display:flex;align-items:center;gap:5px;font-size:11px}
+  @media(max-width:850px){.cp-vd-group-band-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:850px){.cp-vd-filter-manager{grid-template-columns:1fr}.cp-vd-filter-library{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.cp-vd-filter-library-head{grid-column:1/-1}}
   .cp-vd-module-toolbar .cp-vd-note{margin-inline-start:auto}
   .cp-vd-module-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(245px,30%);min-height:350px}
