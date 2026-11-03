@@ -13,7 +13,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | New Project — Step 4 Development | Seed the plan | Blank/template WBS, authorized project copy, optional starter WBS/activities and resource/calendar templates | WBS/activity APIs | Visual preview implemented; creation/copy not connected |
 | Open Project | Choose project | Search, domain filter, recent, role badge | `GET /api/projects`, `POST /open` | Implemented as picker, not dialog |
 | Import / Export | Interchange | Format, project/resource/role scope, template, create/add/replace/update action, EPS/WBS destination, baselines, field mapping, code/calendar/financial-period compatibility, validation report, output content and privilege checks | Interchange API | Visual preview implemented; file parsing, mapping, validation, transactions and file writing not connected |
-| Print Preview / Print / Page Setup | Output | Layout, page, scale, margins, header/footer | Print profile API (not built) | Missing |
+| Print Preview / Print Setup / Page Setup | Output | Page navigation, zoom/orientation, printer selection, paper, scaling, margins, header/footer, sheet date range, pages wide, columns, repeat table, gradient and tiled page order | Print profile API (not built) | Visual preview implemented; printer driver, PDF/HTML output and persisted print profiles are not connected |
 | Project Details / Settings | Project metadata, dates, defaults, resources, settings, calculations and financial tabs | General, Dates, Notebook, Budget Log, Spending Plan, Budget Summary, Funding, Codes, Defaults, Resources, Settings, Calculations, Custom Fields; project ID/name/status/OBS, planned/must-finish/data/anticipated dates, default activity/duration/% complete/calendar/rate/cost account, resource assignment defaults | `GET/PATCH /api/projects/{id}` plus project detail services | Visual tab inventory and read-only General preview implemented; tab navigation, persistence and calculations not connected |
 
 ## Layout and data display
@@ -37,17 +37,17 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 
 | Dialog | Controls | Status |
 | --- | --- | --- |
-| Assign Resources | Activity context; searchable/type-filtered resource catalogue; resource ID/name/type; available/planned units and cost/rate; assignment units and units/time; rate type/source; resource/activity calendar; start/finish; curve; cost account; selected/assigned list; permission-filtered candidates | Visual preview implemented; availability, assignment persistence and cost recalculation not connected |
+| Assign Resources | Activity context; searchable/type-filtered resource catalogue; resource ID/name/type; available/planned units and cost/rate; assignment units and units/time; rate type/source; resource/activity calendar; start/finish; curve; cost account; selected/assigned list; permission-filtered candidates | Visual preview implemented; availability, assignment persistence and cost recalculation not connected |\n| Resource Details | General, Codes, Details, Units & Prices, Roles, Notes and Custom Fields; identity/contact, calendar, shifts, rates, role and code context | Visual preview implemented; resource profile persistence and rate/shift services not connected |
 | Assign Resources by Role | Required role, proficiency filter, eligible resources, multi-select candidates, assignment units, explicit resource/role/override rate source | Visual preview implemented; candidate matching and assignment persistence not connected |
 | Assign Roles | Role, units, max units/time, proficiency, effective start/finish, candidate resource; role assignment remains distinct from resource assignment | Visual preview implemented; role service and assignment persistence not connected |
-| Assign Activity Codes | Code dictionary, values, assigned | Missing |
+| Assign Activity Codes | Activity, code dictionary, global/EPS/project scope, values, description and assignment context | Visual preview implemented; code assignment service not connected |
 | Activity / WBS context menus | Selection-aware commands, details, assignments, predecessor/successor links, activity codes, child WBS; destructive commands disabled until persistence/permissions exist | Visual preview implemented; command authorization and mutations not connected |
 | Assign Predecessors / Successors | Activity search, relationship type (FS/SS/FF/SF), lag | Partial (logic panel) |
 | New/Edit Activity | ID, name, type, duration, calendar, WBS, dates, constraints | Partial (inline form) |
 | New/Edit WBS | Code, name, parent, sequence, status | Implemented (forms) |
 | New/Edit Relationship | Predecessor, successor, type, lag | Implemented (forms) |
 | Dissolve Activity | Confirmation, resulting FS link preview | Missing |
-| Activity Details > General/Status/Resources/... | See `workspace-window-inventory.md` | Missing |
+| Activity Details > General/Status/Resources/... | General, Status, Resources, Predecessors, Successors, Codes, Discussion, Notebook, Steps, Feedback, Documents, Expenses, Summary, Relationships, Risks, Custom Fields and Update History; selected identity and no-selection state | Visual tab/content preview implemented; live project record binding and persistence not connected |
 
 ## Tools
 
@@ -57,7 +57,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Level Resources | Scope, resources, priority sequence, availability/over-allocation limits, float preservation, split/retime options | Visual preview implemented; no leveling or date changes are executed |
 | Update Progress | Data date, percent-complete type/value, actual start/finish, remaining duration, units/costs, suspend/resume | Visual preview implemented; progress write, actual-date policy and schedule recalculation not connected |
 | Apply Actuals | Project/selected scope, data date, source, actual dates, remaining-duration and units/cost options | Visual preview implemented; controlled apply operation and scheduler integration not connected |
-| Recalculate Assignment Costs | Scope, confirmation and assignment cost/units calculation mode | Missing |
+| Recalculate Assignment Costs | Scope, rate source, effective date, currency, labor/non-labor/material/role options | Visual preview implemented; rate engine and assignment cost recalculation not connected |
 | Budget / Spending Plan | Budget establishment, budget-change log, funding sources and assignments, monthly financial-period spending plan, budget/spending totals and variances | Visual preview implemented; financial-period service, approvals, posting and calculations not connected |
 | Earned Value Analysis | Assigned EV baseline, WBS/activity EV techniques, PV/EV/AC, SV/CV, SPI/CPI | Visual preview implemented; baseline integration, WBS technique persistence and EV calculations not connected |
 | Store Period Performance | Financial period, project, actual this period and actual-to-date units/costs, post/history | Visual preview implemented; posting, period locking and past-period audit permissions not connected |
