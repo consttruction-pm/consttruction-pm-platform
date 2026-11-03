@@ -56,6 +56,17 @@ _SCOPE_FIELDS = frozenset({"tenant_id", "project_id", "project_revision"})
 RuntimeOperationHandler = Callable[
     [Mapping[str, object], AuthorizationContext, int], object
 ]
+MutationExecutor = Callable[
+    [
+        str,
+        Mapping[str, object],
+        Mapping[str, str],
+        AuthorizationContext,
+        int,
+        Callable[[], object],
+    ],
+    object,
+]
 
 
 @dataclass(frozen=True)
@@ -72,6 +83,7 @@ class SharedCoreOperation:
     required_fields: frozenset[str]
     allowed_fields: frozenset[str]
     handler: RuntimeOperationHandler
+    mutates: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.contract_version, str) or not self.contract_version.strip():
@@ -80,6 +92,13 @@ class SharedCoreOperation:
             raise ValueError("RUNTIME_OPERATION_PERMISSION_REQUIRED")
         if not callable(self.handler):
             raise ValueError("RUNTIME_OPERATION_HANDLER_REQUIRED")
+        if not isinstance(self.mutates, bool):
+            raise ValueError("RUNTIME_OPERATION_MUTATION_FLAG_INVALID")
+        if self.mutates and self.permission not in {
+            Permission.PROJECT_WRITE,
+            Permission.PROJECT_SCHEDULE,
+        }:
+            raise ValueError("MUTATING_OPERATION_REQUIRES_WRITE_PERMISSION")
         required = frozenset(self.required_fields) | frozenset({"contract_version", "scope"})
         allowed = frozenset(self.allowed_fields) | required
         if not required.issubset(allowed):
@@ -184,6 +203,7 @@ class SharedCoreRuntime:
     schedule_query_api: ScheduleQueryAPI
     authorization_policy: AuthorizationPolicy
     operations: Mapping[str, SharedCoreOperation] = field(default_factory=dict)
+    mutation_executor: MutationExecutor | None = None
 
     def __post_init__(self) -> None:
         if self.mutation_executor is not None and not callable(self.mutation_executor):
@@ -443,6 +463,7 @@ def build_shared_core_runtime(
         SchedulerLevelingInput | None,
     ] | None = None,
     operations: Mapping[str, SharedCoreOperation] | None = None,
+    mutation_executor: MutationExecutor | None = None,
 ) -> SharedCoreRuntime:
     """Compose the same Shared Core runtime for server or local hosts.
 
@@ -465,12 +486,14 @@ def build_shared_core_runtime(
         schedule_query_api=schedule_query_api,
         authorization_policy=authorization_policy,
         operations={} if operations is None else operations,
+        mutation_executor=mutation_executor,
     )
 
 
 __all__ = [
     "CORE_RUNTIME_CONTRACT_VERSION",
     "MAX_RUNTIME_REQUEST_BYTES",
+    "MutationExecutor",
     "SCHEDULE_QUERY_OPERATION",
     "SharedCoreOperation",
     "SharedCoreRuntime",
