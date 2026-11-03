@@ -37,9 +37,9 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 
 | Dialog | Controls | Status |
 | --- | --- | --- |
-| Assign Resources | Resource list, search, assigned list, units/time, cost, curve | Missing |
+| Assign Resources | Activity context; searchable/type-filtered resource catalogue; resource ID/name/type; available/planned units and cost/rate; assignment units and units/time; rate type/source; resource/activity calendar; start/finish; curve; cost account; selected/assigned list; permission-filtered candidates | Visual preview implemented; availability, assignment persistence and cost recalculation not connected |
 | Assign Resources by Role | Role, candidates, units | Missing |
-| Assign Roles | Role list, proficiency, assigned | Missing |
+| Assign Roles | Role, units, max units/time, proficiency, effective start/finish, candidate resource; role assignment remains distinct from resource assignment | Visual preview implemented; role service and assignment persistence not connected |
 | Assign Activity Codes | Code dictionary, values, assigned | Missing |
 | Assign Predecessors / Successors | Activity search, relationship type (FS/SS/FF/SF), lag | Partial (logic panel) |
 | New/Edit Activity | ID, name, type, duration, calendar, WBS, dates, constraints | Partial (inline form) |
