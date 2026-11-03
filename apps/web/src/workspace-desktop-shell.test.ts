@@ -112,7 +112,6 @@ test("Filters menu and toolbar open the dedicated activity filter dialog, not Fi
   const menus = getDesktopMenus(shellState());
   const viewFilters = menus.find((menu) => menu.id === "view")?.items.find((item) => item.id === "view.filters");
   assert.equal(viewFilters?.command, "view.filters");
-  assert.equal(viewFilters?.command === "edit.find", false);
   const filters = getDesktopToolbar(shellState()).find((item) => item.id === "toolbar.find");
   assert.equal(filters?.command, "view.filters");
   assert.doesNotMatch(filters?.title.en ?? "", /search|find/i);
