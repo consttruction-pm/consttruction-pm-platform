@@ -3157,8 +3157,8 @@ function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, con
   const previousAvailable = activityIndex > 0;
   const nextAvailable = activityIndex >= 0 && activityIndex < navigableActivities.length - 1;
   const navigator = `<div class="cp-activity-detail-navigator" aria-label="${escapeAttribute(uiText(state.locale, "Activity record navigation", "پیمایش رکورد فعالیت"))}">
-    <button type="button" data-activity-navigate="previous" ${previousAvailable ? "" : "disabled"} title="${escapeAttribute(uiText(state.locale,"Previous activity","فعالیت قبلی"))}">◀ ${escapeHtml(uiText(state.locale,"Previous","قبلی"))}</button>
-    <button type="button" data-activity-navigate="next" ${nextAvailable ? "" : "disabled"} title="${escapeAttribute(uiText(state.locale,"Next activity","فعالیت بعدی"))}">${escapeHtml(uiText(state.locale,"Next","بعدی"))} ▶</button>
+    <button type="button" data-activity-navigate="previous" ${previousAvailable ? "" : "disabled"} title="${escapeAttribute(uiText(state.locale,"Previous activity","فعالیت قبلی"))}"><span class="cp-activity-nav-arrow">◀</span> ${escapeHtml(uiText(state.locale,"Previous","قبلی"))}</button>
+    <button type="button" data-activity-navigate="next" ${nextAvailable ? "" : "disabled"} title="${escapeAttribute(uiText(state.locale,"Next activity","فعالیت بعدی"))}">${escapeHtml(uiText(state.locale,"Next","بعدی"))} <span class="cp-activity-nav-arrow">▶</span></button>
     <label>${escapeHtml(uiText(state.locale,"Activity ID","شناسه فعالیت"))}<input readonly value="${escapeAttribute(activity?.id ?? "")}" placeholder="—"></label>
     <label>${escapeHtml(uiText(state.locale,"Activity Name","نام فعالیت"))}<input readonly value="${escapeAttribute(activity?.name ?? "")}" placeholder="—"></label>
     <label>${escapeHtml(uiText(state.locale,"Project","پروژه"))}<input readonly value="${escapeAttribute(state.context.project_id)}"></label>
