@@ -429,3 +429,10 @@ The Version 26 Activity Details page lists **Summary** as a native tab, and the 
 - CUBI correction: Files and Assignments are now first-class detail tabs. Files exposes private/public location and Launch/Browse controls (disabled while the document service is unavailable). Assignments exposes the WBS/activity association table and Work Product flag (empty until assignment data is loaded). The CUBI-specific tabs are explicitly labeled as extensions, and navigation routes to each native or extension tab.
 - No document file paths, assignment rows or work-product flags are fabricated. Create, upload, launch, assign and remove operations remain disabled until the document service and permission checks are connected.
 - References: https://docs.oracle.com/cd/F51303_01/client_help/en_US/wps_and_docs_window.htm and Version 26 User Guide, Work Products and Documents: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/p6_pro_user.pdf.
+
+## Projects window — top-layout surfaces — 2026-11-03
+
+- Version 26 Projects window supports Project Table, project chart view and Project Gantt Chart in the top layout, with Project Details as a separate bottom layout. The window is also scoped by the currently selected portfolio and supports EPS hierarchy navigation.
+- CUBI correction: added explicit Project Table, Project Chart and Gantt Chart top-layout switching. The chart view shows only the single authorized project record and its loaded WBS/activity counts. The Gantt view remains an honest empty state because the current session record does not expose project start/finish dates. The page continues to state that portfolio and sibling EPS/project records are not loaded, rather than fabricating them.
+- Remaining parity: portfolio selector and EPS tree when those records are supplied; project table columns, project-chart box formatting, Gantt timescale/bars, project context menu and full top/bottom layout options.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/projects_window.htm.
