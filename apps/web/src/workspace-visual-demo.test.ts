@@ -185,15 +185,17 @@ test("activity Status details expose early/late dates, actual dates, duration an
   }
 });
 
-test("activity Calendar details link to the visual calendar editor and disclose sample-only values", () => {
+test("Activity Details uses the desktop tab set, exposes selected record context, and keeps calendar in General", () => {
   const state = createVisualDemoState("fa");
-  state.detailTab = "calendar";
+  state.detailTab = "general";
   const html = renderVisualDemo(state);
-  assert.match(html, /data-vd-dtab="calendar"/);
-  assert.match(html, /data-vd-dialog="calendar"/);
-  assert.match(html, /باز کردن ویرایشگر تقویم/);
-  assert.match(html, /تقویم فعالیت/);
-  assert.match(html, /ذخیره تغییرات و اتصال به زمان‌بندی در این پیش‌نمایش فعال نیست/);
+  assert.doesNotMatch(html, /data-vd-dtab="calendar"/);
+  assert.match(html, /data-vd-dtab="custom-fields"/);
+  assert.doesNotMatch(html, /data-vd-dtab="udfs"/);
+  assert.match(html, /data-vd-details-context-name/);
+  assert.match(html, /Riverside Pump Station Upgrade/);
+  assert.match(html, /CUBI-DEMO-001/);
+  assert.match(html, /تقویم/);
 });
 
 
@@ -385,4 +387,23 @@ test("Activity Details customization provides Persian RTL labels for all standar
   for (const label of ["عمومی", "وضعیت", "منابع", "پیش‌نیازها", "جانشین‌ها", "گفت‌وگو", "دفترچه", "گام‌ها", "بازخورد", "اسناد", "هزینه‌ها", "روابط", "ریسک‌ها", "فیلدهای سفارشی", "تاریخچه تغییرات"]) {
     assert.ok(html.includes(label), `missing Persian Details tab label: ${label}`);
   }
+});
+
+
+test("Activity Details renders a truthful no-selection state instead of silently selecting the first activity", () => {
+  const state = createVisualDemoState("en");
+  state.activityId = "";
+  const html = renderVisualDemo(state);
+  assert.match(html, /No activity selected/);
+  assert.match(html, /Select an activity in the table or Activity Network/);
+  assert.doesNotMatch(html, /A1000/);
+});
+
+test("Activity Details context and empty state are localized in Persian RTL", () => {
+  const state = createVisualDemoState("fa");
+  state.activityId = "";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  assert.match(html, /فعالیتی انتخاب نشده است/);
+  assert.match(html, /برای مشاهده جزئیات، یک فعالیت را از جدول یا شبکه فعالیت انتخاب کنید/);
 });
