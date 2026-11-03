@@ -1347,6 +1347,12 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
 ];
 
 const TOOLBARS: Array<{ id: string; label: Label; items: Array<{ icon: string; label: Label; action: MenuAction }> }> = [
+  { id: "action", label: { en: "Action", fa: "عملیات" }, items: [
+    { icon: "activity", label: { en: "Add Activity", fa: "افزودن فعالیت" }, action: { dialog: "add-activity" } },
+    { icon: "resource", label: { en: "Assign Resources", fa: "تخصیص منابع" }, action: { dialog: "assign-resources" } },
+    { icon: "book", label: { en: "Assign Activity Codes", fa: "تخصیص کد فعالیت" }, action: { dialog: "assign-activity-codes" } },
+    { icon: "link", label: { en: "Dissolve Activity", fa: "ادغام فعالیت" }, action: { dialog: "dissolve" } },
+  ] },
   { id: "standard", label: { en: "Standard", fa: "استاندارد" }, items: [
     { icon: "file", label: { en: "New", fa: "جدید" }, action: { dialog: "new-project" } },
     { icon: "book", label: { en: "Open", fa: "بازکردن" }, action: { window: "projects" } },
