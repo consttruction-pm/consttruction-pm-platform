@@ -2198,6 +2198,24 @@ export function renderVisualDemo(state: DemoState): string {
     </div>
     <div class="cp-vd-status"><span>${esc(t(state.locale, "Project", "پروژه"))}: CUBI-DEMO-001</span><span>${esc(t(state.locale, "Data date", "تاریخ داده"))}: <bdi dir="ltr">03-Dec-2026</bdi></span><span>${esc(t(state.locale, "Baseline", "خط مبنا"))}: BL-01</span><span>${esc(t(state.locale, "Window", "پنجره"))}: ${esc(label(WINDOWS[index] ?? WINDOWS[0], state.locale))}</span><span class="cp-vd-status-end">${esc(t(state.locale, "Preview data — not saved or calculated", "دادهٔ پیش‌نمایش — ذخیره یا محاسبه نشده"))}</span></div>
     ${renderDialogs(state)}
+    <div class="cp-vd-context-menu" data-vd-context-menu hidden role="menu" aria-label="${esc(t(state.locale, "Selection commands", "فرمان‌های انتخاب"))}">
+      <div data-vd-context-panel="activity" hidden>
+        <strong>${esc(t(state.locale, "Activity", "فعالیت"))}: <bdi data-vd-context-activity></bdi></strong>
+        <button type="button" role="menuitem" data-vd-context-action="activity-details">${esc(t(state.locale, "Activity Details…", "جزئیات فعالیت…"))}</button>
+        <button type="button" role="menuitem" data-vd-context-action="assign-resources">${esc(t(state.locale, "Assign Resources…", "تخصیص منابع…"))}</button>
+        <button type="button" role="menuitem" data-vd-context-action="add-predecessor">${esc(t(state.locale, "Assign Predecessors…", "تخصیص پیش‌نیازها…"))}</button>
+        <button type="button" role="menuitem" data-vd-context-action="add-successor">${esc(t(state.locale, "Assign Successors…", "تخصیص جانشین‌ها…"))}</button>
+        <button type="button" role="menuitem" data-vd-context-action="activity-codes">${esc(t(state.locale, "Assign Activity Codes…", "تخصیص کدهای فعالیت…"))}</button>
+        <hr><button type="button" role="menuitem" disabled>${esc(t(state.locale, "Delete Activity", "حذف فعالیت"))}</button>
+      </div>
+      <div data-vd-context-panel="wbs" hidden>
+        <strong>${esc(t(state.locale, "WBS Element", "عنصر ساختار شکست کار"))}: <bdi data-vd-context-wbs></bdi></strong>
+        <button type="button" role="menuitem" data-vd-context-action="wbs-details">${esc(t(state.locale, "WBS Details…", "جزئیات ساختار شکست…"))}</button>
+        <button type="button" role="menuitem" data-vd-context-action="wbs-activities">${esc(t(state.locale, "Show Activities", "نمایش فعالیت‌ها"))}</button>
+        <button type="button" role="menuitem" data-vd-context-action="wbs-add-child">${esc(t(state.locale, "Add Child WBS…", "افزودن زیرشاخه…"))}</button>
+        <hr><button type="button" role="menuitem" disabled>${esc(t(state.locale, "Delete WBS", "حذف ساختار شکست"))}</button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -2444,6 +2462,30 @@ function bind(root: HTMLElement): void {
     draw();
   });
 
+  root.addEventListener("contextmenu", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!target || typeof target.closest !== "function") return;
+    const activityRow = target.closest<HTMLElement>("[data-vd-activity]");
+    const wbsRow = target.closest<HTMLElement>("[data-vd-wbs]");
+    if (!activityRow && !wbsRow) return;
+    event.preventDefault();
+    if (activityRow?.dataset.vdActivity) state.activityId = activityRow.dataset.vdActivity;
+    if (wbsRow?.dataset.vdWbs) state.selectedWbsCode = wbsRow.dataset.vdWbs;
+    draw();
+    const menu = root.querySelector<HTMLElement>("[data-vd-context-menu]");
+    const kind = activityRow ? "activity" : "wbs";
+    const panel = menu?.querySelector<HTMLElement>(`[data-vd-context-panel="${kind}"]`);
+    if (!menu || !panel) return;
+    menu.querySelectorAll<HTMLElement>("[data-vd-context-panel]").forEach((item) => { item.hidden = item !== panel; });
+    const id = menu.querySelector<HTMLElement>(activityRow ? "[data-vd-context-activity]" : "[data-vd-context-wbs]");
+    if (id) id.textContent = activityRow ? state.activityId : state.selectedWbsCode;
+    menu.hidden = false;
+    const left = Math.min(event.clientX, Math.max(8, window.innerWidth - menu.offsetWidth - 8));
+    const top = Math.min(event.clientY, Math.max(8, window.innerHeight - menu.offsetHeight - 8));
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  });
+
   root.addEventListener("click", (event) => {
     const target = event.target as HTMLElement | null;
     if (!target || typeof target.closest !== "function") return;
@@ -2460,6 +2502,22 @@ function bind(root: HTMLElement): void {
     if (submenu) {
       const popup = submenu.parentElement?.querySelector<HTMLElement>(".cp-vd-subpopup");
       if (popup) popup.hidden = !popup.hidden;
+      return;
+    }
+    const contextAction = target.closest<HTMLElement>("[data-vd-context-action]");
+    if (contextAction?.dataset.vdContextAction) {
+      const menu = root.querySelector<HTMLElement>("[data-vd-context-menu]");
+      if (menu) menu.hidden = true;
+      switch (contextAction.dataset.vdContextAction) {
+        case "activity-details": state.detailsOpen = true; state.detailTab = "general"; draw(); break;
+        case "assign-resources": openDialog("assign-resources"); break;
+        case "add-predecessor": openDialog("assign-predecessors"); break;
+        case "add-successor": openDialog("assign-successors"); break;
+        case "activity-codes": openDialog("assign-activity-codes"); break;
+        case "wbs-details": state.wbsDetailTab = "general"; draw(); break;
+        case "wbs-activities": navigate("activities"); break;
+        case "wbs-add-child": openDialog("new-wbs"); break;
+      }
       return;
     }
     const actionTarget = target.closest<HTMLElement>("[data-vd-action]");
