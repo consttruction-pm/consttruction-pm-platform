@@ -2043,14 +2043,17 @@ test("project settings button dispatches a single open request", () => {
   assert.equal(opened, 1);
 });
 
-test("Resource Assignments exposes a toggleable time-phased usage spreadsheet without fabricating values", () => {
+test("Resource Assignments opens with the Usage Spreadsheet in the right pane and can collapse it", () => {
   const html = render("en", "assignments");
-  assert.match(html, /data-assignment-usage-toggle aria-pressed="false"/);
-  assert.match(html, /data-assignment-usage-panel hidden/);
+  assert.match(html, /cp-assignment-main-layout/);
+  assert.match(html, /cp-assignment-register-pane/);
+  assert.match(html, /cp-assignment-usage-pane/);
+  assert.match(html, /data-assignment-usage-toggle aria-pressed="true"/);
+  assert.doesNotMatch(html, /data-assignment-usage-panel hidden/);
   assert.match(html, /Resource Usage Spreadsheet/);
   assert.match(html, /No resource assignment time-phased values are loaded/);
   const listeners = new Map<string, (event: Event) => void>();
-  const panel = { hidden: true };
+  const panel = { hidden: false };
   const container = {
     innerHTML: "",
     querySelector: (selector: string) => selector === "[data-assignment-usage-panel]" ? panel : null,
@@ -2060,10 +2063,10 @@ test("Resource Assignments exposes a toggleable time-phased usage spreadsheet wi
   renderMainWorkspace(container as unknown as HTMLElement, state);
   const target = { dataset: { assignmentUsageToggle: "" }, setAttribute: (_name: string, _value: string) => {}, textContent: "", closest: () => target };
   listeners.get("click")?.({ target } as unknown as Event);
-  assert.equal(panel.hidden, false);
+  assert.equal(panel.hidden, true);
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  assert.match(container.innerHTML, /data-assignment-usage-toggle aria-pressed="true"/);
-  assert.match(container.innerHTML, /data-assignment-usage-panel /);
+  assert.match(container.innerHTML, /data-assignment-usage-toggle aria-pressed="false"/);
+  assert.match(container.innerHTML, /data-assignment-usage-panel hidden/);
 });
 test("Resource Usage Spreadsheet timescale and field chooser are interactive presentation preferences", () => {
   const listeners = new Map<string, (event: Event) => void>();
