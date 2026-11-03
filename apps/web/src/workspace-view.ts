@@ -2675,7 +2675,6 @@ const WBS_DETAIL_TABS = [
   ["milestones", "WBS Milestones", "نقاط عطف ساختار شکست"],
   ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
   ["earned-value", "Earned Value", "ارزش کسب‌شده"],
-  ["planning-resources", "Planning Resources", "منابع برنامه‌ریزی"],
   ["udfs", "UDFs", "فیلدهای کاربر"],
 ] as const;
 
@@ -2774,7 +2773,6 @@ const ACTIVITY_DETAIL_TABS = [
   ["predecessors", "Predecessors", "پیش‌نیازها"],
   ["successors", "Successors", "پس‌نیازها"],
   ["codes", "Codes", "کدها"],
-  ["tasks", "Tasks", "وظایف"],
   ["discussion", "Discussion", "گفت‌وگو"],
   ["notebook", "Notebook", "دفترچه"],
   ["steps", "Steps", "گام‌ها"],
