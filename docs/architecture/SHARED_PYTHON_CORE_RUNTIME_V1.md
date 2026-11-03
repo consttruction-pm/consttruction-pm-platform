@@ -52,7 +52,7 @@ Current registered operations on the implementation branch:
 
 | Operation family | Operations | Domain contract |
 |---|---|---|
-| Schedule | `schedule.query`, `schedule.settings.get`, `schedule.publish` | `schedule-query.v1`, `p6-project-schedule-settings-api.v1`, `p6-schedule-snapshot-api.v1` |
+| Schedule | `schedule.query`, `schedule.settings.get/save`, `schedule.publish` | `schedule-query.v1`, `p6-project-schedule-settings-api.v1`, `p6-schedule-snapshot-api.v1` |
 | WBS | `wbs.list/get/create/update/delete` | `p6-wbs-master-api.v1` |
 | Activities | `activity.list/get/create/update` | `p6-activity-master-api.v1` |
 | Relationships | `relationship.list/get/create/update/delete` | `p6-relationship-api.v1` |
