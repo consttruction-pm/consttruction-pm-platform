@@ -1688,7 +1688,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                 </section>
               </section>
               <section id="cp-activity-network" class="cp-panel cp-activity-network" data-workspace-menu="schedule" ${activityTopLayoutByContainer.get(container) === "activity-network" ? "" : "hidden"}>
-                ${renderActivityNetwork(visibleActivities, state.relationships, state.selectedActivityId, state.locale)}
+                ${renderActivityNetwork(visibleActivities, state.relationships, state.selectedActivityId, state.wbsNodes, state.selectedWbsId, state.locale, t)}
               </section>
               ${renderP6ModuleStage(container, state, t)}
             </div>
@@ -3199,8 +3199,11 @@ const ACTIVITY_DETAIL_TABS = [
   ["update-history", "Update History", "تاریخچه به‌روزرسانی"],
 ] as const;
 
-function renderActivityNetwork(activities: WorkspaceState["activities"], relationships: WorkspaceState["relationships"], selectedActivityId: string | null, locale: WorkspaceState["locale"]): string {
-  if (!activities.length) return '<div class="cp-activity-network-empty">' + escapeHtml(uiText(locale, "No activity records are loaded for the network view.", "برای نمای شبکه، رکورد فعالیتی بارگذاری نشده است.")) + '</div>';
+function renderActivityNetwork(activities: WorkspaceState["activities"], relationships: WorkspaceState["relationships"], selectedActivityId: string | null, wbsNodes: WorkspaceState["wbsNodes"], selectedWbsId: string | null, locale: WorkspaceState["locale"], t: WorkspaceLabels): string {
+  const scopedActivities = selectedWbsId ? activities.filter((activity) => activity.wbsId === selectedWbsId) : activities;
+  const wbsPane = '<aside class="cp-activity-network-wbs-pane"><h3>' + escapeHtml(uiText(locale, "WBS Hierarchy", "سلسله‌مراتب WBS")) + '</h3>' + renderWbsTree(wbsNodes, selectedWbsId, t) + '</aside>';
+  if (!scopedActivities.length) return '<div class="cp-activity-network-layout">' + wbsPane + '<section class="cp-activity-network-graph"><div class="cp-activity-network-empty">' + escapeHtml(uiText(locale, selectedWbsId ? "No activities are assigned to the selected WBS element." : "No activity records are loaded for the network view.", selectedWbsId ? "فعالیتی به عنصر انتخاب‌شده WBS تخصیص نیافته است." : "برای نمای شبکه، رکورد فعالیتی بارگذاری نشده است.")) + '</div></section></div>';
+  activities = scopedActivities;
   const ids = new Set(activities.map((activity) => activity.id));
   const indegree = new Map(activities.map((activity) => [activity.id, 0]));
   const outgoing = new Map(activities.map((activity) => [activity.id, [] as string[]]));
@@ -3244,7 +3247,7 @@ function renderActivityNetwork(activities: WorkspaceState["activities"], relatio
     return '<button type="button" class="cp-activity-network-node' + (selected ? ' is-selected' : '') + (critical ? ' is-critical' : '') + '" data-activity-id="' + escapeAttribute(activity.id) + '" aria-pressed="' + String(selected) + '" style="left:' + position.x + 'px;top:' + position.y + 'px"><span>' + escapeHtml(activity.id) + '</span><strong>' + escapeHtml(activity.name) + '</strong></button>';
   }).join("");
   const noEdges = edges ? "" : '<p class="cp-activity-network-note">' + escapeHtml(uiText(locale, "No relationships are loaded; only activity nodes are shown.", "رابطه‌ای بارگذاری نشده است؛ فقط گره‌های فعالیت نمایش داده می‌شوند.")) + '</p>';
-  return '<div class="cp-activity-network-scroll"><div class="cp-activity-network-canvas" style="width:' + width + 'px;height:' + height + 'px"><svg class="cp-activity-network-edges" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><defs><marker id="cp-activity-network-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker></defs>' + edges + '</svg>' + nodes + '</div></div>' + noEdges;
+  return '<div class="cp-activity-network-layout">' + wbsPane + '<section class="cp-activity-network-graph"><div class="cp-activity-network-scroll"><div class="cp-activity-network-canvas" style="width:' + width + 'px;height:' + height + 'px"><svg class="cp-activity-network-edges" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><defs><marker id="cp-activity-network-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker></defs>' + edges + '</svg>' + nodes + '</div></div>' + noEdges + '</section></div>';
 }
 function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, activeTab: string, visibleTabs: ReadonlySet<string>): string {
   const activity = state.activities.find((item) => item.id === state.selectedActivityId);
