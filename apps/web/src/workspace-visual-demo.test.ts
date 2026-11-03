@@ -911,3 +911,22 @@ test("Import/export mapping workbench is mirrored for Persian RTL", () => {
   assert.match(html, /ورود / خروجی/);
   assert.match(html, /پیش‌نمایش بصری است/);
 });
+
+
+test("Workspace menu hierarchy exposes project, organization, tools and administration commands", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const label of ["File", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help", "Close project", "Save layout as…", "Enterprise Project Structure", "Responsibility Structure (OBS)", "Currencies…", "Financial Periods…", "Administrative Categories…", "Global Change…", "Recalculate Assignment Costs…", "Threshold Monitor…", "Update Progress…", "Apply Actuals…", "Store Period Performance…", "Report Library / Runner…"]) {
+    assert.ok(html.includes(label), "missing workspace menu entry: " + label);
+  }
+  assert.match(html, /adminSection&quot;|adminSection/);
+});
+
+test("Workspace menu hierarchy keeps Persian labels for key administration and project tools", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /ساختار سازمانی پروژه‌ها/);
+  assert.match(html, /ساختار مسئولیت‌ها/);
+  assert.match(html, /دوره‌های مالی…/);
+  assert.match(html, /ارزها…/);
+  assert.match(html, /تغییر سراسری…/);
+  assert.match(html, /ثبت عملکرد دوره…/);
+});
