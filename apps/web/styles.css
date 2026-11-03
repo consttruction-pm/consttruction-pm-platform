@@ -4114,6 +4114,30 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   border-bottom: 1px solid var(--cp-ui-grid);
 }
 .cp-vd-ganttbar-spacer { flex: 1 1 auto; }
+.cp-vd-gantt-command-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.cp-vd-gantt-command-group button {
+  min-height: 24px;
+  padding: 2px 7px;
+  border: 1px solid var(--cp-ui-border);
+  border-radius: 3px;
+  background: #fff;
+  color: #344256;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.cp-vd-gantt-command-group button:hover,
+.cp-vd-gantt-command-group button:focus-visible {
+  border-color: var(--cp-ui-primary);
+  color: var(--cp-ui-primary);
+  outline-offset: 2px;
+}
+
 .cp-vd-scale { display: inline-flex; border: 1px solid var(--cp-ui-border); border-radius: 4px; overflow: hidden; background: #fff; }
 .cp-vd-scale button {
   border: 0;
