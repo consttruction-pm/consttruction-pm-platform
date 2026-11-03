@@ -207,6 +207,20 @@ const calendarSelectionByContainer = new WeakMap<HTMLElement, string>();
 const calendarPoolByContainer = new WeakMap<HTMLElement, "global" | "project" | "resource">();
 const trackingLayoutByContainer = new WeakMap<HTMLElement, "table" | "bar-chart" | "gantt-profile" | "resource-analysis">();
 const assignmentUsageVisibleByContainer = new WeakMap<HTMLElement, boolean>();
+type AssignmentUsageDisplayState = {
+  timescale: "day" | "week" | "month" | "quarter" | "financial-period";
+  data: "budgeted-units" | "actual-units" | "remaining-units" | "budgeted-cost" | "actual-cost" | "remaining-cost";
+  fields: string[];
+};
+const assignmentUsageDisplayByContainer = new WeakMap<HTMLElement, AssignmentUsageDisplayState>();
+function getAssignmentUsageDisplayState(container: HTMLElement): AssignmentUsageDisplayState {
+  let value = assignmentUsageDisplayByContainer.get(container);
+  if (!value) {
+    value = { timescale: "week", data: "budgeted-units", fields: ["Budgeted Units", "Actual Units", "Remaining Units"] };
+    assignmentUsageDisplayByContainer.set(container, value);
+  }
+  return value;
+}
 type TrackingDisplayState = { showProjectExplorer: boolean; showResourceExplorer: boolean; showTopLayout: boolean; showBottomLayout: boolean };
 const trackingDisplayByContainer = new WeakMap<HTMLElement, TrackingDisplayState>();
 function getTrackingDisplayState(container: HTMLElement): TrackingDisplayState {
@@ -403,11 +417,33 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-calendar-pool],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-calendar-pool],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-assignment-usage-fields-open],[data-assignment-usage-fields-close],[data-assignment-usage-fields-apply],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.assignmentUsageFieldsOpen !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-assignment-usage-fields-dialog]");
+      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+      else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.dataset.assignmentUsageFieldsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-assignment-usage-fields-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.assignmentUsageFieldsApply !== undefined) {
+      const selected = Array.from(container.querySelectorAll<HTMLInputElement>("[data-assignment-usage-field]:checked")).map((input) => input.value);
+      if (!selected.length) return;
+      getAssignmentUsageDisplayState(container).fields = selected;
+      const dialog = container.querySelector<HTMLDialogElement>("[data-assignment-usage-fields-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      renderMainWorkspace(container, state, options);
+      return;
+    }
     if (target.dataset.assignmentUsageToggle !== undefined) {
       const visible = !(assignmentUsageVisibleByContainer.get(container) ?? false);
       assignmentUsageVisibleByContainer.set(container, visible);
@@ -1089,6 +1125,24 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       ? event.target as HTMLElement
       : null;
     if (!element) return;
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "assignmentUsageTimescale")) {
+      const value = (element as HTMLSelectElement).value;
+      if (["day", "week", "month", "quarter", "financial-period"].includes(value)) {
+        getAssignmentUsageDisplayState(container).timescale = value as AssignmentUsageDisplayState["timescale"];
+        const record = workspaceRenderRecords.get(container);
+        if (record) renderMainWorkspace(container, record.state, record.options);
+      }
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "assignmentUsageData")) {
+      const value = (element as HTMLSelectElement).value;
+      if (["budgeted-units", "actual-units", "remaining-units", "budgeted-cost", "actual-cost", "remaining-cost"].includes(value)) {
+        getAssignmentUsageDisplayState(container).data = value as AssignmentUsageDisplayState["data"];
+        const record = workspaceRenderRecords.get(container);
+        if (record) renderMainWorkspace(container, record.state, record.options);
+      }
+      return;
+    }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "trackingLayout")) {
       const value = (element as HTMLSelectElement).value as "table" | "bar-chart" | "gantt-profile" | "resource-analysis";
       if (!["table", "bar-chart", "gantt-profile", "resource-analysis"].includes(value)) return;
@@ -1673,6 +1727,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 
 function renderResourceAssignmentsWindow(container: HTMLElement, state: WorkspaceState): string {
   const visible = assignmentUsageVisibleByContainer.get(container) ?? false;
+  const display = getAssignmentUsageDisplayState(container);
   const base = renderRegisterWindow(
     state,
     uiText(state.locale, "Resource Assignments", "تخصیص منابع"),
@@ -1680,10 +1735,17 @@ function renderResourceAssignmentsWindow(container: HTMLElement, state: Workspac
     [["general","General","عمومی"],["planning","Planning","برنامه‌ریزی"],["costs","Costs","هزینه‌ها"],["units-prices","Units & Prices","واحدها و قیمت‌ها"],["udfs","UDFs","فیلدهای کاربر"]],
   ).replace('<div class="cp-register-window">', '<div class="cp-register-window cp-resource-assignments-window">');
   const toolbar = "<div class=\"cp-assignment-usage-toolbar\"><strong>" + escapeHtml(uiText(state.locale, "Assignment Analysis", "تحلیل تخصیص")) + "</strong><button type=\"button\" data-assignment-usage-toggle aria-pressed=\"" + String(visible) + "\">" + escapeHtml(uiText(state.locale, visible ? "Hide Usage Spreadsheet" : "Show Usage Spreadsheet", visible ? "پنهان‌کردن صفحه‌گسترده مصرف" : "نمایش صفحه‌گسترده مصرف")) + "</button></div>";
-  const headers = ["Assignment","Resource","Total","Wk 1","Wk 2","Wk 3","Wk 4"].map((name) => "<th>" + escapeHtml(name) + "</th>").join("");
-  const usage = "<section class=\"cp-assignment-usage-panel\" data-assignment-usage-panel " + (visible ? "" : "hidden") + " aria-label=\"" + escapeAttribute(uiText(state.locale, "Resource Usage Spreadsheet", "صفحه‌گسترده مصرف منابع")) + "\"><header><strong>" + escapeHtml(uiText(state.locale, "Resource Usage Spreadsheet", "صفحه‌گسترده مصرف منابع")) + "</strong><div class=\"cp-assignment-usage-options\"><label>" + escapeHtml(uiText(state.locale, "Timescale", "مقیاس زمانی")) + "<select disabled><option>Week</option><option>Day</option><option>Month</option><option>Quarter</option><option>Financial Period</option></select></label><label>" + escapeHtml(uiText(state.locale, "Data", "داده")) + "<select disabled><option>Budgeted Units</option><option>Actual Units</option><option>Remaining Units</option><option>Budgeted Cost</option><option>Actual Cost</option></select></label><button type=\"button\" disabled>" + escapeHtml(uiText(state.locale, "Spreadsheet Fields…", "فیلدهای صفحه‌گسترده…")) + "</button></div></header><div class=\"cp-assignment-usage-table-wrap\"><table><thead><tr>" + headers + "</tr></thead><tbody><tr><td colspan=\"7\">" + escapeHtml(uiText(state.locale, "No resource assignment time-phased values are loaded.", "مقادیر زمان‌بندی‌شده تخصیص منابع بارگذاری نشده‌اند.")) + "</td></tr></tbody></table></div><p>" + escapeHtml(uiText(state.locale, "Budgeted, actual and remaining units/costs are shown by time period when assignment data are available. Editing and fill-down/across are disabled until the assignment service supplies editable period buckets.", "واحدها و هزینه‌های بودجه‌ای، واقعی و باقیمانده در دوره‌های زمانی نمایش داده می‌شوند. ویرایش و پرکردن افقی/عمودی تا ارائه بازه‌های قابل‌ویرایش توسط سرویس تخصیص غیرفعال است.")) + "</p></section>";
-  return "<div class=\"cp-assignment-workspace\">" + toolbar + base.replace('<section class="cp-register-details">', usage + '<section class="cp-register-details">') + "</div>";
+  const timescaleOptions: Array<[AssignmentUsageDisplayState["timescale"], string, string]> = [["day","Day","روز"],["week","Week","هفته"],["month","Month","ماه"],["quarter","Quarter","فصل"],["financial-period","Financial Period","دوره مالی"]];
+  const dataOptions: Array<[AssignmentUsageDisplayState["data"], string, string]> = [["budgeted-units","Budgeted Units","واحد بودجه"],["actual-units","Actual Units","واحد واقعی"],["remaining-units","Remaining Units","واحد باقیمانده"],["budgeted-cost","Budgeted Cost","هزینه بودجه"],["actual-cost","Actual Cost","هزینه واقعی"],["remaining-cost","Remaining Cost","هزینه باقیمانده"]];
+  const periodLabels = display.timescale === "day" ? ["Period 1","Period 2","Period 3","Period 4"] : display.timescale === "week" ? ["Week 1","Week 2","Week 3","Week 4"] : display.timescale === "month" ? ["Month 1","Month 2","Month 3","Month 4"] : display.timescale === "quarter" ? ["Quarter 1","Quarter 2","Quarter 3","Quarter 4"] : ["Financial Period 1","Financial Period 2","Financial Period 3","Financial Period 4"];
+  const headers = ["Assignment","Resource",...display.fields,"Total",...periodLabels].map((name) => "<th>" + escapeHtml(name) + "</th>").join("");
+  const colspan = 3 + display.fields.length + periodLabels.length;
+  const usage = "<section class=\"cp-assignment-usage-panel\" data-assignment-usage-panel " + (visible ? "" : "hidden") + " aria-label=\"" + escapeAttribute(uiText(state.locale, "Resource Usage Spreadsheet", "صفحه‌گسترده مصرف منابع")) + "\"><header><strong>" + escapeHtml(uiText(state.locale, "Resource Usage Spreadsheet", "صفحه‌گسترده مصرف منابع")) + "</strong><div class=\"cp-assignment-usage-options\"><label>" + escapeHtml(uiText(state.locale, "Timescale", "مقیاس زمانی")) + "<select data-assignment-usage-timescale>" + timescaleOptions.map(([value,en,fa])=>"<option value=\"" + value + "\" " + (display.timescale===value?"selected":"") + ">" + escapeHtml(uiText(state.locale,en,fa)) + "</option>").join("") + "</select></label><label>" + escapeHtml(uiText(state.locale, "Data", "داده")) + "<select data-assignment-usage-data>" + dataOptions.map(([value,en,fa])=>"<option value=\"" + value + "\" " + (display.data===value?"selected":"") + ">" + escapeHtml(uiText(state.locale,en,fa)) + "</option>").join("") + "</select></label><button type=\"button\" data-assignment-usage-fields-open>" + escapeHtml(uiText(state.locale, "Spreadsheet Fields…", "فیلدهای صفحه‌گسترده…")) + "</button></div></header><div class=\"cp-assignment-usage-table-wrap\"><table><thead><tr>" + headers + "</tr></thead><tbody><tr><td colspan=\"" + colspan + "\">" + escapeHtml(uiText(state.locale, "No resource assignment time-phased values are loaded.", "مقادیر زمان‌بندی‌شده تخصیص منابع بارگذاری نشده‌اند.")) + "</td></tr></tbody></table></div><p>" + escapeHtml(uiText(state.locale, "The selected display fields and timescale are presentation preferences only. No assignment values are loaded; editing and fill-down/across remain unavailable.", "فیلدها و مقیاس زمانی انتخاب‌شده فقط تنظیمات نمایش هستند. هیچ مقدار تخصیصی بارگذاری نشده؛ ویرایش و پرکردن افقی/عمودی در دسترس نیست.")) + "</p></section>";
+  const fieldOptions = ["Budgeted Units","Actual Units","Remaining Units","At Completion Units","Budgeted Cost","Actual Cost","Remaining Cost","At Completion Cost"];
+  const dialog = "<dialog class=\"cp-assignment-fields-dialog\" data-assignment-usage-fields-dialog aria-labelledby=\"cp-assignment-fields-title\"><header><h2 id=\"cp-assignment-fields-title\">" + escapeHtml(uiText(state.locale, "Spreadsheet Fields", "فیلدهای صفحه‌گسترده")) + "</h2><button type=\"button\" data-assignment-usage-fields-close aria-label=\"" + escapeAttribute(uiText(state.locale,"Close","بستن")) + "\">×</button></header><p>" + escapeHtml(uiText(state.locale,"Select the fields to display. At least one field is required.","فیلدهای نمایشی را انتخاب کنید. حداقل یک فیلد لازم است.")) + "</p><div class=\"cp-assignment-fields-grid\">" + fieldOptions.map((field)=>"<label><input type=\"checkbox\" data-assignment-usage-field value=\"" + escapeAttribute(field) + "\" " + (display.fields.includes(field)?"checked":"") + "> " + escapeHtml(uiText(state.locale,field,field==="Budgeted Units"?"واحد بودجه":field==="Actual Units"?"واحد واقعی":field==="Remaining Units"?"واحد باقیمانده":field==="At Completion Units"?"واحد هنگام تکمیل":field==="Budgeted Cost"?"هزینه بودجه":field==="Actual Cost"?"هزینه واقعی":field==="Remaining Cost"?"هزینه باقیمانده":"هزینه هنگام تکمیل")) + "</label>").join("") + "</div><footer><button type=\"button\" data-assignment-usage-fields-close>" + escapeHtml(uiText(state.locale,"Cancel","انصراف")) + "</button><button type=\"button\" data-assignment-usage-fields-apply>" + escapeHtml(uiText(state.locale,"Apply","اعمال")) + "</button></footer></dialog>";
+  return "<div class=\"cp-assignment-workspace\">" + toolbar + base.replace('<section class="cp-register-details">', usage + dialog + '<section class="cp-register-details">') + "</div>";
 }
+
 function renderRegisterWindow(
   state: WorkspaceState,
   title: string,
