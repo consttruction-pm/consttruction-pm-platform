@@ -938,6 +938,19 @@ test("Workspace menu hierarchy keeps Persian labels for key administration and p
 });
 
 
+test("Version 26 Action toolbar is present in English and Persian and exposes contextual workspace actions", () => {
+  const en = renderVisualDemo(createVisualDemoState("en"));
+  assert.match(en, /title="Action"/);
+  for (const label of ["Add Activity", "Assign Resources", "Assign Activity Codes", "Dissolve Activity"]) {
+    assert.ok(en.includes(label), "missing Action toolbar command: " + label);
+  }
+  const fa = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(fa, /title="عملیات"/);
+  assert.match(fa, /افزودن فعالیت/);
+  assert.match(fa, /تخصیص منابع/);
+  assert.match(fa, /ادغام فعالیت/);
+});
+
 test("Visible CUBI workspace preview does not expose external product branding or reference URLs", () => {
   for (const locale of ["en", "fa"]) {
     const html = renderVisualDemo(createVisualDemoState(locale));
