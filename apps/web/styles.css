@@ -7900,3 +7900,8 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-project-gantt-empty strong{color:#2f4e6c;font-size:13px}
 .cp-p6 .cp-project-gantt-empty span{max-width:520px;font-size:11px;line-height:1.5}
 @media(max-width:760px){.cp-p6 .cp-project-window-toolbar{align-items:flex-start;flex-direction:column}.cp-p6 .cp-project-view-toolbar{margin-inline-start:0}}
+/* Project Table uses the native one-row register shape for the single loaded project. */
+.cp-p6 .cp-project-register .cp-project-register-table{min-width:720px;width:100%;border-collapse:collapse;font-size:10px}
+.cp-p6 .cp-project-register .cp-project-register-table th,.cp-p6 .cp-project-register .cp-project-register-table td{padding:8px 9px;border:1px solid #d5dde6;text-align:start;white-space:nowrap}
+.cp-p6 .cp-project-register .cp-project-register-table thead th{background:#eaf0f6;color:#33485e;font-weight:600}
+.cp-p6 .cp-project-register .cp-project-register-table tbody td{background:#fff;color:#244463}
