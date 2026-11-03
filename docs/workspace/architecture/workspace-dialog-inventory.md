@@ -85,7 +85,6 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Custom Fields | Subject, field name, data type, list values, indicator ranges, formula/read-only fields and required flag | Visual preview implemented; definitions, value persistence, formula evaluation and migration not connected |
 | Calendars | Global / Project / Resource pools, inheritance, workweek, holidays, exceptions, work hours, Used By and period conversions | Visual preview implemented; calendar CRUD, inheritance and scheduling integration not connected |
 | Codes (activity/resource/role/project) | Separate dictionaries, scope, values, hierarchy, colors and assignment counts | Visual preview implemented; dictionary CRUD and code assignment services not connected |
-| Custom Fields | Subject, data type, formula, indicator, list values and required state | Visual preview implemented; definitions, values, formula evaluation and migration not connected |
 | Cost Accounts / Funding Sources | Hierarchical cost accounts, default account, funding sources and assignments | Visual preview implemented; dictionary CRUD, funding transactions and budget roll-up not connected |
 | Resource Shifts / Curves | Shift calendars, effective dates, daily work periods, overtime and curve points | Resource Shifts visual preview implemented; shift capacity and resource curve services not connected |
 
