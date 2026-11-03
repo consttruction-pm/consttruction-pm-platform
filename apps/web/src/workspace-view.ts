@@ -202,6 +202,7 @@ const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
 const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
 const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart">();
 const calendarEditorTabByContainer = new WeakMap<HTMLElement, "general" | "workweek" | "exceptions" | "time-periods" | "assignments">();
+const calendarMonthAnchorByContainer = new WeakMap<HTMLElement, Date>();
 const calendarSelectionByContainer = new WeakMap<HTMLElement, string>();
 const trackingLayoutByContainer = new WeakMap<HTMLElement, "table" | "bar-chart" | "gantt-profile" | "resource-analysis">();
 const assignmentUsageVisibleByContainer = new WeakMap<HTMLElement, boolean>();
@@ -391,7 +392,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-select],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -544,9 +545,25 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       renderMainWorkspace(container, state, options);
       return;
     }
+    if (target.dataset.calendarMonthAction !== undefined) {
+      const current = calendarMonthAnchorByContainer.get(container) ?? new Date();
+      const bounds = calendarMonthBounds(current, state.calendarMode);
+      if (target.dataset.calendarMonthAction === "today") calendarMonthAnchorByContainer.set(container, new Date());
+      else if (target.dataset.calendarMonthAction === "previous") {
+        const previous = new Date(bounds.first);
+        previous.setDate(previous.getDate() - 1);
+        calendarMonthAnchorByContainer.set(container, previous);
+      } else if (target.dataset.calendarMonthAction === "next") {
+        const next = new Date(bounds.last);
+        next.setDate(next.getDate() + 1);
+        calendarMonthAnchorByContainer.set(container, next);
+      } else return;
+      renderMainWorkspace(container, state, options);
+      return;
+    }
     if (target.dataset.calendarEditorTab) {
-      const tab = target.dataset.calendarEditorTab as "general" | "workweek" | "exceptions" | "time-periods" | "assignments";
-      if (!["general", "workweek", "exceptions", "time-periods", "assignments"].includes(tab)) return;
+      const tab = target.dataset.calendarEditorTab as "general" | "calendar" | "workweek" | "exceptions" | "time-periods" | "assignments";
+      if (!["general", "calendar", "workweek", "exceptions", "time-periods", "assignments"].includes(tab)) return;
       calendarEditorTabByContainer.set(container, tab);
       container.querySelectorAll<HTMLElement>("[data-calendar-editor-tab]").forEach((button) => {
         const active = button.dataset.calendarEditorTab === tab;
@@ -1757,6 +1774,63 @@ function renderDocumentRegisterWindow(container: HTMLElement, state: WorkspaceSt
       <nav role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Document detail tabs", "زبانه‌های جزئیات سند"))}">${tabs.map(([key,en,fa])=>`<button type="button" role="tab" data-document-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}</nav><div class="cp-document-detail-content">${detail}</div></section>
   </div>`;
 }
+function calendarParts(date: Date, mode: WorkspaceState["calendarMode"]): { year: string; month: string; day: number } {
+  const calendar = mode === "jalali" ? "persian" : "gregory";
+  const parts = new Intl.DateTimeFormat("en-US", { calendar, year: "numeric", month: "numeric", day: "numeric" }).formatToParts(date);
+  return {
+    year: parts.find((part) => part.type === "year")?.value ?? "",
+    month: parts.find((part) => part.type === "month")?.value ?? "",
+    day: Number(parts.find((part) => part.type === "day")?.value ?? "1"),
+  };
+}
+
+function calendarMonthBounds(date: Date, mode: WorkspaceState["calendarMode"]): { first: Date; last: Date; year: string; month: string } {
+  const target = calendarParts(date, mode);
+  const first = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  for (let index = 0; index < 35 && calendarParts(first, mode).day !== 1; index += 1) first.setDate(first.getDate() - 1);
+  const last = new Date(first);
+  for (let index = 0; index < 35; index += 1) {
+    const next = new Date(last);
+    next.setDate(next.getDate() + 1);
+    const parts = calendarParts(next, mode);
+    if (parts.year !== target.year || parts.month !== target.month) break;
+    last.setTime(next.getTime());
+  }
+  return { first, last, year: target.year, month: target.month };
+}
+
+function renderCalendarMonthView(state: WorkspaceState, container: HTMLElement): string {
+  const mode = state.calendarMode;
+  const calendar = mode === "jalali" ? "persian" : "gregory";
+  const locale = state.locale.startsWith("fa") ? "fa-IR" : state.locale;
+  const anchor = calendarMonthAnchorByContainer.get(container) ?? new Date();
+  const bounds = calendarMonthBounds(anchor, mode);
+  const weekStart = mode === "jalali" ? 6 : 0;
+  const offset = (bounds.first.getDay() - weekStart + 7) % 7;
+  const gridStart = new Date(bounds.first);
+  gridStart.setDate(gridStart.getDate() - offset);
+  const title = new Intl.DateTimeFormat(locale, { calendar, month: "long", year: "numeric" }).format(anchor);
+  const number = new Intl.NumberFormat(locale, { useGrouping: false });
+  const weekdayNames = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(2023, 0, 1 + ((weekStart + index) % 7));
+    return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(day);
+  });
+  const cells = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    const parts = calendarParts(date, mode);
+    const inMonth = parts.year === bounds.year && parts.month === bounds.month;
+    const label = new Intl.DateTimeFormat(locale, { calendar, dateStyle: "full" }).format(date);
+    const status = uiText(state.locale, "Working status not loaded", "وضعیت کاری بارگذاری نشده است");
+    return '<div class="cp-calendar-day' + (inMonth ? '' : ' is-outside-month') + '" aria-label="' + escapeAttribute(label + '. ' + status) + '" title="' + escapeAttribute(status) + '"><span>' + number.format(parts.day) + '</span></div>';
+  }).join("");
+  return '<section class="cp-calendar-month-view" aria-label="' + escapeAttribute(uiText(state.locale, "Calendar month view", "نمای ماهانه تقویم")) + '">' +
+    '<header class="cp-calendar-month-toolbar"><div><button type="button" data-calendar-month-action="previous" aria-label="' + escapeAttribute(uiText(state.locale, "Previous month", "ماه قبل")) + '">‹</button><button type="button" data-calendar-month-action="today">' + escapeHtml(uiText(state.locale, "Today", "امروز")) + '</button><button type="button" data-calendar-month-action="next" aria-label="' + escapeAttribute(uiText(state.locale, "Next month", "ماه بعد")) + '">›</button><strong>' + escapeHtml(title) + '</strong></div><span>' + escapeHtml(mode === "jalali" ? uiText(state.locale, "Jalali calendar", "تقویم جلالی") : uiText(state.locale, "Gregorian calendar", "تقویم میلادی")) + '</span></header>' +
+    '<div class="cp-calendar-month-grid" role="grid"><div class="cp-calendar-weekdays" role="row">' + weekdayNames.map((day) => '<span role="columnheader">' + escapeHtml(day) + '</span>').join("") + '</div><div class="cp-calendar-days">' + cells + '</div></div>' +
+    '<footer class="cp-calendar-month-legend"><span><i class="is-standard"></i>' + escapeHtml(uiText(state.locale, "Standard work time", "زمان کاری استاندارد")) + '</span><span><i class="is-exception"></i>' + escapeHtml(uiText(state.locale, "Exception", "استثنا")) + '</span><span><i class="is-nonwork"></i>' + escapeHtml(uiText(state.locale, "Nonworking time", "زمان غیرکاری")) + '</span><em>' + escapeHtml(uiText(state.locale, "Legend only — no work/nonwork classification is loaded for these dates.", "راهنمای رنگ‌ها؛ وضعیت کاری یا غیرکاری این تاریخ‌ها هنوز بارگذاری نشده است.")) + '</em></footer>' +
+    '</section>';
+}
+
 function renderCalendarCatalog(state: WorkspaceState, selectedCalendarId: string | null = null): string {
   const catalog = state.calendarCatalog;
   if (catalog.status === "unavailable") {
@@ -1881,7 +1955,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
             <section class="cp-calendar-editor">
               <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Calendar Details", "جزئیات تقویم"))}</strong><span>${escapeHtml(state.calendarCatalog.calendars.find((calendar) => calendar.calendarId === calendarSelectionByContainer.get(container))?.name ?? uiText(state.locale, "No selection", "بدون انتخاب"))}</span></div>
               <div class="cp-calendar-editor-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Calendar detail tabs", "زبانه‌های جزئیات تقویم"))}">
-                ${[["general","General","عمومی"],["workweek","Workweek","هفته کاری"],["exceptions","Exceptions","استثناها"],["time-periods","Time Periods","دوره‌های زمانی"],["assignments","Assignments","تخصیص‌ها"]].map(([key,en,fa])=>{const active=(calendarEditorTabByContainer.get(container)??"general")===key;return `<button type="button" role="tab" id="cp-calendar-tab-${key}" aria-controls="cp-calendar-panel-${key}" aria-selected="${active}" tabindex="${active?0:-1}" class="${active?"is-active":""}" data-calendar-editor-tab="${key}">${escapeHtml(uiText(state.locale,en,fa))}</button>`;}).join("")}
+                ${[["general","General","عمومی"],["calendar","Calendar","تقویم"],["workweek","Workweek","هفته کاری"],["exceptions","Exceptions","استثناها"],["time-periods","Time Periods","دوره‌های زمانی"],["assignments","Assignments","تخصیص‌ها"]].map(([key,en,fa])=>{const active=(calendarEditorTabByContainer.get(container)??"general")===key;return `<button type="button" role="tab" id="cp-calendar-tab-${key}" aria-controls="cp-calendar-panel-${key}" aria-selected="${active}" tabindex="${active?0:-1}" class="${active?"is-active":""}" data-calendar-editor-tab="${key}">${escapeHtml(uiText(state.locale,en,fa))}</button>`;}).join("")}
               </div>
               <div class="cp-calendar-editor-content">
                 <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-general" aria-labelledby="cp-calendar-tab-general" tabindex="0" data-calendar-editor-panel="general" ${(calendarEditorTabByContainer.get(container) ?? "general") !== "general" ? "hidden" : ""}>
@@ -1895,6 +1969,9 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
                     <label>${escapeHtml(uiText(state.locale, "Hours per Year", "ساعت در سال"))}<input type="number" disabled placeholder="—"></label>
                     <label>${escapeHtml(uiText(state.locale, "Effective From", "اعتبار از"))}<input type="date" disabled></label>
                   </div>
+                </section>
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-calendar" aria-labelledby="cp-calendar-tab-calendar" tabindex="0" data-calendar-editor-panel="calendar" ${calendarEditorTabByContainer.get(container)!== "calendar" ? "hidden" : ""}>
+                  ${renderCalendarMonthView(state, container)}
                 </section>
                 <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-workweek" aria-labelledby="cp-calendar-tab-workweek" tabindex="0" data-calendar-editor-panel="workweek" ${calendarEditorTabByContainer.get(container)!== "workweek" ? "hidden" : ""}>
                   <div class="cp-calendar-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale, "Day", "روز"))}</th><th>${escapeHtml(uiText(state.locale, "Working Day", "روز کاری"))}</th><th>${escapeHtml(uiText(state.locale, "Interval 1 Start", "شروع بازه ۱"))}</th><th>${escapeHtml(uiText(state.locale, "Interval 1 Finish", "پایان بازه ۱"))}</th><th>${escapeHtml(uiText(state.locale, "Interval 2 Start", "شروع بازه ۲"))}</th><th>${escapeHtml(uiText(state.locale, "Interval 2 Finish", "پایان بازه ۲"))}</th></tr></thead><tbody>
