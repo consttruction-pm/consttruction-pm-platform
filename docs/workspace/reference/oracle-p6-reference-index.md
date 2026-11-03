@@ -135,3 +135,12 @@ These are visual-only records. EPS/OBS, administration, currencies, period calen
 | Selection context menus | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm | Workspace basics include shortcut menus and selection-dependent commands; context actions are scoped to the selected activity or WBS item in CUBI |
 
 | Import / Export visual slice | Version 26 Help TOC plus latest standalone Professional Import/Export Guide located (Version 25) | CUBI import/export dialog: format, information type, template, destination, create/add/replace/update, baseline compatibility, mapping preview, validation, output selection, export privilege and personal-information safeguards |
+
+
+## CUBI workspace menu and command coverage — Version 26 audit
+
+The visible command hierarchy is organized under CUBI File, Edit, View, Project, Organization, Tools, Administration and Help menus. The hierarchy covers project open/close/properties, import/export, print, undo/redo, layout and toolbar selection, WBS/activity/resource assignment, baselines, progress and actuals, period performance, scheduling/resource leveling, global change, cost recalculation, threshold monitoring, reports, EPS/OBS, calendars/shifts, code dictionaries, custom fields, users, security profiles, categories, currencies and financial periods.
+
+Activity and WBS right-click menus are selection-aware. Destructive commands remain disabled in the visual-only preview. Menu actions are checked against the rendered dialog/window registry; all referenced menu dialogs and windows currently resolve to a registered surface.
+
+Version 26 menu and window reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm
