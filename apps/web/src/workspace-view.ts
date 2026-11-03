@@ -2732,7 +2732,6 @@ const PROJECT_DETAIL_TABS = [
   ["resources", "Resources", "منابع"],
   ["settings", "Settings", "تنظیمات"],
   ["calculations", "Calculations", "محاسبات"],
-  ["planning-resources", "Planning Resources", "منابع برنامه‌ریزی"],
   ["contract-management", "Contract Management", "مدیریت قرارداد"],
   ["udfs", "UDFs", "فیلدهای کاربر"],
 ] as const;
