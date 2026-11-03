@@ -189,6 +189,37 @@ test("Calendar register selection drives the details header and read-only identi
   assert.doesNotMatch(container.innerHTML, /Global Standard/);
 });
 
+test("Projects window switches among table, chart and honest empty Gantt top layouts", () => {
+  const html = render("en", "project");
+  assert.match(html, /data-project-view-toggle="table"/);
+  assert.match(html, /data-project-view-toggle="chart"/);
+  assert.match(html, /data-project-view-toggle="gantt"/);
+  assert.match(html, /data-project-view="table"/);
+  assert.match(html, /data-project-view="chart" hidden/);
+  assert.match(html, /data-project-view="gantt" hidden/);
+  assert.match(html, /Only the current session project is loaded/);
+  assert.match(html, /Project start and finish dates are not available/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const panels = ["table", "chart", "gantt"].map((projectView) => ({ dataset: { projectView }, hidden: projectView !== "table" }));
+  const buttons = ["table", "chart", "gantt"].map((projectViewToggle) => ({
+    dataset: { projectViewToggle },
+    setAttribute: (_name: string, _value: string) => {},
+    classList: { toggle: (_name: string, _active: boolean) => {} },
+  }));
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector: string) => selector === "[data-project-view]" ? panels : selector === "[data-project-view-toggle]" ? buttons : [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "project" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { projectViewToggle: "chart" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(panels[0]?.hidden, true);
+  assert.equal(panels[1]?.hidden, false);
+  assert.equal(panels[2]?.hidden, true);
+});
+
 test("WBS register exposes the connected add workflow and working chart presentation", () => {
   const html = render("en", "wbs");
   assert.match(html, /data-rail-action="wbs"/);
