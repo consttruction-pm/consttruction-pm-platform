@@ -431,6 +431,7 @@ class SQLiteLocalApplicationRuntime:
                 constraint_api=self.constraint_api,
                 calendar_api=self.calendar_api,
                 calendar_read_api=self.calendar_read_api,
+                schedule_snapshot_api=self.schedule_snapshot_api,
             ),
         )
 
