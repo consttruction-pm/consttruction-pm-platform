@@ -60,10 +60,29 @@ Current registered operations on the implementation branch:
 | Calendar master | `calendar.list/get/create/update/delete` | `p6-calendar.v1` |
 | Calendar detail | `calendar.exception_list`, `calendar.work_hours.list/save` | `p6-calendar.v1` |
 | Calendar snapshots | `calendar.snapshot_get` | `p6-calendar-read-api.v1` |
+| Baseline | `baseline.list/get/create` | `p6-baseline-api.v1` |
+| Cost accounts | `cost_account.list/get/create` | `p6-cost-account-api.v1` |
+| Expenses | `expense.list/get/create` | `p6-expense-api.v1` |
+| Resource assignments | `resource_assignment.list/get/create`, `resource_assignment_period.list/get/create` | `p6-resource-read-api.v1`, `p6-resource-write-api.v1` |
+| Resource spreads | `resource_spread.list/get/save` | `p6-resource-spread-api.v1` |
+| Resource capacity | `resource_capacity.list/profile/on/save` | `p6-resource-capacity-read-api.v1`, `p6-resource-capacity-write-api.v1` |
 
 These adapters call the existing authenticated typed APIs. They do not implement project validation, persistence, CPM, date arithmetic, resource leveling or cost rules. Project scope and project revision are reconstructed from the trusted host's `AuthorizationContext` and `expected_project_revision`; they are not accepted as authority from JSON. Operations that mutate a record use the existing API's record-revision/optimistic-lock contract. A local host must additionally route every write through `SQLiteLocalApplicationRuntime.apply_offline_mutation` so its domain change and durable outbox record share one transaction.
 
 The JSON boundary rejects duplicate object keys, non-finite JSON constants, unknown envelope fields, unsupported contract versions, undeclared operation names and payload fields outside the operation schema. The request is capped at 1 MiB. Permission, tenant/project scope and expected project revision are checked before a handler is invoked. The runtime returns stable validation, conflict, authorization or internal error envelopes.
+
+For a mutating operation on a local native runtime, the payload must also include the reserved mutation metadata object:
+
+```json
+{
+  "mutation": {
+    "mutation_id": "host-generated-unique-id",
+    "idempotency_key": "host-generated-project-scoped-key"
+  }
+}
+```
+
+The runtime removes this reserved metadata before applying the operation-specific DTO. The local mutation executor creates the durable `OfflineMutation` using the host-authenticated tenant/project and current revision, calls the typed API, and appends the mutation to the same SQLite outbox transaction. The domain write and outbox append commit or roll back together. A missing mutation envelope returns `MUTATION_ENVELOPE_REQUIRED` before the typed handler is called. The Web online runtime does not create a local outbox; its server transaction and authorization remain authoritative.
 
 Example registered request:
 
