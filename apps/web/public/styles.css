@@ -6832,3 +6832,121 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-wbs-window-layout>section>h3{margin:0;padding:7px 9px;border-bottom:1px solid #d8e0e9;background:#f2f5f9;color:#244463;font-size:10px}
 .cp-p6 .cp-wbs-window-layout .cp-wbs-details{margin:0;border:0}
 @media(max-width:800px){.cp-p6 .cp-wbs-window-layout{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Visual Projects window: project register above a full-width bottom details pane.
+   These styles are isolated to Projects; activity/Gantt dimensions stay untouched. */
+.cp-vd-projects-window { flex: 1 1 auto; min-height: 0; width: 100%; }
+.cp-vd-projects-toolbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 7px 12px;
+  padding: 6px 10px; border-bottom: 1px solid #d8e0e9; background: #f5f7fa;
+  color: #53677e; font-size: 10px;
+}
+.cp-vd-projects-toolbar label { display: inline-flex; align-items: center; gap: 7px; }
+.cp-vd-projects-toolbar input {
+  min-width: 220px; min-height: 25px; padding: 3px 7px;
+  border: 1px solid #cbd5e1; border-radius: 3px; background: #fff; color: #263c56;
+}
+.cp-vd-projects-toolbar > .cp-vd-note { margin-inline-start: auto; }
+.cp-vd-projects-upper {
+  display: grid; grid-template-columns: 220px minmax(0, 1fr);
+  flex: 1 1 auto; min-height: 210px; overflow: hidden;
+  border-bottom: 1px solid #bac6d4; background: #fff;
+}
+.cp-vd-project-structure {
+  min-width: 0; overflow: auto; padding: 0 6px 8px;
+  border-inline-end: 1px solid #cbd5e1; background: #f0f4f8;
+}
+.cp-vd-project-section-title {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 29px; padding: 5px 8px; color: #294765;
+  background: #e8edf4; border-bottom: 1px solid #d3dce7; font-size: 11px;
+}
+.cp-vd-project-tree-item {
+  display: flex; align-items: center; gap: 7px; width: 100%; min-width: 0;
+  min-height: 28px; margin-top: 3px; padding: 5px 7px; border: 1px solid transparent;
+  border-radius: 3px; background: transparent; color: #344b64; text-align: start;
+  font-size: 10.5px; cursor: pointer;
+}
+.cp-vd-project-tree-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-vd-project-tree-item > small { margin-inline-start: auto; color: #718096; }
+.cp-vd-project-tree-item:hover { background: #e4ebf4; }
+.cp-vd-project-tree-item.is-selected,
+.cp-vd-project-tree-item[aria-pressed="true"] {
+  border-color: #c3d3e5; background: #dce8f5; color: #173d68; font-weight: 700;
+}
+.cp-vd-project-tree-item.is-root { font-weight: 700; }
+.cp-vd-project-tree-branch { margin-inline-start: 12px; padding-inline-start: 7px; border-inline-start: 1px solid #bdc9d7; }
+.cp-vd-project-tree-domain {
+  display: block; padding: 8px 6px 3px; color: #718096;
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+}
+.cp-vd-project-structure > .cp-vd-note { margin: 8px 5px; }
+.cp-vd-project-register { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.cp-vd-project-register > .cp-vd-tablewrap { flex: 1 1 auto; min-height: 0; }
+.cp-vd-project-table { width: 100%; min-width: 760px; }
+.cp-vd-project-table .cp-vd-row { cursor: pointer; }
+.cp-vd-project-table .cp-vd-row:focus-visible { outline: 2px solid #1976d2; outline-offset: -2px; }
+.cp-vd-project-details {
+  display: flex; flex-direction: column; flex: 0 0 240px; min-height: 150px;
+  max-height: 45%; overflow: hidden; background: #fff; border-top: 2px solid #aebdce;
+}
+.cp-vd-project-details-head {
+  display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto;
+  padding: 5px 9px 0; background: #eef2f7; border-bottom: 1px solid #cbd5e1;
+}
+.cp-vd-project-details-title {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px;
+  min-height: 22px; color: #294765; font-size: 10px;
+}
+.cp-vd-project-details-title h3 { margin: 0; color: #173d68; font-size: 12px; }
+.cp-vd-project-details-title bdi { color: #6b7d91; }
+.cp-vd-project-details-title strong { font-size: 11px; }
+.cp-vd-project-detail-tabs {
+  display: flex; gap: 2px; min-width: 0; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.cp-vd-project-detail-tabs button {
+  flex: 0 0 auto; min-height: 29px; padding: 5px 9px;
+  border: 0; border-bottom: 2px solid transparent; background: transparent;
+  color: #53677e; font-size: 10px; white-space: nowrap; cursor: pointer;
+}
+.cp-vd-project-detail-tabs button:hover { background: #e3eaf2; }
+.cp-vd-project-detail-tabs button.is-active,
+.cp-vd-project-detail-tabs button[aria-selected="true"] {
+  border-bottom-color: #c87935; background: #fff; color: #173d68; font-weight: 700;
+}
+.cp-vd-project-details-content {
+  flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 10px;
+}
+.cp-vd-project-detail-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px 14px; margin: 0;
+}
+.cp-vd-project-detail-grid > div {
+  display: grid; grid-template-columns: minmax(95px, 42%) minmax(0, 1fr);
+  gap: 7px; align-items: baseline; min-width: 0;
+  padding: 4px 2px; border-bottom: 1px solid #edf1f5;
+}
+.cp-vd-project-detail-grid dt { color: #718096; font-size: 10px; }
+.cp-vd-project-detail-grid dd {
+  min-width: 0; margin: 0; overflow-wrap: anywhere;
+  color: #263d56; font-size: 10.5px; font-weight: 600;
+}
+.cp-vd-project-detail-tablewrap { min-height: 0; overflow: auto; }
+.cp-vd-project-detail-tablewrap .cp-vd-mini { min-width: 520px; }
+@media(max-width: 900px) {
+  .cp-vd-projects-upper { grid-template-columns: 180px minmax(0, 1fr); }
+  .cp-vd-project-details { flex-basis: 220px; }
+  .cp-vd-project-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media(max-width: 640px) {
+  .cp-vd-projects-upper { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(220px, 1fr); }
+  .cp-vd-project-structure { max-height: 110px; border-inline-end: 0; border-bottom: 1px solid #cbd5e1; }
+  .cp-vd-project-tree-branch { display: flex; flex-wrap: wrap; gap: 2px; margin-inline-start: 0; padding-inline-start: 0; border: 0; }
+  .cp-vd-project-tree-domain { flex: 0 0 100%; padding-top: 4px; }
+  .cp-vd-project-tree-item { width: auto; max-width: 100%; }
+  .cp-vd-project-details { flex-basis: 240px; max-height: 45%; }
+  .cp-vd-project-detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .cp-vd-projects-toolbar input { min-width: 145px; }
+}
