@@ -348,3 +348,12 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - The Version 26 Professional WBS Details inventory contains General, Notebook, Budget Log, Spending Plan, Budget Summary, WBS Milestones, WPs & Docs, Earned Value and User Defined Fields. Planning Resources is EPPM-only; there is no native WBS Details Activities tab.
 - CUBI retains the useful linked-activities view as an explicitly marked **Related Activities (CUBI extension)** tab. Its origin is encoded in the tab metadata and its tooltip, so it is not presented as a native desktop tab.
 - Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_details.htm.
+
+## Calendar window — read-only month canvas — 2026-11-03
+
+- Added a dedicated Calendar tab alongside General, Workweek, Exceptions, Time Periods, and Assignments.
+- The month canvas generates actual date labels using the workspace-selected calendar mode: Gregorian weeks begin Sunday; Jalali weeks begin Saturday. Previous, Today, and Next navigate by calendar month, including correct month boundaries.
+- The calendar legend is present for Standard, Exception, and Nonworking classifications, but the dates remain visually unclassified and explicitly say that working status is not loaded. No workday, holiday, exception, or hours data is fabricated.
+- Editing remains disabled until the authoritative calendar service is connected. This is a visual/navigation completion, not a claim that calendar editing or scheduling integration is complete.
+- Regression coverage checks the six detail tabs, 42-cell month canvas, navigation controls, and honest unknown-status state.
+- Reference: Version 26 Professional User Guide, “Edit a global calendar” and “Edit a project calendar”: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/edit_a_global_calendar.htm. The calendar dialog's month navigation, Work/Nonwork/Standard, Workweek, and Time Periods controls are also documented here: https://docs.oracle.com/cd/F51303_01/client_help/en_US/calendar_dialog_box.htm.
