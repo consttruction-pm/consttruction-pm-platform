@@ -444,6 +444,6 @@ The Version 26 Activity Details page lists **Summary** as a native tab, and the 
 ## Activity Details record navigator — 2026-11-03
 
 - Version 26 Activity Details provides Previous and Next navigation plus Activity ID, Activity Name and Project fields above the tab strip. The Summary tab is part of the native desktop inventory; it is no longer labeled or tagged as a CUBI extension.
-- CUBI correction: added Previous/Next navigation across the currently loaded activity order and read-only Activity ID, Activity Name and Project fields. Navigation calls the existing activity-selection callback; identity fields remain read-only until the authorized activity update workflow is available.
+- CUBI correction: added Previous/Next navigation across the current filtered and sorted activity order, plus read-only Activity ID, Activity Name and Project fields. Navigation calls the existing activity-selection callback; identity fields remain read-only until the authorized activity update workflow is available.
 - Regression coverage verifies adjacent-record navigation, displayed identity values and native Summary provenance.
 - Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/activity_details.htm.
