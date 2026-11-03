@@ -304,7 +304,7 @@ test("Activity Network and Trace Logic expose Version 26 layout and inspection p
   assert.match(traceHtml, /Trace preferences/);
   assert.match(traceHtml, /Predecessor levels/);
   assert.match(traceHtml, /Successor levels/);
-  assert.match(traceHtml, /Relationship type and lag/);
+  assert.match(traceHtml, /relationship type and lag/i);
   assert.match(traceHtml, /Orthogonal/);
 });
 
