@@ -970,6 +970,9 @@ test("Version 26 Action toolbar is present in English and Persian and exposes co
   const en = renderVisualDemo(createVisualDemoState("en"));
   assert.match(en, /title="Action"/);
   assert.match(en, /title="Display"/);
+  for (const toolbar of ["Action", "Standard", "Project", "Edit", "Display", "Assign", "Tools", "Organization", "Dictionaries", "Find", "Move", "Print", "Publish", "Reports", "Layout", "Top Layout", "Bottom Layout", "Administrator"]) {
+    assert.ok(en.includes(`title="${toolbar}"`), "missing toolbar: " + toolbar);
+  }
   for (const label of ["Add Activity", "Assign Resources", "Assign Activity Codes", "Dissolve Activity"]) {
     assert.ok(en.includes(label), "missing Action toolbar command: " + label);
   }
