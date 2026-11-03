@@ -22,6 +22,7 @@ import {
   setCalendarMode,
   setGanttScale,
   setGanttRelationshipsVisible,
+  setWorkspaceLayout,
   type WorkspaceLocale,
   type WorkspaceMenuKey,
   type WorkspaceState,
@@ -753,6 +754,13 @@ function renderApp(
         pendingDesktopFocusSelector = "[data-activity-filter]";
         activateWindow("schedule");
         return;
+      case "view.filters": {
+        activateWindow("schedule");
+        const dialog = container.querySelector<HTMLDialogElement>("[data-filters-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
+        return;
+      }
       case "edit.group-wbs":
         if (state.activityGroupBy !== "wbs") {
           renderApp(container, setActivityGroupBy(state, "wbs"), persistence);
@@ -800,6 +808,14 @@ function renderApp(
         pendingDesktopFocusSelector = "#cp-logic select[name='predecessor_id'], #cp-logic select[name='successor_id'], #cp-logic button";
         activateWindow("schedule");
         openWorkspaceDrawer(container, "[data-tools-drawer]");
+        return;
+      case "view.wbs-chart-options":
+        pendingDesktopAction = () => {
+          const chart = document.querySelector<HTMLButtonElement>('[data-wbs-view-toggle="chart"]');
+          if (chart && chart.getAttribute("aria-pressed") !== "true") chart.click();
+          document.querySelector<HTMLButtonElement>("[data-wbs-chart-options-toggle]")?.click();
+        };
+        activateWindow("wbs");
         return;
       case "view.fields":
         pendingDesktopFocusSelector = ".cp-p6-field-chooser";
@@ -1446,6 +1462,9 @@ function renderApp(
     onGanttRelationshipsChange: (visible) => {
       renderApp(container, setGanttRelationshipsVisible(state, visible), persistence);
     },
+    onWorkspaceLayoutChange: (workspaceLayout) => {
+      renderApp(container, setWorkspaceLayout(state, workspaceLayout), persistence);
+    },
     onProjectSettings: () => {
       openProjectSettings(container, state, persistence);
     },
@@ -1454,6 +1473,10 @@ function renderApp(
     },
     onActivityGroupByChange: (groupBy) => {
       renderApp(container, setActivityGroupBy(state, groupBy), persistence);
+    },
+    onActivityGroupSortChange: (groupBy, columnId, direction) => {
+      const grouped = setActivityGroupBy(state, groupBy);
+      renderApp(container, setActivitySort(grouped, columnId, direction), persistence);
     },
     onActivitySortChange: (columnId) => {
       const direction = state.activitySort?.columnId === columnId
@@ -1819,8 +1842,28 @@ function renderBootstrapState(
       startDateInput.value = canonical;
       clearDateError();
     };
-    dateSystemSelect.addEventListener("change", syncStartDateInput);
-    startDateInput.addEventListener("input", clearDateError);
+    const validateStartDateInput = (): void => {
+      const raw = startDateInput.value.trim();
+      if (!raw) {
+        clearDateError();
+        return;
+      }
+      const completeDate = /^\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}$/.test(raw);
+      if (dateSystemSelect.value === "jalali") {
+        const canonical = parseJalaliDateInput(raw)
+          ?? (isValidCanonicalIsoDate(raw) ? raw : null);
+        if (canonical || !completeDate) clearDateError();
+        else showDateError();
+        return;
+      }
+      if (isValidCanonicalIsoDate(raw) || !completeDate) clearDateError();
+      else showDateError();
+    };
+    dateSystemSelect.addEventListener("change", () => {
+      syncStartDateInput();
+      validateStartDateInput();
+    });
+    startDateInput.addEventListener("input", validateStartDateInput);
 
     const errorMessage = document.createElement("p");
     errorMessage.id = errorId;

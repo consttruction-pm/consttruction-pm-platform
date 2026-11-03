@@ -56,6 +56,22 @@ test("every menu entry opens a window, runs a command, or states why it is unava
   }
 });
 
+test("WBS chart template and font/color commands are enabled only for the WBS window", () => {
+  const scheduleView = getDesktopMenus(shellState()).find((menu) => menu.id === "view")?.items;
+  for (const id of ["view.wbs-chart-template", "view.wbs-chart-colors"]) {
+    const item = scheduleView?.find((entry) => entry.id === id);
+    assert.equal(item?.command, "view.wbs-chart-options");
+    assert.ok(item?.disabledReason?.en);
+  }
+  const wbsState = { ...shellState(), activeWindow: "wbs" as const };
+  const wbsView = getDesktopMenus(wbsState).find((menu) => menu.id === "view")?.items;
+  for (const id of ["view.wbs-chart-template", "view.wbs-chart-colors"]) {
+    const item = wbsView?.find((entry) => entry.id === id);
+    assert.equal(item?.command, "view.wbs-chart-options");
+    assert.equal(item?.disabledReason, undefined);
+  }
+});
+
 test("window titles cover every navigation surface and avoid third-party product names", () => {
   const titles = Object.keys(WINDOW_TITLES);
   assert.deepEqual(titles, [
@@ -106,6 +122,15 @@ test("disabled commands explain the missing precondition instead of failing sile
     assert.ok(item?.disabledReason?.en, `${id} must explain why it is disabled`);
   }
   assert.equal(byId.get("edit.group-wbs")?.checked, true, "WBS grouping is the default activity view");
+});
+
+test("Filters menu and toolbar open the dedicated activity filter dialog, not Find", () => {
+  const menus = getDesktopMenus(shellState());
+  const viewFilters = menus.find((menu) => menu.id === "view")?.items.find((item) => item.id === "view.filters");
+  assert.equal(viewFilters?.command, "view.filters");
+  const filters = getDesktopToolbar(shellState()).find((item) => item.id === "toolbar.find");
+  assert.equal(filters?.command, "view.filters");
+  assert.doesNotMatch(filters?.title.en ?? "", /search|find/i);
 });
 
 test("toolbar commands are real and track layout history and selection", () => {

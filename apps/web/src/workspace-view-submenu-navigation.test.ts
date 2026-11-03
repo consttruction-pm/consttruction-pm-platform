@@ -9,7 +9,7 @@ type RenderContainer = {
   querySelectorAll: () => HTMLElement[];
 };
 
-function render(activeMenu: "schedule" | "reports"): string {
+function render(activeMenu: "schedule" | "reports" | "tracking"): string {
   const state = {
     ...createWorkspaceState(
       { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
@@ -34,10 +34,28 @@ test("implemented submenu items navigate to the corresponding workspace panels",
   assert.match(html, /id="cp-gantt"/);
 });
 
-test("preview-only submenu items remain non-interactive", () => {
+test("Reports submenu items open their read-only report center tabs", () => {
   const html = render("reports");
 
-  assert.match(html, /<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">Reports<\/span>/);
-  assert.match(html, /<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">Print<\/span>/);
+  assert.match(html, /data-navigation-action="reports-tab:library"/);
+  assert.match(html, /data-navigation-action="reports-tab:layouts"/);
+  assert.match(html, /data-navigation-action="reports-tab:page-setup"/);
+  assert.match(html, /data-navigation-action="reports-tab:export"/);
+  assert.match(html, /class="cp-reports-center"/);
+  assert.match(html, /disabled until the report service is connected/);
   assert.doesNotMatch(html, /href="#cp-/);
+});
+
+test("Tracking layout choices are selectable while data-dependent actions remain explicitly disabled", () => {
+  const html = render("tracking");
+
+  assert.match(html, /data-tracking-layout/);
+  assert.match(html, /<option value="table"[^>]*>Project Table<\/option>/);
+  assert.match(html, /<option value="bar-chart"[^>]*>Project Bar Chart<\/option>/);
+  assert.match(html, /<option value="gantt-profile"[^>]*>Project Gantt \/ Profile<\/option>/);
+  assert.match(html, /<option value="resource-analysis"[^>]*>Resource Analysis<\/option>/);
+  assert.match(html, /data-tracking-surface="table"/);
+  assert.match(html, /No tracking data/);
+  assert.match(html, /<button type="button" disabled>Refresh Data<\/button>/);
+  assert.match(html, /<button type="button" disabled>Save Layout<\/button>/);
 });

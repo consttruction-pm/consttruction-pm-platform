@@ -9,6 +9,7 @@ import {
   selectWbs,
   setCalendarMode,
   setGanttScale,
+  setWorkspaceLayout,
   setGanttRelationshipsVisible,
   setLocale,
   setControlSummary,
@@ -662,4 +663,22 @@ test("Gantt relationship visibility toggles presentation only and defaults on", 
   assert.equal(hidden.relationships, state.relationships);
   assert.strictEqual(setGanttRelationshipsVisible(hidden, false), hidden);
   assert.equal(setGanttRelationshipsVisible(hidden, true).showGanttRelationships, true);
+});
+
+
+test("workspace layout switches split, grid and Gantt without changing schedule records", () => {
+  const state = createWorkspaceState(context, "en");
+  assert.equal(state.workspaceLayout, "split");
+  assert.equal(state.visiblePanels.activity_grid, true);
+  assert.equal(state.visiblePanels.gantt, true);
+  const grid = setWorkspaceLayout(state, "grid");
+  assert.equal(grid.workspaceLayout, "grid");
+  assert.equal(grid.visiblePanels.activity_grid, true);
+  assert.equal(grid.visiblePanels.gantt, false);
+  assert.equal(grid.activities, state.activities);
+  const gantt = setWorkspaceLayout(grid, "gantt");
+  assert.equal(gantt.workspaceLayout, "gantt");
+  assert.equal(gantt.visiblePanels.activity_grid, false);
+  assert.equal(gantt.visiblePanels.gantt, true);
+  assert.throws(() => setWorkspaceLayout(state, "network" as never), /INVALID_WORKSPACE_LAYOUT/);
 });

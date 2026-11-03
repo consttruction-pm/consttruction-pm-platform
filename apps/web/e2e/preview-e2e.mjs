@@ -2319,13 +2319,33 @@ async function main() {
       menuLabels.includes("Schedule") && menuLabels.includes("Resources"),
       "main menu labels must be bilingual-ready English defaults",
     );
+    await page.click('[data-workspace-layout="grid"]');
+    assert(
+      await page.evaluate("(() => {\n        const workspace = document.querySelector(\".cp-p6-workspace\");\n        return workspace?.getAttribute(\"data-workspace-layout\") === \"grid\" &&\n          getComputedStyle(document.querySelector(\"#cp-gantt\")).display === \"none\" &&\n          getComputedStyle(document.querySelector(\"#cp-activity-grid\")).display !== \"none\";\n      })()"),
+      "Grid only must show the activity register and hide Gantt",
+    );
+    await page.click('[data-workspace-layout="gantt"]');
+    assert(
+      await page.evaluate("(() => {\n        const workspace = document.querySelector(\".cp-p6-workspace\");\n        return workspace?.getAttribute(\"data-workspace-layout\") === \"gantt\" &&\n          getComputedStyle(document.querySelector(\"#cp-activity-grid\")).display === \"none\" &&\n          getComputedStyle(document.querySelector(\"#cp-gantt\")).display !== \"none\";\n      })()"),
+      "Gantt only must show the chart and hide the activity register",
+    );
+    await page.click('[data-workspace-layout="split"]');
+    assert(
+      await page.evaluate("(() => {\n        const workspace = document.querySelector(\".cp-p6-workspace\");\n        return workspace?.getAttribute(\"data-workspace-layout\") === \"split\" &&\n          getComputedStyle(document.querySelector(\"#cp-activity-grid\")).display !== \"none\" &&\n          getComputedStyle(document.querySelector(\"#cp-gantt\")).display !== \"none\";\n      })()"),
+      "Split must restore both synchronized schedule panes",
+    );
     assert(
       (await page.text(".cp-navigation-surface strong")) === "Schedule",
       "schedule is the initial workspace surface",
     );
+    const initialScheduleStatus = await page.text(".cp-navigation-surface [data-surface-status]");
+    const initialScheduleStatusContract = await page.evaluate(`(() => ({
+      code: document.querySelector(".cp-navigation-surface [data-surface-status]")?.getAttribute("data-surface-status") ?? null,
+      label: document.documentElement.lang === "fa" ? "جزئی" : "Partial",
+    }))()`);
     assert(
-      (await page.text(".cp-navigation-surface [data-surface-status]")) === "Implemented",
-      "schedule surface status must be honest",
+      initialScheduleStatusContract.code === "partial" && initialScheduleStatus === initialScheduleStatusContract.label,
+      "schedule surface status must be honest and localized: " + JSON.stringify({ initialScheduleStatus, initialScheduleStatusContract }),
     );
     const scheduleSubmenus = await page.count(".cp-navigation-surface a.cp-submenu-item");
     assert(scheduleSubmenus === 13, "thirteen schedule submenu anchors expected");
@@ -2421,8 +2441,8 @@ async function main() {
     for (const surface of [
       { menu: "project", label: "Project", status: "Partial", submenus: 3 },
       { menu: "resources", label: "Resources", status: "Partial", submenus: 2 },
-      { menu: "control", label: "Control", status: "Partial", submenus: 2 },
-      { menu: "schedule", label: "Schedule", status: "Implemented", submenus: 13 },
+      { menu: "control", label: "Control", status: "Partial", submenus: 8 },
+      { menu: "schedule", label: "Schedule", status: "Partial", submenus: 13 },
     ]) {
       await page.click(`[data-menu="${surface.menu}"]`);
       await page.waitFor(
@@ -2430,12 +2450,16 @@ async function main() {
         `${surface.label} navigation surface`,
       );
       const status = await page.text(".cp-navigation-surface [data-surface-status]");
+      const statusContract = await page.evaluate(`(() => ({
+        code: document.querySelector(".cp-navigation-surface [data-surface-status]")?.getAttribute("data-surface-status") ?? null,
+        label: document.documentElement.lang === "fa" ? "جزئی" : "Partial",
+      }))()`);
       assert(
-        status === surface.status,
-        `${surface.label} status must be ${surface.status}, got ${status}`,
+        statusContract.code === surface.status.toLowerCase() && status === statusContract.label,
+        `${surface.label} status must match the honest localized ${surface.status} contract, got ${JSON.stringify({ status, statusContract })}`,
       );
       const submenus = await page.count(
-        ".cp-navigation-surface a.cp-submenu-item, .cp-navigation-surface span.cp-submenu-item",
+        ".cp-navigation-surface a.cp-submenu-item, .cp-navigation-surface button.cp-submenu-item, .cp-navigation-surface span.cp-submenu-item",
       );
       assert(
         submenus === surface.submenus,
@@ -2455,6 +2479,8 @@ async function main() {
       `document.querySelector(".cp-navigation-surface strong")?.textContent.trim() === "Resources"`,
       "resources surface after menu selection",
     );
+    await page.click('[data-rail-action="tools"][title="Open resource capacity"]');
+    await page.waitFor("document.querySelector(\"[data-tools-drawer]\")?.hidden === false", "resource capacity tools drawer");
     await page.scrollTo("#cp-resource-capacity");
     await page.waitForSelector(
       "[data-capacity-write-form]",
@@ -2492,7 +2518,16 @@ async function main() {
     await page.setInput("[data-capacity-resolve-period]", "2026-10-16");
     await page.setSelect("[data-capacity-resolve-basis]", "week");
     await page.setInput("[data-capacity-resolve-hours]", "40");
+    const capacityInputs = await page.evaluate("(() => ({ resource: document.querySelector(\"[data-capacity-resolve-resource]\")?.value ?? null, period: document.querySelector(\"[data-capacity-resolve-period]\")?.value ?? null, basis: document.querySelector(\"[data-capacity-resolve-basis]\")?.value ?? null, hours: document.querySelector(\"[data-capacity-resolve-hours]\")?.value ?? null, hoursDisabled: document.querySelector(\"[data-capacity-resolve-hours]\")?.disabled ?? null }))()");
+    assert(
+      capacityInputs.resource === "RPS-CIVIL-CREW" && capacityInputs.period === "2026-10-16" && capacityInputs.basis === "week" && capacityInputs.hours === "40" && capacityInputs.hoursDisabled === false,
+      "capacity resolver inputs must retain the entered values: " + JSON.stringify(capacityInputs),
+    );
+    await page.scrollTo("[data-capacity-resolve]");
     await page.click("[data-capacity-resolve]");
+    await sleep(400);
+    const resolveDiagnostic = await page.evaluate("(() => ({ status: document.querySelector(\"[data-capacity-resolve-status]\")?.textContent.trim() ?? \"\", value: document.querySelector(\"[data-capacity-resolve-value]\")?.getAttribute(\"data-capacity-resolve-value\") ?? null, buttonType: document.querySelector(\"[data-capacity-resolve]\")?.type ?? null, buttonDisabled: document.querySelector(\"[data-capacity-resolve]\")?.disabled ?? null, drawerHidden: document.querySelector(\"[data-tools-drawer]\")?.hidden ?? null, panelBusy: document.querySelector(\"[data-capacity-panel]\")?.getAttribute(\"aria-busy\") ?? null }))()");
+    assert(resolveDiagnostic.status.length > 0 || resolveDiagnostic.value !== null, "capacity resolve action must start: " + JSON.stringify(resolveDiagnostic));
     await page.waitFor(
       `document.querySelector("[data-capacity-resolve-value]")?.getAttribute("data-capacity-resolve-value") === "60"`,
       "server-resolved weekly capacity before the change",
@@ -2512,11 +2547,44 @@ async function main() {
       return element.checked;
     })()`);
     assert(closeChecked, "the effective change must request closing the open segment");
-    await page.click("[data-capacity-save]");
-    await page.waitFor(
-      `Boolean(document.querySelector("[data-capacity-write-result] [data-capacity-write-success]"))`,
-      "capacity write accepted by the server",
+    const writeInputsBeforeSubmit = await page.evaluate(`(() => {
+      const form = document.querySelector("[data-capacity-write-form]");
+      return form ? Array.from(form.querySelectorAll("input,select")).map((field) => ({
+        selector: field.getAttribute("data-capacity-resource") !== null ? "resource" :
+          field.getAttribute("data-capacity-max-units") !== null ? "maxUnits" :
+          field.getAttribute("data-capacity-unit-basis") !== null ? "basis" :
+          field.getAttribute("data-capacity-hours") !== null ? "hours" :
+          field.getAttribute("data-capacity-from") !== null ? "from" :
+          field.getAttribute("data-capacity-to") !== null ? "to" : "close",
+        value: field.type === "checkbox" ? field.checked : field.value,
+      })) : [];
+    })()`);
+    assert(
+      writeInputsBeforeSubmit.some((field) => field.selector === "maxUnits" && field.value === "10") &&
+        writeInputsBeforeSubmit.some((field) => field.selector === "hours" && field.value === "8") &&
+        writeInputsBeforeSubmit.some((field) => field.selector === "from" && field.value === "2026-11-01"),
+      "capacity write fields must retain their values before submit: " + JSON.stringify(writeInputsBeforeSubmit),
     );
+    await page.click("[data-capacity-save]");
+    try {
+      await page.waitFor(
+        `Boolean(document.querySelector("[data-capacity-write-result] [data-capacity-write-success]"))`,
+        "capacity write accepted by the server",
+      );
+    } catch (error) {
+      const diagnostic = await page.evaluate(`(() => {
+        const form = document.querySelector("[data-capacity-write-form]");
+        const panel = document.querySelector("#cp-resource-capacity [data-capacity-panel]");
+        return {
+          formValid: form instanceof HTMLFormElement ? form.checkValidity() : null,
+          values: form ? Array.from(form.querySelectorAll("input,select")).map((field) => ({ type: field.type, value: field.type === "checkbox" ? field.checked : field.value, valid: field.validity?.valid })) : [],
+          status: panel?.querySelector("[data-capacity-write-status]")?.textContent?.trim() ?? "",
+          result: panel?.querySelector("[data-capacity-write-result]")?.innerHTML ?? "",
+          busy: panel?.getAttribute("aria-busy") ?? null,
+        };
+      })()`);
+      throw new Error("CAPACITY_WRITE_DIAGNOSTIC: " + JSON.stringify(diagnostic) + "; " + error.message);
+    }
     await page.waitFor(
       `document.querySelectorAll("[data-capacity-profile] tbody tr").length === 3`,
       "three active capacity segments after the effective change",
@@ -3256,10 +3324,28 @@ async function main() {
       "1405/13/01",
     );
     await page.click('[data-schedule-settings-form] button[type="submit"]');
-    await page.waitFor(
-      `document.querySelector("[data-settings-status]")?.textContent.includes("INVALID_PROJECT_START")`,
-      "explicit invalid Jalali date error",
-    );
+    try {
+      await page.waitFor(
+        `document.querySelector("[data-settings-status]")?.textContent.includes("INVALID_PROJECT_START")`,
+        "explicit invalid Jalali date error",
+      );
+    } catch (error) {
+      const diagnostic = await page.evaluate(`(() => {
+        const form = document.querySelector("[data-schedule-settings-form]");
+        const input = form?.querySelector('input[name="project_start"]');
+        return {
+          lang: document.documentElement.lang,
+          formValid: form instanceof HTMLFormElement ? form.checkValidity() : null,
+          inputType: input?.type ?? null,
+          inputValue: input?.value ?? null,
+          dateSystem: input?.dataset.dateSystem ?? null,
+          iso: input?.dataset.iso ?? null,
+          status: document.querySelector("[data-settings-status]")?.textContent?.trim() ?? "",
+          submitDisabled: form?.querySelector('button[type="submit"]')?.disabled ?? null,
+        };
+      })()`);
+      throw new Error("JALALI_SETTINGS_DIAGNOSTIC: " + JSON.stringify(diagnostic) + "; " + error.message);
+    }
     const invalidJalaliSettings = await page.evaluate(
       `(async () => {
         const headers = {

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
-import { createWorkspaceState, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
+import { createWorkspaceState, setDocuments, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -114,12 +114,129 @@ test("Calendar Register displays only authenticated project calendar records", (
   assert.doesNotMatch(container.innerHTML, />0<\/span>/);
 });
 
-test("WBS register exposes the connected add workflow and never fabricates a chart action", () => {
+test("Calendar search filters only loaded calendar rows and exposes management actions", () => {
+  const html = render("en", "calendars");
+  assert.match(html, /data-calendar-search/);
+  assert.match(html, /data-calendar-pool="global"/);
+  assert.match(html, /Used By/);
+  assert.match(html, /To Global/);
+  assert.match(html, /To Shared/);
+  assert.match(html, /To Personal/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const rows = [{ dataset: { calendarSearch: "global standard" }, hidden: false }, { dataset: { calendarSearch: "project standard" }, hidden: false }];
+  const empty = { hidden: true };
+  const container = { innerHTML: "", querySelectorAll: (selector: string) => selector === "[data-calendar-row]" ? rows : [], querySelector: (selector: string) => selector === "[data-calendar-search-empty]" ? empty : null, addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener) };
+  renderMainWorkspace(container as unknown as HTMLElement, { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "calendars" as const });
+  const input = { value: "global", closest: (selector: string) => selector === "[data-calendar-search]" ? input : null };
+  listeners.get("input")?.({ target: input } as unknown as Event);
+  assert.equal(rows[0]?.hidden, false);
+  assert.equal(rows[1]?.hidden, true);
+  assert.equal(empty.hidden, false);
+});
+test("Calendar register selection drives the details header and read-only identity summary", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "calendars" as const,
+    calendarCatalog: {
+      status: "loaded" as const,
+      calendars: [{
+        calendarId: "CAL-01",
+        calendarVersion: "v2",
+        kind: "working-time",
+        calendarType: "project",
+        name: "Project Standard",
+        recordRevision: 5,
+      }, {
+        calendarId: "CAL-GLOBAL",
+        calendarVersion: "v1",
+        kind: "working-time",
+        calendarType: "global",
+        name: "Global Standard",
+        recordRevision: 2,
+      }, {
+        calendarId: "CAL-RESOURCE",
+        calendarVersion: "v3",
+        kind: "working-time",
+        calendarType: "resource",
+        name: "Resource Shift",
+        recordRevision: 7,
+      }],
+      errorCode: null,
+    },
+  };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-calendar-select="CAL-01"/);
+  assert.match(container.innerHTML, /Calendar Details<\/strong><span>No selection/);
+  const target = { dataset: { calendarSelect: "CAL-01" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.match(container.innerHTML, /Calendar Details<\/strong><span>Project Standard/);
+  assert.match(container.innerHTML, /Calendar Type<\/span><strong>project/);
+  assert.match(container.innerHTML, /Calendar Version<\/span><strong>v2/);
+  assert.match(container.innerHTML, /data-calendar-select="CAL-01" aria-pressed="true"/);
+  const globalTarget = { dataset: { calendarPool: "global" }, closest: () => globalTarget };
+  listeners.get("click")?.({ target: globalTarget } as unknown as Event);
+  assert.match(container.innerHTML, /Global Standard/);
+  assert.doesNotMatch(container.innerHTML, /Project Standard/);
+  const resourceTarget = { dataset: { calendarPool: "resource" }, closest: () => resourceTarget };
+  listeners.get("click")?.({ target: resourceTarget } as unknown as Event);
+  assert.match(container.innerHTML, /Resource Shift/);
+  assert.doesNotMatch(container.innerHTML, /Global Standard/);
+});
+
+test("Projects window switches among table, chart and honest empty Gantt top layouts", () => {
+  const html = render("en", "project");
+  assert.match(html, /data-project-view-toggle="table"/);
+  assert.match(html, /Add Project/);
+  assert.match(html, /Open Project/);
+  assert.match(html, /Close Project/);
+  assert.match(html, /Closing the project requires the project lifecycle service/);
+  assert.match(html, /Portfolio/);
+  assert.match(html, /data-project-view-toggle="chart"/);
+  assert.match(html, /data-project-view-toggle="gantt"/);
+  assert.match(html, /data-project-view="table"/);
+  assert.match(html, /Project ID/);
+  assert.match(html, /Project Name/);
+  assert.match(html, /WBS Elements/);
+  assert.match(html, /Revision/);
+  assert.match(html, /data-project-view="chart" hidden/);
+  assert.match(html, /data-project-view="gantt" hidden/);
+  assert.match(html, /Only the current session project is loaded/);
+  assert.match(html, /Project start and finish dates are not available/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const panels = ["table", "chart", "gantt"].map((projectView) => ({ dataset: { projectView }, hidden: projectView !== "table" }));
+  const buttons = ["table", "chart", "gantt"].map((projectViewToggle) => ({
+    dataset: { projectViewToggle },
+    setAttribute: (_name: string, _value: string) => {},
+    classList: { toggle: (_name: string, _active: boolean) => {} },
+  }));
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector: string) => selector === "[data-project-view]" ? panels : selector === "[data-project-view-toggle]" ? buttons : [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "project" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { projectViewToggle: "chart" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(panels[0]?.hidden, true);
+  assert.equal(panels[1]?.hidden, false);
+  assert.equal(panels[2]?.hidden, true);
+});
+
+test("WBS register exposes the connected add workflow and working chart presentation", () => {
   const html = render("en", "wbs");
   assert.match(html, /data-rail-action="wbs"/);
   assert.match(html, /data-rail-action="wbs">Add WBS/);
   assert.match(html, /data-wbs-delete disabled/);
-  assert.match(html, /WBS chart view is not connected yet/);
+  assert.match(html, /data-wbs-view-toggle="table"/);
+  assert.match(html, /data-wbs-view-toggle="chart"/);
+  assert.match(html, /data-wbs-view-toggle="gantt"/);
 });
 
 test("Activity Group and Sort defaults to WBS in English and Persian", () => {
@@ -196,11 +313,11 @@ test("Activity create form dispatches typed fields and selected WBS to its callb
   });
 });
 
-test("rendered schedule surface exposes localized label and implemented status", () => {
+test("rendered schedule surface exposes localized label and partial status", () => {
   const html = render("en", "schedule");
 
   assert.match(html, /<strong>Schedule<\/strong>/);
-  assert.match(html, /data-surface-status="implemented">Implemented<\/span>/);
+  assert.match(html, /data-surface-status="partial">Partial<\/span>/);
   assert.match(html, /Activity Grid/);
   assert.match(html, /Gantt Chart/);
 });
@@ -213,6 +330,12 @@ test("Activities window exposes a real Layout Options dialog with current timesc
   assert.match(english, /data-layout-links/);
   assert.match(english, /Show relationship lines/);
   assert.match(english, /Display interval/);
+  for (const label of ["Timescale start", "Date format", "Date interval", "Shift calendar", "Show ordinal dates", "Ordinal start", "Ordinal date interval", "Font &amp; Color", "Default Font", "Apply", "Help"]) {
+    assert.ok(english.includes(label), `missing Timescale dialog control: ${label}`);
+  }
+  assert.match(english, /name="timescale-format"/);
+  assert.match(english, /data-layout-options-actions/);
+  assert.match(english, /data-layout-links/);
 
   const persian = render("fa", "schedule");
   assert.match(persian, /گزینه‌های چیدمان/);
@@ -224,10 +347,228 @@ test("Activity Details exposes the Bottom Layout Options tab customization dialo
   const html = render("en", "schedule");
   assert.match(html, /data-activity-details-options-open/);
   assert.match(html, /data-activity-details-options-dialog/);
-  assert.match(html, /data-activity-detail-visible="general" checked/);
-  assert.match(html, /data-activity-detail-visible="risks" checked/);
+  assert.match(html, /data-activity-detail-available/);
+  assert.match(html, /data-activity-detail-display/);
+  assert.match(html, /value="general"/);
+  assert.match(html, /Available Tabs/);
+  assert.match(html, /Display Tabs/);
+  assert.match(html, /data-activity-detail-add-all/);
+  assert.match(html, /data-activity-detail-remove-all/);
+  assert.match(html, /data-activity-detail-move-up/);
+  assert.match(html, /data-activity-detail-move-down/);
+  assert.match(html, /data-activity-detail-default/);
+  assert.match(html, /data-activity-details-apply-close/);
   assert.match(html, /Customize Activity Details/);
-  assert.match(html, /Choose which detail tabs are visible/);
+  assert.match(html, /Choose the available tabs, move them into Display Tabs, and arrange their order/);
+});
+
+test("Activity Details tab editor transfers tabs, reorders them and applies the selected order", () => {
+  type Option = { value: string; selected: boolean; owner?: FakeSelect };
+  class FakeSelect {
+    options: Option[];
+    constructor(options: Option[]) { this.options = options; options.forEach((option) => { option.owner = this; }); }
+    get selectedOptions(): Option[] { return this.options.filter((option) => option.selected); }
+    set selectedIndex(value: number) { if (value === -1) this.options.forEach((option) => { option.selected = false; }); }
+    add(option: Option): void {
+      if (option.owner) {
+        const index = option.owner.options.indexOf(option);
+        if (index >= 0) option.owner.options.splice(index, 1);
+      }
+      option.owner = this;
+      this.options.push(option);
+    }
+    insertBefore(option: Option, reference: Option): void {
+      const current = this.options.indexOf(option);
+      if (current >= 0) this.options.splice(current, 1);
+      const index = this.options.indexOf(reference);
+      this.options.splice(index < 0 ? this.options.length : index, 0, option);
+      option.owner = this;
+    }
+  }
+  const availableOption: Option = { value: "resources", selected: true };
+  const available = new FakeSelect([availableOption]);
+  const displayed = new FakeSelect([
+    { value: "general", selected: false },
+    { value: "status", selected: false },
+  ]);
+  const dialog = {
+    querySelector: (selector: string) => selector === "[data-activity-detail-available]" ? available : selector === "[data-activity-detail-display]" ? displayed : null,
+    close: () => {},
+  };
+  const details = { innerHTML: "" };
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-activity-details-options-dialog]" ? dialog : selector === "#cp-details" ? details : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  const dispatch = (dataset: Record<string, string>) => {
+    const target = { dataset, closest: () => target };
+    listeners.get("click")?.({ target } as unknown as Event);
+  };
+  dispatch({ activityDetailAdd: "" });
+  assert.deepEqual(displayed.options.map((option) => option.value), ["general", "status", "resources"]);
+  dispatch({ activityDetailMoveUp: "" });
+  assert.deepEqual(displayed.options.map((option) => option.value), ["general", "resources", "status"]);
+  dispatch({ activityDetailsApplyClose: "" });
+  assert.ok(details.innerHTML.indexOf('data-activity-detail-tab="general"') < details.innerHTML.indexOf('data-activity-detail-tab="resources"'));
+  assert.ok(details.innerHTML.indexOf('data-activity-detail-tab="resources"') < details.innerHTML.indexOf('data-activity-detail-tab="status"'));
+  assert.ok(details.innerHTML.includes('data-activity-detail-tab="status"'));
+});
+
+test("Reports navigation selects report layout and page setup tabs without generating output", () => {
+  const html = render("en", "reports");
+  assert.match(html, /class="cp-reports-center"/);
+  assert.match(html, /data-report-tab="library"/);
+  assert.match(html, /data-navigation-action="reports-tab:layouts"/);
+  assert.match(html, /data-navigation-action="reports-tab:page-setup"/);
+  assert.match(html, /data-navigation-action="reports-tab:export"/);
+  assert.match(html, /data-report-tab="custom"/);
+  assert.match(html, /disabled/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "reports" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { navigationAction: "reports-tab:page-setup" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.match(container.innerHTML, /data-report-tab="page-setup" aria-selected="true"/);
+  assert.match(container.innerHTML, /Paper Size/);
+  assert.match(container.innerHTML, /Orientation/);
+});
+
+test("Progress Update and Period Performance submenus open complete read-only dialog inventories", () => {
+  const html = render("en", "progress");
+  assert.match(html, /data-progress-dialog="update"/);
+  assert.match(html, /data-progress-dialog="period-performance"/);
+  for (const label of ["Current Data Date", "New Data Date", "Progress Spotlight", "Apply actuals from timesheets", "Duration Type", "Out-of-sequence policy", "Retained Logic", "Progress Override", "Actual Dates", "Use each project’s own Data Date"]) {
+    assert.ok(html.includes(label), `missing progress dialog field: ${label}`);
+  }
+  assert.ok(html.includes("No financial periods loaded"));
+  assert.match(html, /data-navigation-action="progress-dialog:update"/);
+  assert.match(html, /data-navigation-action="progress-dialog:period-performance"/);
+  assert.match(html, /data-progress-dialog-close/);
+  assert.match(html, /<input type="date" disabled/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const opened: string[] = [];
+  const updateDialog = { showModal: () => opened.push("update") };
+  const periodDialog = { showModal: () => opened.push("period-performance") };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === '[data-progress-dialog="update"]' ? updateDialog
+      : selector === '[data-progress-dialog="period-performance"]' ? periodDialog : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  for (const action of ["progress-dialog:update", "progress-dialog:period-performance"]) {
+    const target = { dataset: { navigationAction: action }, closest: () => target };
+    listeners.get("click")?.({ target } as unknown as Event);
+  }
+  assert.deepEqual(opened, ["update", "period-performance"]);
+});
+
+test("Progress window displays entered activity values and field evidence without recalculation", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const state = {
+    ...withActivities(base, [{
+      id: "ACT-301", wbsId: "WBS-3", code: "A-301", name: "Pour Concrete",
+      cells: { start: "2026-11-03", finish: "2026-11-08", progress: 42, actual_start: "2026-11-03" },
+      gantt: { start: "2026-11-03", finish: "2026-11-08", progressPercent: 42, critical: false },
+    }]),
+    activeMenu: "progress" as const,
+  };
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /Activity Progress Register/);
+  assert.match(container.innerHTML, /ACT-301/);
+  assert.match(container.innerHTML, /Pour Concrete/);
+  assert.match(container.innerHTML, /42/);
+  assert.match(container.innerHTML, /Field Evidence/);
+  assert.match(container.innerHTML, /Progress values shown here are read from saved activity fields/);
+  const target = { dataset: { progressActivitySelect: "ACT-301" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.match(container.innerHTML, /aria-pressed="true"/);
+  assert.match(container.innerHTML, /Actual Start/);
+});
+
+test("Documents window renders real records and navigable detail tabs", () => {
+  const document = {
+    documentId: "DOC-101",
+    resourceType: "drawing" as const,
+    title: "Foundation Layout",
+    status: "approved" as const,
+    revision: 2,
+    contentHash: `sha256:${"a".repeat(64)}`,
+    linkedEntityRefs: ["activity:ACT-101", "wbs:WBS-01"],
+    hasStorageRef: true,
+  };
+  const evidenceDocument = {
+    documentId: "EVD-201",
+    resourceType: "evidence" as const,
+    title: "Concrete Test Certificate",
+    status: "approved" as const,
+    revision: 1,
+    contentHash: `sha256:${"b".repeat(64)}`,
+    linkedEntityRefs: ["activity:ACT-201"],
+    hasStorageRef: true,
+  };
+  const state = {
+    ...setDocuments(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [document, evidenceDocument]),
+    activeMenu: "documents" as const,
+  };
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /class="cp-documents-window"/);
+  assert.match(container.innerHTML, /DOC-101/);
+  assert.match(container.innerHTML, /Foundation Layout/);
+  assert.match(container.innerHTML, /data-document-select="DOC-101"/);
+  const rowTarget = { dataset: { documentSelect: "DOC-101" }, closest: () => rowTarget };
+  listeners.get("click")?.({ target: rowTarget } as unknown as Event);
+  assert.match(container.innerHTML, /aria-pressed="true"/);
+  assert.match(container.innerHTML, /Document Details/);
+  assert.match(container.innerHTML, /data-document-detail-tab="links"/);
+  const filesTarget = { dataset: { documentDetailTab: "files" }, closest: () => filesTarget };
+  listeners.get("click")?.({ target: filesTarget } as unknown as Event);
+  assert.match(container.innerHTML, /Private Location/);
+  assert.match(container.innerHTML, /Public Location/);
+  const assignmentsTarget = { dataset: { documentDetailTab: "assignments" }, closest: () => assignmentsTarget };
+  listeners.get("click")?.({ target: assignmentsTarget } as unknown as Event);
+  assert.match(container.innerHTML, /Work Product/);
+  assert.match(container.innerHTML, /No WBS or activity assignments are loaded/);
+  const linksTarget = { dataset: { documentDetailTab: "links" }, closest: () => linksTarget };
+  listeners.get("click")?.({ target: linksTarget } as unknown as Event);
+  assert.match(container.innerHTML, /activity:ACT-101/);
+  assert.match(container.innerHTML, /wbs:WBS-01/);
+  const evidenceTarget = { dataset: { navigationAction: "document-type:evidence" }, closest: () => evidenceTarget };
+  listeners.get("click")?.({ target: evidenceTarget } as unknown as Event);
+  assert.match(container.innerHTML, /EVD-201/);
+  assert.doesNotMatch(container.innerHTML, /DOC-101/);
+  assert.match(container.innerHTML, /data-document-type-filter-clear/);
+  const clearTarget = { dataset: { documentTypeFilterClear: "" }, closest: () => clearTarget };
+  listeners.get("click")?.({ target: clearTarget } as unknown as Event);
+  assert.match(container.innerHTML, /DOC-101/);
 });
 
 test("Activities Layout Options inventories top and bottom chart layouts without enabling unimplemented renderers", () => {
@@ -245,12 +586,88 @@ test("Activities Layout Options inventories top and bottom chart layouts without
 });
 
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
+  assert.doesNotMatch(render("en", "schedule"), /data-activity-detail-tab="tasks"/);
+  assert.match(render("en", "schedule"), /data-activity-detail-tab="summary" data-detail-origin="desktop-reference"/);
+  assert.doesNotMatch(render("en", "schedule"), /Summary \\(CUBI extension\\)/);
   const html = render("en", "schedule");
-  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "tasks", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
+  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs", "update-history"]) {
     assert.ok(html.includes(`data-activity-detail-tab="${tab}"`), `missing Activity Details tab: ${tab}`);
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
+test("Activity Network top layout renders loaded relationships and switches from table/Gantt", () => {
+  const base = withWbsNodes(createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), [
+    { id: "W-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "WBS One", sequenceNumber: 0, recordRevision: 1 },
+    { id: "W-2", parentKind: "project", parentWbsId: null, localCode: "2", name: "WBS Two", sequenceNumber: 1, recordRevision: 1 },
+  ]);
+  const withRows = withActivities(base, [
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Mobilize", cells: {} },
+    { id: "A-2", wbsId: "W-1", code: "02", name: "Excavate", cells: {} },
+    { id: "A-3", wbsId: "W-2", code: "03", name: "Concrete", cells: {} },
+  ]);
+  const state = { ...withRelationships(withRows, [
+    { id: "R-1", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+  ]), activeMenu: "schedule" as const, selectedActivityId: "A-1", selectedWbsId: "W-1" };
+  const listeners = new Map<string, (event: Event) => void>();
+  const split = { hidden: false };
+  const network = { hidden: true };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => selector === '.cp-p6-split[data-workspace-menu="schedule"]' ? split : selector === "#cp-activity-network" ? network : null,
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /option value="activity-network"/);
+  assert.match(container.innerHTML, /id="cp-activity-network"/);
+  assert.match(container.innerHTML, /data-activity-id="A-1"/);
+  assert.match(container.innerHTML, /data-activity-id="A-2"/);
+  assert.match(container.innerHTML, /cp-activity-network-edge/);
+  assert.match(container.innerHTML, /cp-activity-network-wbs-pane/);
+  assert.match(container.innerHTML, /cp-activity-network-graph/);
+  assert.doesNotMatch(container.innerHTML, /data-activity-id="A-3"/);
+  const networkTarget = { dataset: { topLayout: "" }, value: "activity-network", closest: () => networkTarget };
+  listeners.get("change")?.({ target: networkTarget } as unknown as Event);
+  assert.equal(split.hidden, true);
+  assert.equal(network.hidden, false);
+  const tableTarget = { dataset: { topLayout: "" }, value: "table-gantt", closest: () => tableTarget };
+  listeners.get("change")?.({ target: tableTarget } as unknown as Event);
+  assert.equal(split.hidden, false);
+  assert.equal(network.hidden, true);
+});
+
+test("Activity Details navigator moves to adjacent activities and exposes read-only identity fields", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const selected: string[] = [];
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const state = {
+    ...withActivities(base, [
+      { id: "ACT-01", wbsId: "WBS-1", code: "A-01", name: "Mobilize", cells: {}, gantt: null },
+      { id: "ACT-02", wbsId: "WBS-1", code: "A-02", name: "Excavate", cells: {}, gantt: null },
+      { id: "ACT-03", wbsId: "WBS-1", code: "A-03", name: "Concrete", cells: {}, gantt: null },
+    ]),
+    activeMenu: "schedule" as const,
+    selectedActivityId: "ACT-02",
+  };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onActivitySelect: (id) => selected.push(id) });
+  assert.match(container.innerHTML, /data-activity-navigate="previous"/);
+  assert.match(container.innerHTML, /data-activity-navigate="next"/);
+  assert.match(container.innerHTML, /value="ACT-02"/);
+  assert.match(container.innerHTML, /value="Excavate"/);
+  assert.match(container.innerHTML, /value="project-1"/);
+  const nextTarget = { dataset: { activityNavigate: "next" }, closest: () => nextTarget };
+  listeners.get("click")?.({ target: nextTarget } as unknown as Event);
+  assert.deepEqual(selected, ["ACT-03"]);
+  const previousTarget = { dataset: { activityNavigate: "previous" }, closest: () => previousTarget };
+  listeners.get("click")?.({ target: previousTarget } as unknown as Event);
+  assert.deepEqual(selected, ["ACT-03", "ACT-01"]);
+});
+
 test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const closed: WorkspaceMenuKey[] = [];
@@ -303,6 +720,254 @@ test("rendered preview surfaces remain explicitly marked", () => {
   assert.match(html, /Print/);
 });
 
+test("Project Details splitter follows pointer dragging and double-click restores its default height", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const styles: Record<string, string> = {};
+  const root = { style: { setProperty: (name: string, value: string) => { styles[name] = value; } } };
+  const splitter = {
+    dataset: { projectDetailsSplitter: "" },
+    setAttribute: () => {},
+    setPointerCapture: () => {},
+    releasePointerCapture: () => {},
+  };
+  const details = { getBoundingClientRect: () => ({ height: 240 }) };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === ".cp-workspace[data-active-menu=project]" ? root
+      : selector === "[data-project-details-splitter]" ? splitter
+        : selector === "#cp-details" ? details : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "project" as const,
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { closest: () => splitter };
+  listeners.get("pointerdown")?.({ target, pointerId: 7, clientY: 300, preventDefault: () => {} } as unknown as Event);
+  listeners.get("pointermove")?.({ pointerId: 7, clientY: 280 } as unknown as Event);
+  assert.equal(styles["--cp-project-details-height"], "260px");
+  listeners.get("pointerup")?.({ target, pointerId: 7 } as unknown as Event);
+  listeners.get("dblclick")?.({ target, preventDefault: () => {} } as unknown as Event);
+  assert.equal(styles["--cp-project-details-height"], "240px");
+});
+
+test("module navigation submenus route to real registers, detail tabs and tracking views", () => {
+  const wbs = render("en", "wbs");
+  assert.match(wbs, /href="#cp-p6-module-stage"/);
+  assert.match(wbs, /data-navigation-action="wbs-detail-tab:general"/);
+  assert.match(wbs, /WBS Chart/);
+  assert.match(wbs, /data-submenu-status="preview"/);
+
+  const calendars = render("en", "calendars");
+  for (const action of ["calendar-tab:workweek", "calendar-tab:exceptions", "calendar-tab:time-periods", "calendar-tab:assignments"]) {
+    assert.match(calendars, new RegExp(`data-navigation-action="${action}"`));
+  }
+
+  const roles = render("en", "roles");
+  assert.match(roles, /data-navigation-action="register-tab:roles:rates"/);
+  assert.match(roles, /data-navigation-action="register-tab:roles:assignments"/);
+
+  const resources = render("en", "resources");
+  assert.match(resources, /class="cp-register-window"/);
+  assert.match(resources, /Resource ID/);
+  assert.match(resources, /Max Units \/ Time/);
+  for (const tab of ["general", "codes", "details", "units-prices", "roles", "notes", "udfs"]) {
+    assert.match(resources, new RegExp(`data-navigation-action="register-tab:resources:${tab}"`));
+    assert.match(resources, new RegExp(`data-register-tab="resources:${tab}"`));
+  }
+  assert.doesNotMatch(resources, /data-register-tab="resources:assignments"/);
+  assert.match(resources, /Unit of Measure/);
+  assert.match(resources, /Progress Reporter tab is excluded because it is EPPM-only/);
+  assert.match(resources, /Resource records are not yet returned by the project API/);
+
+  const expenses = render("en", "expenses");
+  for (const tab of ["general", "activity", "costs", "description"]) {
+    assert.match(expenses, new RegExp(`data-navigation-action="register-tab:expenses:${tab}"`));
+    assert.match(expenses, new RegExp(`data-register-tab="expenses:${tab}"`));
+  }
+  assert.doesNotMatch(expenses, /data-register-tab="expenses:documents"/);
+  assert.doesNotMatch(expenses, /data-register-tab="expenses:udfs"/);
+  assert.match(expenses, /Expense Category/);
+  assert.match(expenses, /Accrual Type/);
+
+  const control = render("en", "control");
+  assert.match(control, /Project Control Register/);
+  assert.match(control, /Quality/);
+  assert.match(control, /Inspections/);
+  assert.match(control, /Safety/);
+  assert.match(control, /Punch List/);
+  for (const tab of ["quality", "inspections", "safety", "issues", "punch", "changes", "forms"]) {
+    assert.match(control, new RegExp(`data-navigation-action="register-tab:control:${tab}"`));
+  }
+
+  const cost = render("en", "cost");
+  assert.match(cost, /Cost Accounts &amp; Control/);
+  assert.match(cost, /Budgeted Cost/);
+  assert.match(cost, /Cash Flow/);
+  assert.match(cost, /Earned Value/);
+  assert.match(cost, /data-navigation-action="register-tab:cost:budget"/);
+  assert.match(cost, /data-navigation-action="register-tab:cost:cash-flow"/);
+  assert.match(cost, /data-navigation-action="register-tab:cost:evm"/);
+
+  const documents = render("en", "documents");
+  assert.match(documents, /class="cp-documents-window"/);
+  for (const tab of ["general", "files", "assignments", "udfs", "links", "integrity", "revisions"]) {
+    assert.match(documents, new RegExp(`data-navigation-action="document-detail-tab:${tab}"`));
+  }
+  assert.match(documents, /data-navigation-action="document-type:evidence"/);
+  assert.match(documents, /Links · CUBI/);
+  assert.match(documents, /Integrity · CUBI/);
+
+  const assignments = render("en", "assignments");
+  assert.match(assignments, /data-navigation-action="register-tab:assignments:general"/);
+
+  const issues = render("en", "issues");
+  assert.match(issues, /data-navigation-action="register-tab:issues:details"/);
+
+  const risks = render("en", "risks");
+  assert.match(risks, /data-navigation-action="register-tab:risks:general"/);
+
+  const thresholds = render("en", "thresholds");
+  assert.match(thresholds, /data-navigation-action="register-tab:thresholds:monitoring"/);
+  assert.match(thresholds, /data-navigation-action="register-tab:thresholds:details"/);
+
+  const tracking = render("en", "tracking");
+  for (const layout of ["bar-chart", "gantt-profile", "resource-analysis"]) {
+    assert.match(tracking, new RegExp(`data-navigation-action="tracking-layout:${layout}"`));
+  }
+});
+
+test("module navigation action activates a namespaced register detail tab", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let activated = 0;
+  const tab = { dataset: { registerTab: "roles:rates" }, click: () => { activated += 1; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector?: string) => selector === "[data-register-tab]" ? [tab] : [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "roles" as const,
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { navigationAction: "register-tab:roles:rates" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(activated, 1);
+});
+
+test("Activities window docks Activity Details below the grid and Gantt with a resize splitter", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /class="cp-activity-details-splitter"[^>]*role="separator" aria-orientation="horizontal"/);
+  assert.match(html, /id="cp-details" class="cp-panel cp-details cp-activity-details-dock"/);
+  assert.match(html, /data-activity-details-options-open/);
+  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "steps", "relationships", "documents", "expenses", "summary", "risks", "udfs"]) {
+    assert.match(html, new RegExp(`data-activity-detail-tab="${tab}"`));
+  }
+});
+
+test("Show on Bottom Activity Details command scrolls to the docked details pane", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let scrolled = false;
+  const details = { scrollIntoView: () => { scrolled = true; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "#cp-details" ? details : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  const target = { dataset: { shellCommand: "Activity Details" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(scrolled, true);
+});
+
+test("Projects window docks Project Details below the register with the full detail-tab strip", () => {
+  const html = render("en", "project");
+  assert.match(html, /class="cp-project-details-splitter"[^>]*role="separator" aria-orientation="horizontal"/);
+  assert.match(html, /data-project-structure-splitter role="separator" aria-orientation="vertical"/);
+  assert.match(html, /id="cp-details" class="cp-panel cp-details cp-project-details-dock"/);
+  assert.match(html, /aria-label="Project detail tabs"/);
+  for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "contract-management", "udfs"]) {
+    assert.match(html, new RegExp(`data-project-detail-tab="${tab}"`));
+  }
+});
+
+test("Project Structure leading rail supports keyboard and pointer resizing", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const styles: Record<string, string> = {};
+  const attributes: Record<string, string> = {};
+  let direction = "ltr";
+  const root = { style: { setProperty: (name: string, value: string) => { styles[name] = value; } }, getAttribute: () => direction };
+  const splitter = {
+    dataset: { projectStructureSplitter: "" },
+    setAttribute: (name: string, value: string) => { attributes[name] = value; },
+    setPointerCapture: () => {},
+    releasePointerCapture: () => {},
+  };
+  const structure = { getBoundingClientRect: () => ({ width: 240 }) };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === ".cp-workspace[data-active-menu=project]" ? root
+      : selector === "[data-project-structure-splitter]" ? splitter
+        : selector === ".cp-project-structure-summary" ? structure : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "project" as const,
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { projectStructureSplitter: "" }, closest: () => target };
+  let prevented = false;
+  listeners.get("keydown")?.({ target, key: "ArrowRight", preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.equal(styles["--cp-project-structure-width"], "256px");
+  listeners.get("pointerdown")?.({ target, pointerId: 9, clientX: 300, preventDefault: () => {} } as unknown as Event);
+  listeners.get("pointermove")?.({ pointerId: 9, clientX: 320 } as unknown as Event);
+  assert.equal(styles["--cp-project-structure-width"], "260px");
+  assert.equal(attributes["aria-valuenow"], "260");
+  listeners.get("pointerup")?.({ target, pointerId: 9 } as unknown as Event);
+  direction = "rtl";
+  listeners.get("keydown")?.({ target, key: "ArrowLeft", preventDefault: () => {} } as unknown as Event);
+  assert.equal(styles["--cp-project-structure-width"], "256px");
+  listeners.get("pointerdown")?.({ target, pointerId: 10, clientX: 300, preventDefault: () => {} } as unknown as Event);
+  listeners.get("pointermove")?.({ pointerId: 10, clientX: 280 } as unknown as Event);
+  assert.equal(styles["--cp-project-structure-width"], "260px");
+  listeners.get("pointerup")?.({ target, pointerId: 10 } as unknown as Event);
+});
+
+test("Project Details horizontal splitter supports keyboard resizing and persists its pane height", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const styles: Record<string, string> = {};
+  const attributes: Record<string, string> = {};
+  const root = { style: { setProperty: (name: string, value: string) => { styles[name] = value; } } };
+  const splitter = { setAttribute: (name: string, value: string) => { attributes[name] = value; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === ".cp-workspace[data-active-menu=project]" ? root : selector === "[data-project-details-splitter]" ? splitter : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "project" as const,
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { projectDetailsSplitter: "" }, closest: () => target };
+  let prevented = false;
+  listeners.get("keydown")?.({ target, key: "ArrowUp", preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.equal(styles["--cp-project-details-height"], "256px");
+  assert.equal(attributes["aria-valuenow"], "256");
+});
+
 test("rendered navigation surface follows Persian locale and RTL direction", () => {
   const html = render("fa", "schedule");
 
@@ -310,7 +975,7 @@ test("rendered navigation surface follows Persian locale and RTL direction", () 
   assert.match(html, /<strong>زمان‌بندی<\/strong>/);
   assert.match(html, /جدول فعالیت‌ها/);
   assert.match(html, /گانت/);
-  assert.match(html, /data-surface-status="implemented">پیاده‌سازی‌شده<\/span>/);
+  assert.match(html, /data-surface-status="partial">جزئی<\/span>/);
 });
 
 
@@ -430,7 +1095,7 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["pointerdown", "input", "submit", "click", "keydown", "change"]);
+  assert.deepEqual(registrations, ["pointerdown", "input", "submit", "click", "keydown", "pointerdown", "pointermove", "pointerup", "pointercancel", "dblclick", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -625,7 +1290,7 @@ test("renderer honors visible workspace panel flags", () => {
 
   assert.match(container.innerHTML, /class="cp-panel cp-wbs" hidden/);
   assert.match(container.innerHTML, /class="cp-panel cp-gantt" hidden/);
-  assert.match(container.innerHTML, /class="cp-panel cp-details" hidden/);
+  assert.match(container.innerHTML, /class="cp-panel cp-details cp-activity-details-dock" hidden/);
   assert.match(container.innerHTML, /class="cp-panel cp-grid"/);
 });
 
@@ -997,7 +1662,7 @@ test("details complementary landmark is named by its heading", () => {
   );
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  assert.match(container.innerHTML, /class="cp-panel cp-details"[^>]*aria-labelledby="cp-details-heading"/);
+  assert.match(container.innerHTML, /class="cp-panel cp-details cp-activity-details-dock"[^>]*aria-labelledby="cp-details-heading"/);
   assert.match(container.innerHTML, /<h2 id="cp-details-heading">Details<\/h2>/);
 });
 
@@ -1512,6 +2177,88 @@ test("project settings button dispatches a single open request", () => {
   assert.equal(opened, 1);
 });
 
+test("Resource Assignments opens with the Usage Spreadsheet in the right pane and can collapse it", () => {
+  const html = render("en", "assignments");
+  assert.match(html, /cp-assignment-main-layout/);
+  assert.match(html, /cp-assignment-register-pane/);
+  assert.match(html, /cp-assignment-usage-pane/);
+  assert.match(html, /data-assignment-usage-toggle aria-pressed="true"/);
+  assert.doesNotMatch(html, /data-assignment-usage-panel hidden/);
+  assert.match(html, /Resource Usage Spreadsheet/);
+  assert.match(html, /No resource assignment time-phased values are loaded/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const panel = { hidden: false };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => selector === "[data-assignment-usage-panel]" ? panel : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "assignments" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { assignmentUsageToggle: "" }, setAttribute: (_name: string, _value: string) => {}, textContent: "", closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(panel.hidden, true);
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-assignment-usage-toggle aria-pressed="false"/);
+  assert.match(container.innerHTML, /data-assignment-usage-panel hidden/);
+});
+test("Resource register exposes functional Labor, Nonlabor and Material type filters without inventing records", () => {
+  const html = render("en", "resources");
+  for (const filter of ["all", "labor", "nonlabor", "material"]) assert.match(html, new RegExp(`data-resource-type-filter="${filter}"`));
+  assert.match(html, /No resource rows are loaded/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "resources" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { resourceTypeFilter: "material" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.match(container.innerHTML, /data-resource-type-filter="material" aria-pressed="true"/);
+  assert.match(container.innerHTML, /Resource Type filter: Material/);
+});
+
+test("Resource Usage Spreadsheet timescale and field chooser are interactive presentation preferences", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let dialogOpen = false;
+  const dialog = {
+    showModal: () => { dialogOpen = true; },
+    close: () => { dialogOpen = false; },
+    setAttribute: () => { dialogOpen = true; },
+    removeAttribute: () => { dialogOpen = false; },
+  };
+  const checkedFields = [{ value: "Budgeted Cost" }];
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => selector === "[data-assignment-usage-fields-dialog]" ? dialog : null,
+    querySelectorAll: (selector: string) => selector === "[data-assignment-usage-field]:checked" ? checkedFields : [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "assignments" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-assignment-usage-timescale/);
+  assert.match(container.innerHTML, /data-assignment-usage-data/);
+  assert.match(container.innerHTML, /data-assignment-usage-fields-open/);
+  assert.match(container.innerHTML, /data-assignment-usage-fields-dialog/);
+  const openTarget = { dataset: { assignmentUsageFieldsOpen: "" }, closest: () => openTarget };
+  listeners.get("click")?.({ target: openTarget } as unknown as Event);
+  assert.equal(dialogOpen, true);
+  const applyTarget = { dataset: { assignmentUsageFieldsApply: "" }, closest: () => applyTarget };
+  listeners.get("click")?.({ target: applyTarget } as unknown as Event);
+  assert.equal(dialogOpen, false);
+  assert.match(container.innerHTML, /option value="budgeted-cost" selected/);
+  assert.match(container.innerHTML, /value="Budgeted Cost" checked/);
+  const dataTarget = { dataset: { assignmentUsageData: "" }, value: "budgeted-cost", closest: () => dataTarget };
+  listeners.get("change")?.({ target: dataTarget } as unknown as Event);
+  assert.match(container.innerHTML, /Time-phased Budgeted Cost/);
+  const timescaleTarget = { dataset: { assignmentUsageTimescale: "" }, value: "month", closest: () => timescaleTarget };
+  listeners.get("change")?.({ target: timescaleTarget } as unknown as Event);
+  assert.match(container.innerHTML, /option value="month" selected/);
+  assert.match(container.innerHTML, /Time-phased Budgeted Cost · Month/);
+});
+
 test("WBS, assignments, expenses, issues, risks and thresholds have separate register windows", () => {
   const cases: Array<[WorkspaceMenuKey, string]> = [
     ["wbs", "Work Breakdown Structure"],
@@ -1540,7 +2287,75 @@ test("Roles and Tracking are first-class windows with their documented visual su
   assert.match(tracking, /Project Bar Chart/);
   assert.match(tracking, /Project Gantt \/ Profile/);
   assert.match(tracking, /Resource Analysis/);
+  assert.match(tracking, /New Layout/);
+  assert.match(tracking, /Open Layout/);
+  assert.match(tracking, /Save As/);
+  assert.match(tracking, /data-tracking-display="project-explorer"/);
   assert.match(tracking, /data-tracking-layout/);
+  assert.match(tracking, /data-tracking-pane="project-explorer"/);
+  assert.match(tracking, /data-tracking-pane="top-layout"/);
+  assert.match(tracking, /data-tracking-pane="resource-explorer" hidden/);
+  assert.match(tracking, /data-tracking-pane="bottom-layout" hidden/);
+  assert.match(tracking, /data-tracking-content="bar-chart" hidden/);
+  assert.match(tracking, /data-tracking-content="gantt-profile" hidden/);
+  assert.match(tracking, /data-tracking-content="resource-analysis" hidden/);
+});
+
+test("Tracking layout selection switches desktop panes and persists across render", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const panels = ["table", "bar-chart", "gantt-profile", "resource-analysis"].map((trackingContent) => ({
+    dataset: { trackingContent },
+    hidden: trackingContent !== "table",
+  }));
+  const explorer = { hidden: true };
+  const bottom = { hidden: true };
+  const frame = { dataset: { trackingLayoutType: "table" } };
+  const surface = { dataset: { trackingSurface: "table" } };
+  const heading = { textContent: "Project Table" };
+  const select = {
+    value: "gantt-profile",
+    querySelector: () => ({ textContent: "Project Gantt / Profile" }),
+  };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => ({
+      "[data-tracking-layout-frame]": frame,
+      "[data-tracking-surface]": surface,
+      "[data-tracking-layout-label]": heading,
+      '[data-tracking-pane="resource-explorer"]': explorer,
+      '[data-tracking-pane="bottom-layout"]': bottom,
+    } as Record<string, unknown>)[selector] ?? null,
+    querySelectorAll: (selector: string) => selector === "[data-tracking-content]" ? panels : [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "tracking" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { trackingLayout: "" }, value: "gantt-profile", querySelector: select.querySelector, closest: () => target };
+  listeners.get("change")?.({ target } as unknown as Event);
+  assert.equal(frame.dataset.trackingLayoutType, "gantt-profile");
+  assert.equal(surface.dataset.trackingSurface, "gantt-profile");
+  assert.equal(heading.textContent, "Project Gantt / Profile");
+  assert.equal(panels[0]?.hidden, true);
+  assert.equal(panels[2]?.hidden, false);
+  assert.equal(explorer.hidden, false);
+  assert.equal(bottom.hidden, false);
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-tracking-layout-type="gantt-profile"/);
+  assert.match(container.innerHTML, /option value="gantt-profile" selected/);
+});
+
+test("Tracking display options toggle each documented pane and persist across render", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = { innerHTML: "", addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener) };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "tracking" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-tracking-display="project-explorer" aria-pressed="true"/);
+  const displayTarget = { dataset: { trackingDisplay: "project-explorer" }, closest: () => displayTarget };
+  listeners.get("click")?.({ target: displayTarget } as unknown as Event);
+  assert.match(container.innerHTML, /data-tracking-pane="project-explorer" hidden/);
+  assert.match(container.innerHTML, /data-tracking-display="project-explorer" aria-pressed="false"/);
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-tracking-pane="project-explorer" hidden/);
 });
 
 test("Calendar Register opens as a first-class window with documented editor controls", () => {
@@ -1551,15 +2366,86 @@ test("Calendar Register opens as a first-class window with documented editor con
   assert.match(html, /Workweek/);
   assert.match(html, /Exceptions and Holidays/);
   assert.match(html, /Assignments/);
+  for (const tab of ["general", "calendar", "workweek", "exceptions", "time-periods", "assignments"]) {
+    assert.ok(html.includes(`id="cp-calendar-tab-${tab}" aria-controls="cp-calendar-panel-${tab}"`));
+    assert.ok(html.includes(`role="tabpanel" id="cp-calendar-panel-${tab}" aria-labelledby="cp-calendar-tab-${tab}"`));
+  }
+  assert.match(html, /tabindex="0" class="is-active" data-calendar-editor-tab="general"/);
+  assert.doesNotMatch(html, /data-calendar-editor-panel="general" hidden/);
+  assert.match(html, /tabindex="-1" class=""/);
+  assert.match(html, /Interval 1 Start/);
+  assert.match(html, /Interval 2 Finish/);
+  assert.match(html, /Time Period/);
+  assert.match(html, /data-calendar-month-action="previous"/);
+  assert.match(html, /data-calendar-month-action="today"/);
+  assert.match(html, /data-calendar-month-action="next"/);
+  assert.match(html, /role="grid"/);
+  assert.equal([...html.matchAll(/class="cp-calendar-day/g)].length, 42);
+  assert.match(html, /Legend only — no work\/nonwork classification is loaded/);
+  assert.match(html, /Total work hours\/day/);
+  assert.match(html, /Detailed work hours\/day/);
+  assert.match(html, /data-navigation-action="calendar-tab:workweek"/);
+  assert.match(html, /data-navigation-action="calendar-tab:time-periods"/);
+  assert.match(html, /Inherit Holidays and Exceptions from Global Calendar/);
   assert.match(html, /split shifts, multiple work intervals, overnight shifts/);
-  assert.match(html, /Editing and saving are disabled until the authoritative calendar service/i);
+  assert.match(html, /Editing remains disabled until the authoritative calendar service/i);
+});
+
+test("Calendar month navigation advances the visible month without inventing work status", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "calendars" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const before = container.innerHTML.match(/data-calendar-month-action="next"[^>]*>[^<]*<\/button><strong>([^<]+)<\/strong>/)?.[1];
+  const target = { dataset: { calendarMonthAction: "next" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.notEqual(container.innerHTML, "");
+  assert.match(container.innerHTML, /Working status not loaded/);
+  assert.match(container.innerHTML, /data-calendar-month-action="previous"/);
+  const after = container.innerHTML.match(/data-calendar-month-action="next"[^>]*>[^<]*<\/button><strong>([^<]+)<\/strong>/)?.[1];
+  assert.ok(after);
+  assert.ok(before === undefined || after !== before);
+});
+
+test("Calendar editor tab selection updates ARIA state and keeps the selected tab across renders", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const buttons = ["general", "calendar", "workweek", "exceptions", "time-periods", "assignments"].map((calendarEditorTab) => ({
+    dataset: { calendarEditorTab },
+    tabIndex: -1,
+    setAttribute: (_name: string, _value: string) => {},
+    classList: { toggle: (_name: string, _active: boolean) => {} },
+  }));
+  const panels = ["general", "workweek", "exceptions", "time-periods", "assignments"].map((calendarEditorPanel) => ({ dataset: { calendarEditorPanel }, hidden: true }));
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector: string) => selector === "[data-calendar-editor-tab]" ? buttons : selector === "[data-calendar-editor-panel]" ? panels : [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "calendars" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { calendarEditorTab: "time-periods" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(panels.find((panel) => panel.dataset.calendarEditorPanel === "time-periods")?.hidden, false);
+  assert.equal(panels.find((panel) => panel.dataset.calendarEditorPanel === "general")?.hidden, true);
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /aria-selected="true" tabindex="0" class="is-active" data-calendar-editor-tab="time-periods"/);
+  assert.match(container.innerHTML, /data-calendar-editor-panel="time-periods"[^>]*>/);
+  assert.doesNotMatch(container.innerHTML, /data-calendar-editor-panel="time-periods" hidden/);
 });
 
 test("Project and WBS Details use their Version 26 tab inventories and switch by window context", () => {
   const project = render("en", "project");
-  for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "planning-resources", "contract-management", "udfs"]) {
+  for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "contract-management", "udfs"]) {
     assert.ok(project.includes(`data-project-detail-tab="${tab}"`), `missing Project Details tab: ${tab}`);
   }
+  assert.doesNotMatch(project, /data-project-detail-tab="planning-resources"/);
+  assert.match(project, /Contract Management \(CUBI extension\)/);
+  const projectTabOrder = Array.from(project.matchAll(/data-project-detail-tab="([^"]+)"/g), (match) => match[1]);
+  assert.equal(projectTabOrder.at(-1), "contract-management");
+  assert.match(project, /data-detail-origin="cubi-extension"/);
   const reports = render("en", "reports");
   assert.doesNotMatch(reports, /data-activity-detail-tab=/);
   assert.doesNotMatch(reports, /data-project-detail-tab=/);
@@ -1569,25 +2455,46 @@ test("Project and WBS Details use their Version 26 tab inventories and switch by
     createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
     [{ id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1.1", name: "Structure", sequenceNumber: 1, recordRevision: 2 }],
   );
-  const wbsState = { ...base, selectedWbsId: "WBS-1" };
+  const withActivity = withActivities(base, [{
+    id: "ACT-101", wbsId: "WBS-1", code: "A-101", name: "Excavation",
+    cells: { start: "2026-11-03", finish: "2026-11-06", progress: 25 },
+    gantt: { start: "2026-11-03", finish: "2026-11-06", progressPercent: 25, critical: false },
+  }]);
+  const wbsState = { ...withActivity, selectedWbsId: "WBS-1" };
   const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
   renderMainWorkspace(container as unknown as HTMLElement, wbsState);
-  for (const tab of ["general", "notebook", "budget-log", "spending-plan", "budget-summary", "milestones", "documents", "earned-value", "planning-resources", "udfs"]) {
+  for (const tab of ["general", "activities", "notebook", "budget-log", "spending-plan", "budget-summary", "milestones", "documents", "earned-value", "udfs"]) {
     assert.ok(container.innerHTML.includes(`data-wbs-detail-tab="${tab}"`), `missing WBS Details tab: ${tab}`);
   }
+  assert.doesNotMatch(container.innerHTML, /data-wbs-detail-tab="planning-resources"/);
   assert.match(container.innerHTML, /WBS Details/);
   assert.match(container.innerHTML, /Structure/);
+  assert.match(container.innerHTML, /Related Activities \(CUBI extension\)/);
+  const wbsTabOrder = Array.from(container.innerHTML.matchAll(/data-wbs-detail-tab="([^"]+)"/g), (match) => match[1]);
+  assert.deepEqual(wbsTabOrder, ["general", "notebook", "budget-log", "spending-plan", "budget-summary", "milestones", "documents", "earned-value", "udfs", "activities"]);
+  assert.match(container.innerHTML, /data-detail-origin="cubi-extension"/);
+  assert.match(container.innerHTML, /data-wbs-linked-activity="ACT-101"/);
+  assert.match(container.innerHTML, /Excavation/);
+  assert.match(container.innerHTML, /2026-11-03/);
+  assert.match(container.innerHTML, /25/);
 });
 
 test("empty and preview-only modules show an explicit truthful surface", () => {
   const reports = render("en", "reports");
   assert.match(reports, /data-workspace-menu="reports"/);
   assert.match(reports, /Reports &amp; print/);
-  assert.match(reports, /not available in this preview yet/);
+  assert.match(reports, /Report Library/);
+  assert.match(reports, /Page Setup/);
+  assert.match(reports, /data-navigation-action="reports-tab:export"/);
+  assert.match(reports, /data-report-tab="export"/);
+  assert.match(reports, /disabled until the report service is connected/);
 
   const progress = render("fa", "progress");
   assert.match(progress, /data-workspace-menu="progress"/);
-  assert.match(progress, /داشبورد و نمودارهای اختصاصی پیشرفت/);
+  assert.match(progress, /فهرست پیشرفت فعالیت‌ها/);
+  assert.match(progress, /href="#cp-site-logs"/, "empty progress registers remain reachable");
+  assert.match(progress, /href="#cp-field-operations"/, "empty field-operation registers remain reachable");
+  assert.doesNotMatch(progress, /data-submenu-status="preview"/, "existing empty-state destinations are not disabled");
 
   const documents = render("en", "documents");
   assert.match(documents, /No project documents have been added or linked yet/);
@@ -1624,4 +2531,309 @@ test("desktop workbench keeps contextual Add actions visibly unavailable until w
   const html = render("en", "schedule");
   assert.match(html, /role="menuitem" disabled/);
   assert.match(html, /create workflow is not connected yet/);
+});
+
+
+test("schedule workspace renders localized command ribbon and three layout choices", () => {
+  const english = render("en", "schedule");
+  assert.match(english, /class="cp-command-ribbon" role="toolbar"/);
+  assert.match(english, /data-workspace-layout="split" aria-pressed="true"/);
+  assert.match(english, /data-workspace-layout="grid" aria-pressed="false"/);
+  assert.match(english, /data-workspace-layout="gantt" aria-pressed="false"/);
+  assert.match(english, /data-workspace-command="run-schedule"/);
+  assert.match(english, /data-workspace-command="relationships"/);
+  const persian = render("fa", "schedule");
+  assert.match(persian, /ابزارهای زمان‌بندی/);
+  assert.match(persian, /جدول \+ گانت/);
+  assert.match(persian, /افزودن فعالیت/);
+});
+
+test("workspace layout toolbar dispatches selected mode to the application", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const layouts: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ), { onWorkspaceLayoutChange: (layout) => layouts.push(layout) });
+  const gridButton = { dataset: { workspaceLayout: "grid" }, closest: () => gridButton };
+  listeners.get("click")?.({ target: gridButton } as unknown as Event);
+  assert.deepEqual(layouts, ["grid"]);
+});
+
+
+test("WBS window exposes table, hierarchy-chart and Gantt top layouts", () => {
+  const html = render("en", "wbs");
+  assert.match(html, /data-wbs-view-toggle="table"/);
+  assert.match(html, /data-wbs-view-toggle="chart"/);
+  assert.match(html, /data-wbs-view="table"/);
+  assert.match(html, /class="cp-wbs-table"/);
+  assert.match(html, /data-wbs-view="chart" hidden/);
+  assert.match(html, /class="cp-wbs-tree"/);
+  assert.match(html, /data-wbs-view="gantt" hidden/);
+  assert.match(html, /WBS start and finish dates are not present/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const panels = [{ dataset: { wbsView: "table" }, hidden: false }, { dataset: { wbsView: "chart" }, hidden: true }, { dataset: { wbsView: "gantt" }, hidden: true }];
+  const buttons = ["table", "chart", "gantt"].map((wbsViewToggle) => ({ dataset: { wbsViewToggle }, setAttribute: (_name: string, _value: string) => {}, classList: { toggle: (_name: string, _active: boolean) => {} } }));
+  const container = { innerHTML: "", querySelectorAll: (selector: string) => selector === "[data-wbs-view]" ? panels : selector === "[data-wbs-view-toggle]" ? buttons : [], addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener) };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"));
+  const target = { dataset: { wbsViewToggle: "chart" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(panels[0]?.hidden, true);
+  assert.equal(panels[1]?.hidden, false);
+  assert.equal(panels[2]?.hidden, true);
+});
+test("WBS chart appearance controls apply templates, font and colors without changing hierarchy data", () => {
+  const html = render("en", "wbs");
+  assert.match(html, /data-wbs-chart-options-toggle/);
+  assert.match(html, /data-wbs-chart-setting="template"/);
+  assert.match(html, /data-wbs-chart-setting="font"/);
+  assert.match(html, /data-wbs-chart-setting="background"/);
+  assert.match(html, /data-wbs-chart-setting="box"/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const chartOptionsButton = { disabled: true };
+  const chartSettings = { hidden: true };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => selector === "[data-wbs-chart-options-toggle]" ? chartOptionsButton : selector === ".cp-wbs-chart-options" ? chartSettings : null,
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "wbs" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const chartTarget = { dataset: { wbsViewToggle: "chart" }, closest: () => chartTarget };
+  listeners.get("click")?.({ target: chartTarget } as unknown as Event);
+  assert.equal(chartOptionsButton.disabled, false);
+  const optionsTarget = { dataset: { wbsChartOptionsToggle: "" }, closest: () => optionsTarget };
+  listeners.get("click")?.({ target: optionsTarget } as unknown as Event);
+  assert.match(container.innerHTML, /class="cp-wbs-chart-options"/);
+  const templateTarget = { dataset: { wbsChartSetting: "template" }, value: "name-only", closest: () => templateTarget };
+  listeners.get("change")?.({ target: templateTarget } as unknown as Event);
+  assert.match(container.innerHTML, /data-wbs-chart-template="name-only"/);
+  assert.match(container.innerHTML, /class="cp-wbs-view-panel cp-wbs-chart-view"/);
+});
+
+test("Group and Sort opens a structured dialog and applies supported grouping and sort controls", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-group-sort-dialog/);
+  for (const label of ["Display Options", "Show Group Totals", "Show Grand Total", "Show Summaries", "Shrink vertical groups", "Group By", "Hide if empty", "Sort bands alphabetically", "Field Name", "Sort Order", "Ascending", "Descending"]) {
+    assert.ok(html.includes(label), `missing Group and Sort control: ${label}`);
+  }
+  assert.match(html, /data-group-sort-group/);
+  assert.match(html, /data-group-sort-field/);
+  assert.match(html, /data-group-sort-direction/);
+  assert.match(html, /data-group-sort-apply/);
+});
+
+test("Group and Sort apply dispatches grouping and sort together without stale-state overwrites", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const calls: unknown[][] = [];
+  const dialog = {
+    close: () => {},
+    querySelector: (selector: string) => {
+      if (selector === "[data-group-sort-group]") return { value: "none" };
+      if (selector === "[data-group-sort-field]") return { value: "activity_name" };
+      if (selector === "[data-group-sort-direction]") return { value: "desc" };
+      return null;
+    },
+  };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-group-sort-dialog]" ? dialog : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), {
+    onActivityGroupSortChange: (...args) => calls.push(args),
+  });
+  const target = { dataset: { groupSortApply: "" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.deepEqual(calls, [["none", "activity_name", "desc"]]);
+});
+
+test("Bars dialog exposes bar definition columns, style/settings/labels tabs and command column", () => {
+  const html = render("en", "schedule");
+  for (const label of ["Bars", "Display", "Name", "Timescale", "User Start", "User Finish", "Filter", "Preview", "Bar Style", "Bar Settings", "Bar Labels", "Shape", "Color", "Pattern", "Row", "Position", "Label", "Copy From...", "Shift Up", "Shift Down", "Options..."]) {
+    assert.ok(html.includes(label), `missing Bars dialog inventory item: ${label}`);
+  }
+  assert.match(html, /data-bars-dialog/);
+  assert.match(html, /data-bars-tab="style"/);
+  assert.match(html, /data-bars-tab="settings"/);
+  assert.match(html, /data-bars-tab="labels"/);
+  assert.match(html, /data-bar-chart-options-open/);
+});
+
+test("Bar Chart Options exposes all documented tabs without enabling unsupported settings", () => {
+  const html = render("en", "schedule");
+  for (const label of ["General", "Collapsed Bars", "Data Date", "Sight Lines", "Progress Line", "Show Relationships", "Show Legend", "Limit Text Label Characters To", "Collapse to grouping bands", "Show Data Date", "Vertical Lines", "Baseline to use"]) {
+    assert.ok(html.includes(label), `missing Bar Chart Options item: ${label}`);
+  }
+  assert.match(html, /data-bar-chart-options-dialog/);
+  assert.match(html, /data-bar-options-tab="progress-line"/);
+  assert.match(html, /data-layout-links/);
+});
+
+test("Show on Top Table and Gantt Chart commands select the matching workspace layout", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const layouts: string[] = [];
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ), { onWorkspaceLayoutChange: (layout) => layouts.push(layout) });
+  const table = { dataset: { shellCommand: "Table" }, closest: () => table };
+  const gantt = { dataset: { shellCommand: "Gantt Chart" }, closest: () => gantt };
+  listeners.get("click")?.({ target: table } as unknown as Event);
+  listeners.get("click")?.({ target: gantt } as unknown as Event);
+  assert.deepEqual(layouts, ["grid", "gantt"]);
+});
+
+test("Edit menu Add Activity, Add WBS, Add Relationship and Find commands reach their live controls", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const activated: string[] = [];
+  const focused: string[] = [];
+  const trigger = (name: string) => ({ click: () => activated.push(name) });
+  const focusable = (name: string) => ({ focus: () => focused.push(name) });
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => {
+      if (selector === '[data-workspace-command="new-activity"]') return trigger("new-activity");
+      if (selector === '[data-workspace-command="new-wbs"]') return trigger("new-wbs");
+      if (selector === '[data-workspace-command="relationships"]') return trigger("relationships");
+      if (selector === '[data-relationship-create-form] [name="predecessor_id"]') return focusable("predecessor");
+      if (selector === "[data-activity-filter]") return focusable("find");
+      return null;
+    },
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  const dispatch = (command: string) => {
+    const target = { dataset: { shellCommand: command }, closest: () => target };
+    listeners.get("click")?.({ target } as unknown as Event);
+  };
+  dispatch("Add Activity");
+  dispatch("Add WBS");
+  dispatch("Add Relationship");
+  dispatch("Find");
+  assert.deepEqual(activated, ["new-activity", "new-wbs", "relationships"]);
+  assert.deepEqual(focused, ["predecessor", "find"]);
+});
+
+test("Columns menu command opens the dedicated field registry dialog", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-columns-dialog/);
+  assert.match(html, /class="cp-columns-dialog"/);
+  assert.match(html, /cp-columns-unavailable|class="cp-p6-field-chooser"/);
+  const listeners = new Map<string, (event: Event) => void>();
+  let opened = false;
+  const dialog = { showModal: () => { opened = true; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-columns-dialog]" ? dialog : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  const target = { dataset: { shellCommand: "Columns" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(opened, true);
+});
+
+test("Bottom Layout Options menu command opens the Activity Details tab selector", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let opened = false;
+  const trigger = { click: () => { opened = true; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-activity-details-options-open]" ? trigger : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  ));
+  const target = { dataset: { shellCommand: "Bottom Layout Options" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(opened, true);
+});
+
+test("Bars and Bar Chart Options commands open their own dialogs", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let barsOpened = false;
+  let optionsOpened = false;
+  const barsDialog = { showModal: () => { barsOpened = true; } };
+  const optionsDialog = { showModal: () => { optionsOpened = true; } };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-bars-dialog]" ? barsDialog : selector === "[data-bar-chart-options-dialog]" ? optionsDialog : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"));
+  const barsTarget = { dataset: { shellCommand: "Bars" }, closest: () => barsTarget };
+  listeners.get("click")?.({ target: barsTarget } as unknown as Event);
+  assert.equal(barsOpened, true);
+  const optionsTarget = { dataset: { shellCommand: "Bar Chart Options" }, closest: () => optionsTarget };
+  listeners.get("click")?.({ target: optionsTarget } as unknown as Event);
+  assert.equal(optionsOpened, true);
+});
+
+test("Bars dialog tabs switch the visible configuration panel", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const buttons = ["style", "settings", "labels"].map((barsTab) => ({
+    dataset: { barsTab },
+    setAttribute: (_name: string, _value: string) => {},
+    classList: { toggle: (_name: string, _active: boolean) => {} },
+  }));
+  const panels = ["style", "settings", "labels"].map((barsPanel) => ({ dataset: { barsPanel }, hidden: true }));
+  const container = {
+    innerHTML: "",
+    querySelectorAll: (selector: string) => selector === "[data-bars-tab]" ? buttons : selector === "[data-bars-panel]" ? panels : [],
+    querySelector: () => null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"));
+  const target = { dataset: { barsTab: "labels" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(panels.find((panel) => panel.dataset.barsPanel === "labels")?.hidden, false);
+  assert.equal(panels.find((panel) => panel.dataset.barsPanel === "style")?.hidden, true);
+});
+
+
+
+test("Filter By opens a filter dialog and applies the current activity search", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const calls: string[] = [];
+  let closed = false;
+  const dialog = { showModal: () => {}, close: () => { closed = true; } };
+  const search = { value: "concrete" };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-filters-dialog]" ? dialog : selector === "[data-filters-search]" ? search : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), {
+    onActivityFilterChange: (value) => calls.push(value),
+  });
+  const target = { dataset: { filtersApply: "" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.deepEqual(calls, ["concrete"]);
+  assert.equal(closed, true);
 });

@@ -9,12 +9,93 @@ import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon } from "./workspace-icons.js";
 import { renderWorkspaceCommandShell } from "./workspace-command-shell.js";
 
+const PROJECT_STRUCTURE_WIDTH_STORAGE_KEY = "cubi:project-structure-width";
+const PROJECT_STRUCTURE_WIDTH_DEFAULT = 240;
+const PROJECT_STRUCTURE_WIDTH_MIN = 190;
+const PROJECT_STRUCTURE_WIDTH_MAX = 340;
+type ProjectStructureDrag = { pointerId: number; startX: number; startWidth: number; rtl: boolean };
+const projectStructureDragByContainer = new WeakMap<HTMLElement, ProjectStructureDrag>();
+
+function readProjectStructureWidth(): number {
+  try {
+    if (typeof window !== "undefined") {
+      const value = Number(window.localStorage.getItem(PROJECT_STRUCTURE_WIDTH_STORAGE_KEY));
+      if (Number.isFinite(value) && value > 0) return Math.min(PROJECT_STRUCTURE_WIDTH_MAX, Math.max(PROJECT_STRUCTURE_WIDTH_MIN, Math.round(value)));
+    }
+  } catch { /* storage is optional; keep the default structure rail width */ }
+  return PROJECT_STRUCTURE_WIDTH_DEFAULT;
+}
+
+function setProjectStructureWidth(container: HTMLElement, value: number): void {
+  const width = Math.min(PROJECT_STRUCTURE_WIDTH_MAX, Math.max(PROJECT_STRUCTURE_WIDTH_MIN, Math.round(value)));
+  container.querySelector<HTMLElement>(".cp-workspace[data-active-menu=project]")?.style.setProperty("--cp-project-structure-width", `${width}px`);
+  container.querySelector<HTMLElement>("[data-project-structure-splitter]")?.setAttribute("aria-valuenow", String(width));
+  try { if (typeof window !== "undefined") window.localStorage.setItem(PROJECT_STRUCTURE_WIDTH_STORAGE_KEY, String(width)); }
+  catch { /* a failed layout preference save must not block resizing */ }
+}
+const PROJECT_DETAILS_HEIGHT_STORAGE_KEY = "cubi:project-details-height";
+const PROJECT_DETAILS_HEIGHT_DEFAULT = 240;
+const PROJECT_DETAILS_HEIGHT_MIN = 150;
+type ProjectDetailsDrag = { pointerId: number; startY: number; startHeight: number };
+const projectDetailsDragByContainer = new WeakMap<HTMLElement, ProjectDetailsDrag>();
+
+function projectDetailsHeightMax(): number {
+  if (typeof window === "undefined") return 600;
+  return Math.max(PROJECT_DETAILS_HEIGHT_MIN, Math.min(600, Math.floor(window.innerHeight * 0.45)));
+}
+
+function readProjectDetailsHeight(): number {
+  try {
+    if (typeof window !== "undefined") {
+      const value = Number(window.localStorage.getItem(PROJECT_DETAILS_HEIGHT_STORAGE_KEY));
+      if (Number.isFinite(value) && value > 0) return Math.min(projectDetailsHeightMax(), Math.max(PROJECT_DETAILS_HEIGHT_MIN, Math.round(value)));
+    }
+  } catch { /* storage is optional; keep the default pane geometry */ }
+  return PROJECT_DETAILS_HEIGHT_DEFAULT;
+}
+
+function setProjectDetailsHeight(container: HTMLElement, value: number): void {
+  const height = Math.min(projectDetailsHeightMax(), Math.max(PROJECT_DETAILS_HEIGHT_MIN, Math.round(value)));
+  container.querySelector<HTMLElement>(".cp-workspace[data-active-menu=project]")?.style.setProperty("--cp-project-details-height", `${height}px`);
+  container.querySelector<HTMLElement>("[data-project-details-splitter]")?.setAttribute("aria-valuenow", String(height));
+  try { if (typeof window !== "undefined") window.localStorage.setItem(PROJECT_DETAILS_HEIGHT_STORAGE_KEY, String(height)); }
+  catch { /* a failed layout preference save must not block resizing */ }
+}
+const ACTIVITY_DETAILS_HEIGHT_STORAGE_KEY = "cubi:activity-details-height";
+const ACTIVITY_DETAILS_HEIGHT_DEFAULT = 220;
+const ACTIVITY_DETAILS_HEIGHT_MIN = 140;
+type ActivityDetailsDrag = { pointerId: number; startY: number; startHeight: number };
+const activityDetailsDragByContainer = new WeakMap<HTMLElement, ActivityDetailsDrag>();
+
+function activityDetailsHeightMax(): number {
+  if (typeof window === "undefined") return 600;
+  return Math.max(ACTIVITY_DETAILS_HEIGHT_MIN, Math.min(600, Math.floor(window.innerHeight * 0.45)));
+}
+
+function readActivityDetailsHeight(): number {
+  try {
+    if (typeof window !== "undefined") {
+      const value = Number(window.localStorage.getItem(ACTIVITY_DETAILS_HEIGHT_STORAGE_KEY));
+      if (Number.isFinite(value) && value > 0) return Math.min(activityDetailsHeightMax(), Math.max(ACTIVITY_DETAILS_HEIGHT_MIN, Math.round(value)));
+    }
+  } catch { /* storage is optional; keep the default pane geometry */ }
+  return ACTIVITY_DETAILS_HEIGHT_DEFAULT;
+}
+
+function setActivityDetailsHeight(container: HTMLElement, value: number): void {
+  const height = Math.min(activityDetailsHeightMax(), Math.max(ACTIVITY_DETAILS_HEIGHT_MIN, Math.round(value)));
+  container.querySelector<HTMLElement>(".cp-workspace[data-active-menu=schedule]")?.style.setProperty("--cp-activity-details-height", `${height}px`);
+  container.querySelector<HTMLElement>("[data-activity-details-splitter]")?.setAttribute("aria-valuenow", String(height));
+  try { if (typeof window !== "undefined") window.localStorage.setItem(ACTIVITY_DETAILS_HEIGHT_STORAGE_KEY, String(height)); }
+  catch { /* a failed layout preference save must not block resizing */ }
+}
 const labels = {
   en: {
     project: "Project", schedule: "Schedule", progress: "Progress", resources: "Resources", cost: "Cost", documents: "Documents", procurement: "Procurement", reports: "Reports", control: "Control", settings: "Settings", mainMenu: "Main Menu", currentSurface: "Current workspace surface", submenu: "submenu", formulaColumn: "formula column", fieldChooser: "Field Chooser", fields: "Fields", undo: "Undo", redo: "Redo", layoutHistory: "Layout history", layoutUndone: "Last layout change undone.", layoutRedone: "Layout change reapplied.", layoutRestored: "Layout revision restored.", layoutHistoryEmpty: "No earlier layout revision is available.", layoutSaveFailed: "Layout change was not saved.", layoutConflict: "Another session changed this layout. The latest saved revision was reloaded.", restore: "Restore", revisionOption: "revision", columnUnit: "column(s)", add: "Add", remove: "Remove", moveUp: "Move up", moveDown: "Move down", narrower: "Narrower", wider: "Wider", alignStart: "Align left", alignCenter: "Align center", alignEnd: "Align right", pin: "Pin", unpin: "Unpin", freeze: "Freeze", unfreeze: "Unfreeze", hide: "Hide", show: "Show", rename: "Rename", findings: "Findings", proposedActions: "Proposed Actions", traceability: "Traceability", sources: "Sources", approvalRequired: "Approval Required", humanApprovalRequired: "Human approval required", noApprovalFlag: "No approval flag", sourceUnit: "source(s)", activityLinkUnit: "activity link(s)", evidenceUnit: "evidence", inspections: "Inspections", qualityNcr: "Quality / NCR", safety: "Safety", punchCloseout: "Punch / Closeout", due: "Due", supplier: "Supplier", reference: "Ref", amount: "Amount", itemUnit: "item(s)", linkedReferenceUnit: "linked reference(s)", stored: "stored", noStorage: "no storage", approval: "Approval", date: "Date", notices: "Notices", changeCases: "Change Cases", claims: "Claims", impactLinks: "Impact Links", scheduleLabel: "Schedule", costLabel: "Cost", noticeLabel: "Notice", changeLabel: "Change", entitlement: "Entitlement", decision: "Decision", impactLinkLabel: "Impact links",
     referenceTitle: "Scheduling logic & implementation reference", referenceDescription: "Browse scheduling requirements, calculation contracts and review evidence. A listed requirement is not proof of implementation; status is evidence-based.", referenceSearch: "Search the reference", referenceSearchPlaceholder: "Search by ID, rule, option, or status…", referenceNoMatches: "No matching entries.", referenceVersion: "Reference version", referenceAsOf: "Catalog date", referenceRequirementCount: "requirements", referenceFormulaCount: "calculation contracts", referenceDocumentationCount: "documentation review tracks", referenceMappedStatus: "Mapped; parity not yet proven", referenceGapStatus: "Known implementation gap", referenceInventoryStatus: "Inventory / acceptance evidence required", referenceFormulaStatus: "Formula contract; parity not yet proven", referenceRuleLabel: "Required behavior", referenceOptionsLabel: "Options", referenceGapLabel: "Known gap / remaining work", referenceInputsLabel: "Inputs", referenceCalendarRulesLabel: "Units & calendar rules", referenceEdgeCasesLabel: "Edge cases", referenceReviewLabel: "Review status", referenceRemainingLabel: "Remaining review work", referenceLinkedReqLabel: "Related requirement IDs", referenceRelationshipsGroupLabel: "Relationships & lag", referenceCalendarsGroupLabel: "Calendars & work time", referenceOptionsGroupLabel: "Schedule options & Data Date", referenceResourcesGroupLabel: "Resources & leveling", referenceProgressGroupLabel: "Progress & baselines", referenceOtherGroupLabel: "Other project-control areas", referenceFormulaGroupLabel: "Calculation formula contracts", referenceDocumentationGroupLabel: "Documentation review register", referenceCatalogGroupLabel: "Requirement catalogue", referenceDocReviewedLabel: "Core behavior extracted", referenceDocPartialLabel: "Partially reviewed", referenceDocPendingLabel: "Review not complete", referenceReviewNotice: "This catalogue is for traceability. Editing controls, persistent schedule updates and execution must be wired to the shared scheduling core and acceptance-tested separately.",
     wbs: "Project / WBS", wbsCreate: "Add WBS", wbsEdit: "Edit selected WBS", wbsCode: "Code", wbsName: "Name", wbsParent: "Parent WBS", wbsProjectRoot: "Project root", wbsSequence: "Sequence", wbsSave: "Save WBS", wbsDelete: "Delete selected", wbsSelectPrompt: "Select a WBS node to edit.", wbsMutationFailed: "WBS change failed.", wbsDeleteConfirm: "Delete this WBS node?", activities: "Activity Grid", activityCreate: "Add activity", activityEdit: "Edit activity", activityId: "Activity ID", activityName: "Activity name", activityDuration: "Duration", activityDurationUnit: "Duration unit", activityWbs: "WBS", activityCreateFailed: "Activity could not be saved.", activityFilter: "Filter activities", activityFilterPlaceholder: "ID, name, WBS, status…", activitySort: "Sort by", groupBy: "Group by", groupNone: "No grouping", sortNone: "Original order", sortAscending: "Ascending", sortDescending: "Descending", matchingActivities: "activities shown", noMatchingActivities: "No activities match the current filter.", gantt: "Gantt Chart", details: "Details", interchange: "Import / Export", resourceCapacity: "Resource Max Units / Time", scheduleOptions: "Schedule Options", runSchedule: "Run Schedule", formulaEditor: "Formula editor", scheduleReference: "Scheduling Code Reference", issues: "Field Issues", assurance: "Field Assurance", noActivities: "No activities loaded", noWbs: "No WBS elements loaded", noSchedule: "No scheduled activities", revision: "Revision", projectSettings: "Project settings", critical: "Critical", smartGuide: "Smart Guide", controlSummary: "Control Summary", metrics: "Metrics", commercial: "Changes & Claims", siteLogs: "Daily Field Logs", attendance: "Attendance", equipment: "Equipment",
     logic: "Logic / Relationships", predecessorsColumn: "Predecessors", relationshipCreate: "Add relationship", predecessor: "Predecessor", successor: "Successor", relationshipType: "Type", relationshipLag: "Lag", relationshipLagUnit: "Lag unit", relationshipDelete: "Delete", relationshipEdit: "Edit", relationshipSave: "Save relationship", noRelationships: "No relationships defined yet.", relationshipCreateFailed: "Relationship could not be saved.", relationshipDeleteFailed: "Relationship could not be deleted.", relationshipConflict: "The relationship changed in another session. Reload and try again.", workingDay: "Working day", workingHour: "Working hour",
+    commandRibbon: "Schedule tools", layoutGroup: "Layout", activityGroup: "Activities", logicGroup: "Logic", layoutSplit: "Grid + Gantt", layoutGrid: "Grid only", layoutGantt: "Gantt only", newActivityCommand: "Add activity", newWbsCommand: "Add WBS", scheduleOptionsCommand: "Schedule options", runScheduleCommand: "Run schedule", relationshipsCommand: "Relationships", 
     ganttScaleLabel: "Timeline scale", scaleDay: "Day", scaleWeek: "Week", scaleMonth: "Month", scaleQuarter: "Quarter", scaleYear: "Year", ganttLinks: "Dependency links", ganttLinksToggle: "Dependency links", ganttLinksOn: "Shown", ganttLinksOff: "Hidden", milestone: "Milestone",
   },
   fa: {
@@ -22,6 +103,7 @@ const labels = {
     referenceTitle: "مرجع منطق و پیاده‌سازی زمان‌بندی", referenceDescription: "الزامات زمان‌بندی، قراردادهای محاسباتی و شواهد بازبینی را مرور کنید. ثبت یک الزام به‌معنای اثبات پیاده‌سازی نیست؛ وضعیت بر پایهٔ شواهد است.", referenceSearch: "جست‌وجو در مرجع", referenceSearchPlaceholder: "جست‌وجو بر اساس شناسه، قاعده، گزینه یا وضعیت…", referenceNoMatches: "موردی با این جست‌وجو یافت نشد.", referenceVersion: "نسخه مرجع", referenceAsOf: "تاریخ کاتالوگ", referenceRequirementCount: "الزام", referenceFormulaCount: "قرارداد محاسباتی", referenceDocumentationCount: "مسیر بازبینی مستندات", referenceMappedStatus: "مسیر کد شناسایی شده؛ تطبیق هنوز اثبات نشده", referenceGapStatus: "شکاف اجرایی شناخته‌شده", referenceInventoryStatus: "تکمیل فهرست و شواهد پذیرش لازم است", referenceFormulaStatus: "قرارداد فرمول؛ تطبیق هنوز اثبات نشده", referenceRuleLabel: "رفتار الزامی", referenceOptionsLabel: "گزینه‌ها", referenceGapLabel: "شکاف شناخته‌شده / کار باقیمانده", referenceInputsLabel: "ورودی‌ها", referenceCalendarRulesLabel: "واحدها و قواعد تقویم", referenceEdgeCasesLabel: "حالت‌های مرزی", referenceReviewLabel: "وضعیت بازبینی", referenceRemainingLabel: "کار باقیمانده در بازبینی", referenceLinkedReqLabel: "شناسه‌های الزامات مرتبط", referenceRelationshipsGroupLabel: "روابط و وقفه‌ها", referenceCalendarsGroupLabel: "تقویم‌ها و ساعات کاری", referenceOptionsGroupLabel: "گزینه‌های زمان‌بندی و تاریخ داده", referenceResourcesGroupLabel: "منابع و تسطیح", referenceProgressGroupLabel: "پیشرفت و مبناها", referenceOtherGroupLabel: "سایر حوزه‌های کنترل پروژه", referenceFormulaGroupLabel: "قرارداد فرمول‌های محاسباتی", referenceDocumentationGroupLabel: "دفتر ثبت بازبینی مستندات", referenceCatalogGroupLabel: "فهرست الزامات", referenceDocReviewedLabel: "رفتار اصلی استخراج شده", referenceDocPartialLabel: "بازبینی جزئی", referenceDocPendingLabel: "بازبینی کامل نشده", referenceReviewNotice: "این فهرست برای ردیابی الزامات است. کنترل‌های ویرایش، به‌روزرسانی پایدار زمان‌بندی و اجرای محاسبه باید جداگانه به هستهٔ مشترک متصل و با آزمون پذیرش تأیید شوند.",
     wbs: "پروژه / WBS", wbsCreate: "افزودن ساختار شکست", wbsEdit: "ویرایش ساختار انتخاب‌شده", wbsCode: "کد", wbsName: "نام", wbsParent: "والد", wbsProjectRoot: "ریشهٔ پروژه", wbsSequence: "ترتیب", wbsSave: "ذخیره", wbsDelete: "حذف مورد انتخاب‌شده", wbsSelectPrompt: "برای ویرایش یک ردیف را انتخاب کنید.", wbsMutationFailed: "تغییر ساختار شکست ناموفق بود.", wbsDeleteConfirm: "این ردیف ساختار شکست حذف شود؟", activities: "جدول فعالیت‌ها", activityCreate: "افزودن فعالیت", activityEdit: "ویرایش فعالیت", activityId: "شناسه فعالیت", activityName: "نام فعالیت", activityDuration: "مدت", activityDurationUnit: "واحد مدت", activityWbs: "ساختار شکست", activityCreateFailed: "ذخیره فعالیت انجام نشد.", activityFilter: "پالایش فعالیت‌ها", activityFilterPlaceholder: "شناسه، نام، WBS، وضعیت…", activitySort: "ترتیب بر اساس", groupBy: "گروه‌بندی بر اساس", groupNone: "بدون گروه‌بندی", sortNone: "ترتیب اصلی", sortAscending: "صعودی", sortDescending: "نزولی", matchingActivities: "فعالیت نمایش‌داده‌شده", noMatchingActivities: "هیچ فعالیتی با پالایهٔ فعلی مطابقت ندارد.", gantt: "گانت", details: "جزئیات", interchange: "ورود / خروجی", resourceCapacity: "حداکثر واحد / زمان منبع", scheduleOptions: "تنظیمات زمان‌بندی", runSchedule: "اجرای زمان‌بندی", formulaEditor: "ویرایشگر فرمول", scheduleReference: "مرجع کد زمان‌بندی", issues: "مسائل کارگاه", assurance: "کنترل کیفیت و ایمنی", noActivities: "فعالیتی بارگذاری نشده است", noWbs: "ساختار شکست کار بارگذاری نشده است", noSchedule: "فعالیت زمان‌بندی‌شده‌ای وجود ندارد", revision: "نسخه", projectSettings: "تنظیمات پروژه", critical: "بحرانی", smartGuide: "راهنمای هوشمند", controlSummary: "خلاصه کنترل", metrics: "شاخص‌ها", commercial: "تغییرات و ادعاها", siteLogs: "گزارش‌های روزانه کارگاه", attendance: "حضور و غیاب", equipment: "ماشین‌آلات",
     logic: "منطق / روابط", predecessorsColumn: "پیش‌نیازها", relationshipCreate: "افزودن رابطه", predecessor: "پیش‌نیاز", successor: "پس‌نیاز", relationshipType: "نوع", relationshipLag: "وقفه", relationshipLagUnit: "واحد وقفه", relationshipDelete: "حذف", relationshipEdit: "ویرایش", relationshipSave: "ذخیرهٔ رابطه", noRelationships: "هنوز رابطه‌ای تعریف نشده است.", relationshipCreateFailed: "ذخیره رابطه انجام نشد.", relationshipDeleteFailed: "حذف رابطه انجام نشد.", relationshipConflict: "رابطه در نشست دیگری تغییر کرده است. صفحه را دوباره بارگذاری کنید.", workingDay: "روز کاری", workingHour: "ساعت کاری",
+    commandRibbon: "ابزارهای زمان‌بندی", layoutGroup: "چیدمان", activityGroup: "فعالیت‌ها", logicGroup: "منطق", layoutSplit: "جدول + گانت", layoutGrid: "فقط جدول", layoutGantt: "فقط گانت", newActivityCommand: "افزودن فعالیت", newWbsCommand: "افزودن WBS", scheduleOptionsCommand: "تنظیمات زمان‌بندی", runScheduleCommand: "اجرای زمان‌بندی", relationshipsCommand: "روابط", 
     ganttScaleLabel: "مقیاس زمان‌بندی", scaleDay: "روز", scaleWeek: "هفته", scaleMonth: "ماه", scaleQuarter: "فصل", scaleYear: "سال", ganttLinks: "پیوندهای وابستگی", ganttLinksToggle: "نمایش پیوندهای وابستگی", ganttLinksOn: "نمایش", ganttLinksOff: "پنهان", milestone: "نقطه عطف",
   },
 } as const;
@@ -115,6 +197,72 @@ function uiText(locale: string, en: string, fa: string): string {
 type WorkspaceRenderRecord = { state: WorkspaceState; options: WorkspaceRendererOptions };
 const workspaceRenderRecords = new WeakMap<HTMLElement, WorkspaceRenderRecord>();
 const activityDetailsTabByContainer = new WeakMap<HTMLElement, string>();
+const documentSelectionByContainer = new WeakMap<HTMLElement, string>();
+const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
+const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
+const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart" | "gantt">();
+const projectPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart" | "gantt">();
+const activityTopLayoutByContainer = new WeakMap<HTMLElement, "table-gantt" | "activity-network">();
+type ActivityNetworkDisplayOptions = {
+  organization: "top" | "centered";
+  verticalSpacing: 20 | 34 | 50;
+  horizontalSpacing: 60 | 92 | 130;
+  order: "longest" | "shortest";
+  template: "code-name" | "name-only" | "code-only";
+  font: "Inter" | "Arial" | "Georgia";
+  fontSize: 10 | 12 | 14 | 16;
+  nodeColor: "#ffffff" | "#eef5fb" | "#fffaf0";
+  showProgress: boolean;
+  zoom: number;
+};
+const activityNetworkDisplayByContainer = new WeakMap<HTMLElement, ActivityNetworkDisplayOptions>();
+const activityNetworkOptionsOpenByContainer = new WeakMap<HTMLElement, boolean>();
+function getActivityNetworkDisplayOptions(container: HTMLElement): ActivityNetworkDisplayOptions {
+  let value = activityNetworkDisplayByContainer.get(container);
+  if (!value) {
+    value = { organization: "top", verticalSpacing: 34, horizontalSpacing: 92, order: "longest", template: "code-name", font: "Inter", fontSize: 12, nodeColor: "#ffffff", showProgress: true, zoom: 1 };
+    activityNetworkDisplayByContainer.set(container, value);
+  }
+  return value;
+}
+const resourceTypeFilterByContainer = new WeakMap<HTMLElement, "all" | "labor" | "nonlabor" | "material">();
+type WbsChartAppearance = { template: "code-name" | "name-only" | "code-only"; font: "Inter" | "Arial" | "Georgia"; size: 10 | 12 | 14 | 16 | 18; background: "#f7f9fc" | "#eef5fb" | "#fffaf0"; box: "#ffffff" | "#eef5fb" | "#fffaf0" };
+const wbsChartAppearanceByContainer = new WeakMap<HTMLElement, WbsChartAppearance>();
+const wbsChartOptionsOpenByContainer = new WeakMap<HTMLElement, boolean>();
+function getWbsChartAppearance(container: HTMLElement): WbsChartAppearance {
+  let value = wbsChartAppearanceByContainer.get(container);
+  if (!value) { value = { template: "code-name", font: "Inter", size: 12, background: "#f7f9fc", box: "#ffffff" }; wbsChartAppearanceByContainer.set(container, value); }
+  return value;
+}
+const calendarEditorTabByContainer = new WeakMap<HTMLElement, "general" | "calendar" | "workweek" | "exceptions" | "time-periods" | "assignments">();
+const calendarMonthAnchorByContainer = new WeakMap<HTMLElement, Date>();
+const calendarSelectionByContainer = new WeakMap<HTMLElement, string>();
+const calendarPoolByContainer = new WeakMap<HTMLElement, "global" | "project" | "resource">();
+const trackingLayoutByContainer = new WeakMap<HTMLElement, "table" | "bar-chart" | "gantt-profile" | "resource-analysis">();
+const assignmentUsageVisibleByContainer = new WeakMap<HTMLElement, boolean>();
+type AssignmentUsageDisplayState = {
+  timescale: "day" | "week" | "month" | "quarter" | "financial-period";
+  data: "budgeted-units" | "actual-units" | "remaining-units" | "budgeted-cost" | "actual-cost" | "remaining-cost";
+  fields: string[];
+};
+const assignmentUsageDisplayByContainer = new WeakMap<HTMLElement, AssignmentUsageDisplayState>();
+function getAssignmentUsageDisplayState(container: HTMLElement): AssignmentUsageDisplayState {
+  let value = assignmentUsageDisplayByContainer.get(container);
+  if (!value) {
+    value = { timescale: "week", data: "budgeted-units", fields: ["Budgeted Units", "Actual Units", "Remaining Units"] };
+    assignmentUsageDisplayByContainer.set(container, value);
+  }
+  return value;
+}
+type TrackingDisplayState = { showProjectExplorer: boolean; showResourceExplorer: boolean; showTopLayout: boolean; showBottomLayout: boolean };
+const trackingDisplayByContainer = new WeakMap<HTMLElement, TrackingDisplayState>();
+function getTrackingDisplayState(container: HTMLElement): TrackingDisplayState {
+  let value = trackingDisplayByContainer.get(container);
+  if (!value) { value = { showProjectExplorer: true, showResourceExplorer: true, showTopLayout: true, showBottomLayout: true }; trackingDisplayByContainer.set(container, value); }
+  return value;
+}
+const progressActivitySelectionByContainer = new WeakMap<HTMLElement, string>();
+const reportTabByContainer = new WeakMap<HTMLElement, string>();
 const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<string>>();
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
@@ -193,6 +341,16 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         next.focus({ preventScroll: true });
         next.setSelectionRange(next.value.length, next.value.length);
       }
+      return;
+    }
+    const calendarSearchInput = target.closest<HTMLInputElement>("[data-calendar-search]");
+    if (calendarSearchInput) {
+      const query = calendarSearchInput.value.trim().toLocaleLowerCase();
+      const rows = Array.from(container.querySelectorAll<HTMLElement>("[data-calendar-row]"));
+      let visible = 0;
+      for (const row of rows) { const match = !query || (row.dataset.calendarSearch ?? "").includes(query); row.hidden = !match; if (match) visible++; }
+      const empty = container.querySelector<HTMLElement>("[data-calendar-search-empty]");
+      if (empty) empty.hidden = visible > 0;
       return;
     }
     const searchInput = target.closest<HTMLInputElement>("[data-reference-search-input]");
@@ -292,16 +450,183 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-activity-navigate],[data-activity-network-options-toggle],[data-activity-network-zoom],[data-activity-network-reorganize],[data-project-view-toggle],[data-resource-type-filter],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-calendar-pool],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-wbs-chart-options-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-assignment-usage-fields-open],[data-assignment-usage-fields-close],[data-assignment-usage-fields-apply],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.assignmentUsageFieldsOpen !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-assignment-usage-fields-dialog]");
+      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+      else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.dataset.assignmentUsageFieldsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-assignment-usage-fields-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.assignmentUsageFieldsApply !== undefined) {
+      const selected = Array.from(container.querySelectorAll<HTMLInputElement>("[data-assignment-usage-field]:checked")).map((input) => input.value);
+      if (!selected.length) return;
+      getAssignmentUsageDisplayState(container).fields = selected;
+      const dialog = container.querySelector<HTMLDialogElement>("[data-assignment-usage-fields-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      renderMainWorkspace(container, state, options);
+      return;
+    }
+    if (target.dataset.resourceTypeFilter !== undefined) {
+      const filter = target.dataset.resourceTypeFilter;
+      if (filter !== "all" && filter !== "labor" && filter !== "nonlabor" && filter !== "material") return;
+      resourceTypeFilterByContainer.set(container, filter);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }    if (target.dataset.projectViewToggle !== undefined) {
+      const view = target.dataset.projectViewToggle === "chart" || target.dataset.projectViewToggle === "gantt" ? target.dataset.projectViewToggle : "table";
+      projectPresentationByContainer.set(container, view);
+      container.querySelectorAll<HTMLElement>("[data-project-view]").forEach((panel) => { panel.hidden = panel.dataset.projectView !== view; });
+      container.querySelectorAll<HTMLElement>("[data-project-view-toggle]").forEach((button) => {
+        const active = button.dataset.projectViewToggle === view;
+        button.setAttribute("aria-pressed", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      return;
+    }    if (target.dataset.assignmentUsageToggle !== undefined) {
+      const visible = !(assignmentUsageVisibleByContainer.get(container) ?? false);
+      assignmentUsageVisibleByContainer.set(container, visible);
+      const panel = container.querySelector<HTMLElement>("[data-assignment-usage-panel]");
+      if (panel) panel.hidden = !visible;
+      target.setAttribute("aria-pressed", String(visible));
+      target.textContent = uiText(state.locale, visible ? "Hide Usage Spreadsheet" : "Show Usage Spreadsheet", visible ? "پنهان‌کردن صفحه‌گسترده مصرف" : "نمایش صفحه‌گسترده مصرف");
+      return;
+    }
+    if (target.dataset.trackingDisplay !== undefined) {
+      const display = getTrackingDisplayState(container);
+      const key = target.dataset.trackingDisplay;
+      if (key === "project-explorer") display.showProjectExplorer = !display.showProjectExplorer;
+      else if (key === "resource-explorer") display.showResourceExplorer = !display.showResourceExplorer;
+      else if (key === "top-layout") display.showTopLayout = !display.showTopLayout;
+      else if (key === "bottom-layout") display.showBottomLayout = !display.showBottomLayout;
+      else return;
+      renderMainWorkspace(container, state, options);
+      return;
+    }
+    if (target.dataset.reportTab !== undefined) {
+      reportTabByContainer.set(container, target.dataset.reportTab);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.progressDialogClose !== undefined) {
+      const dialog = (event.target as HTMLElement | null)?.closest?.<HTMLDialogElement>("[data-progress-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.progressActivitySelect !== undefined) {
+      progressActivitySelectionByContainer.set(container, target.dataset.progressActivitySelect);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.documentTypeFilterClear !== undefined) {
+      documentTypeFilterByContainer.delete(container);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.documentSelect !== undefined) {
+      documentSelectionByContainer.set(container, target.dataset.documentSelect);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.documentDetailTab !== undefined) {
+      documentDetailTabByContainer.set(container, target.dataset.documentDetailTab);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.navigationAction) {
+      const separator = target.dataset.navigationAction.indexOf(":");
+      const kind = separator >= 0 ? target.dataset.navigationAction.slice(0, separator) : target.dataset.navigationAction;
+      const value = separator >= 0 ? target.dataset.navigationAction.slice(separator + 1) : "";
+      if (kind === "register-tab") {
+        container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
+          if (button.dataset.registerTab === value) button.click();
+        });
+      } else if (kind === "calendar-tab") {
+        container.querySelector<HTMLElement>("[data-calendar-editor-tab='" + value + "']")?.click();
+      } else if (kind === "wbs-detail-tab") {
+        container.querySelector<HTMLElement>("[data-wbs-detail-tab='" + value + "']")?.click();
+      } else if (kind === "document-type") {
+        documentTypeFilterByContainer.set(container, value);
+        const record = workspaceRenderRecords.get(container);
+        if (record) renderMainWorkspace(container, record.state, record.options);
+      } else if (kind === "reports-tab") {
+        reportTabByContainer.set(container, value);
+        const record = workspaceRenderRecords.get(container);
+        if (record) renderMainWorkspace(container, record.state, record.options);
+      } else if (kind === "progress-dialog") {
+        const dialog = container.querySelector<HTMLDialogElement>(`[data-progress-dialog="${value}"]`);
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
+      } else if (kind === "document-detail-tab") {
+        documentDetailTabByContainer.set(container, value);
+        const record = workspaceRenderRecords.get(container);
+        if (record) renderMainWorkspace(container, record.state, record.options);
+      } else if (kind === "tracking-layout") {
+        const select = container.querySelector<HTMLSelectElement>("[data-tracking-layout]");
+        if (select) {
+          select.value = value;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+      return;
+    }
+    if (target.dataset.workspaceLayout) {
+      const layout = target.dataset.workspaceLayout;
+      if (layout === "split" || layout === "grid" || layout === "gantt") options.onWorkspaceLayoutChange?.(layout);
+      return;
+    }
+    if (target.dataset.workspaceCommand) {
+      const command = target.dataset.workspaceCommand;
+      if (command === "toggle-relationships") {
+        options.onGanttRelationshipsChange?.(!state.showGanttRelationships);
+        return;
+      }
+      if (command === "new-activity") {
+        openToolsDrawer(container);
+        container.querySelector<HTMLInputElement>('[data-activity-create-form] [name="activity_id"]')?.focus({ preventScroll: true });
+        return;
+      }
+      if (command === "new-wbs") {
+        openWbsDrawer(container);
+        container.querySelector<HTMLInputElement>('[data-wbs-create-form] [name="code"]')?.focus({ preventScroll: true });
+        return;
+      }
+      const destinations: Record<string, string> = {
+        "schedule-options": "#cp-schedule-options",
+        "run-schedule": "#cp-schedule-run",
+        relationships: "#cp-logic",
+      };
+      const destination = destinations[command];
+      if (!destination) return;
+      options.onWorkspaceLayoutChange?.("split");
+      const panel = container.querySelector<HTMLElement>(destination);
+      panel?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+      panel?.querySelector<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled])')?.focus({ preventScroll: true });
+      return;
+    }
     if (target.dataset.registerTab) {
       const tab = target.dataset.registerTab;
       container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
         const active = button.dataset.registerTab === tab;
         button.setAttribute("aria-selected", String(active));
+        button.tabIndex = active ? 0 : -1;
         button.classList.toggle("is-active", active);
       });
       container.querySelectorAll<HTMLElement>("[data-register-panel]").forEach((panel) => {
@@ -309,11 +634,47 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       });
       return;
     }
+    if (target.dataset.calendarPool !== undefined) {
+      const pool = target.dataset.calendarPool;
+      if (pool !== "global" && pool !== "project" && pool !== "resource") return;
+      calendarPoolByContainer.set(container, pool);
+      const selected = state.calendarCatalog.calendars.find((calendar) => calendar.calendarId === calendarSelectionByContainer.get(container));
+      if (selected && !selected.calendarType.toLowerCase().includes(pool)) calendarSelectionByContainer.delete(container);
+      renderMainWorkspace(container, state, options);
+      return;
+    }
+    if (target.dataset.calendarSelect !== undefined) {
+      const selectedId = target.dataset.calendarSelect;
+      const selected = state.calendarCatalog.calendars.find((calendar) => calendar.calendarId === selectedId);
+      if (!selected) return;
+      calendarSelectionByContainer.set(container, selectedId);
+      renderMainWorkspace(container, state, options);
+      return;
+    }
+    if (target.dataset.calendarMonthAction !== undefined) {
+      const current = calendarMonthAnchorByContainer.get(container) ?? new Date();
+      const bounds = calendarMonthBounds(current, state.calendarMode);
+      if (target.dataset.calendarMonthAction === "today") calendarMonthAnchorByContainer.set(container, new Date());
+      else if (target.dataset.calendarMonthAction === "previous") {
+        const previous = new Date(bounds.first);
+        previous.setDate(previous.getDate() - 1);
+        calendarMonthAnchorByContainer.set(container, previous);
+      } else if (target.dataset.calendarMonthAction === "next") {
+        const next = new Date(bounds.last);
+        next.setDate(next.getDate() + 1);
+        calendarMonthAnchorByContainer.set(container, next);
+      } else return;
+      renderMainWorkspace(container, state, options);
+      return;
+    }
     if (target.dataset.calendarEditorTab) {
-      const tab = target.dataset.calendarEditorTab;
+      const tab = target.dataset.calendarEditorTab as "general" | "calendar" | "workweek" | "exceptions" | "time-periods" | "assignments";
+      if (!["general", "calendar", "workweek", "exceptions", "time-periods", "assignments"].includes(tab)) return;
+      calendarEditorTabByContainer.set(container, tab);
       container.querySelectorAll<HTMLElement>("[data-calendar-editor-tab]").forEach((button) => {
         const active = button.dataset.calendarEditorTab === tab;
         button.setAttribute("aria-selected", String(active));
+        button.tabIndex = active ? 0 : -1;
         button.classList.toggle("is-active", active);
       });
       container.querySelectorAll<HTMLElement>("[data-calendar-editor-panel]").forEach((panel) => {
@@ -347,36 +708,119 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       });
       return;
     }
+    if (target.dataset.columnsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-columns-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.activityDetailAdd !== undefined || target.dataset.activityDetailAddAll !== undefined || target.dataset.activityDetailRemove !== undefined || target.dataset.activityDetailRemoveAll !== undefined || target.dataset.activityDetailMoveUp !== undefined || target.dataset.activityDetailMoveDown !== undefined || target.dataset.activityDetailDefault !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
+      const available = dialog?.querySelector<HTMLSelectElement>("[data-activity-detail-available]");
+      const displayed = dialog?.querySelector<HTMLSelectElement>("[data-activity-detail-display]");
+      if (!available || !displayed) return;
+      const optionMarkup = ([key, en, fa]: (typeof ACTIVITY_DETAIL_TABS)[number]): string => `<option value="${key}">${escapeHtml(uiText(state.locale, en, fa))}</option>`;
+      const sortAvailable = (): void => {
+        const ordered = Array.from(available.options).sort((left, right) => ACTIVITY_DETAIL_TABS.findIndex(([key]) => key === left.value) - ACTIVITY_DETAIL_TABS.findIndex(([key]) => key === right.value));
+        ordered.forEach((option) => available.add(option));
+      };
+      const moveOptions = (source: HTMLSelectElement, destination: HTMLSelectElement, all: boolean): void => {
+        const selected = all ? Array.from(source.options) : Array.from(source.selectedOptions);
+        selected.forEach((option) => { option.selected = true; destination.add(option); });
+        source.selectedIndex = -1;
+      };
+      if (target.dataset.activityDetailDefault !== undefined) {
+        available.innerHTML = "";
+        displayed.innerHTML = ACTIVITY_DETAIL_TABS.map(optionMarkup).join("");
+        Array.from(displayed.options).forEach((option) => { option.selected = false; });
+      } else if (target.dataset.activityDetailAddAll !== undefined) {
+        moveOptions(available, displayed, true);
+      } else if (target.dataset.activityDetailAdd !== undefined) {
+        moveOptions(available, displayed, false);
+      } else if (target.dataset.activityDetailRemoveAll !== undefined) {
+        moveOptions(displayed, available, true);
+        sortAvailable();
+      } else if (target.dataset.activityDetailRemove !== undefined) {
+        moveOptions(displayed, available, false);
+        sortAvailable();
+      } else {
+        const items = Array.from(displayed.options);
+        if (target.dataset.activityDetailMoveUp !== undefined) {
+          for (let index = 1; index < items.length; index += 1) {
+            if (items[index].selected && !items[index - 1].selected) {
+              displayed.insertBefore(items[index], items[index - 1]);
+              [items[index - 1], items[index]] = [items[index], items[index - 1]];
+            }
+          }
+        } else {
+          for (let index = items.length - 2; index >= 0; index -= 1) {
+            if (items[index].selected && !items[index + 1].selected) {
+              displayed.insertBefore(items[index + 1], items[index]);
+              [items[index], items[index + 1]] = [items[index + 1], items[index]];
+            }
+          }
+        }
+      }
+      return;
+    }
     if (target.dataset.activityDetailsOptionsOpen !== undefined || target.dataset.activityDetailsOptionsClose !== undefined) {
       const dialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
       if (target.dataset.activityDetailsOptionsOpen !== undefined) {
         const visible = getActivityDetailsVisibleTabs(container);
-        dialog?.querySelectorAll<HTMLInputElement>("[data-activity-detail-visible]").forEach((input) => {
-          input.checked = visible.has(input.dataset.activityDetailVisible ?? "");
-        });
+        const available = dialog?.querySelector<HTMLSelectElement>("[data-activity-detail-available]");
+        const displayed = dialog?.querySelector<HTMLSelectElement>("[data-activity-detail-display]");
+        const optionMarkup = ([key, en, fa]: (typeof ACTIVITY_DETAIL_TABS)[number]): string => `<option value="${key}">${escapeHtml(uiText(state.locale, en, fa))}</option>`;
+        if (available) available.innerHTML = ACTIVITY_DETAIL_TABS.filter(([key]) => !visible.has(key)).map(optionMarkup).join("");
+        if (displayed) displayed.innerHTML = [...visible].map((key) => ACTIVITY_DETAIL_TABS.find(([candidate]) => candidate === key)).filter((item): item is (typeof ACTIVITY_DETAIL_TABS)[number] => item !== undefined).map(optionMarkup).join("");
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
       } else if (dialog && typeof dialog.close === "function") dialog.close();
       else dialog?.removeAttribute("open");
       return;
     }
-    if (target.dataset.activityDetailsApply !== undefined) {
-      const dialog = container.querySelector<HTMLElement>("[data-activity-details-options-dialog]");
-      const selected = new Set(Array.from(dialog?.querySelectorAll<HTMLInputElement>("[data-activity-detail-visible]") ?? [])
-        .filter((input) => input.checked)
-        .map((input) => input.dataset.activityDetailVisible ?? ""));
+    if (target.dataset.activityDetailsApply !== undefined || target.dataset.activityDetailsApplyClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
+      const displayed = dialog?.querySelector<HTMLSelectElement>("[data-activity-detail-display]");
+      const selected = new Set(Array.from(displayed?.options ?? []).map((option) => option.value));
       if (!selected.size) return;
       activityDetailsVisibleTabsByContainer.set(container, selected);
       try { window.localStorage.setItem(ACTIVITY_DETAILS_TABS_STORAGE_KEY, JSON.stringify([...selected])); } catch { /* optional local preference storage */ }
       const currentTab = activityDetailsTabByContainer.get(container) ?? "general";
-      const nextTab = selected.has(currentTab) ? currentTab : ACTIVITY_DETAIL_TABS.find(([key]) => selected.has(key))?.[0] ?? "general";
+      const nextTab = selected.has(currentTab) ? currentTab : [...selected][0];
       activityDetailsTabByContainer.set(container, nextTab);
       const record = workspaceRenderRecords.get(container);
       const details = container.querySelector<HTMLElement>("#cp-details");
       if (record && details) details.innerHTML = renderActivityDetailsPanel(record.state, getWorkspaceLabels(record.state.locale), nextTab, selected);
-      const optionsDialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
-      if (optionsDialog && typeof optionsDialog.close === "function") optionsDialog.close();
-      else optionsDialog?.removeAttribute("open");
+      const updatedDialog = container.querySelector<HTMLDialogElement>("[data-activity-details-options-dialog]");
+      if (target.dataset.activityDetailsApplyClose !== undefined) {
+        if (updatedDialog && typeof updatedDialog.close === "function") updatedDialog.close();
+        else updatedDialog?.removeAttribute("open");
+      } else if (updatedDialog && typeof updatedDialog.showModal === "function") updatedDialog.showModal();
+      else updatedDialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.dataset.wbsChartOptionsToggle !== undefined) {
+      const open = !(wbsChartOptionsOpenByContainer.get(container) ?? false);
+      wbsChartOptionsOpenByContainer.set(container, open);
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.wbsViewToggle) {
+      const view = target.dataset.wbsViewToggle === "chart" || target.dataset.wbsViewToggle === "gantt" ? target.dataset.wbsViewToggle : "table";
+      wbsPresentationByContainer.set(container, view);
+      container.querySelectorAll<HTMLElement>("[data-wbs-view]").forEach((panel) => {
+        panel.hidden = panel.dataset.wbsView !== view;
+      });
+      container.querySelectorAll<HTMLElement>("[data-wbs-view-toggle]").forEach((button) => {
+        const active = button.dataset.wbsViewToggle === view;
+        button.setAttribute("aria-pressed", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      const chartOptions = container.querySelector<HTMLButtonElement>("[data-wbs-chart-options-toggle]");
+      if (chartOptions) chartOptions.disabled = view !== "chart";
+      const chartSettings = container.querySelector<HTMLElement>(".cp-wbs-chart-options");
+      if (chartSettings) chartSettings.hidden = !(view === "chart" && (wbsChartOptionsOpenByContainer.get(container) ?? false));
       return;
     }
     if (target.dataset.activityDetailTab) {
@@ -400,16 +844,48 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
     if (target.dataset.shellCommand) {
       const command = target.dataset.shellCommand;
-      if (command === "Timescale") {
+      if (command === "Table") {
+        options.onWorkspaceLayoutChange?.("grid");
+      } else if (command === "Gantt Chart") {
+        options.onWorkspaceLayoutChange?.("gantt");
+      } else if (command === "Timescale") {
         const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
-      } else if (command === "Columns" || command === "Bars" || command === "Bar Chart Options") {
-        openToolsDrawer(container);
+      } else if (command === "Columns") {
+        const dialog = container.querySelector<HTMLDialogElement>("[data-columns-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
+      } else if (command === "Bars" || command === "Bar Chart Options") {
+        const dialog = container.querySelector<HTMLDialogElement>(command === "Bars" ? "[data-bars-dialog]" : "[data-bar-chart-options-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
       } else if (command === "Filter By") {
-        container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
+        const dialog = container.querySelector<HTMLDialogElement>("[data-filters-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
       } else if (command === "Group and Sort By") {
-        container.querySelector<HTMLSelectElement>("[data-activity-group]")?.focus();
+        const dialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
+      } else if (command === "Bottom Layout Options") {
+        container.querySelector<HTMLElement>("[data-activity-details-options-open]")?.click();
+      } else if (command === "Activity Details") {
+        container.querySelector<HTMLElement>("#cp-details")?.scrollIntoView?.({ behavior: "smooth", block: "end" });
+      } else if (command === "Add Activity") {
+        container.querySelector<HTMLElement>('[data-workspace-command="new-activity"]')?.click();
+      } else if (command === "Add WBS") {
+        const trigger = container.querySelector<HTMLElement>('[data-workspace-command="new-wbs"]');
+        if (trigger) trigger.click();
+        else {
+          openWbsDrawer(container);
+          container.querySelector<HTMLInputElement>('[data-wbs-create-form] [name="code"]')?.focus({ preventScroll: true });
+        }
+      } else if (command === "Add Relationship" || command === "Link Activities") {
+        container.querySelector<HTMLElement>('[data-workspace-command="relationships"]')?.click();
+        container.querySelector<HTMLSelectElement>('[data-relationship-create-form] [name="predecessor_id"]')?.focus({ preventScroll: true });
+      } else if (command === "Find") {
+        container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus({ preventScroll: true });
       }
       return;
     }
@@ -486,6 +962,88 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       else dialog?.setAttribute("open", "");
       return;
     }
+    if (target.dataset.filtersClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-filters-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.filtersApply !== undefined || target.dataset.filtersClear !== undefined) {
+      const search = container.querySelector<HTMLInputElement>("[data-filters-search]");
+      const value = target.dataset.filtersClear !== undefined ? "" : search?.value ?? "";
+      options.onActivityFilterChange?.(value);
+      const dialog = container.querySelector<HTMLDialogElement>("[data-filters-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.barsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-bars-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.barChartOptionsOpen !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-bar-chart-options-dialog]");
+      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+      else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.dataset.barOptionsClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-bar-chart-options-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.barsTab) {
+      const active = target.dataset.barsTab;
+      container.querySelectorAll<HTMLElement>("[data-bars-tab]").forEach((button) => {
+        const selected = button.dataset.barsTab === active;
+        button.setAttribute("aria-selected", String(selected));
+        button.classList.toggle("is-active", selected);
+      });
+      container.querySelectorAll<HTMLElement>("[data-bars-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.barsPanel !== active;
+      });
+      return;
+    }
+    if (target.dataset.barOptionsTab) {
+      const active = target.dataset.barOptionsTab;
+      container.querySelectorAll<HTMLElement>("[data-bar-options-tab]").forEach((button) => {
+        const selected = button.dataset.barOptionsTab === active;
+        button.setAttribute("aria-selected", String(selected));
+        button.classList.toggle("is-active", selected);
+      });
+      container.querySelectorAll<HTMLElement>("[data-bar-options-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.barOptionsPanel !== active;
+      });
+      return;
+    }
+    if (target.dataset.groupSortClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.groupSortApply !== undefined) {
+      const dialog = container.querySelector<HTMLElement>("[data-group-sort-dialog]");
+      const group = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-group]")?.value;
+      const field = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-field]")?.value ?? "";
+      const direction = dialog?.querySelector<HTMLSelectElement>("[data-group-sort-direction]")?.value;
+      if ((group === "wbs" || group === "none") && (direction === "asc" || direction === "desc")) {
+        const validField = field === "" || state.columns.some((column) => column.id === field);
+        if (validField && options.onActivityGroupSortChange) {
+          options.onActivityGroupSortChange(group, field || null, direction);
+        } else if (validField) {
+          options.onActivityGroupByChange?.(group);
+          options.onActivitySortChange?.(field || null);
+        }
+      }
+      const groupDialog = container.querySelector<HTMLDialogElement>("[data-group-sort-dialog]");
+      if (groupDialog && typeof groupDialog.close === "function") groupDialog.close();
+      else groupDialog?.removeAttribute("open");
+      return;
+    }
     if (target.dataset.layoutOptionsClose !== undefined) {
       const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
       if (dialog && typeof dialog.close === "function") dialog.close();
@@ -501,10 +1059,83 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       options.onGanttRelationshipsChange?.(target.dataset.ganttRelationshipsToggle === "true");
       return;
     }
+    if (target.dataset.activityNetworkOptionsToggle !== undefined) {
+      activityNetworkOptionsOpenByContainer.set(container, !(activityNetworkOptionsOpenByContainer.get(container) ?? false));
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.activityNetworkZoom) {
+      const display = getActivityNetworkDisplayOptions(container);
+      if (target.dataset.activityNetworkZoom === "in") display.zoom = Math.min(1.6, Math.round((display.zoom + 0.1) * 100) / 100);
+      else if (target.dataset.activityNetworkZoom === "out") display.zoom = Math.max(0.5, Math.round((display.zoom - 0.1) * 100) / 100);
+      else if (target.dataset.activityNetworkZoom === "fit") {
+        const graph = container.querySelector<HTMLElement>(".cp-activity-network-graph");
+        const canvas = container.querySelector<HTMLElement>(".cp-activity-network-canvas");
+        const ratio = graph && canvas && canvas.offsetWidth > 0 ? (graph.clientWidth - 24) / canvas.offsetWidth : 0.9;
+        display.zoom = Math.max(0.5, Math.min(1, ratio));
+      }
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.activityNetworkReorganize !== undefined) {
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }    if (target.dataset.activityNavigate) {
+      const navigableActivities = filterAndSortActivities(state.activities, state.activityFilter, state.activitySort, state.activityGroupBy, state.wbsNodes);
+      const currentIndex = navigableActivities.findIndex((item) => item.id === state.selectedActivityId);
+      const nextIndex = target.dataset.activityNavigate === "previous" ? currentIndex - 1 : currentIndex + 1;
+      const nextActivity = navigableActivities[nextIndex];
+      if (nextActivity) options.onActivitySelect?.(nextActivity.id);
+      return;
+    }
     if (target.dataset.ganttActivityId) return void options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
     if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
   });
   container.addEventListener("keydown", (event) => {
+    const structureSplitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-structure-splitter]");
+    if (structureSplitter?.dataset && "projectStructureSplitter" in structureSplitter.dataset) {
+      const root = container.querySelector<HTMLElement>(".cp-workspace[data-active-menu=project]");
+      const rtl = root?.getAttribute("dir") === "rtl";
+      const current = readProjectStructureWidth();
+      let next = current;
+      if (event.key === (rtl ? "ArrowLeft" : "ArrowRight")) next += 16;
+      else if (event.key === (rtl ? "ArrowRight" : "ArrowLeft")) next -= 16;
+      else if (event.key === "Home") next = PROJECT_STRUCTURE_WIDTH_MIN;
+      else if (event.key === "End") next = PROJECT_STRUCTURE_WIDTH_MAX;
+      else return;
+      event.preventDefault();
+      setProjectStructureWidth(container, next);
+      return;
+    }
+    const projectSplitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter]");
+    if (projectSplitter?.dataset && "projectDetailsSplitter" in projectSplitter.dataset) {
+      const current = readProjectDetailsHeight();
+      let next = current;
+      if (event.key === "ArrowUp") next += 16;
+      else if (event.key === "ArrowDown") next -= 16;
+      else if (event.key === "Home") next = PROJECT_DETAILS_HEIGHT_MIN;
+      else if (event.key === "End") next = projectDetailsHeightMax();
+      else return;
+      event.preventDefault();
+      setProjectDetailsHeight(container, next);
+      return;
+    }
+    const activitySplitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-activity-details-splitter]");
+    if (activitySplitter?.dataset && "activityDetailsSplitter" in activitySplitter.dataset) {
+      const current = readActivityDetailsHeight();
+      let next = current;
+      if (event.key === "ArrowUp") next += 16;
+      else if (event.key === "ArrowDown") next -= 16;
+      else if (event.key === "Home") next = ACTIVITY_DETAILS_HEIGHT_MIN;
+      else if (event.key === "End") next = activityDetailsHeightMax();
+      else return;
+      event.preventDefault();
+      setActivityDetailsHeight(container, next);
+      return;
+    }
     const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
     if (splitter && splitter.dataset && "panelSplitter" in splitter.dataset) {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -526,18 +1157,147 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.ganttActivityId) record.options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
     else if (target.dataset.activityId) record.options.onActivitySelect?.(target.dataset.activityId);
   });
+  container.addEventListener("pointerdown", (event) => {
+    const structureTarget = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-structure-splitter]");
+    if (structureTarget?.dataset && "projectStructureSplitter" in structureTarget.dataset) {
+      const structure = container.querySelector<HTMLElement>(".cp-project-structure-summary");
+      const root = container.querySelector<HTMLElement>(".cp-workspace[data-active-menu=project]");
+      projectStructureDragByContainer.set(container, { pointerId: event.pointerId, startX: event.clientX, startWidth: structure?.getBoundingClientRect().width || readProjectStructureWidth(), rtl: root?.getAttribute("dir") === "rtl" });
+      try { structureTarget.setPointerCapture(event.pointerId); } catch { /* pointer capture is optional in embedded previews */ }
+      event.preventDefault();
+      return;
+    }
+    const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter],[data-activity-details-splitter]");
+    if (!target) return;
+    const details = container.querySelector<HTMLElement>("#cp-details");
+    const startHeight = details?.getBoundingClientRect().height || (target.dataset?.projectDetailsSplitter !== undefined ? readProjectDetailsHeight() : readActivityDetailsHeight());
+    if (target.dataset?.projectDetailsSplitter !== undefined) projectDetailsDragByContainer.set(container, { pointerId: event.pointerId, startY: event.clientY, startHeight });
+    else activityDetailsDragByContainer.set(container, { pointerId: event.pointerId, startY: event.clientY, startHeight });
+    try { target.setPointerCapture(event.pointerId); } catch { /* pointer capture is optional in embedded previews */ }
+    event.preventDefault();
+  });
+  container.addEventListener("pointermove", (event) => {
+    const structureDrag = projectStructureDragByContainer.get(container);
+    if (structureDrag && structureDrag.pointerId === event.pointerId) {
+      const delta = (event.clientX - structureDrag.startX) * (structureDrag.rtl ? -1 : 1);
+      setProjectStructureWidth(container, structureDrag.startWidth + delta);
+      return;
+    }
+    const projectDrag = projectDetailsDragByContainer.get(container);
+    if (projectDrag && projectDrag.pointerId === event.pointerId) {
+      setProjectDetailsHeight(container, projectDrag.startHeight - (event.clientY - projectDrag.startY));
+      return;
+    }
+    const activityDrag = activityDetailsDragByContainer.get(container);
+    if (activityDrag && activityDrag.pointerId === event.pointerId) setActivityDetailsHeight(container, activityDrag.startHeight - (event.clientY - activityDrag.startY));
+  });
+  const finishDetailsDrag = (event: PointerEvent): void => {
+    const structureDrag = projectStructureDragByContainer.get(container);
+    if (structureDrag?.pointerId === event.pointerId) projectStructureDragByContainer.delete(container);
+    const projectDrag = projectDetailsDragByContainer.get(container);
+    const activityDrag = activityDetailsDragByContainer.get(container);
+    if (projectDrag?.pointerId === event.pointerId) projectDetailsDragByContainer.delete(container);
+    if (activityDrag?.pointerId === event.pointerId) activityDetailsDragByContainer.delete(container);
+    const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-structure-splitter],[data-project-details-splitter],[data-activity-details-splitter]");
+    try { target?.releasePointerCapture(event.pointerId); } catch { /* pointer capture may already be released */ }
+  };
+  container.addEventListener("pointerup", finishDetailsDrag);
+  container.addEventListener("pointercancel", finishDetailsDrag);
+  container.addEventListener("dblclick", (event) => {
+    const structureTarget = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-structure-splitter]");
+    if (structureTarget?.dataset && "projectStructureSplitter" in structureTarget.dataset) { event.preventDefault(); setProjectStructureWidth(container, PROJECT_STRUCTURE_WIDTH_DEFAULT); return; }
+    const target = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-project-details-splitter],[data-activity-details-splitter]");
+    if (!target) return;
+    event.preventDefault();
+    if (target.dataset?.projectDetailsSplitter !== undefined) setProjectDetailsHeight(container, PROJECT_DETAILS_HEIGHT_DEFAULT);
+    else setActivityDetailsHeight(container, ACTIVITY_DETAILS_HEIGHT_DEFAULT);
+  });
+
   container.addEventListener("change", (event) => {
     const element = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
       ? event.target as HTMLElement
       : null;
     if (!element) return;
-    if (Object.prototype.hasOwnProperty.call(element.dataset, "trackingLayout")) {
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "activityNetworkSetting")) {
+      const display = getActivityNetworkDisplayOptions(container);
+      const setting = element.dataset.activityNetworkSetting;
       const value = (element as HTMLSelectElement).value;
+      if (setting === "organization" && (value === "top" || value === "centered")) display.organization = value;
+      else if (setting === "vertical-spacing" && ["20","34","50"].includes(value)) display.verticalSpacing = Number(value) as ActivityNetworkDisplayOptions["verticalSpacing"];
+      else if (setting === "horizontal-spacing" && ["60","92","130"].includes(value)) display.horizontalSpacing = Number(value) as ActivityNetworkDisplayOptions["horizontalSpacing"];
+      else if (setting === "order" && (value === "longest" || value === "shortest")) display.order = value;
+      else if (setting === "template" && ["code-name","name-only","code-only"].includes(value)) display.template = value as ActivityNetworkDisplayOptions["template"];
+      else if (setting === "font" && ["Inter","Arial","Georgia"].includes(value)) display.font = value as ActivityNetworkDisplayOptions["font"];
+      else if (setting === "font-size" && ["10","12","14","16"].includes(value)) display.fontSize = Number(value) as ActivityNetworkDisplayOptions["fontSize"];
+      else if (setting === "node-color" && ["#ffffff","#eef5fb","#fffaf0"].includes(value)) display.nodeColor = value as ActivityNetworkDisplayOptions["nodeColor"];
+      else if (setting === "show-progress") display.showProgress = (element as HTMLInputElement).checked;
+      else return;
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }    if (Object.prototype.hasOwnProperty.call(element.dataset, "topLayout")) {
+      const value = (element as HTMLSelectElement).value;
+      if (value !== "table-gantt" && value !== "activity-network") return;
+      activityTopLayoutByContainer.set(container, value);
+      const split = container.querySelector<HTMLElement>('.cp-p6-split[data-workspace-menu="schedule"]');
+      const network = container.querySelector<HTMLElement>("#cp-activity-network");
+      if (split) split.hidden = value === "activity-network";
+      if (network) network.hidden = value !== "activity-network";
+      return;
+    }    if (Object.prototype.hasOwnProperty.call(element.dataset, "assignmentUsageTimescale")) {
+      const value = (element as HTMLSelectElement).value;
+      if (["day", "week", "month", "quarter", "financial-period"].includes(value)) {
+        getAssignmentUsageDisplayState(container).timescale = value as AssignmentUsageDisplayState["timescale"];
+        const record = workspaceRenderRecords.get(container);
+        if (record) renderMainWorkspace(container, record.state, record.options);
+      }
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "assignmentUsageData")) {
+      const value = (element as HTMLSelectElement).value;
+      if (["budgeted-units", "actual-units", "remaining-units", "budgeted-cost", "actual-cost", "remaining-cost"].includes(value)) {
+        getAssignmentUsageDisplayState(container).data = value as AssignmentUsageDisplayState["data"];
+        const record = workspaceRenderRecords.get(container);
+        if (record) renderMainWorkspace(container, record.state, record.options);
+      }
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "wbsChartSetting")) {
+      const appearance = getWbsChartAppearance(container);
+      const setting = element.dataset.wbsChartSetting;
+      const value = (element as HTMLSelectElement).value;
+      if (setting === "template" && ["code-name", "name-only", "code-only"].includes(value)) appearance.template = value as WbsChartAppearance["template"];
+      else if (setting === "font" && ["Inter", "Arial", "Georgia"].includes(value)) appearance.font = value as WbsChartAppearance["font"];
+      else if (setting === "size" && ["10", "12", "14", "16", "18"].includes(value)) appearance.size = Number(value) as WbsChartAppearance["size"];
+      else if (setting === "background" && ["#f7f9fc", "#eef5fb", "#fffaf0"].includes(value)) appearance.background = value as WbsChartAppearance["background"];
+      else if (setting === "box" && ["#ffffff", "#eef5fb", "#fffaf0"].includes(value)) appearance.box = value as WbsChartAppearance["box"];
+      else return;
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "trackingLayout")) {
+      const value = (element as HTMLSelectElement).value as "table" | "bar-chart" | "gantt-profile" | "resource-analysis";
+      if (!["table", "bar-chart", "gantt-profile", "resource-analysis"].includes(value)) return;
+      trackingLayoutByContainer.set(container, value);
+      const frame = container.querySelector<HTMLElement>("[data-tracking-layout-frame]");
+      if (frame) frame.dataset.trackingLayoutType = value;
       const surface = container.querySelector<HTMLElement>("[data-tracking-surface]");
-      const label = element.querySelector<HTMLOptionElement>("option:checked")?.textContent ?? "";
       if (surface) surface.dataset.trackingSurface = value;
+      const label = element.querySelector<HTMLOptionElement>("option:checked")?.textContent ?? "";
       const heading = container.querySelector<HTMLElement>("[data-tracking-layout-label]");
       if (heading) heading.textContent = label;
+      container.querySelectorAll<HTMLElement>("[data-tracking-content]").forEach((panel) => { panel.hidden = panel.dataset.trackingContent !== value; });
+      const split = value === "gantt-profile" || value === "resource-analysis";
+      const display = getTrackingDisplayState(container);
+      const projectExplorer = container.querySelector<HTMLElement>('[data-tracking-pane="project-explorer"]');
+      const top = container.querySelector<HTMLElement>('[data-tracking-pane="top-layout"]');
+      const explorer = container.querySelector<HTMLElement>('[data-tracking-pane="resource-explorer"]');
+      const bottom = container.querySelector<HTMLElement>('[data-tracking-pane="bottom-layout"]');
+      if (projectExplorer) projectExplorer.hidden = !display.showProjectExplorer;
+      if (top) top.hidden = !display.showTopLayout;
+      if (explorer) explorer.hidden = !split || !display.showResourceExplorer;
+      if (bottom) bottom.hidden = !split || !display.showBottomLayout;
       return;
     }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutTimescale")) {
@@ -573,6 +1333,44 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const label = target.value.trim();
     if (fieldId && label) workspaceRenderRecords.get(container)?.options.onP6FieldPresentationChange?.(fieldId, { label });
   });
+}
+
+function renderWbsTable(
+  nodes: WorkspaceState["wbsNodes"],
+  selectedWbsId: string | null,
+  labels: WorkspaceLabels,
+  locale: WorkspaceState["locale"],
+): string {
+  if (!nodes.length) return `<div class="cp-empty">${escapeHtml(labels.noWbs)}</div>`;
+  const byParent = new Map<string | null, WorkspaceState["wbsNodes"][number][]>();
+  const ids = new Set(nodes.map((node) => node.id));
+  for (const node of nodes) {
+    const parentId = node.parentKind === "project" || !node.parentWbsId || !ids.has(node.parentWbsId) ? null : node.parentWbsId;
+    const siblings = byParent.get(parentId) ?? [];
+    siblings.push(node);
+    byParent.set(parentId, siblings);
+  }
+  for (const siblings of byParent.values()) siblings.sort((a,b) => a.sequenceNumber-b.sequenceNumber || a.id.localeCompare(b.id));
+  const rows: string[] = [];
+  const seen = new Set<string>();
+  const append = (parentId: string | null, level: number): void => {
+    for (const node of byParent.get(parentId) ?? []) {
+      if (seen.has(node.id)) continue;
+      seen.add(node.id);
+      const selected = node.id === selectedWbsId;
+      const parentName = node.parentWbsId ? nodes.find((candidate) => candidate.id === node.parentWbsId)?.name ?? node.parentWbsId : uiText(locale,"Project root","ریشه پروژه");
+      rows.push(`<tr class="${selected ? "is-selected" : ""}" aria-selected="${selected}"><td><button type="button" class="cp-wbs-table-code" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected}">${escapeHtml(node.localCode)}</button></td><td><button type="button" class="cp-wbs-table-name" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected}" style="--cp-wbs-level:${level}">${escapeHtml(node.name)}</button></td><td>${escapeHtml(parentName)}</td><td>${escapeHtml(String(node.sequenceNumber))}</td></tr>`);
+      append(node.id, level + 1);
+    }
+  };
+  append(null,0);
+  for (const node of [...nodes].sort((a,b)=>a.sequenceNumber-b.sequenceNumber || a.id.localeCompare(b.id))) {
+    if (!seen.has(node.id)) {
+      rows.push(`<tr class="cp-wbs-invalid-row"><td>${escapeHtml(node.localCode)}</td><td>${escapeHtml(node.name)}</td><td>${escapeHtml(node.parentWbsId ?? "—")}</td><td>${escapeHtml(String(node.sequenceNumber))}</td></tr>`);
+    }
+  }
+  const headings = [["WBS Code","کد WBS"],["WBS Name","نام WBS"],["Parent WBS","WBS والد"],["Sequence","ترتیب"]];
+  return `<div class="cp-wbs-table-wrap"><table class="cp-wbs-table"><thead><tr>${headings.map(([en,fa])=>`<th>${escapeHtml(uiText(locale,en,fa))}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
 }
 
 function renderWbsTree(
@@ -693,11 +1491,13 @@ export type WorkspaceRendererOptions = {
   onActivitySelect?: (activityId: string) => void;
   onGanttActivitySelect?: (activityId: string) => void;
   onGanttScaleChange?: (ganttScale: WorkspaceGanttScale) => void;
+  onWorkspaceLayoutChange?: (workspaceLayout: WorkspaceState["workspaceLayout"]) => void;
   onGanttRelationshipsChange?: (visible: boolean) => void;
   onProjectSettings?: () => void;
   onActivityFilterChange?: (filterText: string) => void;
   onActivitySortChange?: (columnId: string | null) => void;
   onActivityGroupByChange?: (groupBy: "wbs" | "none") => void;
+  onActivityGroupSortChange?: (groupBy: "wbs" | "none", columnId: string | null, direction: "asc" | "desc") => void;
   onActivitySortDirectionToggle?: () => void;
   onP6FieldAdd?: (fieldId: string) => void;
   onP6FieldRemove?: (fieldId: string) => void;
@@ -852,7 +1652,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         : `<button type="button" disabled title="${escapeAttribute(uiText(state.locale, "This visual command is not connected yet.", "این فرمان بصری هنوز متصل نشده است."))}">${escapeHtml(command.label)}</button>`).join("");
 
   container.innerHTML = `
-    <section class="cp-workspace cp-p6-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}">
+    <section class="cp-workspace cp-p6-workspace" style="--cp-project-details-height:${readProjectDetailsHeight()}px;--cp-activity-details-height:${readActivityDetailsHeight()}px;--cp-project-structure-width:${readProjectStructureWidth()}px" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}" data-workspace-layout="${state.workspaceLayout}">
       <header class="cp-header">
         <div class="cp-brand"><img class="cp-brand-logo" src="${escapeAttribute(cubiPlatformLogoUrl())}" width="1536" height="664" alt="CUBI Platform" /></div>
         <div class="cp-project">${escapeHtml(state.context.project_id)}</div>
@@ -916,10 +1716,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
             <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>` : ""}
           </div>
-          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}
+          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(container, state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderGroupSortDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderFiltersDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarsDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarChartOptionsDialog(state) : ""}
+          ${state.activeMenu === "schedule" ? renderColumnsDialog(state, options.layoutHistory) : ""}
+          ${state.activeMenu === "progress" ? renderUpdateProgressDialog(state) : ""}
+          ${state.activeMenu === "progress" ? renderPeriodPerformanceDialog(state) : ""}
+          ${state.activeMenu === "schedule" ? renderWorkspaceCommandRibbon(state, t) : ""}
           <main class="cp-main">
             <div class="cp-p6-primary">
-              <section class="cp-p6-split" data-panel-split data-workspace-menu="schedule">
+              <section class="cp-p6-split" data-panel-split data-workspace-menu="schedule" ${(activityTopLayoutByContainer.get(container) ?? "table-gantt") === "activity-network" ? "hidden" : ""}>
                 <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-grid-head">
                     <h2>${escapeHtml(t.activities)}</h2>
@@ -946,9 +1750,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}
                 </section>
               </section>
+              <section id="cp-activity-network" class="cp-panel cp-activity-network" data-workspace-menu="schedule" ${activityTopLayoutByContainer.get(container) === "activity-network" ? "" : "hidden"}>
+                ${renderActivityNetwork(visibleActivities, state.relationships, state.selectedActivityId, state.wbsNodes, state.selectedWbsId, state.locale, t)}
+              </section>
               ${renderP6ModuleStage(container, state, t)}
             </div>
-            <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading">${renderWindowDetailsPanel(state, t, container)}</aside>
+            ${state.activeMenu === "project" && state.visiblePanels.details ? `<div class="cp-project-details-splitter" data-project-details-splitter role="separator" aria-orientation="horizontal" aria-valuemin="${PROJECT_DETAILS_HEIGHT_MIN}" aria-valuemax="${projectDetailsHeightMax()}" aria-valuenow="${readProjectDetailsHeight()}" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize Project Details pane", "تغییر ارتفاع پنل جزئیات پروژه"))}"><span></span></div>` : ""}
+            ${state.activeMenu === "schedule" && state.visiblePanels.details ? `<div class="cp-activity-details-splitter" data-activity-details-splitter role="separator" aria-orientation="horizontal" aria-valuemin="${ACTIVITY_DETAILS_HEIGHT_MIN}" aria-valuemax="${activityDetailsHeightMax()}" aria-valuenow="${readActivityDetailsHeight()}" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize Activity Details pane", "تغییر ارتفاع پنل جزئیات فعالیت"))}"><span></span></div>` : ""}
+            <aside id="cp-details" class="cp-panel cp-details${state.activeMenu === "project" ? " cp-project-details-dock" : state.activeMenu === "schedule" ? " cp-activity-details-dock" : ""}" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading">${renderWindowDetailsPanel(state, t, container)}</aside>
           </main>
           <div class="cp-p6-drawer cp-p6-wbs-drawer" data-wbs-drawer hidden aria-label="${escapeAttribute(t.wbs)}">
             <div class="cp-p6-drawer-head"><strong>${escapeHtml(t.wbs)}</strong><button type="button" data-wbs-drawer-close title="${escapeAttribute(rail.close)}" aria-label="${escapeAttribute(rail.close)}">${workspaceIcon("close")}</button></div>
@@ -1052,6 +1861,33 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 }
 
 
+function renderResourceAssignmentsWindow(container: HTMLElement, state: WorkspaceState): string {
+  const visible = assignmentUsageVisibleByContainer.get(container) ?? true;
+  const display = getAssignmentUsageDisplayState(container);
+  const base = renderRegisterWindow(
+    state,
+    uiText(state.locale, "Resource Assignments", "تخصیص منابع"),
+    [["Activity ID","شناسه فعالیت"],["Activity Name","نام فعالیت"],["Resource","منبع"],["Role","نقش"],["Budgeted Units","واحد بودجه"],["Actual Units","واحد واقعی"],["Remaining Units","واحد باقی‌مانده"],["Units / Time","واحد / زمان"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Rate Type","نوع نرخ"],["Calendar","تقویم"]],
+    [["general","General","عمومی"],["planning","Planning","برنامه‌ریزی"],["costs","Costs","هزینه‌ها"],["units-prices","Units & Prices","واحدها و قیمت‌ها"],["udfs","UDFs","فیلدهای کاربر"]],
+  ).replace('<div class="cp-register-window">', '<div class="cp-register-window cp-resource-assignments-window">');
+  const toolbar = "<div class=\"cp-assignment-usage-toolbar\"><strong>" + escapeHtml(uiText(state.locale, "Assignment Analysis", "تحلیل تخصیص")) + "</strong><button type=\"button\" data-assignment-usage-toggle aria-pressed=\"" + String(visible) + "\">" + escapeHtml(uiText(state.locale, visible ? "Hide Usage Spreadsheet" : "Show Usage Spreadsheet", visible ? "پنهان‌کردن صفحه‌گسترده مصرف" : "نمایش صفحه‌گسترده مصرف")) + "</button></div>";
+  const timescaleOptions: Array<[AssignmentUsageDisplayState["timescale"], string, string]> = [["day","Day","روز"],["week","Week","هفته"],["month","Month","ماه"],["quarter","Quarter","فصل"],["financial-period","Financial Period","دوره مالی"]];
+  const dataOptions: Array<[AssignmentUsageDisplayState["data"], string, string]> = [["budgeted-units","Budgeted Units","واحد بودجه"],["actual-units","Actual Units","واحد واقعی"],["remaining-units","Remaining Units","واحد باقیمانده"],["budgeted-cost","Budgeted Cost","هزینه بودجه"],["actual-cost","Actual Cost","هزینه واقعی"],["remaining-cost","Remaining Cost","هزینه باقیمانده"]];
+  const periodPairs: Array<[string, string]> = display.timescale === "day" ? [["Period 1","دوره ۱"],["Period 2","دوره ۲"],["Period 3","دوره ۳"],["Period 4","دوره ۴"]] : display.timescale === "week" ? [["Week 1","هفته ۱"],["Week 2","هفته ۲"],["Week 3","هفته ۳"],["Week 4","هفته ۴"]] : display.timescale === "month" ? [["Month 1","ماه ۱"],["Month 2","ماه ۲"],["Month 3","ماه ۳"],["Month 4","ماه ۴"]] : display.timescale === "quarter" ? [["Quarter 1","فصل ۱"],["Quarter 2","فصل ۲"],["Quarter 3","فصل ۳"],["Quarter 4","فصل ۴"]] : [["Financial Period 1","دوره مالی ۱"],["Financial Period 2","دوره مالی ۲"],["Financial Period 3","دوره مالی ۳"],["Financial Period 4","دوره مالی ۴"]];
+  const periodLabels = periodPairs.map(([en,fa]) => uiText(state.locale,en,fa));
+  const selectedDataOption = dataOptions.find(([value]) => value === display.data);
+  const selectedDataLabel = selectedDataOption ? uiText(state.locale, selectedDataOption[1], selectedDataOption[2]) : uiText(state.locale, "Budgeted Units", "واحد بودجه");
+  const selectedTimescaleOption = timescaleOptions.find(([value]) => value === display.timescale);
+  const selectedTimescaleLabel = selectedTimescaleOption ? uiText(state.locale, selectedTimescaleOption[1], selectedTimescaleOption[2]) : uiText(state.locale,"Week","هفته");
+  const headers = ["Assignment","Resource",...display.fields,selectedDataLabel + " Total",...periodLabels].map((name) => "<th>" + escapeHtml(name) + "</th>").join("");
+  const colspan = 3 + display.fields.length + periodLabels.length;
+  const usage = "<section class=\"cp-assignment-usage-panel\" data-assignment-usage-panel " + (visible ? "" : "hidden") + " aria-label=\"" + escapeAttribute(uiText(state.locale, "Resource Usage Spreadsheet", "صفحه‌گسترده مصرف منابع")) + "\"><header><strong>" + escapeHtml(uiText(state.locale, "Resource Usage Spreadsheet", "صفحه‌گسترده مصرف منابع")) + "</strong><div class=\"cp-assignment-usage-options\"><label>" + escapeHtml(uiText(state.locale, "Timescale", "مقیاس زمانی")) + "<select data-assignment-usage-timescale>" + timescaleOptions.map(([value,en,fa])=>"<option value=\"" + value + "\" " + (display.timescale===value?"selected":"") + ">" + escapeHtml(uiText(state.locale,en,fa)) + "</option>").join("") + "</select></label><label>" + escapeHtml(uiText(state.locale, "Data", "داده")) + "<select data-assignment-usage-data>" + dataOptions.map(([value,en,fa])=>"<option value=\"" + value + "\" " + (display.data===value?"selected":"") + ">" + escapeHtml(uiText(state.locale,en,fa)) + "</option>").join("") + "</select></label><button type=\"button\" data-assignment-usage-fields-open>" + escapeHtml(uiText(state.locale, "Spreadsheet Fields…", "فیلدهای صفحه‌گسترده…")) + "</button></div></header><div class=\"cp-assignment-usage-table-wrap\"><table><caption>" + escapeHtml(uiText(state.locale, "Time-phased ", "مقادیر زمان‌بندی‌شده ") + selectedDataLabel + " · " + selectedTimescaleLabel) + "</caption><thead><tr>" + headers + "</tr></thead><tbody><tr><td colspan=\"" + colspan + "\">" + escapeHtml(uiText(state.locale, "No resource assignment time-phased values are loaded.", "مقادیر زمان‌بندی‌شده تخصیص منابع بارگذاری نشده‌اند.")) + "</td></tr></tbody></table></div><p>" + escapeHtml(uiText(state.locale, "The selected display fields and timescale are presentation preferences only. No assignment values are loaded; editing and fill-down/across remain unavailable.", "فیلدها و مقیاس زمانی انتخاب‌شده فقط تنظیمات نمایش هستند. هیچ مقدار تخصیصی بارگذاری نشده؛ ویرایش و پرکردن افقی/عمودی در دسترس نیست.")) + "</p></section>";
+  const fieldOptions = ["Budgeted Units","Actual Units","Remaining Units","At Completion Units","Budgeted Cost","Actual Cost","Remaining Cost","At Completion Cost"];
+  const dialog = "<dialog class=\"cp-assignment-fields-dialog\" data-assignment-usage-fields-dialog aria-labelledby=\"cp-assignment-fields-title\"><header><h2 id=\"cp-assignment-fields-title\">" + escapeHtml(uiText(state.locale, "Spreadsheet Fields", "فیلدهای صفحه‌گسترده")) + "</h2><button type=\"button\" data-assignment-usage-fields-close aria-label=\"" + escapeAttribute(uiText(state.locale,"Close","بستن")) + "\">×</button></header><p>" + escapeHtml(uiText(state.locale,"Select the fields to display. At least one field is required.","فیلدهای نمایشی را انتخاب کنید. حداقل یک فیلد لازم است.")) + "</p><div class=\"cp-assignment-fields-grid\">" + fieldOptions.map((field)=>"<label><input type=\"checkbox\" data-assignment-usage-field value=\"" + escapeAttribute(field) + "\" " + (display.fields.includes(field)?"checked":"") + "> " + escapeHtml(uiText(state.locale,field,field==="Budgeted Units"?"واحد بودجه":field==="Actual Units"?"واحد واقعی":field==="Remaining Units"?"واحد باقیمانده":field==="At Completion Units"?"واحد هنگام تکمیل":field==="Budgeted Cost"?"هزینه بودجه":field==="Actual Cost"?"هزینه واقعی":field==="Remaining Cost"?"هزینه باقیمانده":"هزینه هنگام تکمیل")) + "</label>").join("") + "</div><footer><button type=\"button\" data-assignment-usage-fields-close>" + escapeHtml(uiText(state.locale,"Cancel","انصراف")) + "</button><button type=\"button\" data-assignment-usage-fields-apply>" + escapeHtml(uiText(state.locale,"Apply","اعمال")) + "</button></footer></dialog>";
+  const splitBase = base.replace('<div class="cp-register-table-wrap">', '<div class="cp-assignment-main-layout"><div class="cp-assignment-register-pane"><div class="cp-register-table-wrap">').replace('<section class="cp-register-details">', '</div><div class="cp-assignment-usage-pane">' + usage + dialog + '</div></div><section class="cp-register-details">');
+  return "<div class=\"cp-assignment-workspace\">" + toolbar + splitBase + "</div>";
+}
+
 function renderRegisterWindow(
   state: WorkspaceState,
   title: string,
@@ -1067,7 +1903,166 @@ function renderRegisterWindow(
   </div>`;
 }
 
-function renderCalendarCatalog(state: WorkspaceState): string {
+function renderReportsCenter(container: HTMLElement, state: WorkspaceState): string {
+  const tabs = [["library","Report Library","کتابخانه گزارش"],["layouts","Report Layouts","چیدمان گزارش"],["batch","Batch Reports","گزارش‌های دسته‌ای"],["print-preview","Print Preview","پیش‌نمایش چاپ"],["page-setup","Page Setup","تنظیم صفحه"],["export","Export","خروجی"],["custom","Custom Reports","گزارش‌های سفارشی"]] as const;
+  const active = reportTabByContainer.get(container) ?? "library";
+  const label = (en: string, fa: string): string => escapeHtml(uiText(state.locale, en, fa));
+  const option = (name: string): string => `<label class="cp-report-option"><input type="checkbox" disabled> ${escapeHtml(name)}</label>`;
+  let panel = "";
+  if (active === "library") panel = `<div class="cp-report-template-grid">${["Activity List","WBS Summary","Schedule Variance","Critical Activities","Resource Assignments","Resource Usage","Cost Accounts","Cash Flow","Earned Value","Progress Summary","Quality Inspections","Safety Observations","Change Register","Claim Register","Document Register"].map((name)=>`<article><strong>${escapeHtml(name)}</strong><small>${label("Template definition not loaded","تعریف قالب بارگذاری نشده است")}</small><button type="button" disabled>${label("Select","انتخاب")}</button></article>`).join("")}</div>`;
+  else if (active === "layouts") panel = `<fieldset><legend>${label("Report Layout","چیدمان گزارش")}</legend><label>${label("Columns","ستون‌ها")}<select disabled><option>${label("No saved report layout","چیدمان ذخیره‌شده‌ای وجود ندارد")}</option></select></label><label>${label("Group By","گروه‌بندی")}<select disabled><option>WBS</option><option>Activity Code</option><option>Resource</option></select></label><label>${label("Sort By","مرتب‌سازی")}<select disabled><option>Activity ID</option><option>Start</option><option>Finish</option></select></label>${option("Show totals")}${option("Show subtotals")}${option("Repeat column headers")}</fieldset>`;
+  else if (active === "batch") panel = `<fieldset><legend>${label("Batch Report Queue","صف گزارش دسته‌ای")}</legend><p class="cp-empty">${label("No batch report jobs are queued.","هیچ کار گزارش دسته‌ای در صف نیست.")}</p><label>${label("Report Selection","انتخاب گزارش")}<select disabled><option>${label("No report templates loaded","قالب گزارشی بارگذاری نشده است")}</option></select></label><label>${label("Output Format","قالب خروجی")}<select disabled><option>PDF</option><option>XLSX</option><option>CSV</option></select></label>${option("Include all open projects")}${option("Create one file per project")}</fieldset>`;
+  else if (active === "print-preview") panel = `<div class="cp-report-page-preview"><div><strong>${label("Print Preview","پیش‌نمایش چاپ")}</strong><span>${label("No report selected","گزارشی انتخاب نشده است")}</span></div></div>`;
+  else if (active === "page-setup") panel = `<fieldset><legend>${label("Page Setup","تنظیم صفحه")}</legend><label>${label("Paper Size","اندازه کاغذ")}<select disabled><option>A4</option><option>A3</option><option>Letter</option><option>Legal</option></select></label><label>${label("Orientation","جهت صفحه")}<select disabled><option>${label("Portrait","عمودی")}</option><option>${label("Landscape","افقی")}</option></select></label><label>${label("Margins","حاشیه‌ها")}<input type="text" disabled value="—"></label><label>${label("Scaling","مقیاس")}<select disabled><option>${label("Fit to page width","جای‌گیری در عرض صفحه")}</option><option>${label("Actual size","اندازه واقعی")}</option></select></label>${option("Repeat header on each page")}${option("Include page numbers")}</fieldset>`;
+  else if (active === "export") panel = `<fieldset><legend>${label("Export Options","گزینه‌های خروجی")}</legend>${["PDF","Excel Workbook (XLSX)","Delimited Text (CSV)","Rich Text (RTF)","XML"].map(option).join("")}<label>${label("Destination","مقصد")}<input type="text" disabled placeholder="—"></label><label>${label("File Name","نام فایل")}<input type="text" disabled placeholder="—"></label></fieldset>`;
+  else panel = `<fieldset><legend>${label("Custom Report Builder","سازنده گزارش سفارشی")}</legend>${["Select Data Source","Choose Fields","Add Grouping","Add Filter","Add Calculated Field","Preview Results"].map(option).join("")}<p class="cp-empty">${label("The report definition and query services are not connected.","سرویس تعریف گزارش و پرس‌وجو متصل نیست.")}</p></fieldset>`;
+  return `<div class="cp-reports-center"><aside class="cp-reports-categories"><h3>${label("Report Categories","دسته‌های گزارش")}</h3>${["Project","Schedule","Activities","WBS","Resources","Cost","Progress","Quality","Safety","Commercial","Documents","Custom"].map((name)=>`<button type="button" disabled>${escapeHtml(name)}</button>`).join("")}</aside><section class="cp-reports-workspace"><nav role="tablist" aria-label="${label("Report workspace tabs","زبانه‌های فضای گزارش")}">${tabs.map(([key,en,fa])=>`<button type="button" role="tab" data-report-tab="${key}" aria-selected="${active===key}" class="${active===key?"is-active":""}">${label(en,fa)}</button>`).join("")}</nav><div class="cp-reports-panel">${panel}</div><p class="cp-dialog-notice">${label("Report generation, print, export and template editing are disabled until the report service is connected. No output is fabricated.","تولید گزارش، چاپ، خروجی و ویرایش قالب تا اتصال سرویس گزارش غیرفعال هستند. هیچ خروجی ساختگی تولید نمی‌شود.")}</p><footer><button type="button" disabled>${label("Generate","تولید")}</button><button type="button" disabled>${label("Preview","پیش‌نمایش")}</button><button type="button" disabled>${label("Print","چاپ")}</button><button type="button" disabled>${label("Export","خروجی")}</button><button type="button" disabled>${label("Help","راهنما")}</button></footer></section></div>`;
+}
+function renderProgressRegisterWindow(container: HTMLElement, state: WorkspaceState): string {
+  const selectedId = progressActivitySelectionByContainer.get(container) ?? state.selectedActivityId ?? null;
+  const selected = state.activities.find((activity) => activity.id === selectedId) ?? null;
+  const cell = (activity: WorkspaceActivityRow, key: string): string => {
+    const value = activity.cells?.[key];
+    return value === null || value === undefined || value === "" ? "—" : String(value);
+  };
+  const field = (label: string, content: string): string => `<div class="cp-progress-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(content)}</strong></div>`;
+  const progress = (activity: WorkspaceActivityRow): string => { const value = cell(activity, "progress"); return value === "—" || value.endsWith("%") ? value : `${value}%`; };
+  const activityRows = state.activities.map((activity) => `<tr class="${activity.id === selectedId ? "is-selected" : ""}"><td><button type="button" data-progress-activity-select="${escapeAttribute(activity.id)}" aria-pressed="${activity.id === selectedId}">${escapeHtml(activity.id)}</button></td><td>${escapeHtml(activity.name)}</td><td>${escapeHtml(activity.wbsId ?? "—")}</td><td>${escapeHtml(activity.gantt?.start ?? cell(activity, "start"))}</td><td>${escapeHtml(activity.gantt?.finish ?? cell(activity, "finish"))}</td><td>${escapeHtml(progress(activity))}</td></tr>`).join("");
+  const details = selected ? `<div class="cp-progress-detail-grid">${field(uiText(state.locale, "Activity ID", "شناسه فعالیت"), selected.id)}${field(uiText(state.locale, "Activity Name", "نام فعالیت"), selected.name)}${field(uiText(state.locale, "WBS", "ساختار شکست"), selected.wbsId ?? "—")}${field(uiText(state.locale, "Start", "شروع"), selected.gantt?.start ?? cell(selected, "start"))}${field(uiText(state.locale, "Finish", "پایان"), selected.gantt?.finish ?? cell(selected, "finish"))}${field(uiText(state.locale, "Entered Progress", "پیشرفت ثبت‌شده"), progress(selected))}${field(uiText(state.locale, "Actual Start", "شروع واقعی"), cell(selected, "actual_start"))}${field(uiText(state.locale, "Actual Finish", "پایان واقعی"), cell(selected, "actual_finish"))}</div>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "Select an activity to inspect its entered progress and actual dates.", "برای بررسی پیشرفت ثبت‌شده و تاریخ‌های واقعی، یک فعالیت را انتخاب کنید."))}</p>`;
+  return `<div class="cp-progress-window">
+    <section class="cp-progress-register"><header><strong>${escapeHtml(uiText(state.locale, "Activity Progress Register", "فهرست پیشرفت فعالیت‌ها"))}</strong><span>${escapeHtml(String(state.activities.length))} ${escapeHtml(uiText(state.locale, "activities", "فعالیت"))}</span></header>
+      <div class="cp-register-table-wrap"><table><thead><tr>${["Activity ID","Activity Name","WBS","Start","Finish","Entered Progress"].map((label) => `<th>${escapeHtml(uiText(state.locale, label, label === "Activity ID" ? "شناسه فعالیت" : label === "Activity Name" ? "نام فعالیت" : label === "Entered Progress" ? "پیشرفت ثبت‌شده" : label === "Start" ? "شروع" : label === "Finish" ? "پایان" : "ساختار شکست"))}</th>`).join("")}</tr></thead><tbody>${activityRows || `<tr><td colspan="6">${escapeHtml(uiText(state.locale, "No activities are loaded.", "فعالیتی بارگذاری نشده است."))}</td></tr>`}</tbody></table></div>
+      <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Progress values shown here are read from saved activity fields. This window does not calculate, infer or update progress.", "مقادیر پیشرفت از فیلدهای ذخیره‌شده فعالیت خوانده می‌شوند. این پنجره پیشرفت را محاسبه، استنباط یا به‌روزرسانی نمی‌کند."))}</p></section>
+    <aside class="cp-progress-side"><section class="cp-progress-details"><header><strong>${escapeHtml(uiText(state.locale, "Progress Details", "جزئیات پیشرفت"))}</strong><span>${escapeHtml(selected?.id ?? "—")}</span></header>${details}</section>
+      <section class="cp-progress-evidence"><h3>${escapeHtml(uiText(state.locale, "Field Evidence", "شواهد کارگاهی"))}</h3><div class="cp-progress-evidence-grid">
+        <div>${escapeHtml(String(state.siteDailyLogs.length))}<span>${escapeHtml(uiText(state.locale, "Site Daily Logs", "گزارش روزانه"))}</span></div><div>${escapeHtml(String(state.timecards.length))}<span>${escapeHtml(uiText(state.locale, "Timecards", "کارت کارکرد"))}</span></div><div>${escapeHtml(String(state.equipmentReports.length))}<span>${escapeHtml(uiText(state.locale, "Equipment Reports", "گزارش ماشین‌آلات"))}</span></div><div>${escapeHtml(String(state.fieldIssues.length))}<span>${escapeHtml(uiText(state.locale, "Field Issues", "مسائل کارگاهی"))}</span></div>
+      </div></section></aside>
+  </div>`;
+}
+function renderUpdateProgressDialog(state: WorkspaceState): string {
+  const label = (en: string, fa: string): string => escapeHtml(uiText(state.locale, en, fa));
+  return `<dialog class="cp-progress-dialog" data-progress-dialog="update" aria-labelledby="cp-update-progress-title">
+    <header><h2 id="cp-update-progress-title">${label("Update Progress", "به‌روزرسانی پیشرفت")}</h2><button type="button" data-progress-dialog-close aria-label="${label("Close", "بستن")}">×</button></header>
+    <p class="cp-dialog-notice">${label("The complete update workflow is shown for review. Inputs remain disabled until the authoritative progress and scheduling service is connected.", "گردش‌کار کامل به‌روزرسانی برای بازبینی نمایش داده شده است. ورودی‌ها تا اتصال سرویس مرجع پیشرفت و زمان‌بندی غیرفعال هستند.")}</p>
+    <div class="cp-progress-dialog-grid">
+      <fieldset><legend>${label("Data Date", "تاریخ داده")}</legend><label>${label("Current Data Date", "تاریخ داده فعلی")}<input type="date" disabled placeholder="—"></label><label>${label("New Data Date", "تاریخ داده جدید")}<input type="date" disabled></label><label><input type="radio" name="progress-scope" disabled checked> ${label("Update all activities highlighted by Progress Spotlight", "به‌روزرسانی همه فعالیت‌های مشخص‌شده در نشانگر پیشرفت")}</label><label><input type="radio" name="progress-scope" disabled> ${label("Update selected activities only", "به‌روزرسانی فقط فعالیت‌های انتخاب‌شده")}</label></fieldset>
+      <fieldset><legend>${label("Actuals and Remaining Work", "واقعی‌ها و کار باقیمانده")}</legend><label><input type="checkbox" disabled> ${label("Apply actuals from timesheets", "اعمال مقادیر واقعی از کارت‌های کارکرد")}</label><label><input type="radio" name="remaining-duration" disabled checked> ${label("Recalculate remaining duration based on activity Duration Type", "محاسبه مجدد مدت باقیمانده بر اساس نوع مدت فعالیت")}</label><label><input type="radio" name="remaining-duration" disabled> ${label("Always recalculate remaining duration (Fixed Units and Fixed Units/Time)", "محاسبه همیشگی مدت باقیمانده (واحد ثابت و واحد/زمان ثابت)")}</label><label>${label("Out-of-sequence policy", "سیاست فعالیت‌های خارج از توالی")}<select disabled><option>Retained Logic</option><option>Progress Override</option><option>Actual Dates</option></select></label></fieldset>
+      <fieldset><legend>${label("Project Scope", "دامنه پروژه")}</legend><label><input type="radio" name="data-date-scope" disabled checked> ${label("Apply selected Data Date to open projects", "اعمال تاریخ داده انتخاب‌شده به پروژه‌های باز")}</label><label><input type="radio" name="data-date-scope" disabled> ${label("Use each project’s own Data Date", "استفاده از تاریخ داده اختصاصی هر پروژه")}</label><label><input type="checkbox" disabled> ${label("Store period performance", "ذخیره عملکرد دوره‌ای")}</label></fieldset>
+    </div>
+    <footer><button type="button" data-progress-dialog-close>${label("Cancel", "انصراف")}</button><button type="button" disabled>${label("OK", "تأیید")}</button><button type="button" disabled>${label("Apply", "اعمال")}</button><button type="button" disabled>${label("Help", "راهنما")}</button></footer>
+  </dialog>`;
+}
+
+function renderPeriodPerformanceDialog(state: WorkspaceState): string {
+  const label = (en: string, fa: string): string => escapeHtml(uiText(state.locale, en, fa));
+  return `<dialog class="cp-progress-dialog" data-progress-dialog="period-performance" aria-labelledby="cp-period-performance-title">
+    <header><h2 id="cp-period-performance-title">${label("Store Period Performance", "ذخیره عملکرد دوره‌ای")}</h2><button type="button" data-progress-dialog-close aria-label="${label("Close", "بستن")}">×</button></header>
+    <p class="cp-dialog-notice">${label("Financial period records are not available from the current project service. No period values can be stored from this window.", "سوابق دوره مالی از سرویس فعلی پروژه در دسترس نیست. از این پنجره مقداری برای دوره ذخیره نمی‌شود.")}</p>
+    <fieldset><legend>${label("Financial Period", "دوره مالی")}</legend><label>${label("Period", "دوره")}<select disabled><option>${label("No financial periods loaded", "هیچ دوره مالی بارگذاری نشده است")}</option></select></label><label>${label("Data Date", "تاریخ داده")}<input type="date" disabled></label><label><input type="checkbox" disabled> ${label("Store period performance", "ذخیره عملکرد دوره")}</label></fieldset>
+    <footer><button type="button" data-progress-dialog-close>${label("Cancel", "انصراف")}</button><button type="button" disabled>${label("OK", "تأیید")}</button><button type="button" disabled>${label("Apply", "اعمال")}</button><button type="button" disabled>${label("Help", "راهنما")}</button></footer>
+  </dialog>`;
+}
+function renderDocumentRegisterWindow(container: HTMLElement, state: WorkspaceState): string {
+  const selectedId = documentSelectionByContainer.get(container) ?? null;
+  const typeFilter = documentTypeFilterByContainer.get(container) ?? null;
+  const visibleDocuments = typeFilter ? state.documents.filter((document) => document.resourceType === typeFilter) : state.documents;
+  const selected = visibleDocuments.find((document) => document.documentId === selectedId) ?? null;
+  const tabs = [
+    ["general", "General", "عمومی"],
+    ["files", "Files", "فایل‌ها"],
+    ["assignments", "Assignments", "تخصیص‌ها"],
+    ["udfs", "UDFs", "فیلدهای کاربر"],
+    ["links", "Links · CUBI", "پیوندها · کوبی"],
+    ["integrity", "Integrity · CUBI", "یکپارچگی · کوبی"],
+    ["revisions", "Revisions · CUBI", "بازنگری‌ها · کوبی"],
+  ] as const;
+  const activeTab = documentDetailTabByContainer.get(container) ?? "general";
+  const value = (label: string, content: string): string => `<div class="cp-document-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(content)}</strong></div>`;
+  let detail = `<p class="cp-empty">${escapeHtml(uiText(state.locale, "Select a document to view its details.", "برای مشاهده جزئیات یک سند را انتخاب کنید."))}</p>`;
+  if (selected && activeTab === "general") {
+    detail = `<div class="cp-document-detail-grid">${value(uiText(state.locale, "Document ID", "شناسه سند"), selected.documentId)}${value(uiText(state.locale, "Title", "عنوان"), selected.title)}${value(uiText(state.locale, "Type", "نوع"), selected.resourceType)}${value(uiText(state.locale, "Status", "وضعیت"), selected.status)}${value(uiText(state.locale, "Revision", "بازنگری"), String(selected.revision))}${value(uiText(state.locale, "Storage", "ذخیره‌سازی"), selected.hasStorageRef ? uiText(state.locale, "Reference available", "مرجع موجود است") : uiText(state.locale, "No storage reference", "مرجع ذخیره‌سازی موجود نیست"))}</div>`;
+  } else if (selected && activeTab === "files") {
+    detail = `<div class="cp-document-detail-grid">${value(uiText(state.locale,"Private Location","مسیر خصوصی"),uiText(state.locale,"Not loaded","بارگذاری نشده"))}${value(uiText(state.locale,"Public Location","مسیر عمومی"),uiText(state.locale,"Not loaded","بارگذاری نشده"))}</div><div class="cp-document-file-actions"><button type="button" disabled>${escapeHtml(uiText(state.locale,"Browse…","مرور…"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale,"Launch Private","بازکردن خصوصی"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale,"Launch Public","بازکردن عمومی"))}</button></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale,"A document record is separate from its file. No private or public file location is loaded.","رکورد سند از فایل آن جداست. هیچ مسیر فایل خصوصی یا عمومی بارگذاری نشده است."))}</p>`;
+  } else if (selected && activeTab === "assignments") {
+    detail = `<div class="cp-document-file-actions"><button type="button" disabled>${escapeHtml(uiText(state.locale,"Assign…","تخصیص…"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale,"Remove","حذف تخصیص"))}</button></div><div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale,"Assignment Type","نوع تخصیص"))}</th><th>${escapeHtml(uiText(state.locale,"WBS / Activity","WBS / فعالیت"))}</th><th>${escapeHtml(uiText(state.locale,"Work Product","محصول کاری"))}</th></tr></thead><tbody><tr><td colspan="3">${escapeHtml(uiText(state.locale,"No WBS or activity assignments are loaded.","هیچ تخصیص WBS یا فعالیتی بارگذاری نشده است."))}</td></tr></tbody></table></div>`;
+  } else if (selected && activeTab === "links") {
+    detail = selected.linkedEntityRefs.length ? `<ul class="cp-document-link-list">${selected.linkedEntityRefs.map((ref) => `<li>${escapeHtml(ref)}</li>`).join("")}</ul>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No linked project records.", "هیچ رکورد پروژه‌ای پیوند نشده است."))}</p>`;
+  } else if (selected && activeTab === "integrity") {
+    detail = `<div class="cp-document-detail-grid">${value("SHA-256", selected.contentHash)}${value(uiText(state.locale, "Storage reference", "مرجع ذخیره‌سازی"), selected.hasStorageRef ? uiText(state.locale, "Available", "موجود") : uiText(state.locale, "Unavailable", "ناموجود"))}</div>`;
+  } else if (selected && activeTab === "revisions") {
+    detail = `<div class="cp-document-detail-grid">${value(uiText(state.locale, "Current revision", "بازنگری جاری"), String(selected.revision))}</div><p class="cp-empty">${escapeHtml(uiText(state.locale, "Only the current document revision is loaded; revision history is not available from this service.", "فقط بازنگری جاری سند بارگذاری شده است؛ تاریخچه بازنگری از این سرویس در دسترس نیست."))}</p>`;
+  } else if (selected && activeTab === "udfs") {
+    detail = `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No user-defined document fields are loaded.", "فیلد سفارشی برای سند بارگذاری نشده است."))}</p>`;
+  }
+  const columns = [["Document ID","شناسه سند"],["Title","عنوان"],["Type","نوع"],["Status","وضعیت"],["Revision","بازنگری"],["Linked Records","رکوردهای پیوندشده"]] as const;
+  return `<div class="cp-documents-window">
+    <section class="cp-documents-register"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, typeFilter === "evidence" ? "Evidence Documents" : "Project Documents", typeFilter === "evidence" ? "اسناد شواهد" : "اسناد پروژه"))}</strong><span>${escapeHtml(String(visibleDocuments.length))} ${escapeHtml(uiText(state.locale, "documents", "سند"))}</span>${typeFilter ? `<button type="button" data-document-type-filter-clear>${escapeHtml(uiText(state.locale, "All documents", "همه اسناد"))}</button>` : ""}</div>
+      <div class="cp-register-table-wrap"><table><thead><tr>${columns.map(([en,fa])=>`<th>${escapeHtml(uiText(state.locale,en,fa))}</th>`).join("")}</tr></thead><tbody>
+      ${visibleDocuments.length ? visibleDocuments.map((document) => `<tr class="${document.documentId === selectedId ? "is-selected" : ""}"><td><button type="button" data-document-select="${escapeAttribute(document.documentId)}" aria-pressed="${document.documentId === selectedId}">${escapeHtml(document.documentId)}</button></td><td>${escapeHtml(document.title)}</td><td>${escapeHtml(document.resourceType)}</td><td>${escapeHtml(document.status)}</td><td>${escapeHtml(String(document.revision))}</td><td>${escapeHtml(String(document.linkedEntityRefs.length))}</td></tr>`).join("") : `<tr><td colspan="${columns.length}">${escapeHtml(uiText(state.locale, typeFilter === "evidence" ? "No evidence documents are loaded." : "No project documents have been recorded yet.", typeFilter === "evidence" ? "سند شواهدی بارگذاری نشده است." : "هنوز سندی برای این پروژه ثبت نشده است."))}</td></tr>`}
+      </tbody></table></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Create, edit, delete and upload actions remain disabled until the document service exposes the corresponding write workflows.", "عملیات ایجاد، ویرایش، حذف و بارگذاری تا ارائه گردش‌کار نوشتن توسط سرویس اسناد غیرفعال هستند."))}</p></section>
+    <section class="cp-document-details"><header><strong>${escapeHtml(uiText(state.locale, "Document Details", "جزئیات سند"))}</strong><span>${escapeHtml(selected?.documentId ?? uiText(state.locale, "No selection", "بدون انتخاب"))}</span></header>
+      <nav role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Document detail tabs", "زبانه‌های جزئیات سند"))}">${tabs.map(([key,en,fa])=>`<button type="button" role="tab" data-document-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}</nav><div class="cp-document-detail-content">${detail}</div></section>
+  </div>`;
+}
+function calendarParts(date: Date, mode: WorkspaceState["calendarMode"]): { year: string; month: string; day: number } {
+  const calendar = mode === "jalali" ? "persian" : "gregory";
+  const parts = new Intl.DateTimeFormat("en-US", { calendar, year: "numeric", month: "numeric", day: "numeric" }).formatToParts(date);
+  return {
+    year: parts.find((part) => part.type === "year")?.value ?? "",
+    month: parts.find((part) => part.type === "month")?.value ?? "",
+    day: Number(parts.find((part) => part.type === "day")?.value ?? "1"),
+  };
+}
+
+function calendarMonthBounds(date: Date, mode: WorkspaceState["calendarMode"]): { first: Date; last: Date; year: string; month: string } {
+  const target = calendarParts(date, mode);
+  const first = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  for (let index = 0; index < 35 && calendarParts(first, mode).day !== 1; index += 1) first.setDate(first.getDate() - 1);
+  const last = new Date(first);
+  for (let index = 0; index < 35; index += 1) {
+    const next = new Date(last);
+    next.setDate(next.getDate() + 1);
+    const parts = calendarParts(next, mode);
+    if (parts.year !== target.year || parts.month !== target.month) break;
+    last.setTime(next.getTime());
+  }
+  return { first, last, year: target.year, month: target.month };
+}
+
+function renderCalendarMonthView(state: WorkspaceState, container: HTMLElement): string {
+  const mode = state.calendarMode;
+  const calendar = mode === "jalali" ? "persian" : "gregory";
+  const locale = state.locale.startsWith("fa") ? "fa-IR" : state.locale;
+  const anchor = calendarMonthAnchorByContainer.get(container) ?? new Date();
+  const bounds = calendarMonthBounds(anchor, mode);
+  const weekStart = mode === "jalali" ? 6 : 0;
+  const offset = (bounds.first.getDay() - weekStart + 7) % 7;
+  const gridStart = new Date(bounds.first);
+  gridStart.setDate(gridStart.getDate() - offset);
+  const title = new Intl.DateTimeFormat(locale, { calendar, month: "long", year: "numeric" }).format(anchor);
+  const number = new Intl.NumberFormat(locale, { useGrouping: false });
+  const weekdayNames = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(2023, 0, 1 + ((weekStart + index) % 7));
+    return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(day);
+  });
+  const cells = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    const parts = calendarParts(date, mode);
+    const inMonth = parts.year === bounds.year && parts.month === bounds.month;
+    const label = new Intl.DateTimeFormat(locale, { calendar, dateStyle: "full" }).format(date);
+    const status = uiText(state.locale, "Working status not loaded", "وضعیت کاری بارگذاری نشده است");
+    return '<div class="cp-calendar-day' + (inMonth ? '' : ' is-outside-month') + '" aria-label="' + escapeAttribute(label + '. ' + status) + '" title="' + escapeAttribute(status) + '"><span>' + number.format(parts.day) + '</span></div>';
+  }).join("");
+  return '<section class="cp-calendar-month-view" aria-label="' + escapeAttribute(uiText(state.locale, "Calendar month view", "نمای ماهانه تقویم")) + '">' +
+    '<header class="cp-calendar-month-toolbar"><div><button type="button" data-calendar-month-action="previous" aria-label="' + escapeAttribute(uiText(state.locale, "Previous month", "ماه قبل")) + '">‹</button><button type="button" data-calendar-month-action="today">' + escapeHtml(uiText(state.locale, "Today", "امروز")) + '</button><button type="button" data-calendar-month-action="next" aria-label="' + escapeAttribute(uiText(state.locale, "Next month", "ماه بعد")) + '">›</button><strong>' + escapeHtml(title) + '</strong></div><span>' + escapeHtml(mode === "jalali" ? uiText(state.locale, "Jalali calendar", "تقویم جلالی") : uiText(state.locale, "Gregorian calendar", "تقویم میلادی")) + '</span></header>' +
+    '<div class="cp-calendar-month-actions"><div role="group" aria-label="' + escapeAttribute(uiText(state.locale, "Work hours display mode", "حالت نمایش ساعات کاری")) + '"><label><input type="radio" name="cp-calendar-hours-mode" checked disabled>' + escapeHtml(uiText(state.locale, "Total work hours/day", "مجموع ساعات کاری روزانه")) + '</label><label><input type="radio" name="cp-calendar-hours-mode" disabled>' + escapeHtml(uiText(state.locale, "Detailed work hours/day", "جزئیات ساعات کاری روزانه")) + '</label></div><div><button type="button" disabled>' + escapeHtml(uiText(state.locale, "Work", "کاری")) + '</button><button type="button" disabled>' + escapeHtml(uiText(state.locale, "Nonwork", "غیرکاری")) + '</button><button type="button" disabled>' + escapeHtml(uiText(state.locale, "Standard", "استاندارد")) + '</button><button type="button" data-navigation-action="calendar-tab:workweek">' + escapeHtml(uiText(state.locale, "Workweek", "هفته کاری")) + '</button><button type="button" data-navigation-action="calendar-tab:time-periods">' + escapeHtml(uiText(state.locale, "Time Periods", "دوره‌های زمانی")) + '</button></div></div>' +
+    '<div class="cp-calendar-month-grid" role="grid"><div class="cp-calendar-weekdays" role="row">' + weekdayNames.map((day) => '<span role="columnheader">' + escapeHtml(day) + '</span>').join("") + '</div><div class="cp-calendar-days">' + cells + '</div></div>' +
+    '<footer class="cp-calendar-month-legend"><span><i class="is-standard"></i>' + escapeHtml(uiText(state.locale, "Standard work time", "زمان کاری استاندارد")) + '</span><span><i class="is-exception"></i>' + escapeHtml(uiText(state.locale, "Exception", "استثنا")) + '</span><span><i class="is-nonwork"></i>' + escapeHtml(uiText(state.locale, "Nonworking time", "زمان غیرکاری")) + '</span><em>' + escapeHtml(uiText(state.locale, "Legend only — no work/nonwork classification is loaded for these dates.", "راهنمای رنگ‌ها؛ وضعیت کاری یا غیرکاری این تاریخ‌ها هنوز بارگذاری نشده است.")) + '</em></footer>' +
+    '</section>';
+}
+
+function renderCalendarCatalog(state: WorkspaceState, selectedCalendarId: string | null = null, pool: "global" | "project" | "resource" = "project"): string {
   const catalog = state.calendarCatalog;
   if (catalog.status === "unavailable") {
     const message = uiText(state.locale, "Calendar catalogue unavailable", "فهرست تقویم‌ها در دسترس نیست");
@@ -1076,22 +2071,64 @@ function renderCalendarCatalog(state: WorkspaceState): string {
   if (catalog.status !== "loaded") {
     return '<div class="cp-calendar-empty">' + escapeHtml(uiText(state.locale, "Calendar catalogue has not been loaded.", "فهرست تقویم‌ها هنوز بارگذاری نشده است.")) + '</div>';
   }
-  if (!catalog.calendars.length) {
-    return '<div class="cp-calendar-empty">' + escapeHtml(uiText(state.locale, "No calendar records exist for this project.", "برای این پروژه رکورد تقویمی وجود ندارد.")) + '</div>';
+  const calendars = catalog.calendars.filter((calendar) => calendar.calendarType.toLowerCase().includes(pool));
+  if (!calendars.length) {
+    const label = pool === "global" ? uiText(state.locale, "Global", "سراسری") : pool === "resource" ? uiText(state.locale, "Resource", "منبع") : uiText(state.locale, "Project", "پروژه");
+    return '<div class="cp-calendar-empty">' + escapeHtml(uiText(state.locale, "No ", "هیچ تقویم ")) + escapeHtml(label) + escapeHtml(uiText(state.locale, " calendar records are loaded in the current catalogue.", " در فهرست فعلی بارگذاری نشده است.")) + '</div>';
   }
   const headings = [
     ["Calendar ID", "شناسه تقویم"], ["Name", "نام"], ["Type", "نوع"],
     ["Kind", "ماهیت"], ["Version", "نسخه"], ["Revision", "ویرایش"],
   ];
   const head = headings.map(([en, fa]) => '<th>' + escapeHtml(uiText(state.locale, en, fa)) + '</th>').join("");
-  const rows = catalog.calendars.map((calendar) => '<tr><td>' +
-    escapeHtml(calendar.calendarId) + '</td><td>' + escapeHtml(calendar.name) +
-    '</td><td>' + escapeHtml(calendar.calendarType) + '</td><td>' +
-    escapeHtml(calendar.kind) + '</td><td>' + escapeHtml(calendar.calendarVersion) +
-    '</td><td>' + escapeHtml(String(calendar.recordRevision)) + '</td></tr>').join("");
+  const rows = calendars.map((calendar) => {
+    const active = calendar.calendarId === selectedCalendarId;
+    const searchText = [calendar.calendarId, calendar.name, calendar.calendarType, calendar.kind].join(" ").toLocaleLowerCase();
+    return '<tr data-calendar-row data-calendar-search="' + escapeAttribute(searchText) + '" class="' + (active ? 'is-selected' : '') + '"><td><button type="button" class="cp-calendar-select" data-calendar-select="' +
+      escapeHtml(calendar.calendarId) + '" aria-pressed="' + String(active) + '">' + escapeHtml(calendar.calendarId) + '</button></td><td>' +
+      escapeHtml(calendar.name) + '</td><td>' + escapeHtml(calendar.calendarType) + '</td><td>' +
+      escapeHtml(calendar.kind) + '</td><td>' + escapeHtml(calendar.calendarVersion) + '</td><td>' +
+      escapeHtml(String(calendar.recordRevision)) + '</td></tr>';
+  }).join("");
   return '<div class="cp-register-table-wrap"><table><thead><tr>' + head +
-    '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+    '</tr></thead><tbody>' + rows + '<tr data-calendar-search-empty hidden><td colspan="6">' + escapeHtml(uiText(state.locale, "No calendars match the search.", "تقویمی با جست‌وجوی واردشده مطابقت ندارد.")) + '</td></tr></tbody></table></div>';
 }
+
+function renderWorkspaceCommandRibbon(state: WorkspaceState, t: WorkspaceLabels): string {
+  const layoutChoices = [
+    { value: "split", label: t.layoutSplit },
+    { value: "grid", label: t.layoutGrid },
+    { value: "gantt", label: t.layoutGantt },
+  ] as const;
+  return `<section class="cp-command-ribbon" role="toolbar" aria-label="${escapeAttribute(t.commandRibbon)}">
+    <div class="cp-command-group">
+      <span class="cp-command-group-title">${escapeHtml(t.layoutGroup)}</span>
+      <div class="cp-command-group-controls" role="group" aria-label="${escapeAttribute(t.layoutGroup)}">
+        ${layoutChoices.map((choice) => `<button type="button" class="cp-command-button cp-layout-button${state.workspaceLayout === choice.value ? " is-active" : ""}" data-workspace-layout="${choice.value}" aria-pressed="${state.workspaceLayout === choice.value ? "true" : "false"}">${escapeHtml(choice.label)}</button>`).join("")}
+      </div>
+    </div>
+    <div class="cp-command-group">
+      <span class="cp-command-group-title">${escapeHtml(t.activityGroup)}</span>
+      <div class="cp-command-group-controls">
+        <button type="button" class="cp-command-button cp-command-primary" data-workspace-command="new-activity">${escapeHtml(t.newActivityCommand)}</button>
+        <button type="button" class="cp-command-button" data-workspace-command="new-wbs">${escapeHtml(t.newWbsCommand)}</button>
+      </div>
+    </div>
+    <div class="cp-command-group">
+      <span class="cp-command-group-title">${escapeHtml(t.logicGroup)}</span>
+      <div class="cp-command-group-controls">
+        <button type="button" class="cp-command-button" data-workspace-command="schedule-options">${escapeHtml(t.scheduleOptionsCommand)}</button>
+        <button type="button" class="cp-command-button" data-workspace-command="run-schedule">${escapeHtml(t.runScheduleCommand)}</button>
+        <button type="button" class="cp-command-button" data-workspace-command="relationships">${escapeHtml(t.relationshipsCommand)}</button>
+      </div>
+    </div>
+    <div class="cp-command-group cp-command-view-state">
+      <span class="cp-command-group-title">${escapeHtml(t.ganttLinksToggle)}</span>
+      <button type="button" class="cp-command-button cp-command-toggle${state.showGanttRelationships ? " is-active" : ""}" data-workspace-command="toggle-relationships" aria-pressed="${state.showGanttRelationships ? "true" : "false"}">${escapeHtml(state.showGanttRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</button>
+    </div>
+  </section>`;
+}
+
 
 function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: WorkspaceLabels): string {
   if (state.activeMenu === "schedule") return `<section id="cp-p6-module-stage" class="cp-p6-module-stage" data-workspace-menu="schedule" hidden></section>`;
@@ -1104,61 +2141,76 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
   let body = "";
   switch (state.activeMenu) {
     case "project": {
-      const projectRows = [
-        [uiText(state.locale, "Project ID", "شناسه پروژه"), state.context.project_id],
-        [uiText(state.locale, "Workspace revision", "ویرایش محیط کار"), `R${state.context.revision}`],
-        [uiText(state.locale, "WBS elements", "عناصر WBS"), String(state.wbsNodes.length)],
-        [uiText(state.locale, "Activities", "فعالیت‌ها"), String(state.activities.length)],
-        [uiText(state.locale, "Relationships", "روابط"), String(state.relationships.length)],
-        [uiText(state.locale, "Documents", "اسناد"), String(state.documents.length)],
+      const projectTableColumns = [
+        ["Project ID", "شناسه پروژه"], ["Project Name", "نام پروژه"], ["WBS Elements", "عناصر WBS"],
+        ["Activities", "فعالیت‌ها"], ["Relationships", "روابط"], ["Documents", "اسناد"], ["Revision", "ویرایش"],
+      ];
+      const projectTableValues = [
+        state.context.project_id, "—", String(state.wbsNodes.length), String(state.activities.length),
+        String(state.relationships.length), String(state.documents.length), `R${state.context.revision}`,
       ];
       body = `
         <div class="cp-project-window-toolbar">
-          ${controls(`${moduleButton("wbs", "wbs", uiText(state.locale, "Open WBS structure", "بازکردن ساختار WBS"))}${moduleButton("tools", "tools", uiText(state.locale, "Import / Export", "ورود / خروجی"))}${projectSettingsButton(state, t)}`)}
-          <span class="cp-project-window-scope">${escapeHtml(uiText(state.locale, "Current project · server-authorized session", "پروژه جاری · نشست تأییدشده توسط سرور"))}</span>
+          ${controls(`<button type="button" disabled title="${escapeAttribute(uiText(state.locale,"Project creation requires the EPS and project service.","ایجاد پروژه به سرویس EPS و پروژه نیاز دارد."))}">${escapeHtml(uiText(state.locale,"Add Project","افزودن پروژه"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale,"Additional project records are not loaded for this session.","سوابق پروژه‌های دیگر برای این نشست بارگذاری نشده‌اند."))}">${escapeHtml(uiText(state.locale,"Open Project","بازکردن پروژه"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale,"Closing the project requires the project lifecycle service.","بستن پروژه به سرویس چرخه‌عمر پروژه نیاز دارد."))}">${escapeHtml(uiText(state.locale,"Close Project","بستن پروژه"))}</button>${moduleButton("wbs", "wbs", uiText(state.locale, "Open WBS structure", "بازکردن ساختار WBS"))}${moduleButton("tools", "tools", uiText(state.locale, "Import / Export", "ورود / خروجی"))}${projectSettingsButton(state, t)}`)}
+          <label class="cp-project-portfolio-select">${escapeHtml(uiText(state.locale,"Portfolio","سبد پروژه"))}<select disabled title="${escapeAttribute(uiText(state.locale,"Portfolio records are not supplied by the current session service.","سوابق سبد پروژه توسط سرویس نشست فعلی ارائه نشده‌اند."))}"><option>${escapeHtml(uiText(state.locale,"Current project only","فقط پروژه جاری"))}</option></select></label>
+          <div class="cp-project-view-toolbar" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Top Layout", "چیدمان بالا"))}">
+            <button type="button" data-project-view-toggle="table" aria-pressed="${(projectPresentationByContainer.get(container) ?? "table") === "table"}" class="${(projectPresentationByContainer.get(container) ?? "table") === "table" ? "is-active" : ""}">${escapeHtml(uiText(state.locale,"Project Table","جدول پروژه"))}</button>
+            <button type="button" data-project-view-toggle="chart" aria-pressed="${projectPresentationByContainer.get(container) === "chart"}" class="${projectPresentationByContainer.get(container) === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale,"Project Chart","نمودار پروژه"))}</button>
+            <button type="button" data-project-view-toggle="gantt" aria-pressed="${projectPresentationByContainer.get(container) === "gantt"}" class="${projectPresentationByContainer.get(container) === "gantt" ? "is-active" : ""}">${escapeHtml(uiText(state.locale,"Gantt Chart","نمودار گانت"))}</button>
+          </div>
         </div>
+        <div class="cp-project-view-panel" data-project-view="table" ${(projectPresentationByContainer.get(container) ?? "table") !== "table" ? "hidden" : ""}>
         <div class="cp-project-window-overview">
           <section class="cp-project-register" aria-label="${escapeAttribute(uiText(state.locale, "Current project register", "دفتر ثبت پروژه جاری"))}">
             <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Register", "دفتر ثبت پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Current session project", "پروژه نشست جاری"))}</span></div>
-            <table class="cp-project-register-table">
-              <thead><tr><th>${escapeHtml(uiText(state.locale, "Property", "مشخصه"))}</th><th>${escapeHtml(uiText(state.locale, "Current value", "مقدار فعلی"))}</th></tr></thead>
-              <tbody>${projectRows.map(([label, value]) => `<tr><th scope="row">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}</tbody>
-            </table>
+            <div class="cp-register-table-wrap"><table class="cp-project-register-table">
+              <thead><tr>${projectTableColumns.map(([en,fa])=>`<th>${escapeHtml(uiText(state.locale,en,fa))}</th>`).join("")}</tr></thead>
+              <tbody><tr>${projectTableValues.map((value)=>`<td>${escapeHtml(value)}</td>`).join("")}</tr></tbody>
+            </table></div>
           </section>
           <section class="cp-project-structure-summary" aria-label="${escapeAttribute(uiText(state.locale, "Project structure summary", "خلاصه ساختار پروژه"))}">
             <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Structure", "ساختار پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Loaded WBS hierarchy", "سلسله‌مراتب WBS بارگذاری‌شده"))}</span></div>
             ${state.wbsNodes.length ? `<div class="cp-project-wbs-list">${state.wbsNodes.map((node) => `<div class="cp-project-wbs-row"><span>${escapeHtml(node.localCode)}</span><strong>${escapeHtml(node.name)}</strong><small>R${node.recordRevision}</small></div>`).join("")}</div>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No WBS elements are loaded for this project.", "هیچ عنصر WBS برای این پروژه بارگذاری نشده است."))}</p>`}
           </section>
+          <div class="cp-project-structure-splitter" data-project-structure-splitter role="separator" aria-orientation="vertical" aria-valuemin="${PROJECT_STRUCTURE_WIDTH_MIN}" aria-valuemax="${PROJECT_STRUCTURE_WIDTH_MAX}" aria-valuenow="${readProjectStructureWidth()}" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize Project Structure pane", "تغییر عرض پنل ساختار پروژه"))}"><span></span></div>
+        </div>
+        </div>
+        <div class="cp-project-view-panel cp-project-chart-view" data-project-view="chart" ${projectPresentationByContainer.get(container) === "chart" ? "" : "hidden"}>
+          <div class="cp-project-chart-card"><span>${escapeHtml(uiText(state.locale,"Current authorized project","پروژه مجاز جاری"))}</span><strong>${escapeHtml(state.context.project_id)}</strong><div><small>${state.wbsNodes.length} ${escapeHtml(uiText(state.locale,"WBS elements","عنصر WBS"))}</small><small>${state.activities.length} ${escapeHtml(uiText(state.locale,"activities","فعالیت"))}</small></div></div>
+          <p class="cp-project-window-note">${escapeHtml(uiText(state.locale,"Only the current session project is loaded. No EPS siblings or portfolio nodes are invented.","فقط پروژه نشست جاری بارگذاری شده است؛ گره‌های هم‌سطح EPS یا سبد پروژه ساخته یا حدس زده نمی‌شوند."))}</p>
+        </div>
+        <div class="cp-project-view-panel cp-project-gantt-view" data-project-view="gantt" ${projectPresentationByContainer.get(container) === "gantt" ? "" : "hidden"}>
+          <div class="cp-project-gantt-empty"><strong>${escapeHtml(uiText(state.locale,"Project Gantt Chart","نمودار گانت پروژه"))}</strong><span>${escapeHtml(uiText(state.locale,"Project start and finish dates are not available in the current session record. The timeline is not fabricated.","تاریخ شروع و پایان پروژه در رکورد نشست جاری موجود نیست؛ خط زمانی ساختگی نمایش داده نمی‌شود."))}</span></div>
         </div>
         <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "This build displays the project authorized for the current session. Organization-wide domains, portfolios and additional projects are not invented when the API does not provide them.", "این نسخه پروژه مجاز برای نشست جاری را نمایش می‌دهد. حوزه‌های سازمانی، سبدها و پروژه‌های دیگر در صورت نبود داده از API ساخته یا حدس زده نمی‌شوند."))}</p>`;
       break;
     }
     case "wbs":
-      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "WBS chart view is not connected yet.", "نمای نمودار WBS هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></div></div><div class="cp-wbs-window-layout"><section><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3>${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "WBS hierarchy and details are shown from the current project state. Chart rendering and additional WBS detail data remain pending.", "سلسله‌مراتب و جزئیات WBS از وضعیت فعلی پروژه نمایش داده می‌شوند. ترسیم نمودار و سایر داده‌های جزئیات WBS در انتظار تکمیل هستند."))}</p></div>`;
+      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type="button" data-wbs-view-toggle="table" aria-pressed="${(wbsPresentationByContainer.get(container) ?? "table") === "table"}" class="${(wbsPresentationByContainer.get(container) ?? "table") === "table" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Table View", "نمای جدولی"))}</button><button type="button" data-wbs-view-toggle="chart" aria-pressed="${wbsPresentationByContainer.get(container) === "chart"}" class="${wbsPresentationByContainer.get(container) === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button><button type="button" data-wbs-view-toggle="gantt" aria-pressed="${wbsPresentationByContainer.get(container) === "gantt"}" class="${wbsPresentationByContainer.get(container) === "gantt" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Gantt Chart", "نمودار گانت"))}</button><button type="button" data-wbs-chart-options-toggle aria-expanded="${wbsChartOptionsOpenByContainer.get(container) ?? false}" ${wbsPresentationByContainer.get(container) === "chart" ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Chart Display Options", "گزینه‌های نمایش نمودار"))}</button></div></div><div class="cp-wbs-chart-options" ${wbsChartOptionsOpenByContainer.get(container) && wbsPresentationByContainer.get(container) === "chart" ? "" : "hidden"}><label>${escapeHtml(uiText(state.locale,"Chart Box Template","قالب کادر نمودار"))}<select data-wbs-chart-setting="template"><option value="code-name" ${getWbsChartAppearance(container).template==="code-name"?"selected":""}>${escapeHtml(uiText(state.locale,"Code and Name","کد و نام"))}</option><option value="name-only" ${getWbsChartAppearance(container).template==="name-only"?"selected":""}>${escapeHtml(uiText(state.locale,"Name only","فقط نام"))}</option><option value="code-only" ${getWbsChartAppearance(container).template==="code-only"?"selected":""}>${escapeHtml(uiText(state.locale,"Code only","فقط کد"))}</option></select></label><label>${escapeHtml(uiText(state.locale,"Font","قلم"))}<select data-wbs-chart-setting="font"><option ${getWbsChartAppearance(container).font==="Inter"?"selected":""}>Inter</option><option ${getWbsChartAppearance(container).font==="Arial"?"selected":""}>Arial</option><option ${getWbsChartAppearance(container).font==="Georgia"?"selected":""}>Georgia</option></select></label><label>${escapeHtml(uiText(state.locale,"Font Size","اندازه قلم"))}<select data-wbs-chart-setting="size">${[10,12,14,16,18].map(size=>`<option value="${size}" ${getWbsChartAppearance(container).size===size?"selected":""}>${size}px</option>`).join("")}</select></label><label>${escapeHtml(uiText(state.locale,"Background Color","رنگ پس‌زمینه"))}<select data-wbs-chart-setting="background"><option value="#f7f9fc" ${getWbsChartAppearance(container).background==="#f7f9fc"?"selected":""}>${escapeHtml(uiText(state.locale,"Light Gray","خاکستری روشن"))}</option><option value="#eef5fb" ${getWbsChartAppearance(container).background==="#eef5fb"?"selected":""}>${escapeHtml(uiText(state.locale,"Pale Blue","آبی ملایم"))}</option><option value="#fffaf0" ${getWbsChartAppearance(container).background==="#fffaf0"?"selected":""}>${escapeHtml(uiText(state.locale,"Warm Ivory","عاجی گرم"))}</option></select></label><label>${escapeHtml(uiText(state.locale,"WBS Box Color","رنگ کادر WBS"))}<select data-wbs-chart-setting="box"><option value="#ffffff" ${getWbsChartAppearance(container).box==="#ffffff"?"selected":""}>${escapeHtml(uiText(state.locale,"White","سفید"))}</option><option value="#eef5fb" ${getWbsChartAppearance(container).box==="#eef5fb"?"selected":""}>${escapeHtml(uiText(state.locale,"Pale Blue","آبی ملایم"))}</option><option value="#fffaf0" ${getWbsChartAppearance(container).box==="#fffaf0"?"selected":""}>${escapeHtml(uiText(state.locale,"Warm Ivory","عاجی گرم"))}</option></select></label></div><div class="cp-wbs-window-layout"><section class="cp-wbs-hierarchy-pane"><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div class="cp-wbs-view-panel" data-wbs-view="table" ${(wbsPresentationByContainer.get(container) ?? "table") !== "table" ? "hidden" : ""}>${renderWbsTable(state.wbsNodes, state.selectedWbsId, t, state.locale)}</div><div class="cp-wbs-view-panel cp-wbs-chart-view" data-wbs-view="chart" data-wbs-chart-template="${getWbsChartAppearance(container).template}" style="--cp-wbs-chart-font:${getWbsChartAppearance(container).font};--cp-wbs-chart-size:${getWbsChartAppearance(container).size}px;--cp-wbs-chart-background:${getWbsChartAppearance(container).background};--cp-wbs-chart-box:${getWbsChartAppearance(container).box}" ${wbsPresentationByContainer.get(container) === "chart" ? "" : "hidden"}>${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</div><div class="cp-wbs-view-panel cp-wbs-gantt-view" data-wbs-view="gantt" ${wbsPresentationByContainer.get(container) === "gantt" ? "" : "hidden"}><div class="cp-wbs-gantt-empty"><strong>${escapeHtml(uiText(state.locale,"WBS Gantt Chart","نمودار گانت WBS"))}</strong><span>${escapeHtml(uiText(state.locale,"WBS start and finish dates are not present in the loaded WBS records. The timeline is not fabricated.","تاریخ شروع و پایان WBS در رکوردهای بارگذاری‌شده وجود ندارد؛ خط زمانی ساختگی نمایش داده نمی‌شود."))}</span></div></div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "WBS table and chart views use the current project hierarchy. Advanced chart formatting and additional WBS detail data remain pending.", "نمای جدولی و نموداری WBS از سلسله‌مراتب فعلی پروژه استفاده می‌کنند. قالب‌بندی پیشرفته نمودار و سایر داده‌های جزئیات WBS هنوز تکمیل نشده‌اند."))}</p></div>`;
       break;
     case "calendars":
       body = `
         <div class="cp-calendar-window">
           <div class="cp-calendar-window-toolbar">
             <strong>${escapeHtml(uiText(state.locale, "Calendar Register", "فهرست تقویم‌ها"))}</strong>
-            <div><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Calendar persistence is not connected yet.", "ذخیره‌سازی تقویم هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, "New Calendar", "تقویم جدید"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Edit", "ویرایش"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button></div>
+            <div><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Calendar persistence is not connected yet.", "ذخیره‌سازی تقویم هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, "New Calendar", "تقویم جدید"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Edit", "ویرایش"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Calendar assignment lookup is not connected.", "جست‌وجوی تخصیص تقویم متصل نیست."))}">${escapeHtml(uiText(state.locale, "Used By", "استفاده‌شده توسط"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "To Global", "تبدیل به عمومی"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "To Shared", "تبدیل به مشترک"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "To Personal", "تبدیل به شخصی"))}</button></div>
           </div>
           <div class="cp-calendar-window-layout">
             <section class="cp-calendar-register">
-              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Available Calendars", "تقویم‌های موجود"))}</strong></div>
-              ${renderCalendarCatalog(state)}
+              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Available Calendars", "تقویم‌های موجود"))}</strong><div class="cp-calendar-pools" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Calendar Pool", "مجموعه تقویم"))}">${[["global","Global","سراسری"],["project","Project","پروژه"],["resource","Resource","منبع"]].map(([key,en,fa])=>{const active=(calendarPoolByContainer.get(container)??"project")===key;return `<button type="button" data-calendar-pool="${key}" aria-pressed="${active}" class="${active?"is-active":""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`;}).join("")}<label class="cp-calendar-search">${escapeHtml(uiText(state.locale, "Search", "جست‌وجو"))}<input type="search" data-calendar-search placeholder="${escapeAttribute(uiText(state.locale, "Find calendar…", "جست‌وجوی تقویم…"))}"></label></div></div>
+              ${renderCalendarCatalog(state, calendarSelectionByContainer.get(container) ?? null, calendarPoolByContainer.get(container) ?? "project")}
             </section>
             <section class="cp-calendar-editor">
-              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Calendar Details", "جزئیات تقویم"))}</strong><span>${escapeHtml(uiText(state.locale, "No selection", "بدون انتخاب"))}</span></div>
+              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Calendar Details", "جزئیات تقویم"))}</strong><span>${escapeHtml(state.calendarCatalog.calendars.find((calendar) => calendar.calendarId === calendarSelectionByContainer.get(container))?.name ?? uiText(state.locale, "No selection", "بدون انتخاب"))}</span></div>
               <div class="cp-calendar-editor-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Calendar detail tabs", "زبانه‌های جزئیات تقویم"))}">
-                ${[["general","General","عمومی"],["workweek","Workweek","هفته کاری"],["exceptions","Exceptions","استثناها"],["assignments","Assignments","تخصیص‌ها"]].map(([key,en,fa],index)=>`<button type="button" role="tab" aria-selected="${index===0}" class="${index===0?"is-active":""}" data-calendar-editor-tab="${key}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}
+                ${[["general","General","عمومی"],["calendar","Calendar","تقویم"],["workweek","Workweek","هفته کاری"],["exceptions","Exceptions","استثناها"],["time-periods","Time Periods","دوره‌های زمانی"],["assignments","Assignments","تخصیص‌ها"]].map(([key,en,fa])=>{const active=(calendarEditorTabByContainer.get(container)??"general")===key;return `<button type="button" role="tab" id="cp-calendar-tab-${key}" aria-controls="cp-calendar-panel-${key}" aria-selected="${active}" tabindex="${active?0:-1}" class="${active?"is-active":""}" data-calendar-editor-tab="${key}">${escapeHtml(uiText(state.locale,en,fa))}</button>`;}).join("")}
               </div>
               <div class="cp-calendar-editor-content">
-                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="general">
-                  <div class="cp-calendar-fields">
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-general" aria-labelledby="cp-calendar-tab-general" tabindex="0" data-calendar-editor-panel="general" ${(calendarEditorTabByContainer.get(container) ?? "general") !== "general" ? "hidden" : ""}>
+                  <div class="cp-calendar-selected-summary" ${calendarSelectionByContainer.get(container) ? "" : "hidden"}>${(() => { const selected = state.calendarCatalog.calendars.find((calendar) => calendar.calendarId === calendarSelectionByContainer.get(container)); return selected ? [["Calendar ID",selected.calendarId],["Calendar Type",selected.calendarType],["Calendar Kind",selected.kind],["Calendar Version",selected.calendarVersion],["Record Revision",String(selected.recordRevision)]].map(([label,value]) => '<div><span>'+escapeHtml(uiText(state.locale,label,label==="Calendar ID"?"شناسه تقویم":label==="Calendar Type"?"نوع تقویم":label==="Calendar Kind"?"ماهیت تقویم":label==="Calendar Version"?"نسخه تقویم":"ویرایش رکورد"))+'</span><strong>'+escapeHtml(value)+'</strong></div>').join("") : ""; })()}</div><div class="cp-calendar-fields">
                     <label>${escapeHtml(uiText(state.locale, "Calendar Name", "نام تقویم"))}<input disabled placeholder="${escapeAttribute(uiText(state.locale, "Select or create a calendar", "یک تقویم انتخاب یا ایجاد کنید"))}"></label>
                     <label>${escapeHtml(uiText(state.locale, "Calendar Scope", "دامنه تقویم"))}<select disabled><option>${escapeHtml(uiText(state.locale, "Select scope", "انتخاب دامنه"))}</option><option>Global</option><option>Project</option><option>Resource</option></select></label>
-                    <label>${escapeHtml(uiText(state.locale, "Parent Calendar", "تقویم والد"))}<select disabled><option>—</option></select></label>
+                    <label>${escapeHtml(uiText(state.locale, "Parent Calendar", "تقویم والد"))}<select disabled><option>—</option></select></label><label>${escapeHtml(uiText(state.locale, "Inherit Holidays and Exceptions from Global Calendar", "ارث‌بری تعطیلات و استثناها از تقویم سراسری"))}<select disabled><option>—</option></select></label>
                     <label>${escapeHtml(uiText(state.locale, "Hours per Day", "ساعت در روز"))}<input type="number" disabled placeholder="—"></label>
                     <label>${escapeHtml(uiText(state.locale, "Hours per Week", "ساعت در هفته"))}<input type="number" disabled placeholder="—"></label>
                     <label>${escapeHtml(uiText(state.locale, "Hours per Month", "ساعت در ماه"))}<input type="number" disabled placeholder="—"></label>
@@ -1166,28 +2218,37 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
                     <label>${escapeHtml(uiText(state.locale, "Effective From", "اعتبار از"))}<input type="date" disabled></label>
                   </div>
                 </section>
-                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="workweek" hidden>
-                  <div class="cp-calendar-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale, "Day", "روز"))}</th><th>${escapeHtml(uiText(state.locale, "Working Day", "روز کاری"))}</th><th>${escapeHtml(uiText(state.locale, "Start", "شروع"))}</th><th>${escapeHtml(uiText(state.locale, "Finish", "پایان"))}</th><th>${escapeHtml(uiText(state.locale, "Break", "وقفه"))}</th><th>${escapeHtml(uiText(state.locale, "Add Interval", "افزودن بازه"))}</th></tr></thead><tbody>
-                    ${[["Saturday","شنبه"],["Sunday","یکشنبه"],["Monday","دوشنبه"],["Tuesday","سه‌شنبه"],["Wednesday","چهارشنبه"],["Thursday","پنجشنبه"],["Friday","جمعه"]].map(([en,fa])=>`<tr><th>${escapeHtml(uiText(state.locale,en,fa))}</th><td><input type="checkbox" disabled aria-label="${escapeAttribute(uiText(state.locale,"Working day","روز کاری"))}"></td><td><input type="time" disabled></td><td><input type="time" disabled></td><td><input type="text" disabled placeholder="—"></td><td><button type="button" disabled>+</button></td></tr>`).join("")}
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-calendar" aria-labelledby="cp-calendar-tab-calendar" tabindex="0" data-calendar-editor-panel="calendar" ${calendarEditorTabByContainer.get(container)!== "calendar" ? "hidden" : ""}>
+                  ${renderCalendarMonthView(state, container)}
+                </section>
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-workweek" aria-labelledby="cp-calendar-tab-workweek" tabindex="0" data-calendar-editor-panel="workweek" ${calendarEditorTabByContainer.get(container)!== "workweek" ? "hidden" : ""}>
+                  <div class="cp-calendar-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale, "Day", "روز"))}</th><th>${escapeHtml(uiText(state.locale, "Working Day", "روز کاری"))}</th><th>${escapeHtml(uiText(state.locale, "Interval 1 Start", "شروع بازه ۱"))}</th><th>${escapeHtml(uiText(state.locale, "Interval 1 Finish", "پایان بازه ۱"))}</th><th>${escapeHtml(uiText(state.locale, "Interval 2 Start", "شروع بازه ۲"))}</th><th>${escapeHtml(uiText(state.locale, "Interval 2 Finish", "پایان بازه ۲"))}</th></tr></thead><tbody>
+                    ${[["Saturday","شنبه"],["Sunday","یکشنبه"],["Monday","دوشنبه"],["Tuesday","سه‌شنبه"],["Wednesday","چهارشنبه"],["Thursday","پنجشنبه"],["Friday","جمعه"]].map(([en,fa])=>`<tr><th>${escapeHtml(uiText(state.locale,en,fa))}</th><td><input type="checkbox" disabled aria-label="${escapeAttribute(uiText(state.locale,"Working day","روز کاری"))}"></td><td><input type="time" disabled aria-label="${escapeAttribute(uiText(state.locale,"Interval 1 start","شروع بازه ۱"))}"></td><td><input type="time" disabled aria-label="${escapeAttribute(uiText(state.locale,"Interval 1 finish","پایان بازه ۱"))}"></td><td><input type="time" disabled aria-label="${escapeAttribute(uiText(state.locale,"Interval 2 start","شروع بازه ۲"))}"></td><td><input type="time" disabled aria-label="${escapeAttribute(uiText(state.locale,"Interval 2 finish","پایان بازه ۲"))}"></td></tr>`).join("")}
                   </tbody></table></div>
                   <p class="cp-calendar-hint">${escapeHtml(uiText(state.locale, "Supports split shifts, multiple work intervals, overnight shifts and nonworking days.", "پشتیبانی از شیفت‌های چندبخشی، چند بازه کاری، شیفت شبانه و روزهای غیرکاری."))}</p>
                 </section>
-                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="exceptions" hidden>
-                  <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Exceptions and Holidays", "استثناها و تعطیلات"))}</strong><button type="button" disabled>${escapeHtml(uiText(state.locale, "Add Exception", "افزودن استثنا"))}</button></div>
-                  <div class="cp-calendar-empty">${escapeHtml(uiText(state.locale, "No exceptions are loaded.", "هیچ استثنایی بارگذاری نشده است."))}</div>
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-exceptions" aria-labelledby="cp-calendar-tab-exceptions" tabindex="0" data-calendar-editor-panel="exceptions" ${calendarEditorTabByContainer.get(container)!== "exceptions" ? "hidden" : ""}>
+                  <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Exceptions and Holidays", "استثناها و تعطیلات"))}</strong><div><label>${escapeHtml(uiText(state.locale,"From","از"))}<input type="date" disabled></label><label>${escapeHtml(uiText(state.locale,"To","تا"))}<input type="date" disabled></label><button type="button" disabled>${escapeHtml(uiText(state.locale, "Add Exception", "افزودن استثنا"))}</button></div></div>
+                  <div class="cp-calendar-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale,"Name","نام"))}</th><th>${escapeHtml(uiText(state.locale,"Start Date","تاریخ شروع"))}</th><th>${escapeHtml(uiText(state.locale,"Finish Date","تاریخ پایان"))}</th><th>${escapeHtml(uiText(state.locale,"Exception Type","نوع استثنا"))}</th><th>${escapeHtml(uiText(state.locale,"Recurrence","تکرار"))}</th></tr></thead><tbody><tr><td colspan="5"><div class="cp-calendar-empty">${escapeHtml(uiText(state.locale, "No exceptions are loaded.", "هیچ استثنایی بارگذاری نشده است."))}</div></td></tr></tbody></table></div>
                   <p class="cp-calendar-hint">${escapeHtml(uiText(state.locale, "Exception types include nonworking days, modified working hours and recurring holidays.", "انواع استثنا شامل روز غیرکاری، ساعات کاری اصلاح‌شده و تعطیلات تکرارشونده است."))}</p>
                 </section>
-                <section class="cp-calendar-editor-panel" data-calendar-editor-panel="assignments" hidden>
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-time-periods" aria-labelledby="cp-calendar-tab-time-periods" tabindex="0" data-calendar-editor-panel="time-periods" ${calendarEditorTabByContainer.get(container)!== "time-periods" ? "hidden" : ""}>
+                  <div class="cp-calendar-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale,"Time Period","دوره زمانی"))}</th><th>${escapeHtml(uiText(state.locale,"Hours","ساعت"))}</th><th>${escapeHtml(uiText(state.locale,"Conversion use","کاربرد تبدیل"))}</th></tr></thead><tbody>
+                    ${[["Hour","ساعت"],["Day","روز"],["Week","هفته"],["Month","ماه"],["Year","سال"]].map(([en,fa])=>`<tr><th>${escapeHtml(uiText(state.locale,en,fa))}</th><td><input type="number" min="0" step="0.5" disabled aria-label="${escapeAttribute(uiText(state.locale,en+" hours","ساعت "+fa))}"></td><td>${escapeHtml(uiText(state.locale,"Display and duration conversion","تبدیل نمایش و مدت"))}</td></tr>`).join("")}
+                  </tbody></table></div>
+                  <p class="cp-calendar-hint">${escapeHtml(uiText(state.locale,"Time-period values convert hourly storage to displayed units and durations. They are not inferred from the workweek.","مقادیر دوره زمانی، ذخیره‌سازی ساعتی را به واحدها و مدت‌های نمایشی تبدیل می‌کنند و از هفته کاری حدس زده نمی‌شوند."))}</p>
+                </section>
+                <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-assignments" aria-labelledby="cp-calendar-tab-assignments" tabindex="0" data-calendar-editor-panel="assignments" ${calendarEditorTabByContainer.get(container)!== "assignments" ? "hidden" : ""}>
                   <div class="cp-calendar-empty">${escapeHtml(uiText(state.locale, "No project, resource or activity calendar assignments are loaded.", "هیچ تخصیص تقویم پروژه، منبع یا فعالیت بارگذاری نشده است."))}</div>
                 </section>
               </div>
-              <p class="cp-calendar-notice">${escapeHtml(uiText(state.locale, "Visual editor structure is present. Editing and saving are disabled until the authoritative calendar service and scheduling-core assignment contract are connected; no sample calendar values are fabricated.", "ساختار ویرایشگر بصری آماده است. ویرایش و ذخیره تا اتصال سرویس مرجع تقویم و قرارداد تخصیص هسته زمان‌بندی غیرفعال است؛ هیچ مقدار نمونه‌ای ساخته نشده است."))}</p>
+              <p class="cp-calendar-notice">${escapeHtml(uiText(state.locale, "Calendar structure follows the desktop calendar model: general properties, standard workweek, dated exceptions, hours per time period, and Used By assignments. Editing remains disabled until the authoritative calendar service is connected; no working hours, holidays or assignments are fabricated.", "ساختار تقویم از مدل دسکتاپ پیروی می‌کند: مشخصات عمومی، هفته کاری استاندارد، استثناهای تاریخ‌دار، ساعات هر دوره زمانی و تخصیص‌های «استفاده‌شده توسط». ویرایش تا اتصال سرویس مرجع تقویم غیرفعال است؛ هیچ ساعت کاری، تعطیلی یا تخصیصی ساخته یا حدس زده نمی‌شود."))}</p>
             </section>
           </div>
         </div>`;
       break;
     case "assignments":
-      body = renderRegisterWindow(state, uiText(state.locale, "Resource Assignments", "تخصیص منابع"), [["Activity ID","شناسه فعالیت"],["Activity Name","نام فعالیت"],["Resource","منبع"],["Role","نقش"],["Budgeted Units","واحد بودجه"],["Actual Units","واحد واقعی"],["Remaining Units","واحد باقی‌مانده"],["Units / Time","واحد / زمان"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Rate Type","نوع نرخ"],["Calendar","تقویم"]], [["general","General","عمومی"],["planning","Planning","برنامه‌ریزی"],["costs","Costs","هزینه‌ها"],["units-prices","Units & Prices","واحدها و قیمت‌ها"],["udfs","UDFs","فیلدهای کاربر"]]);
+      body = renderResourceAssignmentsWindow(container, state);
       break;
     case "roles":
       body = `
@@ -1200,20 +2261,19 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       break;
     case "resources":
       body = `
-        <p>${escapeHtml(uiText(state.locale, "Resource capacity and assignment surfaces are kept in the workspace tools. Existing capacity limits and assignments are read from the project service; this page does not invent resource values.", "سطوح ظرفیت و تخصیص منابع در ابزارهای محیط کار نگهداری می‌شوند. محدودیت‌های ظرفیت و تخصیص‌های موجود از سرویس پروژه خوانده می‌شوند؛ این صفحه مقدار ساختگی منبع نمی‌سازد."))}</p>
-        <div class="cp-p6-module-metrics">
-          ${metric(state.activities.length, uiText(state.locale, "Activities", "فعالیت‌ها"))}
-          ${metric(state.relationships.length, uiText(state.locale, "Assignments in logic", "تخصیص در منطق"))}
-        </div>
-        ${controls(`${moduleButton("tools", "resource", uiText(state.locale, "Open resource capacity", "بازکردن ظرفیت منابع"))}${moduleButton("assignments", "link", uiText(state.locale, "Resource assignments", "تخصیص منابع"))}`)}`;
+        <div class="cp-resource-window">
+          <div class="cp-resource-window-toolbar"><strong>${escapeHtml(uiText(state.locale,"Project Resources","منابع پروژه"))}</strong><div class="cp-resource-type-filter" role="group" aria-label="${escapeAttribute(uiText(state.locale,"Resource Type Filter","فیلتر نوع منبع"))}">${[["all","All Types","همه انواع"],["labor","Labor","نیروی انسانی"],["nonlabor","Nonlabor","غیرنیروی انسانی"],["material","Material","مصالح و مواد"]].map(([key,en,fa])=>{const active=(resourceTypeFilterByContainer.get(container)??"all")===key;return `<button type="button" data-resource-type-filter="${key}" aria-pressed="${active}" class="${active?"is-active":""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`;}).join("")}</div></div>
+          ${renderRegisterWindow(state, uiText(state.locale, "Project Resources", "منابع پروژه"), [["Resource ID","شناسه منبع"],["Resource Name","نام منبع"],["Resource Type","نوع منبع"],["Parent Resource","منبع والد"],["Default Units / Time","واحد / زمان پیش‌فرض"],["Max Units / Time","حداکثر واحد / زمان"],["Unit of Measure","واحد اندازه‌گیری"],["Calendar","تقویم"],["Price / Unit","قیمت واحد"],["Cost Account","حساب هزینه"],["Primary Role","نقش اصلی"],["Active","فعال"]], [["general","General","عمومی"],["codes","Codes","کدها"],["details","Details","جزئیات"],["units-prices","Units & Prices","واحدها و قیمت‌ها"],["roles","Roles","نقش‌ها"],["notes","Notes","یادداشت‌ها"],["udfs","UDFs","فیلدهای کاربر"]])}
+          <p class="cp-resource-filter-note">${escapeHtml(uiText(state.locale,"Resource Type filter: ","فیلتر نوع منبع: "))}${escapeHtml(uiText(state.locale,(resourceTypeFilterByContainer.get(container)??"all")==="all"?"All Types":(resourceTypeFilterByContainer.get(container)??"all")==="labor"?"Labor":(resourceTypeFilterByContainer.get(container)??"all")==="nonlabor"?"Nonlabor":"Material",(resourceTypeFilterByContainer.get(container)??"all")==="all"?"همه انواع":(resourceTypeFilterByContainer.get(container)??"all")==="labor"?"نیروی انسانی":(resourceTypeFilterByContainer.get(container)??"all")==="nonlabor"?"غیرنیروی انسانی":"مصالح و مواد"))} — ${escapeHtml(uiText(state.locale,"No resource rows are loaded; this filter does not imply a resource exists.","هیچ ردیف منبعی بارگذاری نشده است؛ این فیلتر وجود منبع را القا نمی‌کند."))}</p>
+          <p>${escapeHtml(uiText(state.locale,"Resource Details follow the desktop inventory: General, Codes, Details, Units & Prices, Roles, Notes and UDFs. The Progress Reporter tab is excluded because it is EPPM-only. Resource records are not yet returned by the project API; create, edit, delete, hierarchy moves and assignment calculations remain unavailable until the authoritative resource service is connected.","جزئیات منابع مطابق فهرست دسکتاپ شامل عمومی، کدها، جزئیات، واحدها و قیمت‌ها، نقش‌ها، یادداشت‌ها و فیلدهای کاربر است. زبانه Progress Reporter به دلیل اختصاصی بودن برای نسخه EPPM حذف شده است. سوابق منابع هنوز از API پروژه دریافت نمی‌شوند؛ ایجاد، ویرایش، حذف، جابه‌جایی سلسله‌مراتب و محاسبات تخصیص تا اتصال سرویس مرجع منابع در دسترس نیستند."))}</p>
+          ${controls(`${moduleButton("tools", "resource", uiText(state.locale, "Open resource capacity", "بازکردن ظرفیت منابع"))}${moduleButton("assignments", "link", uiText(state.locale, "Resource assignments", "تخصیص منابع"))}`)}
+        </div>`;
       break;
     case "expenses":
-      body = renderRegisterWindow(state, uiText(state.locale, "Project Expenses", "هزینه‌های پروژه"), [["Expense Item","شرح هزینه"],["Expense ID","شناسه هزینه"],["Activity ID","شناسه فعالیت"],["WBS","ساختار شکست"],["Cost Account","حساب هزینه"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Accrual Type","نوع تعهد"],["Vendor","تأمین‌کننده"],["Status","وضعیت"]], [["general","General","عمومی"],["costs","Costs","هزینه‌ها"],["description","Description","شرح"],["documents","Documents","اسناد"],["udfs","UDFs","فیلدهای کاربر"]]);
+      body = renderRegisterWindow(state, uiText(state.locale, "Project Expenses", "هزینه‌های پروژه"), [["Expense Item","شرح هزینه"],["Expense ID","شناسه هزینه"],["Expense Category","دسته هزینه"],["Activity ID","شناسه فعالیت"],["WBS","ساختار شکست"],["Vendor","تأمین‌کننده"],["Document Number","شماره سند"],["Cost Account","حساب هزینه"],["Price / Unit","قیمت واحد"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Remaining Cost","هزینه باقیمانده"],["Accrual Type","نوع تعهد"],["Status","وضعیت"]], [["general","General","عمومی"],["activity","Activity","فعالیت"],["costs","Costs","هزینه‌ها"],["description","Description","شرح"]]);
       break;
     case "documents":
-      body = state.documents.length
-        ? `<div class="cp-p6-module-list">${state.documents.map((document) => `<article><strong>${escapeHtml(document.documentId)}</strong><span>${escapeHtml(document.title)}</span><small>${escapeHtml(document.resourceType)} · ${escapeHtml(document.status)} · R${document.revision}</small></article>`).join("")}</div>`
-        : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No project documents have been recorded yet.", "هنوز سندی برای این پروژه ثبت نشده است."))}</p>`;
+      body = renderDocumentRegisterWindow(container, state);
       body += controls(moduleButton("tools", "file", uiText(state.locale, "Open workspace tools", "بازکردن ابزارهای محیط کار")));
       break;
     case "cost":
@@ -1222,17 +2282,13 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
           ${metric(state.procurementRecords.length, t.procurement)}
           ${metric(state.changeNotices.length + state.changeCases.length + state.claims.length, t.commercial)}
         </div>
-        <p>${escapeHtml(uiText(state.locale, "Cost presentation uses the procurement, change and claim records already loaded for this project. Financial calculations remain in the authoritative core.", "نمایش هزینه از سوابق تدارکات، تغییر و ادعای بارگذاری‌شده برای این پروژه استفاده می‌کند. محاسبات مالی در هستهٔ مرجع باقی می‌ماند."))}</p>
+        <p>${escapeHtml(uiText(state.locale, "Cost presentation uses the procurement, change and claim records already loaded for this project. Financial calculations remain in the authoritative core; the account, budget, cash-flow and earned-value registers remain empty until their services provide data.", "نمایش هزینه از سوابق تدارکات، تغییر و ادعای بارگذاری‌شده برای این پروژه استفاده می‌کند. محاسبات مالی در هسته مرجع باقی می‌ماند؛ فهرست حساب، بودجه، جریان نقدی و ارزش کسب‌شده تا ارائه داده توسط سرویس مربوط خالی می‌مانند."))}</p>
+        ${renderRegisterWindow(state, uiText(state.locale, "Cost Accounts & Control", "حساب‌ها و کنترل هزینه"), [["Cost Account","حساب هزینه"],["Description","شرح"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Remaining Cost","هزینه باقیمانده"],["Forecast Cost","هزینه پیش‌بینی"],["Variance","انحراف"],["Currency","ارز"],["Financial Period","دوره مالی"],["Funding Source","منبع تأمین مالی"]], [["general","General","عمومی"],["budget","Budget","بودجه"],["actuals","Actuals","واقعی‌ها"],["forecast","Forecast","پیش‌بینی"],["cash-flow","Cash Flow","جریان نقدی"],["evm","Earned Value","ارزش کسب‌شده"],["periods","Financial Periods","دوره‌های مالی"],["funding","Funding","تأمین مالی"],["udfs","UDFs","فیلدهای کاربر"]])}
         ${controls(moduleButton("tools", "money", uiText(state.locale, "Open cost records", "بازکردن سوابق هزینه")))}`;
       break;
     case "progress":
       body = `
-        <div class="cp-p6-module-metrics">
-          ${metric(state.siteDailyLogs.length, t.siteLogs)}
-          ${metric(state.timecards.length + state.equipmentReports.length, `${t.attendance} / ${t.equipment}`)}
-          ${metric(state.fieldIssues.length, t.issues)}
-        </div>
-        <p>${escapeHtml(uiText(state.locale, "Progress presentation reads the field records already saved for this project. No progress percentages are computed on this page.", "نمایش پیشرفت از سوابق کارگاهی ذخیره‌شده برای این پروژه می‌خواند. هیچ درصد پیشرفتی در این صفحه محاسبه نمی‌شود."))}</p>
+        ${renderProgressRegisterWindow(container, state)}
         ${controls(moduleButton("tools", "progress", uiText(state.locale, "Open field records", "بازکردن سوابق کارگاه")))}`;
       break;
     case "control":
@@ -1243,12 +2299,11 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
           ${metric(state.fieldIssues.length, t.issues)}
           ${metric(state.punchItems.length, t.punchCloseout)}
         </div>
+        ${renderRegisterWindow(state, uiText(state.locale, "Project Control Register", "فهرست کنترل پروژه"), [["Record ID","شناسه رکورد"],["Record Type","نوع رکورد"],["Title","عنوان"],["Status","وضعیت"],["Severity","شدت"],["Responsible","مسئول"],["Updated","به‌روزرسانی"],["Evidence","مدرک"]], [["general","General","عمومی"],["quality","Quality","کیفیت"],["inspections","Inspections","بازرسی‌ها"],["safety","Safety","ایمنی"],["issues","Field Issues","مسائل کارگاهی"],["punch","Punch List","فهرست نواقص"],["changes","Changes & Claims","تغییرات و ادعاها"],["forms","Forms & Workflows","فرم‌ها و گردش‌کارها"],["udfs","UDFs","فیلدهای کاربر"]])}
         ${controls(`${moduleButton("forms", "forms", uiText(state.locale, "Forms & Workflows", "فرم‌ها و گردش‌کار"))}${moduleButton("tools", "warning", uiText(state.locale, "Open control records", "بازکردن سوابق کنترل"))}`)}`;
       break;
     case "reports":
-      body = `
-        <p>${escapeHtml(uiText(state.locale, "Report generation and print layouts are not available in this preview yet. No report is generated or claimed here.", "تولید گزارش و قالب چاپ در این پیش‌نمایش فعال نیست. هیچ گزارشی در این صفحه تولید یا ادعا نمی‌شود."))}</p>
-        ${controls(moduleButton("tools", "print", uiText(state.locale, "Open reports and print tools", "بازکردن ابزارهای گزارش و چاپ")))}`;
+      body = renderReportsCenter(container, state);
       break;
     case "issues":
       body = renderRegisterWindow(state, uiText(state.locale, "Project Issues", "مسائل پروژه"), [["Issue ID","شناسه مسئله"],["Title","عنوان"],["Status","وضعیت"],["Priority","اولویت"],["Responsible Manager","مدیر مسئول"],["Date Identified","تاریخ شناسایی"],["Due Date","موعد"],["Owner","مسئول"]], [["general","General","عمومی"],["details","Details","جزئیات"],["notes","Notes","یادداشت‌ها"],["documents","Documents","اسناد"]]);
@@ -1262,8 +2317,13 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
     case "tracking":
       body = `
         <div class="cp-tracking-window">
-          <div class="cp-tracking-toolbar"><strong>${escapeHtml(uiText(state.locale, "Tracking Layout", "چیدمان رهگیری"))}</strong><label>${escapeHtml(uiText(state.locale, "Layout Type", "نوع چیدمان"))}<select data-tracking-layout><option value="table">${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</option><option value="bar-chart">${escapeHtml(uiText(state.locale, "Project Bar Chart", "نمودار میله‌ای پروژه"))}</option><option value="gantt-profile">${escapeHtml(uiText(state.locale, "Project Gantt / Profile", "گانت / منحنی پروژه"))}</option><option value="resource-analysis">${escapeHtml(uiText(state.locale, "Resource Analysis", "تحلیل منابع"))}</option></select></label><button type="button" disabled>${escapeHtml(uiText(state.locale, "Refresh Data", "به‌روزرسانی داده"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Save Layout", "ذخیره چیدمان"))}</button></div>
-          <div class="cp-tracking-layout"><aside><strong>${escapeHtml(uiText(state.locale, "Projects", "پروژه‌ها"))}</strong><p>${escapeHtml(uiText(state.locale, "No project set is available for tracking.", "مجموعه پروژه‌ای برای رهگیری در دسترس نیست."))}</p></aside><section class="cp-tracking-chart" data-tracking-surface="table"><div class="cp-tracking-chart-head"><strong data-tracking-layout-label>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty">${escapeHtml(uiText(state.locale, "Select a tracking layout and load project data to display a table, bar chart, Gantt/profile or resource analysis.", "برای نمایش جدول، نمودار میله‌ای، گانت/منحنی یا تحلیل منابع، یک چیدمان رهگیری انتخاب و داده پروژه بارگذاری کنید."))}</div></section></div>
+          <div class="cp-tracking-toolbar"><strong>${escapeHtml(uiText(state.locale, "Tracking Layout", "چیدمان رهگیری"))}</strong><label>${escapeHtml(uiText(state.locale, "Layout Type", "نوع چیدمان"))}<select data-tracking-layout data-tracking-layout-type="${trackingLayoutByContainer.get(container) ?? "table"}"><option value="table" ${trackingLayoutByContainer.get(container) === "table" || !trackingLayoutByContainer.has(container) ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</option><option value="bar-chart" ${trackingLayoutByContainer.get(container) === "bar-chart" ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Project Bar Chart", "نمودار میله‌ای پروژه"))}</option><option value="gantt-profile" ${trackingLayoutByContainer.get(container) === "gantt-profile" ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Project Gantt / Profile", "گانت / منحنی پروژه"))}</option><option value="resource-analysis" ${trackingLayoutByContainer.get(container) === "resource-analysis" ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Resource Analysis", "تحلیل منابع"))}</option></select></label><button type="button" disabled>${escapeHtml(uiText(state.locale, "Refresh Data", "به‌روزرسانی داده"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Saving layouts requires a connected tracking-layout store.", "ذخیره چیدمان به مخزن چیدمان رهگیری متصل نیاز دارد."))}">${escapeHtml(uiText(state.locale, "Save Layout", "ذخیره چیدمان"))}</button><div class="cp-tracking-layout-actions" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Layout Management", "مدیریت چیدمان"))}"><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Creating layouts requires the tracking-layout service.", "ایجاد چیدمان به سرویس چیدمان رهگیری نیاز دارد."))}">${escapeHtml(uiText(state.locale, "New Layout", "چیدمان جدید"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "No saved tracking layouts are available.", "چیدمان ذخیره‌شده‌ای برای رهگیری موجود نیست."))}">${escapeHtml(uiText(state.locale, "Open Layout", "بازکردن چیدمان"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Saving layouts requires the tracking-layout service.", "ذخیره چیدمان به سرویس چیدمان رهگیری نیاز دارد."))}">${escapeHtml(uiText(state.locale, "Save As", "ذخیره با نام"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Layout import requires the tracking-layout service.", "ورود چیدمان به سرویس چیدمان رهگیری نیاز دارد."))}">${escapeHtml(uiText(state.locale, "Import", "ورود"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Layout export requires the tracking-layout service.", "خروجی چیدمان به سرویس چیدمان رهگیری نیاز دارد."))}">${escapeHtml(uiText(state.locale, "Export", "خروجی"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Deleting layouts requires the tracking-layout service.", "حذف چیدمان به سرویس چیدمان رهگیری نیاز دارد."))}">${escapeHtml(uiText(state.locale, "Delete Layout", "حذف چیدمان"))}</button></div><div class="cp-tracking-display-options" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Display Options", "گزینه‌های نمایش"))}"><span>${escapeHtml(uiText(state.locale, "Display Options", "گزینه‌های نمایش"))}</span><button type="button" data-tracking-display="project-explorer" aria-pressed="${getTrackingDisplayState(container).showProjectExplorer}">${escapeHtml(uiText(state.locale, "Project Explorer", "کاوشگر پروژه"))}</button><button type="button" data-tracking-display="top-layout" aria-pressed="${getTrackingDisplayState(container).showTopLayout}">${escapeHtml(uiText(state.locale, "Top Layout", "چیدمان بالا"))}</button><button type="button" data-tracking-display="resource-explorer" aria-pressed="${getTrackingDisplayState(container).showResourceExplorer}">${escapeHtml(uiText(state.locale, "Resource Explorer", "کاوشگر منابع"))}</button><button type="button" data-tracking-display="bottom-layout" aria-pressed="${getTrackingDisplayState(container).showBottomLayout}">${escapeHtml(uiText(state.locale, "Bottom Layout", "چیدمان پایین"))}</button></div></div>
+          <div class="cp-tracking-layout" data-tracking-layout-frame data-tracking-layout-type="${trackingLayoutByContainer.get(container) ?? "table"}">
+            <aside class="cp-tracking-project-explorer" data-tracking-pane="project-explorer" ${getTrackingDisplayState(container).showProjectExplorer ? "" : "hidden"}><strong>${escapeHtml(uiText(state.locale, "Project Explorer", "کاوشگر پروژه"))}</strong><p>${escapeHtml(uiText(state.locale, "No project set is available for tracking.", "مجموعه پروژه‌ای برای رهگیری در دسترس نیست."))}</p></aside>
+            <section class="cp-tracking-chart" data-tracking-pane="top-layout" data-tracking-surface="table" ${getTrackingDisplayState(container).showTopLayout ? "" : "hidden"}><div class="cp-tracking-chart-head"><strong data-tracking-layout-label>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty" data-tracking-content="table"><div class="cp-tracking-empty-grid"><span>Project ID</span><span>Project Name</span><span>Start</span><span>Finish</span><span>Status</span></div>${escapeHtml(uiText(state.locale, "Project table layout — no project records loaded.", "نمای جدول پروژه — هنوز سابقه‌ای بارگذاری نشده است."))}</div><div class="cp-tracking-empty cp-tracking-chart-placeholder" data-tracking-content="bar-chart" hidden><div class="cp-tracking-axis"><i></i><i></i><i></i><i></i><i></i></div><span>${escapeHtml(uiText(state.locale, "Project bar chart — no summary data loaded.", "نمودار میله‌ای پروژه — داده خلاصه بارگذاری نشده است."))}</span></div><div class="cp-tracking-empty cp-tracking-gantt-placeholder" data-tracking-content="gantt-profile" hidden><div class="cp-tracking-gantt-ruler"><span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span></div><span>${escapeHtml(uiText(state.locale, "Project Gantt / Profile — no tracking series loaded.", "گانت / منحنی پروژه — سری داده رهگیری بارگذاری نشده است."))}</span></div><div class="cp-tracking-empty cp-tracking-resource-placeholder" data-tracking-content="resource-analysis" hidden><div class="cp-tracking-axis"><i></i><i></i><i></i><i></i><i></i></div><span>${escapeHtml(uiText(state.locale, "Resource analysis — no resource data loaded.", "تحلیل منابع — داده منابع بارگذاری نشده است."))}</span></div></section>
+            <aside class="cp-tracking-resource-explorer" data-tracking-pane="resource-explorer" ${getTrackingDisplayState(container).showResourceExplorer && (trackingLayoutByContainer.get(container) === "gantt-profile" || trackingLayoutByContainer.get(container) === "resource-analysis") ? "" : "hidden"}><strong>${escapeHtml(uiText(state.locale, "Resource Explorer", "کاوشگر منابع"))}</strong><p>${escapeHtml(uiText(state.locale, "No resources available.", "منبعی در دسترس نیست."))}</p></aside>
+            <section class="cp-tracking-bottom-layout" data-tracking-pane="bottom-layout" ${getTrackingDisplayState(container).showBottomLayout && (trackingLayoutByContainer.get(container) === "gantt-profile" || trackingLayoutByContainer.get(container) === "resource-analysis") ? "" : "hidden"}><div class="cp-tracking-chart-head"><strong>${escapeHtml(uiText(state.locale, "Bottom Layout", "چیدمان پایین"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty">${escapeHtml(uiText(state.locale, "Select a project or resource to display its profile or spreadsheet.", "برای نمایش منحنی یا صفحه‌گسترده، پروژه یا منبعی انتخاب کنید."))}</div></section>
+          </div>
           <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Tracking layout types are exposed for visual parity. Project selection, summarization, chart rendering and saved tracking layouts are not connected yet.", "انواع چیدمان رهگیری برای تطابق بصری نمایش داده شده‌اند؛ انتخاب پروژه، خلاصه‌سازی، ترسیم نمودار و ذخیره چیدمان رهگیری هنوز متصل نیستند."))}</p>
         </div>`;
       break;
@@ -1343,15 +2403,42 @@ function renderNavigationSurface(state: WorkspaceState): string {
     <div><strong>${escapeHtml(label)}</strong><span data-surface-status="${item.status}">${escapeHtml(statusLabel)}</span></div>
     <nav aria-label="${escapeAttribute(label + " " + t.submenu)}">
       ${item.submenus.map((submenu, index) => {
+        const text = escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale));
         const anchor = links[index];
-        return anchor
-          ? navigationTargetAvailable(state, anchor) ? `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</a>` : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`
-          : `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${escapeHtml(getWorkspaceNavigationSubmenuLabel(item, index, state.locale))}</span>`;
+        const action = navigationSubmenuAction(item.key, index);
+        if (anchor && navigationTargetAvailable(state, anchor)) return `<a class="cp-submenu-item" href="${escapeAttribute(anchor)}">${text}</a>`;
+        if (action) return `<button type="button" class="cp-submenu-item" data-navigation-action="${escapeAttribute(action.kind + ":" + action.value)}">${text}</button>`;
+        return `<span class="cp-submenu-item" aria-disabled="true" data-submenu-status="preview">${text}</span>`;
       }).join("")}
     </nav>
   </section>`;
 }
 
+function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: number): { kind: string; value: string } | null {
+  const actions: Partial<Record<WorkspaceState["activeMenu"], readonly ({ kind: string; value: string } | null)[]>> = {
+    wbs: [null, { kind: "wbs-detail-tab", value: "general" }, null],
+    resources: [null, { kind: "register-tab", value: "resources:general" }, { kind: "register-tab", value: "resources:codes" }, { kind: "register-tab", value: "resources:details" }, { kind: "register-tab", value: "resources:units-prices" }, { kind: "register-tab", value: "resources:roles" }, { kind: "register-tab", value: "resources:notes" }, { kind: "register-tab", value: "resources:udfs" }],
+    documents: [null, { kind: "document-detail-tab", value: "general" }, { kind: "document-detail-tab", value: "files" }, { kind: "document-detail-tab", value: "assignments" }, { kind: "document-detail-tab", value: "udfs" }, { kind: "document-detail-tab", value: "links" }, { kind: "document-detail-tab", value: "integrity" }, { kind: "document-detail-tab", value: "revisions" }, { kind: "document-type", value: "evidence" }],
+    progress: [null, null, null, null, null, { kind: "progress-dialog", value: "update" }, { kind: "progress-dialog", value: "period-performance" }],
+    control: [null, { kind: "register-tab", value: "control:quality" }, { kind: "register-tab", value: "control:inspections" }, { kind: "register-tab", value: "control:safety" }, { kind: "register-tab", value: "control:issues" }, { kind: "register-tab", value: "control:punch" }, { kind: "register-tab", value: "control:changes" }, { kind: "register-tab", value: "control:forms" }],
+    reports: [{ kind: "reports-tab", value: "library" }, { kind: "reports-tab", value: "layouts" }, { kind: "reports-tab", value: "batch" }, { kind: "reports-tab", value: "print-preview" }, { kind: "reports-tab", value: "page-setup" }, { kind: "reports-tab", value: "export" }, { kind: "reports-tab", value: "custom" }],
+    cost: [null, { kind: "register-tab", value: "cost:general" }, { kind: "register-tab", value: "cost:budget" }, { kind: "register-tab", value: "cost:cash-flow" }, { kind: "register-tab", value: "cost:evm" }, null, null],
+    assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
+    expenses: [null, { kind: "register-tab", value: "expenses:general" }, { kind: "register-tab", value: "expenses:activity" }, { kind: "register-tab", value: "expenses:costs" }, { kind: "register-tab", value: "expenses:description" }],
+    issues: [null, { kind: "register-tab", value: "issues:details" }],
+    risks: [null, null, { kind: "register-tab", value: "risks:general" }],
+    thresholds: [null, { kind: "register-tab", value: "thresholds:monitoring" }, { kind: "register-tab", value: "thresholds:details" }],
+    calendars: [null, { kind: "calendar-tab", value: "workweek" }, { kind: "calendar-tab", value: "exceptions" }, { kind: "calendar-tab", value: "assignments" }],
+    roles: [null, { kind: "register-tab", value: "roles:rates" }, { kind: "register-tab", value: "roles:assignments" }],
+    tracking: [
+      { kind: "tracking-layout", value: "table" },
+      { kind: "tracking-layout", value: "bar-chart" },
+      { kind: "tracking-layout", value: "gantt-profile" },
+      { kind: "tracking-layout", value: "resource-analysis" },
+    ],
+  };
+  return actions[menu]?.[index] ?? null;
+}
 function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string | null)[] {
   switch (menu) {
     case "project":
@@ -1359,15 +2446,9 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "schedule":
       return ["#cp-activity-grid", "#cp-gantt", "#cp-reference-relationships", "#cp-reference-calendars", "#cp-schedule-options", "#cp-reference-resources", "#cp-reference-progress", "#cp-schedule-run", "#cp-formula-editor", "#cp-schedule-reference", "#cp-reference-options", "#cp-scheduling-reference-formulas", "#cp-scheduling-reference-documentation"];
     case "progress":
-      return ["#cp-site-logs", "#cp-field-operations"];
+      return ["#cp-p6-module-stage", "#cp-site-logs", "#cp-field-operations", "#cp-field-operations", "#cp-field-operations"];
     case "resources":
-      return ["#cp-resource-capacity", "#cp-field-operations"];
-    case "wbs":
-    case "assignments":
-    case "expenses":
-    case "issues":
-    case "risks":
-    case "thresholds":
+      return ["#cp-p6-module-stage", "#cp-resource-capacity"];
     case "wbs":
     case "assignments":
     case "expenses":
@@ -1377,15 +2458,15 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "calendars":
     case "roles":
     case "tracking":
-      return [];
+      return ["#cp-p6-module-stage"];
     case "cost":
-      return ["#cp-procurement", "#cp-change-claim"];
+      return ["#cp-p6-module-stage", null, null, null, null, "#cp-procurement", "#cp-change-claim"];
     case "documents":
-      return ["#cp-documents", null];
+      return ["#cp-p6-module-stage"];
     case "reports":
       return [];
     case "control":
-      return ["#cp-control-summary", "#cp-change-claim"];
+      return ["#cp-control-summary"];
     case "settings":
       return ["#cp-project-settings-open", "#cp-settings-panel"];
 
@@ -1393,21 +2474,10 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
 }
 
 function navigationTargetAvailable(state: WorkspaceState, anchor: string): boolean {
+  // Empty register states are valid destinations: users must be able to reach
+  // a module before its first record exists. Only hide links whose target
+  // panel is intentionally hidden by the current workspace layout.
   switch (anchor) {
-    case "#cp-site-logs":
-      return state.siteDailyLogs.length > 0;
-    case "#cp-field-operations":
-      return state.fieldIssues.length > 0 || state.timecards.length > 0 || state.equipmentReports.length > 0;
-    case "#cp-procurement":
-      return state.procurementRecords.length > 0;
-    case "#cp-change-claim":
-      return state.changeNotices.length > 0 || state.changeCases.length > 0 || state.claims.length > 0 || state.changeClaimImpacts.length > 0 || state.documents.length > 0;
-    case "#cp-documents":
-      return state.documents.length > 0;
-    case "#cp-control-summary":
-      return state.controlSummary !== null;
-    case "#cp-smart-guide":
-      return state.smartGuide !== null;
     case "#cp-project-wbs":
       return state.visiblePanels.project_wbs;
     case "#cp-details":
@@ -1980,6 +3050,14 @@ function renderP6FieldChooser(
   </section>`;
 }
 
+function renderColumnsDialog(state: WorkspaceState, history?: WorkspaceRendererOptions["layoutHistory"]): string {
+  const chooser = renderP6FieldChooser(state, history);
+  return `<dialog class="cp-columns-dialog" data-columns-dialog aria-labelledby="cp-columns-title">
+    <header class="cp-columns-dialog-head"><div><h2 id="cp-columns-title">${escapeHtml(uiText(state.locale, "Columns", "ستون‌ها"))}</h2><p>${escapeHtml(uiText(state.locale, "Choose, arrange and configure the fields displayed in the activity table.", "فیلدهای جدول فعالیت را انتخاب و مرتب کنید و تنظیمات آن‌ها را انجام دهید."))}</p></div><button type="button" data-columns-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
+    ${chooser || `<p class="cp-columns-unavailable">${escapeHtml(uiText(state.locale, "The field registry is not available for this workspace.", "فهرست فیلدها برای این محیط کار در دسترس نیست."))}</p>`}
+    <footer><button type="button" data-columns-close>${escapeHtml(uiText(state.locale, "Close", "بستن"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Changes are saved by the field controls.", "تغییرات از طریق کنترل‌های فیلد ذخیره می‌شوند."))}">${escapeHtml(uiText(state.locale, "Apply", "اعمال"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Help", "راهنما"))}</button></footer>
+  </dialog>`;
+}
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState, stickyOffsets: ReadonlyMap<string, number>): string {
   const selected = activity.id === state.selectedActivityId;
   const predecessors = predecessorSummary(activity.id, state);
@@ -2061,8 +3139,8 @@ const WBS_DETAIL_TABS = [
   ["milestones", "WBS Milestones", "نقاط عطف ساختار شکست"],
   ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
   ["earned-value", "Earned Value", "ارزش کسب‌شده"],
-  ["planning-resources", "Planning Resources", "منابع برنامه‌ریزی"],
   ["udfs", "UDFs", "فیلدهای کاربر"],
+  ["activities", "Related Activities (CUBI extension)", "فعالیت‌های مرتبط (افزوده CUBI)"],
 ] as const;
 
 function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
@@ -2081,13 +3159,27 @@ function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
       ];
       return `<div class="cp-activity-detail-fields">${fields.map(([label, value]) => `<div class="cp-activity-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>`;
     }
+    if (tab === "activities") {
+      const linkedActivities = state.activities.filter((activity) => activity.wbsId === node.id);
+      if (!linkedActivities.length) return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, "No activities are assigned directly to this WBS element.", "هیچ فعالیتی مستقیماً به این عنصر ساختار شکست تخصیص نیافته است."))}</p>`;
+      const headings = [["Activity ID", "شناسه فعالیت"], ["Activity Name", "نام فعالیت"], ["Start", "شروع"], ["Finish", "پایان"], ["Progress", "پیشرفت"]];
+      const head = headings.map(([en, fa]) => `<th>${escapeHtml(uiText(state.locale, en, fa))}</th>`).join("");
+      const rows = linkedActivities.map((activity) => {
+        const cell = (key: string): string => { const raw = activity.cells?.[key]; return raw === null || raw === undefined || raw === "" ? "—" : String(raw); };
+        const start = activity.gantt?.start ?? cell("start");
+        const finish = activity.gantt?.finish ?? cell("finish");
+        return `<tr data-wbs-linked-activity="${escapeAttribute(activity.id)}"><td>${escapeHtml(activity.id)}</td><td>${escapeHtml(activity.name)}</td><td>${escapeHtml(start)}</td><td>${escapeHtml(finish)}</td><td>${escapeHtml(cell("progress"))}</td></tr>`;
+      }).join("");
+      return `<div class="cp-activity-detail-table-wrap"><table class="cp-activity-detail-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div><p class="cp-activity-detail-footnote">${escapeHtml(uiText(state.locale, `${linkedActivities.length} activity record(s) loaded from this project.`, `${linkedActivities.length} رکورد فعالیت از این پروژه بارگذاری شده است.`))}</p>`;
+    }
     const tabInfo = WBS_DETAIL_TABS.find(([key]) => key === tab);
     return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, `No authoritative ${tabInfo?.[1] ?? "WBS"} records are loaded for this element.`, `اطلاعات مرجع بخش «${tabInfo?.[2] ?? "جزئیات WBS"}» برای این عنصر بارگذاری نشده است.`))}</p>`;
   };
   return `<section class="cp-wbs-details">
     <header class="cp-wbs-details-heading"><strong>${escapeHtml(uiText(state.locale, "WBS Details", "جزئیات ساختار شکست"))}</strong><span>${escapeHtml(node?.localCode ?? "—")}</span></header>
+    ${navigator}
     <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "WBS detail tabs", "زبانه‌های جزئیات WBS"))}">
-      ${WBS_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-wbs-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-wbs-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
+      ${WBS_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-wbs-detail-tab="${key}" title="${key === "activities" ? escapeAttribute(uiText(state.locale, "CUBI extension; not part of the native WBS Details tab inventory.", "افزوده CUBI؛ جزو فهرست بومی زبانه‌های جزئیات WBS نیست.")) : ""}" data-detail-origin="${key === "activities" ? "cubi-extension" : "desktop-reference"}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-wbs-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
     </nav>
     ${WBS_DETAIL_TABS.map(([key]) => `<div id="cp-wbs-detail-panel-${key}" role="tabpanel" data-wbs-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${panel(key)}</div>`).join("")}
   </section>`;
@@ -2106,9 +3198,8 @@ const PROJECT_DETAIL_TABS = [
   ["resources", "Resources", "منابع"],
   ["settings", "Settings", "تنظیمات"],
   ["calculations", "Calculations", "محاسبات"],
-  ["planning-resources", "Planning Resources", "منابع برنامه‌ریزی"],
-  ["contract-management", "Contract Management", "مدیریت قرارداد"],
   ["udfs", "UDFs", "فیلدهای کاربر"],
+  ["contract-management", "Contract Management (CUBI extension)", "مدیریت قرارداد (افزوده CUBI)"],
 ] as const;
 
 function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, container: HTMLElement): string {
@@ -2131,12 +3222,23 @@ function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, con
     return `<div class="cp-activity-details cp-project-details">
       <header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(uiText(state.locale, "Project Details", "جزئیات پروژه"))}</h2><span>${escapeHtml(state.context.project_id)}</span></div><small>${escapeHtml(uiText(state.locale, "Selected project", "پروژه انتخاب‌شده"))}</small></header>
       <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Project detail tabs", "زبانه‌های جزئیات پروژه"))}">
-        ${PROJECT_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-project-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-project-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
+        ${PROJECT_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-project-detail-tab="${key}" data-detail-origin="${key === "contract-management" ? "cubi-extension" : "desktop-reference"}" title="${key === "contract-management" ? escapeAttribute(uiText(state.locale, "CUBI extension; not part of the native Project Details tab inventory.", "افزوده CUBI؛ جزو فهرست بومی زبانه‌های جزئیات پروژه نیست.")) : ""}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-project-detail-panel-${key}">${escapeHtml(uiText(state.locale, key === "contract-management" ? "Contract Management (CUBI extension)" : en, key === "contract-management" ? "مدیریت قرارداد (افزوده CUBI)" : fa))}</button>`).join("")}
       </nav>
       ${PROJECT_DETAIL_TABS.map(([key]) => `<section id="cp-project-detail-panel-${key}" class="cp-activity-detail-panel" role="tabpanel" data-project-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${projectContent(key)}</section>`).join("")}
     </div>`;
   }
   const title = getWorkspaceNavigationLabel(getWorkspaceNavigation(state.activeMenu), state.locale);
+  const navigableActivities = filterAndSortActivities(state.activities, state.activityFilter, state.activitySort, state.activityGroupBy, state.wbsNodes);
+  const activityIndex = activity ? navigableActivities.findIndex((item) => item.id === activity.id) : -1;
+  const previousAvailable = activityIndex > 0;
+  const nextAvailable = activityIndex >= 0 && activityIndex < navigableActivities.length - 1;
+  const navigator = `<div class="cp-activity-detail-navigator" aria-label="${escapeAttribute(uiText(state.locale, "Activity record navigation", "پیمایش رکورد فعالیت"))}">
+    <button type="button" data-activity-navigate="previous" ${previousAvailable ? "" : "disabled"} title="${escapeAttribute(uiText(state.locale,"Previous activity","فعالیت قبلی"))}"><span class="cp-activity-nav-arrow">◀</span> ${escapeHtml(uiText(state.locale,"Previous","قبلی"))}</button>
+    <button type="button" data-activity-navigate="next" ${nextAvailable ? "" : "disabled"} title="${escapeAttribute(uiText(state.locale,"Next activity","فعالیت بعدی"))}">${escapeHtml(uiText(state.locale,"Next","بعدی"))} <span class="cp-activity-nav-arrow">▶</span></button>
+    <label>${escapeHtml(uiText(state.locale,"Activity ID","شناسه فعالیت"))}<input readonly value="${escapeAttribute(activity?.id ?? "")}" placeholder="—"></label>
+    <label>${escapeHtml(uiText(state.locale,"Activity Name","نام فعالیت"))}<input readonly value="${escapeAttribute(activity?.name ?? "")}" placeholder="—"></label>
+    <label>${escapeHtml(uiText(state.locale,"Project","پروژه"))}<input readonly value="${escapeAttribute(state.context.project_id)}"></label>
+  </div>`;
   return `<div class="cp-activity-details"><header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(uiText(state.locale, "Details", "جزئیات"))}</h2><span>${escapeHtml(title)}</span></div></header><p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, "Select a record in this window to display its details. This window's detail tabs are not implemented yet.", "برای نمایش جزئیات، یک رکورد در این پنجره انتخاب کنید. زبانه‌های اختصاصی این پنجره هنوز پیاده‌سازی نشده‌اند."))}</p></div>`;
 }
 
@@ -2147,7 +3249,6 @@ const ACTIVITY_DETAIL_TABS = [
   ["predecessors", "Predecessors", "پیش‌نیازها"],
   ["successors", "Successors", "پس‌نیازها"],
   ["codes", "Codes", "کدها"],
-  ["tasks", "Tasks", "وظایف"],
   ["discussion", "Discussion", "گفت‌وگو"],
   ["notebook", "Notebook", "دفترچه"],
   ["steps", "Steps", "گام‌ها"],
@@ -2158,8 +3259,59 @@ const ACTIVITY_DETAIL_TABS = [
   ["relationships", "Relationships", "روابط"],
   ["risks", "Risks", "ریسک‌ها"],
   ["udfs", "UDFs", "فیلدهای کاربر"],
+  ["update-history", "Update History", "تاریخچه به‌روزرسانی"],
 ] as const;
 
+function renderActivityNetwork(activities: WorkspaceState["activities"], relationships: WorkspaceState["relationships"], selectedActivityId: string | null, wbsNodes: WorkspaceState["wbsNodes"], selectedWbsId: string | null, locale: WorkspaceState["locale"], t: WorkspaceLabels): string {
+  const scopedActivities = selectedWbsId ? activities.filter((activity) => activity.wbsId === selectedWbsId) : activities;
+  const wbsPane = '<aside class="cp-activity-network-wbs-pane"><h3>' + escapeHtml(uiText(locale, "WBS Hierarchy", "سلسله‌مراتب WBS")) + '</h3>' + renderWbsTree(wbsNodes, selectedWbsId, t) + '</aside>';
+  if (!scopedActivities.length) return '<div class="cp-activity-network-layout">' + wbsPane + '<section class="cp-activity-network-graph"><div class="cp-activity-network-empty">' + escapeHtml(uiText(locale, selectedWbsId ? "No activities are assigned to the selected WBS element." : "No activity records are loaded for the network view.", selectedWbsId ? "فعالیتی به عنصر انتخاب‌شده WBS تخصیص نیافته است." : "برای نمای شبکه، رکورد فعالیتی بارگذاری نشده است.")) + '</div></section></div>';
+  activities = scopedActivities;
+  const ids = new Set(activities.map((activity) => activity.id));
+  const indegree = new Map(activities.map((activity) => [activity.id, 0]));
+  const outgoing = new Map(activities.map((activity) => [activity.id, [] as string[]]));
+  for (const relationship of relationships) {
+    if (!ids.has(relationship.predecessorId) || !ids.has(relationship.successorId)) continue;
+    outgoing.get(relationship.predecessorId)?.push(relationship.successorId);
+    indegree.set(relationship.successorId, (indegree.get(relationship.successorId) ?? 0) + 1);
+  }
+  const levels = new Map(activities.map((activity) => [activity.id, 0]));
+  const queue = activities.filter((activity) => (indegree.get(activity.id) ?? 0) === 0).map((activity) => activity.id);
+  while (queue.length) {
+    const current = queue.shift()!;
+    for (const successor of outgoing.get(current) ?? []) {
+      levels.set(successor, Math.max(levels.get(successor) ?? 0, (levels.get(current) ?? 0) + 1));
+      const remaining = (indegree.get(successor) ?? 0) - 1;
+      indegree.set(successor, remaining);
+      if (remaining === 0) queue.push(successor);
+    }
+  }
+  const groups = new Map<number, typeof activities[number][]>();
+  for (const activity of activities) { const level = levels.get(activity.id) ?? 0; const group = groups.get(level) ?? []; group.push(activity); groups.set(level, group); }
+  const maxLevel = Math.max(0, ...groups.keys());
+  const maxRows = Math.max(1, ...[...groups.values()].map((group) => group.length));
+  const cardWidth = 190, cardHeight = 72, columnGap = 92, rowGap = 34;
+  const width = 60 + (maxLevel + 1) * cardWidth + maxLevel * columnGap;
+  const height = 60 + maxRows * cardHeight + (maxRows - 1) * rowGap;
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const [level, group] of groups) group.forEach((activity, index) => positions.set(activity.id, { x: 30 + level * (cardWidth + columnGap), y: 30 + index * (cardHeight + rowGap) }));
+  const edges = relationships.filter((relationship) => ids.has(relationship.predecessorId) && ids.has(relationship.successorId)).map((relationship) => {
+    const from = positions.get(relationship.predecessorId), to = positions.get(relationship.successorId);
+    if (!from || !to) return "";
+    const startX = from.x + cardWidth, startY = from.y + cardHeight / 2, endX = to.x, endY = to.y + cardHeight / 2;
+    const bend = Math.max(36, Math.abs(endX - startX) * 0.45);
+    const label = String(relationship.type ?? "FS").toUpperCase();
+    const lag = formatRelationshipLag(relationship.lagValue, relationship.lagUnit, getWorkspaceLabels(locale));
+    return '<path class="cp-activity-network-edge" d="M ' + startX + ' ' + startY + ' C ' + (startX + bend) + ' ' + startY + ', ' + (endX - bend) + ' ' + endY + ', ' + endX + ' ' + endY + '" marker-end="url(#cp-activity-network-arrow)"></path><text class="cp-activity-network-edge-label" x="' + ((startX + endX) / 2) + '" y="' + ((startY + endY) / 2 - 7) + '">' + escapeHtml(label + (lag && lag !== "0" ? " · " + lag : "")) + '</text>';
+  }).join("");
+  const nodes = activities.map((activity) => {
+    const position = positions.get(activity.id) ?? { x: 30, y: 30 };
+    const selected = activity.id === selectedActivityId, critical = Boolean(activity.gantt?.critical);
+    return '<button type="button" class="cp-activity-network-node' + (selected ? ' is-selected' : '') + (critical ? ' is-critical' : '') + '" data-activity-id="' + escapeAttribute(activity.id) + '" aria-pressed="' + String(selected) + '" style="left:' + position.x + 'px;top:' + position.y + 'px"><span>' + escapeHtml(activity.id) + '</span><strong>' + escapeHtml(activity.name) + '</strong></button>';
+  }).join("");
+  const noEdges = edges ? "" : '<p class="cp-activity-network-note">' + escapeHtml(uiText(locale, "No relationships are loaded; only activity nodes are shown.", "رابطه‌ای بارگذاری نشده است؛ فقط گره‌های فعالیت نمایش داده می‌شوند.")) + '</p>';
+  return '<div class="cp-activity-network-layout">' + wbsPane + '<section class="cp-activity-network-graph"><div class="cp-activity-network-scroll"><div class="cp-activity-network-canvas" style="width:' + width + 'px;height:' + height + 'px"><svg class="cp-activity-network-edges" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><defs><marker id="cp-activity-network-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker></defs>' + edges + '</svg>' + nodes + '</div></div>' + noEdges + '</section></div>';
+}
 function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, activeTab: string, visibleTabs: ReadonlySet<string>): string {
   const activity = state.activities.find((item) => item.id === state.selectedActivityId);
   const value = (key: string): string => {
@@ -2209,17 +3361,46 @@ function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, a
     const tabLabel = ACTIVITY_DETAIL_TABS.find(([key]) => key === tab);
     return empty(uiText(state.locale, `No ${tabLabel?.[1] ?? "detail"} records are loaded for this activity.`, `برای این فعالیت هنوز سابقه‌ای در بخش «${tabLabel?.[2] ?? "جزئیات"}» بارگذاری نشده است.`));
   };
+  const displayedTabs = [...visibleTabs]
+    .map((key) => ACTIVITY_DETAIL_TABS.find(([candidate]) => candidate === key))
+    .filter((item): item is (typeof ACTIVITY_DETAIL_TABS)[number] => item !== undefined);
   return `<div class="cp-activity-details">
     <header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2><span>${escapeHtml(activity ? `${activity.id} — ${activity.name}` : state.selectedActivityId ?? "—")}</span></div><div class="cp-activity-details-heading-actions"><small>${escapeHtml(uiText(state.locale, "Activity Details", "جزئیات فعالیت"))}</small><button type="button" data-activity-details-options-open>${escapeHtml(uiText(state.locale, "Customize Tabs", "تنظیم زبانه‌ها"))}</button></div></header>
     <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Activity detail tabs", "زبانه‌های جزئیات فعالیت"))}">
-      ${ACTIVITY_DETAIL_TABS.filter(([key]) => visibleTabs.has(key)).map(([key, en, fa]) => `<button type="button" role="tab" data-activity-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-activity-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
+      ${displayedTabs.map(([key, en, fa]) => `<button type="button" role="tab" data-activity-detail-tab="${key}" data-detail-origin="desktop-reference" title="" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-activity-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
     </nav>
-    ${ACTIVITY_DETAIL_TABS.filter(([key]) => visibleTabs.has(key)).map(([key]) => `<section id="cp-activity-detail-panel-${key}" class="cp-activity-detail-panel" role="tabpanel" data-activity-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${contentFor(key)}</section>`).join("")}
+    ${displayedTabs.map(([key]) => `<section id="cp-activity-detail-panel-${key}" class="cp-activity-detail-panel" role="tabpanel" data-activity-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${contentFor(key)}</section>`).join("")}
   </div>${renderActivityDetailsOptionsDialog(state, visibleTabs)}`;
 }
 
 function renderActivityDetailsOptionsDialog(state: WorkspaceState, visibleTabs: ReadonlySet<string>): string {
-  return `<dialog class="cp-activity-details-options" data-activity-details-options-dialog aria-labelledby="cp-activity-details-options-title"><div class="cp-activity-details-options-head"><h3 id="cp-activity-details-options-title">${escapeHtml(uiText(state.locale, "Customize Activity Details", "تنظیم جزئیات فعالیت"))}</h3><button type="button" data-activity-details-options-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></div><p>${escapeHtml(uiText(state.locale, "Choose which detail tabs are visible in the bottom layout.", "زبانه‌هایی را که در چیدمان پایین نمایش داده می‌شوند انتخاب کنید."))}</p><div class="cp-activity-details-options-list">${ACTIVITY_DETAIL_TABS.map(([key, en, fa]) => `<label><input type="checkbox" data-activity-detail-visible="${key}"${visibleTabs.has(key) ? " checked" : ""}> ${escapeHtml(uiText(state.locale, en, fa))}</label>`).join("")}</div><footer><button type="button" data-activity-details-options-close>${escapeHtml(uiText(state.locale, "Cancel", "انصراف"))}</button><button type="button" data-activity-details-apply>${escapeHtml(uiText(state.locale, "Apply", "اعمال"))}</button></footer></dialog>`;
+  const option = ([key, en, fa]: (typeof ACTIVITY_DETAIL_TABS)[number]): string =>
+    `<option value="${key}">${escapeHtml(uiText(state.locale, en, fa))}</option>`;
+  const available = ACTIVITY_DETAIL_TABS.filter(([key]) => !visibleTabs.has(key));
+  const displayed = [...visibleTabs]
+    .map((key) => ACTIVITY_DETAIL_TABS.find(([candidate]) => candidate === key))
+    .filter((item): item is (typeof ACTIVITY_DETAIL_TABS)[number] => item !== undefined);
+  const label = (en: string, fa: string): string => escapeHtml(uiText(state.locale, en, fa));
+  return `<dialog class="cp-activity-details-options" data-activity-details-options-dialog aria-labelledby="cp-activity-details-options-title">
+    <div class="cp-activity-details-options-head"><h3 id="cp-activity-details-options-title">${label("Customize Activity Details", "تنظیم جزئیات فعالیت")}</h3><button type="button" data-activity-details-options-close aria-label="${label("Close", "بستن")}">×</button></div>
+    <p>${label("Choose the available tabs, move them into Display Tabs, and arrange their order.", "زبانه‌های موجود را انتخاب کنید، به زبانه‌های نمایشی منتقل کنید و ترتیب آن‌ها را تنظیم کنید.")}</p>
+    <div class="cp-activity-details-options-grid">
+      <fieldset><legend>${label("Available Tabs", "زبانه‌های موجود")}</legend><select multiple size="14" data-activity-detail-available aria-label="${label("Available Tabs", "زبانه‌های موجود")}">${available.map(option).join("")}</select></fieldset>
+      <div class="cp-activity-details-transfer" aria-label="${label("Move tabs", "انتقال زبانه‌ها")}">
+        <button type="button" data-activity-detail-add-all title="${label("Add all", "افزودن همه")}">≫</button>
+        <button type="button" data-activity-detail-add title="${label("Add selected", "افزودن انتخاب‌شده")}">›</button>
+        <button type="button" data-activity-detail-remove title="${label("Remove selected", "حذف انتخاب‌شده")}">‹</button>
+        <button type="button" data-activity-detail-remove-all title="${label("Remove all", "حذف همه")}">≪</button>
+      </div>
+      <fieldset><legend>${label("Display Tabs", "زبانه‌های نمایشی")}</legend><select multiple size="14" data-activity-detail-display aria-label="${label("Display Tabs", "زبانه‌های نمایشی")}">${displayed.map(option).join("")}</select></fieldset>
+      <div class="cp-activity-details-order" aria-label="${label("Arrange display tabs", "ترتیب زبانه‌های نمایشی")}">
+        <button type="button" data-activity-detail-move-up title="${label("Move Up", "انتقال به بالا")}">▲</button>
+        <button type="button" data-activity-detail-move-down title="${label("Move Down", "انتقال به پایین")}">▼</button>
+        <button type="button" data-activity-detail-default>${label("Default", "پیش‌فرض")}</button>
+      </div>
+    </div>
+    <footer><button type="button" data-activity-details-options-close>${label("Cancel", "انصراف")}</button><button type="button" data-activity-details-apply>${label("Apply", "اعمال")}</button><button type="button" data-activity-details-apply-close>${label("OK", "تأیید")}</button><button type="button" disabled>${label("Help", "راهنما")}</button></footer>
+  </dialog>`;
 }
 
 function getActivityDetailsVisibleTabs(container: HTMLElement): Set<string> {
@@ -2240,7 +3421,7 @@ function getActivityDetailsVisibleTabs(container: HTMLElement): Set<string> {
   return defaults;
 }
 
-function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): string {
+function renderLayoutOptionsDialog(container: HTMLElement, state: WorkspaceState, t: WorkspaceLabels): string {
   const scaleLabels: Record<WorkspaceGanttScale, string> = {
     day: t.scaleDay,
     week: t.scaleWeek,
@@ -2248,35 +3429,267 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): s
     quarter: t.scaleQuarter,
     year: t.scaleYear,
   };
+  const intervalOptions = [
+    ["quarter-month", "Quarter / Month"],
+    ["month-week", "Month / Week"],
+    ["week-day-1", "Week / Day 1"],
+    ["week-day-2", "Week / Day 2"],
+    ["day-shift", "Day / Shift"],
+    ["day-hour", "Day / Hour"],
+    ["year-financial-period", "Year / Financial Period"],
+    ["quarter-financial-period", "Quarter / Financial Period"],
+  ] as const;
+  const action = (label: string, close = false, disabled = false): string =>
+    `<button type="button"${close ? " data-layout-options-close" : ""}${disabled ? " disabled" : ""}>${escapeHtml(label)}</button>`;
   return `<dialog class="cp-layout-options-dialog" data-layout-options-dialog aria-labelledby="cp-layout-options-title">
     <form method="dialog" class="cp-layout-options-form">
       <header><div><small>${escapeHtml(uiText(state.locale, "Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-layout-options-title">${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</h2></div><button type="button" data-layout-options-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
-      <section class="cp-layout-options-section">
-        <h3>${escapeHtml(uiText(state.locale, "Top Layout", "چیدمان بالا"))}</h3>
-        <label>${escapeHtml(uiText(state.locale, "Primary view", "نمای اصلی"))}
-          <select data-top-layout><option value="table-gantt" selected>${escapeHtml(uiText(state.locale, "Activity Table + Gantt Chart", "جدول فعالیت‌ها + نمودار گانت"))}</option><option value="activity-network" disabled>Activity Network</option><option value="activity-usage-spreadsheet" disabled>Activity Usage Spreadsheet</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="resource-usage-spreadsheet" disabled>Resource Usage Spreadsheet</option><option value="resource-usage-profile" disabled>Resource Usage Profile</option><option value="trace-logic" disabled>Trace Logic</option></select>
-        </label>
-        <h3>${escapeHtml(uiText(state.locale, "Bottom Layout", "چیدمان پایین"))}</h3>
-        <label>${escapeHtml(uiText(state.locale, "Details view", "نمای جزئیات"))}
-          <select data-bottom-layout><option value="activity-details" selected>Activity Details</option><option value="activity-network" disabled>Activity Network</option><option value="trace-logic" disabled>Trace Logic</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option></select>
-        </label>
+      <div class="cp-layout-options-dialog-body">
+        <div class="cp-layout-options-main">
+          <fieldset class="cp-layout-options-section">
+            <legend>${escapeHtml(uiText(state.locale, "Top Layout", "چیدمان بالا"))}</legend>
+            <label>${escapeHtml(uiText(state.locale, "Primary view", "نمای اصلی"))}
+              <select data-top-layout><option value="table-gantt" ${(activityTopLayoutByContainer.get(container) ?? "table-gantt") === "table-gantt" ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Table + Gantt Chart", "جدول فعالیت‌ها + نمودار گانت"))}</option><option value="activity-network" ${(activityTopLayoutByContainer.get(container) ?? "table-gantt") === "activity-network" ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Network", "شبکه فعالیت‌ها"))}</option><option value="activity-usage-spreadsheet" disabled>Activity Usage Spreadsheet</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="resource-usage-spreadsheet" disabled>Resource Usage Spreadsheet</option><option value="resource-usage-profile" disabled>Resource Usage Profile</option><option value="trace-logic" disabled>Trace Logic</option></select>
+            </label>
+          </fieldset>
+          <fieldset class="cp-layout-options-section">
+            <legend>${escapeHtml(uiText(state.locale, "Bottom Layout", "چیدمان پایین"))}</legend>
+            <label>${escapeHtml(uiText(state.locale, "Details view", "نمای جزئیات"))}
+              <select data-bottom-layout><option value="activity-details" selected>Activity Details</option><option value="activity-network" disabled>Activity Network</option><option value="trace-logic" disabled>Trace Logic</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="none" disabled>None</option></select>
+            </label>
+            <button type="button" data-activity-details-options-open>${escapeHtml(uiText(state.locale, "Customize detail tabs", "سفارشی‌سازی زبانه‌های جزئیات"))}</button>
+          </fieldset>
+          <fieldset class="cp-layout-options-section">
+            <legend>${escapeHtml(uiText(state.locale, "Timescale", "مقیاس زمانی"))}</legend>
+            <div class="cp-layout-options-radio-row" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Timescale format", "قالب مقیاس زمانی"))}">
+              <label><input type="radio" name="timescale-format" value="two-lines" checked disabled> ${escapeHtml(uiText(state.locale, "Two Lines", "دو خط"))}</label>
+              <label><input type="radio" name="timescale-format" value="three-lines" disabled> ${escapeHtml(uiText(state.locale, "Three Lines", "سه خط"))}</label>
+            </div>
+            <label>${escapeHtml(uiText(state.locale, "Display interval", "بازه نمایش"))}
+              <select data-layout-timescale>${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<option value="${mode}"${state.ganttScale === mode ? " selected" : ""}>${escapeHtml(scaleLabels[mode])}</option>`).join("")}</select>
+            </label>
+            <label>${escapeHtml(uiText(state.locale, "Timescale start", "شروع مقیاس زمانی"))}<span class="cp-layout-options-input-with-button"><input type="text" disabled placeholder="—"><button type="button" disabled aria-label="${escapeAttribute(uiText(state.locale, "Browse", "مرور"))}">…</button></span></label>
+            <label>${escapeHtml(uiText(state.locale, "Date format", "قالب تاریخ"))}<select disabled><option>Calendar</option></select></label>
+            <label>${escapeHtml(uiText(state.locale, "Date interval", "فاصله تاریخ"))}<select disabled><option value="">${escapeHtml(uiText(state.locale, "Select interval", "انتخاب فاصله"))}</option>${intervalOptions.map(([value,label]) => `<option value="${value}">${escapeHtml(label)}</option>`).join("")}</select></label>
+            <label>${escapeHtml(uiText(state.locale, "Shift calendar", "تقویم شیفت"))}<select disabled><option>—</option></select></label>
+            <div class="cp-layout-options-radio-row"><label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show ordinal dates", "نمایش تاریخ ترتیبی"))}</label></div>
+            <label>${escapeHtml(uiText(state.locale, "Ordinal start", "شروع ترتیبی"))}<input type="text" disabled placeholder="—"></label>
+            <label>${escapeHtml(uiText(state.locale, "Ordinal date interval", "فاصله تاریخ ترتیبی"))}<select disabled><option>—</option></select></label>
+            <div class="cp-layout-options-font-row"><button type="button" disabled>${escapeHtml(uiText(state.locale, "Font & Color", "قلم و رنگ"))} · AaBbYyZz</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Default Font", "قلم پیش‌فرض"))}</button></div>
+          </fieldset>
+          <fieldset class="cp-layout-options-section">
+            <legend>${escapeHtml(uiText(state.locale, "Gantt display", "نمایش گانت"))}</legend>
+            <label class="cp-layout-options-check"><input type="checkbox" data-layout-links${state.showGanttRelationships ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show relationship lines", "نمایش خطوط روابط"))}</label>
+            <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show critical path", "نمایش مسیر بحرانی"))}</label>
+            <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show progress line", "نمایش خط پیشرفت"))}</label>
+            <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show baseline bars", "نمایش میله‌های مبنا"))}</label>
+            <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
+          </fieldset>
+        </div>
+        <aside class="cp-layout-options-actions" data-layout-options-actions aria-label="${escapeAttribute(uiText(state.locale, "Dialog actions", "فرمان‌های پنجره"))}">
+          ${action(uiText(state.locale, "OK", "تأیید"), true)}
+          ${action(uiText(state.locale, "Cancel", "انصراف"), true)}
+          ${action(uiText(state.locale, "Apply", "اعمال"), false, true)}
+          ${action(uiText(state.locale, "Help", "راهنما"), false, true)}
+        </aside>
+      </div>
+      <p class="cp-layout-options-notice">${escapeHtml(uiText(state.locale, "Only the display interval and relationship-line visibility are connected in this slice. Other controls are shown for visual completeness but remain disabled until their renderer and persistence contract are implemented.", "در این بخش فقط بازه نمایش و وضعیت خطوط روابط متصل هستند. سایر کنترل‌ها برای تکمیل ساختار بصری نمایش داده شده‌اند اما تا پیاده‌سازی رندرکننده و قرارداد ذخیره‌سازی غیرفعال می‌مانند."))}</p>
+    </form>
+  </dialog>`;
+}
+
+function renderGroupSortDialog(state: WorkspaceState, t: WorkspaceLabels): string {
+  const groupOptions = [
+    ["wbs", t.activityWbs],
+    ["none", t.groupNone],
+  ] as const;
+  const sortOptions = state.columns
+    .filter((column) => column.id !== "wbs")
+    .map((column) => `<option value="${escapeAttribute(column.id)}"${state.activitySort?.columnId === column.id ? " selected" : ""}>${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}</option>`)
+    .join("");
+  return `<dialog class="cp-group-sort-dialog" data-group-sort-dialog aria-labelledby="cp-group-sort-title">
+    <form method="dialog">
+      <header><div><small>${escapeHtml(uiText(state.locale, "Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-group-sort-title">${escapeHtml(uiText(state.locale, "Group and Sort", "گروه‌بندی و مرتب‌سازی"))}</h2></div><button type="button" data-group-sort-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
+      <div class="cp-group-sort-body">
+        <section class="cp-group-sort-options">
+          <fieldset><legend>${escapeHtml(uiText(state.locale, "Display Options", "گزینه‌های نمایش"))}</legend>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Group Totals", "نمایش جمع گروه"))}</label>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Grand Total", "نمایش جمع کل"))}</label>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Summaries", "نمایش خلاصه‌ها"))}</label>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Shrink vertical groups", "فشرده‌سازی گروه‌های عمودی"))}</label>
+          </fieldset>
+          <fieldset><legend>${escapeHtml(uiText(state.locale, "Group By", "گروه‌بندی بر اساس"))}</legend>
+            <label>${escapeHtml(uiText(state.locale, "Group field", "فیلد گروه‌بندی"))}<select data-group-sort-group>${groupOptions.map(([value,label]) => `<option value="${value}"${state.activityGroupBy === value ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select></label>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Hide if empty", "پنهان‌سازی در صورت خالی بودن"))}</label>
+            <label><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Sort bands alphabetically", "مرتب‌سازی نوارها بر اساس حروف"))}</label>
+            <div class="cp-group-sort-subheading">${escapeHtml(uiText(state.locale, "Show", "نمایش"))}</div>
+            <label><input type="checkbox" checked disabled> ${escapeHtml(uiText(state.locale, "Title", "عنوان"))}</label>
+            <label><input type="checkbox" checked disabled> ${escapeHtml(uiText(state.locale, "ID / Code", "شناسه / کد"))}</label>
+            <label><input type="checkbox" checked disabled> ${escapeHtml(uiText(state.locale, "Name / Description", "نام / توضیحات"))}</label>
+          </fieldset>
+        </section>
+        <section class="cp-group-sort-order">
+          <fieldset><legend>${escapeHtml(uiText(state.locale, "Sort", "مرتب‌سازی"))}</legend>
+            <label>${escapeHtml(uiText(state.locale, "Field Name", "نام فیلد"))}<select data-group-sort-field><option value="">${escapeHtml(uiText(state.locale, "None", "هیچ‌کدام"))}</option>${sortOptions}</select></label>
+            <label>${escapeHtml(uiText(state.locale, "Sort Order", "ترتیب مرتب‌سازی"))}<select data-group-sort-direction><option value="asc"${(state.activitySort?.direction ?? "asc") === "asc" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Ascending", "صعودی"))}</option><option value="desc"${state.activitySort?.direction === "desc" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Descending", "نزولی"))}</option></select></label>
+          </fieldset>
+          <p>${escapeHtml(uiText(state.locale, "Group and sort selections apply to the current activity register only. Totals, custom band fields and advanced sort levels remain unavailable until supported by the persisted layout contract.", "گروه‌بندی و مرتب‌سازی فقط بر دفتر فعالیت جاری اعمال می‌شود. جمع‌ها، فیلدهای سفارشی گروه و سطوح پیشرفته مرتب‌سازی تا پشتیبانی قرارداد چیدمان ذخیره‌شده در دسترس نیستند."))}</p>
+        </section>
+        <aside class="cp-group-sort-actions" aria-label="${escapeAttribute(uiText(state.locale, "Dialog actions", "فرمان‌های پنجره"))}">
+          <button type="button" data-group-sort-apply>${escapeHtml(uiText(state.locale, "OK", "تأیید"))}</button>
+          <button type="button" data-group-sort-close>${escapeHtml(uiText(state.locale, "Cancel", "انصراف"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Apply", "اعمال"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Add", "افزودن"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Move Up", "انتقال به بالا"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Move Down", "انتقال به پایین"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Default", "پیش‌فرض"))}</button>
+          <button type="button" disabled>${escapeHtml(uiText(state.locale, "Help", "راهنما"))}</button>
+        </aside>
+      </div>
+    </form>
+  </dialog>`;
+}
+
+function renderBarsDialog(state: WorkspaceState): string {
+  const locale = state.locale;
+  const text = (en: string, fa: string): string => uiText(locale, en, fa);
+  const disabledButton = (en: string, fa: string): string => `<button type="button" disabled>${escapeHtml(text(en, fa))}</button>`;
+  return `<dialog class="cp-bars-dialog" data-bars-dialog aria-labelledby="cp-bars-title">
+    <form method="dialog">
+      <header><div><small>${escapeHtml(text("Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-bars-title">${escapeHtml(text("Bars", "میله‌ها"))}</h2></div><button type="button" data-bars-close aria-label="${escapeAttribute(text("Close", "بستن"))}">×</button></header>
+      <div class="cp-bars-body">
+        <section class="cp-bars-main">
+          <div class="cp-bars-grid-wrap"><table class="cp-bars-grid"><thead><tr><th>${escapeHtml(text("Display", "نمایش"))}</th><th>${escapeHtml(text("Name", "نام"))}</th><th>${escapeHtml(text("Timescale", "مقیاس زمانی"))}</th><th>${escapeHtml(text("User Start", "شروع کاربر"))}</th><th>${escapeHtml(text("User Finish", "پایان کاربر"))}</th><th>${escapeHtml(text("Filter", "فیلتر"))}</th><th>${escapeHtml(text("Preview", "پیش‌نمایش"))}</th></tr></thead><tbody><tr><td colspan="7">${escapeHtml(text("No saved bar definitions are available in the current layout.", "هیچ تعریف میله ذخیره‌شده‌ای در چیدمان جاری موجود نیست."))}</td></tr></tbody></table></div>
+          <section class="cp-bars-preview"><strong>${escapeHtml(text("Preview", "پیش‌نمایش"))}</strong><div aria-label="${escapeAttribute(text("Bar preview", "پیش‌نمایش میله"))}"></div></section>
+          <nav class="cp-bars-tabs" role="tablist" aria-label="${escapeAttribute(text("Bar detail tabs", "زبانه‌های جزئیات میله"))}">
+            <button type="button" role="tab" aria-selected="true" class="is-active" data-bars-tab="style">${escapeHtml(text("Bar Style", "سبک میله"))}</button>
+            <button type="button" role="tab" aria-selected="false" data-bars-tab="settings">${escapeHtml(text("Bar Settings", "تنظیمات میله"))}</button>
+            <button type="button" role="tab" aria-selected="false" data-bars-tab="labels">${escapeHtml(text("Bar Labels", "برچسب‌های میله"))}</button>
+          </nav>
+          <section class="cp-bars-tab-panel" data-bars-panel="style">
+            <div class="cp-bars-style-grid"><strong></strong><strong>${escapeHtml(text("Start", "شروع"))}</strong><strong>${escapeHtml(text("Bar", "میله"))}</strong><strong>${escapeHtml(text("Finish", "پایان"))}</strong>
+              <span>${escapeHtml(text("Shape", "شکل"))}</span><select disabled><option>—</option></select><select disabled><option>—</option></select><select disabled><option>—</option></select>
+              <span>${escapeHtml(text("Color", "رنگ"))}</span><button type="button" disabled>—</button><button type="button" disabled>—</button><button type="button" disabled>—</button>
+              <span>${escapeHtml(text("Pattern", "الگو"))}</span><select disabled><option>—</option></select><select disabled><option>—</option></select><select disabled><option>—</option></select>
+              <span>${escapeHtml(text("Row", "ردیف"))}</span><select disabled><option>—</option></select><span></span><span></span>
+            </div>
+          </section>
+          <section class="cp-bars-tab-panel" data-bars-panel="settings" hidden>
+            <div class="cp-bars-fields"><label>${escapeHtml(text("Timescale", "مقیاس زمانی"))}<select disabled><option>—</option></select></label><label>${escapeHtml(text("Filter", "فیلتر"))}<select disabled><option>—</option></select></label><label>${escapeHtml(text("Start field", "فیلد شروع"))}<select disabled><option>—</option></select></label><label>${escapeHtml(text("Finish field", "فیلد پایان"))}<select disabled><option>—</option></select></label></div>
+          </section>
+          <section class="cp-bars-tab-panel" data-bars-panel="labels" hidden>
+            <div class="cp-bars-grid-wrap"><table class="cp-bars-grid"><thead><tr><th>${escapeHtml(text("Position", "موقعیت"))}</th><th>${escapeHtml(text("Label", "برچسب"))}</th></tr></thead><tbody><tr><td colspan="2">${escapeHtml(text("No labels are configured for this bar.", "برای این میله برچسبی تنظیم نشده است."))}</td></tr></tbody></table></div>
+            <div class="cp-bars-label-actions">${disabledButton("Add", "افزودن")}${disabledButton("Delete", "حذف")}</div>
+          </section>
+        </section>
+        <aside class="cp-bars-actions" aria-label="${escapeAttribute(text("Dialog actions", "فرمان‌های پنجره"))}">
+          <button type="button" data-bars-close>${escapeHtml(text("OK", "تأیید"))}</button>
+          <button type="button" data-bars-close>${escapeHtml(text("Cancel", "انصراف"))}</button>
+          ${disabledButton("Apply", "اعمال")}${disabledButton("Add", "افزودن")}${disabledButton("Delete", "حذف")}${disabledButton("Copy From...", "کپی از...")}${disabledButton("Shift Up", "انتقال به بالا")}${disabledButton("Shift Down", "انتقال به پایین")}
+          <button type="button" data-bar-chart-options-open>${escapeHtml(text("Options...", "گزینه‌ها..."))}</button>
+          ${disabledButton("Default", "پیش‌فرض")}${disabledButton("Help", "راهنما")}
+        </aside>
+      </div>
+      <p class="cp-bars-notice">${escapeHtml(text("Bar definitions and style changes are not yet persisted by the layout service. Controls are visible for parity and remain disabled until that contract is available.", "تعریف میله‌ها و تغییرات سبک هنوز توسط سرویس چیدمان ذخیره نمی‌شوند. کنترل‌ها برای تطابق بصری نمایش داده شده‌اند و تا آماده‌شدن قرارداد مربوطه غیرفعال هستند."))}</p>
+    </form>
+  </dialog>`;
+}
+
+function renderBarChartOptionsDialog(state: WorkspaceState): string {
+  const locale = state.locale;
+  const text = (en: string, fa: string): string => uiText(locale, en, fa);
+  const tab = (id: string, en: string, fa: string, active = false): string => `<button type="button" role="tab" data-bar-options-tab="${id}" aria-selected="${active}" class="${active ? "is-active" : ""}">${escapeHtml(text(en, fa))}</button>`;
+  const check = (en: string, fa: string, enabled = false, checked = false, attr = ""): string => `<label><input type="checkbox"${checked ? " checked" : ""}${enabled ? "" : " disabled"} ${attr}> ${escapeHtml(text(en, fa))}</label>`;
+  return `<dialog class="cp-bar-options-dialog" data-bar-chart-options-dialog aria-labelledby="cp-bar-options-title">
+    <form method="dialog">
+      <header><h2 id="cp-bar-options-title">${escapeHtml(text("Bar Chart Options", "گزینه‌های نمودار میله‌ای"))}</h2><button type="button" data-bar-options-close aria-label="${escapeAttribute(text("Close", "بستن"))}">×</button></header>
+      <nav class="cp-bar-options-tabs" role="tablist" aria-label="${escapeAttribute(text("Bar chart option tabs", "زبانه‌های گزینه‌های نمودار"))}">
+        ${tab("general","General","عمومی",true)}${tab("collapsed","Collapsed Bars","میله‌های جمع‌شده")}${tab("data-date","Data Date","تاریخ داده")}${tab("sight-lines","Sight Lines","خطوط راهنما")}${tab("progress-line","Progress Line","خط پیشرفت")}
+      </nav>
+      <section class="cp-bar-options-panel" data-bar-options-panel="general">
+        <fieldset><legend>${escapeHtml(text("General", "عمومی"))}</legend>
+          ${check("Show Relationships", "نمایش روابط", true, state.showGanttRelationships, 'data-layout-links')}
+          ${check("Show Legend", "نمایش راهنما")}
+          <label>${escapeHtml(text("Limit Text Label Characters To", "حداکثر نویسه برچسب"))}<input type="number" disabled placeholder="—"></label>
+        </fieldset>
+        <fieldset><legend>${escapeHtml(text("Horizontal Lines", "خطوط افقی"))}</legend>
+          ${check("Show Major Lines", "نمایش خطوط اصلی")}
+          ${check("Show Minor Lines Every", "نمایش خطوط فرعی در هر بازه")}
+          <label>${escapeHtml(text("Rows", "ردیف‌ها"))}<input type="number" disabled placeholder="—"></label>
+        </fieldset>
+        <fieldset><legend>${escapeHtml(text("Default Size for Notebook Items", "اندازه پیش‌فرض موارد دفترچه"))}</legend>
+          <label>${escapeHtml(text("Width", "عرض"))}<input type="number" disabled placeholder="—"></label><label>${escapeHtml(text("Height", "ارتفاع"))}<input type="number" disabled placeholder="—"></label>
+        </fieldset>
       </section>
-      <section class="cp-layout-options-section">
-        <h3>${escapeHtml(uiText(state.locale, "Timescale", "مقیاس زمانی"))}</h3>
-        <label>${escapeHtml(uiText(state.locale, "Display interval", "بازه نمایش"))}
-          <select data-layout-timescale>${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<option value="${mode}"${state.ganttScale === mode ? " selected" : ""}>${escapeHtml(scaleLabels[mode])}</option>`).join("")}</select>
-        </label>
+      <section class="cp-bar-options-panel" data-bar-options-panel="collapsed" hidden>
+        <fieldset><legend>${escapeHtml(text("Collapsed Bar Formatting", "قالب‌بندی میله‌های جمع‌شده"))}</legend>
+          ${check("Collapse to grouping bands", "جمع‌کردن تا نوارهای گروه")}
+          ${check("Show Relationships for Collapsed Bars", "نمایش روابط برای میله‌های جمع‌شده")}
+          <label>${escapeHtml(text("Show bar necking for", "نمایش باریک‌شدن میله برای"))}<select disabled><option>Calendar Nonwork Time</option><option>Activity Nonwork Intervals</option></select></label>
+          ${check("Collapse to individual bars to minimize space", "جمع‌کردن میله‌های منفرد برای کاهش فضا")}
+          ${check("Allow Overlapping of Bar Labels", "اجازه هم‌پوشانی برچسب میله‌ها")}
+        </fieldset>
       </section>
-      <section class="cp-layout-options-section">
-        <h3>${escapeHtml(uiText(state.locale, "Gantt display", "نمایش گانت"))}</h3>
-        <label class="cp-layout-options-check"><input type="checkbox" data-layout-links${state.showGanttRelationships ? " checked" : ""}> ${escapeHtml(uiText(state.locale, "Show relationship lines", "نمایش خطوط روابط"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show critical path", "نمایش مسیر بحرانی"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show progress line", "نمایش خط پیشرفت"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show baseline bars", "نمایش میله‌های مبنا"))}</label>
-        <label class="cp-layout-options-check"><input type="checkbox" disabled> ${escapeHtml(uiText(state.locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
-        <p>${escapeHtml(uiText(state.locale, "Only relationship-line visibility and timescale are connected in this slice. Other options remain visibly present but disabled until their renderer and state contract are implemented.", "در این بخش فقط نمایش خطوط روابط و مقیاس زمانی متصل هستند. گزینه‌های دیگر تا پیاده‌سازی رندرکننده و قرارداد وضعیت، نمایش داده می‌شوند اما غیرفعال‌اند."))}</p>
+      <section class="cp-bar-options-panel" data-bar-options-panel="data-date" hidden>
+        <fieldset><legend>${escapeHtml(text("Data Date Line", "خط تاریخ داده"))}</legend>
+          ${check("Show Data Date", "نمایش تاریخ داده")}
+          <label>${escapeHtml(text("Line Style", "سبک خط"))}<select disabled><option>—</option></select></label>
+          <label>${escapeHtml(text("Color", "رنگ"))}<button type="button" disabled>—</button></label>
+        </fieldset>
       </section>
-      <footer><button type="button" data-layout-options-close>${escapeHtml(uiText(state.locale, "Close", "بستن"))}</button></footer>
+      <section class="cp-bar-options-panel" data-bar-options-panel="sight-lines" hidden>
+        <fieldset><legend>${escapeHtml(text("Horizontal Lines", "خطوط افقی"))}</legend>
+          ${check("Show Major Lines", "نمایش خطوط اصلی")}${check("Show Minor Lines Every", "نمایش خطوط فرعی")}
+          <label>${escapeHtml(text("Rows", "ردیف‌ها"))}<input type="number" disabled placeholder="—"></label><label>${escapeHtml(text("Style", "سبک"))}<select disabled><option>—</option></select></label>
+        </fieldset>
+        <fieldset><legend>${escapeHtml(text("Vertical Lines", "خطوط عمودی"))}</legend>
+          ${check("Show Major Lines", "نمایش خطوط اصلی")}${check("Show Minor Lines Every", "نمایش خطوط فرعی")}
+          <label>${escapeHtml(text("Date Interval", "فاصله تاریخ"))}<select disabled><option>—</option></select></label><label>${escapeHtml(text("Style", "سبک"))}<select disabled><option>—</option></select></label>
+        </fieldset>
+      </section>
+      <section class="cp-bar-options-panel" data-bar-options-panel="progress-line" hidden>
+        <fieldset><legend>${escapeHtml(text("Progress Line", "خط پیشرفت"))}</legend>
+          ${check("Show Progress Line", "نمایش خط پیشرفت")}
+          <label>${escapeHtml(text("Size", "ضخامت"))}<input type="number" disabled placeholder="—"></label>
+          <label>${escapeHtml(text("Color", "رنگ"))}<button type="button" disabled>—</button></label>
+          <label>${escapeHtml(text("Baseline to use", "مبنای مورد استفاده"))}<select disabled><option>—</option></select></label>
+          <label>${escapeHtml(text("Based on difference between current and baseline activity's", "مبنای اختلاف فعالیت جاری و مبنا"))}<select disabled><option>Start Date</option><option>Finish Date</option></select></label>
+          <label>${escapeHtml(text("By connecting progress points based on activity's", "اتصال نقاط پیشرفت بر اساس"))}<select disabled><option>% Complete</option><option>Remaining Duration</option></select></label>
+        </fieldset>
+      </section>
+      <footer><button type="button" data-bar-options-close>${escapeHtml(text("OK", "تأیید"))}</button><button type="button" data-bar-options-close>${escapeHtml(text("Cancel", "انصراف"))}</button><button type="button" disabled>${escapeHtml(text("Help", "راهنما"))}</button></footer>
+    </form>
+  </dialog>`;
+}
+
+function renderFiltersDialog(state: WorkspaceState): string {
+  const locale = state.locale;
+  const text = (en: string, fa: string): string => uiText(locale, en, fa);
+  const disabled = (en: string, fa: string): string => `<button type="button" disabled>${escapeHtml(text(en,fa))}</button>`;
+  return `<dialog class="cp-filters-dialog" data-filters-dialog aria-labelledby="cp-filters-title">
+    <form method="dialog">
+      <header><div><small>${escapeHtml(text("Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-filters-title">${escapeHtml(text("Filters", "فیلترها"))}</h2></div><button type="button" data-filters-close aria-label="${escapeAttribute(text("Close", "بستن"))}">×</button></header>
+      <div class="cp-filters-body">
+        <section class="cp-filters-main">
+          <fieldset><legend>${escapeHtml(text("Available Filters", "فیلترهای موجود"))}</legend>
+            <label>${escapeHtml(text("Filter", "فیلتر"))}<select data-filters-preset><option value="all"${state.activityFilter ? "" : " selected"}>${escapeHtml(text("All Activities", "همه فعالیت‌ها"))}</option><option value="text"${state.activityFilter ? " selected" : ""}>${escapeHtml(text("Current Text Search", "جست‌وجوی متنی جاری"))}</option></select></label>
+            <p class="cp-filters-empty">${escapeHtml(text("Saved filter definitions are not loaded in this workspace.", "تعریف فیلترهای ذخیره‌شده در این محیط بارگذاری نشده‌اند."))}</p>
+          </fieldset>
+          <fieldset><legend>${escapeHtml(text("Filter Criteria", "معیارهای فیلتر"))}</legend>
+            <div class="cp-filters-match" role="group" aria-label="${escapeAttribute(text("Match criteria", "تطبیق معیارها"))}">
+              <label><input type="radio" name="filter-match" checked disabled> ${escapeHtml(text("Match all of the following", "تطبیق همه موارد زیر"))}</label>
+              <label><input type="radio" name="filter-match" disabled> ${escapeHtml(text("Match any of the following", "تطبیق هر یک از موارد زیر"))}</label>
+            </div>
+            <div class="cp-filters-criteria"><span>${escapeHtml(text("Search text", "متن جست‌وجو"))}</span><span>${escapeHtml(text("Contains", "شامل"))}</span><input type="text" data-filters-search value="${escapeAttribute(state.activityFilter)}" placeholder="${escapeAttribute(text("Enter text to filter activities", "متن مورد نظر برای فیلتر فعالیت‌ها"))}"></div>
+            <p>${escapeHtml(text("The connected search filters the current activity register. Advanced multi-condition and saved-filter rules are not connected yet.", "جست‌وجوی متصل، دفتر فعالیت جاری را فیلتر می‌کند. قواعد چندشرطی پیشرفته و فیلترهای ذخیره‌شده هنوز متصل نیستند."))}</p>
+          </fieldset>
+        </section>
+        <aside class="cp-filters-actions" aria-label="${escapeAttribute(text("Dialog actions", "فرمان‌های پنجره"))}">
+          <button type="button" data-filters-apply>${escapeHtml(text("Apply", "اعمال"))}</button><button type="button" data-filters-clear>${escapeHtml(text("Clear", "پاک‌کردن"))}</button><button type="button" data-filters-close>${escapeHtml(text("Cancel", "انصراف"))}</button>
+          ${disabled("New", "جدید")}${disabled("Delete", "حذف")}${disabled("Modify", "ویرایش")}${disabled("Copy", "کپی")}${disabled("Help", "راهنما")}
+        </aside>
+      </div>
     </form>
   </dialog>`;
 }
