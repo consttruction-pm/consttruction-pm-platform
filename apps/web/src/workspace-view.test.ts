@@ -660,6 +660,16 @@ test("module navigation submenus route to real registers, detail tabs and tracki
   assert.match(resources, /Progress Reporter tab is excluded because it is EPPM-only/);
   assert.match(resources, /Resource records are not yet returned by the project API/);
 
+  const expenses = render("en", "expenses");
+  for (const tab of ["general", "activity", "costs", "description"]) {
+    assert.match(expenses, new RegExp(`data-navigation-action="register-tab:expenses:${tab}"`));
+    assert.match(expenses, new RegExp(`data-register-tab="expenses:${tab}"`));
+  }
+  assert.doesNotMatch(expenses, /data-register-tab="expenses:documents"/);
+  assert.doesNotMatch(expenses, /data-register-tab="expenses:udfs"/);
+  assert.match(expenses, /Expense Category/);
+  assert.match(expenses, /Accrual Type/);
+
   const control = render("en", "control");
   assert.match(control, /Project Control Register/);
   assert.match(control, /Quality/);
