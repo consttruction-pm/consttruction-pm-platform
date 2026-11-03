@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 import json
 import sqlite3
+from decimal import Decimal
 
 from construction_pm.application.authorization import AuthorizationContext, default_project_policy
 from construction_pm.backend_p0.models import BackendScope
@@ -266,5 +267,46 @@ def test_shared_core_runtime_registered_operation_is_versioned_scoped_and_permis
             and item["contract_version"] == "p6-test-read.v1"
             for item in runtime.supported_operations
         )
+    finally:
+        connection.close()
+
+
+def test_shared_core_runtime_encodes_decimal_response_without_float_rounding():
+    from construction_pm.application.authorization import Permission
+    from construction_pm.shared_core_runtime import SharedCoreOperation, SharedCoreRuntime
+
+    base, auth, connection = _runtime()
+    try:
+        operation = SharedCoreOperation(
+            contract_version="p6-financial-read.v1",
+            permission=Permission.PROJECT_READ,
+            required_fields=frozenset({"amount"}),
+            allowed_fields=frozenset({"amount"}),
+            handler=lambda payload, actor, revision: {
+                "amount": Decimal(payload["amount"]),
+            },
+        )
+        runtime = SharedCoreRuntime(
+            schedule_query_api=base.schedule_query_api,
+            authorization_policy=base.authorization_policy,
+            operations={"finance.amount": operation},
+        )
+        envelope = {
+            "contract_version": CORE_RUNTIME_CONTRACT_VERSION,
+            "operation": "finance.amount",
+            "payload": {
+                "contract_version": "p6-financial-read.v1",
+                "scope": {
+                    "tenant_id": "T-1",
+                    "project_id": "P-1",
+                    "project_revision": 9,
+                },
+                "amount": "123456789.1200300",
+            },
+        }
+        response = json.loads(
+            runtime.dispatch_json(json.dumps(envelope), auth_context=auth, expected_project_revision=9)
+        )
+        assert response["result"]["amount"] == "123456789.1200300"
     finally:
         connection.close()
