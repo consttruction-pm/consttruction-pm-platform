@@ -921,7 +921,7 @@ test("Import/export mapping workbench is mirrored for Persian RTL", () => {
 
 test("Workspace menu hierarchy exposes project, organization, tools and administration commands", () => {
   const html = renderVisualDemo(createVisualDemoState("en"));
-  for (const label of ["File", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help", "Close project", "Save layout as…", "Enterprise Project Structure", "Responsibility Structure (OBS)", "Currencies…", "Financial Periods…", "Administrative Categories…", "Global Change…", "Recalculate Assignment Costs…", "Threshold Monitor…", "Update Progress…", "Apply Actuals…", "Store Period Performance…", "Report Library / Runner…"]) {
+  for (const label of ["File", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help", "Close project", "Save layout as…", "Collapse To…", "Enterprise Project Structure", "Responsibility Structure (OBS)", "Currencies…", "Financial Periods…", "Administrative Categories…", "Global Change…", "Recalculate Assignment Costs…", "Threshold Monitor…", "Update Progress…", "Apply Actuals…", "Store Period Performance…", "Report Library / Runner…"]) {
     assert.ok(html.includes(label), "missing workspace menu entry: " + label);
   }
   assert.match(html, /adminSection&quot;|adminSection/);
@@ -949,7 +949,7 @@ test("Visible CUBI workspace preview does not expose external product branding o
 test("Version 26 dialog registry renders resource assignment, resource details, shifts and print setup surfaces in both locales", () => {
   for (const locale of ["en", "fa"] as const) {
     const html = renderVisualDemo(createVisualDemoState(locale));
-    for (const dialog of ["assign-resources-by-role", "resource-details", "resource-shifts", "page-setup", "print-setup"]) {
+    for (const dialog of ["assign-resources-by-role", "resource-details", "resource-shifts", "page-setup", "print-setup", "collapse-to", "dissolve"]) {
       assert.match(html, new RegExp(`data-vd-dialog="${dialog}"`), `missing ${dialog} dialog in ${locale}`);
     }
     assert.match(html, /Threshold Monitor \/ Issue Navigator|پایش آستانه \/ راهنمای مسائل/);
