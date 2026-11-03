@@ -203,6 +203,28 @@ const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
 const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart" | "gantt">();
 const projectPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart" | "gantt">();
 const activityTopLayoutByContainer = new WeakMap<HTMLElement, "table-gantt" | "activity-network">();
+type ActivityNetworkDisplayOptions = {
+  organization: "top" | "centered";
+  verticalSpacing: 20 | 34 | 50;
+  horizontalSpacing: 60 | 92 | 130;
+  order: "longest" | "shortest";
+  template: "code-name" | "name-only" | "code-only";
+  font: "Inter" | "Arial" | "Georgia";
+  fontSize: 10 | 12 | 14 | 16;
+  nodeColor: "#ffffff" | "#eef5fb" | "#fffaf0";
+  showProgress: boolean;
+  zoom: number;
+};
+const activityNetworkDisplayByContainer = new WeakMap<HTMLElement, ActivityNetworkDisplayOptions>();
+const activityNetworkOptionsOpenByContainer = new WeakMap<HTMLElement, boolean>();
+function getActivityNetworkDisplayOptions(container: HTMLElement): ActivityNetworkDisplayOptions {
+  let value = activityNetworkDisplayByContainer.get(container);
+  if (!value) {
+    value = { organization: "top", verticalSpacing: 34, horizontalSpacing: 92, order: "longest", template: "code-name", font: "Inter", fontSize: 12, nodeColor: "#ffffff", showProgress: true, zoom: 1 };
+    activityNetworkDisplayByContainer.set(container, value);
+  }
+  return value;
+}
 const resourceTypeFilterByContainer = new WeakMap<HTMLElement, "all" | "labor" | "nonlabor" | "material">();
 type WbsChartAppearance = { template: "code-name" | "name-only" | "code-only"; font: "Inter" | "Arial" | "Georgia"; size: 10 | 12 | 14 | 16 | 18; background: "#f7f9fc" | "#eef5fb" | "#fffaf0"; box: "#ffffff" | "#eef5fb" | "#fffaf0" };
 const wbsChartAppearanceByContainer = new WeakMap<HTMLElement, WbsChartAppearance>();
@@ -428,7 +450,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-activity-navigate],[data-project-view-toggle],[data-resource-type-filter],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-calendar-pool],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-wbs-chart-options-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-assignment-usage-fields-open],[data-assignment-usage-fields-close],[data-assignment-usage-fields-apply],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-activity-navigate],[data-activity-network-options-toggle],[data-activity-network-zoom],[data-activity-network-reorganize],[data-project-view-toggle],[data-resource-type-filter],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-calendar-pool],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-wbs-chart-options-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-assignment-usage-fields-open],[data-assignment-usage-fields-close],[data-assignment-usage-fields-apply],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -1037,7 +1059,31 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       options.onGanttRelationshipsChange?.(target.dataset.ganttRelationshipsToggle === "true");
       return;
     }
-    if (target.dataset.activityNavigate) {
+    if (target.dataset.activityNetworkOptionsToggle !== undefined) {
+      activityNetworkOptionsOpenByContainer.set(container, !(activityNetworkOptionsOpenByContainer.get(container) ?? false));
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.activityNetworkZoom) {
+      const display = getActivityNetworkDisplayOptions(container);
+      if (target.dataset.activityNetworkZoom === "in") display.zoom = Math.min(1.6, Math.round((display.zoom + 0.1) * 100) / 100);
+      else if (target.dataset.activityNetworkZoom === "out") display.zoom = Math.max(0.5, Math.round((display.zoom - 0.1) * 100) / 100);
+      else if (target.dataset.activityNetworkZoom === "fit") {
+        const graph = container.querySelector<HTMLElement>(".cp-activity-network-graph");
+        const canvas = container.querySelector<HTMLElement>(".cp-activity-network-canvas");
+        const ratio = graph && canvas && canvas.offsetWidth > 0 ? (graph.clientWidth - 24) / canvas.offsetWidth : 0.9;
+        display.zoom = Math.max(0.5, Math.min(1, ratio));
+      }
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
+    if (target.dataset.activityNetworkReorganize !== undefined) {
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }    if (target.dataset.activityNavigate) {
       const navigableActivities = filterAndSortActivities(state.activities, state.activityFilter, state.activitySort, state.activityGroupBy, state.wbsNodes);
       const currentIndex = navigableActivities.findIndex((item) => item.id === state.selectedActivityId);
       const nextIndex = target.dataset.activityNavigate === "previous" ? currentIndex - 1 : currentIndex + 1;
@@ -1172,7 +1218,24 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       ? event.target as HTMLElement
       : null;
     if (!element) return;
-    if (Object.prototype.hasOwnProperty.call(element.dataset, "topLayout")) {
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "activityNetworkSetting")) {
+      const display = getActivityNetworkDisplayOptions(container);
+      const setting = element.dataset.activityNetworkSetting;
+      const value = (element as HTMLSelectElement).value;
+      if (setting === "organization" && (value === "top" || value === "centered")) display.organization = value;
+      else if (setting === "vertical-spacing" && ["20","34","50"].includes(value)) display.verticalSpacing = Number(value) as ActivityNetworkDisplayOptions["verticalSpacing"];
+      else if (setting === "horizontal-spacing" && ["60","92","130"].includes(value)) display.horizontalSpacing = Number(value) as ActivityNetworkDisplayOptions["horizontalSpacing"];
+      else if (setting === "order" && (value === "longest" || value === "shortest")) display.order = value;
+      else if (setting === "template" && ["code-name","name-only","code-only"].includes(value)) display.template = value as ActivityNetworkDisplayOptions["template"];
+      else if (setting === "font" && ["Inter","Arial","Georgia"].includes(value)) display.font = value as ActivityNetworkDisplayOptions["font"];
+      else if (setting === "font-size" && ["10","12","14","16"].includes(value)) display.fontSize = Number(value) as ActivityNetworkDisplayOptions["fontSize"];
+      else if (setting === "node-color" && ["#ffffff","#eef5fb","#fffaf0"].includes(value)) display.nodeColor = value as ActivityNetworkDisplayOptions["nodeColor"];
+      else if (setting === "show-progress") display.showProgress = (element as HTMLInputElement).checked;
+      else return;
+      const record = workspaceRenderRecords.get(container);
+      if (record) renderMainWorkspace(container, record.state, record.options);
+      return;
+    }    if (Object.prototype.hasOwnProperty.call(element.dataset, "topLayout")) {
       const value = (element as HTMLSelectElement).value;
       if (value !== "table-gantt" && value !== "activity-network") return;
       activityTopLayoutByContainer.set(container, value);
