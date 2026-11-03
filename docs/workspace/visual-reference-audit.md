@@ -422,3 +422,10 @@ The Version 26 Activity Details page lists **Summary** as a native tab, and the 
 - CUBI correction: the Expenses register now exposes the desktop detail inventory (General, Activity, Costs, Description), removes unrelated Documents and UDFs tabs, adds missing expense category, document number, unit price and remaining cost columns, and routes the matching navigation submenu actions to those detail tabs.
 - Expense records are not currently loaded; create/edit/delete remain disabled and no expense values are fabricated.
 - References: https://docs.oracle.com/cd/F25600_01/client_help/en_US/project_expenses_window.htm and https://docs.oracle.com/cd/E75426_01/client_help/en_US/project_expense_details.htm.
+
+## Work Products and Documents detail parity — 2026-11-03
+
+- The desktop WPs & Docs window supports document records in a hierarchy, move controls in outline view, a bottom WP & Doc Details pane, file location references, and assignments to activities and WBS elements. Native detail areas include General, Files and Assignments; CUBI retains UDFs plus its own Links, Integrity and Revisions views.
+- CUBI correction: Files and Assignments are now first-class detail tabs. Files exposes private/public location and Launch/Browse controls (disabled while the document service is unavailable). Assignments exposes the WBS/activity association table and Work Product flag (empty until assignment data is loaded). The CUBI-specific tabs are explicitly labeled as extensions, and navigation routes to each native or extension tab.
+- No document file paths, assignment rows or work-product flags are fabricated. Create, upload, launch, assign and remove operations remain disabled until the document service and permission checks are connected.
+- References: https://docs.oracle.com/cd/F51303_01/client_help/en_US/wps_and_docs_window.htm and Version 26 User Guide, Work Products and Documents: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/p6_pro_user.pdf.
