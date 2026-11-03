@@ -604,3 +604,27 @@ test("Assign resources by role dialog is localized for Persian RTL", () => {
     assert.ok(html.includes(label), `missing Persian assign-by-role label: ${label}`);
   }
 });
+
+
+test("Project Details dialog exposes the desktop project tab inventory and project defaults", () => {
+  const state = createVisualDemoState("en");
+  state.window = "projects";
+  const html = renderVisualDemo(state);
+  for (const label of ["General", "Dates", "Notebook", "Budget Log", "Spending Plan", "Budget Summary", "Funding", "Codes", "Defaults", "Resources", "Settings", "Calculations", "Custom Fields", "Project ID", "Responsible manager", "EPS / Portfolio", "Planned start", "Must finish by", "Data date", "Anticipated start", "Default activity type", "Default duration type", "Percent complete type", "Default activity calendar", "Default rate type", "Default cost account", "Drive activity dates by default"]) {
+    assert.ok(html.includes(label), `missing Project Details field or tab: ${label}`);
+  }
+  assert.match(html, /cp-vd-project-tabs/);
+  assert.match(html, /aria-selected="true"/);
+  assert.match(html, /read-only/);
+  assert.doesNotMatch(html, /Planning Resources/);
+});
+
+test("Project Details dialog localizes project tabs and date/default fields in Persian RTL", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "projects";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["تاریخ‌ها", "دفترچه", "گزارش بودجه", "برنامه هزینه", "خلاصه بودجه", "تأمین مالی", "پیش‌فرض‌ها", "محاسبات", "شناسه پروژه", "تاریخ داده", "نوع مدت پیش‌فرض", "تقویم فعالیت پیش‌فرض", "پیش‌فرض تخصیص منابع"]) {
+    assert.ok(html.includes(label), `missing Persian Project Details label: ${label}`);
+  }
+});
