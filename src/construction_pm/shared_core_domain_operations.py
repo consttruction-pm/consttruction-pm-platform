@@ -1069,6 +1069,8 @@ def build_project_domain_operations(
             api = resource_master_api_factory(actor)
             result = api.get_resource(str(payload["resource_id"]))
             _resource_error(result)
+            if result is None:
+                raise ValueError("RESOURCE_NOT_FOUND")
             return _record_result(result)
 
         def resource_master_save(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
@@ -1132,7 +1134,22 @@ def build_project_domain_operations(
                 not isinstance(idempotency_key, str) or not idempotency_key.strip()
             ):
                 raise ValueError("INVALID_RESOURCE_IDEMPOTENCY_KEY")
-            result = resource_master_api_factory(actor).create_resource(
+            resource_api = resource_master_api_factory(actor)
+            existing = resource_api.get_resource(resource.id)
+            _resource_error(existing)
+            if existing is not None:
+                if expected is None:
+                    raise ValueError("EXPECTED_REVISION_REQUIRED")
+                current_revision = existing.get("revision") if isinstance(existing, Mapping) else None
+                if (
+                    isinstance(current_revision, bool)
+                    or not isinstance(current_revision, int)
+                    or current_revision != expected
+                ):
+                    raise ValueError("STALE_RESOURCE_REVISION")
+            elif expected is not None:
+                raise ValueError("RESOURCE_DOES_NOT_EXIST_FOR_UPDATE")
+            result = resource_api.create_resource(
                 resource,
                 expected_revision=expected,
                 idempotency_key=idempotency_key,
