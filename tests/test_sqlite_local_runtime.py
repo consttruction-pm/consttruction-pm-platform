@@ -895,9 +895,46 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
         assert {item.operation for item in pending} >= {
             "wbs.create", "activity.create", "relationship.create", "constraint.create",
             "baseline.create", "cost_account.create", "expense.create",
-            "resource_assignment.create", "resource_assignment_period.create",
+            "resource.master.save", "resource_assignment.create", "resource_assignment_period.create",
             "resource_spread.save", "resource_capacity.save",
         }
+
+        pending_before_invalid_resource_update = len(runtime.offline_mutation_store.pending())
+        invalid_update = invoke("resource.master.save", "resource.v1", {
+            "resource": {
+                "id": "RES-ABI",
+                "code": "LAB-ABI",
+                "name": "Overwritten without revision",
+                "type": "labor",
+                "unit": "hour",
+                "active": True,
+                "rates": [],
+            }
+        })
+        assert invalid_update["result"]["error"]["code"] == "EXPECTED_REVISION_REQUIRED"
+        assert len(runtime.offline_mutation_store.pending()) == pending_before_invalid_resource_update
+
+        updated_resource = invoke("resource.master.save", "resource.v1", {
+            "resource": {
+                "id": "RES-ABI",
+                "code": "LAB-ABI",
+                "name": "Updated Labor",
+                "type": "labor",
+                "unit": "hour",
+                "active": True,
+                "rates": [
+                    {
+                        "rate": "90.00",
+                        "basis": "per_hour",
+                        "currency": "EUR",
+                        "effective_from": "2026-11-03",
+                        "version": 2,
+                    }
+                ],
+            },
+            "expected_revision": 1,
+        })
+        assert updated_resource["result"]["item"]["revision"] == 2
     finally:
         connection.close()
 
