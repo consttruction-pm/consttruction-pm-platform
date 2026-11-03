@@ -775,6 +775,10 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         button.setAttribute("aria-pressed", String(active));
         button.classList.toggle("is-active", active);
       });
+      const chartOptions = container.querySelector<HTMLButtonElement>("[data-wbs-chart-options-toggle]");
+      if (chartOptions) chartOptions.disabled = view !== "chart";
+      const chartSettings = container.querySelector<HTMLElement>(".cp-wbs-chart-options");
+      if (chartSettings) chartSettings.hidden = !(view === "chart" && (wbsChartOptionsOpenByContainer.get(container) ?? false));
       return;
     }
     if (target.dataset.activityDetailTab) {
