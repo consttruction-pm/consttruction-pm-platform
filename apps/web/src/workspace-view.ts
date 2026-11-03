@@ -3000,7 +3000,6 @@ function renderGantt(
 
 const WBS_DETAIL_TABS = [
   ["general", "General", "عمومی"],
-  ["activities", "Related Activities (CUBI extension)", "فعالیت‌های مرتبط (افزوده CUBI)"],
   ["notebook", "Notebook", "دفترچه"],
   ["budget-log", "Budget Log", "دفتر ثبت بودجه"],
   ["spending-plan", "Spending Plan", "برنامه هزینه"],
@@ -3009,6 +3008,7 @@ const WBS_DETAIL_TABS = [
   ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
   ["earned-value", "Earned Value", "ارزش کسب‌شده"],
   ["udfs", "UDFs", "فیلدهای کاربر"],
+  ["activities", "Related Activities (CUBI extension)", "فعالیت‌های مرتبط (افزوده CUBI)"],
 ] as const;
 
 function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
@@ -3065,8 +3065,8 @@ const PROJECT_DETAIL_TABS = [
   ["resources", "Resources", "منابع"],
   ["settings", "Settings", "تنظیمات"],
   ["calculations", "Calculations", "محاسبات"],
-  ["contract-management", "Contract Management", "مدیریت قرارداد"],
   ["udfs", "UDFs", "فیلدهای کاربر"],
+  ["contract-management", "Contract Management (CUBI extension)", "مدیریت قرارداد (افزوده CUBI)"],
 ] as const;
 
 function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, container: HTMLElement): string {
@@ -3109,13 +3109,13 @@ const ACTIVITY_DETAIL_TABS = [
   ["notebook", "Notebook", "دفترچه"],
   ["steps", "Steps", "گام‌ها"],
   ["feedback", "Feedback", "بازخورد"],
-  ["update-history", "Update History", "تاریخچه به‌روزرسانی"],
   ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
   ["expenses", "Expenses", "هزینه‌ها"],
   ["summary", "Summary", "خلاصه"],
   ["relationships", "Relationships", "روابط"],
   ["risks", "Risks", "ریسک‌ها"],
   ["udfs", "UDFs", "فیلدهای کاربر"],
+  ["update-history", "Update History", "تاریخچه به‌روزرسانی"],
 ] as const;
 
 function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, activeTab: string, visibleTabs: ReadonlySet<string>): string {
@@ -3173,7 +3173,7 @@ function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, a
   return `<div class="cp-activity-details">
     <header class="cp-activity-details-heading"><div><h2 id="cp-details-heading">${escapeHtml(t.details)}</h2><span>${escapeHtml(activity ? `${activity.id} — ${activity.name}` : state.selectedActivityId ?? "—")}</span></div><div class="cp-activity-details-heading-actions"><small>${escapeHtml(uiText(state.locale, "Activity Details", "جزئیات فعالیت"))}</small><button type="button" data-activity-details-options-open>${escapeHtml(uiText(state.locale, "Customize Tabs", "تنظیم زبانه‌ها"))}</button></div></header>
     <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Activity detail tabs", "زبانه‌های جزئیات فعالیت"))}">
-      ${displayedTabs.map(([key, en, fa]) => `<button type="button" role="tab" data-activity-detail-tab="${key}" data-detail-origin="${key === "summary" ? "cubi-extension" : "desktop-reference"}" title="${key === "summary" ? escapeAttribute(uiText(state.locale, "CUBI convenience extension; not part of the native Activity Details tab inventory.", "افزوده کاربردی CUBI؛ جزو فهرست بومی زبانه‌های جزئیات فعالیت نیست.")) : ""}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-activity-detail-panel-${key}">${escapeHtml(uiText(state.locale, key === "summary" ? "Summary (CUBI extension)" : en, key === "summary" ? "خلاصه (افزوده CUBI)" : fa))}</button>`).join("")}
+      ${displayedTabs.map(([key, en, fa]) => `<button type="button" role="tab" data-activity-detail-tab="${key}" data-detail-origin="desktop-reference" title="" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-activity-detail-panel-${key}">${escapeHtml(uiText(state.locale, key === "summary" ? "Summary (CUBI extension)" : en, key === "summary" ? "خلاصه (افزوده CUBI)" : fa))}</button>`).join("")}
     </nav>
     ${displayedTabs.map(([key]) => `<section id="cp-activity-detail-panel-${key}" class="cp-activity-detail-panel" role="tabpanel" data-activity-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${contentFor(key)}</section>`).join("")}
   </div>${renderActivityDetailsOptionsDialog(state, visibleTabs)}`;
