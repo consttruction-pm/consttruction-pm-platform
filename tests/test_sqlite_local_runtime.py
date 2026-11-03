@@ -939,7 +939,7 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
         connection.close()
 
 
-def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_operations():
+def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_operations(monkeypatch):
     connection = sqlite3.connect(":memory:")
     runtime, now = _open_runtime(connection)
     try:
@@ -1088,6 +1088,22 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
             _schedule_options_payload,
         )
 
+        from construction_pm.shared_core_runtime import SharedCoreRuntime
+
+        monkeypatch.setattr(
+            SharedCoreRuntime,
+            "_runtime_exception",
+            staticmethod(
+                lambda exc: {
+                    "error": {
+                        "category": "diagnostic",
+                        "code": type(exc).__name__,
+                        "message": repr(exc),
+                        "retryable": False,
+                    }
+                }
+            ),
+        )
         saved_settings = invoke(
             "schedule.settings.save",
             {
