@@ -174,6 +174,8 @@ const RESOURCES = [
   { id: "E-210", name: "Mobile crane 50t", type: "Equipment", units: 60, cost: 18000 },
 ];
 
+type ProjectDetailTab = "general" | "dates" | "defaults" | "resources" | "settings" | "codes" | "notebook" | "budget-log" | "spending-plan" | "budget-summary" | "funding" | "baselines" | "documents" | "history" | "udfs";
+
 type DemoState = {
   window: DemoWindowId;
   activityId: string;
@@ -192,6 +194,9 @@ type DemoState = {
   moduleColumnWindow: DemoWindowId | null;
   moduleAvailableColumns: string[];
   moduleColumns: string[];
+  projectDetailTab: ProjectDetailTab;
+  projectSelectedRow: number;
+  projectSearch: string;
   formLibrary: "organization" | "project";
   formTab: "design" | "fields" | "workflow" | "permissions" | "versions";
   calendarMonth: number;
@@ -689,6 +694,135 @@ function renderTableWindow(state: DemoState, title: Label, headers: string[], ro
   </section>`;
 }
 
+
+function renderProjectsWindow(state: DemoState): string {
+  const projects = [
+    {
+      id: "CUBI-DEMO-001", name: "Riverside Pump Station Upgrade", status: "Active",
+      start: "02-Nov-26", finish: "28-May-27", dataDate: "03-Dec-26", activities: 20,
+      shortName: "—", domain: "—", manager: "—",
+      owner: "—", priority: "—", type: "—",
+      description: "—",
+    },
+    {
+      id: "CUBI-DEMO-002", name: "Intake Screen Replacement", status: "Planning",
+      start: "01-Feb-27", finish: "30-Sep-27", dataDate: "—", activities: 12,
+      shortName: "—", domain: "—", manager: "—",
+      owner: "—", priority: "—", type: "—",
+      description: "—",
+    },
+  ];
+  const selectedIndex = Math.max(0, Math.min(state.projectSelectedRow, projects.length - 1));
+  const selected = projects[selectedIndex];
+  const query = state.projectSearch.trim().toLowerCase();
+  const visible = projects.map((project, index) => ({ project, index })).filter(({ project }) =>
+    !query || Object.values(project).some((value) => String(value).toLowerCase().includes(query)),
+  );
+  const tabs: Array<[ProjectDetailTab, string, string]> = [
+    ["general", "General", "عمومی"], ["dates", "Dates", "تاریخ‌ها"], ["defaults", "Defaults", "پیش‌فرض‌ها"],
+    ["resources", "Resources", "منابع"], ["settings", "Settings", "تنظیمات"], ["codes", "Codes", "کدها"],
+    ["notebook", "Notebook", "دفترچه"], ["budget-log", "Budget Log", "سوابق بودجه"],
+    ["spending-plan", "Spending Plan", "برنامه هزینه"], ["budget-summary", "Budget Summary", "خلاصه بودجه"],
+    ["funding", "Funding", "تأمین مالی"], ["baselines", "Baselines", "خطوط مبنا"],
+    ["documents", "Documents", "اسناد"], ["history", "History", "تاریخچه"], ["udfs", "UDFs", "فیلدهای سفارشی"],
+  ];
+  const fieldGrid = (pairs: Array<[string, string, string]>): string =>
+    '<dl class="cp-vd-project-detail-grid">' + pairs.map(([en, fa, value]) =>
+      '<div><dt>' + esc(t(state.locale, en, fa)) + '</dt><dd>' + esc(value) + '</dd></div>',
+    ).join("") + "</dl>";
+  let details = "";
+  switch (state.projectDetailTab) {
+    case "general":
+      details = fieldGrid([
+        ["Project ID", "شناسه پروژه", selected.id],
+        ["Project name", "نام پروژه", selected.name],
+        ["Short name", "نام کوتاه", selected.shortName],
+        ["Business domain", "حوزه کسب‌وکار", selected.domain],
+        ["Responsible manager", "مدیر مسئول", selected.manager],
+        ["Project owner", "مالک پروژه", selected.owner],
+        ["Status", "وضعیت", selected.status],
+        ["Priority", "اولویت", selected.priority],
+        ["Project type", "نوع پروژه", selected.type],
+        ["Description", "شرح", selected.description],
+      ]);
+      break;
+    case "dates":
+      details = fieldGrid([
+        ["Planned start", "شروع برنامه‌ای", selected.start],
+        ["Planned finish", "پایان برنامه‌ای", selected.finish],
+        ["Actual start", "شروع واقعی", "—"],
+        ["Actual finish", "پایان واقعی", "—"],
+        ["Data date", "تاریخ داده", selected.dataDate],
+        ["Scheduled finish", "پایان زمان‌بندی‌شده", "Not supplied in this preview"],
+        ["Baseline start", "شروع خط مبنا", "Not supplied in this preview"],
+        ["Baseline finish", "پایان خط مبنا", "Not supplied in this preview"],
+      ]);
+      break;
+    case "baselines":
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "The preview status bar references BL-01, but project baseline records, assignments and approval history are not supplied.", "در نوار وضعیت پیش‌نمایش به BL-01 اشاره شده، اما رکوردهای خط مبنا، تخصیص‌ها و سوابق تأیید پروژه ارائه نشده‌اند.")) + "</p>";
+      break;
+    case "defaults":
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "Project default values are not included in the visual fixture. Open the live project workspace to review service-backed defaults.", "مقادیر پیش‌فرض پروژه در داده نمونه موجود نیست. برای مشاهده مقادیر متصل به سرویس، محیط زنده پروژه را باز کنید.")) + "</p>";
+      break;
+    case "resources":
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "Project resource membership, calendars and availability are not supplied for this project preview.", "عضویت منابع پروژه، تقویم‌ها و ظرفیت منابع در پیش‌نمایش این پروژه ارائه نشده است.")) + "</p>";
+      break;
+    case "settings":
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "Scheduling and display settings are not authoritative in the visual preview and are therefore not shown as editable values.", "تنظیمات زمان‌بندی و نمایش در پیش‌نمایش بصری مرجع معتبر نیستند؛ بنابراین به‌صورت مقدار قابل ویرایش نمایش داده نمی‌شوند.")) + "</p>";
+      break;
+    case "codes":
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "No project code assignments are included in this visual fixture.", "در داده نمونه بصری، تخصیص کد پروژه وجود ندارد.")) + "</p>";
+      break;
+    case "notebook":
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "No persistent project notebook entries are supplied in this preview.", "در این پیش‌نمایش مدخل پایدار دفترچه پروژه ارائه نشده است.")) + "</p>";
+      break;
+    case "budget-log":
+    case "spending-plan":
+    case "budget-summary":
+    case "funding":
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "Authoritative budget and funding facts are not included in this preview. No financial totals are inferred.", "اطلاعات مرجع بودجه و تأمین مالی در این پیش‌نمایش موجود نیست. هیچ جمع مالی به‌صورت حدسی محاسبه نمی‌شود.")) + "</p>";
+      break;
+    case "documents":
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "No project-linked documents are included in this visual fixture.", "در داده نمونه بصری، سند پیوندخورده به پروژه وجود ندارد.")) + "</p>";
+      break;
+    case "history":
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "Server audit history is unavailable in the visual preview.", "تاریخچه ممیزی سمت سرور در پیش‌نمایش بصری در دسترس نیست.")) + "</p>";
+      break;
+    case "udfs":
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "No project user-defined field values are supplied in this preview.", "در این پیش‌نمایش مقدار فیلد سفارشی پروژه ارائه نشده است.")) + "</p>";
+      break;
+  }
+  return '<section class="cp-vd-windowbody cp-vd-projects-window">' +
+    '<header class="cp-vd-winhead"><div><h2>' + esc(t(state.locale, "Projects", "پروژه‌ها")) + '</h2><small>' + esc(t(state.locale, "Project structure, register and Project Details", "ساختار پروژه، فهرست پروژه‌ها و جزئیات پروژه")) + '</small></div>' +
+    '<div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="new-project">' + esc(t(state.locale, "New project", "پروژه جدید")) + '</button><button type="button" class="cp-vd-btn" data-vd-dialog="baselines">' + esc(t(state.locale, "Baselines", "خطوط مبنا")) + '</button></div></header>' +
+    '<div class="cp-vd-projects-toolbar"><label><span>' + esc(t(state.locale, "Find project", "جست‌وجوی پروژه")) + '</span><input type="search" data-vd-project-search value="' + esc(state.projectSearch) + '" placeholder="' + esc(t(state.locale, "Search ID, name or domain", "جست‌وجوی شناسه، نام یا حوزه")) + '"></label><span>' +
+    esc(t(state.locale, "Project rows", "ردیف پروژه‌ها")) + ': ' + visible.length + ' / ' + projects.length + '</span><span class="cp-vd-note">' + esc(t(state.locale, "Visual preview — sample project metadata", "پیش‌نمایش بصری — اطلاعات نمونه پروژه")) + '</span></div>' +
+    '<div class="cp-vd-projects-upper">' +
+      '<aside class="cp-vd-project-structure" aria-label="' + esc(t(state.locale, "Project Structure", "ساختار پروژه")) + '">' +
+        '<div class="cp-vd-project-section-title">' + esc(t(state.locale, "Project Structure", "ساختار پروژه")) + '</div>' +
+        '<button type="button" class="cp-vd-project-tree-item is-root" data-vd-project-select="0" aria-pressed="' + (selectedIndex === 0) + '">' + workspaceIcon("project") + '<span>' + esc(t(state.locale, "All Projects", "همه پروژه‌ها")) + '</span><small>' + projects.length + '</small></button>' +
+        '<div class="cp-vd-project-tree-branch"><span class="cp-vd-project-tree-domain">' + esc(t(state.locale, "Project Portfolio", "سبد پروژه‌ها")) + '</span>' +
+          projects.map((project, index) => '<button type="button" class="cp-vd-project-tree-item' + (selectedIndex === index ? ' is-selected' : '') + '" data-vd-project-select="' + index + '" aria-pressed="' + (selectedIndex === index) + '"><bdi dir="ltr">' + esc(project.id) + '</bdi><span>' + esc(project.name) + '</span></button>').join("") +
+        '</div>' +
+        '<p class="cp-vd-note">' + esc(t(state.locale, "Hierarchy and records are illustrative preview data.", "ساختار و رکوردها داده نمونه و نمایشی هستند.")) + '</p>' +
+      '</aside>' +
+      '<section class="cp-vd-project-register"><div class="cp-vd-project-section-title"><strong>' + esc(t(state.locale, "Project Register", "فهرست پروژه‌ها")) + '</strong><span>' + visible.length + ' / ' + projects.length + '</span></div>' +
+        '<div class="cp-vd-tablewrap"><table class="cp-vd-table cp-vd-project-table"><thead><tr><th>#</th><th>' + esc(t(state.locale, "Project ID", "شناسه پروژه")) + '</th><th>' + esc(t(state.locale, "Project name", "نام پروژه")) + '</th><th>' + esc(t(state.locale, "Status", "وضعیت")) + '</th><th>' + esc(t(state.locale, "Planned start", "شروع برنامه‌ای")) + '</th><th>' + esc(t(state.locale, "Planned finish", "پایان برنامه‌ای")) + '</th><th>' + esc(t(state.locale, "Data date", "تاریخ داده")) + '</th><th>' + esc(t(state.locale, "Activities", "فعالیت‌ها")) + '</th></tr></thead><tbody>' +
+          visible.map(({ project, index }) => '<tr class="cp-vd-row' + (selectedIndex === index ? ' is-selected' : '') + '" data-vd-project-select="' + index + '" aria-selected="' + (selectedIndex === index) + '"><td class="cp-vd-rownum">' + (index + 1) + '</td><td class="is-id"><bdi dir="ltr">' + esc(project.id) + '</bdi></td><td>' + esc(project.name) + '</td><td>' + esc(project.status) + '</td><td><bdi dir="ltr">' + esc(project.start) + '</bdi></td><td><bdi dir="ltr">' + esc(project.finish) + '</bdi></td><td><bdi dir="ltr">' + esc(project.dataDate) + '</bdi></td><td class="is-numeric">' + project.activities + '</td></tr>').join("") +
+          (visible.length ? "" : '<tr><td colspan="8" class="cp-vd-empty-state">' + esc(t(state.locale, "No projects match this search.", "پروژه‌ای با این جست‌وجو پیدا نشد.")) + "</td></tr>") +
+        '</tbody></table></div></section>' +
+    '</div>' +
+    '<section class="cp-vd-project-details" aria-label="' + esc(t(state.locale, "Project Details", "جزئیات پروژه")) + '">' +
+      '<div class="cp-vd-project-details-head"><div class="cp-vd-project-details-title"><h3>' + esc(t(state.locale, "Project Details", "جزئیات پروژه")) + '</h3><bdi dir="ltr">' + esc(selected.id) + '</bdi><strong>' + esc(selected.name) + '</strong></div>' +
+        '<div class="cp-vd-project-detail-tabs" role="tablist" aria-label="' + esc(t(state.locale, "Project Details tabs", "زبانه‌های جزئیات پروژه")) + '">' +
+          tabs.map(([id, en, fa]) => '<button type="button" role="tab" data-vd-project-detail-tab="' + id + '" aria-selected="' + (state.projectDetailTab === id) + '" class="' + (state.projectDetailTab === id ? 'is-active' : '') + '">' + esc(t(state.locale, en, fa)) + '</button>').join("") +
+        '</div>' +
+      '</div>' +
+      '<div class="cp-vd-project-details-content" data-vd-project-details-panel>' + details + '</div>' +
+    '</section>' +
+  '</section>';
+}
+
 function renderWbsWindow(state: DemoState): string {
   const selected = WBS_TREE.find((node) => node.code === state.selectedWbsCode) ?? WBS_TREE[0];
   const parentCode = selected.code.includes(".") ? selected.code.slice(0, selected.code.lastIndexOf(".")) : "—";
@@ -859,10 +993,7 @@ function renderFormBuilderWindow(state: DemoState): string {
 function renderWindow(state: DemoState): string {
   switch (state.window) {
     case "projects":
-      return renderTableWindow(state, { en: "Projects", fa: "پروژه‌ها" }, ["Project ID", "Project name", "Status", "Start", "Finish", "Data date", "Activities"], [
-        { "Project ID": "CUBI-DEMO-001", "Project name": "Riverside Pump Station Upgrade", Status: "Active", Start: "02-Nov-26", Finish: "28-May-27", "Data date": "03-Dec-26", Activities: 20 },
-        { "Project ID": "CUBI-DEMO-002", "Project name": "Intake Screen Replacement", Status: "Planning", Start: "01-Feb-27", Finish: "30-Sep-27", "Data date": "—", Activities: 12 },
-      ], ["new-project", "baselines"]);
+      return renderProjectsWindow(state);
     case "wbs":
       return renderWbsWindow(state);
     case "activities":
@@ -1500,8 +1631,8 @@ function renderDialogs(state: DemoState): string {
 }
 
 function renderLanguageSwitch(state: DemoState): string {
-  // Only locales with complete translations in this visual shell are offered.
-  // Add German, Chinese, or another locale here when its full shell pack ships.
+  // Expose every registered language. Missing translation packs safely fall
+  // back to the base UI language until their translations are activated.
   const supported = getAvailableWorkspaceLocales();
   return `<label class="cp-vd-language"><span>${esc(t(state.locale, "Language", "زبان"))}</span>
     <select data-vd-locale aria-label="${esc(t(state.locale, "Select language", "انتخاب زبان"))}" title="${esc(t(state.locale, "Select workspace language", "انتخاب زبان محیط کار"))}">
@@ -1515,7 +1646,8 @@ export function renderVisualDemo(state: DemoState): string {
   const navGroups: Array<{ id: string; en: string; fa: string; items: DemoWindowId[] }> = [
     { id: "planning", en: "Planning & Schedule", fa: "برنامه‌ریزی و زمان‌بندی", items: ["wbs", "activities", "network", "trace", "timeline", "activity-profile", "resource-profile", "activity-sheet", "resource-sheet", "calendars"] },
     { id: "controls", en: "Project Controls", fa: "کنترل پروژه", items: ["assignments", "resources", "roles", "cost-control", "progress-control", "procurement", "changes-claims", "tracking", "expenses", "thresholds", "issues", "risks"] },
-    { id: "information", en: "Information & Administration", fa: "اطلاعات و مدیریت", items: ["documents", "reports", "form-builder", "comments", "organization", "administration", "smart-guide", "assistant", "search"] },
+    { id: "information", en: "Information & Administration", fa: "اطلاعات و مدیریت", items: ["documents", "reports", "comments", "organization", "administration", "smart-guide", "assistant", "search"] },
+    { id: "forms", en: "Forms & Workflows", fa: "فرم‌ها و گردش‌کار", items: ["form-builder"] },
   ];
   const navGroup = (group: typeof navGroups[number]): string => {
     const collapsed = state.collapsedNavGroups.includes(group.id);
@@ -1606,6 +1738,9 @@ export function createVisualDemoState(locale: string): DemoState {
     moduleColumns: [],
     formLibrary: "organization",
     formTab: "design",
+    projectDetailTab: "general",
+    projectSelectedRow: 0,
+    projectSearch: "",
     calendarMonth: 1,
     adminSection: "users",
     filter: "",
@@ -1716,11 +1851,23 @@ function bind(root: HTMLElement): void {
   if (!runtime) return;
   const state = runtime.state;
   const draw = (): void => {
-    root.innerHTML = renderVisualDemo(state);
+    // Keep the actual Fullscreen API target connected. Replacing this outer
+    // element during fullscreenchange makes browsers immediately exit fullscreen.
+    const template = document.createElement("template");
+    template.innerHTML = renderVisualDemo(state);
+    const nextSurface = template.content.querySelector<HTMLElement>("[data-visual-demo]");
+    const currentSurface = root.querySelector<HTMLElement>("[data-visual-demo]");
+    if (nextSurface && currentSurface) {
+      currentSurface.dir = nextSurface.dir;
+      currentSurface.innerHTML = nextSurface.innerHTML;
+    } else {
+      root.innerHTML = template.innerHTML;
+    }
     layoutConnectors(root);
   };
   document.addEventListener("fullscreenchange", () => {
-    state.fullscreen = document.fullscreenElement === root.querySelector<HTMLElement>("[data-visual-demo]");
+    const surface = root.querySelector<HTMLElement>("[data-visual-demo]");
+    state.fullscreen = Boolean(surface && document.fullscreenElement === surface);
     draw();
   });
   const openMenu = (id: string): void => {
@@ -1743,8 +1890,8 @@ function bind(root: HTMLElement): void {
       "activity-profile": "planning", "resource-profile": "planning", "activity-sheet": "planning", "resource-sheet": "planning", calendars: "planning",
       assignments: "controls", resources: "controls", roles: "controls", "cost-control": "controls", "progress-control": "controls", procurement: "controls",
       "changes-claims": "controls", tracking: "controls", expenses: "controls", thresholds: "controls", issues: "controls", risks: "controls",
-      documents: "information", reports: "information", "form-builder": "information", comments: "information", organization: "information", administration: "information",
-      "smart-guide": "information", assistant: "information", search: "information",
+      documents: "information", reports: "information", comments: "information", organization: "information", administration: "information",
+      "smart-guide": "information", assistant: "information", search: "information", "form-builder": "forms",
     };
     const activeGroup = groupByWindow[id];
     if (activeGroup) state.collapsedNavGroups = state.collapsedNavGroups.filter((group) => group !== activeGroup);
@@ -1816,13 +1963,14 @@ function bind(root: HTMLElement): void {
     if (!(target instanceof HTMLSelectElement) || !target.matches("[data-vd-locale]")) return;
     const next = target.value;
     const available = getAvailableWorkspaceLocales();
-    if ((next !== "en" && next !== "fa") || !available.includes(next)) return;
-    state.locale = next;
-    rememberWorkspaceLocale(next, available);
-    writeStoredValue(LANDING_LOCALE_STORAGE_KEY, next);
-    document.documentElement.lang = next;
-    document.documentElement.dir = getWorkspaceLocaleDirection(next);
-    document.title = next === "fa"
+    const nextLocale = available.find((locale) => locale === next);
+    if (!nextLocale) return;
+    state.locale = nextLocale;
+    rememberWorkspaceLocale(nextLocale, available);
+    writeStoredValue(LANDING_LOCALE_STORAGE_KEY, nextLocale);
+    document.documentElement.lang = nextLocale;
+    document.documentElement.dir = getWorkspaceLocaleDirection(nextLocale);
+    document.title = nextLocale === "fa" || nextLocale === "ar"
       ? "محیط کار CUBI — نمایش بصری"
       : "CUBI Workspace — visual demo";
     draw();
@@ -1887,6 +2035,26 @@ function bind(root: HTMLElement): void {
     if (formTab?.dataset.vdFormTab && ["design", "fields", "workflow", "permissions", "versions"].includes(formTab.dataset.vdFormTab)) {
       state.formTab = formTab.dataset.vdFormTab as DemoState["formTab"];
       draw();
+      return;
+    }
+    const projectSelection = target.closest<HTMLElement>("[data-vd-project-select]");
+    if (projectSelection?.dataset.vdProjectSelect !== undefined) {
+      const selected = Number(projectSelection.dataset.vdProjectSelect);
+      if (Number.isInteger(selected) && selected >= 0 && selected <= 1) {
+        state.projectSelectedRow = selected;
+        state.projectDetailTab = "general";
+        draw();
+      }
+      return;
+    }
+    const projectDetailTab = target.closest<HTMLElement>("[data-vd-project-detail-tab]");
+    if (projectDetailTab?.dataset.vdProjectDetailTab) {
+      const tab = projectDetailTab.dataset.vdProjectDetailTab as ProjectDetailTab;
+      const allowed: ProjectDetailTab[] = ["general", "dates", "defaults", "resources", "settings", "codes", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "baselines", "documents", "history", "udfs"];
+      if (allowed.includes(tab)) {
+        state.projectDetailTab = tab;
+        draw();
+      }
       return;
     }
     const moduleTab = target.closest<HTMLElement>("[data-vd-module-tab]");
@@ -2016,6 +2184,19 @@ function bind(root: HTMLElement): void {
 
   root.addEventListener("input", (event) => {
     const target = event.target;
+    if (target instanceof HTMLInputElement && target.matches("[data-vd-project-search]")) {
+      state.projectSearch = target.value;
+      const active = document.activeElement === target;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      draw();
+      if (active) {
+        const replacement = root.querySelector<HTMLInputElement>("[data-vd-project-search]");
+        replacement?.focus();
+        if (start !== null && end !== null) replacement?.setSelectionRange(start, end);
+      }
+      return;
+    }
     if (target instanceof HTMLInputElement && target.matches("[data-vd-module-search]")) {
       state.moduleSearch = target.value;
       const selection = root.querySelector<HTMLElement>("[data-vd-module-row].is-selected");

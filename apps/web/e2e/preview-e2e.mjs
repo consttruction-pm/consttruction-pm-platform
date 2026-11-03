@@ -1919,6 +1919,120 @@ async function main() {
       );
       record("visual workspace language preference persists across refresh", savedLanguage);
       await deepLinkPage.setSelect('select[data-vd-locale]', "en");
+      await deepLinkPage.waitFor(
+        `document.documentElement.lang === "en"`,
+        "visual workspace returns to English before language coverage checks",
+      );
+
+      for (const locale of ["de", "zh", "ar", "fr", "ja", "ko"]) {
+        const direction = locale === "ar" ? "rtl" : "ltr";
+        await deepLinkPage.setSelect('select[data-vd-locale]', locale);
+        await deepLinkPage.waitFor(
+          `document.documentElement.lang === ${JSON.stringify(locale)} && document.documentElement.dir === ${JSON.stringify(direction)}`,
+          "visual workspace activates " + locale + " locale",
+        );
+        const localeState = await deepLinkPage.evaluate(`(() => ({
+          lang: document.documentElement.lang,
+          dir: document.documentElement.dir,
+          selected: document.querySelector("select[data-vd-locale]")?.value ?? null,
+        }))()`);
+        assert(
+          localeState.lang === locale && localeState.dir === direction && localeState.selected === locale,
+          "visual workspace locale selection must activate and persist the chosen locale: " + JSON.stringify(localeState),
+        );
+        record("visual workspace locale selection activates " + locale, localeState);
+      }
+      await deepLinkPage.setSelect('select[data-vd-locale]', "en");
+      await deepLinkPage.waitFor(
+        `document.documentElement.lang === "en" && document.documentElement.dir === "ltr"`,
+        "visual workspace restores English locale",
+      );
+
+      await deepLinkPage.evaluate(
+        "window.__cubiVisualFullscreenTarget = document.querySelector('[data-visual-demo]')",
+      );
+      await deepLinkPage.realClick("[data-vd-fullscreen]");
+      await deepLinkPage.waitFor(
+        `document.fullscreenElement === document.querySelector("[data-visual-demo]")`,
+        "visual workspace enters full screen and keeps the same surface connected",
+        6000,
+      );
+      const visualFullscreen = await deepLinkPage.evaluate(`(() => {
+        const surface = document.querySelector("[data-visual-demo]");
+        const button = surface?.querySelector("[data-vd-fullscreen]");
+        return {
+          active: document.fullscreenElement === surface,
+          targetPreserved: surface === window.__cubiVisualFullscreenTarget && surface?.isConnected === true,
+          pressed: button?.getAttribute("aria-pressed") ?? null,
+          label: button?.textContent?.trim() ?? null,
+        };
+      })()`);
+      assert(
+        visualFullscreen.active && visualFullscreen.targetPreserved &&
+          visualFullscreen.pressed === "true" && /Return to normal view/i.test(visualFullscreen.label ?? ""),
+        "visual fullscreen must remain active after rerendering its toolbar: " + JSON.stringify(visualFullscreen),
+      );
+      record("visual workspace fullscreen remains active after state redraw", visualFullscreen);
+      await deepLinkPage.realClick("[data-vd-fullscreen]");
+      await deepLinkPage.waitFor(
+        `!document.fullscreenElement`,
+        "visual workspace exits full screen",
+        6000,
+      );
+      await deepLinkPage.waitFor(
+        `document.querySelector("[data-vd-fullscreen]")?.getAttribute("aria-pressed") === "false"`,
+        "visual workspace restores the normal-view toolbar state after fullscreenchange",
+        6000,
+      );
+      const visualFullscreenExit = await deepLinkPage.evaluate(`(() => ({
+        targetPreserved: document.querySelector("[data-visual-demo]") === window.__cubiVisualFullscreenTarget,
+        pressed: document.querySelector("[data-vd-fullscreen]")?.getAttribute("aria-pressed") ?? null,
+        label: document.querySelector("[data-vd-fullscreen]")?.textContent?.trim() ?? null,
+      }))()`);
+      assert(
+        visualFullscreenExit.targetPreserved && visualFullscreenExit.pressed === "false" &&
+          /Full screen/i.test(visualFullscreenExit.label ?? ""),
+        "visual workspace must return to normal view without replacing its shell: " + JSON.stringify(visualFullscreenExit),
+      );
+      record("visual workspace exits fullscreen without replacing its shell", visualFullscreenExit);
+
+      await deepLinkPage.click('[data-vd-window="projects"]');
+      await deepLinkPage.waitFor(
+        `Boolean(document.querySelector(".cp-vd-project-details"))`,
+        "Projects window shows its bottom Project Details panel",
+      );
+      const projectWindowLayout = await deepLinkPage.evaluate(`(() => {
+        const upper = document.querySelector(".cp-vd-projects-upper")?.getBoundingClientRect();
+        const register = document.querySelector(".cp-vd-project-register")?.getBoundingClientRect();
+        const details = document.querySelector(".cp-vd-project-details")?.getBoundingClientRect();
+        return {
+          hasStructure: Boolean(document.querySelector(".cp-vd-project-structure")),
+          hasRegister: Boolean(register),
+          hasDetails: Boolean(details),
+          detailsBelowRegister: Boolean(upper && details && details.top >= upper.bottom - 1),
+          detailsSpansRegister: Boolean(register && details && details.left <= register.left && details.right >= register.right - 1),
+          tabs: [...document.querySelectorAll("[data-vd-project-detail-tab]")].map((tab) => tab.getAttribute("data-vd-project-detail-tab")),
+        };
+      })()`);
+      assert(
+        projectWindowLayout.hasStructure && projectWindowLayout.hasRegister && projectWindowLayout.hasDetails &&
+          projectWindowLayout.detailsBelowRegister && projectWindowLayout.detailsSpansRegister &&
+          projectWindowLayout.tabs.includes("dates") && projectWindowLayout.tabs.includes("history"),
+        "Projects must show Project Structure, register and full-width bottom Project Details: " + JSON.stringify(projectWindowLayout),
+      );
+      await deepLinkPage.click('[data-vd-project-detail-tab="dates"]');
+      const projectDatesTab = await deepLinkPage.evaluate(`(() => ({
+        active: document.querySelector('[data-vd-project-detail-tab="dates"]')?.getAttribute("aria-selected") ?? null,
+        content: document.querySelector("[data-vd-project-details-panel]")?.textContent ?? "",
+      }))()`);
+      assert(
+        projectDatesTab.active === "true" && projectDatesTab.content.includes("Planned start"),
+        "Project Details tabs must update the selected project's detail content: " + JSON.stringify(projectDatesTab),
+      );
+      record("Projects window docks selectable Project Details beneath the register", {
+        ...projectWindowLayout,
+        datesTabActive: projectDatesTab.active,
+      });
 
       await deepLinkPage.click(".cp-vd-exit");
       await deepLinkPage.waitFor(

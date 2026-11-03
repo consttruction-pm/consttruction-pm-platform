@@ -268,3 +268,13 @@ test("Smart Guide shows staged project setup and schedule quality checks", () =>
   assert.match(markup, /Review activities with no predecessors or successors/);
   assert.match(markup, /data-vd-window="assignments"/);
 });
+
+
+test("Form Builder is discoverable in a dedicated Forms & Workflows navigation group", () => {
+  const state = createVisualDemoState("en");
+  state.window = "form-builder";
+  const markup = renderVisualDemo(state);
+  assert.match(markup, /data-vd-nav-group="forms" aria-expanded="true"/);
+  assert.match(markup, /data-vd-window="form-builder" aria-current="page"/);
+  assert.match(markup, /Forms &amp; Workflows/);
+});
