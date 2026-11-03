@@ -519,8 +519,6 @@ test("Documents window renders real records and navigable detail tabs", () => {
   assert.match(container.innerHTML, /No WBS or activity assignments are loaded/);
   const linksTarget = { dataset: { documentDetailTab: "links" }, closest: () => linksTarget };
   listeners.get("click")?.({ target: linksTarget } as unknown as Event);
-  const linksTarget = { dataset: { documentDetailTab: "links" }, closest: () => linksTarget };
-  listeners.get("click")?.({ target: linksTarget } as unknown as Event);
   assert.match(container.innerHTML, /activity:ACT-101/);
   assert.match(container.innerHTML, /wbs:WBS-01/);
   const evidenceTarget = { dataset: { navigationAction: "document-type:evidence" }, closest: () => evidenceTarget };
