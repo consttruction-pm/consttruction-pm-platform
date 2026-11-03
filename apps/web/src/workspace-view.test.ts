@@ -2000,6 +2000,48 @@ test("Roles and Tracking are first-class windows with their documented visual su
   assert.match(tracking, /data-tracking-content="resource-analysis" hidden/);
 });
 
+test("Tracking layout selection switches desktop panes and persists across render", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const panels = ["table", "bar-chart", "gantt-profile", "resource-analysis"].map((trackingContent) => ({
+    dataset: { trackingContent },
+    hidden: trackingContent !== "table",
+  }));
+  const explorer = { hidden: true };
+  const bottom = { hidden: true };
+  const frame = { dataset: { trackingLayoutType: "table" } };
+  const surface = { dataset: { trackingSurface: "table" } };
+  const heading = { textContent: "Project Table" };
+  const select = {
+    value: "gantt-profile",
+    querySelector: () => ({ textContent: "Project Gantt / Profile" }),
+  };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => ({
+      "[data-tracking-layout-frame]": frame,
+      "[data-tracking-surface]": surface,
+      "[data-tracking-layout-label]": heading,
+      '[data-tracking-pane="resource-explorer"]': explorer,
+      '[data-tracking-pane="bottom-layout"]': bottom,
+    } as Record<string, unknown>)[selector] ?? null,
+    querySelectorAll: (selector: string) => selector === "[data-tracking-content]" ? panels : [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "tracking" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  listeners.get("change")?.({ target: { dataset: { trackingLayout: "" }, value: "gantt-profile", querySelector: select.querySelector } } as unknown as Event);
+  assert.equal(frame.dataset.trackingLayoutType, "gantt-profile");
+  assert.equal(surface.dataset.trackingSurface, "gantt-profile");
+  assert.equal(heading.textContent, "Project Gantt / Profile");
+  assert.equal(panels[0]?.hidden, true);
+  assert.equal(panels[2]?.hidden, false);
+  assert.equal(explorer.hidden, false);
+  assert.equal(bottom.hidden, false);
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-tracking-layout-type="gantt-profile"/);
+  assert.match(container.innerHTML, /option value="gantt-profile" selected/);
+});
+
 test("Calendar Register opens as a first-class window with documented editor controls", () => {
   const html = render("en", "calendars");
   assert.match(html, /data-active-menu="calendars"/);
