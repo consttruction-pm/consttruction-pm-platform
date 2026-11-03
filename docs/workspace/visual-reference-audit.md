@@ -401,3 +401,10 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - Resource records and hierarchy are not yet supplied by the resource service, so the register stays an honest empty state and all write/move operations remain unavailable. The visual shell does not invent resource IDs, rates, availability, or hierarchy nodes.
 - Remaining parity work: resource hierarchy/list switch, move toolbar, full Details and Units & Prices forms, rate history, resource shifts and resource calendar assignments after authoritative records are available.
 - Reference: https://docs.oracle.com/cd/F74771_01/client_help/en_US/resource_details.htm and Version 26 Professional User Guide, Resources chapter: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/resources.htm.
+
+## Resource Assignments top-layout pane parity — 2026-11-03
+
+- Version 26 Professional documents the Resource Assignments window as an assignment register with a Resource Usage Spreadsheet in the right pane and Assignment Details in the bottom layout. The spreadsheet exposes time-phased quantity/cost fields, timescale selection, spreadsheet field customization, and grouping/sorting/filtering controls.
+- CUBI correction: the Resource Assignments workspace now opens with the assignment register and Resource Usage Spreadsheet side by side; Assignment Details remains below. The spreadsheet can be collapsed to give the register the full width. Its timescale and field chooser remain interactive presentation preferences.
+- No resource assignment or time-phased values are loaded, so the spreadsheet uses a truthful empty state and does not invent period values. Manual planning/editing remains unavailable until authoritative assignment records and permissions are connected.
+- References: https://docs.oracle.com/cd/E90748_01/client_help/en_US/resource_assignments_window.htm and https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/resourceusagespreadsheet.htm.
