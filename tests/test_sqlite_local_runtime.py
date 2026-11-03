@@ -975,6 +975,7 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
             {"timezone_name": "UTC", "request_id": "runtime-abi-test"},
             version="p6-schedule-snapshot-api.v1",
         )
+        assert "item" in published["result"], published
         assert published["result"]["item"]["snapshot_id"]
         settings = invoke(
             "schedule.settings.get",
