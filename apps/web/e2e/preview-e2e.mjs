@@ -2459,7 +2459,7 @@ async function main() {
         `${surface.label} status must match the honest localized ${surface.status} contract, got ${JSON.stringify({ status, statusContract })}`,
       );
       const submenus = await page.count(
-        ".cp-navigation-surface a.cp-submenu-item, .cp-navigation-surface span.cp-submenu-item",
+        ".cp-navigation-surface a.cp-submenu-item, .cp-navigation-surface button.cp-submenu-item, .cp-navigation-surface span.cp-submenu-item",
       );
       assert(
         submenus === surface.submenus,
