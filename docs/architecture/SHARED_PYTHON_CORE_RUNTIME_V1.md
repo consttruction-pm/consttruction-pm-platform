@@ -63,6 +63,7 @@ Current registered operations on the implementation branch:
 | Baseline | `baseline.list/get/create` | `p6-baseline-api.v1` |
 | Cost accounts | `cost_account.list/get/create` | `p6-cost-account-api.v1` |
 | Expenses | `expense.list/get/create` | `p6-expense-api.v1` |
+| Resource master | `resource.master.list/get/save` | `resource.v1` (host binds trusted tenant/company/project context) |
 | Resource assignments | `resource_assignment.list/get/create`, `resource_assignment_period.list/get/create` | `p6-resource-read-api.v1`, `p6-resource-write-api.v1` |
 | Resource spreads | `resource_spread.list/get/save` | `p6-resource-spread-api.v1` |
 | Resource capacity | `resource_capacity.list/profile/on/save` | `p6-resource-capacity-read-api.v1`, `p6-resource-capacity-write-api.v1` |
