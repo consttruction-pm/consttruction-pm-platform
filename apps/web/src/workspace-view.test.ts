@@ -461,8 +461,9 @@ test("Activities Layout Options inventories top and bottom chart layouts without
 });
 
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
+  assert.doesNotMatch(render("en", "schedule"), /data-activity-detail-tab="tasks"/);
   const html = render("en", "schedule");
-  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "tasks", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
+  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
     assert.ok(html.includes(`data-activity-detail-tab="${tab}"`), `missing Activity Details tab: ${tab}`);
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
@@ -676,7 +677,7 @@ test("Projects window docks Project Details below the register with the full det
   assert.match(html, /data-project-structure-splitter role="separator" aria-orientation="vertical"/);
   assert.match(html, /id="cp-details" class="cp-panel cp-details cp-project-details-dock"/);
   assert.match(html, /aria-label="Project detail tabs"/);
-  for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "planning-resources", "contract-management", "udfs"]) {
+  for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "contract-management", "udfs"]) {
     assert.match(html, new RegExp(`data-project-detail-tab="${tab}"`));
   }
 });
