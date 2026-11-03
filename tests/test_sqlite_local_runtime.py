@@ -963,12 +963,47 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
         })
         assert exceptions["result"]["count"] == 1
 
+        work_rule = invoke("calendar.work_hours.save", {
+            "rule": {
+                "calendar_id": "CAL-P",
+                "calendar_version": "1",
+                "kind": "standard_work_week",
+                "weekday": 0,
+                "is_working_day": True,
+            }
+        })
+        assert work_rule["result"]["item"]["weekday"] == 0
+        work_hours = invoke("calendar.work_hours.list", {
+            "calendar_id": "CAL-P",
+            "calendar_version": "1",
+            "kind": "standard_work_week",
+        })
+        assert work_hours["result"]["count"] == 1
+
         advertised = {item["operation"] for item in shared.supported_operations}
         assert {"calendar.create", "calendar.list", "calendar.get", "calendar.delete"} <= advertised
 
         calendar_master = runtime.calendar_repository.get(scope, "CAL-P", "1")
         assert calendar_master is not None
         runtime.calendar_snapshot_repository.save(calendar_master, WorkingCalendar())
+        copied = invoke("calendar.copy", {
+            "copy": {
+                "source_calendar_id": "CAL-P",
+                "source_calendar_version": "1",
+                "target_calendar_id": "CAL-COPY",
+                "target_calendar_version": "1",
+            }
+        })
+        assert copied["result"]["item"]["calendar_id"] == "CAL-COPY"
+        assert invoke("calendar.exception_list", {
+            "calendar_id": "CAL-COPY",
+            "calendar_version": "1",
+        })["result"]["count"] == 1
+        assert invoke("calendar.work_hours.list", {
+            "calendar_id": "CAL-COPY",
+            "calendar_version": "1",
+            "kind": "standard_work_week",
+        })["result"]["count"] == 1
         runtime.schedule_snapshot_api.save_settings(
             scope,
             settings=ProjectScheduleSettings(
@@ -1040,8 +1075,8 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
         assert schedule_response["result"]["data"]["calculation_run_identity"]
 
         queued = runtime.offline_mutation_store.pending()
-        assert len(queued) == 3
-        assert {item.operation for item in queued} == {"calendar.create", "activity.create", "schedule.publish"}
+        assert len(queued) == 6
+        assert {item.operation for item in queued} == {"calendar.create", "calendar.exception.save", "calendar.work_hours.save", "calendar.copy", "activity.create", "schedule.publish"}
     finally:
         connection.close()
 
