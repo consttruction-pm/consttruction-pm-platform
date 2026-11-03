@@ -475,3 +475,21 @@ test("Group and Sort dialog exposes Persian RTL labels and the WBS-first default
     assert.ok(html.includes(label), `missing Persian Group and Sort label: ${label}`);
   }
 });
+
+
+test("Timescale dialog exposes two/three-line, start date, primary/ordinal, fiscal and financial-period controls", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const label of ["Timescale lines", "Two Lines", "Three Lines", "Timescale start", "Date interval", "Day / Shift", "Year / Financial Period", "Type", "Calendar", "Fiscal", "Date Format", "Show Primary Dates", "Show Ordinal Dates", "Primary date format", "Ordinal start", "Ordinal interval", "Shift calendar", "Financial period calendar", "Font & Color", "Default Font", "Preview"]) {
+    assert.ok(html.includes(label), `missing Timescale control: ${label}`);
+  }
+  assert.match(html, /cp-vd-timescale-preview/);
+  assert.match(html, /do not change project dates or calendar rules/);
+});
+
+test("Timescale dialog localizes Persian headings and preserves the visual RTL shell", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["ردیف‌های مقیاس زمانی", "شروع مقیاس زمانی", "بازه تاریخ", "قالب تاریخ", "نمایش تاریخ‌های اصلی", "نمایش تاریخ‌های ترتیبی", "شروع ترتیبی", "تقویم شیفت", "تقویم دوره مالی", "قلم و رنگ"]) {
+    assert.ok(html.includes(label), `missing Persian Timescale label: ${label}`);
+  }
+});
