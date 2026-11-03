@@ -1617,6 +1617,12 @@ export function renderVisualDemo(state: DemoState): string {
   .cp-vd-module-toolbar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:7px 10px;border-block:1px solid #d8e0e9;background:#f0f4f8}
   .cp-vd-module-toolbar button{border:1px solid #cbd6e2;border-radius:3px;background:#fff;color:#294765;padding:5px 9px;font:11px Inter,Vazirmatn,sans-serif}
   .cp-vd-module-toolbar button:disabled{opacity:.5;cursor:not-allowed}
+  .cp-vd-details-context-name{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#294765}
+  .cp-vd-details-context-project{font-size:10px;color:#6b7d91;white-space:nowrap}
+  .cp-vd-details-empty{min-height:120px;background:#fff;border-block-start:1px solid #d8e0e9}
+  .cp-vd-empty-selection{padding:22px 14px;text-align:center;color:#526579}
+  .cp-vd-empty-selection strong{display:block;color:#294765;margin-bottom:6px}
+  .cp-vd-empty-selection p{margin:0;font-size:12px}
   .cp-vd-module-toolbar .cp-vd-note{margin-inline-start:auto}
   .cp-vd-module-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(245px,30%);min-height:350px}
   .cp-vd-module-details{background:#f0f4f8;border-inline-start:1px solid #cbd5e1;padding:8px;min-width:0}
