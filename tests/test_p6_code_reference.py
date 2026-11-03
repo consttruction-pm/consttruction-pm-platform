@@ -51,11 +51,24 @@ def test_every_entry_has_source_and_code_mapping_and_explicit_evidence_label():
             assert item.known_gap.strip()
 
 
-def test_resource_dependent_driving_gap_is_explicit_not_marked_complete():
+def test_resource_dependent_supported_subset_is_mapped_but_not_certified():
     item = get_reference("RES-001")
-    assert item.coverage == KNOWN_GAP
-    assert "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED" in item.known_gap
-    assert "nondriving placement" in item.known_gap
+    assert item.coverage == MAPPED_NOT_PROVEN
+    assert any(path.endswith("resource_dependent_placement.py") for path in item.cubi_code_paths)
+    assert any(path.endswith("test_resource_dependent_placement.py") for path in item.regression_tests)
+    assert "in-progress activity" in item.known_gap
+    assert "completed Resource Dependent activities" in item.known_gap
+    assert "Level of Effort" in item.known_gap
+    assert "complete Version 26 parity" in item.known_gap
+    assert any(
+        "in-progress assignments derive remaining duration from Remaining Units"
+        in evidence
+        for evidence in item.acceptance_evidence
+    )
+    assert any(
+        "Not-started Remaining Duration must equal" in evidence
+        for evidence in item.acceptance_evidence
+    )
 
 
 def test_key_schedule_options_have_separate_reference_ids():
@@ -105,10 +118,14 @@ def test_float_formula_reference_lists_all_three_selected_modes():
     assert "Smallest Float" in item.formula_or_algorithm
 
 
-def test_resource_dependent_formula_remains_marked_as_a_known_gap():
+def test_resource_dependent_formula_tracks_the_implemented_subset_without_claiming_parity():
     item = get_formula_reference("FRM-RESOURCE-DUR-001")
-    assert item.status == "KNOWN_GAP"
-    assert "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED" in item.known_gap
+    assert item.status == "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN"
+    assert any(path.endswith("resource_dependent_placement.py") for path in item.cubi_code_paths)
+    assert "not-started and in-progress activities" in item.known_gap
+    assert "Completed activities" in item.known_gap
+    assert "non-daily" in item.known_gap
+    assert "remaining-start progress-anchor parity" in item.known_gap
 
 
 
@@ -130,6 +147,39 @@ def test_curve_earned_value_formula_is_separately_tracked():
     assert "BAC" in item.formula_or_algorithm
     assert item.status == "FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED"
 
+
+
+def test_level_of_effort_and_wbs_summary_are_implemented_with_parity_pending():
+    item = get_formula_reference("FRM-ACT-TYPES-001")
+    assert item.status == "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN"
+    assert "earliest-start/latest-finish span" in item.known_gap
+    assert "snapshot-bound WBS elements" in item.known_gap
+    assert "late dates/float" in item.known_gap
+    assert any(
+        path.endswith("test_activity_type_scheduling.py")
+        for path in item.regression_tests
+    )
+    activity = get_reference("ACT-001")
+    assert activity.coverage == MAPPED_NOT_PROVEN
+    assert "start/finish-linked neighbour span" in activity.known_gap
+    assert "roll up the earliest start and latest finish" in activity.known_gap
+    assert "INVALID_PERSISTED_ACTIVITY" in activity.known_gap
+    assert any(
+        path.endswith("test_activity_type_scheduling.py")
+        for path in activity.regression_tests
+    )
+
+
+
+def test_status_actual_date_consistency_is_recorded_as_fail_closed_guard():
+    item = get_reference("ACT-003")
+    assert "COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH" in item.known_gap
+    assert "NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS" in item.known_gap
+    assert "IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START" in item.known_gap
+    assert any(
+        path.endswith("test_authoritative_schedule_snapshot_composer.py")
+        for path in item.regression_tests
+    )
 
 
 def test_every_referenced_cubi_repository_path_exists():
@@ -190,7 +240,7 @@ def test_calendar_and_data_date_links_point_to_current_official_p6_help_pages():
 
 
 def test_resource_leveling_registry_tracks_merged_persisted_production_path_without_claiming_parity():
-    assert REFERENCE_VERSION == "0.8.8"
+    assert REFERENCE_VERSION == "0.8.9"
     leveling = get_reference("RES-002")
     assert leveling.coverage == MAPPED_NOT_PROVEN
     assert "src/construction_pm/p6_persisted_resource_leveling_resolver.py" in leveling.cubi_code_paths

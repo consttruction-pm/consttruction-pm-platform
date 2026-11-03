@@ -4,22 +4,25 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Iterable, Mapping, Sequence
 
-from .activity import Activity
+from .activity import Activity, ActivityStatus, ActivityType
 from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
+from .diagnostics import ScheduleDiagnosticCode, ScheduleInfeasibilityError
 from .constraints import (
     ActivityConstraint,
     apply_earliest_constraint,
     validate_constraint_set,
     validate_upper_bound,
 )
-from .out_of_sequence import ProgressRelationAction, resolve_out_of_sequence_action
 from .relationships import Relationship, RelationshipType
 from .schedule_options import OutOfSequenceScheduleType, StartToStartLagCalculationType
 
 
-class SchedulingCycleError(ValueError):
+class SchedulingCycleError(ScheduleInfeasibilityError):
     """Raised when the activity network contains a directed cycle."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ScheduleDiagnosticCode.NETWORK_CYCLE, message)
 
 
 @dataclass(frozen=True)
@@ -28,6 +31,80 @@ class ScheduledActivity:
     start: date
     finish: date
     duration: int
+    # Early start of the work that still has to be placed. For an in-progress
+    # activity this is anchored on the Data Date (or later logic), while
+    # ``start`` keeps the reported early/actual start. Completed activities
+    # have no remaining work, so both fields are None.
+    remaining_start: date | None = None
+    remaining_finish: date | None = None
+    # Aggregated Activity % Complete / Status for a WBS Summary. Task
+    # activities leave these as None because their own percent complete is
+    # already carried by the source Activity row.
+    percent_complete: float | None = None
+    status: ActivityStatus | None = None
+
+    def __post_init__(self) -> None:
+        if self.remaining_start is not None and self.remaining_finish is not None:
+            if self.remaining_finish < self.remaining_start:
+                raise ValueError("remaining_finish must not precede remaining_start")
+        if self.percent_complete is not None:
+            if (
+                isinstance(self.percent_complete, bool)
+                or not isinstance(self.percent_complete, (int, float))
+                or not 0 <= self.percent_complete <= 100
+            ):
+                raise ValueError("percent_complete must be between 0 and 100")
+        if self.status is not None and not isinstance(self.status, ActivityStatus):
+            raise TypeError("status must be an ActivityStatus or None")
+
+
+# Level of Effort and WBS Summary activities do not participate in the
+# predecessor-driven calculation network. Their dates are derived after the
+# regular work is placed: LOE from its start/finish-linked neighbours, and a
+# WBS Summary from the activities under its WBS element. Any relationship that
+# touches one of them is ignored for scheduling, float and leveling.
+_NON_DRIVING_ACTIVITY_TYPES = frozenset(
+    {ActivityType.LEVEL_OF_EFFORT, ActivityType.WBS_SUMMARY}
+)
+
+
+def is_non_driving_activity(activity: Activity) -> bool:
+    """Return True for activity types that never drive other activities."""
+    return activity.activity_type in _NON_DRIVING_ACTIVITY_TYPES
+
+
+def driving_relationships(
+    activities: Iterable[Activity],
+    relationships: Iterable[Relationship],
+) -> list[Relationship]:
+    """Return only relationships that participate in CPM date propagation."""
+    activity_map = {activity.id: activity for activity in activities}
+    result: list[Relationship] = []
+    for relationship in relationships:
+        predecessor = activity_map.get(relationship.predecessor_id)
+        successor = activity_map.get(relationship.successor_id)
+        if predecessor is None or successor is None:
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "relationship references an unknown activity",
+                predecessor_id=relationship.predecessor_id,
+                successor_id=relationship.successor_id,
+            )
+        if is_non_driving_activity(predecessor) or is_non_driving_activity(successor):
+            continue
+        result.append(relationship)
+    return result
+
+
+def _inverse_shift_working_date(
+    value: date, lag: int, resolver: WorkingTimeResolver
+) -> date:
+    """Inverse of :func:`_shift_working_date` for pull-style LOE anchors."""
+    if lag == 0:
+        return resolver.normalize_start(value)
+    if lag > 0:
+        return resolver.subtract_working_duration(value, lag + 1)
+    return resolver.add_working_duration(value, -lag + 1)
 
 
 def _shift_working_date(
@@ -73,12 +150,18 @@ def _successor_start(
             and predecessor_activity.actual_start > predecessor.start
         ):
             if data_date is None:
-                raise ValueError(
-                    "data_date is required for an out-of-sequence start-to-start relationship"
+                raise ScheduleInfeasibilityError(
+                    ScheduleDiagnosticCode.INVALID_DATA_DATE,
+                    "data_date is required for an out-of-sequence start-to-start relationship",
+                    predecessor_id=relationship.predecessor_id,
+                    successor_id=relationship.successor_id,
                 )
             if data_date < predecessor_activity.actual_start:
-                raise ValueError(
-                    "data_date must not precede actual_start for an out-of-sequence start-to-start relationship"
+                raise ScheduleInfeasibilityError(
+                    ScheduleDiagnosticCode.INVALID_DATA_DATE,
+                    "data_date must not precede actual_start for an out-of-sequence start-to-start relationship",
+                    predecessor_id=relationship.predecessor_id,
+                    successor_id=relationship.successor_id,
                 )
             elapsed = (predecessor_resolver or resolver).working_days_between(
                 predecessor_activity.actual_start, data_date
@@ -157,6 +240,281 @@ def _apply_expected_finish_target(
     return max(start, expected_start)
 
 
+def _loe_link_end(
+    relationship: Relationship, loe_id: str
+) -> tuple[str, str] | None:
+    """Return ``(end, neighbour_id)`` when a relationship attaches to the LOE.
+
+    P6 derives an LOE start from neighbours linked to its start end and its
+    finish from neighbours linked to its finish end. FS/SS attach to the start
+    end and FF/SF attach to the finish end.
+    """
+    if relationship.successor_id == loe_id:
+        end = (
+            "start"
+            if relationship.type in (RelationshipType.FS, RelationshipType.SS)
+            else "finish"
+        )
+        return end, relationship.predecessor_id
+    if relationship.predecessor_id == loe_id:
+        end = (
+            "start"
+            if relationship.type in (RelationshipType.SS, RelationshipType.SF)
+            else "finish"
+        )
+        return end, relationship.successor_id
+    return None
+
+
+def _schedule_level_of_effort(
+    activity: Activity,
+    relationships: Sequence[Relationship],
+    activity_map: Mapping[str, Activity],
+    scheduled: Mapping[str, ScheduledActivity],
+    resolver: WorkingTimeResolver,
+    data_date: date | None,
+    out_of_sequence_schedule_type: OutOfSequenceScheduleType,
+) -> ScheduledActivity:
+    """Derive an LOE span from its start/finish-linked neighbours.
+
+    The documentation specifies the linked-neighbour span but is silent about
+    late dates, float and progressed LOE work. Those parts keep the same
+    progress conventions as task activities and are recorded as an explicit
+    parity uncertainty in the engineering ledger rather than presented as
+    proven reference behaviour.
+    """
+    start_candidates: list[date] = []
+    finish_candidates: list[date] = []
+    neighbour_dates: list[tuple[date, date]] = []
+    linked = False
+    for relationship in relationships:
+        if (
+            relationship.predecessor_id != activity.id
+            and relationship.successor_id != activity.id
+        ):
+            continue
+        link = _loe_link_end(relationship, activity.id)
+        if link is None:
+            continue
+        end, neighbour_id = link
+        neighbour_activity = activity_map[neighbour_id]
+        if neighbour_activity.activity_type is ActivityType.WBS_SUMMARY:
+            # WBS Summary relationships are ignored during scheduling.
+            continue
+        if neighbour_activity.activity_type is ActivityType.LEVEL_OF_EFFORT:
+            raise ValueError(
+                "level-of-effort activities cannot be linked to each other:"
+                f"{activity.id}:{neighbour_id}"
+            )
+        neighbour = scheduled.get(neighbour_id)
+        if neighbour is None:
+            raise ValueError(
+                f"level-of-effort neighbour was not scheduled:{activity.id}:{neighbour_id}"
+            )
+        linked = True
+        neighbour_dates.append((neighbour.start, neighbour.finish))
+        lag = relationship.lag
+        if end == "start":
+            candidate = (
+                _shift_working_date(neighbour.start, lag, resolver)
+                if relationship.successor_id == activity.id
+                else _inverse_shift_working_date(neighbour.start, lag, resolver)
+            )
+            start_candidates.append(candidate)
+        else:
+            # The documented span uses the linked neighbour's early finish for
+            # the LOE finish end, regardless of whether the neighbour is the
+            # predecessor or successor of the LOE.
+            candidate = (
+                _shift_working_date(neighbour.finish, lag, resolver)
+                if relationship.successor_id == activity.id
+                else _inverse_shift_working_date(neighbour.finish, lag, resolver)
+            )
+            finish_candidates.append(candidate)
+
+    if not linked:
+        raise ValueError(
+            f"level-of-effort activity requires at least one linked activity:{activity.id}"
+        )
+    if not start_candidates:
+        start_candidates = [item[0] for item in neighbour_dates]
+    if not finish_candidates:
+        finish_candidates = [item[1] for item in neighbour_dates]
+
+    span_start = resolver.normalize_start(min(start_candidates))
+    span_finish = resolver.normalize_finish(max(finish_candidates))
+    if span_finish < span_start:
+        raise ValueError(
+            f"level-of-effort span is invalid:{activity.id}:"
+            f"{span_start.isoformat()}:{span_finish.isoformat()}"
+        )
+
+    completed = activity.actual_finish is not None
+    progressed = activity.actual_start is not None
+    if completed:
+        if activity.actual_start is None:
+            raise ValueError("completed activity requires actual dates")
+        start = resolver.normalize_start(activity.actual_start)
+        finish = resolver.normalize_finish(activity.actual_finish)
+        if finish < start:
+            raise ValueError(
+                f"level-of-effort actual dates are invalid:{activity.id}"
+            )
+        return ScheduledActivity(
+            activity_id=activity.id,
+            start=start,
+            finish=finish,
+            duration=resolver.calculate_duration(start, finish),
+            remaining_start=None,
+            remaining_finish=None,
+        )
+
+    if progressed:
+        actual_start = resolver.normalize_start(activity.actual_start)
+        data_date_bound = (
+            resolver.normalize_start(data_date)
+            if data_date is not None
+            else actual_start
+        )
+        out_of_sequence = actual_start < span_start
+        if out_of_sequence_schedule_type is OutOfSequenceScheduleType.PROGRESS_OVERRIDE:
+            remaining_start = max(actual_start, data_date_bound)
+            start = remaining_start if out_of_sequence else actual_start
+        elif out_of_sequence_schedule_type is OutOfSequenceScheduleType.ACTUAL_DATES:
+            remaining_start = actual_start
+            start = actual_start
+        else:
+            remaining_start = max(span_start, actual_start, data_date_bound)
+            start = remaining_start if out_of_sequence else actual_start
+        remaining_start = resolver.normalize_start(remaining_start)
+        remaining_finish = resolver.normalize_finish(max(span_finish, remaining_start))
+        return ScheduledActivity(
+            activity_id=activity.id,
+            start=start,
+            finish=remaining_finish,
+            duration=resolver.calculate_duration(remaining_start, remaining_finish),
+            remaining_start=remaining_start,
+            remaining_finish=remaining_finish,
+        )
+
+    return ScheduledActivity(
+        activity_id=activity.id,
+        start=span_start,
+        finish=span_finish,
+        duration=resolver.calculate_duration(span_start, span_finish),
+        remaining_start=span_start,
+        remaining_finish=span_finish,
+    )
+
+
+def _effective_activity_status(activity: Activity) -> ActivityStatus:
+    """Resolve the status that progress facts imply for rollup purposes."""
+    if activity.actual_finish is not None or activity.status is ActivityStatus.COMPLETED:
+        return ActivityStatus.COMPLETED
+    if activity.actual_start is not None or activity.status is ActivityStatus.IN_PROGRESS:
+        return ActivityStatus.IN_PROGRESS
+    return ActivityStatus.NOT_STARTED
+
+
+def _activity_percent_complete(activity: Activity) -> float | None:
+    """Return Activity % Complete, deriving it only from authoritative facts.
+
+    A stored percentage wins. Otherwise completed/not-started status is exact,
+    and in-progress duration percent is derived from at-completion duration and
+    remaining duration. If none of those facts exist the value stays unknown
+    instead of being invented.
+    """
+    if activity.percent_complete is not None:
+        return float(activity.percent_complete)
+    status = _effective_activity_status(activity)
+    if status is ActivityStatus.COMPLETED:
+        return 100.0
+    if status is ActivityStatus.NOT_STARTED:
+        return 0.0
+    if activity.duration > 0 and activity.remaining_duration is not None:
+        completed = activity.duration - activity.remaining_duration
+        return max(0.0, min(100.0, completed * 100.0 / activity.duration))
+    return None
+
+
+def _wbs_summary_progress(
+    members: Sequence[Activity],
+) -> tuple[float | None, ActivityStatus]:
+    """Aggregate Activity % Complete and Status over WBS descendants.
+
+    The documented WBS Summary behavior averages the Activity % Complete of
+    the summarized activities and updates status to match them. Members whose
+    percentage cannot be derived from authoritative facts do not contribute a
+    fabricated zero; when no member exposes a percentage the summary reports
+    None. Status is Completed only when every member is completed, Not Started
+    only when every member has not started, and In Progress otherwise.
+    """
+    statuses = [_effective_activity_status(member) for member in members]
+    if all(status is ActivityStatus.COMPLETED for status in statuses):
+        summary_status = ActivityStatus.COMPLETED
+    elif all(status is ActivityStatus.NOT_STARTED for status in statuses):
+        summary_status = ActivityStatus.NOT_STARTED
+    else:
+        summary_status = ActivityStatus.IN_PROGRESS
+
+    percentages = [
+        value
+        for value in (_activity_percent_complete(member) for member in members)
+        if value is not None
+    ]
+    average = sum(percentages) / len(percentages) if percentages else None
+    return average, summary_status
+
+
+def _schedule_wbs_summary(
+    activity: Activity,
+    activity_map: Mapping[str, Activity],
+    scheduled: Mapping[str, ScheduledActivity],
+    resolver: WorkingTimeResolver,
+) -> ScheduledActivity:
+    """Roll a WBS Summary up from activities in the same/subordinate WBS."""
+    if activity.wbs_id is None:
+        raise ValueError(
+            f"WBS-summary activity requires a WBS assignment:{activity.id}"
+        )
+    members = [
+        member
+        for member in activity_map.values()
+        if member.id != activity.id
+        and member.activity_type is not ActivityType.WBS_SUMMARY
+        and member.wbs_id is not None
+        and (
+            member.wbs_id == activity.wbs_id
+            or activity.wbs_id in member.wbs_ancestry
+        )
+    ]
+    if not members:
+        raise ValueError(
+            f"WBS-summary activity has no descendant activities:{activity.id}"
+        )
+    member_schedules = []
+    for member in members:
+        value = scheduled.get(member.id)
+        if value is None:
+            raise ValueError(
+                f"WBS-summary member was not scheduled:{activity.id}:{member.id}"
+            )
+        member_schedules.append(value)
+    start = min(value.start for value in member_schedules)
+    finish = max(value.finish for value in member_schedules)
+    percent_complete, status = _wbs_summary_progress(members)
+    return ScheduledActivity(
+        activity_id=activity.id,
+        start=start,
+        finish=finish,
+        duration=resolver.calculate_duration(start, finish),
+        remaining_start=start,
+        remaining_finish=finish,
+        percent_complete=percent_complete,
+        status=status,
+    )
+
+
 def forward_pass(
     activities: Iterable[Activity],
     relationships: Iterable[Relationship],
@@ -179,14 +537,22 @@ def forward_pass(
     activity_list = list(activities)
     activity_map = {activity.id: activity for activity in activity_list}
     if len(activity_map) != len(activity_list):
-        raise ValueError("activity ids must be unique")
+        raise ScheduleInfeasibilityError(
+            ScheduleDiagnosticCode.DUPLICATE_ACTIVITY_ID,
+            "activity ids must be unique",
+        )
     if not activity_map:
         return {}
 
     relationship_list = list(relationships)
     for rel in relationship_list:
         if rel.predecessor_id not in activity_map or rel.successor_id not in activity_map:
-            raise ValueError("relationship references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "relationship references an unknown activity",
+                predecessor_id=rel.predecessor_id,
+                successor_id=rel.successor_id,
+            )
 
     constraint_map: dict[str, list[ActivityConstraint]] = {
         activity_id: [] for activity_id in activity_map
@@ -194,44 +560,67 @@ def forward_pass(
     all_constraints = list(constraints or ())
     for constraint in all_constraints:
         if constraint.activity_id not in activity_map:
-            raise ValueError("constraint references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "constraint references an unknown activity",
+                activity_id=constraint.activity_id,
+            )
         constraint_map[constraint.activity_id].append(constraint)
 
     for activity_id, activity_constraints in constraint_map.items():
+        activity = activity_map[activity_id]
+        if (
+            activity.activity_type is ActivityType.LEVEL_OF_EFFORT
+            and activity_constraints
+        ):
+            raise ValueError(
+                f"level-of-effort activities cannot carry constraints:{activity_id}"
+            )
+        if activity.activity_type is ActivityType.WBS_SUMMARY:
+            # Constraints are not considered for WBS Summary activities.
+            continue
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
         validate_constraint_set(
-            activity_constraints, activity_map[activity_id].duration, activity_resolver
+            activity_constraints, activity.duration, activity_resolver
         )
 
+    # LOE and WBS Summary dates are derived after the driving network is
+    # placed. Their relationships never propagate dates to other activities.
+    network_relationships = driving_relationships(activity_list, relationship_list)
     incoming: dict[str, list[Relationship]] = {
         activity_id: [] for activity_id in activity_map
     }
-    for rel in relationship_list:
+    for rel in network_relationships:
         incoming[rel.successor_id].append(rel)
 
-    order = _topological_order(activity_map, relationship_list)
+    order = _topological_order(activity_map, network_relationships)
     result: dict[str, ScheduledActivity] = {}
+
+    # P6 schedules from the project data date, using the project start date as
+    # the initial data date. Remaining work of a progressed activity can never
+    # be placed before the start of the current work period.
+    effective_data_date = data_date or project_start
 
     for activity_id in order:
         activity = activity_map[activity_id]
+        if is_non_driving_activity(activity):
+            continue
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
         progressed = activity.actual_start is not None
+        completed = activity.actual_finish is not None
+        # Remaining duration drives the forward pass for progressed work. A
+        # completed activity has no remaining work; its actual dates are kept.
         scheduled_duration = (
-            activity.remaining_duration
-            if progressed and activity.actual_finish is None and activity.remaining_duration is not None
-            else activity.duration
+            0
+            if completed
+            else (
+                activity.remaining_duration
+                if progressed and activity.remaining_duration is not None
+                else activity.duration
+            )
         )
-        if not incoming[activity_id]:
-            start = activity_resolver.normalize_start(project_start)
-            oos_action = ProgressRelationAction.APPLY_LOGIC
-            if progressed and activity.actual_start is not None:
-                if data_date is not None and data_date < activity.actual_start:
-                    raise ValueError("data_date must not precede actual_start for progressed activity")
-                start = max(
-                    start,
-                    activity_resolver.normalize_start(activity.actual_start),
-                )
-        else:
+        logic_start = activity_resolver.normalize_start(project_start)
+        if incoming[activity_id]:
             start_requirements = [
                 _successor_start(
                     rel,
@@ -240,7 +629,7 @@ def forward_pass(
                     resolver,
                     activity_map[rel.predecessor_id],
                     start_to_start_lag_calculation_type,
-                    data_date,
+                    effective_data_date,
                     (relationship_lag_resolvers or {}).get(
                         (rel.predecessor_id, rel.successor_id)
                     ),
@@ -255,47 +644,70 @@ def forward_pass(
                     ),
                 )
             ]
-            start = activity_resolver.normalize_start(max(start_requirements))
-            oos_action = ProgressRelationAction.APPLY_LOGIC
-            if progressed and activity.actual_start is not None:
-                if data_date is not None and data_date < activity.actual_start:
-                    raise ValueError("data_date must not precede actual_start for progressed activity")
-                if activity.actual_start >= start:
-                    start = activity_resolver.normalize_start(activity.actual_start)
-                else:
-                    if data_date is None:
-                        raise ValueError("data_date is required for out-of-sequence progress")
-                    oos_action = resolve_out_of_sequence_action(
-                        activity,
-                        relationship_required_start=start,
-                        data_date=data_date,
-                        mode=out_of_sequence_schedule_type,
-                    )
-                    if oos_action is ProgressRelationAction.IGNORE_LOGIC:
-                        if activity.actual_finish is not None:
-                            start = activity_resolver.normalize_start(activity.actual_start)
-                            scheduled_duration = 0
-                        else:
-                            start = activity_resolver.normalize_start(data_date)
-                    elif oos_action is ProgressRelationAction.USE_ACTUAL_DATES:
-                        if activity.actual_finish is not None:
-                            start = activity_resolver.normalize_start(activity.actual_start)
-                            scheduled_duration = 0
+            logic_start = activity_resolver.normalize_start(max(start_requirements))
 
-        for constraint in sorted(
-            constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
-        ):
-            start = apply_earliest_constraint(
-                constraint, start, scheduled_duration, activity_resolver
-            )
-
-        if not (oos_action is ProgressRelationAction.USE_ACTUAL_DATES and activity.actual_finish is not None):
-            start = _apply_expected_finish_target(
-                start, activity, activity_resolver, use_expected_finish_dates
-            )
-            finish = activity_resolver.add_working_duration(start, scheduled_duration)
-        else:
+        if completed:
+            if activity.actual_start is None or activity.actual_finish is None:
+                raise ValueError("completed activity requires actual dates")
+            start = activity_resolver.normalize_start(activity.actual_start)
             finish = activity_resolver.normalize_finish(activity.actual_finish)
+            remaining_start = None
+            remaining_finish = None
+        elif progressed:
+            actual_start = activity_resolver.normalize_start(activity.actual_start)
+            data_date_bound = (
+                activity_resolver.normalize_start(data_date)
+                if data_date is not None
+                else actual_start
+            )
+            out_of_sequence = actual_start < logic_start
+            if out_of_sequence_schedule_type is OutOfSequenceScheduleType.PROGRESS_OVERRIDE:
+                # Network logic is ignored for the remaining work, which can
+                # proceed from the later of the actual start and the data date.
+                remaining_start = max(actual_start, data_date_bound)
+                start = remaining_start if out_of_sequence else actual_start
+            elif out_of_sequence_schedule_type is OutOfSequenceScheduleType.ACTUAL_DATES:
+                # Forward and backward passes use actual dates. Keeping the
+                # remaining work anchored on the actual start is what can make
+                # an activity that is actually late finish after the data date
+                # and therefore carry negative total float.
+                remaining_start = actual_start
+                start = actual_start
+            else:
+                # Retained Logic: remaining work is not scheduled until all
+                # predecessors are complete, and never before the data date.
+                remaining_start = max(logic_start, actual_start, data_date_bound)
+                start = remaining_start if out_of_sequence else actual_start
+            remaining_start = activity_resolver.normalize_start(remaining_start)
+            for constraint in sorted(
+                constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
+            ):
+                remaining_start = apply_earliest_constraint(
+                    constraint, remaining_start, scheduled_duration, activity_resolver
+                )
+            remaining_start = _apply_expected_finish_target(
+                remaining_start, activity, activity_resolver, use_expected_finish_dates
+            )
+            finish = activity_resolver.add_working_duration(
+                remaining_start, scheduled_duration
+            )
+            remaining_finish = finish
+        else:
+            remaining_start = logic_start
+            for constraint in sorted(
+                constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
+            ):
+                remaining_start = apply_earliest_constraint(
+                    constraint, remaining_start, scheduled_duration, activity_resolver
+                )
+            remaining_start = _apply_expected_finish_target(
+                remaining_start, activity, activity_resolver, use_expected_finish_dates
+            )
+            start = remaining_start
+            finish = activity_resolver.add_working_duration(
+                remaining_start, scheduled_duration
+            )
+            remaining_finish = finish
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
@@ -303,7 +715,40 @@ def forward_pass(
             validate_upper_bound(constraint, start, finish, activity_resolver)
 
         result[activity_id] = ScheduledActivity(
-            activity_id=activity_id, start=start, finish=finish, duration=scheduled_duration
+            activity_id=activity_id,
+            start=start,
+            finish=finish,
+            duration=scheduled_duration,
+            remaining_start=remaining_start,
+            remaining_finish=remaining_finish,
+        )
+
+    # LOE spans are derived from neighbours that are already placed; LOE never
+    # drives those neighbours. A WBS Summary is then rolled up from every
+    # activity in its WBS element, including LOE activities.
+    for activity_id in order:
+        activity = activity_map[activity_id]
+        if activity.activity_type is not ActivityType.LEVEL_OF_EFFORT:
+            continue
+        result[activity_id] = _schedule_level_of_effort(
+            activity,
+            relationship_list,
+            activity_map,
+            result,
+            (activity_resolvers or {}).get(activity_id, resolver),
+            data_date,
+            out_of_sequence_schedule_type,
+        )
+
+    for activity_id in order:
+        activity = activity_map[activity_id]
+        if activity.activity_type is not ActivityType.WBS_SUMMARY:
+            continue
+        result[activity_id] = _schedule_wbs_summary(
+            activity,
+            activity_map,
+            result,
+            (activity_resolvers or {}).get(activity_id, resolver),
         )
 
     return result

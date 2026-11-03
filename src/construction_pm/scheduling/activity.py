@@ -101,11 +101,19 @@ class Activity:
     activity_type: ActivityType = ActivityType.TASK_DEPENDENT
     status_code: ActivityStatusCode = ActivityStatusCode.PLANNED
     name: str = ""
+    # P6's activity short name. Multiple Float Paths can select its ending
+    # activity by this label, so it must be a persisted scheduling input.
+    short_name: str | None = None
     original_duration: int | None = None
     planned_finish: date | None = None
     leveling_priority: ActivityLevelingPriority = ActivityLevelingPriority.NORMAL
     # Hash of the exact driving assignments used to derive a Resource Dependent duration.
     resource_dependent_input_hash: str | None = None
+    # Snapshot-bound WBS identity. ``wbs_ancestry`` is ordered from the project
+    # root down to the direct parent and is what lets a WBS Summary aggregate
+    # activities in subordinate WBS elements without reading live persistence.
+    wbs_id: str | None = None
+    wbs_ancestry: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id.strip():
@@ -121,6 +129,10 @@ class Activity:
                 raise ValueError("original_duration must be non-negative")
         if not isinstance(self.name, str):
             raise TypeError("name must be a string")
+        if self.short_name is not None and (
+            not isinstance(self.short_name, str) or not self.short_name.strip()
+        ):
+            raise ValueError("short_name must be a non-empty string or None")
         if self.resource_dependent_input_hash is not None:
             value = self.resource_dependent_input_hash
             if (
@@ -159,6 +171,29 @@ class Activity:
             raise TypeError("status must be an ActivityStatus")
         if not isinstance(self.activity_type, ActivityType):
             raise TypeError("activity_type must be an ActivityType")
+        if self.activity_type in (
+            ActivityType.START_MILESTONE,
+            ActivityType.FINISH_MILESTONE,
+        ):
+            # A milestone is a zero-duration event. Treating a stored
+            # nonzero duration as task work would silently move the
+            # milestone and its successors.
+            if self.duration != 0:
+                raise ValueError("milestones must have zero duration")
+            if self.original_duration not in (None, 0):
+                raise ValueError("milestones must have zero original_duration")
+            if self.remaining_duration not in (None, 0):
+                raise ValueError("milestones must have zero remaining_duration")
+            if (
+                self.actual_start is not None
+                and self.actual_finish is not None
+                and self.actual_start != self.actual_finish
+            ):
+                # A milestone is a single event: its actual start and actual
+                # finish are the same date, never a spanned work window.
+                raise ValueError(
+                    "milestone actual_finish must equal actual_start"
+                )
         if not isinstance(self.status_code, ActivityStatusCode):
             raise TypeError("status_code must be an ActivityStatusCode")
         if self.expected_finish is not None and (not isinstance(self.expected_finish, date) or isinstance(self.expected_finish, datetime)):
@@ -174,3 +209,20 @@ class Activity:
             raise ValueError("expected_finish must not precede actual_start")
         if self.actual_finish is not None and self.percent_complete not in (None, 100):
             raise ValueError("completed activities must have 100 percent_complete")
+        if self.wbs_id is not None and (
+            not isinstance(self.wbs_id, str) or not self.wbs_id.strip()
+        ):
+            raise ValueError("wbs_id must be a non-empty string or None")
+        if not isinstance(self.wbs_ancestry, tuple):
+            raise TypeError("wbs_ancestry must be a tuple")
+        if self.wbs_ancestry and self.wbs_id is None:
+            raise ValueError("wbs_ancestry requires wbs_id")
+        if any(
+            not isinstance(value, str) or not value.strip()
+            for value in self.wbs_ancestry
+        ):
+            raise ValueError("wbs_ancestry must contain non-empty strings")
+        if len(set(self.wbs_ancestry)) != len(self.wbs_ancestry):
+            raise ValueError("wbs_ancestry must not repeat a WBS id")
+        if self.wbs_id is not None and self.wbs_id in self.wbs_ancestry:
+            raise ValueError("wbs_ancestry must not contain the activity's own WBS id")

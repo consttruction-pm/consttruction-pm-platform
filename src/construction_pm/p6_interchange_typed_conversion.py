@@ -11,11 +11,42 @@ from .scheduling.activity import ActivityStatus, ActivityType
 class P6InterchangeTypedConversionError(ValueError):
     """Raised when an interchange value cannot be converted to the canonical field type."""
 
+_TEXT_FIELD_TYPES = frozenset(
+    {
+        P6FieldType.STRING,
+        P6FieldType.ENUM,
+        P6FieldType.STRING_ARRAY,
+        P6FieldType.OBJECT_ID_ARRAY,
+    }
+)
+
+_BOOLEAN_TEXT_TOKENS = {
+    "y": True,
+    "yes": True,
+    "true": True,
+    "1": True,
+    "n": False,
+    "no": False,
+    "false": False,
+    "0": False,
+}
+
+
 def typed_value_for_field(field: P6FieldDefinition, raw: Any) -> P6InterchangeTypedValue:
     kind = field.data_type
+    if raw is None:
+        return P6InterchangeTypedValue(kind.value, None, unit=field.unit)
     try:
         if kind is P6FieldType.DATE:
-            value = raw if isinstance(raw, date) and not isinstance(raw, datetime) else date.fromisoformat(str(raw))
+            if isinstance(raw, datetime):
+                # Spreadsheet codecs return midnight datetimes for date cells.
+                if raw.time() != datetime.min.time():
+                    raise ValueError("date value has a time component")
+                value = raw.date()
+            elif isinstance(raw, date):
+                value = raw
+            else:
+                value = date.fromisoformat(str(raw))
             return P6InterchangeTypedValue("date", value, unit=field.unit)
         if kind is P6FieldType.DATETIME:
             if isinstance(raw, datetime):
@@ -84,6 +115,34 @@ _XER_ACTIVITY_TYPE_FROM_WIRE = {
 
 def typed_value_for_mapping(field: P6FieldDefinition, raw: Any, *, format: P6MappingFormat, source_field: str) -> P6InterchangeTypedValue:
     """Decode format-specific enum tokens, then validate the canonical field type."""
+    if raw is None:
+        return typed_value_for_field(field, None)
+    if (
+        isinstance(raw, str)
+        and raw == ""
+        and field.data_type not in _TEXT_FIELD_TYPES
+    ):
+        # Text codecs represent an absent cell/element as "". A typed field
+        # keeps that as None instead of coercing it to 0 or raising.
+        return typed_value_for_field(field, None)
+    if field.data_type is P6FieldType.BOOLEAN:
+        if isinstance(raw, str):
+            token = raw.strip().lower()
+            if token not in _BOOLEAN_TEXT_TOKENS:
+                raise P6InterchangeTypedConversionError(
+                    f"INVALID_CANONICAL_VALUE:{field.field_id}:{field.data_type.value}"
+                )
+            raw = _BOOLEAN_TEXT_TOKENS[token]
+        elif isinstance(raw, int) and not isinstance(raw, bool) and raw in (0, 1):
+            # Spreadsheet codecs write boolean cells as 1/0.
+            raw = bool(raw)
+        elif (
+            isinstance(raw, float)
+            and raw.is_integer()
+            and raw in (0.0, 1.0)
+        ):
+            # XLS numeric cells always decode as float.
+            raw = bool(int(raw))
     if format is P6MappingFormat.XER_PROJECT:
         if source_field == "status_code" and field.field_id == "activity.status":
             try:
@@ -104,6 +163,8 @@ def typed_value_for_mapping(field: P6FieldDefinition, raw: Any, *, format: P6Map
 
 def source_value_for_mapping(field: P6FieldDefinition, canonical: Any, *, format: P6MappingFormat, source_field: str) -> Any:
     """Encode canonical values using the external tokens for the mapped field."""
+    if canonical is None:
+        return None
     value = typed_value_for_field(field, canonical).value
     if format is P6MappingFormat.XER_PROJECT:
         if source_field == "status_code" and field.field_id == "activity.status":

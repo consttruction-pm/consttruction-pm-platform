@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from io import BytesIO
 import json
+import hashlib
 import sqlite3
 
 import pytest
@@ -12,7 +13,10 @@ from construction_pm.activity_master_repository import SQLiteActivityMasterRepos
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectLifecycleService, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
-from construction_pm.authoritative_schedule_input_composer import AuthoritativeScheduleInputComposer
+from construction_pm.authoritative_schedule_input_composer import (
+    AuthoritativeScheduleInputComposer,
+    ScheduleInputCompositionError,
+)
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.calendar_master_repository import (
@@ -175,6 +179,21 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
     )
     calendar_repo.save(resource_calendar)
     calendar_snapshots.save(resource_calendar, WorkingCalendar())
+    alternate_resource_calendar = CalendarMaster(
+        scope=scope,
+        calendar_id="RC-2",
+        calendar_version="v1",
+        kind="working-day",
+        name="Alternate Resource Calendar",
+        calendar_type="resource",
+    )
+    calendar_repo.save(alternate_resource_calendar)
+    # A four-day work week makes the selected driving calendar observable in
+    # the calculated activity finish date.
+    calendar_snapshots.save(
+        alternate_resource_calendar,
+        WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3})),
+    )
 
     composer = AuthoritativeScheduleInputComposer(
         activity_repository=activity_repo,
@@ -186,6 +205,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         resource_assignment_repository=resource_assignments,
         resource_period_repository=resource_periods,
         project_schedule_settings_repository=settings_repo,
+        wbs_repository=wbs_repo,
     )
     if fail_context_write:
         class FailingContextRepository:
@@ -217,6 +237,9 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
                 WorkingCalendar(working_weekdays=frozenset({1, 2, 3, 4}))
             ),
             "RC-1@v1": WorkingTimeResolver(WorkingCalendar()),
+            "RC-2@v1": WorkingTimeResolver(
+                WorkingCalendar(working_weekdays=frozenset({0, 1, 2, 3}))
+            ),
         }
     )
     app = build_project_lifecycle_wsgi_app(
@@ -241,6 +264,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "connection": connection,
         "scope": scope,
         "activity_repo": activity_repo,
+        "wbs_repo": wbs_repo,
         "relationship_repo": relationship_repo,
         "snapshot_repo": snapshot_repo,
         "context_repo": context_repo,
@@ -255,6 +279,7 @@ def _fixture(tmp_path, *, role: str = "project_admin", fail_context_write: bool 
         "calendar_exceptions": calendar_exceptions,
         "calendar_work_hours": calendar_work_hours,
         "registry": registry,
+        "composer": composer,
     }
 
 
@@ -302,11 +327,11 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     }
     status_a, created_a = _request(
         app, "POST", "/api/projects/p1/p6/activities",
-        {**activity_payload, "activity_id": "A-1", "name": "Foundation"},
+        {**activity_payload, "activity_id": "A-1", "name": "Foundation", "short_name": "CP-START"},
     )
     status_b, created_b = _request(
         app, "POST", "/api/projects/p1/p6/activities",
-        {**activity_payload, "activity_id": "B-1", "name": "Columns", "duration_value": "1"},
+        {**activity_payload, "activity_id": "B-1", "name": "Columns", "duration_value": "1", "short_name": "CP-END"},
     )
     assert status_a == "201 Created"
     assert status_b == "201 Created"
@@ -375,6 +400,8 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     assert context is not None
     payload = json.loads(snapshot.canonical_payload)
     assert {item["id"]: item for item in payload["activities"]}["A-1"]["name"] == "Foundation"
+    assert {item["id"]: item for item in payload["activities"]}["A-1"]["short_name"] == "CP-START"
+    assert {item["id"]: item for item in payload["activities"]}["B-1"]["short_name"] == "CP-END"
     assert {item["id"]: item for item in payload["activities"]}["A-1"]["planned_finish"] == "2026-10-22"
     assert {item["id"]: item for item in payload["activities"]}["B-1"]["name"] == "Columns"
     assert len(payload["relationships"]) == 1
@@ -396,6 +423,8 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     materialized = materialize_schedule_snapshot(snapshot, registry)
     by_id = {item.id: item for item in materialized.schedule_input.activities}
     assert by_id["A-1"].name == "Foundation"
+    assert by_id["A-1"].short_name == "CP-START"
+    assert by_id["B-1"].short_name == "CP-END"
     assert by_id["A-1"].planned_finish == date(2026, 10, 22)
     assert by_id["A-1"].leveling_priority is ActivityLevelingPriority.HIGH
     assert by_id["A-1"].status is ActivityStatus.NOT_STARTED
@@ -436,6 +465,118 @@ def test_authenticated_activity_write_flows_through_fresh_read_into_immutable_sn
     assert query_result["data"]["activities"]["A-1"]["start"] == "2026-10-19"
     assert query_result["data"]["activities"]["B-1"]["start"] == "2026-10-21"
     assert query_result["source_refs"][0]["source_id"] == published["snapshot_id"]
+    connection.close()
+
+
+def test_persisted_short_name_selects_multiple_float_path_endpoint_end_to_end(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    activity_payload = {
+        "contract_version": "p6-activity-master-api.v1",
+        "duration_unit": "working-day",
+        "duration_value": "2",
+        "percent_complete_type": "DURATION",
+        "activity_type": "Task Dependent",
+        "status": "Not Started",
+        "status_code": "Planned",
+        "wbs_id": "W-ROOT",
+    }
+    for activity_id, duration, short_name in (
+        ("A-1", "2", "CP-START"),
+        ("B-1", "1", "CP-END"),
+        ("C-1", "1", "CP-OTHER"),
+    ):
+        status, _created = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/activities",
+            {
+                **activity_payload,
+                "activity_id": activity_id,
+                "name": f"Activity {activity_id}",
+                "duration_value": duration,
+                "short_name": short_name,
+            },
+        )
+        assert status == "201 Created"
+    for relationship_id, predecessor, successor in (
+        ("REL-AB", "A-1", "B-1"),
+        ("REL-AC", "A-1", "C-1"),
+    ):
+        status, _created = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/relationships",
+            {
+                "relationship_id": relationship_id,
+                "predecessor_id": predecessor,
+                "successor_id": successor,
+                "relationship_type": "FS",
+                "lag_value": "0",
+                "lag_unit": DurationUnit.WORKING_DAY.value,
+            },
+        )
+        assert status == "200 OK"
+
+    settings_status, _settings = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            multiple_float_paths_enabled=True,
+            maximum_multiple_float_paths=2,
+            multiple_float_paths_ending_activity_short_name="CP-END",
+        ),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    payload = json.loads(snapshot.canonical_payload)
+    assert payload["schedule_options"]["multiple_float_paths_ending_activity_short_name"] == "CP-END"
+    stored = {item["id"]: item for item in payload["activities"]}
+    assert stored["B-1"]["short_name"] == "CP-END"
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-FLOAT-PATHS",
+            "scope": {
+                "tenant_id": "t1",
+                "project_id": "p1",
+                "project_revision": 2,
+            },
+            "requested_by": "u1",
+            "query_text": "show multiple float paths",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    activities = query_result["data"]["activities"]
+    assert activities["A-1"]["float_path"] == 1
+    assert activities["A-1"]["float_path_order"] == 1
+    assert activities["B-1"]["float_path"] == 1
+    assert activities["B-1"]["float_path_order"] == 2
+    assert activities["C-1"]["float_path"] == 2
+    assert activities["C-1"]["float_path_order"] == 1
     connection.close()
 
 
@@ -602,19 +743,34 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
             "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
             "status": ActivityStatus.NOT_STARTED.value,
             "status_code": ActivityStatusCode.PLANNED.value,
+            "wbs_id": "W-ROOT",
             "leveling_priority": ActivityLevelingPriority.HIGH.value,
             "original_duration": 1,
-            "wbs_id": "W-ROOT",
         },
     )
     assert status == "201 Created"
     assert created["activity"]["activity_id"] == "RD-1"
 
     # Not-started assignments use Planned Units / Units and the planned Units/Time:
-    # 8/4 = 2 days, 9/3 = 3 days. The longest-to-complete driver controls.
-    for assignment_id, resource_id, planned_units, rate in (
-        ("RD-AS-1", "RD-RES-1", "8", "4"),
-        ("RD-AS-2", "RD-RES-2", "9", "3"),
+    # 8/4 = 2 days, 9/3 = 3 days. The longest-to-complete driver controls. The
+    # persisted rows must reconcile with that duration and the planned units.
+    for assignment_id, resource_id, planned_units, rate, remaining, period_units in (
+        (
+            "RD-AS-1",
+            "RD-RES-1",
+            "8",
+            "4",
+            Decimal("8"),
+            (("2026-10-19", "4"), ("2026-10-20", "4")),
+        ),
+        (
+            "RD-AS-2",
+            "RD-RES-2",
+            "9",
+            "3",
+            None,
+            (("2026-10-19", "3"), ("2026-10-20", "3"), ("2026-10-21", "3")),
+        ),
     ):
         fixture["resource_assignments"].upsert(
             P6ResourceAssignment(
@@ -623,8 +779,9 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
                 activity_id="RD-1",
                 resource_id=resource_id,
                 units=Decimal(planned_units),
-                # Not-started activities derive from Planned Units; remaining units are not used.
-                remaining_units=None,
+                # Not-started activities derive from Planned Units. When present,
+                # Remaining Units must agree with that same planned value.
+                remaining_units=remaining,
                 unit="labor-unit",
                 calendar_id="RC-1",
                 calendar_version="v1",
@@ -634,17 +791,18 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
                 hours_per_units_time_period=Decimal("8"),
             )
         )
-        fixture["resource_periods"].upsert(
-            P6ResourceAssignmentPeriodValue(
-                scope=scope,
-                assignment_id=assignment_id,
-                activity_id="RD-1",
-                resource_id=resource_id,
-                period_start="2026-10-19",
-                units=Decimal("4"),
-                cost=Decimal("0"),
+        for period_start, units in period_units:
+            fixture["resource_periods"].upsert(
+                P6ResourceAssignmentPeriodValue(
+                    scope=scope,
+                    assignment_id=assignment_id,
+                    activity_id="RD-1",
+                    resource_id=resource_id,
+                    period_start=period_start,
+                    units=Decimal(units),
+                    cost=Decimal("0"),
+                )
             )
-        )
 
     connection.commit()
     settings_status, _ = _save_settings(
@@ -701,6 +859,962 @@ def test_resource_dependent_duration_uses_longest_driving_rate_and_replays_same_
     assert query_result["data"]["activities"]["RD-1"]["finish"] == "2026-10-21"
     assert query_result["data"]["activities"]["RD-1"]["duration"] == 3
     assert query_result["data"]["calculation_run_identity"]
+
+    placement = query_result["data"]["resource_dependent_placement"]
+    assert placement["status"] == "COMPLETE"
+    assert placement["assignment_count"] == 2
+    assert placement["failed_assignment_count"] == 0
+    assert len(placement["input_hash"]) == 64
+    assert date.fromisoformat(placement["horizon_start"]) <= date(2026, 10, 19)
+    assert date.fromisoformat(placement["horizon_end"]) >= date(2026, 10, 21)
+    assert set(placement["assignments"]) == {"RD-AS-1", "RD-AS-2"}
+    expected_assignment = {
+        "RD-AS-1": {
+            "finish": "2026-10-20",
+            "total_units": "8",
+            "row_units": ("4", "4"),
+        },
+        "RD-AS-2": {
+            "finish": "2026-10-21",
+            "total_units": "9",
+            "row_units": ("3", "3", "3"),
+        },
+    }
+    for assignment_id, expected in expected_assignment.items():
+        item = placement["assignments"][assignment_id]
+        assert item["activity_id"] == "RD-1"
+        assert item["is_driving"] is True
+        assert item["status"] == "FIXED_DRIVING"
+        assert item["activity_start"] == "2026-10-19"
+        assert item["start"] == "2026-10-19"
+        assert item["finish"] == expected["finish"]
+        assert item["calendar_id"] == "RC-1"
+        assert item["calendar_version"] == "v1"
+        assert item["diagnostic_code"] is None
+        assert item["total_units"] == expected["total_units"]
+        assert len(item["demand_periods"]) == len(expected["row_units"])
+        for demand, units in zip(item["demand_periods"], expected["row_units"]):
+            assert demand["units"] == units
+            assert demand["capacity"] == "8"
+            assert demand["total_load"] == units
+            assert demand["period_start"] == demand["source_period_start"]
+        assert [
+            demand["period_start"] for demand in item["demand_periods"]
+        ] == ["2026-10-19", "2026-10-20", "2026-10-21"][: len(expected["row_units"])]
+    connection.close()
+
+
+
+
+def test_resource_dependent_weekly_rate_converts_through_calendar_hours(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-WEEK",
+            "name": "Weekly rated resource dependent work",
+            "duration_value": "1",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.NOT_STARTED.value,
+            "status_code": ActivityStatusCode.PLANNED.value,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    # 100 units at 20 units/week on a 40-hour week and an 8-hour resource day
+    # is 25 working days. The date-based calendar therefore spans 25 distinct
+    # working days and the persisted rows must reconcile with that span.
+    period_dates: list[str] = []
+    cursor = date(2026, 10, 19)
+    while len(period_dates) < 25:
+        if cursor.weekday() < 5:
+            period_dates.append(cursor.isoformat())
+        cursor += timedelta(days=1)
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-WEEK-AS",
+            activity_id="RD-WEEK",
+            resource_id="RD-WEEK-RES",
+            units=Decimal("100"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("20"),
+            units_per_time_period="week",
+            hours_per_units_time_period=Decimal("40"),
+        )
+    )
+    for period_start in period_dates:
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-WEEK-AS",
+                activity_id="RD-WEEK",
+                resource_id="RD-WEEK-RES",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    fact = json.loads(snapshot.canonical_payload)[
+        "resource_dependent_assignment_facts"
+    ][0]
+    # The rate period is non-daily, so the calendar's hours per day is an
+    # explicit immutable input rather than a process default.
+    assert fact["units_per_time_period"] == "week"
+    assert fact["hours_per_units_time_period"] == "40"
+    assert fact["calendar_hours_per_day"] == "8"
+
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    activity = next(
+        item
+        for item in materialized.schedule_input.activities
+        if item.id == "RD-WEEK"
+    )
+    assert activity.duration == 25
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-RD-WEEK",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "calculate the weekly resource-dependent activity",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK", query_result
+    assert query_result["data"]["activities"]["RD-WEEK"]["start"] == "2026-10-19"
+    assert query_result["data"]["activities"]["RD-WEEK"]["finish"] == period_dates[-1]
+    assert query_result["data"]["activities"]["RD-WEEK"]["duration"] == 25
+
+    placement = query_result["data"]["resource_dependent_placement"]
+    assert placement["status"] == "COMPLETE"
+    placed = placement["assignments"]["RD-WEEK-AS"]
+    assert placed["status"] == "FIXED_DRIVING"
+    assert placed["diagnostic_code"] is None
+    assert placed["total_units"] == "100"
+    assert len(placed["demand_periods"]) == 25
+    connection.close()
+
+
+def test_resource_dependent_longest_driving_assignment_selects_its_calendar(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-CAL",
+            "name": "Differing driving calendars",
+            "duration_value": "1",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.NOT_STARTED.value,
+            "status_code": ActivityStatusCode.PLANNED.value,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    # Both drivers use a daily rate, but on their own versioned calendars:
+    # 8/4 = 2 days on the five-day RC-1 and 12/4 = 3 days on the four-day RC-2.
+    # The longest driver controls the duration and therefore the activity
+    # calendar, without either calendar being reinterpreted as the other.
+    for assignment_id, resource_id, planned_units, calendar_id, period_days in (
+        (
+            "RD-CAL-A",
+            "RD-CAL-RES-A",
+            "8",
+            "RC-1",
+            ("2026-10-19", "2026-10-20"),
+        ),
+        (
+            "RD-CAL-B",
+            "RD-CAL-RES-B",
+            "12",
+            "RC-2",
+            ("2026-10-19", "2026-10-20", "2026-10-21"),
+        ),
+    ):
+        fixture["resource_assignments"].upsert(
+            P6ResourceAssignment(
+                scope=scope,
+                assignment_id=assignment_id,
+                activity_id="RD-CAL",
+                resource_id=resource_id,
+                units=Decimal(planned_units),
+                unit="labor-unit",
+                calendar_id=calendar_id,
+                calendar_version="v1",
+                is_driving=True,
+                units_per_time=Decimal("4"),
+                units_per_time_period="day",
+                hours_per_units_time_period=Decimal("8"),
+            )
+        )
+        for period_start in period_days:
+            fixture["resource_periods"].upsert(
+                P6ResourceAssignmentPeriodValue(
+                    scope=scope,
+                    assignment_id=assignment_id,
+                    activity_id="RD-CAL",
+                    resource_id=resource_id,
+                    period_start=period_start,
+                    units=Decimal("4"),
+                    cost=Decimal("0"),
+                )
+            )
+
+    connection.commit()
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    activity = next(
+        item for item in materialized.schedule_input.activities if item.id == "RD-CAL"
+    )
+    assert activity.duration == 3
+    calendar_assignment = next(
+        item
+        for item in materialized.schedule_input.activity_calendar_assignments
+        if item.activity_id == "RD-CAL"
+    )
+    assert (
+        calendar_assignment.calendar.calendar_id,
+        calendar_assignment.calendar.calendar_version,
+    ) == ("RC-2", "v1")
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-RD-CAL",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "calculate the differing driving calendars",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    assert query_result["data"]["activities"]["RD-CAL"]["start"] == "2026-10-19"
+    # Three working days on RC-2 (Mon-Wed) finish before a five-day calendar
+    # would, proving the winning assignment calendar drives CPM arithmetic.
+    assert query_result["data"]["activities"]["RD-CAL"]["finish"] == "2026-10-21"
+    assert query_result["data"]["activities"]["RD-CAL"]["duration"] == 3
+
+    placement = query_result["data"]["resource_dependent_placement"]
+    assert placement["status"] == "COMPLETE"
+    assert placement["failed_assignment_count"] == 0
+    for assignment_id, expected_finish, expected_calendar, row_count in (
+        ("RD-CAL-A", "2026-10-20", "RC-1", 2),
+        ("RD-CAL-B", "2026-10-21", "RC-2", 3),
+    ):
+        item = placement["assignments"][assignment_id]
+        assert item["status"] == "FIXED_DRIVING"
+        assert item["activity_start"] == "2026-10-19"
+        assert item["start"] == "2026-10-19"
+        assert item["finish"] == expected_finish
+        assert item["calendar_id"] == expected_calendar
+        assert item["calendar_version"] == "v1"
+        assert item["diagnostic_code"] is None
+        assert len(item["demand_periods"]) == row_count
+    connection.close()
+
+
+def test_resource_dependent_in_progress_activity_uses_remaining_units(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-IP",
+            "name": "In-progress resource dependent work",
+            "duration_value": "1",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.IN_PROGRESS.value,
+            "status_code": ActivityStatusCode.ACTIVE.value,
+            "actual_start": "2026-10-19",
+            "remaining_duration": 2,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    # The assignment planned 20 units at 4/day (5 working days) and has
+    # completed 12, so only 8 units / 2 working days remain. The persisted
+    # time-phased rows are the remaining demand, not the full planned spread.
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-IP-AS",
+            activity_id="RD-IP",
+            resource_id="RD-IP-RES",
+            units=Decimal("20"),
+            actual_units=Decimal("12"),
+            remaining_units=Decimal("8"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    for period_start, units in (("2026-10-19", "4"), ("2026-10-20", "4")):
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-IP-AS",
+                activity_id="RD-IP",
+                resource_id="RD-IP-RES",
+                period_start=period_start,
+                units=Decimal(units),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    payload = json.loads(snapshot.canonical_payload)
+    fact = payload["resource_dependent_assignment_facts"][0]
+    assert fact["planned_units"] == "20"
+    assert fact["actual_units"] == "12"
+    assert fact["remaining_units"] == "8"
+    assert [
+        period["period_start"] for period in fact["demand_periods"]
+    ] == ["2026-10-19", "2026-10-20"]
+
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    activity = next(
+        item for item in materialized.schedule_input.activities if item.id == "RD-IP"
+    )
+    # Five planned working days in total, two remaining after progress.
+    assert activity.duration == 5
+    assert activity.remaining_duration == 2
+    assert activity.actual_start == date(2026, 10, 19)
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-RD-IN-PROGRESS",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "calculate the in-progress resource-dependent activity",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    assert query_result["data"]["activities"]["RD-IP"]["start"] == "2026-10-19"
+    assert query_result["data"]["activities"]["RD-IP"]["finish"] == "2026-10-20"
+    assert query_result["data"]["activities"]["RD-IP"]["duration"] == 2
+
+    placement = query_result["data"]["resource_dependent_placement"]
+    assert placement["status"] == "COMPLETE"
+    placed = placement["assignments"]["RD-IP-AS"]
+    assert placed["status"] == "FIXED_DRIVING"
+    assert placed["diagnostic_code"] is None
+    # Only the remaining units occupy the capacity ledger; the 12 consumed
+    # units are not re-placed against future availability.
+    assert placed["total_units"] == "8"
+    assert [row["units"] for row in placed["demand_periods"]] == ["4", "4"]
+    assert [
+        row["period_start"] for row in placed["demand_periods"]
+    ] == ["2026-10-19", "2026-10-20"]
+
+    # Remaining demand is immutable snapshot input: a new persisted row after
+    # publication must invalidate the replay instead of changing the ledger.
+    fixture["resource_periods"].upsert(
+        P6ResourceAssignmentPeriodValue(
+            scope=scope,
+            assignment_id="RD-IP-AS",
+            activity_id="RD-IP",
+            resource_id="RD-IP-RES",
+            period_start="2026-10-21",
+            units=Decimal("4"),
+            cost=Decimal("0"),
+        )
+    )
+    connection.commit()
+    stale_status, stale_error = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-RD-IN-PROGRESS-STALE",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "replay the in-progress resource-dependent activity",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert stale_status == "400 Bad Request"
+    assert "RESOURCE_DEPENDENT_SNAPSHOT_FACTS_CHANGED" in stale_error["error"]["code"]
+    connection.close()
+
+
+def test_resource_dependent_completed_activity_keeps_actual_dates(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-C",
+            "name": "Completed resource dependent work",
+            "duration_value": "3",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.COMPLETED.value,
+            "status_code": ActivityStatusCode.ACTIVE.value,
+            "actual_start": "2026-10-19",
+            "actual_finish": "2026-10-21",
+            "remaining_duration": 0,
+            "percent_complete": 100,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-C-AS",
+            activity_id="RD-C",
+            resource_id="RD-C-RES",
+            units=Decimal("12"),
+            actual_units=Decimal("12"),
+            remaining_units=Decimal("0"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    for period_start in ("2026-10-19", "2026-10-20", "2026-10-21"):
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-C-AS",
+                activity_id="RD-C",
+                resource_id="RD-C-RES",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 22),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    activity = next(
+        item for item in materialized.schedule_input.activities if item.id == "RD-C"
+    )
+    # The persisted at-completion duration is the reported duration, but no
+    # remaining work is derived for a completed activity.
+    assert activity.duration == 3
+    assert activity.remaining_duration == 0
+    assert activity.actual_start == date(2026, 10, 19)
+    assert activity.actual_finish == date(2026, 10, 21)
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-RD-COMPLETED",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "calculate the completed resource-dependent activity",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK", query_result
+    fact = query_result["data"]["activities"]["RD-C"]
+    assert fact["start"] == "2026-10-19"
+    assert fact["finish"] == "2026-10-21"
+    assert fact["duration"] == 0
+    assert fact["remaining_start"] is None
+    assert fact["remaining_finish"] is None
+    assert query_result["data"]["resource_dependent_placement"]["status"] == "COMPLETE"
+    connection.close()
+
+
+def test_resource_dependent_completed_without_actual_dates_fails_closed(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-C-BAD",
+            "name": "Completed without actual dates",
+            "duration_value": "1",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.COMPLETED.value,
+            "status_code": ActivityStatusCode.ACTIVE.value,
+            "remaining_duration": 0,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-C-BAD-AS",
+            activity_id="RD-C-BAD",
+            resource_id="RD-C-RES",
+            units=Decimal("4"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    fixture["resource_periods"].upsert(
+        P6ResourceAssignmentPeriodValue(
+            scope=scope,
+            assignment_id="RD-C-BAD-AS",
+            activity_id="RD-C-BAD",
+            resource_id="RD-C-RES",
+            period_start="2026-10-19",
+            units=Decimal("4"),
+            cost=Decimal("0"),
+        )
+    )
+    connection.commit()
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status == "400 Bad Request"
+    assert "RESOURCE_DEPENDENT_COMPLETED_ACTUAL_DATES_REQUIRED:RD-C-BAD" in json.dumps(error)
+    connection.close()
+
+
+def test_resource_dependent_in_progress_publication_rejects_ambiguous_remaining_duration(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-IP-BAD",
+            "name": "Inconsistent remaining duration",
+            "duration_value": "1",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.IN_PROGRESS.value,
+            "status_code": ActivityStatusCode.ACTIVE.value,
+            "actual_start": "2026-10-19",
+            # The assignment facts imply 2 remaining days; the activity says 3.
+            "remaining_duration": 3,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-IP-BAD-AS",
+            activity_id="RD-IP-BAD",
+            resource_id="RD-IP-BAD-RES",
+            units=Decimal("20"),
+            actual_units=Decimal("12"),
+            remaining_units=Decimal("8"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    for period_start in ("2026-10-19", "2026-10-20"):
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-IP-BAD-AS",
+                activity_id="RD-IP-BAD",
+                resource_id="RD-IP-BAD-RES",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status != "201 Created"
+    assert "RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH:RD-IP-BAD:3:2" in json.dumps(error)
+    connection.close()
+
+
+def test_resource_dependent_in_progress_requires_assignment_progress_units(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-IP-NOPROGRESS",
+            "name": "In-progress activity without assignment progress",
+            "duration_value": "2",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            "status": ActivityStatus.IN_PROGRESS.value,
+            "status_code": ActivityStatusCode.ACTIVE.value,
+            "actual_start": "2026-10-19",
+            "remaining_duration": 2,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    # The activity started, but the assignment declares no Actual/Remaining
+    # Units. Falling back to Planned Units would silently re-forecast consumed
+    # work, so publication must fail closed.
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-IP-NOPROGRESS-AS",
+            activity_id="RD-IP-NOPROGRESS",
+            resource_id="RD-IP-NOPROGRESS-RES",
+            units=Decimal("8"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    for period_start in ("2026-10-19", "2026-10-20"):
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-IP-NOPROGRESS-AS",
+                activity_id="RD-IP-NOPROGRESS",
+                resource_id="RD-IP-NOPROGRESS-RES",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status != "201 Created"
+    assert (
+        "RESOURCE_DEPENDENT_PROGRESS_ASSIGNMENT_UNITS_REQUIRED:"
+        "RD-IP-NOPROGRESS:RD-IP-NOPROGRESS-AS"
+    ) in json.dumps(error)
+    connection.close()
+
+
+def test_resource_dependent_not_started_rejects_divergent_remaining_duration(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-NS-BAD",
+            "name": "Not-started activity with shortened remaining duration",
+            "duration_value": "5",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
+            "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
+            # Not started, so Remaining Duration must equal the derived
+            # duration of 20 units / 4 per day = 5 working days.
+            "remaining_duration": 2,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-NS-BAD-AS",
+            activity_id="RD-NS-BAD",
+            resource_id="RD-NS-BAD-RES",
+            units=Decimal("20"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=True,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
+    )
+    for period_start in (
+        "2026-10-19",
+        "2026-10-20",
+        "2026-10-21",
+        "2026-10-22",
+        "2026-10-23",
+    ):
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-NS-BAD-AS",
+                activity_id="RD-NS-BAD",
+                resource_id="RD-NS-BAD-RES",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    connection.commit()
+
+    _save_settings(
+        app,
+        options=ScheduleOptions(
+            data_date=date(2026, 10, 19),
+            level_all_resources=True,
+        ),
+        project_start=date(2026, 10, 19),
+    )
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {
+            "contract_version": "p6-schedule-snapshot-api.v1",
+            "timezone": "UTC",
+        },
+    )
+    assert publication_status != "201 Created"
+    assert (
+        "RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH:RD-NS-BAD:2:5"
+        in json.dumps(error)
+    )
     connection.close()
 
 
@@ -771,20 +1885,341 @@ def test_resource_dependent_activity_publication_fails_closed_for_unknown_drivin
     fixture["connection"].close()
 
 
-def test_resource_dependent_publication_fails_closed_for_persisted_nondriving_assignment(tmp_path):
+def test_level_of_effort_and_wbs_summary_schedule_end_to_end(tmp_path):
     fixture = _fixture(tmp_path)
     app = fixture["app"]
     scope = fixture["scope"]
+    fixture["wbs_repo"].save(
+        WBSMaster(
+            scope,
+            "W-CHILD",
+            WBSParentKind.WBS,
+            "W-ROOT",
+            "1.1",
+            "Child Work",
+            0,
+        )
+    )
+
+    for activity in (
+        {
+            "activity_id": "LOE-P",
+            "name": "Predecessor",
+            "duration_value": "3",
+            "activity_type": ActivityType.TASK_DEPENDENT.value,
+            "wbs_id": "W-CHILD",
+        },
+        {
+            "activity_id": "LOE-S",
+            "name": "Finish successor",
+            "duration_value": "5",
+            "activity_type": ActivityType.TASK_DEPENDENT.value,
+            "wbs_id": "W-CHILD",
+        },
+        {
+            "activity_id": "LOE-1",
+            "name": "Ongoing effort",
+            "duration_value": "1",
+            "activity_type": ActivityType.LEVEL_OF_EFFORT.value,
+            "wbs_id": "W-CHILD",
+        },
+        {
+            "activity_id": "WBS-1",
+            "name": "Work summary",
+            "duration_value": "0",
+            "activity_type": ActivityType.WBS_SUMMARY.value,
+            "wbs_id": "W-ROOT",
+        },
+    ):
+        status, _ = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/activities",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "duration_unit": "working-day",
+                **activity,
+            },
+        )
+        assert status == "201 Created"
+
+    for relationship in (
+        ("REL-LOE-SS", "LOE-P", "LOE-1", "SS", "0"),
+        ("REL-LOE-FF", "LOE-1", "LOE-S", "FF", "0"),
+        ("REL-P-S", "LOE-P", "LOE-S", "FS", "2"),
+        # WBS Summary relationships are ignored during scheduling.
+        ("REL-WBS-SS", "WBS-1", "LOE-S", "SS", "0"),
+    ):
+        relationship_id, predecessor, successor, rel_type, lag = relationship
+        status, _ = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/relationships",
+            {
+                "relationship_id": relationship_id,
+                "predecessor_id": predecessor,
+                "successor_id": successor,
+                "relationship_type": rel_type,
+                "lag_value": lag,
+                "lag_unit": DurationUnit.WORKING_DAY.value,
+            },
+        )
+        assert status == "200 OK"
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(data_date=date(2026, 11, 2)),
+        project_start=date(2026, 11, 2),
+    )
+    assert settings_status == "201 Created"
+
+    publication_status, published = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+    )
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    materialized = materialize_schedule_snapshot(snapshot, fixture["registry"])
+    by_id = {item.id: item for item in materialized.schedule_input.activities}
+    assert by_id["LOE-P"].wbs_ancestry == ("W-ROOT",)
+    assert by_id["LOE-1"].wbs_id == "W-CHILD"
+    assert by_id["WBS-1"].wbs_id == "W-ROOT"
+    assert by_id["WBS-1"].wbs_ancestry == ()
+
+    query_status, query_result = _request(
+        app,
+        "POST",
+        "/api/v1/schedule/query",
+        {
+            "contract_version": "schedule-query.v1",
+            "query_id": "Q-ACTIVITY-TYPES",
+            "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+            "requested_by": "u1",
+            "query_text": "schedule level of effort and WBS summary activities",
+            "kind": "fact",
+            "language": "en",
+            "constraints": {"snapshot_id": published["snapshot_id"]},
+        },
+    )
+    assert query_status == "200 OK"
+    facts = query_result["data"]["activities"]
+    assert (facts["LOE-P"]["start"], facts["LOE-P"]["finish"]) == (
+        "2026-11-02",
+        "2026-11-04",
+    )
+    assert (facts["LOE-S"]["start"], facts["LOE-S"]["finish"]) == (
+        "2026-11-09",
+        "2026-11-13",
+    )
+    assert (facts["LOE-1"]["start"], facts["LOE-1"]["finish"]) == (
+        "2026-11-02",
+        "2026-11-13",
+    )
+    assert facts["LOE-1"]["duration"] == 10
+    assert facts["LOE-1"]["critical"] is False
+    assert (facts["WBS-1"]["start"], facts["WBS-1"]["finish"]) == (
+        "2026-11-02",
+        "2026-11-13",
+    )
+    assert facts["WBS-1"]["duration"] == 10
+    assert facts["WBS-1"]["critical"] is False
+    fixture["connection"].close()
+
+
+def test_level_of_effort_constraint_fails_closed_at_composition(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    for activity in (
+        {"activity_id": "P", "duration_value": "2"},
+        {
+            "activity_id": "LOE",
+            "duration_value": "1",
+            "activity_type": ActivityType.LEVEL_OF_EFFORT.value,
+        },
+    ):
+        status, _ = _request(
+            app,
+            "POST",
+            "/api/projects/p1/p6/activities",
+            {
+                "contract_version": "p6-activity-master-api.v1",
+                "name": activity["activity_id"],
+                "duration_unit": "working-day",
+                "wbs_id": "W-ROOT",
+                **activity,
+            },
+        )
+        assert status == "201 Created"
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/relationships",
+        {
+            "relationship_id": "REL-P-LOE",
+            "predecessor_id": "P",
+            "successor_id": "LOE",
+            "relationship_type": "SS",
+            "lag_value": "0",
+            "lag_unit": DurationUnit.WORKING_DAY.value,
+        },
+    )
+    assert status == "200 OK"
+    fixture["constraint_repo"].save(
+        ConstraintMaster(
+            scope=scope,
+            constraint_id="CON-LOE",
+            activity_id="LOE",
+            constraint_type=ConstraintType.START_NO_EARLIER_THAN,
+            constraint_date=date(2026, 11, 10),
+        )
+    )
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(data_date=date(2026, 11, 2)),
+        project_start=date(2026, 11, 2),
+    )
+    assert settings_status == "201 Created"
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+    )
+    assert publication_status == "400 Bad Request"
+    assert "LEVEL_OF_EFFORT_CONSTRAINT_UNSUPPORTED:LOE" in error["code"]
+    assert fixture["snapshot_repo"].list(scope) == ()
+    fixture["connection"].close()
+
+
+def test_milestone_with_nonzero_persisted_duration_fails_closed(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    activity_id = "BAD-MILESTONE"
     status, _ = _request(
         app,
         "POST",
         "/api/projects/p1/p6/activities",
         {
             "contract_version": "p6-activity-master-api.v1",
-            "activity_id": "RD-NONDRIVING",
-            "name": "Nondriving placement must not be silently ignored",
+            "activity_id": activity_id,
+            "name": "Milestone with task duration",
+            "duration_value": "2",
+            "duration_unit": "working-day",
+            "activity_type": "Start Milestone",
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(level_all_resources=True),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+    )
+    assert publication_status == "400 Bad Request"
+    assert "INVALID_PERSISTED_ACTIVITY" in error["code"]
+    assert "zero duration" in error["code"]
+    assert fixture["snapshot_repo"].list(scope) == ()
+    fixture["connection"].close()
+
+
+@pytest.mark.parametrize(
+    ("payload", "code"),
+    [
+        (
+            {
+                "status": ActivityStatus.COMPLETED.value,
+            },
+            "COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH",
+        ),
+        (
+            {
+                "status": ActivityStatus.NOT_STARTED.value,
+                "actual_start": "2026-10-19",
+            },
+            "NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS",
+        ),
+        (
+            {
+                "status": ActivityStatus.IN_PROGRESS.value,
+            },
+            "IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START",
+        ),
+    ],
+)
+def test_task_dependent_status_conflicting_with_actual_dates_fails_closed(
+    tmp_path, payload, code
+):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+    activity_id = "STATUS-CONFLICT"
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": activity_id,
+            "name": "Status contradicts actual dates",
+            "duration_value": "2",
+            "duration_unit": "working-day",
+            "activity_type": ActivityType.TASK_DEPENDENT.value,
+            "wbs_id": "W-ROOT",
+            **payload,
+        },
+    )
+    assert status == "201 Created"
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(level_all_resources=True),
+        project_start=date(2026, 10, 19),
+    )
+    assert settings_status == "201 Created"
+    publication_status, error = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/schedule/snapshots",
+        {"contract_version": "p6-schedule-snapshot-api.v1", "timezone": "UTC"},
+    )
+    assert publication_status == "400 Bad Request"
+    assert f"{code}:{activity_id}" in error["code"]
+    assert fixture["snapshot_repo"].list(scope) == ()
+    fixture["connection"].close()
+
+
+def test_resource_dependent_driving_and_nondriving_placement_is_bound_to_immutable_facts(tmp_path):
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    connection = fixture["connection"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "RD-MIX",
+            "name": "Driving and nondriving resources",
             "duration_value": "1",
             "duration_unit": DurationUnit.WORKING_DAY.value,
+            "percent_complete_type": "DURATION",
             "activity_type": ActivityType.RESOURCE_DEPENDENT.value,
             "status": ActivityStatus.NOT_STARTED.value,
             "status_code": ActivityStatusCode.PLANNED.value,
@@ -792,28 +2227,13 @@ def test_resource_dependent_publication_fails_closed_for_persisted_nondriving_as
         },
     )
     assert status == "201 Created"
+
     fixture["resource_assignments"].upsert(
         P6ResourceAssignment(
             scope=scope,
-            assignment_id="RD-NONDRIVING-AS",
-            activity_id="RD-NONDRIVING",
-            resource_id="RD-NONDRIVING-RES",
-            units=Decimal("8"),
-            unit="labor-unit",
-            calendar_id="RC-1",
-            calendar_version="v1",
-            is_driving=False,
-            units_per_time=Decimal("4"),
-            units_per_time_period="day",
-            hours_per_units_time_period=Decimal("8"),
-        )
-    )
-    fixture["resource_assignments"].upsert(
-        P6ResourceAssignment(
-            scope=scope,
-            assignment_id="RD-DRIVING-AS",
-            activity_id="RD-NONDRIVING",
-            resource_id="RD-DRIVING-RES",
+            assignment_id="RD-MIX-DRV",
+            activity_id="RD-MIX",
+            resource_id="RD-MIX-RES-DRV",
             units=Decimal("8"),
             unit="labor-unit",
             calendar_id="RC-1",
@@ -824,15 +2244,55 @@ def test_resource_dependent_publication_fails_closed_for_persisted_nondriving_as
             hours_per_units_time_period=Decimal("8"),
         )
     )
-    fixture["connection"].commit()
-    settings_status, _ = _save_settings(
-        app,
-        options=ScheduleOptions(level_all_resources=True),
-        project_start=date(2026, 10, 19),
+    for period_start in ("2026-10-19", "2026-10-20"):
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-MIX-DRV",
+                activity_id="RD-MIX",
+                resource_id="RD-MIX-RES-DRV",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="RD-MIX-ND",
+            activity_id="RD-MIX",
+            resource_id="RD-MIX-RES-ND",
+            units=Decimal("12"),
+            unit="labor-unit",
+            calendar_id="RC-1",
+            calendar_version="v1",
+            is_driving=False,
+            units_per_time=Decimal("4"),
+            units_per_time_period="day",
+            hours_per_units_time_period=Decimal("8"),
+        )
     )
-    assert settings_status == "201 Created"
+    for period_start in ("2026-10-19", "2026-10-20", "2026-10-21"):
+        fixture["resource_periods"].upsert(
+            P6ResourceAssignmentPeriodValue(
+                scope=scope,
+                assignment_id="RD-MIX-ND",
+                activity_id="RD-MIX",
+                resource_id="RD-MIX-RES-ND",
+                period_start=period_start,
+                units=Decimal("4"),
+                cost=Decimal("0"),
+            )
+        )
 
-    status, error = _request(
+    connection.commit()
+    # No resource-leveling option is enabled. Immutable RD facts alone must
+    # trigger the authorized capacity read and independent placement.
+    settings_status, settings = _save_settings(app)
+    assert settings_status == "201 Created"
+    assert settings["schedule_options"]["level_all_resources"] is False
+
+    publication_status, published = _request(
         app,
         "POST",
         "/api/projects/p1/p6/schedule/snapshots",
@@ -841,10 +2301,154 @@ def test_resource_dependent_publication_fails_closed_for_persisted_nondriving_as
             "timezone": "UTC",
         },
     )
-    assert status == "400 Bad Request"
-    assert "RESOURCE_DEPENDENT_NONDRIVING_PLACEMENT_UNSUPPORTED" in error["code"]
-    assert fixture["snapshot_repo"].list(scope) == ()
-    fixture["connection"].close()
+    assert publication_status == "201 Created"
+
+    snapshot = fixture["snapshot_repo"].get(scope, published["snapshot_id"])
+    assert snapshot is not None
+    # The assignment scalars and time-phased demand are hash-bound snapshot
+    # inputs, not mutable rows reinterpreted during the query.
+    payload = json.loads(snapshot.canonical_payload)
+    assert hashlib.sha256(snapshot.canonical_payload.encode("utf-8")).hexdigest() == snapshot.snapshot_hash
+    facts = {
+        item["assignment_id"]: item
+        for item in payload["resource_dependent_assignment_facts"]
+    }
+    assert set(facts) == {"RD-MIX-DRV", "RD-MIX-ND"}
+    assert facts["RD-MIX-DRV"]["is_driving"] is True
+    assert facts["RD-MIX-DRV"]["planned_units"] == "8"
+    assert facts["RD-MIX-DRV"]["units_per_time"] == "4"
+    assert facts["RD-MIX-DRV"]["units_per_time_period"] == "day"
+    assert facts["RD-MIX-DRV"]["hours_per_units_time_period"] == "8"
+    assert [
+        period["period_start"] for period in facts["RD-MIX-DRV"]["demand_periods"]
+    ] == ["2026-10-19", "2026-10-20"]
+    assert all(
+        period["units"] == "4"
+        for period in facts["RD-MIX-DRV"]["demand_periods"]
+    )
+    assert facts["RD-MIX-ND"]["is_driving"] is False
+    assert [
+        period["period_start"] for period in facts["RD-MIX-ND"]["demand_periods"]
+    ] == ["2026-10-19", "2026-10-20", "2026-10-21"]
+    assert all(
+        period["units"] == "4"
+        for period in facts["RD-MIX-ND"]["demand_periods"]
+    )
+
+    def run_query(query_id: str):
+        return _request(
+            app,
+            "POST",
+            "/api/v1/schedule/query",
+            {
+                "contract_version": "schedule-query.v1",
+                "query_id": query_id,
+                "scope": {"tenant_id": "t1", "project_id": "p1", "project_revision": 2},
+                "requested_by": "u1",
+                "query_text": "place the resource-dependent assignments",
+                "kind": "fact",
+                "language": "en",
+                "constraints": {"snapshot_id": published["snapshot_id"]},
+            },
+        )
+
+    query_status, query_result = run_query("Q-RD-MIX")
+    assert query_status == "200 OK"
+    assert query_result["data"]["activities"]["RD-MIX"]["start"] == "2026-10-19"
+    # Only the driving assignment controls duration: 8 planned units / 4 per day.
+    assert query_result["data"]["activities"]["RD-MIX"]["finish"] == "2026-10-20"
+    assert query_result["data"]["activities"]["RD-MIX"]["duration"] == 2
+    assert query_result["data"]["project_finish"] == "2026-10-20"
+    assert query_result["source_refs"][0]["source_id"] == published["snapshot_id"]
+    assert (
+        query_result["source_refs"][0]["content_hash"]
+        == query_result["data"]["calculation_run_identity"]
+    )
+
+    placement = query_result["data"]["resource_dependent_placement"]
+    assert placement["status"] == "COMPLETE"
+    assert placement["placement_direction"] == "EARLY"
+    assert placement["assignment_count"] == 2
+    assert placement["failed_assignment_count"] == 0
+    assert len(placement["input_hash"]) == 64
+    driving = placement["assignments"]["RD-MIX-DRV"]
+    assert driving["status"] == "FIXED_DRIVING"
+    assert driving["is_driving"] is True
+    assert driving["activity_start"] == "2026-10-19"
+    assert driving["start"] == "2026-10-19"
+    assert driving["finish"] == "2026-10-20"
+    # A driving assignment is fixed to the authoritative CPM dates in both
+    # directions and carries no assignment-level float.
+    assert driving["early_start"] == "2026-10-19"
+    assert driving["early_finish"] == "2026-10-20"
+    assert driving["late_start"] == "2026-10-19"
+    assert driving["late_finish"] == "2026-10-20"
+    assert driving["assignment_float_working_days"] == 0
+    assert driving["early_window_code"] is None
+    assert driving["late_window_code"] is None
+    assert driving["placement_direction"] == "EARLY"
+    assert driving["total_units"] == "8"
+    assert driving["calendar_id"] == "RC-1"
+    assert driving["calendar_version"] == "v1"
+    assert [
+        item["source_period_start"] for item in driving["demand_periods"]
+    ] == ["2026-10-19", "2026-10-20"]
+    assert [
+        item["period_start"] for item in driving["demand_periods"]
+    ] == ["2026-10-19", "2026-10-20"]
+    nondriving = placement["assignments"]["RD-MIX-ND"]
+    assert nondriving["status"] == "PLACED"
+    assert nondriving["is_driving"] is False
+    assert nondriving["activity_start"] == "2026-10-19"
+    assert nondriving["activity_finish"] == "2026-10-20"
+    assert nondriving["start"] == "2026-10-19"
+    # Nondriving demand is placed independently and may extend past the
+    # activity finish without moving the activity or project finish.
+    assert nondriving["finish"] == "2026-10-21"
+    # This activity is critical, so the authoritative late dates equal the
+    # early dates. The assignment windows are derived from those dates, never
+    # from the placed assignment dates.
+    assert nondriving["early_start"] == "2026-10-19"
+    assert nondriving["early_finish"] == "2026-10-21"
+    assert nondriving["late_start"] == "2026-10-19"
+    assert nondriving["late_finish"] == "2026-10-21"
+    assert nondriving["assignment_float_working_days"] == 0
+    assert nondriving["early_window_code"] is None
+    assert nondriving["late_window_code"] is None
+    assert nondriving["placement_direction"] == "EARLY"
+    assert nondriving["total_units"] == "12"
+    assert [
+        item["period_start"] for item in nondriving["demand_periods"]
+    ] == ["2026-10-19", "2026-10-20", "2026-10-21"]
+
+    replay_status, replay = run_query("Q-RD-MIX-REPLAY")
+    assert replay_status == "200 OK"
+    assert replay["data"]["calculation_run_identity"] == query_result["data"]["calculation_run_identity"]
+    assert (
+        replay["data"]["resource_dependent_placement"]["input_hash"]
+        == placement["input_hash"]
+    )
+
+    # A new persisted demand row after publication must invalidate the
+    # immutable snapshot facts rather than silently change the result.
+    fixture["resource_periods"].upsert(
+        P6ResourceAssignmentPeriodValue(
+            scope=scope,
+            assignment_id="RD-MIX-DRV",
+            activity_id="RD-MIX",
+            resource_id="RD-MIX-RES-DRV",
+            period_start="2026-10-22",
+            units=Decimal("1"),
+            cost=Decimal("0"),
+        )
+    )
+    connection.commit()
+    stale_status, stale_error = run_query("Q-RD-MIX-STALE")
+    assert stale_status == "400 Bad Request"
+    assert "RESOURCE_DEPENDENT_SNAPSHOT_FACTS_CHANGED" in stale_error["error"]["code"]
+    connection.close()
+
+
 
 
 def test_activity_snapshot_publication_fails_closed_for_datetime_date_fields(tmp_path):
@@ -858,6 +2462,8 @@ def test_activity_snapshot_publication_fails_closed_for_datetime_date_fields(tmp
             "name": "Foundation",
             "duration_value": "1",
             "duration_unit": "working-day",
+            "activity_type": ActivityType.TASK_DEPENDENT.value,
+            "status": ActivityStatus.IN_PROGRESS.value,
             "actual_start": "2026-10-19T09:15:00+00:00",
             "wbs_id": "W-ROOT",
         },
@@ -978,3 +2584,56 @@ def test_authenticated_persisted_workspace_v2_returns_canonical_wbs_tree(tmp_pat
     assert snapshot["workspace"]["activities"][0]["name"] == "Install Foundation"
     assert snapshot["workspace"]["activities"][0]["gantt"] is None
     fixture["connection"].close()
+
+
+@pytest.mark.parametrize(
+    "activity_type",
+    [ActivityType.START_MILESTONE.value, ActivityType.FINISH_MILESTONE.value],
+)
+def test_composer_rejects_resource_assignments_on_milestones(
+    tmp_path, activity_type: str
+) -> None:
+    fixture = _fixture(tmp_path)
+    app = fixture["app"]
+    scope = fixture["scope"]
+
+    status, _ = _request(
+        app,
+        "POST",
+        "/api/projects/p1/p6/activities",
+        {
+            "contract_version": "p6-activity-master-api.v1",
+            "activity_id": "M-1",
+            "name": "Milestone event",
+            "duration_value": "0",
+            "duration_unit": DurationUnit.WORKING_DAY.value,
+            "activity_type": activity_type,
+            "wbs_id": "W-ROOT",
+        },
+    )
+    assert status == "201 Created"
+
+    fixture["resource_assignments"].upsert(
+        P6ResourceAssignment(
+            scope=scope,
+            assignment_id="AS-M",
+            activity_id="M-1",
+            resource_id="RES-1",
+            units=Decimal("4"),
+            unit="labor-unit",
+        )
+    )
+    fixture["connection"].commit()
+
+    settings_status, _ = _save_settings(
+        app,
+        options=ScheduleOptions(data_date=date(2026, 11, 2)),
+        project_start=date(2026, 11, 2),
+    )
+    assert settings_status == "201 Created"
+
+    with pytest.raises(
+        ScheduleInputCompositionError,
+        match="MILESTONE_RESOURCE_ASSIGNMENT_UNSUPPORTED:M-1:AS-M",
+    ):
+        fixture["composer"].compose(scope, snapshot_id="SNAP-MILESTONE")

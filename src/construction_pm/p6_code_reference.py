@@ -24,8 +24,8 @@ from dataclasses import dataclass
 from typing import Final, Iterable
 
 REFERENCE_ID: Final[str] = "CUBI-P6-CODE-REFERENCE"
-REFERENCE_VERSION: Final[str] = "0.8.8"
-REFERENCE_AS_OF: Final[str] = "2026-10-25"
+REFERENCE_VERSION: Final[str] = "0.8.9"
+REFERENCE_AS_OF: Final[str] = "2026-11-02"
 TARGET_P6_VERSION: Final[str] = "Oracle Primavera P6 Professional Help / User Guide Version 26"
 REPOSITORY: Final[str] = "consttruction-pm/consttruction-pm-platform"
 
@@ -249,7 +249,8 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         user_options=("Task Dependent", "Resource Dependent", "Level of Effort", "Start Milestone", "Finish Milestone", "WBS Summary"),
         official_sources=(ORACLE_SOURCES["activity_general"],),
         cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
-        regression_tests=("tests/scheduling/test_schedule.py",), coverage=MAPPED_NOT_PROVEN,
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/scheduling/test_activity_type_scheduling.py", "tests/test_authoritative_schedule_snapshot_composer.py", "tests/test_scheduling_activity_semantics.py"), coverage=MAPPED_NOT_PROVEN,
+        known_gap="Task Dependent, zero-duration milestones, the Resource Dependent subset, Level of Effort and WBS Summary are scheduled by the shared core. Start and Finish Milestones are validated as zero-duration work; a persisted milestone that carries a duration, original duration or remaining duration fails closed with INVALID_PERSISTED_ACTIVITY rather than moving itself and its successors. Release 24.12 removed the former milestone relationship-type restriction, so Start and Finish milestones accept FS, SS, FF and SF relationships on either side. LOE dates use the documented start/finish-linked neighbour span, never drive successors, reject constraints and are excluded from leveling. WBS Summary dates roll up the earliest start and latest finish of snapshot-bound WBS descendants and ignore relationships and constraints during scheduling and leveling; its Activity % Complete and Status aggregate the same descendants. Version 26 reference fixtures are still required to prove numeric parity, and the public help does not define LOE or WBS Summary late dates/float, so those values follow the shared project-finish boundary and remain explicitly unverified.",
     ),
     P6CodeReference(
         id="ACT-002", area="Activities", feature="Activity duration type and recalculation relationships",
@@ -266,8 +267,10 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="Keep Original/Planned, Actual, Remaining and At Complete duration distinct. P6 defines At Complete Duration as Actual Duration + Remaining Duration. Validate legal edits by activity state and preserve coherent actual-date/remaining-work invariants.",
         user_options=("Original/Planned Duration", "Actual Duration", "Remaining Duration", "At Complete Duration", "Actual Start", "Actual Finish"),
         official_sources=(ORACLE_SOURCES["activity_status"], ORACLE_SOURCES["progress"]),
-        cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/scheduling/remaining_work.py"),
-        regression_tests=("tests/scheduling/test_schedule.py",), coverage=MAPPED_NOT_PROVEN,
+        cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/scheduling/remaining_work.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"), coverage=MAPPED_NOT_PROVEN,
+        known_gap="Original, Actual and Remaining values are composed from persisted data. The composer fails closed with COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH, NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS or IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START when the persisted status contradicts the actual dates, because progress state is derived from actual dates rather than from the label. Suspend/resume edit rules, Actual Duration derivation and full at-completion edit-rule parity remain unproven.",
+        acceptance_evidence=("Status/actual-date contradictions fail closed before a snapshot is published", "Completed status requires an actual finish", "Not Started status rejects actual dates and In Progress status requires an actual start"),
     ),
     P6CodeReference(
         id="ACT-004", area="Activities / Percent complete", feature="Duration, Units, Physical and scope percent complete",
@@ -294,11 +297,11 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="A driving resource can determine Resource Dependent activity duration from remaining work and assignment Units/Time. With multiple driving assignments, the limiting/longest completion time determines activity duration. Nondriving assignments are placed using their own schedule rules after activity dates are determined; persisting the flag alone is insufficient.",
         user_options=("Default driving flag", "Per-assignment driving override", "Assignment Units/Time and conversion period"),
         official_sources=(ORACLE_SOURCES["driving"], ORACLE_SOURCES["nondriving"], ORACLE_SOURCES["resource_planning"]),
-        cubi_code_paths=("src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_write_api.py", "src/construction_pm/p6_resource_read_api.py", "src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "docs/architecture/RESOURCE_CALENDAR_VERSION_BINDING_2026-10-21.md"),
-        regression_tests=("tests/test_p6_resource_assignment_repository.py", "tests/test_p6_postgres_resource_assignment.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
-        coverage=KNOWN_GAP,
-        known_gap="Resource Dependent activity-duration derivation from multiple driving assignments and calendar-aware nondriving placement remain unsupported. This is separate from date-based resource leveling: the new persisted resource-leveling path does not make Resource Dependent activity timing complete. Keep the explicit RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED gate until dedicated domain rules, source fixtures, and SQLite/PostgreSQL tests pass.",
-        acceptance_evidence=("Driving flag traverses persistence/read/write/snapshot/hash", "Multiple-driver limiting-duration tests pass", "Nondriving placement is calendar-aware", "SQLite/PostgreSQL parity passes"),
+        cubi_code_paths=("src/construction_pm/p6_resource_assignment_repository.py", "src/construction_pm/p6_resource_write_api.py", "src/construction_pm/p6_resource_read_api.py", "src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/scheduling/resource_dependent.py", "src/construction_pm/scheduling/resource_dependent_placement.py", "src/construction_pm/p6_persisted_resource_leveling_resolver.py", "src/construction_pm/p6_resource_leveling_read_adapter.py", "docs/architecture/RESOURCE_CALENDAR_VERSION_BINDING_2026-10-21.md"),
+        regression_tests=("tests/test_p6_resource_assignment_repository.py", "tests/test_p6_postgres_resource_assignment.py", "tests/test_authoritative_schedule_snapshot_composer.py", "tests/scheduling/test_resource_dependent.py", "tests/scheduling/test_resource_dependent_assignment_windows.py", "tests/scheduling/test_resource_dependent_placement.py", "tests/test_persisted_resource_leveling_resolver.py", "tests/test_schedule_evaluator.py", "tests/test_authoritative_schedule_query.py"),
+        coverage=MAPPED_NOT_PROVEN,
+        known_gap="Implemented subset: date-based Resource Dependent activities derive duration from driving assignments. For a not-started activity, Planned Units divided by the driver's daily rate gives total duration, and a persisted Remaining Duration must equal that derived duration rather than silently compressing the schedule. For an in-progress activity, every assignment must declare Actual Units plus Remaining Units that reconcile to Planned Units (actual + remaining = planned); total duration still comes from Planned Units, remaining duration from Remaining Units, and the longest remaining driver selects the activity calendar and remaining duration, with an equal-remaining tie between different calendars failing closed. Persisted time-phased rows for an in-progress assignment are remaining demand, must reconcile to Remaining Units, and are placed only as work still to be performed; a changed remaining row or remaining duration after publication fails closed as stale. Each driver's daily rate is evaluated on its own exact versioned resource calendar. Nondriving assignments are placed independently against their exact versioned calendars and persisted capacity. Remaining gaps include completed Resource Dependent activities, non-daily and fractional driving rates, Level of Effort and WBS Summary handling, and parity between the forward-pass progress anchor and the Data Date/remaining-start P6 behavior. The wider relationship, lag, calendar, priority and infeasible-window matrix remains unqualified; do not claim complete Version 26 parity.",
+        acceptance_evidence=("Driving flag and time-phased demand traverse persistence/read/write/snapshot/hash", "Longest driving assignment controls duration in the supported daily-rate subset", "Multiple driving assignments may use different versioned calendars and units; the longest driver selects the activity calendar and an equal-duration calendar tie fails closed", "Not-started Remaining Duration must equal the derived duration; in-progress assignments derive remaining duration from Remaining Units, reconcile actual + remaining to Planned Units, and fail closed on mismatch, missing progress, completed activities or calendar ties", "Persisted remaining-demand rows for an in-progress assignment are placed only as remaining work and a changed row after publication fails closed as stale", "Nondriving assignments are independently placed against versioned resource calendars and capacity", "SQLite and PostgreSQL integration plus focused regression tests pass on the same commit"),
     ),
     P6CodeReference(
         id="RES-002", area="Resources / Leveling", feature="Resource leveling controls and priority order",
@@ -359,9 +362,10 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="Honor WBS-level technique for performance percent complete and ETC. Methods such as 0/100, 50/50 and custom percent complete have distinct earning rules; ETC may use remaining cost or configured performance factor. Overrides/default inheritance must be traceable.",
         user_options=("Activity Percent Complete", "Resource curves/future-period buckets", "WBS milestones/weighted milestones", "0/100", "50/50", "Custom Percent Complete", "ETC = remaining activity cost", "PF=1", "PF=1/CPI", "PF=1/(CPI*SPI)", "User-defined PF", "WBS-specific setting"),
         official_sources=(ORACLE_SOURCES["wbs_earned_value"],),
-        cubi_code_paths=("src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/project_schedule_settings_repository.py"),
-        regression_tests=(), coverage=INVENTORY_REQUIRED,
-        known_gap="Exact mapping of all P6 WBS Earned Value choices to CUBI persistence and EVM calculations needs a dedicated field/formula audit.",
+        cubi_code_paths=("src/construction_pm/scheduling/evm_source.py", "src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/p6_baseline_activity_repository.py", "src/construction_pm/p6_earned_value_read_model.py", "src/construction_pm/project_schedule_settings_repository.py"),
+        regression_tests=("tests/scheduling/test_evm_source.py", "tests/test_p6_baseline_activity_repository.py", "tests/test_p6_earned_value_read_model.py"),
+        coverage=INVENTORY_REQUIRED,
+        known_gap="Activity-level earned-value techniques and all documented ETC estimators are implemented and tested. Still open: inheritance and overrides of the technique at WBS level, weighted WBS milestones (whose required facts are not yet persisted and therefore fail closed), and an end-to-end field audit of every WBS Earned Value setting.",
     ),
     P6CodeReference(
         id="EVM-002", area="Progress / Earned Schedule", feature="Earned Schedule and schedule-performance reconciliation",
@@ -379,8 +383,10 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="Separate baseline snapshot creation from assignment for summarization/comparison. Support project, primary, secondary and tertiary roles as applicable, with immutable identity and audit semantics.",
         user_options=("Create current-project copy", "Convert another project to baseline", "Project baseline", "Primary", "Secondary", "Tertiary"),
         official_sources=(ORACLE_SOURCES["create_baseline"], ORACLE_SOURCES["assign_baseline"]),
-        cubi_code_paths=("src/construction_pm/p6_baseline_api.py", "src/construction_pm/p6_baseline_repository.py", "shared/contracts/p6-baseline-api.v1.schema.json"),
-        regression_tests=(), coverage=MAPPED_NOT_PROVEN,
+        cubi_code_paths=("src/construction_pm/p6_baseline_api.py", "src/construction_pm/p6_baseline_repository.py", "src/construction_pm/p6_baseline_activity_repository.py", "src/construction_pm/p6_baseline_assignment.py", "src/construction_pm/p6_baseline_conversion.py", "src/construction_pm/p6_earned_value_read_model.py", "shared/contracts/p6-baseline-api.v1.schema.json", "shared/contracts/p6-baseline-assignment-api.v1.schema.json", "shared/contracts/p6-baseline-conversion-api.v1.schema.json"),
+        regression_tests=("tests/test_p6_baseline_repository.py", "tests/test_p6_baseline_activity_repository.py", "tests/test_p6_baseline_assignment_and_conversion.py", "tests/test_p6_baseline_role_http.py", "tests/test_p6_postgres_baseline_assignment.py", "tests/test_p6_earned_value_read_model.py"),
+        coverage=MAPPED_NOT_PROVEN,
+        known_gap="Project/primary/secondary/tertiary baseline identity, scoped reads, revision conflicts and immutable baseline-activity values are implemented and tested against both SQLite and PostgreSQL repositories. Summary-role assignment (with explicit reassignment and audit history) and atomic cross-project conversion now exist over versioned contract/API/HTTP boundaries. Still open: Version 26 reference fixtures for assign/convert, selective baseline update (#1483 scope), and PostgreSQL execution from CI.",
     ),
     P6CodeReference(
         id="BAS-002", area="Baselines", feature="Selective baseline update and comparison",
@@ -826,10 +832,11 @@ P6_CODE_REFERENCE: Final[tuple[P6CodeReference, ...]] = (
         required_semantics="For a selected status date and selected baseline, preserve the definitions EV (earned budget value), PV (planned budget value), AC (actual cost), CV=EV-AC, SV=EV-PV, CPI=EV/AC and SPI=EV/PV. EAC/ETC must follow the selected WBS ETC technique and performance-factor choice; do not impose one universal EAC formula. VAC=BAC-EAC. Each denominator-zero, missing-baseline, currency and period rule must be explicit and tested.",
         user_options=("Baseline", "Status/Data Date", "WBS EV technique", "ETC method", "Performance factor", "Cost currency", "Financial/reporting period"),
         official_sources=("https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm", ORACLE_SOURCES["wbs_earned_value"], ORACLE_SOURCES["pro_user_guide_portal"]),
-        cubi_code_paths=("src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/project_schedule_settings_repository.py"),
-        regression_tests=(), coverage=INVENTORY_REQUIRED,
+        cubi_code_paths=("src/construction_pm/scheduling/evm_source.py", "src/construction_pm/scheduling/earned_value.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/p6_baseline_activity_repository.py", "src/construction_pm/p6_earned_value_read_model.py", "src/construction_pm/p6_earned_value_read_model_api.py", "src/construction_pm/http/project_lifecycle_routes.py", "src/construction_pm/project_schedule_settings_repository.py", "shared/contracts/p6-earned-value-read-model.v1.schema.json"),
+        regression_tests=("tests/scheduling/test_evm_source.py", "tests/scheduling/test_earned_value.py", "tests/test_p6_baseline_activity_repository.py", "tests/test_p6_earned_value_read_model.py", "tests/test_p6_earned_value_http.py", "tests/test_evm_persisted_integration.py"),
+        coverage=MAPPED_NOT_PROVEN,
         product_context="Native P6 Earned Value settings plus clearly separated CUBI Earned Schedule extensions",
-        known_gap="Native EV field definitions and each WBS ETC/performance-factor formula are not yet traced to exact CUBI calculation functions and denominator/rounding tests.",
+        known_gap="EV/PV/AC/BAC are selected from one immutable baseline-activity snapshot and one explicit status/Data Date, with the persisted read model composing current percent complete and period/expense actual cost without reading live activity rows during measurement. Activity, WBS and project expense costs are attributed to their own rollup or the project total rather than being dropped or spread across activities, and a WBS adjustment must reference a baseline WBS. Activity-level techniques ACTIVITY_PERCENT_COMPLETE, CUSTOM_PERCENT_COMPLETE, ZERO_HUNDRED and FIFTY_FIFTY are implemented; WBS technique inheritance/overrides, weighted milestones, explicit future-period PV buckets, resource-curve PV and assignment-level cost decomposition are implemented and persisted through the read model. Planned Value records its explicit method in every result. The versioned HTTP boundary accepts only the baseline/Data Date/currency/ETC selection and typed WBS settings; planned values, progress and costs always come from persisted facts. Still open: multi-currency/financial-period conversion (a mixed-currency input fails closed) and Version 26 fixture equivalence for the implemented methods.",
     ),
 
     P6CodeReference(
@@ -958,10 +965,10 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         units_and_calendar_rules="Calendar-aware inverse-rate calculation is required; never use resource Max Units/Time as a substitute for assignment Units/Time.",
         edge_cases=("Missing driving flag", "No driving assignments", "Multiple driving resources", "Different resource calendars", "Rate changes/effective dates", "Actual/remaining work", "Nondriving placement"),
         official_sources=(ORACLE_SOURCES["driving"], ORACLE_SOURCES["nondriving"], ORACLE_SOURCES["resources"]),
-        cubi_code_paths=("src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/scheduling/resource_leveling.py"),
-        regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py", "tests/test_p6_resource_assignment_repository.py"),
-        status=KNOWN_GAP,
-        known_gap="Current authoritative composer explicitly rejects Resource Dependent assignments with RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED; this formula must not be treated as implemented.",
+        cubi_code_paths=("src/construction_pm/authoritative_schedule_input_composer.py", "src/construction_pm/scheduling/authoritative_schedule.py", "src/construction_pm/scheduling/resource_dependent.py", "src/construction_pm/scheduling/resource_dependent_placement.py", "src/construction_pm/p6_persisted_resource_leveling_resolver.py", "src/construction_pm/p6_resource_leveling_read_adapter.py", "src/construction_pm/schedule_evaluator.py"),
+        regression_tests=("tests/test_authoritative_schedule_snapshot_composer.py", "tests/test_p6_resource_assignment_repository.py", "tests/scheduling/test_resource_dependent.py", "tests/scheduling/test_resource_dependent_assignment_windows.py", "tests/scheduling/test_resource_dependent_placement.py", "tests/test_persisted_resource_leveling_resolver.py", "tests/test_schedule_evaluator.py"),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+        known_gap="Implemented for date-based not-started and in-progress activities with daily driving rates and integral working-day durations. Not-started duration = Planned Units / daily rate, and a persisted Remaining Duration must equal that derived duration. In-progress assignments must reconcile Actual Units + Remaining Units to Planned Units; total duration uses Planned Units, remaining duration uses Remaining Units, and the longest remaining driver selects the activity calendar. Driving assignments may use different versioned calendars and units; equal-duration or equal-remaining calendar ties fail closed. Completed activities, non-daily or fractional durations, Level of Effort, and the data-date/remaining-start progress-anchor parity remain unsupported or unqualified. No full Version 26 parity claim is made.",
     ),
     P6FormulaReference(
         id="FRM-CAP-001",
@@ -985,10 +992,10 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         units_and_calendar_rules="Money values must be converted/compared in a consistent project currency and financial period. SPI is a ratio of value measures; it is not automatically identical to an Earned Schedule time index.",
         edge_cases=("AC=0", "PV=0", "No baseline", "WBS override", "Different currencies", "Unclosed financial period"),
         official_sources=(ORACLE_SOURCES["wbs_earned_value"], ORACLE_SOURCES["progress"]),
-        cubi_code_paths=("src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/project_schedule_settings_repository.py"),
-        regression_tests=(),
-        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
-        known_gap="CUBI must explicitly define zero-denominator behavior and prove source values/rollups using Version 26 acceptance fixtures.",
+        cubi_code_paths=("src/construction_pm/scheduling/earned_value.py", "src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py", "src/construction_pm/project_schedule_settings_repository.py"),
+        regression_tests=("tests/scheduling/test_earned_value.py", "tests/resources/test_evm_bridge.py"),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+        known_gap="The shared formula core computes CV/SV and CPI/SPI with explicit null policy (AC=0 leaves CPI undefined, PV=0 leaves SPI undefined) and deterministic Decimal arithmetic; tests cover the identities, zero denominators, non-finite inputs and the resource EVM bridge. Sourcing EV/PV/AC from a selected baseline, Data Date and WBS technique, currency conversion and rollup parity remain unproven.",
     ),
     P6FormulaReference(
         id="FRM-EVM-002",
@@ -999,10 +1006,10 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         units_and_calendar_rules="BAC, EV, AC, ETC and EAC must be comparable cost values in the same currency and reporting context.",
         edge_cases=("CPI=0", "SPI=0", "Missing BAC/EV/AC", "WBS-specific method override", "Resource curve/manual future bucket methods"),
         official_sources=(ORACLE_SOURCES["wbs_earned_value"],),
-        cubi_code_paths=("src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py"),
-        regression_tests=(),
-        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
-        known_gap="Implement and test each P6 WBS ETC option separately; zero-index and missing-input behavior must be confirmed from Version 26 behavior.",
+        cubi_code_paths=("src/construction_pm/scheduling/earned_value.py", "src/construction_pm/scheduling/earned_schedule.py", "src/construction_pm/scheduling/progress_state.py"),
+        regression_tests=("tests/scheduling/test_earned_value.py", "tests/resources/test_evm_bridge.py"),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+        known_gap="The shared core implements Remaining Cost, PF=1, PF=1/CPI, PF=1/(CPI*SPI) and a user-defined PF separately, with fail-closed missing-input, zero-index, non-positive-PF and EV>BAC rules. WBS-specific method selection, manual future-period buckets/resource curves and Version 26 acceptance fixtures remain unproven.",
     ),
     P6FormulaReference(
         id="FRM-DATA-DATE-001",
@@ -1069,9 +1076,9 @@ FORMULA_REFERENCE: Final[tuple[P6FormulaReference, ...]] = (
         edge_cases=("Milestone duration edit", "WBS Summary with child activities", "Level of Effort start/finish relationships", "Resource Dependent with missing driving flag", "Mixed calendars"),
         official_sources=(ORACLE_SOURCES["activity_general"], ORACLE_SOURCES["driving"], ORACLE_SOURCES["nondriving"], ORACLE_SOURCES["schedule"]),
         cubi_code_paths=("src/construction_pm/scheduling/activity.py", "src/construction_pm/scheduling/schedule.py", "src/construction_pm/authoritative_schedule_input_composer.py"),
-        regression_tests=("tests/scheduling/test_schedule.py", "tests/test_authoritative_schedule_snapshot_composer.py"),
-        status="FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
-        known_gap="Level of Effort and WBS Summary date-derivation rules still require type-specific Version 26 fixtures; this entry deliberately does not invent a single formula for them.",
+        regression_tests=("tests/scheduling/test_schedule.py", "tests/scheduling/test_activity_type_scheduling.py", "tests/test_authoritative_schedule_snapshot_composer.py", "tests/test_scheduling_activity_semantics.py"),
+        status="FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+        known_gap="Start and Finish Milestones enforce zero duration, original duration and remaining duration at the Activity boundary. Since Release 24.12 any relationship type may attach to a milestone, so Start and Finish milestones accept FS, SS, FF and SF on either side and the successor is placed by the declared relationship end. Level of Effort start and finish are derived from the documented earliest-start/latest-finish span of activities linked to its start and finish ends; LOE never drives a successor, rejects constraints and is excluded from leveling. WBS Summary dates aggregate the earliest start and latest finish of activities in its own and subordinate snapshot-bound WBS elements, its Activity % Complete and Status aggregate the same members, and its relationships and constraints are ignored for scheduling and leveling. Independent Version 26 fixtures are still required to prove numeric parity; the help does not define LOE or WBS Summary late dates/float.",
     ),
     P6FormulaReference(
         id="FRM-COST-001",
@@ -1276,7 +1283,7 @@ P6_DOCUMENTATION_AUDIT: Final[tuple[P6DocumentationAudit, ...]] = (
         review_status=DOC_CORE_RULES_EXTRACTED,
         reviewed_scope="Driving resources determine duration from quantity/rate; multiple drivers and nondriving assignments are identified as separate algorithms.",
         linked_requirement_ids=("RES-001", "RES-002", "RES-003", "RES-004", "RES-005", "RES-006"),
-        remaining_work="Build and pass multiple-driving-resource, calendar-specific duration, unit/time conversion, nondriving placement, out-of-sequence and backward-pass fixtures. The existing Draft PR blocker remains open.",
+        remaining_work="Multiple-driving-resource and calendar-specific duration fixtures are implemented and passing, including fail-closed calendar ties. In-progress derivation from reconciled Actual/Remaining Units, remaining-duration selection, remaining-demand placement and stale-remaining-row rejection are implemented and passing. Complete the unit/time conversion, completed-activity, nondriving progress placement, out-of-sequence, backward-pass and Data Date/remaining-start anchor reviews. No full Version 26 parity claim is made while those reviews remain open.",
     ),
     P6DocumentationAudit(
         id="DOC-PRO-PROGRESS-EVM-V26",

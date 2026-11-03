@@ -123,6 +123,13 @@ class ResourceLevelingOptions:
     over_allocation_percentage: Decimal = Decimal("0")
     resource_ids: tuple[str, ...] = ()
     priorities: tuple[LevelingPriority, ...] = ()
+    # P6 "Consider assignments in other projects with priority equal/higher
+    # than": projects rank 1 (highest) through 100 (lowest). Zero means the
+    # option is unchecked and every supplied assignment participates.
+    external_project_priority_limit: int = 0
+    # Identity of the project whose options are being used. Required whenever a
+    # cross-project threshold is active so "external" is never guessed.
+    source_project_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.preserve_scheduled_early_and_late_dates, bool):
@@ -148,6 +155,21 @@ class ResourceLevelingOptions:
             not isinstance(priority, LevelingPriority) for priority in self.priorities
         ):
             raise ResourceLevelingError("INVALID_LEVELING_PRIORITIES")
+        if (
+            isinstance(self.external_project_priority_limit, bool)
+            or not isinstance(self.external_project_priority_limit, int)
+            or not 0 <= self.external_project_priority_limit <= 100
+        ):
+            raise ResourceLevelingError("INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT")
+        if self.source_project_id is not None and (
+            not isinstance(self.source_project_id, str)
+            or not self.source_project_id.strip()
+        ):
+            raise ResourceLevelingError("INVALID_SOURCE_PROJECT_ID")
+        if self.external_project_priority_limit > 0 and self.source_project_id is None:
+            raise ResourceLevelingError(
+                "EXTERNAL_PROJECT_PRIORITY_LIMIT_REQUIRES_SOURCE_PROJECT"
+            )
 
 
 def _capacity_map(capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity]) -> dict[tuple[str, date], Decimal]:
@@ -216,6 +238,11 @@ class LevelingActivity:
     free_float: int | None = None
     late_start: date | None = None
     late_finish: date | None = None
+    # Owning project identity and P6 project leveling priority (1 highest,
+    # 100 lowest). Both are optional so single-project callers are unaffected;
+    # cross-project thresholds require them for external rows.
+    project_id: str | None = None
+    project_priority: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -236,6 +263,16 @@ class LevelingActivity:
             isinstance(self.free_float, bool) or not isinstance(self.free_float, int)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
+        if self.project_id is not None and (
+            not isinstance(self.project_id, str) or not self.project_id.strip()
+        ):
+            raise ResourceLevelingError("INVALID_PROJECT_ID")
+        if self.project_priority is not None and (
+            isinstance(self.project_priority, bool)
+            or not isinstance(self.project_priority, int)
+            or not 1 <= self.project_priority <= 100
+        ):
+            raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
         if any(
             value is not None and (
                 not isinstance(value, date) or isinstance(value, datetime)
@@ -352,6 +389,29 @@ def _resolver_for_activity(
     return selected
 
 
+def is_leveling_activity_included(
+    activity: LevelingActivity | BackwardLevelingActivity,
+    *,
+    external_project_priority_limit: int,
+    source_project_id: str | None,
+) -> bool:
+    """Apply P6's cross-project priority threshold to one resource row.
+
+    Projects rank 1 (highest) through 100 (lowest). When the option is active,
+    rows in another project participate only when their project priority is
+    equal to or higher than the limit. The source project always participates.
+    """
+    if external_project_priority_limit == 0:
+        return True
+    if activity.project_id is None or activity.project_id == source_project_id:
+        return True
+    if activity.project_priority is None:
+        raise ResourceLevelingError(
+            f"MISSING_EXTERNAL_PROJECT_PRIORITY:{activity.activity_id}"
+        )
+    return activity.project_priority <= external_project_priority_limit
+
+
 def propose_forward_leveling_within_float(
     activities: tuple[LevelingActivity, ...] | list[LevelingActivity],
     capacities: tuple[ResourceCapacity, ...] | list[ResourceCapacity],
@@ -365,6 +425,8 @@ def propose_forward_leveling_within_float(
     activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
     allow_beyond_float: bool = False,
     max_shift_working_days: int | None = None,
+    external_project_priority_limit: int = 0,
+    source_project_id: str | None = None,
 ) -> tuple[LevelingShift, ...]:
     """Propose deterministic forward shifts without mutating the CPM schedule.
 
@@ -398,6 +460,16 @@ def propose_forward_leveling_within_float(
         raise ResourceLevelingError("INVALID_RESOURCE_ID")
     if len(set(resource_ids)) != len(resource_ids):
         raise ResourceLevelingError("DUPLICATE_RESOURCE_ID")
+    if (
+        isinstance(external_project_priority_limit, bool)
+        or not isinstance(external_project_priority_limit, int)
+        or not 0 <= external_project_priority_limit <= 100
+    ):
+        raise ResourceLevelingError("INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT")
+    if external_project_priority_limit > 0 and source_project_id is None:
+        raise ResourceLevelingError(
+            "EXTERNAL_PROJECT_PRIORITY_LIMIT_REQUIRES_SOURCE_PROJECT"
+        )
     for activity in activities:
         for priority in priorities:
             normalized = priority.field_name.strip().lower().replace(" ", "_")
@@ -406,14 +478,23 @@ def propose_forward_leveling_within_float(
                 raise ResourceLevelingError("UNSUPPORTED_LEVELING_PRIORITY")
 
     activity_list = sorted(activities, key=lambda a: (a.start, a.activity_id))
+    levelable_activities = tuple(
+        activity
+        for activity in activity_list
+        if is_leveling_activity_included(
+            activity,
+            external_project_priority_limit=external_project_priority_limit,
+            source_project_id=source_project_id,
+        )
+    )
     selected_resources = set(
         select_leveling_resources(
-            [d for a in activity_list for d in a.resource_demands],
+            [d for a in levelable_activities for d in a.resource_demands],
             level_all_resources=level_all_resources,
             resource_ids=resource_ids,
         )
     )
-    selected = {a.activity_id: 0 for a in activity_list}
+    selected = {a.activity_id: 0 for a in levelable_activities}
     capacity_map = {
         key: units
         for key, units in _capacity_map(capacities).items()
@@ -427,7 +508,7 @@ def propose_forward_leveling_within_float(
 
     def current_demands() -> list[ResourceDemand]:
         out: list[ResourceDemand] = []
-        for activity in activity_list:
+        for activity in levelable_activities:
             activity_resolver = _resolver_for_activity(
                 activity.activity_id, resolver, activity_resolvers
             )
@@ -454,7 +535,7 @@ def propose_forward_leveling_within_float(
 
         candidates: list[tuple[tuple, Decimal, str]] = []
         for resource_id, period in overloaded:
-            for activity in activity_list:
+            for activity in levelable_activities:
                 current_shift = selected[activity.activity_id]
                 if allow_beyond_float:
                     if (
@@ -509,6 +590,8 @@ def propose_forward_leveling(
     priorities: tuple[LevelingPriority, ...] = (), level_all_resources: bool = True,
     resource_ids: tuple[str, ...] = (), max_shift_working_days: int = 10000,
     activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
+    external_project_priority_limit: int = 0,
+    source_project_id: str | None = None,
 ) -> tuple[LevelingShift, ...]:
     """Propose deterministic forward leveling, optionally unconstrained by float."""
     if not isinstance(level_within_float, bool):
@@ -529,6 +612,8 @@ def propose_forward_leveling(
             over_allocation_percentage=over_allocation_percentage, priorities=priorities,
             level_all_resources=level_all_resources, resource_ids=resource_ids,
             activity_resolvers=activity_resolvers,
+            external_project_priority_limit=external_project_priority_limit,
+            source_project_id=source_project_id,
         )
     shifts = propose_forward_leveling_within_float(
         activities,
@@ -540,6 +625,8 @@ def propose_forward_leveling(
         level_all_resources=level_all_resources,
         resource_ids=resource_ids,
         activity_resolvers=activity_resolvers,
+        external_project_priority_limit=external_project_priority_limit,
+        source_project_id=source_project_id,
         allow_beyond_float=True,
         max_shift_working_days=max_shift_working_days,
     )
@@ -598,6 +685,10 @@ def apply_leveling_shifts(
             ),
             activity_priority=activity.activity_priority,
             free_float=activity.free_float,
+            late_start=activity.late_start,
+            late_finish=activity.late_finish,
+            project_id=activity.project_id,
+            project_priority=activity.project_priority,
         ))
     return tuple(result)
 
@@ -616,6 +707,8 @@ class BackwardLevelingActivity:
     activity_priority: int | None = None
     total_float: int | None = None
     free_float: int | None = None
+    project_id: str | None = None
+    project_priority: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.activity_id, str) or not self.activity_id.strip():
@@ -635,6 +728,16 @@ class BackwardLevelingActivity:
             isinstance(self.total_float, bool) or not isinstance(self.total_float, int)
         ):
             raise ResourceLevelingError("INVALID_ACTIVITY_FLOAT")
+        if self.project_id is not None and (
+            not isinstance(self.project_id, str) or not self.project_id.strip()
+        ):
+            raise ResourceLevelingError("INVALID_PROJECT_ID")
+        if self.project_priority is not None and (
+            isinstance(self.project_priority, bool)
+            or not isinstance(self.project_priority, int)
+            or not 1 <= self.project_priority <= 100
+        ):
+            raise ResourceLevelingError("INVALID_PROJECT_PRIORITY")
         if any(d.activity_id not in (None, self.activity_id) for d in self.resource_demands):
             raise ResourceLevelingError("DEMAND_ACTIVITY_MISMATCH")
 
@@ -697,6 +800,8 @@ def propose_backward_leveling(
     resource_ids: tuple[str, ...] = (),
     protected_activity_ids: tuple[str, ...] = (),
     activity_resolvers: Mapping[str, WorkingTimeResolver] | None = None,
+    external_project_priority_limit: int = 0,
+    source_project_id: str | None = None,
 ) -> tuple[BackwardLevelingShift, ...]:
     """Propose deterministic backward leveling from late dates toward early dates.
 
@@ -733,8 +838,27 @@ def propose_backward_leveling(
         raise ResourceLevelingError("INVALID_PROTECTED_ACTIVITY_IDS")
     if len(set(protected_activity_ids)) != len(protected_activity_ids):
         raise ResourceLevelingError("DUPLICATE_PROTECTED_ACTIVITY_ID")
+    if (
+        isinstance(external_project_priority_limit, bool)
+        or not isinstance(external_project_priority_limit, int)
+        or not 0 <= external_project_priority_limit <= 100
+    ):
+        raise ResourceLevelingError("INVALID_EXTERNAL_PROJECT_PRIORITY_LIMIT")
+    if external_project_priority_limit > 0 and source_project_id is None:
+        raise ResourceLevelingError(
+            "EXTERNAL_PROJECT_PRIORITY_LIMIT_REQUIRES_SOURCE_PROJECT"
+        )
 
     activity_list = sorted(activities, key=lambda a: (a.late_finish, a.activity_id), reverse=True)
+    levelable_activities = tuple(
+        activity
+        for activity in activity_list
+        if is_leveling_activity_included(
+            activity,
+            external_project_priority_limit=external_project_priority_limit,
+            source_project_id=source_project_id,
+        )
+    )
     # Match the P6 Professional leveling-priority fields represented by this
     # backward-pass input. Fields not carried by the typed input (for example,
     # durations and project-level values) must remain explicit unsupported errors
@@ -754,7 +878,7 @@ def propose_backward_leveling(
 
     selected_resources = set(
         select_leveling_resources(
-            [d for a in activity_list for d in a.resource_demands],
+            [d for a in levelable_activities for d in a.resource_demands],
             level_all_resources=level_all_resources,
             resource_ids=resource_ids,
         )
@@ -764,7 +888,7 @@ def propose_backward_leveling(
         for key, units in _capacity_map(capacities).items()
         if key[0] in selected_resources
     }
-    shifts = {a.activity_id: 0 for a in activity_list}
+    shifts = {a.activity_id: 0 for a in levelable_activities}
 
     def effective_capacity(resource_id: str, period: date) -> Decimal:
         return capacity_map.get((resource_id, period), Decimal("0")) * (
@@ -773,7 +897,7 @@ def propose_backward_leveling(
 
     def current_demands() -> list[ResourceDemand]:
         result: list[ResourceDemand] = []
-        for activity in activity_list:
+        for activity in levelable_activities:
             result.extend(
                 d for d in _shift_demands_backward(
                     activity.resource_demands,
@@ -802,7 +926,7 @@ def propose_backward_leveling(
 
         candidates: list[tuple[tuple, Decimal, str]] = []
         for resource_id, period in overloaded:
-            for activity in activity_list:
+            for activity in levelable_activities:
                 if activity.activity_id in protected_activity_ids:
                     continue
                 current_shift = shifts[activity.activity_id]

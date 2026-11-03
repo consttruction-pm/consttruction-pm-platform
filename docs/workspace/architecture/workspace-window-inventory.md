@@ -23,6 +23,7 @@ Status values: **Implemented** = usable with real data; **Partial** = some real 
 | --- | --- | --- | --- |
 | Projects / Business Domains | Projects module shell with current-project register, loaded WBS structure summary and bottom Project Details; project picker still uses project list/open APIs | Partial | Organization-wide register/tree, multi-project list context, full tab data and persistent project defaults still require service contracts |
 | Activities | Activity grid `#cp-activity-grid` (`workspace-view.ts:518`), Gantt `#cp-gantt` (`:544`), filter/group/sort (`:1159-1180`), P6 field chooser (`:1183-1240`) | Partial | No window tabs, no Activity Details tabs, no menu commands, no resizable layouts |
+| Comparisons | No dedicated window/run history yet | Missing | Implement CMP-01 / Issue #1669: saved comparison-run list, New Comparison action, immutable result viewer, WBS-grouped differences, before/after fields, filters and drill-through; never mistake a placeholder for a working comparison |
 | WBS | `#cp-project-wbs` aside (`:489`), create/edit forms (`:492-515`) | Partial | No WBS window, chart view or element details |
 | Resource Assignments | Capacity panel `#cp-resource-capacity` (`:551`) | Partial | No assignments window grouped by resource; assignment editing UI incomplete |
 | Resources | Capacity ceilings only | Missing | Resource hierarchy, details, rates, calendars |

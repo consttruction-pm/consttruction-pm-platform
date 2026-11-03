@@ -54,6 +54,12 @@ class CalendarWorkHourRule:
                 raise CalendarPersistenceError("INVALID_TOTAL_WORK_HOURS")
         if any(len(pair) != 2 or pair[0] >= pair[1] for pair in self.intervals):
             raise CalendarPersistenceError("INVALID_WORK_HOUR_INTERVAL")
+        ordered = sorted(self.intervals)
+        for (_, previous_end), (next_start, _) in zip(ordered, ordered[1:]):
+            if next_start < previous_end:
+                # Two shifts may not occupy the same time window: summing them
+                # would count the same capacity twice.
+                raise CalendarPersistenceError("OVERLAP_WORK_HOUR_INTERVAL")
         if self.kind == "total_work_hours" and self.weekday is not None:
             raise CalendarPersistenceError("TOTAL_WORK_HOURS_IS_CALENDAR_LEVEL")
         if self.kind == "total_work_hours" and not self.total_work_hours and self.total_work_hours != Decimal("0"):
@@ -223,7 +229,12 @@ def _row_to_rule(
     row: tuple[object, ...],
 ) -> CalendarWorkHourRule:
     import json
-    intervals = tuple((str(pair[0]), str(pair[1])) for pair in json.loads(str(row[2])))
+    raw_intervals = row[2]
+    if isinstance(raw_intervals, str):
+        raw_intervals = json.loads(raw_intervals)
+    intervals = tuple(
+        (str(pair[0]), str(pair[1])) for pair in raw_intervals
+    )
     return CalendarWorkHourRule(
         scope, calendar_id, calendar_version, kind, weekday,
         None if row[0] is None else bool(row[0]),

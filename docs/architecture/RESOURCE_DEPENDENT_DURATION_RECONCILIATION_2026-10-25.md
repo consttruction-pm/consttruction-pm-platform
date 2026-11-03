@@ -28,3 +28,33 @@ Status: implementation merged on source commit; semantic scope remains partial a
 5. Update the main project state ledger only after fresh evidence is available.
 
 This record is additive. It does not remove existing project requirements or grant release-completion credit.
+
+## 2026-11-02 addendum — multiple driving calendars
+
+- The derivation now evaluates each driving assignment's daily rate against that assignment's own versioned resource calendar instead of requiring all drivers to share one calendar and unit.
+- The longest driving duration selects the activity's calendar ID/version. An equal-duration tie between two different calendars raises `RESOURCE_DEPENDENT_DRIVING_CALENDAR_TIE`; input order never decides the activity calendar.
+- Driving assignments may carry different units of measure because each rate advances its own resource's units. The per-assignment conversion factor remains required and hash-bound.
+- Unit tests cover calendar selection, order independence, same-calendar ties and per-driver identity validation. The authenticated snapshot/query integration test proves the selected four-day resource calendar drives the CPM finish date and per-assignment placement ledger.
+- Still not implemented: in-progress Resource Dependent derivation, non-daily or fractional driving rates, progress-aware nondriving placement and Level of Effort semantics.
+
+## 2026-11-02 addendum — in-progress Resource Dependent derivation
+
+- For an in-progress activity, every assignment must declare Actual Units and Remaining Units that reconcile to Planned Units (`actual + remaining = planned`). A missing value, a mismatch or a negative unit count fails closed with a typed composition error; the persisted resolver applies the same rule. Requiring this on nondriving assignments too prevents their remaining rows from being misread as planned demand.
+- Total duration still comes from Planned Units divided by the driver's daily rate; the activity's Remaining Duration comes from Remaining Units divided by the rate. The composer reconciles the derived remaining duration with any published Remaining Duration and fails closed on disagreement.
+- The longest remaining duration selects the activity calendar and the remaining duration. An equal-remaining tie between two different calendars raises `RESOURCE_DEPENDENT_PROGRESS_DRIVING_CALENDAR_TIE`; input order never decides it.
+- Time-phased rows persisted for an in-progress assignment are remaining demand. They must reconcile to Remaining Units and are placed only as work still to be performed, so a snapshot with finished rows is never re-forecast as future demand. Adding a remaining row after publication causes a stale replay (`RESOURCE_DEPENDENT_SNAPSHOT_FACTS_CHANGED`), and a changed Remaining Duration fails closed with `RESOURCE_DEPENDENT_REMAINING_DURATION_CHANGED`.
+- Progress keys are bound into the fact hash only when progress is declared, so previously published not-started snapshots keep their v1/v2 hashes and replay unchanged; progressed facts use the v3 hash rule.
+- Still not implemented: completed Resource Dependent activities (`actual_finish` or `COMPLETED` status is rejected), non-daily or fractional driving rates, Level of Effort and WBS Summary handling, and parity between CUBI's forward-pass progress anchor (activity start at actual start) and the reference product's Data Date/remaining-start behavior. Placement therefore remains consistent with the currently published activity dates rather than introducing a separate progress calendar.
+
+## 2026-11-02 addendum — fail-closed activity types and not-started remaining duration
+
+- A not-started Resource Dependent activity has no consumed work, so a persisted Remaining Duration must equal the derived duration (Planned Units / daily rate). A divergent value raises `RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH` instead of silently compressing the schedule.
+- Level of Effort and WBS Summary are rejected at composition with `LEVEL_OF_EFFORT_SCHEDULING_UNSUPPORTED` and `WBS_SUMMARY_SCHEDULING_UNSUPPORTED`. Neither is run through the task-duration algorithm while its type-specific date rule is unproven.
+- Start and Finish Milestones must have zero duration, zero original duration and zero remaining duration. A persisted milestone that carries task work fails closed with `INVALID_PERSISTED_ACTIVITY` rather than moving itself and its successors.
+- These guards add no new scheduling semantics; the start-versus-finish milestone placement convention, LOE start/finish-linked derivation and WBS Summary child rollup remain open verification items.
+
+## 2026-11-02 addendum — status versus actual-date consistency
+
+- The scheduler derives progress state from actual dates and remaining work, not from the persisted status label. The composer therefore fails closed on contradictory persisted records: `COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH`, `NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS` and `IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START`.
+- This prevents a Completed label without an actual finish from being silently scheduled as outstanding work and a Not Started label with actual dates from silently becoming an in-progress activity.
+- Legal edit rules, suspend/resume and full Actual Duration derivation remain open verification items.

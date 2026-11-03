@@ -113,6 +113,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
         "contract_version": "p6-activity-master-api.v1",
         "activity_id": "A-1",
         "name": "Foundation Slab",
+        "short_name": "CP-A1",
         "activity_type": "Resource Dependent",
         "status": "In Progress",
         "status_code": "Active",
@@ -135,6 +136,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert status == "201 Created"
     assert created["activity"]["record_revision"] == 1
     assert created["activity"]["name"] == "Foundation Slab"
+    assert created["activity"]["short_name"] == "CP-A1"
     assert created["activity"]["activity_type"] == "Resource Dependent"
     assert created["activity"]["status"] == "In Progress"
     assert created["activity"]["status_code"] == "Active"
@@ -155,6 +157,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert persisted.leveling_priority is ActivityLevelingPriority.HIGH
     assert persisted.original_duration == 15
     assert persisted.name == "Foundation Slab"
+    assert persisted.short_name == "CP-A1"
     assert persisted.activity_type.value == "Resource Dependent"
     assert persisted.status.value == "In Progress"
     assert persisted.status_code.value == "Active"
@@ -174,6 +177,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
         "planned_finish": "2026-10-24",
         "leveling_priority": "Lowest",
         "name": "Foundation Slab Complete",
+        "short_name": "CP-A1B",
         "activity_type": "Task Dependent",
         "status": "Completed",
         "status_code": "Inactive",
@@ -185,6 +189,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert updated["activity"]["planned_finish"] == "2026-10-24"
     assert updated["activity"]["leveling_priority"] == "Lowest"
     assert updated["activity"]["name"] == "Foundation Slab Complete"
+    assert updated["activity"]["short_name"] == "CP-A1B"
     assert updated["activity"]["activity_type"] == "Task Dependent"
     assert updated["activity"]["status"] == "Completed"
     assert updated["activity"]["status_code"] == "Inactive"
@@ -209,6 +214,7 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert partial["activity"]["leveling_priority"] == "Lowest"
     assert partial["activity"]["original_duration"] == 15
     assert partial["activity"]["name"] == "Foundation Slab Complete"
+    assert partial["activity"]["short_name"] == "CP-A1B"
     assert partial["activity"]["activity_type"] == "Task Dependent"
     assert partial["activity"]["status"] == "Completed"
     assert partial["activity"]["status_code"] == "Inactive"
@@ -218,11 +224,13 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
         "contract_version": "p6-activity-master-api.v1",
         "expected_revision": 3,
         "expected_finish": None,
+        "short_name": None,
     }
     status, cleared = _request(app, "PATCH", path + "/A-1", clear_payload)
     assert status == "200 OK"
     assert cleared["activity"]["record_revision"] == 4
     assert cleared["activity"]["expected_finish"] is None
+    assert cleared["activity"]["short_name"] is None
     assert cleared["activity"]["planned_finish"] == "2026-10-25"
     assert cleared["activity"]["original_duration"] == 15
 
@@ -232,7 +240,23 @@ def test_authenticated_activity_master_write_fresh_read_and_revision_conflict(tm
     assert status == "409 Conflict"
     assert conflict["code"] == "REVISION_CONFLICT"
 
+    blank_name_payload = {
+        "contract_version": "p6-activity-master-api.v1",
+        "expected_revision": 4,
+        "short_name": "   ",
+    }
+    status, blank = _request(app, "PATCH", path + "/A-1", blank_name_payload)
+    assert status == "400 Bad Request"
+    assert blank["code"] == "INVALID_SHORT_NAME"
+    assert app_get_short_name(app) is None
+
     connection.close()
+
+
+def app_get_short_name(app) -> str | None:
+    status, loaded = _request(app, "GET", "/api/projects/p1/p6/activities/A-1")
+    assert status == "200 OK"
+    return loaded["activity"]["short_name"]
 
 
 def test_activity_master_route_enforces_read_write_permission():

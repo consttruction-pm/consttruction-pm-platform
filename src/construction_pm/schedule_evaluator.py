@@ -12,11 +12,24 @@ from .schedule_input_snapshot_repository import ScheduleInputSnapshot
 from .schedule_snapshot_materializer import MaterializedScheduleInput, materialize_schedule_snapshot
 from .scheduling.calendar_context import CalendarResolverRegistry
 from .scheduling.calculation_context import CalculationContext
+from .scheduling.diagnostics import (
+    ScheduleDiagnostic,
+    ScheduleInfeasibilityError,
+)
 from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.leveling_scheduler import schedule_with_resource_leveling
 from .scheduling.leveling_boundary import SchedulerLevelingInput
+from .scheduling.leveling_cost_recalculation import LevelingCostInputs
+from .scheduling.resource_dependent_placement import (
+    PLACEMENT_DIRECTION_EARLY,
+    PLACEMENT_DIRECTION_LATE,
+    ResourceDependentPlacementResult,
+    demands_at_final_schedule,
+    place_resource_dependent_assignments,
+)
 from .scheduling.calendar_resolution import resolve_relationship_lag_resolvers
 from .scheduling.schedule import ScheduleResult, schedule
+from .scheduling.schedule_options import ScheduleMode
 from .scheduling.time_forward_pass import TimeScheduledActivity
 from .scheduling.time_schedule import TimeScheduleOptions, TimeScheduleResult, time_schedule
 
@@ -39,6 +52,14 @@ class ScheduleEvaluationResult:
     date_result: ScheduleResult | None = None
     time_activities: Mapping[str, TimeScheduledActivity] | None = None
     time_result: TimeScheduleResult | None = None
+    resource_dependent_placement: ResourceDependentPlacementResult | None = None
+
+    @property
+    def diagnostics(self) -> tuple[ScheduleDiagnostic, ...]:
+        """Stable findings for this run (for example, negative float)."""
+        if self.date_result is not None:
+            return self.date_result.diagnostics
+        return ()
 
     @property
     def project_finish(self) -> date | datetime:
@@ -55,6 +76,7 @@ def evaluate_schedule_snapshot(
     calendar_registry: CalendarResolverRegistry,
     *,
     leveling_input: SchedulerLevelingInput | None = None,
+    cost_inputs: LevelingCostInputs | None = None,
 ) -> ScheduleEvaluationResult:
     """Materialize and evaluate one immutable snapshot.
 
@@ -67,7 +89,9 @@ def evaluate_schedule_snapshot(
 
     Resource-leveling ScheduleOptions are routed explicitly through the
     authoritative leveling seam when the application supplies its already
-    mapped SchedulerLevelingInput. Plain scheduling remains unchanged.
+    mapped SchedulerLevelingInput. Post-leveling cost recalculation receives the
+    application-bound LevelingCostInputs (persisted assignments and effective
+    rate facts); this evaluator still reads no repository while calculating.
     """
     if calculation_context.input_snapshot_id != snapshot.snapshot_id:
         raise ScheduleEvaluationError("INPUT_SNAPSHOT_ID_MISMATCH")
@@ -96,6 +120,7 @@ def evaluate_schedule_snapshot(
         snapshot,
         calculation_context,
         leveling_input=leveling_input,
+        cost_inputs=cost_inputs,
     )
 
 
@@ -105,6 +130,7 @@ def _evaluate_materialized(
     calculation_context: CalculationContext,
     *,
     leveling_input: SchedulerLevelingInput | None = None,
+    cost_inputs: LevelingCostInputs | None = None,
 ) -> ScheduleEvaluationResult:
     source = materialized.schedule_input
     try:
@@ -120,6 +146,7 @@ def _evaluate_materialized(
                 for assignment in source.activity_calendar_assignments
             }
             leveling_requested = _resource_leveling_requested(source.schedule_options)
+            placement_required = bool(source.resource_dependent_assignment_facts)
             if leveling_requested:
                 if leveling_input is None:
                     raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
@@ -135,8 +162,19 @@ def _evaluate_materialized(
                     calculation_context=calculation_context,
                     relationship_lag_resolvers=relationship_lag_resolvers,
                     activity_resolvers=activity_resolvers,
+                    cost_assignments=(
+                        () if cost_inputs is None else cost_inputs.assignments
+                    ),
+                    cost_resources=(
+                        None if cost_inputs is None else cost_inputs.resources
+                    ),
+                    cost_project_currency=(
+                        None if cost_inputs is None else cost_inputs.project_currency
+                    ),
                 )
             else:
+                if placement_required and leveling_input is None:
+                    raise ScheduleEvaluationError("SCHEDULE_RESOURCE_INPUT_REQUIRED")
                 result = schedule(
                     activities=source.activities,
                     relationships=source.relationships,
@@ -149,11 +187,61 @@ def _evaluate_materialized(
                     relationship_lag_resolvers=relationship_lag_resolvers,
                     activity_resolvers=activity_resolvers,
                 )
+            placement = None
+            if placement_required:
+                # Placement is triggerable by immutable RD facts even when no
+                # leveling option is enabled. Capacities and demand are already
+                # bound by the application resolver; no repository is read here.
+                assert leveling_input is not None
+                resource_dependent_activity_ids = frozenset(
+                    fact.activity_id
+                    for fact in source.resource_dependent_assignment_facts
+                )
+                committed_demands = demands_at_final_schedule(
+                    forward_activities=leveling_input.forward_activities,
+                    final_activities=result.activities,
+                    resolver=resolver,
+                    activity_resolvers=activity_resolvers,
+                    excluded_activity_ids=resource_dependent_activity_ids,
+                )
+                placement = place_resource_dependent_assignments(
+                    facts=source.resource_dependent_assignment_facts,
+                    activities=result.activities,
+                    capacities=leveling_input.capacities,
+                    committed_demands=committed_demands,
+                    # Assignment early/late windows are derived from the
+                    # authoritative CPM early/late dates of this same run; this
+                    # module never recalculates activity dates or float. In
+                    # ALAP mode ``result.activities`` are the scheduled late
+                    # dates, so the CPM early dates are bound explicitly.
+                    early_activities=result.early_activities,
+                    late_activities=result.late_activities,
+                    # Competing nondriving assignments use the exact activity
+                    # priority fields and order that the Shared Core applies to
+                    # activity leveling. No client or parallel ordering is used.
+                    priority_activities={
+                        activity.activity_id: activity
+                        for activity in leveling_input.forward_activities
+                    },
+                    priorities=leveling_input.options.priorities,
+                    # ALAP selects the late activity schedule. The separate
+                    # resource-leveling preservation flag controls the activity
+                    # passes; it must not force every nondriving assignment to a
+                    # late window when ScheduleMode remains EARLIEST.
+                    placement_direction=(
+                        PLACEMENT_DIRECTION_LATE
+                        if result.mode is ScheduleMode.ALAP
+                        else PLACEMENT_DIRECTION_EARLY
+                    ),
+                )
             run_identity = _run_identity(
                 snapshot.snapshot_hash,
                 calculation_context.calculation_identity,
                 _canonical_result(result),
                 leveling_input_identity=_leveling_input_identity(leveling_input),
+                resource_dependent_placement=(
+                    None if placement is None else placement.to_payload()
+                ),
             )
             return ScheduleEvaluationResult(
                 snapshot_id=snapshot.snapshot_id,
@@ -164,6 +252,7 @@ def _evaluate_materialized(
                 project_revision=source.project_revision,
                 mode=source.mode.value,
                 date_result=result,
+                resource_dependent_placement=placement,
             )
 
         activities = source.activities
@@ -208,6 +297,13 @@ def _evaluate_materialized(
         )
     except ScheduleEvaluationError:
         raise
+    except ScheduleInfeasibilityError as exc:
+        # Preserve the stable schedule diagnostic code across the evaluation
+        # boundary instead of collapsing every infeasible input into an opaque
+        # failure. Callers may rely on the ``SCHEDULE_INFEASIBLE:<CODE>`` form.
+        raise ScheduleEvaluationError(
+            f"SCHEDULE_INFEASIBLE:{exc.code.value}"
+        ) from exc
     except (KeyError, TypeError, ValueError) as exc:
         raise ScheduleEvaluationError("SCHEDULE_EVALUATION_FAILED") from exc
 
@@ -223,6 +319,7 @@ def _resource_leveling_requested(options: object) -> bool:
             "resource_list",
             "priority_list",
             "preserve_scheduled_early_and_late_dates",
+            "recalculate_resource_costs",
         )
     )
 
@@ -267,17 +364,23 @@ def _run_identity(
     result: object,
     *,
     leveling_input_identity: Mapping[str, str] | None = None,
+    resource_dependent_placement: Mapping[str, object] | None = None,
 ) -> str:
-    payload = json.dumps(
-        {
-            "snapshot_hash": snapshot_hash,
-            "calculation_identity": calculation_identity,
-            "result": _canonical_result(result),
-            "leveling_input_identity": _canonical_result(leveling_input_identity),
-        },
+    payload: dict[str, object] = {
+        "snapshot_hash": snapshot_hash,
+        "calculation_identity": calculation_identity,
+        "result": _canonical_result(result),
+        "leveling_input_identity": _canonical_result(leveling_input_identity),
+    }
+    if resource_dependent_placement is not None:
+        payload["resource_dependent_placement"] = _canonical_result(
+            resource_dependent_placement
+        )
+    encoded = json.dumps(
+        payload,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
         default=str,
     )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()

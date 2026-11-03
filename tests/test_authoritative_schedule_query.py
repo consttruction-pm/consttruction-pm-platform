@@ -14,12 +14,18 @@ from construction_pm.control_intelligence.contracts import ControlScope
 from construction_pm.control_intelligence.query import ScheduleQueryRequest
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository, build_persisted_context
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, build_snapshot
-from construction_pm.scheduling.activity import Activity
+from construction_pm.scheduling.activity import Activity, ActivityStatus, ActivityType
 from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleInput, AuthoritativeScheduleMode
 from construction_pm.scheduling.calendar import WorkingCalendar, WorkingTimeResolver
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.calendar_context import CalendarReference, CalendarResolverRegistry
+from construction_pm.scheduling.constraints import ActivityConstraint, ConstraintType
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.relationships import Relationship, RelationshipType
+from construction_pm.scheduling.resource_dependent import (
+    ResourceDependentDemandPeriod,
+    ResourceDependentDriverFact,
+)
 from construction_pm.scheduling.resource_leveling import (
     BackwardLevelingActivity,
     LevelingActivity,
@@ -72,6 +78,73 @@ def test_query_executes_real_snapshot_evaluation():
     assert isinstance(answer.data["activities"]["A"]["critical"], bool)
     assert resolver_calls == []
     assert answer.source_refs[0].source_id == "S-I"
+
+
+def test_query_requires_authorized_resource_input_for_resource_dependent_facts():
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    calendar = CalendarReference("CAL-1", "1")
+    fact = ResourceDependentDriverFact(
+        assignment_id="AS-RD",
+        activity_id="RD-1",
+        resource_id="R-1",
+        calendar_id="RC-1",
+        calendar_version="v1",
+        unit_of_measure="labor-unit",
+        planned_units=Decimal("8"),
+        is_driving=True,
+        units_per_time=Decimal("4"),
+        units_per_time_period="day",
+        hours_per_units_time_period=Decimal("8"),
+        demand_periods=(
+            ResourceDependentDemandPeriod(date(2026, 9, 21), Decimal("4")),
+        ),
+    )
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-RD-ONLY",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(
+            Activity(
+                "RD-1",
+                2,
+                activity_type=ActivityType.RESOURCE_DEPENDENT,
+                resource_dependent_input_hash="a" * 64,
+            ),
+        ),
+        relationships=(),
+        activity_calendar_assignments=(),
+        resource_dependent_assignment_facts=(fact,),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=9, calendar_id="CAL-1", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00", input_snapshot_id="S-RD-ONLY", tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())})
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    request = ScheduleQueryRequest(
+        "Q-RD-ONLY", ControlScope("T-1", "P-1", 9), "user-1", "show schedule",
+        constraints={"snapshot_id": "S-RD-ONLY"},
+    )
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+
+    try:
+        service.execute(request, auth_context=auth, calculation_context=context)
+    except Exception as exc:
+        assert getattr(exc, "code", None) == "SCHEDULE_RESOURCE_INPUT_REQUIRED"
+    else:
+        raise AssertionError(
+            "provider evaluated resource-dependent facts without authorized resource input"
+        )
 
 
 def test_query_runs_leveling_only_with_snapshot_bound_resource_inputs():
@@ -565,3 +638,473 @@ def test_resource_leveling_activation_options_still_request_leveling():
     )
 
     assert _snapshot_requests_resource_leveling(snapshot) is True
+
+
+def _negative_float_query_service(snapshot_id: str = "S-NF"):
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    calendar = CalendarReference("CAL-1", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id=snapshot_id,
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(Activity("A", 5), Activity("B", 1)),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 9, 21),
+        project_finish=date(2026, 9, 23),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id=snapshot_id,
+        tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    return service, context
+
+
+def test_query_exposes_negative_float_diagnostic_in_fact_and_explanation():
+    from construction_pm.control_intelligence.query import ScheduleQueryKind
+
+    service, context = _negative_float_query_service("S-NF-FACT")
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+    scope = ControlScope("T-1", "P-1", 9)
+
+    fact = service.execute(
+        ScheduleQueryRequest(
+            "Q-NF-F",
+            scope,
+            "user-1",
+            "show negative float",
+            constraints={"snapshot_id": "S-NF-FACT"},
+        ),
+        auth_context=auth,
+        calculation_context=context,
+    )
+    findings = fact.data["diagnostics"]
+    assert [item["code"] for item in findings] == ["NEGATIVE_FLOAT"]
+    assert findings[0]["activity_id"] == "A"
+    assert findings[0]["severity"] == "WARNING"
+
+    explanation = service.execute(
+        ScheduleQueryRequest(
+            "Q-NF-E",
+            scope,
+            "user-1",
+            "explain negative float",
+            kind=ScheduleQueryKind.EXPLANATION,
+            constraints={"snapshot_id": "S-NF-FACT"},
+        ),
+        auth_context=auth,
+        calculation_context=context,
+    )
+    assert [item["code"] for item in explanation.data["diagnostics"]] == [
+        "NEGATIVE_FLOAT"
+    ]
+
+
+def test_filter_projection_scopes_diagnostics_to_selected_activity():
+    from construction_pm.control_intelligence.query import ScheduleQueryKind
+
+    service, context = _negative_float_query_service("S-NF-FILTER")
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+    scope = ControlScope("T-1", "P-1", 9)
+
+    def run(query_id: str, activity_ids: list[str]):
+        return service.execute(
+            ScheduleQueryRequest(
+                query_id,
+                scope,
+                "user-1",
+                "filter",
+                kind=ScheduleQueryKind.FILTER,
+                constraints={
+                    "activity_ids": activity_ids,
+                    "snapshot_id": "S-NF-FILTER",
+                },
+            ),
+            auth_context=auth,
+            calculation_context=context,
+        )
+
+    selected_a = run("Q-NF-FA", ["A"])
+    assert [item["code"] for item in selected_a.data["diagnostics"]] == [
+        "NEGATIVE_FLOAT"
+    ]
+
+    # B has float under the same constraint, so its answer must not inherit A's
+    # activity-scoped warning.
+    selected_b = run("Q-NF-FB", ["B"])
+    assert selected_b.data["diagnostics"] == []
+
+
+def test_query_translates_infeasible_snapshot_into_stable_validation_code():
+    from construction_pm.backend_p0.errors import BackendApplicationError
+
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    calendar = CalendarReference("CAL-1", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-INFEASIBLE-QUERY",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(Activity("A", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        constraints=(
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_EARLIER_THAN, date(2026, 9, 25)
+            ),
+            ActivityConstraint(
+                "A", ConstraintType.START_NO_LATER_THAN, date(2026, 9, 22)
+            ),
+        ),
+        project_start=date(2026, 9, 21),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-INFEASIBLE-QUERY",
+        tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+
+    request = ScheduleQueryRequest(
+        "Q-INFEASIBLE",
+        ControlScope("T-1", "P-1", 9),
+        "user-1",
+        "show schedule",
+        constraints={"snapshot_id": "S-INFEASIBLE-QUERY"},
+    )
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+    try:
+        service.execute(request, auth_context=auth, calculation_context=context)
+    except BackendApplicationError as exc:
+        assert exc.code == "SCHEDULE_INFEASIBLE:CONSTRAINT_WINDOW_EMPTY"
+    else:
+        raise AssertionError("infeasible snapshot was accepted")
+
+
+def test_query_exposes_wbs_summary_aggregated_progress_from_persisted_ancestry():
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    calendar = CalendarReference("CAL-1", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-WBS-PROGRESS",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(
+            Activity(
+                "DONE",
+                2,
+                actual_start=date(2026, 11, 2),
+                actual_finish=date(2026, 11, 3),
+                remaining_duration=0,
+                percent_complete=100,
+                status=ActivityStatus.COMPLETED,
+                wbs_id="W-CHILD",
+                wbs_ancestry=("W-ROOT",),
+            ),
+            Activity(
+                "HALF",
+                4,
+                actual_start=date(2026, 11, 2),
+                remaining_duration=2,
+                percent_complete=50,
+                status=ActivityStatus.IN_PROGRESS,
+                wbs_id="W-ROOT",
+            ),
+            Activity("NEW", 3, wbs_id="W-ROOT"),
+            Activity(
+                "WBS",
+                0,
+                activity_type=ActivityType.WBS_SUMMARY,
+                wbs_id="W-ROOT",
+            ),
+        ),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 11, 2),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-WBS-PROGRESS",
+        tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    request = ScheduleQueryRequest(
+        "Q-WBS-PROGRESS",
+        ControlScope("T-1", "P-1", 9),
+        "user-1",
+        "wbs summary progress",
+        constraints={"snapshot_id": "S-WBS-PROGRESS"},
+    )
+    answer = service.execute(
+        request,
+        auth_context=AuthorizationContext(
+            "T-1", "P-1", "user-1", frozenset({"viewer"})
+        ),
+        calculation_context=context,
+    )
+
+    summary = answer.data["activities"]["WBS"]
+    # (100 + 50 + 0) / 3 over the same and subordinate WBS descendants.
+    assert summary["percent_complete"] == 50.0
+    assert summary["status"] == "In Progress"
+    # Task rows do not duplicate persisted progress in the schedule answer.
+    assert answer.data["activities"]["NEW"]["percent_complete"] is None
+    assert answer.data["activities"]["NEW"]["status"] is None
+
+
+def test_persisted_start_and_finish_milestones_place_successors_from_their_event():
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    calendar = CalendarReference("CAL-1", "1")
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-MILESTONES",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=calendar,
+        activities=(
+            Activity(
+                "SM",
+                0,
+                activity_type=ActivityType.START_MILESTONE,
+                wbs_id="W-ROOT",
+            ),
+            Activity("A", 3, wbs_id="W-ROOT"),
+            Activity(
+                "FM",
+                0,
+                activity_type=ActivityType.FINISH_MILESTONE,
+                wbs_id="W-ROOT",
+            ),
+        ),
+        relationships=(
+            Relationship("SM", "A", RelationshipType.FS),
+            Relationship("A", "FM", RelationshipType.FS),
+        ),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 11, 2),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00",
+        input_snapshot_id="S-MILESTONES",
+        tenant_id="T-1",
+    )
+    repo.save(build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc)))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(repo, lambda: registry),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    request = ScheduleQueryRequest(
+        "Q-MILESTONES",
+        ControlScope("T-1", "P-1", 9),
+        "user-1",
+        "milestone placement",
+        constraints={"snapshot_id": "S-MILESTONES"},
+    )
+    answer = service.execute(
+        request,
+        auth_context=AuthorizationContext(
+            "T-1", "P-1", "user-1", frozenset({"viewer"})
+        ),
+        calculation_context=context,
+    )
+
+    facts = answer.data["activities"]
+    assert (facts["SM"]["start"], facts["SM"]["finish"]) == (
+        "2026-11-02",
+        "2026-11-02",
+    )
+    assert (facts["A"]["start"], facts["A"]["finish"]) == (
+        "2026-11-03",
+        "2026-11-05",
+    )
+    assert (facts["FM"]["start"], facts["FM"]["finish"]) == (
+        "2026-11-06",
+        "2026-11-06",
+    )
+
+
+def _cost_recalculation_case():
+    from construction_pm.resources.models import CostBasis, Resource, ResourceRate, ResourceType
+    from construction_pm.scheduling.leveling_cost_recalculation import (
+        LevelingCostAssignment,
+        LevelingCostInputs,
+    )
+    from construction_pm.scheduling.schedule_options import PriorityListItem, PrioritySortOrder
+
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    start = date(2026, 9, 21)
+    end = date(2026, 9, 22)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-COST", tenant_id="T-1", project_id="P-1", project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED, project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 2),), relationships=(), activity_calendar_assignments=(),
+        schedule_options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=True,
+            recalculate_resource_costs=True,
+            priority_list=(
+                PriorityListItem("activity_priority", PrioritySortOrder.ASCENDING),
+            ),
+        ),
+        project_start=start,
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=9, calendar_id="CAL-1", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00", input_snapshot_id="S-COST", tenant_id="T-1",
+    )
+    snapshot = build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc))
+    repo.save(snapshot)
+    registry = CalendarResolverRegistry(day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())})
+    demand = ResourceDemand("R-1", start, Decimal("4"), "A")
+    leveling = SchedulerLevelingInput(
+        forward_activities=(LevelingActivity("A", start, end, 0, (demand,)),),
+        backward_activities=(BackwardLevelingActivity("A", start, end, start, end, (demand,)),),
+        capacities=(ResourceCapacity("R-1", start, Decimal("8"), "RC-1", "v1", "a" * 64),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+        source_snapshot_id=snapshot.snapshot_id, source_snapshot_hash=snapshot.snapshot_hash,
+        source_calculation_identity=context.calculation_identity,
+        resource_facts_hash="b" * 64, calendar_manifest_hash="c" * 64,
+    )
+    cost_inputs = LevelingCostInputs(
+        assignments=(LevelingCostAssignment("AS-A", "A", "R-1", Decimal("4")),),
+        resources={
+            "R-1": Resource(
+                id="R-1", code="R-1", name="Labor", resource_type=ResourceType.LABOR,
+                unit="day",
+                rates=[ResourceRate(Decimal("10"), CostBasis.PER_DAY, "USD", effective_from=start)],
+            )
+        },
+    )
+    request = ScheduleQueryRequest(
+        "Q-COST", ControlScope("T-1", "P-1", 9), "user-1", "show schedule",
+        constraints={"snapshot_id": "S-COST"},
+    )
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+    return conn, repo, registry, leveling, cost_inputs, request, auth, context, snapshot
+
+
+def _cost_error_code(exc):
+    return getattr(exc, "code", None) or str(exc)
+
+
+def test_query_requires_bound_cost_inputs_when_snapshot_recalculates_costs():
+    conn, repo, registry, leveling, _cost_inputs, request, auth, context, _snapshot = (
+        _cost_recalculation_case()
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(
+            repo, lambda: registry, leveling_input_resolver=lambda *_: leveling
+        ),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    try:
+        service.execute(request, auth_context=auth, calculation_context=context)
+    except Exception as exc:
+        assert _cost_error_code(exc) == "SCHEDULE_COST_INPUTS_REQUIRED", exc
+    else:
+        raise AssertionError(
+            "provider evaluated a cost-recalculation snapshot without cost inputs"
+        )
+    conn.close()
+
+
+def test_query_passes_application_bound_cost_inputs_to_the_evaluator():
+    conn, repo, registry, leveling, cost_inputs, request, auth, context, snapshot = (
+        _cost_recalculation_case()
+    )
+    calls = []
+
+    def resolve_cost_inputs(loaded_snapshot, loaded_context, loaded_auth_context):
+        calls.append(
+            (
+                loaded_snapshot.snapshot_hash,
+                loaded_context.calculation_identity,
+                loaded_auth_context,
+            )
+        )
+        return cost_inputs
+
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(
+            repo,
+            lambda: registry,
+            leveling_input_resolver=lambda *_: leveling,
+            cost_inputs_resolver=resolve_cost_inputs,
+        ),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+
+    answer = service.execute(request, auth_context=auth, calculation_context=context)
+
+    assert calls == [(snapshot.snapshot_hash, context.calculation_identity, auth)]
+    assert answer.data["activity_count"] == 1
+    assert answer.data["project_finish"] == "2026-09-22"
+    conn.close()

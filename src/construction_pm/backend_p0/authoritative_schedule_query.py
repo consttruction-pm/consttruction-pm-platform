@@ -27,6 +27,7 @@ from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnap
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.leveling_cost_recalculation import LevelingCostInputs
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,10 @@ class AuthoritativeScheduleQueryProvider:
     calendar_registry_factory: Callable[[], CalendarResolverRegistry]
     calculation_context_repository: CalculationContextRepository | None = None
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None
+    # Supplies the persisted assignment and effective-rate facts needed when the
+    # snapshot enables post-leveling cost recalculation. The evaluator receives
+    # them as immutable LevelingCostInputs and reads no repository itself.
+    cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None
 
     def execute(
         self,
@@ -93,28 +98,56 @@ class AuthoritativeScheduleQueryProvider:
         try:
             calendar_registry = self.calendar_registry_factory()
             leveling_input = None
-            if (
-                self.leveling_input_resolver is not None
-                and _snapshot_requests_resource_leveling(snapshot)
+            leveling_requested = _snapshot_requests_resource_leveling(snapshot)
+            placement_required = _snapshot_has_resource_dependent_facts(snapshot)
+            if self.leveling_input_resolver is not None and (
+                leveling_requested or placement_required
             ):
                 if auth_context is None:
-                    raise ScheduleEvaluationError("LEVELING_AUTHORIZATION_CONTEXT_REQUIRED")
+                    raise ScheduleEvaluationError(
+                        "LEVELING_AUTHORIZATION_CONTEXT_REQUIRED"
+                        if leveling_requested
+                        else "RESOURCE_PLACEMENT_AUTHORIZATION_CONTEXT_REQUIRED"
+                    )
                 if (
                     auth_context.tenant_id != snapshot.scope.tenant_id
                     or auth_context.project_id != snapshot.scope.project_id
                 ):
-                    raise ScheduleEvaluationError("LEVELING_AUTHORIZATION_SCOPE_MISMATCH")
+                    raise ScheduleEvaluationError(
+                        "LEVELING_AUTHORIZATION_SCOPE_MISMATCH"
+                        if leveling_requested
+                        else "RESOURCE_PLACEMENT_AUTHORIZATION_SCOPE_MISMATCH"
+                    )
                 leveling_input = self.leveling_input_resolver(
                     snapshot, calculation_context, calendar_registry, auth_context
                 )
                 if leveling_input is None:
                     raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
                 _validate_leveling_input_binding(snapshot, calculation_context, leveling_input)
+            elif leveling_requested:
+                raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
+            elif placement_required:
+                raise ScheduleEvaluationError("SCHEDULE_RESOURCE_INPUT_REQUIRED")
+            cost_inputs = None
+            if _snapshot_requests_cost_recalculation(snapshot):
+                if self.cost_inputs_resolver is None:
+                    raise ScheduleEvaluationError("SCHEDULE_COST_INPUTS_REQUIRED")
+                if auth_context is None:
+                    raise ScheduleEvaluationError(
+                        "LEVELING_AUTHORIZATION_CONTEXT_REQUIRED"
+                    )
+                cost_inputs = self.cost_inputs_resolver(
+                    snapshot, calculation_context, auth_context
+                )
+                if cost_inputs is None:
+                    raise ScheduleEvaluationError("SCHEDULE_COST_INPUTS_REQUIRED")
+                _validate_cost_inputs_binding(cost_inputs)
             result = evaluate_schedule_snapshot(
                 snapshot,
                 calculation_context,
                 calendar_registry,
                 leveling_input=leveling_input,
+                cost_inputs=cost_inputs,
             )
         except ValueError as exc:
             # Keep fail-closed calculation behavior while translating a core
@@ -155,6 +188,12 @@ def _date_activity_fact(value, floats) -> dict[str, object]:
         "start": value.start.isoformat(),
         "finish": value.finish.isoformat(),
         "duration": value.duration,
+        "remaining_start": (
+            None if value.remaining_start is None else value.remaining_start.isoformat()
+        ),
+        "remaining_finish": (
+            None if value.remaining_finish is None else value.remaining_finish.isoformat()
+        ),
         "critical": floats.critical,
         "early_start": floats.early_start.isoformat(),
         "early_finish": floats.early_finish.isoformat(),
@@ -162,6 +201,15 @@ def _date_activity_fact(value, floats) -> dict[str, object]:
         "late_finish": floats.late_finish.isoformat(),
         "total_float": floats.total_float,
         "free_float": floats.free_float,
+        # Multiple Float Paths membership comes from the same shared CPM run;
+        # clients never infer a path number from float values.
+        "float_path": floats.float_path,
+        "float_path_order": floats.float_path_order,
+        # WBS Summary activities carry the aggregate of their descendants.
+        # Task rows report None because their source Activity row already owns
+        # the persisted progress facts.
+        "percent_complete": value.percent_complete,
+        "status": None if value.status is None else value.status.value,
     }
 
 
@@ -180,6 +228,7 @@ def _snapshot_requests_resource_leveling(snapshot: ScheduleInputSnapshot) -> boo
         "level_all_resources",
         "level_within_float",
         "preserve_scheduled_early_and_late_dates",
+        "recalculate_resource_costs",
     ):
         if name in options and not isinstance(options[name], bool):
             raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
@@ -203,7 +252,56 @@ def _snapshot_requests_resource_leveling(snapshot: ScheduleInputSnapshot) -> boo
         or over_allocation != Decimal("0")
         or bool(resource_list)
         or bool(priority_list)
+        or bool(options.get("recalculate_resource_costs", False))
     )
+
+
+def _snapshot_requests_cost_recalculation(snapshot: ScheduleInputSnapshot) -> bool:
+    """Return the snapshot's post-leveling cost-recalculation option.
+
+    The option is part of the immutable payload, so the provider can demand the
+    exact application-bound cost inputs before evaluating instead of letting a
+    missing input surface as a generic calculation failure.
+    """
+    try:
+        payload = json.loads(snapshot.canonical_payload)
+        options = payload["schedule_options"]
+        mode = payload["mode"]
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT") from exc
+    if not isinstance(options, dict):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    if mode != "DATE_BASED":
+        return False
+    value = options.get("recalculate_resource_costs", False)
+    if not isinstance(value, bool):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    return value
+
+
+def _validate_cost_inputs_binding(cost_inputs: object) -> None:
+    if not isinstance(cost_inputs, LevelingCostInputs):
+        raise ScheduleEvaluationError("INVALID_COST_INPUTS")
+    if not cost_inputs.assignments or not cost_inputs.resources:
+        raise ScheduleEvaluationError("SCHEDULE_COST_INPUTS_EMPTY")
+
+
+def _snapshot_has_resource_dependent_facts(snapshot: ScheduleInputSnapshot) -> bool:
+    """Detect immutable RD assignment facts that require placement output.
+
+    Placement must run even when no resource-leveling option is enabled, so the    provider cannot use the leveling-options switch as its only resource seam.
+    """
+    try:
+        payload = json.loads(snapshot.canonical_payload)
+        mode = payload["mode"]
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT") from exc
+    if mode != "DATE_BASED":
+        return False
+    facts = payload.get("resource_dependent_assignment_facts", [])
+    if not isinstance(facts, list):
+        raise ScheduleEvaluationError("INVALID_RESOURCE_DEPENDENT_ASSIGNMENT_FACTS")
+    return bool(facts)
 
 
 def _validate_leveling_input_binding(
@@ -223,6 +321,25 @@ def _validate_leveling_input_binding(
         raise ScheduleEvaluationError("LEVELING_INPUT_CALCULATION_IDENTITY_MISMATCH")
 
 
+def _diagnostic_payload(
+    result: ScheduleEvaluationResult,
+    selected_ids: set[str] | None = None,
+) -> list[dict[str, object]]:
+    """Expose stable CPM diagnostics without resolving them into prose.
+
+    A diagnostic without an activity (for example, a future schedule-wide
+    check) always remains visible. Activity-scoped findings follow the selected
+    activity set so a filter answer never reports another activity's warning.
+    """
+    return [
+        item.to_payload()
+        for item in result.diagnostics
+        if item.activity_id is None
+        or selected_ids is None
+        or item.activity_id in selected_ids
+    ]
+
+
 def _project_result(
     request: ScheduleQueryRequest,
     result: ScheduleEvaluationResult | None,
@@ -234,8 +351,13 @@ def _project_result(
         raise ValueError("SCHEDULE_EVALUATION_RESULT_REQUIRED")
     if result.date_result is not None:
         activities = result.date_result.activities
+        placement = (
+            None
+            if result.resource_dependent_placement is None
+            else result.resource_dependent_placement.to_payload()
+        )
         if request.kind is ScheduleQueryKind.FACT:
-            return {
+            data: dict[str, object] = {
                 "calculation_run_identity": result.calculation_run_identity,
                 "project_finish": result.project_finish.isoformat(),
                 "activity_count": len(activities),
@@ -243,7 +365,11 @@ def _project_result(
                     key: _date_activity_fact(value, result.date_result.floats[key])
                     for key, value in sorted(activities.items())
                 },
+                "diagnostics": _diagnostic_payload(result),
             }
+            if placement is not None:
+                data["resource_dependent_placement"] = placement
+            return data
 
         if request.kind is ScheduleQueryKind.FILTER:
             requested_ids = request.constraints.get("activity_ids")
@@ -258,19 +384,27 @@ def _project_result(
                 for key, value in sorted(activities.items())
                 if key in selected_ids
             }
-            return {
+            filtered: dict[str, object] = {
                 "calculation_run_identity": result.calculation_run_identity,
                 "activities": selected,
                 "count": len(selected),
+                "diagnostics": _diagnostic_payload(result, selected_ids),
             }
+            if placement is not None:
+                filtered["resource_dependent_placement"] = placement
+            return filtered
 
         if request.kind is ScheduleQueryKind.EXPLANATION:
-            return {
+            explanation: dict[str, object] = {
                 "calculation_run_identity": result.calculation_run_identity,
                 "project_finish": result.project_finish.isoformat(),
                 "activity_count": len(activities),
                 "explanation_key": "schedule.query.explanation.calculated_from_snapshot",
+                "diagnostics": _diagnostic_payload(result),
             }
+            if placement is not None:
+                explanation["resource_dependent_placement"] = placement
+            return explanation
 
     if result.time_activities is not None:
         if request.kind is ScheduleQueryKind.FACT:

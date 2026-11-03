@@ -121,6 +121,8 @@ FACTS = {
             "late_finish": "2026-10-22",
             "total_float": 2,
             "free_float": 0,
+            "float_path": 1,
+            "float_path_order": 2,
         },
         "A-2": {
             "start": "2026-10-21",
@@ -190,6 +192,8 @@ def test_provider_joins_scoped_activities_layout_and_shared_core_facts() -> None
         }
         assert first["cells"]["activity.early_start"] == "2026-10-19"
         assert first["cells"]["activity.total_float"] == 2
+        assert first["cells"]["activity.float_path"] == 1
+        assert first["cells"]["activity.float_path_order"] == 2
         assert first["cells"]["activity.is_critical"] is True
         assert first["cells"]["activity.planned_duration"] == "2"
         # Canonical field-registry IDs always carry the same values as the

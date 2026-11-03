@@ -287,7 +287,17 @@ def resolve_p6_resource_calendar(
             raise P6ResourceCalendarResolutionError("INVALID_CALENDAR_SNAPSHOT") from exc
 
         rules = _load_work_rules(scope, master.calendar_id, master.calendar_version, work_hours_repository)
-        definition, hours_by_weekday = _apply_weekly_rules(definition, rules)
+        try:
+            definition, hours_by_weekday = _apply_weekly_rules(definition, rules)
+        except P6ResourceCalendarResolutionError:
+            raise
+        except ValueError as exc:
+            # The core time calendar rejects overlapping shift windows. Surface
+            # that persisted-data defect with the resolver's stable code rather
+            # than a raw validation message.
+            raise P6ResourceCalendarResolutionError(
+                "OVERLAP_WORK_HOUR_INTERVAL"
+            ) from exc
         reference = CalendarReference(
             master.calendar_id, master.calendar_version, master.kind, definition.system
         )

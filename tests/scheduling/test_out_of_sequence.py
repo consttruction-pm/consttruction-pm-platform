@@ -253,19 +253,19 @@ def test_oos_reference_matrix_completed_successor_preserves_progress_boundary(
 
 
 @pytest.mark.parametrize("relationship_type", list(RelationshipType))
-@pytest.mark.parametrize(
-    ("mode", "expected_start"),
-    [
-        (OutOfSequenceScheduleType.RETAINED_LOGIC, None),
-        (OutOfSequenceScheduleType.PROGRESS_OVERRIDE, date(2026, 10, 2)),
-        (OutOfSequenceScheduleType.ACTUAL_DATES, None),
-    ],
-)
-def test_schedule_applies_oos_mode_to_in_progress_successor(
-    relationship_type, mode, expected_start
-):
+@pytest.mark.parametrize("mode", list(OutOfSequenceScheduleType))
+def test_schedule_applies_oos_mode_to_in_progress_successor(relationship_type, mode):
+    """Remaining work of an out-of-sequence successor follows the selected mode.
+
+    The predecessor is completed with actual dates, so rescheduling cannot move
+    it. Every mode must keep the successor's actual start as the reported
+    start; the data date anchors the remaining work that is still to be placed.
+    """
     resolver = WorkingTimeResolver(WorkingCalendar())
-    predecessor = Activity("P", 2)
+    predecessor = Activity(
+        "P", 2, actual_start=date(2026, 9, 21), actual_finish=date(2026, 9, 22),
+        remaining_duration=0,
+    )
     probe = Activity("S", 1)
     from construction_pm.scheduling.forward_pass import forward_pass
 
@@ -290,18 +290,26 @@ def test_schedule_applies_oos_mode_to_in_progress_successor(
         resolver,
         project_finish=date(2026, 10, 5),
         options=ScheduleOptions(
-            data_date=date(2026, 10, 2),
+            data_date=date(2026, 9, 23),
             out_of_sequence_schedule_type=mode,
         ),
     )
 
     assert result.early_activities is not None
-    if expected_start is not None:
-        assert result.early_activities["S"].start == expected_start
-        assert result.early_activities["S"].duration == 1
+    scheduled = result.early_activities["S"]
+    assert scheduled.duration == 1
+    if mode is OutOfSequenceScheduleType.ACTUAL_DATES:
+        # Actual dates anchor remaining work on the actual start, which can
+        # place the projected finish before the data date (negative float).
+        assert scheduled.start == actual_start
+        assert scheduled.remaining_start == actual_start
+        assert scheduled.finish == resolver.add_working_duration(actual_start, 1)
     else:
-        assert result.early_activities["S"].start == required_start
-        assert result.early_activities["S"].duration == 1
+        # Retained Logic waits for the completed predecessor and the start of
+        # the current period; Progress Override ignores the relationship.
+        assert scheduled.start == date(2026, 9, 23)
+        assert scheduled.remaining_start == date(2026, 9, 23)
+        assert scheduled.finish == date(2026, 9, 23)
 
 
 @pytest.mark.parametrize("relationship_type", list(RelationshipType))

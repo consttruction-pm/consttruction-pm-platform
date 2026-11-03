@@ -35,6 +35,7 @@ from .project_schedule_settings_repository import (
 from .scheduling.activity import Activity, ActivityStatus, ActivityType
 from .scheduling.resource_dependent import (
     ResourceDependentCalculationError,
+    ResourceDependentDemandPeriod,
     ResourceDependentDriverFact,
     ResourceDependentDuration,
     derive_resource_dependent_duration,
@@ -50,6 +51,11 @@ from .scheduling.calendar_system import CalendarSystem
 from .scheduling.constraints import ActivityConstraint
 from .scheduling.relationships import Relationship
 from .scheduling.time_duration import DurationUnit
+from .wbs_master_repository import (
+    WBSParentKind,
+    WBSPersistenceError,
+    WBSMasterRepository,
+)
 
 
 class ScheduleInputCompositionError(ValueError):
@@ -76,6 +82,7 @@ class AuthoritativeScheduleInputComposer:
         resource_assignment_repository: P6ResourceAssignmentRepository,
         resource_period_repository: P6ResourceAssignmentPeriodRepository,
         project_schedule_settings_repository: ProjectScheduleSettingsRepository,
+        wbs_repository: WBSMasterRepository | None = None,
     ) -> None:
         self.activity_repository = activity_repository
         self.relationship_repository = relationship_repository
@@ -86,6 +93,7 @@ class AuthoritativeScheduleInputComposer:
         self.resource_assignment_repository = resource_assignment_repository
         self.resource_period_repository = resource_period_repository
         self.project_schedule_settings_repository = project_schedule_settings_repository
+        self.wbs_repository = wbs_repository
 
     @staticmethod
     def _date_value(value: date | datetime | None, *, field_name: str, activity_id: str) -> date | None:
@@ -156,6 +164,121 @@ class AuthoritativeScheduleInputComposer:
             raise ScheduleInputCompositionError("CALENDAR_SNAPSHOT_IDENTITY_MISMATCH")
         return self._calendar_reference(calendar, snapshot)
 
+    def _load_calendar_hours_per_day(
+        self,
+        scope: BackendScope,
+        calendar_id: str,
+        calendar_version: str,
+    ) -> Decimal:
+        """Return the exact hours-per-day factor of a versioned working calendar.
+
+        A non-daily resource rate is meaningless without this factor: it is the
+        bridge between the rate's hours-per-period and a working-day duration.
+        The value is read from the same immutable calendar snapshot that backs
+        the assignment, never from a process default.
+        """
+        try:
+            calendar = self.calendar_repository.get(
+                scope, calendar_id, calendar_version
+            )
+            if calendar is None:
+                raise ScheduleInputCompositionError(
+                    f"CALENDAR_VERSION_NOT_FOUND:{calendar_id}@{calendar_version}"
+                )
+            snapshot = self.calendar_snapshot_repository.get(calendar)
+        except CalendarPersistenceError as exc:
+            raise ScheduleInputCompositionError(str(exc)) from exc
+        data = getattr(snapshot, "snapshot", None)
+        if not isinstance(data, dict):
+            raise ScheduleInputCompositionError("CALENDAR_SNAPSHOT_NOT_FOUND_OR_INVALID")
+        factors = data.get("time_period_factors", {})
+        if not isinstance(factors, dict):
+            raise ScheduleInputCompositionError("INVALID_CALENDAR_TIME_PERIOD_FACTORS")
+        try:
+            value = Decimal(str(factors.get("hours_per_day", "8")))
+        except (ArithmeticError, TypeError, ValueError) as exc:
+            raise ScheduleInputCompositionError("INVALID_CALENDAR_HOURS_PER_DAY") from exc
+        if not value.is_finite() or value <= 0:
+            raise ScheduleInputCompositionError("INVALID_CALENDAR_HOURS_PER_DAY")
+        return value
+
+    def _wbs_ancestry_map(
+        self,
+        scope: BackendScope,
+        persisted_activities: tuple[object, ...],
+    ) -> dict[str, tuple[str, ...]]:
+        """Return root-to-parent WBS ancestry for every persisted WBS node.
+
+        A WBS Summary must aggregate activities in its own and subordinate WBS
+        elements semantics. The immutable snapshot therefore binds the WBS
+        hierarchy instead of letting the scheduler read live persistence.
+        """
+        requires_wbs = any(
+            getattr(item.activity_type, "value", item.activity_type)
+            == ActivityType.WBS_SUMMARY.value
+            for item in persisted_activities
+        )
+        if self.wbs_repository is None:
+            if requires_wbs:
+                raise ScheduleInputCompositionError(
+                    "WBS_SUMMARY_WBS_REPOSITORY_REQUIRED"
+                )
+            return {}
+        try:
+            records = self.wbs_repository.list(scope)
+        except WBSPersistenceError as exc:
+            raise ScheduleInputCompositionError(str(exc)) from exc
+        nodes: dict[str, object] = {}
+        for record in records:
+            try:
+                record.validate()
+            except WBSPersistenceError as exc:
+                raise ScheduleInputCompositionError(str(exc)) from exc
+            if record.scope != scope:
+                raise ScheduleInputCompositionError(
+                    f"WBS_SCOPE_MISMATCH:{record.wbs_id}"
+                )
+            if record.wbs_id in nodes:
+                raise ScheduleInputCompositionError(
+                    f"DUPLICATE_PERSISTED_WBS_ID:{record.wbs_id}"
+                )
+            nodes[record.wbs_id] = record
+
+        cache: dict[str, tuple[str, ...]] = {}
+
+        def ancestry(wbs_id: str) -> tuple[str, ...]:
+            cached = cache.get(wbs_id)
+            if cached is not None:
+                return cached
+            path: list[str] = []
+            seen: set[str] = set()
+            current = wbs_id
+            while True:
+                if current in seen:
+                    raise ScheduleInputCompositionError(
+                        f"WBS_ANCESTRY_CYCLE:{wbs_id}"
+                    )
+                seen.add(current)
+                node = nodes.get(current)
+                if node is None:
+                    raise ScheduleInputCompositionError(
+                        f"WBS_ANCESTRY_INCOMPLETE:{wbs_id}:{current}"
+                    )
+                if node.parent_kind is WBSParentKind.PROJECT:
+                    break
+                parent = node.parent_wbs_id
+                if parent is None:
+                    raise ScheduleInputCompositionError(
+                        f"WBS_ANCESTRY_INCOMPLETE:{wbs_id}:{current}"
+                    )
+                path.append(parent)
+                current = parent
+            value = tuple(reversed(path))
+            cache[wbs_id] = value
+            return value
+
+        return {wbs_id: ancestry(wbs_id) for wbs_id in sorted(nodes)}
+
     def compose(
         self,
         scope: BackendScope,
@@ -209,6 +332,7 @@ class AuthoritativeScheduleInputComposer:
         activity_ids = {item.activity_id for item in persisted_activities}
         if len(activity_ids) != len(persisted_activities):
             raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_ACTIVITY_ID")
+        wbs_ancestry_map = self._wbs_ancestry_map(scope, persisted_activities)
 
         # Resource assignments and period values remain in their own immutable,
         # revision-scoped repositories and are bound by the leveler's companion
@@ -235,6 +359,7 @@ class AuthoritativeScheduleInputComposer:
             assignments_by_id[assignment.assignment_id] = assignment
 
         seen_resource_periods = set()
+        periods_by_assignment: dict[str, list[ResourceDependentDemandPeriod]] = {}
         for period in resource_periods:
             if period.scope != scope:
                 raise ScheduleInputCompositionError(
@@ -259,7 +384,7 @@ class AuthoritativeScheduleInputComposer:
                     f"RESOURCE_PERIOD_ASSIGNMENT_MISMATCH:{period.assignment_id}:{period.period_start}"
                 )
             try:
-                date.fromisoformat(period.period_start)
+                period_date = date.fromisoformat(period.period_start)
             except (TypeError, ValueError) as exc:
                 raise ScheduleInputCompositionError(
                     f"INVALID_RESOURCE_PERIOD_START:{period.assignment_id}:{period.period_start}"
@@ -268,6 +393,9 @@ class AuthoritativeScheduleInputComposer:
             if period_key in seen_resource_periods:
                 raise ScheduleInputCompositionError("DUPLICATE_PERSISTED_RESOURCE_PERIOD")
             seen_resource_periods.add(period_key)
+            periods_by_assignment.setdefault(period.assignment_id, []).append(
+                ResourceDependentDemandPeriod(period_date, period.units)
+            )
 
         configured_calendar = project_settings.project_calendar
         project_calendar = self._load_calendar_reference(
@@ -281,6 +409,7 @@ class AuthoritativeScheduleInputComposer:
 
         activities: list[Activity] = []
         resource_dependent_durations: dict[str, ResourceDependentDuration] = {}
+        resource_dependent_assignment_facts: list[ResourceDependentDriverFact] = []
         assignments_by_activity: dict[str, list[object]] = {}
         for assignment in assignments_by_id.values():
             assignments_by_activity.setdefault(assignment.activity_id, []).append(assignment)
@@ -294,19 +423,149 @@ class AuthoritativeScheduleInputComposer:
                 )
 
             raw_activity_type = getattr(item.activity_type, "value", item.activity_type)
-            resource_dependent = raw_activity_type == ActivityType.RESOURCE_DEPENDENT.value
-            derived = None
-            if resource_dependent:
-                raw_status = getattr(item.status, "value", item.status)
+            if raw_activity_type in (
+                ActivityType.START_MILESTONE.value,
+                ActivityType.FINISH_MILESTONE.value,
+            ):
+                # A milestone is a zero-duration event and cannot carry work.
+                # Persisted resource assignments (including time-based labour
+                # costs) contradict the documented activity type.
+                milestone_assignments = assignments_by_activity.get(item.activity_id, [])
+                if milestone_assignments:
+                    raise ScheduleInputCompositionError(
+                        "MILESTONE_RESOURCE_ASSIGNMENT_UNSUPPORTED:"
+                        f"{item.activity_id}:{milestone_assignments[0].assignment_id}"
+                    )
+            activity_wbs_id = item.wbs_id
+            activity_wbs_ancestry: tuple[str, ...] = ()
+            if activity_wbs_id is not None:
                 if (
-                    raw_status != ActivityStatus.NOT_STARTED.value
-                    or item.actual_start is not None
-                    or item.actual_finish is not None
+                    self.wbs_repository is not None
+                    and activity_wbs_id not in wbs_ancestry_map
                 ):
                     raise ScheduleInputCompositionError(
-                        f"RESOURCE_DEPENDENT_IN_PROGRESS_DERIVATION_UNSUPPORTED:{item.activity_id}"
+                        f"ACTIVITY_WBS_NOT_FOUND:{item.activity_id}:{activity_wbs_id}"
+                    )
+                activity_wbs_ancestry = wbs_ancestry_map.get(activity_wbs_id, ())
+            elif raw_activity_type == ActivityType.WBS_SUMMARY.value:
+                raise ScheduleInputCompositionError(
+                    f"WBS_SUMMARY_REQUIRES_WBS_ASSIGNMENT:{item.activity_id}"
+                )
+            resource_dependent = raw_activity_type == ActivityType.RESOURCE_DEPENDENT.value
+            derived = None
+            remaining_duration_value = item.remaining_duration
+            if resource_dependent:
+                raw_status = getattr(item.status, "value", item.status)
+                in_progress = raw_status == ActivityStatus.IN_PROGRESS.value
+                completed = (
+                    raw_status == ActivityStatus.COMPLETED.value
+                    or item.actual_finish is not None
+                )
+                if completed:
+                    # A completed Resource Dependent activity is scheduled from
+                    # its actual dates. The planned duration is still derived
+                    # from the assignment facts for audit, while the persisted
+                    # at-completion duration remains the reported duration.
+                    if item.actual_start is None or item.actual_finish is None:
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_COMPLETED_ACTUAL_DATES_REQUIRED:"
+                            f"{item.activity_id}"
+                        )
+                    if item.actual_finish < item.actual_start:
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_COMPLETED_ACTUAL_DATES_INVALID:"
+                            f"{item.activity_id}"
+                        )
+                    if remaining_duration_value not in (None, 0):
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_COMPLETED_REMAINING_DURATION:"
+                            f"{item.activity_id}:{remaining_duration_value}"
+                        )
+                if raw_status not in (
+                    ActivityStatus.NOT_STARTED.value,
+                    ActivityStatus.IN_PROGRESS.value,
+                    ActivityStatus.COMPLETED.value,
+                ):
+                    raise ScheduleInputCompositionError(
+                        f"RESOURCE_DEPENDENT_STATUS_UNSUPPORTED:{item.activity_id}:{raw_status}"
+                    )
+                if in_progress:
+                    if item.actual_start is None:
+                        raise ScheduleInputCompositionError(
+                            f"RESOURCE_DEPENDENT_IN_PROGRESS_ACTUAL_START_REQUIRED:{item.activity_id}"
+                        )
+                elif not completed and item.actual_start is not None:
+                    raise ScheduleInputCompositionError(
+                        f"RESOURCE_DEPENDENT_ACTUAL_START_REQUIRES_IN_PROGRESS:{item.activity_id}"
                     )
                 raw_assignments = assignments_by_activity.get(item.activity_id, [])
+                for assignment in raw_assignments:
+                    if in_progress:
+                        # A started Resource Dependent activity must state both
+                        # Actual and Remaining Units on every assignment. The
+                        # persisted rows are remaining demand, so a missing unit
+                        # value would make the derivation silently fall back to
+                        # planned work and overstate the schedule.
+                        if (
+                            assignment.actual_units is None
+                            or assignment.remaining_units is None
+                        ):
+                            raise ScheduleInputCompositionError(
+                                "RESOURCE_DEPENDENT_PROGRESS_ASSIGNMENT_UNITS_REQUIRED:"
+                                f"{item.activity_id}:{assignment.assignment_id}"
+                            )
+                        if assignment.units is None:
+                            continue
+                        if (
+                            assignment.actual_units < 0
+                            or assignment.remaining_units < 0
+                            or assignment.actual_units + assignment.remaining_units
+                            != assignment.units
+                        ):
+                            raise ScheduleInputCompositionError(
+                                "RESOURCE_DEPENDENT_PROGRESS_UNITS_MISMATCH:"
+                                f"{item.activity_id}:{assignment.assignment_id}"
+                            )
+                    elif completed:
+                        # Completed work has consumed all assigned units. When
+                        # progress units are persisted they must reconcile and
+                        # leave no remaining demand.
+                        if (
+                            assignment.actual_units is not None
+                            or assignment.remaining_units is not None
+                        ):
+                            if (
+                                assignment.actual_units is None
+                                or assignment.remaining_units is None
+                            ):
+                                raise ScheduleInputCompositionError(
+                                    "RESOURCE_DEPENDENT_PROGRESS_ASSIGNMENT_UNITS_REQUIRED:"
+                                    f"{item.activity_id}:{assignment.assignment_id}"
+                                )
+                            if assignment.units is None:
+                                continue
+                            if (
+                                assignment.actual_units < 0
+                                or assignment.remaining_units != 0
+                                or assignment.actual_units != assignment.units
+                            ):
+                                raise ScheduleInputCompositionError(
+                                    "RESOURCE_DEPENDENT_COMPLETED_UNITS_MISMATCH:"
+                                    f"{item.activity_id}:{assignment.assignment_id}"
+                                )
+                    elif (
+                        assignment.remaining_units is not None
+                        and assignment.units is not None
+                        and assignment.remaining_units != assignment.units
+                    ):
+                        # A not-started Resource Dependent assignment derives
+                        # from Planned Units. A divergent Remaining Units value
+                        # makes the time-phased rows ambiguous; do not publish a
+                        # snapshot that would silently choose one of them.
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_REMAINING_UNITS_MISMATCH:"
+                            f"{item.activity_id}:{assignment.assignment_id}"
+                        )
                 facts = tuple(
                     ResourceDependentDriverFact(
                         assignment_id=assignment.assignment_id,
@@ -320,9 +579,75 @@ class AuthoritativeScheduleInputComposer:
                         units_per_time=assignment.units_per_time,
                         units_per_time_period=assignment.units_per_time_period,
                         hours_per_units_time_period=assignment.hours_per_units_time_period,
+                        demand_periods=tuple(
+                            sorted(
+                                periods_by_assignment.get(assignment.assignment_id, ()),
+                                key=lambda period: period.period_start,
+                            )
+                        ),
+                        actual_units=(
+                            assignment.actual_units if in_progress else None
+                        ),
+                        remaining_units=(
+                            assignment.remaining_units if in_progress else None
+                        ),
+                        calendar_hours_per_day=(
+                            self._load_calendar_hours_per_day(
+                                scope,
+                                assignment.calendar_id,
+                                assignment.calendar_version,
+                            )
+                            if (
+                                isinstance(assignment.units_per_time_period, str)
+                                and assignment.units_per_time_period.strip().lower()
+                                != "day"
+                                and isinstance(assignment.calendar_id, str)
+                                and assignment.calendar_id.strip()
+                                and isinstance(assignment.calendar_version, str)
+                                and assignment.calendar_version.strip()
+                            )
+                            else None
+                        ),
                     )
-                    for assignment in raw_assignments
+                    for assignment in sorted(
+                        raw_assignments, key=lambda value: value.assignment_id
+                    )
                 )
+                for fact in facts:
+                    if not fact.demand_periods:
+                        # Assignment identity, dates, units, and capacity
+                        # provenance must all be immutable calculation inputs.
+                        # A missing time-phased row cannot be reconstructed
+                        # without inventing demand.
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_ASSIGNMENT_PERIODS_REQUIRED:"
+                            f"{item.activity_id}:{fact.assignment_id}"
+                        )
+                resource_dependent_assignment_facts.extend(facts)
+                fallback_duration: int | None = None
+                duration_value = item.duration_value
+                if (
+                    isinstance(duration_value, Decimal)
+                    and duration_value.is_finite()
+                    and duration_value >= 0
+                    and duration_value == duration_value.to_integral_value()
+                ):
+                    fallback_duration = int(duration_value)
+                # An all-nondriving Resource Dependent activity keeps its
+                # persisted activity duration/calendar. Never synthesize a
+                # driving assignment to force a duration.
+                fallback_calendar = project_calendar
+                for calendar_assignment in activity_calendar_assignments:
+                    if (
+                        calendar_assignment.scope == scope
+                        and calendar_assignment.activity_id == item.activity_id
+                    ):
+                        fallback_calendar = self._load_calendar_reference(
+                            scope,
+                            calendar_assignment.calendar_id,
+                            calendar_assignment.calendar_version,
+                        )
+                        break
                 try:
                     derived = derive_resource_dependent_duration(
                         tenant_id=scope.tenant_id,
@@ -330,14 +655,91 @@ class AuthoritativeScheduleInputComposer:
                         project_revision=scope.project_revision,
                         activity_id=item.activity_id,
                         assignments=facts,
+                        fallback_duration_working_days=fallback_duration,
+                        fallback_calendar_id=fallback_calendar.calendar_id,
+                        fallback_calendar_version=fallback_calendar.calendar_version,
                     )
                 except ResourceDependentCalculationError as exc:
                     raise ScheduleInputCompositionError(
                         f"{exc}:{item.activity_id}"
                     ) from exc
                 resource_dependent_durations[item.activity_id] = derived
-                value = Decimal(derived.duration_working_days)
+                if completed:
+                    # The persisted at-completion duration is authoritative for
+                    # completed work; the derived value describes the planned
+                    # assignment contract and is bound in the input hash.
+                    value = item.duration_value
+                    if (
+                        not isinstance(value, Decimal)
+                        or not value.is_finite()
+                        or value != value.to_integral_value()
+                        or value < 0
+                    ):
+                        raise ScheduleInputCompositionError(
+                            f"NON_INTEGRAL_WORKING_DAY_DURATION:{item.activity_id}"
+                        )
+                    remaining_duration_value = 0
+                else:
+                    value = Decimal(derived.duration_working_days)
+                    if derived.remaining_duration_working_days is not None:
+                        # A progressed activity's Remaining Duration is the
+                        # calculation output. Persisted progress is authoritative
+                        # only when it agrees with the assignment facts.
+                        if (
+                            remaining_duration_value is not None
+                            and remaining_duration_value
+                            != derived.remaining_duration_working_days
+                        ):
+                            raise ScheduleInputCompositionError(
+                                "RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH:"
+                                f"{item.activity_id}:{remaining_duration_value}:"
+                                f"{derived.remaining_duration_working_days}"
+                            )
+                        remaining_duration_value = (
+                            derived.remaining_duration_working_days
+                        )
+                    elif (
+                        remaining_duration_value is not None
+                        and remaining_duration_value != derived.duration_working_days
+                    ):
+                        # A not-started activity has no consumed work, so its
+                        # Remaining Duration must equal the derived duration.
+                        # Accepting a shorter persisted value would silently
+                        # compress the schedule.
+                        raise ScheduleInputCompositionError(
+                            "RESOURCE_DEPENDENT_REMAINING_DURATION_MISMATCH:"
+                            f"{item.activity_id}:{remaining_duration_value}:"
+                            f"{derived.duration_working_days}"
+                        )
             else:
+                raw_status = getattr(item.status, "value", item.status)
+                if (
+                    raw_status == ActivityStatus.COMPLETED.value
+                    and item.actual_finish is None
+                ):
+                    # Progress state is derived from actual dates, not from
+                    # the label. Scheduling a completed label without an
+                    # actual finish would silently treat the activity as
+                    # outstanding work.
+                    raise ScheduleInputCompositionError(
+                        f"COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH:{item.activity_id}"
+                    )
+                if raw_status == ActivityStatus.NOT_STARTED.value and (
+                    item.actual_start is not None or item.actual_finish is not None
+                ):
+                    raise ScheduleInputCompositionError(
+                        f"NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS:{item.activity_id}"
+                    )
+                if (
+                    raw_status == ActivityStatus.IN_PROGRESS.value
+                    and item.actual_start is None
+                ):
+                    raise ScheduleInputCompositionError(
+                        f"IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START:{item.activity_id}"
+                    )
+                # Level of Effort and WBS Summary dates are derived by the
+                # shared scheduler from linked-neighbour spans and WBS
+                # descendants; a stored task duration is not used for them.
                 value = item.duration_value
                 if not isinstance(value, Decimal) or not value.is_finite() or value != value.to_integral_value():
                     raise ScheduleInputCompositionError(f"NON_INTEGRAL_WORKING_DAY_DURATION:{item.activity_id}")
@@ -349,7 +751,7 @@ class AuthoritativeScheduleInputComposer:
                         duration=int(value),
                         actual_start=self._date_value(item.actual_start, field_name="actual_start", activity_id=item.activity_id),
                         actual_finish=self._date_value(item.actual_finish, field_name="actual_finish", activity_id=item.activity_id),
-                        remaining_duration=item.remaining_duration,
+                        remaining_duration=remaining_duration_value,
                         remaining_start=self._date_value(item.remaining_start, field_name="remaining_start", activity_id=item.activity_id),
                         percent_complete=item.percent_complete,
                         percent_complete_type=item.percent_complete_type,
@@ -358,10 +760,13 @@ class AuthoritativeScheduleInputComposer:
                         activity_type=item.activity_type,
                         status_code=item.status_code,
                         name=item.name,
+                        short_name=item.short_name,
                         original_duration=item.original_duration,
                         planned_finish=self._date_value(item.planned_finish, field_name="planned_finish", activity_id=item.activity_id),
                         leveling_priority=item.leveling_priority,
                         resource_dependent_input_hash=None if derived is None else derived.input_hash,
+                        wbs_id=activity_wbs_id,
+                        wbs_ancestry=activity_wbs_ancestry,
                     )
                 )
             except (TypeError, ValueError, ArithmeticError) as exc:
@@ -418,6 +823,17 @@ class AuthoritativeScheduleInputComposer:
                 raise ScheduleInputCompositionError(
                     f"INVALID_PERSISTED_CONSTRAINT:{item.constraint_id}:{exc}"
                 ) from exc
+
+        activity_type_by_id = {item.id: item.activity_type for item in activities}
+        for constraint in constraints:
+            if (
+                activity_type_by_id.get(constraint.activity_id)
+                is ActivityType.LEVEL_OF_EFFORT
+            ):
+                raise ScheduleInputCompositionError(
+                    "LEVEL_OF_EFFORT_CONSTRAINT_UNSUPPORTED:"
+                    f"{constraint.activity_id}"
+                )
 
         known_calendar_assignments: dict[str, ActivityCalendarAssignment] = {}
         for assignment in activity_calendar_assignments:
@@ -515,6 +931,12 @@ class AuthoritativeScheduleInputComposer:
                 known_calendar_assignments[key] for key in sorted(known_calendar_assignments)
             ),
             relationship_lag_calendar_assignments=tuple(relationship_lag_calendar_items),
+            resource_dependent_assignment_facts=tuple(
+                sorted(
+                    resource_dependent_assignment_facts,
+                    key=lambda fact: fact.assignment_id,
+                )
+            ),
             constraints=tuple(constraints),
             schedule_options=project_settings.schedule_options,
             project_start=project_settings.project_start,

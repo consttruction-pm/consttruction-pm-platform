@@ -52,6 +52,7 @@ def _dto(item: ActivityMaster) -> dict[str, Any]:
         "activity": {
             "activity_id": item.activity_id,
             "name": item.name,
+            "short_name": item.short_name,
             "activity_type": item.activity_type.value,
             "status": item.status.value,
             "status_code": item.status_code.value,

@@ -89,8 +89,8 @@ def test_persisted_holiday_changes_the_authoritative_cpm_result(tmp_path: Path) 
     try:
         planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         before = _activity_facts(runtime, planner.session_id)
-        assert before["A140"]["cells"]["activity.early_start"] == "2026-10-14"
-        assert before["A140"]["cells"]["activity.early_finish"] == "2026-10-27"
+        assert before["A140"]["cells"]["activity.early_start"] == "2026-10-19"
+        assert before["A140"]["cells"]["activity.early_finish"] == "2026-11-02"
 
         status, body = _save_holiday(runtime, planner.session_id, "2026-10-20")
         assert status == 200, body[:300]
@@ -102,9 +102,9 @@ def test_persisted_holiday_changes_the_authoritative_cpm_result(tmp_path: Path) 
         # exception overlay. A140 loses one working day inside its window and
         # the following fixture holiday (2026-10-28) pushes the finish once more.
         after = _activity_facts(runtime, planner.session_id)
-        assert after["A140"]["cells"]["activity.early_start"] == "2026-10-14"
-        assert after["A140"]["cells"]["activity.early_finish"] == "2026-10-29"
-        assert after["A140"]["gantt"]["finish"] == "2026-10-29"
+        assert after["A140"]["cells"]["activity.early_start"] == "2026-10-19"
+        assert after["A140"]["cells"]["activity.early_finish"] == "2026-11-03"
+        assert after["A140"]["gantt"]["finish"] == "2026-11-03"
         assert (
             after["A160"]["cells"]["activity.early_start"]
             > before["A160"]["cells"]["activity.early_start"]
@@ -129,7 +129,7 @@ def test_persisted_holiday_changes_the_authoritative_cpm_result(tmp_path: Path) 
     try:
         planner = reopened.sessions.create(DEMO_USERS_BY_ROLE["planner"])
         persisted = _activity_facts(reopened, planner.session_id)
-        assert persisted["A140"]["cells"]["activity.early_finish"] == "2026-10-29"
+        assert persisted["A140"]["cells"]["activity.early_finish"] == "2026-11-03"
         exceptions = reopened.connection.execute(
             "SELECT exception_date, mode FROM calendar_exception "
             "WHERE tenant_id=? AND project_id=? AND calendar_id=?",

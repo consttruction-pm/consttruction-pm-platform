@@ -36,6 +36,14 @@ from ..p6_calendar_api import P6CalendarAPI, P6CalendarCreateRequest, P6_CALENDA
 from ..calendar_exception_repository import CalendarException
 from ..calendar_work_hours_repository import CalendarWorkHourRule
 from ..scheduling.calendar_system import CalendarSystem, JalaliDate
+from ..scheduling.evm_source import (
+    EarnedValuePVBucket,
+    EarnedValuePVCurve,
+    EarnedValuePVCurvePoint,
+    EarnedValueSourceError,
+    EarnedValueTechniqueOverride,
+    EarnedValueWBSMilestone,
+)
 from ..scheduling.activity import (
     ActivityLevelingPriority as P6ActivityLevelingPriority,
     ActivityStatus as P6ActivityStatus,
@@ -45,7 +53,41 @@ from ..scheduling.activity import (
 )
 from ..scheduling.time_duration import DurationUnit as P6ActivityDurationUnit
 from ..p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
+from ..p6_baseline_update import (
+    BASELINE_UPDATE_FIELDS,
+    P6BaselineUpdateError,
+    P6BaselineUpdateSelection,
+)
+from ..p6_baseline_update_api import (
+    P6_BASELINE_UPDATE_API_VERSION,
+    P6BaselineUpdateAPI,
+)
 from ..p6_baseline_repository import P6Baseline
+from ..p6_baseline_activity_repository import P6BaselineActivityPersistenceError
+from ..p6_baseline_repository import P6BaselinePersistenceError
+from ..p6_baseline_assignment import P6BaselineAssignmentError
+from ..p6_baseline_assignment_api import (
+    P6_BASELINE_ASSIGNMENT_API_VERSION,
+    P6BaselineAssignmentAPI,
+)
+from ..p6_baseline_conversion import P6BaselineConversionError
+from ..p6_baseline_conversion_api import (
+    P6_BASELINE_CONVERSION_API_VERSION,
+    P6BaselineConversionAPI,
+)
+from ..p6_current_activity_value_repository import (
+    P6CurrentActivityPersistenceError,
+)
+from ..p6_earned_value_read_model import (
+    P6_EARNED_VALUE_READ_MODEL_VERSION,
+    P6EarnedValueReadModelError,
+    P6EarnedValueSettings,
+)
+from ..p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
+from ..p6_activity_period_actual_repository import (
+    P6ActivityPeriodActualPersistenceError,
+)
+from ..p6_expense_repository import P6ExpensePersistenceError
 from ..dependency_graph_api import DependencyGraphAPI
 from ..client_sync.api_endpoint import VersionedSyncEndpoint, VersionedSyncRevisionEndpoint
 from ..p6_field_registry import (
@@ -100,11 +142,20 @@ from ..p6_resource_capacity_write_api import (
     P6ResourceCapacityWriteAPI,
     P6_RESOURCE_CAPACITY_WRITE_API_VERSION,
 )
+from ..p6_resource_rate_read_api import (
+    P6ResourceRateReadAPI,
+    P6_RESOURCE_RATE_READ_API_VERSION,
+)
+from ..p6_resource_rate_write_api import (
+    P6ResourceRateWriteAPI,
+    P6_RESOURCE_RATE_WRITE_API_VERSION,
+)
 from ..resources.max_units_time import ResourceCapacityBasis
 from ..p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
 from ..p6_resource_assignment_repository import (
     P6ResourceAssignment,
     P6ResourceAssignmentPeriodValue,
+    P6ResourceAssignmentPersistenceError,
 )
 from ..p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
 from ..p6_resource_spread_repository import P6ResourceSpreadBucket
@@ -152,6 +203,10 @@ class ProjectLifecycleHttpRoutes:
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
+        p6_baseline_update_api: P6BaselineUpdateAPI | None = None,
+        p6_baseline_assignment_api: P6BaselineAssignmentAPI | None = None,
+        p6_baseline_conversion_api: P6BaselineConversionAPI | None = None,
+        p6_earned_value_read_api: P6EarnedValueReadModelAPI | None = None,
         change_claim_api: ChangeClaimAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
@@ -167,6 +222,8 @@ class ProjectLifecycleHttpRoutes:
         p6_resource_read_api: P6ResourceReadAPI | None = None,
         p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
         p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
+        p6_resource_rate_read_api: P6ResourceRateReadAPI | None = None,
+        p6_resource_rate_write_api: P6ResourceRateWriteAPI | None = None,
         p6_resource_write_api: P6ResourceWriteAPI | None = None,
         p6_resource_spread_api: P6ResourceSpreadAPI | None = None,
         p6_code_api: P6CodeAPI | None = None,
@@ -187,6 +244,10 @@ class ProjectLifecycleHttpRoutes:
         self._p6_calendar_read_api = p6_calendar_read_api
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
+        self._p6_baseline_update_api = p6_baseline_update_api
+        self._p6_baseline_assignment_api = p6_baseline_assignment_api
+        self._p6_baseline_conversion_api = p6_baseline_conversion_api
+        self._p6_earned_value_read_api = p6_earned_value_read_api
         self._change_claim_api = change_claim_api
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
@@ -202,6 +263,8 @@ class ProjectLifecycleHttpRoutes:
         self._p6_resource_read_api = p6_resource_read_api
         self._p6_resource_capacity_read_api = p6_resource_capacity_read_api
         self._p6_resource_capacity_write_api = p6_resource_capacity_write_api
+        self._p6_resource_rate_read_api = p6_resource_rate_read_api
+        self._p6_resource_rate_write_api = p6_resource_rate_write_api
         self._p6_resource_write_api = p6_resource_write_api
         self._p6_resource_spread_api = p6_resource_spread_api
         self._p6_code_api = p6_code_api
@@ -242,6 +305,21 @@ class ProjectLifecycleHttpRoutes:
                     return self._handle_form_route(
                         method, path, session_id=session_id, now=now, body=body, headers=request_headers
                     )
+            baseline_update_response = self._handle_baseline_update_route(
+                method, path, session_id=session_id, now=now, body=body
+            )
+            if baseline_update_response is not None:
+                return baseline_update_response
+            baseline_role_response = self._handle_baseline_role_route(
+                method, path, session_id=session_id, now=now, body=body
+            )
+            if baseline_role_response is not None:
+                return baseline_role_response
+            earned_value_response = self._handle_earned_value_route(
+                method, path, session_id=session_id, now=now, body=body
+            )
+            if earned_value_response is not None:
+                return earned_value_response
             if method == "GET" and path == "/api/v1/schedule/code-reference":
                 # The catalogue contains no project records, but a valid active session is required.
                 self._api.get_session(session_id, now=now)
@@ -1242,6 +1320,14 @@ class ProjectLifecycleHttpRoutes:
                         or not isinstance(raw_percent, (int, float))
                     ):
                         raise ValueError("INVALID_PERCENT_COMPLETE")
+                    raw_short_name = payload.get(
+                        "short_name",
+                        existing.short_name if existing is not None else None,
+                    )
+                    if raw_short_name is not None and (
+                        not isinstance(raw_short_name, str) or not raw_short_name.strip()
+                    ):
+                        raise ValueError("INVALID_SHORT_NAME")
                     return ActivityMaster(
                         scope=scope,
                         activity_id=activity_id,
@@ -1268,6 +1354,7 @@ class ProjectLifecycleHttpRoutes:
                         name=payload.get(
                             "name", existing.name if existing is not None else ""
                         ),
+                        short_name=raw_short_name,
                         activity_type=P6ActivityType.from_p6_value(
                             payload.get(
                                 "activity_type",
@@ -1919,6 +2006,159 @@ class ProjectLifecycleHttpRoutes:
                     if code in {"CAPACITY_SEGMENT_NOT_EFFECTIVE", "CAPACITY_SEGMENTS_OVERLAP"}:
                         return self._error(409, code, "error.p6.resource_capacity.conflict")
                     return self._error(400, "P6_RESOURCE_CAPACITY_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and path.endswith("/p6/resource-rates"):
+                if self._p6_resource_rate_write_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-rates")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("contract_version") != P6_RESOURCE_RATE_WRITE_API_VERSION
+                ):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    result = self._p6_resource_rate_write_api.save_effective_change(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id=payload.get("resource_id"),
+                        rate=payload.get("rate"),
+                        basis=payload.get("basis"),
+                        currency=payload.get("currency"),
+                        unit=payload.get("unit"),
+                        effective_from=payload.get("effective_from"),
+                        effective_to=payload.get("effective_to"),
+                        expected_revision=payload.get("expected_revision"),
+                        close_open_segment=payload.get("close_open_segment", False),
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code in {
+                        "REVISION_CONFLICT",
+                        "RATE_INTERVALS_OVERLAP",
+                        "IMMUTABLE_RESOURCE_RATE_FACT",
+                        "RESOURCE_RATE_INSERT_CONFLICT",
+                    }:
+                        return self._error(409, code, "error.p6.resource_rate.conflict")
+                    if code == "RESOURCE_RATE_WRITE_SERVICE_NOT_CONFIGURED":
+                        return self._error(503, code, "error.p6.resource_rate.unavailable")
+                    if code.startswith("INVALID_") or code.startswith("RATE_"):
+                        return self._error(400, code, "error.request.invalid")
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "POST" and path.startswith("/api/projects/") and "/p6/resource-rates/" in path and path.endswith("/resolve"):
+                if self._p6_resource_rate_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, suffix = path.split("/p6/resource-rates/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                resource_id = suffix[: -len("/resolve")].rstrip("/")
+                if not project_id or not resource_id or "/" in resource_id:
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                try:
+                    payload = json.loads(body.decode("utf-8") or "{}")
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("contract_version") != P6_RESOURCE_RATE_READ_API_VERSION
+                ):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    period_raw = payload.get("period")
+                    if not isinstance(period_raw, str) or not period_raw.strip():
+                        raise ValueError("INVALID_RATE_EFFECTIVE_DATE")
+                    result = self._p6_resource_rate_read_api.rate_on(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id,
+                        date.fromisoformat(period_raw),
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code == "RESOURCE_RATE_NOT_REGISTERED":
+                        return self._error(404, code, "error.p6.resource_rate.not_registered")
+                    if code in {"RATE_NOT_EFFECTIVE", "RATE_INTERVALS_OVERLAP"}:
+                        return self._error(409, code, "error.p6.resource_rate.conflict")
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                except (TypeError, ArithmeticError):
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-rates"):
+                if self._p6_resource_rate_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/resource-rates")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    session = self._api.get_session(session_id, now=now)
+                    auth = context.authorization_context(session.roles)
+                    result = self._p6_resource_rate_read_api.list_rates(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        None,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    return self._error(400, str(exc), "error.request.invalid")
+                return self._json(200, {
+                    "contract_version": P6_RESOURCE_RATE_READ_API_VERSION,
+                    "rates": list(result),
+                })
+            if method == "GET" and path.startswith("/api/projects/") and "/p6/resource-rates/" in path:
+                if self._p6_resource_rate_read_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, resource_id = path.split("/p6/resource-rates/", 1)
+                project_id = prefix[len("/api/projects/"):]
+                resource_id = resource_id.rstrip("/")
+                if not project_id or not resource_id or "/" in resource_id:
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    session = self._api.get_session(session_id, now=now)
+                    auth = context.authorization_context(session.roles)
+                    result = self._p6_resource_rate_read_api.get_profile(
+                        BackendScope(context.tenant_id, context.project_id, context.revision),
+                        resource_id,
+                        auth_context=auth,
+                    )
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    code = str(exc)
+                    if code == "RESOURCE_RATE_NOT_REGISTERED":
+                        return self._error(404, code, "error.p6.resource_rate.not_registered")
+                    if code in {"RATE_NOT_EFFECTIVE", "RATE_INTERVALS_OVERLAP"}:
+                        return self._error(409, code, "error.p6.resource_rate.conflict")
+                    return self._error(400, "P6_RESOURCE_RATE_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/resource-assignment-periods"):
                 if self._p6_resource_read_api is None: return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
@@ -2958,6 +3198,825 @@ class ProjectLifecycleHttpRoutes:
             return self._error(400, code, "error.project.lifecycle")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             return self._error(400, str(exc) or "INVALID_REQUEST", "error.request.invalid")
+
+    def _handle_earned_value_route(
+        self,
+        method: str,
+        path: str,
+        *,
+        session_id: str,
+        now: datetime,
+        body: bytes,
+    ) -> tuple[int, dict[str, str], bytes] | None:
+        """Route one versioned project EVM measurement over the Shared Core.
+
+        The request selects the baseline, Data Date, currency and explicit EVM
+        settings only. Planned values, progress, actuals, expenses and
+        assignment costs are always read from persisted facts; the boundary
+        never accepts a client-computed earned value.
+        """
+        if method != "POST" or not path.startswith("/api/projects/"):
+            return None
+        marker = "/p6/earned-value"
+        if not path.endswith(marker):
+            return None
+        project_id = path[len("/api/projects/"):-len(marker)]
+        if not project_id or "/" in project_id:
+            return self._error(
+                400, "EVM_REQUEST_INVALID", "error.request.invalid"
+            )
+        if self._p6_earned_value_read_api is None:
+            return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+        try:
+            context = self._api.open_project(
+                session_id, project_id, now=now
+            ).context
+        except ProjectLifecycleError as exc:
+            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                return self._error(403, str(exc), "error.authorization.denied")
+            raise
+        session = self._api.get_session(session_id, now=now)
+        auth = context.authorization_context(session.roles)
+        scope = BackendScope(
+            context.tenant_id, context.project_id, context.revision
+        )
+        try:
+            payload = json.loads(body.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return self._error(
+                400, "EVM_REQUEST_INVALID", "error.request.invalid"
+            )
+        if not isinstance(payload, dict):
+            return self._error(
+                400, "EVM_REQUEST_INVALID", "error.request.invalid"
+            )
+        try:
+            self._reject_unknown_keys(
+                payload,
+                {
+                    "contract_version",
+                    "baseline_id",
+                    "data_date",
+                    "currency",
+                    "etc_method",
+                    "performance_factor",
+                    "settings",
+                },
+                "EVM_REQUEST_UNKNOWN_FIELD",
+            )
+            baseline_id = self._evm_required_string(
+                payload, "baseline_id", "EVM_BASELINE_ID_REQUIRED"
+            )
+            currency = self._evm_required_string(
+                payload, "currency", "EVM_CURRENCY_REQUIRED"
+            )
+            data_date = self._evm_date(payload.get("data_date"))
+            etc_method = payload.get("etc_method")
+            if etc_method is not None and (
+                not isinstance(etc_method, str) or not etc_method.strip()
+            ):
+                raise P6EarnedValueReadModelError("EVM_ETC_METHOD_INVALID")
+            performance_factor = payload.get("performance_factor")
+            if isinstance(performance_factor, bool) or (
+                performance_factor is not None
+                and not isinstance(performance_factor, (str, int, float))
+            ):
+                raise P6EarnedValueReadModelError(
+                    "EVM_PERFORMANCE_FACTOR_INVALID"
+                )
+            result = self._p6_earned_value_read_api.get(
+                scope,
+                baseline_id,
+                data_date=data_date,
+                currency=currency,
+                auth_context=auth,
+                etc_method=etc_method,
+                performance_factor=performance_factor,
+                settings=self._evm_settings(payload.get("settings")),
+                contract_version=payload.get(
+                    "contract_version", P6_EARNED_VALUE_READ_MODEL_VERSION
+                ),
+            )
+        except AuthorizationError as exc:
+            return self._error(403, str(exc), "error.authorization.denied")
+        except P6EarnedValueReadModelError as exc:
+            return self._evm_error(exc)
+        except (
+            P6BaselineActivityPersistenceError,
+            P6ActivityPeriodActualPersistenceError,
+            P6ExpensePersistenceError,
+            P6ResourceAssignmentPersistenceError,
+            WBSPersistenceError,
+            ProjectScheduleSettingsPersistenceError,
+        ) as exc:
+            code = str(exc)
+            if code == "REVISION_CONFLICT":
+                return self._error(409, code, "error.p6.evm.conflict")
+            return self._error(400, code, "error.p6.evm.invalid")
+        return self._json(200, result)
+
+    @staticmethod
+    def _reject_unknown_keys(
+        payload: Mapping[str, object],
+        allowed: set[str],
+        code: str,
+    ) -> None:
+        if set(payload) - allowed:
+            raise P6EarnedValueReadModelError(code)
+
+    @staticmethod
+    def _evm_required_string(
+        payload: Mapping[str, object], key: str, code: str
+    ) -> str:
+        value = payload.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise P6EarnedValueReadModelError(code)
+        return value
+
+    @classmethod
+    def _evm_date(
+        cls, value: object, code: str = "EVM_DATA_DATE_INVALID"
+    ) -> date:
+        if not isinstance(value, str):
+            raise P6EarnedValueReadModelError(code)
+        try:
+            return date.fromisoformat(value)
+        except ValueError as exc:
+            raise P6EarnedValueReadModelError(code) from exc
+
+    @classmethod
+    def _evm_decimal(cls, value: object, code: str) -> Decimal:
+        if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+            raise P6EarnedValueReadModelError(code)
+        try:
+            result = Decimal(str(value))
+        except (ArithmeticError, ValueError) as exc:
+            raise P6EarnedValueReadModelError(code) from exc
+        if not result.is_finite():
+            raise P6EarnedValueReadModelError(code)
+        return result
+
+    @classmethod
+    def _evm_settings(cls, value: object) -> P6EarnedValueSettings | None:
+        if value is None:
+            return None
+        if not isinstance(value, dict):
+            raise P6EarnedValueReadModelError("EVM_SETTINGS_INVALID")
+        cls._reject_unknown_keys(
+            value,
+            {
+                "technique_overrides",
+                "wbs_milestones",
+                "pv_buckets",
+                "pv_curves",
+            },
+            "EVM_SETTINGS_UNKNOWN_FIELD",
+        )
+        try:
+            return P6EarnedValueSettings(
+                technique_overrides=cls._evm_technique_overrides(
+                    value.get("technique_overrides", [])
+                ),
+                wbs_milestones=cls._evm_wbs_milestones(
+                    value.get("wbs_milestones", [])
+                ),
+                pv_buckets=cls._evm_pv_buckets(value.get("pv_buckets", [])),
+                pv_curves=cls._evm_pv_curves(value.get("pv_curves", [])),
+            )
+        except EarnedValueSourceError as exc:
+            raise P6EarnedValueReadModelError(str(exc)) from exc
+
+    @classmethod
+    def _evm_items(cls, value: object, code: str) -> tuple[dict, ...]:
+        if not isinstance(value, list):
+            raise P6EarnedValueReadModelError(code)
+        items: list[dict] = []
+        for item in value:
+            if not isinstance(item, dict):
+                raise P6EarnedValueReadModelError(code)
+            items.append(item)
+        return tuple(items)
+
+    @classmethod
+    def _evm_technique_overrides(
+        cls, value: object
+    ) -> tuple[EarnedValueTechniqueOverride, ...]:
+        rows: list[EarnedValueTechniqueOverride] = []
+        for item in cls._evm_items(value, "EVM_TECHNIQUE_OVERRIDE_INVALID"):
+            cls._reject_unknown_keys(
+                item,
+                {"wbs_id", "technique"},
+                "EVM_TECHNIQUE_OVERRIDE_INVALID",
+            )
+            rows.append(
+                EarnedValueTechniqueOverride(
+                    cls._evm_required_string(
+                        item,
+                        "wbs_id",
+                        "EVM_TECHNIQUE_OVERRIDE_WBS_ID_INVALID",
+                    ),
+                    cls._evm_required_string(
+                        item,
+                        "technique",
+                        "EVM_TECHNIQUE_UNSUPPORTED",
+                    ),
+                )
+            )
+        return tuple(rows)
+
+    @classmethod
+    def _evm_wbs_milestones(
+        cls, value: object
+    ) -> tuple[EarnedValueWBSMilestone, ...]:
+        rows: list[EarnedValueWBSMilestone] = []
+        for item in cls._evm_items(value, "EVM_WBS_MILESTONE_INVALID"):
+            cls._reject_unknown_keys(
+                item,
+                {"wbs_id", "milestone_id", "weight", "completed"},
+                "EVM_WBS_MILESTONE_INVALID",
+            )
+            completed = item.get("completed", False)
+            if not isinstance(completed, bool):
+                raise P6EarnedValueReadModelError(
+                    "EVM_WBS_MILESTONE_COMPLETED_INVALID"
+                )
+            rows.append(
+                EarnedValueWBSMilestone(
+                    cls._evm_required_string(
+                        item,
+                        "wbs_id",
+                        "EVM_WBS_MILESTONE_WBS_ID_INVALID",
+                    ),
+                    cls._evm_required_string(
+                        item,
+                        "milestone_id",
+                        "EVM_WBS_MILESTONE_ID_INVALID",
+                    ),
+                    cls._evm_decimal(
+                        item.get("weight"),
+                        "EVM_WBS_MILESTONE_WEIGHT_INVALID",
+                    ),
+                    completed,
+                )
+            )
+        return tuple(rows)
+
+    @classmethod
+    def _evm_pv_buckets(
+        cls, value: object
+    ) -> tuple[EarnedValuePVBucket, ...]:
+        rows: list[EarnedValuePVBucket] = []
+        for item in cls._evm_items(value, "EVM_PV_BUCKET_INVALID"):
+            cls._reject_unknown_keys(
+                item,
+                {"activity_id", "period_start", "period_finish", "value"},
+                "EVM_PV_BUCKET_INVALID",
+            )
+            rows.append(
+                EarnedValuePVBucket(
+                    cls._evm_required_string(
+                        item,
+                        "activity_id",
+                        "EVM_PV_BUCKET_ACTIVITY_ID_INVALID",
+                    ),
+                    cls._evm_date(
+                        item.get("period_start"), "EVM_PV_BUCKET_PERIOD_INVALID"
+                    ),
+                    cls._evm_date(
+                        item.get("period_finish"), "EVM_PV_BUCKET_PERIOD_INVALID"
+                    ),
+                    cls._evm_decimal(
+                        item.get("value"), "EVM_PV_BUCKET_VALUE_INVALID"
+                    ),
+                )
+            )
+        return tuple(rows)
+
+    @classmethod
+    def _evm_pv_curves(
+        cls, value: object
+    ) -> tuple[EarnedValuePVCurve, ...]:
+        rows: list[EarnedValuePVCurve] = []
+        for item in cls._evm_items(value, "EVM_PV_CURVE_INVALID"):
+            cls._reject_unknown_keys(
+                item,
+                {"activity_id", "curve_id", "points"},
+                "EVM_PV_CURVE_INVALID",
+            )
+            points: list[EarnedValuePVCurvePoint] = []
+            for point in cls._evm_items(
+                item.get("points"), "EVM_PV_CURVE_POINTS_INVALID"
+            ):
+                cls._reject_unknown_keys(
+                    point,
+                    {"offset_percent", "cumulative_percent"},
+                    "EVM_PV_CURVE_POINTS_INVALID",
+                )
+                points.append(
+                    EarnedValuePVCurvePoint(
+                        cls._evm_decimal(
+                            point.get("offset_percent"),
+                            "EVM_PV_CURVE_OFFSET_INVALID",
+                        ),
+                        cls._evm_decimal(
+                            point.get("cumulative_percent"),
+                            "EVM_PV_CURVE_CUMULATIVE_INVALID",
+                        ),
+                    )
+                )
+            rows.append(
+                EarnedValuePVCurve(
+                    cls._evm_required_string(
+                        item,
+                        "activity_id",
+                        "EVM_PV_CURVE_ACTIVITY_ID_INVALID",
+                    ),
+                    cls._evm_required_string(
+                        item, "curve_id", "EVM_PV_CURVE_ID_INVALID"
+                    ),
+                    tuple(points),
+                )
+            )
+        return tuple(rows)
+
+    @classmethod
+    def _evm_error(
+        cls, exc: P6EarnedValueReadModelError
+    ) -> tuple[int, dict[str, str], bytes]:
+        code = str(exc)
+        if code.startswith("EVM_BASELINE_ACTIVITIES_EMPTY:"):
+            return cls._error(404, code, "error.p6.baseline.not_found")
+        if code == "REVISION_CONFLICT" or code in {
+            "EVM_PROJECT_CALENDAR_REQUIRED",
+            "EVM_PROJECT_CALENDAR_UNRESOLVED",
+        }:
+            return cls._error(409, code, "error.p6.evm.conflict")
+        if code.startswith(
+            (
+                "EVM_ACTUAL_CURRENCY_MISMATCH",
+                "EVM_EXPENSE_CURRENCY_MISMATCH",
+                "EVM_ASSIGNMENT_CURRENCY_MISMATCH",
+            )
+        ):
+            return cls._error(409, code, "error.p6.evm.conflict")
+        return cls._error(400, code, "error.p6.evm.invalid")
+
+    def _handle_baseline_role_route(
+        self,
+        method: str,
+        path: str,
+        *,
+        session_id: str,
+        now: datetime,
+        body: bytes,
+    ) -> tuple[int, dict[str, str], bytes] | None:
+        """Route BAS-01 summary-role assignment and cross-project conversion."""
+        marker = "/p6/baselines/"
+        if not path.startswith("/api/projects/") or marker not in path:
+            return None
+        prefix, remainder = path.split(marker, 1)
+        project_id = prefix[len("/api/projects/"):]
+        if not project_id:
+            return self._error(
+                400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid"
+            )
+        operation: str | None = None
+        baseline_id = ""
+        role = ""
+        if method == "GET" and remainder == "summary":
+            operation = "summary"
+        elif method == "POST" and remainder == "convert":
+            operation = "convert"
+        elif method == "POST" and remainder.endswith("/assign"):
+            baseline_id = remainder[: -len("/assign")]
+            operation = "assign"
+        elif (
+            method == "GET"
+            and remainder.startswith("roles/")
+            and remainder.endswith("/history")
+        ):
+            role = remainder[len("roles/"):-len("/history")]
+            operation = "history"
+        if operation is None:
+            return None
+        if "/" in baseline_id or "/" in role:
+            return self._error(
+                400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid"
+            )
+        if operation == "convert":
+            if self._p6_baseline_conversion_api is None:
+                return self._error(
+                    404, "ROUTE_NOT_FOUND", "error.route.not_found"
+                )
+        elif self._p6_baseline_assignment_api is None:
+            return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+        try:
+            context = self._api.open_project(
+                session_id, project_id, now=now
+            ).context
+        except ProjectLifecycleError as exc:
+            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                return self._error(403, str(exc), "error.authorization.denied")
+            raise
+        session = self._api.get_session(session_id, now=now)
+        auth = context.authorization_context(session.roles)
+        scope = BackendScope(
+            context.tenant_id, context.project_id, context.revision
+        )
+
+        if operation == "summary":
+            try:
+                result = self._p6_baseline_assignment_api.summary(
+                    scope, auth_context=auth
+                )
+            except AuthorizationError as exc:
+                return self._error(403, str(exc), "error.authorization.denied")
+            except P6BaselineAssignmentError as exc:
+                return self._baseline_role_error(exc)
+            return self._json(200, result)
+
+        if operation == "history":
+            try:
+                result = self._p6_baseline_assignment_api.history(
+                    scope, role, auth_context=auth
+                )
+            except AuthorizationError as exc:
+                return self._error(403, str(exc), "error.authorization.denied")
+            except P6BaselineAssignmentError as exc:
+                return self._baseline_role_error(exc)
+            return self._json(200, result)
+
+        try:
+            payload = json.loads(body.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return self._error(
+                400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid"
+            )
+        if not isinstance(payload, dict):
+            return self._error(
+                400, "P6_BASELINE_REQUEST_INVALID", "error.request.invalid"
+            )
+
+        try:
+            if operation == "assign":
+                if not baseline_id:
+                    raise P6BaselineAssignmentError(
+                        "P6_BASELINE_REQUEST_INVALID"
+                    )
+                result = self._p6_baseline_assignment_api.assign(
+                    scope,
+                    payload.get("role", ""),
+                    baseline_id,
+                    expected_revision=payload.get("expected_revision"),
+                    replace=payload.get("replace", False),
+                    auth_context=auth,
+                    contract_version=payload.get(
+                        "contract_version",
+                        P6_BASELINE_ASSIGNMENT_API_VERSION,
+                    ),
+                )
+                return self._json(200, result)
+
+            source_project_id = payload.get("source_project_id", "")
+            if not isinstance(source_project_id, str) or not source_project_id.strip():
+                return self._error(
+                    400,
+                    "P6_BASELINE_REQUEST_INVALID",
+                    "error.request.invalid",
+                )
+            try:
+                source_context = self._api.open_project(
+                    session_id, source_project_id, now=now
+                ).context
+            except ProjectLifecycleError as exc:
+                if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                    return self._error(
+                        403, str(exc), "error.authorization.denied"
+                    )
+                raise
+            source_auth = source_context.authorization_context(session.roles)
+            source_scope = BackendScope(
+                source_context.tenant_id,
+                source_context.project_id,
+                source_context.revision,
+            )
+            result = self._p6_baseline_conversion_api.convert(
+                source_scope,
+                scope,
+                source_baseline_id=payload.get("source_baseline_id"),
+                target_baseline_id=payload.get("target_baseline_id", ""),
+                target_name=payload.get("name", ""),
+                baseline_type=payload.get("baseline_type", "USER_SELECTED"),
+                notes=payload.get("notes"),
+                expected_revision=payload.get("expected_revision"),
+                auth_context=auth,
+                source_auth_context=source_auth,
+                contract_version=payload.get(
+                    "contract_version",
+                    P6_BASELINE_CONVERSION_API_VERSION,
+                ),
+            )
+            return self._json(200 if result["replayed"] else 201, result)
+        except AuthorizationError as exc:
+            return self._error(403, str(exc), "error.authorization.denied")
+        except P6BaselineAssignmentError as exc:
+            return self._baseline_role_error(exc)
+        except P6BaselineConversionError as exc:
+            return self._baseline_conversion_error(exc)
+        except (
+            P6BaselinePersistenceError,
+            P6BaselineActivityPersistenceError,
+            P6CurrentActivityPersistenceError,
+        ) as exc:
+            code = str(exc)
+            if code == "REVISION_CONFLICT":
+                return self._error(
+                    409, code, "error.p6.baseline.conflict"
+                )
+            return self._error(400, code, "error.p6.baseline.invalid")
+
+    @classmethod
+    def _baseline_role_error(
+        cls, exc: P6BaselineAssignmentError
+    ) -> tuple[int, dict[str, str], bytes]:
+        code = str(exc)
+        if code == "BASELINE_NOT_FOUND":
+            return cls._error(404, code, "error.p6.baseline.not_found")
+        if code == "REVISION_CONFLICT" or code.startswith(
+            "BASELINE_ROLE_ALREADY_ASSIGNED:"
+        ):
+            return cls._error(409, code, "error.p6.baseline.conflict")
+        return cls._error(400, code, "error.p6.baseline.invalid")
+
+    @classmethod
+    def _baseline_conversion_error(
+        cls, exc: P6BaselineConversionError
+    ) -> tuple[int, dict[str, str], bytes]:
+        code = str(exc)
+        if code == "BASELINE_CONVERSION_SOURCE_NOT_FOUND":
+            return cls._error(404, code, "error.p6.baseline.not_found")
+        if code in {
+            "BASELINE_CONVERSION_TARGET_EXISTS",
+            "BASELINE_CONVERSION_SOURCE_EMPTY",
+        }:
+            return cls._error(409, code, "error.p6.baseline.conflict")
+        return cls._error(400, code, "error.p6.baseline.invalid")
+
+    def _handle_baseline_update_route(
+        self,
+        method: str,
+        path: str,
+        *,
+        session_id: str,
+        now: datetime,
+        body: bytes,
+    ) -> tuple[int, dict[str, str], bytes] | None:
+        """Route BAS-02 preview/apply/compare over the versioned API.
+
+        The current project state is always read from the persisted current
+        activity source inside the service. The request body may select what to
+        copy, but it can never supply the current values themselves.
+        """
+        if method != "POST":
+            return None
+        marker = "/p6/baselines/"
+        if not path.startswith("/api/projects/") or marker not in path:
+            return None
+        prefix, remainder = path.split(marker, 1)
+        project_id = prefix[len("/api/projects/"):]
+        operation: str | None = None
+        baseline_id = ""
+        for suffix, name in (
+            ("/update/preview", "preview"),
+            ("/update/apply", "apply"),
+            ("/compare", "compare"),
+        ):
+            if remainder.endswith(suffix):
+                baseline_id = remainder[: -len(suffix)]
+                operation = name
+                break
+        if operation is None:
+            return None
+        if not project_id or not baseline_id or "/" in baseline_id:
+            return self._error(
+                400,
+                "P6_BASELINE_UPDATE_REQUEST_INVALID",
+                "error.request.invalid",
+            )
+        if self._p6_baseline_update_api is None:
+            return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+        try:
+            context = self._api.open_project(session_id, project_id, now=now).context
+        except ProjectLifecycleError as exc:
+            if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                return self._error(403, str(exc), "error.authorization.denied")
+            raise
+        session = self._api.get_session(session_id, now=now)
+        auth = context.authorization_context(session.roles)
+        scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+        try:
+            payload = json.loads(body.decode("utf-8") or "{}")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return self._error(
+                400,
+                "P6_BASELINE_UPDATE_REQUEST_INVALID",
+                "error.request.invalid",
+            )
+        if not isinstance(payload, dict):
+            return self._error(
+                400,
+                "P6_BASELINE_UPDATE_REQUEST_INVALID",
+                "error.request.invalid",
+            )
+        if "current" in payload or "current_activities" in payload:
+            return self._error(
+                400,
+                "BASELINE_UPDATE_CURRENT_BODY_FORBIDDEN",
+                "error.request.invalid",
+            )
+        try:
+            contract_version = payload.get("contract_version", "")
+            expected_revision = payload.get("expected_revision")
+            if isinstance(expected_revision, bool):
+                raise P6BaselineUpdateError("BASELINE_UPDATE_REVISION_INVALID")
+            if operation == "compare":
+                self._reject_unknown_baseline_update_keys(
+                    payload,
+                    {"contract_version", "expected_revision", "activity_ids"},
+                )
+                raw_ids = payload.get("activity_ids")
+                activity_ids = (
+                    None
+                    if raw_ids is None
+                    else self._baseline_update_id_list(raw_ids)
+                )
+                result = self._p6_baseline_update_api.compare(
+                    scope,
+                    baseline_id,
+                    expected_revision=expected_revision,
+                    auth_context=auth,
+                    activity_ids=activity_ids,
+                    contract_version=contract_version,
+                )
+            else:
+                selection = self._baseline_update_selection(
+                    payload.get("selection")
+                )
+                target_baseline_id = payload.get("target_baseline_id", "")
+                if operation == "preview":
+                    self._reject_unknown_baseline_update_keys(
+                        payload,
+                        {
+                            "contract_version",
+                            "expected_revision",
+                            "target_baseline_id",
+                            "selection",
+                        },
+                    )
+                    result = self._p6_baseline_update_api.preview(
+                        scope,
+                        baseline_id,
+                        target_baseline_id,
+                        selection,
+                        expected_revision=expected_revision,
+                        auth_context=auth,
+                        contract_version=contract_version,
+                    )
+                else:
+                    self._reject_unknown_baseline_update_keys(
+                        payload,
+                        {
+                            "contract_version",
+                            "expected_revision",
+                            "target_baseline_id",
+                            "selection",
+                            "target_name",
+                            "baseline_type",
+                        },
+                    )
+                    result = self._p6_baseline_update_api.apply(
+                        scope,
+                        baseline_id,
+                        target_baseline_id,
+                        selection,
+                        target_name=payload.get("target_name", ""),
+                        expected_revision=expected_revision,
+                        auth_context=auth,
+                        baseline_type=payload.get(
+                            "baseline_type", "USER_SELECTED"
+                        ),
+                        contract_version=contract_version,
+                    )
+        except AuthorizationError as exc:
+            return self._error(403, str(exc), "error.authorization.denied")
+        except P6BaselineUpdateError as exc:
+            return self._baseline_update_error(exc)
+        except (
+            P6BaselinePersistenceError,
+            P6BaselineActivityPersistenceError,
+            P6CurrentActivityPersistenceError,
+        ) as exc:
+            code = str(exc)
+            if code in {
+                "REVISION_CONFLICT",
+                "IMMUTABLE_BASELINE",
+                "IMMUTABLE_BASELINE_ACTIVITIES",
+            }:
+                return self._error(
+                    409, code, "error.p6.baseline.update.conflict"
+                )
+            return self._error(
+                400, code, "error.p6.baseline.update.invalid"
+            )
+        return self._json(201 if operation == "apply" else 200, result)
+
+    @staticmethod
+    def _reject_unknown_baseline_update_keys(
+        payload: Mapping[str, object], allowed: set[str]
+    ) -> None:
+        if set(payload) - allowed:
+            raise P6BaselineUpdateError(
+                "P6_BASELINE_UPDATE_REQUEST_INVALID"
+            )
+
+    @staticmethod
+    def _baseline_update_id_list(value: object) -> tuple[str, ...]:
+        if not isinstance(value, list) or any(
+            not isinstance(item, str)
+            or not item.strip()
+            or item != item.strip()
+            for item in value
+        ):
+            raise P6BaselineUpdateError(
+                "BASELINE_UPDATE_ACTIVITY_IDS_INVALID"
+            )
+        return tuple(value)
+
+    @classmethod
+    def _baseline_update_selection(
+        cls, value: object
+    ) -> P6BaselineUpdateSelection:
+        if value is None:
+            return P6BaselineUpdateSelection()
+        if not isinstance(value, dict):
+            raise P6BaselineUpdateError("BASELINE_UPDATE_SELECTION_INVALID")
+        allowed = {
+            "activity_ids",
+            "fields",
+            "add_new_activities",
+            "remove_missing_activities",
+        }
+        if set(value) - allowed:
+            raise P6BaselineUpdateError("BASELINE_UPDATE_SELECTION_INVALID")
+        raw_ids = value.get("activity_ids")
+        activity_ids = (
+            None
+            if raw_ids is None
+            else frozenset(cls._baseline_update_id_list(raw_ids))
+        )
+        raw_fields = value.get("fields")
+        if raw_fields is None:
+            fields = frozenset(BASELINE_UPDATE_FIELDS)
+        else:
+            if not isinstance(raw_fields, list) or any(
+                not isinstance(item, str) or not item.strip()
+                for item in raw_fields
+            ):
+                raise P6BaselineUpdateError("BASELINE_UPDATE_FIELDS_INVALID")
+            fields = frozenset(raw_fields)
+        return P6BaselineUpdateSelection(
+            activity_ids=activity_ids,
+            fields=fields,
+            add_new_activities=value.get("add_new_activities", True),
+            remove_missing_activities=value.get(
+                "remove_missing_activities", False
+            ),
+        )
+
+    @classmethod
+    def _baseline_update_error(
+        cls, exc: P6BaselineUpdateError
+    ) -> tuple[int, dict[str, str], bytes]:
+        code = str(exc)
+        if code == "BASELINE_UPDATE_SOURCE_NOT_FOUND":
+            return cls._error(
+                404, code, "error.p6.baseline.not_found"
+            )
+        if code in {
+            "BASELINE_UPDATE_STALE_REVISION",
+            "BASELINE_UPDATE_TARGET_ALREADY_EXISTS",
+            "BASELINE_UPDATE_CURRENT_EMPTY",
+        } or code.startswith("BASELINE_UPDATE_CURRENCY_MISMATCH:"):
+            return cls._error(
+                409, code, "error.p6.baseline.update.conflict"
+            )
+        if code == "BASELINE_UPDATE_CURRENT_SOURCE_REQUIRED":
+            return cls._error(
+                503, code, "error.p6.baseline.update.unavailable"
+            )
+        return cls._error(
+            400, code, "error.p6.baseline.update.invalid"
+        )
 
     def _handle_form_route(
         self,

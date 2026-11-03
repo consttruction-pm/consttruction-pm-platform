@@ -15,6 +15,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Import / Export | Interchange | Format, project, mapping preview, conflict policy | Existing interchange API | Implemented (panel) |
 | Print Preview / Print / Page Setup | Output | Layout, page, scale, margins, header/footer | Print profile API (not built) | Missing |
 | Project Settings | Edit metadata | Name, description, start, date system, primary calendar, revision | `GET/PATCH /api/projects/{id}` | Implemented (modal) |
+| Compare Projects — CMP-01 / Issue #1669 | Guided read-only comparison setup for project/project, revision/revision and project/baseline | Mode; reference A and compared B source/revision/baseline; whole-project or WBS/activity/resource scope; comparison domains; coverage preview; identity-map suggestions and ambiguity resolution; unit/calendar/currency/context warnings; preview and run | Versioned CMP-01 comparison API over immutable snapshots; no comparison API is claimed yet | **Specified / Missing — mandatory implementation tracked by #1669** |
 
 ## Layout and data display
 

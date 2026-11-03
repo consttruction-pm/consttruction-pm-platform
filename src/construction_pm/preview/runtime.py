@@ -85,9 +85,39 @@ from construction_pm.http.production_composition import (
 )
 from construction_pm.http.project_lifecycle_routes import Clock
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
+from construction_pm.p6_earned_value_read_model import (
+    P6EarnedValueReadModelError,
+    P6EarnedValueReadModelService,
+)
+from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadModelAPI
+from construction_pm.p6_activity_period_actual_repository import (
+    SQLiteP6ActivityPeriodActualRepository,
+)
+from construction_pm.p6_expense_repository import SQLiteP6ExpenseRepository
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
+from construction_pm.p6_baseline_activity_repository import (
+    SQLiteP6BaselineActivityRepository,
+)
+from construction_pm.p6_baseline_api import P6BaselineAPI
+from construction_pm.p6_baseline_assignment import (
+    P6BaselineAssignmentService,
+    SQLiteP6BaselineRoleAssignmentRepository,
+)
+from construction_pm.p6_baseline_assignment_api import P6BaselineAssignmentAPI
+from construction_pm.p6_baseline_conversion import P6BaselineConversionService
+from construction_pm.p6_baseline_conversion_api import P6BaselineConversionAPI
+from construction_pm.p6_baseline_repository import (
+    P6BaselineApplicationService,
+    SQLiteP6BaselineRepository,
+)
+from construction_pm.p6_baseline_update import P6BaselineUpdateService
+from construction_pm.p6_baseline_update_api import P6BaselineUpdateAPI
 from construction_pm.p6_calendar_api import P6CalendarAPI
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
+from construction_pm.p6_current_activity_value_repository import (
+    P6CurrentActivityApplicationService,
+    SQLiteP6CurrentActivityRepository,
+)
 from construction_pm.p6_field_registry import get_field
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_field_registry_repository import (
@@ -119,6 +149,14 @@ from construction_pm.p6_resource_capacity_repository import (
     P6ResourceCapacityRecord,
     SQLiteP6ResourceCapacityRepository,
 )
+from construction_pm.p6_resource_rate_read_api import P6ResourceRateReadAPI
+from construction_pm.p6_resource_rate_write_api import P6ResourceRateWriteAPI
+from construction_pm.p6_resource_rate_repository import (
+    P6ResourceRateApplicationService,
+    P6ResourceRateRecord,
+    SQLiteP6ResourceRateRepository,
+)
+from construction_pm.resources.rate_facts import ResourceRateFact
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentPeriodRepository,
@@ -222,6 +260,8 @@ class PreviewRepositories:
     resource_periods: SQLiteP6ResourceAssignmentPeriodRepository
     capacities: SQLiteP6ResourceCapacityRepository
     capacity_service: P6ResourceCapacityApplicationService
+    rates: SQLiteP6ResourceRateRepository
+    rate_service: P6ResourceRateApplicationService
     settings: SQLiteProjectScheduleSettingsRepository
     fields: SQLiteP6FieldRegistryRepository
     field_service: P6FieldRegistryApplicationService
@@ -232,6 +272,11 @@ class PreviewRepositories:
     layouts: SQLiteP6LayoutRepository
     snapshots: SQLiteScheduleInputSnapshotRepository
     contexts: SQLiteCalculationContextRepository
+    baselines: SQLiteP6BaselineRepository
+    baseline_activities: SQLiteP6BaselineActivityRepository
+    baseline_assignments: SQLiteP6BaselineRoleAssignmentRepository
+    current_activity_values: SQLiteP6CurrentActivityRepository
+    current_activity_service: P6CurrentActivityApplicationService
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -251,6 +296,8 @@ class PreviewRepositories:
         capacity_service = P6ResourceCapacityApplicationService(
             capacities, transaction_manager
         )
+        rates = SQLiteP6ResourceRateRepository(connection)
+        rate_service = P6ResourceRateApplicationService(rates, transaction_manager)
         settings = SQLiteProjectScheduleSettingsRepository(connection)
         fields = SQLiteP6FieldRegistryRepository(connection)
         field_service = P6FieldRegistryApplicationService(fields, transaction_manager)
@@ -263,6 +310,13 @@ class PreviewRepositories:
         layouts = SQLiteP6LayoutRepository(connection)
         snapshots = SQLiteScheduleInputSnapshotRepository(connection)
         contexts = SQLiteCalculationContextRepository(connection)
+        baselines = SQLiteP6BaselineRepository(connection)
+        baseline_activities = SQLiteP6BaselineActivityRepository(connection)
+        baseline_assignments = SQLiteP6BaselineRoleAssignmentRepository(connection)
+        current_activity_values = SQLiteP6CurrentActivityRepository(connection)
+        current_activity_service = P6CurrentActivityApplicationService(
+            current_activity_values, transaction_manager
+        )
         return cls(
             activities=activities,
             wbs=wbs,
@@ -276,6 +330,8 @@ class PreviewRepositories:
             resource_periods=resource_periods,
             capacities=capacities,
             capacity_service=capacity_service,
+            rates=rates,
+            rate_service=rate_service,
             settings=settings,
             fields=fields,
             field_service=field_service,
@@ -286,6 +342,11 @@ class PreviewRepositories:
             layouts=layouts,
             snapshots=snapshots,
             contexts=contexts,
+            baselines=baselines,
+            baseline_activities=baseline_activities,
+            baseline_assignments=baseline_assignments,
+            current_activity_values=current_activity_values,
+            current_activity_service=current_activity_service,
             transaction_manager=transaction_manager,
         )
 
@@ -392,6 +453,31 @@ def seed_resource_capacities(
         repositories.capacity_service.save(
             P6ResourceCapacityRecord(scope=scope, segment=segment)
         )
+
+
+def seed_resource_rates(
+    repositories: PreviewRepositories,
+    fixture: DemoProjectFixture,
+    scope: BackendScope,
+) -> None:
+    """Seed explicit effective-dated price facts through the real repository.
+
+    Prices come from the fixture, not from assignment costs or a default, and
+    each interval receives its content-addressed identity.
+    """
+
+    for rate in fixture.rates:
+        fact = ResourceRateFact.create(
+            resource_id=rate.resource_id,
+            rate=rate.rate,
+            basis=rate.basis,
+            currency=rate.currency,
+            unit=rate.unit,
+            effective_from=rate.effective_from,
+            effective_to=rate.effective_to,
+            source=rate.source,
+        )
+        repositories.rate_service.save(P6ResourceRateRecord(scope=scope, fact=fact))
 
 
 def seed_wbs_nodes(
@@ -532,6 +618,7 @@ def _to_activity(scope: BackendScope, item, wbs_id: str) -> ActivityMaster:
         leveling_priority=item.leveling_priority,
         original_duration=item.duration,
         name=item.name,
+        short_name=item.short_name,
         activity_type=item.activity_type,
         status=item.status,
         status_code=item.status_code,
@@ -567,6 +654,7 @@ def publish_fixture_snapshot(
             resource_assignment_repository=repositories.resource_assignments,
             resource_period_repository=repositories.resource_periods,
             project_schedule_settings_repository=repositories.settings,
+            wbs_repository=repositories.wbs,
         ),
         snapshot_repository=repositories.snapshots,
         calculation_context_repository=repositories.contexts,
@@ -593,6 +681,7 @@ def seed_demo_project(
     seed_presentation(repositories, scope)
     seed_interchange_mappings(repositories, scope)
     seed_resource_capacities(repositories, fixture, scope)
+    seed_resource_rates(repositories, fixture, scope)
     calendar = seed_default_calendar(
         repositories,
         scope=scope,
@@ -908,6 +997,10 @@ class PreviewRuntime:
             "SELECT COUNT(*) FROM p6_resource_capacity_segment WHERE tenant_id=?",
             (PREVIEW_TENANT_ID,),
         ).fetchone()
+        rate_count = self.connection.execute(
+            "SELECT COUNT(*) FROM p6_resource_rate_fact WHERE tenant_id=?",
+            (PREVIEW_TENANT_ID,),
+        ).fetchone()
         wbs_count = self.connection.execute(
             "SELECT COUNT(*) FROM wbs_master WHERE tenant_id=?",
             (PREVIEW_TENANT_ID,),
@@ -922,6 +1015,7 @@ class PreviewRuntime:
             "activity_count": int(activity_count[0]) if activity_count else 0,
             "wbs_node_count": int(wbs_count[0]) if wbs_count else 0,
             "capacity_segment_count": int(capacity_count[0]) if capacity_count else 0,
+            "rate_fact_count": int(rate_count[0]) if rate_count else 0,
             "session_count": self.sessions.count(),
             "assistant": {
                 "enabled": self.ai_assistant_enabled,
@@ -1038,6 +1132,7 @@ def open_preview_runtime(
             resource_assignment_repository=repositories.resource_assignments,
             resource_period_repository=repositories.resource_periods,
             project_schedule_settings_repository=repositories.settings,
+            wbs_repository=repositories.wbs,
         ),
         snapshot_repository=repositories.snapshots,
         calculation_context_repository=repositories.contexts,
@@ -1049,6 +1144,67 @@ def open_preview_runtime(
         publisher,
         policy,
         repositories.settings,
+    )
+    baseline_api = P6BaselineAPI(
+        P6BaselineApplicationService(
+            repositories.baselines, repositories.transaction_manager
+        ),
+        policy,
+    )
+    baseline_update_service = P6BaselineUpdateService(
+        repository=repositories.baseline_activities,
+        transaction_manager=repositories.transaction_manager,
+        baseline_repository=repositories.baselines,
+        current_source=repositories.current_activity_service,
+    )
+    baseline_update_api = P6BaselineUpdateAPI(
+        baseline_update_service, policy
+    )
+    baseline_assignment_api = P6BaselineAssignmentAPI(
+        P6BaselineAssignmentService(
+            repository=repositories.baseline_assignments,
+            baseline_repository=repositories.baselines,
+            baseline_activity_repository=repositories.baseline_activities,
+            transaction_manager=repositories.transaction_manager,
+        ),
+        policy,
+    )
+    baseline_conversion_api = P6BaselineConversionAPI(
+        P6BaselineConversionService(
+            baseline_repository=repositories.baselines,
+            baseline_activity_repository=repositories.baseline_activities,
+            current_source=repositories.current_activity_service,
+            transaction_manager=repositories.transaction_manager,
+        ),
+        policy,
+    )
+
+    def _evm_resolver(scope: BackendScope) -> WorkingTimeResolver:
+        """Resolve the persisted project calendar for this EVM measurement."""
+        settings = repositories.settings.get(scope)
+        if settings is None:
+            raise P6EarnedValueReadModelError("EVM_PROJECT_CALENDAR_REQUIRED")
+        try:
+            registry = build_calendar_registry(connection)
+            return registry.resolve(settings.project_calendar)
+        except PreviewRuntimeError as exc:
+            raise P6EarnedValueReadModelError(exc.code) from exc
+        except (KeyError, TypeError, ValueError) as exc:
+            raise P6EarnedValueReadModelError(
+                "EVM_PROJECT_CALENDAR_UNRESOLVED"
+            ) from exc
+
+    earned_value_read_api = P6EarnedValueReadModelAPI(
+        P6EarnedValueReadModelService(
+            baseline_activities=repositories.baseline_activities,
+            activities=repositories.activities,
+            actuals=SQLiteP6ActivityPeriodActualRepository(connection),
+            expenses=SQLiteP6ExpenseRepository(connection),
+            resolver_provider=_evm_resolver,
+            wbs_repository=repositories.wbs,
+            resource_assignments=repositories.resource_assignments,
+        ),
+        policy,
     )
 
     ai_assistant_enabled = os.environ.get("CUBI_AI_ENABLED", "").strip().lower() in {
@@ -1138,6 +1294,11 @@ def open_preview_runtime(
             policy,
             transaction_manager=repositories.transaction_manager,
         ),
+        p6_baseline_api=baseline_api,
+        p6_baseline_update_api=baseline_update_api,
+        p6_baseline_assignment_api=baseline_assignment_api,
+        p6_baseline_conversion_api=baseline_conversion_api,
+        p6_earned_value_read_api=earned_value_read_api,
         p6_interchange_api=P6InterchangeAPI(
             mapping_service=repositories.mapping_service,
             authorization_policy=policy,
@@ -1149,6 +1310,15 @@ def open_preview_runtime(
         ),
         p6_resource_capacity_write_api=P6ResourceCapacityWriteAPI(
             repositories.capacity_service,
+            policy,
+            clock=PreviewClock(),
+        ),
+        p6_resource_rate_read_api=P6ResourceRateReadAPI(
+            repositories.rate_service,
+            policy,
+        ),
+        p6_resource_rate_write_api=P6ResourceRateWriteAPI(
+            repositories.rate_service,
             policy,
             clock=PreviewClock(),
         ),
@@ -1184,4 +1354,5 @@ __all__ = [
     "open_preview_runtime",
     "seed_database",
     "seed_resource_capacities",
+    "seed_resource_rates",
 ]

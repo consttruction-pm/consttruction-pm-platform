@@ -46,10 +46,12 @@ def test_p6_progressed_activity_remaining_output_uses_scheduler_remaining_durati
     assert early.duration == 1
     assert early.start == date(2026, 9, 21)
     assert early.finish == date(2026, 9, 21)
-    # Current authoritative backward pass uses Activity.duration. Keep this
-    # evidence aligned with actual scheduler output until remaining-late
-    # semantics are proven against the P6 contract.
-    assert late.start == date(2026, 9, 23)
+    assert early.remaining_start == date(2026, 9, 21)
+    assert early.remaining_finish == date(2026, 9, 21)
+    # The backward pass places only the remaining duration. The at-completion
+    # duration belongs to the completed history and must not pull late dates
+    # before the work that is still outstanding.
+    assert late.start == date(2026, 9, 25)
     assert late.finish == date(2026, 9, 25)
     remaining_float = resolver.working_days_between(early.finish, late.finish)
     assert remaining_float == 4

@@ -1,7 +1,7 @@
 /** Generated from the compatibility registry. Do not hand-edit; run scripts/generate_web_scheduling_reference.py. */
 export const SCHEDULING_REFERENCE_CATALOG = {
-  "version": "0.8.8",
-  "asOf": "2026-10-25",
+  "version": "0.8.9",
+  "asOf": "2026-11-02",
   "requirements": [
     {
       "id": "SCH-001",
@@ -209,7 +209,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "WBS Summary"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": ""
+      "gap": "Task Dependent, zero-duration milestones, the Resource Dependent subset, Level of Effort and WBS Summary are scheduled by the shared core. Start and Finish Milestones are validated as zero-duration work; a persisted milestone that carries a duration, original duration or remaining duration fails closed with INVALID_PERSISTED_ACTIVITY rather than moving itself and its successors. Release 24.12 removed the former milestone relationship-type restriction, so Start and Finish milestones accept FS, SS, FF and SF relationships on either side. LOE dates use the documented start/finish-linked neighbour span, never drive successors, reject constraints and are excluded from leveling. WBS Summary dates roll up the earliest start and latest finish of snapshot-bound WBS descendants and ignore relationships and constraints during scheduling and leveling; its Activity % Complete and Status aggregate the same descendants. Version 26 reference fixtures are still required to prove numeric parity, and the public help does not define LOE or WBS Summary late dates/float, so those values follow the shared project-finish boundary and remain explicitly unverified."
     },
     {
       "id": "ACT-002",
@@ -239,7 +239,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Actual Finish"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": ""
+      "gap": "Original, Actual and Remaining values are composed from persisted data. The composer fails closed with COMPLETED_STATUS_REQUIRES_ACTUAL_FINISH, NOT_STARTED_STATUS_CONFLICTS_WITH_ACTUALS or IN_PROGRESS_STATUS_REQUIRES_ACTUAL_START when the persisted status contradicts the actual dates, because progress state is derived from actual dates rather than from the label. Suspend/resume edit rules, Actual Duration derivation and full at-completion edit-rule parity remain unproven."
     },
     {
       "id": "ACT-004",
@@ -280,14 +280,14 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Per-assignment driving override",
         "Assignment Units/Time and conversion period"
       ],
-      "status": "KNOWN_GAP",
-      "gap": "Resource-dependent activity duration from driving assignments and calendar-aware placement of nondriving assignments remain unsupported. This is separate from date-based resource leveling; persisted resource leveling does not complete resource-dependent activity timing. The unsupported behavior remains an explicit release blocker."
+      "status": "MAPPED_NOT_PROVEN",
+      "gap": "Implemented subset: date-based Resource Dependent activities derive duration from driving assignments. For a not-started activity, Planned Units divided by the driver's daily rate gives total duration, and a persisted Remaining Duration must equal that derived duration rather than silently compressing the schedule. For an in-progress activity, every assignment must declare Actual Units plus Remaining Units that reconcile to Planned Units (actual + remaining = planned); total duration still comes from Planned Units, remaining duration from Remaining Units, and the longest remaining driver selects the activity calendar and remaining duration, with an equal-remaining tie between different calendars failing closed. Persisted time-phased rows for an in-progress assignment are remaining demand, must reconcile to Remaining Units, and are placed only as work still to be performed; a changed remaining row or remaining duration after publication fails closed as stale. Each driver's daily rate is evaluated on its own exact versioned resource calendar. Nondriving assignments are placed independently against their exact versioned calendars and persisted capacity. Remaining gaps include completed Resource Dependent activities, non-daily and fractional driving rates, Level of Effort and WBS Summary handling, and parity between the forward-pass progress anchor and the Data Date/remaining-start reference scheduler behavior. The wider relationship, lag, calendar, priority and infeasible-window matrix remains unqualified; do not claim complete Version 26 parity."
     },
     {
       "id": "RES-002",
       "area": "Resources / Leveling",
       "feature": "Resource leveling controls and priority order",
-      "semantics": "Leveling must consume persisted, time-phased demand and effective capacity bound to the same tenant, project revision, immutable schedule snapshot and calculation identity. It must respect activity relationships, constraints, resolved activity/resource calendars, priorities, selected resources, float limits, permitted overallocation and Early/Late preservation. Final resource-load validation remains mandatory after accepted movements and CPM recalculation.",
+      "semantics": "Leveling must respect persisted, time-phased resource demand, effective available capacity, activity relationships/constraints, resolved per-activity calendars, activity priority, selected resources, float limits, allowed overallocation, preserve-Early/Late settings and calculation options. Production leveling must consume an immutable input bound to the same tenant/project/revision, schedule snapshot hash and calculation identity; it must fail closed for missing or mismatched calendar versions, capacity slices or authorization scope. The final resource-load invariant must remain enforced after each accepted movement and CPM recalculation.",
       "options": [
         "Level all resources",
         "Selected resource list",
@@ -303,13 +303,13 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Projects whose scheduling options control leveling"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": "The production write-to-snapshot-to-query path and exact resource-calendar version binding are implemented and tested, but complete compatibility is not proven for demand/capacity unit conversion, hours-per-period conversion, full priority/resource-selection ordering, resource shifts, multi-project thresholds, movement horizon, cost recalculation and unresolved-overload reporting."
+      "gap": "The production write/commit/snapshot/query path and exact calendar version binding are implemented and tested, but full Version 26 equivalence is not proven. Independent semantic fixtures/review are still required for demand versus capacity units and hours-per-period conversion, complete PriorityList/ResourceList and hierarchical ordering behavior, resource shifts, multi-project thresholds, movement horizon, cost recalculation, and unresolved-overload logging. Keep Issue #1468 open until those cases are accepted."
     },
     {
       "id": "RES-003",
       "area": "Resources / Capacity and calendars",
       "feature": "Max Units/Time, effective rates and unit/time conversion",
-      "semantics": "Resource capacity is effective-dated and unit-aware. Use the exact versioned resource calendar and work-time rules for each capacity slice. Demand and capacity need a documented common unit/time basis; resource Max Units/Time, assignment Units/Time and Hours-per-Time-Period conversion are distinct. Never infer a standard workday or silently fall back to an ID-only or latest calendar.",
+      "semantics": "Resource capacity is effective-dated and unit-aware. Use the exact versioned resource calendar and its work-time rules for each capacity slice. Demand and capacity must share a documented unit and time-period basis; explicit resource Max Units/Time, assignment Units/Time and the Hours-per-Time-Period conversion are distinct sources. Percentage capacity needs an explicit full-time base. Never infer an 8-hour day, treat Max Units/Time as assignment rate, or fall back to an ID-only/latest calendar.",
       "options": [
         "Max Units/Time",
         "Effective date",
@@ -321,7 +321,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Calendar version and effective exceptions"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": "Exact identity/version binding and capacity-slice contracts exist, but persisted Max Units/Time, total work hours, date-specific detailed work hours and Hours-per-Time-Period conversions are not fully aligned and independently verified. Ambiguous inputs must fail closed."
+      "gap": "Exact ID/version and capacity-slice identity are implemented, but there is still no full verified mapping for resource Max Units/Time, calendar total_work_hours, date-specific DetailedWorkHours and Hours-per-Time-Period conversion. Until the underlying persisted source contracts agree and reference cases prove unit conversion, fail closed for unsupported or ambiguous records. Do not claim full resource-capacity semantic parity."
     },
     {
       "id": "RES-004",
@@ -385,7 +385,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "WBS-specific setting"
       ],
       "status": "INVENTORY_REQUIRED",
-      "gap": "Exact mapping of all reference scheduler WBS Earned Value choices to CUBI persistence and EVM calculations needs a dedicated field/formula audit."
+      "gap": "Activity-level earned-value techniques and all documented ETC estimators are implemented and tested. Still open: inheritance and overrides of the technique at WBS level, weighted WBS milestones (whose required facts are not yet persisted and therefore fail closed), and an end-to-end field audit of every WBS Earned Value setting."
     },
     {
       "id": "EVM-002",
@@ -415,7 +415,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Tertiary"
       ],
       "status": "MAPPED_NOT_PROVEN",
-      "gap": ""
+      "gap": "Project/primary/secondary/tertiary baseline identity, scoped reads, revision conflicts and immutable baseline-activity values are implemented and tested against both SQLite and PostgreSQL repositories. Still open: converting another project into a baseline, selective baseline update (#1483 scope) and assignment of baselines to live project summary fields."
     },
     {
       "id": "BAS-002",
@@ -1136,8 +1136,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Cost currency",
         "Financial/reporting period"
       ],
-      "status": "INVENTORY_REQUIRED",
-      "gap": "Native EV field definitions and each WBS ETC/performance-factor formula are not yet traced to exact CUBI calculation functions and denominator/rounding tests."
+      "status": "MAPPED_NOT_PROVEN",
+      "gap": "EV/PV/AC/BAC are selected from one immutable baseline-activity snapshot and one explicit status/Data Date, with the persisted read model composing current percent complete and period/expense actual cost without reading live activity rows during measurement. Activity, WBS and project expense costs are attributed to their own rollup or the project total rather than being dropped or spread across activities, and a WBS adjustment must reference a baseline WBS. Activity-level techniques ACTIVITY_PERCENT_COMPLETE, CUSTOM_PERCENT_COMPLETE, ZERO_HUNDRED and FIFTY_FIFTY are implemented; WBS_MILESTONE fails closed until milestone facts exist. Planned Value currently uses the explicit LINEAR_WORKING_DAYS_ACTIVITY_BUDGET distribution and records that method in every result. Still open: per-WBS technique inheritance/overrides, weighted WBS milestones, resource-curve or manual future-period PV buckets, multi-currency/financial-period conversion (a mixed-currency input fails closed), and Version 26 parity fixtures for these remaining methods."
     },
     {
       "id": "SCH-014",
@@ -1388,8 +1388,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Actual/remaining work",
         "Nondriving placement"
       ],
-      "status": "KNOWN_GAP",
-      "gap": "Current authoritative composer explicitly rejects Resource Dependent assignments with RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_UNSUPPORTED; this formula must not be treated as implemented."
+      "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+      "gap": "Implemented for date-based not-started and in-progress activities with daily driving rates and integral working-day durations. Not-started duration = Planned Units / daily rate, and a persisted Remaining Duration must equal that derived duration. In-progress assignments must reconcile Actual Units + Remaining Units to Planned Units; total duration uses Planned Units, remaining duration uses Remaining Units, and the longest remaining driver selects the activity calendar. Driving assignments may use different versioned calendars and units; equal-duration or equal-remaining calendar ties fail closed. Completed activities, non-daily or fractional durations, Level of Effort, and the data-date/remaining-start progress-anchor parity remain unsupported or unqualified. No full Version 26 parity claim is made."
     },
     {
       "id": "FRM-CAP-001",
@@ -1448,8 +1448,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Different currencies",
         "Unclosed financial period"
       ],
-      "status": "FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
-      "gap": "CUBI must explicitly define zero-denominator behavior and prove source values/rollups using Version 26 acceptance fixtures."
+      "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+      "gap": "The shared formula core computes CV/SV and CPI/SPI with explicit null policy (AC=0 leaves CPI undefined, PV=0 leaves SPI undefined) and deterministic Decimal arithmetic; tests cover the identities, zero denominators, non-finite inputs and the resource EVM bridge. Sourcing EV/PV/AC from a selected baseline, Data Date and WBS technique, currency conversion and rollup parity remain unproven."
     },
     {
       "id": "FRM-EVM-002",
@@ -1481,8 +1481,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "WBS-specific method override",
         "Resource curve/manual future bucket methods"
       ],
-      "status": "FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
-      "gap": "Implement and test each reference scheduler WBS ETC option separately; zero-index and missing-input behavior must be confirmed from Version 26 behavior."
+      "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+      "gap": "The shared core implements Remaining Cost, PF=1, PF=1/CPI, PF=1/(CPI*SPI) and a user-defined PF separately, with fail-closed missing-input, zero-index, non-positive-PF and EV>BAC rules. WBS-specific method selection, manual future-period buckets/resource curves and Version 26 acceptance fixtures remain unproven."
     },
     {
       "id": "FRM-DATA-DATE-001",
@@ -1609,7 +1609,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Max over-allocation threshold reached"
       ],
       "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
-      "gap": "reference scheduler leveling heuristic/order and output parity must be established with reference fixtures; current presence of a leveling engine is not proof of equivalent results."
+      "gap": "Persisted date-based resource leveling is wired through the authoritative production query and exact calendar versions, but Version 26 leveling heuristic/order and output parity still require independent reference fixtures for demand/capacity units, PriorityList/ResourceList ordering and interactions, calendar-hour conversion, shift capacity, movement horizon, multi-project selection, cost recalculation and unresolved-overload logging. Current passing CI proves the CUBI path and its regressions, not complete external-product equivalence."
     },
     {
       "id": "FRM-ACT-TYPES-001",
@@ -1638,8 +1638,8 @@ export const SCHEDULING_REFERENCE_CATALOG = {
         "Resource Dependent with missing driving flag",
         "Mixed calendars"
       ],
-      "status": "FORMULA_DOCUMENTED_EDGE_RULE_REQUIRED",
-      "gap": "Level of Effort and WBS Summary date-derivation rules still require type-specific Version 26 fixtures; this entry deliberately does not invent a single formula for them."
+      "status": "FORMULA_DOCUMENTED_PARITY_NOT_PROVEN",
+      "gap": "Start and Finish Milestones enforce zero duration, original duration and remaining duration at the Activity boundary. Since Release 24.12 any relationship type may attach to a milestone, so Start and Finish milestones accept FS, SS, FF and SF on either side and the successor is placed by the declared relationship end. Level of Effort start and finish are derived from the documented earliest-start/latest-finish span of activities linked to its start and finish ends; LOE never drives a successor, rejects constraints and is excluded from leveling. WBS Summary dates aggregate the earliest start and latest finish of activities in its own and subordinate snapshot-bound WBS elements, its Activity % Complete and Status aggregate the same members, and its relationships and constraints are ignored for scheduling and leveling. Independent Version 26 fixtures are still required to prove numeric parity; the help does not define LOE or WBS Summary late dates/float."
     },
     {
       "id": "FRM-COST-001",
@@ -1815,7 +1815,7 @@ export const SCHEDULING_REFERENCE_CATALOG = {
       "scope": "reference scheduler Professional Resource Dependent activities and assignment placement",
       "status": "CORE_RULES_EXTRACTED_NOT_FULL_PARITY_PROVEN",
       "reviewed": "Driving resources determine duration from quantity/rate; multiple drivers and nondriving assignments are identified as separate algorithms.",
-      "remaining": "Build and pass multiple-driving-resource, calendar-specific duration, unit/time conversion, nondriving placement, out-of-sequence and backward-pass fixtures. The existing Draft PR blocker remains open.",
+      "remaining": "Multiple-driving-resource and calendar-specific duration fixtures are implemented and passing, including fail-closed calendar ties. In-progress derivation from reconciled Actual/Remaining Units, remaining-duration selection, remaining-demand placement and stale-remaining-row rejection are implemented and passing. Complete the unit/time conversion, completed-activity, nondriving progress placement, out-of-sequence, backward-pass and Data Date/remaining-start anchor reviews. No full Version 26 parity claim is made while those reviews remain open.",
       "requirements": [
         "RES-001",
         "RES-002",

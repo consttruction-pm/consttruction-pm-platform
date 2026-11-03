@@ -2,18 +2,32 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable, Iterable, Mapping
+from typing import TYPE_CHECKING, Callable, Iterable, Mapping
 
-from .activity import Activity
+from .activity import Activity, ActivityType
 from .calculation_context import CalculationContext
 from .calendar import WorkingTimeResolver
+from .diagnostics import (
+    ScheduleDiagnostic,
+    ScheduleDiagnosticCode,
+    ScheduleDiagnosticSeverity,
+    ScheduleInfeasibilityError,
+)
 from .constraints import (
     ActivityConstraint,
     apply_latest_constraint,
     validate_constraint_set,
     validate_late_constraint_window,
 )
-from .forward_pass import ScheduledActivity, _shift_working_date, _successor_start, _topological_order, forward_pass
+from .forward_pass import (
+    ScheduledActivity,
+    _shift_working_date,
+    _successor_start,
+    _topological_order,
+    driving_relationships,
+    forward_pass,
+    is_non_driving_activity,
+)
 from .relationships import Relationship, RelationshipType
 from .schedule_options import (
     CriticalActivityPathType,
@@ -22,6 +36,9 @@ from .schedule_options import (
     StartToStartLagCalculationType,
     TotalFloatCalculationType,
 )
+
+if TYPE_CHECKING:
+    from .leveling_cost_recalculation import RecalculatedAssignmentCost
 
 
 @dataclass(frozen=True)
@@ -53,6 +70,28 @@ class ScheduleResult:
     late_activities: Mapping[str, ScheduledActivity] | None = None
     mode: ScheduleMode = ScheduleMode.EARLIEST
     float_paths: tuple[MultipleFloatPath, ...] = ()
+    # Stable, machine-readable findings for this run. Negative float is a
+    # valid reported outcome and appears here as a WARNING; unsatisfiable
+    # inputs never reach a result and raise ScheduleInfeasibilityError instead.
+    diagnostics: tuple[ScheduleDiagnostic, ...] = ()
+    # Present only when a leveling orchestration explicitly recalculated
+    # assignment costs (ScheduleOptions.recalculate_resource_costs). Empty
+    # means the authoritative CPM run did not own or mutate cost facts.
+    recalculated_assignment_costs: tuple[RecalculatedAssignmentCost, ...] = ()
+
+
+def _remaining_cpm_duration(activity: Activity) -> int:
+    """Duration of the work the backward pass still has to place.
+
+    A progressed activity is governed by its Remaining Duration, and a
+    completed activity has no remaining work. Using the at-completion duration
+    here would inflate float and let late dates cross the progress boundary.
+    """
+    if activity.actual_finish is not None:
+        return 0
+    if activity.actual_start is not None and activity.remaining_duration is not None:
+        return activity.remaining_duration
+    return activity.duration
 
 
 def _inverse_event_shift(successor_event: date, lag: int, resolver: WorkingTimeResolver) -> date:
@@ -114,44 +153,91 @@ def backward_pass(
     all_constraints = list(constraints or ())
     for constraint in all_constraints:
         if constraint.activity_id not in activity_map:
-            raise ValueError("constraint references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "constraint references an unknown activity",
+                activity_id=constraint.activity_id,
+            )
         constraint_map[constraint.activity_id].append(constraint)
 
     if set(activity_map) != set(forward):
         raise ValueError("forward schedule must contain every activity")
 
     for activity_id, activity_constraints in constraint_map.items():
+        activity = activity_map[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
+        if (
+            activity.activity_type is ActivityType.LEVEL_OF_EFFORT
+            and activity_constraints
+        ):
+            raise ValueError(
+                f"level-of-effort activities cannot carry constraints:{activity_id}"
+            )
+        if activity.activity_type is ActivityType.WBS_SUMMARY:
+            # Constraints are not considered for WBS Summary activities.
+            continue
         validate_constraint_set(
-            activity_constraints, activity_map[activity_id].duration, activity_resolver
+            activity_constraints,
+            _remaining_cpm_duration(activity),
+            activity_resolver,
         )
 
     for rel in relationship_list:
         if rel.predecessor_id not in activity_map or rel.successor_id not in activity_map:
-            raise ValueError("relationship references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "relationship references an unknown activity",
+                predecessor_id=rel.predecessor_id,
+                successor_id=rel.successor_id,
+            )
 
     early_project_finish = max(item.finish for item in forward.values())
     finish = resolver.normalize_finish(project_finish or early_project_finish)
 
+    # Edges touching an LOE or WBS Summary activity are not part of the CPM
+    # network; those activities never constrain a successor in either pass.
+    network_relationships = driving_relationships(activity_list, relationship_list)
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
-    for rel in relationship_list:
+    for rel in network_relationships:
         outgoing[rel.predecessor_id].append(rel)
 
-    order = _topological_order(activity_map, relationship_list)
+    order = _topological_order(activity_map, network_relationships)
     result: dict[str, ScheduledActivity] = {}
 
     for activity_id in reversed(order):
         activity = activity_map[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
+        if is_non_driving_activity(activity):
+            # Neither type has predecessor/successor-driven late dates. Use the
+            # derived forward span at the project float boundary. The reference
+            # documentation does not define their float, so the ledger records
+            # this as an explicit parity uncertainty rather than a proven rule.
+            duration = forward[activity_id].duration
+            late_finish = activity_resolver.normalize_finish(finish)
+            late_start = activity_resolver.subtract_working_duration(
+                late_finish, duration
+            )
+            result[activity_id] = ScheduledActivity(
+                activity_id=activity_id,
+                start=late_start,
+                finish=late_finish,
+                duration=duration,
+                # The late-date output must expose the same aggregated summary
+                # progress as the early pass; dates are the only ALAP change.
+                percent_complete=forward[activity_id].percent_complete,
+                status=forward[activity_id].status,
+            )
+            continue
         successors = outgoing[activity_id]
+        remaining_duration = _remaining_cpm_duration(activity)
 
         if not successors:
             late_finish = activity_resolver.normalize_finish(finish)
-            late_start = activity_resolver.subtract_working_duration(late_finish, activity.duration)
+            late_start = activity_resolver.subtract_working_duration(late_finish, remaining_duration)
         else:
             late_start = min(
                 _latest_predecessor_start(
-                    rel, result[rel.successor_id], activity.duration, activity_resolver,
+                    rel, result[rel.successor_id], remaining_duration, activity_resolver,
                     (relationship_lag_resolvers or {}).get((rel.predecessor_id, rel.successor_id)),
                 )
                 for rel in sorted(
@@ -162,21 +248,25 @@ def backward_pass(
                 )
             )
             latest_by_project_finish = activity_resolver.subtract_working_duration(
-                activity_resolver.normalize_finish(finish), activity.duration
+                activity_resolver.normalize_finish(finish), remaining_duration
             )
             late_start = min(late_start, latest_by_project_finish)
-            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, remaining_duration)
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
         ):
             late_start = apply_latest_constraint(
-                constraint, late_start, activity.duration, activity_resolver
+                constraint, late_start, remaining_duration, activity_resolver
             )
-            late_finish = activity_resolver.add_working_duration(late_start, activity.duration)
+            late_finish = activity_resolver.add_working_duration(late_start, remaining_duration)
 
         if late_finish > activity_resolver.normalize_finish(finish):
-            raise ValueError(f"backward schedule exceeds project finish for {activity_id}")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.BACKWARD_EXCEEDS_PROJECT_FINISH,
+                f"backward schedule exceeds project finish for {activity_id}",
+                activity_id=activity_id,
+            )
 
         for constraint in sorted(
             constraint_map[activity_id], key=lambda item: (item.type.value, item.date)
@@ -187,18 +277,21 @@ def backward_pass(
             activity_id=activity_id,
             start=late_start,
             finish=late_finish,
-            duration=activity.duration,
+            duration=remaining_duration,
         )
 
     # P6 lower-bound constraints (Start/Finish No Earlier Than) affect
     # early dates only. They reduce float rather than moving the late schedule.
     # Upper-bound and mandatory constraints remain validated below.
 
-    for relationship in relationship_list:
+    for relationship in network_relationships:
         if not _relationship_holds(relationship, result[relationship.predecessor_id], result[relationship.successor_id], resolver, (relationship_lag_resolvers or {}).get((relationship.predecessor_id, relationship.successor_id))):
-            raise ValueError(
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.BACKWARD_RELATIONSHIP_VIOLATED,
                 f"backward schedule violates relationship {relationship.predecessor_id} -> "
-                f"{relationship.successor_id} ({relationship.type.value}, lag={relationship.lag})"
+                f"{relationship.successor_id} ({relationship.type.value}, lag={relationship.lag})",
+                predecessor_id=relationship.predecessor_id,
+                successor_id=relationship.successor_id,
             )
 
     return result
@@ -293,6 +386,7 @@ def _free_float(
 
     limits: list[int] = []
     activity_resolver = (activity_resolvers or {}).get(activity.id, resolver)
+    duration = _remaining_cpm_duration(activity)
     for rel in successors:
         successor = early_schedule[rel.successor_id]
         lag_resolver = (relationship_lag_resolvers or {}).get(
@@ -304,8 +398,8 @@ def _free_float(
             candidate = ScheduledActivity(
                 activity_id=early.activity_id,
                 start=candidate_start,
-                finish=activity_resolver.add_working_duration(candidate_start, activity.duration),
-                duration=activity.duration,
+                finish=activity_resolver.add_working_duration(candidate_start, duration),
+                duration=duration,
             )
             return _relationship_holds(rel, candidate, successor, activity_resolver, lag_resolver)
 
@@ -359,7 +453,12 @@ def _longest_path_activity_ids(
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for relationship in relationships:
         if relationship.predecessor_id not in activity_map or relationship.successor_id not in activity_map:
-            raise ValueError("relationship references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "relationship references an unknown activity",
+                predecessor_id=rel.predecessor_id,
+                successor_id=rel.successor_id,
+            )
         incoming[relationship.successor_id].append(relationship)
 
     latest_early_finish = max(item.finish for item in early_schedule.values())
@@ -399,14 +498,15 @@ def _relationship_free_float(
 ) -> int:
     lag_resolver = lag_resolver or resolver
     activity_resolver = (activity_resolvers or {}).get(predecessor_activity.id, resolver)
+    duration = _remaining_cpm_duration(predecessor_activity)
 
     def holds(delay: int) -> bool:
         candidate_start = activity_resolver.add_working_duration(predecessor.start, delay)
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
             start=candidate_start,
-            finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
-            duration=predecessor_activity.duration,
+            finish=activity_resolver.add_working_duration(candidate_start, duration),
+            duration=duration,
         )
         return _relationship_holds(relationship, candidate, successor, resolver, lag_resolver)
 
@@ -424,14 +524,15 @@ def _relationship_total_float(
 ) -> int:
     lag_resolver = lag_resolver or resolver
     activity_resolver = (activity_resolvers or {}).get(predecessor_activity.id, resolver)
+    duration = _remaining_cpm_duration(predecessor_activity)
 
     def holds(delay: int) -> bool:
         candidate_start = activity_resolver.add_working_duration(predecessor.start, delay)
         candidate = ScheduledActivity(
             activity_id=predecessor.activity_id,
             start=candidate_start,
-            finish=activity_resolver.add_working_duration(candidate_start, predecessor_activity.duration),
-            duration=predecessor_activity.duration,
+            finish=activity_resolver.add_working_duration(candidate_start, duration),
+            duration=duration,
         )
         return _relationship_holds(relationship, candidate, successor_late, resolver, lag_resolver)
 
@@ -504,6 +605,39 @@ def _choose_default_float_path_endpoint(
         )
     return min(candidates)[1] if candidates else None
 
+def _resolve_ending_activity_short_name(
+    activities: Iterable[Activity],
+    activity_map: Mapping[str, Activity],
+    short_name: str | None,
+) -> str | None:
+    """Resolve the P6 short-name endpoint without guessing between matches."""
+    if short_name is None:
+        return None
+    target = short_name.strip()
+    matches = sorted(
+        activity.id
+        for activity in activities
+        if activity.short_name is not None
+        and activity.short_name.strip() == target
+    )
+    if not matches:
+        raise ValueError("multiple float paths ending activity short name does not exist")
+    if len(matches) > 1:
+        raise ValueError(
+            "multiple float paths ending activity short name is ambiguous: "
+            + ", ".join(matches)
+        )
+    endpoint = matches[0]
+    if endpoint not in activity_map:
+        # LOE and WBS Summary rows never own a float path. Returning the match
+        # would let the path builder silently start from a predecessor instead.
+        raise ValueError(
+            "multiple float paths ending activity short name is not a driving activity: "
+            + endpoint
+        )
+    return endpoint
+
+
 def _multiple_float_paths(
     activities: Iterable[Activity],
     relationships: Iterable[Relationship],
@@ -517,15 +651,25 @@ def _multiple_float_paths(
     if not options.multiple_float_paths_enabled or options.maximum_multiple_float_paths == 0:
         return ()
 
-    activity_map = {activity.id: activity for activity in activities}
-    relationship_list = list(relationships)
+    activity_list = list(activities)
+    activity_map = {
+        activity.id: activity
+        for activity in activity_list
+        if not is_non_driving_activity(activity)
+    }
+    relationship_list = driving_relationships(activity_list, relationships)
     if not activity_map:
         return ()
 
     incoming: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
     for relationship in relationship_list:
         if relationship.predecessor_id not in activity_map or relationship.successor_id not in activity_map:
-            raise ValueError("relationship references an unknown activity")
+            raise ScheduleInfeasibilityError(
+                ScheduleDiagnosticCode.UNKNOWN_ACTIVITY_REFERENCE,
+                "relationship references an unknown activity",
+                predecessor_id=rel.predecessor_id,
+                successor_id=rel.successor_id,
+            )
         incoming[relationship.successor_id].append(relationship)
 
     remaining = set(activity_map)
@@ -533,6 +677,19 @@ def _multiple_float_paths(
     explicit_endpoint = options.multiple_float_paths_ending_activity_object_id
     if explicit_endpoint is not None and explicit_endpoint not in activity_map:
         raise ValueError("multiple float paths ending activity does not exist")
+    short_name_endpoint = _resolve_ending_activity_short_name(
+        activity_list, activity_map, options.multiple_float_paths_ending_activity_short_name
+    )
+    if (
+        explicit_endpoint is not None
+        and short_name_endpoint is not None
+        and explicit_endpoint != short_name_endpoint
+    ):
+        raise ValueError(
+            "multiple float paths ending activity object id and short name identify different activities"
+        )
+    if explicit_endpoint is None:
+        explicit_endpoint = short_name_endpoint
 
     for path_number in range(1, options.maximum_multiple_float_paths + 1):
         if not remaining:
@@ -673,15 +830,29 @@ def calculate_floats(
 ) -> Mapping[str, FloatActivity]:
     """Calculate relationship-aware Total Float and Free Float."""
     selected_options = options or ScheduleOptions()
+    activity_list = list(activities)
+    relationship_list = list(relationships)
+    activity_map = {activity.id: activity for activity in activity_list}
+    network_relationships = driving_relationships(activity_list, relationship_list)
+    driving_activities = [
+        activity
+        for activity in activity_list
+        if not is_non_driving_activity(activity)
+    ]
     longest_path_ids = (
-        _longest_path_activity_ids(activities, relationships, early_schedule, resolver, relationship_lag_resolvers)
+        _longest_path_activity_ids(
+            driving_activities,
+            network_relationships,
+            early_schedule,
+            resolver,
+            relationship_lag_resolvers,
+        )
         if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH
         else frozenset()
     )
 
-    activity_map = {activity.id: activity for activity in activities}
     outgoing: dict[str, list[Relationship]] = {activity_id: [] for activity_id in activity_map}
-    for rel in relationships:
+    for rel in network_relationships:
         outgoing[rel.predecessor_id].append(rel)
 
     result: dict[str, FloatActivity] = {}
@@ -689,7 +860,22 @@ def calculate_floats(
         early = early_schedule[activity_id]
         late = late_schedule[activity_id]
         activity_resolver = (activity_resolvers or {}).get(activity_id, resolver)
-        start_float = _working_delay_between(early.start, late.start, activity_resolver)
+        activity = activity_map[activity_id]
+        non_driving = is_non_driving_activity(activity)
+        completed = activity.actual_finish is not None
+        if completed:
+            # A completed activity has no remaining start. Its float is the
+            # finish float; using the elapsed actual start would report float
+            # for work that can no longer move.
+            start_float = _working_delay_between(early.finish, late.finish, activity_resolver)
+        elif early.remaining_start is not None:
+            # Remaining work is anchored on the data date, so float is measured
+            # from that anchor rather than from the elapsed actual start.
+            start_float = _working_delay_between(
+                early.remaining_start, late.start, activity_resolver
+            )
+        else:
+            start_float = _working_delay_between(early.start, late.start, activity_resolver)
         finish_float = _working_delay_between(early.finish, late.finish, activity_resolver)
         # P6 can calculate total float from Start Float, Finish Float, or the
         # smaller of the two. Negative float remains a valid reportable value.
@@ -700,7 +886,7 @@ def calculate_floats(
         else:
             total = start_float
         free = _free_float(
-            activity_map[activity_id],
+            activity,
             early,
             outgoing[activity_id],
             early_schedule,
@@ -709,7 +895,11 @@ def calculate_floats(
             activity_resolvers,
         )
         free = max(0, min(total, free))
-        if selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
+        if non_driving:
+            # Neither LOE nor WBS Summary participates in the critical path or
+            # open-ended criticality rules; their derived span is not task work.
+            critical = False
+        elif selected_options.critical_activity_path_type is CriticalActivityPathType.LONGEST_PATH:
             critical = activity_id in longest_path_ids
         else:
             critical = (
@@ -761,8 +951,6 @@ def _validate_supported_schedule_options(options: ScheduleOptions) -> None:
         unsupported.append("external_project_priority_limit")
     if options.preserve_scheduled_early_and_late_dates:
         unsupported.append("preserve_scheduled_early_and_late_dates")
-    if options.multiple_float_paths_ending_activity_short_name is not None:
-        unsupported.append("multiple_float_paths_ending_activity_short_name")
     if unsupported:
         raise UnsupportedScheduleOptionError(
             "unsupported schedule options: " + ", ".join(sorted(unsupported))
@@ -860,6 +1048,20 @@ def schedule(
     )
     selected = late if selected_options.mode is ScheduleMode.ALAP else early
 
+    diagnostics = tuple(
+        ScheduleDiagnostic(
+            code=ScheduleDiagnosticCode.NEGATIVE_FLOAT,
+            message=(
+                f"negative total float for {activity_id}: "
+                f"{value.total_float} working days"
+            ),
+            activity_id=activity_id,
+            severity=ScheduleDiagnosticSeverity.WARNING,
+        )
+        for activity_id, value in sorted(floats.items())
+        if value.total_float < 0
+    )
+
     return ScheduleResult(
         activities=selected,
         floats=floats,
@@ -868,4 +1070,5 @@ def schedule(
         late_activities=late,
         mode=selected_options.mode,
         float_paths=float_paths,
+        diagnostics=diagnostics,
     )
