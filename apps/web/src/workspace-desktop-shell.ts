@@ -21,6 +21,7 @@ export type DesktopCommand =
   | "edit.undo"
   | "edit.redo"
   | "edit.find"
+  | "view.filters"
   | "edit.group-wbs"
   | "edit.sort-toggle"
   | "project.add-wbs"
@@ -267,7 +268,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
           command: "view.fields",
           disabledReason: caps.canOpenFieldChooser ? undefined : unavailable(REASONS.noFields, locale),
         },
-        { id: "view.filters", label: { en: "Filters…", fa: "فیلترها…" }, command: "edit.find" },
+        { id: "view.filters", label: { en: "Filters…", fa: "فیلترها…" }, command: "view.filters" },
         { id: "view.group-sort", label: { en: "Group and Sort…", fa: "گروه‌بندی و ترتیب…" }, command: "dialog.group-sort" },
         { id: "view.timescale", label: { en: "Timescale…", fa: "مقیاس زمانی…" }, command: "dialog.timescale" },
         { id: "view.bars", label: { en: "Bars…", fa: "میله‌ها…" }, command: "dialog.bars" },
@@ -402,7 +403,7 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
     { id: "toolbar.redo", label: { en: "Redo", fa: "تکرار" }, title: { en: "Redo layout change", fa: "اعمال دوبارهٔ تغییر چیدمان" }, command: "edit.redo", disabledReason: caps.canRedoLayout ? undefined : reasoning(REASONS.redo), icon: "redo", group: "edit" },
 
     { id: "toolbar.fields", label: { en: "Columns", fa: "ستون‌ها" }, title: { en: "Activity field layout", fa: "چیدمان فیلدهای فعالیت" }, command: "view.fields", disabledReason: caps.canOpenFieldChooser ? undefined : reasoning(REASONS.noFields), icon: "columns", group: "layout" },
-    { id: "toolbar.find", label: { en: "Filters", fa: "فیلترها" }, title: { en: "Filter activities", fa: "پالایش فعالیت‌ها" }, command: "edit.find", shortcut: "Ctrl+F", icon: "filter", group: "layout" },
+    { id: "toolbar.find", label: { en: "Filters", fa: "فیلترها" }, title: { en: "Open activity filters", fa: "بازکردن فیلترهای فعالیت" }, command: "view.filters", icon: "filter", group: "layout" },
     { id: "toolbar.group-sort", label: { en: "Group & Sort", fa: "گروه و ترتیب" }, title: { en: "Group and sort dialog", fa: "دیالوگ گروه‌بندی و ترتیب" }, command: "dialog.group-sort", icon: "sort", group: "layout" },
     { id: "toolbar.group-wbs", label: { en: "Group WBS", fa: "گروه WBS" }, title: { en: "Group activities by WBS", fa: "گروه‌بندی فعالیت‌ها بر اساس WBS" }, command: "edit.group-wbs", active: caps.groupByWbs, icon: "group", group: "layout" },
 
