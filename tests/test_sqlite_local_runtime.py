@@ -1030,3 +1030,70 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
         assert {item.operation for item in queued} == {"calendar.create", "schedule.publish"}
     finally:
         connection.close()
+
+
+def test_local_mutation_idempotency_rejects_pending_duplicates_before_domain_callback():
+    connection = sqlite3.connect(":memory:")
+    runtime, now = _open_runtime(connection)
+    try:
+        created = runtime.project_lifecycle_api.create_project(
+            "offline-session",
+            "idempotency-project",
+            "Idempotency project",
+            start_date="2026-11-03",
+            now=now,
+        )
+        scope = BackendScope(
+            created.context.tenant_id,
+            created.context.project_id,
+            created.context.revision,
+        )
+        auth = created.context.authorization_context(frozenset({"project_admin"}))
+        connection.execute(
+            "CREATE TABLE mutation_probe (value TEXT NOT NULL)"
+        )
+        calls = []
+
+        def apply():
+            calls.append("called")
+            connection.execute(
+                "INSERT INTO mutation_probe(value) VALUES (?)", ("once",)
+            )
+            return {"created": True}
+
+        mutation = OfflineMutation(
+            mutation_id="mut-001",
+            tenant_id=scope.tenant_id,
+            project_id=scope.project_id,
+            expected_revision=scope.project_revision,
+            operation="test.write",
+            payload={"value": "once"},
+            idempotency_key="idem-001",
+        )
+        assert runtime.apply_offline_mutation(
+            scope, mutation, auth_context=auth, apply=apply
+        ) == {"created": True}
+        with pytest.raises(ValueError, match="DUPLICATE_MUTATION_ID"):
+            runtime.apply_offline_mutation(
+                scope, mutation, auth_context=auth, apply=apply
+            )
+
+        duplicate_key = OfflineMutation(
+            mutation_id="mut-002",
+            tenant_id=scope.tenant_id,
+            project_id=scope.project_id,
+            expected_revision=scope.project_revision,
+            operation="test.write",
+            payload={"value": "once"},
+            idempotency_key="idem-001",
+        )
+        with pytest.raises(ValueError, match="DUPLICATE_IDEMPOTENCY_KEY"):
+            runtime.apply_offline_mutation(
+                scope, duplicate_key, auth_context=auth, apply=apply
+            )
+
+        assert calls == ["called"]
+        assert connection.execute("SELECT COUNT(*) FROM mutation_probe").fetchone()[0] == 1
+        assert len(runtime.offline_mutation_store.pending()) == 1
+    finally:
+        connection.close()
