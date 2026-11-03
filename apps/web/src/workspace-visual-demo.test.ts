@@ -822,11 +822,11 @@ test("Administration covers EPS, OBS, categories, currencies, financial periods 
   for (const label of ["Enterprise Project Structure", "Administrative categories", "Set base currency", "Financial periods", "Create batch", "Custom fields", "Indicator", "Formula (read-only)", "Assigned WBS", "Responsible OBS", "rate direction"]) {
     assert.ok(allPanels.includes(label), "missing administration control: " + label);
   }
-  assert.match(html, /cp-vd-admin-workspace/);
-  assert.match(html, /cp-vd-admin-tree/);
-  assert.match(html, /cp-vd-admin-summary/);
-  assert.match(html, /Rates are illustrative/);
-  assert.match(html, /separate from work calendars/);
+  assert.match(allPanels, /cp-vd-admin-workspace/);
+  assert.match(allPanels, /cp-vd-admin-tree/);
+  assert.match(allPanels, /cp-vd-admin-summary/);
+  assert.match(allPanels, /Rates are illustrative/);
+  assert.match(allPanels, /separate from work calendars/);
 });
 
 test("Administration hierarchy and financial controls retain RTL layout and Persian labels", () => {
