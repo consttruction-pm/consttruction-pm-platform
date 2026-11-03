@@ -1401,6 +1401,7 @@ function dialogContent(name: string, state: DemoState): string {
       const selectedColumns = state.window === "activities"
         ? ACTIVITY_COLUMNS.filter((column) => state.columns.includes(column.id))
         : state.moduleAvailableColumns.filter((column) => state.moduleColumns.includes(column));
+      const firstSelectedColumn = selectedColumns[0];
       const availableRows = availableColumns.map((column) => {
         const id = typeof column === "string" ? column : column.id;
         const title = typeof column === "string" ? column : label(column, state.locale);
@@ -1424,8 +1425,8 @@ function dialogContent(name: string, state: DemoState): string {
           <section class="cp-vd-columns-list"><strong>${esc(t(state.locale, "Selected Options", "گزینه‌های انتخاب‌شده"))}</strong><ul>${selectedRows || `<li class="cp-vd-note">${esc(t(state.locale, "Select at least one column.", "حداقل یک ستون را انتخاب کنید."))}</li>`}</ul><div class="cp-vd-inline-actions"><button type="button" disabled>▲</button><button type="button" disabled>▼</button></div></section>
         </div>
         <section class="cp-vd-column-properties"><h4>${esc(t(state.locale, "Edit Column", "ویرایش ستون"))}</h4><div class="cp-vd-form">
-          <label>${esc(t(state.locale, "Column title", "عنوان ستون"))}<input value="${esc(selectedColumns[0] ? (typeof selectedColumns[0] === "string" ? selectedColumns[0] : label(selectedColumns[0], state.locale)) : "")}" readonly></label>
-          <label>${esc(t(state.locale, "Width", "عرض"))}<input type="number" value="${selectedColumns[0] && typeof selectedColumns[0] !== "string" ? selectedColumns[0].width : 120}" min="24" max="1200"></label>
+          <label>${esc(t(state.locale, "Column title", "عنوان ستون"))}<input value="${esc(firstSelectedColumn ? (typeof firstSelectedColumn === "string" ? firstSelectedColumn : label(firstSelectedColumn, state.locale)) : "")}" readonly></label>
+          <label>${esc(t(state.locale, "Width", "عرض"))}<input type="number" value="${firstSelectedColumn && typeof firstSelectedColumn !== "string" ? firstSelectedColumn.width : 120}" min="24" max="1200"></label>
           <label>${esc(t(state.locale, "Alignment", "تراز"))}<select><option>Default</option><option>Left</option><option>Center</option><option>Right</option></select></label>
           <label class="cp-vd-check"><input type="checkbox" checked> ${esc(t(state.locale, "Visible", "نمایان"))}</label>
         </div></section>
