@@ -408,3 +408,11 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - CUBI correction: the Resource Assignments workspace now opens with the assignment register and Resource Usage Spreadsheet side by side; Assignment Details remains below. The spreadsheet can be collapsed to give the register the full width. Its timescale and field chooser remain interactive presentation preferences.
 - No resource assignment or time-phased values are loaded, so the spreadsheet uses a truthful empty state and does not invent period values. Manual planning/editing remains unavailable until authoritative assignment records and permissions are connected.
 - References: https://docs.oracle.com/cd/E90748_01/client_help/en_US/resource_assignments_window.htm and https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/resourceusagespreadsheet.htm.
+
+## WBS Chart Display Options — 2026-11-03
+
+- Version 26 WBS chart display includes Chart Box Template and Chart Font and Colors commands. The documented controls include choosing the information shown in WBS boxes, font, background color, and WBS box color.
+- CUBI correction: added chart-only display controls for Code + Name / Name only / Code only, font family, font size, canvas background, and WBS node color. Changes apply immediately to the chart presentation and remain local to the open workspace window; they do not modify WBS records.
+- The View menu now exposes Chart Box Template and Chart Font and Colors entries when the WBS window is active; both route to the same contextual display-options surface. The controls remain disabled outside the WBS window.
+- Remaining parity: chart arrange/alignment, zoom-to-fit, full box templates, and matching Project/Resource chart settings.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_the_work_breakdown_structure_chart_display.htm; https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_window.htm.
