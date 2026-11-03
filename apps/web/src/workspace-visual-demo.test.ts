@@ -762,3 +762,46 @@ test("Progress update, apply actuals and period close dialogs are present and lo
     assert.match(html, new RegExp(`data-vd-dialog="${name}"`));
   }
 });
+
+test("Global Change exposes conditions, Then/Else statements, preview exceptions and commit safeguards", () => {
+  const state = createVisualDemoState("en");
+  state.window = "cost-control";
+  const html = renderVisualDemo(state);
+  for (const label of ["Global Change Specification", "Available to", "Change subject", "Activities", "Resource Assignments", "Project Expenses", "If — Conditions", "Then / Else Statements", "Preview Change Report", "Old value", "New value", "Exception", "exclude exception rows"]) {
+    assert.ok(html.includes(label), "missing Global Change control: " + label);
+  }
+  assert.match(html, /data-vd-dialog="global-change"/);
+  assert.match(html, /data-vd-dialog="recalculate-assignment-costs"/);
+  assert.match(html, /no project values are changed/);
+});
+
+test("Reports runner exposes library, scope, import/export, batch and run parameters", () => {
+  const state = createVisualDemoState("en");
+  state.window = "reports";
+  const html = renderVisualDemo(state);
+  for (const label of ["Report Library", "Global", "Project", "Run Batch", "Import", "Export", "Report Wizard", "Report Editor", "Groups / Batches", "Run Parameters", "Output format", "Output destination"]) {
+    assert.ok(html.includes(label), "missing report runner control: " + label);
+  }
+  assert.match(html, /data-vd-dialog="reports-runner"/);
+  assert.match(html, /report execution are not connected/);
+});
+
+test("Threshold monitor and issue navigator expose thresholds, responsibility and issue history", () => {
+  const state = createVisualDemoState("en");
+  state.window = "thresholds";
+  const html = renderVisualDemo(state);
+  for (const label of ["Monitor / Issue Navigator", "Threshold Monitoring", "Lower / Upper limit", "Assign Responsible", "Generated Issues", "Issue ID", "Issue Details and History", "Tracking layout", "Created · Assigned · Commented"]) {
+    assert.ok(html.includes(label), "missing threshold / issue control: " + label);
+  }
+  assert.match(html, /data-vd-dialog="threshold-monitor"/);
+});
+
+test("Global Change dialog is reachable in Persian RTL", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "cost-control";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["تغییر سراسری", "مشخصات تغییر سراسری", "قابل دسترس برای", "موضوع تغییر", "اگر — شروط", "دستورات آنگاه / در غیر این صورت", "پیش‌نمایش گزارش تغییرات"]) {
+    assert.ok(html.includes(label), "missing Persian control: " + label);
+  }
+});
