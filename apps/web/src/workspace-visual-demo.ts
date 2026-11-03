@@ -1264,6 +1264,7 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
     ] },
     { label: { en: "Filters…", fa: "فیلترها…" }, action: { dialog: "filters" } },
     { label: { en: "Group and Sort…", fa: "گروه‌بندی و ترتیب…" }, action: { dialog: "group-sort" } },
+    { label: { en: "Collapse To…", fa: "جمع‌کردن تا سطح…" }, action: { dialog: "collapse-to" } },
     { label: { en: "Timescale…", fa: "مقیاس زمانی…" }, action: { dialog: "timescale" } },
     { label: { en: "Bars…", fa: "میله‌ها…" }, action: { dialog: "bars" } },
     { label: { en: "Bar Chart Options…", fa: "تنظیمات نمودار میله‌ای…" }, action: { dialog: "bar-options" } },
@@ -1545,6 +1546,16 @@ function dialogContent(name: string, state: DemoState): string {
           <div class="cp-vd-inline-actions"><button type="button" disabled>Add</button><button type="button" disabled>Delete</button><button type="button" disabled>▲</button><button type="button" disabled>▼</button><button type="button" disabled>Optimize</button><button type="button" disabled>Make Global</button></div>
           <p class="cp-vd-note">${esc(t(state.locale, "Criteria, operators, All/Any logic, filter categories and row controls are shown for visual review only. Nothing is applied or saved.", "معیارها، عملگرها، منطق همه/هرکدام، گروه‌های فیلتر و کنترل ردیف‌ها صرفاً برای بازبینی بصری هستند؛ هیچ موردی اعمال یا ذخیره نمی‌شود."))}</p>
         </div>
+      </div>`;
+    case "collapse-to":
+      return `<div class="cp-vd-form">
+        <div class="cp-vd-hintbox">${esc(t(state.locale, "Choose a grouping band from the active layout. The available levels are derived from the grouping bands currently displayed.", "سطح موردنظر را از گروه‌بندی‌های چیدمان فعال انتخاب کنید. گزینه‌ها از نوارهای گروه‌بندیِ قابل‌نمایش در همین چیدمان به‌دست می‌آیند."))}</div>
+        <label>${esc(t(state.locale, "Grouping band", "سطح گروه‌بندی"))}<select name="collapseToBand"><option>Project</option><option>WBS — Level 1</option><option>WBS — Level 2</option><option>WBS — Level 3</option><option>Activity Type</option><option>Activity Status</option><option>Resource</option><option>Role</option></select></label>
+        <fieldset><legend>${esc(t(state.locale, "Display depth", "عمق نمایش"))}</legend>
+          <label class="cp-vd-check"><input type="radio" name="collapseToMode" value="collapse" checked> ${esc(t(state.locale, "Collapse to selected band", "جمع‌کردن تا سطح انتخاب‌شده"))}</label>
+          <label class="cp-vd-check"><input type="radio" name="collapseToMode" value="expand"> ${esc(t(state.locale, "Expand to selected band", "بازکردن تا سطح انتخاب‌شده"))}</label>
+        </fieldset>
+        <p class="cp-vd-note">${esc(t(state.locale, "The available list depends on the grouping bands in the current layout. This is a visual preview; no row expansion state is changed or saved.", "فهرست گزینه‌ها به نوارهای گروه‌بندی چیدمان جاری وابسته است. این بخش فقط پیش‌نمایش بصری است و وضعیت باز/بسته ردیف‌ها تغییر یا ذخیره نمی‌شود."))}</p>
       </div>`;
     case "group-sort":
       return `<div class="cp-vd-group-sort">
@@ -2078,6 +2089,7 @@ function dialogTitle(name: string, locale: string): string {
     "cost-accounts": ["Cost Account Dictionary", "واژه‌نامه حساب‌های هزینه"],
     "global-change": ["Global Change", "تغییر سراسری"], "reports-runner": ["Reports", "گزارش‌ها"],
     "threshold-monitor": ["Threshold Monitor / Issue Navigator", "پایش آستانه / راهنمای مسائل"],
+    "collapse-to": ["Collapse To", "جمع‌کردن تا سطح"],
     dissolve: ["Dissolve Activity — Logic Preview", "ادغام فعالیت — پیش‌نمایش منطق"],
     "assign-activity-codes": ["Assign Activity Codes", "تخصیص کدهای فعالیت"],
     "recalculate-assignment-costs": ["Recalculate Assignment Costs", "محاسبه مجدد هزینه تخصیص‌ها"],
@@ -2087,7 +2099,7 @@ function dialogTitle(name: string, locale: string): string {
 }
 
 function renderDialogs(state: DemoState): string {
-  const names = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-resources-by-role", "assign-roles", "assign-predecessors", "assign-successors", "resource-details", "resource-shifts", "add-activity", "import", "export", "print", "page-setup", "print-setup", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles", "module-actions", "new-wbs", "new-form", "background-lines", "relationship-lines", "data-date-line", "gantt-legend", "progress-line", "attachments", "collapsed-bars", "network-box-layout", "trace-options", "usage-profile-options", "budgeting", "earned-value", "update-progress", "apply-actuals", "store-period-performance", "expense-details", "cost-accounts", "global-change", "reports-runner", "threshold-monitor", "dissolve", "assign-activity-codes", "recalculate-assignment-costs"];
+  const names = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-resources-by-role", "assign-roles", "assign-predecessors", "assign-successors", "resource-details", "resource-shifts", "add-activity", "import", "export", "print", "page-setup", "print-setup", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles", "module-actions", "new-wbs", "new-form", "background-lines", "relationship-lines", "data-date-line", "gantt-legend", "progress-line", "attachments", "collapsed-bars", "network-box-layout", "trace-options", "usage-profile-options", "budgeting", "earned-value", "update-progress", "apply-actuals", "store-period-performance", "expense-details", "cost-accounts", "global-change", "reports-runner", "threshold-monitor", "collapse-to", "dissolve", "assign-activity-codes", "recalculate-assignment-costs"];
   return names.map((name) => `<dialog class="cp-vd-dialog" data-vd-dialog="${name}">
     <form method="dialog" data-vd-form="${name}">
       <div class="cp-vd-dialog-title"><span>${esc(dialogTitle(name, state.locale))}</span><button type="button" data-vd-close aria-label="Close">×</button></div>
