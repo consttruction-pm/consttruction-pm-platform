@@ -930,3 +930,11 @@ test("Workspace menu hierarchy keeps Persian labels for key administration and p
   assert.match(html, /تغییر سراسری…/);
   assert.match(html, /ثبت عملکرد دوره…/);
 });
+
+
+test("Visible CUBI workspace preview does not expose external product branding or reference URLs", () => {
+  for (const locale of ["en", "fa"]) {
+    const html = renderVisualDemo(createVisualDemoState(locale));
+    assert.doesNotMatch(html, /Oracle|Primavera|P6 Professional|docs\.oracle\.com/i);
+  }
+});
