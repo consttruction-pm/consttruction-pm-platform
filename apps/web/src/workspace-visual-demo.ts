@@ -1656,8 +1656,48 @@ function dialogContent(name: string, state: DemoState): string {
         <div class="cp-vd-project-wizard-actions"><button type="button" disabled>Back</button><button type="button" disabled>Next</button><button type="button" class="is-primary" disabled>Create Project</button></div>
         <p class="cp-vd-note">${esc(t(state.locale, "Required fields are marked *. Validation, ID uniqueness, project creation and template copying are not connected in this visual preview.", "فیلدهای الزامی با * مشخص شده‌اند. اعتبارسنجی، یکتایی شناسه، ایجاد پروژه و کپی قالب در این پیش‌نمایش بصری متصل نیستند."))}</p>
       </div>`;
-    case "project-properties":
-      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Project ID", "شناسهٔ پروژه"))}<input value="CUBI-DEMO-001" readonly></label><label>${esc(t(state.locale, "Project name", "نام"))}<input value="Riverside Pump Station Upgrade"></label><label>${esc(t(state.locale, "Planned start", "شروع برنامه‌ای"))}<input type="date" value="2026-11-02"></label><label>${esc(t(state.locale, "Data date", "تاریخ داده"))}<input type="date" value="2026-12-03"></label><label>${esc(t(state.locale, "Must finish by", "مهلت پایان"))}<input type="date" value="2027-05-28"></label><label>${esc(t(state.locale, "Default calendar", "تقویم پیش‌فرض"))}<select><option>5-Day Workweek</option><option>6-Day Workweek</option><option>24 Hour</option></select></label><label>${esc(t(state.locale, "Responsible manager", "مدیر مسئول"))}<select><option>Project Manager</option><option>Program Manager</option></select></label><label>${esc(t(state.locale, "Project status", "وضعیت پروژه"))}<select><option>Active</option><option>Planned</option><option>On hold</option><option>Completed</option></select></label></div>`;
+    case "project-properties": {
+      const tabs: Array<[string,string,string]> = [
+        ["General","General","عمومی"],["Dates","Dates","تاریخ‌ها"],["Notebook","Notebook","دفترچه"],["Budget Log","Budget Log","گزارش بودجه"],["Spending Plan","Spending Plan","برنامه هزینه"],["Budget Summary","Budget Summary","خلاصه بودجه"],["Funding","Funding","تأمین مالی"],["Codes","Codes","کدها"],["Defaults","Defaults","پیش‌فرض‌ها"],["Resources","Resources","منابع"],["Settings","Settings","تنظیمات"],["Calculations","Calculations","محاسبات"],["UDFs","Custom Fields","فیلدهای سفارشی"],
+      ];
+      return `<section class="cp-vd-project-details">
+        <header class="cp-vd-project-context"><div><strong>Riverside Pump Station Upgrade</strong><span><bdi dir="ltr">CUBI-DEMO-001</bdi> · ${esc(t(state.locale,"Active project","پروژه فعال"))}</span></div><span class="cp-vd-note">${esc(t(state.locale,"Project-level details and defaults","جزئیات و پیش‌فرض‌های سطح پروژه"))}</span></header>
+        <nav class="cp-vd-project-tabs" role="tablist" aria-label="${esc(t(state.locale,"Project detail sections","بخش‌های جزئیات پروژه"))}">
+          ${tabs.map(([id,en,fa],index)=>`<button type="button" role="tab" aria-selected="${index===0}" class="${index===0?"is-active":""}" disabled>${esc(t(state.locale,en,fa))}</button>`).join("")}
+        </nav>
+        <div class="cp-vd-project-tab-panel" role="tabpanel" aria-label="${esc(t(state.locale,"General project details","جزئیات عمومی پروژه"))}">
+          <div class="cp-vd-project-section"><h3>${esc(t(state.locale,"General","عمومی"))}</h3><div class="cp-vd-form">
+            <label>${esc(t(state.locale,"Project ID","شناسه پروژه"))}<input value="CUBI-DEMO-001" readonly></label>
+            <label>${esc(t(state.locale,"Project name","نام پروژه"))}<input value="Riverside Pump Station Upgrade" disabled></label>
+            <label>${esc(t(state.locale,"Status","وضعیت"))}<select disabled><option>Active</option><option>Planned</option><option>On hold</option><option>Completed</option></select></label>
+            <label>${esc(t(state.locale,"Responsible manager","مدیر مسئول"))}<select disabled><option>Project Manager</option><option>Program Manager</option></select></label>
+            <label>${esc(t(state.locale,"EPS / Portfolio","ساختار سازمانی / سبد"))}<input value="Capital Projects / Water" disabled></label>
+            <label>${esc(t(state.locale,"Project website","وب‌سایت پروژه"))}<input placeholder="https://" disabled></label>
+          </div></div>
+          <div class="cp-vd-project-section"><h3>${esc(t(state.locale,"Schedule dates","تاریخ‌های زمان‌بندی"))}</h3><div class="cp-vd-form">
+            <label>${esc(t(state.locale,"Planned start","شروع برنامه‌ای"))}<input type="date" value="2026-11-02" disabled></label>
+            <label>${esc(t(state.locale,"Must finish by","باید تا تاریخ پایان یابد"))}<input type="date" value="2027-05-28" disabled></label>
+            <label>${esc(t(state.locale,"Data date","تاریخ داده"))}<input type="date" value="2026-12-03" disabled></label>
+            <label>${esc(t(state.locale,"Calculated finish","پایان محاسبه‌شده"))}<input value="—" readonly></label>
+            <label>${esc(t(state.locale,"Anticipated start","شروع پیش‌بینی‌شده"))}<input type="date" disabled></label>
+            <label>${esc(t(state.locale,"Anticipated finish","پایان پیش‌بینی‌شده"))}<input type="date" disabled></label>
+          </div></div>
+          <div class="cp-vd-project-section"><h3>${esc(t(state.locale,"Defaults for new activities","پیش‌فرض فعالیت‌های جدید"))}</h3><div class="cp-vd-form">
+            <label>${esc(t(state.locale,"Default activity type","نوع فعالیت پیش‌فرض"))}<select disabled><option>Task Dependent</option><option>Resource Dependent</option><option>Level of Effort</option></select></label>
+            <label>${esc(t(state.locale,"Default duration type","نوع مدت پیش‌فرض"))}<select disabled><option>Fixed Duration & Units</option><option>Fixed Units / Time</option><option>Fixed Units</option></select></label>
+            <label>${esc(t(state.locale,"Percent complete type","نوع درصد تکمیل"))}<select disabled><option>Duration</option><option>Units</option><option>Physical</option></select></label>
+            <label>${esc(t(state.locale,"Default activity calendar","تقویم فعالیت پیش‌فرض"))}<select disabled><option>5-Day Workweek</option><option>6-Day Workweek</option><option>24 Hour</option></select></label>
+            <label>${esc(t(state.locale,"Default rate type","نوع نرخ پیش‌فرض"))}<select disabled><option>Price per Unit</option><option>Price per Time</option></select></label>
+            <label>${esc(t(state.locale,"Default cost account","حساب هزینه پیش‌فرض"))}<select disabled><option>Not assigned</option></select></label>
+          </div></div>
+          <div class="cp-vd-project-section"><h3>${esc(t(state.locale,"Resource assignment defaults","پیش‌فرض تخصیص منابع"))}</h3><div class="cp-vd-project-checks">
+            <label><input type="checkbox" checked disabled> ${esc(t(state.locale,"Drive activity dates by default","هدایت تاریخ‌های فعالیت به‌صورت پیش‌فرض"))}</label>
+            <label><input type="checkbox" disabled> ${esc(t(state.locale,"Allow the same resource to be assigned more than once","اجازه تخصیص چندباره یک منبع به فعالیت"))}</label>
+          </div></div>
+        </div>
+        <p class="cp-vd-note">${esc(t(state.locale,"All project detail tabs are inventoried. This General-tab preview is read-only; dates, defaults, financial tabs, settings and calculations are not saved or executed here. The Planning Resources tab is intentionally excluded because it is server-edition-only.", "تمام زبانه‌های جزئیات پروژه در فهرست آمده‌اند. این پیش‌نمایش زبانه عمومی فقط‌خواندنی است؛ تاریخ‌ها، پیش‌فرض‌ها، زبانه‌های مالی، تنظیمات و محاسبات در اینجا ذخیره یا اجرا نمی‌شوند. زبانه منابع برنامه‌ریزی به‌دلیل وابستگی به نسخه سرور عمداً حذف شده است."))}</p>
+      </section>`;
+    }
     case "calendar":
       return `<div class="cp-vd-calendar-editor">
         <div class="cp-vd-calendar-editor-main">
