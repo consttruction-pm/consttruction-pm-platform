@@ -90,7 +90,7 @@ test("all expanded control modules render as navigable visual workspace windows"
 
 test("the visual workspace View > Layouts menu links to the added module windows", () => {
   const markup = renderVisualDemo(createVisualDemoState("en"));
-  for (const windowId of ["cost-control", "progress-control", "procurement", "changes-claims", "form-builder", "organization", "smart-guide", "assistant", "search", "comments"]) {
+  for (const windowId of ["cost-control", "progress-control", "procurement", "changes-claims", "organization", "smart-guide", "assistant", "search", "comments"]) {
     assert.ok(markup.includes(`"window":"${windowId}"`));
   }
 });
@@ -207,4 +207,19 @@ test("scheduling dialogs expose the key CPM handling and baseline options", () =
   }
   assert.match(markup, /Lag calendar/);
   assert.match(markup, /Level only within available total float/);
+});
+test("Form Builder has separate organization and project libraries and a visual form designer", () => {
+  const state = createVisualDemoState("en");
+  state.window = "form-builder";
+  const markup = renderVisualDemo(state);
+  assert.match(markup, /data-vd-form-library="organization"/);
+  assert.match(markup, /data-vd-form-library="project"/);
+  assert.match(markup, /data-vd-form-tab="design"/);
+  assert.match(markup, /data-vd-form-tab="fields"/);
+  assert.match(markup, /data-vd-form-tab="workflow"/);
+  assert.match(markup, /data-vd-form-tab="permissions"/);
+  assert.match(markup, /data-vd-form-tab="versions"/);
+  assert.match(markup, /accept="image\/jpeg,image\/png"/);
+  assert.match(markup, /Transparent PNG logos retain their transparency/);
+  assert.match(markup, /Publish to project record/);
 });
