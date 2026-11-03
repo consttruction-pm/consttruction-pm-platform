@@ -509,6 +509,16 @@ test("Documents window renders real records and navigable detail tabs", () => {
   assert.match(container.innerHTML, /aria-pressed="true"/);
   assert.match(container.innerHTML, /Document Details/);
   assert.match(container.innerHTML, /data-document-detail-tab="links"/);
+  const filesTarget = { dataset: { documentDetailTab: "files" }, closest: () => filesTarget };
+  listeners.get("click")?.({ target: filesTarget } as unknown as Event);
+  assert.match(container.innerHTML, /Private Location/);
+  assert.match(container.innerHTML, /Public Location/);
+  const assignmentsTarget = { dataset: { documentDetailTab: "assignments" }, closest: () => assignmentsTarget };
+  listeners.get("click")?.({ target: assignmentsTarget } as unknown as Event);
+  assert.match(container.innerHTML, /Work Product/);
+  assert.match(container.innerHTML, /No WBS or activity assignments are loaded/);
+  const linksTarget = { dataset: { documentDetailTab: "links" }, closest: () => linksTarget };
+  listeners.get("click")?.({ target: linksTarget } as unknown as Event);
   const linksTarget = { dataset: { documentDetailTab: "links" }, closest: () => linksTarget };
   listeners.get("click")?.({ target: linksTarget } as unknown as Event);
   assert.match(container.innerHTML, /activity:ACT-101/);
@@ -691,10 +701,12 @@ test("module navigation submenus route to real registers, detail tabs and tracki
 
   const documents = render("en", "documents");
   assert.match(documents, /class="cp-documents-window"/);
-  assert.match(documents, /data-navigation-action="document-detail-tab:links"/);
-  assert.match(documents, /data-navigation-action="document-detail-tab:integrity"/);
-  assert.match(documents, /data-navigation-action="document-detail-tab:revisions"/);
+  for (const tab of ["general", "files", "assignments", "udfs", "links", "integrity", "revisions"]) {
+    assert.match(documents, new RegExp(`data-navigation-action="document-detail-tab:${tab}"`));
+  }
   assert.match(documents, /data-navigation-action="document-type:evidence"/);
+  assert.match(documents, /Links · CUBI/);
+  assert.match(documents, /Integrity · CUBI/);
 
   const assignments = render("en", "assignments");
   assert.match(assignments, /data-navigation-action="register-tab:assignments:general"/);
