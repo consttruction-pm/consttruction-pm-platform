@@ -6998,3 +6998,22 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-vd-code-toolbar select{min-height:25px;padding:3px 6px;border:1px solid #b9c6d5;background:#fff;color:#31465e;font:inherit;font-size:9px}
 .cp-p6 .cp-vd-code-dictionary .cp-vd-table{min-width:800px}
 .cp-p6 .cp-vd-code-swatch{display:inline-block;width:13px;height:13px;border:1px solid #64748b;border-radius:2px;vertical-align:middle}
+
+
+/* Budget, earned-value, progress and period-performance dialog layouts. */
+.cp-p6 .cp-vd-financial-dialog{display:flex;flex-direction:column;gap:9px;min-width:0}
+.cp-p6 .cp-vd-financial-dialog>section{min-width:0;padding:8px;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-vd-financial-dialog>section h3,.cp-p6 .cp-vd-financial-dialog>h3{margin:0 0 7px;padding-bottom:5px;border-bottom:1px solid #e2e8f0;color:#244463;font-size:10px}
+.cp-p6 .cp-vd-financial-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.cp-p6 .cp-vd-financial-grid>section{min-width:0;padding:8px;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-vd-financial-grid>section h3{margin:0 0 7px;padding-bottom:5px;border-bottom:1px solid #e2e8f0;color:#244463;font-size:10px}
+.cp-p6 .cp-vd-financial-grid .cp-vd-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.cp-p6 .cp-vd-financial-wide{grid-column:1/-1}
+.cp-p6 .cp-vd-financial-dialog .cp-vd-resource-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.cp-p6 .cp-vd-financial-dialog .cp-vd-mini{width:100%;border-collapse:collapse;font-size:9px}
+.cp-p6 .cp-vd-financial-dialog .cp-vd-mini th,.cp-p6 .cp-vd-financial-dialog .cp-vd-mini td{padding:6px;border-bottom:1px solid #e2e8f0;text-align:start}
+.cp-p6 .cp-vd-financial-dialog .cp-vd-mini th{background:#f8fafc;color:#607187}
+.cp-p6 .cp-vd-financial-dialog fieldset{display:flex;flex-wrap:wrap;gap:12px;padding:8px;border:1px solid #cbd5e1;color:#52657a;font-size:9px}
+.cp-p6 .cp-vd-financial-dialog fieldset legend{padding:0 4px;color:#244463}
+.cp-p6 [dir="rtl"] .cp-vd-financial-dialog{direction:rtl}
+@media(max-width:760px){.cp-p6 .cp-vd-financial-grid{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-vd-financial-wide{grid-column:auto}.cp-p6 .cp-vd-financial-dialog .cp-vd-resource-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-p6 .cp-vd-financial-grid .cp-vd-form{grid-template-columns:minmax(0,1fr)}}
