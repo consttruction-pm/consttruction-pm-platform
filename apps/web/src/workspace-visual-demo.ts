@@ -1231,6 +1231,7 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
     { label: { en: "Activities", fa: "فعالیت‌ها" }, children: [
       { label: { en: "Add activity", fa: "افزودن فعالیت" }, action: { dialog: "add-activity" } },
       { label: { en: "Assign resources…", fa: "تخصیص منابع…" }, action: { dialog: "assign-resources" } },
+      { label: { en: "Assign resources by role…", fa: "تخصیص منابع بر اساس نقش…" }, action: { dialog: "assign-resources-by-role" } },
       { label: { en: "Assign roles…", fa: "تخصیص نقش…" }, action: { dialog: "assign-roles" } },
       { label: { en: "Assign predecessors…", fa: "تخصیص پیش‌نیاز…" }, action: { dialog: "assign-predecessors" } },
       { label: { en: "Assign successors…", fa: "تخصیص جانشین…" }, action: { dialog: "assign-successors" } },
@@ -1725,6 +1726,13 @@ function dialogContent(name: string, state: DemoState): string {
         </div><p class="cp-vd-note">${esc(t(state.locale, "Visual preview only — assignment, availability, cost recalculation and project updates are not connected.", "صرفاً پیش‌نمایش بصری — تخصیص، ظرفیت، محاسبه مجدد هزینه و به‌روزرسانی پروژه متصل نیست."))}</p>
       </section>`;
     }
+    case "assign-resources-by-role":
+      return `<section class="cp-vd-assignment-dialog"><div class="cp-vd-assignment-context"><strong>${esc(t(state.locale, "Assign resources by role", "تخصیص منابع بر اساس نقش"))}</strong><span><bdi dir="ltr">${esc(state.activityId)}</bdi></span></div>
+        <div class="cp-vd-form"><label>${esc(t(state.locale, "Required role", "نقش موردنیاز"))}<select disabled><option>Site engineer</option><option>Planner</option><option>Cost engineer</option><option>Construction manager</option></select></label><label>${esc(t(state.locale, "Proficiency", "سطح مهارت"))}<select disabled><option>Any proficiency</option><option>Intermediate or higher</option><option>Advanced or higher</option><option>Expert</option></select></label></div>
+        <section><h3>${esc(t(state.locale, "Eligible resources", "منابع واجد شرایط"))}</h3><div class="cp-vd-assignment-table"><table class="cp-vd-mini"><thead><tr><th></th><th>ID</th><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Units", "واحد"))}</th></tr></thead><tbody>${RESOURCES.map((resource)=>`<tr><td><input type="checkbox" disabled aria-label="Select ${esc(resource.name)}"></td><td><bdi dir="ltr">${esc(resource.id)}</bdi></td><td>${esc(resource.name)}</td><td>${esc(resource.type)}</td><td>${resource.units.toLocaleString("en-US")}</td></tr>`).join("")}</tbody></table></div></section>
+        <div class="cp-vd-form"><label>${esc(t(state.locale, "Assignment units", "واحد تخصیص"))}<input type="number" min="0" step="0.01" disabled></label><label>${esc(t(state.locale, "Rate source", "منبع نرخ"))}<select disabled><option>Prompt when resource and role share an assignment</option><option>Resource rate</option><option>Role rate</option><option>Override rate</option></select></label></div>
+        <p class="cp-vd-note">${esc(t(state.locale, "The role remains the requirement; the selected resource is the staffing choice. When both exist on one assignment, rate source and price/unit rules must be explicit.", "نقش به‌عنوان نیاز باقی می‌ماند و منبع انتخاب‌شده نیروی تأمین‌کننده است. هنگام وجود هر دو در یک تخصیص، منبع نرخ و قواعد قیمت هر واحد باید صریح باشد."))}</p>
+      </section>`;
     case "assign-roles":
       return `<section class="cp-vd-assignment-dialog"><div class="cp-vd-assignment-context"><strong>${esc(t(state.locale, "Assign roles to activity", "تخصیص نقش به فعالیت"))}</strong><span><bdi dir="ltr">${esc(state.activityId)}</bdi></span></div><div class="cp-vd-form">
         <label>${esc(t(state.locale, "Role", "نقش"))}<select disabled><option>Site engineer</option><option>Planner</option><option>Cost engineer</option><option>Construction manager</option><option>Commissioning engineer</option></select></label>
