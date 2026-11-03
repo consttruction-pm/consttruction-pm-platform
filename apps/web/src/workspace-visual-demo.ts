@@ -1197,6 +1197,12 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
     { label: { en: "Open project…", fa: "بازکردن پروژه…" }, action: { window: "projects" } },
     { label: { en: "Close project", fa: "بستن پروژه" }, action: { command: "close-project" } },
     { label: { en: "Project properties…", fa: "مشخصات پروژه…" }, action: { dialog: "project-properties" } },
+    { label: { en: "Recent Projects", fa: "پروژه‌های اخیر" }, children: [
+      { label: { en: "Current preview project", fa: "پروژهٔ پیش‌نمایش جاری" }, action: { window: "projects" } },
+      { label: { en: "Browse Projects…", fa: "مرور پروژه‌ها…" }, action: { window: "projects" } },
+    ] },
+    { label: { en: "Refresh Project Data", fa: "تازه‌سازی داده‌های پروژه" }, action: { command: "noop", reason: { en: "Refresh requires the live project data service.", fa: "تازه‌سازی به سرویس زنده داده‌های پروژه نیاز دارد." } } },
+    { label: { en: "Sync Project Changes", fa: "همگام‌سازی تغییرات پروژه" }, action: { command: "noop", reason: { en: "Synchronization requires the live project data service.", fa: "همگام‌سازی به سرویس زنده داده‌های پروژه نیاز دارد." } } },
     { label: { en: "Save layout", fa: "ذخیره چیدمان" }, action: { dialog: "layout-manager" } },
     { label: { en: "Save layout as…", fa: "ذخیره چیدمان با نام…" }, action: { dialog: "layout-manager" } },
     { label: { en: "Import / Export", fa: "ورود / خروجی" }, children: [
@@ -1354,6 +1360,8 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
     { label: { en: "Custom fields", fa: "فیلدهای سفارشی" }, action: { window: "administration", adminSection: "custom-fields" } },
     { label: { en: "Cost accounts", fa: "حساب‌های هزینه" }, action: { dialog: "cost-accounts" } },
     { label: { en: "Funding sources", fa: "منابع تأمین مالی" }, action: { window: "cost-control" } },
+    { label: { en: "Resource Curves…", fa: "منحنی‌های منابع…" }, action: { command: "noop", reason: { en: "Resource-curve dictionary editing is not connected in this visual preview.", fa: "ویرایش واژه‌نامه منحنی منابع در این پیش‌نمایش بصری متصل نیست." } } },
+    { label: { en: "Activity Step Templates…", fa: "الگوهای گام فعالیت…" }, action: { command: "noop", reason: { en: "Step-template management is not connected in this visual preview.", fa: "مدیریت الگوهای گام فعالیت در این پیش‌نمایش بصری متصل نیست." } } },
   ] },
   { id: "tools", label: { en: "Tools", fa: "ابزارها" }, items: [
     { label: { en: "Schedule…", fa: "زمان‌بندی…" }, shortcut: "F9", action: { dialog: "schedule" } },
@@ -1368,6 +1376,9 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
       { label: { en: "Report wizard…", fa: "جادوگر گزارش…" }, action: { dialog: "report-wizard" } },
       { label: { en: "Report Library / Runner…", fa: "کتابخانه و اجرای گزارش…" }, action: { dialog: "reports-runner" } },
     ] },
+    { label: { en: "Summarize Project Data", fa: "خلاصه‌سازی داده‌های پروژه" }, action: { command: "noop", reason: { en: "Summarization is not connected in this visual preview.", fa: "خلاصه‌سازی در این پیش‌نمایش بصری متصل نیست." } } },
+    { label: { en: "Project Checker…", fa: "کنترل‌گر پروژه…" }, action: { command: "noop", reason: { en: "Project checks require live project data and validation rules.", fa: "کنترل پروژه به داده زنده و قواعد اعتبارسنجی نیاز دارد." } } },
+    { label: { en: "Auto-Reorganization", fa: "بازسازمان‌دهی خودکار" }, action: { command: "noop", reason: { en: "Automatic reorganization is not connected in this visual preview.", fa: "بازسازمان‌دهی خودکار در این پیش‌نمایش بصری متصل نیست." } } },
     { label: { en: "Preferences…", fa: "تنظیمات…" }, action: { dialog: "preferences" } },
   ] },
   { id: "administration", label: { en: "Administration", fa: "مدیریت" }, items: [
@@ -1383,6 +1394,9 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
     { label: { en: "Custom Fields…", fa: "فیلدهای سفارشی…" }, action: { window: "administration", adminSection: "custom-fields" } },
   ] },
   { id: "help", label: { en: "Help", fa: "راهنما" }, items: [
+    { label: { en: "Help Contents", fa: "محتوای راهنما" }, action: { command: "noop", reason: { en: "Contextual help pages are not connected in this visual preview.", fa: "صفحات راهنمای زمینه‌ای در این پیش‌نمایش بصری متصل نیستند." } } },
+    { label: { en: "What's New", fa: "تازه‌های نسخه" }, action: { command: "noop", reason: { en: "Release notes are not connected in this visual preview.", fa: "یادداشت‌های انتشار در این پیش‌نمایش بصری متصل نیستند." } } },
+    { label: { en: "Send Feedback", fa: "ارسال بازخورد" }, action: { command: "noop", reason: { en: "Feedback submission is not connected in this visual preview.", fa: "ارسال بازخورد در این پیش‌نمایش بصری متصل نیست." } } },
     { label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, shortcut: "F1", action: { dialog: "shortcuts" } },
     { label: { en: "Activity Network", fa: "شبکه فعالیت" }, action: { window: "network" } },
     { label: { en: "Trace Logic", fa: "ردیابی منطق" }, action: { window: "trace" } },
