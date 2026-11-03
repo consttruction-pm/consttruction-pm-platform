@@ -266,7 +266,7 @@ test("Gantt exposes direct presentation commands and a complete visual bar-defin
   const state = createVisualDemoState("en");
   state.window = "activities";
   const markup = renderVisualDemo(state);
-  for (const dialog of ["bars", "bar-options", "timescale", "timeline-options", "font-row"]) {
+  for (const dialog of ["bars", "bar-options", "timescale", "timeline-options", "font-row", "background-lines", "relationship-lines", "data-date-line", "gantt-legend", "progress-line", "attachments", "collapsed-bars"]) {
     assert.match(markup, new RegExp(`data-vd-dialog="${dialog}"`));
   }
   assert.match(markup, /Gantt presentation tools/);
@@ -287,6 +287,14 @@ test("Gantt exposes direct presentation commands and a complete visual bar-defin
   assert.match(markup, /Right label/);
   assert.match(markup, /Live style preview/);
   assert.match(markup, /Show relationship lines/);
+  assert.match(markup, /Major vertical lines/);
+  assert.match(markup, /Arrowhead/);
+  assert.match(markup, /Display data date line/);
+  assert.match(markup, /Show legend/);
+  assert.match(markup, /Display progress line/);
+  assert.match(markup, /Curtain attachments/);
+  assert.match(markup, /Attach notebook/);
+  assert.match(markup, /Customize collapsed bars/);
 });
 
 test("Gantt timeline options include progress, float, nonworking time and attachment layers", () => {
@@ -311,4 +319,35 @@ test("Gantt presentation command controls retain Persian workspace direction and
   assert.match(markup, /میله‌ها…/);
   assert.match(markup, /تنظیمات گانت…/);
   assert.match(markup, /مقیاس زمانی…/);
+});
+
+
+test("Gantt layout dialogs cover background, dependency, data-date, legend, progress and attachment presentation", () => {
+  const state = createVisualDemoState("en");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  for (const label of ["Background Lines…", "Relationship Lines…", "Data Date Line…", "Legend…", "Progress Line…", "Attachments…", "Collapsed Bars…"]) {
+    assert.ok(html.includes(label), `expected visible Gantt command: ${label}`);
+  }
+  for (const dialog of ["background-lines", "relationship-lines", "data-date-line", "gantt-legend", "progress-line", "attachments", "collapsed-bars"]) {
+    assert.match(html, new RegExp(`data-vd-dialog="${dialog}"`));
+  }
+  assert.match(html, /Add curtain/);
+  assert.match(html, /Show all/);
+  assert.match(html, /Delete selected/);
+  assert.match(html, /Remove text/);
+  assert.match(html, /Attach notebook/);
+  assert.match(html, /non-persistent visual examples/);
+});
+
+test("Gantt presentation controls are localized in Persian and preserve RTL layout", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["خطوط پس‌زمینه…", "خطوط روابط…", "خط تاریخ داده…", "راهنما…", "خط پیشرفت…", "پیوست‌ها…", "میله‌های جمع‌شده…"]) {
+    assert.ok(html.includes(label), `expected Persian Gantt command: ${label}`);
+  }
+  assert.match(html, /خطوط پس‌زمینه گانت/);
+  assert.match(html, /تنظیمات خطوط روابط/);
 });
