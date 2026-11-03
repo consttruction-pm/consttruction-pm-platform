@@ -1479,7 +1479,7 @@ export function renderVisualDemo(state: DemoState): string {
   .cp-vd-right-rail button:hover{background:#dce9f7;border-color:#7898bb}
   .cp-vd-right-rail .cp-vd-rail-add{min-height:58px;background:#173d68;color:#fff;border-color:#173d68}
   .cp-vd-rail-add span{font-size:10px;font-weight:700}
-  @media(max-width:900px){.cp-vd-workspace-grid{grid-template-columns:minmax(0,1fr) 42px}.cp-vd-left-nav{grid-column:1/-1;display:flex;gap:4px;overflow-x:auto;border-inline-end:0;border-bottom:1px solid #c7d2df;max-height:54px}.cp-vd-nav-heading{display:none}.cp-vd-nav-link{width:auto;white-space:nowrap;flex:0 0 auto}.cp-vd-main{grid-column:1}.cp-vd-right-rail{grid-column:2;grid-row:2;position:sticky;top:0}.cp-vd-right-rail button{width:34px}}
+  @media(max-width:900px){.cp-vd-workspace-grid{grid-template-columns:minmax(0,1fr) 42px}.cp-vd-left-nav{grid-column:1/-1;display:flex;gap:4px;overflow-x:auto;border-inline-end:0;border-bottom:1px solid #c7d2df;max-height:54px}.cp-vd-nav-group,.cp-vd-nav-group-items{display:contents}.cp-vd-nav-heading{display:none}.cp-vd-nav-link{width:auto;white-space:nowrap;flex:0 0 auto}.cp-vd-main{grid-column:1}.cp-vd-right-rail{grid-column:2;grid-row:2;position:sticky;top:0}.cp-vd-right-rail button{width:34px}}
   @media(max-width:560px){.cp-vd-workspace-grid{grid-template-columns:minmax(0,1fr)}.cp-vd-left-nav{grid-column:1}.cp-vd-main{grid-column:1}.cp-vd-right-rail{grid-column:1;grid-row:auto;position:sticky;bottom:0;flex-direction:row;justify-content:space-around;z-index:5;border-inline-start:0;border-top:1px solid #c7d2df}.cp-vd-right-rail button{min-height:34px}.cp-vd-right-rail .cp-vd-rail-add{min-height:38px}}
 .cp-vd-register-search,.cp-vd-register-sort{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-register-search input,.cp-vd-register-sort select{min-width:118px;max-width:190px;height:29px;border:1px solid var(--cp-vd-border);border-radius:5px;background:var(--cp-vd-panel);color:var(--cp-vd-text);padding:3px 7px}.cp-vd-register-search input{min-width:170px}.cp-vd-register-count{font-size:11px;font-weight:700;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-empty-state{text-align:center;padding:28px!important;color:var(--cp-vd-muted)}@media(max-width:760px){.cp-vd-register-search,.cp-vd-register-sort{width:100%;justify-content:space-between}.cp-vd-register-search input,.cp-vd-register-sort select{flex:1;max-width:none}.cp-vd-register-count{margin-inline-start:auto}}</style><div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
     <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span>${renderLanguageSwitch(state)}<button type="button" class="cp-vd-fullscreen" data-vd-fullscreen aria-pressed="${state.fullscreen ? "true" : "false"}" title="${esc(t(state.locale, "Toggle full screen", "تغییر حالت تمام‌صفحه"))}">${esc(state.fullscreen ? t(state.locale, "Return to normal view", "بازگشت به نمای اصلی") : t(state.locale, "Full screen", "تمام‌صفحه"))}</button><button type="button" class="cp-vd-exit" data-vd-action='{"command":"sign-out"}' title="${esc(t(state.locale, "Sign out and return to home page", "خروج از حساب و بازگشت به صفحه اصلی"))}">${esc(t(state.locale, "Sign out", "خروج از حساب"))}</button></div>
@@ -1653,6 +1653,16 @@ function bind(root: HTMLElement): void {
     state.history.push(state.window);
     state.forward.length = 0;
     state.window = id;
+    const groupByWindow: Partial<Record<DemoWindowId, string>> = {
+      wbs: "planning", activities: "planning", network: "planning", trace: "planning", timeline: "planning",
+      "activity-profile": "planning", "resource-profile": "planning", "activity-sheet": "planning", "resource-sheet": "planning", calendars: "planning",
+      assignments: "controls", resources: "controls", roles: "controls", "cost-control": "controls", "progress-control": "controls", procurement: "controls",
+      "changes-claims": "controls", tracking: "controls", expenses: "controls", thresholds: "controls", issues: "controls", risks: "controls",
+      documents: "information", reports: "information", "form-builder": "information", comments: "information", organization: "information", administration: "information",
+      "smart-guide": "information", assistant: "information", search: "information",
+    };
+    const activeGroup = groupByWindow[id];
+    if (activeGroup) state.collapsedNavGroups = state.collapsedNavGroups.filter((group) => group !== activeGroup);
     draw();
   };
   const openDialog = (name: string): void => {
