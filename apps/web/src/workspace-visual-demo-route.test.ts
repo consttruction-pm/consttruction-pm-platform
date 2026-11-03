@@ -221,7 +221,9 @@ test("Form Builder has separate organization and project libraries and a visual 
   assert.match(markup, /data-vd-form-tab="versions"/);
   assert.match(markup, /accept="image\/jpeg,image\/png"/);
   assert.match(markup, /Transparent PNG logos retain their transparency/);
-  assert.match(markup, /Publish to project record/);
+  state.formTab = "workflow";
+  const workflowMarkup = renderVisualDemo(state);
+  assert.match(workflowMarkup, /Publish to project record/);
 });
 test("Engineering Assistant shows project context, text, voice, file and approval surfaces", () => {
   const state = createVisualDemoState("en");
