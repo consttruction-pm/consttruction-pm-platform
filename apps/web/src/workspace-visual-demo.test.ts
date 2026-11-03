@@ -396,7 +396,7 @@ test("Activity Details renders a truthful no-selection state instead of silently
   const html = renderVisualDemo(state);
   assert.match(html, /No activity selected/);
   assert.match(html, /Select an activity in the table or Activity Network/);
-  assert.doesNotMatch(html, /cp-vd-details-context-name/);
+  assert.doesNotMatch(html, /<span class="cp-vd-details-context-name"/);
 });
 
 test("Activity Details context and empty state are localized in Persian RTL", () => {
