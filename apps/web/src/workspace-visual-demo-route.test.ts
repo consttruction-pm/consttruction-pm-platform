@@ -121,9 +121,11 @@ test("module registers expose page commands, selectable rows, and contextual Det
   assert.match(markup, /aria-label="Page commands"/);
   assert.match(markup, /data-vd-module-row="0"/);
   assert.match(markup, /data-vd-module-tab="general"/);
-  assert.match(markup, /data-vd-module-tab="status"/);
-  assert.match(markup, /data-vd-module-tab="relationships"/);
-  assert.match(markup, /data-vd-module-tab="comments"/);
+  for (const tab of ["supplier", "package", "quantities", "dates", "cost", "delivery", "links", "documents"]) {
+    assert.match(markup, new RegExp('data-vd-module-tab="' + tab + '"'));
+  }
+  assert.doesNotMatch(markup, /data-vd-module-tab="relationships"/);
+  assert.doesNotMatch(markup, /data-vd-module-tab="comments"/);
   assert.match(markup, /data-vd-module-tab="history"/);
   assert.match(markup, /cp-vd-module-details/);
 });
