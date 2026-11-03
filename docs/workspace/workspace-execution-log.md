@@ -110,3 +110,12 @@ All subsequent visual work must follow [`reference/visual-audit-governing-princi
 | Tracking | User Guide chapter 9; Tracking layouts → Types of tracking layouts; Customize a Project Table, Project Bar Chart, Project Gantt/Profile, Resource Analysis | The page was still a generic Activity table and did not represent the four documented Tracking layout families. | Replaced the generic table route with four separately selectable structures: Project Table; Project Bar Chart; Project Gantt/Profile with top Gantt and bottom profile/spreadsheet; Resource Analysis with resource columns and time-distributed usage. Added localized tab labels, distinct content renderers, responsive split layout and synchronized source/public CSS. | Added English/Persian rendering assertions for all four families, selected state, top/bottom regions and resource analysis. Exact-head CI and browser screenshot review remain pending. | Implemented-unverified |
 
 **Boundary:** Tracking content remains illustrative preview data. No live cross-project rollups, cost/resource calculations, saved layouts, filtering/grouping persistence or schedule execution is claimed.
+
+## 2026-11-03 — Restore the selected post-login visual workspace route
+
+| Page/component | Finding | Correction | Regression coverage | Status |
+|---|---|---|---|---|
+| Login/session-recovery destination | The expired-session recovery button in `main.ts` forced every remembered project to `view=live`; with no remembered project it sent the user to bare `/app`. Both paths bypassed the selected visual entry page and opened the data-backed shell or generic project bootstrap. | Added `workspaceLoginNextPath`: no project or the shared `preview-rps-01` project returns to `/app?project=preview-rps-01` (the approved visual workspace); a different explicitly selected project retains its live route. The recovery button now uses this single routing rule. | Added route tests for no remembered project, the shared visual project and an explicitly selected live project. Exact-head CI and deployed browser verification remain pending. | Implemented-unverified |
+
+**Binding route rule:** Home → sign-in → Visual Project Workspace at `/app?project=preview-rps-01`. The live/data-backed workspace is entered only for an explicitly selected non-preview project or an explicit `view=live` route. Logout from the visual workspace returns to Home.
+
