@@ -1702,10 +1702,38 @@ function dialogContent(name: string, state: DemoState): string {
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Find", "یافتن"))}<input></label><label>${esc(t(state.locale, "Replace with", "جایگزینی با"))}<input></label><label class="cp-vd-check"><input type="checkbox"> ${esc(t(state.locale, "Match case", "تطابق حروف"))}</label></div>`;
     case "renumber":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Prefix", "پیشوند"))}<input value="A"></label><label>${esc(t(state.locale, "Start number", "شمارهٔ شروع"))}<input value="1000"></label><label>${esc(t(state.locale, "Increment", "گام"))}<input value="10"></label></div>`;
-    case "assign-resources":
-      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Activity", "فعالیت"))}<input value="${esc(state.activityId)}" readonly></label><label>${esc(t(state.locale, "Resource", "منبع"))}<select>${RESOURCES.map((resource) => `<option>${esc(resource.name)}</option>`).join("")}</select></label><label>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}<input value="40"></label></div>`;
+    case "assign-resources": {
+      const activity = ACTIVITIES.find((item) => item.id === state.activityId);
+      const availableResources = RESOURCES.map((resource) => ({ ...resource, rate: resource.units > 0 ? Math.round(resource.cost / resource.units * 100) / 100 : 0 }));
+      return `<section class="cp-vd-assignment-dialog">
+        <div class="cp-vd-assignment-context"><strong>${esc(t(state.locale, "Assign resources to activity", "تخصیص منابع به فعالیت"))}</strong><span><bdi dir="ltr">${esc(state.activityId)}</bdi> · ${esc(activity?.name ?? "—")}</span></div>
+        <div class="cp-vd-assignment-filter"><label>${esc(t(state.locale, "Find resources", "جست‌وجوی منابع"))}<input type="search" placeholder="${esc(t(state.locale, "Search by ID or name…", "جست‌وجو با شناسه یا نام…"))}" disabled></label><label>${esc(t(state.locale, "Resource type", "نوع منبع"))}<select disabled><option>All types</option><option>Labor</option><option>Equipment</option><option>Material</option></select></label></div>
+        <div class="cp-vd-assignment-grid">
+          <section><h3>${esc(t(state.locale, "Available resources", "منابع موجود"))}</h3><div class="cp-vd-assignment-table"><table class="cp-vd-mini"><thead><tr><th></th><th>ID</th><th>${esc(t(state.locale, "Resource", "منبع"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th><th>${esc(t(state.locale, "Budget units", "واحد بودجه"))}</th><th>${esc(t(state.locale, "Budget cost", "هزینه بودجه"))}</th><th>${esc(t(state.locale, "Rate / unit", "نرخ / واحد"))}</th></tr></thead><tbody>
+            ${availableResources.map((resource)=>`<tr><td><input type="checkbox" disabled aria-label="Select ${esc(resource.name)}"></td><td><bdi dir="ltr">${esc(resource.id)}</bdi></td><td>${esc(resource.name)}</td><td>${esc(t(state.locale,resource.type,resource.type==="Labor"?"نیروی انسانی":"تجهیزات"))}</td><td>${resource.units.toLocaleString("en-US")}</td><td>${resource.cost.toLocaleString("en-US")}</td><td>${resource.rate.toLocaleString("en-US")}</td></tr>`).join("")}
+          </tbody></table></div><p class="cp-vd-note">${esc(t(state.locale, "Resource catalogue figures are demonstration data; no availability reservation is implied.", "مقادیر فهرست منابع داده نمایشی هستند و به معنی رزرو ظرفیت نیستند."))}</p></section>
+          <aside><h3>${esc(t(state.locale, "Assignment details", "جزئیات تخصیص"))}</h3><div class="cp-vd-form">
+            <label>${esc(t(state.locale, "Budgeted units", "واحد بودجه"))}<input type="number" min="0" step="0.01" value="40" disabled></label>
+            <label>${esc(t(state.locale, "Units / time", "واحد / زمان"))}<input type="number" min="0" step="0.01" value="1" disabled></label>
+            <label>${esc(t(state.locale, "Rate type", "نوع نرخ"))}<select disabled><option>Price per Unit</option><option>Price per Time</option></select></label>
+            <label>${esc(t(state.locale, "Resource calendar", "تقویم منبع"))}<select disabled><option>Use resource calendar</option><option>Use activity calendar</option></select></label>
+            <label>${esc(t(state.locale, "Assignment start", "شروع تخصیص"))}<input type="date" value="${esc(activity?.start ?? "")}" disabled></label>
+            <label>${esc(t(state.locale, "Assignment finish", "پایان تخصیص"))}<input type="date" value="${esc(activity?.finish ?? "")}" disabled></label>
+            <label>${esc(t(state.locale, "Resource curve", "منحنی منبع"))}<select disabled><option>Linear</option><option>Front Loaded</option><option>Back Loaded</option><option>Bell</option><option>Manual</option></select></label>
+            <label>${esc(t(state.locale, "Cost account", "حساب هزینه"))}<select disabled><option>Not assigned</option></select></label>
+          </div><div class="cp-vd-assignment-actions"><button type="button" disabled>${esc(t(state.locale, "Assign", "تخصیص"))}</button><button type="button" disabled>${esc(t(state.locale, "Remove", "حذف"))}</button></div></aside>
+        </div><p class="cp-vd-note">${esc(t(state.locale, "Visual preview only — assignment, availability, cost recalculation and project updates are not connected.", "صرفاً پیش‌نمایش بصری — تخصیص، ظرفیت، محاسبه مجدد هزینه و به‌روزرسانی پروژه متصل نیست."))}</p>
+      </section>`;
+    }
     case "assign-roles":
-      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Role", "نقش"))}<select><option>Site engineer</option><option>Planner</option><option>Cost engineer</option></select></label><label>${esc(t(state.locale, "Units", "واحد"))}<input value="1"></label></div>`;
+      return `<section class="cp-vd-assignment-dialog"><div class="cp-vd-assignment-context"><strong>${esc(t(state.locale, "Assign roles to activity", "تخصیص نقش به فعالیت"))}</strong><span><bdi dir="ltr">${esc(state.activityId)}</bdi></span></div><div class="cp-vd-form">
+        <label>${esc(t(state.locale, "Role", "نقش"))}<select disabled><option>Site engineer</option><option>Planner</option><option>Cost engineer</option><option>Construction manager</option><option>Commissioning engineer</option></select></label>
+        <label>${esc(t(state.locale, "Role units", "واحد نقش"))}<input type="number" min="0" step="0.01" value="1" disabled></label>
+        <label>${esc(t(state.locale, "Max units / time", "حداکثر واحد / زمان"))}<input type="number" min="0" step="0.01" value="1" disabled></label>
+        <label>${esc(t(state.locale, "Proficiency", "سطح مهارت"))}<select disabled><option>Not specified</option><option>Entry</option><option>Intermediate</option><option>Advanced</option><option>Expert</option></select></label>
+        <label>${esc(t(state.locale, "Start", "شروع"))}<input type="date" disabled></label><label>${esc(t(state.locale, "Finish", "پایان"))}<input type="date" disabled></label>
+        <label>${esc(t(state.locale, "Candidate resource", "منبع نامزد"))}<select disabled><option>Unassigned</option>${RESOURCES.map((resource)=>`<option>${esc(resource.name)}</option>`).join("")}</select></label>
+      </div><p class="cp-vd-note">${esc(t(state.locale, "Role requirements and resource assignments are separate records; assigning a role does not silently assign a resource.", "نیاز نقش و تخصیص منبع دو رکورد مستقل هستند؛ تخصیص نقش نباید به‌صورت پنهان منبعی را تخصیص دهد."))}</p></section>`;
     case "assign-predecessors":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Predecessor activity", "فعالیت پیش‌نیاز"))}<select>${ACTIVITIES.map((item) => `<option value="${esc(item.id)}">${esc(item.id)} — ${esc(item.name)}</option>`).join("")}</select></label><label>${esc(t(state.locale, "Relationship type", "نوع رابطه"))}<select><option>FS — Finish to Start</option><option>SS — Start to Start</option><option>FF — Finish to Finish</option><option>SF — Start to Finish</option></select></label><label>${esc(t(state.locale, "Lag / Lead", "تأخیر / پیش‌افتادگی"))}<input type="number" value="0"></label><label>${esc(t(state.locale, "Lag calendar", "تقویم تأخیر"))}<select><option>Predecessor calendar</option><option>Successor calendar</option><option>Project default calendar</option><option>24 Hour</option></select></label><p class="cp-vd-note">FS, SS, FF and SF relationships retain their signed lag and selected lag calendar.</p></div>`;
     case "assign-successors":
