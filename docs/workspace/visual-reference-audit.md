@@ -307,3 +307,12 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - Regression coverage verifies that pane visibility changes are dispatched, reflected in the rendered state, and retained across a subsequent render.
 - Scope remains honest: project/resource selection, summarized data, live charts, and persistent saved layouts remain unavailable until their authoritative services exist.
 - Additional reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/49095.htm (View Menu: Show on Top, Show on Bottom, and Tracking layout display options).
+
+## Calendar editor visual parity — 2026-11-03
+
+- Version 26 Professional calendar dialog separates the calendar pool (Global, Project, Resource), standard workweek, dated exceptions, and Hours per Time Period; calendar editing also exposes month navigation, Work / Nonwork / Standard, Workweek, Time Periods, inheritance from a global calendar where applicable, and Used By assignments.
+- CUBI visual correction: the calendar register now distinguishes the five detail areas (General, Workweek, Exceptions, Time Periods, Assignments). The standard workweek table visibly supports two daily work intervals rather than a single start/finish pair. The exceptions area has date-range and exception-record columns; Time Periods has separate Hour, Day, Week, Month and Year conversion rows. Calendar record selection and detail-tab selection are preserved within the open workspace window.
+- A default-tab visibility defect was corrected: General is visible on first open, while all other detail panels are hidden; selecting another tab updates ARIA selection and panel visibility, and the selected tab survives a re-render.
+- No work hours, holiday dates, inheritance, assignments or conversion factors are fabricated. Write controls remain disabled until the authoritative calendar service is connected. This is a visual-shell completion, not a claim that calendar CRUD is operational.
+- Regression coverage checks the five-tab inventory, split work intervals, time-period panel, initial panel visibility, and selected-tab persistence.
+- References: https://docs.oracle.com/cd/G48902_01/client_help/en_US/calendar_dialog_box.htm and https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/globalcalendars.htm.
