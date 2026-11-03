@@ -185,7 +185,7 @@ type DemoState = {
   scale: "day" | "week" | "month" | "quarter" | "year";
   activityView: "schedule" | "relationships";
   detailTab: string;
-  moduleDetailTab: "general" | "status" | "relationships" | "comments" | "history";
+  moduleDetailTab: string;
   moduleSelectedRow: number;
   moduleSearch: string;
   moduleSort: "default" | "ascending" | "descending";
@@ -704,10 +704,31 @@ function renderTableWindow(state: DemoState, title: Label, headers: string[], ro
     return (left.localeCompare(right, undefined, { numeric: true }) || a.index - b.index) * (state.moduleSort === "ascending" ? 1 : -1);
   });
   const selected = rows[Math.min(state.moduleSelectedRow, Math.max(0, rows.length - 1))] ?? {};
-  const detailTabs: Array<[DemoState["moduleDetailTab"], string, string]> = [
-    ["general", "General", "عمومی"], ["status", "Status", "وضعیت"], ["relationships", "Relationships", "روابط"],
-    ["comments", "Comments", "دیدگاه‌ها"], ["history", "History", "تاریخچه"],
+  const sharedDetailTabs: Array<[string, string, string]> = [
+    ["general", "General", "عمومی"], ["status", "Status", "وضعیت"],
+    ["relationships", "Relationships", "روابط"], ["comments", "Comments", "دیدگاه‌ها"], ["history", "History", "تاریخچه"],
   ];
+  const pageDetailTabs: Record<string, Array<[string, string, string]>> = {
+    projects: [["general","General","عمومی"],["dates","Dates","تاریخ‌ها"],["defaults","Defaults","پیش‌فرض‌ها"],["resources","Resources","منابع"],["settings","Settings","تنظیمات"],["codes","Codes","کدها"],["notebook","Notebook","دفترچه"],["budget-log","Budget Log","دفتر ثبت بودجه"],["spending-plan","Spending Plan","برنامه هزینه"],["budget-summary","Budget Summary","خلاصه بودجه"],["funding","Funding","تأمین مالی"],["baselines","Baselines","خطوط مبنا"],["documents","Documents","اسناد"],["history","History","تاریخچه"]],
+    assignments: [["general","General","عمومی"],["activity","Activity","فعالیت"],["resource","Resource","منبع"],["units-costs","Units & Costs","مقادیر و هزینه‌ها"],["dates","Dates","تاریخ‌ها"],["curves","Curves","منحنی‌ها"],["notes","Notes","یادداشت‌ها"],["history","History","تاریخچه"]],
+    resources: [["general","General","عمومی"],["details","Details","جزئیات"],["units-prices","Units & Prices","مقادیر و قیمت‌ها"],["roles","Roles","نقش‌ها"],["codes","Codes","کدها"],["calendars","Calendars","تقویم‌ها"],["shifts","Shifts","شیفت‌ها"],["curves","Curves","منحنی‌ها"],["custom-fields","Custom Fields","فیلدهای سفارشی"],["notebook","Notebook","دفترچه"],["history","History","تاریخچه"]],
+    roles: [["general","General","عمومی"],["resources","Resources","منابع"],["price-rates","Price / Unit Rates","نرخ قیمت / واحد"],["limits","Limits","محدودیت‌ها"],["codes","Codes","کدها"],["custom-fields","Custom Fields","فیلدهای سفارشی"],["history","History","تاریخچه"]],
+    calendars: [["general","General","عمومی"],["workweek","Workweek","هفته کاری"],["work-hours","Work Hours","ساعات کاری"],["exceptions","Exceptions / Holidays","استثناها / تعطیلات"],["assignments","Assignments","تخصیص‌ها"],["resource-use","Resource Use","استفاده منابع"],["history","History","تاریخچه"]],
+    documents: [["general","General","عمومی"],["file-locations","File Locations","محل فایل‌ها"],["assignments","Assignments","تخصیص‌ها"],["wbs-links","WBS Links","پیوندهای ساختار شکست"],["activity-links","Activity Links","پیوندهای فعالیت"],["revisions","Revisions","بازنگری‌ها"],["history","History","تاریخچه"]],
+    expenses: [["general","General","عمومی"],["activity","Activity","فعالیت"],["cost","Cost","هزینه"],["dates","Dates","تاریخ‌ها"],["accrual","Accrual","نحوه شناسایی هزینه"],["category","Category","دسته‌بندی"],["documents","Documents","اسناد"],["history","History","تاریخچه"]],
+    thresholds: [["general","General","عمومی"],["parameters","Parameters","پارامترها"],["assignments","WBS / Activity Assignments","تخصیص‌های ساختار شکست / فعالیت"],["monitoring","Monitoring","پایش"],["history","History","تاریخچه"]],
+    issues: [["general","General","عمومی"],["status","Status","وضعیت"],["priority","Priority","اولویت"],["responsible","Responsible","مسئول"],["links","Activity / WBS Links","پیوندهای فعالیت / ساختار شکست"],["notebook","Notebook","دفترچه"],["documents","Documents","اسناد"],["history","History","تاریخچه"]],
+    risks: [["general","General","عمومی"],["probability-impact","Probability & Impact","احتمال و اثر"],["response","Response","پاسخ"],["owners","Owners","مسئولان"],["schedule-impact","Schedule Impact","اثر زمانی"],["cost-impact","Cost Impact","اثر هزینه"],["links","WBS / Activity Links","پیوندهای ساختار شکست / فعالیت"],["documents","Documents","اسناد"],["history","History","تاریخچه"]],
+    reports: [["definition","Definition","تعریف"],["parameters","Parameters","پارامترها"],["data-scope","Data Scope","دامنه داده"],["preview","Preview","پیش‌نمایش"],["distribution","Distribution","توزیع"],["run-history","Run History","تاریخچه اجرا"]],
+    tracking: [["projects","Projects","پروژه‌ها"],["layout","Layout","چیدمان"],["data","Data","داده‌ها"],["profiles","Profiles","پروفایل‌ها"],["variance","Variance","انحراف"],["history","History","تاریخچه"]],
+    "cost-control": [["general","General","عمومی"],["budget","Budget","بودجه"],["actual-cost","Actual Cost","هزینه واقعی"],["commitments","Commitments","تعهدات"],["forecast","Forecast","پیش‌بینی"],["cash-flow","Cash Flow","جریان نقدی"],["evm","Earned Value","ارزش کسب‌شده"],["funding","Funding","تأمین مالی"],["change-claims","Change / Claim Links","پیوند تغییر / ادعا"],["documents","Documents","اسناد"],["history","History","تاریخچه"]],
+    "progress-control": [["general","General","عمومی"],["status","Status","وضعیت"],["quantities","Quantities","مقادیر"],["physical-progress","Physical Progress","پیشرفت فیزیکی"],["daily-reports","Daily Reports","گزارش‌های روزانه"],["labour","Labour","نیروی انسانی"],["equipment","Equipment","تجهیزات"],["evidence","Evidence","مستندات"],["approvals","Approvals","تأییدها"],["history","History","تاریخچه"]],
+    procurement: [["general","General","عمومی"],["supplier","Supplier","تأمین‌کننده"],["package","Package","بسته"],["quantities","Quantities","مقادیر"],["dates","Dates","تاریخ‌ها"],["cost","Cost","هزینه"],["delivery","Delivery","تحویل"],["links","Activity / WBS Links","پیوندهای فعالیت / ساختار شکست"],["documents","Documents","اسناد"],["history","History","تاریخچه"]],
+    "changes-claims": [["general","General","عمومی"],["notice","Notice","اخطار"],["change","Change","تغییر"],["entitlement","Entitlement","استحقاق"],["schedule-impact","Schedule Impact","اثر زمانی"],["cost-impact","Cost Impact","اثر هزینه"],["decision","Decision","تصمیم"],["evidence","Evidence","مستندات"],["correspondence","Correspondence","مکاتبات"],["history","History","تاریخچه"]],
+    organization: [["general","General","عمومی"],["responsibility","Responsibility","مسئولیت"],["resources","Resources","منابع"],["roles","Roles","نقش‌ها"],["permissions","Permissions","مجوزها"],["codes","Codes","کدها"],["history","History","تاریخچه"]],
+    comments: [["general","General","عمومی"],["discussion","Discussion","گفت‌وگو"],["attachments","Attachments","پیوست‌ها"],["history","History","تاریخچه"]],
+  };
+  const detailTabs = pageDetailTabs[state.window] ?? sharedDetailTabs;
   const detail = state.moduleDetailTab === "comments"
     ? `<div class="cp-vd-hintbox">${esc(t(state.locale, "Comments and notes are preview-only in this workspace.", "دیدگاه‌ها و یادداشت‌ها در این محیط صرفاً نمایشی هستند."))}<p>Site Engineer · 03-Dec-2026</p><p>Review the latest update and confirm the responsible owner.</p></div>`
     : state.moduleDetailTab === "history"
