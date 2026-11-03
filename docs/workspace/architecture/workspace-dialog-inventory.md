@@ -21,9 +21,9 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Dialog | Controls | Behaviour | Status |
 | --- | --- | --- | --- |
 | Columns | Available/selected lists, add/remove, up/down, width, title, alignment, visibility | Apply to active layout; save with layout | Partial (field chooser panel, no modal) |
-| Filters | Any/All rows; field; operator; value; add/delete/order; named filters | Apply to table/Gantt; show filter name in layout bar | Partial (free-text filter only) |
-| Group and Sort | Group bands (up to 10), sort levels (up to 10), ascending/descending, summary options | WBS default; persist per layout | Partial (one group + one sort) |
-| Timescale | Scale (day/week/month/quarter/year), range, date format, fiscal options | Gantt ticks and labels | Partial (five scale buttons) |
+| Filters | Default/Global/Layout/User-Defined categories; selected-filter All/Any; named filter; criteria All/Any; Parameter/Is/Value rows; comparison and range operators; add/delete/reorder/optimize/make-global | Apply to table/Gantt; show filter name in layout bar | Visual preview implemented; filter execution/persistence not connected |
+| Group and Sort | Up to 20 grouping levels; hierarchical fields with To Level; multiple sort keys and ascending/descending/hierarchical order; Font & Color per band; indent/alphabetical bands; title/ID/code/name display; empty bands; page breaks; group/grand totals | WBS default; group before sort; persist per layout | Visual preview implemented; persistence not connected |
+| Timescale | Two/Three lines; Timescale Start; Primary/Ordinal dates; date type and interval; ordinal start/interval; Day/Shift calendar; financial-period calendar; Font & Color/default font | Gantt/profile/spreadsheet time axis | Visual preview implemented; settings persistence not connected |
 | Bars | Bar list, add/delete, style, label, filter, timescale, preview | Gantt bar rendering | Missing |
 | Bar Chart Options | Relationship lines, background lines, legend, data date line, progress line | Gantt display | Partial (link toggle only) |
 | Table Font and Row | Font scale, row height, colours | Table rendering | Missing |
