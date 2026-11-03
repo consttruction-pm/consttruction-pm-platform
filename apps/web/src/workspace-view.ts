@@ -1861,16 +1861,22 @@ function renderDocumentRegisterWindow(container: HTMLElement, state: WorkspaceSt
   const selected = visibleDocuments.find((document) => document.documentId === selectedId) ?? null;
   const tabs = [
     ["general", "General", "عمومی"],
-    ["links", "Links", "پیوندها"],
-    ["integrity", "Integrity", "یکپارچگی"],
-    ["revisions", "Revisions", "بازنگری‌ها"],
+    ["files", "Files", "فایل‌ها"],
+    ["assignments", "Assignments", "تخصیص‌ها"],
     ["udfs", "UDFs", "فیلدهای کاربر"],
+    ["links", "Links · CUBI", "پیوندها · کوبی"],
+    ["integrity", "Integrity · CUBI", "یکپارچگی · کوبی"],
+    ["revisions", "Revisions · CUBI", "بازنگری‌ها · کوبی"],
   ] as const;
   const activeTab = documentDetailTabByContainer.get(container) ?? "general";
   const value = (label: string, content: string): string => `<div class="cp-document-detail-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(content)}</strong></div>`;
   let detail = `<p class="cp-empty">${escapeHtml(uiText(state.locale, "Select a document to view its details.", "برای مشاهده جزئیات یک سند را انتخاب کنید."))}</p>`;
   if (selected && activeTab === "general") {
     detail = `<div class="cp-document-detail-grid">${value(uiText(state.locale, "Document ID", "شناسه سند"), selected.documentId)}${value(uiText(state.locale, "Title", "عنوان"), selected.title)}${value(uiText(state.locale, "Type", "نوع"), selected.resourceType)}${value(uiText(state.locale, "Status", "وضعیت"), selected.status)}${value(uiText(state.locale, "Revision", "بازنگری"), String(selected.revision))}${value(uiText(state.locale, "Storage", "ذخیره‌سازی"), selected.hasStorageRef ? uiText(state.locale, "Reference available", "مرجع موجود است") : uiText(state.locale, "No storage reference", "مرجع ذخیره‌سازی موجود نیست"))}</div>`;
+  } else if (selected && activeTab === "files") {
+    detail = `<div class="cp-document-detail-grid">${value(uiText(state.locale,"Private Location","مسیر خصوصی"),uiText(state.locale,"Not loaded","بارگذاری نشده"))}${value(uiText(state.locale,"Public Location","مسیر عمومی"),uiText(state.locale,"Not loaded","بارگذاری نشده"))}</div><div class="cp-document-file-actions"><button type="button" disabled>${escapeHtml(uiText(state.locale,"Browse…","مرور…"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale,"Launch Private","بازکردن خصوصی"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale,"Launch Public","بازکردن عمومی"))}</button></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale,"A document record is separate from its file. No private or public file location is loaded.","رکورد سند از فایل آن جداست. هیچ مسیر فایل خصوصی یا عمومی بارگذاری نشده است."))}</p>`;
+  } else if (selected && activeTab === "assignments") {
+    detail = `<div class="cp-document-file-actions"><button type="button" disabled>${escapeHtml(uiText(state.locale,"Assign…","تخصیص…"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale,"Remove","حذف تخصیص"))}</button></div><div class="cp-register-table-wrap"><table><thead><tr><th>${escapeHtml(uiText(state.locale,"Assignment Type","نوع تخصیص"))}</th><th>${escapeHtml(uiText(state.locale,"WBS / Activity","WBS / فعالیت"))}</th><th>${escapeHtml(uiText(state.locale,"Work Product","محصول کاری"))}</th></tr></thead><tbody><tr><td colspan="3">${escapeHtml(uiText(state.locale,"No WBS or activity assignments are loaded.","هیچ تخصیص WBS یا فعالیتی بارگذاری نشده است."))}</td></tr></tbody></table></div>`;
   } else if (selected && activeTab === "links") {
     detail = selected.linkedEntityRefs.length ? `<ul class="cp-document-link-list">${selected.linkedEntityRefs.map((ref) => `<li>${escapeHtml(ref)}</li>`).join("")}</ul>` : `<p class="cp-empty">${escapeHtml(uiText(state.locale, "No linked project records.", "هیچ رکورد پروژه‌ای پیوند نشده است."))}</p>`;
   } else if (selected && activeTab === "integrity") {
