@@ -649,7 +649,7 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
 
         def invoke(operation, version, payload):
             nonlocal mutation_sequence
-            if operation.endswith((".create", ".update", ".delete", ".save", ".publish")):
+            if operation.endswith((".create", ".update", ".delete", ".save", ".publish", ".copy", ".replace")):
                 mutation_sequence += 1
                 payload = dict(payload)
                 payload["mutation"] = {
@@ -925,7 +925,7 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
 
         def invoke(operation, payload, version="p6-calendar.v1"):
             nonlocal mutation_sequence
-            if operation.endswith((".create", ".update", ".delete", ".save", ".publish")):
+            if operation.endswith((".create", ".update", ".delete", ".save", ".publish", ".copy", ".replace")):
                 mutation_sequence += 1
                 payload = dict(payload)
                 payload["mutation"] = {
