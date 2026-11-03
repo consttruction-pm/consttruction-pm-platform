@@ -188,3 +188,11 @@ test("every registered workspace window renders a concrete page surface", () => 
     assert.ok(markup.length > 12000, `expected a fully rendered workspace for ${windowId}`);
   }
 });
+test("register column chooser uses the current page fields instead of activity fields", () => {
+  const state = createVisualDemoState("en");
+  state.window = "procurement";
+  const markup = renderVisualDemo(state);
+  assert.match(markup, /name="Package"/);
+  assert.match(markup, /name="Material / Equipment"/);
+  assert.doesNotMatch(markup, /name="Activity ID"/);
+});
