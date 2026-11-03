@@ -324,3 +324,21 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - New/Edit/Delete and the calendar editor's editable controls remain disabled until a calendar write contract supplies the complete versioned calendar definition and save lifecycle. This is intentional and avoids presenting non-persisting controls as operational.
 - Regression coverage verifies selection, selected-row state, and the identity summary.
 - Reference: Oracle P6 Professional Help Version 26, Table of Contents → Defining Calendars → Project Calendars / Global Calendars / Resource Calendars: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm.
+## Resource Assignments window — usage spreadsheet surface — 2026-11-03
+
+- Version 26 desktop reference requires the Resource Assignments window to support assignment-table customization, grouping/sorting/filtering, timescale selection, Resource Usage Spreadsheet, and Assignment Details.
+- CUBI correction: replaced the generic register-only presentation with a dedicated Assignment Analysis strip and a user-toggleable Resource Usage Spreadsheet surface. The spreadsheet exposes time scale and data-field selectors for budgeted, actual, remaining units and costs, plus period columns; no assignment rows or period values are invented.
+- The assignment details tabs remain General, Planning, Costs, Units & Prices and UDFs. The usage spreadsheet can be shown/hidden without losing the selected presentation during a rerender.
+- Editing, fill-down/across, field customization and persistence remain disabled until the authoritative assignment service supplies editable assignment and period-bucket records.
+- Regression coverage added for toggle behavior and the empty-data contract.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/resource_assignments_window.htm.
+
+## Tracking window — layout management commands — 2026-11-03
+
+- Version 26 desktop reference defines four tracking layout types: Project Table, Project Bar Chart, Project Gantt/Profile and Resource Analysis. The Tracking window is pane-based, with Project Explorer and Top Layout always represented, and optional Resource Explorer and Bottom Layout panes.
+- CUBI already exposed the four layout types and display-pane toggles. This pass adds the visible layout-management command group: New Layout, Open Layout, Save As, Import, Export and Delete Layout, each explicitly disabled with a reason while the tracking-layout store is unavailable. This avoids implying that a click has persisted a layout.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/tracking_window.htm; https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/types_of_tracking_layouts.htm; https://docs.oracle.com/cd/G48902_01/client_help/en_US/layout_toolbar.htm.
+
+## E2E submenu count correction — 2026-11-03
+
+- Updated the preview E2E submenu inventory selector to count actionable submenu buttons as well as links and disabled submenu entries. The prior selector excluded functional buttons and falsely failed the Control navigation inventory despite the menu exposing its actions.
