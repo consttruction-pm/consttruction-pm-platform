@@ -20,7 +20,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 
 | Dialog | Controls | Behaviour | Status |
 | --- | --- | --- | --- |
-| Columns | Available/selected lists, add/remove, up/down, width, title, alignment, visibility | Apply to active layout; save with layout | Partial (field chooser panel, no modal) |
+| Columns | Available/Selected lists; add/remove one/all; reorder; at least one visible; search/group/collapse available columns; edit title/width/alignment/visibility; Copy From; Default | Apply to active layout; save with layout | Visual preview implemented; layout persistence not connected |
 | Filters | Default/Global/Layout/User-Defined categories; selected-filter All/Any; named filter; criteria All/Any; Parameter/Is/Value rows; comparison and range operators; add/delete/reorder/optimize/make-global | Apply to table/Gantt; show filter name in layout bar | Visual preview implemented; filter execution/persistence not connected |
 | Group and Sort | Up to 20 grouping levels; hierarchical fields with To Level; multiple sort keys and ascending/descending/hierarchical order; Font & Color per band; indent/alphabetical bands; title/ID/code/name display; empty bands; page breaks; group/grand totals | WBS default; group before sort; persist per layout | Visual preview implemented; persistence not connected |
 | Timescale | Two/Three lines; Timescale Start; Primary/Ordinal dates; date type and interval; ordinal start/interval; Day/Shift calendar; financial-period calendar; Font & Color/default font | Gantt/profile/spreadsheet time axis | Visual preview implemented; settings persistence not connected |
