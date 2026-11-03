@@ -948,7 +948,7 @@ test("Workspace menu hierarchy exposes project, organization, tools and administ
   }
   assert.match(html, /adminSection&quot;|adminSection/);
   assert.ok(html.includes("disabled>Delete<small"), "Delete must remain disabled until a live selection and permission check exist");
-  assert.match(html, /data-vd-action='\{"dialog":"assign-resources-by-role"\}'/);
+  assert.ok(html.includes("data-vd-action='{"dialog":"assign-resources-by-role"}'"));
 });
 
 test("Workspace menu hierarchy keeps Persian labels for key administration and project tools", () => {
