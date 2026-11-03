@@ -14,7 +14,7 @@ test("visual workspace exposes language, full-screen and sign-out controls witho
   assert.match(html, /data-vd-fullscreen/);
   assert.match(html, />Full screen<\/button>/);
   assert.match(html, />Sign out<\/button>/);
-  assert.match(html, /data-vd-action='\{"command":"sign-out"\}'/);
+  assert.ok(html.includes('data-vd-action=\'{"command":"sign-out"}\''));
   assert.match(html, /Sign out/);
 });
 
@@ -948,7 +948,7 @@ test("Workspace menu hierarchy exposes project, organization, tools and administ
   }
   assert.match(html, /adminSection&quot;|adminSection/);
   assert.ok(html.includes("disabled>Delete<small"), "Delete must remain disabled until a live selection and permission check exist");
-  assert.ok(html.includes("data-vd-action='{"dialog":"assign-resources-by-role"}'"));
+  assert.ok(html.includes('data-vd-action=\'{"dialog":"assign-resources-by-role"}\''));
 });
 
 test("Workspace menu hierarchy keeps Persian labels for key administration and project tools", () => {
