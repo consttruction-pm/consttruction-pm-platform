@@ -1625,3 +1625,13 @@ test("desktop workbench keeps contextual Add actions visibly unavailable until w
   assert.match(html, /role="menuitem" disabled/);
   assert.match(html, /create workflow is not connected yet/);
 });
+
+test("activity and Gantt splitter exposes bounded keyboard-resize semantics", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-panel-split/);
+  assert.match(html, /data-panel-splitter role="separator"/);
+  assert.match(html, /aria-orientation="vertical"/);
+  assert.match(html, /aria-valuemin="30"/);
+  assert.match(html, /aria-valuemax="70"/);
+  assert.match(html, /Resize table and Gantt/);
+});
