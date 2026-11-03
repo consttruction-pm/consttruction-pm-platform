@@ -1752,6 +1752,28 @@ function dialogContent(name: string, state: DemoState): string {
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Find", "یافتن"))}<input></label><label>${esc(t(state.locale, "Replace with", "جایگزینی با"))}<input></label><label class="cp-vd-check"><input type="checkbox"> ${esc(t(state.locale, "Match case", "تطابق حروف"))}</label></div>`;
     case "renumber":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Prefix", "پیشوند"))}<input value="A"></label><label>${esc(t(state.locale, "Start number", "شمارهٔ شروع"))}<input value="1000"></label><label>${esc(t(state.locale, "Increment", "گام"))}<input value="10"></label></div>`;
+    case "resource-details": {
+      const tabs: Array<[string,string,string]> = [["General","General","عمومی"],["Codes","Codes","کدها"],["Details","Details","جزئیات"],["Units & Prices","Units & Prices","واحدها و قیمت‌ها"],["Roles","Roles","نقش‌ها"],["Notes","Notes","یادداشت‌ها"],["UDFs","Custom Fields","فیلدهای سفارشی"]];
+      return `<section class="cp-vd-resource-details"><header class="cp-vd-assignment-context"><strong>${esc(t(state.locale,"Resource Details","جزئیات منبع"))}</strong><span><bdi dir="ltr">R-100</bdi> · PM Office</span></header>
+        <nav class="cp-vd-project-tabs" role="tablist" aria-label="${esc(t(state.locale,"Resource detail sections","بخش‌های جزئیات منبع"))}">${tabs.map(([id,en,fa],index)=>`<button type="button" role="tab" aria-selected="${index===0}" class="${index===0?"is-active":""}" disabled>${esc(t(state.locale,en,fa))}</button>`).join("")}</nav>
+        <div class="cp-vd-resource-detail-body">
+          <section><h3>${esc(t(state.locale,"General","عمومی"))}</h3><div class="cp-vd-form">
+            <label>${esc(t(state.locale,"Resource ID","شناسه منبع"))}<input value="R-100" readonly></label><label>${esc(t(state.locale,"Resource name","نام منبع"))}<input value="PM Office" disabled></label>
+            <label>${esc(t(state.locale,"Resource type","نوع منبع"))}<select disabled><option>Labor</option><option>Nonlabor</option><option>Material</option></select></label><label>${esc(t(state.locale,"Employee ID","شناسه کارمند"))}<input value="—" disabled></label>
+            <label>${esc(t(state.locale,"Title","عنوان"))}<input value="Project Management Office" disabled></label><label>${esc(t(state.locale,"E-mail address","رایانامه"))}<input value="—" disabled></label>
+            <label>${esc(t(state.locale,"Office phone","تلفن دفتر"))}<input value="—" disabled></label><label class="cp-vd-check"><input type="checkbox" checked disabled> ${esc(t(state.locale,"Active resource — available for assignment","منبع فعال — قابل تخصیص"))}</label>
+          </div></section>
+          <section><h3>${esc(t(state.locale,"Details","جزئیات"))}</h3><div class="cp-vd-form">
+            <label>${esc(t(state.locale,"Unit of measure","واحد سنجش"))}<select disabled><option>Hour</option><option>Day</option><option>m³</option></select></label><label>${esc(t(state.locale,"Default units/time","واحد پیش‌فرض / زمان"))}<input value="1.00 h/d" disabled></label>
+            <label>${esc(t(state.locale,"Maximum units/time","حداکثر واحد / زمان"))}<input value="2.00 h/d" disabled></label><label>${esc(t(state.locale,"Primary role","نقش اصلی"))}<select disabled><option>Project Manager</option><option>Planner</option></select></label>
+            <label>${esc(t(state.locale,"Resource calendar","تقویم منبع"))}<select disabled><option>Standard 5-Day</option></select></label><label>${esc(t(state.locale,"Shift","شیفت"))}<select disabled><option>Day shift</option></select></label>
+          </div></section>
+          <section><h3>${esc(t(state.locale,"Units & Prices","واحدها و قیمت‌ها"))}</h3><div class="cp-vd-tablewrap"><table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale,"Effective date","تاریخ اثر"))}</th><th>${esc(t(state.locale,"Price / unit","قیمت / واحد"))}</th><th>${esc(t(state.locale,"Currency","ارز"))}</th><th>${esc(t(state.locale,"Price factor","ضریب قیمت"))}</th></tr></thead><tbody><tr><td>01-Jan-2026</td><td>55.40</td><td>USD</td><td>1.00</td></tr><tr><td>01-Jan-2027</td><td>58.20</td><td>USD</td><td>1.00</td></tr></tbody></table></div></section>
+          <section><h3>${esc(t(state.locale,"Roles and codes","نقش‌ها و کدها"))}</h3><div class="cp-vd-form"><label>${esc(t(state.locale,"Assigned roles","نقش‌های تخصیص‌یافته"))}<input value="Project Manager; Planner" disabled></label><label>${esc(t(state.locale,"Resource codes","کدهای منبع"))}<input value="Discipline: Management" disabled></label><label>${esc(t(state.locale,"Notes","یادداشت‌ها"))}<textarea rows="2" disabled>Resource record for visual review.</textarea></label></div></section>
+        </div>
+        <p class="cp-vd-note">${esc(t(state.locale,"The desktop resource detail inventory is General, Codes, Details, Units & Prices, Roles, Notes and Custom Fields. The Progress Reporter tab is excluded because it belongs to the connected server environment. This sample resource is read-only.", "فهرست جزئیات منبع دسکتاپ شامل عمومی، کدها، جزئیات، واحدها و قیمت‌ها، نقش‌ها، یادداشت‌ها و فیلدهای سفارشی است. زبانه گزارش‌دهنده پیشرفت به‌دلیل وابستگی به محیط سرور حذف شده است. این منبع نمونه فقط‌خواندنی است."))}</p>
+      </section>`;
+    }
     case "assign-resources": {
       const activity = ACTIVITIES.find((item) => item.id === state.activityId);
       const availableResources = RESOURCES.map((resource) => ({ ...resource, rate: resource.units > 0 ? Math.round(resource.cost / resource.units * 100) / 100 : 0 }));
