@@ -33,6 +33,7 @@ This index records which official pages were reviewed, what each page contribute
 | Sort activities | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/sort_activities.htm | Multiple sort keys and ascending/descending/hierarchical order; grouping is applied before sorting |
 | Timescale format | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/change_a_layout_s_timescale_format_50.htm | Two/Three lines, start date, primary/ordinal dates, date type/interval, shift and financial-period calendars, Font & Color |
 | Activity Table | https://docs.oracle.com/cd/G48902_01/client_help/en_US/activitytable.htm (fetch timed out; TOC topic confirmed) | Table layout, column management, sorting/grouping/filtering; details verified through View/Edit menu topics |
+| Activity Table columns | https://docs.oracle.com/cd/F25600_01/English/User_Guides/p6_pro_user/define_activity_table_columns.htm | Available/Selected columns, add/remove one/all, ordering, minimum one visible column, Copy From, Default |
 | Toolbars | standard, project, action, edit, display, assign, tools, enterprise, administrator, dictionaries, find, move, print, publish, reports, top layout, bottom layout (individual `*_toolbar.htm` pages) | Complete or near-complete command inventory; see `../architecture/workspace-toolbar-inventory.md` |
 | Layout pages | `ganttchart.htm`, `activitynetwork.htm`, `tracelogic.htm`, `overview.htm` (TOC) | Gantt, network and trace-logic view capabilities listed in the TOC and used in the window inventory |
 
