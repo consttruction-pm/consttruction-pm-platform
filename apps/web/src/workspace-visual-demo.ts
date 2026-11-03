@@ -1856,6 +1856,21 @@ export function renderVisualDemo(state: DemoState): string {
   .cp-vd-column-properties h4{margin:0 0 8px;color:#294765;font-size:11px}
   .cp-vd-column-properties .cp-vd-form{grid-template-columns:repeat(4,minmax(0,1fr))}
   @media(max-width:760px){.cp-vd-columns-transfer{grid-template-columns:1fr}.cp-vd-columns-transfer-actions{grid-template-columns:repeat(4,1fr)}.cp-vd-column-properties .cp-vd-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .cp-vd-project-wizard{display:grid;gap:10px;min-width:0}
+  .cp-vd-project-steps{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  .cp-vd-project-steps li{display:flex;align-items:center;gap:6px;padding:7px;background:#eef2f6;border:1px solid #d8e0e9;color:#526579;font-size:10px;min-width:0}
+  .cp-vd-project-steps li[aria-current="step"]{background:#e7f0fa;border-color:#1976d2;color:#0f2747;font-weight:700}
+  .cp-vd-project-steps b{display:grid;place-items:center;flex:0 0 20px;height:20px;border-radius:50%;background:#fff;border:1px solid #b8c5d3}
+  .cp-vd-project-step{border:1px solid #d8e0e9;background:#fff;padding:10px;display:grid;gap:8px}
+  .cp-vd-project-step h4{margin:0;padding-bottom:6px;border-bottom:1px solid #e1e7ee;color:#294765;font-size:11px}
+  .cp-vd-project-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cp-vd-project-grid .is-wide{grid-column:1/-1}
+  .cp-vd-project-grid em{color:#c0392b;font-style:normal}
+  .cp-vd-project-grid small{font-size:9px;color:#6b7d91}
+  .cp-vd-project-wizard-actions{display:flex;justify-content:flex-end;gap:7px;padding-top:4px}
+  .cp-vd-project-wizard-actions .is-primary{background:#0f2747;color:#fff;border-color:#0f2747}
+  @media(max-width:760px){.cp-vd-project-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-vd-project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:480px){.cp-vd-project-grid{grid-template-columns:1fr}.cp-vd-project-grid .is-wide{grid-column:auto}}
   @media(max-width:850px){.cp-vd-filter-manager{grid-template-columns:1fr}.cp-vd-filter-library{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.cp-vd-filter-library-head{grid-column:1/-1}}
   .cp-vd-module-toolbar .cp-vd-note{margin-inline-start:auto}
   .cp-vd-module-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(245px,30%);min-height:350px}
