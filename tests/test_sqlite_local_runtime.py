@@ -769,6 +769,66 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
         assert invoke("cost_account.list", "p6-cost-account-api.v1", {})["result"]["count"] == 1
         assert invoke("expense.list", "p6-expense-api.v1", {})["result"]["count"] == 1
 
+        assignment = invoke("resource_assignment.create", "p6-resource-write-api.v1", {
+            "assignment": {
+                "assignment_id": "RA-ABI",
+                "activity_id": "A1",
+                "resource_id": "RES-ABI",
+                "units": "8",
+                "planned_cost": "640",
+                "unit": "hours",
+                "currency": "EUR",
+                "is_driving": False,
+            }
+        })
+        assert assignment["result"]["item"]["assignment"]["assignment_id"] == "RA-ABI"
+
+        period = invoke("resource_assignment_period.create", "p6-resource-write-api.v1", {
+            "period": {
+                "assignment_id": "RA-ABI",
+                "activity_id": "A1",
+                "resource_id": "RES-ABI",
+                "period_start": "2026-11-03",
+                "units": "8",
+                "cost": "640",
+            }
+        })
+        assert period["result"]["item"]["period"]["assignment_id"] == "RA-ABI"
+
+        spread = invoke("resource_spread.save", "p6-resource-spread-api.v1", {
+            "spread": {
+                "spread_id": "SP-ABI",
+                "resource_id": "RES-ABI",
+                "period_id": "2026-11",
+                "period_start": "2026-11-01",
+                "period_end": "2026-11-30",
+                "spread_type": "PLANNED",
+                "metric": "UNITS",
+                "value": "160",
+                "unit": "hours",
+            }
+        })
+        assert spread["result"]["item"]["spread"]["spread_id"] == "SP-ABI"
+
+        capacity = invoke("resource_capacity.save", "p6-resource-capacity-write-api.v1", {
+            "capacity": {
+                "resource_id": "RES-ABI",
+                "max_units": "8",
+                "unit_basis": "day",
+                "hours_per_time_period": "8",
+                "effective_from": "2026-11-03",
+                "expected_revision": scope.project_revision,
+                "close_open_segment": False,
+            }
+        })
+        assert capacity["result"]["item"]["capacity"]["resource_id"] == "RES-ABI"
+
+        assert invoke("resource_assignment.list", "p6-resource-read-api.v1", {})["result"]["count"] == 1
+        assert invoke("resource_assignment_period.list", "p6-resource-read-api.v1", {})["result"]["count"] == 1
+        assert invoke("resource_spread.list", "p6-resource-spread-api.v1", {})["result"]["count"] == 1
+        assert invoke("resource_capacity.list", "p6-resource-capacity-read-api.v1", {"resource_id": "RES-ABI"})["result"]["count"] == 1
+        assert invoke("resource_capacity.profile", "p6-resource-capacity-read-api.v1", {"resource_id": "RES-ABI"})["result"]["item"]["status"] == "REGISTERED"
+
         advertised = {item["operation"] for item in shared.supported_operations}
         assert {
             "schedule.query", "wbs.create", "activity.create", "relationship.create",
