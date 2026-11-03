@@ -6909,3 +6909,33 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-vd-project-details .cp-vd-note{line-height:1.55}
 .cp-p6 [dir="rtl"] .cp-vd-project-context{direction:rtl}
 @media(max-width:760px){.cp-p6 .cp-vd-project-section .cp-vd-form{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-p6 .cp-vd-project-context{align-items:flex-start;flex-direction:column}}
+
+/* Calendar dictionary/editor: separate pools, standard workweek and exceptions. */
+.cp-p6 .cp-vd-calendar-pools{display:flex;align-items:center;gap:3px;flex-wrap:wrap;padding:5px;border:1px solid #cbd5e1;background:#f3f6fa}
+.cp-p6 .cp-vd-calendar-pools button{padding:6px 11px;border:1px solid transparent;background:transparent;color:#52657a;font-size:9px}
+.cp-p6 .cp-vd-calendar-pools button.is-active{border-color:#b8c7d8;background:#fff;color:#1f456b;font-weight:700}
+.cp-p6 .cp-vd-calendar-pools span{margin-inline-start:auto;color:#718096;font-size:9px}
+.cp-p6 .cp-vd-calendar-editor{display:flex;flex-direction:column;gap:9px;min-width:0}
+.cp-p6 .cp-vd-calendar-editor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;border:1px solid #cbd5e1;background:#f2f5f9;color:#244463}
+.cp-p6 .cp-vd-calendar-editor-toolbar>div:first-child{display:flex;flex-direction:column;gap:3px;font-size:10px}
+.cp-p6 .cp-vd-calendar-editor-toolbar>div:first-child span{color:#718096;font-size:9px}
+.cp-p6 .cp-vd-calendar-editor-toolbar>div:last-child{display:flex;gap:5px;flex-wrap:wrap}
+.cp-p6 .cp-vd-calendar-editor-toolbar button,.cp-p6 .cp-vd-calendar-actions button{padding:5px 8px;border:1px solid #c5cfdb;background:#fff;color:#40566e;font-size:9px}
+.cp-p6 .cp-vd-calendar-editor-toolbar button:disabled,.cp-p6 .cp-vd-calendar-actions button:disabled{opacity:.48}
+.cp-p6 .cp-vd-calendar-editor-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+.cp-p6 .cp-vd-calendar-properties,.cp-p6 .cp-vd-calendar-workweek,.cp-p6 .cp-vd-calendar-editor-bottom>section{min-width:0;border:1px solid #cbd5e1;background:#fff;padding:8px}
+.cp-p6 .cp-vd-calendar-editor h3{margin:0 0 7px;padding-bottom:5px;border-bottom:1px solid #e2e8f0;color:#244463;font-size:10px}
+.cp-p6 .cp-vd-calendar-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.cp-p6 .cp-vd-calendar-workweek .cp-vd-mini{width:100%;border-collapse:collapse;font-size:9px}
+.cp-p6 .cp-vd-calendar-workweek .cp-vd-mini th,.cp-p6 .cp-vd-calendar-workweek .cp-vd-mini td{padding:5px;border-bottom:1px solid #e2e8f0;text-align:start}
+.cp-p6 .cp-vd-calendar-workweek .cp-vd-mini th{background:#f8fafc;color:#607187}
+.cp-p6 .cp-vd-calendar-workweek .cp-vd-calendar-hours{width:100%;min-width:130px;box-sizing:border-box;padding:4px;border:1px solid #d5dde7;background:#f8fafc;color:#52657a;font:inherit;font-size:9px}
+.cp-p6 .cp-vd-calendar-workweek .cp-vd-calendar-working{display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:9px}
+.cp-p6 .cp-vd-calendar-work-modes{display:flex;flex-wrap:wrap;gap:12px;padding-top:8px;color:#52657a;font-size:9px}
+.cp-p6 .cp-vd-calendar-editor-bottom{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(220px,.8fr);gap:9px}
+.cp-p6 .cp-vd-calendar-editor-bottom .cp-vd-mini{width:100%;border-collapse:collapse;font-size:9px}
+.cp-p6 .cp-vd-calendar-editor-bottom .cp-vd-mini th,.cp-p6 .cp-vd-calendar-editor-bottom .cp-vd-mini td{padding:6px;border-bottom:1px solid #e2e8f0;text-align:start}
+.cp-p6 .cp-vd-calendar-actions{display:flex;gap:5px;margin-top:7px}
+.cp-p6 .cp-vd-calendar-periods{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.cp-p6 [dir="rtl"] .cp-vd-calendar-pools span{margin-inline-start:0;margin-inline-end:auto}
+@media(max-width:760px){.cp-p6 .cp-vd-calendar-editor-main,.cp-p6 .cp-vd-calendar-editor-bottom{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-vd-calendar-editor-toolbar{align-items:flex-start;flex-direction:column}.cp-p6 .cp-vd-calendar-pools span{width:100%;margin:4px 0 0}}
