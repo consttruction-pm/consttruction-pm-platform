@@ -1047,21 +1047,32 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
         )
         assert unbound_assignment["result"]["error"]["code"] == "RESOURCE_MASTER_CONTEXT_REQUIRED"
         assert len(runtime.offline_mutation_store.pending()) == pending_before_unbound_assignment
-        runtime.schedule_snapshot_api.save_settings(
-            scope,
-            settings=ProjectScheduleSettings(
-                scope=scope,
-                mode=AuthoritativeScheduleMode.DATE_BASED,
-                project_calendar=CalendarReference(
-                    "CAL-P", "1", "working-day", CalendarSystem.GREGORIAN
-                ),
-                project_start=date(2026, 11, 3),
-                schedule_options=ScheduleOptions(),
-                project_leveling_priority=50,
-            ),
-            expected_revision=0,
-            auth_context=auth,
+        from construction_pm.project_schedule_settings_repository import (
+            _schedule_options_payload,
         )
+
+        saved_settings = invoke(
+            "schedule.settings.save",
+            {
+                "settings": {
+                    "mode": AuthoritativeScheduleMode.DATE_BASED.value,
+                    "project_calendar": {
+                        "calendar_id": "CAL-P",
+                        "calendar_version": "1",
+                        "kind": "working-day",
+                        "system": CalendarSystem.GREGORIAN.value,
+                    },
+                    "project_start": "2026-11-03",
+                    "project_finish": None,
+                    "schedule_options": _schedule_options_payload(ScheduleOptions()),
+                    "project_leveling_priority": 50,
+                },
+                "expected_revision": 0,
+            },
+            version="p6-project-schedule-settings-api.v1",
+        )
+        assert saved_settings["result"]["item"]["kind"] == "project_schedule_settings"
+        assert saved_settings["result"]["item"]["record_revision"] == 1
 
         activity = invoke(
             "activity.create",
@@ -1118,8 +1129,8 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
         assert schedule_response["result"]["data"]["calculation_run_identity"]
 
         queued = runtime.offline_mutation_store.pending()
-        assert len(queued) == 6
-        assert {item.operation for item in queued} == {"calendar.create", "calendar.exception.save", "calendar.work_hours.save", "calendar.copy", "activity.create", "schedule.publish"}
+        assert len(queued) == 7
+        assert {item.operation for item in queued} == {"calendar.create", "calendar.exception.save", "calendar.work_hours.save", "calendar.copy", "schedule.settings.save", "activity.create", "schedule.publish"}
     finally:
         connection.close()
 
