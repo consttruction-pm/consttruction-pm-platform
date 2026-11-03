@@ -51,7 +51,7 @@ Introduced the standalone `.cp-vd` visual-demo surface. Its independent CSS geom
 | Generic demo dialog | width min(560 px, viewport − 24 px); max-height 86vh |
 | Option dialog | width min(520 px, viewport − 28 px) |
 
-This is a separate, larger demo layout, not the compact 1100 × 808 `.cp-p6` frame added later. The two sizing systems coexist. If the post-login route renders `.cp-vd`, the approved compact geometry under `.cp-p6` is not automatically applied. This is a structural inconsistency to resolve after confirming the actual rendered root.
+This is a separate, larger demo layout, not the compact 1100 × 808 `.cp-p6` frame added later. The two sizing systems coexist. Route selection in `workspace-visual-demo-route.ts` confirms that `/app?project=preview-rps-01` (unless `view=live` is explicitly set) selects the visual demo. The visual-demo renderer emits `.cp-vd`, not `.cp-p6`. Therefore the user's normal preview-project entry uses the 36/30/96/32/34/212 px demo sizing, while the approved compact geometry exists under a different `.cp-p6` root and is not applied to that visual-demo route. This is the principal sizing mismatch, not a hypothetical route concern.
 
 ### B. 2026-11-01 — compact P6-proportioned frame
 Commit: `afa534e37d779bdababdb23c73684d6fe749e094`
@@ -104,7 +104,7 @@ The inspected diff adds module content, controls, dialogs and tests. It does not
 
 ## 5. Required verification before dimension changes
 
-- Confirm exact post-login route and rendered root (`.cp-vd` versus `.cp-p6`) on the deployed preview.
+- Route-source audit confirms `/app?project=preview-rps-01` selects `.cp-vd` unless `view=live` is set. Browser confirmation at the deployed preview remains pending.
 - Capture the same 1100 × 808 viewport and measure every fixed chrome band and each page's split panes.
 - Compare against saved 2026-10-30 visual-reference screenshots and the 2026-11-01 1100 × 808 reference.
 - Audit all 32 destinations and their dialogs individually; record width/height/min/max/overflow, reason for each fixed/minimum size and source screenshot.
@@ -112,4 +112,4 @@ The inspected diff adds module content, controls, dialogs and tests. It does not
 
 ## Status
 
-This is a source/history sizing audit, not a completed runtime screenshot audit. It identifies the exact sizing rules and historical diffs visible in Git, and separates global-frame changes from inner-canvas changes. Runtime measurement of every page/dialog and final restoration of any confirmed mismatch remain pending.
+This is a source/history sizing audit, not a completed runtime screenshot audit. Route source confirms the visual preview uses `.cp-vd`, so the compact 1100 × 808 `.cp-p6` geometry is not currently governing that route. This duplicate-root mismatch is confirmed in source. Runtime measurement of every page/dialog and final restoration/alignment of the visual-preview geometry remain pending.
