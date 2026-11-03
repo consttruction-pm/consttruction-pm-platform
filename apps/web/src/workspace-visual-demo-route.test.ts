@@ -147,3 +147,27 @@ test("workspace navigation groups are collapsible and active pages retain their 
   assert.match(markup, /class="cp-vd-nav-group-items" hidden/);
   assert.match(markup, /data-vd-window="procurement" aria-current="page"/);
 });
+test("project-control and administration modules expose dedicated overview dashboards", () => {
+  for (const windowId of ["cost-control", "progress-control", "procurement", "changes-claims", "form-builder", "organization", "smart-guide", "assistant", "search", "comments"] as const) {
+    const state = createVisualDemoState("en");
+    state.window = windowId;
+    const markup = renderVisualDemo(state);
+    assert.match(markup, /cp-vd-module-overview/);
+    assert.match(markup, /cp-vd-metric-grid/);
+    assert.match(markup, /cp-vd-module-chart/);
+  }
+});
+
+test("WBS and Form Builder expose dedicated preview creation dialogs", () => {
+  const wbs = renderVisualDemo(createVisualDemoState("en"));
+  assert.match(wbs, /data-vd-dialog="new-wbs"/);
+  assert.match(wbs, /name="wbsCode"/);
+  assert.match(wbs, /name="wbsName"/);
+  const forms = createVisualDemoState("en");
+  forms.window = "form-builder";
+  const formMarkup = renderVisualDemo(forms);
+  assert.match(formMarkup, /data-vd-dialog="new-form"/);
+  assert.match(formMarkup, /name="formId"/);
+  assert.match(formMarkup, /Organization library/);
+  assert.match(formMarkup, /Project library/);
+});
