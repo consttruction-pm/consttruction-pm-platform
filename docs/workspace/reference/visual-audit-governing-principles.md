@@ -93,3 +93,18 @@ Use this template for every page/window or chart family:
 | Status | One of the defined audit states; Verified only after all gates |
 
 This document is the governing rule. All workspace visual inventories, reference indexes, implementation logs and future page audits must link back to it and follow it.
+
+
+## 2026-11-03 — Binding workspace sizing baseline
+
+The sizing audit is recorded in `docs/workspace/architecture/visual-workspace-sizing-audit.md`. The controlling desktop reference is 1100 × 808 px:
+- title 23 px; menu 18 px; toolbar 24 px; layout bar 20 px; status 14 px;
+- remaining workspace 709 px = activity header 18 px + upper region 433 px + 10 px divider/gap + Activity Details 248 px;
+- vertical split 63.58% / 36.42%; Activity table/Gantt split 53.5% / 46.5% with a 4 px splitter;
+- directory rail 20 px; comments/context rail 23 px.
+
+The user explicitly said on 2026-10-30 not to change Timeline sizing because the observed issue was screen resolution. Timeline lane/bar/phase-name/milestone/axis dimensions are protected and must not be changed by responsive or visual-audit work.
+
+Do not mix the legacy `.cp-vd` demo geometry (title 36 px, menu 30 px, toolbar up to 96 px, tabs 32 px, layout 34 px, Details 212 px, split 52%) with the compact `.cp-p6` frame. First verify which root the post-login route actually renders. Project Details and Network canvas have page-specific sizing; they must not silently resize the global Activity/Gantt frame. Assistant, drawers and dialogs must not steal flow height from the fixed work area. Content overflow must scroll instead of shrinking the approved geometry.
+
+No size change is accepted without a recorded prior instruction/reference screenshot, before/after measurements, a reason, and regression evidence. Dialogs and every page-specific child window must be measured individually; generic dialog widths are not a parity claim.
