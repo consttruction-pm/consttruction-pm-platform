@@ -126,3 +126,24 @@ test("module registers expose page commands, selectable rows, and contextual Det
   assert.match(markup, /data-vd-module-tab="history"/);
   assert.match(markup, /cp-vd-module-details/);
 });
+test("module registers expose searchable and sortable row controls with an empty state", () => {
+  const state = createVisualDemoState("en");
+  state.window = "procurement";
+  state.moduleSearch = "pump";
+  state.moduleSort = "ascending";
+  const markup = renderVisualDemo(state);
+  assert.match(markup, /data-vd-module-search value="pump"/);
+  assert.match(markup, /data-vd-module-sort/);
+  assert.match(markup, /value="ascending" selected/);
+  assert.match(markup, /No records match this search/);
+});
+
+test("workspace navigation groups are collapsible and active pages retain their group", () => {
+  const state = createVisualDemoState("en");
+  state.window = "procurement";
+  state.collapsedNavGroups = ["controls"];
+  const markup = renderVisualDemo(state);
+  assert.match(markup, /data-vd-nav-group="controls" aria-expanded="false"/);
+  assert.match(markup, /class="cp-vd-nav-group-items" hidden/);
+  assert.match(markup, /data-vd-window="procurement" aria-current="page"/);
+});
