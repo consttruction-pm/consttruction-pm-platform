@@ -645,7 +645,17 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
         auth = created.context.authorization_context(frozenset({"project_admin"}))
         shared = runtime.schedule_runtime(scope)
 
+        mutation_sequence = 0
+
         def invoke(operation, version, payload):
+            nonlocal mutation_sequence
+            if operation.endswith((".create", ".update", ".delete", ".save", ".publish")):
+                mutation_sequence += 1
+                payload = dict(payload)
+                payload["mutation"] = {
+                    "mutation_id": f"mutation-{mutation_sequence}",
+                    "idempotency_key": f"domain-operation-{mutation_sequence}",
+                }
             envelope = {
                 "contract_version": "cubi.shared-core-runtime.v1",
                 "operation": operation,
@@ -764,6 +774,13 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
             "schedule.query", "wbs.create", "activity.create", "relationship.create",
             "constraint.create", "baseline.create", "cost_account.create", "expense.create",
         } <= advertised
+
+        pending = runtime.offline_mutation_store.pending()
+        assert len(pending) == mutation_sequence
+        assert {item.operation for item in pending} >= {
+            "wbs.create", "activity.create", "relationship.create", "constraint.create",
+            "baseline.create", "cost_account.create", "expense.create",
+        }
     finally:
         connection.close()
 
@@ -787,7 +804,17 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
         auth = created.context.authorization_context(frozenset({"project_admin"}))
         shared = runtime.schedule_runtime(scope)
 
+        mutation_sequence = 0
+
         def invoke(operation, payload, version="p6-calendar.v1"):
+            nonlocal mutation_sequence
+            if operation.endswith((".create", ".update", ".delete", ".save", ".publish")):
+                mutation_sequence += 1
+                payload = dict(payload)
+                payload["mutation"] = {
+                    "mutation_id": f"calendar-mutation-{mutation_sequence}",
+                    "idempotency_key": f"calendar-operation-{mutation_sequence}",
+                }
             envelope = {
                 "contract_version": "cubi.shared-core-runtime.v1",
                 "operation": operation,
@@ -890,5 +917,9 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
         ))
         assert schedule_response["result"]["contract_version"] == "schedule-query-result.v1"
         assert schedule_response["result"]["data"]["calculation_run_identity"]
+
+        queued = runtime.offline_mutation_store.pending()
+        assert len(queued) == 2
+        assert {item.operation for item in queued} == {"calendar.create", "schedule.publish"}
     finally:
         connection.close()
