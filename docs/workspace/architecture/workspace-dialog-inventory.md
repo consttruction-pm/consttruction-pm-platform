@@ -62,8 +62,8 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Store Period Performance | Financial period, project, actual this period and actual-to-date units/costs, post/history | Visual preview implemented; posting, period locking and past-period audit permissions not connected |
 | Expense Details | Activity, category, accrual type, cost account, vendor, budgeted/actual/remaining cost | Visual preview implemented; expense CRUD and cost roll-up not connected |
 | Cost Account Dictionary | Hierarchical account ID/name/parent/level, default account | Visual preview implemented; dictionary CRUD and assignment services not connected |
-| Global Change | Parameter rows, preview count, apply | Missing |
-| Monitor Thresholds / Issue Navigator | Scope and results | Missing |
+
+
 | Global Change | Object scope (activities, assignments, expenses), Available To, If conditions, Then/Else statements, reorder/copy, preview report, exception rows, save report, cancel/commit | Visual preview implemented; specification engine, permission enforcement, report persistence and transactional commit not connected |
 | Reports Library / Runner | Global/project reports, groups/batches, run, wizard/editor, import/export, parameters and output destination | Visual preview implemented; report definitions, execution engine, batch scheduler and file operations not connected |
 | Threshold Monitor / Issue Navigator | Threshold parameters and limits, monitoring frequency, responsibility, generated issues, priority/status, tracking layout and history | Visual preview implemented; threshold service, issue generation, notifications and history persistence not connected |
@@ -81,11 +81,11 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Currencies | Currency, symbol, decimals, base flag | Missing |
 | Financial Period Calendars | Period calendar, start/end, generate periods | Missing |
 | Business Domains / Portfolios | Tree/list, add/edit/delete | Missing |
-| Calendars | Calendar list, workweek, shifts, holidays, exceptions | Partial (holidays only) |
-| Codes (activity/resource/role/project) | Dictionary tree, values, colours | Missing |
+| Calendars | Global / Project / Resource pools, inheritance, workweek, holidays, exceptions, work hours, Used By and period conversions | Visual preview implemented; calendar CRUD, inheritance and scheduling integration not connected |
+| Codes (activity/resource/role/project) | Separate dictionaries, scope, values, hierarchy, colors and assignment counts | Visual preview implemented; dictionary CRUD and code assignment services not connected |
 | UDFs | Subject, data type, formula, values | Missing |
-| Cost Accounts / Funding Sources | Dictionary trees | Missing |
-| Resource Shifts / Curves | Shift windows, curve points | Missing |
+| Cost Accounts / Funding Sources | Hierarchical cost accounts, default account, funding sources and assignments | Visual preview implemented; dictionary CRUD, funding transactions and budget roll-up not connected |
+| Resource Shifts / Curves | Shift calendars, effective dates, daily work periods, overtime and curve points | Resource Shifts visual preview implemented; shift capacity and resource curve services not connected |
 
 ## Cross-dialog rules
 
