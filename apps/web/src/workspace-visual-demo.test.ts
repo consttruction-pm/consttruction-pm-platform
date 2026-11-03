@@ -260,3 +260,32 @@ test("Resources and Roles have independent Primavera-style dictionaries and Pers
   assert.match(roleHtml, /ظرفیت/);
   assert.match(roleHtml, /نرخ و ظرفیت در این پیش‌نمایش هزینه پروژه یا تسطیح منابع را محاسبه نمی‌کنند/);
 });
+
+
+test("Version 26 Gantt visual surface exposes dedicated controls for chart layers and annotations", () => {
+  const state = createVisualDemoState("en");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  for (const label of ["Background Lines…", "Relationship Lines…", "Data Date Line…", "Legend…", "Progress Line…", "Attachments…", "Collapsed Bars…"]) {
+    assert.ok(html.includes(label), `expected Gantt command: ${label}`);
+  }
+  for (const dialog of ["background-lines", "relationship-lines", "data-date-line", "gantt-legend", "progress-line", "attachments", "collapsed-bars"]) {
+    assert.match(html, new RegExp(`data-vd-dialog="${dialog}"`));
+  }
+  for (const control of ["Major vertical lines", "Arrowhead", "Display data date line", "Show legend", "Display progress line", "Add curtain", "Show all", "Delete selected", "Remove text", "Attach notebook", "Customize collapsed bars"]) {
+    assert.ok(html.includes(control), `expected Gantt detail control: ${control}`);
+  }
+  assert.match(html, /non-persistent visual examples/);
+});
+
+test("Version 26 Gantt presentation commands are localized and preserve Persian RTL layout", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["خطوط پس‌زمینه…", "خطوط روابط…", "خط تاریخ داده…", "راهنما…", "خط پیشرفت…", "پیوست‌ها…", "میله‌های جمع‌شده…"]) {
+    assert.ok(html.includes(label), `expected Persian Gantt command: ${label}`);
+  }
+  assert.match(html, /خطوط پس‌زمینه گانت/);
+  assert.match(html, /تنظیمات خطوط روابط/);
+});
