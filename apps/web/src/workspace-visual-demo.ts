@@ -1699,38 +1699,35 @@ function dialogContent(name: string, state: DemoState): string {
       </section>`;
     }
     case "calendar":
-      return `<div class="cp-vd-calendar-editor">
+      return `<section class="cp-vd-calendar-editor">
+        <header class="cp-vd-calendar-editor-toolbar"><div><strong>${esc(t(state.locale,"Calendar editor","ویرایشگر تقویم"))}</strong><span>${esc(t(state.locale,"5-Day Workweek · Global calendar","هفته کاری پنج‌روزه · تقویم سراسری"))}</span></div><div><button type="button" disabled>${esc(t(state.locale,"Modify","ویرایش"))}</button><button type="button" disabled>${esc(t(state.locale,"Time Periods…","دوره‌های زمانی…"))}</button><button type="button" disabled>${esc(t(state.locale,"Used By…","موارد استفاده…"))}</button></div></header>
         <div class="cp-vd-calendar-editor-main">
-          <div class="cp-vd-calendar-properties">
-            <h3>${esc(t(state.locale, "Calendar properties", "مشخصات تقویم"))}</h3>
+          <div class="cp-vd-calendar-properties"><h3>${esc(t(state.locale,"Calendar properties","مشخصات تقویم"))}</h3>
             <div class="cp-vd-form cp-vd-calendar-fields">
-              <label>${esc(t(state.locale, "Calendar name", "نام تقویم"))}<input value="5-Day Workweek" readonly></label>
-              <label>${esc(t(state.locale, "Calendar type", "نوع تقویم"))}<select name="calendarType"><option>Global</option><option>Project</option><option>Resource</option></select></label>
-              <label>${esc(t(state.locale, "Hours per day", "ساعت در روز"))}<input value="8" readonly></label>
-              <label>${esc(t(state.locale, "Hours per week", "ساعت در هفته"))}<input value="40" readonly></label>
-              <label>${esc(t(state.locale, "Hours per month", "ساعت در ماه"))}<input value="176" readonly></label>
-              <label>${esc(t(state.locale, "Hours per year", "ساعت در سال"))}<input value="2080" readonly></label>
-              <label>${esc(t(state.locale, "Parent calendar", "تقویم والد"))}<input value="None — base calendar" readonly></label>
-              <label>${esc(t(state.locale, "Effective from", "اعتبار از"))}<input value="2026-01-01" readonly></label>
+              <label>${esc(t(state.locale,"Calendar name","نام تقویم"))}<input value="5-Day Workweek" readonly></label>
+              <label>${esc(t(state.locale,"Calendar pool","مخزن تقویم"))}<select disabled><option>Global</option><option>Project</option><option>Resource</option></select></label>
+              <label>${esc(t(state.locale,"Calendar type","نوع تقویم"))}<select disabled><option>Standard</option><option>Shared Resource</option><option>Personal Resource</option></select></label>
+              <label>${esc(t(state.locale,"Parent global calendar","تقویم سراسری والد"))}<select disabled><option>None — base calendar</option><option>Standard 5-Day</option></select></label>
+              <label>${esc(t(state.locale,"Hours per day","ساعت در روز"))}<input value="8" readonly></label>
+              <label>${esc(t(state.locale,"Hours per week","ساعت در هفته"))}<input value="40" readonly></label>
+              <label>${esc(t(state.locale,"Hours per month","ساعت در ماه"))}<input value="176" readonly></label>
+              <label>${esc(t(state.locale,"Hours per year","ساعت در سال"))}<input value="2080" readonly></label>
+              <label>${esc(t(state.locale,"Use assigned calendar time periods","استفاده از دوره‌های زمانی تقویم تخصیص‌یافته"))}<input value="Enabled by administrator" readonly></label>
             </div>
           </div>
-          <div class="cp-vd-calendar-workweek">
-            <h3>${esc(t(state.locale, "Workweek", "هفته کاری"))}</h3>
-            <table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Day", "روز"))}</th><th>${esc(t(state.locale, "Working time", "زمان کاری"))}</th><th>${esc(t(state.locale, "Status", "وضعیت"))}</th></tr></thead><tbody>
-              ${[[ "Saturday", "شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Sunday", "یکشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Monday", "دوشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Tuesday", "سه‌شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Wednesday", "چهارشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Thursday", "پنجشنبه", "—", false ],[ "Friday", "جمعه", "—", false ]].map(([en, fa, hours, working]) => `<tr><td>${esc(t(state.locale, String(en), String(fa)))}</td><td><input class="cp-vd-calendar-hours" aria-label="${esc(String(en))} working hours" value="${esc(String(hours))}"></td><td><label class="cp-vd-calendar-working"><input type="checkbox" ${working ? "checked" : ""}><span class="cp-vd-calendar-day-status ${working ? "is-working" : "is-nonwork"}">${esc(t(state.locale, working ? "Working" : "Nonwork", working ? "کاری" : "تعطیل"))}</span></label></td></tr>`).join("")}
+          <div class="cp-vd-calendar-workweek"><h3>${esc(t(state.locale,"Standard workweek","هفته کاری استاندارد"))}</h3>
+            <table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale,"Day","روز"))}</th><th>${esc(t(state.locale,"Working hours","ساعات کاری"))}</th><th>${esc(t(state.locale,"Work status","وضعیت کاری"))}</th></tr></thead><tbody>
+              ${[[ "Saturday", "شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Sunday", "یکشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Monday", "دوشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Tuesday", "سه‌شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Wednesday", "چهارشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Thursday", "پنجشنبه", "—", false ],[ "Friday", "جمعه", "—", false ]].map(([en, fa, hours, working]) => `<tr><td>${esc(t(state.locale,String(en),String(fa)))}</td><td><input class="cp-vd-calendar-hours" aria-label="${esc(String(en))} working hours" value="${esc(String(hours))}" disabled></td><td><label class="cp-vd-calendar-working"><input type="checkbox" ${working?"checked":""} disabled><span class="cp-vd-calendar-day-status ${working?"is-working":"is-nonwork"}">${esc(t(state.locale,working?"Working":"Nonwork",working?"کاری":"تعطیل"))}</span></label></td></tr>`).join("")}
             </tbody></table>
+            <div class="cp-vd-calendar-work-modes"><label><input type="radio" name="calendar-hours-mode" checked disabled> ${esc(t(state.locale,"Total work hours/day","مجموع ساعات کاری روز"))}</label><label><input type="radio" name="calendar-hours-mode" disabled> ${esc(t(state.locale,"Detailed work hours/day","جزئیات ساعات کاری روز"))}</label></div>
           </div>
         </div>
-        <aside class="cp-vd-calendar-editor-side">
-          <h3>${esc(t(state.locale, "Exceptions and holidays", "استثناها و تعطیلات"))}</h3>
-          <table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Date", "تاریخ"))}</th><th>${esc(t(state.locale, "Description", "شرح"))}</th><th>${esc(t(state.locale, "Type", "نوع"))}</th></tr></thead><tbody>
-            <tr><td><bdi dir="ltr">2026-12-21</bdi></td><td>${esc(t(state.locale, "Winter solstice adjustment", "تغییر ساعت انقلاب زمستانی"))}</td><td>${esc(t(state.locale, "Nonwork", "تعطیل"))}</td></tr>
-            <tr><td><bdi dir="ltr">2027-03-20</bdi></td><td>${esc(t(state.locale, "Local holiday", "تعطیل محلی"))}</td><td>${esc(t(state.locale, "Nonwork", "تعطیل"))}</td></tr>
-          </tbody></table>
-          <div class="cp-vd-calendar-legend"><span class="is-working">${esc(t(state.locale, "Working day", "روز کاری"))}</span><span class="is-nonwork">${esc(t(state.locale, "Nonwork day", "روز تعطیل"))}</span><span class="is-exception">${esc(t(state.locale, "Exception", "استثنا"))}</span></div>
-          <p class="cp-vd-note">${esc(t(state.locale, "Visual sample only. Calendar rules, exceptions and inherited settings are not saved or used for scheduling.", "صرفاً نمونه بصری. قوانین تقویم، استثناها و تنظیمات ارث‌بری ذخیره یا در زمان‌بندی استفاده نمی‌شوند."))}</p>
-        </aside>
-      </div>`;
+        <div class="cp-vd-calendar-editor-bottom">
+          <section><h3>${esc(t(state.locale,"Exceptions and holidays","استثناها و تعطیلات"))}</h3><table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale,"Date","تاریخ"))}</th><th>${esc(t(state.locale,"Description","شرح"))}</th><th>${esc(t(state.locale,"Type","نوع"))}</th><th>${esc(t(state.locale,"Working hours","ساعات کاری"))}</th></tr></thead><tbody><tr><td><bdi dir="ltr">2026-12-21</bdi></td><td>${esc(t(state.locale,"Winter solstice adjustment","تغییر ساعت انقلاب زمستانی"))}</td><td>${esc(t(state.locale,"Nonwork","تعطیل"))}</td><td>—</td></tr><tr><td><bdi dir="ltr">2027-03-20</bdi></td><td>${esc(t(state.locale,"Local holiday","تعطیل محلی"))}</td><td>${esc(t(state.locale,"Nonwork","تعطیل"))}</td><td>—</td></tr><tr><td><bdi dir="ltr">2027-05-01</bdi></td><td>${esc(t(state.locale,"Reduced shift","شیفت کوتاه"))}</td><td>${esc(t(state.locale,"Modified hours","ساعات اصلاح‌شده"))}</td><td>08:00–12:00</td></tr></tbody></table><div class="cp-vd-calendar-actions"><button type="button" disabled>${esc(t(state.locale,"Work","کاری"))}</button><button type="button" disabled>${esc(t(state.locale,"Nonwork","تعطیل"))}</button><button type="button" disabled>${esc(t(state.locale,"Standard","استاندارد"))}</button></div></section>
+          <section><h3>${esc(t(state.locale,"Hours per time period","ساعات هر دوره زمانی"))}</h3><div class="cp-vd-form cp-vd-calendar-periods">${[["Hour","1"],["Day","8"],["Week","40"],["Month","176"],["Year","2080"]].map(([name,value])=>`<label>${esc(t(state.locale,name,name==="Hour"?"ساعت":name==="Day"?"روز":name==="Week"?"هفته":name==="Month"?"ماه":"سال"))}<input type="number" value="${value}" disabled></label>`).join("")}</div><p class="cp-vd-note">${esc(t(state.locale,"Stored time is hourly; these values convert display and entry units when calendar-specific time periods are enabled.", "زمان در پایگاه داده بر حسب ساعت ذخیره می‌شود؛ این مقادیر هنگام فعال بودن دوره‌های زمانی تقویم، واحدهای ورودی و نمایشی را تبدیل می‌کنند."))}</p></section>
+        </div>
+        <p class="cp-vd-note">${esc(t(state.locale,"Calendar inheritance, work/nonwork periods, exceptions, used-by assignments and hours-per-period conversion are preview-only. Editing a base calendar can affect linked project/resource calendars and manual future-period assignment values.", "ارث‌بری تقویم، بازه‌های کاری و غیرکاری، استثناها، تخصیص‌های استفاده‌کننده و تبدیل ساعات دوره‌ها فقط پیش‌نمایش هستند. ویرایش تقویم پایه می‌تواند تقویم‌های پروژه و منابعِ پیوندخورده و مقادیر دستی دوره‌های آینده را تحت تأثیر قرار دهد."))}</p>
+      </section>`;
     case "schedule":
       return `<div class="cp-vd-schedule-options"><div class="cp-vd-form"><label>${esc(t(state.locale, "Data date", "تاریخ داده"))}<input type="date" value="2026-12-03"></label><label>${esc(t(state.locale, "Schedule mode", "حالت زمان‌بندی"))}<select><option>Forward and backward</option><option>Forward only</option></select></label><label>${esc(t(state.locale, "Out-of-sequence progress", "پیشرفت خارج از توالی"))}<select><option>Retained Logic</option><option>Progress Override</option><option>Actual Dates</option></select></label><label>${esc(t(state.locale, "Default calendar", "تقویم پیش‌فرض"))}<select><option>Project Default</option><option>Activity Calendar</option><option>24 Hour</option></select></label></div><fieldset><legend>${esc(t(state.locale, "Scheduling options", "گزینه‌های زمان‌بندی"))}</legend><label><input type="checkbox" checked> Recalculate dates for not-started activities</label><label><input type="checkbox" checked> Use expected finish dates</label><label><input type="checkbox"> Ignore relationships to and from other projects</label><label><input type="checkbox" checked> Calculate multiple float paths</label><label><input type="checkbox"> Make open-ended activities critical</label><label><input type="checkbox" checked> Log scheduling messages</label></fieldset><div class="cp-vd-hintbox"> ${esc(t(state.locale, "Schedule execution is disabled in this visual preview. These controls do not alter CPM dates or project data.", "اجرای زمان‌بندی در این پیش‌نمایش غیرفعال است. این گزینه‌ها تاریخ‌های CPM یا داده پروژه را تغییر نمی‌دهند."))}</div></div>`;
     case "level":
