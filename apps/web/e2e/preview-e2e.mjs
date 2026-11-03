@@ -5595,7 +5595,7 @@ async function main() {
         dayGraph.ticks.length > weekGraph.ticks.length &&
         weekGraph.ticks[0].date === dayGraph.ticks[0].date &&
         monthGraph.ticks[0].date === dayGraph.ticks[0].date &&
-        weekGraph.ticks.some((tick) => tick.date.endsWith("-02")) &&
+        weekGraph.ticks.slice(1).every((tick) => new Date(tick.date + "T00:00:00Z").getUTCDay() === 1) &&
         monthAxisMatchesVisibleRange,
       "changing the Gantt scale must change only the rendered axis density: " +
         JSON.stringify({
