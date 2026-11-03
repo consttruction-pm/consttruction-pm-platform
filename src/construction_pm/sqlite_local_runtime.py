@@ -417,7 +417,7 @@ class SQLiteLocalApplicationRuntime:
             work_hours_repository=self.calendar_work_hours_repository,
         )
 
-    def schedule_runtime(self, scope: BackendScope) -> LocalScheduleRuntime:
+    def schedule_runtime(self, scope: BackendScope, *, company_id: str | None = None) -> LocalScheduleRuntime:
         """Build the canonical SharedCoreRuntime bound to this local project.
 
         The optional host factory is an override seam for a platform-specific
@@ -425,6 +425,10 @@ class SQLiteLocalApplicationRuntime:
         Shared Core evaluator over this local snapshot/context and calendar data.
         """
         scope.validate()
+        if company_id is not None and (
+            not isinstance(company_id, str) or not company_id.strip()
+        ):
+            raise ValueError("RESOURCE_COMPANY_ID_REQUIRED")
         if self._schedule_runtime_factory is not None:
             return self._schedule_runtime_factory(self, scope)
         resolver = build_persisted_resource_leveling_input_resolver(
@@ -468,6 +472,14 @@ class SQLiteLocalApplicationRuntime:
                 ),
             )
 
+        resource_master_api_factory = (
+            None
+            if company_id is None
+            else lambda actor: self.resource_api(
+                scope, actor, company_id=company_id
+            )
+        )
+
         return build_shared_core_runtime(
             snapshot_repository=self.schedule_snapshot_repository,
             calendar_registry_factory=lambda: self.calendar_registry(scope),
@@ -490,6 +502,7 @@ class SQLiteLocalApplicationRuntime:
                 resource_spread_api=self.resource_spread_api,
                 resource_capacity_read_api=self.resource_capacity_read_api,
                 resource_capacity_write_api=self.resource_capacity_write_api,
+                resource_master_api_factory=resource_master_api_factory,
             ),
             mutation_executor=execute_local_mutation,
         )
