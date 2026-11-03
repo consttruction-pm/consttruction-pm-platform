@@ -666,10 +666,18 @@ function renderAdministration(state: DemoState): string {
       [tr("Code", "کد"), tr("Name", "نام"), tr("Symbol", "نماد"), tr("Rate to USD", "نرخ به دلار")],
       `<tr><td>USD</td><td>US dollar</td><td>$</td><td>1.0000</td></tr><tr><td>EUR</td><td>Euro</td><td>€</td><td>0.9200</td></tr><tr><td>IRR</td><td>Iranian rial</td><td>﷼</td><td>0.000024</td></tr>`,
     ) + note,
-    codes: table(
-      [tr("Code", "کد"), tr("Description", "توضیح"), tr("Scope", "دامنه"), tr("Values", "مقادیر")],
-      `<tr><td>PHASE</td><td>Project phase</td><td>Activity</td><td>5</td></tr><tr><td>DISC</td><td>Discipline</td><td>Activity</td><td>6</td></tr><tr><td>CUBI-DEMO</td><td>Demo project tag</td><td>Project</td><td>1</td></tr>`,
-    ) + note,
+    codes: `<div class="cp-vd-code-dictionary">
+      <div class="cp-vd-code-toolbar"><div><button type="button" disabled>${esc(tr("Add Code","افزودن کد"))}</button><button type="button" disabled>${esc(tr("Delete","حذف"))}</button><button type="button" disabled>${esc(tr("Add Value","افزودن مقدار"))}</button><button type="button" disabled>${esc(tr("Promote Scope…","ارتقای دامنه…"))}</button></div><label>${esc(tr("Code dictionary","واژه‌نامه کد"))}<select disabled><option>All code types</option><option>Activity</option><option>Project</option><option>Resource</option><option>Role</option></select></label></div>
+      <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>${esc(tr("Code Type","نوع کد"))}</th><th>${esc(tr("Code","کد"))}</th><th>${esc(tr("Description","توضیح"))}</th><th>${esc(tr("Scope","دامنه"))}</th><th>${esc(tr("Values","مقادیر"))}</th><th>${esc(tr("Value colors","رنگ مقادیر"))}</th><th>${esc(tr("Assigned","تخصیص‌یافته"))}</th></tr></thead><tbody>
+        <tr><td>Activity</td><td>PHASE</td><td>Project phase</td><td>Global</td><td>Engineering · Procurement · Construction · Commissioning · Handover</td><td><i class="cp-vd-code-swatch" style="background:#527fa9"></i> <i class="cp-vd-code-swatch" style="background:#c17a3b"></i></td><td>18</td></tr>
+        <tr><td>Activity</td><td>DISC</td><td>Discipline</td><td>EPS</td><td>Civil · Mechanical · Electrical · Instrumentation · HSE · QA/QC</td><td><i class="cp-vd-code-swatch" style="background:#64748b"></i> <i class="cp-vd-code-swatch" style="background:#3c8b73"></i></td><td>24</td></tr>
+        <tr><td>Activity</td><td>AREA</td><td>Work area</td><td>Project</td><td>North · South · Utilities · Offsite</td><td><i class="cp-vd-code-swatch" style="background:#8b6bb1"></i></td><td>31</td></tr>
+        <tr><td>Project</td><td>CONTRACT</td><td>Contract package</td><td>Global</td><td>EP · EPC · Construction · Commissioning</td><td>—</td><td>1</td></tr>
+        <tr><td>Resource</td><td>TRADE</td><td>Resource trade</td><td>Global</td><td>Concrete · Steel · Lifting · Electrical</td><td>—</td><td>9</td></tr>
+        <tr><td>Role</td><td>DISC-ROLE</td><td>Role discipline</td><td>Global</td><td>Project Controls · Civil · Mechanical · Quality</td><td>—</td><td>12</td></tr>
+      </tbody></table></div>
+      <p class="cp-vd-note">${esc(tr("Activity codes can be global, EPS-level or project-level; project, resource and role codes have their own dictionaries. Values may carry display colors. Scope promotion and assignment are privileged operations.", "کدهای فعالیت می‌توانند سراسری، سطح ساختار سازمانی یا سطح پروژه باشند؛ کدهای پروژه، منبع و نقش واژه‌نامه مستقل دارند. مقادیر می‌توانند رنگ نمایشی داشته باشند. ارتقای دامنه و تخصیص کدها عملیات نیازمند مجوز هستند."))}</p>
+    </div>`,
     udfs: table(
       [tr("Name", "نام"), tr("Subject", "موضوع"), tr("Data type", "نوع داده"), tr("Values", "مقادیر")],
       `<tr><td>Cost centre</td><td>Activity</td><td>Text</td><td>Definitions only</td></tr><tr><td>Shutdown window</td><td>Activity</td><td>Date</td><td>No value</td></tr><tr><td>Supplier rating</td><td>Resource</td><td>Integer</td><td>1 – 5</td></tr>`,
