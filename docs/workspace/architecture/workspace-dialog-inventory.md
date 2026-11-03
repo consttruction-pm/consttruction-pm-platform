@@ -74,16 +74,18 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 
 | Dialog | Controls | Status |
 | --- | --- | --- |
-| Users | User list, roles, project access | Missing |
-| Security Profiles | Profiles, privileges | Missing |
-| Admin Preferences | Defaults, help location, numbering | Missing |
-| Admin Categories | Category/value dictionaries | Missing |
-| Currencies | Currency, symbol, decimals, base flag | Missing |
-| Financial Period Calendars | Period calendar, start/end, generate periods | Missing |
-| Business Domains / Portfolios | Tree/list, add/edit/delete | Missing |
+| Users | User list, roles, access state, user limit and profile assignment | Visual preview implemented; user provisioning, authentication and access enforcement not connected |
+| Security Profiles | Global/project profiles, privilege matrix, module access, profile assignment and read-only state | Visual preview implemented; policy engine and enforcement not connected |
+| Administrative Preferences | Industry, week start, default activity duration, hierarchy/code/ID limits, baseline limits, workhours, time abbreviations, earned-value defaults and summarization | Visual preview implemented (global preference summary); editable preference form and validation not connected |
+| Administrative Categories | Baseline types, expense categories, WBS categories/values, document categories/statuses, risk categories, notebook topics and units of measure | Visual preview implemented; dictionary CRUD and dependency validation not connected |
+| Currencies | Currency ID/name/symbol, decimal precision, base currency, view currency, exchange rate and effective-date context | Visual preview implemented; rate history, conversion and financial integration not connected |
+| Financial Period Calendars | Named period calendars, fiscal boundaries, individual/batch period creation, start/end, period state and posting protection | Visual preview implemented; calendar CRUD, contiguous-range validation, locking and posting integration not connected |
+| EPS / Project Structure | Hierarchical portfolio/EPS nodes, child projects, responsible OBS, project status/dates, expand/collapse, add/move/copy/delete | Visual preview implemented; hierarchy CRUD, project moves, uniqueness and access inheritance not connected |
+| OBS / Responsibility Structure | Hierarchical responsible managers, parent/child nodes, WBS assignment, chart view and access scope | Visual preview implemented; OBS CRUD, WBS responsibility assignment and security inheritance not connected |
+| Custom Fields | Subject, field name, data type, list values, indicator ranges, formula/read-only fields and required flag | Visual preview implemented; definitions, value persistence, formula evaluation and migration not connected |
 | Calendars | Global / Project / Resource pools, inheritance, workweek, holidays, exceptions, work hours, Used By and period conversions | Visual preview implemented; calendar CRUD, inheritance and scheduling integration not connected |
 | Codes (activity/resource/role/project) | Separate dictionaries, scope, values, hierarchy, colors and assignment counts | Visual preview implemented; dictionary CRUD and code assignment services not connected |
-| UDFs | Subject, data type, formula, values | Missing |
+| Custom Fields | Subject, data type, formula, indicator, list values and required state | Visual preview implemented; definitions, values, formula evaluation and migration not connected |
 | Cost Accounts / Funding Sources | Hierarchical cost accounts, default account, funding sources and assignments | Visual preview implemented; dictionary CRUD, funding transactions and budget roll-up not connected |
 | Resource Shifts / Curves | Shift calendars, effective dates, daily work periods, overtime and curve points | Resource Shifts visual preview implemented; shift capacity and resource curve services not connected |
 
