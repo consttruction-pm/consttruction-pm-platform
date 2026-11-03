@@ -323,3 +323,14 @@ test("Activity and Resource Usage Profile and Spreadsheet expose display and dat
     assert.ok(html.includes(option), `expected usage display option: ${option}`);
   }
 });
+
+
+test("Activity table formatting exposes independent table and group-band typography controls", () => {
+  const state = createVisualDemoState("en");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-vd-dialog="font-row"/);
+  for (const control of ["Activity table appearance", "Table font", "Text color", "Row height", "Row background", "Grid lines", "Group row appearance", "Group font", "Group text color", "Group background", "Group row height", "Group band format", "Show empty title bands", "Page break after each group"]) {
+    assert.ok(html.includes(control), `expected table-format control: ${control}`);
+  }
+});
