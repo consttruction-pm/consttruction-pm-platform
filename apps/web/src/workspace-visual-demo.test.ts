@@ -260,3 +260,45 @@ test("Resources and Roles have independent Primavera-style dictionaries and Pers
   assert.match(roleHtml, /ظرفیت/);
   assert.match(roleHtml, /نرخ و ظرفیت در این پیش‌نمایش هزینه پروژه یا تسطیح منابع را محاسبه نمی‌کنند/);
 });
+
+
+test("visual workspace exposes all eight registered language choices", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const [locale, name] of [
+    ["en", "English"], ["fa", "فارسی"], ["de", "Deutsch"], ["zh", "中文"],
+    ["ar", "العربية"], ["fr", "Français"], ["ja", "日本語"], ["ko", "한국어"],
+  ]) {
+    assert.match(html, new RegExp('<option value="' + locale + '"'));
+    assert.ok(html.includes(name), 'expected language display name: ' + name);
+  }
+});
+
+test("Projects window docks the selected Project Details panel beneath the register", () => {
+  const state = createVisualDemoState("en");
+  state.window = "projects";
+  const markup = renderVisualDemo(state);
+  const registerPosition = markup.indexOf('class="cp-vd-project-register"');
+  const detailsPosition = markup.indexOf('class="cp-vd-project-details"');
+  assert.ok(registerPosition >= 0, "Project Register must render");
+  assert.ok(detailsPosition > registerPosition, "Project Details must render below the register");
+  assert.match(markup, /aria-label="Project Details"/);
+  assert.match(markup, /data-vd-project-details-panel/);
+  assert.match(markup, /data-vd-project-detail-tab="general"/);
+  for (const tab of ["dates", "defaults", "resources", "settings", "codes", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "baselines", "documents", "history", "udfs"]) {
+    assert.ok(markup.includes('data-vd-project-detail-tab="' + tab + '"'), "missing Project Details tab: " + tab);
+  }
+  assert.match(markup, /Riverside Pump Station Upgrade/);
+  assert.match(markup, /Project Structure/);
+});
+
+test("Project Details displays its selected tab and selected project record", () => {
+  const state = createVisualDemoState("en");
+  state.window = "projects";
+  state.projectSelectedRow = 1;
+  state.projectDetailTab = "dates";
+  const markup = renderVisualDemo(state);
+  assert.match(markup, /Intake Screen Replacement/);
+  assert.match(markup, /data-vd-project-detail-tab="dates" aria-selected="true"/);
+  assert.match(markup, /Planned start/);
+  assert.match(markup, /01-Feb-27/);
+});
