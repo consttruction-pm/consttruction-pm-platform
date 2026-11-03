@@ -171,3 +171,20 @@ test("WBS and Form Builder expose dedicated preview creation dialogs", () => {
   assert.match(formMarkup, /Organization library/);
   assert.match(formMarkup, /Project library/);
 });
+test("every registered workspace window renders a concrete page surface", () => {
+  const windows = [
+    "projects", "wbs", "activities", "assignments", "resources", "roles", "calendars", "reports",
+    "tracking", "documents", "expenses", "thresholds", "issues", "risks", "administration",
+    "network", "trace", "timeline", "activity-profile", "resource-profile", "activity-sheet", "resource-sheet",
+    "cost-control", "progress-control", "procurement", "changes-claims", "form-builder", "organization",
+    "smart-guide", "assistant", "search", "comments",
+  ] as const;
+  for (const windowId of windows) {
+    const state = createVisualDemoState("en");
+    state.window = windowId;
+    const markup = renderVisualDemo(state);
+    assert.match(markup, /class="cp-vd-windowbody/);
+    assert.match(markup, /class="cp-vd-winhead"/);
+    assert.ok(markup.length > 12000, `expected a fully rendered workspace for ${windowId}`);
+  }
+});
