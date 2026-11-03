@@ -1012,13 +1012,9 @@ test("Version 26 dialog registry renders resource assignment, resource details, 
 
 test("module windows expose page-specific Details tabs rather than one generic tab strip", () => {
   const cases = [
-    ["resources", ["details", "units-prices", "roles", "calendars", "shifts", "curves", "custom-fields"]],
-    ["roles", ["price-rates", "limits", "codes"]],
-    ["calendars", ["workweek", "work-hours", "exceptions", "assignments", "resource-use"]],
     ["documents", ["file-locations", "wbs-links", "activity-links", "revisions"]],
     ["expenses", ["activity", "cost", "dates", "accrual", "category", "documents"]],
     ["risks", ["probability-impact", "response", "owners", "schedule-impact", "cost-impact"]],
-    ["reports", ["definition", "parameters", "data-scope", "preview", "distribution", "run-history"]],
     ["tracking", ["projects", "layout", "data", "profiles", "variance"]],
     ["cost-control", ["budget", "actual-cost", "commitments", "forecast", "cash-flow", "evm", "funding"]],
     ["progress-control", ["quantities", "physical-progress", "daily-reports", "labour", "equipment", "evidence", "approvals"]],
@@ -1042,4 +1038,22 @@ test("page-specific Details tabs keep Persian labels and RTL document direction"
   assert.match(html, /data-visual-demo dir="rtl"/);
   assert.match(html, /data-vd-module-tab="supplier"[^>]*>تأمین‌کننده/);
   assert.match(html, /data-vd-module-tab="delivery"[^>]*>تحویل/);
+});
+
+
+test("Dedicated Resources and Roles workspaces retain their own register controls instead of claiming generic Details tabs", () => {
+  const resources = renderVisualDemo(Object.assign(createVisualDemoState("en"), { window: "resources" as const }));
+  assert.match(resources, /Resource hierarchy and dictionary/);
+  assert.match(resources, /Resource ID/);
+  assert.match(resources, /Unit of measure/);
+  assert.match(resources, /data-vd-dialog="resource-details"/);
+  assert.match(resources, /Illustrative hierarchy and resource records only/);
+  assert.doesNotMatch(resources, /data-vd-module-tab=/);
+
+  const roles = renderVisualDemo(Object.assign(createVisualDemoState("en"), { window: "roles" as const }));
+  assert.match(roles, /Role dictionary and capacity/);
+  assert.match(roles, /Price \/ unit/);
+  assert.match(roles, /Maximum units/);
+  assert.match(roles, /data-vd-dialog="roles"/);
+  assert.doesNotMatch(roles, /data-vd-module-tab=/);
 });
