@@ -180,6 +180,7 @@ type DemoState = {
   selectedWbsCode: string;
   wbsDetailTab: "general" | "dates" | "activities" | "documents" | "notebook";
   collapsedWbsCodes: string[];
+  collapsedNavGroups: string[];
   scale: "day" | "week" | "month" | "quarter" | "year";
   activityView: "schedule" | "relationships";
   detailTab: string;
@@ -1438,6 +1439,15 @@ function renderLanguageSwitch(state: DemoState): string {
 
 export function renderVisualDemo(state: DemoState): string {
   const index = WINDOWS.findIndex((window) => window.id === state.window);
+  const navGroups: Array<{ id: string; en: string; fa: string; items: DemoWindowId[] }> = [
+    { id: "planning", en: "Planning & Schedule", fa: "برنامه‌ریزی و زمان‌بندی", items: ["wbs", "activities", "network", "trace", "timeline", "activity-profile", "resource-profile", "activity-sheet", "resource-sheet", "calendars"] },
+    { id: "controls", en: "Project Controls", fa: "کنترل پروژه", items: ["assignments", "resources", "roles", "cost-control", "progress-control", "procurement", "changes-claims", "tracking", "expenses", "thresholds", "issues", "risks"] },
+    { id: "information", en: "Information & Administration", fa: "اطلاعات و مدیریت", items: ["documents", "reports", "form-builder", "comments", "organization", "administration", "smart-guide", "assistant", "search"] },
+  ];
+  const navGroup = (group: typeof navGroups[number]): string => {
+    const collapsed = state.collapsedNavGroups.includes(group.id);
+    return `<section class="cp-vd-nav-group"><button type="button" class="cp-vd-nav-heading" data-vd-nav-group="${group.id}" aria-expanded="${!collapsed}"><span>${esc(t(state.locale, group.en, group.fa))}</span><i aria-hidden="true">${collapsed ? "＋" : "−"}</i></button><div class="cp-vd-nav-group-items" ${collapsed ? "hidden" : ""}>${WINDOWS.filter((item) => group.items.includes(item.id)).map((item) => `<button type="button" class="cp-vd-nav-link${state.window === item.id ? " is-active" : ""}" data-vd-window="${item.id}" aria-current="${state.window === item.id ? "page" : "false"}"><span>${esc(label(item, state.locale))}</span></button>`).join("")}</div></section>`;
+  };
   return `<style>
   .cp-vd-module-toolbar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:7px 10px;border-block:1px solid #d8e0e9;background:#f0f4f8}
   .cp-vd-module-toolbar button{border:1px solid #cbd6e2;border-radius:3px;background:#fff;color:#294765;padding:5px 9px;font:11px Inter,Vazirmatn,sans-serif}
@@ -1459,8 +1469,9 @@ export function renderVisualDemo(state: DemoState): string {
 <style>
   .cp-vd-workspace-grid{display:grid;grid-template-columns:208px minmax(0,1fr) 48px;min-height:560px;background:#eef2f7}
   .cp-vd-left-nav{min-width:0;overflow:auto;background:#e7edf5;border-inline-end:1px solid #c7d2df;padding:8px 6px}
-  .cp-vd-nav-heading{padding:10px 8px 5px;color:#718096;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
-  .cp-vd-nav-link{display:flex;align-items:center;gap:8px;width:100%;border:0;border-radius:4px;background:transparent;color:#263c56;padding:7px 9px;text-align:start;font:12px Inter,Vazirmatn,sans-serif;cursor:pointer}
+  .cp-vd-nav-group{margin:0 0 3px}.cp-vd-nav-group-items[hidden]{display:none}
+  .cp-vd-nav-heading{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:transparent;padding:10px 8px 5px;color:#718096;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;text-align:start;cursor:pointer}
+  .cp-vd-nav-heading i{font-style:normal;font-size:13px}.cp-vd-nav-link{display:flex;align-items:center;gap:8px;width:100%;border:0;border-radius:4px;background:transparent;color:#263c56;padding:7px 9px;text-align:start;font:12px Inter,Vazirmatn,sans-serif;cursor:pointer}
   .cp-vd-nav-link:hover{background:#dce6f1}.cp-vd-nav-link.is-active{background:#d3e2f4;color:#123d70;font-weight:700;box-shadow:inset 3px 0 #c87935}
   .cp-vd-main{min-width:0;overflow:auto;background:#f7f9fc}
   .cp-vd-right-rail{display:flex;flex-direction:column;align-items:center;gap:7px;padding:8px 4px;background:#e8edf4;border-inline-start:1px solid #c7d2df}
@@ -1478,14 +1489,8 @@ export function renderVisualDemo(state: DemoState): string {
     <div class="cp-vd-layoutbar"><span>${esc(t(state.locale, "Layout", "چیدمان"))}: <strong>CUBI Classic Schedule Layout</strong></span><span>${esc(t(state.locale, "Filter", "فیلتر"))}: <strong>${esc(state.filter || t(state.locale, "All Activities", "همهٔ فعالیت‌ها"))}</strong></span><span class="cp-vd-layoutspacer"></span><button type="button" class="cp-vd-btn" data-vd-dialog="columns">${workspaceIcon("columns")}${esc(t(state.locale, "Columns", "ستون‌ها"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="filters">${workspaceIcon("filter")}${esc(t(state.locale, "Filters", "فیلترها"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="group-sort">${workspaceIcon("sort")}${esc(t(state.locale, "Group and Sort", "گروه و ترتیب"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="timescale">${workspaceIcon("clock")}${esc(t(state.locale, "Timescale", "مقیاس"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="bars">${workspaceIcon("bars")}${esc(t(state.locale, "Bars", "میله‌ها"))}</button></div>
     <div class="cp-vd-workspace-grid">
       <nav class="cp-vd-left-nav" aria-label="${esc(t(state.locale, "Workspace navigation", "ناوبری محیط کار"))}">
-        <div class="cp-vd-nav-heading">${esc(t(state.locale, "Project Workspace", "محیط پروژه"))}</div>
-        <button type="button" class="cp-vd-nav-link${state.window === "projects" ? " is-active" : ""}" data-vd-window="projects">${workspaceIcon("project")}<span>${esc(t(state.locale, "Projects", "پروژه‌ها"))}</span></button>
-        <div class="cp-vd-nav-heading">${esc(t(state.locale, "Planning & Schedule", "برنامه‌ریزی و زمان‌بندی"))}</div>
-        ${WINDOWS.filter((item) => ["wbs", "activities", "network", "trace", "timeline", "activity-profile", "resource-profile", "activity-sheet", "resource-sheet", "calendars"].includes(item.id)).map((item) => `<button type="button" class="cp-vd-nav-link${state.window === item.id ? " is-active" : ""}" data-vd-window="${item.id}"><span>${esc(label(item, state.locale))}</span></button>`).join("")}
-        <div class="cp-vd-nav-heading">${esc(t(state.locale, "Project Controls", "کنترل پروژه"))}</div>
-        ${WINDOWS.filter((item) => ["assignments", "resources", "roles", "cost-control", "progress-control", "procurement", "changes-claims", "tracking", "expenses", "thresholds", "issues", "risks"].includes(item.id)).map((item) => `<button type="button" class="cp-vd-nav-link${state.window === item.id ? " is-active" : ""}" data-vd-window="${item.id}"><span>${esc(label(item, state.locale))}</span></button>`).join("")}
-        <div class="cp-vd-nav-heading">${esc(t(state.locale, "Information & Administration", "اطلاعات و مدیریت"))}</div>
-        ${WINDOWS.filter((item) => ["documents", "reports", "form-builder", "comments", "organization", "administration", "smart-guide", "assistant", "search"].includes(item.id)).map((item) => `<button type="button" class="cp-vd-nav-link${state.window === item.id ? " is-active" : ""}" data-vd-window="${item.id}"><span>${esc(label(item, state.locale))}</span></button>`).join("")}
+        <section class="cp-vd-nav-group"><div class="cp-vd-nav-heading">${esc(t(state.locale, "Project Workspace", "محیط پروژه"))}</div><div class="cp-vd-nav-group-items"><button type="button" class="cp-vd-nav-link${state.window === "projects" ? " is-active" : ""}" data-vd-window="projects" aria-current="${state.window === "projects" ? "page" : "false"}">${workspaceIcon("project")}<span>${esc(t(state.locale, "Projects", "پروژه‌ها"))}</span></button></div></section>
+        ${navGroups.map(navGroup).join("")}
       </nav>
       <main class="cp-vd-main">${renderWindow(state)}</main>
       <aside class="cp-vd-right-rail" aria-label="${esc(t(state.locale, "Context commands", "فرمان‌های زمینه‌ای"))}">
@@ -1508,6 +1513,7 @@ export function createVisualDemoState(locale: string): DemoState {
     selectedWbsCode: "1",
     wbsDetailTab: "general",
     collapsedWbsCodes: [],
+    collapsedNavGroups: [],
     scale: "month",
     activityView: "schedule",
     detailTab: "general",
@@ -1749,6 +1755,13 @@ function bind(root: HTMLElement): void {
     if (actionTarget) {
       closeMenus();
       try { run(JSON.parse(actionTarget.dataset.vdAction ?? "{}") as MenuAction); } catch { /* malformed action */ }
+      return;
+    }
+    const navGroup = target.closest<HTMLElement>("[data-vd-nav-group]");
+    if (navGroup?.dataset.vdNavGroup) {
+      const id = navGroup.dataset.vdNavGroup;
+      state.collapsedNavGroups = state.collapsedNavGroups.includes(id) ? state.collapsedNavGroups.filter((item) => item !== id) : [...state.collapsedNavGroups, id];
+      draw();
       return;
     }
     const tab = target.closest<HTMLElement>("[data-vd-window]");
