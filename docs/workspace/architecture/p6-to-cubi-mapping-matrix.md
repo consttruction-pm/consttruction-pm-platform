@@ -30,22 +30,42 @@ Submenu mappings:
 
 ## Windows
 
-| Reference window | CUBI window key | CUBI title | Status |
-| --- | --- | --- | --- |
-| Projects | `projects` | Projects | Preview |
-| WBS | `wbs` | Work Breakdown | Partial |
-| Activities | `activities` | Activities | Partial |
-| Resource Assignments | `resource-assignments` | Resource Assignments | Partial |
-| Resources | `resources` | Resources | Missing |
-| Calendars | `calendars` | Calendars | Partial |
-| Reports | `reports` | Reports | Preview |
-| Tracking | `tracking` | Tracking | Missing |
-| WPs & Docs | `documents` | Documents | Partial |
-| Project Expenses | `expenses` | Expenses | Preview |
-| Project Thresholds | `thresholds` | Thresholds | Missing |
-| Project Issues | `issues` | Issues | Partial |
-| Risks | `risks` | Risks | Missing |
-| Administration dialogs | `administration` | Administration | Missing |
+Status vocabulary here describes the current renderer only; it is **not** a Version 26 parity or verification claim. Every surface remains subject to page-level source comparison, interaction review and screenshot evidence.
+
+| CUBI window | Current renderer | Version 26 parity status |
+| --- | --- | --- |
+| Projects | Shared register/table renderer | Implemented preview; page audit pending |
+| WBS | WBS-specific renderer | Implemented preview; page audit pending |
+| Activities | Activity table/Gantt/details renderer | Implemented preview; detailed parity audit pending |
+| Resource Assignments | Assignment-specific renderer | Implemented preview; page audit pending |
+| Resources | Dedicated resource register renderer | Implemented preview; page audit pending |
+| Roles | Dedicated role register renderer | Implemented preview; page audit pending |
+| Calendars | Dedicated calendar/workweek renderer | Implemented preview; page audit pending |
+| Reports | Report library/runner surfaces | Implemented preview; report-family audit pending |
+| Tracking | Shared register/table renderer | Partial preview; four documented tracking layout families not yet evidenced |
+| Documents | Shared register/table renderer | Implemented preview; page audit pending |
+| Expenses | Shared register/table renderer | Implemented preview; page audit pending |
+| Thresholds | Shared register/table renderer + monitor dialog | Implemented preview; page audit pending |
+| Issues | Shared register/table renderer | Implemented preview; page audit pending |
+| Risks | Shared register/table renderer | Implemented preview; page audit pending |
+| Administration | Dedicated administration sections | Implemented preview; page audit pending |
+| Activity Network | Dedicated network renderer/options | Implemented preview; page audit pending |
+| Trace Logic | Dedicated trace renderer/options | Implemented preview; page audit pending |
+| Timeline | Dedicated timeline renderer/options | Implemented preview; page audit pending |
+| Activity Usage Profile | Dedicated profile renderer/options | Implemented preview; page audit pending |
+| Resource Usage Profile | Dedicated profile renderer/options | Implemented preview; page audit pending |
+| Activity Usage Spreadsheet | Dedicated spreadsheet renderer/options | Implemented preview; page audit pending |
+| Resource Usage Spreadsheet | Dedicated spreadsheet renderer/options | Implemented preview; page audit pending |
+| Cost & Financial Control | Dedicated CUBI module preview | Additive CUBI surface; baseline mapping and audit pending |
+| Progress & Field Control | Dedicated CUBI module preview | Additive CUBI surface; baseline mapping and audit pending |
+| Procurement & Materials | Dedicated CUBI module preview | Additive CUBI surface; baseline mapping and audit pending |
+| Changes & Claims | Dedicated CUBI module preview | Additive CUBI surface; baseline mapping and audit pending |
+| Form Builder | Dedicated CUBI form-builder renderer | Additive CUBI surface; audit pending |
+| Organization | Dedicated organization renderer | Additive CUBI surface; baseline mapping and audit pending |
+| Smart Guide | Dedicated CUBI renderer | Additive CUBI surface; audit pending |
+| Engineering Assistant | Dedicated CUBI renderer | Additive CUBI surface; audit pending |
+| Global Search | Dedicated CUBI renderer | Additive CUBI surface; audit pending |
+| Comments & Notebook | Dedicated CUBI renderer | Additive CUBI surface; baseline mapping and audit pending |
 
 ## Concepts
 
@@ -114,23 +134,9 @@ Submenu mappings:
 4. URLs use CUBI keys (`window=activities`, `dialog=columns`), never reference-product names.
 5. Code identifiers may keep historical names (e.g. `p6_layouts` API path) for compatibility, but user-visible text must not.
 
-## Parity status summary (2026-10-30)
+## Parity status summary (refreshed 2026-11-03)
 
-| Area | Coverage | Evidence |
-| --- | --- | --- |
-| Menus | 0% UI (blueprint complete) | Audit: flat module bar only |
-| Window tabs | 0% | No tablist in shell |
-| Activities table | ~55% (grid, inline edit, WBS grouping, columns panel) | `workspace-view.ts`, `p6-field-chooser.ts` |
-| Gantt | ~50% (bars, links, scales; no baseline/progress/critical styles) | `workspace-gantt.ts` |
-| Activity Details | ~5% (selected id stub) | `workspace-view.ts:553` |
-| Layouts | ~40% (API persistence, undo; no manager) | `p6-api.ts`, `main.ts` |
-| Project creation | ~35% (name/description/start/date system) | `main.ts:1085-1290` |
-| Resource assignments | ~25% (capacity only) | `p6-capacity-panel.ts` |
-| Baselines | 0% UI, persistence exists | `P6_BASELINE_PERSISTENCE_V1.md` |
-| Network / Trace Logic | 0% | — |
-| Reports | ~5% (empty state) | `workspace-view.ts:567-608` |
-
-Percentages are engineering estimates for planning, not acceptance claims.
+The percentage table from 2026-10-30 described the pre-demo application and is superseded. The current visual demo contains 32 window destinations and dedicated renderers for several major workspaces, but this is **not evidence of Version 26 parity**. Page-by-page audits, runtime interactions and screenshot comparisons remain outstanding. Use the per-window status table above and the governing audit record; do not reuse the old percentages.
 
 ## Mandatory page-level audit gate
 
