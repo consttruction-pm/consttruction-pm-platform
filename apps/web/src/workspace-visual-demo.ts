@@ -778,6 +778,17 @@ function renderRolesWindow(state: DemoState): string {
   <p class="cp-vd-note">${esc(t(state.locale, "Illustrative role dictionary only; rates and capacity do not drive project cost or resource leveling in this preview.", "واژه‌نامه نقش‌ها نمونه است؛ نرخ و ظرفیت در این پیش‌نمایش هزینه پروژه یا تسطیح منابع را محاسبه نمی‌کنند."))}</p></section>`;
 }
 
+
+type ModuleMetric = { label: string; value: string; detail: string; ratio: number; tone: "blue" | "orange" | "green" | "red" };
+function withModuleOverview(markup: string, state: DemoState, metrics: ModuleMetric[], chartTitle: string, segments: Array<{ label: string; value: number; tone: ModuleMetric["tone"] }>): string {
+  const overview = `<section class="cp-vd-module-overview" aria-label="${esc(t(state.locale, "Module overview", "نمای کلی ماژول"))}">
+    <div class="cp-vd-metric-grid">${metrics.map((metric) => `<article class="cp-vd-metric-card is-${metric.tone}"><span>${esc(t(state.locale, metric.label, metric.label))}</span><strong>${esc(metric.value)}</strong><small>${esc(t(state.locale, metric.detail, metric.detail))}</small><i><b style="width:${Math.max(0, Math.min(100, metric.ratio))}%"></b></i></article>`).join("")}</div>
+    <div class="cp-vd-module-chart"><strong>${esc(t(state.locale, chartTitle, chartTitle))}</strong><div class="cp-vd-module-stack" role="img" aria-label="${esc(chartTitle)}">${segments.map((segment) => `<span class="is-${segment.tone}" style="width:${Math.max(0, Math.min(100, segment.value))}%"></span>`).join("")}</div><div class="cp-vd-module-legend">${segments.map((segment) => `<span><i class="is-${segment.tone}"></i>${esc(t(state.locale, segment.label, segment.label))}</span>`).join("")}</div></div>
+  </section>`;
+  const headerEnd = markup.indexOf("</header>");
+  return headerEnd < 0 ? markup : `${markup.slice(0, headerEnd + 9)}${overview}${markup.slice(headerEnd + 9)}`;
+}
+
 function renderWindow(state: DemoState): string {
   switch (state.window) {
     case "projects":
@@ -838,62 +849,62 @@ function renderWindow(state: DemoState): string {
         { Risk: "Commissioning resource", Probability: "Medium", Impact: "Medium", Score: 6, Response: "Accept" },
       ]);
     case "cost-control":
-      return renderTableWindow(state, { en: "Cost & Financial Control", fa: "کنترل هزینه و مالی" }, ["Control account", "Budget", "Actual", "Commitments", "Forecast", "Variance"], [
+      return withModuleOverview(renderTableWindow(state, { en: "Cost & Financial Control", fa: "کنترل هزینه و مالی" }, ["Control account", "Budget", "Actual", "Commitments", "Forecast", "Variance"], [
         { "Control account": "CA-100 Engineering", Budget: "125,000", Actual: "74,500", Commitments: "18,000", Forecast: "121,000", Variance: "4,000" },
         { "Control account": "CA-200 Procurement", Budget: "420,000", Actual: "132,000", Commitments: "210,000", Forecast: "438,000", Variance: "-18,000" },
         { "Control account": "CA-300 Construction", Budget: "680,000", Actual: "0", Commitments: "85,000", Forecast: "665,000", Variance: "15,000" },
-      ], ["report-wizard", "export"]);
+      ], ["report-wizard", "export"]), state, [{"label":"Approved budget","value":"€1.225m","detail":"Control budget","ratio":100,"tone":"blue"},{"label":"Actual cost","value":"€207k","detail":"Recorded to data date","ratio":17,"tone":"orange"},{"label":"Commitments","value":"€313k","detail":"Open commitments","ratio":26,"tone":"green"},{"label":"Forecast variance","value":"+€1k","detail":"Forecast vs budget","ratio":2,"tone":"red"}], "Cost breakdown by control account", [{"label":"Engineering","value":18,"tone":"blue"},{"label":"Procurement","value":34,"tone":"orange"},{"label":"Construction","value":40,"tone":"green"},{"label":"Other","value":8,"tone":"red"}]);
     case "progress-control":
-      return renderTableWindow(state, { en: "Progress & Field Control", fa: "کنترل پیشرفت و کارگاه" }, ["Package", "Discipline", "Planned %", "Actual %", "Quantity", "Unit", "Status"], [
+      return withModuleOverview(renderTableWindow(state, { en: "Progress & Field Control", fa: "کنترل پیشرفت و کارگاه" }, ["Package", "Discipline", "Planned %", "Actual %", "Quantity", "Unit", "Status"], [
         { Package: "Concrete foundations", Discipline: "Civil", "Planned %": "62%", "Actual %": "55%", Quantity: "420", Unit: "m³", Status: "Behind" },
         { Package: "Pump installation", Discipline: "Mechanical", "Planned %": "15%", "Actual %": "10%", Quantity: "2", Unit: "ea", Status: "In progress" },
         { Package: "Cable tray installation", Discipline: "Electrical", "Planned %": "0%", "Actual %": "0%", Quantity: "680", Unit: "m", Status: "Not started" },
-      ], ["report-wizard", "export"]);
+      ], ["report-wizard", "export"]), state, [{"label":"Planned progress","value":"32%","detail":"Current data date","ratio":32,"tone":"blue"},{"label":"Actual progress","value":"27%","detail":"Reported field progress","ratio":27,"tone":"orange"},{"label":"Work fronts","value":"12","detail":"Active work packages","ratio":72,"tone":"green"},{"label":"Behind plan","value":"3","detail":"Packages requiring review","ratio":25,"tone":"red"}], "Field progress distribution", [{"label":"Ahead / on plan","value":35,"tone":"green"},{"label":"At risk","value":30,"tone":"orange"},{"label":"Behind","value":25,"tone":"red"},{"label":"Not started","value":10,"tone":"blue"}]);
     case "procurement":
-      return renderTableWindow(state, { en: "Procurement & Materials", fa: "تدارکات و مصالح" }, ["Package", "Material / Equipment", "Supplier", "Required date", "Promised date", "Received", "Status"], [
+      return withModuleOverview(renderTableWindow(state, { en: "Procurement & Materials", fa: "تدارکات و مصالح" }, ["Package", "Material / Equipment", "Supplier", "Required date", "Promised date", "Received", "Status"], [
         { Package: "PKG-PMP-01", "Material / Equipment": "Vertical pump set", Supplier: "Supplier A", "Required date": "26-Feb-27", "Promised date": "01-Mar-27", Received: "0 / 2", Status: "At risk" },
         { Package: "PKG-VAL-02", "Material / Equipment": "Isolation valves", Supplier: "Supplier B", "Required date": "15-Feb-27", "Promised date": "10-Feb-27", Received: "0 / 8", Status: "On track" },
-      ], ["import", "export"]);
+      ], ["import", "export"]), state, [{"label":"Packages","value":"14","detail":"Tracked procurement packages","ratio":100,"tone":"blue"},{"label":"On track","value":"9","detail":"Within required dates","ratio":64,"tone":"green"},{"label":"At risk","value":"3","detail":"Potential delivery exposure","ratio":22,"tone":"orange"},{"label":"Overdue","value":"2","detail":"Past required date","ratio":14,"tone":"red"}], "Procurement status", [{"label":"On track","value":64,"tone":"green"},{"label":"At risk","value":22,"tone":"orange"},{"label":"Overdue","value":14,"tone":"red"}]);
     case "changes-claims":
-      return renderTableWindow(state, { en: "Changes & Claims", fa: "تغییرات و ادعاها" }, ["Reference", "Type", "Description", "Submitted", "Time impact", "Cost impact", "Status"], [
+      return withModuleOverview(renderTableWindow(state, { en: "Changes & Claims", fa: "تغییرات و ادعاها" }, ["Reference", "Type", "Description", "Submitted", "Time impact", "Cost impact", "Status"], [
         { Reference: "VO-004", Type: "Variation", Description: "Additional foundation works", Submitted: "18-Nov-26", "Time impact": "5 d", "Cost impact": "€18,500", Status: "Under review" },
         { Reference: "CL-002", Type: "Claim", Description: "Late access to work area", Submitted: "22-Nov-26", "Time impact": "8 d", "Cost impact": "€12,000", Status: "Draft" },
-      ], ["report-wizard", "export"]);
+      ], ["report-wizard", "export"]), state, [{"label":"Change events","value":"6","detail":"Registered changes","ratio":60,"tone":"blue"},{"label":"Open claims","value":"2","detail":"Awaiting assessment","ratio":35,"tone":"orange"},{"label":"Cost exposure","value":"€30.5k","detail":"Submitted amounts","ratio":55,"tone":"red"},{"label":"Time exposure","value":"13 days","detail":"Claimed extension","ratio":45,"tone":"green"}], "Change and claim workflow", [{"label":"Draft","value":20,"tone":"blue"},{"label":"Under review","value":45,"tone":"orange"},{"label":"Approved","value":20,"tone":"green"},{"label":"Closed","value":15,"tone":"red"}]);
     case "form-builder":
-      return renderTableWindow(state, { en: "Form Builder", fa: "فرم‌ساز" }, ["Form ID", "Form title", "Library", "Version", "Workflow", "Status"], [
+      return withModuleOverview(renderTableWindow(state, { en: "Form Builder", fa: "فرم‌ساز" }, ["Form ID", "Form title", "Library", "Version", "Workflow", "Status"], [
         { "Form ID": "FRM-QA-001", "Form title": "Inspection Request", Library: "Organization", Version: "3.2", Workflow: "Review → Approve", Status: "Published" },
         { "Form ID": "FRM-SITE-004", "Form title": "Daily Site Report", Library: "Project", Version: "1.0", Workflow: "Submit → Verify", Status: "Draft" },
         { "Form ID": "FRM-HSE-002", "Form title": "Safety Observation", Library: "Organization", Version: "2.1", Workflow: "Submit → Close", Status: "Published" },
-      ], ["import", "export"]);
+      ], ["import", "export"]), state, [{"label":"Forms","value":"12","detail":"Across available libraries","ratio":100,"tone":"blue"},{"label":"Organization library","value":"7","detail":"Reusable standards","ratio":58,"tone":"green"},{"label":"Project library","value":"5","detail":"Project-specific forms","ratio":42,"tone":"orange"},{"label":"Pending review","value":"2","detail":"Awaiting approval","ratio":17,"tone":"red"}], "Form library composition", [{"label":"Organization","value":58,"tone":"blue"},{"label":"Project","value":42,"tone":"orange"}]);
     case "organization":
-      return renderTableWindow(state, { en: "Organization", fa: "سازمان" }, ["Code", "Name", "Type", "Parent", "Manager", "Status"], [
+      return withModuleOverview(renderTableWindow(state, { en: "Organization", fa: "سازمان" }, ["Code", "Name", "Type", "Parent", "Manager", "Status"], [
         { Code: "ORG-01", Name: "Project Controls", Type: "Department", Parent: "CUBI Organization", Manager: "Controls Manager", Status: "Active" },
         { Code: "ORG-02", Name: "Engineering", Type: "Department", Parent: "CUBI Organization", Manager: "Engineering Manager", Status: "Active" },
         { Code: "ORG-03", Name: "Construction", Type: "Department", Parent: "CUBI Organization", Manager: "Construction Manager", Status: "Active" },
-      ], ["export"]);
+      ], ["export"]), state, [{"label":"Departments","value":"3","detail":"Organization structure","ratio":75,"tone":"blue"},{"label":"Roles","value":"8","detail":"Defined role types","ratio":80,"tone":"green"},{"label":"Users","value":"6","detail":"Illustrative accounts","ratio":60,"tone":"orange"},{"label":"Profiles","value":"3","detail":"Access profiles","ratio":30,"tone":"red"}], "Organization structure", [{"label":"Project controls","value":34,"tone":"blue"},{"label":"Engineering","value":33,"tone":"green"},{"label":"Construction","value":33,"tone":"orange"}]);
     case "smart-guide":
-      return renderTableWindow(state, { en: "Smart Guide", fa: "راهنمای هوشمند" }, ["Guide", "Area", "Purpose", "Availability"], [
+      return withModuleOverview(renderTableWindow(state, { en: "Smart Guide", fa: "راهنمای هوشمند" }, ["Guide", "Area", "Purpose", "Availability"], [
         { Guide: "Build a project schedule", Area: "Planning", Purpose: "Project → WBS → Activities → Logic", Availability: "Visual guide" },
         { Guide: "Review schedule quality", Area: "Schedule", Purpose: "Open ends, constraints and logic checks", Availability: "Preview only" },
         { Guide: "Prepare a progress update", Area: "Progress", Purpose: "Data date, actuals and remaining work", Availability: "Preview only" },
-      ]);
+      ]), state, [{"label":"Guides","value":"3","detail":"Available walkthroughs","ratio":75,"tone":"blue"},{"label":"Schedule checks","value":"12","detail":"Quality review rules","ratio":80,"tone":"green"},{"label":"Missing inputs","value":"4","detail":"Illustrative findings","ratio":35,"tone":"orange"},{"label":"Approval gates","value":"2","detail":"Require user confirmation","ratio":25,"tone":"red"}], "Guidance workflow stages", [{"label":"Prepare","value":25,"tone":"blue"},{"label":"Review","value":35,"tone":"orange"},{"label":"Approve","value":20,"tone":"green"},{"label":"Complete","value":20,"tone":"red"}]);
     case "assistant":
-      return renderTableWindow(state, { en: "Engineering Intelligence Assistant", fa: "دستیار هوشمند مهندسی" }, ["Capability", "Context", "Input", "State"], [
+      return withModuleOverview(renderTableWindow(state, { en: "Engineering Intelligence Assistant", fa: "دستیار هوشمند مهندسی" }, ["Capability", "Context", "Input", "State"], [
         { Capability: "Project guidance", Context: "Current project workspace", Input: "Text / voice / files", State: "Not connected" },
         { Capability: "Schedule review", Context: "Activities and relationships", Input: "Selected schedule", State: "Not connected" },
         { Capability: "Resource suggestions", Context: "Activities and assignments", Input: "Project data", State: "Not connected" },
-      ]);
+      ]), state, [{"label":"Input modes","value":"3","detail":"Text, voice and files","ratio":100,"tone":"blue"},{"label":"Project context","value":"Ready","detail":"Preview context only","ratio":70,"tone":"green"},{"label":"Actions","value":"Approval required","detail":"No silent edits","ratio":100,"tone":"orange"},{"label":"Connection","value":"Not connected","detail":"No external AI key configured","ratio":0,"tone":"red"}], "Assistant capability coverage", [{"label":"Text","value":34,"tone":"blue"},{"label":"Voice","value":33,"tone":"orange"},{"label":"Files","value":33,"tone":"green"}]);
     case "search":
-      return renderTableWindow(state, { en: "Global Search", fa: "جست‌وجوی سراسری" }, ["Search scope", "Object types", "Fields", "Action"], [
+      return withModuleOverview(renderTableWindow(state, { en: "Global Search", fa: "جست‌وجوی سراسری" }, ["Search scope", "Object types", "Fields", "Action"], [
         { "Search scope": "Current project", "Object types": "WBS, Activities, Resources, Documents", Fields: "ID, name, code, description", Action: "Open result" },
         { "Search scope": "Organization", "Object types": "Projects, Users, Forms", Fields: "ID, name, owner", Action: "Open result" },
-      ]);
+      ]), state, [{"label":"Search scopes","value":"2","detail":"Project and organization","ratio":100,"tone":"blue"},{"label":"Object types","value":"8","detail":"Illustrative index types","ratio":80,"tone":"green"},{"label":"Search fields","value":"6","detail":"IDs, names and metadata","ratio":60,"tone":"orange"},{"label":"Live index","value":"Not connected","detail":"Preview configuration only","ratio":0,"tone":"red"}], "Search coverage", [{"label":"Projects","value":20,"tone":"blue"},{"label":"Schedule","value":35,"tone":"green"},{"label":"Resources","value":20,"tone":"orange"},{"label":"Documents","value":25,"tone":"red"}]);
     case "comments":
-      return renderTableWindow(state, { en: "Comments & Notebook", fa: "دیدگاه‌ها و دفترچه" }, ["Date", "Object", "Author", "Type", "Status", "Replies"], [
+      return withModuleOverview(renderTableWindow(state, { en: "Comments & Notebook", fa: "دیدگاه‌ها و دفترچه" }, ["Date", "Object", "Author", "Type", "Status", "Replies"], [
         { Date: "03-Dec-26 09:15", Object: "A1320 — Install pump base", Author: "Site Engineer", Type: "Comment", Status: "Open", Replies: "2" },
         { Date: "02-Dec-26 16:40", Object: "WBS 04 — Construction", Author: "Project Manager", Type: "Notebook", Status: "Current", Replies: "0" },
         { Date: "01-Dec-26 11:05", Object: "PKG-PMP-01", Author: "Procurement", Type: "Update", Status: "For review", Replies: "1" },
-      ]);
+      ]), state, [{"label":"Threads","value":"3","detail":"Sample discussion items","ratio":60,"tone":"blue"},{"label":"Open","value":"2","detail":"Awaiting response","ratio":67,"tone":"orange"},{"label":"Replies","value":"3","detail":"Across sample threads","ratio":45,"tone":"green"},{"label":"Overdue","value":"1","detail":"Requires follow-up","ratio":20,"tone":"red"}], "Discussion status", [{"label":"Open","value":67,"tone":"orange"},{"label":"Current","value":33,"tone":"green"}]);
     case "administration":
       return renderAdministration(state);
     case "network":
@@ -1481,6 +1492,8 @@ export function renderVisualDemo(state: DemoState): string {
   .cp-vd-rail-add span{font-size:10px;font-weight:700}
   @media(max-width:900px){.cp-vd-workspace-grid{grid-template-columns:minmax(0,1fr) 42px}.cp-vd-left-nav{grid-column:1/-1;display:flex;gap:4px;overflow-x:auto;border-inline-end:0;border-bottom:1px solid #c7d2df;max-height:54px}.cp-vd-nav-group,.cp-vd-nav-group-items{display:contents}.cp-vd-nav-heading{display:none}.cp-vd-nav-link{width:auto;white-space:nowrap;flex:0 0 auto}.cp-vd-main{grid-column:1}.cp-vd-right-rail{grid-column:2;grid-row:2;position:sticky;top:0}.cp-vd-right-rail button{width:34px}}
   @media(max-width:560px){.cp-vd-workspace-grid{grid-template-columns:minmax(0,1fr)}.cp-vd-left-nav{grid-column:1}.cp-vd-main{grid-column:1}.cp-vd-right-rail{grid-column:1;grid-row:auto;position:sticky;bottom:0;flex-direction:row;justify-content:space-around;z-index:5;border-inline-start:0;border-top:1px solid #c7d2df}.cp-vd-right-rail button{min-height:34px}.cp-vd-right-rail .cp-vd-rail-add{min-height:38px}}
+
+.cp-vd-module-overview{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,27%);gap:10px;padding:10px 12px;border-bottom:1px solid #d8e0e9;background:#f8fafc}.cp-vd-metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.cp-vd-metric-card{display:flex;flex-direction:column;gap:4px;min-width:0;padding:9px;border:1px solid #d9e1ea;border-radius:5px;background:#fff}.cp-vd-metric-card>span{font-size:10px;color:#64748b}.cp-vd-metric-card>strong{font-size:19px;line-height:1.2;color:#1e3d60;overflow-wrap:anywhere}.cp-vd-metric-card>small{font-size:10px;color:#718096}.cp-vd-metric-card>i{height:4px;margin-top:3px;border-radius:5px;background:#e7edf4;overflow:hidden}.cp-vd-metric-card>i>b{display:block;height:100%;background:#376da8}.cp-vd-metric-card.is-orange>i>b{background:#c87935}.cp-vd-metric-card.is-green>i>b{background:#3b8a69}.cp-vd-metric-card.is-red>i>b{background:#c04e4e}.cp-vd-module-chart{display:flex;flex-direction:column;justify-content:center;gap:10px;padding:8px;border:1px solid #d9e1ea;border-radius:5px;background:#fff;min-width:0}.cp-vd-module-chart>strong{font-size:11px;color:#425a73}.cp-vd-module-stack{display:flex;height:12px;overflow:hidden;border-radius:6px;background:#e7edf4}.cp-vd-module-stack span.is-blue,.cp-vd-module-legend i.is-blue{background:#376da8}.cp-vd-module-stack span.is-orange,.cp-vd-module-legend i.is-orange{background:#c87935}.cp-vd-module-stack span.is-green,.cp-vd-module-legend i.is-green{background:#3b8a69}.cp-vd-module-stack span.is-red,.cp-vd-module-legend i.is-red{background:#c04e4e}.cp-vd-module-legend{display:flex;flex-wrap:wrap;gap:6px 10px}.cp-vd-module-legend span{display:flex;align-items:center;gap:4px;font-size:9px;color:#64748b}.cp-vd-module-legend i{width:7px;height:7px;border-radius:2px}@media(max-width:900px){.cp-vd-module-overview{grid-template-columns:1fr}.cp-vd-module-chart{min-height:76px}}@media(max-width:560px){.cp-vd-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .cp-vd-register-search,.cp-vd-register-sort{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-register-search input,.cp-vd-register-sort select{min-width:118px;max-width:190px;height:29px;border:1px solid var(--cp-vd-border);border-radius:5px;background:var(--cp-vd-panel);color:var(--cp-vd-text);padding:3px 7px}.cp-vd-register-search input{min-width:170px}.cp-vd-register-count{font-size:11px;font-weight:700;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-empty-state{text-align:center;padding:28px!important;color:var(--cp-vd-muted)}@media(max-width:760px){.cp-vd-register-search,.cp-vd-register-sort{width:100%;justify-content:space-between}.cp-vd-register-search input,.cp-vd-register-sort select{flex:1;max-width:none}.cp-vd-register-count{margin-inline-start:auto}}</style><div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
     <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span>${renderLanguageSwitch(state)}<button type="button" class="cp-vd-fullscreen" data-vd-fullscreen aria-pressed="${state.fullscreen ? "true" : "false"}" title="${esc(t(state.locale, "Toggle full screen", "تغییر حالت تمام‌صفحه"))}">${esc(state.fullscreen ? t(state.locale, "Return to normal view", "بازگشت به نمای اصلی") : t(state.locale, "Full screen", "تمام‌صفحه"))}</button><button type="button" class="cp-vd-exit" data-vd-action='{"command":"sign-out"}' title="${esc(t(state.locale, "Sign out and return to home page", "خروج از حساب و بازگشت به صفحه اصلی"))}">${esc(t(state.locale, "Sign out", "خروج از حساب"))}</button></div>
     ${renderMenus(state)}
