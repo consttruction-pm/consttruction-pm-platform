@@ -1673,6 +1673,22 @@ export function renderVisualDemo(state: DemoState): string {
   .cp-vd-empty-selection{padding:22px 14px;text-align:center;color:#526579}
   .cp-vd-empty-selection strong{display:block;color:#294765;margin-bottom:6px}
   .cp-vd-empty-selection p{margin:0;font-size:12px}
+  .cp-vd-filter-manager{display:grid;grid-template-columns:minmax(180px,230px) minmax(0,1fr);gap:12px;min-width:0}
+  .cp-vd-filter-library,.cp-vd-filter-definition{min-width:0;border:1px solid #d8e0e9;background:#fff;padding:9px}
+  .cp-vd-filter-library-head,.cp-vd-filter-rules-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:7px;border-bottom:1px solid #e1e7ee;color:#294765;font-size:11px}
+  .cp-vd-filter-category{padding:8px 0;border-bottom:1px solid #edf1f5}
+  .cp-vd-filter-category strong{display:block;font-size:10px;color:#526579;margin-bottom:5px}
+  .cp-vd-filter-category ul{list-style:none;padding:0;margin:0;display:grid;gap:5px}
+  .cp-vd-filter-category label,.cp-vd-filter-logic label{display:flex;align-items:center;gap:5px;font-size:11px}
+  .cp-vd-filter-definition{display:grid;gap:9px}
+  .cp-vd-filter-definition fieldset{display:flex;gap:14px;flex-wrap:wrap;border:1px solid #d8e0e9;padding:8px}
+  .cp-vd-filter-definition legend{font-size:10px;color:#526579;padding:0 4px}
+  .cp-vd-filter-logic{display:flex;gap:14px;flex-wrap:wrap;padding:6px 8px;background:#f5f7fa;border:1px solid #e1e7ee}
+  .cp-vd-filter-rules-head span{font-size:10px;color:#6b7d91}
+  .cp-vd-filter-table{min-width:620px}
+  .cp-vd-filter-table select,.cp-vd-filter-table input{width:100%;min-width:145px;max-width:100%;border:1px solid #cbd6e2;background:#fff;padding:5px;font:11px Inter,Vazirmatn,sans-serif}
+  .cp-vd-filter-manager .cp-vd-form{grid-template-columns:minmax(0,1fr) minmax(0,180px)}
+  @media(max-width:850px){.cp-vd-filter-manager{grid-template-columns:1fr}.cp-vd-filter-library{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.cp-vd-filter-library-head{grid-column:1/-1}}
   .cp-vd-module-toolbar .cp-vd-note{margin-inline-start:auto}
   .cp-vd-module-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(245px,30%);min-height:350px}
   .cp-vd-module-details{background:#f0f4f8;border-inline-start:1px solid #cbd5e1;padding:8px;min-width:0}
