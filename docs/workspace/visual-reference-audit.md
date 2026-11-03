@@ -387,3 +387,9 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - Editing and fill-down/across remain unavailable until authoritative assignment period-bucket data and permission checks are connected.
 - Regression coverage verifies opening/applying the field chooser and changing timescale.
 - Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/resource_assignments_window.htm; https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/the_resource_usage_spreadsheet.htm.
+## Calendar month dialog controls and dual calendar display — 2026-11-03
+
+- The calendar's Calendar tab now renders a 42-cell month grid using the selected Jalali or Gregorian display mode, localized month/year and weekday labels, and previous / Today / next navigation. The grid deliberately labels each date's working status as not loaded; its legend is informational only and does not color dates as working or nonworking without authoritative calendar data.
+- The visual toolbar now includes the documented Total work hours/day and Detailed work hours/day display modes, Work / Nonwork / Standard commands, and direct navigation to Workweek and Time Periods. Date classification and write actions remain disabled until calendar records and permissions are supplied. The General panel includes the global-calendar inheritance selector, also disabled until authoritative values are loaded.
+- Regression tests cover month navigation, both calendar display modes, the 42-day grid, explicit unknown work-status state, the documented work-hour controls and navigation.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/calendar_dialog_box.htm.
