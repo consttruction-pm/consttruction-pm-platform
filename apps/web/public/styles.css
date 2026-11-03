@@ -7091,3 +7091,28 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-vd-context-menu button:disabled{color:#98a2ad;cursor:not-allowed}
 .cp-vd-context-menu hr{border:0;border-top:1px solid #e3e8ee;margin:4px 2px}
 .cp-vd-row[aria-haspopup=menu]:focus-visible{outline:2px solid var(--cp-blue,#1976d2);outline-offset:-2px}
+
+/* Import / export mapping workbench. */
+.cp-vd-interchange{display:grid;gap:9px;min-width:0}
+.cp-vd-interchange-tabs{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:6px 8px;border-bottom:1px solid #cbd6e2;background:#f1f4f8}
+.cp-vd-interchange-tabs strong{margin-inline-end:auto;color:#0f2747;font-size:11px}
+.cp-vd-interchange-tabs span{padding:6px 9px;color:#526579;font-size:10px;border:1px solid transparent}
+.cp-vd-interchange-tabs span.is-active{background:#fff;border-color:#cbd6e2;border-bottom-color:#fff;color:#123d70;font-weight:700}
+.cp-vd-interchange-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,245px);gap:10px;align-items:start;min-width:0}
+.cp-vd-interchange-main{display:grid;gap:8px;min-width:0}
+.cp-vd-interchange fieldset{min-width:0;border:1px solid #d5dee8;background:#fff;padding:9px;display:grid;gap:7px}
+.cp-vd-interchange legend{padding:0 5px;color:#294765;font-size:10px;font-weight:700}
+.cp-vd-interchange .cp-vd-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cp-vd-interchange .cp-vd-form label{min-width:0}
+.cp-vd-interchange .cp-vd-form input,.cp-vd-interchange .cp-vd-form select{min-width:0;width:100%}
+.cp-vd-interchange-checks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 10px}
+.cp-vd-interchange-checks label{display:flex;align-items:flex-start;gap:5px;font-size:10px;color:#42566d}
+.cp-vd-interchange-checks input{margin:1px 0 0;flex:0 0 auto}
+.cp-vd-interchange-mapping{display:grid;gap:6px;padding:8px;border:1px solid #d5dee8;background:#f8fafc;min-width:0}
+.cp-vd-interchange-mapping>strong{font-size:10px;color:#294765}
+.cp-vd-interchange-mapping .cp-vd-mini{min-width:500px}
+.cp-vd-interchange-side{display:grid;gap:8px;padding:10px;border:1px solid #d5dee8;background:#f6f8fb}
+.cp-vd-interchange-side>strong{font-size:11px;color:#0f2747;padding-bottom:6px;border-bottom:1px solid #dce3eb}
+.cp-vd-interchange-side ul{margin:0;padding-inline-start:17px;color:#526579;font-size:10px;line-height:1.8}
+.cp-vd-interchange .cp-vd-note{margin:0;padding:8px;border:1px solid #e0e6ed;background:#f8fafc;font-size:10px;color:#5e6c7b;line-height:1.5}
+@media(max-width:760px){.cp-vd-interchange-grid{grid-template-columns:1fr}.cp-vd-interchange-checks{grid-template-columns:repeat(2,minmax(0,1fr))}}
