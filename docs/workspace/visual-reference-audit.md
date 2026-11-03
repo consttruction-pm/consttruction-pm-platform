@@ -316,3 +316,11 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - No work hours, holiday dates, inheritance, assignments or conversion factors are fabricated. Write controls remain disabled until the authoritative calendar service is connected. This is a visual-shell completion, not a claim that calendar CRUD is operational.
 - Regression coverage checks the five-tab inventory, split work intervals, time-period panel, initial panel visibility, and selected-tab persistence.
 - References: https://docs.oracle.com/cd/G48902_01/client_help/en_US/calendar_dialog_box.htm and https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/globalcalendars.htm.
+
+## Calendar register selection — 2026-11-03
+
+- Version 26 Professional Help documents distinct Global, Project, and Resource calendar pools, their creation/edit/delete workflows, default calendar settings, and calendar assignment lookup. The current CUBI calendar read contract exposes only calendar ID, name, type, kind, version, and record revision.
+- CUBI correction: calendar register rows are now selectable. Selection is retained for the lifetime of the open workspace window and drives the Calendar Details heading plus a read-only identity summary using only fields present in the authoritative calendar catalogue. No working hours, shift patterns, exception dates, or assignments are inferred from the calendar name or type.
+- New/Edit/Delete and the calendar editor's editable controls remain disabled until a calendar write contract supplies the complete versioned calendar definition and save lifecycle. This is intentional and avoids presenting non-persisting controls as operational.
+- Regression coverage verifies selection, selected-row state, and the identity summary.
+- Reference: Oracle P6 Professional Help Version 26, Table of Contents → Defining Calendars → Project Calendars / Global Calendars / Resource Calendars: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm.
