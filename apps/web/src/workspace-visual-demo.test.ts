@@ -579,3 +579,28 @@ test("Role assignment keeps role requirements distinct from resource assignments
     assert.ok(html.includes(label), `missing Persian role assignment control: ${label}`);
   }
 });
+
+
+test("Assign resources by role presents eligible resources and explicit rate-source handling", () => {
+  const state = createVisualDemoState("en");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  for (const label of ["Assign resources by role", "Eligible resources", "Required role", "Proficiency", "Assignment units", "Rate source", "Prompt when resource and role share an assignment", "The role remains the requirement"]) {
+    assert.ok(html.includes(label), `missing assign-by-role control: ${label}`);
+  }
+  assert.match(html, /data-vd-dialog="assign-resources-by-role"/);
+  assert.match(html, /data-vd-dialog="assign-resources"/);
+  assert.match(html, /Rate source/);
+  assert.match(html, /Price \/ unit override/);
+  assert.match(html, /Primary resource/);
+});
+
+test("Assign resources by role dialog is localized for Persian RTL", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["تخصیص منابع بر اساس نقش", "منابع واجد شرایط", "نقش موردنیاز", "سطح مهارت", "واحد تخصیص", "منبع نرخ", "نقش به‌عنوان نیاز باقی می‌ماند"]) {
+    assert.ok(html.includes(label), `missing Persian assign-by-role label: ${label}`);
+  }
+});
