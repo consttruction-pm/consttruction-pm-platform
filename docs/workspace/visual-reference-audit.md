@@ -301,3 +301,9 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - The four layout surfaces are intentionally empty-state shells until the project/tracking data services are available. No project values, charts, profiles, or resource analysis results are fabricated; Refresh and Save remain unavailable.
 - Regression assertions cover the four-pane inventory and the default hidden state of lower panes and inactive chart surfaces.
 - Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/tracking_window.htm.
+
+- Follow-up correction: added a dedicated Display Options group with independent show/hide controls for Project Explorer, Top Layout, Resource Explorer, and Bottom Layout. The controls expose their state through `aria-pressed`, update the pane frame immediately, and preserve visibility choices when the workspace re-renders. The Resource Explorer and Bottom Layout remain available only for the two split-pane layout types, matching the documented layout behavior.
+- The pane frame now uses an explicit two-column/two-row arrangement for split layouts and a full-height top layout for Project Table and Project Bar Chart; hidden panes no longer retain visible grid space. Narrow viewports can wrap the display controls without forcing a wide toolbar.
+- Regression coverage verifies that pane visibility changes are dispatched, reflected in the rendered state, and retained across a subsequent render.
+- Scope remains honest: project/resource selection, summarized data, live charts, and persistent saved layouts remain unavailable until their authoritative services exist.
+- Additional reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/49095.htm (View Menu: Show on Top, Show on Bottom, and Tracking layout display options).
