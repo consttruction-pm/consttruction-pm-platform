@@ -914,7 +914,7 @@ test("Import/export mapping workbench is mirrored for Persian RTL", () => {
   state.window = "projects";
   const html = renderVisualDemo(state);
   assert.match(html, /data-visual-demo dir="rtl"/);
-  assert.match(html, /ورود / خروجی/);
+  assert.ok(html.includes("ورود / خروجی"));
   assert.match(html, /پیش‌نمایش بصری است/);
 });
 
