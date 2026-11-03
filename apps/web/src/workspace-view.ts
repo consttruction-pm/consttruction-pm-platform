@@ -2284,7 +2284,7 @@ function renderNavigationSurface(state: WorkspaceState): string {
 function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: number): { kind: string; value: string } | null {
   const actions: Partial<Record<WorkspaceState["activeMenu"], readonly ({ kind: string; value: string } | null)[]>> = {
     wbs: [null, { kind: "wbs-detail-tab", value: "general" }, null],
-    resources: [null, null, { kind: "register-tab", value: "resources:assignments" }, { kind: "register-tab", value: "resources:codes" }, { kind: "register-tab", value: "resources:roles" }],
+    resources: [null, { kind: "register-tab", value: "resources:general" }, { kind: "register-tab", value: "resources:codes" }, { kind: "register-tab", value: "resources:details" }, { kind: "register-tab", value: "resources:units-prices" }, { kind: "register-tab", value: "resources:roles" }, { kind: "register-tab", value: "resources:notes" }, { kind: "register-tab", value: "resources:udfs" }],
     documents: [null, { kind: "document-detail-tab", value: "links" }, { kind: "document-detail-tab", value: "integrity" }, { kind: "document-detail-tab", value: "revisions" }, { kind: "document-type", value: "evidence" }],
     progress: [null, null, null, null, null, { kind: "progress-dialog", value: "update" }, { kind: "progress-dialog", value: "period-performance" }],
     control: [null, { kind: "register-tab", value: "control:quality" }, { kind: "register-tab", value: "control:inspections" }, { kind: "register-tab", value: "control:safety" }, { kind: "register-tab", value: "control:issues" }, { kind: "register-tab", value: "control:punch" }, { kind: "register-tab", value: "control:changes" }, { kind: "register-tab", value: "control:forms" }],
