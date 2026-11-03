@@ -206,6 +206,9 @@ type DemoState = {
   detailsOpen: boolean;
   locale: string;
   fullscreen: boolean;
+  ganttBarColor: string;
+  ganttBarBorderColor: string;
+  ganttLabelColor: string;
 };
 
 function label(text: Label, locale: string): string {
@@ -455,7 +458,7 @@ function renderGantt(state: DemoState): string {
     return `<path d="M ${x1} ${y1} h ${stub} V ${y2} H ${x2}" class="${marker === "cp-vd-arrow-critical" ? "is-critical" : ""}" marker-end="url(#${marker})"></path>`;
   }).join("");
 
-  return `<div class="cp-vd-gantt" data-vd-gantt data-scale="${state.scale}" style="--cp-vd-gantt-min:${axis.minWidth};--cp-vd-col:${axis.column}">
+  return `<div class="cp-vd-gantt" data-vd-gantt data-scale="${state.scale}" style="--cp-vd-gantt-min:${axis.minWidth};--cp-vd-col:${axis.column};--cp-vd-gantt-bar-color:${esc(state.ganttBarColor)};--cp-vd-gantt-bar-border:${esc(state.ganttBarBorderColor)};--cp-vd-gantt-label-color:${esc(state.ganttLabelColor)}">
     <div class="cp-vd-gantt-months ${axis.rows.length > 1 ? "is-two" : ""}">${ruler}</div>
     <div class="cp-vd-gantt-body">
       <div class="cp-vd-gantt-today" style="inset-inline-start:${dataDate}%" title="${esc(t(state.locale, "Data date 03-Dec-2026", "تاریخ داده ۱۲ آذر ۱۴۰۵"))}"></div>
@@ -1702,9 +1705,9 @@ function dialogContent(name: string, state: DemoState): string {
         ${rows(["Display", "Bar name", "Timescale", "Activity filter", "Preview"], `<tr><td><input type="checkbox" checked aria-label="Display Remaining Work"></td><td>Remaining Work</td><td>Current</td><td>Incomplete activities</td><td><span class="cp-vd-bar-preview" style="background:#2f5fa8"></span></td></tr><tr><td><input type="checkbox" checked aria-label="Display Actual Work"></td><td>Actual Work</td><td>Current</td><td>Actual start is not empty</td><td><span class="cp-vd-bar-preview" style="background:#4f9a3c"></span></td></tr><tr><td><input type="checkbox" checked aria-label="Display Critical Remaining"></td><td>Critical Remaining</td><td>Current</td><td>Total float ≤ 0</td><td><span class="cp-vd-bar-preview" style="background:#c0392b"></span></td></tr><tr><td><input type="checkbox" checked aria-label="Display Primary Baseline"></td><td>Primary Baseline</td><td>Baseline</td><td>All activities</td><td><span class="cp-vd-bar-preview is-outline"></span></td></tr><tr><td><input type="checkbox" aria-label="Display Target"></td><td>Target</td><td>Target</td><td>Target dates available</td><td><span class="cp-vd-bar-preview" style="background:#8b6bb1"></span></td></tr><tr><td><input type="checkbox" checked aria-label="Display Summary"></td><td>Summary</td><td>Current</td><td>WBS summary</td><td><span class="cp-vd-bar-preview is-bracket"></span></td></tr><tr><td><input type="checkbox" checked aria-label="Display Level of Effort"></td><td>Level of Effort</td><td>Current</td><td>Activity type = LOE</td><td><span class="cp-vd-bar-preview" style="background:#6c8c9e"></span></td></tr><tr><td><input type="checkbox" checked aria-label="Display Milestone"></td><td>Milestone</td><td>Current</td><td>Activity type = milestone</td><td><span class="cp-vd-bar-preview is-diamond"></span></td></tr>`)}
         <div class="cp-vd-inline-actions"><button type="button">Add</button><button type="button">Remove</button><button type="button">Copy From…</button><button type="button">Move Up</button><button type="button">Move Down</button></div>
         <div class="cp-vd-subtabs" role="tablist" aria-label="Bar definition properties"><button type="button" role="tab" aria-selected="true">Bar Style</button><button type="button" role="tab" aria-selected="false">Bar Settings</button><button type="button" role="tab" aria-selected="false">Bar Labels</button></div>
-        <section class="cp-vd-bar-editor-section"><h4>Bar Style</h4><div class="cp-vd-two"><label>Shape<select><option>Bar</option><option>Line</option><option>Start milestone</option><option>Finish milestone</option><option>Start and finish milestone</option><option>Bracket</option></select></label><label>Pattern<select><option>Solid</option><option>Hatched</option><option>Dashed</option><option>Dotted</option><option>Outline</option></select></label><label>Color<input type="color" value="#2f5fa8"></label><label>Border color<input type="color" value="#244b85"></label><label>Start point<select><option>Activity Start</option><option>Early Start</option><option>Actual Start</option><option>Baseline Start</option><option>Remaining Start</option></select></label><label>End point<select><option>Activity Finish</option><option>Early Finish</option><option>Actual Finish</option><option>Baseline Finish</option><option>Remaining Finish</option></select></label></div><div class="cp-vd-bar-preview-large"><span></span><small>Live style preview</small></div></section>
+        <section class="cp-vd-bar-editor-section"><h4>Bar Style</h4><div class="cp-vd-two"><label>Shape<select><option>Bar</option><option>Line</option><option>Start milestone</option><option>Finish milestone</option><option>Start and finish milestone</option><option>Bracket</option></select></label><label>Pattern<select><option>Solid</option><option>Hatched</option><option>Dashed</option><option>Dotted</option><option>Outline</option></select></label><label>Color<input type="color" data-vd-gantt-style="bar-color" value="${esc(state.ganttBarColor)}"></label><label>Border color<input type="color" data-vd-gantt-style="bar-border" value="${esc(state.ganttBarBorderColor)}"></label><label>Start point<select><option>Activity Start</option><option>Early Start</option><option>Actual Start</option><option>Baseline Start</option><option>Remaining Start</option></select></label><label>End point<select><option>Activity Finish</option><option>Early Finish</option><option>Actual Finish</option><option>Baseline Finish</option><option>Remaining Finish</option></select></label></div><div class="cp-vd-bar-preview-large"><span></span><small>Live style preview</small></div></section>
         <section class="cp-vd-bar-editor-section"><h4>Bar Settings</h4><div class="cp-vd-two"><label>Grouping<select><option>By activity</option><option>By bar definition</option></select></label><label>Necking<select><option>Show non-work periods as necking</option><option>Do not neck bars</option></select></label><label>Position<select><option>Top</option><option>Middle</option><option>Bottom</option></select></label><label>Height<select><option>16 px</option><option>12 px</option><option>14 px</option><option>18 px</option><option>20 px</option></select></label></div><label class="cp-vd-check"><input type="checkbox" checked> Show bar when activity is in progress</label><label class="cp-vd-check"><input type="checkbox"> Collapse overlapping bars</label></section>
-        <section class="cp-vd-bar-editor-section"><h4>Bar Labels</h4><div class="cp-vd-two"><label>Left label<select><option>None</option><option>Activity ID</option><option>Activity Name</option><option>Start</option><option>Finish</option></select></label><label>Right label<select><option>Activity Name</option><option>Activity ID</option><option>Finish</option><option>Remaining Duration</option><option>Total Float</option><option>% Complete</option></select></label><label>Top label<select><option>None</option><option>Activity ID</option><option>Activity Name</option><option>Start</option></select></label><label>Bottom label<select><option>None</option><option>Activity Name</option><option>Original Duration</option><option>Remaining Duration</option><option>Total Float</option></select></label><label>Label font<select><option>Workspace default</option><option>Inter 10</option><option>Inter 11</option><option>Vazirmatn 11</option></select></label><label>Label color<input type="color" value="#344256"></label></div></section>
+        <section class="cp-vd-bar-editor-section"><h4>Bar Labels</h4><div class="cp-vd-two"><label>Left label<select><option>None</option><option>Activity ID</option><option>Activity Name</option><option>Start</option><option>Finish</option></select></label><label>Right label<select><option>Activity Name</option><option>Activity ID</option><option>Finish</option><option>Remaining Duration</option><option>Total Float</option><option>% Complete</option></select></label><label>Top label<select><option>None</option><option>Activity ID</option><option>Activity Name</option><option>Start</option></select></label><label>Bottom label<select><option>None</option><option>Activity Name</option><option>Original Duration</option><option>Remaining Duration</option><option>Total Float</option></select></label><label>Label font<select><option>Workspace default</option><option>Inter 10</option><option>Inter 11</option><option>Vazirmatn 11</option></select></label><label>Label color<input type="color" data-vd-gantt-style="label-color" value="${esc(state.ganttLabelColor)}"></label></div></section>
         <p class="cp-vd-note">Preview only — these bar definitions and controls do not persist layout settings.</p>
       </div>`;
     case "bar-options":
@@ -2392,6 +2395,9 @@ export function createVisualDemoState(locale: string): DemoState {
     detailsOpen: true,
     locale,
     fullscreen: false,
+    ganttBarColor: "#2f5fa8",
+    ganttBarBorderColor: "#244b85",
+    ganttLabelColor: "#344256",
   };
 }
 
@@ -2863,6 +2869,15 @@ function bind(root: HTMLElement): void {
 
   root.addEventListener("change", (event) => {
     const target = event.target as HTMLElement | null;
+    if (target instanceof HTMLInputElement && target.matches("[data-vd-gantt-style]")) {
+      const value = /^#[0-9a-f]{6}$/i.test(target.value) ? target.value : "#2f5fa8";
+      if (target.dataset.vdGanttStyle === "bar-color") state.ganttBarColor = value;
+      else if (target.dataset.vdGanttStyle === "bar-border") state.ganttBarBorderColor = value;
+      else if (target.dataset.vdGanttStyle === "label-color") state.ganttLabelColor = value;
+      draw();
+      openDialog("bars");
+      return;
+    }
     if (target instanceof HTMLSelectElement && target.matches("[data-vd-module-sort-field]")) {
       state.moduleSortBy = state.moduleAvailableColumns.includes(target.value) ? target.value : (state.moduleAvailableColumns[0] ?? "");
       draw();
