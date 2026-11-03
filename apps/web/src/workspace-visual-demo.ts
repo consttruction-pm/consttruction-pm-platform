@@ -1189,13 +1189,16 @@ function renderSheet(state: DemoState, kind: "activity" | "resource"): string {
     </tbody></table></div></section>`;
 }
 
-type MenuAction = { window?: DemoWindowId; dialog?: string; command?: string; reason?: Label };
+type MenuAction = { window?: DemoWindowId; dialog?: string; command?: string; reason?: Label; adminSection?: string };
 
 const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shortcut?: string; action?: MenuAction; checked?: string; children?: Array<{ label: Label; action?: MenuAction; checked?: string }> }> }> = [
   { id: "workspace", label: { en: "File", fa: "فایل" }, items: [
     { label: { en: "New project…", fa: "پروژهٔ جدید…" }, action: { dialog: "new-project" } },
     { label: { en: "Open project…", fa: "بازکردن پروژه…" }, action: { window: "projects" } },
+    { label: { en: "Close project", fa: "بستن پروژه" }, action: { command: "close-project" } },
     { label: { en: "Project properties…", fa: "مشخصات پروژه…" }, action: { dialog: "project-properties" } },
+    { label: { en: "Save layout", fa: "ذخیره چیدمان" }, action: { dialog: "layout-manager" } },
+    { label: { en: "Save layout as…", fa: "ذخیره چیدمان با نام…" }, action: { dialog: "layout-manager" } },
     { label: { en: "Import / Export", fa: "ورود / خروجی" }, children: [
       { label: { en: "Import…", fa: "ورود…" }, action: { dialog: "import" } },
       { label: { en: "Export…", fa: "خروجی…" }, action: { dialog: "export" } },
@@ -1270,34 +1273,61 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
       { label: { en: "Assign successors…", fa: "تخصیص جانشین…" }, action: { dialog: "assign-successors" } },
     ] },
     { label: { en: "WBS…", fa: "WBS…" }, action: { window: "wbs" } },
+    { label: { en: "Resource assignments", fa: "تخصیص منابع" }, action: { window: "assignments" } },
     { label: { en: "Baselines…", fa: "خطوط مبنا…" }, action: { dialog: "baselines" } },
+    { label: { en: "Expenses", fa: "هزینه‌ها" }, action: { window: "expenses" } },
+    { label: { en: "Documents", fa: "اسناد" }, action: { window: "documents" } },
+    { label: { en: "Thresholds", fa: "آستانه‌ها" }, action: { window: "thresholds" } },
+    { label: { en: "Issues", fa: "مسائل" }, action: { window: "issues" } },
+    { label: { en: "Risks", fa: "ریسک‌ها" }, action: { window: "risks" } },
+    { label: { en: "Update Progress…", fa: "به‌روزرسانی پیشرفت…" }, action: { dialog: "update-progress" } },
+    { label: { en: "Apply Actuals…", fa: "اعمال واقعیات…" }, action: { dialog: "apply-actuals" } },
+    { label: { en: "Store Period Performance…", fa: "ثبت عملکرد دوره…" }, action: { dialog: "store-period-performance" } },
     { label: { en: "Schedule…", fa: "زمان‌بندی…" }, shortcut: "F9", action: { dialog: "schedule" } },
     { label: { en: "Level resources…", fa: "تسطیح منابع…" }, action: { dialog: "level" } },
   ] },
   { id: "organization", label: { en: "Organization", fa: "سازمان" }, items: [
+    { label: { en: "Enterprise Project Structure", fa: "ساختار سازمانی پروژه‌ها" }, action: { window: "administration", adminSection: "eps" } },
+    { label: { en: "Responsibility Structure (OBS)", fa: "ساختار مسئولیت‌ها" }, action: { window: "administration", adminSection: "obs" } },
     { label: { en: "Resources", fa: "منابع" }, action: { window: "resources" } },
     { label: { en: "Resource assignments", fa: "تخصیص منابع" }, action: { window: "assignments" } },
+    { label: { en: "Roles", fa: "نقش‌ها" }, action: { window: "roles" } },
     { label: { en: "Calendars", fa: "تقویم‌ها" }, action: { window: "calendars" } },
-    { label: { en: "Roles", fa: "نقش‌ها" }, action: { dialog: "roles" } },
-    { label: { en: "Dictionaries", fa: "واژه‌نامه‌ها" }, children: [
-      { label: { en: "Activity codes", fa: "کدهای فعالیت" }, action: { dialog: "dictionaries" } },
-      { label: { en: "Custom fields", fa: "فیلدهای سفارشی" }, action: { dialog: "dictionaries" } },
+    { label: { en: "Resource shifts…", fa: "شیفت‌های منابع…" }, action: { dialog: "resource-shifts" } },
+    { label: { en: "Code dictionaries", fa: "واژه‌نامه کدها" }, children: [
+      { label: { en: "Activity / Project / Resource / Role codes", fa: "کدهای فعالیت / پروژه / منبع / نقش" }, action: { window: "administration", adminSection: "codes" } },
+      { label: { en: "Assign Activity Codes…", fa: "تخصیص کدهای فعالیت…" }, action: { dialog: "assign-activity-codes" } },
     ] },
+    { label: { en: "Custom fields", fa: "فیلدهای سفارشی" }, action: { window: "administration", adminSection: "custom-fields" } },
+    { label: { en: "Cost accounts", fa: "حساب‌های هزینه" }, action: { dialog: "cost-accounts" } },
+    { label: { en: "Funding sources", fa: "منابع تأمین مالی" }, action: { window: "cost-control" } },
   ] },
   { id: "tools", label: { en: "Tools", fa: "ابزارها" }, items: [
-    { label: { en: "Schedule", fa: "زمان‌بندی" }, shortcut: "F9", action: { dialog: "schedule" } },
-    { label: { en: "Level resources…", fa: "تسطیح منابع…" }, action: { dialog: "level" } },
+    { label: { en: "Schedule…", fa: "زمان‌بندی…" }, shortcut: "F9", action: { dialog: "schedule" } },
+    { label: { en: "Level Resources…", fa: "تسطیح منابع…" }, action: { dialog: "level" } },
+    { label: { en: "Update Progress…", fa: "به‌روزرسانی پیشرفت…" }, action: { dialog: "update-progress" } },
+    { label: { en: "Apply Actuals…", fa: "اعمال واقعیات…" }, action: { dialog: "apply-actuals" } },
+    { label: { en: "Recalculate Assignment Costs…", fa: "محاسبه مجدد هزینه تخصیص‌ها…" }, action: { dialog: "recalculate-assignment-costs" } },
+    { label: { en: "Store Period Performance…", fa: "ثبت عملکرد دوره…" }, action: { dialog: "store-period-performance" } },
+    { label: { en: "Global Change…", fa: "تغییر سراسری…" }, action: { dialog: "global-change" } },
+    { label: { en: "Threshold Monitor…", fa: "پایش آستانه…" }, action: { dialog: "threshold-monitor" } },
     { label: { en: "Reports", fa: "گزارش‌ها" }, children: [
       { label: { en: "Report wizard…", fa: "جادوگر گزارش…" }, action: { dialog: "report-wizard" } },
-      { label: { en: "Report preview", fa: "پیش‌نمایش گزارش" }, action: { window: "reports" } },
+      { label: { en: "Report Library / Runner…", fa: "کتابخانه و اجرای گزارش…" }, action: { dialog: "reports-runner" } },
     ] },
     { label: { en: "Preferences…", fa: "تنظیمات…" }, action: { dialog: "preferences" } },
   ] },
   { id: "administration", label: { en: "Administration", fa: "مدیریت" }, items: [
-    { label: { en: "Users…", fa: "کاربران…" }, action: { window: "administration" } },
-    { label: { en: "Security profiles…", fa: "پروفایل امنیتی…" }, action: { dialog: "security-profiles" } },
-    { label: { en: "Administration preferences…", fa: "تنظیمات مدیریت…" }, action: { dialog: "admin-preferences" } },
-    { label: { en: "Dictionaries…", fa: "واژه‌نامه‌ها…" }, action: { dialog: "dictionaries" } },
+    { label: { en: "Users…", fa: "کاربران…" }, action: { window: "administration", adminSection: "users" } },
+    { label: { en: "Security Profiles…", fa: "پروفایل‌های امنیتی…" }, action: { window: "administration", adminSection: "security" } },
+    { label: { en: "Administrative Preferences…", fa: "تنظیمات مدیریتی…" }, action: { window: "administration", adminSection: "preferences" } },
+    { label: { en: "Administrative Categories…", fa: "دسته‌بندی‌های مدیریتی…" }, action: { window: "administration", adminSection: "categories" } },
+    { label: { en: "Currencies…", fa: "ارزها…" }, action: { window: "administration", adminSection: "currencies" } },
+    { label: { en: "Financial Periods…", fa: "دوره‌های مالی…" }, action: { window: "administration", adminSection: "financial-periods" } },
+    { label: { en: "Resource Security", fa: "امنیت منابع" }, action: { window: "administration", adminSection: "security" } },
+    { label: { en: "Activity Code Security", fa: "امنیت کدهای فعالیت" }, action: { window: "administration", adminSection: "security" } },
+    { label: { en: "Code Dictionaries…", fa: "واژه‌نامه کدها…" }, action: { window: "administration", adminSection: "codes" } },
+    { label: { en: "Custom Fields…", fa: "فیلدهای سفارشی…" }, action: { window: "administration", adminSection: "custom-fields" } },
   ] },
   { id: "help", label: { en: "Help", fa: "راهنما" }, items: [
     { label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, shortcut: "F1", action: { dialog: "shortcuts" } },
@@ -2407,7 +2437,7 @@ function bind(root: HTMLElement): void {
   };
   const run = (action: MenuAction | undefined): void => {
     if (!action || action.reason) return;
-    if (action.window) { navigate(action.window); return; }
+    if (action.window) { if (action.adminSection && ADMIN_SECTIONS.some(([id]) => id === action.adminSection)) state.adminSection = action.adminSection; navigate(action.window); return; }
     if (action.dialog) { openDialog(action.dialog); return; }
     switch (action.command) {
       case "back": {
@@ -2438,6 +2468,7 @@ function bind(root: HTMLElement): void {
         });
         return;
       }
+      case "close-project": navigate("projects"); return;
       case "undo": case "redo": case "noop": return;
       default: {
         // Any toolbar name from the toolbar register can be shown or hidden.
