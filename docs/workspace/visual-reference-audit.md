@@ -342,3 +342,9 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 ## E2E submenu count correction — 2026-11-03
 
 - Updated the preview E2E submenu inventory selector to count actionable submenu buttons as well as links and disabled submenu entries. The prior selector excluded functional buttons and falsely failed the Control navigation inventory despite the menu exposing its actions.
+
+## WBS Details — native inventory vs CUBI extension — 2026-11-03
+
+- The Version 26 Professional WBS Details inventory contains General, Notebook, Budget Log, Spending Plan, Budget Summary, WBS Milestones, WPs & Docs, Earned Value and User Defined Fields. Planning Resources is EPPM-only; there is no native WBS Details Activities tab.
+- CUBI retains the useful linked-activities view as an explicitly marked **Related Activities (CUBI extension)** tab. Its origin is encoded in the tab metadata and its tooltip, so it is not presented as a native desktop tab.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_details.htm.
