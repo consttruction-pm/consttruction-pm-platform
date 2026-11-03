@@ -2048,7 +2048,8 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
   assert.match(reports, /Reports &amp; print/);
   assert.match(reports, /Report Library/);
   assert.match(reports, /Page Setup/);
-  assert.match(reports, /Export Options/);
+  assert.match(reports, /data-navigation-action="reports-tab:export"/);
+  assert.match(reports, /data-report-tab="export"/);
   assert.match(reports, /disabled until the report service is connected/);
 
   const progress = render("fa", "progress");
