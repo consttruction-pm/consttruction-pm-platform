@@ -812,14 +812,14 @@ test("Administration covers EPS, OBS, categories, currencies, financial periods 
   state.window = "administration";
   const html = renderVisualDemo(state);
   const panels: string[] = [];
-  for (const section of ["eps", "obs", "preferences", "categories", "currencies", "financial-periods", "custom-fields"]) {
+  for (const section of ["users", "security", "eps", "obs", "preferences", "categories", "currencies", "financial-periods", "custom-fields"]) {
     state.adminSection = section;
     const panel = renderVisualDemo(state);
     panels.push(panel);
     assert.match(panel, new RegExp(`data-vd-admin="${section}"[^>]*aria-pressed="true"`));
   }
   const allPanels = panels.join("\\n");
-  for (const label of ["Enterprise Project Structure", "Administrative categories", "Set base currency", "Financial periods", "Create batch", "Custom fields", "Indicator", "Formula (read-only)", "Assigned WBS", "Responsible OBS", "rate direction", "Data Limits", "ID Lengths", "Time Periods", "Earned Value", "Every n Weeks", "Every n Months", "Every Year", "Period ends on", "minimum 1 week", "Units per base currency", "Effective date"]) {
+  for (const label of ["Enterprise Project Structure", "Administrative categories", "Set base currency", "Financial periods", "Create batch", "Custom fields", "Indicator", "Formula (read-only)", "Assigned WBS", "Responsible OBS", "rate direction", "Data Limits", "ID Lengths", "Time Periods", "Earned Value", "Every n Weeks", "Every n Months", "Every Year", "Period ends on", "minimum 1 week", "Units per base currency", "Effective date", "Global Security Profiles", "Project Security Profiles", "Module Access Matrix", "Resource access", "Last sign-in", "Project Superuser", "Team Member", "profile label alone"]) {
     assert.ok(allPanels.includes(label), "missing administration control: " + label);
   }
   assert.match(allPanels, /cp-vd-admin-workspace/);
