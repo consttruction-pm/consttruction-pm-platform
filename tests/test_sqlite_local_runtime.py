@@ -1108,6 +1108,7 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
             },
             version="p6-project-schedule-settings-api.v1",
         )
+        assert "item" in saved_settings["result"], saved_settings
         assert saved_settings["result"]["item"]["kind"] == "project_schedule_settings"
         assert saved_settings["result"]["item"]["record_revision"] == 1
 
