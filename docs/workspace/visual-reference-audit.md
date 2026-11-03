@@ -416,3 +416,9 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - The View menu now exposes Chart Box Template and Chart Font and Colors entries when the WBS window is active; both route to the same contextual display-options surface. The controls remain disabled outside the WBS window.
 - Remaining parity: chart arrange/alignment, zoom-to-fit, full box templates, and matching Project/Resource chart settings.
 - Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/change_the_work_breakdown_structure_chart_display.htm; https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_window.htm.
+## Project Expenses register and details parity — 2026-11-03
+
+- The desktop Project Expenses window provides an expense register and a separate Project Expense Details pane. The documented detail areas are General, Activity and Costs; the current Help also includes Description. Expense-specific fields include category, vendor, cost account, document number, activity/WBS assignment, accrual type, price/unit and budgeted, actual and remaining cost.
+- CUBI correction: the Expenses register now exposes the desktop detail inventory (General, Activity, Costs, Description), removes unrelated Documents and UDFs tabs, adds missing expense category, document number, unit price and remaining cost columns, and routes the matching navigation submenu actions to those detail tabs.
+- Expense records are not currently loaded; create/edit/delete remain disabled and no expense values are fabricated.
+- References: https://docs.oracle.com/cd/F25600_01/client_help/en_US/project_expenses_window.htm and https://docs.oracle.com/cd/E75426_01/client_help/en_US/project_expense_details.htm.
