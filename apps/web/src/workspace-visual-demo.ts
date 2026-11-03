@@ -1446,7 +1446,7 @@ function dialogContent(name: string, state: DemoState): string {
         <div class="cp-vd-filter-definition">
           <div class="cp-vd-form">
             <label>${esc(t(state.locale, "Filter name", "نام فیلتر"))}<input name="filterName" value="${esc(state.filter || "Six-week lookahead")}" readonly></label>
-            <label>${esc(t(state.locale, "Filter scope", "دامنه فیلتر"))}<select disabled><option>Project layout</option><option>User</option><option>Global</option></select></label>
+            <label>${esc(t(state.locale, "Filter scope", "دامنه فیلتر"))}<select disabled><option>Project layout</option><option>User</option><option>All Users</option><option>Another User</option><option>Current User</option><option>Project</option></select></label>
           </div>
           <fieldset><legend>${esc(t(state.locale, "Show activities that match", "نمایش فعالیت‌های منطبق با"))}</legend>
             <label><input type="radio" name="filterMatch" checked> ${esc(t(state.locale, "All selected filters", "همه فیلترهای انتخاب‌شده"))}</label>
@@ -1550,20 +1550,24 @@ function dialogContent(name: string, state: DemoState): string {
         { name: "CUBI Classic Schedule", scope: "Project", owner: "Current project", status: "Current", modified: "03-Nov-2026", description: "Activity table with Gantt bars, critical path and baseline comparison." },
         { name: "Cost and Resource Control", scope: "Project", owner: "Current project", status: "Available", modified: "28-Oct-2026", description: "Budgeted, actual and remaining units and costs with resource assignments." },
         { name: "Commissioning Look-ahead", scope: "User", owner: "Current user", status: "Available", modified: "24-Oct-2026", description: "Near-term activities grouped by WBS and responsible discipline." },
-        { name: "Executive Milestones", scope: "Global", owner: "Shared library", status: "Available", modified: "18-Oct-2026", description: "Milestones, key dates, project codes and summary progress." },
+        { name: "Executive Milestones", scope: "All Users", owner: "Shared library", status: "Available", modified: "18-Oct-2026", description: "Milestones, key dates, project codes and summary progress." },
+        { name: "Field Engineer Daily View", scope: "Another User", owner: "Assigned user", status: "Available", modified: "12-Oct-2026", description: "Activity status and daily field reporting columns." },
       ];
       return `<section class="cp-vd-layout-manager">
         <div class="cp-vd-layout-toolbar" role="toolbar" aria-label="${esc(t(state.locale, "Layout actions", "فرمان‌های چیدمان"))}">
           <button type="button" disabled>＋ ${esc(t(state.locale, "New", "جدید"))}</button>
+          <button type="button" disabled>${esc(t(state.locale, "Apply", "اعمال"))}</button>
           <button type="button" disabled>▣ ${esc(t(state.locale, "Open", "بازکردن"))}</button>
           <button type="button" disabled>↥ ${esc(t(state.locale, "Save", "ذخیره"))}</button>
           <button type="button" disabled>${esc(t(state.locale, "Save As…", "ذخیره با نام…"))}</button>
           <button type="button" disabled>${esc(t(state.locale, "Delete", "حذف"))}</button>
+          <button type="button" disabled>${esc(t(state.locale, "Import .PLF…", "ورود فایل .PLF…"))}</button>
+          <button type="button" disabled>${esc(t(state.locale, "Export .PLF…", "خروجی فایل .PLF…"))}</button>
           <span class="cp-vd-note">${esc(t(state.locale, "Preview only — layout storage is not connected.", "پیش‌نمایش — ذخیره‌سازی چیدمان متصل نیست."))}</span>
         </div>
         <div class="cp-vd-layout-manager-grid">
           <div class="cp-vd-layout-list">
-            <div class="cp-vd-layout-list-head"><strong>${esc(t(state.locale, "Available layouts", "چیدمان‌های موجود"))}</strong><label>${esc(t(state.locale, "Scope", "دامنه"))}<select disabled><option>All layouts</option><option>Project</option><option>User</option><option>Global</option></select></label></div>
+            <div class="cp-vd-layout-list-head"><strong>${esc(t(state.locale, "Available layouts", "چیدمان‌های موجود"))}</strong><label>${esc(t(state.locale, "Scope", "دامنه"))}<select disabled><option>All layouts</option><option>Project</option><option>Current User</option><option>Another User</option><option>All Users</option></select></label></div>
             <label class="cp-vd-layout-search"><span>${esc(t(state.locale, "Find layout", "جست‌وجوی چیدمان"))}</span><input type="search" placeholder="${esc(t(state.locale, "Search by name…", "جست‌وجو بر اساس نام…"))}" disabled></label>
             <table class="cp-vd-mini"><thead><tr><th></th><th>${esc(t(state.locale, "Name", "نام"))}</th><th>${esc(t(state.locale, "Scope", "دامنه"))}</th><th>${esc(t(state.locale, "Status", "وضعیت"))}</th></tr></thead><tbody>
               ${layouts.map((layout,index)=>`<tr class="${index===0?"is-selected":""}"><td><input type="radio" name="vd-layout-choice" ${index===0?"checked":""} disabled aria-label="${esc(layout.name)}"></td><td><strong>${esc(layout.name)}</strong><small>${esc(layout.owner)}</small></td><td>${esc(t(state.locale,layout.scope,layout.scope==="Project"?"پروژه":layout.scope==="User"?"کاربر":"سراسری"))}</td><td>${esc(t(state.locale,layout.status,layout.status==="Current"?"فعلی":"موجود"))}</td></tr>`).join("")}
