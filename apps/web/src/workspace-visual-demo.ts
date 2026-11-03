@@ -473,12 +473,18 @@ function renderGantt(state: DemoState): string {
 function renderDetails(state: DemoState): string {
   const tabs = [
     ["general", "General", "عمومی"], ["status", "Status", "وضعیت"], ["resources", "Resources", "منابع"],
-    ["predecessors", "Predecessors", "پیش‌نیازها"], ["successors", "Successors", "جانشین‌ها"], ["codes", "Codes", "کدها"], ["calendar", "Calendar", "تقویم"],
-    ["discussion", "Discussion", "بحث"], ["notebook", "Notebook", "دفترچه"], ["steps", "Steps", "گام‌ها"],
+    ["predecessors", "Predecessors", "پیش‌نیازها"], ["successors", "Successors", "جانشین‌ها"], ["codes", "Codes", "کدها"],
+    ["discussion", "Discussion", "گفت‌وگو"], ["notebook", "Notebook", "دفترچه"], ["steps", "Steps", "گام‌ها"],
     ["feedback", "Feedback", "بازخورد"], ["documents", "Documents", "اسناد"], ["expenses", "Expenses", "هزینه‌ها"],
     ["summary", "Summary", "خلاصه"], ["relationships", "Relationships", "روابط"], ["risks", "Risks", "ریسک‌ها"],
-    ["udfs", "UDFs", "فیلد سفارشی"], ["history", "Update History", "تاریخچه"],
+    ["custom-fields", "Custom Fields", "فیلدهای سفارشی"], ["history", "Update History", "تاریخچه تغییرات"],
   ];
+  if (!state.activityId) {
+    return `<section class="cp-vd-details cp-vd-details-empty" aria-label="${esc(t(state.locale, "Activity Details", "جزئیات فعالیت"))}">
+      <div class="cp-vd-details-head"><h3>${esc(t(state.locale, "Activity Details", "جزئیات فعالیت"))}</h3></div>
+      <div class="cp-vd-empty-selection"><strong>${esc(t(state.locale, "No activity selected", "فعالیتی انتخاب نشده است"))}</strong><p>${esc(t(state.locale, "Select an activity in the table or Activity Network to inspect its details.", "برای مشاهده جزئیات، یک فعالیت را از جدول یا شبکه فعالیت انتخاب کنید."))}</p></div>
+    </section>`;
+  }
   const row = ACTIVITIES.find((item) => item.id === state.activityId) ?? ACTIVITIES[0];
   const assignedResource = RESOURCES.find((resource) => resource.name === row.res);
   const index = ACTIVITIES.findIndex((item) => item.id === row.id);
@@ -512,7 +518,7 @@ function renderDetails(state: DemoState): string {
     summary: fields([["Early start", "شروع زود", fmtDate(row.es)], ["Early finish", "پایان زود", fmtDate(row.ef)], ["Late start", "شروع دیر", fmtDate(row.ls)], ["Late finish", "پایان دیر", fmtDate(row.lf)], ["Free float", "شناوری آزاد", `${row.ff} d`], ["Critical", "بحرانی", row.critical ? "Yes" : "No"]]),
     relationships: `<section class="cp-vd-detail-section"><h4>${esc(t(state.locale, "Predecessors", "پیش‌نیازها"))}</h4>${relationshipRows("predecessors")}</section><section class="cp-vd-detail-section"><h4>${esc(t(state.locale, "Successors", "پس‌نیازها"))}</h4>${relationshipRows("successors")}</section><p class="cp-vd-note">${esc(t(state.locale, "Relationship type and signed lag are shown exactly as configured in this visual sample.", "نوع رابطه و مقدار علامت‌دار تأخیر مطابق نمونه بصری نمایش داده می‌شود."))}</p>`,
     risks: `<table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Risk", "ریسک"))}</th><th>${esc(t(state.locale, "Rating", "درجه"))}</th></tr></thead><tbody><tr><td>${esc(t(state.locale, "Weather delay", "تأخیر جوی"))}</td><td>Medium</td></tr></tbody></table>`,
-    udfs: fields([["Custom field", "فیلد سفارشی", "—"]]),
+    "custom-fields": fields([["Custom field", "فیلد سفارشی", "—"]]),
     history: `<p class="cp-vd-note">${esc(t(state.locale, "No saved update history in the visual demo.", "در نمایش بصری تاریخچه‌ای ذخیره نشده است."))}</p>`,
   };
   return `<div class="cp-vd-details${state.detailsOpen ? "" : " is-collapsed"}">
@@ -520,7 +526,9 @@ function renderDetails(state: DemoState): string {
       <button type="button" class="cp-vd-details-toggle" data-vd-details-toggle aria-expanded="${state.detailsOpen}" aria-controls="cp-vd-details-body" title="${esc(t(state.locale, state.detailsOpen ? "Collapse details" : "Expand details", state.detailsOpen ? "بستن جزئیات" : "باز کردن جزئیات"))}"><i>${state.detailsOpen ? "▾" : "▸"}</i><h3>${esc(t(state.locale, "Activity Details", "جزئیات فعالیت"))}</h3></button>
       <div class="cp-vd-nav">
         <button type="button" data-vd-prev="${esc(prev)}" ${prev ? "" : "disabled"} aria-label="${esc(t(state.locale, "Previous activity", "فعالیت قبلی"))}">‹</button>
-        <strong>${esc(row.id)}</strong>
+        <strong><bdi dir="ltr">${esc(row.id)}</bdi></strong>
+        <span class="cp-vd-details-context-name" title="${esc(row.name)}">${esc(row.name)}</span>
+        <span class="cp-vd-details-context-project">${esc(t(state.locale, "Project", "پروژه"))}: <bdi dir="ltr">CUBI-DEMO-001</bdi></span>
         <button type="button" data-vd-next="${esc(next)}" ${next ? "" : "disabled"} aria-label="${esc(t(state.locale, "Next activity", "فعالیت بعدی"))}">›</button>
         <button type="button" data-vd-dialog="customize-details" title="${esc(t(state.locale, "Customize tabs", "سفارشی‌سازی زبانه‌ها"))}">⚙</button>
       </div>
