@@ -633,6 +633,16 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       else updatedDialog?.setAttribute("open", "");
       return;
     }
+    if (target.dataset.wbsViewToggle) {
+      const chart = target.dataset.wbsViewToggle === "chart";
+      container.querySelector(".cp-wbs-hierarchy-pane")?.classList.toggle("is-chart-view", chart);
+      container.querySelectorAll<HTMLElement>("[data-wbs-view-toggle]").forEach((button) => {
+        const active = button.dataset.wbsViewToggle === (chart ? "chart" : "table");
+        button.setAttribute("aria-pressed", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      return;
+    }
     if (target.dataset.activityDetailTab) {
       const tab = target.dataset.activityDetailTab;
       activityDetailsTabByContainer.set(container, tab);
@@ -1739,7 +1749,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       break;
     }
     case "wbs":
-      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "WBS chart view is not connected yet.", "نمای نمودار WBS هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></div></div><div class="cp-wbs-window-layout"><section><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3>${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "WBS hierarchy and details are shown from the current project state. Chart rendering and additional WBS detail data remain pending.", "سلسله‌مراتب و جزئیات WBS از وضعیت فعلی پروژه نمایش داده می‌شوند. ترسیم نمودار و سایر داده‌های جزئیات WBS در انتظار تکمیل هستند."))}</p></div>`;
+      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type=\"button\" data-wbs-view-toggle=\"table\" aria-pressed=\"true\">${escapeHtml(uiText(state.locale, \"Table View\", \"نمای جدولی\"))}</button><button type=\"button\" data-wbs-view-toggle=\"chart\" aria-pressed=\"false\">${escapeHtml(uiText(state.locale, \"Chart View\", \"نمای نمودار\"))}</button></div></div><div class="cp-wbs-window-layout"><section class=\"cp-wbs-hierarchy-pane\"><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3>${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "WBS hierarchy and details are shown from the current project state. Chart rendering and additional WBS detail data remain pending.", "سلسله‌مراتب و جزئیات WBS از وضعیت فعلی پروژه نمایش داده می‌شوند. ترسیم نمودار و سایر داده‌های جزئیات WBS در انتظار تکمیل هستند."))}</p></div>`;
       break;
     case "calendars":
       body = `
