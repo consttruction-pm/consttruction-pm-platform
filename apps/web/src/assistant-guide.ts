@@ -894,6 +894,9 @@ export function readAssistantGuideQuery(
   const locale = (doc.documentElement.lang || "en").trim().toLowerCase() || "en";
   const page = resolveAssistantPage(doc.location?.pathname ?? "", basePath);
   const workspace = doc.querySelector(".cp-workspace[data-project]");
+  // The curated visual shell is a valid workspace surface, but it intentionally
+  // does not use the live API workspace DOM or its project-data selectors.
+  const visualDemo = doc.querySelector(".cp-vd[data-visual-demo]");
   const selection = doc.querySelector(".cp-project-selection");
   const shellError = doc.querySelector(".cp-shell-error");
   const loading = doc.querySelector(".cp-shell-loading");
@@ -902,7 +905,9 @@ export function readAssistantGuideQuery(
   );
   const menu = isWorkspaceMenuKey(menuElement?.dataset.menu)
     ? menuElement.dataset.menu
-    : undefined;
+    : visualDemo
+      ? "project"
+      : undefined;
   const activityCount = doc.querySelectorAll(
     "#cp-activity-grid tbody tr[data-activity-id]",
   ).length;
@@ -916,7 +921,11 @@ export function readAssistantGuideQuery(
     doc.querySelector(".cp-error-reference code")?.textContent?.trim() ?? null;
 
   let state: AssistantGuideState;
-  if (workspace) {
+  if (visualDemo) {
+    // The visual preview is intentionally populated by its own demo model;
+    // live API row counters must not classify it as an empty project.
+    state = "ready";
+  } else if (workspace) {
     state = activityCount === 0
       ? "empty-activities"
       : wbsCount === 0
