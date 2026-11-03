@@ -2347,6 +2347,8 @@ test("Project and WBS Details use their Version 26 tab inventories and switch by
   }
   assert.doesNotMatch(project, /data-project-detail-tab="planning-resources"/);
   assert.match(project, /Contract Management \(CUBI extension\)/);
+  const projectTabOrder = Array.from(project.matchAll(/data-project-detail-tab="([^"]+)"/g), (match) => match[1]);
+  assert.equal(projectTabOrder.at(-1), "contract-management");
   assert.match(project, /data-detail-origin="cubi-extension"/);
   const reports = render("en", "reports");
   assert.doesNotMatch(reports, /data-activity-detail-tab=/);
@@ -2372,6 +2374,8 @@ test("Project and WBS Details use their Version 26 tab inventories and switch by
   assert.match(container.innerHTML, /WBS Details/);
   assert.match(container.innerHTML, /Structure/);
   assert.match(container.innerHTML, /Related Activities \(CUBI extension\)/);
+  const wbsTabOrder = Array.from(container.innerHTML.matchAll(/data-wbs-detail-tab="([^"]+)"/g), (match) => match[1]);
+  assert.deepEqual(wbsTabOrder, ["general", "notebook", "budget-log", "spending-plan", "budget-summary", "milestones", "documents", "earned-value", "udfs", "activities"]);
   assert.match(container.innerHTML, /data-detail-origin="cubi-extension"/);
   assert.match(container.innerHTML, /data-wbs-linked-activity="ACT-101"/);
   assert.match(container.innerHTML, /Excavation/);
