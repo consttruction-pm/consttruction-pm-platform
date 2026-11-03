@@ -277,3 +277,12 @@ Official reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/detai
 
 The same Version 26 Details Windows index lists **Update History** as an Activity Details tab. The visual inventory now includes it. The CUBI Summary tab remains an additive convenience and is not represented as a native desktop tab. The EPPM-only Tasks tab remains excluded.
 
+
+
+## Activity-window filter command parity — 2026-11-03
+
+- Version 26 desktop reference: the View menu exposes **Filter By**, which opens the Filters dialog; the Edit menu's **Find** action is a separate text-search command. The Activities window documentation also distinguishes filtering from Find/search and exposes filter selection alongside layout, grouping, sorting, columns, and timescale controls.
+- CUBI correction: the desktop View > Filters command and the Layout toolbar Filters command now dispatch the dedicated filter-dialog action instead of the Find/search action. Edit > Find remains a separate command and retains its Ctrl+F behavior.
+- The filter dialog remains honest about current implementation boundaries: it applies the connected text criterion, while saved filter definitions and multi-condition criteria remain explicitly unavailable rather than being represented as working controls.
+- Regression coverage asserts that both the View menu and toolbar Filters entries target the dedicated filter-dialog command.
+- Reference pages: https://docs.oracle.com/cd/G48902_01/client_help/en_US/activities_window.htm and https://docs.oracle.com/cd/G48902_01/client_help/en_US/49095.htm.
