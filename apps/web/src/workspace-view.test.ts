@@ -2420,6 +2420,36 @@ test("WBS window exposes table, hierarchy-chart and Gantt top layouts", () => {
   assert.equal(panels[1]?.hidden, false);
   assert.equal(panels[2]?.hidden, true);
 });
+test("WBS chart appearance controls apply templates, font and colors without changing hierarchy data", () => {
+  const html = render("en", "wbs");
+  assert.match(html, /data-wbs-chart-options-toggle/);
+  assert.match(html, /data-wbs-chart-setting="template"/);
+  assert.match(html, /data-wbs-chart-setting="font"/);
+  assert.match(html, /data-wbs-chart-setting="background"/);
+  assert.match(html, /data-wbs-chart-setting="box"/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const chartOptionsButton = { disabled: true };
+  const chartSettings = { hidden: true };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => selector === "[data-wbs-chart-options-toggle]" ? chartOptionsButton : selector === ".cp-wbs-chart-options" ? chartSettings : null,
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "wbs" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const chartTarget = { dataset: { wbsViewToggle: "chart" }, closest: () => chartTarget };
+  listeners.get("click")?.({ target: chartTarget } as unknown as Event);
+  assert.equal(chartOptionsButton.disabled, false);
+  const optionsTarget = { dataset: { wbsChartOptionsToggle: "" }, closest: () => optionsTarget };
+  listeners.get("click")?.({ target: optionsTarget } as unknown as Event);
+  assert.match(container.innerHTML, /class="cp-wbs-chart-options"/);
+  const templateTarget = { dataset: { wbsChartSetting: "template" }, value: "name-only", closest: () => templateTarget };
+  listeners.get("change")?.({ target: templateTarget } as unknown as Event);
+  assert.match(container.innerHTML, /data-wbs-chart-template="name-only"/);
+  assert.match(container.innerHTML, /\.cp-wbs-chart-view/);
+});
+
 test("Group and Sort opens a structured dialog and applies supported grouping and sort controls", () => {
   const html = render("en", "schedule");
   assert.match(html, /data-group-sort-dialog/);
