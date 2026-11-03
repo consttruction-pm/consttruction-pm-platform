@@ -145,3 +145,7 @@ The visible command hierarchy is organized under CUBI File, Edit, View, Project,
 Activity and WBS right-click menus are selection-aware. Destructive commands remain disabled in the visual-only preview. Menu actions are checked against the rendered dialog/window registry; all referenced menu dialogs and windows currently resolve to a registered surface.
 
 Version 26 menu and window reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm
+
+## Binding visual-audit policy
+
+All page/window/component audits in this reference register are governed by [`visual-audit-governing-principles.md`](visual-audit-governing-principles.md). This is mandatory for every page, not only Gantt: each page needs its own GitHub evidence record, exact Version 26 source, complete control/appearance inventory, implementation path, gaps, tests and screenshot evidence. Colour and chart styling are in scope now; only final CUBI-wide theme harmonization is deferred. Do not claim pixel parity without current Version 26 visual evidence.
