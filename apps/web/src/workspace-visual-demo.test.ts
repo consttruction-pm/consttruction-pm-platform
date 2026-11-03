@@ -805,3 +805,36 @@ test("Global Change dialog is reachable in Persian RTL", () => {
     assert.ok(html.includes(label), "missing Persian control: " + label);
   }
 });
+
+test("Administration covers EPS, OBS, categories, currencies, financial periods and custom fields", () => {
+  const state = createVisualDemoState("en");
+  state.window = "administration";
+  const html = renderVisualDemo(state);
+  for (const section of ["eps", "obs", "categories", "currencies", "financial-periods", "custom-fields"]) {
+    state.adminSection = section;
+    const panel = renderVisualDemo(state);
+    assert.match(panel, new RegExp(`data-vd-admin="${section}"[^>]*aria-pressed="true"`));
+  }
+  for (const label of ["Enterprise Project Structure", "Organizational structure", "Administrative categories", "Set base currency", "Financial periods", "Create batch", "Custom fields", "Indicator", "Formula (read-only)", "Assigned WBS", "Responsible OBS", "rate direction"]) {
+    assert.ok(html.includes(label), "missing administration control: " + label);
+  }
+  assert.match(html, /cp-vd-admin-workspace/);
+  assert.match(html, /cp-vd-admin-tree/);
+  assert.match(html, /cp-vd-admin-summary/);
+  assert.match(html, /Rates are illustrative/);
+  assert.match(html, /separate from work calendars/);
+});
+
+test("Administration hierarchy and financial controls retain RTL layout and Persian labels", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "administration";
+  state.adminSection = "financial-periods";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  assert.match(html, /دوره‌های مالی/);
+  assert.match(html, /تقویم دوره/);
+  state.adminSection = "eps";
+  const eps = renderVisualDemo(state);
+  assert.match(eps, /ساختار سازمانی پروژه‌ها/);
+  assert.match(eps, /ساختار سلسله‌مراتبی سبد پروژه/);
+});
