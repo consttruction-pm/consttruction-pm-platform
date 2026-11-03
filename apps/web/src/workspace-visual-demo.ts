@@ -1240,7 +1240,7 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
     { label: { en: "User Preferences…", fa: "ترجیحات کاربر…" }, action: { dialog: "preferences" } },
     { label: { en: "Renumber Activity IDs…", fa: "شماره‌گذاری دوبارهٔ شناسه‌ها…" }, action: { dialog: "renumber" } },
   ] },
-  { id: "display", label: { en: "Display", fa: "نمایش" }, items: [
+  { id: "view", label: { en: "View", fa: "نما" }, items: [
     { label: { en: "Toolbars", fa: "نوارهای ابزار" }, children: [
       { label: { en: "Standard", fa: "استاندارد" }, action: { command: "toolbar:standard" } },
       { label: { en: "Project", fa: "پروژه" }, action: { command: "toolbar:project" } },
@@ -1426,7 +1426,7 @@ const TOOLBARS: Array<{ id: string; label: Label; items: Array<{ icon: string; l
     { icon: "undo", label: { en: "Undo", fa: "بازگردانی" }, action: { command: "undo" } },
     { icon: "redo", label: { en: "Redo", fa: "تکرار" }, action: { command: "redo" } },
   ] },
-  { id: "view", label: { en: "View", fa: "نما" }, items: [
+  { id: "display", label: { en: "Display", fa: "نمایش" }, items: [
     { icon: "columns", label: { en: "Columns", fa: "ستون‌ها" }, action: { dialog: "columns" } },
     { icon: "filter", label: { en: "Filter", fa: "فیلتر" }, action: { dialog: "filters" } },
     { icon: "sort", label: { en: "Group", fa: "گروه" }, action: { dialog: "group-sort" } },
