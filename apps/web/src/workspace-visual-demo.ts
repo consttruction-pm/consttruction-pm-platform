@@ -188,6 +188,9 @@ type DemoState = {
   moduleSelectedRow: number;
   moduleSearch: string;
   moduleSort: "default" | "ascending" | "descending";
+  moduleColumnWindow: DemoWindowId | null;
+  moduleAvailableColumns: string[];
+  moduleColumns: string[];
   calendarMonth: number;
   adminSection: string;
   filter: string;
@@ -632,6 +635,12 @@ function renderAdministration(state: DemoState): string {
 }
 
 function renderTableWindow(state: DemoState, title: Label, headers: string[], rows: Row[], actions: string[] = []): string {
+  if (state.moduleColumnWindow !== state.window) {
+    state.moduleColumnWindow = state.window;
+    state.moduleAvailableColumns = [...headers];
+    state.moduleColumns = [...headers];
+  }
+  const visibleHeaders = headers.filter((header) => state.moduleColumns.includes(header));
   const searchableRows = rows.map((row, index) => ({ row, index })).filter(({ row }) =>
     !state.moduleSearch.trim() || headers.some((header) => String(row[header] ?? "").toLowerCase().includes(state.moduleSearch.trim().toLowerCase())),
   );
@@ -666,7 +675,7 @@ function renderTableWindow(state: DemoState, title: Label, headers: string[], ro
       <span class="cp-vd-note">${esc(t(state.locale, "Visual preview — not connected", "پیش‌نمایش بصری — متصل نیست"))}</span>
     </div>
     <div class="cp-vd-module-split">
-      <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>#</th>${headers.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${searchableRows.map(({ row, index }) => `<tr class="cp-vd-row${index === state.moduleSelectedRow ? " is-selected" : ""}" data-vd-module-row="${index}" aria-selected="${index === state.moduleSelectedRow}"><td class="cp-vd-rownum">${index + 1}</td>${headers.map((header) => `<td>${esc(row[header] ?? "")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${headers.length + 1}" class="cp-vd-empty-state">${esc(t(state.locale, "No records match this search.", "رکوردی با این جست‌وجو پیدا نشد."))}</td></tr>`}</tbody></table></div>
+      <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>#</th>${visibleHeaders.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${searchableRows.map(({ row, index }) => `<tr class="cp-vd-row${index === state.moduleSelectedRow ? " is-selected" : ""}" data-vd-module-row="${index}" aria-selected="${index === state.moduleSelectedRow}"><td class="cp-vd-rownum">${index + 1}</td>${visibleHeaders.map((header) => `<td>${esc(row[header] ?? "")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${headers.length + 1}" class="cp-vd-empty-state">${esc(t(state.locale, "No records match this search.", "رکوردی با این جست‌وجو پیدا نشد."))}</td></tr>`}</tbody></table></div>
       <aside class="cp-vd-module-details"><div class="cp-vd-detail-heading"><strong>${esc(t(state.locale, "Details", "جزئیات"))}</strong><span>${esc(String(selected[headers[0]] ?? "—"))}</span></div>
         <div class="cp-vd-detail-tabs" role="tablist">${detailTabs.map(([id, en, fa]) => `<button type="button" role="tab" aria-selected="${state.moduleDetailTab === id}" class="${state.moduleDetailTab === id ? "is-active" : ""}" data-vd-module-tab="${id}">${esc(t(state.locale, en, fa))}</button>`).join("")}</div>
         <div class="cp-vd-module-detail-panel">${detail}</div>
@@ -1297,7 +1306,9 @@ function dialogContent(name: string, state: DemoState): string {
         <p class="cp-vd-note">${esc(t(state.locale, "Visual preview only — no project record will be created or modified.", "صرفاً پیش‌نمایش بصری — هیچ رکوردی در پروژه ایجاد یا تغییر نمی‌کند."))}</p>
       </div>`;
     case "columns":
-      return `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available columns", "ستون‌های موجود"))}</strong><ul>${ACTIVITY_COLUMNS.map((column) => `<li><label><input type="checkbox" data-vd-column="${column.id}" ${state.columns.includes(column.id) ? "checked" : ""}> ${esc(label(column, state.locale))}</label></li>`).join("")}</ul></div><div class="cp-vd-hintbox">${esc(t(state.locale, "Tick a column to add it to the activity table. Order follows the list.", "برای افزودن ستون به جدول آن را علامت بزنید. ترتیب مطابق فهرست است."))}</div></div>`;
+      return state.window === "activities"
+        ? `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available columns", "ستون‌های موجود"))}</strong><ul>${ACTIVITY_COLUMNS.map((column) => `<li><label><input type="checkbox" name="${column.id}" ${state.columns.includes(column.id) ? "checked" : ""}> ${esc(label(column, state.locale))}</label></li>`).join("")}</ul></div><div class="cp-vd-hintbox">${esc(t(state.locale, "Tick a column to add it to the activity table. Order follows the list.", "برای افزودن ستون به جدول آن را علامت بزنید. ترتیب مطابق فهرست است."))}</div></div>`
+        : `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available columns", "ستون‌های موجود"))}</strong><ul>${state.moduleAvailableColumns.map((column) => `<li><label><input type="checkbox" name="${esc(column)}" ${state.moduleColumns.includes(column) ? "checked" : ""}> ${esc(column)}</label></li>`).join("")}</ul></div><div class="cp-vd-hintbox">${esc(t(state.locale, "Choose the fields visible in this register. Detail tabs retain the complete record.", "فیلدهای نمایان این فهرست را انتخاب کنید. زبانه‌های جزئیات کل رکورد را حفظ می‌کنند."))}</div></div>`;
     case "filters":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Filter name", "نام فیلتر"))}<input name="filter" value="${esc(state.filter)}" placeholder="${esc(t(state.locale, "Type to filter activities", "برای فیلتر فعالیت‌ها تایپ کنید"))}"></label><div class="cp-vd-radios"><label><input type="radio" checked> ${esc(t(state.locale, "Any criteria", "هر معیار"))}</label><label><input type="radio"> ${esc(t(state.locale, "All criteria", "همهٔ معیارها"))}</label></div>${rows(["Field", "Operator", "Value"], `<tr><td>Activity ID / Name</td><td>contains</td><td><input value="${esc(state.filter)}"></td></tr>`)}</div>`;
     case "group-sort":
@@ -1539,6 +1550,9 @@ export function createVisualDemoState(locale: string): DemoState {
     moduleSelectedRow: 0,
     moduleSearch: "",
     moduleSort: "default",
+    moduleColumnWindow: null,
+    moduleAvailableColumns: [],
+    moduleColumns: [],
     calendarMonth: 1,
     adminSection: "users",
     filter: "",
@@ -1917,8 +1931,13 @@ function bind(root: HTMLElement): void {
     const name = form.dataset.vdForm;
     const data = new FormData(form);
     if (name === "columns") {
-      state.columns = ACTIVITY_COLUMNS.filter((column) => data.has(column.id)).map((column) => column.id);
-      if (!state.columns.length) state.columns = [...DEFAULT_COLUMNS];
+      if (state.window === "activities") {
+        state.columns = ACTIVITY_COLUMNS.filter((column) => data.has(column.id)).map((column) => column.id);
+        if (!state.columns.length) state.columns = [...DEFAULT_COLUMNS];
+      } else {
+        state.moduleColumns = state.moduleAvailableColumns.filter((column) => data.has(column));
+        if (!state.moduleColumns.length) state.moduleColumns = [...state.moduleAvailableColumns];
+      }
     }
     if (name === "filters" || name === "find") state.filter = String(data.get("filter") ?? "");
     if (name === "group-sort") state.groupBy = data.get("group") === "none" ? "none" : "wbs";
