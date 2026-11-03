@@ -365,6 +365,7 @@ class SQLiteLocalApplicationRuntime:
         *,
         auth_context: AuthorizationContext,
         apply: Callable[[], object],
+        permission: Permission = Permission.PROJECT_WRITE,
     ) -> object:
         """Commit one authorized local domain write and its durable outbox item.
 
@@ -385,7 +386,9 @@ class SQLiteLocalApplicationRuntime:
             raise ValueError("OFFLINE_MUTATION_SCOPE_MISMATCH")
         if mutation.expected_revision != scope.project_revision:
             raise ValueError("OFFLINE_MUTATION_REVISION_MISMATCH")
-        self.authorization_policy.require(auth_context, Permission.PROJECT_WRITE)
+        if permission not in {Permission.PROJECT_WRITE, Permission.PROJECT_SCHEDULE}:
+            raise ValueError("OFFLINE_MUTATION_PERMISSION_INVALID")
+        self.authorization_policy.require(auth_context, permission)
         with self.transaction_manager.transaction():
             result = apply()
             self.offline_mutation_store.append(mutation)
@@ -445,6 +448,11 @@ class SQLiteLocalApplicationRuntime:
                 mutation,
                 auth_context=auth_context,
                 apply=apply,
+                permission=(
+                    Permission.PROJECT_SCHEDULE
+                    if operation == "schedule.publish"
+                    else Permission.PROJECT_WRITE
+                ),
             )
 
         return build_shared_core_runtime(
