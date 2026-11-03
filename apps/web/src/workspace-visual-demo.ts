@@ -14,7 +14,7 @@ import { LANDING_LOCALE_STORAGE_KEY, rememberWorkspaceLocale, writeStoredValue }
 export type DemoWindowId =
   | "projects" | "wbs" | "activities" | "assignments" | "resources" | "roles" | "calendars" | "reports"
   | "tracking" | "documents" | "expenses" | "thresholds" | "issues" | "risks" | "administration"
-  | "network" | "trace" | "timeline" | "activity-profile" | "resource-profile" | "activity-sheet" | "resource-sheet";
+  | "network" | "trace" | "timeline" | "activity-profile" | "resource-profile" | "activity-sheet" | "resource-sheet" | "cost-control" | "progress-control" | "procurement" | "changes-claims" | "form-builder" | "organization" | "smart-guide" | "assistant" | "search" | "comments";
 
 type Label = { en: string; fa: string };
 type Row = Record<string, string | number>;
@@ -42,6 +42,16 @@ const WINDOWS: Array<{ id: DemoWindowId; en: string; fa: string }> = [
   { id: "resource-profile", en: "Resource Usage Profile", fa: "پروفایل مصرف منبع" },
   { id: "activity-sheet", en: "Activity Usage Spreadsheet", fa: "صفحهٔ مصرف فعالیت" },
   { id: "resource-sheet", en: "Resource Usage Spreadsheet", fa: "صفحهٔ مصرف منبع" },
+  { id: "cost-control", en: "Cost & Financial Control", fa: "کنترل هزینه و مالی" },
+  { id: "progress-control", en: "Progress & Field Control", fa: "کنترل پیشرفت و کارگاه" },
+  { id: "procurement", en: "Procurement & Materials", fa: "تدارکات و مصالح" },
+  { id: "changes-claims", en: "Changes & Claims", fa: "تغییرات و ادعاها" },
+  { id: "form-builder", en: "Form Builder", fa: "فرم‌ساز" },
+  { id: "organization", en: "Organization", fa: "سازمان" },
+  { id: "smart-guide", en: "Smart Guide", fa: "راهنمای هوشمند" },
+  { id: "assistant", en: "Engineering Assistant", fa: "دستیار مهندسی" },
+  { id: "search", en: "Global Search", fa: "جست‌وجوی سراسری" },
+  { id: "comments", en: "Comments & Notebook", fa: "دیدگاه‌ها و دفترچه" },
 ];
 
 const ACTIVITY_COLUMNS: Array<{ id: string; en: string; fa: string; width: number; numeric?: boolean }> = [
@@ -170,9 +180,20 @@ type DemoState = {
   selectedWbsCode: string;
   wbsDetailTab: "general" | "dates" | "activities" | "documents" | "notebook";
   collapsedWbsCodes: string[];
+  collapsedNavGroups: string[];
   scale: "day" | "week" | "month" | "quarter" | "year";
   activityView: "schedule" | "relationships";
   detailTab: string;
+  moduleDetailTab: "general" | "status" | "relationships" | "comments" | "history";
+  moduleSelectedRow: number;
+  moduleSearch: string;
+  moduleSort: "default" | "ascending" | "descending";
+  moduleSortBy: string;
+  moduleColumnWindow: DemoWindowId | null;
+  moduleAvailableColumns: string[];
+  moduleColumns: string[];
+  formLibrary: "organization" | "project";
+  formTab: "design" | "fields" | "workflow" | "permissions" | "versions";
   calendarMonth: number;
   adminSection: string;
   filter: string;
@@ -617,9 +638,54 @@ function renderAdministration(state: DemoState): string {
 }
 
 function renderTableWindow(state: DemoState, title: Label, headers: string[], rows: Row[], actions: string[] = []): string {
-  return `<section class="cp-vd-windowbody">
-    <header class="cp-vd-winhead"><h2>${esc(label(title, state.locale))}</h2><div class="cp-vd-winactions">${actions.map((action) => `<button type="button" class="cp-vd-btn" data-vd-dialog="${esc(action)}">${esc(t(state.locale, action, { "new-project": "New project", "assign-resources": "Assign resources", "assign-roles": "Assign roles", "schedule": "Schedule", "level": "Level resources", "import": "Import", "export": "Export", "print": "Print preview", "baselines": "Baselines", "report-wizard": "Report wizard" }[action] ?? action))}</button>`).join("")}</div></header>
-    <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr>${headers.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${headers.map((header) => `<td>${esc(row[header] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+  if (state.moduleColumnWindow !== state.window) {
+    state.moduleColumnWindow = state.window;
+    state.moduleAvailableColumns = [...headers];
+    state.moduleColumns = [...headers];
+    state.moduleSortBy = headers[0] ?? "";
+  }
+  const visibleHeaders = headers.filter((header) => state.moduleColumns.includes(header));
+  const searchableRows = rows.map((row, index) => ({ row, index })).filter(({ row }) =>
+    !state.moduleSearch.trim() || headers.some((header) => String(row[header] ?? "").toLowerCase().includes(state.moduleSearch.trim().toLowerCase())),
+  );
+  if (state.moduleSort !== "default") searchableRows.sort((a, b) => {
+    const left = String(a.row[state.moduleSortBy || headers[0]] ?? "").toLocaleLowerCase();
+    const right = String(b.row[state.moduleSortBy || headers[0]] ?? "").toLocaleLowerCase();
+    return (left.localeCompare(right, undefined, { numeric: true }) || a.index - b.index) * (state.moduleSort === "ascending" ? 1 : -1);
+  });
+  const selected = rows[Math.min(state.moduleSelectedRow, Math.max(0, rows.length - 1))] ?? {};
+  const detailTabs: Array<[DemoState["moduleDetailTab"], string, string]> = [
+    ["general", "General", "عمومی"], ["status", "Status", "وضعیت"], ["relationships", "Relationships", "روابط"],
+    ["comments", "Comments", "دیدگاه‌ها"], ["history", "History", "تاریخچه"],
+  ];
+  const detail = state.moduleDetailTab === "comments"
+    ? `<div class="cp-vd-hintbox">${esc(t(state.locale, "Comments and notes are preview-only in this workspace.", "دیدگاه‌ها و یادداشت‌ها در این محیط صرفاً نمایشی هستند."))}<p>Site Engineer · 03-Dec-2026</p><p>Review the latest update and confirm the responsible owner.</p></div>`
+    : state.moduleDetailTab === "history"
+      ? `<div class="cp-vd-hintbox">${esc(t(state.locale, "Revision history is shown as a visual example; no audit event is persisted.", "تاریخچه نسخه صرفاً نمونه بصری است و رویداد ممیزی ذخیره نمی‌شود."))}<p>03-Dec-2026 · Item opened</p><p>02-Dec-2026 · Status reviewed</p></div>`
+      : state.moduleDetailTab === "relationships"
+        ? `<div class="cp-vd-hintbox">${esc(t(state.locale, "Related project objects", "اشیای مرتبط پروژه"))}<p>Project → WBS → Activities → Resources / Documents</p><p>${esc(t(state.locale, "Related links are navigation examples only.", "پیوندهای مرتبط صرفاً نمونه ناوبری هستند."))}</p></div>`
+        : `<dl class="cp-vd-module-detail">${headers.map((header) => `<div><dt>${esc(header)}</dt><dd>${esc(selected[header] ?? "—")}</dd></div>`).join("")}</dl>`;
+  return `<section class="cp-vd-windowbody cp-vd-module-window">
+    <header class="cp-vd-winhead"><h2>${esc(label(title, state.locale))}</h2><div class="cp-vd-winactions">${actions.map((action) => `<button type="button" class="cp-vd-btn" data-vd-dialog="${esc(action)}">${esc(t(state.locale, action, { "new-project": "New project", "assign-resources": "Assign resources", "assign-roles": "Assign roles", "schedule": "Schedule", "level": "Level resources", "import": "Import", "export": "Export", "print": "Print preview", "baselines": "Baselines", "report-wizard": "Report wizard", "new-form": "New form" }[action] ?? action))}</button>`).join("")}</div></header>
+    <div class="cp-vd-module-toolbar" role="toolbar" aria-label="${esc(t(state.locale, "Page commands", "فرمان‌های صفحه"))}">
+      <button type="button" data-vd-dialog="module-actions">＋ ${esc(t(state.locale, "Add", "افزودن"))}</button>
+      <button type="button" data-vd-dialog="module-actions">✎ ${esc(t(state.locale, "Edit", "ویرایش"))}</button>
+      <button type="button" disabled title="${esc(t(state.locale, "Preview only — delete is not connected", "پیش‌نمایش — حذف متصل نیست"))}">⌫ ${esc(t(state.locale, "Delete", "حذف"))}</button>
+      <button type="button" data-vd-dialog="filters">▽ ${esc(t(state.locale, "Filter", "فیلتر"))}</button>
+      <button type="button" data-vd-dialog="columns">▦ ${esc(t(state.locale, "Columns", "ستون‌ها"))}</button>
+      <label class="cp-vd-register-search"><span>${esc(t(state.locale, "Find in register", "جست‌وجو در فهرست"))}</span><input type="search" data-vd-module-search value="${esc(state.moduleSearch)}" placeholder="${esc(t(state.locale, "Search visible fields…", "جست‌وجوی فیلدهای نمایان…"))}"></label>
+      <label class="cp-vd-register-sort"><span>${esc(t(state.locale, "Sort by", "ترتیب بر اساس"))}</span><select data-vd-module-sort-field>${headers.map((header) => `<option value="${esc(header)}" ${state.moduleSortBy === header ? "selected" : ""}>${esc(header)}</option>`).join("")}</select></label>
+      <label class="cp-vd-register-sort"><span>${esc(t(state.locale, "Direction", "جهت"))}</span><select data-vd-module-sort><option value="default" ${state.moduleSort === "default" ? "selected" : ""}>${esc(t(state.locale, "Original order", "ترتیب اصلی"))}</option><option value="ascending" ${state.moduleSort === "ascending" ? "selected" : ""}>${esc(t(state.locale, "Ascending", "صعودی"))}</option><option value="descending" ${state.moduleSort === "descending" ? "selected" : ""}>${esc(t(state.locale, "Descending", "نزولی"))}</option></select></label>
+      <span class="cp-vd-register-count">${searchableRows.length} / ${rows.length}</span>
+      <span class="cp-vd-note">${esc(t(state.locale, "Visual preview — not connected", "پیش‌نمایش بصری — متصل نیست"))}</span>
+    </div>
+    <div class="cp-vd-module-split">
+      <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>#</th>${visibleHeaders.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${searchableRows.map(({ row, index }) => `<tr class="cp-vd-row${index === state.moduleSelectedRow ? " is-selected" : ""}" data-vd-module-row="${index}" aria-selected="${index === state.moduleSelectedRow}"><td class="cp-vd-rownum">${index + 1}</td>${visibleHeaders.map((header) => `<td>${esc(row[header] ?? "")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${headers.length + 1}" class="cp-vd-empty-state">${esc(t(state.locale, "No records match this search.", "رکوردی با این جست‌وجو پیدا نشد."))}</td></tr>`}</tbody></table></div>
+      <aside class="cp-vd-module-details"><div class="cp-vd-detail-heading"><strong>${esc(t(state.locale, "Details", "جزئیات"))}</strong><span>${esc(String(selected[headers[0]] ?? "—"))}</span></div>
+        <div class="cp-vd-detail-tabs" role="tablist">${detailTabs.map(([id, en, fa]) => `<button type="button" role="tab" aria-selected="${state.moduleDetailTab === id}" class="${state.moduleDetailTab === id ? "is-active" : ""}" data-vd-module-tab="${id}">${esc(t(state.locale, en, fa))}</button>`).join("")}</div>
+        <div class="cp-vd-module-detail-panel">${detail}</div>
+      </aside>
+    </div>
   </section>`;
 }
 
@@ -658,7 +724,7 @@ function renderWbsWindow(state: DemoState): string {
   return `<section class="cp-vd-windowbody cp-vd-wbs-window">
     <header class="cp-vd-winhead">
       <div><h2>${esc(t(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</h2><small>${esc(t(state.locale, "Hierarchical project scope", "ساختار سلسله‌مراتبی دامنه پروژه"))}</small></div>
-      <div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="new-wbs" disabled title="${esc(t(state.locale, "Creation is not connected in this visual-only preview.", "ایجاد ساختار در این پیش‌نمایش بصری متصل نیست."))}">${esc(t(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="export">${esc(t(state.locale, "Export", "خروجی"))}</button></div>
+      <div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="new-wbs">${esc(t(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="export">${esc(t(state.locale, "Export", "خروجی"))}</button></div>
     </header>
     <div class="cp-vd-wbs-layout">
       <section class="cp-vd-wbs-tree" aria-label="${esc(t(state.locale, "WBS hierarchy", "درخت ساختار شکست"))}">
@@ -726,6 +792,70 @@ function renderRolesWindow(state: DemoState): string {
   <p class="cp-vd-note">${esc(t(state.locale, "Illustrative role dictionary only; rates and capacity do not drive project cost or resource leveling in this preview.", "واژه‌نامه نقش‌ها نمونه است؛ نرخ و ظرفیت در این پیش‌نمایش هزینه پروژه یا تسطیح منابع را محاسبه نمی‌کنند."))}</p></section>`;
 }
 
+
+type ModuleMetric = { label: string; value: string; detail: string; ratio: number; tone: "blue" | "orange" | "green" | "red" };
+function withModuleOverview(markup: string, state: DemoState, metrics: ModuleMetric[], chartTitle: string, segments: Array<{ label: string; value: number; tone: ModuleMetric["tone"] }>): string {
+  const overview = `<section class="cp-vd-module-overview" aria-label="${esc(t(state.locale, "Module overview", "نمای کلی ماژول"))}">
+    <div class="cp-vd-metric-grid">${metrics.map((metric) => `<article class="cp-vd-metric-card is-${metric.tone}"><span>${esc(t(state.locale, metric.label, metric.label))}</span><strong>${esc(metric.value)}</strong><small>${esc(t(state.locale, metric.detail, metric.detail))}</small><i><b style="width:${Math.max(0, Math.min(100, metric.ratio))}%"></b></i></article>`).join("")}</div>
+    <div class="cp-vd-module-chart"><strong>${esc(t(state.locale, chartTitle, chartTitle))}</strong><div class="cp-vd-module-stack" role="img" aria-label="${esc(chartTitle)}">${segments.map((segment) => `<span class="is-${segment.tone}" style="width:${Math.max(0, Math.min(100, segment.value))}%"></span>`).join("")}</div><div class="cp-vd-module-legend">${segments.map((segment) => `<span><i class="is-${segment.tone}"></i>${esc(t(state.locale, segment.label, segment.label))}</span>`).join("")}</div></div>
+  </section>`;
+  const headerEnd = markup.indexOf("</header>");
+  return headerEnd < 0 ? markup : `${markup.slice(0, headerEnd + 9)}${overview}${markup.slice(headerEnd + 9)}`;
+}
+
+
+
+function renderAssistantWindow(state: DemoState): string {
+  return `<section class="cp-vd-windowbody cp-vd-assistant"><header class="cp-vd-winhead"><div><h2>${esc(t(state.locale, "Engineering Intelligence Assistant", "دستیار هوشمند مهندسی"))}</h2><small>${esc(t(state.locale, "Project-aware guidance with user-controlled actions", "راهنمایی آگاه از پروژه با کنترل کامل کاربر"))}</small></div><span class="cp-vd-chip">Preview · Not connected</span></header>
+    <div class="cp-vd-assistant-layout"><main class="cp-vd-assistant-chat"><div class="cp-vd-assistant-context"><strong>Current context</strong><span>CUBI-DEMO-001 · Riverside Pump Station Upgrade</span><span>Window: ${esc(label(WINDOWS.find((item) => item.id === state.window) ?? WINDOWS[0], state.locale))}</span><span>Data date: 03-Dec-2026</span></div>
+      <div class="cp-vd-assistant-message is-assistant"><b>CUBI Engineering Assistant</b><p>I can review schedule logic, explain float and critical path, identify missing inputs, and prepare proposed project changes for your approval.</p><small>Suggestions are based only on available project context. Missing values are not assumed.</small></div>
+      <div class="cp-vd-assistant-message is-user"><b>Project Manager</b><p>Review the construction activities for missing relationships and schedule risks.</p></div>
+      <div class="cp-vd-assistant-message is-assistant"><b>Review summary · Illustrative</b><ul><li>Check the predecessor chain into mechanical installation.</li><li>Confirm pump delivery date against the required-on-site date.</li><li>Review open ends and constraints before the next schedule run.</li></ul><div class="cp-vd-assistant-proposal"><strong>Proposed action — requires your approval</strong><p>Prepare a relationship review list for A1340 and A1420. No project records will be changed until an authorized user approves.</p><button type="button" class="cp-vd-btn" data-vd-window="trace">Review logic trace</button><button type="button" class="cp-vd-btn" data-vd-dialog="module-actions">Prepare a change proposal</button></div></div>
+      <div class="cp-vd-assistant-composer"><textarea rows="3" placeholder="Ask about this project, a calculation, a risk or a proposed change…" disabled></textarea><div><label class="cp-vd-assistant-file">＋ Attach file<input type="file" accept=".xlsx,.xls,.docx,.doc,.mpp,.xer,.xml,.pdf,.csv" disabled></label><button type="button" disabled title="Voice input is not connected in this preview">◉ Voice</button><button type="button" class="is-primary" disabled>Send</button></div><small>Text, voice and document input surfaces are shown for design review; processing is not connected.</small></div>
+    </main><aside class="cp-vd-assistant-side"><h3>Available capabilities</h3><article><strong>Schedule intelligence</strong><p>CPM, relationships, float, constraints and baselines.</p></article><article><strong>Project controls</strong><p>Cost, progress, procurement, claims and risk review.</p></article><article><strong>Resource guidance</strong><p>Labor, equipment, materials and assignment suggestions.</p></article><article><strong>Knowledge governance</strong><p>Versioned methods, source traceability and permission-aware learning.</p></article><div class="cp-vd-hintbox">Every write action must be proposed first and explicitly approved. Read and write permissions remain separate.</div></aside></div></section>`;
+}
+function renderSmartGuideWindow(state: DemoState): string {
+  const steps = [
+    ["01", "Define project", "Project identity, planned dates, data date and default calendar", "Complete"],
+    ["02", "Build WBS", "Create the deliverable hierarchy and assign responsible owners", "Complete"],
+    ["03", "Create activities", "IDs, activity types, durations, calendars and codes", "In progress"],
+    ["04", "Connect logic", "FS / SS / FF / SF, lag calendars, constraints and open ends", "Needs review"],
+    ["05", "Assign resources", "Labor, equipment, materials, roles and resource calendars", "Not started"],
+    ["06", "Review and baseline", "Schedule quality checks, approve and assign a baseline", "Not started"],
+  ];
+  return `<section class="cp-vd-windowbody cp-vd-smart-guide"><header class="cp-vd-winhead"><div><h2>${esc(t(state.locale, "Smart Guide", "راهنمای هوشمند"))}</h2><small>${esc(t(state.locale, "Guided project setup and quality checks", "راهنمای گام‌به‌گام راه‌اندازی و کنترل کیفیت پروژه"))}</small></div><span class="cp-vd-chip">Project setup · 6 stages</span></header>
+    <div class="cp-vd-guide-summary"><div><strong>3 / 6</strong><span>Stages started</span></div><div><strong>4</strong><span>Open checks</span></div><div><strong>2</strong><span>Approval gates</span></div><div><strong>1</strong><span>Missing input group</span></div></div>
+    <div class="cp-vd-guide-layout"><div class="cp-vd-guide-steps">${steps.map(([number,title,description,status],index)=>`<article class="cp-vd-guide-step ${status === "Complete" ? "is-complete" : status === "In progress" ? "is-current" : status === "Needs review" ? "is-warning" : ""}"><b>${number}</b><div><strong>${esc(title)}</strong><p>${esc(description)}</p></div><span>${esc(status)}</span><button type="button" class="cp-vd-btn" data-vd-window="${["projects","wbs","activities","trace","assignments","reports"][index]}">Open</button></article>`).join("")}</div>
+      <aside class="cp-vd-guide-checks"><h3>Schedule quality review</h3><div class="cp-vd-guide-check is-pass"><b>✓</b><span>Activity IDs are unique</span></div><div class="cp-vd-guide-check is-pass"><b>✓</b><span>WBS assignments are present</span></div><div class="cp-vd-guide-check is-warning"><b>!</b><span>Review activities with no predecessors or successors</span></div><div class="cp-vd-guide-check is-warning"><b>!</b><span>Validate hard constraints and actual dates</span></div><div class="cp-vd-guide-check is-pending"><b>○</b><span>Confirm resource calendars and availability</span></div><div class="cp-vd-hintbox">Checks identify items for review. The guide does not invent missing dates, logic or quantities.</div></aside></div></section>`;
+}
+
+function renderFormBuilderWindow(state: DemoState): string {
+  const forms = [
+    { id: "FRM-QA-001", title: "Inspection Request", library: "organization", version: "3.2", status: "Published" },
+    { id: "FRM-HSE-002", title: "Safety Observation", library: "organization", version: "2.1", status: "Published" },
+    { id: "FRM-SITE-004", title: "Daily Site Report", library: "project", version: "1.0", status: "Draft" },
+    { id: "FRM-QTY-006", title: "Daily Quantity Record", library: "project", version: "1.1", status: "For review" },
+  ];
+  const visibleForms = forms.filter((form) => form.library === state.formLibrary);
+  const tabs: Array<[DemoState["formTab"], string, string]> = [
+    ["design", "Design", "طراحی"], ["fields", "Fields", "فیلدها"], ["workflow", "Workflow", "گردش کار"],
+    ["permissions", "Permissions", "دسترسی‌ها"], ["versions", "Versions", "نسخه‌ها"],
+  ];
+  const properties: Record<DemoState["formTab"], string> = {
+    design: `<div class="cp-vd-form"><label>Form title<input value="Daily Site Report"></label><label>Form description<textarea rows="3">Daily site progress, resources, quantities and site constraints.</textarea></label><label>Header image<input type="file" accept="image/jpeg,image/png"></label><p class="cp-vd-note">JPEG and PNG supported. Transparent PNG logos retain their transparency.</p><label>Page size<select><option>A4 portrait</option><option>A4 landscape</option><option>Letter</option></select></label><label>Language<select><option>Project language</option><option>English</option><option>فارسی</option></select></label></div>`,
+    fields: `<div class="cp-vd-form"><label>Field type<select><option>Short text</option><option>Long text</option><option>Number / quantity</option><option>Date and time</option><option>Dropdown</option><option>Checkbox</option><option>Photo / attachment</option><option>Signature</option></select></label><label>Field label<input value="Work completed today"></label><label>Required<input type="checkbox" checked></label><label>Validation rule<select><option>None</option><option>Minimum / maximum</option><option>Allowed values</option><option>Required format</option></select></label><label>Visibility<select><option>All assigned form users</option><option>Role-specific</option><option>Owner only</option></select></label></div>`,
+    workflow: `<ol class="cp-vd-form-workflow"><li><b>1</b><span><strong>Submit</strong><small>Site engineer / form user</small></span></li><li><b>2</b><span><strong>Verify</strong><small>Discipline supervisor</small></span></li><li><b>3</b><span><strong>Approve</strong><small>Project manager</small></span></li><li><b>4</b><span><strong>Publish to project record</strong><small>Only after approval</small></span></li></ol><p class="cp-vd-note">Submitted form data remains separate until an authorized approver accepts it.</p>`,
+    permissions: `<div class="cp-vd-form"><label>Form owner<select><option>Project Controls</option><option>Quality Department</option></select></label><label>Can submit<select><option>Assigned form users</option><option>Project team</option><option>All project users</option></select></label><label>Can verify<select><option>Discipline supervisors</option><option>Project manager</option></select></label><label>Can approve<select><option>Project manager</option><option>Project director</option></select></label><label>Can edit after approval<input type="checkbox"></label><label>Read-only access<select><option>Project team</option><option>Organization administrators</option></select></label></div>`,
+    versions: `<table class="cp-vd-mini"><thead><tr><th>Version</th><th>Updated</th><th>Owner</th><th>Status</th></tr></thead><tbody><tr><td>1.1</td><td>03-Dec-2026</td><td>Project Controls</td><td>Current draft</td></tr><tr><td>1.0</td><td>21-Nov-2026</td><td>Project Controls</td><td>Published</td></tr><tr><td>0.9</td><td>18-Nov-2026</td><td>Quality</td><td>Archived</td></tr></tbody></table><p class="cp-vd-note">Version history is retained per form library. Published organization templates can be copied into a project library before tailoring.</p>`,
+  };
+  return `<section class="cp-vd-windowbody cp-vd-form-builder"><header class="cp-vd-winhead"><div><h2>${esc(t(state.locale, "Form Builder", "فرم‌ساز"))}</h2><small>${esc(t(state.locale, "Organization standards and project-specific forms", "استانداردهای سازمانی و فرم‌های اختصاصی پروژه"))}</small></div><div class="cp-vd-winactions"><button class="cp-vd-btn" data-vd-dialog="new-form">${esc(t(state.locale, "New form", "فرم جدید"))}</button><button class="cp-vd-btn" data-vd-dialog="import">${esc(t(state.locale, "Import", "ورود"))}</button><button class="cp-vd-btn" data-vd-dialog="export">${esc(t(state.locale, "Export", "خروجی"))}</button></div></header>
+    <div class="cp-vd-form-library-tabs" role="tablist"><button type="button" data-vd-form-library="organization" aria-selected="${state.formLibrary === "organization"}" class="${state.formLibrary === "organization" ? "is-active" : ""}">${esc(t(state.locale, "Organization library", "کتابخانه سازمان"))}<span>7</span></button><button type="button" data-vd-form-library="project" aria-selected="${state.formLibrary === "project"}" class="${state.formLibrary === "project" ? "is-active" : ""}">${esc(t(state.locale, "Project library", "کتابخانه پروژه"))}<span>5</span></button></div>
+    <div class="cp-vd-form-builder-grid"><aside class="cp-vd-form-list"><strong>${esc(t(state.locale, "Forms in library", "فرم‌های کتابخانه"))}</strong>${visibleForms.map((form) => `<button type="button" class="cp-vd-form-list-item"><span><bdi dir="ltr">${form.id}</bdi><strong>${esc(form.title)}</strong></span><small>${esc(form.version)} · ${esc(form.status)}</small></button>`).join("")}<p class="cp-vd-note">Organization forms are reusable standards. Project forms are tailored to this project only.</p></aside>
+      <section class="cp-vd-form-canvas"><div class="cp-vd-form-canvas-toolbar"><span>Daily Site Report · FRM-SITE-004 · v1.1</span><span class="cp-vd-chip">A4 portrait</span></div><div class="cp-vd-form-paper"><header><div class="cp-vd-form-logo">CUBI<br><small>PROJECT CONTROLS</small></div><div><h3>Daily Site Report</h3><p>Project: Riverside Pump Station Upgrade</p><p>Report date: __________ · Work area: __________</p></div></header><section><h4>1. Work completed</h4><label>Work description<textarea rows="2" placeholder="Describe completed work"></textarea></label><div class="cp-vd-form-paper-row"><label>Discipline<input placeholder="Select discipline"></label><label>Quantity completed<input placeholder="Enter quantity"></label></div></section><section><h4>2. Resources and equipment</h4><div class="cp-vd-form-paper-row"><label>Labor hours<input placeholder="Hours"></label><label>Equipment hours<input placeholder="Hours"></label></div></section><section><h4>3. Constraints, safety and attachments</h4><label>Site constraints<textarea rows="2"></textarea></label><label>Photos / attachments<input type="file" accept="image/*,.pdf"></label></section><footer>Submitted by: __________ <span>Verified by: __________</span></footer></div></section>
+      <aside class="cp-vd-form-properties"><div class="cp-vd-form-property-tabs" role="tablist">${tabs.map(([id,en,fa]) => `<button type="button" data-vd-form-tab="${id}" aria-selected="${state.formTab === id}" class="${state.formTab === id ? "is-active" : ""}">${esc(t(state.locale,en,fa))}</button>`).join("")}</div><div class="cp-vd-form-property-panel">${properties[state.formTab]}</div></aside>
+    </div><p class="cp-vd-note">Visual builder preview — field edits, uploads, workflow execution and publication are not connected to project storage.</p></section>`;
+}
+
 function renderWindow(state: DemoState): string {
   switch (state.window) {
     case "projects":
@@ -785,6 +915,51 @@ function renderWindow(state: DemoState): string {
         { Risk: "Long-lead valve supply", Probability: "Low", Impact: "High", Score: 8, Response: "Transfer" },
         { Risk: "Commissioning resource", Probability: "Medium", Impact: "Medium", Score: 6, Response: "Accept" },
       ]);
+    case "cost-control":
+      return withModuleOverview(renderTableWindow(state, { en: "Cost & Financial Control", fa: "کنترل هزینه و مالی" }, ["Control account", "Budget", "Actual", "Commitments", "Forecast", "Variance"], [
+        { "Control account": "CA-100 Engineering", Budget: "125,000", Actual: "74,500", Commitments: "18,000", Forecast: "121,000", Variance: "4,000" },
+        { "Control account": "CA-200 Procurement", Budget: "420,000", Actual: "132,000", Commitments: "210,000", Forecast: "438,000", Variance: "-18,000" },
+        { "Control account": "CA-300 Construction", Budget: "680,000", Actual: "0", Commitments: "85,000", Forecast: "665,000", Variance: "15,000" },
+      ], ["report-wizard", "export"]), state, [{"label":"Approved budget","value":"€1.225m","detail":"Control budget","ratio":100,"tone":"blue"},{"label":"Actual cost","value":"€207k","detail":"Recorded to data date","ratio":17,"tone":"orange"},{"label":"Commitments","value":"€313k","detail":"Open commitments","ratio":26,"tone":"green"},{"label":"Forecast variance","value":"+€1k","detail":"Forecast vs budget","ratio":2,"tone":"red"}], "Cost breakdown by control account", [{"label":"Engineering","value":18,"tone":"blue"},{"label":"Procurement","value":34,"tone":"orange"},{"label":"Construction","value":40,"tone":"green"},{"label":"Other","value":8,"tone":"red"}]);
+    case "progress-control":
+      return withModuleOverview(renderTableWindow(state, { en: "Progress & Field Control", fa: "کنترل پیشرفت و کارگاه" }, ["Package", "Discipline", "Planned %", "Actual %", "Quantity", "Unit", "Status"], [
+        { Package: "Concrete foundations", Discipline: "Civil", "Planned %": "62%", "Actual %": "55%", Quantity: "420", Unit: "m³", Status: "Behind" },
+        { Package: "Pump installation", Discipline: "Mechanical", "Planned %": "15%", "Actual %": "10%", Quantity: "2", Unit: "ea", Status: "In progress" },
+        { Package: "Cable tray installation", Discipline: "Electrical", "Planned %": "0%", "Actual %": "0%", Quantity: "680", Unit: "m", Status: "Not started" },
+      ], ["report-wizard", "export"]), state, [{"label":"Planned progress","value":"32%","detail":"Current data date","ratio":32,"tone":"blue"},{"label":"Actual progress","value":"27%","detail":"Reported field progress","ratio":27,"tone":"orange"},{"label":"Work fronts","value":"12","detail":"Active work packages","ratio":72,"tone":"green"},{"label":"Behind plan","value":"3","detail":"Packages requiring review","ratio":25,"tone":"red"}], "Field progress distribution", [{"label":"Ahead / on plan","value":35,"tone":"green"},{"label":"At risk","value":30,"tone":"orange"},{"label":"Behind","value":25,"tone":"red"},{"label":"Not started","value":10,"tone":"blue"}]);
+    case "procurement":
+      return withModuleOverview(renderTableWindow(state, { en: "Procurement & Materials", fa: "تدارکات و مصالح" }, ["Package", "Material / Equipment", "Supplier", "Required date", "Promised date", "Received", "Status"], [
+        { Package: "PKG-PMP-01", "Material / Equipment": "Vertical pump set", Supplier: "Supplier A", "Required date": "26-Feb-27", "Promised date": "01-Mar-27", Received: "0 / 2", Status: "At risk" },
+        { Package: "PKG-VAL-02", "Material / Equipment": "Isolation valves", Supplier: "Supplier B", "Required date": "15-Feb-27", "Promised date": "10-Feb-27", Received: "0 / 8", Status: "On track" },
+      ], ["import", "export"]), state, [{"label":"Packages","value":"14","detail":"Tracked procurement packages","ratio":100,"tone":"blue"},{"label":"On track","value":"9","detail":"Within required dates","ratio":64,"tone":"green"},{"label":"At risk","value":"3","detail":"Potential delivery exposure","ratio":22,"tone":"orange"},{"label":"Overdue","value":"2","detail":"Past required date","ratio":14,"tone":"red"}], "Procurement status", [{"label":"On track","value":64,"tone":"green"},{"label":"At risk","value":22,"tone":"orange"},{"label":"Overdue","value":14,"tone":"red"}]);
+    case "changes-claims":
+      return withModuleOverview(renderTableWindow(state, { en: "Changes & Claims", fa: "تغییرات و ادعاها" }, ["Reference", "Type", "Description", "Submitted", "Time impact", "Cost impact", "Status"], [
+        { Reference: "VO-004", Type: "Variation", Description: "Additional foundation works", Submitted: "18-Nov-26", "Time impact": "5 d", "Cost impact": "€18,500", Status: "Under review" },
+        { Reference: "CL-002", Type: "Claim", Description: "Late access to work area", Submitted: "22-Nov-26", "Time impact": "8 d", "Cost impact": "€12,000", Status: "Draft" },
+      ], ["report-wizard", "export"]), state, [{"label":"Change events","value":"6","detail":"Registered changes","ratio":60,"tone":"blue"},{"label":"Open claims","value":"2","detail":"Awaiting assessment","ratio":35,"tone":"orange"},{"label":"Cost exposure","value":"€30.5k","detail":"Submitted amounts","ratio":55,"tone":"red"},{"label":"Time exposure","value":"13 days","detail":"Claimed extension","ratio":45,"tone":"green"}], "Change and claim workflow", [{"label":"Draft","value":20,"tone":"blue"},{"label":"Under review","value":45,"tone":"orange"},{"label":"Approved","value":20,"tone":"green"},{"label":"Closed","value":15,"tone":"red"}]);
+    case "form-builder":
+      return renderFormBuilderWindow(state);
+    case "organization":
+      return withModuleOverview(renderTableWindow(state, { en: "Organization", fa: "سازمان" }, ["Code", "Name", "Type", "Parent", "Manager", "Status"], [
+        { Code: "ORG-01", Name: "Project Controls", Type: "Department", Parent: "CUBI Organization", Manager: "Controls Manager", Status: "Active" },
+        { Code: "ORG-02", Name: "Engineering", Type: "Department", Parent: "CUBI Organization", Manager: "Engineering Manager", Status: "Active" },
+        { Code: "ORG-03", Name: "Construction", Type: "Department", Parent: "CUBI Organization", Manager: "Construction Manager", Status: "Active" },
+      ], ["export"]), state, [{"label":"Departments","value":"3","detail":"Organization structure","ratio":75,"tone":"blue"},{"label":"Roles","value":"8","detail":"Defined role types","ratio":80,"tone":"green"},{"label":"Users","value":"6","detail":"Illustrative accounts","ratio":60,"tone":"orange"},{"label":"Profiles","value":"3","detail":"Access profiles","ratio":30,"tone":"red"}], "Organization structure", [{"label":"Project controls","value":34,"tone":"blue"},{"label":"Engineering","value":33,"tone":"green"},{"label":"Construction","value":33,"tone":"orange"}]);
+    case "smart-guide":
+      return renderSmartGuideWindow(state);
+    case "assistant":
+      return renderAssistantWindow(state);
+    case "search":
+      return withModuleOverview(renderTableWindow(state, { en: "Global Search", fa: "جست‌وجوی سراسری" }, ["Search scope", "Object types", "Fields", "Action"], [
+        { "Search scope": "Current project", "Object types": "WBS, Activities, Resources, Documents", Fields: "ID, name, code, description", Action: "Open result" },
+        { "Search scope": "Organization", "Object types": "Projects, Users, Forms", Fields: "ID, name, owner", Action: "Open result" },
+      ]), state, [{"label":"Search scopes","value":"2","detail":"Project and organization","ratio":100,"tone":"blue"},{"label":"Object types","value":"8","detail":"Illustrative index types","ratio":80,"tone":"green"},{"label":"Search fields","value":"6","detail":"IDs, names and metadata","ratio":60,"tone":"orange"},{"label":"Live index","value":"Not connected","detail":"Preview configuration only","ratio":0,"tone":"red"}], "Search coverage", [{"label":"Projects","value":20,"tone":"blue"},{"label":"Schedule","value":35,"tone":"green"},{"label":"Resources","value":20,"tone":"orange"},{"label":"Documents","value":25,"tone":"red"}]);
+    case "comments":
+      return withModuleOverview(renderTableWindow(state, { en: "Comments & Notebook", fa: "دیدگاه‌ها و دفترچه" }, ["Date", "Object", "Author", "Type", "Status", "Replies"], [
+        { Date: "03-Dec-26 09:15", Object: "A1320 — Install pump base", Author: "Site Engineer", Type: "Comment", Status: "Open", Replies: "2" },
+        { Date: "02-Dec-26 16:40", Object: "WBS 04 — Construction", Author: "Project Manager", Type: "Notebook", Status: "Current", Replies: "0" },
+        { Date: "01-Dec-26 11:05", Object: "PKG-PMP-01", Author: "Procurement", Type: "Update", Status: "For review", Replies: "1" },
+      ]), state, [{"label":"Threads","value":"3","detail":"Sample discussion items","ratio":60,"tone":"blue"},{"label":"Open","value":"2","detail":"Awaiting response","ratio":67,"tone":"orange"},{"label":"Replies","value":"3","detail":"Across sample threads","ratio":45,"tone":"green"},{"label":"Overdue","value":"1","detail":"Requires follow-up","ratio":20,"tone":"red"}], "Discussion status", [{"label":"Open","value":67,"tone":"orange"},{"label":"Current","value":33,"tone":"green"}]);
     case "administration":
       return renderAdministration(state);
     case "network":
@@ -980,6 +1155,16 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
       { label: { en: "Resource Usage Profile", fa: "پروفایل مصرف منبع" }, action: { window: "resource-profile" } },
       { label: { en: "Activity Usage Spreadsheet", fa: "صفحهٔ مصرف فعالیت" }, action: { window: "activity-sheet" } },
       { label: { en: "Resource Usage Spreadsheet", fa: "صفحهٔ مصرف منبع" }, action: { window: "resource-sheet" } },
+      { label: { en: "Cost & Financial Control", fa: "کنترل هزینه و مالی" }, action: { window: "cost-control" } },
+      { label: { en: "Progress & Field Control", fa: "کنترل پیشرفت و کارگاه" }, action: { window: "progress-control" } },
+      { label: { en: "Procurement & Materials", fa: "تدارکات و مصالح" }, action: { window: "procurement" } },
+      { label: { en: "Changes & Claims", fa: "تغییرات و ادعاها" }, action: { window: "changes-claims" } },
+      { label: { en: "Form Builder", fa: "فرم‌ساز" }, action: { window: "form-builder" } },
+      { label: { en: "Organization", fa: "سازمان" }, action: { window: "organization" } },
+      { label: { en: "Smart Guide", fa: "راهنمای هوشمند" }, action: { window: "smart-guide" } },
+      { label: { en: "Engineering Assistant", fa: "دستیار مهندسی" }, action: { window: "assistant" } },
+      { label: { en: "Global Search", fa: "جست‌وجوی سراسری" }, action: { window: "search" } },
+      { label: { en: "Comments & Notebook", fa: "دیدگاه‌ها و دفترچه" }, action: { window: "comments" } },
       { label: { en: "Resource Assignments", fa: "تخصیص منابع" }, action: { window: "assignments" } },
       { label: { en: "Tracking", fa: "پیگیری" }, action: { window: "tracking" } },
       { label: { en: "Documents", fa: "اسناد" }, action: { window: "documents" } },
@@ -1157,8 +1342,19 @@ function renderTabs(state: DemoState): string {
 function dialogContent(name: string, state: DemoState): string {
   const rows = (head: string[], body: string): string => `<table class="cp-vd-mini"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
   switch (name) {
+    case "module-actions":
+      return `<div class="cp-vd-form">
+        <div class="cp-vd-hintbox">${esc(t(state.locale, "These controls demonstrate the page-specific command surface. Changes are preview-only and are not saved.", "این کنترل‌ها نوار فرمان صفحه را نمایش می‌دهند. تغییرات صرفاً نمایشی هستند و ذخیره نمی‌شوند."))}</div>
+        <label>${esc(t(state.locale, "Object type", "نوع آیتم"))}<select name="objectType"><option>Activity</option><option>WBS</option><option>Relationship</option><option>Resource assignment</option><option>Document</option><option>Issue</option><option>Risk</option><option>Form</option><option>Comment</option></select></label>
+        <label>${esc(t(state.locale, "Name / description", "نام / شرح"))}<input name="objectName" placeholder="${esc(t(state.locale, "Enter a descriptive name", "نام یا شرح را وارد کنید"))}"></label>
+        <label>${esc(t(state.locale, "Code / ID", "کد / شناسه"))}<input name="objectCode" placeholder="CUBI-NEW-001"></label>
+        <label>${esc(t(state.locale, "Status", "وضعیت"))}<select name="status"><option>Draft</option><option>For review</option><option>Approved</option><option>On hold</option></select></label>
+        <p class="cp-vd-note">${esc(t(state.locale, "Visual preview only — no project record will be created or modified.", "صرفاً پیش‌نمایش بصری — هیچ رکوردی در پروژه ایجاد یا تغییر نمی‌کند."))}</p>
+      </div>`;
     case "columns":
-      return `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available columns", "ستون‌های موجود"))}</strong><ul>${ACTIVITY_COLUMNS.map((column) => `<li><label><input type="checkbox" data-vd-column="${column.id}" ${state.columns.includes(column.id) ? "checked" : ""}> ${esc(label(column, state.locale))}</label></li>`).join("")}</ul></div><div class="cp-vd-hintbox">${esc(t(state.locale, "Tick a column to add it to the activity table. Order follows the list.", "برای افزودن ستون به جدول آن را علامت بزنید. ترتیب مطابق فهرست است."))}</div></div>`;
+      return state.window === "activities"
+        ? `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available columns", "ستون‌های موجود"))}</strong><ul>${ACTIVITY_COLUMNS.map((column) => `<li><label><input type="checkbox" name="${column.id}" ${state.columns.includes(column.id) ? "checked" : ""}> ${esc(label(column, state.locale))}</label></li>`).join("")}</ul></div><div class="cp-vd-hintbox">${esc(t(state.locale, "Tick a column to add it to the activity table. Order follows the list.", "برای افزودن ستون به جدول آن را علامت بزنید. ترتیب مطابق فهرست است."))}</div></div>`
+        : `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available columns", "ستون‌های موجود"))}</strong><ul>${state.moduleAvailableColumns.map((column) => `<li><label><input type="checkbox" name="${esc(column)}" ${state.moduleColumns.includes(column) ? "checked" : ""}> ${esc(column)}</label></li>`).join("")}</ul></div><div class="cp-vd-hintbox">${esc(t(state.locale, "Choose the fields visible in this register. Detail tabs retain the complete record.", "فیلدهای نمایان این فهرست را انتخاب کنید. زبانه‌های جزئیات کل رکورد را حفظ می‌کنند."))}</div></div>`;
     case "filters":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Filter name", "نام فیلتر"))}<input name="filter" value="${esc(state.filter)}" placeholder="${esc(t(state.locale, "Type to filter activities", "برای فیلتر فعالیت‌ها تایپ کنید"))}"></label><div class="cp-vd-radios"><label><input type="radio" checked> ${esc(t(state.locale, "Any criteria", "هر معیار"))}</label><label><input type="radio"> ${esc(t(state.locale, "All criteria", "همهٔ معیارها"))}</label></div>${rows(["Field", "Operator", "Value"], `<tr><td>Activity ID / Name</td><td>contains</td><td><input value="${esc(state.filter)}"></td></tr>`)}</div>`;
     case "group-sort":
@@ -1175,10 +1371,14 @@ function dialogContent(name: string, state: DemoState): string {
       return `${rows(["Layout", "Scope", "Status"], `<tr><td>CUBI Classic Schedule Layout</td><td>Project</td><td>Current</td></tr><tr><td>Cost and resource view</td><td>Project</td><td>Available</td></tr><tr><td>Commissioning look-ahead</td><td>Project</td><td>Available</td></tr>`)}<p class="cp-vd-note">${esc(t(state.locale, "Layouts are visual examples in this demo.", "چیدمان‌ها در این نمایش نمونهٔ بصری هستند."))}</p>`;
     case "customize-details":
       return `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available tabs", "زبانه‌های موجود"))}</strong><ul>${["Cost", "Duration", "WPs & Docs", "Feedback"].map((item) => `<li><label><input type="checkbox"> ${esc(item)}</label></li>`).join("")}</ul></div><div><strong>${esc(t(state.locale, "Display tabs", "زبانه‌های نمایش"))}</strong><ul>${["General", "Status", "Resources", "Predecessors", "Successors"].map((item) => `<li><label><input type="checkbox" checked> ${esc(item)}</label></li>`).join("")}</ul></div></div>`;
+    case "new-wbs":
+      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "WBS code", "کد WBS"))}<input name="wbsCode" value="1.6" required></label><label>${esc(t(state.locale, "WBS name", "نام WBS"))}<input name="wbsName" placeholder="New work package" required></label><label>${esc(t(state.locale, "Parent WBS", "WBS والد"))}<select name="parent"><option>1 — CUBI-DEMO-001 Riverside Pump Station</option><option>1.1 — Project Management</option><option>1.2 — Engineering</option><option>1.3 — Procurement</option><option>1.4 — Construction</option><option>1.5 — Testing & Commissioning</option></select></label><label>${esc(t(state.locale, "Responsible manager", "مدیر مسئول"))}<select><option>Project Manager</option><option>Engineering Manager</option><option>Construction Manager</option></select></label><p class="cp-vd-note">${esc(t(state.locale, "Visual preview only — no WBS record will be saved.", "صرفاً پیش‌نمایش بصری — رکورد WBS ذخیره نمی‌شود."))}</p></div>`;
+    case "new-form":
+      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Form ID", "شناسه فرم"))}<input name="formId" value="FRM-NEW-001"></label><label>${esc(t(state.locale, "Form title", "عنوان فرم"))}<input name="formTitle" placeholder="New inspection form"></label><label>${esc(t(state.locale, "Library", "کتابخانه"))}<select name="library"><option>Organization library</option><option>Project library</option></select></label><label>${esc(t(state.locale, "Version", "نسخه"))}<input value="1.0"></label><label>${esc(t(state.locale, "Workflow", "گردش کار"))}<select><option>Submit → Review → Approve</option><option>Submit → Verify → Close</option><option>Submit → Return for correction → Resubmit</option></select></label><label>${esc(t(state.locale, "Form access", "دسترسی فرم"))}<select><option>Assigned form users</option><option>Project team</option><option>Organization administrators</option></select></label><p class="cp-vd-note">${esc(t(state.locale, "Organization templates are reusable; project forms remain scoped to this project. Preview only.", "قالب‌های سازمانی قابل استفاده مجدد هستند؛ فرم‌های پروژه در محدوده همین پروژه می‌مانند. صرفاً پیش‌نمایش."))}</p></div>`;
     case "new-project":
-      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Project ID", "شناسهٔ پروژه"))}<input value="CUBI-DEMO-002"></label><label>${esc(t(state.locale, "Project name", "نام پروژه"))}<input value="Intake Screen Replacement"></label><label>${esc(t(state.locale, "Start date", "تاریخ شروع"))}<input value="2027-02-01"></label></div>`;
+      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Project ID", "شناسهٔ پروژه"))}<input value="CUBI-DEMO-002"></label><label>${esc(t(state.locale, "Project name", "نام پروژه"))}<input placeholder="New construction project"></label><label>${esc(t(state.locale, "Planned start", "شروع برنامه‌ای"))}<input type="date" value="2027-02-01"></label><label>${esc(t(state.locale, "Must finish by", "مهلت پایان"))}<input type="date"></label><label>${esc(t(state.locale, "Responsible manager", "مدیر مسئول"))}<select><option>Project Manager</option><option>Program Manager</option></select></label><label>${esc(t(state.locale, "Default calendar", "تقویم پیش‌فرض"))}<select><option>5-Day Workweek</option><option>6-Day Workweek</option><option>24 Hour</option></select></label><label>${esc(t(state.locale, "Currency", "ارز"))}<select><option>EUR — Euro</option><option>USD — US Dollar</option><option>IRR — Iranian Rial</option></select></label><p class="cp-vd-note">${esc(t(state.locale, "Project creation is a visual preview and does not create a live project.", "ایجاد پروژه صرفاً پیش‌نمایش بصری است و پروژه زنده ایجاد نمی‌کند."))}</p></div>`;
     case "project-properties":
-      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Project ID", "شناسهٔ پروژه"))}<input value="CUBI-DEMO-001" readonly></label><label>${esc(t(state.locale, "Name", "نام"))}<input value="Riverside Pump Station Upgrade"></label><label>${esc(t(state.locale, "Data date", "تاریخ داده"))}<input value="2026-12-03"></label></div>`;
+      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Project ID", "شناسهٔ پروژه"))}<input value="CUBI-DEMO-001" readonly></label><label>${esc(t(state.locale, "Project name", "نام"))}<input value="Riverside Pump Station Upgrade"></label><label>${esc(t(state.locale, "Planned start", "شروع برنامه‌ای"))}<input type="date" value="2026-11-02"></label><label>${esc(t(state.locale, "Data date", "تاریخ داده"))}<input type="date" value="2026-12-03"></label><label>${esc(t(state.locale, "Must finish by", "مهلت پایان"))}<input type="date" value="2027-05-28"></label><label>${esc(t(state.locale, "Default calendar", "تقویم پیش‌فرض"))}<select><option>5-Day Workweek</option><option>6-Day Workweek</option><option>24 Hour</option></select></label><label>${esc(t(state.locale, "Responsible manager", "مدیر مسئول"))}<select><option>Project Manager</option><option>Program Manager</option></select></label><label>${esc(t(state.locale, "Project status", "وضعیت پروژه"))}<select><option>Active</option><option>Planned</option><option>On hold</option><option>Completed</option></select></label></div>`;
     case "calendar":
       return `<div class="cp-vd-calendar-editor">
         <div class="cp-vd-calendar-editor-main">
@@ -1186,7 +1386,7 @@ function dialogContent(name: string, state: DemoState): string {
             <h3>${esc(t(state.locale, "Calendar properties", "مشخصات تقویم"))}</h3>
             <div class="cp-vd-form cp-vd-calendar-fields">
               <label>${esc(t(state.locale, "Calendar name", "نام تقویم"))}<input value="5-Day Workweek" readonly></label>
-              <label>${esc(t(state.locale, "Calendar type", "نوع تقویم"))}<select disabled><option>Global</option><option>Project</option><option>Resource</option></select></label>
+              <label>${esc(t(state.locale, "Calendar type", "نوع تقویم"))}<select name="calendarType"><option>Global</option><option>Project</option><option>Resource</option></select></label>
               <label>${esc(t(state.locale, "Hours per day", "ساعت در روز"))}<input value="8" readonly></label>
               <label>${esc(t(state.locale, "Hours per week", "ساعت در هفته"))}<input value="40" readonly></label>
               <label>${esc(t(state.locale, "Hours per month", "ساعت در ماه"))}<input value="176" readonly></label>
@@ -1198,7 +1398,7 @@ function dialogContent(name: string, state: DemoState): string {
           <div class="cp-vd-calendar-workweek">
             <h3>${esc(t(state.locale, "Workweek", "هفته کاری"))}</h3>
             <table class="cp-vd-mini"><thead><tr><th>${esc(t(state.locale, "Day", "روز"))}</th><th>${esc(t(state.locale, "Working time", "زمان کاری"))}</th><th>${esc(t(state.locale, "Status", "وضعیت"))}</th></tr></thead><tbody>
-              ${[[ "Saturday", "شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Sunday", "یکشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Monday", "دوشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Tuesday", "سه‌شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Wednesday", "چهارشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Thursday", "پنجشنبه", "—", false ],[ "Friday", "جمعه", "—", false ]].map(([en, fa, hours, working]) => `<tr><td>${esc(t(state.locale, String(en), String(fa)))}</td><td><bdi dir="ltr">${esc(String(hours))}</bdi></td><td><span class="cp-vd-calendar-day-status ${working ? "is-working" : "is-nonwork"}">${esc(t(state.locale, working ? "Working" : "Nonwork", working ? "کاری" : "تعطیل"))}</span></td></tr>`).join("")}
+              ${[[ "Saturday", "شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Sunday", "یکشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Monday", "دوشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Tuesday", "سه‌شنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Wednesday", "چهارشنبه", "08:00–12:00 · 13:00–17:00", true ],[ "Thursday", "پنجشنبه", "—", false ],[ "Friday", "جمعه", "—", false ]].map(([en, fa, hours, working]) => `<tr><td>${esc(t(state.locale, String(en), String(fa)))}</td><td><input class="cp-vd-calendar-hours" aria-label="${esc(String(en))} working hours" value="${esc(String(hours))}"></td><td><label class="cp-vd-calendar-working"><input type="checkbox" ${working ? "checked" : ""}><span class="cp-vd-calendar-day-status ${working ? "is-working" : "is-nonwork"}">${esc(t(state.locale, working ? "Working" : "Nonwork", working ? "کاری" : "تعطیل"))}</span></label></td></tr>`).join("")}
             </tbody></table>
           </div>
         </div>
@@ -1213,11 +1413,11 @@ function dialogContent(name: string, state: DemoState): string {
         </aside>
       </div>`;
     case "schedule":
-      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Data date", "تاریخ داده"))}<input value="2026-12-03"></label><label>${esc(t(state.locale, "Schedule mode", "حالت زمان‌بندی"))}<select><option>Forward and backward</option><option>Forward only</option></select></label><label class="cp-vd-check"><input type="checkbox" checked> ${esc(t(state.locale, "Level resources", "تسطیح منابع"))}</label><p class="cp-vd-note">${esc(t(state.locale, "Visual demo: no schedule run is executed.", "نمایش بصری: هیچ محاسبهٔ زمان‌بندی اجرا نمی‌شود."))}</p></div>`;
+      return `<div class="cp-vd-schedule-options"><div class="cp-vd-form"><label>${esc(t(state.locale, "Data date", "تاریخ داده"))}<input type="date" value="2026-12-03"></label><label>${esc(t(state.locale, "Schedule mode", "حالت زمان‌بندی"))}<select><option>Forward and backward</option><option>Forward only</option></select></label><label>${esc(t(state.locale, "Out-of-sequence progress", "پیشرفت خارج از توالی"))}<select><option>Retained Logic</option><option>Progress Override</option><option>Actual Dates</option></select></label><label>${esc(t(state.locale, "Default calendar", "تقویم پیش‌فرض"))}<select><option>Project Default</option><option>Activity Calendar</option><option>24 Hour</option></select></label></div><fieldset><legend>${esc(t(state.locale, "Scheduling options", "گزینه‌های زمان‌بندی"))}</legend><label><input type="checkbox" checked> Recalculate dates for not-started activities</label><label><input type="checkbox" checked> Use expected finish dates</label><label><input type="checkbox"> Ignore relationships to and from other projects</label><label><input type="checkbox" checked> Calculate multiple float paths</label><label><input type="checkbox"> Make open-ended activities critical</label><label><input type="checkbox" checked> Log scheduling messages</label></fieldset><div class="cp-vd-hintbox"> ${esc(t(state.locale, "Schedule execution is disabled in this visual preview. These controls do not alter CPM dates or project data.", "اجرای زمان‌بندی در این پیش‌نمایش غیرفعال است. این گزینه‌ها تاریخ‌های CPM یا داده پروژه را تغییر نمی‌دهند."))}</div></div>`;
     case "level":
-      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Level within float only", "تسطیح فقط در محدودهٔ شناوری"))}<input type="checkbox" checked></label><label>${esc(t(state.locale, "Priority", "اولویت"))}<select><option>Total float</option><option>Activity ID</option></select></label></div>`;
+      return `<div class="cp-vd-schedule-options"><div class="cp-vd-form"><label>${esc(t(state.locale, "Level", "تسطیح"))}<select><option>All resources</option><option>Selected resources</option></select></label><label>${esc(t(state.locale, "Priority sequence", "توالی اولویت"))}<select><option>Total Float → Activity Priority</option><option>Activity Priority → Total Float</option><option>Early Start → Activity ID</option></select></label><label>${esc(t(state.locale, "Maximum percent to exceed availability", "حداکثر درصد عبور از ظرفیت"))}<input type="number" value="0" min="0" max="100"></label><label>${esc(t(state.locale, "Preserve minimum float", "حفظ حداقل شناوری"))}<input type="number" value="0" min="0"></label></div><fieldset><legend>${esc(t(state.locale, "Leveling options", "گزینه‌های تسطیح"))}</legend><label><input type="checkbox" checked> Level only within available total float</label><label><input type="checkbox" checked> Consider resource calendars</label><label><input type="checkbox"> Preserve scheduled early and late dates</label><label><input type="checkbox" checked> Recalculate assignments after leveling</label><label><input type="checkbox"> Allow splitting activities</label></fieldset><p class="cp-vd-note">${esc(t(state.locale, "Visual preview only — no resource leveling is run and no activity dates are changed.", "صرفاً پیش‌نمایش بصری — تسطیح منابع اجرا نمی‌شود و تاریخ فعالیت‌ها تغییر نمی‌کند."))}</p></div>`;
     case "baselines":
-      return `${rows(["Baseline", "Date", "Activities"], `<tr><td>BL-01</td><td>03-Nov-2026</td><td>20</td></tr><tr><td>BL-02</td><td>—</td><td>—</td></tr>`)}`;
+      return `<div class="cp-vd-schedule-options"><div class="cp-vd-form"><label>${esc(t(state.locale, "Primary baseline", "خط مبنای اصلی"))}<select><option>BL-01 — Approved baseline</option><option>BL-02 — Recovery baseline</option><option>Project baseline</option></select></label><label>${esc(t(state.locale, "Secondary baseline", "خط مبنای ثانویه"))}<select><option>None</option><option>BL-01 — Approved baseline</option><option>BL-02 — Recovery baseline</option></select></label><label>${esc(t(state.locale, "Tertiary baseline", "خط مبنای سوم"))}<select><option>None</option><option>BL-01 — Approved baseline</option><option>BL-02 — Recovery baseline</option></select></label><label>${esc(t(state.locale, "Baseline source", "منبع خط مبنا"))}<select><option>Current project</option><option>Existing baseline</option></select></label></div>${rows(["Baseline", "Type", "Created", "Activities", "Status"], `<tr><td>BL-01</td><td>Original</td><td>03-Nov-2026</td><td>20</td><td>Approved</td></tr><tr><td>BL-02</td><td>Current</td><td>—</td><td>—</td><td>Not assigned</td></tr>`)}<div class="cp-vd-hintbox">Create, update, assign, restore or compare baselines. ${esc(t(state.locale, "Baseline actions are illustrative and do not save a project snapshot.", "فرمان‌های خط مبنا نمایشی هستند و تصویر پروژه ذخیره نمی‌کنند."))}</div></div>`;
     case "find":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Find activity", "یافتن فعالیت"))}<input name="filter" value="${esc(state.filter)}"></label><div class="cp-vd-radios"><label><input type="radio" checked> ${esc(t(state.locale, "Activity ID", "شناسه"))}</label><label><input type="radio"> ${esc(t(state.locale, "Activity name", "نام"))}</label></div></div>`;
     case "find-replace":
@@ -1229,11 +1429,11 @@ function dialogContent(name: string, state: DemoState): string {
     case "assign-roles":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Role", "نقش"))}<select><option>Site engineer</option><option>Planner</option><option>Cost engineer</option></select></label><label>${esc(t(state.locale, "Units", "واحد"))}<input value="1"></label></div>`;
     case "assign-predecessors":
-      return `${rows(["Activity", "Type", "Lag"], `<tr><td>A1100</td><td>FS</td><td>0</td></tr><tr><td>A1200</td><td>SS</td><td>5</td></tr>`)}`;
+      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Predecessor activity", "فعالیت پیش‌نیاز"))}<select>${ACTIVITIES.map((item) => `<option value="${esc(item.id)}">${esc(item.id)} — ${esc(item.name)}</option>`).join("")}</select></label><label>${esc(t(state.locale, "Relationship type", "نوع رابطه"))}<select><option>FS — Finish to Start</option><option>SS — Start to Start</option><option>FF — Finish to Finish</option><option>SF — Start to Finish</option></select></label><label>${esc(t(state.locale, "Lag / Lead", "تأخیر / پیش‌افتادگی"))}<input type="number" value="0"></label><label>${esc(t(state.locale, "Lag calendar", "تقویم تأخیر"))}<select><option>Predecessor calendar</option><option>Successor calendar</option><option>Project default calendar</option><option>24 Hour</option></select></label><p class="cp-vd-note">FS, SS, FF and SF relationships retain their signed lag and selected lag calendar.</p></div>`;
     case "assign-successors":
-      return `${rows(["Activity", "Type", "Lag"], `<tr><td>A1340</td><td>FS</td><td>0</td></tr>`)}`;
+      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Successor activity", "فعالیت جانشین"))}<select>${ACTIVITIES.map((item) => `<option value="${esc(item.id)}">${esc(item.id)} — ${esc(item.name)}</option>`).join("")}</select></label><label>${esc(t(state.locale, "Relationship type", "نوع رابطه"))}<select><option>FS — Finish to Start</option><option>SS — Start to Start</option><option>FF — Finish to Finish</option><option>SF — Start to Finish</option></select></label><label>${esc(t(state.locale, "Lag / Lead", "تأخیر / پیش‌افتادگی"))}<input type="number" value="0"></label><label>${esc(t(state.locale, "Lag calendar", "تقویم تأخیر"))}<select><option>Predecessor calendar</option><option>Successor calendar</option><option>Project default calendar</option><option>24 Hour</option></select></label></div>`;
     case "add-activity":
-      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Activity ID", "شناسه"))}<input value="A1160"></label><label>${esc(t(state.locale, "Activity name", "نام"))}<input value="New activity"></label><label>${esc(t(state.locale, "Duration", "مدت"))}<input value="5"></label></div>`;
+      return `<div class="cp-vd-schedule-options"><div class="cp-vd-form"><label>${esc(t(state.locale, "Activity ID", "شناسه فعالیت"))}<input value="A1160"></label><label>${esc(t(state.locale, "Activity name", "نام فعالیت"))}<input placeholder="New activity"></label><label>${esc(t(state.locale, "WBS", "ساختار شکست"))}<select>${WBS_TREE.map((item) => `<option>${esc(item.code)} — ${esc(item.name)}</option>`).join("")}</select></label><label>${esc(t(state.locale, "Activity type", "نوع فعالیت"))}<select><option>Task Dependent</option><option>Resource Dependent</option><option>Level of Effort</option><option>Start Milestone</option><option>Finish Milestone</option><option>WBS Summary</option></select></label><label>${esc(t(state.locale, "Duration type", "نوع مدت"))}<select><option>Fixed Duration & Units</option><option>Fixed Units / Time</option><option>Fixed Units</option></select></label><label>${esc(t(state.locale, "Original duration", "مدت اولیه"))}<input type="number" min="0" step="0.5" value="5"></label><label>${esc(t(state.locale, "Calendar", "تقویم"))}<select><option>5-Day Workweek</option><option>6-Day Workweek</option><option>24 Hour</option><option>Activity-specific calendar</option></select></label><label>${esc(t(state.locale, "Constraint", "محدودیت"))}<select><option>As Soon As Possible</option><option>Start On</option><option>Start On or After</option><option>Finish On</option><option>Finish On or Before</option></select></label></div><p class="cp-vd-note">${esc(t(state.locale, "Visual preview only — no activity is added and no schedule calculation is performed.", "صرفاً پیش‌نمایش بصری — فعالیتی افزوده نمی‌شود و محاسبه زمان‌بندی انجام نمی‌شود."))}</p></div>`;
     case "import":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Format", "قالب"))}<select><option>XER</option><option>XML</option><option>Excel</option></select></label><label>${esc(t(state.locale, "File", "فایل"))}<input value="CUBI-DEMO-001.xer" readonly></label><p class="cp-vd-note">${esc(t(state.locale, "Visual demo: no file is read.", "نمایش بصری: هیچ فایلی خوانده نمی‌شود."))}</p></div>`;
     case "export":
@@ -1281,13 +1481,15 @@ function dialogTitle(name: string, locale: string): string {
     "admin-preferences": ["Administration Preferences", "تنظیمات مدیریت"], dictionaries: ["Dictionaries", "واژه‌نامه‌ها"],
     roles: ["Roles", "نقش‌ها"], "network-options": ["Activity Network Options", "تنظیمات شبکه"], "timeline-options": ["Timeline Options", "تنظیمات خط زمانی"], shortcuts: ["Keyboard Shortcuts", "کلیدهای میانبر"], about: ["About CUBI Workspace", "دربارهٔ CUBI"],
     "security-profiles": ["Security Profiles", "پروفایل‌های امنیتی"],
+    "new-wbs": ["New WBS Element", "عنصر جدید WBS"], "new-form": ["Create Form", "ایجاد فرم"],
+    "module-actions": ["Add / Edit Workspace Item", "افزودن / ویرایش آیتم محیط کار"],
   };
   const entry = titles[name] ?? [name, name];
   return t(locale, entry[0], entry[1]);
 }
 
 function renderDialogs(state: DemoState): string {
-  const names = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-roles", "assign-predecessors", "assign-successors", "add-activity", "import", "export", "print", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles"];
+  const names = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-roles", "assign-predecessors", "assign-successors", "add-activity", "import", "export", "print", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles", "module-actions", "new-wbs", "new-form"];
   return names.map((name) => `<dialog class="cp-vd-dialog" data-vd-dialog="${name}">
     <form method="dialog" data-vd-form="${name}">
       <div class="cp-vd-dialog-title"><span>${esc(dialogTitle(name, state.locale))}</span><button type="button" data-vd-close aria-label="Close">×</button></div>
@@ -1310,13 +1512,74 @@ function renderLanguageSwitch(state: DemoState): string {
 
 export function renderVisualDemo(state: DemoState): string {
   const index = WINDOWS.findIndex((window) => window.id === state.window);
-  return `<div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
+  const navGroups: Array<{ id: string; en: string; fa: string; items: DemoWindowId[] }> = [
+    { id: "planning", en: "Planning & Schedule", fa: "برنامه‌ریزی و زمان‌بندی", items: ["wbs", "activities", "network", "trace", "timeline", "activity-profile", "resource-profile", "activity-sheet", "resource-sheet", "calendars"] },
+    { id: "controls", en: "Project Controls", fa: "کنترل پروژه", items: ["assignments", "resources", "roles", "cost-control", "progress-control", "procurement", "changes-claims", "tracking", "expenses", "thresholds", "issues", "risks"] },
+    { id: "information", en: "Information & Administration", fa: "اطلاعات و مدیریت", items: ["documents", "reports", "form-builder", "comments", "organization", "administration", "smart-guide", "assistant", "search"] },
+  ];
+  const navGroup = (group: typeof navGroups[number]): string => {
+    const collapsed = state.collapsedNavGroups.includes(group.id);
+    return `<section class="cp-vd-nav-group"><button type="button" class="cp-vd-nav-heading" data-vd-nav-group="${group.id}" aria-expanded="${!collapsed}"><span>${esc(t(state.locale, group.en, group.fa))}</span><i aria-hidden="true">${collapsed ? "＋" : "−"}</i></button><div class="cp-vd-nav-group-items" ${collapsed ? "hidden" : ""}>${WINDOWS.filter((item) => group.items.includes(item.id)).map((item) => `<button type="button" class="cp-vd-nav-link${state.window === item.id ? " is-active" : ""}" data-vd-window="${item.id}" aria-current="${state.window === item.id ? "page" : "false"}"><span>${esc(label(item, state.locale))}</span></button>`).join("")}</div></section>`;
+  };
+  return `<style>
+  .cp-vd-module-toolbar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:7px 10px;border-block:1px solid #d8e0e9;background:#f0f4f8}
+  .cp-vd-module-toolbar button{border:1px solid #cbd6e2;border-radius:3px;background:#fff;color:#294765;padding:5px 9px;font:11px Inter,Vazirmatn,sans-serif}
+  .cp-vd-module-toolbar button:disabled{opacity:.5;cursor:not-allowed}
+  .cp-vd-module-toolbar .cp-vd-note{margin-inline-start:auto}
+  .cp-vd-module-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(245px,30%);min-height:350px}
+  .cp-vd-module-details{background:#f0f4f8;border-inline-start:1px solid #cbd5e1;padding:8px;min-width:0}
+  .cp-vd-detail-heading{display:flex;justify-content:space-between;gap:8px;padding:7px;color:#294765}
+  .cp-vd-detail-heading span{font-size:11px;color:#6b7d91}
+  .cp-vd-detail-tabs{display:flex;gap:3px;overflow-x:auto;border-bottom:1px solid #cbd5e1}
+  .cp-vd-detail-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:7px 8px;white-space:nowrap;color:#53677e;font-size:11px}
+  .cp-vd-detail-tabs button.is-active{border-color:#c87935;color:#173d68;font-weight:700}
+  .cp-vd-module-detail-panel{padding:10px 4px;font-size:11px}
+  .cp-vd-module-detail{margin:0;display:grid;grid-template-columns:1fr;gap:7px}
+  .cp-vd-module-detail div{display:grid;grid-template-columns:minmax(85px,38%) minmax(0,1fr);gap:8px;border-bottom:1px solid #dce3eb;padding:4px}
+  .cp-vd-module-detail dt{color:#6b7d91}.cp-vd-module-detail dd{margin:0;color:#263d56;font-weight:600}
+  @media(max-width:900px){.cp-vd-module-split{grid-template-columns:1fr}.cp-vd-module-details{border-inline-start:0;border-top:1px solid #cbd5e1}.cp-vd-module-toolbar .cp-vd-note{margin-inline-start:0}}
+</style>
+<style>
+  .cp-vd-workspace-grid{display:grid;grid-template-columns:208px minmax(0,1fr) 48px;min-height:560px;background:#eef2f7}
+  .cp-vd-left-nav{min-width:0;overflow:auto;background:#e7edf5;border-inline-end:1px solid #c7d2df;padding:8px 6px}
+  .cp-vd-nav-group{margin:0 0 3px}.cp-vd-nav-group-items[hidden]{display:none}
+  .cp-vd-nav-heading{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:transparent;padding:10px 8px 5px;color:#718096;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;text-align:start;cursor:pointer}
+  .cp-vd-nav-heading i{font-style:normal;font-size:13px}.cp-vd-nav-link{display:flex;align-items:center;gap:8px;width:100%;border:0;border-radius:4px;background:transparent;color:#263c56;padding:7px 9px;text-align:start;font:12px Inter,Vazirmatn,sans-serif;cursor:pointer}
+  .cp-vd-nav-link:hover{background:#dce6f1}.cp-vd-nav-link.is-active{background:#d3e2f4;color:#123d70;font-weight:700;box-shadow:inset 3px 0 #c87935}
+  .cp-vd-main{min-width:0;overflow:auto;background:#f7f9fc}
+  .cp-vd-right-rail{display:flex;flex-direction:column;align-items:center;gap:7px;padding:8px 4px;background:#e8edf4;border-inline-start:1px solid #c7d2df}
+  .cp-vd-right-rail button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:38px;min-height:36px;border:1px solid #c8d3e0;border-radius:4px;background:#fff;color:#24476c;font-size:17px;cursor:pointer}
+  .cp-vd-right-rail button:hover{background:#dce9f7;border-color:#7898bb}
+  .cp-vd-right-rail .cp-vd-rail-add{min-height:58px;background:#173d68;color:#fff;border-color:#173d68}
+  .cp-vd-rail-add span{font-size:10px;font-weight:700}
+  @media(max-width:900px){.cp-vd-workspace-grid{grid-template-columns:minmax(0,1fr) 42px}.cp-vd-left-nav{grid-column:1/-1;display:flex;gap:4px;overflow-x:auto;border-inline-end:0;border-bottom:1px solid #c7d2df;max-height:54px}.cp-vd-nav-group,.cp-vd-nav-group-items{display:contents}.cp-vd-nav-heading{display:none}.cp-vd-nav-link{width:auto;white-space:nowrap;flex:0 0 auto}.cp-vd-main{grid-column:1}.cp-vd-right-rail{grid-column:2;grid-row:2;position:sticky;top:0}.cp-vd-right-rail button{width:34px}}
+  @media(max-width:560px){.cp-vd-workspace-grid{grid-template-columns:minmax(0,1fr)}.cp-vd-left-nav{grid-column:1}.cp-vd-main{grid-column:1}.cp-vd-right-rail{grid-column:1;grid-row:auto;position:sticky;bottom:0;flex-direction:row;justify-content:space-around;z-index:5;border-inline-start:0;border-top:1px solid #c7d2df}.cp-vd-right-rail button{min-height:34px}.cp-vd-right-rail .cp-vd-rail-add{min-height:38px}}
+
+
+
+.cp-vd-assistant-layout{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:10px;padding:12px;background:#eef2f7}.cp-vd-assistant-chat{display:flex;flex-direction:column;gap:10px;min-width:0}.cp-vd-assistant-context{display:flex;flex-wrap:wrap;gap:8px 16px;padding:9px 12px;border:1px solid #d5dee8;border-radius:5px;background:#fff;font-size:10px;color:#64748b}.cp-vd-assistant-context strong{color:#294765}.cp-vd-assistant-message{max-width:88%;padding:11px 13px;border:1px solid #d5dee8;border-radius:7px;background:#fff;color:#334155;font-size:11px}.cp-vd-assistant-message.is-user{align-self:flex-end;background:#e7f0fa;border-color:#c7d9ed}.cp-vd-assistant-message>b{color:#173d68}.cp-vd-assistant-message p{margin:7px 0;line-height:1.55}.cp-vd-assistant-message small{color:#718096}.cp-vd-assistant-message ul{padding-inline-start:18px;line-height:1.8}.cp-vd-assistant-proposal{margin-top:9px;padding:10px;border:1px solid #d8b78f;border-inline-start:4px solid #c87935;border-radius:4px;background:#fff9f1}.cp-vd-assistant-proposal p{margin:5px 0 9px}.cp-vd-assistant-composer{padding:10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff}.cp-vd-assistant-composer textarea{width:100%;resize:vertical;border:1px solid #cbd5e1;border-radius:4px;padding:8px;font:12px Inter,Vazirmatn,sans-serif}.cp-vd-assistant-composer>div{display:flex;align-items:center;gap:7px;margin-top:7px}.cp-vd-assistant-composer button,.cp-vd-assistant-file{border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;padding:6px 9px;color:#425a73;font-size:10px}.cp-vd-assistant-file input{max-width:145px}.cp-vd-assistant-composer button:disabled,.cp-vd-assistant-composer textarea:disabled{opacity:.6}.cp-vd-assistant-composer small{display:block;margin-top:7px;color:#718096;font-size:9px}.cp-vd-assistant-side{padding:12px;border:1px solid #d5dee8;border-radius:5px;background:#f8fafc}.cp-vd-assistant-side h3{margin:0 0 9px;color:#294765;font-size:13px}.cp-vd-assistant-side article{padding:9px 0;border-bottom:1px solid #dce3eb}.cp-vd-assistant-side article strong{font-size:11px;color:#334b66}.cp-vd-assistant-side article p{font-size:10px;color:#718096;line-height:1.5}.cp-vd-smart-guide{padding:12px;background:#f7f9fc}.cp-vd-guide-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px}.cp-vd-guide-summary div{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid #d5dee8;border-radius:5px;background:#fff}.cp-vd-guide-summary strong{font-size:19px;color:#173d68}.cp-vd-guide-summary span{font-size:10px;color:#718096}.cp-vd-guide-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:10px}.cp-vd-guide-steps{display:grid;gap:7px}.cp-vd-guide-step{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px;border:1px solid #d5dee8;border-radius:5px;background:#fff}.cp-vd-guide-step>b{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#e8edf4;color:#53677e}.cp-vd-guide-step.is-complete>b{background:#d8efe4;color:#26724e}.cp-vd-guide-step.is-current>b{background:#dce9f7;color:#173d68}.cp-vd-guide-step.is-warning>b{background:#fff0d8;color:#9a5b1d}.cp-vd-guide-step strong{font-size:11px;color:#294765}.cp-vd-guide-step p{margin:4px 0 0;font-size:10px;color:#718096}.cp-vd-guide-step>span{font-size:10px;color:#64748b;white-space:nowrap}.cp-vd-guide-checks{padding:11px;border:1px solid #d5dee8;border-radius:5px;background:#fff}.cp-vd-guide-checks h3{margin:0 0 9px;color:#294765;font-size:12px}.cp-vd-guide-check{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #edf1f5;font-size:10px;color:#53677e}.cp-vd-guide-check b{font-size:13px}.cp-vd-guide-check.is-pass b{color:#2c8a61}.cp-vd-guide-check.is-warning b{color:#c87935}.cp-vd-guide-check.is-pending b{color:#94a3b8}@media(max-width:900px){.cp-vd-assistant-layout,.cp-vd-guide-layout{grid-template-columns:1fr}.cp-vd-assistant-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.cp-vd-assistant-side h3,.cp-vd-assistant-side .cp-vd-hintbox{grid-column:1/-1}}@media(max-width:560px){.cp-vd-guide-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-vd-guide-step{grid-template-columns:30px minmax(0,1fr)}.cp-vd-guide-step>span,.cp-vd-guide-step button{grid-column:2}.cp-vd-assistant-message{max-width:100%}.cp-vd-assistant-side{grid-template-columns:1fr}}
+.cp-vd-form-builder-grid{display:grid;grid-template-columns:minmax(170px,19%) minmax(360px,1fr) minmax(220px,26%);min-height:570px;background:#eef2f7}.cp-vd-form-library-tabs{display:flex;gap:5px;padding:8px 12px;border-bottom:1px solid #d4dde7;background:#f4f7fa}.cp-vd-form-library-tabs button{display:flex;align-items:center;gap:10px;border:1px solid #cbd6e2;border-radius:4px;background:#fff;padding:7px 11px;color:#425a73;font-size:11px}.cp-vd-form-library-tabs button.is-active{background:#dce9f7;border-color:#7898bb;color:#173d68;font-weight:700}.cp-vd-form-library-tabs span{border-radius:10px;background:#e8edf4;padding:2px 6px}.cp-vd-form-list{padding:10px;border-inline-end:1px solid #cbd5e1;background:#f6f8fb;min-width:0}.cp-vd-form-list>strong{display:block;margin-bottom:8px;color:#425a73;font-size:12px}.cp-vd-form-list-item{display:flex;flex-direction:column;gap:4px;width:100%;margin-bottom:6px;padding:8px;border:1px solid #d5dee8;border-radius:4px;background:#fff;text-align:start;color:#334b66}.cp-vd-form-list-item span{display:flex;flex-direction:column;gap:3px}.cp-vd-form-list-item strong{font-size:11px}.cp-vd-form-list-item small{font-size:10px;color:#718096}.cp-vd-form-canvas{padding:10px;min-width:0;overflow:auto}.cp-vd-form-canvas-toolbar{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;color:#53677e;font-size:11px}.cp-vd-form-paper{max-width:760px;min-height:500px;margin:auto;padding:26px;background:#fff;border:1px solid #cbd5e1;box-shadow:0 2px 9px #1e293b12;color:#334155}.cp-vd-form-paper>header{display:flex;gap:18px;align-items:center;border-bottom:2px solid #c87935;padding-bottom:15px}.cp-vd-form-logo{display:grid;place-content:center;min-width:76px;height:64px;border:1px dashed #9aa9ba;color:#173d68;text-align:center;font-weight:800}.cp-vd-form-logo small{font-size:7px}.cp-vd-form-paper h3{margin:0 0 5px;color:#173d68}.cp-vd-form-paper p{margin:3px 0;font-size:10px;color:#64748b}.cp-vd-form-paper section{margin-top:18px;padding:12px;border:1px solid #dce3eb;border-radius:4px}.cp-vd-form-paper h4{margin:0 0 10px;font-size:12px;color:#294765}.cp-vd-form-paper label{display:flex;flex-direction:column;gap:4px;margin:7px 0;font-size:10px;color:#53677e}.cp-vd-form-paper input,.cp-vd-form-paper textarea{width:100%;border:1px solid #d5dee8;border-radius:3px;padding:6px;background:#fbfcfd;font:11px Inter,Vazirmatn,sans-serif}.cp-vd-form-paper-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cp-vd-form-paper footer{display:flex;justify-content:space-between;margin-top:18px;padding-top:12px;border-top:1px solid #dce3eb;font-size:10px}.cp-vd-form-properties{background:#f6f8fb;border-inline-start:1px solid #cbd5e1;min-width:0}.cp-vd-form-property-tabs{display:flex;flex-wrap:wrap;gap:2px;padding:6px;border-bottom:1px solid #d5dee8}.cp-vd-form-property-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:6px 7px;font-size:10px;color:#64748b}.cp-vd-form-property-tabs button.is-active{border-color:#c87935;color:#173d68;font-weight:700}.cp-vd-form-property-panel{padding:10px}.cp-vd-form-workflow{list-style:none;padding:0;margin:0;display:grid;gap:8px}.cp-vd-form-workflow li{display:flex;gap:9px;align-items:center;padding:10px;border:1px solid #d5dee8;border-radius:4px;background:#fff}.cp-vd-form-workflow li>b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#dce9f7;color:#173d68}.cp-vd-form-workflow li span{display:flex;flex-direction:column;gap:3px}.cp-vd-form-workflow small{font-size:10px;color:#718096}@media(max-width:1100px){.cp-vd-form-builder-grid{grid-template-columns:180px minmax(0,1fr)}.cp-vd-form-properties{grid-column:1/-1;border-inline-start:0;border-top:1px solid #cbd5e1}}@media(max-width:700px){.cp-vd-form-builder-grid{grid-template-columns:1fr}.cp-vd-form-list{border-inline-end:0;border-bottom:1px solid #cbd5e1}.cp-vd-form-paper{padding:14px}.cp-vd-form-paper-row{grid-template-columns:1fr}}
+.cp-vd-module-overview{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,27%);gap:10px;padding:10px 12px;border-bottom:1px solid #d8e0e9;background:#f8fafc}.cp-vd-metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.cp-vd-metric-card{display:flex;flex-direction:column;gap:4px;min-width:0;padding:9px;border:1px solid #d9e1ea;border-radius:5px;background:#fff}.cp-vd-metric-card>span{font-size:10px;color:#64748b}.cp-vd-metric-card>strong{font-size:19px;line-height:1.2;color:#1e3d60;overflow-wrap:anywhere}.cp-vd-metric-card>small{font-size:10px;color:#718096}.cp-vd-metric-card>i{height:4px;margin-top:3px;border-radius:5px;background:#e7edf4;overflow:hidden}.cp-vd-metric-card>i>b{display:block;height:100%;background:#376da8}.cp-vd-metric-card.is-orange>i>b{background:#c87935}.cp-vd-metric-card.is-green>i>b{background:#3b8a69}.cp-vd-metric-card.is-red>i>b{background:#c04e4e}.cp-vd-module-chart{display:flex;flex-direction:column;justify-content:center;gap:10px;padding:8px;border:1px solid #d9e1ea;border-radius:5px;background:#fff;min-width:0}.cp-vd-module-chart>strong{font-size:11px;color:#425a73}.cp-vd-module-stack{display:flex;height:12px;overflow:hidden;border-radius:6px;background:#e7edf4}.cp-vd-module-stack span.is-blue,.cp-vd-module-legend i.is-blue{background:#376da8}.cp-vd-module-stack span.is-orange,.cp-vd-module-legend i.is-orange{background:#c87935}.cp-vd-module-stack span.is-green,.cp-vd-module-legend i.is-green{background:#3b8a69}.cp-vd-module-stack span.is-red,.cp-vd-module-legend i.is-red{background:#c04e4e}.cp-vd-module-legend{display:flex;flex-wrap:wrap;gap:6px 10px}.cp-vd-module-legend span{display:flex;align-items:center;gap:4px;font-size:9px;color:#64748b}.cp-vd-module-legend i{width:7px;height:7px;border-radius:2px}@media(max-width:900px){.cp-vd-module-overview{grid-template-columns:1fr}.cp-vd-module-chart{min-height:76px}}@media(max-width:560px){.cp-vd-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.cp-vd-calendar-hours{width:100%;min-width:145px;border:1px solid #cbd5e1;border-radius:3px;background:#fff;padding:4px 6px;color:#334155;font:11px Inter,Vazirmatn,sans-serif}.cp-vd-calendar-working{display:flex;align-items:center;gap:5px;white-space:nowrap}.cp-vd-calendar-working input{accent-color:#3b8a69}.cp-vd-register-search,.cp-vd-register-sort{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-register-search input,.cp-vd-register-sort select{min-width:118px;max-width:190px;height:29px;border:1px solid var(--cp-vd-border);border-radius:5px;background:var(--cp-vd-panel);color:var(--cp-vd-text);padding:3px 7px}.cp-vd-register-search input{min-width:170px}.cp-vd-register-count{font-size:11px;font-weight:700;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-empty-state{text-align:center;padding:28px!important;color:var(--cp-vd-muted)}@media(max-width:760px){.cp-vd-register-search,.cp-vd-register-sort{width:100%;justify-content:space-between}.cp-vd-register-search input,.cp-vd-register-sort select{flex:1;max-width:none}.cp-vd-register-count{margin-inline-start:auto}}</style><div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
     <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span>${renderLanguageSwitch(state)}<button type="button" class="cp-vd-fullscreen" data-vd-fullscreen aria-pressed="${state.fullscreen ? "true" : "false"}" title="${esc(t(state.locale, "Toggle full screen", "تغییر حالت تمام‌صفحه"))}">${esc(state.fullscreen ? t(state.locale, "Return to normal view", "بازگشت به نمای اصلی") : t(state.locale, "Full screen", "تمام‌صفحه"))}</button><button type="button" class="cp-vd-exit" data-vd-action='{"command":"sign-out"}' title="${esc(t(state.locale, "Sign out and return to home page", "خروج از حساب و بازگشت به صفحه اصلی"))}">${esc(t(state.locale, "Sign out", "خروج از حساب"))}</button></div>
     ${renderMenus(state)}
     ${renderToolbars(state)}
     ${renderTabs(state)}
     <div class="cp-vd-layoutbar"><span>${esc(t(state.locale, "Layout", "چیدمان"))}: <strong>CUBI Classic Schedule Layout</strong></span><span>${esc(t(state.locale, "Filter", "فیلتر"))}: <strong>${esc(state.filter || t(state.locale, "All Activities", "همهٔ فعالیت‌ها"))}</strong></span><span class="cp-vd-layoutspacer"></span><button type="button" class="cp-vd-btn" data-vd-dialog="columns">${workspaceIcon("columns")}${esc(t(state.locale, "Columns", "ستون‌ها"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="filters">${workspaceIcon("filter")}${esc(t(state.locale, "Filters", "فیلترها"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="group-sort">${workspaceIcon("sort")}${esc(t(state.locale, "Group and Sort", "گروه و ترتیب"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="timescale">${workspaceIcon("clock")}${esc(t(state.locale, "Timescale", "مقیاس"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="bars">${workspaceIcon("bars")}${esc(t(state.locale, "Bars", "میله‌ها"))}</button></div>
-    <div class="cp-vd-main">${renderWindow(state)}</div>
+    <div class="cp-vd-workspace-grid">
+      <nav class="cp-vd-left-nav" aria-label="${esc(t(state.locale, "Workspace navigation", "ناوبری محیط کار"))}">
+        <section class="cp-vd-nav-group"><div class="cp-vd-nav-heading">${esc(t(state.locale, "Project Workspace", "محیط پروژه"))}</div><div class="cp-vd-nav-group-items"><button type="button" class="cp-vd-nav-link${state.window === "projects" ? " is-active" : ""}" data-vd-window="projects" aria-current="${state.window === "projects" ? "page" : "false"}">${workspaceIcon("project")}<span>${esc(t(state.locale, "Projects", "پروژه‌ها"))}</span></button></div></section>
+        ${navGroups.map(navGroup).join("")}
+      </nav>
+      <main class="cp-vd-main">${renderWindow(state)}</main>
+      <aside class="cp-vd-right-rail" aria-label="${esc(t(state.locale, "Context commands", "فرمان‌های زمینه‌ای"))}">
+        <button type="button" class="cp-vd-rail-add" data-vd-dialog="module-actions" title="${esc(t(state.locale, "Add item", "افزودن آیتم"))}">＋<span>${esc(t(state.locale, "Add", "افزودن"))}</span></button>
+        <button type="button" data-vd-dialog="module-actions" title="${esc(t(state.locale, "Edit selected item", "ویرایش آیتم انتخاب‌شده"))}">✎</button>
+        <button type="button" data-vd-dialog="module-actions" title="${esc(t(state.locale, "Assign or link", "تخصیص یا پیوند"))}">↗</button>
+        <button type="button" data-vd-window="comments" title="${esc(t(state.locale, "Comments and notes", "دیدگاه‌ها و یادداشت‌ها"))}">▤</button>
+        <button type="button" data-vd-dialog="module-actions" title="${esc(t(state.locale, "More commands", "فرمان‌های بیشتر"))}">⋯</button>
+      </aside>
+    </div>
     <div class="cp-vd-status"><span>${esc(t(state.locale, "Project", "پروژه"))}: CUBI-DEMO-001</span><span>${esc(t(state.locale, "Data date", "تاریخ داده"))}: <bdi dir="ltr">03-Dec-2026</bdi></span><span>${esc(t(state.locale, "Baseline", "خط مبنا"))}: BL-01</span><span>${esc(t(state.locale, "Window", "پنجره"))}: ${esc(label(WINDOWS[index] ?? WINDOWS[0], state.locale))}</span><span class="cp-vd-status-end">${esc(t(state.locale, "Preview data — not saved or calculated", "دادهٔ پیش‌نمایش — ذخیره یا محاسبه نشده"))}</span></div>
     ${renderDialogs(state)}
   </div>`;
@@ -1329,9 +1592,20 @@ export function createVisualDemoState(locale: string): DemoState {
     selectedWbsCode: "1",
     wbsDetailTab: "general",
     collapsedWbsCodes: [],
+    collapsedNavGroups: [],
     scale: "month",
     activityView: "schedule",
     detailTab: "general",
+    moduleDetailTab: "general",
+    moduleSelectedRow: 0,
+    moduleSearch: "",
+    moduleSort: "default",
+    moduleSortBy: "",
+    moduleColumnWindow: null,
+    moduleAvailableColumns: [],
+    moduleColumns: [],
+    formLibrary: "organization",
+    formTab: "design",
     calendarMonth: 1,
     adminSection: "users",
     filter: "",
@@ -1464,6 +1738,16 @@ function bind(root: HTMLElement): void {
     state.history.push(state.window);
     state.forward.length = 0;
     state.window = id;
+    const groupByWindow: Partial<Record<DemoWindowId, string>> = {
+      wbs: "planning", activities: "planning", network: "planning", trace: "planning", timeline: "planning",
+      "activity-profile": "planning", "resource-profile": "planning", "activity-sheet": "planning", "resource-sheet": "planning", calendars: "planning",
+      assignments: "controls", resources: "controls", roles: "controls", "cost-control": "controls", "progress-control": "controls", procurement: "controls",
+      "changes-claims": "controls", tracking: "controls", expenses: "controls", thresholds: "controls", issues: "controls", risks: "controls",
+      documents: "information", reports: "information", "form-builder": "information", comments: "information", organization: "information", administration: "information",
+      "smart-guide": "information", assistant: "information", search: "information",
+    };
+    const activeGroup = groupByWindow[id];
+    if (activeGroup) state.collapsedNavGroups = state.collapsedNavGroups.filter((group) => group !== activeGroup);
     draw();
   };
   const openDialog = (name: string): void => {
@@ -1568,6 +1852,13 @@ function bind(root: HTMLElement): void {
       try { run(JSON.parse(actionTarget.dataset.vdAction ?? "{}") as MenuAction); } catch { /* malformed action */ }
       return;
     }
+    const navGroup = target.closest<HTMLElement>("[data-vd-nav-group]");
+    if (navGroup?.dataset.vdNavGroup) {
+      const id = navGroup.dataset.vdNavGroup;
+      state.collapsedNavGroups = state.collapsedNavGroups.includes(id) ? state.collapsedNavGroups.filter((item) => item !== id) : [...state.collapsedNavGroups, id];
+      draw();
+      return;
+    }
     const tab = target.closest<HTMLElement>("[data-vd-window]");
     if (tab?.dataset.vdWindow) { navigate(tab.dataset.vdWindow as DemoWindowId); return; }
     const activityView = target.closest<HTMLElement>("[data-vd-activity-view]");
@@ -1586,6 +1877,31 @@ function bind(root: HTMLElement): void {
     if (calPrev) { state.calendarMonth = Math.max(0, state.calendarMonth - 1); draw(); return; }
     const calNext = target.closest<HTMLElement>("[data-vd-cal-next]");
     if (calNext) { state.calendarMonth = Math.min(CAL_MONTHS.length - 1, state.calendarMonth + 1); draw(); return; }
+    const formLibrary = target.closest<HTMLElement>("[data-vd-form-library]");
+    if (formLibrary?.dataset.vdFormLibrary === "organization" || formLibrary?.dataset.vdFormLibrary === "project") {
+      state.formLibrary = formLibrary.dataset.vdFormLibrary;
+      draw();
+      return;
+    }
+    const formTab = target.closest<HTMLElement>("[data-vd-form-tab]");
+    if (formTab?.dataset.vdFormTab && ["design", "fields", "workflow", "permissions", "versions"].includes(formTab.dataset.vdFormTab)) {
+      state.formTab = formTab.dataset.vdFormTab as DemoState["formTab"];
+      draw();
+      return;
+    }
+    const moduleTab = target.closest<HTMLElement>("[data-vd-module-tab]");
+    if (moduleTab?.dataset.vdModuleTab) {
+      state.moduleDetailTab = moduleTab.dataset.vdModuleTab as DemoState["moduleDetailTab"];
+      draw();
+      return;
+    }
+    const moduleRow = target.closest<HTMLElement>("[data-vd-module-row]");
+    if (moduleRow?.dataset.vdModuleRow !== undefined) {
+      state.moduleSelectedRow = Number(moduleRow.dataset.vdModuleRow);
+      state.moduleDetailTab = "general";
+      draw();
+      return;
+    }
     const adminSection = target.closest<HTMLElement>("[data-vd-admin]");
     if (adminSection?.dataset.vdAdmin) { state.adminSection = adminSection.dataset.vdAdmin; draw(); return; }
     const wbsToggle = target.closest<HTMLElement>("[data-vd-wbs-toggle]");
@@ -1680,8 +1996,13 @@ function bind(root: HTMLElement): void {
     const name = form.dataset.vdForm;
     const data = new FormData(form);
     if (name === "columns") {
-      state.columns = ACTIVITY_COLUMNS.filter((column) => data.has(column.id)).map((column) => column.id);
-      if (!state.columns.length) state.columns = [...DEFAULT_COLUMNS];
+      if (state.window === "activities") {
+        state.columns = ACTIVITY_COLUMNS.filter((column) => data.has(column.id)).map((column) => column.id);
+        if (!state.columns.length) state.columns = [...DEFAULT_COLUMNS];
+      } else {
+        state.moduleColumns = state.moduleAvailableColumns.filter((column) => data.has(column));
+        if (!state.moduleColumns.length) state.moduleColumns = [...state.moduleAvailableColumns];
+      }
     }
     if (name === "filters" || name === "find") state.filter = String(data.get("filter") ?? "");
     if (name === "group-sort") state.groupBy = data.get("group") === "none" ? "none" : "wbs";
@@ -1693,8 +2014,39 @@ function bind(root: HTMLElement): void {
     draw();
   });
 
+  root.addEventListener("input", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.matches("[data-vd-module-search]")) {
+      state.moduleSearch = target.value;
+      const selection = root.querySelector<HTMLElement>("[data-vd-module-row].is-selected");
+      if (selection && !selection.isConnected) state.moduleSelectedRow = 0;
+      const active = document.activeElement === target;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      draw();
+      if (active) {
+        const replacement = root.querySelector<HTMLInputElement>("[data-vd-module-search]");
+        replacement?.focus();
+        if (start !== null && end !== null) replacement?.setSelectionRange(start, end);
+      }
+    }
+  });
+
   root.addEventListener("change", (event) => {
     const target = event.target as HTMLElement | null;
+    if (target instanceof HTMLSelectElement && target.matches("[data-vd-module-sort-field]")) {
+      state.moduleSortBy = state.moduleAvailableColumns.includes(target.value) ? target.value : (state.moduleAvailableColumns[0] ?? "");
+      draw();
+      return;
+    }
+    if (target instanceof HTMLSelectElement && target.matches("[data-vd-module-sort]")) {
+      const next = target.value;
+      if (next === "default" || next === "ascending" || next === "descending") {
+        state.moduleSort = next;
+        draw();
+      }
+      return;
+    }
     if (!target || target.getAttribute("type") !== "checkbox") return;
     const column = target.getAttribute("data-vd-column");
     if (!column) return;
