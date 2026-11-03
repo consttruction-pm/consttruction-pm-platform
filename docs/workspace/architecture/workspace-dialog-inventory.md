@@ -14,7 +14,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Open Project | Choose project | Search, domain filter, recent, role badge | `GET /api/projects`, `POST /open` | Implemented as picker, not dialog |
 | Import / Export | Interchange | Format, project, mapping preview, conflict policy | Existing interchange API | Implemented (panel) |
 | Print Preview / Print / Page Setup | Output | Layout, page, scale, margins, header/footer | Print profile API (not built) | Missing |
-| Project Settings | Edit metadata | Name, description, start, date system, primary calendar, revision | `GET/PATCH /api/projects/{id}` | Implemented (modal) |
+| Project Details / Settings | Project metadata, dates, defaults, resources, settings, calculations and financial tabs | General, Dates, Notebook, Budget Log, Spending Plan, Budget Summary, Funding, Codes, Defaults, Resources, Settings, Calculations, Custom Fields; project ID/name/status/OBS, planned/must-finish/data/anticipated dates, default activity/duration/% complete/calendar/rate/cost account, resource assignment defaults | `GET/PATCH /api/projects/{id}` plus project detail services | Visual tab inventory and read-only General preview implemented; tab navigation, persistence and calculations not connected |
 
 ## Layout and data display
 
