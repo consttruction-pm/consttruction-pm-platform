@@ -7917,3 +7917,10 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-resource-type-filter button.is-active{border-color:#6f9bc7;background:#e6f0fa;color:#173d68;font-weight:700;box-shadow:inset 0 -2px 0 #1c6bb7}
 .cp-p6 .cp-resource-filter-note{margin:0;padding:6px 8px;border-inline-start:3px solid #c18a4b;background:#faf7f1;color:#6b5a43;font-size:10px}
 .cp-p6 .cp-assignment-usage-table-wrap caption{caption-side:top;padding:7px 8px;background:#eaf0f6;color:#38536f;text-align:start;font-size:10px;font-weight:700}
+/* Activity Details record navigator mirrors the native Previous / Next and identity row. */
+.cp-p6 .cp-activity-detail-navigator{display:grid;grid-template-columns:auto auto minmax(90px,1fr) minmax(140px,2fr) minmax(100px,1fr);align-items:end;gap:6px;padding:7px 9px;border-bottom:1px solid #cbd5e1;background:#f1f4f8}
+.cp-p6 .cp-activity-detail-navigator>button{min-height:28px;padding:5px 9px;border:1px solid #c4d0dc;border-radius:3px;background:#f9fbfd;color:#34516d;font-size:10px}
+.cp-p6 .cp-activity-detail-navigator>button:disabled{opacity:.45;cursor:not-allowed}
+.cp-p6 .cp-activity-detail-navigator>label{display:flex;flex-direction:column;gap:3px;min-width:0;color:#687b8e;font-size:9px}
+.cp-p6 .cp-activity-detail-navigator input{width:100%;min-width:0;min-height:27px;padding:4px 6px;border:1px solid #cbd5e1;background:#fff;color:#233f5b;font-size:10px}
+@media(max-width:760px){.cp-p6 .cp-activity-detail-navigator{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-p6 .cp-activity-detail-navigator>label:nth-of-type(2){grid-column:span 2}}
