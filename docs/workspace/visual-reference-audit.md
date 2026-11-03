@@ -372,3 +372,11 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - The Related Activities detail is retained as a clearly marked CUBI extension, not a native WBS Details tab.
 - Remaining WBS parity work: chart formatting and layout templates, chart arrangement/alignment, expand/collapse and move toolbar controls, WPs & Docs assignment actions, and richer detail panels once their corresponding records are available.
 - References: https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_window.htm and https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_details.htm.
+
+## Calendar register — pool filtering and lookup commands — 2026-11-03
+
+- Version 26 desktop Calendars dialog distinguishes Global, Project and Resource pools; its Display Options bar supports searching calendars, and Resource calendars support Shared/Personal filtering. Calendar actions include Add, Delete, Modify, Used By, and calendar-pool conversions where applicable.
+- CUBI correction: added live client-side search over the loaded calendar identity fields. Search filters only loaded rows and shows an explicit no-match row; it does not create or infer calendar data. Existing Global/Project/Resource pool buttons remain separate.
+- CUBI's visible Used By and To Global / To Shared / To Personal actions are now represented in the register toolbar but remain disabled with the current unavailable-service boundary; Add/Edit/Delete are also disabled until calendar persistence is connected.
+- Regression coverage added for search behavior, pool controls, and the disabled management actions.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/calendars_dialog_box.htm; https://docs.oracle.com/cd/G48902_01/client_help/en_US/calendars_dialog_box.htm.
