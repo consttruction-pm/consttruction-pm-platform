@@ -193,7 +193,7 @@ test("Activity Details uses the desktop tab set, exposes selected record context
   assert.match(html, /data-vd-dtab="custom-fields"/);
   assert.doesNotMatch(html, /data-vd-dtab="udfs"/);
   assert.match(html, /data-vd-details-context-name/);
-  assert.match(html, /Riverside Pump Station Upgrade/);
+  assert.match(html, /Project management/);
   assert.match(html, /CUBI-DEMO-001/);
   assert.match(html, /تقویم/);
 });
