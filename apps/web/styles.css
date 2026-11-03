@@ -6939,3 +6939,21 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-vd-calendar-periods{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
 .cp-p6 [dir="rtl"] .cp-vd-calendar-pools span{margin-inline-start:0;margin-inline-end:auto}
 @media(max-width:760px){.cp-p6 .cp-vd-calendar-editor-main,.cp-p6 .cp-vd-calendar-editor-bottom{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-vd-calendar-editor-toolbar{align-items:flex-start;flex-direction:column}.cp-p6 .cp-vd-calendar-pools span{width:100%;margin:4px 0 0}}
+
+/* Resource hierarchy and Resource Details lower-pane treatment. */
+.cp-p6 .cp-vd-resource-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:end;padding:7px;border:1px solid #cbd5e1;background:#f3f6fa}
+.cp-p6 .cp-vd-resource-toolbar label{display:flex;align-items:center;gap:7px;color:#52657a;font-size:9px}
+.cp-p6 .cp-vd-resource-toolbar input,.cp-p6 .cp-vd-resource-toolbar select{min-height:25px;padding:3px 6px;border:1px solid #b9c6d5;background:#fff;color:#31465e;font:inherit;font-size:9px}
+.cp-p6 .cp-vd-resource-table{overflow:auto;max-height:360px}
+.cp-p6 .cp-vd-resource-table .cp-vd-table{min-width:1050px}
+.cp-p6 .cp-vd-resource-table .cp-vd-table th{position:sticky;top:0;z-index:1}
+.cp-p6 .cp-vd-resource-table .cp-vd-table tr.is-selected{background:#eaf2fb}
+.cp-p6 .cp-vd-resource-table .cp-vd-table td strong{font-weight:600;color:#334b66}
+.cp-p6 .cp-vd-resource-details{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cp-p6 .cp-vd-resource-detail-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.cp-p6 .cp-vd-resource-detail-body>section{min-width:0;padding:8px;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-vd-resource-detail-body h3{margin:0 0 7px;padding-bottom:5px;border-bottom:1px solid #e2e8f0;color:#244463;font-size:10px}
+.cp-p6 .cp-vd-resource-detail-body .cp-vd-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.cp-p6 .cp-vd-resource-detail-body .cp-vd-mini{width:100%;border-collapse:collapse;font-size:9px}
+.cp-p6 .cp-vd-resource-detail-body .cp-vd-mini th,.cp-p6 .cp-vd-resource-detail-body .cp-vd-mini td{padding:6px;border-bottom:1px solid #e2e8f0;text-align:start}
+@media(max-width:760px){.cp-p6 .cp-vd-resource-detail-body{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-vd-resource-detail-body .cp-vd-form{grid-template-columns:minmax(0,1fr)}}
