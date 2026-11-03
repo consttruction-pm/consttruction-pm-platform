@@ -2292,7 +2292,7 @@ function navigationSubmenuAction(menu: WorkspaceState["activeMenu"], index: numb
     reports: [{ kind: "reports-tab", value: "library" }, { kind: "reports-tab", value: "layouts" }, { kind: "reports-tab", value: "batch" }, { kind: "reports-tab", value: "print-preview" }, { kind: "reports-tab", value: "page-setup" }, { kind: "reports-tab", value: "export" }, { kind: "reports-tab", value: "custom" }],
     cost: [null, { kind: "register-tab", value: "cost:general" }, { kind: "register-tab", value: "cost:budget" }, { kind: "register-tab", value: "cost:cash-flow" }, { kind: "register-tab", value: "cost:evm" }, null, null],
     assignments: [null, null, { kind: "register-tab", value: "assignments:general" }],
-    expenses: [null, null, { kind: "register-tab", value: "expenses:general" }],
+    expenses: [null, { kind: "register-tab", value: "expenses:general" }, { kind: "register-tab", value: "expenses:activity" }, { kind: "register-tab", value: "expenses:costs" }, { kind: "register-tab", value: "expenses:description" }],
     issues: [null, { kind: "register-tab", value: "issues:details" }],
     risks: [null, null, { kind: "register-tab", value: "risks:general" }],
     thresholds: [null, { kind: "register-tab", value: "thresholds:monitoring" }, { kind: "register-tab", value: "thresholds:details" }],
