@@ -533,3 +533,27 @@ test("New Project wizard has Persian RTL labels for all four steps and calendar 
     assert.ok(html.includes(label), `missing Persian New Project label: ${label}`);
   }
 });
+
+
+test("Layout Manager exposes scoped layouts, properties, preview and PLF interchange without fake persistence", () => {
+  const state = createVisualDemoState("en");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-vd-dialog="layout-manager"/);
+  for (const label of ["Available layouts", "Layout properties", "CUBI Classic Schedule", "Cost and Resource Control", "Commissioning Look-ahead", "Executive Milestones", "Another User", "Current User", "All Users", "Project", "Apply", "Save As…", "Import .PLF…", "Export .PLF…", "Use as default layout for this project"]) {
+    assert.ok(html.includes(label), `missing Layout Manager control: ${label}`);
+  }
+  assert.match(html, /cp-vd-layout-manager-grid/);
+  assert.match(html, /layout storage is not connected/i);
+  assert.match(html, /<button type="button" disabled>.*Import \.PLF/s);
+});
+
+test("Layout Manager localizes its scope and property controls in Persian RTL", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["چیدمان‌های موجود", "مشخصات چیدمان", "دامنه", "مالک", "آخرین تغییر", "شرح", "ذخیره با نام…", "ورود فایل .PLF…", "خروجی فایل .PLF…", "استفاده به‌عنوان چیدمان پیش‌فرض پروژه"]) {
+    assert.ok(html.includes(label), `missing Persian Layout Manager label: ${label}`);
+  }
+});
