@@ -498,6 +498,7 @@ test("Activities Layout Options inventories top and bottom chart layouts without
 
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
   assert.doesNotMatch(render("en", "schedule"), /data-activity-detail-tab="tasks"/);
+  assert.match(render("en", "schedule"), /Summary \(CUBI extension\)/);
   const html = render("en", "schedule");
   for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "discussion", "notebook", "steps", "feedback", "update-history", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
     assert.ok(html.includes(`data-activity-detail-tab="${tab}"`), `missing Activity Details tab: ${tab}`);
@@ -2197,6 +2198,8 @@ test("Project and WBS Details use their Version 26 tab inventories and switch by
     assert.ok(project.includes(`data-project-detail-tab="${tab}"`), `missing Project Details tab: ${tab}`);
   }
   assert.doesNotMatch(project, /data-project-detail-tab="planning-resources"/);
+  assert.match(project, /Contract Management \(CUBI extension\)/);
+  assert.match(project, /data-detail-origin="cubi-extension"/);
   const reports = render("en", "reports");
   assert.doesNotMatch(reports, /data-activity-detail-tab=/);
   assert.doesNotMatch(reports, /data-project-detail-tab=/);
