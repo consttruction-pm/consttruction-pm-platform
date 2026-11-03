@@ -595,6 +595,40 @@ test("Activities Details renders the complete Version 26 tab inventory without f
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
+test("Activity Network top layout renders loaded relationships and switches from table/Gantt", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const withRows = withActivities(base, [
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Mobilize", cells: {} },
+    { id: "A-2", wbsId: "W-1", code: "02", name: "Excavate", cells: {} },
+  ]);
+  const state = { ...withRelationships(withRows, [
+    { id: "R-1", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+  ]), activeMenu: "schedule" as const, selectedActivityId: "A-1" };
+  const listeners = new Map<string, (event: Event) => void>();
+  const split = { hidden: false };
+  const network = { hidden: true };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => selector === '.cp-p6-split[data-workspace-menu="schedule"]' ? split : selector === "#cp-activity-network" ? network : null,
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /option value="activity-network"/);
+  assert.match(container.innerHTML, /id="cp-activity-network"/);
+  assert.match(container.innerHTML, /data-activity-id="A-1"/);
+  assert.match(container.innerHTML, /data-activity-id="A-2"/);
+  assert.match(container.innerHTML, /cp-activity-network-edge/);
+  const networkTarget = { dataset: { topLayout: "" }, value: "activity-network", closest: () => networkTarget };
+  listeners.get("change")?.({ target: networkTarget } as unknown as Event);
+  assert.equal(split.hidden, true);
+  assert.equal(network.hidden, false);
+  const tableTarget = { dataset: { topLayout: "" }, value: "table-gantt", closest: () => tableTarget };
+  listeners.get("change")?.({ target: tableTarget } as unknown as Event);
+  assert.equal(split.hidden, false);
+  assert.equal(network.hidden, true);
+});
+
 test("Activity Details navigator moves to adjacent activities and exposes read-only identity fields", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const selected: string[] = [];
