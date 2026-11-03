@@ -28,7 +28,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Bar Chart Options | Relationship lines, background lines, legend, data date line, progress line | Gantt display | Partial (link toggle only) |
 | Table Font and Row | Font scale, row height, colours | Table rendering | Missing |
 | Bottom Layout Options / Customize Details | Tab list, visible, order | Activity Details tabs | Missing |
-| Layout Manager (New/Open/Save As/Delete/Import/Export) | Name, scope (user/project), default flag, duplicate | Persist through layout API | Partial (API + undo, no manager) |
+| Layout Manager (New/Open/Apply/Save/Save As/Delete/Import/Export) | Available-layout list; name, description, modified date, owner, scope (All Users / Another User / Current User / Project), target user/project, default-for-project flag, Apply preview, multi-select export, `.PLF` import/export, unsaved-current-layout prompt, privilege-aware actions | Persist presentation options only; never project data. Scope and destructive actions require explicit privilege checks. | Visual preview implemented; layout service, file interchange and privilege checks not connected |
 | Collapse To | Group band | Collapse table to band | Missing |
 | Find / Replace | Field scope, text, direction, match case | Highlight/next | Missing |
 | Renumber Activity IDs | Prefix, start, increment, scope (selected/all) | Preview + apply; revision guard | Missing |
