@@ -1240,7 +1240,7 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
     { label: { en: "User Preferences…", fa: "ترجیحات کاربر…" }, action: { dialog: "preferences" } },
     { label: { en: "Renumber Activity IDs…", fa: "شماره‌گذاری دوبارهٔ شناسه‌ها…" }, action: { dialog: "renumber" } },
   ] },
-  { id: "view", label: { en: "View", fa: "نما" }, items: [
+  { id: "display", label: { en: "Display", fa: "نمایش" }, items: [
     { label: { en: "Toolbars", fa: "نوارهای ابزار" }, children: [
       { label: { en: "Standard", fa: "استاندارد" }, action: { command: "toolbar:standard" } },
       { label: { en: "Project", fa: "پروژه" }, action: { command: "toolbar:project" } },
