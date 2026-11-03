@@ -947,7 +947,7 @@ test("Workspace menu hierarchy exposes project, organization, tools and administ
     assert.ok(html.includes(label), "missing workspace menu entry: " + label);
   }
   assert.match(html, /adminSection&quot;|adminSection/);
-  assert.match(html, /Delete[^<]*<\/button>/);
+  assert.ok(html.includes("disabled>Delete<small"), "Delete must remain disabled until a live selection and permission check exist");
   assert.match(html, /data-vd-action='\{"dialog":"assign-resources-by-role"\}'/);
 });
 
