@@ -1962,13 +1962,14 @@ function bind(root: HTMLElement): void {
     if (!(target instanceof HTMLSelectElement) || !target.matches("[data-vd-locale]")) return;
     const next = target.value;
     const available = getAvailableWorkspaceLocales();
-    if (!available.includes(next)) return;
-    state.locale = next;
-    rememberWorkspaceLocale(next, available);
-    writeStoredValue(LANDING_LOCALE_STORAGE_KEY, next);
-    document.documentElement.lang = next;
-    document.documentElement.dir = getWorkspaceLocaleDirection(next);
-    document.title = next === "fa" || next === "ar"
+    const nextLocale = available.find((locale) => locale === next);
+    if (!nextLocale) return;
+    state.locale = nextLocale;
+    rememberWorkspaceLocale(nextLocale, available);
+    writeStoredValue(LANDING_LOCALE_STORAGE_KEY, nextLocale);
+    document.documentElement.lang = nextLocale;
+    document.documentElement.dir = getWorkspaceLocaleDirection(nextLocale);
+    document.title = nextLocale === "fa" || nextLocale === "ar"
       ? "محیط کار CUBI — نمایش بصری"
       : "CUBI Workspace — visual demo";
     draw();
