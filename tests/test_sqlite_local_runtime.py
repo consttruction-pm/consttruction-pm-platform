@@ -643,7 +643,7 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
             created.context.revision,
         )
         auth = created.context.authorization_context(frozenset({"project_admin"}))
-        shared = runtime.schedule_runtime(scope)
+        shared = runtime.schedule_runtime(scope, company_id="COMPANY-1")
 
         mutation_sequence = 0
 
@@ -796,6 +796,32 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
         assert invoke("cost_account.list", "p6-cost-account-api.v1", {})["result"]["count"] == 1
         assert invoke("expense.list", "p6-expense-api.v1", {})["result"]["count"] == 1
 
+        resource_master = invoke("resource.master.save", "resource.v1", {
+            "resource": {
+                "id": "RES-ABI",
+                "code": "LAB-ABI",
+                "name": "Shared Core Labor",
+                "type": "labor",
+                "unit": "hour",
+                "calendar_id": None,
+                "active": True,
+                "rates": [
+                    {
+                        "rate": "85.50",
+                        "basis": "per_hour",
+                        "currency": "EUR",
+                        "effective_from": "2026-01-01",
+                        "effective_to": None,
+                        "version": 1,
+                    }
+                ],
+            }
+        })
+        assert resource_master["result"]["item"]["id"] == "RES-ABI"
+        assert resource_master["result"]["item"]["rates"][0]["rate"] == "85.50"
+        assert invoke("resource.master.list", "resource.v1", {})["result"]["count"] == 1
+        assert invoke("resource.master.get", "resource.v1", {"resource_id": "RES-ABI"})["result"]["item"]["type"] == "labor"
+
         assignment = invoke("resource_assignment.create", "p6-resource-write-api.v1", {
             "assignment": {
                 "assignment_id": "RA-ABI",
@@ -860,7 +886,7 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
         assert {
             "schedule.query", "wbs.create", "activity.create", "relationship.create",
             "constraint.create", "baseline.create", "cost_account.create", "expense.create",
-            "resource_assignment.create", "resource_assignment_period.create",
+            "resource.master.save", "resource_assignment.create", "resource_assignment_period.create",
             "resource_spread.save", "resource_capacity.save",
         } <= advertised
 
