@@ -700,16 +700,16 @@ function renderProjectsWindow(state: DemoState): string {
     {
       id: "CUBI-DEMO-001", name: "Riverside Pump Station Upgrade", status: "Active",
       start: "02-Nov-26", finish: "28-May-27", dataDate: "03-Dec-26", activities: 20,
-      shortName: "Riverside Pump", domain: "Construction", manager: "Project Manager",
-      owner: "Project Controls", priority: "High", type: "Engineering & Construction",
-      description: "Pump station upgrade — visual sample project record.",
+      shortName: "—", domain: "—", manager: "—",
+      owner: "—", priority: "—", type: "—",
+      description: "—",
     },
     {
       id: "CUBI-DEMO-002", name: "Intake Screen Replacement", status: "Planning",
       start: "01-Feb-27", finish: "30-Sep-27", dataDate: "—", activities: 12,
-      shortName: "Intake Screen", domain: "Construction", manager: "—",
-      owner: "—", priority: "Normal", type: "Construction",
-      description: "Intake screen replacement — visual sample project record.",
+      shortName: "—", domain: "—", manager: "—",
+      owner: "—", priority: "—", type: "—",
+      description: "—",
     },
   ];
   const selectedIndex = Math.max(0, Math.min(state.projectSelectedRow, projects.length - 1));
@@ -759,7 +759,7 @@ function renderProjectsWindow(state: DemoState): string {
       ]);
       break;
     case "baselines":
-      details = '<div class="cp-vd-project-detail-tablewrap"><table class="cp-vd-mini"><thead><tr><th>Baseline</th><th>Assignment</th><th>Status</th><th>Action availability</th></tr></thead><tbody><tr><td>BL-01</td><td>Primary</td><td>Approved sample</td><td>Preview only</td></tr><tr><td>BL-02</td><td>Unassigned</td><td>Draft sample</td><td>Preview only</td></tr></tbody></table></div>';
+      details = '<p class="cp-vd-note">' + esc(t(state.locale, "The preview status bar references BL-01, but project baseline records, assignments and approval history are not supplied.", "در نوار وضعیت پیش‌نمایش به BL-01 اشاره شده، اما رکوردهای خط مبنا، تخصیص‌ها و سوابق تأیید پروژه ارائه نشده‌اند.")) + "</p>";
       break;
     case "defaults":
       details = '<p class="cp-vd-note">' + esc(t(state.locale, "Project default values are not included in the visual fixture. Open the live project workspace to review service-backed defaults.", "مقادیر پیش‌فرض پروژه در داده نمونه موجود نیست. برای مشاهده مقادیر متصل به سرویس، محیط زنده پروژه را باز کنید.")) + "</p>";
@@ -801,7 +801,7 @@ function renderProjectsWindow(state: DemoState): string {
       '<aside class="cp-vd-project-structure" aria-label="' + esc(t(state.locale, "Project Structure", "ساختار پروژه")) + '">' +
         '<div class="cp-vd-project-section-title">' + esc(t(state.locale, "Project Structure", "ساختار پروژه")) + '</div>' +
         '<button type="button" class="cp-vd-project-tree-item is-root" data-vd-project-select="0" aria-pressed="' + (selectedIndex === 0) + '">' + workspaceIcon("project") + '<span>' + esc(t(state.locale, "All Projects", "همه پروژه‌ها")) + '</span><small>' + projects.length + '</small></button>' +
-        '<div class="cp-vd-project-tree-branch"><span class="cp-vd-project-tree-domain">' + esc(t(state.locale, "Construction", "ساخت‌وساز")) + '</span>' +
+        '<div class="cp-vd-project-tree-branch"><span class="cp-vd-project-tree-domain">' + esc(t(state.locale, "Project Portfolio", "سبد پروژه‌ها")) + '</span>' +
           projects.map((project, index) => '<button type="button" class="cp-vd-project-tree-item' + (selectedIndex === index ? ' is-selected' : '') + '" data-vd-project-select="' + index + '" aria-pressed="' + (selectedIndex === index) + '"><bdi dir="ltr">' + esc(project.id) + '</bdi><span>' + esc(project.name) + '</span></button>').join("") +
         '</div>' +
         '<p class="cp-vd-note">' + esc(t(state.locale, "Hierarchy and records are illustrative preview data.", "ساختار و رکوردها داده نمونه و نمایشی هستند.")) + '</p>' +
