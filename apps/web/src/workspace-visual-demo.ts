@@ -1461,7 +1461,39 @@ function dialogContent(name: string, state: DemoState): string {
         <p class="cp-vd-note">${esc(t(state.locale, "Group levels, sort criteria, band formatting and print options are visual examples only; this dialog does not save layout settings.", "سطوح گروه‌بندی، معیارهای مرتب‌سازی، قالب نوارها و گزینه‌های چاپ صرفاً نمونه بصری هستند؛ این پنجره تنظیمات چیدمان را ذخیره نمی‌کند."))}</p>
       </div>`;
     case "timescale":
-      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Timescale format", "قالب مقیاس"))}<select name="scale">${(["day", "week", "month", "quarter", "year"] as const).map((scale) => `<option value="${scale}"${scale === state.scale ? " selected" : ""}>${esc(t(state.locale, scale, { day: "روز", week: "هفته", month: "ماه", quarter: "فصل", year: "سال" }[scale]))}</option>`).join("")}</select></label><label>${esc(t(state.locale, "Date interval", "بازهٔ تاریخ"))}<select><option>Month / Day</option><option>Quarter / Month</option><option>Year / Month</option></select></label><label class="cp-vd-check"><input type="checkbox" checked> ${esc(t(state.locale, "Show ordinal dates", "نمایش تاریخ ترتیبی"))}</label></div>`;
+      return `<div class="cp-vd-timescale-editor">
+        <div class="cp-vd-form cp-vd-timescale-top">
+          <label>${esc(t(state.locale, "Timescale lines", "ردیف‌های مقیاس زمانی"))}<select><option>Two Lines</option><option>Three Lines</option></select></label>
+          <label>${esc(t(state.locale, "Timescale start", "شروع مقیاس زمانی"))}<input type="date" value="2026-11-02"></label>
+          <label>${esc(t(state.locale, "Date interval", "بازه تاریخ"))}<select><option>Week / Day</option><option>Month / Week</option><option>Quarter / Month</option><option>Year / Month</option><option>Day / Shift</option><option>Year / Financial Period</option><option>Quarter / Financial Period</option><option>Month / Financial Period</option><option>Week / Financial Period</option></select></label>
+          <label>${esc(t(state.locale, "Type", "نوع"))}<select><option>Calendar</option><option>Fiscal</option></select></label>
+        </div>
+        <section class="cp-vd-timescale-section">
+          <h4>${esc(t(state.locale, "Date Format", "قالب تاریخ"))}</h4>
+          <div class="cp-vd-timescale-options">
+            <label><input type="radio" name="dateFormat" checked> ${esc(t(state.locale, "Show Primary Dates", "نمایش تاریخ‌های اصلی"))}</label>
+            <label><input type="radio" name="dateFormat"> ${esc(t(state.locale, "Show Ordinal Dates", "نمایش تاریخ‌های ترتیبی"))}</label>
+          </div>
+          <div class="cp-vd-form cp-vd-timescale-grid">
+            <label>${esc(t(state.locale, "Primary date format", "قالب تاریخ اصلی"))}<select><option>Month / Day</option><option>Day / Month</option><option>Month / Year</option><option>Quarter / Year</option><option>Week / Year</option><option>Year</option></select></label>
+            <label>${esc(t(state.locale, "Ordinal start", "شروع ترتیبی"))}<input type="date" value="2026-11-02"></label>
+            <label>${esc(t(state.locale, "Ordinal interval", "بازه ترتیبی"))}<select><option>Day</option><option>Week</option><option>Month</option><option>Quarter</option></select></label>
+            <label>${esc(t(state.locale, "Shift calendar", "تقویم شیفت"))}<select><option>Project default</option><option>Day shift</option><option>Night shift</option></select></label>
+            <label>${esc(t(state.locale, "Financial period calendar", "تقویم دوره مالی"))}<select><option>Project financial periods</option><option>Corporate fiscal periods</option></select></label>
+          </div>
+        </section>
+        <section class="cp-vd-timescale-section">
+          <h4>${esc(t(state.locale, "Font & Color", "قلم و رنگ"))}</h4>
+          <div class="cp-vd-form cp-vd-timescale-grid">
+            <label>${esc(t(state.locale, "Font", "قلم"))}<select><option>Workspace default</option><option>Inter 9</option><option>Inter 10</option><option>Inter 11</option><option>Vazirmatn 10</option><option>Vazirmatn 11</option></select></label>
+            <label>${esc(t(state.locale, "Text color", "رنگ متن"))}<input type="color" value="#294765"></label>
+            <label>${esc(t(state.locale, "Column heading color", "رنگ عنوان ستون"))}<input type="color" value="#526579"></label>
+          </div>
+          <div class="cp-vd-inline-actions"><button type="button" disabled>Font & Color…</button><button type="button" disabled>Default Font</button></div>
+        </section>
+        <div class="cp-vd-timescale-preview"><strong>${esc(t(state.locale, "Preview", "پیش‌نمایش"))}</strong><div class="cp-vd-timescale-ruler"><span>Nov 2026</span><span>Dec 2026</span><span>Jan 2027</span><span>Feb 2027</span><span>Mar 2027</span></div><div class="cp-vd-timescale-ruler is-minor"><span>W45</span><span>W49</span><span>W01</span><span>W05</span><span>W09</span></div></div>
+        <p class="cp-vd-note">${esc(t(state.locale, "Timescale applies to the visible Gantt/profile/spreadsheet layout. Font, date format and interval controls are preview-only and do not change project dates or calendar rules.", "مقیاس زمانی بر چیدمان قابل مشاهده گانت/پروفایل/صفحه مصرف اعمال می‌شود. کنترل‌های قلم، قالب تاریخ و بازه صرفاً پیش‌نمایش هستند و تاریخ پروژه یا قوانین تقویم را تغییر نمی‌دهند."))}</p>
+      </div>`;
     case "bars":
       return `<div class="cp-vd-form cp-vd-bar-editor">
         <p class="cp-vd-note">${esc(t(state.locale, "Configure each Gantt bar as an independent display rule: visibility, name, timescale, filter, style, settings and labels.", "هر میله گانت یک قاعده نمایشی مستقل است: نمایش، نام، مقیاس زمانی، فیلتر، سبک، تنظیمات و برچسب‌ها."))}</p>
