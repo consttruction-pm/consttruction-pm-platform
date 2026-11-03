@@ -677,6 +677,33 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
                 )
             )
 
+        denied_write = {
+            "contract_version": "cubi.shared-core-runtime.v1",
+            "operation": "wbs.create",
+            "payload": {
+                "contract_version": "p6-wbs-master-api.v1",
+                "scope": {
+                    "tenant_id": scope.tenant_id,
+                    "project_id": scope.project_id,
+                    "project_revision": scope.project_revision,
+                },
+                "wbs": {
+                    "wbs_id": "MISSING-OUTBOX",
+                    "parent_kind": "project",
+                    "parent_wbs_id": None,
+                    "code": "0",
+                    "name": "Must not be persisted",
+                    "sequence_number": 0,
+                },
+            },
+        }
+        denied_response = json.loads(shared.dispatch_json(
+            json.dumps(denied_write),
+            auth_context=auth,
+            expected_project_revision=scope.project_revision,
+        ))
+        assert denied_response["result"]["error"]["code"] == "MUTATION_ENVELOPE_REQUIRED"
+
         wbs_version = "p6-wbs-master-api.v1"
         activity_version = "p6-activity-master-api.v1"
         relationship_version = "p6-relationship-api.v1"
@@ -840,6 +867,8 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
         assert {item.operation for item in pending} >= {
             "wbs.create", "activity.create", "relationship.create", "constraint.create",
             "baseline.create", "cost_account.create", "expense.create",
+            "resource_assignment.create", "resource_assignment_period.create",
+            "resource_spread.save", "resource_capacity.save",
         }
     finally:
         connection.close()
