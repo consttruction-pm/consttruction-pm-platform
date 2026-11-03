@@ -6,8 +6,28 @@ import { createVisualDemoState, renderVisualDemo } from "./workspace-visual-demo
 import {
   liveWorkspaceProjectHref,
   shouldRenderVisualWorkspaceDemo,
+  workspaceLoginNextPath,
   VISUAL_WORKSPACE_PREVIEW_PROJECT_ID,
 } from "./workspace-visual-demo-route.js";
+
+
+test("login recovery returns to the selected visual workspace by default", () => {
+  assert.equal(
+    workspaceLoginNextPath(null),
+    `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`,
+  );
+  assert.equal(
+    workspaceLoginNextPath(VISUAL_WORKSPACE_PREVIEW_PROJECT_ID),
+    `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`,
+  );
+});
+
+test("login recovery preserves an explicitly selected live project", () => {
+  assert.equal(
+    workspaceLoginNextPath("project-123"),
+    "/app?project=project-123&view=live",
+  );
+});
 
 test("the shared preview project opens the visual workspace at its canonical URL", () => {
   assert.equal(
@@ -116,13 +136,16 @@ test("the Add command opens a clearly preview-only item editor with typed fields
 test("module registers expose page commands, selectable rows, and contextual Details tabs", () => {
   const state = createVisualDemoState("en");
   state.window = "procurement";
+  state.moduleColumns = [];
   const markup = renderVisualDemo(state);
   assert.match(markup, /aria-label="Page commands"/);
   assert.match(markup, /data-vd-module-row="0"/);
   assert.match(markup, /data-vd-module-tab="general"/);
-  assert.match(markup, /data-vd-module-tab="status"/);
-  assert.match(markup, /data-vd-module-tab="relationships"/);
-  assert.match(markup, /data-vd-module-tab="comments"/);
+  for (const tab of ["supplier", "package", "quantities", "dates", "cost", "delivery", "links", "documents"]) {
+    assert.match(markup, new RegExp('data-vd-module-tab="' + tab + '"'));
+  }
+  assert.doesNotMatch(markup, /data-vd-module-tab="relationships"/);
+  assert.doesNotMatch(markup, /data-vd-module-tab="comments"/);
   assert.match(markup, /data-vd-module-tab="history"/);
   assert.match(markup, /cp-vd-module-details/);
 });
@@ -193,9 +216,9 @@ test("register column chooser uses the current page fields instead of activity f
   const state = createVisualDemoState("en");
   state.window = "procurement";
   const markup = renderVisualDemo(state);
-  assert.match(markup, /name="Package"/);
-  assert.match(markup, /name="Material \/ Equipment"/);
-  assert.doesNotMatch(markup, /name="Activity ID"/);
+  assert.match(markup, /name="selected-Package"/);
+  assert.match(markup, /name="selected-Material \/ Equipment"/);
+  assert.doesNotMatch(markup, /name="selected-Activity ID"/);
 });
 test("scheduling dialogs expose the key CPM handling and baseline options", () => {
   const markup = renderVisualDemo(createVisualDemoState("en"));

@@ -7,77 +7,85 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 
 | Dialog | Purpose | Minimum controls | Data / API | Status |
 | --- | --- | --- | --- | --- |
-| New Project — Step 1 Business Domain | Classify the project | Domain cards: Construction, Oil & Gas, Infrastructure, Industrial, Energy, Other; organisation (optional) | `sector`/`domain` on project create | Missing |
-| New Project — Step 2 Identity | Name and ID | Project name (2–120), Project ID (auto from name, editable, unique check), description (≤2000) | `POST /api/projects` | Partial (name/description exist; no ID/domain) |
-| New Project — Step 3 Configuration | Planning defaults | Start date (Gregorian/Jalali), finish target, calendar, responsible organisation, date system, default activity duration type, default calendar | Project create + calendars API | Partial (start/date system only) |
-| New Project — Step 4 Development | Seed the plan | WBS template or blank, activity template, copy from project, create sample activities | WBS/activity APIs | Missing |
+| New Project — Step 1 Business Domain | Classify the project | Domain, portfolio and responsible organisation pickers | `sector`/`domain` on project create | Visual preview implemented; validation/API not connected |
+| New Project — Step 2 Identity | Name and ID | Project name (2–120), editable suggested Project ID with tenant uniqueness check, description (≤2000) | `POST /api/projects` | Visual preview implemented; uniqueness/create not connected |
+| New Project — Step 3 Configuration | Planning defaults | Start date (Gregorian/Jalali), target finish, date system, project calendar, responsible organisation, default activity duration type | Project create + calendars API | Visual preview implemented; validation/API not connected |
+| New Project — Step 4 Development | Seed the plan | Blank/template WBS, authorized project copy, optional starter WBS/activities and resource/calendar templates | WBS/activity APIs | Visual preview implemented; creation/copy not connected |
 | Open Project | Choose project | Search, domain filter, recent, role badge | `GET /api/projects`, `POST /open` | Implemented as picker, not dialog |
-| Import / Export | Interchange | Format, project, mapping preview, conflict policy | Existing interchange API | Implemented (panel) |
-| Print Preview / Print / Page Setup | Output | Layout, page, scale, margins, header/footer | Print profile API (not built) | Missing |
-| Project Settings | Edit metadata | Name, description, start, date system, primary calendar, revision | `GET/PATCH /api/projects/{id}` | Implemented (modal) |
+| Import / Export | Interchange | Format, project/resource/role scope, template, create/add/replace/update action, EPS/WBS destination, baselines, field mapping, code/calendar/financial-period compatibility, validation report, output content and privilege checks | Interchange API | Visual preview implemented; file parsing, mapping, validation, transactions and file writing not connected |
+| Print Preview / Print Setup / Page Setup | Output | Page navigation, zoom/orientation, printer selection, paper, scaling, margins, header/footer, sheet date range, pages wide, columns, repeat table, gradient and tiled page order | Print profile API (not built) | Visual preview implemented; printer driver, PDF/HTML output and persisted print profiles are not connected |
+| Project Details / Settings | Project metadata, dates, defaults, resources, settings, calculations and financial tabs | General, Dates, Notebook, Budget Log, Spending Plan, Budget Summary, Funding, Codes, Defaults, Resources, Settings, Calculations, Custom Fields; project ID/name/status/OBS, planned/must-finish/data/anticipated dates, default activity/duration/% complete/calendar/rate/cost account, resource assignment defaults | `GET/PATCH /api/projects/{id}` plus project detail services | Visual tab inventory and read-only General preview implemented; tab navigation, persistence and calculations not connected |
 
 ## Layout and data display
 
 | Dialog | Controls | Behaviour | Status |
 | --- | --- | --- | --- |
-| Columns | Available/selected lists, add/remove, up/down, width, title, alignment, visibility | Apply to active layout; save with layout | Partial (field chooser panel, no modal) |
-| Filters | Any/All rows; field; operator; value; add/delete/order; named filters | Apply to table/Gantt; show filter name in layout bar | Partial (free-text filter only) |
-| Group and Sort | Group bands (up to 10), sort levels (up to 10), ascending/descending, summary options | WBS default; persist per layout | Partial (one group + one sort) |
-| Timescale | Scale (day/week/month/quarter/year), range, date format, fiscal options | Gantt ticks and labels | Partial (five scale buttons) |
-| Bars | Bar list, add/delete, style, label, filter, timescale, preview | Gantt bar rendering | Missing |
-| Bar Chart Options | Relationship lines, background lines, legend, data date line, progress line | Gantt display | Partial (link toggle only) |
-| Table Font and Row | Font scale, row height, colours | Table rendering | Missing |
-| Bottom Layout Options / Customize Details | Tab list, visible, order | Activity Details tabs | Missing |
-| Layout Manager (New/Open/Save As/Delete/Import/Export) | Name, scope (user/project), default flag, duplicate | Persist through layout API | Partial (API + undo, no manager) |
-| Collapse To | Group band | Collapse table to band | Missing |
-| Find / Replace | Field scope, text, direction, match case | Highlight/next | Missing |
-| Renumber Activity IDs | Prefix, start, increment, scope (selected/all) | Preview + apply; revision guard | Missing |
+| Columns | Available/Selected lists; add/remove one/all; reorder; at least one visible; search/group/collapse available columns; edit title/width/alignment/visibility; Copy From; Default | Apply to active layout; save with layout | Visual preview implemented; layout persistence not connected |
+| Filters | Default/Global/Layout/User-Defined categories; selected-filter All/Any; named filter; criteria All/Any; Parameter/Is/Value rows; comparison and range operators; add/delete/reorder/optimize/make-global | Apply to table/Gantt; show filter name in layout bar | Visual preview implemented; filter execution/persistence not connected |
+| Group and Sort | Up to 20 grouping levels; hierarchical fields with To Level; multiple sort keys and ascending/descending/hierarchical order; Font & Color per band; indent/alphabetical bands; title/ID/code/name display; empty bands; page breaks; group/grand totals | WBS default; group before sort; persist per layout | Visual preview implemented; persistence not connected |
+| Timescale | Two/Three lines; Timescale Start; Primary/Ordinal dates; date type and interval; ordinal start/interval; Day/Shift calendar; financial-period calendar; Font & Color/default font | Gantt/profile/spreadsheet time axis | Visual preview implemented; settings persistence not connected |
+| Bars | Bar list, add/delete, style, label, filter, timescale, preview | Gantt bar rendering | Visual preview implemented; saved bar definitions and rendering engine not connected |
+| Bar Chart Options | Relationship lines, background lines, legend, data date line, progress line, line styles/colors | Gantt display | Visual preview implemented; display preference persistence not connected |
+| Table Font and Row | Font scale, row height, font family/size/style, text/background colors and group band formatting | Table rendering | Visual preview implemented; style persistence not connected |
+| Bottom Layout Options / Customize Details | Tab list, visible, order and active detail tab | Activity Details tabs | Visual preview implemented; tab visibility/order persistence not connected |
+| Layout Manager (New/Open/Apply/Save/Save As/Delete/Import/Export) | Available-layout list; name, description, modified date, owner, scope (All Users / Another User / Current User / Project), target user/project, default-for-project flag, Apply preview, multi-select export, `.PLF` import/export, unsaved-current-layout prompt, privilege-aware actions | Persist presentation options only; never project data. Scope and destructive actions require explicit privilege checks. | Visual preview implemented; layout service, file interchange and privilege checks not connected |
+| Collapse To | Group band selected from the active layout; collapse or expand to that level | Visual preview implemented; active-layout grouping discovery and row-state changes not connected |
+| Find / Replace | Field scope, text, direction, match case | Highlight/next | Visual preview implemented; search/replace execution not connected |
+| Renumber Activity IDs | Prefix, start, increment, scope (selected/all) | Preview + apply; revision guard | Visual preview implemented; ID uniqueness preview and mutation not connected |
 
 ## Assignment and activity
 
 | Dialog | Controls | Status |
 | --- | --- | --- |
-| Assign Resources | Resource list, search, assigned list, units/time, cost, curve | Missing |
-| Assign Resources by Role | Role, candidates, units | Missing |
-| Assign Roles | Role list, proficiency, assigned | Missing |
-| Assign Activity Codes | Code dictionary, values, assigned | Missing |
+| Assign Resources | Activity context; searchable/type-filtered resource catalogue; resource ID/name/type; available/planned units and cost/rate; assignment units and units/time; rate type/source; resource/activity calendar; start/finish; curve; cost account; selected/assigned list; permission-filtered candidates | Visual preview implemented; availability, assignment persistence and cost recalculation not connected |\n| Resource Details | General, Codes, Details, Units & Prices, Roles, Notes and Custom Fields; identity/contact, calendar, shifts, rates, role and code context | Visual preview implemented; resource profile persistence and rate/shift services not connected |
+| Assign Resources by Role | Required role, proficiency filter, eligible resources, multi-select candidates, assignment units, explicit resource/role/override rate source | Visual preview implemented; candidate matching and assignment persistence not connected |
+| Assign Roles | Role, units, max units/time, proficiency, effective start/finish, candidate resource; role assignment remains distinct from resource assignment | Visual preview implemented; role service and assignment persistence not connected |
+| Assign Activity Codes | Activity, code dictionary, global/EPS/project scope, values, description and assignment context | Visual preview implemented; code assignment service not connected |
+| Activity / WBS context menus | Selection-aware commands, details, assignments, predecessor/successor links, activity codes, child WBS; destructive commands disabled until persistence/permissions exist | Visual preview implemented; command authorization and mutations not connected |
 | Assign Predecessors / Successors | Activity search, relationship type (FS/SS/FF/SF), lag | Partial (logic panel) |
 | New/Edit Activity | ID, name, type, duration, calendar, WBS, dates, constraints | Partial (inline form) |
 | New/Edit WBS | Code, name, parent, sequence, status | Implemented (forms) |
 | New/Edit Relationship | Predecessor, successor, type, lag | Implemented (forms) |
-| Dissolve Activity | Confirmation, resulting FS link preview | Missing |
-| Activity Details > General/Status/Resources/... | See `workspace-window-inventory.md` | Missing |
+| Dissolve Activity | Eligibility, predecessor/successor relationship transformation, lag removal/retention choice, confirmation | Logic preview implemented; relationship mutation, validation against live network and lag updates not connected |
+| Activity Details > General/Status/Resources/... | General, Status, Resources, Predecessors, Successors, Codes, Discussion, Notebook, Steps, Feedback, Documents, Expenses, Summary, Relationships, Risks, Custom Fields and Update History; selected identity and no-selection state | Visual tab/content preview implemented; live project record binding and persistence not connected |
 
 ## Tools
 
 | Dialog | Controls | Status |
 | --- | --- | --- |
-| Schedule | Data date, project scope, options (existing schedule-cycle fields: leveling priority, level all, within float) | Implemented (options + run) |
-| Level Resources | Leveling options, resources, priority, float limit, preview | Missing |
-| Apply Actuals | Data date, project scope | Missing |
-| Update Progress | Scope, percent/actual entry | Missing |
-| Recalculate Assignment Costs | Scope, confirmation | Missing |
-| Store Period Performance | Financial period, project | Missing |
-| Global Change | Parameter rows, preview count, apply | Missing |
-| Monitor Thresholds / Issue Navigator | Scope and results | Missing |
-| Reports runner | Report, parameters, preview, export | Missing |
+| Schedule | Data date, project scope, scheduling options and calculation preferences | Visual preview implemented; no scheduler is executed in this phase |
+| Level Resources | Scope, resources, priority sequence, availability/over-allocation limits, float preservation, split/retime options | Visual preview implemented; no leveling or date changes are executed |
+| Update Progress | Data date, percent-complete type/value, actual start/finish, remaining duration, units/costs, suspend/resume | Visual preview implemented; progress write, actual-date policy and schedule recalculation not connected |
+| Apply Actuals | Project/selected scope, data date, source, actual dates, remaining-duration and units/cost options | Visual preview implemented; controlled apply operation and scheduler integration not connected |
+| Recalculate Assignment Costs | Scope, rate source, effective date, currency, labor/non-labor/material/role options | Visual preview implemented; rate engine and assignment cost recalculation not connected |
+| Budget / Spending Plan | Budget establishment, budget-change log, funding sources and assignments, monthly financial-period spending plan, budget/spending totals and variances | Visual preview implemented; financial-period service, approvals, posting and calculations not connected |
+| Earned Value Analysis | Assigned EV baseline, WBS/activity EV techniques, PV/EV/AC, SV/CV, SPI/CPI | Visual preview implemented; baseline integration, WBS technique persistence and EV calculations not connected |
+| Store Period Performance | Financial period, project, actual this period and actual-to-date units/costs, post/history | Visual preview implemented; posting, period locking and past-period audit permissions not connected |
+| Expense Details | Activity, category, accrual type, cost account, vendor, budgeted/actual/remaining cost | Visual preview implemented; expense CRUD and cost roll-up not connected |
+| Cost Account Dictionary | Hierarchical account ID/name/parent/level, default account | Visual preview implemented; dictionary CRUD and assignment services not connected |
+
+
+| Global Change | Object scope (activities, assignments, expenses), Available To, If conditions, Then/Else statements, reorder/copy, preview report, exception rows, save report, cancel/commit | Visual preview implemented; specification engine, permission enforcement, report persistence and transactional commit not connected |
+| Reports Library / Runner | Global/project reports, groups/batches, run, wizard/editor, import/export, parameters and output destination | Visual preview implemented; report definitions, execution engine, batch scheduler and file operations not connected |
+| Threshold Monitor / Issue Navigator | Threshold parameters and limits, monitoring frequency, responsibility, generated issues, priority/status, tracking layout and history | Visual preview implemented; threshold service, issue generation, notifications and history persistence not connected |
 
 ## Administration
 
 | Dialog | Controls | Status |
 | --- | --- | --- |
-| Users | User list, roles, project access | Missing |
-| Security Profiles | Profiles, privileges | Missing |
-| Admin Preferences | Defaults, help location, numbering | Missing |
-| Admin Categories | Category/value dictionaries | Missing |
-| Currencies | Currency, symbol, decimals, base flag | Missing |
-| Financial Period Calendars | Period calendar, start/end, generate periods | Missing |
-| Business Domains / Portfolios | Tree/list, add/edit/delete | Missing |
-| Calendars | Calendar list, workweek, shifts, holidays, exceptions | Partial (holidays only) |
-| Codes (activity/resource/role/project) | Dictionary tree, values, colours | Missing |
-| UDFs | Subject, data type, formula, values | Missing |
-| Cost Accounts / Funding Sources | Dictionary trees | Missing |
-| Resource Shifts / Curves | Shift windows, curve points | Missing |
+| Users | User list, roles, access state, user limit and profile assignment | Visual preview implemented; user provisioning, authentication and access enforcement not connected |
+| Security Profiles | Global/project profiles, privilege matrix, module access, profile assignment and read-only state | Visual preview implemented; policy engine and enforcement not connected |
+| Administrative Preferences | Industry, week start, default activity duration, hierarchy/code/ID limits, baseline limits, workhours, time abbreviations, earned-value defaults and summarization | Visual preview implemented (General, Data Limits, ID Lengths, Time Periods, Earned Value and Options tabs); preference persistence and validation not connected |
+| Administrative Categories | Baseline types, expense categories, WBS categories/values, document categories/statuses, risk categories, notebook topics and units of measure | Visual preview implemented; dictionary CRUD and dependency validation not connected |
+| Currencies | Currency ID/name/symbol, decimal precision, base currency, view currency, exchange rate and effective-date context | Visual preview implemented; rate history, conversion and financial integration not connected |
+| Financial Period Calendars | Named period calendars, fiscal boundaries, individual/batch period creation, start/end, period state and posting protection | Visual preview implemented; calendar CRUD, contiguous-range validation, locking and posting integration not connected |
+| EPS / Project Structure | Hierarchical portfolio/EPS nodes, child projects, responsible OBS, project status/dates, expand/collapse, add/move/copy/delete | Visual preview implemented; hierarchy CRUD, project moves, uniqueness and access inheritance not connected |
+| OBS / Responsibility Structure | Hierarchical responsible managers, parent/child nodes, WBS assignment, chart view and access scope | Visual preview implemented; OBS CRUD, WBS responsibility assignment and security inheritance not connected |
+| Custom Fields | Subject, field name, data type, list values, indicator ranges, formula/read-only fields and required flag | Visual preview implemented; definitions, value persistence, formula evaluation and migration not connected |
+| Calendars | Global / Project / Resource pools, inheritance, workweek, holidays, exceptions, work hours, Used By and period conversions | Visual preview implemented; calendar CRUD, inheritance and scheduling integration not connected |
+| Codes (activity/resource/role/project) | Separate dictionaries, scope, values, hierarchy, colors and assignment counts | Visual preview implemented; dictionary CRUD and code assignment services not connected |
+| Cost Accounts / Funding Sources | Hierarchical cost accounts, default account, funding sources and assignments | Visual preview implemented; dictionary CRUD, funding transactions and budget roll-up not connected |
+| Resource Shifts / Curves | Shift calendars, effective dates, daily work periods, overtime and curve points | Resource Shifts visual preview implemented; shift capacity and resource curve services not connected |
 
 ## Cross-dialog rules
 
@@ -88,3 +96,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 5. **No fake affordances:** buttons without a backend are disabled with a visible "Available after <capability>" note.
 6. **Keyboard:** Enter submits, Esc cancels, Tab order follows visual order, focus returns to the invoking control.
 7. **RTL:** dialog order mirrors, but numeric and ID fields remain LTR.
+
+## Mandatory dialog-by-dialog visual audit
+
+Every dialog, tab and nested panel in this inventory must be audited individually under [`../reference/visual-audit-governing-principles.md`](../reference/visual-audit-governing-principles.md). Verify the full field/control inventory, order, units, defaults, validation, selection and disabled states, dimensions, typography, borders, colours and all documented appearance pickers. A dialog with only its title or a static preview is not complete. Gantt Bars, chart options, table font/row, timescale and other colour/style dialogs are in scope now; the future theme phase does not defer their implementation.

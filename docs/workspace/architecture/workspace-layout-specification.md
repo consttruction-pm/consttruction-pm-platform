@@ -136,3 +136,7 @@ Touch targets ≥40px on tablet/mobile. Splitter drag is replaced by preset pane
 - Unit tests for splitter clamping, tab state and layout defaults.
 - Playwright/browser E2E: open Activities, verify WBS grouping, resize panels, switch window tabs, reload and confirm persistence, switch fa/en and rtl/ltr, verify no overlap at 1280/1024/768 widths.
 - Screenshot evidence stored under `apps/web/e2e/artifacts/` and referenced by the execution log.
+
+## Binding visual parity requirement
+
+This layout specification must be validated page by page against [`../reference/visual-audit-governing-principles.md`](../reference/visual-audit-governing-principles.md). Geometry alone is insufficient: verify menu and toolbar structure, panel/tab behaviour, fields, typography, borders, fills, colours, selection/focus/disabled states, chart axes/legends/lines/bars and all documented appearance controls. Gantt/chart colour and style configuration is part of the current visual implementation phase; the later theme phase may harmonize tokens but may not replace or omit these controls. Attach page-specific screenshots and test evidence in GitHub.

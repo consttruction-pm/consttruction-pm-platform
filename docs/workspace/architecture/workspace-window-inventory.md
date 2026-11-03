@@ -126,3 +126,7 @@ The master audit now contains the full visual composition rule, window/mode matr
 - Project/activity/WBS/resource/role properties, relationships, baselines, schedule, resource leveling, import/export, print/page setup, preferences, security, search, global change and recovery dialogs.
 
 **Status:** this is a completed target inventory only. It does not mean those visual surfaces have all been implemented. The running application remains partial until each window, pane, menu, submenu, dialog and layout mode exists and is proven in browser interaction and screenshots. Do not merge or mark skin complete based on the written catalogue.
+
+## Mandatory visual audit rule
+
+This inventory is a checklist, not proof of parity. Each window and each of its subcomponents must receive an individual GitHub audit record under [`../reference/visual-audit-governing-principles.md`](../reference/visual-audit-governing-principles.md). Verify actual rendered geometry, controls, tabs, menu/context-menu hierarchy, typography, colours, visual states and interactions against the exact Version 26 desktop reference. Gantt and every chart family require complete colour/style controls and rendered-result verification now; do not defer them to the later theme phase. Only a page whose subcomponents pass evidence, tests and screenshot review may be marked Verified.

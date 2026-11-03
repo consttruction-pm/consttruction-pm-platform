@@ -30,3 +30,16 @@ export function liveWorkspaceProjectHref(href: string, projectId: string): strin
   url.searchParams.set("view", "live");
   return url.href;
 }
+
+
+/**
+ * Restore the intended post-login destination after a lost/expired session.
+ * The shared preview project is the selected visual entry surface; it must
+ * never be silently converted into the data-backed "live" workspace.
+ */
+export function workspaceLoginNextPath(projectId: string | null): string {
+  if (!projectId || projectId === VISUAL_WORKSPACE_PREVIEW_PROJECT_ID) {
+    return `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`;
+  }
+  return `/app?project=${encodeURIComponent(projectId)}&view=live`;
+}
