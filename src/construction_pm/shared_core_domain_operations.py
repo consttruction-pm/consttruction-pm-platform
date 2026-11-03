@@ -65,6 +65,11 @@ from construction_pm.resources.models import (
     ResourceRate,
     ResourceType,
 )
+from construction_pm.project_schedule_settings_repository import (
+    ProjectScheduleSettings,
+    _schedule_options_from_payload,
+)
+from construction_pm.scheduling.authoritative_schedule import AuthoritativeScheduleMode
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6ScheduleSnapshotPublicationAPI,
     P6_SCHEDULE_SNAPSHOT_API_VERSION,
@@ -756,6 +761,86 @@ def build_project_domain_operations(
 
 
     if schedule_snapshot_api is not None:
+        def schedule_settings_save(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["settings"],
+                required={
+                    "mode", "project_calendar", "project_start",
+                    "project_finish", "schedule_options", "project_leveling_priority",
+                },
+                allowed={
+                    "mode", "project_calendar", "project_start",
+                    "project_finish", "schedule_options", "project_leveling_priority",
+                },
+                code="INVALID_PROJECT_SCHEDULE_SETTINGS_PAYLOAD",
+            )
+            try:
+                mode = AuthoritativeScheduleMode(raw["mode"])
+                calendar = _fields(
+                    raw["project_calendar"],
+                    required={"calendar_id", "calendar_version", "kind", "system"},
+                    allowed={"calendar_id", "calendar_version", "kind", "system"},
+                    code="INVALID_PROJECT_CALENDAR_REFERENCE",
+                )
+                reference = CalendarReference(
+                    calendar_id=calendar["calendar_id"],
+                    calendar_version=calendar["calendar_version"],
+                    kind=calendar["kind"],
+                    system=CalendarSystem(calendar["system"]),
+                )
+                start_raw = raw["project_start"]
+                finish_raw = raw.get("project_finish")
+                if not isinstance(start_raw, str) or not start_raw.strip():
+                    raise ValueError("INVALID_PROJECT_START")
+                if finish_raw is not None and not isinstance(finish_raw, str):
+                    raise ValueError("INVALID_PROJECT_FINISH")
+                if mode is AuthoritativeScheduleMode.DATE_BASED:
+                    start_value: date | datetime = date.fromisoformat(start_raw)
+                    finish_value: date | datetime | None = (
+                        None if finish_raw is None else date.fromisoformat(finish_raw)
+                    )
+                else:
+                    start_value = datetime.fromisoformat(start_raw.replace("Z", "+00:00"))
+                    finish_value = (
+                        None
+                        if finish_raw is None
+                        else datetime.fromisoformat(finish_raw.replace("Z", "+00:00"))
+                    )
+                    if start_value.tzinfo is None or start_value.utcoffset() is None:
+                        raise ValueError("TIMEZONE_REQUIRED_FOR_PROJECT_START")
+                    if finish_value is not None and (
+                        finish_value.tzinfo is None or finish_value.utcoffset() is None
+                    ):
+                        raise ValueError("TIMEZONE_REQUIRED_FOR_PROJECT_FINISH")
+                options = _schedule_options_from_payload(raw["schedule_options"])
+                priority = raw["project_leveling_priority"]
+                if isinstance(priority, bool) or not isinstance(priority, int):
+                    raise ValueError("INVALID_PROJECT_LEVELING_PRIORITY")
+                settings = ProjectScheduleSettings(
+                    scope=_scope(actor, revision),
+                    mode=mode,
+                    project_calendar=reference,
+                    project_start=start_value,
+                    project_finish=finish_value,
+                    schedule_options=options,
+                    project_leveling_priority=priority,
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                if isinstance(exc, ValueError) and str(exc).isupper():
+                    raise
+                raise ValueError("INVALID_PROJECT_SCHEDULE_SETTINGS_PAYLOAD") from exc
+            expected_revision = _record_revision(payload["expected_revision"]) if "expected_revision" in payload else None
+            if expected_revision is None:
+                raise ValueError("EXPECTED_REVISION_REQUIRED")
+            return _record_result(
+                schedule_snapshot_api.save_settings(
+                    _scope(actor, revision),
+                    settings=settings,
+                    expected_revision=expected_revision,
+                    auth_context=actor,
+                )
+            )
+
         def schedule_settings_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
             return _record_result(
                 schedule_snapshot_api.get_settings(
@@ -784,6 +869,14 @@ def build_project_domain_operations(
                 )
             )
 
+        operations["schedule.settings.save"] = SharedCoreOperation(
+            contract_version=P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
+            permission=Permission.PROJECT_SCHEDULE,
+            required_fields=frozenset({"settings", "expected_revision"}),
+            allowed_fields=frozenset({"settings", "expected_revision"}),
+            handler=schedule_settings_save,
+            mutates=True,
+        )
         operations["schedule.settings.get"] = SharedCoreOperation(
             contract_version=P6_PROJECT_SCHEDULE_SETTINGS_API_VERSION,
             permission=Permission.PROJECT_SCHEDULE,
