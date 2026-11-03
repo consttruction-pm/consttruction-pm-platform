@@ -186,6 +186,7 @@ type DemoState = {
   activityView: "schedule" | "relationships";
   detailTab: string;
   moduleDetailTab: string;
+  trackingLayout: "project-table" | "project-bar-chart" | "project-gantt-profile" | "resource-analysis";
   moduleSelectedRow: number;
   moduleSearch: string;
   moduleSort: "default" | "ascending" | "descending";
@@ -936,6 +937,32 @@ function renderFormBuilderWindow(state: DemoState): string {
     </div><p class="cp-vd-note">Visual builder preview — field edits, uploads, workflow execution and publication are not connected to project storage.</p></section>`;
 }
 
+function renderTrackingWindow(state: DemoState): string {
+  const layouts: Array<[DemoState["trackingLayout"], string, string]> = [
+    ["project-table", "Project Table", "جدول پروژه"],
+    ["project-bar-chart", "Project Bar Chart", "نمودار میله‌ای پروژه"],
+    ["project-gantt-profile", "Project Gantt / Profile", "گانت / پروفایل پروژه"],
+    ["resource-analysis", "Resource Analysis", "تحلیل منابع"],
+  ];
+  const selected = layouts.find(([id]) => id === state.trackingLayout) ?? layouts[0];
+  const rows = ACTIVITIES.slice(0, 8);
+  const rowTable = (resourceMode = false) => {
+    const records = resourceMode ? RESOURCES.slice(0, 6).map((r) => ({ id: r.id, name: r.name, value: r.units, unit: r.unit })) : rows.map((r) => ({ id: r.id, name: r.name, value: r.pct, unit: "%" }));
+    return `<div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>${esc(t(state.locale, resourceMode ? "Resource ID" : "Activity ID", resourceMode ? "شناسه منبع" : "شناسه فعالیت"))}</th><th>${esc(t(state.locale, resourceMode ? "Resource / Role" : "Activity", resourceMode ? "منبع / نقش" : "فعالیت"))}</th><th>${esc(t(state.locale, resourceMode ? "Units" : "% Complete", resourceMode ? "واحد" : "درصد تکمیل"))}</th><th>${esc(t(state.locale, "Status / Unit", "وضعیت / واحد"))}</th></tr></thead><tbody>${records.map((r) => `<tr><td><bdi dir="ltr">${esc(r.id)}</bdi></td><td>${esc(r.name)}</td><td>${esc(r.value)}${resourceMode ? "" : "%"}</td><td>${esc(resourceMode ? r.unit : "In progress")}</td></tr>`).join("")}</tbody></table></div>`;
+  };
+  const bars = (resourceMode = false) => `<div class="cp-vd-tracking-bars" role="img" aria-label="${esc(t(state.locale, resourceMode ? "Resource allocation by period" : "Project progress by activity", resourceMode ? "تخصیص منابع در دوره" : "پیشرفت پروژه بر اساس فعالیت"))}">${(resourceMode ? RESOURCES.slice(0, 6).map((r) => Math.min(100, Math.round(r.units * 2))) : rows.map((r) => r.pct)).map((value, i) => `<div class="cp-vd-tracking-bar-row"><span>${esc(resourceMode ? RESOURCES[i].name : rows[i].id)}</span><i><b style="width:${Math.max(3, value)}%"></b></i><strong>${value}${resourceMode ? "" : "%"}</strong></div>`).join("")}</div>`;
+  const timeline = `<div class="cp-vd-tracking-timeline"><div class="cp-vd-tracking-axis"><span>Nov 2026</span><span>Dec 2026</span><span>Jan 2027</span><span>Feb 2027</span><span>Mar 2027</span></div>${rows.map((r) => `<div class="cp-vd-tracking-timeline-row"><span>${esc(r.id)} · ${esc(r.name)}</span><i><b style="left:${Math.max(0, Math.min(88, Math.round((day(r.start)-day(PROJECT_START))/210*100)))}%;width:${Math.max(4, Math.min(96, Math.round((day(r.finish)-day(r.start))/210*100)))}%"></b></i></div>`).join("")}</div>`;
+  const content = state.trackingLayout === "project-table" ? rowTable()
+    : state.trackingLayout === "project-bar-chart" ? bars()
+    : state.trackingLayout === "project-gantt-profile" ? `<div class="cp-vd-tracking-split"><section><h3>${esc(t(state.locale, "Top layout · Project Gantt", "بخش بالا · گانت پروژه"))}</h3>${timeline}</section><section><h3>${esc(t(state.locale, "Bottom layout · Profile / Spreadsheet", "بخش پایین · پروفایل / صفحه گسترده"))}</h3>${bars()} ${rowTable()}</section></div>`
+    : `<div class="cp-vd-tracking-split"><section><h3>${esc(t(state.locale, "Resource Analysis · Allocation", "تحلیل منابع · تخصیص"))}</h3>${rowTable(true)}</section><section><h3>${esc(t(state.locale, "Time-distributed usage", "مصرف توزیع‌شده در زمان"))}</h3>${bars(true)}${timeline}</section></div>`;
+  return `<section class="cp-vd-windowbody cp-vd-tracking"><header class="cp-vd-winhead"><div><h2>${esc(t(state.locale, "Tracking", "پیگیری"))}</h2><small>${esc(t(state.locale, "Cross-project schedule, cost and resource analysis · illustrative data", "تحلیل بین‌پروژه‌ای زمان، هزینه و منابع · داده‌های نمونه"))}</small></div><span class="cp-vd-chip">${esc(t(state.locale, selected[1], selected[2]))}</span></header>
+    <nav class="cp-vd-tracking-layouts" role="tablist" aria-label="${esc(t(state.locale, "Tracking layout type", "نوع چیدمان پیگیری"))}">${layouts.map(([id,en,fa]) => `<button type="button" role="tab" aria-selected="${state.trackingLayout===id}" class="${state.trackingLayout===id ? "is-active" : ""}" data-vd-tracking-layout="${id}">${esc(t(state.locale,en,fa))}</button>`).join("")}</nav>
+    <div class="cp-vd-module-toolbar"><button type="button" data-vd-dialog="filters">${esc(t(state.locale,"Filter","فیلتر"))}</button><button type="button" data-vd-dialog="group-sort">${esc(t(state.locale,"Group and Sort","گروه‌بندی و مرتب‌سازی"))}</button><button type="button" data-vd-dialog="timescale">${esc(t(state.locale,"Timescale","مقیاس زمانی"))}</button><button type="button" data-vd-dialog="columns">${esc(t(state.locale,"Columns","ستون‌ها"))}</button><span class="cp-vd-note">${esc(t(state.locale,"Preview only · layout configuration is not persisted","صرفاً پیش‌نمایش · تنظیمات چیدمان ذخیره نمی‌شود"))}</span></div>
+    <div class="cp-vd-tracking-content">${content}</div>
+  </section>`;
+}
+
 function renderWindow(state: DemoState): string {
   switch (state.window) {
     case "projects":
@@ -969,7 +996,7 @@ function renderWindow(state: DemoState): string {
       return `<section class="cp-vd-windowbody"><header class="cp-vd-winhead"><h2>${esc(t(state.locale, "Reports", "گزارش‌ها"))}</h2><div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="reports-runner">${esc(t(state.locale, "Open Reports", "بازکردن گزارش‌ها"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="report-wizard">${esc(t(state.locale, "Report wizard", "جادوگر گزارش"))}</button></div></header>
         <div class="cp-vd-report-list">${["Schedule report", "Cost report", "Resource report", "Critical path report"].map((name) => `<div class="cp-vd-report"><span>${esc(name)}</span><button type="button" class="cp-vd-btn" data-vd-dialog="print">${esc(t(state.locale, "Preview", "پیش‌نمایش"))}</button></div>`).join("")}</div></section>`;
     case "tracking":
-      return renderTableWindow(state, { en: "Tracking", fa: "پیگیری" }, ["Activity ID", "Activity name", "Status", "% complete", "Actual start", "Actual finish", "Remaining duration"], ACTIVITIES.slice(0, 10).map((row) => ({ "Activity ID": row.id, "Activity name": row.name, Status: row.status, "% complete": `${row.pct}%`, "Actual start": row.pct ? fmtDate(row.start) : "—", "Actual finish": row.pct >= 100 ? fmtDate(row.finish) : "—", "Remaining duration": `${row.rd} d` })));
+      return renderTrackingWindow(state);
     case "documents":
       return renderTableWindow(state, { en: "Documents", fa: "اسناد" }, ["Document", "Title", "Revision", "Status", "Owner"], [
         { Document: "ITP-Pump-01", Title: "Inspection and test plan", Revision: "B", Status: "Approved", Owner: "QA/QC" },
@@ -2375,6 +2402,7 @@ export function createVisualDemoState(locale: string): DemoState {
     activityView: "schedule",
     detailTab: "general",
     moduleDetailTab: "general",
+    trackingLayout: "project-table",
     moduleSelectedRow: 0,
     moduleSearch: "",
     moduleSort: "default",
@@ -2720,6 +2748,12 @@ function bind(root: HTMLElement): void {
     const formTab = target.closest<HTMLElement>("[data-vd-form-tab]");
     if (formTab?.dataset.vdFormTab && ["design", "fields", "workflow", "permissions", "versions"].includes(formTab.dataset.vdFormTab)) {
       state.formTab = formTab.dataset.vdFormTab as DemoState["formTab"];
+      draw();
+      return;
+    }
+    const trackingLayout = target.closest<HTMLElement>("[data-vd-tracking-layout]");
+    if (trackingLayout?.dataset.vdTrackingLayout) {
+      state.trackingLayout = trackingLayout.dataset.vdTrackingLayout as DemoState["trackingLayout"];
       draw();
       return;
     }
