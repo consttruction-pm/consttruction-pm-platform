@@ -7916,3 +7916,4 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-resource-type-filter button{padding:4px 8px;border:1px solid #cbd5e1;border-radius:3px;background:#fff;color:#52657a;font-size:9px}
 .cp-p6 .cp-resource-type-filter button.is-active{border-color:#6f9bc7;background:#e6f0fa;color:#173d68;font-weight:700;box-shadow:inset 0 -2px 0 #1c6bb7}
 .cp-p6 .cp-resource-filter-note{margin:0;padding:6px 8px;border-inline-start:3px solid #c18a4b;background:#faf7f1;color:#6b5a43;font-size:10px}
+.cp-p6 .cp-assignment-usage-table-wrap caption{caption-side:top;padding:7px 8px;background:#eaf0f6;color:#38536f;text-align:start;font-size:10px;font-weight:700}
