@@ -896,8 +896,8 @@ test("Import and export dialogs expose file formats, templates, mapping, baselin
     assert.ok(html.includes(label), "missing interchange control: " + label);
   }
   assert.match(html, /cp-vd-interchange-grid/);
-  assert.match(html, /Project Archive \\(.xer\\)/);
-  assert.match(html, /Structured Project XML \\(.xml\\)/);
+  assert.match(html, /Project Archive \\(\\.xer\\)/);
+  assert.match(html, /Structured Project XML \\(\\.xml\\)/);
   assert.doesNotMatch(html, /Primavera|Oracle|P6 XML/);
   assert.match(html, /no file is read, parsed, mapped, validated or imported/);
   assert.match(html, /no project data is serialized and no file is written/);
