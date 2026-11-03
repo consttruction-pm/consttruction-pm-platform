@@ -72,3 +72,21 @@ Do not start Unit B before Unit A is merged and its E2E is green on main.
 | 2026-10-30 | Four persistent toolbar groups instead of 18 strips | Usability; optional toolbars can be shown |
 | 2026-10-30 | Activities default grouping/sort = WBS | Required professional behaviour; matches current `activityGroupBy: "wbs"` |
 | 2026-10-30 | Discussion/Feedback/Tasks tabs deferred/retired for v1 | Desktop value and edition boundary; revisit with collaboration model |
+
+## 2026-11-03 — Restore the canonical visual workspace as the default login destination
+
+**Root cause found by comparing the accepted entry-flow decision with the deployed `main` source:**
+- The accepted product flow is **Home → Login → Visual Project Workspace → Sign out → Home**.
+- The public Pages assembly already passed `/app?project=preview-rps-01` to the hosted login form, but direct login/session recovery could fall back to bare `/app`.
+- The route selector in `workspace-visual-demo-route.ts` only selected the visual shell when the preview project ID was explicitly present. Bare `/app` therefore fell through to the API/live workspace.
+- The session-recovery action in `main.ts` also appended `view=live` to any remembered project, including the selected preview project. This explicitly bypassed the visual shell.
+- The previous recovery change existed only on the unmerged visual-audit branch, so it did not repair the published `main` route.
+
+**Correction committed to `main`:**
+- Bare `/app` (including locale-only query strings) now opens the visual workspace by default.
+- Explicit `view=live` continues to open the API-backed workspace; an explicitly selected non-preview project remains live.
+- Session-recovery routing now sends no-project and preview-project sessions to `/app?project=preview-rps-01`.
+- Regression tests cover bare `/app`, locale-only query, preview ID, explicit live mode, explicit project mode, and session-recovery destinations.
+- The same default-route correction was mirrored to the visual-audit branch. The independent Tracking Details-tab gap found by its CI run was also implemented with page-specific Projects, Layout, Data, Profiles, Variance and History tabs.
+
+**Required verification:** GitHub Pages deployment and hosted browser journey must be checked after the main-branch workflow completes. Do not claim the hosted page is fixed until Home → Login → visual shell and Sign out → Home are confirmed in the deployed site.
