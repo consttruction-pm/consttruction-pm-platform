@@ -628,3 +628,22 @@ test("Project Details dialog localizes project tabs and date/default fields in P
     assert.ok(html.includes(label), `missing Persian Project Details label: ${label}`);
   }
 });
+
+
+test("Calendar dictionary and editor expose all three pools, inheritance, exceptions and time-period conversion", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const label of ["Global", "Project", "Resource", "Shared Resource Shift", "Personal Resource Calendar", "Add…", "Modify…", "Delete", "Used By…", "Calendar pool", "Parent global calendar", "Standard workweek", "Total work hours/day", "Detailed work hours/day", "Work", "Nonwork", "Standard", "Hours per time period", "Hours per week", "Hours per month", "Hours per year", "manual future-period assignment values"]) {
+    assert.ok(html.includes(label), `missing calendar control or concept: ${label}`);
+  }
+  assert.match(html, /cp-vd-calendar-pools/);
+  assert.match(html, /cp-vd-calendar-editor-bottom/);
+  assert.match(html, /Calendar inheritance/);
+});
+
+test("Calendar dictionary and editor expose Persian RTL labels and conversion warnings", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["مخازن تقویم", "سراسری", "پروژه", "منبع", "تقویم والد", "هفته کاری استاندارد", "مجموع ساعات کاری روز", "جزئیات ساعات کاری روز", "ساعات هر دوره زمانی", "موارد استفاده…", "تقویم‌های پروژه و منابعِ پیوندخورده"]) {
+    assert.ok(html.includes(label), `missing Persian calendar label: ${label}`);
+  }
+});
