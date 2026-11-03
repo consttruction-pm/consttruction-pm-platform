@@ -11,7 +11,7 @@ offline-aware authorization policy.
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, Protocol
+from typing import Callable, Mapping, Protocol
 
 from construction_pm.application.authorization import (
     AuthorizationContext,
@@ -418,6 +418,35 @@ class SQLiteLocalApplicationRuntime:
             calendar_exception_repository=self.calendar_exception_repository,
             calendar_work_hours_repository=self.calendar_work_hours_repository,
         )
+        def execute_local_mutation(
+            operation: str,
+            payload: Mapping[str, object],
+            metadata: Mapping[str, str],
+            auth_context: AuthorizationContext,
+            expected_revision: int,
+            apply: Callable[[], object],
+        ) -> object:
+            mutation = OfflineMutation(
+                mutation_id=metadata["mutation_id"],
+                tenant_id=auth_context.tenant_id,
+                project_id=auth_context.project_id,
+                expected_revision=expected_revision,
+                operation=operation,
+                payload=dict(payload),
+                idempotency_key=metadata["idempotency_key"],
+            )
+            mutation_scope = BackendScope(
+                auth_context.tenant_id,
+                auth_context.project_id,
+                expected_revision,
+            )
+            return self.apply_offline_mutation(
+                mutation_scope,
+                mutation,
+                auth_context=auth_context,
+                apply=apply,
+            )
+
         return build_shared_core_runtime(
             snapshot_repository=self.schedule_snapshot_repository,
             calendar_registry_factory=lambda: self.calendar_registry(scope),
@@ -436,6 +465,7 @@ class SQLiteLocalApplicationRuntime:
                 cost_account_api=self.cost_account_api,
                 expense_api=self.expense_api,
             ),
+            mutation_executor=execute_local_mutation,
         )
 
 
