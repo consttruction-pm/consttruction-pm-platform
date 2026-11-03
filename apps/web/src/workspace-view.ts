@@ -183,6 +183,7 @@ function persistWorkspaceSplit(split: HTMLElement): void {
 }
 
 function restoreWorkspaceSplit(container: HTMLElement): void {
+  if (typeof container.querySelector !== "function") return;
   const split = container.querySelector<HTMLElement>("[data-panel-split]");
   const splitter = split?.querySelector<HTMLElement>("[data-panel-splitter]");
   if (!split || !splitter) return;
