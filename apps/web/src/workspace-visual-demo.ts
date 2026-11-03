@@ -1428,7 +1428,38 @@ function dialogContent(name: string, state: DemoState): string {
         </div>
       </div>`;
     case "group-sort":
-      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Group by", "گروه‌بندی"))}<select name="group"><option value="wbs"${state.groupBy === "wbs" ? " selected" : ""}>WBS</option><option value="none"${state.groupBy === "none" ? " selected" : ""}>${esc(t(state.locale, "No grouping", "بدون گروه"))}</option></select></label><label>${esc(t(state.locale, "Sort by", "ترتیب بر اساس"))}<select name="sort"><option>Activity ID</option><option>Activity Name</option><option>Total Float</option></select></label><div class="cp-vd-radios"><label><input type="radio" checked> ${esc(t(state.locale, "Ascending", "صعودی"))}</label><label><input type="radio"> ${esc(t(state.locale, "Descending", "نزولی"))}</label></div><label class="cp-vd-check"><input type="checkbox" checked> ${esc(t(state.locale, "Show group totals", "نمایش جمع گروه"))}</label></div>`;
+      return `<div class="cp-vd-group-sort">
+        <div class="cp-vd-group-sort-section">
+          <div class="cp-vd-filter-rules-head"><strong>${esc(t(state.locale, "Group By", "گروه‌بندی بر اساس"))}</strong><span>${esc(t(state.locale, "Up to 20 grouping levels", "تا ۲۰ سطح گروه‌بندی"))}</span></div>
+          <div class="cp-vd-tablewrap"><table class="cp-vd-mini cp-vd-group-table"><thead><tr><th>#</th><th>${esc(t(state.locale, "Field", "فیلد"))}</th><th>${esc(t(state.locale, "Sort order", "ترتیب"))}</th><th>${esc(t(state.locale, "To level", "تا سطح"))}</th><th>${esc(t(state.locale, "Font & Color", "قلم و رنگ"))}</th></tr></thead><tbody>
+            <tr><td>1</td><td><select aria-label="Group field"><option>WBS</option><option>WBS Path</option><option>Activity Type</option><option>Activity Status</option><option>Responsible Manager</option><option>Calendar</option><option>Activity Code</option><option>Resource</option><option>Role</option><option>Total Float</option><option>Start</option><option>Finish</option><option>Project</option><option>Custom Field</option></select></td><td><select aria-label="Group sort order"><option>Ascending</option><option>Descending</option><option>Hierarchical</option></select></td><td><select aria-label="Hierarchy level"><option>All levels</option><option>Level 1</option><option>Level 2</option><option>Level 3</option><option>Level 4</option><option>Level 5</option></select></td><td><button type="button" disabled>Font…</button><button type="button" disabled>Color…</button></td></tr>
+            <tr><td>2</td><td><select aria-label="Group field"><option>Activity Type</option><option>WBS</option><option>Activity Status</option><option>Responsible Manager</option><option>Calendar</option><option>Activity Code</option><option>Total Float</option><option>Start</option><option>Finish</option></select></td><td><select aria-label="Group sort order"><option>Ascending</option><option>Descending</option><option>Hierarchical</option></select></td><td><select aria-label="Hierarchy level"><option>All levels</option><option>Level 1</option><option>Level 2</option><option>Level 3</option></select></td><td><button type="button" disabled>Font…</button><button type="button" disabled>Color…</button></td></tr>
+            <tr><td>3</td><td><select aria-label="Group field"><option>Activity Status</option><option>Activity Type</option><option>WBS</option><option>Start</option><option>Finish</option><option>Total Float</option></select></td><td><select aria-label="Group sort order"><option>Ascending</option><option>Descending</option></select></td><td>—</td><td><button type="button" disabled>Font…</button><button type="button" disabled>Color…</button></td></tr>
+          </tbody></table></div>
+          <div class="cp-vd-inline-actions"><button type="button" disabled>Add group</button><button type="button" disabled>Delete</button><button type="button" disabled>▲</button><button type="button" disabled>▼</button></div>
+          <div class="cp-vd-group-band-options">
+            <label><input type="checkbox" checked> Indent hierarchical groups</label>
+            <label><input type="checkbox"> Sort grouping bands alphabetically</label>
+            <label><input type="checkbox" checked> Show field title</label>
+            <label><input type="checkbox" checked> Show ID / Code</label>
+            <label><input type="checkbox" checked> Show Name / Description</label>
+            <label><input type="checkbox"> Show empty title bands</label>
+            <label><input type="checkbox"> Page break after group band</label>
+            <label><input type="checkbox" checked> Show group totals</label>
+            <label><input type="checkbox"> Show grand total</label>
+          </div>
+        </div>
+        <div class="cp-vd-group-sort-section">
+          <div class="cp-vd-filter-rules-head"><strong>${esc(t(state.locale, "Sort", "مرتب‌سازی"))}</strong><span>${esc(t(state.locale, "Multiple sort criteria", "چند معیار مرتب‌سازی"))}</span></div>
+          <div class="cp-vd-tablewrap"><table class="cp-vd-mini cp-vd-sort-table"><thead><tr><th>#</th><th>${esc(t(state.locale, "Field name", "نام فیلد"))}</th><th>${esc(t(state.locale, "Sort order", "ترتیب"))}</th></tr></thead><tbody>
+            <tr><td>1</td><td><select aria-label="Sort field"><option>Activity ID</option><option>Activity Name</option><option>WBS</option><option>Early Start</option><option>Early Finish</option><option>Total Float</option><option>Activity Status</option><option>Activity Type</option><option>Finish</option></select></td><td><select aria-label="Sort direction"><option>Ascending</option><option>Descending</option><option>Hierarchical</option></select></td></tr>
+            <tr><td>2</td><td><select aria-label="Sort field"><option>Early Start</option><option>Activity ID</option><option>Activity Name</option><option>Total Float</option><option>Finish</option></select></td><td><select aria-label="Sort direction"><option>Ascending</option><option>Descending</option><option>Hierarchical</option></select></td></tr>
+          </tbody></table></div>
+          <div class="cp-vd-inline-actions"><button type="button" disabled>Add sort</button><button type="button" disabled>Delete</button><button type="button" disabled>▲</button><button type="button" disabled>▼</button></div>
+          <p class="cp-vd-note">${esc(t(state.locale, "Grouping is applied before sorting. Hierarchical order is available only for hierarchical fields. WBS is the default grouping in the activity layout.", "گروه‌بندی پیش از مرتب‌سازی اعمال می‌شود. ترتیب سلسله‌مراتبی فقط برای فیلدهای سلسله‌مراتبی در دسترس است. گروه‌بندی پیش‌فرض فعالیت‌ها بر اساس ساختار شکست کار است."))}</p>
+        </div>
+        <p class="cp-vd-note">${esc(t(state.locale, "Group levels, sort criteria, band formatting and print options are visual examples only; this dialog does not save layout settings.", "سطوح گروه‌بندی، معیارهای مرتب‌سازی، قالب نوارها و گزینه‌های چاپ صرفاً نمونه بصری هستند؛ این پنجره تنظیمات چیدمان را ذخیره نمی‌کند."))}</p>
+      </div>`;
     case "timescale":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Timescale format", "قالب مقیاس"))}<select name="scale">${(["day", "week", "month", "quarter", "year"] as const).map((scale) => `<option value="${scale}"${scale === state.scale ? " selected" : ""}>${esc(t(state.locale, scale, { day: "روز", week: "هفته", month: "ماه", quarter: "فصل", year: "سال" }[scale]))}</option>`).join("")}</select></label><label>${esc(t(state.locale, "Date interval", "بازهٔ تاریخ"))}<select><option>Month / Day</option><option>Quarter / Month</option><option>Year / Month</option></select></label><label class="cp-vd-check"><input type="checkbox" checked> ${esc(t(state.locale, "Show ordinal dates", "نمایش تاریخ ترتیبی"))}</label></div>`;
     case "bars":
