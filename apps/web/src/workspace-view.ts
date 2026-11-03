@@ -2044,13 +2044,13 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
   let body = "";
   switch (state.activeMenu) {
     case "project": {
-      const projectRows = [
-        [uiText(state.locale, "Project ID", "شناسه پروژه"), state.context.project_id],
-        [uiText(state.locale, "Workspace revision", "ویرایش محیط کار"), `R${state.context.revision}`],
-        [uiText(state.locale, "WBS elements", "عناصر WBS"), String(state.wbsNodes.length)],
-        [uiText(state.locale, "Activities", "فعالیت‌ها"), String(state.activities.length)],
-        [uiText(state.locale, "Relationships", "روابط"), String(state.relationships.length)],
-        [uiText(state.locale, "Documents", "اسناد"), String(state.documents.length)],
+      const projectTableColumns = [
+        ["Project ID", "شناسه پروژه"], ["Project Name", "نام پروژه"], ["WBS Elements", "عناصر WBS"],
+        ["Activities", "فعالیت‌ها"], ["Relationships", "روابط"], ["Documents", "اسناد"], ["Revision", "ویرایش"],
+      ];
+      const projectTableValues = [
+        state.context.project_id, "—", String(state.wbsNodes.length), String(state.activities.length),
+        String(state.relationships.length), String(state.documents.length), `R${state.context.revision}`,
       ];
       body = `
         <div class="cp-project-window-toolbar">
@@ -2066,10 +2066,10 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         <div class="cp-project-window-overview">
           <section class="cp-project-register" aria-label="${escapeAttribute(uiText(state.locale, "Current project register", "دفتر ثبت پروژه جاری"))}">
             <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Register", "دفتر ثبت پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Current session project", "پروژه نشست جاری"))}</span></div>
-            <table class="cp-project-register-table">
-              <thead><tr><th>${escapeHtml(uiText(state.locale, "Property", "مشخصه"))}</th><th>${escapeHtml(uiText(state.locale, "Current value", "مقدار فعلی"))}</th></tr></thead>
-              <tbody>${projectRows.map(([label, value]) => `<tr><th scope="row">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}</tbody>
-            </table>
+            <div class="cp-register-table-wrap"><table class="cp-project-register-table">
+              <thead><tr>${projectTableColumns.map(([en,fa])=>`<th>${escapeHtml(uiText(state.locale,en,fa))}</th>`).join("")}</tr></thead>
+              <tbody><tr>${projectTableValues.map((value)=>`<td>${escapeHtml(value)}</td>`).join("")}</tr></tbody>
+            </table></div>
           </section>
           <section class="cp-project-structure-summary" aria-label="${escapeAttribute(uiText(state.locale, "Project structure summary", "خلاصه ساختار پروژه"))}">
             <div class="cp-project-register-heading"><h3>${escapeHtml(uiText(state.locale, "Project Structure", "ساختار پروژه"))}</h3><span>${escapeHtml(uiText(state.locale, "Loaded WBS hierarchy", "سلسله‌مراتب WBS بارگذاری‌شده"))}</span></div>
