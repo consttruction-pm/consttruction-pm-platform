@@ -730,7 +730,7 @@ function renderProjectsWindow(state: DemoState): string {
     '<dl class="cp-vd-project-detail-grid">' + pairs.map(([en, fa, value]) =>
       '<div><dt>' + esc(t(state.locale, en, fa)) + '</dt><dd>' + esc(value) + '</dd></div>',
     ).join("") + "</dl>";
-  let details: string;
+  let details = "";
   switch (state.projectDetailTab) {
     case "general":
       details = fieldGrid([
