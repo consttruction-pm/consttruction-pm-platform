@@ -710,7 +710,7 @@ function renderWbsWindow(state: DemoState): string {
   return `<section class="cp-vd-windowbody cp-vd-wbs-window">
     <header class="cp-vd-winhead">
       <div><h2>${esc(t(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</h2><small>${esc(t(state.locale, "Hierarchical project scope", "ساختار سلسله‌مراتبی دامنه پروژه"))}</small></div>
-      <div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="new-wbs" disabled title="${esc(t(state.locale, "Creation is not connected in this visual-only preview.", "ایجاد ساختار در این پیش‌نمایش بصری متصل نیست."))}">${esc(t(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="export">${esc(t(state.locale, "Export", "خروجی"))}</button></div>
+      <div class="cp-vd-winactions"><button type="button" class="cp-vd-btn" data-vd-dialog="new-wbs">${esc(t(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" class="cp-vd-btn" data-vd-dialog="export">${esc(t(state.locale, "Export", "خروجی"))}</button></div>
     </header>
     <div class="cp-vd-wbs-layout">
       <section class="cp-vd-wbs-tree" aria-label="${esc(t(state.locale, "WBS hierarchy", "درخت ساختار شکست"))}">
@@ -1314,6 +1314,10 @@ function dialogContent(name: string, state: DemoState): string {
       return `${rows(["Layout", "Scope", "Status"], `<tr><td>CUBI Classic Schedule Layout</td><td>Project</td><td>Current</td></tr><tr><td>Cost and resource view</td><td>Project</td><td>Available</td></tr><tr><td>Commissioning look-ahead</td><td>Project</td><td>Available</td></tr>`)}<p class="cp-vd-note">${esc(t(state.locale, "Layouts are visual examples in this demo.", "چیدمان‌ها در این نمایش نمونهٔ بصری هستند."))}</p>`;
     case "customize-details":
       return `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available tabs", "زبانه‌های موجود"))}</strong><ul>${["Cost", "Duration", "WPs & Docs", "Feedback"].map((item) => `<li><label><input type="checkbox"> ${esc(item)}</label></li>`).join("")}</ul></div><div><strong>${esc(t(state.locale, "Display tabs", "زبانه‌های نمایش"))}</strong><ul>${["General", "Status", "Resources", "Predecessors", "Successors"].map((item) => `<li><label><input type="checkbox" checked> ${esc(item)}</label></li>`).join("")}</ul></div></div>`;
+    case "new-wbs":
+      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "WBS code", "کد WBS"))}<input name="wbsCode" value="1.6" required></label><label>${esc(t(state.locale, "WBS name", "نام WBS"))}<input name="wbsName" placeholder="New work package" required></label><label>${esc(t(state.locale, "Parent WBS", "WBS والد"))}<select name="parent"><option>1 — CUBI-DEMO-001 Riverside Pump Station</option><option>1.1 — Project Management</option><option>1.2 — Engineering</option><option>1.3 — Procurement</option><option>1.4 — Construction</option><option>1.5 — Testing & Commissioning</option></select></label><label>${esc(t(state.locale, "Responsible manager", "مدیر مسئول"))}<select><option>Project Manager</option><option>Engineering Manager</option><option>Construction Manager</option></select></label><p class="cp-vd-note">${esc(t(state.locale, "Visual preview only — no WBS record will be saved.", "صرفاً پیش‌نمایش بصری — رکورد WBS ذخیره نمی‌شود."))}</p></div>`;
+    case "new-form":
+      return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Form ID", "شناسه فرم"))}<input name="formId" value="FRM-NEW-001"></label><label>${esc(t(state.locale, "Form title", "عنوان فرم"))}<input name="formTitle" placeholder="New inspection form"></label><label>${esc(t(state.locale, "Library", "کتابخانه"))}<select name="library"><option>Organization library</option><option>Project library</option></select></label><label>${esc(t(state.locale, "Version", "نسخه"))}<input value="1.0"></label><label>${esc(t(state.locale, "Workflow", "گردش کار"))}<select><option>Submit → Review → Approve</option><option>Submit → Verify → Close</option><option>Submit → Return for correction → Resubmit</option></select></label><label>${esc(t(state.locale, "Form access", "دسترسی فرم"))}<select><option>Assigned form users</option><option>Project team</option><option>Organization administrators</option></select></label><p class="cp-vd-note">${esc(t(state.locale, "Organization templates are reusable; project forms remain scoped to this project. Preview only.", "قالب‌های سازمانی قابل استفاده مجدد هستند؛ فرم‌های پروژه در محدوده همین پروژه می‌مانند. صرفاً پیش‌نمایش."))}</p></div>`;
     case "new-project":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "Project ID", "شناسهٔ پروژه"))}<input value="CUBI-DEMO-002"></label><label>${esc(t(state.locale, "Project name", "نام پروژه"))}<input value="Intake Screen Replacement"></label><label>${esc(t(state.locale, "Start date", "تاریخ شروع"))}<input value="2027-02-01"></label></div>`;
     case "project-properties":
@@ -1420,6 +1424,7 @@ function dialogTitle(name: string, locale: string): string {
     "admin-preferences": ["Administration Preferences", "تنظیمات مدیریت"], dictionaries: ["Dictionaries", "واژه‌نامه‌ها"],
     roles: ["Roles", "نقش‌ها"], "network-options": ["Activity Network Options", "تنظیمات شبکه"], "timeline-options": ["Timeline Options", "تنظیمات خط زمانی"], shortcuts: ["Keyboard Shortcuts", "کلیدهای میانبر"], about: ["About CUBI Workspace", "دربارهٔ CUBI"],
     "security-profiles": ["Security Profiles", "پروفایل‌های امنیتی"],
+    "new-wbs": ["New WBS Element", "عنصر جدید WBS"], "new-form": ["Create Form", "ایجاد فرم"],
     "module-actions": ["Add / Edit Workspace Item", "افزودن / ویرایش آیتم محیط کار"],
   };
   const entry = titles[name] ?? [name, name];
@@ -1427,7 +1432,7 @@ function dialogTitle(name: string, locale: string): string {
 }
 
 function renderDialogs(state: DemoState): string {
-  const names = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-roles", "assign-predecessors", "assign-successors", "add-activity", "import", "export", "print", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles", "module-actions"];
+  const names = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-roles", "assign-predecessors", "assign-successors", "add-activity", "import", "export", "print", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles", "module-actions", "new-wbs", "new-form"];
   return names.map((name) => `<dialog class="cp-vd-dialog" data-vd-dialog="${name}">
     <form method="dialog" data-vd-form="${name}">
       <div class="cp-vd-dialog-title"><span>${esc(dialogTitle(name, state.locale))}</span><button type="button" data-vd-close aria-label="Close">×</button></div>
