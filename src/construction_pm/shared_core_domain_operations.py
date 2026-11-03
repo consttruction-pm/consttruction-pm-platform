@@ -39,6 +39,23 @@ from construction_pm.p6_calendar_read_api import P6CalendarReadAPI
 from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSION
 from construction_pm.p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
 from construction_pm.p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
+from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignment,
+    P6ResourceAssignmentPeriodValue,
+)
+from construction_pm.p6_resource_read_api import P6ResourceReadAPI, P6_RESOURCE_READ_API_VERSION
+from construction_pm.p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
+from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI, P6_RESOURCE_SPREAD_API_VERSION
+from construction_pm.p6_resource_spread_repository import P6ResourceSpreadBucket
+from construction_pm.p6_resource_capacity_read_api import (
+    P6ResourceCapacityReadAPI,
+    P6_RESOURCE_CAPACITY_READ_API_VERSION,
+)
+from construction_pm.p6_resource_capacity_write_api import (
+    P6ResourceCapacityWriteAPI,
+    P6_RESOURCE_CAPACITY_WRITE_API_VERSION,
+)
+from construction_pm.resources.max_units_time import ResourceCapacityBasis
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6ScheduleSnapshotPublicationAPI,
     P6_SCHEDULE_SNAPSHOT_API_VERSION,
@@ -123,6 +140,11 @@ def build_project_domain_operations(
     baseline_api: P6BaselineAPI | None = None,
     cost_account_api: P6CostAccountAPI | None = None,
     expense_api: P6ExpenseAPI | None = None,
+    resource_read_api: P6ResourceReadAPI | None = None,
+    resource_write_api: P6ResourceWriteAPI | None = None,
+    resource_spread_api: P6ResourceSpreadAPI | None = None,
+    resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
+    resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
 ) -> dict[str, SharedCoreOperation]:
     """Build the same allow-listed CRUD ABI over server or local typed APIs."""
     operations: dict[str, SharedCoreOperation] = {}
@@ -796,6 +818,329 @@ def build_project_domain_operations(
                 handler=handler,
                 mutates=permission is Permission.PROJECT_WRITE,
             )
+
+
+    if resource_read_api is not None:
+        def assignment_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            activity_id = payload.get("activity_id")
+            resource_id = payload.get("resource_id")
+            if activity_id is not None and not isinstance(activity_id, str):
+                raise ValueError("INVALID_ACTIVITY_ID")
+            if resource_id is not None and not isinstance(resource_id, str):
+                raise ValueError("INVALID_RESOURCE_ID")
+            return _list_result(
+                resource_read_api.list_assignments(
+                    _scope(actor, revision),
+                    activity_id=activity_id,
+                    resource_id=resource_id,
+                    auth_context=actor,
+                )
+            )
+
+        def assignment_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                resource_read_api.get_assignment(
+                    _scope(actor, revision),
+                    str(payload["assignment_id"]),
+                    auth_context=actor,
+                )
+            )
+
+        def assignment_period_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            assignment_id = payload.get("assignment_id")
+            if assignment_id is not None and not isinstance(assignment_id, str):
+                raise ValueError("INVALID_ASSIGNMENT_ID")
+            return _list_result(
+                resource_read_api.list_assignment_periods(
+                    _scope(actor, revision),
+                    assignment_id=assignment_id,
+                    auth_context=actor,
+                )
+            )
+
+        def assignment_period_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                resource_read_api.get_assignment_period(
+                    _scope(actor, revision),
+                    str(payload["assignment_id"]),
+                    str(payload["period_start"]),
+                    auth_context=actor,
+                )
+            )
+
+        for name, required, allowed, handler in (
+            ("resource_assignment.list", set(), {"activity_id", "resource_id"}, assignment_list),
+            ("resource_assignment.get", {"assignment_id"}, {"assignment_id"}, assignment_get),
+            ("resource_assignment_period.list", set(), {"assignment_id"}, assignment_period_list),
+            ("resource_assignment_period.get", {"assignment_id", "period_start"}, {"assignment_id", "period_start"}, assignment_period_get),
+        ):
+            operations[name] = SharedCoreOperation(
+                contract_version=P6_RESOURCE_READ_API_VERSION,
+                permission=Permission.PROJECT_READ,
+                required_fields=frozenset(required),
+                allowed_fields=frozenset(allowed),
+                handler=handler,
+            )
+
+    if resource_write_api is not None:
+        def assignment_create(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["assignment"],
+                required={"assignment_id", "activity_id", "resource_id"},
+                allowed={
+                    "assignment_id", "activity_id", "resource_id", "role_id",
+                    "units", "actual_units", "remaining_units", "planned_cost",
+                    "actual_cost", "remaining_cost", "unit", "currency",
+                    "calendar_id", "calendar_version", "note", "is_driving",
+                    "units_per_time", "units_per_time_period", "hours_per_units_time_period",
+                },
+                code="INVALID_RESOURCE_ASSIGNMENT_PAYLOAD",
+            )
+            decimal_names = (
+                "units", "actual_units", "remaining_units", "planned_cost",
+                "actual_cost", "remaining_cost", "units_per_time",
+                "hours_per_units_time_period",
+            )
+            values = {
+                name: None if raw.get(name) is None else _decimal(raw[name], f"INVALID_{name.upper()}")
+                for name in decimal_names
+            }
+            is_driving = raw.get("is_driving")
+            if is_driving is not None and not isinstance(is_driving, bool):
+                raise ValueError("INVALID_IS_DRIVING")
+            assignment = P6ResourceAssignment(
+                scope=_scope(actor, revision),
+                assignment_id=raw["assignment_id"],
+                activity_id=raw["activity_id"],
+                resource_id=raw["resource_id"],
+                role_id=raw.get("role_id"),
+                units=values["units"],
+                actual_units=values["actual_units"],
+                remaining_units=values["remaining_units"],
+                planned_cost=values["planned_cost"],
+                actual_cost=values["actual_cost"],
+                remaining_cost=values["remaining_cost"],
+                unit=raw.get("unit"),
+                currency=raw.get("currency"),
+                calendar_id=raw.get("calendar_id"),
+                note=raw.get("note"),
+                calendar_version=raw.get("calendar_version"),
+                is_driving=is_driving,
+                units_per_time=values["units_per_time"],
+                units_per_time_period=raw.get("units_per_time_period"),
+                hours_per_units_time_period=values["hours_per_units_time_period"],
+            )
+            return _record_result(resource_write_api.save_assignment(assignment, auth_context=actor))
+
+        def assignment_period_create(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["period"],
+                required={"assignment_id", "activity_id", "resource_id", "period_start", "units", "cost"},
+                allowed={"assignment_id", "activity_id", "resource_id", "period_start", "units", "cost"},
+                code="INVALID_RESOURCE_ASSIGNMENT_PERIOD_PAYLOAD",
+            )
+            value = P6ResourceAssignmentPeriodValue(
+                scope=_scope(actor, revision),
+                assignment_id=raw["assignment_id"],
+                activity_id=raw["activity_id"],
+                resource_id=raw["resource_id"],
+                period_start=raw["period_start"],
+                units=_decimal(raw["units"], "INVALID_UNITS"),
+                cost=_decimal(raw["cost"], "INVALID_COST"),
+            )
+            return _record_result(
+                resource_write_api.save_assignment_period(value, auth_context=actor)
+            )
+
+        operations["resource_assignment.create"] = SharedCoreOperation(
+            contract_version=P6_RESOURCE_WRITE_API_VERSION,
+            permission=Permission.PROJECT_WRITE,
+            required_fields=frozenset({"assignment"}),
+            allowed_fields=frozenset({"assignment"}),
+            handler=assignment_create,
+            mutates=True,
+        )
+        operations["resource_assignment_period.create"] = SharedCoreOperation(
+            contract_version=P6_RESOURCE_WRITE_API_VERSION,
+            permission=Permission.PROJECT_WRITE,
+            required_fields=frozenset({"period"}),
+            allowed_fields=frozenset({"period"}),
+            handler=assignment_period_create,
+            mutates=True,
+        )
+
+    if resource_spread_api is not None:
+        def spread_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            spread_id = payload.get("spread_id")
+            if spread_id is not None and not isinstance(spread_id, str):
+                raise ValueError("INVALID_SPREAD_ID")
+            return _list_result(
+                resource_spread_api.list(
+                    _scope(actor, revision),
+                    spread_id=spread_id,
+                    auth_context=actor,
+                )
+            )
+
+        def spread_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                resource_spread_api.get(
+                    _scope(actor, revision),
+                    str(payload["spread_id"]),
+                    str(payload["period_id"]),
+                    auth_context=actor,
+                )
+            )
+
+        def spread_save(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["spread"],
+                required={
+                    "spread_id", "resource_id", "period_id", "period_start",
+                    "period_end", "spread_type", "metric", "value",
+                },
+                allowed={
+                    "spread_id", "resource_id", "period_id", "period_start",
+                    "period_end", "spread_type", "metric", "value", "unit", "currency",
+                },
+                code="INVALID_RESOURCE_SPREAD_PAYLOAD",
+            )
+            return _record_result(
+                resource_spread_api.save(
+                    P6ResourceSpreadBucket(
+                        scope=_scope(actor, revision),
+                        spread_id=raw["spread_id"],
+                        resource_id=raw["resource_id"],
+                        period_id=raw["period_id"],
+                        period_start=raw["period_start"],
+                        period_end=raw["period_end"],
+                        spread_type=raw["spread_type"],
+                        metric=raw["metric"],
+                        value=_decimal(raw["value"], "INVALID_SPREAD_VALUE"),
+                        unit=raw.get("unit"),
+                        currency=raw.get("currency"),
+                    ),
+                    auth_context=actor,
+                )
+            )
+
+        for name, required, allowed, handler in (
+            ("resource_spread.list", set(), {"spread_id"}, spread_list),
+            ("resource_spread.get", {"spread_id", "period_id"}, {"spread_id", "period_id"}, spread_get),
+        ):
+            operations[name] = SharedCoreOperation(
+                contract_version=P6_RESOURCE_SPREAD_API_VERSION,
+                permission=Permission.PROJECT_READ,
+                required_fields=frozenset(required),
+                allowed_fields=frozenset(allowed),
+                handler=handler,
+            )
+        operations["resource_spread.save"] = SharedCoreOperation(
+            contract_version=P6_RESOURCE_SPREAD_API_VERSION,
+            permission=Permission.PROJECT_WRITE,
+            required_fields=frozenset({"spread"}),
+            allowed_fields=frozenset({"spread"}),
+            handler=spread_save,
+            mutates=True,
+        )
+
+    if resource_capacity_read_api is not None:
+        from datetime import date as _date
+
+        def capacity_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            resource_id = payload.get("resource_id")
+            if resource_id is not None and not isinstance(resource_id, str):
+                raise ValueError("INVALID_RESOURCE_ID")
+            return _list_result(
+                resource_capacity_read_api.list_segments(
+                    _scope(actor, revision), resource_id, auth_context=actor
+                )
+            )
+
+        def capacity_profile(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            return _record_result(
+                resource_capacity_read_api.get_profile(
+                    _scope(actor, revision),
+                    str(payload["resource_id"]),
+                    auth_context=actor,
+                )
+            )
+
+        def capacity_on(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw_date = payload["period"]
+            if not isinstance(raw_date, str):
+                raise ValueError("INVALID_CAPACITY_PERIOD")
+            try:
+                period = _date.fromisoformat(raw_date)
+            except ValueError as exc:
+                raise ValueError("INVALID_CAPACITY_PERIOD") from exc
+            basis_raw = payload.get("basis")
+            try:
+                basis = None if basis_raw is None else ResourceCapacityBasis(basis_raw)
+            except ValueError as exc:
+                raise ValueError("INVALID_CAPACITY_BASIS") from exc
+            hours_raw = payload.get("hours_per_time_period")
+            return _record_result(
+                resource_capacity_read_api.capacity_on(
+                    _scope(actor, revision),
+                    str(payload["resource_id"]),
+                    period,
+                    basis=basis,
+                    hours_per_time_period=None if hours_raw is None else _decimal(hours_raw, "INVALID_HOURS_PER_TIME_PERIOD"),
+                    auth_context=actor,
+                )
+            )
+
+        for name, required, allowed, handler in (
+            ("resource_capacity.list", set(), {"resource_id"}, capacity_list),
+            ("resource_capacity.profile", {"resource_id"}, {"resource_id"}, capacity_profile),
+            ("resource_capacity.on", {"resource_id", "period"}, {"resource_id", "period", "basis", "hours_per_time_period"}, capacity_on),
+        ):
+            operations[name] = SharedCoreOperation(
+                contract_version=P6_RESOURCE_CAPACITY_READ_API_VERSION,
+                permission=Permission.PROJECT_READ,
+                required_fields=frozenset(required),
+                allowed_fields=frozenset(allowed),
+                handler=handler,
+            )
+
+    if resource_capacity_write_api is not None:
+        def capacity_save(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
+            raw = _fields(
+                payload["capacity"],
+                required={
+                    "resource_id", "max_units", "unit_basis", "hours_per_time_period",
+                    "effective_from", "expected_revision", "close_open_segment",
+                },
+                allowed={
+                    "resource_id", "max_units", "unit_basis", "hours_per_time_period",
+                    "effective_from", "effective_to", "expected_revision", "close_open_segment",
+                },
+                code="INVALID_RESOURCE_CAPACITY_PAYLOAD",
+            )
+            return _record_result(
+                resource_capacity_write_api.save_effective_change(
+                    _scope(actor, revision),
+                    resource_id=raw["resource_id"],
+                    max_units=raw["max_units"],
+                    unit_basis=raw["unit_basis"],
+                    hours_per_time_period=raw["hours_per_time_period"],
+                    effective_from=raw["effective_from"],
+                    effective_to=raw.get("effective_to"),
+                    expected_revision=raw["expected_revision"],
+                    close_open_segment=raw["close_open_segment"],
+                    auth_context=actor,
+                )
+            )
+
+        operations["resource_capacity.save"] = SharedCoreOperation(
+            contract_version=P6_RESOURCE_CAPACITY_WRITE_API_VERSION,
+            permission=Permission.PROJECT_WRITE,
+            required_fields=frozenset({"capacity"}),
+            allowed_fields=frozenset({"capacity"}),
+            handler=capacity_save,
+            mutates=True,
+        )
 
     return operations
 
