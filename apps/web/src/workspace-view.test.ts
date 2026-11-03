@@ -2194,6 +2194,8 @@ test("Project and WBS Details use their Version 26 tab inventories and switch by
   assert.doesNotMatch(container.innerHTML, /data-wbs-detail-tab="planning-resources"/);
   assert.match(container.innerHTML, /WBS Details/);
   assert.match(container.innerHTML, /Structure/);
+  assert.match(container.innerHTML, /Related Activities \(CUBI extension\)/);
+  assert.match(container.innerHTML, /data-detail-origin="cubi-extension"/);
   assert.match(container.innerHTML, /data-wbs-linked-activity="ACT-101"/);
   assert.match(container.innerHTML, /Excavation/);
   assert.match(container.innerHTML, /2026-11-03/);
