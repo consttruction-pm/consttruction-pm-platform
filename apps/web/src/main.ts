@@ -809,6 +809,14 @@ function renderApp(
         activateWindow("schedule");
         openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
+      case "view.wbs-chart-options":
+        pendingDesktopAction = () => {
+          const chart = document.querySelector<HTMLButtonElement>('[data-wbs-view-toggle="chart"]');
+          if (chart && chart.getAttribute("aria-pressed") !== "true") chart.click();
+          document.querySelector<HTMLButtonElement>("[data-wbs-chart-options-toggle]")?.click();
+        };
+        activateWindow("wbs");
+        return;
       case "view.fields":
         pendingDesktopFocusSelector = ".cp-p6-field-chooser";
         activateWindow("schedule");
