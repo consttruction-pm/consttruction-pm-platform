@@ -30,6 +30,7 @@ from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
+from construction_pm.p6_constraint_api import P6ConstraintAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.p6_baseline_api import P6BaselineAPI
 from construction_pm.p6_cost_account_api import P6CostAccountAPI
@@ -69,6 +70,7 @@ def build_project_lifecycle_wsgi_app(
     wbs_master_repository: WBSMasterRepository | None = None,
     workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
     relationship_master_repository: RelationshipMasterRepository | None = None,
+    constraint_api: P6ConstraintAPI | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
     baseline_api: P6BaselineAPI | None = None,
     cost_account_api: P6CostAccountAPI | None = None,
@@ -165,6 +167,7 @@ def build_project_lifecycle_wsgi_app(
             activity_api=activity_master_api,
             wbs_api=wbs_master_api,
             relationship_api=relationship_api,
+            constraint_api=constraint_api,
             calendar_api=p6_calendar_api,
             calendar_read_api=p6_calendar_read_api,
             schedule_snapshot_api=schedule_snapshot_publication_api,
