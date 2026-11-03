@@ -2046,6 +2046,10 @@ test("Roles and Tracking are first-class windows with their documented visual su
   assert.match(tracking, /Project Bar Chart/);
   assert.match(tracking, /Project Gantt \/ Profile/);
   assert.match(tracking, /Resource Analysis/);
+  assert.match(tracking, /New Layout/);
+  assert.match(tracking, /Open Layout/);
+  assert.match(tracking, /Save As/);
+  assert.match(tracking, /data-tracking-display="project-explorer"/);
   assert.match(tracking, /data-tracking-layout/);
   assert.match(tracking, /data-tracking-pane="project-explorer"/);
   assert.match(tracking, /data-tracking-pane="top-layout"/);
