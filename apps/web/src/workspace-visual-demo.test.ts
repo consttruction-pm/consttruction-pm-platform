@@ -892,7 +892,7 @@ test("Import and export dialogs expose file formats, templates, mapping, baselin
   const html = renderVisualDemo(state);
   assert.match(html, /data-vd-dialog="import"/);
   assert.match(html, /data-vd-dialog="export"/);
-  for (const label of ["Import action", "Create New", "Add Into Existing Project", "Replace Existing", "Update Existing", "Template Manager", "Baseline selection", "Field mapping preview", "Calendar reference", "Convert to project / ignore", "Financial-period date alignment", "Export Project Data privilege", "Personal information disclosure", "Stored period performance"]) {
+  for (const label of ["Import action", "Create New", "Add Into Existing Project", "Replace Existing", "Update Existing", "Template Manager", "Resource Only", "Role Only", "Baseline import (XML only)", "Unavailable for XER", "IPMDAR", "CPP", "Field mapping preview", "Calendar reference", "Convert to project / ignore", "Financial-period date alignment", "Export Project Data privilege", "Personal information disclosure", "Stored period performance"]) {
     assert.ok(html.includes(label), "missing interchange control: " + label);
   }
   assert.match(html, /cp-vd-interchange-grid/);
