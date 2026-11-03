@@ -58,7 +58,7 @@ Current registered operations on the implementation branch:
 | Relationships | `relationship.list/get/create/update/delete` | `p6-relationship-api.v1` |
 | Constraints | `constraint.list/get/create/update` | `p6-constraint-master-api.v1` |
 | Calendar master | `calendar.list/get/create/update/delete` | `p6-calendar.v1` |
-| Calendar detail | `calendar.exception_list`, `calendar.work_hours.list/save` | `p6-calendar.v1` |
+| Calendar detail | `calendar.copy/replace`, `calendar.exception.save/list`, `calendar.work_hours.list/save` | `p6-calendar.v1` |
 | Calendar snapshots | `calendar.snapshot_get` | `p6-calendar-read-api.v1` |
 | Baseline | `baseline.list/get/create` | `p6-baseline-api.v1` |
 | Cost accounts | `cost_account.list/get/create` | `p6-cost-account-api.v1` |
