@@ -884,3 +884,27 @@ test("Context menu labels and selection semantics are available in Persian RTL",
   assert.match(html, /تخصیص منابع…/);
   assert.match(html, /تخصیص پیش‌نیازها…/);
 });
+
+
+test("Import and export dialogs expose file formats, templates, mapping, baseline and conflict controls", () => {
+  const state = createVisualDemoState("en");
+  state.window = "projects";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-vd-dialog="import"/);
+  assert.match(html, /data-vd-dialog="export"/);
+  for (const label of ["Import action", "Create New", "Add Into Existing Project", "Replace Existing", "Update Existing", "Template Manager", "Baseline selection", "Field mapping preview", "Calendar reference", "Convert to project / ignore", "Financial-period date alignment", "Export Project Data privilege", "Personal information disclosure", "Stored period performance"]) {
+    assert.ok(html.includes(label), "missing interchange control: " + label);
+  }
+  assert.match(html, /cp-vd-interchange-grid/);
+  assert.match(html, /no file is read, parsed, mapped, validated or imported/);
+  assert.match(html, /no project data is serialized and no file is written/);
+});
+
+test("Import/export mapping workbench is mirrored for Persian RTL", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "projects";
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  assert.match(html, /ورود / خروجی/);
+  assert.match(html, /پیش‌نمایش بصری است/);
+});
