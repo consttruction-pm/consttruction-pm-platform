@@ -112,3 +112,17 @@ test("the Add command opens a clearly preview-only item editor with typed fields
   assert.match(markup, /name="objectCode"/);
   assert.match(markup, /Visual preview only/);
 });
+
+test("module registers expose page commands, selectable rows, and contextual Details tabs", () => {
+  const state = createVisualDemoState("en");
+  state.window = "procurement";
+  const markup = renderVisualDemo(state);
+  assert.match(markup, /aria-label="Page commands"/);
+  assert.match(markup, /data-vd-module-row="0"/);
+  assert.match(markup, /data-vd-module-tab="general"/);
+  assert.match(markup, /data-vd-module-tab="status"/);
+  assert.match(markup, /data-vd-module-tab="relationships"/);
+  assert.match(markup, /data-vd-module-tab="comments"/);
+  assert.match(markup, /data-vd-module-tab="history"/);
+  assert.match(markup, /cp-vd-module-details/);
+});
