@@ -204,6 +204,7 @@ const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart" | 
 const calendarEditorTabByContainer = new WeakMap<HTMLElement, "general" | "workweek" | "exceptions" | "time-periods" | "assignments">();
 const calendarMonthAnchorByContainer = new WeakMap<HTMLElement, Date>();
 const calendarSelectionByContainer = new WeakMap<HTMLElement, string>();
+const calendarPoolByContainer = new WeakMap<HTMLElement, "global" | "project" | "resource">();
 const trackingLayoutByContainer = new WeakMap<HTMLElement, "table" | "bar-chart" | "gantt-profile" | "resource-analysis">();
 const assignmentUsageVisibleByContainer = new WeakMap<HTMLElement, boolean>();
 type TrackingDisplayState = { showProjectExplorer: boolean; showResourceExplorer: boolean; showTopLayout: boolean; showBottomLayout: boolean };
@@ -392,7 +393,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-month-action],[data-calendar-select],[data-calendar-pool],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -535,6 +536,15 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       container.querySelectorAll<HTMLElement>("[data-register-panel]").forEach((panel) => {
         panel.hidden = panel.dataset.registerPanel !== tab;
       });
+      return;
+    }
+    if (target.dataset.calendarPool !== undefined) {
+      const pool = target.dataset.calendarPool;
+      if (pool !== "global" && pool !== "project" && pool !== "resource") return;
+      calendarPoolByContainer.set(container, pool);
+      const selected = state.calendarCatalog.calendars.find((calendar) => calendar.calendarId === calendarSelectionByContainer.get(container));
+      if (selected && !selected.calendarType.toLowerCase().includes(pool)) calendarSelectionByContainer.delete(container);
+      renderMainWorkspace(container, state, options);
       return;
     }
     if (target.dataset.calendarSelect !== undefined) {
@@ -1831,7 +1841,7 @@ function renderCalendarMonthView(state: WorkspaceState, container: HTMLElement):
     '</section>';
 }
 
-function renderCalendarCatalog(state: WorkspaceState, selectedCalendarId: string | null = null): string {
+function renderCalendarCatalog(state: WorkspaceState, selectedCalendarId: string | null = null, pool: "global" | "project" | "resource" = "project"): string {
   const catalog = state.calendarCatalog;
   if (catalog.status === "unavailable") {
     const message = uiText(state.locale, "Calendar catalogue unavailable", "فهرست تقویم‌ها در دسترس نیست");
@@ -1840,15 +1850,17 @@ function renderCalendarCatalog(state: WorkspaceState, selectedCalendarId: string
   if (catalog.status !== "loaded") {
     return '<div class="cp-calendar-empty">' + escapeHtml(uiText(state.locale, "Calendar catalogue has not been loaded.", "فهرست تقویم‌ها هنوز بارگذاری نشده است.")) + '</div>';
   }
-  if (!catalog.calendars.length) {
-    return '<div class="cp-calendar-empty">' + escapeHtml(uiText(state.locale, "No calendar records exist for this project.", "برای این پروژه رکورد تقویمی وجود ندارد.")) + '</div>';
+  const calendars = catalog.calendars.filter((calendar) => calendar.calendarType.toLowerCase().includes(pool));
+  if (!calendars.length) {
+    const label = pool === "global" ? uiText(state.locale, "Global", "سراسری") : pool === "resource" ? uiText(state.locale, "Resource", "منبع") : uiText(state.locale, "Project", "پروژه");
+    return '<div class="cp-calendar-empty">' + escapeHtml(uiText(state.locale, "No ", "هیچ تقویم ")) + escapeHtml(label) + escapeHtml(uiText(state.locale, " calendar records are loaded in the current catalogue.", " در فهرست فعلی بارگذاری نشده است.")) + '</div>';
   }
   const headings = [
     ["Calendar ID", "شناسه تقویم"], ["Name", "نام"], ["Type", "نوع"],
     ["Kind", "ماهیت"], ["Version", "نسخه"], ["Revision", "ویرایش"],
   ];
   const head = headings.map(([en, fa]) => '<th>' + escapeHtml(uiText(state.locale, en, fa)) + '</th>').join("");
-  const rows = catalog.calendars.map((calendar) => {
+  const rows = calendars.map((calendar) => {
     const active = calendar.calendarId === selectedCalendarId;
     return '<tr class="' + (active ? 'is-selected' : '') + '"><td><button type="button" class="cp-calendar-select" data-calendar-select="' +
       escapeHtml(calendar.calendarId) + '" aria-pressed="' + String(active) + '">' + escapeHtml(calendar.calendarId) + '</button></td><td>' +
@@ -1949,8 +1961,8 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
           </div>
           <div class="cp-calendar-window-layout">
             <section class="cp-calendar-register">
-              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Available Calendars", "تقویم‌های موجود"))}</strong></div>
-              ${renderCalendarCatalog(state, calendarSelectionByContainer.get(container) ?? null)}
+              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Available Calendars", "تقویم‌های موجود"))}</strong><div class="cp-calendar-pools" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Calendar Pool", "مجموعه تقویم"))}">${[["global","Global","سراسری"],["project","Project","پروژه"],["resource","Resource","منبع"]].map(([key,en,fa])=>{const active=(calendarPoolByContainer.get(container)??"project")===key;return `<button type="button" data-calendar-pool="${key}" aria-pressed="${active}" class="${active?"is-active":""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`;}).join("")}</div></div>
+              ${renderCalendarCatalog(state, calendarSelectionByContainer.get(container) ?? null, calendarPoolByContainer.get(container) ?? "project")}
             </section>
             <section class="cp-calendar-editor">
               <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Calendar Details", "جزئیات تقویم"))}</strong><span>${escapeHtml(state.calendarCatalog.calendars.find((calendar) => calendar.calendarId === calendarSelectionByContainer.get(container))?.name ?? uiText(state.locale, "No selection", "بدون انتخاب"))}</span></div>
