@@ -195,6 +195,10 @@ test("Projects window switches among table, chart and honest empty Gantt top lay
   assert.match(html, /data-project-view-toggle="chart"/);
   assert.match(html, /data-project-view-toggle="gantt"/);
   assert.match(html, /data-project-view="table"/);
+  assert.match(html, /Project ID/);
+  assert.match(html, /Project Name/);
+  assert.match(html, /WBS Elements/);
+  assert.match(html, /Revision/);
   assert.match(html, /data-project-view="chart" hidden/);
   assert.match(html, /data-project-view="gantt" hidden/);
   assert.match(html, /Only the current session project is loaded/);
