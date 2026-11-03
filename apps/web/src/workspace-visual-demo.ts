@@ -255,7 +255,7 @@ function renderActivityTable(state: DemoState, columns: string[]): string {
       : "";
     const dataRows = group.map((row, rowIndex) => {
       index += 1;
-      return `<tr class="cp-vd-row${row.id === state.activityId ? " is-selected" : ""}${row.critical ? " is-critical" : ""}" data-vd-activity="${esc(row.id)}">
+      return `<tr class="cp-vd-row${row.id === state.activityId ? " is-selected" : ""}${row.critical ? " is-critical" : ""}" data-vd-activity="${esc(row.id)}" tabindex="0" aria-haspopup="menu">
         <td class="cp-vd-rownum">${index}</td>
         ${columns.map((id) => {
           const column = ACTIVITY_COLUMNS.find((item) => item.id === id) ?? ACTIVITY_COLUMNS[0];
@@ -2661,6 +2661,7 @@ function bind(root: HTMLElement): void {
       return;
     }
     if (!target.closest(".cp-vd-menu")) closeMenus();
+    if (!target.closest("[data-vd-context-menu]")) { const contextMenu = root.querySelector<HTMLElement>("[data-vd-context-menu]"); if (contextMenu) contextMenu.hidden = true; }
   });
 
   root.addEventListener("submit", (event) => {
