@@ -373,7 +373,7 @@ test("Activity Details customization exposes the complete desktop tab inventory 
     assert.match(html, new RegExp(`data-vd-detail-tab="${id}"`));
     assert.ok(html.includes(label), `missing Details tab label: ${label}`);
   }
-  assert.match(html, /Displayed tabs · in order/);
+  assert.match(html, /Displayed tabs · example order/);
   assert.match(html, /Move General up/);
   assert.match(html, /tab visibility and order are not saved/);
   assert.doesNotMatch(html, /data-vd-detail-tab="tasks"/);
