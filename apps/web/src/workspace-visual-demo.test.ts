@@ -347,3 +347,42 @@ test("Gantt bar editor presents independent definitions, styles, settings, label
   assert.match(html, /data-vd-dialog="bar-options"/);
   assert.match(html, /Show nonworking time/);
 });
+
+
+test("Activity Details customization exposes the complete desktop tab inventory and excludes non-desktop Tasks", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const [id, label] of [
+    ["general", "General"],
+    ["status", "Status"],
+    ["resources", "Resources"],
+    ["predecessors", "Predecessors"],
+    ["successors", "Successors"],
+    ["codes", "Codes"],
+    ["discussion", "Discussion"],
+    ["notebook", "Notebook"],
+    ["steps", "Steps"],
+    ["feedback", "Feedback"],
+    ["documents", "Documents"],
+    ["expenses", "Expenses"],
+    ["summary", "Summary"],
+    ["relationships", "Relationships"],
+    ["risks", "Risks"],
+    ["custom-fields", "Custom Fields"],
+    ["update-history", "Update History"],
+  ] as const) {
+    assert.match(html, new RegExp(`data-vd-detail-tab="${id}"`));
+    assert.match(html, new RegExp(`>${label}<`));
+  }
+  assert.match(html, /Displayed tabs · in order/);
+  assert.match(html, /Move General up/);
+  assert.match(html, /tab visibility and order are not saved/);
+  assert.doesNotMatch(html, /data-vd-detail-tab="tasks"/);
+});
+
+test("Activity Details customization provides Persian RTL labels for all standard tabs", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["عمومی", "وضعیت", "منابع", "پیش‌نیازها", "جانشین‌ها", "گفت‌وگو", "دفترچه", "گام‌ها", "بازخورد", "اسناد", "هزینه‌ها", "روابط", "ریسک‌ها", "فیلدهای سفارشی", "تاریخچه تغییرات"]) {
+    assert.ok(html.includes(label), `missing Persian Details tab label: ${label}`);
+  }
+});
