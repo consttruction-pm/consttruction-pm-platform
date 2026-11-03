@@ -155,6 +155,7 @@ test("WBS register exposes the connected add workflow and working chart presenta
   assert.match(html, /data-wbs-delete disabled/);
   assert.match(html, /data-wbs-view-toggle="table"/);
   assert.match(html, /data-wbs-view-toggle="chart"/);
+  assert.match(html, /data-wbs-view-toggle="gantt"/);
 });
 
 test("Activity Group and Sort defaults to WBS in English and Persian", () => {
@@ -2314,7 +2315,7 @@ test("workspace layout toolbar dispatches selected mode to the application", () 
 });
 
 
-test("WBS window exposes distinct table and hierarchy-chart presentations", () => {
+test("WBS window exposes table, hierarchy-chart and Gantt top layouts", () => {
   const html = render("en", "wbs");
   assert.match(html, /data-wbs-view-toggle="table"/);
   assert.match(html, /data-wbs-view-toggle="chart"/);
@@ -2322,15 +2323,18 @@ test("WBS window exposes distinct table and hierarchy-chart presentations", () =
   assert.match(html, /class="cp-wbs-table"/);
   assert.match(html, /data-wbs-view="chart" hidden/);
   assert.match(html, /class="cp-wbs-tree"/);
+  assert.match(html, /data-wbs-view="gantt" hidden/);
+  assert.match(html, /WBS start and finish dates are not present/);
   const listeners = new Map<string, (event: Event) => void>();
-  const panels = [{ dataset: { wbsView: "table" }, hidden: false }, { dataset: { wbsView: "chart" }, hidden: true }];
-  const buttons = ["table", "chart"].map((wbsViewToggle) => ({ dataset: { wbsViewToggle }, setAttribute: (_name: string, _value: string) => {}, classList: { toggle: (_name: string, _active: boolean) => {} } }));
+  const panels = [{ dataset: { wbsView: "table" }, hidden: false }, { dataset: { wbsView: "chart" }, hidden: true }, { dataset: { wbsView: "gantt" }, hidden: true }];
+  const buttons = ["table", "chart", "gantt"].map((wbsViewToggle) => ({ dataset: { wbsViewToggle }, setAttribute: (_name: string, _value: string) => {}, classList: { toggle: (_name: string, _active: boolean) => {} } }));
   const container = { innerHTML: "", querySelectorAll: (selector: string) => selector === "[data-wbs-view]" ? panels : selector === "[data-wbs-view-toggle]" ? buttons : [], addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener) };
   renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"));
   const target = { dataset: { wbsViewToggle: "chart" }, closest: () => target };
   listeners.get("click")?.({ target } as unknown as Event);
   assert.equal(panels[0]?.hidden, true);
   assert.equal(panels[1]?.hidden, false);
+  assert.equal(panels[2]?.hidden, true);
 });
 test("Group and Sort opens a structured dialog and applies supported grouping and sort controls", () => {
   const html = render("en", "schedule");
