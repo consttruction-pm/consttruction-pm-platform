@@ -754,6 +754,13 @@ function renderApp(
         pendingDesktopFocusSelector = "[data-activity-filter]";
         activateWindow("schedule");
         return;
+      case "view.filters": {
+        activateWindow("schedule");
+        const dialog = container.querySelector<HTMLDialogElement>("[data-filters-dialog]");
+        if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+        else dialog?.setAttribute("open", "");
+        return;
+      }
       case "edit.group-wbs":
         if (state.activityGroupBy !== "wbs") {
           renderApp(container, setActivityGroupBy(state, "wbs"), persistence);
