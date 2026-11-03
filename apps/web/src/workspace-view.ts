@@ -296,6 +296,16 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       }
       return;
     }
+    const calendarSearchInput = target.closest<HTMLInputElement>("[data-calendar-search]");
+    if (calendarSearchInput) {
+      const query = calendarSearchInput.value.trim().toLocaleLowerCase();
+      const rows = Array.from(container.querySelectorAll<HTMLElement>("[data-calendar-row]"));
+      let visible = 0;
+      for (const row of rows) { const match = !query || (row.dataset.calendarSearch ?? "").includes(query); row.hidden = !match; if (match) visible++; }
+      const empty = container.querySelector<HTMLElement>("[data-calendar-search-empty]");
+      if (empty) empty.hidden = visible > 0;
+      return;
+    }
     const searchInput = target.closest<HTMLInputElement>("[data-reference-search-input]");
     if (!searchInput) return;
     const query = searchInput.value.trim().toLocaleLowerCase();
@@ -1862,14 +1872,15 @@ function renderCalendarCatalog(state: WorkspaceState, selectedCalendarId: string
   const head = headings.map(([en, fa]) => '<th>' + escapeHtml(uiText(state.locale, en, fa)) + '</th>').join("");
   const rows = calendars.map((calendar) => {
     const active = calendar.calendarId === selectedCalendarId;
-    return '<tr class="' + (active ? 'is-selected' : '') + '"><td><button type="button" class="cp-calendar-select" data-calendar-select="' +
+    const searchText = [calendar.calendarId, calendar.name, calendar.calendarType, calendar.kind].join(" ").toLocaleLowerCase();
+    return '<tr data-calendar-row data-calendar-search="' + escapeAttribute(searchText) + '" class="' + (active ? 'is-selected' : '') + '"><td><button type="button" class="cp-calendar-select" data-calendar-select="' +
       escapeHtml(calendar.calendarId) + '" aria-pressed="' + String(active) + '">' + escapeHtml(calendar.calendarId) + '</button></td><td>' +
       escapeHtml(calendar.name) + '</td><td>' + escapeHtml(calendar.calendarType) + '</td><td>' +
       escapeHtml(calendar.kind) + '</td><td>' + escapeHtml(calendar.calendarVersion) + '</td><td>' +
       escapeHtml(String(calendar.recordRevision)) + '</td></tr>';
   }).join("");
   return '<div class="cp-register-table-wrap"><table><thead><tr>' + head +
-    '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+    '</tr></thead><tbody>' + rows + '<tr data-calendar-search-empty hidden><td colspan="6">' + escapeHtml(uiText(state.locale, "No calendars match the search.", "تقویمی با جست‌وجوی واردشده مطابقت ندارد.")) + '</td></tr></tbody></table></div>';
 }
 
 function renderWorkspaceCommandRibbon(state: WorkspaceState, t: WorkspaceLabels): string {
@@ -1957,11 +1968,11 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         <div class="cp-calendar-window">
           <div class="cp-calendar-window-toolbar">
             <strong>${escapeHtml(uiText(state.locale, "Calendar Register", "فهرست تقویم‌ها"))}</strong>
-            <div><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Calendar persistence is not connected yet.", "ذخیره‌سازی تقویم هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, "New Calendar", "تقویم جدید"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Edit", "ویرایش"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button></div>
+            <div><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Calendar persistence is not connected yet.", "ذخیره‌سازی تقویم هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, "New Calendar", "تقویم جدید"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Edit", "ویرایش"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Calendar assignment lookup is not connected.", "جست‌وجوی تخصیص تقویم متصل نیست."))}">${escapeHtml(uiText(state.locale, "Used By", "استفاده‌شده توسط"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "To Global", "تبدیل به عمومی"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "To Shared", "تبدیل به مشترک"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "To Personal", "تبدیل به شخصی"))}</button></div>
           </div>
           <div class="cp-calendar-window-layout">
             <section class="cp-calendar-register">
-              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Available Calendars", "تقویم‌های موجود"))}</strong><div class="cp-calendar-pools" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Calendar Pool", "مجموعه تقویم"))}">${[["global","Global","سراسری"],["project","Project","پروژه"],["resource","Resource","منبع"]].map(([key,en,fa])=>{const active=(calendarPoolByContainer.get(container)??"project")===key;return `<button type="button" data-calendar-pool="${key}" aria-pressed="${active}" class="${active?"is-active":""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`;}).join("")}</div></div>
+              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Available Calendars", "تقویم‌های موجود"))}</strong><div class="cp-calendar-pools" role="group" aria-label="${escapeAttribute(uiText(state.locale, "Calendar Pool", "مجموعه تقویم"))}">${[["global","Global","سراسری"],["project","Project","پروژه"],["resource","Resource","منبع"]].map(([key,en,fa])=>{const active=(calendarPoolByContainer.get(container)??"project")===key;return `<button type="button" data-calendar-pool="${key}" aria-pressed="${active}" class="${active?"is-active":""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`;}).join("")}<label class="cp-calendar-search">${escapeHtml(uiText(state.locale, "Search", "جست‌وجو"))}<input type="search" data-calendar-search placeholder="${escapeAttribute(uiText(state.locale, "Find calendar…", "جست‌وجوی تقویم…"))}"></label></div></div>
               ${renderCalendarCatalog(state, calendarSelectionByContainer.get(container) ?? null, calendarPoolByContainer.get(container) ?? "project")}
             </section>
             <section class="cp-calendar-editor">
