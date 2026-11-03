@@ -7716,3 +7716,12 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
     grid-column: 1 / -1;
   }
 }
+
+/* WBS chart presentation: the same ordered hierarchy rendered as linked cards. */
+.cp-p6 .cp-wbs-hierarchy-pane.is-chart-view{overflow:auto}
+.cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-tree{display:flex;align-items:flex-start;justify-content:center;gap:14px;min-width:max-content;padding:16px 10px 24px}
+.cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-item{display:flex;flex-direction:column;align-items:center;gap:12px;padding-top:14px;position:relative}
+.cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-item:before{content:"";position:absolute;top:0;left:50%;height:14px;border-left:1px solid #9aaabd}
+.cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-children{display:flex;align-items:flex-start;justify-content:center;gap:12px;padding-top:12px;position:relative}
+.cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-node{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:145px;max-width:210px;padding:9px 11px;border:1px solid #9aaabd;border-radius:5px;background:#f7f9fc;box-shadow:0 1px 2px #172b4412}
+.cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-node:hover,.cp-p6 .cp-wbs-hierarchy-pane.is-chart-view .cp-wbs-node.is-selected{border-color:#1c6bb7;background:#eaf3fc;box-shadow:0 0 0 2px #1c6bb71a}
