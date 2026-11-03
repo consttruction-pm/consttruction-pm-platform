@@ -334,3 +334,16 @@ test("Activity table formatting exposes independent table and group-band typogra
     assert.ok(html.includes(control), `expected table-format control: ${control}`);
   }
 });
+
+
+test("Gantt bar editor presents independent definitions, styles, settings, labels and preview controls", () => {
+  const state = createVisualDemoState("en");
+  state.window = "activities";
+  const html = renderVisualDemo(state);
+  for (const value of ["Remaining Work", "Actual Work", "Critical Remaining", "Primary Baseline", "Target", "Level of Effort", "Milestone", "Bar Style", "Bar Settings", "Bar Labels", "Copy From…", "Necking", "Start point", "End point", "Left label", "Right label", "Top label", "Bottom label", "Live style preview"]) {
+    assert.ok(html.includes(value), `expected bar editor element: ${value}`);
+  }
+  assert.match(html, /data-vd-dialog="bars"/);
+  assert.match(html, /data-vd-dialog="bar-options"/);
+  assert.match(html, /Show nonworking time/);
+});
