@@ -7759,3 +7759,12 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-tracking-layout>[data-tracking-pane=resource-explorer]{grid-column:1;grid-row:2}
 .cp-p6 .cp-tracking-layout>[data-tracking-pane=bottom-layout]{grid-column:2;grid-row:2}
 .cp-p6 .cp-tracking-layout:has(>[data-tracking-pane=project-explorer][hidden])>[data-tracking-pane=top-layout],.cp-p6 .cp-tracking-layout:has(>[data-tracking-pane=resource-explorer][hidden])>[data-tracking-pane=bottom-layout]{grid-column:1/-1}
+/* Calendar register selection and read-only identity details. */
+.cp-p6 .cp-calendar-select{padding:2px 5px;border:1px solid transparent;border-radius:3px;background:transparent;color:#1c5c98;font:inherit;font-weight:600;text-align:start}
+.cp-p6 .cp-calendar-select:hover,.cp-p6 tr.is-selected .cp-calendar-select{border-color:#9bb9d7;background:#eaf3fc}
+.cp-p6 .cp-calendar-register tr.is-selected{background:#edf5fc}
+.cp-p6 .cp-calendar-selected-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:6px;margin:0 0 9px;padding:8px;border:1px solid #cbd8e6;background:#f5f8fc}
+.cp-p6 .cp-calendar-selected-summary[hidden]{display:none!important}
+.cp-p6 .cp-calendar-selected-summary>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.cp-p6 .cp-calendar-selected-summary span{color:#718096;font-size:9px}
+.cp-p6 .cp-calendar-selected-summary strong{overflow-wrap:anywhere;color:#244463;font-size:10px}
