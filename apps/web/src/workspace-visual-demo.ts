@@ -966,7 +966,7 @@ function renderWindow(state: DemoState): string {
         { Threshold: "Total float", Type: "Activity", Warning: "< 5 d", Critical: "< 0 d", Status: "2 activities" },
         { Threshold: "Cost variance", Type: "Project", Warning: "> 5%", Critical: "> 10%", Status: "Within" },
         { Threshold: "Schedule variance", Type: "Project", Warning: "> 3 d", Critical: "> 7 d", Status: "1 activity" },
-      ]);
+      ], ["threshold-monitor"]);
     case "issues":
       return renderTableWindow(state, { en: "Issues", fa: "مسائل" }, ["Issue", "Priority", "Owner", "Due", "Status"], [
         { Issue: "Pump delivery window", Priority: "High", Owner: "Procurement", Due: "20-Feb-27", Status: "Open" },
