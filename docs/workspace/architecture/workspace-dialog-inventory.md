@@ -57,6 +57,13 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Apply Actuals | Data date, project scope | Missing |
 | Update Progress | Scope, percent/actual entry | Missing |
 | Recalculate Assignment Costs | Scope, confirmation | Missing |
+| Budget / Spending Plan | Budget establishment, budget-change log, funding sources and assignments, monthly financial-period spending plan, budget/spending totals and variances | Visual preview implemented; financial-period service, approvals, posting and calculations not connected |
+| Earned Value Analysis | Assigned EV baseline, WBS/activity EV techniques, PV/EV/AC, SV/CV, SPI/CPI | Visual preview implemented; baseline integration, WBS technique persistence and EV calculations not connected |
+| Update Progress | Data date, percent-complete type/value, actual start/finish, remaining duration, units/costs, suspend/resume | Visual preview implemented; progress write, actual-date policy and schedule recalculation not connected |
+| Apply Actuals | Project/selected scope, data date, source, actual dates, remaining-duration and units/cost options | Visual preview implemented; controlled apply operation and scheduler integration not connected |
+| Store Period Performance | Financial period, project, actual this period and actual-to-date units/costs, post/history | Visual preview implemented; posting, period locking and past-period audit permissions not connected |
+| Expense Details | Activity, category, accrual type, cost account, vendor, budgeted/actual/remaining cost | Visual preview implemented; expense CRUD and cost roll-up not connected |
+| Cost Account Dictionary | Hierarchical account ID/name/parent/level, default account | Visual preview implemented; dictionary CRUD and assignment services not connected |
 | Store Period Performance | Financial period, project | Missing |
 | Global Change | Parameter rows, preview count, apply | Missing |
 | Monitor Thresholds / Issue Navigator | Scope and results | Missing |
