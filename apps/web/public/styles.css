@@ -7847,3 +7847,8 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-calendar-window-toolbar button{min-height:27px;padding:4px 8px;font-size:10px}
 .cp-p6 [data-calendar-search-empty][hidden]{display:none!important}
 @media(max-width:760px){.cp-p6 .cp-calendar-search{width:100%}.cp-p6 .cp-calendar-search input{flex:1;min-width:0}}
+.cp-p6 .cp-calendar-month-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border-bottom:1px solid #d8e0e9;background:#f7f9fc}
+.cp-p6 .cp-calendar-month-actions>div{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.cp-p6 .cp-calendar-month-actions label{display:flex;align-items:center;gap:4px;color:#52657a;font-size:9px}
+.cp-p6 .cp-calendar-month-actions button{min-height:24px;padding:3px 7px;border:1px solid #b9c6d5;border-radius:2px;background:#fff;color:#38536f;font:inherit;font-size:9px}
+.cp-p6 .cp-calendar-month-actions button:disabled{opacity:.5;cursor:not-allowed}
