@@ -7,10 +7,10 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 
 | Dialog | Purpose | Minimum controls | Data / API | Status |
 | --- | --- | --- | --- | --- |
-| New Project — Step 1 Business Domain | Classify the project | Domain cards: Construction, Oil & Gas, Infrastructure, Industrial, Energy, Other; organisation (optional) | `sector`/`domain` on project create | Missing |
-| New Project — Step 2 Identity | Name and ID | Project name (2–120), Project ID (auto from name, editable, unique check), description (≤2000) | `POST /api/projects` | Partial (name/description exist; no ID/domain) |
-| New Project — Step 3 Configuration | Planning defaults | Start date (Gregorian/Jalali), finish target, calendar, responsible organisation, date system, default activity duration type, default calendar | Project create + calendars API | Partial (start/date system only) |
-| New Project — Step 4 Development | Seed the plan | WBS template or blank, activity template, copy from project, create sample activities | WBS/activity APIs | Missing |
+| New Project — Step 1 Business Domain | Classify the project | Domain, portfolio and responsible organisation pickers | `sector`/`domain` on project create | Visual preview implemented; validation/API not connected |
+| New Project — Step 2 Identity | Name and ID | Project name (2–120), editable suggested Project ID with tenant uniqueness check, description (≤2000) | `POST /api/projects` | Visual preview implemented; uniqueness/create not connected |
+| New Project — Step 3 Configuration | Planning defaults | Start date (Gregorian/Jalali), target finish, date system, project calendar, responsible organisation, default activity duration type | Project create + calendars API | Visual preview implemented; validation/API not connected |
+| New Project — Step 4 Development | Seed the plan | Blank/template WBS, authorized project copy, optional starter WBS/activities and resource/calendar templates | WBS/activity APIs | Visual preview implemented; creation/copy not connected |
 | Open Project | Choose project | Search, domain filter, recent, role badge | `GET /api/projects`, `POST /open` | Implemented as picker, not dialog |
 | Import / Export | Interchange | Format, project, mapping preview, conflict policy | Existing interchange API | Implemented (panel) |
 | Print Preview / Print / Page Setup | Output | Layout, page, scale, margins, header/footer | Print profile API (not built) | Missing |
