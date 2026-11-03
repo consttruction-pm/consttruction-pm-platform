@@ -13,7 +13,9 @@ This index records which official pages were reviewed, what each page contribute
 | Help TOC | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm | Complete section map: workspace basics, toolbars/menus, projects, EPS, WBS, calendars, resources/roles, activities, relationships, scheduling, leveling, layouts, Gantt, network, trace logic, tracking, reporting, administration |
 | User guide TOC | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm | User-guide task structure |
 | User guide (HTML) | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html | Same task structure in web form |
-| Admin guide | https://docs.oracle.com/cd/G48902_01/English/admin/p6_pro_admin/toc.htm | Administrative preferences/categories, security, financial periods, currencies, UDF/code dictionaries |
+| Administration Guide v26 (current) | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-admin/index.html | October 2026 guide: administrative preferences, administrative categories, currencies, financial periods, user security, resource security and EPS-level code security |
+| Administration Guide v26 TOC | https://docs.oracle.com/cd/G48902_01/English/admin/p6_pro_admin/toc.htm | Detailed preference limits/defaults, category dictionaries, currency base/view settings, financial period calendars and user/global/project security profiles |
+| User Guide v26 structure topics | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm | EPS hierarchy, OBS responsibility structure, custom fields and global/project/resource calendars |
 | Menu bar overview | https://docs.oracle.com/cd/G48902_01/client_help/en_US/menu_bar.htm | Menu set: File, Edit, View, Project, Enterprise, Tools, Admin, Help |
 | File menu | https://docs.oracle.com/cd/G48902_01/client_help/en_US/49093.htm | Project lifecycle, import/export, portfolio, commit/refresh, recent projects |
 | Edit menu | https://docs.oracle.com/cd/G48902_01/client_help/en_US/49094.htm | Undo, clipboard, add/delete/dissolve, assign submenu, link/unlink, renumber, fill down, find/replace, user preferences |
@@ -108,3 +110,18 @@ The controlling source was rechecked against Oracle's current Version 26 documen
 ### Audit evidence boundary
 
 This refresh verifies the current official documentation set and updates the source baseline. It does **not** certify the running CUBI UI, pixel-level color parity, all window interactions, or browser screenshots. Those remain separate acceptance gates in the master audit and parent issue #1691.
+
+
+## Administration visual parity slice — Version 26
+
+| Area | Reference coverage | CUBI visual surface |
+| --- | --- | --- |
+| EPS | Hierarchical enterprise project containers, child projects, project assignment and status | Expandable portfolio/EPS tree with responsible OBS and project date/status columns |
+| OBS | Responsibility hierarchy, manager ownership, WBS assignment and chart display | Responsibility tree, manager/parent/WBS assignment table and access-scope note |
+| Administrative preferences | Week start, default duration, hierarchy and ID limits, baselines, workhours, earned-value defaults and summarization | Read-only global preference summary pending the complete preference editor |
+| Administrative categories | Baseline, expense, WBS, document, risk, notebook and unit dictionaries | Category-group navigator with selected dictionary values and dependency warning |
+| Currencies | Base currency, view currency, symbol, decimal precision and conversion rate | Currency dictionary, base marker, view-currency selector and conversion safety callout |
+| Financial periods | Named period calendar, fiscal start, individual and batch periods, period deletion | Period calendar selector, fiscal summary, monthly period register and posting-protection note |
+| Custom fields | Subject/object type, data type, list values, indicator and formula semantics | Custom-field register with subject, type, indicator/formula, list values and required status |
+
+These are visual-only records. EPS/OBS, administration, currencies, period calendars and custom-field services remain unconnected; no access, financial conversion, posting or project hierarchy is mutated by the preview.
