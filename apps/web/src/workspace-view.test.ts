@@ -2209,7 +2209,7 @@ test("Calendar month navigation advances the visible month without inventing wor
 
 test("Calendar editor tab selection updates ARIA state and keeps the selected tab across renders", () => {
   const listeners = new Map<string, (event: Event) => void>();
-  const buttons = ["general", "workweek", "exceptions", "time-periods", "assignments"].map((calendarEditorTab) => ({
+  const buttons = ["general", "calendar", "workweek", "exceptions", "time-periods", "assignments"].map((calendarEditorTab) => ({
     dataset: { calendarEditorTab },
     tabIndex: -1,
     setAttribute: (_name: string, _value: string) => {},
