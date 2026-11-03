@@ -274,3 +274,6 @@ For each built surface, compare against the observations above:
 The Version 26 desktop Professional Help index distinguishes desktop Activity Details from EPPM-only detail tabs. The visual shell previously exposed the **Tasks** tab in Activity Details and **Planning Resources** in Project Details, both explicitly marked EPPM-only by the official Details Windows index. These were removed from the desktop workspace tab inventories. This prevents the Professional desktop shell from presenting server-edition-only tabs as native desktop features. The Professional-only Activity Details > Risks tab remains in scope. Verification is covered by the Activity Details tab inventory test and the Project Details tab inventory test.
 
 Official reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/detailswindows-postdropdowns.htm
+
+The same Version 26 Details Windows index lists **Update History** as an Activity Details tab. The visual inventory now includes it. The CUBI Summary tab remains an additive convenience and is not represented as a native desktop tab. The EPPM-only Tasks tab remains excluded.
+
