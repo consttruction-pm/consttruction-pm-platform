@@ -1991,6 +1991,13 @@ test("Roles and Tracking are first-class windows with their documented visual su
   assert.match(tracking, /Project Gantt \/ Profile/);
   assert.match(tracking, /Resource Analysis/);
   assert.match(tracking, /data-tracking-layout/);
+  assert.match(tracking, /data-tracking-pane="project-explorer"/);
+  assert.match(tracking, /data-tracking-pane="top-layout"/);
+  assert.match(tracking, /data-tracking-pane="resource-explorer" hidden/);
+  assert.match(tracking, /data-tracking-pane="bottom-layout" hidden/);
+  assert.match(tracking, /data-tracking-content="bar-chart" hidden/);
+  assert.match(tracking, /data-tracking-content="gantt-profile" hidden/);
+  assert.match(tracking, /data-tracking-content="resource-analysis" hidden/);
 });
 
 test("Calendar Register opens as a first-class window with documented editor controls", () => {
