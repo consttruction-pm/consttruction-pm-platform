@@ -1211,9 +1211,17 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
     { label: { en: "Redo", fa: "تکرار" }, shortcut: "Ctrl+Y", action: { command: "redo" } },
     { label: { en: "Cut", fa: "برش" }, shortcut: "Ctrl+X", action: { command: "noop" } },
     { label: { en: "Copy", fa: "رونوشت" }, shortcut: "Ctrl+C", action: { command: "noop" } },
-    { label: { en: "Paste", fa: "چسباندن" }, shortcut: "Ctrl+V", action: { command: "noop" } },
+    { label: { en: "Paste", fa: "چسباندن" }, shortcut: "Ctrl+V", action: { command: "noop", reason: { en: "Clipboard operations are not connected in this visual preview.", fa: "عملیات حافظهٔ موقت در این پیش‌نمایش بصری متصل نیست." } } },
+    { label: { en: "Dissolve", fa: "ادغام فعالیت" }, action: { dialog: "dissolve" } },
+    { label: { en: "Link Activities", fa: "پیوند فعالیت‌ها" }, action: { command: "noop", reason: { en: "Select multiple activities in a live project to create links.", fa: "برای ایجاد پیوند، چند فعالیت را در پروژهٔ زنده انتخاب کنید." } } },
+    { label: { en: "Unlink Activities", fa: "قطع پیوند فعالیت‌ها" }, action: { command: "noop", reason: { en: "Relationship editing is not connected in this visual preview.", fa: "ویرایش روابط در این پیش‌نمایش بصری متصل نیست." } } },
+    { label: { en: "Fill Down", fa: "تکثیر مقدار به پایین" }, shortcut: "Ctrl+D", action: { command: "noop", reason: { en: "Select a table range in a live project to fill values down.", fa: "برای تکثیر مقدار، محدوده‌ای از جدول را در پروژهٔ زنده انتخاب کنید." } } },
+    { label: { en: "Select All", fa: "انتخاب همه" }, shortcut: "Ctrl+A", action: { command: "noop", reason: { en: "Selection commands require a live project data set.", fa: "فرمان انتخاب به دادهٔ واقعی پروژه نیاز دارد." } } },
     { label: { en: "Find…", fa: "یافتن…" }, shortcut: "Ctrl+F", action: { dialog: "find" } },
+    { label: { en: "Find Next", fa: "یافتن بعدی" }, shortcut: "F3", action: { command: "noop", reason: { en: "Run Find first in a live project.", fa: "ابتدا جست‌وجو را در پروژهٔ زنده اجرا کنید." } } },
     { label: { en: "Find and Replace…", fa: "یافتن و جایگزینی…" }, action: { dialog: "find-replace" } },
+    { label: { en: "Spell Check", fa: "بررسی املا" }, action: { command: "noop", reason: { en: "Spell checking is not available in this visual preview.", fa: "بررسی املا در این پیش‌نمایش بصری فعال نیست." } } },
+    { label: { en: "User Preferences…", fa: "ترجیحات کاربر…" }, action: { dialog: "preferences" } },
     { label: { en: "Renumber Activity IDs…", fa: "شماره‌گذاری دوبارهٔ شناسه‌ها…" }, action: { dialog: "renumber" } },
   ] },
   { id: "view", label: { en: "View", fa: "نما" }, items: [
@@ -1449,6 +1457,17 @@ function renderTabs(state: DemoState): string {
 function dialogContent(name: string, state: DemoState): string {
   const rows = (head: string[], body: string): string => `<table class="cp-vd-mini"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
   switch (name) {
+    case "dissolve":
+      return `<div class="cp-vd-form">
+        <div class="cp-vd-hintbox">${esc(t(state.locale, "Dissolve removes the selected activity and reconnects each eligible predecessor to its successors while preserving relationship type logic as far as possible.", "در ادغام، فعالیت انتخاب‌شده حذف و پیش‌نیازهای واجد شرایط به جانشین‌ها متصل می‌شوند؛ نوع منطق روابط تا حد امکان حفظ می‌شود."))}</div>
+        <section class="cp-vd-dissolve-preview">
+          <h3>${esc(t(state.locale, "Illustrative relationship transformation", "نمونهٔ تبدیل روابط"))}</h3>
+          <div class="cp-vd-dissolve-flow"><span>A · Predecessor</span><b>SF</b><span>B · Selected activity</span><b>FF / FS / SF / SS</b><span>C…F · Successors</span></div>
+          <p>${esc(t(state.locale, "The predecessor-side relationship type is combined with each successor-side type. For example, A→B (SF) and B→C (FF) produce A→C (SF).", "نوع رابطه از سمت پیش‌نیاز با نوع رابطه از سمت هر جانشین ترکیب می‌شود. برای نمونه، A→B (SF) و B→C (FF)، رابطهٔ A→C (SF) را ایجاد می‌کند."))}</p>
+        </section>
+        <label>${esc(t(state.locale, "Lag handling", "نحوهٔ حفظ تأخیر"))}<select name="dissolveLag"><option value="remove">${esc(t(state.locale, "Remove lag (default)", "حذف تأخیر (پیش‌فرض)"))}</option><option value="retain">${esc(t(state.locale, "Retain and combine predecessor + successor lag", "حفظ و جمع تأخیر پیش‌نیاز و جانشین"))}</option></select></label>
+        <p class="cp-vd-note">${esc(t(state.locale, "Eligibility: the selected activity must have at least one predecessor and one successor. This is a visual explanation only; no activity or relationship is changed.", "شرط اجرا: فعالیت انتخاب‌شده باید دست‌کم یک پیش‌نیاز و یک جانشین داشته باشد. این فقط توضیح بصری است و هیچ فعالیت یا رابطه‌ای تغییر نمی‌کند."))}</p>
+      </div>`;
     case "module-actions":
       return `<div class="cp-vd-form">
         <div class="cp-vd-hintbox">${esc(t(state.locale, "These controls demonstrate the page-specific command surface. Changes are preview-only and are not saved.", "این کنترل‌ها نوار فرمان صفحه را نمایش می‌دهند. تغییرات صرفاً نمایشی هستند و ذخیره نمی‌شوند."))}</div>
@@ -2059,6 +2078,7 @@ function dialogTitle(name: string, locale: string): string {
     "cost-accounts": ["Cost Account Dictionary", "واژه‌نامه حساب‌های هزینه"],
     "global-change": ["Global Change", "تغییر سراسری"], "reports-runner": ["Reports", "گزارش‌ها"],
     "threshold-monitor": ["Threshold Monitor / Issue Navigator", "پایش آستانه / راهنمای مسائل"],
+    dissolve: ["Dissolve Activity — Logic Preview", "ادغام فعالیت — پیش‌نمایش منطق"],
     "assign-activity-codes": ["Assign Activity Codes", "تخصیص کدهای فعالیت"],
     "recalculate-assignment-costs": ["Recalculate Assignment Costs", "محاسبه مجدد هزینه تخصیص‌ها"],
   };
@@ -2067,7 +2087,7 @@ function dialogTitle(name: string, locale: string): string {
 }
 
 function renderDialogs(state: DemoState): string {
-  const names = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-resources-by-role", "assign-roles", "assign-predecessors", "assign-successors", "resource-details", "resource-shifts", "add-activity", "import", "export", "print", "page-setup", "print-setup", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles", "module-actions", "new-wbs", "new-form", "background-lines", "relationship-lines", "data-date-line", "gantt-legend", "progress-line", "attachments", "collapsed-bars", "network-box-layout", "trace-options", "usage-profile-options", "budgeting", "earned-value", "update-progress", "apply-actuals", "store-period-performance", "expense-details", "cost-accounts", "global-change", "reports-runner", "threshold-monitor", "assign-activity-codes", "recalculate-assignment-costs"];
+  const names = ["columns", "filters", "group-sort", "timescale", "bars", "bar-options", "font-row", "layout-manager", "customize-details", "new-project", "project-properties", "calendar", "schedule", "level", "baselines", "find", "find-replace", "renumber", "assign-resources", "assign-resources-by-role", "assign-roles", "assign-predecessors", "assign-successors", "resource-details", "resource-shifts", "add-activity", "import", "export", "print", "page-setup", "print-setup", "report-wizard", "preferences", "admin-preferences", "dictionaries", "roles", "network-options", "timeline-options", "shortcuts", "about", "security-profiles", "module-actions", "new-wbs", "new-form", "background-lines", "relationship-lines", "data-date-line", "gantt-legend", "progress-line", "attachments", "collapsed-bars", "network-box-layout", "trace-options", "usage-profile-options", "budgeting", "earned-value", "update-progress", "apply-actuals", "store-period-performance", "expense-details", "cost-accounts", "global-change", "reports-runner", "threshold-monitor", "dissolve", "assign-activity-codes", "recalculate-assignment-costs"];
   return names.map((name) => `<dialog class="cp-vd-dialog" data-vd-dialog="${name}">
     <form method="dialog" data-vd-form="${name}">
       <div class="cp-vd-dialog-title"><span>${esc(dialogTitle(name, state.locale))}</span><button type="button" data-vd-close aria-label="Close">×</button></div>
