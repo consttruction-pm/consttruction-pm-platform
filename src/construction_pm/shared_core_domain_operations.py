@@ -137,6 +137,22 @@ def _list_result(value: object) -> dict[str, object]:
     return {"items": list(value), "count": len(value)}
 
 
+def _resource_error(value: object) -> None:
+    if isinstance(value, Mapping) and isinstance(value.get("error"), Mapping):
+        error = value["error"]
+        code = error.get("code")
+        if not isinstance(code, str) or not code.strip():
+            code = "RESOURCE_MASTER_OPERATION_FAILED"
+        raise ValueError(code)
+
+
+def _resource_items(value: object) -> tuple[object, ...]:
+    if not isinstance(value, (tuple, list)):
+        raise ValueError("INVALID_RESOURCE_MASTER_LIST_RESPONSE")
+    for item in value:
+        _resource_error(item)
+    return tuple(value)
+
 def build_project_domain_operations(
     *,
     activity_api: P6ActivityMasterAPI | None = None,
@@ -950,11 +966,13 @@ def build_project_domain_operations(
 
         def resource_master_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
             api = resource_master_api_factory(actor)
-            return _list_result(api.list_resources())
+            return _list_result(_resource_items(api.list_resources()))
 
         def resource_master_get(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
             api = resource_master_api_factory(actor)
-            return _record_result(api.get_resource(str(payload["resource_id"])))
+            result = api.get_resource(str(payload["resource_id"]))
+            _resource_error(result)
+            return _record_result(result)
 
         def resource_master_save(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
             raw = _fields(
