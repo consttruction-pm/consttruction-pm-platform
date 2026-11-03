@@ -7852,3 +7852,15 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-calendar-month-actions label{display:flex;align-items:center;gap:4px;color:#52657a;font-size:9px}
 .cp-p6 .cp-calendar-month-actions button{min-height:24px;padding:3px 7px;border:1px solid #b9c6d5;border-radius:2px;background:#fff;color:#38536f;font:inherit;font-size:9px}
 .cp-p6 .cp-calendar-month-actions button:disabled{opacity:.5;cursor:not-allowed}
+
+/* Resource Usage Spreadsheet display preferences and field chooser. */
+.cp-p6 .cp-assignment-usage-options select{min-width:120px;min-height:28px;padding:4px 6px;border:1px solid #cbd5e1;background:#fff;color:#334e68;font:inherit}
+.cp-p6 .cp-assignment-fields-dialog{width:min(540px,calc(100vw - 32px));max-width:540px;border:1px solid #9eafc2;border-radius:6px;padding:0;background:#fff;color:#243b53;box-shadow:0 18px 60px #102a4333}
+.cp-p6 .cp-assignment-fields-dialog::backdrop{background:#14263b66}
+.cp-p6 .cp-assignment-fields-dialog>header,.cp-p6 .cp-assignment-fields-dialog>footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid #d8e0e9;background:#f2f5f9}
+.cp-p6 .cp-assignment-fields-dialog>header h2{margin:0;font-size:14px}
+.cp-p6 .cp-assignment-fields-dialog>p{margin:12px 14px;color:#64748b;font-size:11px}
+.cp-p6 .cp-assignment-fields-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:8px 14px 16px}
+.cp-p6 .cp-assignment-fields-grid label{display:flex;align-items:center;gap:7px;padding:7px;border:1px solid #d8e0e9;border-radius:3px;background:#f8fafc;font-size:11px}
+.cp-p6 .cp-assignment-fields-dialog>footer{justify-content:flex-end;border-top:1px solid #d8e0e9;border-bottom:0}
+@media(max-width:560px){.cp-p6 .cp-assignment-fields-grid{grid-template-columns:minmax(0,1fr)}}
