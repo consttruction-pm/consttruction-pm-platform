@@ -2287,19 +2287,23 @@ test("workspace layout toolbar dispatches selected mode to the application", () 
 });
 
 
-test("WBS window exposes working table and chart presentation controls", () => {
+test("WBS window exposes distinct table and hierarchy-chart presentations", () => {
   const html = render("en", "wbs");
   assert.match(html, /data-wbs-view-toggle="table"/);
   assert.match(html, /data-wbs-view-toggle="chart"/);
+  assert.match(html, /data-wbs-view="table"/);
+  assert.match(html, /class="cp-wbs-table"/);
+  assert.match(html, /data-wbs-view="chart" hidden/);
+  assert.match(html, /class="cp-wbs-tree"/);
   const listeners = new Map<string, (event: Event) => void>();
-  let chartMode = false;
-  const pane = { classList: { toggle: (_name: string, active: boolean) => { chartMode = active; } } };
+  const panels = [{ dataset: { wbsView: "table" }, hidden: false }, { dataset: { wbsView: "chart" }, hidden: true }];
   const buttons = ["table", "chart"].map((wbsViewToggle) => ({ dataset: { wbsViewToggle }, setAttribute: (_name: string, _value: string) => {}, classList: { toggle: (_name: string, _active: boolean) => {} } }));
-  const container = { innerHTML: "", querySelector: (selector: string) => selector === ".cp-wbs-hierarchy-pane" ? pane : null, querySelectorAll: (selector: string) => selector === "[data-wbs-view-toggle]" ? buttons : [], addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener) };
+  const container = { innerHTML: "", querySelectorAll: (selector: string) => selector === "[data-wbs-view]" ? panels : selector === "[data-wbs-view-toggle]" ? buttons : [], addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener) };
   renderMainWorkspace(container as unknown as HTMLElement, createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"));
   const target = { dataset: { wbsViewToggle: "chart" }, closest: () => target };
   listeners.get("click")?.({ target } as unknown as Event);
-  assert.equal(chartMode, true);
+  assert.equal(panels[0]?.hidden, true);
+  assert.equal(panels[1]?.hidden, false);
 });
 test("Group and Sort opens a structured dialog and applies supported grouping and sort controls", () => {
   const html = render("en", "schedule");
