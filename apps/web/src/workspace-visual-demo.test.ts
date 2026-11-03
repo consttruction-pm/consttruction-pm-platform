@@ -855,3 +855,32 @@ test("administration visual styles stay on canonical CUBI tokens and mirrored bu
   }
   assert.doesNotMatch(adminStyles, /#[0-9a-fA-F]{3,8}\\b/, "administration surfaces must not introduce unregistered hard-coded palette values");
 });
+
+
+test("Activity and WBS selection context menus expose scoped commands and safe disabled destructive actions", () => {
+  const activity = renderVisualDemo(createVisualDemoState("en"));
+  for (const action of ["activity-details", "assign-resources", "add-predecessor", "add-successor", "activity-codes"]) {
+    assert.match(activity, new RegExp(`data-vd-context-action="${action}"`));
+  }
+  assert.match(activity, /aria-label="Selection commands"/);
+  assert.match(activity, /Delete Activity/);
+  assert.match(activity, /<button type="button" role="menuitem" disabled>Delete Activity/);
+
+  const wbsState = createVisualDemoState("en");
+  wbsState.window = "wbs";
+  const wbs = renderVisualDemo(wbsState);
+  for (const action of ["wbs-details", "wbs-activities", "wbs-add-child"]) {
+    assert.match(wbs, new RegExp(`data-vd-context-action="${action}"`));
+  }
+  assert.match(wbs, /Delete WBS/);
+});
+
+test("Context menu labels and selection semantics are available in Persian RTL", () => {
+  const state = createVisualDemoState("fa");
+  const html = renderVisualDemo(state);
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  assert.match(html, /فرمان‌های انتخاب/);
+  assert.match(html, /جزئیات فعالیت…/);
+  assert.match(html, /تخصیص منابع…/);
+  assert.match(html, /تخصیص پیش‌نیازها…/);
+});
