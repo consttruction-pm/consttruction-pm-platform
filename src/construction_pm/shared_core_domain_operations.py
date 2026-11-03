@@ -1122,6 +1122,16 @@ def build_project_domain_operations(
                 handler=handler,
             )
 
+    def require_registered_resource(actor: AuthorizationContext, resource_id: object) -> None:
+        if resource_master_api_factory is None:
+            raise ValueError("RESOURCE_MASTER_CONTEXT_REQUIRED")
+        if not isinstance(resource_id, str) or not resource_id.strip():
+            raise ValueError("INVALID_RESOURCE_ID")
+        result = resource_master_api_factory(actor).get_resource(resource_id)
+        _resource_error(result)
+        if result is None:
+            raise ValueError("RESOURCE_NOT_FOUND")
+
     if resource_write_api is not None:
         def assignment_create(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
             raw = _fields(
@@ -1141,6 +1151,7 @@ def build_project_domain_operations(
                 "actual_cost", "remaining_cost", "units_per_time",
                 "hours_per_units_time_period",
             )
+            require_registered_resource(actor, raw["resource_id"])
             values = {
                 name: None if raw.get(name) is None else _decimal(raw[name], f"INVALID_{name.upper()}")
                 for name in decimal_names
@@ -1179,6 +1190,7 @@ def build_project_domain_operations(
                 allowed={"assignment_id", "activity_id", "resource_id", "period_start", "units", "cost"},
                 code="INVALID_RESOURCE_ASSIGNMENT_PERIOD_PAYLOAD",
             )
+            require_registered_resource(actor, raw["resource_id"])
             value = P6ResourceAssignmentPeriodValue(
                 scope=_scope(actor, revision),
                 assignment_id=raw["assignment_id"],
