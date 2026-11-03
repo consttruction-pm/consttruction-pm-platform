@@ -202,6 +202,7 @@ const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
 const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
 const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart" | "gantt">();
 const projectPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart" | "gantt">();
+const activityTopLayoutByContainer = new WeakMap<HTMLElement, "table-gantt" | "activity-network">();
 const resourceTypeFilterByContainer = new WeakMap<HTMLElement, "all" | "labor" | "nonlabor" | "material">();
 type WbsChartAppearance = { template: "code-name" | "name-only" | "code-only"; font: "Inter" | "Arial" | "Georgia"; size: 10 | 12 | 14 | 16 | 18; background: "#f7f9fc" | "#eef5fb" | "#fffaf0"; box: "#ffffff" | "#eef5fb" | "#fffaf0" };
 const wbsChartAppearanceByContainer = new WeakMap<HTMLElement, WbsChartAppearance>();
@@ -1171,7 +1172,16 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       ? event.target as HTMLElement
       : null;
     if (!element) return;
-    if (Object.prototype.hasOwnProperty.call(element.dataset, "assignmentUsageTimescale")) {
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "topLayout")) {
+      const value = (element as HTMLSelectElement).value;
+      if (value !== "table-gantt" && value !== "activity-network") return;
+      activityTopLayoutByContainer.set(container, value);
+      const split = container.querySelector<HTMLElement>('.cp-p6-split[data-workspace-menu="schedule"]');
+      const network = container.querySelector<HTMLElement>("#cp-activity-network");
+      if (split) split.hidden = value === "activity-network";
+      if (network) network.hidden = value !== "activity-network";
+      return;
+    }    if (Object.prototype.hasOwnProperty.call(element.dataset, "assignmentUsageTimescale")) {
       const value = (element as HTMLSelectElement).value;
       if (["day", "week", "month", "quarter", "financial-period"].includes(value)) {
         getAssignmentUsageDisplayState(container).timescale = value as AssignmentUsageDisplayState["timescale"];
@@ -1643,14 +1653,14 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
             <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>` : ""}
           </div>
-          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderGroupSortDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderFiltersDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarsDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarChartOptionsDialog(state) : ""}
+          ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(container, state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderGroupSortDialog(state, t) : ""}\n          ${state.activeMenu === "schedule" ? renderFiltersDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarsDialog(state) : ""}\n          ${state.activeMenu === "schedule" ? renderBarChartOptionsDialog(state) : ""}
           ${state.activeMenu === "schedule" ? renderColumnsDialog(state, options.layoutHistory) : ""}
           ${state.activeMenu === "progress" ? renderUpdateProgressDialog(state) : ""}
           ${state.activeMenu === "progress" ? renderPeriodPerformanceDialog(state) : ""}
           ${state.activeMenu === "schedule" ? renderWorkspaceCommandRibbon(state, t) : ""}
           <main class="cp-main">
             <div class="cp-p6-primary">
-              <section class="cp-p6-split" data-panel-split data-workspace-menu="schedule">
+              <section class="cp-p6-split" data-panel-split data-workspace-menu="schedule" ${(activityTopLayoutByContainer.get(container) ?? "table-gantt") === "activity-network" ? "hidden" : ""}>
                 <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-grid-head">
                     <h2>${escapeHtml(t.activities)}</h2>
@@ -1676,6 +1686,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   </div>
                   ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}
                 </section>
+              </section>
+              <section id="cp-activity-network" class="cp-panel cp-activity-network" data-workspace-menu="schedule" ${activityTopLayoutByContainer.get(container) === "activity-network" ? "" : "hidden"}>
+                ${renderActivityNetwork(visibleActivities, state.relationships, state.selectedActivityId, state.locale)}
               </section>
               ${renderP6ModuleStage(container, state, t)}
             </div>
@@ -3186,6 +3199,53 @@ const ACTIVITY_DETAIL_TABS = [
   ["update-history", "Update History", "تاریخچه به‌روزرسانی"],
 ] as const;
 
+function renderActivityNetwork(activities: WorkspaceState["activities"], relationships: WorkspaceState["relationships"], selectedActivityId: string | null, locale: WorkspaceState["locale"]): string {
+  if (!activities.length) return '<div class="cp-activity-network-empty">' + escapeHtml(uiText(locale, "No activity records are loaded for the network view.", "برای نمای شبکه، رکورد فعالیتی بارگذاری نشده است.")) + '</div>';
+  const ids = new Set(activities.map((activity) => activity.id));
+  const indegree = new Map(activities.map((activity) => [activity.id, 0]));
+  const outgoing = new Map(activities.map((activity) => [activity.id, [] as string[]]));
+  for (const relationship of relationships) {
+    if (!ids.has(relationship.predecessorId) || !ids.has(relationship.successorId)) continue;
+    outgoing.get(relationship.predecessorId)?.push(relationship.successorId);
+    indegree.set(relationship.successorId, (indegree.get(relationship.successorId) ?? 0) + 1);
+  }
+  const levels = new Map(activities.map((activity) => [activity.id, 0]));
+  const queue = activities.filter((activity) => (indegree.get(activity.id) ?? 0) === 0).map((activity) => activity.id);
+  while (queue.length) {
+    const current = queue.shift()!;
+    for (const successor of outgoing.get(current) ?? []) {
+      levels.set(successor, Math.max(levels.get(successor) ?? 0, (levels.get(current) ?? 0) + 1));
+      const remaining = (indegree.get(successor) ?? 0) - 1;
+      indegree.set(successor, remaining);
+      if (remaining === 0) queue.push(successor);
+    }
+  }
+  const groups = new Map<number, typeof activities[number][]>();
+  for (const activity of activities) { const level = levels.get(activity.id) ?? 0; const group = groups.get(level) ?? []; group.push(activity); groups.set(level, group); }
+  const maxLevel = Math.max(0, ...groups.keys());
+  const maxRows = Math.max(1, ...[...groups.values()].map((group) => group.length));
+  const cardWidth = 190, cardHeight = 72, columnGap = 92, rowGap = 34;
+  const width = 60 + (maxLevel + 1) * cardWidth + maxLevel * columnGap;
+  const height = 60 + maxRows * cardHeight + (maxRows - 1) * rowGap;
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const [level, group] of groups) group.forEach((activity, index) => positions.set(activity.id, { x: 30 + level * (cardWidth + columnGap), y: 30 + index * (cardHeight + rowGap) }));
+  const edges = relationships.filter((relationship) => ids.has(relationship.predecessorId) && ids.has(relationship.successorId)).map((relationship) => {
+    const from = positions.get(relationship.predecessorId), to = positions.get(relationship.successorId);
+    if (!from || !to) return "";
+    const startX = from.x + cardWidth, startY = from.y + cardHeight / 2, endX = to.x, endY = to.y + cardHeight / 2;
+    const bend = Math.max(36, Math.abs(endX - startX) * 0.45);
+    const label = String(relationship.type ?? "FS").toUpperCase();
+    const lag = formatRelationshipLag(relationship.lagValue, relationship.lagUnit, getWorkspaceLabels(locale));
+    return '<path class="cp-activity-network-edge" d="M ' + startX + ' ' + startY + ' C ' + (startX + bend) + ' ' + startY + ', ' + (endX - bend) + ' ' + endY + ', ' + endX + ' ' + endY + '" marker-end="url(#cp-activity-network-arrow)"></path><text class="cp-activity-network-edge-label" x="' + ((startX + endX) / 2) + '" y="' + ((startY + endY) / 2 - 7) + '">' + escapeHtml(label + (lag && lag !== "0" ? " · " + lag : "")) + '</text>';
+  }).join("");
+  const nodes = activities.map((activity) => {
+    const position = positions.get(activity.id) ?? { x: 30, y: 30 };
+    const selected = activity.id === selectedActivityId, critical = Boolean(activity.gantt?.critical);
+    return '<button type="button" class="cp-activity-network-node' + (selected ? ' is-selected' : '') + (critical ? ' is-critical' : '') + '" data-activity-id="' + escapeAttribute(activity.id) + '" aria-pressed="' + String(selected) + '" style="left:' + position.x + 'px;top:' + position.y + 'px"><span>' + escapeHtml(activity.id) + '</span><strong>' + escapeHtml(activity.name) + '</strong></button>';
+  }).join("");
+  const noEdges = edges ? "" : '<p class="cp-activity-network-note">' + escapeHtml(uiText(locale, "No relationships are loaded; only activity nodes are shown.", "رابطه‌ای بارگذاری نشده است؛ فقط گره‌های فعالیت نمایش داده می‌شوند.")) + '</p>';
+  return '<div class="cp-activity-network-scroll"><div class="cp-activity-network-canvas" style="width:' + width + 'px;height:' + height + 'px"><svg class="cp-activity-network-edges" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true"><defs><marker id="cp-activity-network-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker></defs>' + edges + '</svg>' + nodes + '</div></div>' + noEdges;
+}
 function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, activeTab: string, visibleTabs: ReadonlySet<string>): string {
   const activity = state.activities.find((item) => item.id === state.selectedActivityId);
   const value = (key: string): string => {
@@ -3295,7 +3355,7 @@ function getActivityDetailsVisibleTabs(container: HTMLElement): Set<string> {
   return defaults;
 }
 
-function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): string {
+function renderLayoutOptionsDialog(container: HTMLElement, state: WorkspaceState, t: WorkspaceLabels): string {
   const scaleLabels: Record<WorkspaceGanttScale, string> = {
     day: t.scaleDay,
     week: t.scaleWeek,
@@ -3323,7 +3383,7 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): s
           <fieldset class="cp-layout-options-section">
             <legend>${escapeHtml(uiText(state.locale, "Top Layout", "چیدمان بالا"))}</legend>
             <label>${escapeHtml(uiText(state.locale, "Primary view", "نمای اصلی"))}
-              <select data-top-layout><option value="table-gantt" selected>${escapeHtml(uiText(state.locale, "Activity Table + Gantt Chart", "جدول فعالیت‌ها + نمودار گانت"))}</option><option value="activity-network" disabled>Activity Network</option><option value="activity-usage-spreadsheet" disabled>Activity Usage Spreadsheet</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="resource-usage-spreadsheet" disabled>Resource Usage Spreadsheet</option><option value="resource-usage-profile" disabled>Resource Usage Profile</option><option value="trace-logic" disabled>Trace Logic</option></select>
+              <select data-top-layout><option value="table-gantt" ${(activityTopLayoutByContainer.get(container) ?? "table-gantt") === "table-gantt" ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Table + Gantt Chart", "جدول فعالیت‌ها + نمودار گانت"))}</option><option value="activity-network" ${(activityTopLayoutByContainer.get(container) ?? "table-gantt") === "activity-network" ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Network", "شبکه فعالیت‌ها"))}</option><option value="activity-usage-spreadsheet" disabled>Activity Usage Spreadsheet</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="resource-usage-spreadsheet" disabled>Resource Usage Spreadsheet</option><option value="resource-usage-profile" disabled>Resource Usage Profile</option><option value="trace-logic" disabled>Trace Logic</option></select>
             </label>
           </fieldset>
           <fieldset class="cp-layout-options-section">
