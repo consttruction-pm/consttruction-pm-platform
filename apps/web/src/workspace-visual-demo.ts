@@ -183,6 +183,8 @@ type DemoState = {
   scale: "day" | "week" | "month" | "quarter" | "year";
   activityView: "schedule" | "relationships";
   detailTab: string;
+  moduleDetailTab: "general" | "status" | "relationships" | "comments" | "history";
+  moduleSelectedRow: number;
   calendarMonth: number;
   adminSection: string;
   filter: string;
@@ -627,9 +629,35 @@ function renderAdministration(state: DemoState): string {
 }
 
 function renderTableWindow(state: DemoState, title: Label, headers: string[], rows: Row[], actions: string[] = []): string {
-  return `<section class="cp-vd-windowbody">
+  const selected = rows[Math.min(state.moduleSelectedRow, Math.max(0, rows.length - 1))] ?? {};
+  const detailTabs: Array<[DemoState["moduleDetailTab"], string, string]> = [
+    ["general", "General", "عمومی"], ["status", "Status", "وضعیت"], ["relationships", "Relationships", "روابط"],
+    ["comments", "Comments", "دیدگاه‌ها"], ["history", "History", "تاریخچه"],
+  ];
+  const detail = state.moduleDetailTab === "comments"
+    ? `<div class="cp-vd-hintbox">${esc(t(state.locale, "Comments and notes are preview-only in this workspace.", "دیدگاه‌ها و یادداشت‌ها در این محیط صرفاً نمایشی هستند."))}<p>Site Engineer · 03-Dec-2026</p><p>Review the latest update and confirm the responsible owner.</p></div>`
+    : state.moduleDetailTab === "history"
+      ? `<div class="cp-vd-hintbox">${esc(t(state.locale, "Revision history is shown as a visual example; no audit event is persisted.", "تاریخچه نسخه صرفاً نمونه بصری است و رویداد ممیزی ذخیره نمی‌شود."))}<p>03-Dec-2026 · Item opened</p><p>02-Dec-2026 · Status reviewed</p></div>`
+      : state.moduleDetailTab === "relationships"
+        ? `<div class="cp-vd-hintbox">${esc(t(state.locale, "Related project objects", "اشیای مرتبط پروژه"))}<p>Project → WBS → Activities → Resources / Documents</p><p>${esc(t(state.locale, "Related links are navigation examples only.", "پیوندهای مرتبط صرفاً نمونه ناوبری هستند."))}</p></div>`
+        : `<dl class="cp-vd-module-detail">${headers.map((header) => `<div><dt>${esc(header)}</dt><dd>${esc(selected[header] ?? "—")}</dd></div>`).join("")}</dl>`;
+  return `<section class="cp-vd-windowbody cp-vd-module-window">
     <header class="cp-vd-winhead"><h2>${esc(label(title, state.locale))}</h2><div class="cp-vd-winactions">${actions.map((action) => `<button type="button" class="cp-vd-btn" data-vd-dialog="${esc(action)}">${esc(t(state.locale, action, { "new-project": "New project", "assign-resources": "Assign resources", "assign-roles": "Assign roles", "schedule": "Schedule", "level": "Level resources", "import": "Import", "export": "Export", "print": "Print preview", "baselines": "Baselines", "report-wizard": "Report wizard" }[action] ?? action))}</button>`).join("")}</div></header>
-    <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr>${headers.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${headers.map((header) => `<td>${esc(row[header] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <div class="cp-vd-module-toolbar" role="toolbar" aria-label="${esc(t(state.locale, "Page commands", "فرمان‌های صفحه"))}">
+      <button type="button" data-vd-dialog="module-actions">＋ ${esc(t(state.locale, "Add", "افزودن"))}</button>
+      <button type="button" data-vd-dialog="module-actions">✎ ${esc(t(state.locale, "Edit", "ویرایش"))}</button>
+      <button type="button" disabled title="${esc(t(state.locale, "Preview only — delete is not connected", "پیش‌نمایش — حذف متصل نیست"))}">⌫ ${esc(t(state.locale, "Delete", "حذف"))}</button>
+      <button type="button" data-vd-dialog="filters">▽ ${esc(t(state.locale, "Filter", "فیلتر"))}</button>
+      <button type="button" data-vd-dialog="columns">▦ ${esc(t(state.locale, "Columns", "ستون‌ها"))}</button>
+      <span class="cp-vd-note">${esc(t(state.locale, "Visual preview — not connected", "پیش‌نمایش بصری — متصل نیست"))}</span>
+    </div>
+    <div class="cp-vd-module-split">
+      <div class="cp-vd-tablewrap"><table class="cp-vd-table"><thead><tr><th>#</th>${headers.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${rows.map((row, index) => `<tr class="cp-vd-row${index === state.moduleSelectedRow ? " is-selected" : ""}" data-vd-module-row="${index}"><td class="cp-vd-rownum">${index + 1}</td>${headers.map((header) => `<td>${esc(row[header] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      <aside class="cp-vd-module-details"><div class="cp-vd-detail-heading"><strong>${esc(t(state.locale, "Details", "جزئیات"))}</strong><span>${esc(String(selected[headers[0]] ?? "—"))}</span></div>
+        <div class="cp-vd-detail-tabs" role="tablist">${detailTabs.map(([id, en, fa]) => `<button type="button" role="tab" aria-selected="${state.moduleDetailTab === id}" class="${state.moduleDetailTab === id ? "is-active" : ""}" data-vd-module-tab="${id}">${esc(t(state.locale, en, fa))}</button>`).join("")}</div>
+        <div class="cp-vd-module-detail-panel">${detail}</div>
+      </aside>
+    </div>
   </section>`;
 }
 
@@ -1398,6 +1426,24 @@ function renderLanguageSwitch(state: DemoState): string {
 export function renderVisualDemo(state: DemoState): string {
   const index = WINDOWS.findIndex((window) => window.id === state.window);
   return `<style>
+  .cp-vd-module-toolbar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:7px 10px;border-block:1px solid #d8e0e9;background:#f0f4f8}
+  .cp-vd-module-toolbar button{border:1px solid #cbd6e2;border-radius:3px;background:#fff;color:#294765;padding:5px 9px;font:11px Inter,Vazirmatn,sans-serif}
+  .cp-vd-module-toolbar button:disabled{opacity:.5;cursor:not-allowed}
+  .cp-vd-module-toolbar .cp-vd-note{margin-inline-start:auto}
+  .cp-vd-module-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(245px,30%);min-height:350px}
+  .cp-vd-module-details{background:#f0f4f8;border-inline-start:1px solid #cbd5e1;padding:8px;min-width:0}
+  .cp-vd-detail-heading{display:flex;justify-content:space-between;gap:8px;padding:7px;color:#294765}
+  .cp-vd-detail-heading span{font-size:11px;color:#6b7d91}
+  .cp-vd-detail-tabs{display:flex;gap:3px;overflow-x:auto;border-bottom:1px solid #cbd5e1}
+  .cp-vd-detail-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:7px 8px;white-space:nowrap;color:#53677e;font-size:11px}
+  .cp-vd-detail-tabs button.is-active{border-color:#c87935;color:#173d68;font-weight:700}
+  .cp-vd-module-detail-panel{padding:10px 4px;font-size:11px}
+  .cp-vd-module-detail{margin:0;display:grid;grid-template-columns:1fr;gap:7px}
+  .cp-vd-module-detail div{display:grid;grid-template-columns:minmax(85px,38%) minmax(0,1fr);gap:8px;border-bottom:1px solid #dce3eb;padding:4px}
+  .cp-vd-module-detail dt{color:#6b7d91}.cp-vd-module-detail dd{margin:0;color:#263d56;font-weight:600}
+  @media(max-width:900px){.cp-vd-module-split{grid-template-columns:1fr}.cp-vd-module-details{border-inline-start:0;border-top:1px solid #cbd5e1}.cp-vd-module-toolbar .cp-vd-note{margin-inline-start:0}}
+</style>
+<style>
   .cp-vd-workspace-grid{display:grid;grid-template-columns:208px minmax(0,1fr) 48px;min-height:560px;background:#eef2f7}
   .cp-vd-left-nav{min-width:0;overflow:auto;background:#e7edf5;border-inline-end:1px solid #c7d2df;padding:8px 6px}
   .cp-vd-nav-heading{padding:10px 8px 5px;color:#718096;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
@@ -1452,6 +1498,8 @@ export function createVisualDemoState(locale: string): DemoState {
     scale: "month",
     activityView: "schedule",
     detailTab: "general",
+    moduleDetailTab: "general",
+    moduleSelectedRow: 0,
     calendarMonth: 1,
     adminSection: "users",
     filter: "",
@@ -1706,6 +1754,19 @@ function bind(root: HTMLElement): void {
     if (calPrev) { state.calendarMonth = Math.max(0, state.calendarMonth - 1); draw(); return; }
     const calNext = target.closest<HTMLElement>("[data-vd-cal-next]");
     if (calNext) { state.calendarMonth = Math.min(CAL_MONTHS.length - 1, state.calendarMonth + 1); draw(); return; }
+    const moduleTab = target.closest<HTMLElement>("[data-vd-module-tab]");
+    if (moduleTab?.dataset.vdModuleTab) {
+      state.moduleDetailTab = moduleTab.dataset.vdModuleTab as DemoState["moduleDetailTab"];
+      draw();
+      return;
+    }
+    const moduleRow = target.closest<HTMLElement>("[data-vd-module-row]");
+    if (moduleRow?.dataset.vdModuleRow !== undefined) {
+      state.moduleSelectedRow = Number(moduleRow.dataset.vdModuleRow);
+      state.moduleDetailTab = "general";
+      draw();
+      return;
+    }
     const adminSection = target.closest<HTMLElement>("[data-vd-admin]");
     if (adminSection?.dataset.vdAdmin) { state.adminSection = adminSection.dataset.vdAdmin; draw(); return; }
     const wbsToggle = target.closest<HTMLElement>("[data-vd-wbs-toggle]");
