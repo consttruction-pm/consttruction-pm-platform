@@ -204,6 +204,7 @@ const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart">()
 const calendarEditorTabByContainer = new WeakMap<HTMLElement, "general" | "workweek" | "exceptions" | "time-periods" | "assignments">();
 const calendarSelectionByContainer = new WeakMap<HTMLElement, string>();
 const trackingLayoutByContainer = new WeakMap<HTMLElement, "table" | "bar-chart" | "gantt-profile" | "resource-analysis">();
+const assignmentUsageVisibleByContainer = new WeakMap<HTMLElement, boolean>();
 type TrackingDisplayState = { showProjectExplorer: boolean; showResourceExplorer: boolean; showTopLayout: boolean; showBottomLayout: boolean };
 const trackingDisplayByContainer = new WeakMap<HTMLElement, TrackingDisplayState>();
 function getTrackingDisplayState(container: HTMLElement): TrackingDisplayState {
@@ -390,11 +391,20 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-select],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-tracking-display],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-select],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-tracking-display],[data-assignment-usage-toggle],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.assignmentUsageToggle !== undefined) {
+      const visible = !(assignmentUsageVisibleByContainer.get(container) ?? false);
+      assignmentUsageVisibleByContainer.set(container, visible);
+      const panel = container.querySelector<HTMLElement>("[data-assignment-usage-panel]");
+      if (panel) panel.hidden = !visible;
+      target.setAttribute("aria-pressed", String(visible));
+      target.textContent = uiText(state.locale, visible ? "Hide Usage Spreadsheet" : "Show Usage Spreadsheet", visible ? "پنهان‌کردن صفحه‌گسترده مصرف" : "نمایش صفحه‌گسترده مصرف");
+      return;
+    }
     if (target.dataset.trackingDisplay !== undefined) {
       const display = getTrackingDisplayState(container);
       const key = target.dataset.trackingDisplay;
@@ -1584,6 +1594,19 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 }
 
 
+function renderResourceAssignmentsWindow(container: HTMLElement, state: WorkspaceState): string {
+  const visible = assignmentUsageVisibleByContainer.get(container) ?? false;
+  const base = renderRegisterWindow(
+    state,
+    uiText(state.locale, "Resource Assignments", "تخصیص منابع"),
+    [["Activity ID","شناسه فعالیت"],["Activity Name","نام فعالیت"],["Resource","منبع"],["Role","نقش"],["Budgeted Units","واحد بودجه"],["Actual Units","واحد واقعی"],["Remaining Units","واحد باقی‌مانده"],["Units / Time","واحد / زمان"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Rate Type","نوع نرخ"],["Calendar","تقویم"]],
+    [["general","General","عمومی"],["planning","Planning","برنامه‌ریزی"],["costs","Costs","هزینه‌ها"],["units-prices","Units & Prices","واحدها و قیمت‌ها"],["udfs","UDFs","فیلدهای کاربر"]],
+  ).replace('<div class="cp-register-window">', '<div class="cp-register-window cp-resource-assignments-window">');
+  const toolbar = "<div class=\"cp-assignment-usage-toolbar\"><strong>" + escapeHtml(uiText(state.locale, "Assignment Analysis", "تحلیل تخصیص")) + "</strong><button type=\"button\" data-assignment-usage-toggle aria-pressed=\"" + String(visible) + "\">" + escapeHtml(uiText(state.locale, visible ? "Hide Usage Spreadsheet" : "Show Usage Spreadsheet", visible ? "پنهان‌کردن صفحه‌گسترده مصرف" : "نمایش صفحه‌گسترده مصرف")) + "</button></div>";
+  const headers = ["Assignment","Resource","Total","Wk 1","Wk 2","Wk 3","Wk 4"].map((name) => "<th>" + escapeHtml(name) + "</th>").join("");
+  const usage = "<section class=\"cp-assignment-usage-panel\" data-assignment-usage-panel " + (visible ? "" : "hidden") + " aria-label=\"" + escapeAttribute(uiText(state.locale, "Resource Usage Spreadsheet", "صفحه‌گسترده مصرف منابع")) + "\"><header><strong>" + escapeHtml(uiText(state.locale, "Resource Usage Spreadsheet", "صفحه‌گسترده مصرف منابع")) + "</strong><div class=\"cp-assignment-usage-options\"><label>" + escapeHtml(uiText(state.locale, "Timescale", "مقیاس زمانی")) + "<select disabled><option>Week</option><option>Day</option><option>Month</option><option>Quarter</option><option>Financial Period</option></select></label><label>" + escapeHtml(uiText(state.locale, "Data", "داده")) + "<select disabled><option>Budgeted Units</option><option>Actual Units</option><option>Remaining Units</option><option>Budgeted Cost</option><option>Actual Cost</option></select></label><button type=\"button\" disabled>" + escapeHtml(uiText(state.locale, "Spreadsheet Fields…", "فیلدهای صفحه‌گسترده…")) + "</button></div></header><div class=\"cp-assignment-usage-table-wrap\"><table><thead><tr>" + headers + "</tr></thead><tbody><tr><td colspan=\"7\">" + escapeHtml(uiText(state.locale, "No resource assignment time-phased values are loaded.", "مقادیر زمان‌بندی‌شده تخصیص منابع بارگذاری نشده‌اند.")) + "</td></tr></tbody></table></div><p>" + escapeHtml(uiText(state.locale, "Budgeted, actual and remaining units/costs are shown by time period when assignment data are available. Editing and fill-down/across are disabled until the assignment service supplies editable period buckets.", "واحدها و هزینه‌های بودجه‌ای، واقعی و باقیمانده در دوره‌های زمانی نمایش داده می‌شوند. ویرایش و پرکردن افقی/عمودی تا ارائه بازه‌های قابل‌ویرایش توسط سرویس تخصیص غیرفعال است.")) + "</p></section>";
+  return "<div class=\"cp-assignment-workspace\">" + toolbar + base.replace('<section class="cp-register-details">', usage + '<section class="cp-register-details">') + "</div>";
+}
 function renderRegisterWindow(
   state: WorkspaceState,
   title: string,
@@ -1860,7 +1883,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         </div>`;
       break;
     case "assignments":
-      body = renderRegisterWindow(state, uiText(state.locale, "Resource Assignments", "تخصیص منابع"), [["Activity ID","شناسه فعالیت"],["Activity Name","نام فعالیت"],["Resource","منبع"],["Role","نقش"],["Budgeted Units","واحد بودجه"],["Actual Units","واحد واقعی"],["Remaining Units","واحد باقی‌مانده"],["Units / Time","واحد / زمان"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Rate Type","نوع نرخ"],["Calendar","تقویم"]], [["general","General","عمومی"],["planning","Planning","برنامه‌ریزی"],["costs","Costs","هزینه‌ها"],["units-prices","Units & Prices","واحدها و قیمت‌ها"],["udfs","UDFs","فیلدهای کاربر"]]);
+      body = renderResourceAssignmentsWindow(container, state);
       break;
     case "roles":
       body = `
