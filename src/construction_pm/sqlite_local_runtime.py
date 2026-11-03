@@ -472,6 +472,11 @@ class SQLiteLocalApplicationRuntime:
                 baseline_api=self.baseline_api,
                 cost_account_api=self.cost_account_api,
                 expense_api=self.expense_api,
+                resource_read_api=self.resource_read_api,
+                resource_write_api=self.resource_write_api,
+                resource_spread_api=self.resource_spread_api,
+                resource_capacity_read_api=self.resource_capacity_read_api,
+                resource_capacity_write_api=self.resource_capacity_write_api,
             ),
             mutation_executor=execute_local_mutation,
         )
