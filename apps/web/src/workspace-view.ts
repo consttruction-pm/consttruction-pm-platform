@@ -1037,9 +1037,10 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if (target.dataset.activityNavigate) {
-      const currentIndex = state.activities.findIndex((item) => item.id === state.selectedActivityId);
+      const navigableActivities = filterAndSortActivities(state.activities, state.activityFilter, state.activitySort, state.activityGroupBy, state.wbsNodes);
+      const currentIndex = navigableActivities.findIndex((item) => item.id === state.selectedActivityId);
       const nextIndex = target.dataset.activityNavigate === "previous" ? currentIndex - 1 : currentIndex + 1;
-      const nextActivity = state.activities[nextIndex];
+      const nextActivity = navigableActivities[nextIndex];
       if (nextActivity) options.onActivitySelect?.(nextActivity.id);
       return;
     }
@@ -3151,9 +3152,10 @@ function renderWindowDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, con
     </div>`;
   }
   const title = getWorkspaceNavigationLabel(getWorkspaceNavigation(state.activeMenu), state.locale);
-  const activityIndex = activity ? state.activities.findIndex((item) => item.id === activity.id) : -1;
+  const navigableActivities = filterAndSortActivities(state.activities, state.activityFilter, state.activitySort, state.activityGroupBy, state.wbsNodes);
+  const activityIndex = activity ? navigableActivities.findIndex((item) => item.id === activity.id) : -1;
   const previousAvailable = activityIndex > 0;
-  const nextAvailable = activityIndex >= 0 && activityIndex < state.activities.length - 1;
+  const nextAvailable = activityIndex >= 0 && activityIndex < navigableActivities.length - 1;
   const navigator = `<div class="cp-activity-detail-navigator" aria-label="${escapeAttribute(uiText(state.locale, "Activity record navigation", "پیمایش رکورد فعالیت"))}">
     <button type="button" data-activity-navigate="previous" ${previousAvailable ? "" : "disabled"} title="${escapeAttribute(uiText(state.locale,"Previous activity","فعالیت قبلی"))}">◀ ${escapeHtml(uiText(state.locale,"Previous","قبلی"))}</button>
     <button type="button" data-activity-navigate="next" ${nextAvailable ? "" : "disabled"} title="${escapeAttribute(uiText(state.locale,"Next activity","فعالیت بعدی"))}">${escapeHtml(uiText(state.locale,"Next","بعدی"))} ▶</button>
