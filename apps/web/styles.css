@@ -6959,3 +6959,31 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 @media(max-width:760px){.cp-p6 .cp-vd-resource-detail-body{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-vd-resource-detail-body .cp-vd-form{grid-template-columns:minmax(0,1fr)}}
 
 .cp-p6 .cp-vd-resource-details>section{min-width:0;padding:8px;border:1px solid #cbd5e1;background:#fff}.cp-p6 .cp-vd-resource-details>section h3{margin:0 0 7px;padding-bottom:5px;border-bottom:1px solid #e2e8f0;color:#244463;font-size:10px}.cp-p6 .cp-vd-resource-details>section .cp-vd-mini{width:100%;border-collapse:collapse;font-size:9px}.cp-p6 .cp-vd-resource-details>section .cp-vd-mini th,.cp-p6 .cp-vd-resource-details>section .cp-vd-mini td{padding:6px;border-bottom:1px solid #e2e8f0;text-align:start}
+
+/* Print preview, printer selection and page setup panels. */
+.cp-p6 .cp-vd-print-workspace{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cp-p6 .cp-vd-print-toolbar{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:6px;border:1px solid #cbd5e1;background:#f1f4f8}
+.cp-p6 .cp-vd-print-toolbar button{min-height:26px;padding:4px 7px;border:1px solid #c5cfdb;background:#fff;color:#40566e;font-size:9px}
+.cp-p6 .cp-vd-print-toolbar button:disabled{opacity:.45}
+.cp-p6 .cp-vd-print-divider{height:20px;margin:0 4px;border-inline-start:1px solid #c5cfdb}
+.cp-p6 .cp-vd-print-page-count{min-width:72px;text-align:center;color:#52657a;font-size:9px}
+.cp-p6 .cp-vd-print-stage{display:flex;justify-content:center;overflow:auto;padding:14px;background:#e7ebf0;border:1px solid #cbd5e1}
+.cp-p6 .cp-vd-print-page{display:flex;flex-direction:column;gap:10px;width:min(100%,780px);min-width:570px;min-height:500px;padding:34px 38px;background:#fff;box-shadow:0 2px 9px #1e293b22;color:#24364b;font-size:9px}
+.cp-p6 .cp-vd-print-page h2{margin:18px 0 0;text-align:center;font-size:17px}
+.cp-p6 .cp-vd-print-page>p{text-align:center;color:#64748b}
+.cp-p6 .cp-vd-print-page-header,.cp-p6 .cp-vd-print-page-footer{display:flex;justify-content:space-between;gap:8px;padding-bottom:7px;border-bottom:1px solid #d8e0e9;color:#64748b;font-size:8px}
+.cp-p6 .cp-vd-print-page-footer{margin-top:auto;padding:7px 0 0;border-top:1px solid #d8e0e9;border-bottom:0}
+.cp-p6 .cp-vd-print-page .cp-vd-mini{width:100%;border-collapse:collapse}
+.cp-p6 .cp-vd-print-page .cp-vd-mini th,.cp-p6 .cp-vd-print-page .cp-vd-mini td{padding:7px 5px;border:1px solid #dbe2ea;text-align:start}
+.cp-p6 .cp-vd-print-page .cp-vd-mini th{background:#f3f6fa}
+.cp-p6 .cp-vd-print-gantt{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;height:68px;margin-top:12px;border:1px solid #e2e8f0;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(12.5% - 1px),#e2e8f0 calc(12.5% - 1px),#e2e8f0 12.5%)}
+.cp-p6 .cp-vd-print-gantt span{height:8px;margin-top:7px;background:#527fa9}.cp-p6 .cp-vd-print-gantt span:nth-child(2n){margin-top:20px;background:#c17a3b}.cp-p6 .cp-vd-page-setup{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cp-p6 .cp-vd-page-setup-tabs{display:flex;gap:3px;overflow:auto;border-bottom:1px solid #aab9c9;background:#f3f6f9}
+.cp-p6 .cp-vd-page-setup-tabs button{padding:7px 10px;border:1px solid transparent;border-bottom:0;background:transparent;color:#52657a;font-size:9px;white-space:nowrap}
+.cp-p6 .cp-vd-page-setup-tabs button.is-active{border-color:#b8c7d8;background:#fff;color:#1f456b;font-weight:700}
+.cp-p6 .cp-vd-page-setup-section{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px;border:1px solid #cbd5e1;background:#fff;color:#52657a;font-size:9px}
+.cp-p6 .cp-vd-page-setup-section h3{flex:0 0 100%;margin:0;padding-bottom:5px;border-bottom:1px solid #e2e8f0;color:#244463;font-size:10px}
+.cp-p6 .cp-vd-page-setup-section>label{display:flex;align-items:center;gap:5px}
+.cp-p6 .cp-vd-page-setup-section input:not([type=radio]):not([type=checkbox]),.cp-p6 .cp-vd-page-setup-section select{max-width:120px;min-height:24px;padding:3px 5px;border:1px solid #c5cfdb;background:#f8fafc;color:#52657a;font:inherit}
+.cp-p6 .cp-vd-page-setup-section .cp-vd-form{flex:1 1 100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+@media(max-width:760px){.cp-p6 .cp-vd-print-page{min-width:500px;padding:22px}.cp-p6 .cp-vd-page-setup-section .cp-vd-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
