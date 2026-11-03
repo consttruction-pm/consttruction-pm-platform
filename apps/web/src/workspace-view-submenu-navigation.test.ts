@@ -50,10 +50,10 @@ test("Tracking layout choices are selectable while data-dependent actions remain
   const html = render("tracking");
 
   assert.match(html, /data-tracking-layout/);
-  assert.match(html, /<option value="table">Project Table<\/option>/);
-  assert.match(html, /<option value="bar-chart">Project Bar Chart<\/option>/);
-  assert.match(html, /<option value="gantt-profile">Project Gantt \/ Profile<\/option>/);
-  assert.match(html, /<option value="resource-analysis">Resource Analysis<\/option>/);
+  assert.match(html, /<option value="table"[^>]*>Project Table<\/option>/);
+  assert.match(html, /<option value="bar-chart"[^>]*>Project Bar Chart<\/option>/);
+  assert.match(html, /<option value="gantt-profile"[^>]*>Project Gantt \/ Profile<\/option>/);
+  assert.match(html, /<option value="resource-analysis"[^>]*>Resource Analysis<\/option>/);
   assert.match(html, /data-tracking-surface="table"/);
   assert.match(html, /No tracking data/);
   assert.match(html, /<button type="button" disabled>Refresh Data<\/button>/);
