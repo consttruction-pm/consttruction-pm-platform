@@ -70,7 +70,7 @@ test("all expanded control modules render as navigable visual workspace windows"
   const modules = [
     ["cost-control", "Cost &amp; Financial Control"],
     ["progress-control", "Progress &amp; Field Control"],
-    ["procurement", "Procurement & Materials"],
+    ["procurement", "Procurement &amp; Materials"],
     ["changes-claims", "Changes &amp; Claims"],
     ["form-builder", "Form Builder"],
     ["organization", "Organization"],
