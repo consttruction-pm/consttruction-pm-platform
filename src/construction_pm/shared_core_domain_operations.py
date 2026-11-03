@@ -188,6 +188,7 @@ def build_project_domain_operations(
                 required_fields=frozenset(required),
                 allowed_fields=frozenset(allowed),
                 handler=handler,
+                mutates=permission is Permission.PROJECT_WRITE,
             )
 
     if activity_api is not None:
@@ -271,6 +272,7 @@ def build_project_domain_operations(
                 required_fields=frozenset(required),
                 allowed_fields=frozenset(allowed),
                 handler=handler,
+                mutates=permission is Permission.PROJECT_WRITE,
             )
 
     if relationship_api is not None:
@@ -334,6 +336,7 @@ def build_project_domain_operations(
                 required_fields=frozenset(required),
                 allowed_fields=frozenset(allowed),
                 handler=handler,
+                mutates=permission is Permission.PROJECT_WRITE,
             )
 
     if constraint_api is not None:
@@ -391,6 +394,7 @@ def build_project_domain_operations(
                 required_fields=frozenset(required),
                 allowed_fields=frozenset(allowed),
                 handler=handler,
+                mutates=permission is Permission.PROJECT_WRITE,
             )
 
 
@@ -477,6 +481,7 @@ def build_project_domain_operations(
                 required_fields=frozenset(required),
                 allowed_fields=frozenset(allowed),
                 handler=handler,
+                mutates=permission is Permission.PROJECT_WRITE,
             )
 
         def calendar_exception_list(payload: Mapping[str, object], actor: AuthorizationContext, revision: int) -> object:
@@ -563,6 +568,7 @@ def build_project_domain_operations(
             required_fields=frozenset({"rule"}),
             allowed_fields=frozenset({"rule"}),
             handler=calendar_work_hours_save,
+            mutates=True,
         )
 
     if calendar_read_api is not None:
@@ -629,6 +635,7 @@ def build_project_domain_operations(
             required_fields=frozenset({"timezone_name"}),
             allowed_fields=frozenset({"timezone_name", "request_id", "idempotency_key"}),
             handler=schedule_publish,
+            mutates=True,
         )
 
 
@@ -677,6 +684,7 @@ def build_project_domain_operations(
                 required_fields=frozenset(required),
                 allowed_fields=frozenset(allowed),
                 handler=handler,
+                mutates=permission is Permission.PROJECT_WRITE,
             )
 
     if cost_account_api is not None:
@@ -719,6 +727,7 @@ def build_project_domain_operations(
                 required_fields=frozenset(required),
                 allowed_fields=frozenset(allowed),
                 handler=handler,
+                mutates=permission is Permission.PROJECT_WRITE,
             )
 
     if expense_api is not None:
@@ -785,6 +794,7 @@ def build_project_domain_operations(
                 required_fields=frozenset(required),
                 allowed_fields=frozenset(allowed),
                 handler=handler,
+                mutates=permission is Permission.PROJECT_WRITE,
             )
 
     return operations
