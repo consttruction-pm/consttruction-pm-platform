@@ -6871,3 +6871,25 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-vd-layout-properties fieldset legend{padding:0 4px;color:#607187}
 .cp-p6 [dir="rtl"] .cp-vd-layout-toolbar .cp-vd-note{margin-inline-start:0;margin-inline-end:auto}
 @media(max-width:760px){.cp-p6 .cp-vd-layout-manager-grid{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-vd-layout-toolbar .cp-vd-note{width:100%;margin:3px 0 0}.cp-p6 .cp-vd-layout-list{overflow-x:auto}}
+
+/* Resource and role assignment windows use a catalogue/editor split. */
+.cp-p6 .cp-vd-assignment-dialog{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cp-p6 .cp-vd-assignment-context{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid #cbd5e1;background:#f2f5f9;color:#244463;font-size:10px}
+.cp-p6 .cp-vd-assignment-context span{color:#52657a}
+.cp-p6 .cp-vd-assignment-filter{display:flex;flex-wrap:wrap;gap:8px}
+.cp-p6 .cp-vd-assignment-filter label{display:flex;align-items:center;gap:7px;color:#52657a;font-size:9px}
+.cp-p6 .cp-vd-assignment-filter input,.cp-p6 .cp-vd-assignment-filter select{min-height:26px;padding:3px 7px;border:1px solid #b9c6d5;background:#fff;color:#31465e;font:inherit;font-size:9px}
+.cp-p6 .cp-vd-assignment-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(230px,.8fr);gap:8px;min-height:220px}
+.cp-p6 .cp-vd-assignment-grid>section,.cp-p6 .cp-vd-assignment-grid>aside{min-width:0;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-vd-assignment-grid h3{margin:0;padding:7px 9px;border-bottom:1px solid #d8e0e9;background:#f2f5f9;color:#244463;font-size:10px}
+.cp-p6 .cp-vd-assignment-table{overflow:auto;max-height:260px}
+.cp-p6 .cp-vd-assignment-table .cp-vd-mini{width:100%;border-collapse:collapse;font-size:9px}
+.cp-p6 .cp-vd-assignment-table th,.cp-p6 .cp-vd-assignment-table td{padding:6px;border-bottom:1px solid #e2e8f0;text-align:start;white-space:nowrap}
+.cp-p6 .cp-vd-assignment-table th{position:sticky;top:0;background:#f8fafc;color:#607187}
+.cp-p6 .cp-vd-assignment-grid>section>.cp-vd-note{padding:0 8px}
+.cp-p6 .cp-vd-assignment-grid>aside{padding-bottom:8px}
+.cp-p6 .cp-vd-assignment-grid>aside .cp-vd-form{padding:8px}
+.cp-p6 .cp-vd-assignment-actions{display:flex;gap:6px;padding:0 8px}
+.cp-p6 .cp-vd-assignment-actions button{padding:5px 9px;border:1px solid #cbd5e1;background:#f8fafc;color:#334b66;font-size:9px}
+.cp-p6 .cp-vd-assignment-actions button:disabled{opacity:.48}
+@media(max-width:760px){.cp-p6 .cp-vd-assignment-grid{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-vd-assignment-context{align-items:flex-start;flex-direction:column}}
