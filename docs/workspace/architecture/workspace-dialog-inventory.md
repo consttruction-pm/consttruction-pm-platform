@@ -29,7 +29,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Table Font and Row | Font scale, row height, font family/size/style, text/background colors and group band formatting | Table rendering | Visual preview implemented; style persistence not connected |
 | Bottom Layout Options / Customize Details | Tab list, visible, order and active detail tab | Activity Details tabs | Visual preview implemented; tab visibility/order persistence not connected |
 | Layout Manager (New/Open/Apply/Save/Save As/Delete/Import/Export) | Available-layout list; name, description, modified date, owner, scope (All Users / Another User / Current User / Project), target user/project, default-for-project flag, Apply preview, multi-select export, `.PLF` import/export, unsaved-current-layout prompt, privilege-aware actions | Persist presentation options only; never project data. Scope and destructive actions require explicit privilege checks. | Visual preview implemented; layout service, file interchange and privilege checks not connected |
-| Collapse To | Group band | Collapse table to band | Missing |
+| Collapse To | Group band selected from the active layout; collapse or expand to that level | Visual preview implemented; active-layout grouping discovery and row-state changes not connected |
 | Find / Replace | Field scope, text, direction, match case | Highlight/next | Visual preview implemented; search/replace execution not connected |
 | Renumber Activity IDs | Prefix, start, increment, scope (selected/all) | Preview + apply; revision guard | Visual preview implemented; ID uniqueness preview and mutation not connected |
 
@@ -46,7 +46,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | New/Edit Activity | ID, name, type, duration, calendar, WBS, dates, constraints | Partial (inline form) |
 | New/Edit WBS | Code, name, parent, sequence, status | Implemented (forms) |
 | New/Edit Relationship | Predecessor, successor, type, lag | Implemented (forms) |
-| Dissolve Activity | Confirmation, resulting FS link preview | Missing |
+| Dissolve Activity | Eligibility, predecessor/successor relationship transformation, lag removal/retention choice, confirmation | Logic preview implemented; relationship mutation, validation against live network and lag updates not connected |
 | Activity Details > General/Status/Resources/... | General, Status, Resources, Predecessors, Successors, Codes, Discussion, Notebook, Steps, Feedback, Documents, Expenses, Summary, Relationships, Risks, Custom Fields and Update History; selected identity and no-selection state | Visual tab/content preview implemented; live project record binding and persistence not connected |
 
 ## Tools
