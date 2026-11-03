@@ -2451,7 +2451,7 @@ test("WBS chart appearance controls apply templates, font and colors without cha
   const templateTarget = { dataset: { wbsChartSetting: "template" }, value: "name-only", closest: () => templateTarget };
   listeners.get("change")?.({ target: templateTarget } as unknown as Event);
   assert.match(container.innerHTML, /data-wbs-chart-template="name-only"/);
-  assert.match(container.innerHTML, /\.cp-wbs-chart-view/);
+  assert.match(container.innerHTML, /class="cp-wbs-view-panel cp-wbs-chart-view"/);
 });
 
 test("Group and Sort opens a structured dialog and applies supported grouping and sort controls", () => {
