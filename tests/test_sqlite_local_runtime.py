@@ -1031,6 +1031,22 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
             "calendar_version": "1",
             "kind": "standard_work_week",
         })["result"]["count"] == 1
+
+        pending_before_unbound_assignment = len(runtime.offline_mutation_store.pending())
+        unbound_assignment = invoke(
+            "resource_assignment.create",
+            {
+                "assignment": {
+                    "assignment_id": "RA-NO-MASTER",
+                    "activity_id": "A1",
+                    "resource_id": "RES-NOT-REGISTERED",
+                    "units": "1",
+                }
+            },
+            version="p6-resource-write-api.v1",
+        )
+        assert unbound_assignment["result"]["error"]["code"] == "RESOURCE_MASTER_CONTEXT_REQUIRED"
+        assert len(runtime.offline_mutation_store.pending()) == pending_before_unbound_assignment
         runtime.schedule_snapshot_api.save_settings(
             scope,
             settings=ProjectScheduleSettings(
