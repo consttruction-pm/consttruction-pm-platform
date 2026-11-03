@@ -131,3 +131,7 @@ Submenu mappings:
 | Reports | ~5% (empty state) | `workspace-view.ts:567-608` |
 
 Percentages are engineering estimates for planning, not acceptance claims.
+
+## Mandatory page-level audit gate
+
+Every mapping row and every mapped window/component must link to a page-specific audit record governed by [`../reference/visual-audit-governing-principles.md`](../reference/visual-audit-governing-principles.md). A mapping is not complete merely because a CUBI label or route exists. Record the complete page hierarchy, fields, states, menus, submenus, appearance, documented colour controls, defaults, interactions, implementation paths, tests and screenshots. Gantt and chart colour/style configuration must be implemented and verified in this phase; only final global theme harmonization is deferred.
