@@ -14,7 +14,7 @@ import { LANDING_LOCALE_STORAGE_KEY, rememberWorkspaceLocale, writeStoredValue }
 export type DemoWindowId =
   | "projects" | "wbs" | "activities" | "assignments" | "resources" | "roles" | "calendars" | "reports"
   | "tracking" | "documents" | "expenses" | "thresholds" | "issues" | "risks" | "administration"
-  | "network" | "trace" | "timeline" | "activity-profile" | "resource-profile" | "activity-sheet" | "resource-sheet";
+  | "network" | "trace" | "timeline" | "activity-profile" | "resource-profile" | "activity-sheet" | "resource-sheet" | "cost-control" | "progress-control" | "procurement" | "changes-claims" | "form-builder" | "organization" | "smart-guide" | "assistant" | "search" | "comments";
 
 type Label = { en: string; fa: string };
 type Row = Record<string, string | number>;
@@ -42,6 +42,16 @@ const WINDOWS: Array<{ id: DemoWindowId; en: string; fa: string }> = [
   { id: "resource-profile", en: "Resource Usage Profile", fa: "پروفایل مصرف منبع" },
   { id: "activity-sheet", en: "Activity Usage Spreadsheet", fa: "صفحهٔ مصرف فعالیت" },
   { id: "resource-sheet", en: "Resource Usage Spreadsheet", fa: "صفحهٔ مصرف منبع" },
+  { id: "cost-control", en: "Cost & Financial Control", fa: "کنترل هزینه و مالی" },
+  { id: "progress-control", en: "Progress & Field Control", fa: "کنترل پیشرفت و کارگاه" },
+  { id: "procurement", en: "Procurement & Materials", fa: "تدارکات و مصالح" },
+  { id: "changes-claims", en: "Changes & Claims", fa: "تغییرات و ادعاها" },
+  { id: "form-builder", en: "Form Builder", fa: "فرم‌ساز" },
+  { id: "organization", en: "Organization", fa: "سازمان" },
+  { id: "smart-guide", en: "Smart Guide", fa: "راهنمای هوشمند" },
+  { id: "assistant", en: "Engineering Assistant", fa: "دستیار مهندسی" },
+  { id: "search", en: "Global Search", fa: "جست‌وجوی سراسری" },
+  { id: "comments", en: "Comments & Notebook", fa: "دیدگاه‌ها و دفترچه" },
 ];
 
 const ACTIVITY_COLUMNS: Array<{ id: string; en: string; fa: string; width: number; numeric?: boolean }> = [
@@ -785,6 +795,63 @@ function renderWindow(state: DemoState): string {
         { Risk: "Long-lead valve supply", Probability: "Low", Impact: "High", Score: 8, Response: "Transfer" },
         { Risk: "Commissioning resource", Probability: "Medium", Impact: "Medium", Score: 6, Response: "Accept" },
       ]);
+    case "cost-control":
+      return renderTableWindow(state, { en: "Cost & Financial Control", fa: "کنترل هزینه و مالی" }, ["Control account", "Budget", "Actual", "Commitments", "Forecast", "Variance"], [
+        { "Control account": "CA-100 Engineering", Budget: "125,000", Actual: "74,500", Commitments: "18,000", Forecast: "121,000", Variance: "4,000" },
+        { "Control account": "CA-200 Procurement", Budget: "420,000", Actual: "132,000", Commitments: "210,000", Forecast: "438,000", Variance: "-18,000" },
+        { "Control account": "CA-300 Construction", Budget: "680,000", Actual: "0", Commitments: "85,000", Forecast: "665,000", Variance: "15,000" },
+      ], ["report-wizard", "export"]);
+    case "progress-control":
+      return renderTableWindow(state, { en: "Progress & Field Control", fa: "کنترل پیشرفت و کارگاه" }, ["Package", "Discipline", "Planned %", "Actual %", "Quantity", "Unit", "Status"], [
+        { Package: "Concrete foundations", Discipline: "Civil", "Planned %": "62%", "Actual %": "55%", Quantity: "420", Unit: "m³", Status: "Behind" },
+        { Package: "Pump installation", Discipline: "Mechanical", "Planned %": "15%", "Actual %": "10%", Quantity: "2", Unit: "ea", Status: "In progress" },
+        { Package: "Cable tray installation", Discipline: "Electrical", "Planned %": "0%", "Actual %": "0%", Quantity: "680", Unit: "m", Status: "Not started" },
+      ], ["report-wizard", "export"]);
+    case "procurement":
+      return renderTableWindow(state, { en: "Procurement & Materials", fa: "تدارکات و مصالح" }, ["Package", "Material / Equipment", "Supplier", "Required date", "Promised date", "Received", "Status"], [
+        { Package: "PKG-PMP-01", "Material / Equipment": "Vertical pump set", Supplier: "Supplier A", "Required date": "26-Feb-27", "Promised date": "01-Mar-27", Received: "0 / 2", Status: "At risk" },
+        { Package: "PKG-VAL-02", "Material / Equipment": "Isolation valves", Supplier: "Supplier B", "Required date": "15-Feb-27", "Promised date": "10-Feb-27", Received: "0 / 8", Status: "On track" },
+      ], ["import", "export"]);
+    case "changes-claims":
+      return renderTableWindow(state, { en: "Changes & Claims", fa: "تغییرات و ادعاها" }, ["Reference", "Type", "Description", "Submitted", "Time impact", "Cost impact", "Status"], [
+        { Reference: "VO-004", Type: "Variation", Description: "Additional foundation works", Submitted: "18-Nov-26", "Time impact": "5 d", "Cost impact": "€18,500", Status: "Under review" },
+        { Reference: "CL-002", Type: "Claim", Description: "Late access to work area", Submitted: "22-Nov-26", "Time impact": "8 d", "Cost impact": "€12,000", Status: "Draft" },
+      ], ["report-wizard", "export"]);
+    case "form-builder":
+      return renderTableWindow(state, { en: "Form Builder", fa: "فرم‌ساز" }, ["Form ID", "Form title", "Library", "Version", "Workflow", "Status"], [
+        { "Form ID": "FRM-QA-001", "Form title": "Inspection Request", Library: "Organization", Version: "3.2", Workflow: "Review → Approve", Status: "Published" },
+        { "Form ID": "FRM-SITE-004", "Form title": "Daily Site Report", Library: "Project", Version: "1.0", Workflow: "Submit → Verify", Status: "Draft" },
+        { "Form ID": "FRM-HSE-002", "Form title": "Safety Observation", Library: "Organization", Version: "2.1", Workflow: "Submit → Close", Status: "Published" },
+      ], ["import", "export"]);
+    case "organization":
+      return renderTableWindow(state, { en: "Organization", fa: "سازمان" }, ["Code", "Name", "Type", "Parent", "Manager", "Status"], [
+        { Code: "ORG-01", Name: "Project Controls", Type: "Department", Parent: "CUBI Organization", Manager: "Controls Manager", Status: "Active" },
+        { Code: "ORG-02", Name: "Engineering", Type: "Department", Parent: "CUBI Organization", Manager: "Engineering Manager", Status: "Active" },
+        { Code: "ORG-03", Name: "Construction", Type: "Department", Parent: "CUBI Organization", Manager: "Construction Manager", Status: "Active" },
+      ], ["export"]);
+    case "smart-guide":
+      return renderTableWindow(state, { en: "Smart Guide", fa: "راهنمای هوشمند" }, ["Guide", "Area", "Purpose", "Availability"], [
+        { Guide: "Build a project schedule", Area: "Planning", Purpose: "Project → WBS → Activities → Logic", Availability: "Visual guide" },
+        { Guide: "Review schedule quality", Area: "Schedule", Purpose: "Open ends, constraints and logic checks", Availability: "Preview only" },
+        { Guide: "Prepare a progress update", Area: "Progress", Purpose: "Data date, actuals and remaining work", Availability: "Preview only" },
+      ]);
+    case "assistant":
+      return renderTableWindow(state, { en: "Engineering Intelligence Assistant", fa: "دستیار هوشمند مهندسی" }, ["Capability", "Context", "Input", "State"], [
+        { Capability: "Project guidance", Context: "Current project workspace", Input: "Text / voice / files", State: "Not connected" },
+        { Capability: "Schedule review", Context: "Activities and relationships", Input: "Selected schedule", State: "Not connected" },
+        { Capability: "Resource suggestions", Context: "Activities and assignments", Input: "Project data", State: "Not connected" },
+      ]);
+    case "search":
+      return renderTableWindow(state, { en: "Global Search", fa: "جست‌وجوی سراسری" }, ["Search scope", "Object types", "Fields", "Action"], [
+        { "Search scope": "Current project", "Object types": "WBS, Activities, Resources, Documents", Fields: "ID, name, code, description", Action: "Open result" },
+        { "Search scope": "Organization", "Object types": "Projects, Users, Forms", Fields: "ID, name, owner", Action: "Open result" },
+      ]);
+    case "comments":
+      return renderTableWindow(state, { en: "Comments & Notebook", fa: "دیدگاه‌ها و دفترچه" }, ["Date", "Object", "Author", "Type", "Status", "Replies"], [
+        { Date: "03-Dec-26 09:15", Object: "A1320 — Install pump base", Author: "Site Engineer", Type: "Comment", Status: "Open", Replies: "2" },
+        { Date: "02-Dec-26 16:40", Object: "WBS 04 — Construction", Author: "Project Manager", Type: "Notebook", Status: "Current", Replies: "0" },
+        { Date: "01-Dec-26 11:05", Object: "PKG-PMP-01", Author: "Procurement", Type: "Update", Status: "For review", Replies: "1" },
+      ]);
     case "administration":
       return renderAdministration(state);
     case "network":
@@ -980,6 +1047,16 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
       { label: { en: "Resource Usage Profile", fa: "پروفایل مصرف منبع" }, action: { window: "resource-profile" } },
       { label: { en: "Activity Usage Spreadsheet", fa: "صفحهٔ مصرف فعالیت" }, action: { window: "activity-sheet" } },
       { label: { en: "Resource Usage Spreadsheet", fa: "صفحهٔ مصرف منبع" }, action: { window: "resource-sheet" } },
+      { label: { en: "Cost & Financial Control", fa: "کنترل هزینه و مالی" }, action: { window: "cost-control" } },
+      { label: { en: "Progress & Field Control", fa: "کنترل پیشرفت و کارگاه" }, action: { window: "progress-control" } },
+      { label: { en: "Procurement & Materials", fa: "تدارکات و مصالح" }, action: { window: "procurement" } },
+      { label: { en: "Changes & Claims", fa: "تغییرات و ادعاها" }, action: { window: "changes-claims" } },
+      { label: { en: "Form Builder", fa: "فرم‌ساز" }, action: { window: "form-builder" } },
+      { label: { en: "Organization", fa: "سازمان" }, action: { window: "organization" } },
+      { label: { en: "Smart Guide", fa: "راهنمای هوشمند" }, action: { window: "smart-guide" } },
+      { label: { en: "Engineering Assistant", fa: "دستیار مهندسی" }, action: { window: "assistant" } },
+      { label: { en: "Global Search", fa: "جست‌وجوی سراسری" }, action: { window: "search" } },
+      { label: { en: "Comments & Notebook", fa: "دیدگاه‌ها و دفترچه" }, action: { window: "comments" } },
       { label: { en: "Resource Assignments", fa: "تخصیص منابع" }, action: { window: "assignments" } },
       { label: { en: "Tracking", fa: "پیگیری" }, action: { window: "tracking" } },
       { label: { en: "Documents", fa: "اسناد" }, action: { window: "documents" } },
