@@ -364,3 +364,11 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - The Version 26 Professional details index does not list Contract Management under Project Details or Summary under Activity Details. These remain useful CUBI additions, but must not be mistaken for native desktop tabs.
 - CUBI correction: both tabs are visibly labeled as CUBI extensions and carry `data-detail-origin="cubi-extension"` metadata and explanatory tooltips. Native detail tabs retain `desktop-reference` origin metadata.
 - References: https://docs.oracle.com/cd/G48902_01/client_help/en_US/detailswindows-postdropdowns.htm; https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_details.htm.
+
+## WBS top-layout parity refinement — 2026-11-03
+
+- The Version 26 desktop WBS window supports three distinct top-layout surfaces: WBS Table, WBS Chart, and Gantt Chart; WBS Details is a separate bottom layout. The desktop WBS Details inventory includes General, Notebook, Budget Log, Spending Plan, Budget Summary, WBS Milestones, WPs & Docs, Earned Value and UDFs. Planning Resources is EPPM-only and remains excluded.
+- CUBI correction: Table View is now a true hierarchy-aware grid with only fields present in the loaded WBS model (local code, name, parent and sequence). Chart View remains the hierarchy-card view. Gantt Chart is exposed as a separate top-layout choice, but its timeline remains an explicit empty state because the current WBS records do not contain WBS start/finish dates; no dates or bars are invented. The selected top layout persists across re-renders.
+- The Related Activities detail is retained as a clearly marked CUBI extension, not a native WBS Details tab.
+- Remaining WBS parity work: chart formatting and layout templates, chart arrangement/alignment, expand/collapse and move toolbar controls, WPs & Docs assignment actions, and richer detail panels once their corresponding records are available.
+- References: https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_window.htm and https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_details.htm.
