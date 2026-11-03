@@ -594,6 +594,38 @@ test("Activities Details renders the complete Version 26 tab inventory without f
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
+test("Activity Details navigator moves to adjacent activities and exposes read-only identity fields", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const selected: string[] = [];
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const state = {
+    ...withActivities(base, [
+      { id: "ACT-01", wbsId: "WBS-1", code: "A-01", name: "Mobilize", cells: {}, gantt: null },
+      { id: "ACT-02", wbsId: "WBS-1", code: "A-02", name: "Excavate", cells: {}, gantt: null },
+      { id: "ACT-03", wbsId: "WBS-1", code: "A-03", name: "Concrete", cells: {}, gantt: null },
+    ]),
+    activeMenu: "schedule" as const,
+    selectedActivityId: "ACT-02",
+  };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onActivitySelect: (id) => selected.push(id) });
+  assert.match(container.innerHTML, /data-activity-navigate="previous"/);
+  assert.match(container.innerHTML, /data-activity-navigate="next"/);
+  assert.match(container.innerHTML, /value="ACT-02"/);
+  assert.match(container.innerHTML, /value="Excavate"/);
+  assert.match(container.innerHTML, /value="project-1"/);
+  const nextTarget = { dataset: { activityNavigate: "next" }, closest: () => nextTarget };
+  listeners.get("click")?.({ target: nextTarget } as unknown as Event);
+  assert.deepEqual(selected, ["ACT-03"]);
+  const previousTarget = { dataset: { activityNavigate: "previous" }, closest: () => previousTarget };
+  listeners.get("click")?.({ target: previousTarget } as unknown as Event);
+  assert.deepEqual(selected, ["ACT-03", "ACT-01"]);
+});
+
 test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
   const listeners = new Map<string, (event: Event) => void>();
   const closed: WorkspaceMenuKey[] = [];
