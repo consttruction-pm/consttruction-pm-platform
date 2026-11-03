@@ -2177,13 +2177,13 @@ test("Calendar month navigation advances the visible month without inventing wor
   };
   const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "calendars" as const };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  const before = container.innerHTML.match(/data-calendar-month-action="next"[^>]*><\/button><strong>([^<]+)<\/strong>/)?.[1];
+  const before = container.innerHTML.match(/data-calendar-month-action="next"[^>]*>[^<]*<\/button><strong>([^<]+)<\/strong>/)?.[1];
   const target = { dataset: { calendarMonthAction: "next" }, closest: () => target };
   listeners.get("click")?.({ target } as unknown as Event);
   assert.notEqual(container.innerHTML, "");
   assert.match(container.innerHTML, /Working status not loaded/);
   assert.match(container.innerHTML, /data-calendar-month-action="previous"/);
-  const after = container.innerHTML.match(/data-calendar-month-action="next"[^>]*><\/button><strong>([^<]+)<\/strong>/)?.[1];
+  const after = container.innerHTML.match(/data-calendar-month-action="next"[^>]*>[^<]*<\/button><strong>([^<]+)<\/strong>/)?.[1];
   assert.ok(after);
   assert.ok(before === undefined || after !== before);
 });
