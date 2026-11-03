@@ -260,3 +260,47 @@ test("Resources and Roles have independent Primavera-style dictionaries and Pers
   assert.match(roleHtml, /ظرفیت/);
   assert.match(roleHtml, /نرخ و ظرفیت در این پیش‌نمایش هزینه پروژه یا تسطیح منابع را محاسبه نمی‌کنند/);
 });
+
+
+test("Gantt exposes direct presentation commands and a complete visual bar-definition editor", () => {
+  const state = createVisualDemoState("en");
+  state.window = "activities";
+  const markup = renderVisualDemo(state);
+  for (const dialog of ["bars", "bar-options", "timescale", "timeline-options", "font-row"]) {
+    assert.match(markup, new RegExp(`data-vd-dialog="${dialog}"`));
+  }
+  assert.match(markup, /Gantt presentation tools/);
+  assert.match(markup, /Remaining Work/);
+  assert.match(markup, /Actual Work/);
+  assert.match(markup, /Critical Remaining/);
+  assert.match(markup, /Baseline/);
+  assert.match(markup, /Target/);
+  assert.match(markup, /Level of Effort/);
+  assert.match(markup, /Milestone/);
+  assert.match(markup, /Bar label position/);
+  assert.match(markup, /Show relationship lines/);
+});
+
+test("Gantt timeline options include progress, float, nonworking time and attachment layers", () => {
+  const state = createVisualDemoState("en");
+  state.window = "activities";
+  const markup = renderVisualDemo(state);
+  for (const option of ["Progress line", "Relationship lines", "Critical path", "Total Float", "Free Float", "Nonworking time", "Curtain attachments", "Text attachments", "Notebook indicators"]) {
+    assert.ok(markup.includes(option), `expected Gantt timeline option: ${option}`);
+  }
+  assert.match(markup, /Major timescale interval/);
+  assert.match(markup, /Minor timescale interval/);
+  assert.match(markup, /Data date line style/);
+  assert.match(markup, /Progress line style/);
+});
+
+test("Gantt presentation command controls retain Persian workspace direction and labels", () => {
+  const state = createVisualDemoState("fa");
+  state.window = "activities";
+  const markup = renderVisualDemo(state);
+  assert.match(markup, /data-visual-demo dir="rtl"/);
+  assert.match(markup, /ابزارهای نمایش گانت/);
+  assert.match(markup, /میله‌ها…/);
+  assert.match(markup, /تنظیمات گانت…/);
+  assert.match(markup, /مقیاس زمانی…/);
+});
