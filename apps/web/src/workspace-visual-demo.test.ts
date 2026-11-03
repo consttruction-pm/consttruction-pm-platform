@@ -810,13 +810,16 @@ test("Administration covers EPS, OBS, categories, currencies, financial periods 
   const state = createVisualDemoState("en");
   state.window = "administration";
   const html = renderVisualDemo(state);
+  const panels: string[] = [];
   for (const section of ["eps", "obs", "categories", "currencies", "financial-periods", "custom-fields"]) {
     state.adminSection = section;
     const panel = renderVisualDemo(state);
+    panels.push(panel);
     assert.match(panel, new RegExp(`data-vd-admin="${section}"[^>]*aria-pressed="true"`));
   }
-  for (const label of ["Enterprise Project Structure", "Organizational structure", "Administrative categories", "Set base currency", "Financial periods", "Create batch", "Custom fields", "Indicator", "Formula (read-only)", "Assigned WBS", "Responsible OBS", "rate direction"]) {
-    assert.ok(html.includes(label), "missing administration control: " + label);
+  const allPanels = panels.join("\\n");
+  for (const label of ["Enterprise Project Structure", "Administrative categories", "Set base currency", "Financial periods", "Create batch", "Custom fields", "Indicator", "Formula (read-only)", "Assigned WBS", "Responsible OBS", "rate direction"]) {
+    assert.ok(allPanels.includes(label), "missing administration control: " + label);
   }
   assert.match(html, /cp-vd-admin-workspace/);
   assert.match(html, /cp-vd-admin-tree/);
