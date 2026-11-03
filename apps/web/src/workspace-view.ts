@@ -202,6 +202,7 @@ const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
 const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
 const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart">();
 const calendarEditorTabByContainer = new WeakMap<HTMLElement, "general" | "workweek" | "exceptions" | "time-periods" | "assignments">();
+const calendarSelectionByContainer = new WeakMap<HTMLElement, string>();
 const trackingLayoutByContainer = new WeakMap<HTMLElement, "table" | "bar-chart" | "gantt-profile" | "resource-analysis">();
 type TrackingDisplayState = { showProjectExplorer: boolean; showResourceExplorer: boolean; showTopLayout: boolean; showBottomLayout: boolean };
 const trackingDisplayByContainer = new WeakMap<HTMLElement, TrackingDisplayState>();
@@ -389,7 +390,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-tracking-display],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-workspace-layout],[data-workspace-command],[data-navigation-action],[data-register-tab],[data-calendar-editor-tab],[data-calendar-select],[data-wbs-detail-tab],[data-project-detail-tab],[data-report-tab],[data-progress-dialog-close],[data-progress-activity-select],[data-document-select],[data-document-detail-tab],[data-document-type-filter-clear],[data-columns-close],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-details-apply-close],[data-activity-detail-add],[data-activity-detail-add-all],[data-activity-detail-remove],[data-activity-detail-remove-all],[data-activity-detail-move-up],[data-activity-detail-move-down],[data-activity-detail-default],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-group-sort-close],[data-group-sort-apply],[data-filters-close],[data-filters-apply],[data-filters-clear],[data-bars-close],[data-bars-tab],[data-bar-chart-options-open],[data-bar-options-close],[data-bar-options-tab],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-wbs-view-toggle],[data-tracking-display],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -523,6 +524,14 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       container.querySelectorAll<HTMLElement>("[data-register-panel]").forEach((panel) => {
         panel.hidden = panel.dataset.registerPanel !== tab;
       });
+      return;
+    }
+    if (target.dataset.calendarSelect !== undefined) {
+      const selectedId = target.dataset.calendarSelect;
+      const selected = state.calendarCatalog.calendars.find((calendar) => calendar.calendarId === selectedId);
+      if (!selected) return;
+      calendarSelectionByContainer.set(container, selectedId);
+      renderMainWorkspace(container, state, options);
       return;
     }
     if (target.dataset.calendarEditorTab) {
@@ -1685,7 +1694,7 @@ function renderDocumentRegisterWindow(container: HTMLElement, state: WorkspaceSt
       <nav role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Document detail tabs", "زبانه‌های جزئیات سند"))}">${tabs.map(([key,en,fa])=>`<button type="button" role="tab" data-document-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}">${escapeHtml(uiText(state.locale,en,fa))}</button>`).join("")}</nav><div class="cp-document-detail-content">${detail}</div></section>
   </div>`;
 }
-function renderCalendarCatalog(state: WorkspaceState): string {
+function renderCalendarCatalog(state: WorkspaceState, selectedCalendarId: string | null = null): string {
   const catalog = state.calendarCatalog;
   if (catalog.status === "unavailable") {
     const message = uiText(state.locale, "Calendar catalogue unavailable", "فهرست تقویم‌ها در دسترس نیست");
@@ -1702,11 +1711,14 @@ function renderCalendarCatalog(state: WorkspaceState): string {
     ["Kind", "ماهیت"], ["Version", "نسخه"], ["Revision", "ویرایش"],
   ];
   const head = headings.map(([en, fa]) => '<th>' + escapeHtml(uiText(state.locale, en, fa)) + '</th>').join("");
-  const rows = catalog.calendars.map((calendar) => '<tr><td>' +
-    escapeHtml(calendar.calendarId) + '</td><td>' + escapeHtml(calendar.name) +
-    '</td><td>' + escapeHtml(calendar.calendarType) + '</td><td>' +
-    escapeHtml(calendar.kind) + '</td><td>' + escapeHtml(calendar.calendarVersion) +
-    '</td><td>' + escapeHtml(String(calendar.recordRevision)) + '</td></tr>').join("");
+  const rows = catalog.calendars.map((calendar) => {
+    const active = calendar.calendarId === selectedCalendarId;
+    return '<tr class="' + (active ? 'is-selected' : '') + '"><td><button type="button" class="cp-calendar-select" data-calendar-select="' +
+      escapeHtml(calendar.calendarId) + '" aria-pressed="' + String(active) + '">' + escapeHtml(calendar.calendarId) + '</button></td><td>' +
+      escapeHtml(calendar.name) + '</td><td>' + escapeHtml(calendar.calendarType) + '</td><td>' +
+      escapeHtml(calendar.kind) + '</td><td>' + escapeHtml(calendar.calendarVersion) + '</td><td>' +
+      escapeHtml(String(calendar.recordRevision)) + '</td></tr>';
+  }).join("");
   return '<div class="cp-register-table-wrap"><table><thead><tr>' + head +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
@@ -1801,16 +1813,16 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
           <div class="cp-calendar-window-layout">
             <section class="cp-calendar-register">
               <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Available Calendars", "تقویم‌های موجود"))}</strong></div>
-              ${renderCalendarCatalog(state)}
+              ${renderCalendarCatalog(state, calendarSelectionByContainer.get(container) ?? null)}
             </section>
             <section class="cp-calendar-editor">
-              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Calendar Details", "جزئیات تقویم"))}</strong><span>${escapeHtml(uiText(state.locale, "No selection", "بدون انتخاب"))}</span></div>
+              <div class="cp-calendar-section-head"><strong>${escapeHtml(uiText(state.locale, "Calendar Details", "جزئیات تقویم"))}</strong><span>${escapeHtml(state.calendarCatalog.calendars.find((calendar) => calendar.calendarId === calendarSelectionByContainer.get(container))?.name ?? uiText(state.locale, "No selection", "بدون انتخاب"))}</span></div>
               <div class="cp-calendar-editor-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "Calendar detail tabs", "زبانه‌های جزئیات تقویم"))}">
                 ${[["general","General","عمومی"],["workweek","Workweek","هفته کاری"],["exceptions","Exceptions","استثناها"],["time-periods","Time Periods","دوره‌های زمانی"],["assignments","Assignments","تخصیص‌ها"]].map(([key,en,fa])=>{const active=(calendarEditorTabByContainer.get(container)??"general")===key;return `<button type="button" role="tab" id="cp-calendar-tab-${key}" aria-controls="cp-calendar-panel-${key}" aria-selected="${active}" tabindex="${active?0:-1}" class="${active?"is-active":""}" data-calendar-editor-tab="${key}">${escapeHtml(uiText(state.locale,en,fa))}</button>`;}).join("")}
               </div>
               <div class="cp-calendar-editor-content">
                 <section class="cp-calendar-editor-panel" role="tabpanel" id="cp-calendar-panel-general" aria-labelledby="cp-calendar-tab-general" tabindex="0" data-calendar-editor-panel="general" ${calendarEditorTabByContainer.get(container)!== "general" ? "hidden" : ""}>
-                  <div class="cp-calendar-fields">
+                  <div class="cp-calendar-selected-summary" ${calendarSelectionByContainer.get(container) ? "" : "hidden"}>${(() => { const selected = state.calendarCatalog.calendars.find((calendar) => calendar.calendarId === calendarSelectionByContainer.get(container)); return selected ? [["Calendar ID",selected.calendarId],["Calendar Type",selected.calendarType],["Calendar Kind",selected.kind],["Calendar Version",selected.calendarVersion],["Record Revision",String(selected.recordRevision)]].map(([label,value]) => '<div><span>'+escapeHtml(uiText(state.locale,label,label==="Calendar ID"?"شناسه تقویم":label==="Calendar Type"?"نوع تقویم":label==="Calendar Kind"?"ماهیت تقویم":label==="Calendar Version"?"نسخه تقویم":"ویرایش رکورد"))+'</span><strong>'+escapeHtml(value)+'</strong></div>').join("") : ""; })()}</div><div class="cp-calendar-fields">
                     <label>${escapeHtml(uiText(state.locale, "Calendar Name", "نام تقویم"))}<input disabled placeholder="${escapeAttribute(uiText(state.locale, "Select or create a calendar", "یک تقویم انتخاب یا ایجاد کنید"))}"></label>
                     <label>${escapeHtml(uiText(state.locale, "Calendar Scope", "دامنه تقویم"))}<select disabled><option>${escapeHtml(uiText(state.locale, "Select scope", "انتخاب دامنه"))}</option><option>Global</option><option>Project</option><option>Resource</option></select></label>
                     <label>${escapeHtml(uiText(state.locale, "Parent Calendar", "تقویم والد"))}<select disabled><option>—</option></select></label>
