@@ -588,6 +588,7 @@ test("Activities Layout Options inventories top and bottom chart layouts without
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
   assert.doesNotMatch(render("en", "schedule"), /data-activity-detail-tab="tasks"/);
   assert.match(render("en", "schedule"), /data-activity-detail-tab="summary" data-detail-origin="desktop-reference"/);
+  assert.doesNotMatch(render("en", "schedule"), /Summary \\(CUBI extension\\)/);
   const html = render("en", "schedule");
   for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs", "update-history"]) {
     assert.ok(html.includes(`data-activity-detail-tab="${tab}"`), `missing Activity Details tab: ${tab}`);
