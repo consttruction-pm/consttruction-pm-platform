@@ -294,3 +294,10 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - This is a visual presentation of current WBS records only; it does not invent missing WBS attributes, alter hierarchy data, or claim the full desktop WBS chart editing/formatting toolset is complete.
 - Regression coverage added for both view controls and chart-mode dispatch.
 - Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_window.htm.
+## Tracking window pane parity — 2026-11-03
+
+- Version 26 desktop Tracking is not a single chart card. Its documented workspace includes the Project Explorer at upper left and the active Top Layout at upper right; supported layouts may add the Resource Explorer at lower left and Bottom Layout at lower right. Pane display options control the top, bottom, and left columns.
+- CUBI correction: the Tracking window now renders a real multi-pane frame with Project Explorer, Top Layout, Resource Explorer, and Bottom Layout. Project Table and Project Bar Chart use the upper explorer/top-layout arrangement; Project Gantt/Profile and Resource Analysis expose the lower explorer and lower layout panes. The layout selector changes the visible surface and persists its selection through re-render within the window.
+- The four layout surfaces are intentionally empty-state shells until the project/tracking data services are available. No project values, charts, profiles, or resource analysis results are fabricated; Refresh and Save remain unavailable.
+- Regression assertions cover the four-pane inventory and the default hidden state of lower panes and inactive chart surfaces.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/tracking_window.htm.
