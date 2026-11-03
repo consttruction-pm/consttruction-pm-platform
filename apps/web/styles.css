@@ -7788,3 +7788,8 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-assignment-usage-table-wrap td{height:42px;text-align:center;color:#788797}
 .cp-p6 .cp-assignment-usage-panel>p{margin:0;padding:8px 10px;color:#68798b;font-size:11px;line-height:1.5}
 @media(max-width:760px){.cp-p6 .cp-assignment-usage-panel>header{align-items:flex-start;flex-direction:column}.cp-p6 .cp-assignment-usage-toolbar{align-items:flex-start;flex-direction:column}}
+/* Tracking layout management controls remain visible but safely disabled without a layout store. */
+.cp-p6 .cp-tracking-layout-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:4px 6px;border-inline-start:1px solid #c5cfda}
+.cp-p6 .cp-tracking-layout-actions button{min-height:26px;padding:3px 8px;border:1px solid #c5cfda;border-radius:3px;background:#f8fafc;color:#6c7b8d;font-size:10px;white-space:nowrap}
+.cp-p6 .cp-tracking-layout-actions button:disabled{cursor:not-allowed;opacity:.72}
+@media(max-width:900px){.cp-p6 .cp-tracking-layout-actions{border-inline-start:0;border-top:1px solid #c5cfda;width:100%}}
