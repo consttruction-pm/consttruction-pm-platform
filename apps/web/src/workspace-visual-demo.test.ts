@@ -512,3 +512,24 @@ test("Columns dialog localizes Persian labels and shows the one-column minimum",
     assert.ok(html.includes(label), `missing Persian Columns label: ${label}`);
   }
 });
+
+
+test("New Project dialog exposes the four-step domain, identity, configuration and development wizard", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const label of ["Business Domain", "Project Identity", "Planning Configuration", "Project Development", "Business domain", "Portfolio", "Responsible organization", "Project name", "Project ID", "Description", "Start date", "Target finish", "Date system", "Project calendar", "Default activity duration type", "WBS template", "Copy from project", "Create starter WBS and activities", "Create Project"]) {
+    assert.ok(html.includes(label), `missing New Project wizard field: ${label}`);
+  }
+  assert.match(html, /cp-vd-project-steps/);
+  assert.match(html, /name="projectId" required/);
+  assert.match(html, /name="projectName" required/);
+  assert.match(html, /Required fields are marked/);
+  assert.match(html, /not connected in this visual preview/);
+});
+
+test("New Project wizard has Persian RTL labels for all four steps and calendar options", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["حوزه کسب‌وکار", "مشخصات پروژه", "پیکربندی برنامه‌ریزی", "توسعه ساختار پروژه", "نام پروژه", "شناسه پروژه", "تاریخ شروع", "پایان هدف", "سیستم تاریخ", "تقویم پروژه", "قالب ساختار شکست کار"]) {
+    assert.ok(html.includes(label), `missing Persian New Project label: ${label}`);
+  }
+});
