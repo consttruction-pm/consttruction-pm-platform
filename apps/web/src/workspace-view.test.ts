@@ -2184,6 +2184,11 @@ test("Calendar Register opens as a first-class window with documented editor con
   assert.match(html, /role="grid"/);
   assert.equal([...html.matchAll(/class="cp-calendar-day/g)].length, 42);
   assert.match(html, /Legend only — no work\/nonwork classification is loaded/);
+  assert.match(html, /Total work hours\/day/);
+  assert.match(html, /Detailed work hours\/day/);
+  assert.match(html, /data-navigation-action="calendar-tab:workweek"/);
+  assert.match(html, /data-navigation-action="calendar-tab:time-periods"/);
+  assert.match(html, /Inherit Holidays and Exceptions from Global Calendar/);
   assert.match(html, /split shifts, multiple work intervals, overnight shifts/);
   assert.match(html, /Editing remains disabled until the authoritative calendar service/i);
 });
