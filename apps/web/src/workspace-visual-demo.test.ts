@@ -407,3 +407,32 @@ test("Activity Details context and empty state are localized in Persian RTL", ()
   assert.match(html, /فعالیتی انتخاب نشده است/);
   assert.match(html, /برای مشاهده جزئیات، یک فعالیت را از جدول یا شبکه فعالیت انتخاب کنید/);
 });
+
+
+test("Activity General and Status Details expose the complete field groups without inventing unavailable values", () => {
+  const general = createVisualDemoState("en");
+  general.detailTab = "general";
+  let html = renderVisualDemo(general);
+  for (const field of ["Project", "Activity duration type", "Responsible manager", "Primary constraint", "Secondary constraint", "Expected finish", "Description", "Notebook summary"]) {
+    assert.ok(html.includes(field), `missing General field: ${field}`);
+  }
+  assert.match(html, /Primary constraint[\s\S]*?<input value="—"/);
+
+  const status = createVisualDemoState("en");
+  status.detailTab = "status";
+  html = renderVisualDemo(status);
+  for (const field of ["Duration % complete", "Units % complete", "Physical % complete", "Actual start", "Actual finish", "Remaining start", "Remaining finish", "Suspend date", "Resume date", "Data date"]) {
+    assert.ok(html.includes(field), `missing Status field: ${field}`);
+  }
+});
+
+test("Activity Resources Details show capacity and assignment context fields without fabricated values", () => {
+  const state = createVisualDemoState("en");
+  state.activityId = "A1320";
+  state.detailTab = "resources";
+  const html = renderVisualDemo(state);
+  for (const field of ["Units/Time", "Driving", "Assignment calendar", "Budgeted units", "Actual units", "Remaining units", "Budgeted cost", "Actual cost", "Remaining cost"]) {
+    assert.ok(html.includes(field), `missing Resources field: ${field}`);
+  }
+  assert.match(html, /<td>—<\/td><td>—<\/td><td>—<\/td>/);
+});
