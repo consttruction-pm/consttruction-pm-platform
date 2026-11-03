@@ -7873,3 +7873,10 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-wbs-chart-view .cp-wbs-node{background:var(--cp-wbs-chart-box,#fff);font-family:inherit;font-size:inherit}
 .cp-p6 .cp-wbs-chart-view[data-wbs-chart-template="name-only"] .cp-wbs-code{display:none}
 .cp-p6 .cp-wbs-chart-view[data-wbs-chart-template="code-only"] .cp-wbs-name{display:none}
+.cp-p6 .cp-assignment-main-layout{display:grid;grid-template-columns:minmax(280px,1.05fr) minmax(360px,1.35fr);gap:8px;min-width:0;align-items:stretch}
+.cp-p6 .cp-assignment-register-pane,.cp-p6 .cp-assignment-usage-pane{min-width:0;min-height:0}
+.cp-p6 .cp-assignment-register-pane .cp-register-table-wrap{height:100%;max-height:260px}
+.cp-p6 .cp-assignment-usage-pane .cp-assignment-usage-panel{height:100%}
+.cp-p6 .cp-assignment-main-layout:has(.cp-assignment-usage-panel[hidden]){grid-template-columns:minmax(0,1fr)}
+.cp-p6 .cp-assignment-main-layout:has(.cp-assignment-usage-panel[hidden]) .cp-assignment-usage-pane{display:none}
+@media(max-width:900px){.cp-p6 .cp-assignment-main-layout{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-assignment-register-pane .cp-register-table-wrap{max-height:220px}}
