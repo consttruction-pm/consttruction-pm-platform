@@ -819,7 +819,7 @@ test("Administration covers EPS, OBS, categories, currencies, financial periods 
     assert.match(panel, new RegExp(`data-vd-admin="${section}"[^>]*aria-pressed="true"`));
   }
   const allPanels = panels.join("\\n");
-  for (const label of ["Enterprise Project Structure", "Administrative categories", "Set base currency", "Financial periods", "Create batch", "Custom fields", "Indicator", "Formula (read-only)", "Assigned WBS", "Responsible OBS", "rate direction"]) {
+  for (const label of ["Enterprise Project Structure", "Administrative categories", "Set base currency", "Financial periods", "Create batch", "Custom fields", "Indicator", "Formula (read-only)", "Assigned WBS", "Responsible OBS", "rate direction", "Data Limits", "ID Lengths", "Time Periods", "Earned Value", "Every n Weeks", "Every n Months", "Every Year", "Period ends on", "minimum 1 week", "Units per base currency", "Effective date"]) {
     assert.ok(allPanels.includes(label), "missing administration control: " + label);
   }
   assert.match(allPanels, /cp-vd-admin-workspace/);
