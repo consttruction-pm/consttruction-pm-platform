@@ -2126,6 +2126,7 @@ test("Calendar Register opens as a first-class window with documented editor con
     assert.ok(html.includes(`role="tabpanel" id="cp-calendar-panel-${tab}" aria-labelledby="cp-calendar-tab-${tab}"`));
   }
   assert.match(html, /tabindex="0" class="is-active" data-calendar-editor-tab="general"/);
+  assert.doesNotMatch(html, /data-calendar-editor-panel="general" hidden/);
   assert.match(html, /tabindex="-1" class=""/);
   assert.match(html, /Interval 1 Start/);
   assert.match(html, /Interval 2 Finish/);
