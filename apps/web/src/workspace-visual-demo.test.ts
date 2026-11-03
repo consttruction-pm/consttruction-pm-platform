@@ -616,7 +616,7 @@ test("Project Details dialog exposes the desktop project tab inventory and proje
   assert.match(html, /cp-vd-project-tabs/);
   assert.match(html, /aria-selected="true"/);
   assert.match(html, /read-only/);
-  assert.doesNotMatch(html, /Planning Resources/);
+  assert.match(html, /Planning Resources tab is intentionally excluded/);
 });
 
 test("Project Details dialog localizes project tabs and date/default fields in Persian RTL", () => {
