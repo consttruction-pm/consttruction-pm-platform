@@ -121,10 +121,13 @@ This refresh verifies the current official documentation set and updates the sou
 | --- | --- | --- |
 | EPS | Hierarchical enterprise project containers, child projects, project assignment and status | Expandable portfolio/EPS tree with responsible OBS and project date/status columns |
 | OBS | Responsibility hierarchy, manager ownership, WBS assignment and chart display | Responsibility tree, manager/parent/WBS assignment table and access-scope note |
-| Administrative preferences | Week start, default duration, hierarchy and ID limits, baselines, workhours, earned-value defaults and summarization | Read-only global preference summary pending the complete preference editor |
+| Administrative preferences | Week start, default duration, hierarchy and ID limits, baselines, workhours, earned-value defaults and summarization | General, Data Limits, ID Lengths, Time Periods, Earned Value and Options preference tabs; representative settings remain read-only |
 | Administrative categories | Baseline, expense, WBS, document, risk, notebook and unit dictionaries | Category-group navigator with selected dictionary values and dependency warning |
 | Currencies | Base currency, view currency, symbol, decimal precision and conversion rate | Currency dictionary, base marker, view-currency selector and conversion safety callout |
 | Financial periods | Named period calendar, fiscal start, individual and batch periods, period deletion | Period calendar selector, fiscal summary, monthly period register and posting-protection note |
 | Custom fields | Subject/object type, data type, list values, indicator and formula semantics | Custom-field register with subject, type, indicator/formula, list values and required status |
 
 These are visual-only records. EPS/OBS, administration, currencies, period calendars and custom-field services remain unconnected; no access, financial conversion, posting or project hierarchy is mutated by the preview.
+
+
+| Selection context menus | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm | Workspace basics include shortcut menus and selection-dependent commands; context actions are scoped to the selected activity or WBS item in CUBI |
