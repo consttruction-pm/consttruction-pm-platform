@@ -1390,8 +1390,40 @@ function dialogContent(name: string, state: DemoState): string {
       return `<div class="cp-vd-form"><div class="cp-vd-two"><section><h4>Activity table appearance</h4><label>Table font<select><option>Inter 10</option><option>Inter 11</option><option>Inter 12</option><option>Vazirmatn 11</option><option>Vazirmatn 12</option></select></label><label>Text color<input type="color" value="#26384d"></label><label>Row height<select><option>24 px</option><option>20 px</option><option>28 px</option><option>32 px</option><option>Auto fit</option></select></label><label>Row background<select><option>White</option><option>Alternate shading</option><option>Selected row emphasis</option></select></label><label>Grid lines<select><option>Horizontal and vertical</option><option>Horizontal only</option><option>None</option></select></label></section><section><h4>Group row appearance</h4><label>Group font<select><option>Inter 11 Semibold</option><option>Inter 10</option><option>Vazirmatn 11 Semibold</option></select></label><label>Group text color<input type="color" value="#244463"></label><label>Group background<input type="color" value="#edf2f7"></label><label>Group row height<select><option>28 px</option><option>24 px</option><option>32 px</option></select></label><label>Group band format<select><option>WBS code and name</option><option>Field title and value</option><option>Value only</option></select></label></section></div><div class="cp-vd-two"><label class="cp-vd-check"><input type="checkbox" checked> Bold group rows</label><label class="cp-vd-check"><input type="checkbox" checked> Show group totals</label><label class="cp-vd-check"><input type="checkbox"> Show empty title bands</label><label class="cp-vd-check"><input type="checkbox"> Page break after each group</label></div><p class="cp-vd-note">Typography and row formatting are preview-only and are not saved to a layout.</p></div>`;
     case "layout-manager":
       return `${rows(["Layout", "Scope", "Status"], `<tr><td>CUBI Classic Schedule Layout</td><td>Project</td><td>Current</td></tr><tr><td>Cost and resource view</td><td>Project</td><td>Available</td></tr><tr><td>Commissioning look-ahead</td><td>Project</td><td>Available</td></tr>`)}<p class="cp-vd-note">${esc(t(state.locale, "Layouts are visual examples in this demo.", "چیدمان‌ها در این نمایش نمونهٔ بصری هستند."))}</p>`;
-    case "customize-details":
-      return `<div class="cp-vd-two"><div><strong>${esc(t(state.locale, "Available tabs", "زبانه‌های موجود"))}</strong><ul>${["Cost", "Duration", "WPs & Docs", "Feedback"].map((item) => `<li><label><input type="checkbox"> ${esc(item)}</label></li>`).join("")}</ul></div><div><strong>${esc(t(state.locale, "Display tabs", "زبانه‌های نمایش"))}</strong><ul>${["General", "Status", "Resources", "Predecessors", "Successors"].map((item) => `<li><label><input type="checkbox" checked> ${esc(item)}</label></li>`).join("")}</ul></div></div>`;
+    case "customize-details": {
+      // Desktop Details customization exposes the complete standard tab set.
+      // Tasks is intentionally excluded because it is not part of the desktop edition.
+      const availableTabs: Array<[string, string, string]> = [
+        ["successors", "Successors", "جانشین‌ها"],
+        ["codes", "Codes", "کدها"],
+        ["discussion", "Discussion", "گفت‌وگو"],
+        ["notebook", "Notebook", "دفترچه"],
+        ["steps", "Steps", "گام‌ها"],
+        ["feedback", "Feedback", "بازخورد"],
+        ["documents", "Documents", "اسناد"],
+        ["expenses", "Expenses", "هزینه‌ها"],
+        ["summary", "Summary", "خلاصه"],
+        ["relationships", "Relationships", "روابط"],
+        ["risks", "Risks", "ریسک‌ها"],
+        ["custom-fields", "Custom Fields", "فیلدهای سفارشی"],
+        ["update-history", "Update History", "تاریخچه تغییرات"],
+      ];
+      const displayedTabs: Array<[string, string, string]> = [
+        ["general", "General", "عمومی"],
+        ["status", "Status", "وضعیت"],
+        ["resources", "Resources", "منابع"],
+        ["predecessors", "Predecessors", "پیش‌نیازها"],
+      ];
+      const tabItem = ([id, en, fa]: [string, string, string], checked: boolean, index: number): string =>
+        `<li data-vd-detail-tab-row="${id}"><label><input type="checkbox" name="detail-tab-${id}" data-vd-detail-tab="${id}" ${checked ? "checked" : ""}> ${esc(t(state.locale, en, fa))}</label>${checked ? `<span class="cp-vd-inline-actions"><button type="button" disabled aria-label="Move ${esc(en)} up" title="Move up">↑</button><button type="button" disabled aria-label="Move ${esc(en)} down" title="Move down">↓</button></span>` : ""}</li>`;
+      return `<div class="cp-vd-details-customize">
+        <div class="cp-vd-two">
+          <section><strong>${esc(t(state.locale, "Available tabs", "زبانه‌های موجود"))}</strong><ul>${availableTabs.map((tab, index) => tabItem(tab, false, index)).join("")}</ul></section>
+          <section><strong>${esc(t(state.locale, "Displayed tabs · in order", "زبانه‌های نمایشی · به‌ترتیب"))}</strong><ol>${displayedTabs.map((tab, index) => tabItem(tab, true, index)).join("")}</ol></section>
+        </div>
+        <p class="cp-vd-note">${esc(t(state.locale, "Standard desktop Details tabs are listed. Selectable controls are a visual preview; tab visibility and order are not saved in this build.", "همه زبانه‌های استاندارد جزئیات نسخه دسکتاپ فهرست شده‌اند. کنترل‌ها پیش‌نمایش بصری هستند و ترتیب یا نمایش زبانه‌ها در این نسخه ذخیره نمی‌شود."))}</p>
+      </div>`;
+    }
     case "new-wbs":
       return `<div class="cp-vd-form"><label>${esc(t(state.locale, "WBS code", "کد WBS"))}<input name="wbsCode" value="1.6" required></label><label>${esc(t(state.locale, "WBS name", "نام WBS"))}<input name="wbsName" placeholder="New work package" required></label><label>${esc(t(state.locale, "Parent WBS", "WBS والد"))}<select name="parent"><option>1 — CUBI-DEMO-001 Riverside Pump Station</option><option>1.1 — Project Management</option><option>1.2 — Engineering</option><option>1.3 — Procurement</option><option>1.4 — Construction</option><option>1.5 — Testing & Commissioning</option></select></label><label>${esc(t(state.locale, "Responsible manager", "مدیر مسئول"))}<select><option>Project Manager</option><option>Engineering Manager</option><option>Construction Manager</option></select></label><p class="cp-vd-note">${esc(t(state.locale, "Visual preview only — no WBS record will be saved.", "صرفاً پیش‌نمایش بصری — رکورد WBS ذخیره نمی‌شود."))}</p></div>`;
     case "new-form":
