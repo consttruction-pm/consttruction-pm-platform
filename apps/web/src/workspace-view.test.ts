@@ -128,6 +128,20 @@ test("Calendar register selection drives the details header and read-only identi
         calendarType: "project",
         name: "Project Standard",
         recordRevision: 5,
+      }, {
+        calendarId: "CAL-GLOBAL",
+        calendarVersion: "v1",
+        kind: "working-time",
+        calendarType: "global",
+        name: "Global Standard",
+        recordRevision: 2,
+      }, {
+        calendarId: "CAL-RESOURCE",
+        calendarVersion: "v3",
+        kind: "working-time",
+        calendarType: "resource",
+        name: "Resource Shift",
+        recordRevision: 7,
       }],
       errorCode: null,
     },
@@ -146,6 +160,14 @@ test("Calendar register selection drives the details header and read-only identi
   assert.match(container.innerHTML, /Calendar Type<\/span><strong>project/);
   assert.match(container.innerHTML, /Calendar Version<\/span><strong>v2/);
   assert.match(container.innerHTML, /data-calendar-select="CAL-01" aria-pressed="true"/);
+  const globalTarget = { dataset: { calendarPool: "global" }, closest: () => globalTarget };
+  listeners.get("click")?.({ target: globalTarget } as unknown as Event);
+  assert.match(container.innerHTML, /Global Standard/);
+  assert.doesNotMatch(container.innerHTML, /Project Standard/);
+  const resourceTarget = { dataset: { calendarPool: "resource" }, closest: () => resourceTarget };
+  listeners.get("click")?.({ target: resourceTarget } as unknown as Event);
+  assert.match(container.innerHTML, /Resource Shift/);
+  assert.doesNotMatch(container.innerHTML, /Global Standard/);
 });
 
 test("WBS register exposes the connected add workflow and working chart presentation", () => {
