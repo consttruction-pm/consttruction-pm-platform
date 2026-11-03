@@ -2061,6 +2061,41 @@ test("Resource Assignments exposes a toggleable time-phased usage spreadsheet wi
   assert.match(container.innerHTML, /data-assignment-usage-toggle aria-pressed="true"/);
   assert.match(container.innerHTML, /data-assignment-usage-panel /);
 });
+test("Resource Usage Spreadsheet timescale and field chooser are interactive presentation preferences", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let dialogOpen = false;
+  const dialog = {
+    showModal: () => { dialogOpen = true; },
+    close: () => { dialogOpen = false; },
+    setAttribute: () => { dialogOpen = true; },
+    removeAttribute: () => { dialogOpen = false; },
+  };
+  const checkedFields = [{ value: "Budgeted Cost" }];
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => selector === "[data-assignment-usage-fields-dialog]" ? dialog : null,
+    querySelectorAll: (selector: string) => selector === "[data-assignment-usage-field]:checked" ? checkedFields : [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "assignments" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-assignment-usage-timescale/);
+  assert.match(container.innerHTML, /data-assignment-usage-data/);
+  assert.match(container.innerHTML, /data-assignment-usage-fields-open/);
+  assert.match(container.innerHTML, /data-assignment-usage-fields-dialog/);
+  const openTarget = { dataset: { assignmentUsageFieldsOpen: "" }, closest: () => openTarget };
+  listeners.get("click")?.({ target: openTarget } as unknown as Event);
+  assert.equal(dialogOpen, true);
+  const applyTarget = { dataset: { assignmentUsageFieldsApply: "" }, closest: () => applyTarget };
+  listeners.get("click")?.({ target: applyTarget } as unknown as Event);
+  assert.equal(dialogOpen, false);
+  assert.match(container.innerHTML, /option value="budgeted-cost" selected/);
+  assert.match(container.innerHTML, /value="Budgeted Cost" checked/);
+  const timescaleTarget = { dataset: { assignmentUsageTimescale: "" }, value: "month", closest: () => timescaleTarget };
+  listeners.get("change")?.({ target: timescaleTarget } as unknown as Event);
+  assert.match(container.innerHTML, /option value="month" selected/);
+});
+
 test("WBS, assignments, expenses, issues, risks and thresholds have separate register windows", () => {
   const cases: Array<[WorkspaceMenuKey, string]> = [
     ["wbs", "Work Breakdown Structure"],
