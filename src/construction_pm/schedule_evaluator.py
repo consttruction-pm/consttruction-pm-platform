@@ -19,6 +19,7 @@ from .scheduling.diagnostics import (
 from .scheduling.forward_pass import ScheduledActivity
 from .scheduling.leveling_scheduler import schedule_with_resource_leveling
 from .scheduling.leveling_boundary import SchedulerLevelingInput
+from .scheduling.leveling_cost_recalculation import LevelingCostInputs
 from .scheduling.resource_dependent_placement import (
     PLACEMENT_DIRECTION_EARLY,
     PLACEMENT_DIRECTION_LATE,
@@ -75,6 +76,7 @@ def evaluate_schedule_snapshot(
     calendar_registry: CalendarResolverRegistry,
     *,
     leveling_input: SchedulerLevelingInput | None = None,
+    cost_inputs: LevelingCostInputs | None = None,
 ) -> ScheduleEvaluationResult:
     """Materialize and evaluate one immutable snapshot.
 
@@ -87,7 +89,9 @@ def evaluate_schedule_snapshot(
 
     Resource-leveling ScheduleOptions are routed explicitly through the
     authoritative leveling seam when the application supplies its already
-    mapped SchedulerLevelingInput. Plain scheduling remains unchanged.
+    mapped SchedulerLevelingInput. Post-leveling cost recalculation receives the
+    application-bound LevelingCostInputs (persisted assignments and effective
+    rate facts); this evaluator still reads no repository while calculating.
     """
     if calculation_context.input_snapshot_id != snapshot.snapshot_id:
         raise ScheduleEvaluationError("INPUT_SNAPSHOT_ID_MISMATCH")
@@ -116,6 +120,7 @@ def evaluate_schedule_snapshot(
         snapshot,
         calculation_context,
         leveling_input=leveling_input,
+        cost_inputs=cost_inputs,
     )
 
 
@@ -125,6 +130,7 @@ def _evaluate_materialized(
     calculation_context: CalculationContext,
     *,
     leveling_input: SchedulerLevelingInput | None = None,
+    cost_inputs: LevelingCostInputs | None = None,
 ) -> ScheduleEvaluationResult:
     source = materialized.schedule_input
     try:
@@ -156,6 +162,15 @@ def _evaluate_materialized(
                     calculation_context=calculation_context,
                     relationship_lag_resolvers=relationship_lag_resolvers,
                     activity_resolvers=activity_resolvers,
+                    cost_assignments=(
+                        () if cost_inputs is None else cost_inputs.assignments
+                    ),
+                    cost_resources=(
+                        None if cost_inputs is None else cost_inputs.resources
+                    ),
+                    cost_project_currency=(
+                        None if cost_inputs is None else cost_inputs.project_currency
+                    ),
                 )
             else:
                 if placement_required and leveling_input is None:
@@ -304,6 +319,7 @@ def _resource_leveling_requested(options: object) -> bool:
             "resource_list",
             "priority_list",
             "preserve_scheduled_early_and_late_dates",
+            "recalculate_resource_costs",
         )
     )
 

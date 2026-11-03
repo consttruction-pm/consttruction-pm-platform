@@ -27,6 +27,7 @@ from construction_pm.schedule_input_snapshot_repository import ScheduleInputSnap
 from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
+from construction_pm.scheduling.leveling_cost_recalculation import LevelingCostInputs
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,10 @@ class AuthoritativeScheduleQueryProvider:
     calendar_registry_factory: Callable[[], CalendarResolverRegistry]
     calculation_context_repository: CalculationContextRepository | None = None
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None
+    # Supplies the persisted assignment and effective-rate facts needed when the
+    # snapshot enables post-leveling cost recalculation. The evaluator receives
+    # them as immutable LevelingCostInputs and reads no repository itself.
+    cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None
 
     def execute(
         self,
@@ -123,11 +128,26 @@ class AuthoritativeScheduleQueryProvider:
                 raise ScheduleEvaluationError("SCHEDULE_LEVELING_INPUT_REQUIRED")
             elif placement_required:
                 raise ScheduleEvaluationError("SCHEDULE_RESOURCE_INPUT_REQUIRED")
+            cost_inputs = None
+            if _snapshot_requests_cost_recalculation(snapshot):
+                if self.cost_inputs_resolver is None:
+                    raise ScheduleEvaluationError("SCHEDULE_COST_INPUTS_REQUIRED")
+                if auth_context is None:
+                    raise ScheduleEvaluationError(
+                        "LEVELING_AUTHORIZATION_CONTEXT_REQUIRED"
+                    )
+                cost_inputs = self.cost_inputs_resolver(
+                    snapshot, calculation_context, auth_context
+                )
+                if cost_inputs is None:
+                    raise ScheduleEvaluationError("SCHEDULE_COST_INPUTS_REQUIRED")
+                _validate_cost_inputs_binding(cost_inputs)
             result = evaluate_schedule_snapshot(
                 snapshot,
                 calculation_context,
                 calendar_registry,
                 leveling_input=leveling_input,
+                cost_inputs=cost_inputs,
             )
         except ValueError as exc:
             # Keep fail-closed calculation behavior while translating a core
@@ -208,6 +228,7 @@ def _snapshot_requests_resource_leveling(snapshot: ScheduleInputSnapshot) -> boo
         "level_all_resources",
         "level_within_float",
         "preserve_scheduled_early_and_late_dates",
+        "recalculate_resource_costs",
     ):
         if name in options and not isinstance(options[name], bool):
             raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
@@ -231,14 +252,44 @@ def _snapshot_requests_resource_leveling(snapshot: ScheduleInputSnapshot) -> boo
         or over_allocation != Decimal("0")
         or bool(resource_list)
         or bool(priority_list)
+        or bool(options.get("recalculate_resource_costs", False))
     )
+
+
+def _snapshot_requests_cost_recalculation(snapshot: ScheduleInputSnapshot) -> bool:
+    """Return the snapshot's post-leveling cost-recalculation option.
+
+    The option is part of the immutable payload, so the provider can demand the
+    exact application-bound cost inputs before evaluating instead of letting a
+    missing input surface as a generic calculation failure.
+    """
+    try:
+        payload = json.loads(snapshot.canonical_payload)
+        options = payload["schedule_options"]
+        mode = payload["mode"]
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT") from exc
+    if not isinstance(options, dict):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    if mode != "DATE_BASED":
+        return False
+    value = options.get("recalculate_resource_costs", False)
+    if not isinstance(value, bool):
+        raise ScheduleEvaluationError("INVALID_SCHEDULE_OPTIONS_SNAPSHOT")
+    return value
+
+
+def _validate_cost_inputs_binding(cost_inputs: object) -> None:
+    if not isinstance(cost_inputs, LevelingCostInputs):
+        raise ScheduleEvaluationError("INVALID_COST_INPUTS")
+    if not cost_inputs.assignments or not cost_inputs.resources:
+        raise ScheduleEvaluationError("SCHEDULE_COST_INPUTS_EMPTY")
 
 
 def _snapshot_has_resource_dependent_facts(snapshot: ScheduleInputSnapshot) -> bool:
     """Detect immutable RD assignment facts that require placement output.
 
-    Placement must run even when no resource-leveling option is enabled, so the
-    provider cannot use the leveling-options switch as its only resource seam.
+    Placement must run even when no resource-leveling option is enabled, so the    provider cannot use the leveling-options switch as its only resource seam.
     """
     try:
         payload = json.loads(snapshot.canonical_payload)

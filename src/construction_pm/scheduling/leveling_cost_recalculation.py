@@ -65,6 +65,44 @@ class LevelingCostAssignment:
 
 
 @dataclass(frozen=True)
+class LevelingCostInputs:
+    """Application-bound, immutable cost facts for a leveling recalculation.
+
+    The evaluator never reads a repository while calculating. The application
+    supplies this object after loading the persisted assignments and effective
+    rate facts; every assignment must reference a resource in ``resources``.
+    """
+
+    assignments: tuple[LevelingCostAssignment, ...]
+    resources: Mapping[str, Resource]
+    project_currency: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.assignments, tuple):
+            raise LevelingCostRecalculationError("INVALID_COST_ASSIGNMENTS")
+        if not isinstance(self.resources, Mapping):
+            raise LevelingCostRecalculationError("INVALID_COST_RESOURCES")
+        if self.project_currency is not None and (
+            not isinstance(self.project_currency, str)
+            or not self.project_currency.strip()
+        ):
+            raise LevelingCostRecalculationError("INVALID_COST_PROJECT_CURRENCY")
+        seen: set[str] = set()
+        for assignment in self.assignments:
+            if not isinstance(assignment, LevelingCostAssignment):
+                raise LevelingCostRecalculationError("INVALID_COST_ASSIGNMENT")
+            if assignment.assignment_id in seen:
+                raise LevelingCostRecalculationError(
+                    f"DUPLICATE_COST_ASSIGNMENT_ID:{assignment.assignment_id}"
+                )
+            seen.add(assignment.assignment_id)
+            if not isinstance(self.resources.get(assignment.resource_id), Resource):
+                raise LevelingCostRecalculationError(
+                    f"LEVELING_COST_UNKNOWN_RESOURCE:{assignment.assignment_id}"
+                )
+
+
+@dataclass(frozen=True)
 class RecalculatedCostPeriod:
     period: date
     units: Decimal
@@ -361,6 +399,7 @@ def updated_planned_costs(
 
 __all__ = [
     "LevelingCostAssignment",
+    "LevelingCostInputs",
     "LevelingCostRecalculationError",
     "RecalculatedAssignmentCost",
     "RecalculatedCostPeriod",

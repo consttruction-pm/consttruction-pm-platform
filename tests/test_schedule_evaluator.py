@@ -552,3 +552,127 @@ def test_evaluator_preserves_stable_code_for_constraint_logic_conflict():
         match="SCHEDULE_INFEASIBLE:CONSTRAINT_MANDATORY_UNSATISFIABLE",
     ):
         evaluate_schedule_snapshot(snapshot, context, registry())
+
+
+def test_evaluator_recalculates_costs_from_persisted_rate_facts(tmp_path):
+    import sqlite3
+
+    from construction_pm.backend_p0.models import BackendScope
+    from construction_pm.backend_p0.transactions import SQLiteTransactionManager
+    from construction_pm.p6_resource_assignment_repository import (
+        P6ResourceAssignment,
+        SQLiteP6ResourceAssignmentRepository,
+    )
+    from construction_pm.p6_resource_leveling_cost_service import (
+        P6ResourceLevelingCostService,
+    )
+    from construction_pm.p6_resource_rate_repository import (
+        P6ResourceRateRecord,
+        SQLiteP6ResourceRateRepository,
+    )
+    from construction_pm.resources.models import CostBasis
+    from construction_pm.resources.rate_facts import ResourceRateFact
+    from construction_pm.scheduling.schedule_options import (
+        PriorityListItem,
+        PrioritySortOrder,
+    )
+
+    scope = BackendScope("T-1", "P-1", 7)
+    connection = sqlite3.connect(tmp_path / "leveling-cost.sqlite")
+    rate_repository = SQLiteP6ResourceRateRepository(connection)
+    rate_repository.upsert(
+        P6ResourceRateRecord(
+            scope,
+            ResourceRateFact.create(
+                resource_id="R1",
+                rate=Decimal("10"),
+                basis=CostBasis.PER_DAY,
+                currency="USD",
+                unit="day",
+                effective_from=date(2026, 9, 1),
+                effective_to=None,
+                source="contract-2026",
+            ),
+        )
+    )
+    assignment_repository = SQLiteP6ResourceAssignmentRepository(connection)
+    assignment_repository.upsert(
+        P6ResourceAssignment(
+            scope,
+            "AS-A",
+            "A",
+            "R1",
+            units=Decimal("2"),
+            currency="USD",
+        )
+    )
+    assignment_repository.upsert(
+        P6ResourceAssignment(
+            scope,
+            "AS-B",
+            "B",
+            "R1",
+            units=Decimal("1"),
+            currency="USD",
+        )
+    )
+    service = P6ResourceLevelingCostService(
+        rate_repository,
+        assignment_repository,
+        SQLiteTransactionManager(connection),
+    )
+    cost_inputs = service.build(scope)
+    assert cost_inputs.assignments[0].planned_units == Decimal("2")
+    assert cost_inputs.resources["R1"].rate_on(date(2026, 9, 21)).currency == "USD"
+
+    options = ScheduleOptions(
+        level_all_resources=True,
+        preserve_scheduled_early_and_late_dates=True,
+        recalculate_resource_costs=True,
+        priority_list=(
+            PriorityListItem("activity_priority", PrioritySortOrder.ASCENDING),
+        ),
+    )
+    snapshot, context = make_snapshot_and_context(options=options)
+    leveling_input = SchedulerLevelingInput(
+        forward_activities=(
+            LevelingActivity("A", date(2026, 9, 21), date(2026, 9, 22), 1),
+            LevelingActivity("B", date(2026, 9, 21), date(2026, 9, 22), 1),
+        ),
+        backward_activities=(
+            LevelingActivity("A", date(2026, 9, 21), date(2026, 9, 22), 1),
+            LevelingActivity("B", date(2026, 9, 21), date(2026, 9, 22), 1),
+        ),
+        capacities=tuple(
+            ResourceCapacity("R1", date.fromisoformat(day), Decimal("1"))
+            for day in (
+                "2026-09-21",
+                "2026-09-23",
+                "2026-09-25",
+            )
+        ),
+        options=ResourceLevelingOptions(level_all_resources=True),
+    )
+
+    result = evaluate_schedule_snapshot(
+        snapshot,
+        context,
+        registry(),
+        leveling_input=leveling_input,
+        cost_inputs=cost_inputs,
+    )
+
+    assert result.date_result is not None
+    costs = {
+        item.assignment_id: item
+        for item in result.date_result.recalculated_assignment_costs
+    }
+    assert set(costs) == {"AS-A", "AS-B"}
+    # Both assignments are priced from the one persisted effective rate fact.
+    assert costs["AS-A"].currency == "USD"
+    assert costs["AS-A"].planned_units == Decimal("2")
+    assert costs["AS-A"].total_cost == Decimal("20.00")
+    assert costs["AS-B"].planned_units == Decimal("1")
+    assert costs["AS-B"].total_cost == Decimal("10.00")
+    assert costs["AS-A"].periods[0].rate == Decimal("10")
+    connection.close()

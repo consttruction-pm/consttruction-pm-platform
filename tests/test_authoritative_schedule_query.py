@@ -987,3 +987,124 @@ def test_persisted_start_and_finish_milestones_place_successors_from_their_event
         "2026-11-06",
         "2026-11-06",
     )
+
+
+def _cost_recalculation_case():
+    from construction_pm.resources.models import CostBasis, Resource, ResourceRate, ResourceType
+    from construction_pm.scheduling.leveling_cost_recalculation import (
+        LevelingCostAssignment,
+        LevelingCostInputs,
+    )
+    from construction_pm.scheduling.schedule_options import PriorityListItem, PrioritySortOrder
+
+    conn = sqlite3.connect(":memory:")
+    repo = SQLiteScheduleInputSnapshotRepository(conn)
+    start = date(2026, 9, 21)
+    end = date(2026, 9, 22)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-COST", tenant_id="T-1", project_id="P-1", project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED, project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 2),), relationships=(), activity_calendar_assignments=(),
+        schedule_options=ScheduleOptions(
+            level_all_resources=True,
+            preserve_scheduled_early_and_late_dates=True,
+            recalculate_resource_costs=True,
+            priority_list=(
+                PriorityListItem("activity_priority", PrioritySortOrder.ASCENDING),
+            ),
+        ),
+        project_start=start,
+    )
+    context = CalculationContext(
+        project_id="P-1", project_version=9, calendar_id="CAL-1", calendar_version="1",
+        rules_version="rules-1", engine_version="engine-1", timezone="UTC",
+        calculation_timestamp="2026-09-30T00:00:00+00:00", input_snapshot_id="S-COST", tenant_id="T-1",
+    )
+    snapshot = build_snapshot(source, context, datetime(2026, 9, 30, tzinfo=timezone.utc))
+    repo.save(snapshot)
+    registry = CalendarResolverRegistry(day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())})
+    demand = ResourceDemand("R-1", start, Decimal("4"), "A")
+    leveling = SchedulerLevelingInput(
+        forward_activities=(LevelingActivity("A", start, end, 0, (demand,)),),
+        backward_activities=(BackwardLevelingActivity("A", start, end, start, end, (demand,)),),
+        capacities=(ResourceCapacity("R-1", start, Decimal("8"), "RC-1", "v1", "a" * 64),),
+        options=ResourceLevelingOptions(level_all_resources=True),
+        source_snapshot_id=snapshot.snapshot_id, source_snapshot_hash=snapshot.snapshot_hash,
+        source_calculation_identity=context.calculation_identity,
+        resource_facts_hash="b" * 64, calendar_manifest_hash="c" * 64,
+    )
+    cost_inputs = LevelingCostInputs(
+        assignments=(LevelingCostAssignment("AS-A", "A", "R-1", Decimal("4")),),
+        resources={
+            "R-1": Resource(
+                id="R-1", code="R-1", name="Labor", resource_type=ResourceType.LABOR,
+                unit="day",
+                rates=[ResourceRate(Decimal("10"), CostBasis.PER_DAY, "USD", effective_from=start)],
+            )
+        },
+    )
+    request = ScheduleQueryRequest(
+        "Q-COST", ControlScope("T-1", "P-1", 9), "user-1", "show schedule",
+        constraints={"snapshot_id": "S-COST"},
+    )
+    auth = AuthorizationContext("T-1", "P-1", "user-1", frozenset({"viewer"}))
+    return conn, repo, registry, leveling, cost_inputs, request, auth, context, snapshot
+
+
+def _cost_error_code(exc):
+    return getattr(exc, "code", None) or str(exc)
+
+
+def test_query_requires_bound_cost_inputs_when_snapshot_recalculates_costs():
+    conn, repo, registry, leveling, _cost_inputs, request, auth, context, _snapshot = (
+        _cost_recalculation_case()
+    )
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(
+            repo, lambda: registry, leveling_input_resolver=lambda *_: leveling
+        ),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+    try:
+        service.execute(request, auth_context=auth, calculation_context=context)
+    except Exception as exc:
+        assert _cost_error_code(exc) == "SCHEDULE_COST_INPUTS_REQUIRED", exc
+    else:
+        raise AssertionError(
+            "provider evaluated a cost-recalculation snapshot without cost inputs"
+        )
+    conn.close()
+
+
+def test_query_passes_application_bound_cost_inputs_to_the_evaluator():
+    conn, repo, registry, leveling, cost_inputs, request, auth, context, snapshot = (
+        _cost_recalculation_case()
+    )
+    calls = []
+
+    def resolve_cost_inputs(loaded_snapshot, loaded_context, loaded_auth_context):
+        calls.append(
+            (
+                loaded_snapshot.snapshot_hash,
+                loaded_context.calculation_identity,
+                loaded_auth_context,
+            )
+        )
+        return cost_inputs
+
+    service = AuthoritativeScheduleQueryApplicationService(
+        AuthoritativeScheduleQueryProvider(
+            repo,
+            lambda: registry,
+            leveling_input_resolver=lambda *_: leveling,
+            cost_inputs_resolver=resolve_cost_inputs,
+        ),
+        RoleBasedAuthorizationPolicy({"viewer": frozenset({Permission.PROJECT_READ})}),
+    )
+
+    answer = service.execute(request, auth_context=auth, calculation_context=context)
+
+    assert calls == [(snapshot.snapshot_hash, context.calculation_identity, auth)]
+    assert answer.data["activity_count"] == 1
+    assert answer.data["project_finish"] == "2026-09-22"
+    conn.close()
