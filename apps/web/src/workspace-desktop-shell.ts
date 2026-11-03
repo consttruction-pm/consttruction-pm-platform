@@ -32,6 +32,7 @@ export type DesktopCommand =
   | "activity.predecessors"
   | "activity.successors"
   | "view.fields"
+  | "view.wbs-chart-options"
   | "view.zoom-in"
   | "view.zoom-out"
   | "view.fit"
@@ -273,6 +274,8 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "view.timescale", label: { en: "Timescale…", fa: "مقیاس زمانی…" }, command: "dialog.timescale" },
         { id: "view.bars", label: { en: "Bars…", fa: "میله‌ها…" }, command: "dialog.bars" },
         { id: "view.font-row", label: { en: "Table Font and Row…", fa: "قلم و ردیف جدول…" }, command: "dialog.font-row" },
+        { id: "view.wbs-chart-template", label: { en: "Chart Box Template…", fa: "قالب کادر نمودار…" }, command: "view.wbs-chart-options", disabledReason: state.activeWindow === "wbs" ? undefined : unavailable({ en: "Available in the WBS Chart View", fa: "در نمای نمودار WBS در دسترس است" }, locale) },
+        { id: "view.wbs-chart-colors", label: { en: "Chart Font and Colors…", fa: "قلم و رنگ‌های نمودار…" }, command: "view.wbs-chart-options", disabledReason: state.activeWindow === "wbs" ? undefined : unavailable({ en: "Available in the WBS Chart View", fa: "در نمای نمودار WBS در دسترس است" }, locale) },
         { id: "view.zoom-in", label: { en: "Zoom in", fa: "بزرگ‌نمایی" }, command: "view.zoom-in" },
         { id: "view.zoom-out", label: { en: "Zoom out", fa: "کوچک‌نمایی" }, command: "view.zoom-out" },
         { id: "view.fit", label: { en: "Fit to window", fa: "تناسب با پنجره" }, command: "view.fit" },
