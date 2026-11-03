@@ -303,12 +303,26 @@ class SharedCoreRuntime:
             )
         if not isinstance(payload, Mapping):
             return _error("validation", "CORE_RUNTIME_REQUEST_INVALID", "The operation payload must be an object.")
-        if set(payload) - spec.allowed_fields or not spec.required_fields.issubset(payload):
+        payload_data = dict(payload)
+        mutation_metadata = payload_data.pop("mutation", None)
+        if mutation_metadata is not None and (
+            not spec.mutates or not isinstance(mutation_metadata, Mapping)
+            or set(mutation_metadata) != {"mutation_id", "idempotency_key"}
+            or any(
+                not isinstance(mutation_metadata.get(name), str)
+                or not mutation_metadata.get(name, "").strip()
+                for name in ("mutation_id", "idempotency_key")
+            )
+        ):
+            return _error("validation", "INVALID_MUTATION_ENVELOPE", "The mutation identity is invalid.")
+        if spec.mutates and self.mutation_executor is not None and mutation_metadata is None:
+            return _error("validation", "MUTATION_ENVELOPE_REQUIRED", "Offline writes require mutation and idempotency identifiers.")
+        if set(payload_data) - spec.allowed_fields or not spec.required_fields.issubset(payload_data):
             return _error("validation", "CORE_RUNTIME_REQUEST_INVALID", "The operation payload fields do not match its versioned contract.")
-        if payload.get("contract_version") != spec.contract_version:
+        if payload_data.get("contract_version") != spec.contract_version:
             return _error("validation", "UNSUPPORTED_OPERATION_CONTRACT", "The operation contract version is not supported.")
 
-        raw_scope = payload.get("scope")
+        raw_scope = payload_data.get("scope")
         if not isinstance(raw_scope, Mapping) or set(raw_scope) != _SCOPE_FIELDS:
             return _error("validation", "CORE_RUNTIME_SCOPE_INVALID", "The project scope is invalid.")
         revision = raw_scope.get("project_revision")
@@ -329,7 +343,20 @@ class SharedCoreRuntime:
             return _error("authorization", "FORBIDDEN", "The authenticated actor is not allowed to perform this operation.")
 
         try:
-            value = spec.handler(payload, auth_context, expected_project_revision)
+            apply_operation = lambda: spec.handler(
+                payload_data, auth_context, expected_project_revision
+            )
+            if spec.mutates and self.mutation_executor is not None:
+                value = self.mutation_executor(
+                    operation,
+                    payload_data,
+                    mutation_metadata,
+                    auth_context,
+                    expected_project_revision,
+                    apply_operation,
+                )
+            else:
+                value = apply_operation()
             if isinstance(value, Mapping):
                 return dict(value)
             if isinstance(value, (tuple, list)):
