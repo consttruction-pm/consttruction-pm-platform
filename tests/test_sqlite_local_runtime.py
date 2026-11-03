@@ -723,8 +723,47 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
         assert invoke("relationship.list", relationship_version, {})["result"]["count"] == 1
         assert invoke("constraint.list", constraint_version, {})["result"]["count"] == 1
 
+        baseline = invoke("baseline.create", "p6-baseline-api.v1", {
+            "baseline": {
+                "baseline_id": "BL-ABI",
+                "name": "ABI baseline",
+                "baseline_type": "PRIMARY",
+                "source_revision": scope.project_revision,
+                "created_at": "2026-11-03T10:00:00Z",
+            }
+        })
+        assert baseline["result"]["item"]["baseline"]["baseline_id"] == "BL-ABI"
+
+        account = invoke("cost_account.create", "p6-cost-account-api.v1", {
+            "cost_account": {
+                "account_id": "CA-ABI",
+                "name": "Direct costs",
+            }
+        })
+        assert account["result"]["item"]["cost_account"]["account_id"] == "CA-ABI"
+
+        expense = invoke("expense.create", "p6-expense-api.v1", {
+            "expense": {
+                "expense_id": "EXP-ABI",
+                "name": "Labor allowance",
+                "category": "LABOUR",
+                "activity_id": "A1",
+                "wbs_id": "WBS-ROOT",
+                "planned_cost": "1250.75",
+                "currency": "EUR",
+            }
+        })
+        assert expense["result"]["item"]["expense"]["planned_cost"] == "1250.75"
+
+        assert invoke("baseline.list", "p6-baseline-api.v1", {})["result"]["count"] == 1
+        assert invoke("cost_account.list", "p6-cost-account-api.v1", {})["result"]["count"] == 1
+        assert invoke("expense.list", "p6-expense-api.v1", {})["result"]["count"] == 1
+
         advertised = {item["operation"] for item in shared.supported_operations}
-        assert {"schedule.query", "wbs.create", "activity.create", "relationship.create", "constraint.create"} <= advertised
+        assert {
+            "schedule.query", "wbs.create", "activity.create", "relationship.create",
+            "constraint.create", "baseline.create", "cost_account.create", "expense.create",
+        } <= advertised
     finally:
         connection.close()
 
