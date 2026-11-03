@@ -380,3 +380,10 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - CUBI's visible Used By and To Global / To Shared / To Personal actions are now represented in the register toolbar but remain disabled with the current unavailable-service boundary; Add/Edit/Delete are also disabled until calendar persistence is connected.
 - Regression coverage added for search behavior, pool controls, and the disabled management actions.
 - Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/calendars_dialog_box.htm; https://docs.oracle.com/cd/G48902_01/client_help/en_US/calendars_dialog_box.htm.
+## Resource Assignments — Usage Spreadsheet display controls — 2026-11-03
+
+- Version 26 Resource Assignments supports a right-pane Resource Usage Spreadsheet, with time-phased quantity or cost fields, configurable timescale, spreadsheet field selection, and Assignment Details. Its values are editable only under the documented security, preference, and timescale conditions.
+- CUBI correction: the assignment workspace now exposes active Timescale and Data selectors plus a Spreadsheet Fields dialog. The selected presentation preferences persist across re-renders within the open window, and the field chooser requires at least one selected field. The grid remains an honest empty state until time-phased assignment records are supplied; no periods or quantities are fabricated as data.
+- Editing and fill-down/across remain unavailable until authoritative assignment period-bucket data and permission checks are connected.
+- Regression coverage verifies opening/applying the field chooser and changing timescale.
+- Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/resource_assignments_window.htm; https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/the_resource_usage_spreadsheet.htm.
