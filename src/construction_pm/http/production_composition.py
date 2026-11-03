@@ -30,6 +30,9 @@ from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
+from construction_pm.p6_baseline_api import P6BaselineAPI
+from construction_pm.p6_cost_account_api import P6CostAccountAPI
+from construction_pm.p6_expense_api import P6ExpenseAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.wbs_master_repository import WBSMasterRepository
 from construction_pm.http.project_lifecycle_routes import Clock, ProjectLifecycleHttpRoutes
@@ -66,6 +69,9 @@ def build_project_lifecycle_wsgi_app(
     workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
     relationship_master_repository: RelationshipMasterRepository | None = None,
     schedule_snapshot_publication_api: P6ScheduleSnapshotPublicationAPI | None = None,
+    baseline_api: P6BaselineAPI | None = None,
+    cost_account_api: P6CostAccountAPI | None = None,
+    expense_api: P6ExpenseAPI | None = None,
     backend_p0_api: BackendP0API | None = None,
     p6_field_registry_api: P6FieldRegistryAPI | None = None,
     p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
@@ -160,6 +166,9 @@ def build_project_lifecycle_wsgi_app(
             calendar_api=p6_calendar_api,
             calendar_read_api=p6_calendar_read_api,
             schedule_snapshot_api=schedule_snapshot_publication_api,
+            baseline_api=baseline_api,
+            cost_account_api=cost_account_api,
+            expense_api=expense_api,
         ),
     )
     schedule_query_api = shared_core_runtime.schedule_query_api
