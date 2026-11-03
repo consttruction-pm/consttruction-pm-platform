@@ -2128,6 +2128,24 @@ test("Resource Assignments opens with the Usage Spreadsheet in the right pane an
   assert.match(container.innerHTML, /data-assignment-usage-toggle aria-pressed="false"/);
   assert.match(container.innerHTML, /data-assignment-usage-panel hidden/);
 });
+test("Resource register exposes functional Labor, Nonlabor and Material type filters without inventing records", () => {
+  const html = render("en", "resources");
+  for (const filter of ["all", "labor", "nonlabor", "material"]) assert.match(html, new RegExp(`data-resource-type-filter="${filter}"`));
+  assert.match(html, /No resource rows are loaded/);
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "resources" as const };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const target = { dataset: { resourceTypeFilter: "material" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.match(container.innerHTML, /data-resource-type-filter="material" aria-pressed="true"/);
+  assert.match(container.innerHTML, /Resource Type filter: Material/);
+});
+
 test("Resource Usage Spreadsheet timescale and field chooser are interactive presentation preferences", () => {
   const listeners = new Map<string, (event: Event) => void>();
   let dialogOpen = false;
