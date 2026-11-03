@@ -101,3 +101,12 @@ All subsequent visual work must follow [`reference/visual-audit-governing-princi
 | Gantt bar display styling | Version 26 User Guide → Customizing Activity Layouts → Gantt Chart → Change a bar / bar style | Bar editor color controls were static values and did not affect the rendered Gantt preview. | Bound bar, border and label color controls to visual-demo state and Gantt CSS variables; synchronized source/public stylesheet rules and added a regression assertion. | Exact-head CI has not yet been triggered for the latest documentation commits; browser screenshot review remains outstanding. | Implemented-unverified |
 
 **Important:** This is a correction of the audit baseline and implementation inventory, not completion of the requested all-page audit. Every Version 26 window, view family, dialog, menu, field, option, state and visual property still requires its own source-linked audit row and running-preview evidence. The PR must remain open and unmerged until those audits and exact-head checks are complete.
+
+
+## 2026-11-03 — Tracking layout family correction
+
+| Page/component | Version 26 reference | Finding | Correction | Tests/evidence | Status |
+|---|---|---|---|---|---|
+| Tracking | User Guide chapter 9; Tracking layouts → Types of tracking layouts; Customize a Project Table, Project Bar Chart, Project Gantt/Profile, Resource Analysis | The page was still a generic Activity table and did not represent the four documented Tracking layout families. | Replaced the generic table route with four separately selectable structures: Project Table; Project Bar Chart; Project Gantt/Profile with top Gantt and bottom profile/spreadsheet; Resource Analysis with resource columns and time-distributed usage. Added localized tab labels, distinct content renderers, responsive split layout and synchronized source/public CSS. | Added English/Persian rendering assertions for all four families, selected state, top/bottom regions and resource analysis. Exact-head CI and browser screenshot review remain pending. | Implemented-unverified |
+
+**Boundary:** Tracking content remains illustrative preview data. No live cross-project rollups, cost/resource calculations, saved layouts, filtering/grouping persistence or schedule execution is claimed.
