@@ -192,6 +192,10 @@ test("Calendar register selection drives the details header and read-only identi
 test("Projects window switches among table, chart and honest empty Gantt top layouts", () => {
   const html = render("en", "project");
   assert.match(html, /data-project-view-toggle="table"/);
+  assert.match(html, /Add Project/);
+  assert.match(html, /Open Project/);
+  assert.match(html, /data-shell-command="project.close"/);
+  assert.match(html, /Portfolio/);
   assert.match(html, /data-project-view-toggle="chart"/);
   assert.match(html, /data-project-view-toggle="gantt"/);
   assert.match(html, /data-project-view="table"/);
