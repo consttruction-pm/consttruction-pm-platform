@@ -229,7 +229,12 @@ def _row_to_rule(
     row: tuple[object, ...],
 ) -> CalendarWorkHourRule:
     import json
-    intervals = tuple((str(pair[0]), str(pair[1])) for pair in json.loads(str(row[2])))
+    raw_intervals = row[2]
+    if isinstance(raw_intervals, str):
+        raw_intervals = json.loads(raw_intervals)
+    intervals = tuple(
+        (str(pair[0]), str(pair[1])) for pair in raw_intervals
+    )
     return CalendarWorkHourRule(
         scope, calendar_id, calendar_version, kind, weekday,
         None if row[0] is None else bool(row[0]),

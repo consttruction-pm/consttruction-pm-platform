@@ -234,9 +234,13 @@ def test_postgres_current_values_round_trip_and_enforce_scope_and_revision(
     with pytest.raises(P6CurrentActivityPersistenceError, match="REVISION_CONFLICT"):
         service.list(BackendScope(scope.tenant_id, scope.project_id, 8))
 
+    next_scope = BackendScope(scope.tenant_id, scope.project_id, 8)
     with connection.transaction():
         service.save_many(
-            (_current_value(BackendScope(scope.tenant_id, scope.project_id, 8), "A", "300"),)
+            (
+                _current_value(next_scope, "A", "300"),
+                _current_value(next_scope, "B", "250"),
+            )
         )
     with pytest.raises(P6CurrentActivityPersistenceError, match="REVISION_CONFLICT"):
         service.list(scope)
@@ -332,5 +336,5 @@ def test_postgres_selective_update_api_uses_persisted_current_values(connection)
         auth_context=auth,
     )
     rows = {row["activity_id"]: row for row in compared["rows"]}
-    assert rows["A"]["budget_variance"] == "500"
+    assert rows["A"]["budget_variance"] == "500.00"
     assert rows["A"]["status"] == "CHANGED"
