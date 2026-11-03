@@ -114,12 +114,13 @@ test("Calendar Register displays only authenticated project calendar records", (
   assert.doesNotMatch(container.innerHTML, />0<\/span>/);
 });
 
-test("WBS register exposes the connected add workflow and never fabricates a chart action", () => {
+test("WBS register exposes the connected add workflow and working chart presentation", () => {
   const html = render("en", "wbs");
   assert.match(html, /data-rail-action="wbs"/);
   assert.match(html, /data-rail-action="wbs">Add WBS/);
   assert.match(html, /data-wbs-delete disabled/);
-  assert.match(html, /WBS chart view is not connected yet/);
+  assert.match(html, /data-wbs-view-toggle="table"/);
+  assert.match(html, /data-wbs-view-toggle="chart"/);
 });
 
 test("Activity Group and Sort defaults to WBS in English and Persian", () => {
