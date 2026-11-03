@@ -675,3 +675,20 @@ test("Resource Details exposes localized tabs and fields in Persian RTL", () => 
     assert.ok(html.includes(label), `missing Persian Resource Details label: ${label}`);
   }
 });
+
+
+test("Resource shift dialog shows effective dates, weekly periods and capacity separation", () => {
+  const html = renderVisualDemo(createVisualDemoState("en"));
+  for (const label of ["Define shifts…", "Resource shifts", "Shift name", "Shift calendar", "Effective start", "Effective finish", "Shift pattern", "Hours per shift", "Daily shift periods", "Net work hours", "Allow overtime", "Shift definitions are separate from the base calendar"]) {
+    assert.ok(html.includes(label), `missing resource shift control: ${label}`);
+  }
+  assert.match(html, /data-vd-dialog="resource-shifts"/);
+});
+
+test("Resource shift dialog has Persian RTL labels", () => {
+  const html = renderVisualDemo(createVisualDemoState("fa"));
+  assert.match(html, /data-visual-demo dir="rtl"/);
+  for (const label of ["شیفت‌های منابع", "نام شیفت", "تقویم شیفت", "شروع اعتبار", "پایان اعتبار", "الگوی شیفت", "بازه‌های روزانه شیفت", "ساعات خالص کار", "اجازه اضافه‌کاری"]) {
+    assert.ok(html.includes(label), `missing Persian resource shift label: ${label}`);
+  }
+});
