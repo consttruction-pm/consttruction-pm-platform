@@ -648,7 +648,7 @@ test("Calendar dictionary and editor expose Persian RTL labels and conversion wa
   state.window = "calendars";
   const html = renderVisualDemo(state);
   assert.match(html, /data-visual-demo dir="rtl"/);
-  for (const label of ["مخازن تقویم", "سراسری", "پروژه", "منبع", "تقویم والد", "هفته کاری استاندارد", "مجموع ساعات کاری روز", "جزئیات ساعات کاری روز", "ساعات هر دوره زمانی", "موارد استفاده…", "تقویم‌های پروژه و منابعِ پیوندخورده"]) {
+  for (const label of ["مخازن تقویم", "سراسری", "پروژه", "منبع", "تقویم سراسری والد", "هفته کاری استاندارد", "مجموع ساعات کاری روز", "جزئیات ساعات کاری روز", "ساعات هر دوره زمانی", "موارد استفاده…", "تقویم‌های پروژه و منابعِ پیوندخورده"]) {
     assert.ok(html.includes(label), `missing Persian calendar label: ${label}`);
   }
 });
@@ -663,12 +663,12 @@ test("Resource dictionary follows desktop columns and exposes the resource detai
   }
   assert.match(html, /cp-vd-resource-table/);
   assert.match(html, /data-vd-dialog="resource-details"/);
-  assert.match(html, /resource rates over time, shifts, calendars, roles, codes/);
+  assert.match(html, /Resource rates over time, shifts, calendars, roles, codes/);
 });
 
 test("Resource Details follows the desktop General, Codes, Details, Units & Prices, Roles, Notes and Custom Fields tabs", () => {
   const html = renderVisualDemo(createVisualDemoState("en"));
-  for (const label of ["Resource detail sections", "Units & Prices", "Employee ID", "E-mail address", "Office phone", "Active resource — available for assignment", "Maximum units/time", "Price factor", "Assigned roles", "Resource codes", "Progress Reporter tab is excluded"]) {
+  for (const label of ["Resource detail sections", "Units &amp; Prices", "Employee ID", "E-mail address", "Office phone", "Active resource — available for assignment", "Maximum units/time", "Price factor", "Assigned roles", "Resource codes", "Progress Reporter tab is excluded"]) {
     assert.ok(html.includes(label), `missing Resource Details field or tab: ${label}`);
   }
   assert.match(html, /data-vd-dialog="resource-details"/);
@@ -685,7 +685,9 @@ test("Resource Details exposes localized tabs and fields in Persian RTL", () => 
 
 
 test("Resource shift dialog shows effective dates, weekly periods and capacity separation", () => {
-  const html = renderVisualDemo(createVisualDemoState("en"));
+  const state = createVisualDemoState("en");
+  state.window = "resources";
+  const html = renderVisualDemo(state);
   for (const label of ["Define shifts…", "Resource shifts", "Shift name", "Shift calendar", "Effective start", "Effective finish", "Shift pattern", "Hours per shift", "Daily shift periods", "Net work hours", "Allow overtime", "Shift definitions are separate from the base calendar"]) {
     assert.ok(html.includes(label), `missing resource shift control: ${label}`);
   }
@@ -846,7 +848,7 @@ test("Administration hierarchy and financial controls retain RTL layout and Pers
   state.adminSection = "eps";
   const eps = renderVisualDemo(state);
   assert.match(eps, /ساختار سازمانی پروژه‌ها/);
-  assert.match(eps, /ساختار سلسله‌مراتبی سبد پروژه/);
+  assert.match(eps, /ظرف سلسله‌مراتبی سبد پروژه/);
 });
 
 
@@ -868,15 +870,15 @@ test("Version 26 workspace shell uses the canonical CUBI theme across chrome, di
   const publicStyles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
   assert.equal(sourceStyles, publicStyles, "source and public stylesheets must remain byte-identical");
   for (const selector of [
-    ".cp-p6 .cp-vd-titlebar",
-    ".cp-p6 .cp-vd-menubar",
-    ".cp-p6 .cp-vd-toolbars",
-    ".cp-p6 .cp-vd-tab.is-active",
-    ".cp-p6 .cp-vd-dialog-title",
-    ".cp-p6 .cp-vd-bar.is-normal",
-    ".cp-p6 .cp-vd-bar.is-critical",
-    ".cp-p6 .cp-vd-bar.is-summary",
-    ".cp-p6 .cp-vd-bar.is-milestone",
+    ".cp-vd-titlebar",
+    ".cp-vd-menubar",
+    ".cp-vd-toolbars",
+    ".cp-vd-tab.is-active",
+    ".cp-vd-dialog-title",
+    ".cp-vd-bar.is-normal",
+    ".cp-vd-bar.is-critical",
+    ".cp-vd-bar.is-summary",
+    ".cp-vd-bar.is-milestone",
   ]) {
     assert.ok(sourceStyles.includes(selector), "missing themed workspace selector: " + selector);
   }
@@ -943,7 +945,7 @@ test("Import/export mapping workbench is mirrored for Persian RTL", () => {
 
 test("Workspace menu hierarchy exposes project, organization, tools and administration commands", () => {
   const html = renderVisualDemo(createVisualDemoState("en"));
-  for (const label of ["File", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help", "Add…", "Delete", "Assign", "Resources by Role…", "Activity Codes…", "Predecessors…", "Successors…", "Recent Projects", "Refresh Project Data", "Sync Project Changes", "Resource Curves…", "Activity Step Templates…", "Summarize Project Data", "Project Checker…", "Auto-Reorganization", "Help Contents", "What's New", "Send Feedback", "Close project", "Save layout as…", "Collapse To…", "Show on Top", "Show on Bottom", "Bottom Layout Options…", "Progress Line…", "Progress Spotlight", "Attachments…", "Line Numbers", "Activity Critical Path", "Check Schedule", "Activity Network Options…", "Arrange Children", "Align Children", "Chart Box Template…", "Chart Font and Colors…", "Launch", "Hint Help", "Zoom", "Expand All", "Collapse All", "Reset All Toolbars", "Lock All Toolbars", "Tab Groups", "Enterprise Project Structure", "Responsibility Structure (OBS)", "Currencies…", "Financial Periods…", "Administrative Categories…", "Global Change…", "Recalculate Assignment Costs…", "Threshold Monitor…", "Update Progress…", "Apply Actuals…", "Store Period Performance…", "Report Library / Runner…"]) {
+  for (const label of ["File", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help", "Add…", "Delete", "Assign", "Resources by Role…", "Activity Codes…", "Predecessors…", "Successors…", "Recent Projects", "Refresh Project Data", "Sync Project Changes", "Resource Curves…", "Activity Step Templates…", "Summarize Project Data", "Project Checker…", "Auto-Reorganization", "Help Contents", "What&#39;s New", "Send Feedback", "Close project", "Save layout as…", "Collapse To…", "Show on Top", "Show on Bottom", "Bottom Layout Options…", "Progress Line…", "Progress Spotlight", "Attachments…", "Line Numbers", "Activity Critical Path", "Check Schedule", "Activity Network Options…", "Arrange Children", "Align Children", "Chart Box Template…", "Chart Font and Colors…", "Launch", "Hint Help", "Zoom", "Expand All", "Collapse All", "Reset All Toolbars", "Lock All Toolbars", "Tab Groups", "Enterprise Project Structure", "Responsibility Structure (OBS)", "Currencies…", "Financial Periods…", "Administrative Categories…", "Global Change…", "Recalculate Assignment Costs…", "Threshold Monitor…", "Update Progress…", "Apply Actuals…", "Store Period Performance…", "Report Library / Runner…"]) {
     assert.ok(html.includes(label), "missing workspace menu entry: " + label);
   }
   assert.match(html, /adminSection&quot;|adminSection/);
