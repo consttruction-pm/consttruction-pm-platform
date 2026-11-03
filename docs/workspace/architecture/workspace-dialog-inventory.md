@@ -96,3 +96,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 5. **No fake affordances:** buttons without a backend are disabled with a visible "Available after <capability>" note.
 6. **Keyboard:** Enter submits, Esc cancels, Tab order follows visual order, focus returns to the invoking control.
 7. **RTL:** dialog order mirrors, but numeric and ID fields remain LTR.
+
+## Mandatory dialog-by-dialog visual audit
+
+Every dialog, tab and nested panel in this inventory must be audited individually under [`../reference/visual-audit-governing-principles.md`](../reference/visual-audit-governing-principles.md). Verify the full field/control inventory, order, units, defaults, validation, selection and disabled states, dimensions, typography, borders, colours and all documented appearance pickers. A dialog with only its title or a static preview is not complete. Gantt Bars, chart options, table font/row, timescale and other colour/style dialogs are in scope now; the future theme phase does not defer their implementation.
