@@ -129,10 +129,10 @@ test("module registers expose page commands, selectable rows, and contextual Det
 test("module registers expose searchable and sortable row controls with an empty state", () => {
   const state = createVisualDemoState("en");
   state.window = "procurement";
-  state.moduleSearch = "pump";
+  state.moduleSearch = "no-match";
   state.moduleSort = "ascending";
   const markup = renderVisualDemo(state);
-  assert.match(markup, /data-vd-module-search value="pump"/);
+  assert.match(markup, /data-vd-module-search value="no-match"/);
   assert.match(markup, /data-vd-module-sort/);
   assert.match(markup, /value="ascending" selected/);
   assert.match(markup, /No records match this search/);
