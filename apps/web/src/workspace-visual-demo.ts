@@ -1415,12 +1415,12 @@ function dialogContent(name: string, state: DemoState): string {
         ["predecessors", "Predecessors", "پیش‌نیازها"],
         ["codes", "Codes", "کدها"],
       ];
-      const tabItem = ([id, en, fa]: [string, string, string], checked: boolean, index: number): string =>
+      const tabItem = ([id, en, fa]: [string, string, string], checked: boolean): string =>
         `<li data-vd-detail-tab-row="${id}"><label><input type="checkbox" name="detail-tab-${id}" data-vd-detail-tab="${id}" ${checked ? "checked" : ""}> ${esc(t(state.locale, en, fa))}</label>${checked ? `<span class="cp-vd-inline-actions"><button type="button" disabled aria-label="Move ${esc(en)} up" title="Move up">↑</button><button type="button" disabled aria-label="Move ${esc(en)} down" title="Move down">↓</button></span>` : ""}</li>`;
       return `<div class="cp-vd-details-customize">
         <div class="cp-vd-two">
-          <section><strong>${esc(t(state.locale, "Available tabs", "زبانه‌های موجود"))}</strong><ul>${availableTabs.map((tab, index) => tabItem(tab, false, index)).join("")}</ul></section>
-          <section><strong>${esc(t(state.locale, "Displayed tabs · example order", "زبانه‌های نمایشی · ترتیب نمونه"))}</strong><ol>${displayedTabs.map((tab, index) => tabItem(tab, true, index)).join("")}</ol></section>
+          <section><strong>${esc(t(state.locale, "Available tabs", "زبانه‌های موجود"))}</strong><ul>${availableTabs.map((tab) => tabItem(tab, false)).join("")}</ul></section>
+          <section><strong>${esc(t(state.locale, "Displayed tabs · example order", "زبانه‌های نمایشی · ترتیب نمونه"))}</strong><ol>${displayedTabs.map((tab) => tabItem(tab, true)).join("")}</ol></section>
         </div>
         <p class="cp-vd-note">${esc(t(state.locale, "Standard desktop Details tabs are listed. Selectable controls are a visual preview; tab visibility and order are not saved in this build.", "همه زبانه‌های استاندارد جزئیات نسخه دسکتاپ فهرست شده‌اند. کنترل‌ها پیش‌نمایش بصری هستند و ترتیب یا نمایش زبانه‌ها در این نسخه ذخیره نمی‌شود."))}</p>
       </div>`;
