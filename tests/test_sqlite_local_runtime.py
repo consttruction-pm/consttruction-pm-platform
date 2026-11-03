@@ -860,6 +860,8 @@ def test_local_shared_runtime_exposes_versioned_wbs_activity_relationship_and_co
         assert {
             "schedule.query", "wbs.create", "activity.create", "relationship.create",
             "constraint.create", "baseline.create", "cost_account.create", "expense.create",
+            "resource_assignment.create", "resource_assignment_period.create",
+            "resource_spread.save", "resource_capacity.save",
         } <= advertised
 
         pending = runtime.offline_mutation_store.pending()
