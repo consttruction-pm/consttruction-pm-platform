@@ -812,7 +812,7 @@ test("Administration covers EPS, OBS, categories, currencies, financial periods 
   state.window = "administration";
   const html = renderVisualDemo(state);
   const panels: string[] = [];
-  for (const section of ["eps", "obs", "categories", "currencies", "financial-periods", "custom-fields"]) {
+  for (const section of ["eps", "obs", "preferences", "categories", "currencies", "financial-periods", "custom-fields"]) {
     state.adminSection = section;
     const panel = renderVisualDemo(state);
     panels.push(panel);
