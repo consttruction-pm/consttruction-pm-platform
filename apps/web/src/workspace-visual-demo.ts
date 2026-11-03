@@ -188,6 +188,7 @@ type DemoState = {
   moduleSelectedRow: number;
   moduleSearch: string;
   moduleSort: "default" | "ascending" | "descending";
+  moduleSortBy: string;
   moduleColumnWindow: DemoWindowId | null;
   moduleAvailableColumns: string[];
   moduleColumns: string[];
@@ -639,14 +640,15 @@ function renderTableWindow(state: DemoState, title: Label, headers: string[], ro
     state.moduleColumnWindow = state.window;
     state.moduleAvailableColumns = [...headers];
     state.moduleColumns = [...headers];
+    state.moduleSortBy = headers[0] ?? "";
   }
   const visibleHeaders = headers.filter((header) => state.moduleColumns.includes(header));
   const searchableRows = rows.map((row, index) => ({ row, index })).filter(({ row }) =>
     !state.moduleSearch.trim() || headers.some((header) => String(row[header] ?? "").toLowerCase().includes(state.moduleSearch.trim().toLowerCase())),
   );
   if (state.moduleSort !== "default") searchableRows.sort((a, b) => {
-    const left = String(a.row[headers[0]] ?? "").toLocaleLowerCase();
-    const right = String(b.row[headers[0]] ?? "").toLocaleLowerCase();
+    const left = String(a.row[state.moduleSortBy || headers[0]] ?? "").toLocaleLowerCase();
+    const right = String(b.row[state.moduleSortBy || headers[0]] ?? "").toLocaleLowerCase();
     return (left.localeCompare(right, undefined, { numeric: true }) || a.index - b.index) * (state.moduleSort === "ascending" ? 1 : -1);
   });
   const selected = rows[Math.min(state.moduleSelectedRow, Math.max(0, rows.length - 1))] ?? {};
@@ -670,7 +672,8 @@ function renderTableWindow(state: DemoState, title: Label, headers: string[], ro
       <button type="button" data-vd-dialog="filters">▽ ${esc(t(state.locale, "Filter", "فیلتر"))}</button>
       <button type="button" data-vd-dialog="columns">▦ ${esc(t(state.locale, "Columns", "ستون‌ها"))}</button>
       <label class="cp-vd-register-search"><span>${esc(t(state.locale, "Find in register", "جست‌وجو در فهرست"))}</span><input type="search" data-vd-module-search value="${esc(state.moduleSearch)}" placeholder="${esc(t(state.locale, "Search visible fields…", "جست‌وجوی فیلدهای نمایان…"))}"></label>
-      <label class="cp-vd-register-sort"><span>${esc(t(state.locale, "Sort", "ترتیب"))}</span><select data-vd-module-sort><option value="default" ${state.moduleSort === "default" ? "selected" : ""}>${esc(t(state.locale, "Original order", "ترتیب اصلی"))}</option><option value="ascending" ${state.moduleSort === "ascending" ? "selected" : ""}>${esc(t(state.locale, "Ascending", "صعودی"))}</option><option value="descending" ${state.moduleSort === "descending" ? "selected" : ""}>${esc(t(state.locale, "Descending", "نزولی"))}</option></select></label>
+      <label class="cp-vd-register-sort"><span>${esc(t(state.locale, "Sort by", "ترتیب بر اساس"))}</span><select data-vd-module-sort-field>${headers.map((header) => `<option value="${esc(header)}" ${state.moduleSortBy === header ? "selected" : ""}>${esc(header)}</option>`).join("")}</select></label>
+      <label class="cp-vd-register-sort"><span>${esc(t(state.locale, "Direction", "جهت"))}</span><select data-vd-module-sort><option value="default" ${state.moduleSort === "default" ? "selected" : ""}>${esc(t(state.locale, "Original order", "ترتیب اصلی"))}</option><option value="ascending" ${state.moduleSort === "ascending" ? "selected" : ""}>${esc(t(state.locale, "Ascending", "صعودی"))}</option><option value="descending" ${state.moduleSort === "descending" ? "selected" : ""}>${esc(t(state.locale, "Descending", "نزولی"))}</option></select></label>
       <span class="cp-vd-register-count">${searchableRows.length} / ${rows.length}</span>
       <span class="cp-vd-note">${esc(t(state.locale, "Visual preview — not connected", "پیش‌نمایش بصری — متصل نیست"))}</span>
     </div>
@@ -1550,6 +1553,7 @@ export function createVisualDemoState(locale: string): DemoState {
     moduleSelectedRow: 0,
     moduleSearch: "",
     moduleSort: "default",
+    moduleSortBy: "",
     moduleColumnWindow: null,
     moduleAvailableColumns: [],
     moduleColumns: [],
@@ -1969,6 +1973,11 @@ function bind(root: HTMLElement): void {
 
   root.addEventListener("change", (event) => {
     const target = event.target as HTMLElement | null;
+    if (target instanceof HTMLSelectElement && target.matches("[data-vd-module-sort-field]")) {
+      state.moduleSortBy = state.moduleAvailableColumns.includes(target.value) ? target.value : (state.moduleAvailableColumns[0] ?? "");
+      draw();
+      return;
+    }
     if (target instanceof HTMLSelectElement && target.matches("[data-vd-module-sort]")) {
       const next = target.value;
       if (next === "default" || next === "ascending" || next === "descending") {
