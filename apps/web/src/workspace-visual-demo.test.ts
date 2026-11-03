@@ -969,6 +969,7 @@ test("Workspace menu hierarchy keeps Persian labels for key administration and p
 test("Version 26 Action toolbar is present in English and Persian and exposes contextual workspace actions", () => {
   const en = renderVisualDemo(createVisualDemoState("en"));
   assert.match(en, /title="Action"/);
+  assert.match(en, /title="Display"/);
   for (const label of ["Add Activity", "Assign Resources", "Assign Activity Codes", "Dissolve Activity"]) {
     assert.ok(en.includes(label), "missing Action toolbar command: " + label);
   }
