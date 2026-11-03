@@ -1045,6 +1045,28 @@ test("module windows expose page-specific Details tabs rather than one generic t
   }
 });
 
+test("Tracking exposes all four distinct Version 26 layout families and switches between them", () => {
+  for (const locale of ["en", "fa"] as const) {
+    const state = createVisualDemoState(locale);
+    state.window = "tracking";
+    const html = renderVisualDemo(state);
+    for (const id of ["project-table", "project-bar-chart", "project-gantt-profile", "resource-analysis"]) {
+      assert.match(html, new RegExp(`data-vd-tracking-layout="${id}"`), `missing tracking layout ${id}`);
+    }
+    assert.match(html, /aria-selected="true"/);
+    assert.match(html, /Project Table|جدول پروژه/);
+    state.trackingLayout = "project-gantt-profile";
+    const ganttProfile = renderVisualDemo(state);
+    assert.match(ganttProfile, /Top layout|بخش بالا/);
+    assert.match(ganttProfile, /Bottom layout|بخش پایین/);
+    state.trackingLayout = "resource-analysis";
+    const resourceAnalysis = renderVisualDemo(state);
+    assert.match(resourceAnalysis, /Resource Analysis|تحلیل منابع/);
+    assert.match(resourceAnalysis, /Resource ID|شناسه منبع/);
+    assert.match(resourceAnalysis, /Time-distributed usage|مصرف توزیع‌شده/);
+  }
+});
+
 test("page-specific Details tabs keep Persian labels and RTL document direction", () => {
   const state = createVisualDemoState("fa");
   state.window = "procurement";
