@@ -7116,3 +7116,11 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-vd-interchange-side ul{margin:0;padding-inline-start:17px;color:#526579;font-size:10px;line-height:1.8}
 .cp-vd-interchange .cp-vd-note{margin:0;padding:8px;border:1px solid #e0e6ed;background:#f8fafc;font-size:10px;color:#5e6c7b;line-height:1.5}
 @media(max-width:760px){.cp-vd-interchange-grid{grid-template-columns:1fr}.cp-vd-interchange-checks{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Administration user and security profile matrix. */
+.cp-vd-admin-security-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;min-width:0}
+.cp-vd-admin-security-grid>section{display:grid;gap:6px;min-width:0;border:1px solid #d8e0e9;background:#fff;padding:8px}
+.cp-vd-admin-security-grid>section>strong,.cp-vd-admin-detail>strong{font-size:10px;color:#294765}
+.cp-vd-admin-security-grid .cp-vd-table{min-width:460px}
+.cp-vd-admin-security-grid .cp-vd-table td,.cp-vd-admin-security-grid .cp-vd-table th{white-space:normal;vertical-align:top}
+@media(max-width:760px){.cp-vd-admin-security-grid{grid-template-columns:1fr}}
