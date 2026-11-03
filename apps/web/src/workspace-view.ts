@@ -201,6 +201,7 @@ const documentSelectionByContainer = new WeakMap<HTMLElement, string>();
 const documentDetailTabByContainer = new WeakMap<HTMLElement, string>();
 const documentTypeFilterByContainer = new WeakMap<HTMLElement, string>();
 const wbsPresentationByContainer = new WeakMap<HTMLElement, "table" | "chart">();
+const trackingLayoutByContainer = new WeakMap<HTMLElement, "table" | "bar-chart" | "gantt-profile" | "resource-analysis">();
 const progressActivitySelectionByContainer = new WeakMap<HTMLElement, string>();
 const reportTabByContainer = new WeakMap<HTMLElement, string>();
 const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<string>>();
@@ -1009,12 +1010,22 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       : null;
     if (!element) return;
     if (Object.prototype.hasOwnProperty.call(element.dataset, "trackingLayout")) {
-      const value = (element as HTMLSelectElement).value;
+      const value = (element as HTMLSelectElement).value as "table" | "bar-chart" | "gantt-profile" | "resource-analysis";
+      if (!["table", "bar-chart", "gantt-profile", "resource-analysis"].includes(value)) return;
+      trackingLayoutByContainer.set(container, value);
+      const frame = container.querySelector<HTMLElement>("[data-tracking-layout-frame]");
+      if (frame) frame.dataset.trackingLayoutType = value;
       const surface = container.querySelector<HTMLElement>("[data-tracking-surface]");
-      const label = element.querySelector<HTMLOptionElement>("option:checked")?.textContent ?? "";
       if (surface) surface.dataset.trackingSurface = value;
+      const label = element.querySelector<HTMLOptionElement>("option:checked")?.textContent ?? "";
       const heading = container.querySelector<HTMLElement>("[data-tracking-layout-label]");
       if (heading) heading.textContent = label;
+      container.querySelectorAll<HTMLElement>("[data-tracking-content]").forEach((panel) => { panel.hidden = panel.dataset.trackingContent !== value; });
+      const split = value === "gantt-profile" || value === "resource-analysis";
+      const explorer = container.querySelector<HTMLElement>('[data-tracking-pane="resource-explorer"]');
+      const bottom = container.querySelector<HTMLElement>('[data-tracking-pane="bottom-layout"]');
+      if (explorer) explorer.hidden = !split;
+      if (bottom) bottom.hidden = !split;
       return;
     }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutTimescale")) {
@@ -1869,8 +1880,13 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
     case "tracking":
       body = `
         <div class="cp-tracking-window">
-          <div class="cp-tracking-toolbar"><strong>${escapeHtml(uiText(state.locale, "Tracking Layout", "چیدمان رهگیری"))}</strong><label>${escapeHtml(uiText(state.locale, "Layout Type", "نوع چیدمان"))}<select data-tracking-layout><option value="table">${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</option><option value="bar-chart">${escapeHtml(uiText(state.locale, "Project Bar Chart", "نمودار میله‌ای پروژه"))}</option><option value="gantt-profile">${escapeHtml(uiText(state.locale, "Project Gantt / Profile", "گانت / منحنی پروژه"))}</option><option value="resource-analysis">${escapeHtml(uiText(state.locale, "Resource Analysis", "تحلیل منابع"))}</option></select></label><button type="button" disabled>${escapeHtml(uiText(state.locale, "Refresh Data", "به‌روزرسانی داده"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Save Layout", "ذخیره چیدمان"))}</button></div>
-          <div class="cp-tracking-layout"><aside><strong>${escapeHtml(uiText(state.locale, "Projects", "پروژه‌ها"))}</strong><p>${escapeHtml(uiText(state.locale, "No project set is available for tracking.", "مجموعه پروژه‌ای برای رهگیری در دسترس نیست."))}</p></aside><section class="cp-tracking-chart" data-tracking-surface="table"><div class="cp-tracking-chart-head"><strong data-tracking-layout-label>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty">${escapeHtml(uiText(state.locale, "Select a tracking layout and load project data to display a table, bar chart, Gantt/profile or resource analysis.", "برای نمایش جدول، نمودار میله‌ای، گانت/منحنی یا تحلیل منابع، یک چیدمان رهگیری انتخاب و داده پروژه بارگذاری کنید."))}</div></section></div>
+          <div class="cp-tracking-toolbar"><strong>${escapeHtml(uiText(state.locale, "Tracking Layout", "چیدمان رهگیری"))}</strong><label>${escapeHtml(uiText(state.locale, "Layout Type", "نوع چیدمان"))}<select data-tracking-layout data-tracking-layout-type="${trackingLayoutByContainer.get(container) ?? "table"}"><option value="table" ${trackingLayoutByContainer.get(container) === "table" || !trackingLayoutByContainer.has(container) ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</option><option value="bar-chart" ${trackingLayoutByContainer.get(container) === "bar-chart" ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Project Bar Chart", "نمودار میله‌ای پروژه"))}</option><option value="gantt-profile" ${trackingLayoutByContainer.get(container) === "gantt-profile" ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Project Gantt / Profile", "گانت / منحنی پروژه"))}</option><option value="resource-analysis" ${trackingLayoutByContainer.get(container) === "resource-analysis" ? "selected" : ""}>${escapeHtml(uiText(state.locale, "Resource Analysis", "تحلیل منابع"))}</option></select></label><button type="button" disabled>${escapeHtml(uiText(state.locale, "Refresh Data", "به‌روزرسانی داده"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Save Layout", "ذخیره چیدمان"))}</button></div>
+          <div class="cp-tracking-layout" data-tracking-layout-frame data-tracking-layout-type="${trackingLayoutByContainer.get(container) ?? "table"}">
+            <aside class="cp-tracking-project-explorer" data-tracking-pane="project-explorer"><strong>${escapeHtml(uiText(state.locale, "Project Explorer", "کاوشگر پروژه"))}</strong><p>${escapeHtml(uiText(state.locale, "No project set is available for tracking.", "مجموعه پروژه‌ای برای رهگیری در دسترس نیست."))}</p></aside>
+            <section class="cp-tracking-chart" data-tracking-pane="top-layout" data-tracking-surface="table"><div class="cp-tracking-chart-head"><strong data-tracking-layout-label>${escapeHtml(uiText(state.locale, "Project Table", "جدول پروژه"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty" data-tracking-content="table"><div class="cp-tracking-empty-grid"><span>Project ID</span><span>Project Name</span><span>Start</span><span>Finish</span><span>Status</span></div>${escapeHtml(uiText(state.locale, "Project table layout — no project records loaded.", "نمای جدول پروژه — هنوز سابقه‌ای بارگذاری نشده است."))}</div><div class="cp-tracking-empty cp-tracking-chart-placeholder" data-tracking-content="bar-chart" hidden><div class="cp-tracking-axis"><i></i><i></i><i></i><i></i><i></i></div><span>${escapeHtml(uiText(state.locale, "Project bar chart — no summary data loaded.", "نمودار میله‌ای پروژه — داده خلاصه بارگذاری نشده است."))}</span></div><div class="cp-tracking-empty cp-tracking-gantt-placeholder" data-tracking-content="gantt-profile" hidden><div class="cp-tracking-gantt-ruler"><span>Q1</span><span>Q2</span><span>Q3</span><span>Q4</span></div><span>${escapeHtml(uiText(state.locale, "Project Gantt / Profile — no tracking series loaded.", "گانت / منحنی پروژه — سری داده رهگیری بارگذاری نشده است."))}</span></div><div class="cp-tracking-empty cp-tracking-resource-placeholder" data-tracking-content="resource-analysis" hidden><div class="cp-tracking-axis"><i></i><i></i><i></i><i></i><i></i></div><span>${escapeHtml(uiText(state.locale, "Resource analysis — no resource data loaded.", "تحلیل منابع — داده منابع بارگذاری نشده است."))}</span></div></section>
+            <aside class="cp-tracking-resource-explorer" data-tracking-pane="resource-explorer" hidden><strong>${escapeHtml(uiText(state.locale, "Resource Explorer", "کاوشگر منابع"))}</strong><p>${escapeHtml(uiText(state.locale, "No resources available.", "منبعی در دسترس نیست."))}</p></aside>
+            <section class="cp-tracking-bottom-layout" data-tracking-pane="bottom-layout" hidden><div class="cp-tracking-chart-head"><strong>${escapeHtml(uiText(state.locale, "Bottom Layout", "چیدمان پایین"))}</strong><span>${escapeHtml(uiText(state.locale, "No tracking data", "بدون داده رهگیری"))}</span></div><div class="cp-tracking-empty">${escapeHtml(uiText(state.locale, "Select a project or resource to display its profile or spreadsheet.", "برای نمایش منحنی یا صفحه‌گسترده، پروژه یا منبعی انتخاب کنید."))}</div></section>
+          </div>
           <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Tracking layout types are exposed for visual parity. Project selection, summarization, chart rendering and saved tracking layouts are not connected yet.", "انواع چیدمان رهگیری برای تطابق بصری نمایش داده شده‌اند؛ انتخاب پروژه، خلاصه‌سازی، ترسیم نمودار و ذخیره چیدمان رهگیری هنوز متصل نیستند."))}</p>
         </div>`;
       break;
