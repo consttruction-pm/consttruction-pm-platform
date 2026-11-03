@@ -289,3 +289,37 @@ test("Version 26 Gantt presentation commands are localized and preserve Persian 
   assert.match(html, /خطوط پس‌زمینه گانت/);
   assert.match(html, /تنظیمات خطوط روابط/);
 });
+
+
+test("Activity Network and Trace Logic expose Version 26 layout and inspection preferences", () => {
+  const network = createVisualDemoState("en");
+  network.window = "network";
+  const networkHtml = renderVisualDemo(network);
+  assert.match(networkHtml, /data-vd-dialog="network-box-layout"/);
+  assert.match(networkHtml, /Box layout/);
+  const trace = createVisualDemoState("en");
+  trace.window = "trace";
+  const traceHtml = renderVisualDemo(trace);
+  assert.match(traceHtml, /data-vd-dialog="trace-options"/);
+  assert.match(traceHtml, /Trace preferences/);
+  assert.match(traceHtml, /Predecessor levels/);
+  assert.match(traceHtml, /Successor levels/);
+  assert.match(traceHtml, /Relationship type and lag/);
+  assert.match(traceHtml, /Orthogonal/);
+});
+
+test("Activity and Resource Usage Profile and Spreadsheet expose display and data-field controls", () => {
+  for (const window of ["activity-profile", "resource-profile", "activity-sheet", "resource-sheet"] as const) {
+    const state = createVisualDemoState("en");
+    state.window = window;
+    const html = renderVisualDemo(state);
+    assert.match(html, /data-vd-dialog="usage-profile-options"/);
+    assert.match(html, /Profile options|Data fields/);
+  }
+  const state = createVisualDemoState("en");
+  state.window = "resource-profile";
+  const html = renderVisualDemo(state);
+  for (const option of ["Regular histogram", "Stacked histogram", "Financial period", "Budgeted units", "Actual units", "Remaining units", "Show resource availability", "Show resource limits", "Highlight overallocation"]) {
+    assert.ok(html.includes(option), `expected usage display option: ${option}`);
+  }
+});
