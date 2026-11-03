@@ -28,6 +28,7 @@ from construction_pm.p6_resource_capacity_read_api import P6ResourceCapacityRead
 from construction_pm.p6_resource_capacity_write_api import P6ResourceCapacityWriteAPI
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
+from construction_pm.p6_resource_spread_api import P6ResourceSpreadAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.p6_baseline_api import P6BaselineAPI
@@ -87,6 +88,7 @@ def build_project_lifecycle_wsgi_app(
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
+    resource_spread_api: P6ResourceSpreadAPI | None = None,
     p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
     p6_resource_capacity_write_api: P6ResourceCapacityWriteAPI | None = None,
     resource_calendar_master_repository: CalendarMasterRepository | None = None,
@@ -169,6 +171,11 @@ def build_project_lifecycle_wsgi_app(
             baseline_api=baseline_api,
             cost_account_api=cost_account_api,
             expense_api=expense_api,
+            resource_read_api=resource_read_api,
+            resource_write_api=resource_write_api,
+            resource_spread_api=resource_spread_api,
+            resource_capacity_read_api=p6_resource_capacity_read_api,
+            resource_capacity_write_api=p6_resource_capacity_write_api,
         ),
     )
     schedule_query_api = shared_core_runtime.schedule_query_api
