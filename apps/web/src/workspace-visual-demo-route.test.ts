@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createVisualDemoState, renderVisualDemo } from "./workspace-visual-demo.js";
+
 import {
   liveWorkspaceProjectHref,
   shouldRenderVisualWorkspaceDemo,
@@ -62,4 +64,33 @@ test("real project URLs preserve live mode across refresh and unrelated query pa
   assert.equal(next.searchParams.get("project"), VISUAL_WORKSPACE_PREVIEW_PROJECT_ID);
   assert.equal(next.searchParams.get("view"), "live");
   assert.equal(next.searchParams.get("locale"), "fa");
+});
+
+test("all expanded control modules render as navigable visual workspace windows", () => {
+  const modules = [
+    ["cost-control", "Cost & Financial Control"],
+    ["progress-control", "Progress & Field Control"],
+    ["procurement", "Procurement & Materials"],
+    ["changes-claims", "Changes & Claims"],
+    ["form-builder", "Form Builder"],
+    ["organization", "Organization"],
+    ["smart-guide", "Smart Guide"],
+    ["assistant", "Engineering Intelligence Assistant"],
+    ["search", "Global Search"],
+    ["comments", "Comments & Notebook"],
+  ] as const;
+  for (const [windowId, heading] of modules) {
+    const state = createVisualDemoState("en");
+    state.window = windowId;
+    const markup = renderVisualDemo(state);
+    assert.match(markup, new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(markup, new RegExp(`data-vd-window="${windowId}"`));
+  }
+});
+
+test("the visual workspace View > Layouts menu links to the added module windows", () => {
+  const markup = renderVisualDemo(createVisualDemoState("en"));
+  for (const windowId of ["cost-control", "progress-control", "procurement", "changes-claims", "form-builder", "organization", "smart-guide", "assistant", "search", "comments"]) {
+    assert.match(markup, new RegExp(`window:\\s*"${windowId}"`));
+  }
 });
