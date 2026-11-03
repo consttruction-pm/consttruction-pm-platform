@@ -91,6 +91,6 @@ test("all expanded control modules render as navigable visual workspace windows"
 test("the visual workspace View > Layouts menu links to the added module windows", () => {
   const markup = renderVisualDemo(createVisualDemoState("en"));
   for (const windowId of ["cost-control", "progress-control", "procurement", "changes-claims", "form-builder", "organization", "smart-guide", "assistant", "search", "comments"]) {
-    assert.match(markup, new RegExp(`window:\\s*"${windowId}"`));
+    assert.ok(markup.includes(`"window":"${windowId}"`));
   }
 });
