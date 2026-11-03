@@ -6893,3 +6893,19 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-vd-assignment-actions button{padding:5px 9px;border:1px solid #cbd5e1;background:#f8fafc;color:#334b66;font-size:9px}
 .cp-p6 .cp-vd-assignment-actions button:disabled{opacity:.48}
 @media(max-width:760px){.cp-p6 .cp-vd-assignment-grid{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-vd-assignment-context{align-items:flex-start;flex-direction:column}}
+
+/* Project Details: full tab inventory with a structured read-only form preview. */
+.cp-p6 .cp-vd-project-details{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cp-p6 .cp-vd-project-context{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid #cbd5e1;background:#f2f5f9;color:#244463;font-size:10px}
+.cp-p6 .cp-vd-project-context>div{display:flex;flex-direction:column;gap:3px}.cp-p6 .cp-vd-project-context span{color:#718096;font-size:9px}
+.cp-p6 .cp-vd-project-tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid #9fb0c3;background:#f4f6f9}
+.cp-p6 .cp-vd-project-tabs button{flex:0 0 auto;padding:7px 10px;border:1px solid transparent;border-bottom:0;background:transparent;color:#52657a;font-size:9px;white-space:nowrap}
+.cp-p6 .cp-vd-project-tabs button.is-active{border-color:#b8c7d8;background:#fff;color:#1f456b;font-weight:700}
+.cp-p6 .cp-vd-project-tab-panel{display:flex;flex-direction:column;gap:9px;padding:9px;border:1px solid #cbd5e1;background:#fff}
+.cp-p6 .cp-vd-project-section h3{margin:0 0 7px;padding-bottom:5px;border-bottom:1px solid #e2e8f0;color:#244463;font-size:10px}
+.cp-p6 .cp-vd-project-section .cp-vd-form{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cp-p6 .cp-vd-project-checks{display:flex;flex-wrap:wrap;gap:14px;color:#52657a;font-size:9px}
+.cp-p6 .cp-vd-project-checks label{display:flex;align-items:center;gap:6px}
+.cp-p6 .cp-vd-project-details .cp-vd-note{line-height:1.55}
+.cp-p6 [dir="rtl"] .cp-vd-project-context{direction:rtl}
+@media(max-width:760px){.cp-p6 .cp-vd-project-section .cp-vd-form{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-p6 .cp-vd-project-context{align-items:flex-start;flex-direction:column}}
