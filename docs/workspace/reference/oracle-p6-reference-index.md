@@ -39,6 +39,10 @@ This index records which official pages were reviewed, what each page contribute
 | Expenses and cost accounts | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm | Activity-linked expenses, category, accrual type, cost fields and cost-account hierarchy |
 | Earned value and WBS settings | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm | Assigned baseline, WBS earned-value settings, cost analysis and progress update workflow |
 | Update progress and store period performance | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm | Activity progress fields, actuals, remaining duration, period actuals and historical financial-period data |
+| Global Change | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/globalchange.htm | Conditions, IF/THEN/ELSE statements, statement ordering, preview report, text operations and arithmetic |
+| Global Change dialog and report | https://docs.oracle.com/cd/G48902_01/client_help/en_US/global_change_dialog_box.htm; https://docs.oracle.com/cd/G48902_01/client_help/en_US/global_change_dialog_box_2.htm | Availability scope, copy/import/export, preview, exception rows, save report, cancel/commit changes |
+| Reports window | https://docs.oracle.com/cd/G48902_01/client_help/en_US/reports_window.htm | Global/project report library, run/batch, import/export, wizard/editor and report groups |
+| Activity code assignment | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm | Global/EPS/project code values, assignment and value colours |
 | Layout pages | `ganttchart.htm`, `activitynetwork.htm`, `tracelogic.htm`, `overview.htm` (TOC) | Gantt, network and trace-logic view capabilities listed in the TOC and used in the window inventory |
 
 ## Fetch limitations recorded honestly
