@@ -66,7 +66,7 @@ import {
   rememberWorkspaceWindows,
 } from "./workspace-windows.js";
 import { createVisualDemoState, mountVisualDemo } from "./workspace-visual-demo.js";
-import { liveWorkspaceProjectHref, shouldRenderVisualWorkspaceDemo } from "./workspace-visual-demo-route.js";
+import { liveWorkspaceProjectHref, shouldRenderVisualWorkspaceDemo, workspaceLoginNextPath } from "./workspace-visual-demo-route.js";
 
 type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
 
@@ -1997,9 +1997,7 @@ function renderBootstrapState(
     signIn.textContent = t.errorSignIn;
     signIn.addEventListener("click", () => {
       const rememberedProject = new URLSearchParams(window.location.search).get("project");
-      const nextPath = rememberedProject
-        ? `/app?project=${encodeURIComponent(rememberedProject)}&view=live`
-        : "/app";
+      const nextPath = workspaceLoginNextPath(rememberedProject);
       window.location.assign(
         `/preview/login?next=${encodeURIComponent(nextPath)}`,
       );
