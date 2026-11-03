@@ -64,7 +64,11 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Cost Account Dictionary | Hierarchical account ID/name/parent/level, default account | Visual preview implemented; dictionary CRUD and assignment services not connected |
 | Global Change | Parameter rows, preview count, apply | Missing |
 | Monitor Thresholds / Issue Navigator | Scope and results | Missing |
-| Reports runner | Report, parameters, preview, export | Missing |
+| Global Change | Object scope (activities, assignments, expenses), Available To, If conditions, Then/Else statements, reorder/copy, preview report, exception rows, save report, cancel/commit | Visual preview implemented; specification engine, permission enforcement, report persistence and transactional commit not connected |
+| Reports Library / Runner | Global/project reports, groups/batches, run, wizard/editor, import/export, parameters and output destination | Visual preview implemented; report definitions, execution engine, batch scheduler and file operations not connected |
+| Threshold Monitor / Issue Navigator | Threshold parameters and limits, monitoring frequency, responsibility, generated issues, priority/status, tracking layout and history | Visual preview implemented; threshold service, issue generation, notifications and history persistence not connected |
+| Recalculate Assignment Costs | Project/selected scope, rate source, effective date, currency, labor/non-labor/material/role options | Visual preview implemented; rate engine and assignment cost recalculation not connected |
+| Assign Activity Codes | Activity, code dictionary, global/EPS/project scope, value, description and assignment | Visual preview implemented; code assignment service not connected |
 
 ## Administration
 
