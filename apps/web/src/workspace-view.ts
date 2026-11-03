@@ -679,7 +679,9 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.wbsViewToggle) {
       const chart = target.dataset.wbsViewToggle === "chart";
       wbsPresentationByContainer.set(container, chart ? "chart" : "table");
-      container.querySelector(".cp-wbs-hierarchy-pane")?.classList.toggle("is-chart-view", chart);
+      container.querySelectorAll<HTMLElement>("[data-wbs-view]").forEach((panel) => {
+        panel.hidden = panel.dataset.wbsView !== (chart ? "chart" : "table");
+      });
       container.querySelectorAll<HTMLElement>("[data-wbs-view-toggle]").forEach((button) => {
         const active = button.dataset.wbsViewToggle === (chart ? "chart" : "table");
         button.setAttribute("aria-pressed", String(active));
@@ -1107,6 +1109,44 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const label = target.value.trim();
     if (fieldId && label) workspaceRenderRecords.get(container)?.options.onP6FieldPresentationChange?.(fieldId, { label });
   });
+}
+
+function renderWbsTable(
+  nodes: WorkspaceState["wbsNodes"],
+  selectedWbsId: string | null,
+  labels: WorkspaceLabels,
+  locale: WorkspaceState["locale"],
+): string {
+  if (!nodes.length) return `<div class="cp-empty">${escapeHtml(labels.noWbs)}</div>`;
+  const byParent = new Map<string | null, WorkspaceState["wbsNodes"][number][]>();
+  const ids = new Set(nodes.map((node) => node.id));
+  for (const node of nodes) {
+    const parentId = node.parentKind === "project" || !node.parentWbsId || !ids.has(node.parentWbsId) ? null : node.parentWbsId;
+    const siblings = byParent.get(parentId) ?? [];
+    siblings.push(node);
+    byParent.set(parentId, siblings);
+  }
+  for (const siblings of byParent.values()) siblings.sort((a,b) => a.sequenceNumber-b.sequenceNumber || a.id.localeCompare(b.id));
+  const rows: string[] = [];
+  const seen = new Set<string>();
+  const append = (parentId: string | null, level: number): void => {
+    for (const node of byParent.get(parentId) ?? []) {
+      if (seen.has(node.id)) continue;
+      seen.add(node.id);
+      const selected = node.id === selectedWbsId;
+      const parentName = node.parentWbsId ? nodes.find((candidate) => candidate.id === node.parentWbsId)?.name ?? node.parentWbsId : uiText(locale,"Project root","ریشه پروژه");
+      rows.push(`<tr class="${selected ? "is-selected" : ""}" aria-selected="${selected}"><td><button type="button" class="cp-wbs-table-code" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected}">${escapeHtml(node.localCode)}</button></td><td><button type="button" class="cp-wbs-table-name" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected}" style="--cp-wbs-level:${level}">${escapeHtml(node.name)}</button></td><td>${escapeHtml(parentName)}</td><td>${escapeHtml(String(node.sequenceNumber))}</td></tr>`);
+      append(node.id, level + 1);
+    }
+  };
+  append(null,0);
+  for (const node of [...nodes].sort((a,b)=>a.sequenceNumber-b.sequenceNumber || a.id.localeCompare(b.id))) {
+    if (!seen.has(node.id)) {
+      rows.push(`<tr class="cp-wbs-invalid-row"><td>${escapeHtml(node.localCode)}</td><td>${escapeHtml(node.name)}</td><td>${escapeHtml(node.parentWbsId ?? "—")}</td><td>${escapeHtml(String(node.sequenceNumber))}</td></tr>`);
+    }
+  }
+  const headings = [["WBS Code","کد WBS"],["WBS Name","نام WBS"],["Parent WBS","WBS والد"],["Sequence","ترتیب"]];
+  return `<div class="cp-wbs-table-wrap"><table class="cp-wbs-table"><thead><tr>${headings.map(([en,fa])=>`<th>${escapeHtml(uiText(locale,en,fa))}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
 }
 
 function renderWbsTree(
@@ -1824,7 +1864,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       break;
     }
     case "wbs":
-      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type="button" data-wbs-view-toggle="table" aria-pressed="${wbsPresentationByContainer.get(container) !== "chart"}" class="${wbsPresentationByContainer.get(container) !== "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Table View", "نمای جدولی"))}</button><button type="button" data-wbs-view-toggle="chart" aria-pressed="${wbsPresentationByContainer.get(container) === "chart"}" class="${wbsPresentationByContainer.get(container) === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></div></div><div class="cp-wbs-window-layout"><section class="cp-wbs-hierarchy-pane${wbsPresentationByContainer.get(container) === "chart" ? " is-chart-view" : ""}"><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3>${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "WBS table and chart views use the current project hierarchy. Advanced chart formatting and additional WBS detail data remain pending.", "نمای جدولی و نموداری WBS از سلسله‌مراتب فعلی پروژه استفاده می‌کنند. قالب‌بندی پیشرفته نمودار و سایر داده‌های جزئیات WBS هنوز تکمیل نشده‌اند."))}</p></div>`;
+      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type="button" data-wbs-view-toggle="table" aria-pressed="${wbsPresentationByContainer.get(container) !== "chart"}" class="${wbsPresentationByContainer.get(container) !== "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Table View", "نمای جدولی"))}</button><button type="button" data-wbs-view-toggle="chart" aria-pressed="${wbsPresentationByContainer.get(container) === "chart"}" class="${wbsPresentationByContainer.get(container) === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></div></div><div class="cp-wbs-window-layout"><section class="cp-wbs-hierarchy-pane"><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div class="cp-wbs-view-panel" data-wbs-view="table" ${wbsPresentationByContainer.get(container) === "chart" ? "hidden" : ""}>${renderWbsTable(state.wbsNodes, state.selectedWbsId, t, state.locale)}</div><div class="cp-wbs-view-panel cp-wbs-chart-view" data-wbs-view="chart" ${wbsPresentationByContainer.get(container) === "chart" ? "" : "hidden"}>${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "WBS table and chart views use the current project hierarchy. Advanced chart formatting and additional WBS detail data remain pending.", "نمای جدولی و نموداری WBS از سلسله‌مراتب فعلی پروژه استفاده می‌کنند. قالب‌بندی پیشرفته نمودار و سایر داده‌های جزئیات WBS هنوز تکمیل نشده‌اند."))}</p></div>`;
       break;
     case "calendars":
       body = `
