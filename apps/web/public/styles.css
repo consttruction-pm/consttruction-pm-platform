@@ -7062,3 +7062,22 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-vd-admin .cp-vd-note{margin:0;padding:8px 9px;border:1px solid var(--cubi-neutral-divider);background:var(--cubi-neutral-subtle);color:var(--cp-muted);font-size:10px;line-height:1.55}
 @media(max-width:760px){.cp-vd-admin-workspace{grid-template-columns:1fr}.cp-vd-admin-tree{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-vd-admin-tree>strong{grid-column:1/-1}.cp-vd-admin-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-vd-admin-toolbar label{margin-inline-start:0;width:100%}}
 [dir="rtl"] .cp-vd-admin-tree>button.is-active{box-shadow:inset -3px 0 0 var(--cp-blue)}
+
+/* Administrative preference tabs and financial-period batch editor. */
+.cp-vd-admin-pref-tabs{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid #cbd6e2;background:#f1f4f8;padding:5px 5px 0}
+.cp-vd-admin-pref-tabs span{padding:7px 9px;border:1px solid transparent;border-bottom:0;color:#526579;font-size:10px}
+.cp-vd-admin-pref-tabs span.is-active{background:#fff;border-color:#cbd6e2;color:#0f2747;font-weight:700;box-shadow:inset 0 2px 0 var(--cp-blue,#1976d2)}
+.cp-vd-admin-pref-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.cp-vd-admin-pref-grid fieldset{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;border:1px solid #d8e0e9;background:#fff;padding:9px;min-width:0}
+.cp-vd-admin-pref-grid legend{padding:0 5px;color:#294765;font-size:10px;font-weight:700}
+.cp-vd-admin-pref-grid label{display:grid;gap:3px;min-width:0;color:#526579;font-size:9px}
+.cp-vd-admin-pref-grid input,.cp-vd-admin-pref-grid select{width:100%;min-width:0;border:1px solid #d3dce6;background:#f7f9fb;color:#34465a;padding:5px;font-size:10px}
+.cp-vd-admin-pref-grid input[type=checkbox]{width:auto}
+.cp-vd-admin-pref-grid .is-wide{grid-column:1/-1}
+.cp-vd-period-batch{display:grid;gap:7px;padding:9px;border:1px solid #d8e0e9;background:#f8fafc}
+.cp-vd-period-batch>strong{font-size:11px;color:#294765}
+.cp-vd-period-batch-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.cp-vd-period-batch-grid label{display:grid;gap:4px;font-size:9px;color:#526579;min-width:0}
+.cp-vd-period-batch-grid input,.cp-vd-period-batch-grid select{min-width:0;width:100%;padding:5px;border:1px solid #cbd6e2;background:#fff;font-size:10px}
+.cp-vd-period-batch>small{font-size:9px;color:#6b7787}
+@media(max-width:760px){.cp-vd-admin-pref-grid{grid-template-columns:1fr}.cp-vd-period-batch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
