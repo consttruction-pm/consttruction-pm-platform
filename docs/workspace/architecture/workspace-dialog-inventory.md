@@ -41,6 +41,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | Assign Resources by Role | Required role, proficiency filter, eligible resources, multi-select candidates, assignment units, explicit resource/role/override rate source | Visual preview implemented; candidate matching and assignment persistence not connected |
 | Assign Roles | Role, units, max units/time, proficiency, effective start/finish, candidate resource; role assignment remains distinct from resource assignment | Visual preview implemented; role service and assignment persistence not connected |
 | Assign Activity Codes | Code dictionary, values, assigned | Missing |
+| Activity / WBS context menus | Selection-aware commands, details, assignments, predecessor/successor links, activity codes, child WBS; destructive commands disabled until persistence/permissions exist | Visual preview implemented; command authorization and mutations not connected |
 | Assign Predecessors / Successors | Activity search, relationship type (FS/SS/FF/SF), lag | Partial (logic panel) |
 | New/Edit Activity | ID, name, type, duration, calendar, WBS, dates, constraints | Partial (inline form) |
 | New/Edit WBS | Code, name, parent, sequence, status | Implemented (forms) |
@@ -76,7 +77,7 @@ Rule: a dialog may be built before its backend, but it must state its implementa
 | --- | --- | --- |
 | Users | User list, roles, access state, user limit and profile assignment | Visual preview implemented; user provisioning, authentication and access enforcement not connected |
 | Security Profiles | Global/project profiles, privilege matrix, module access, profile assignment and read-only state | Visual preview implemented; policy engine and enforcement not connected |
-| Administrative Preferences | Industry, week start, default activity duration, hierarchy/code/ID limits, baseline limits, workhours, time abbreviations, earned-value defaults and summarization | Visual preview implemented (global preference summary); editable preference form and validation not connected |
+| Administrative Preferences | Industry, week start, default activity duration, hierarchy/code/ID limits, baseline limits, workhours, time abbreviations, earned-value defaults and summarization | Visual preview implemented (General, Data Limits, ID Lengths, Time Periods, Earned Value and Options tabs); preference persistence and validation not connected |
 | Administrative Categories | Baseline types, expense categories, WBS categories/values, document categories/statuses, risk categories, notebook topics and units of measure | Visual preview implemented; dictionary CRUD and dependency validation not connected |
 | Currencies | Currency ID/name/symbol, decimal precision, base currency, view currency, exchange rate and effective-date context | Visual preview implemented; rate history, conversion and financial integration not connected |
 | Financial Period Calendars | Named period calendars, fiscal boundaries, individual/batch period creation, start/end, period state and posting protection | Visual preview implemented; calendar CRUD, contiguous-range validation, locking and posting integration not connected |
