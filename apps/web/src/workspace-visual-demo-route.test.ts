@@ -90,7 +90,7 @@ test("all expanded control modules render as navigable visual workspace windows"
 
 test("the visual workspace View > Layouts menu links to the added module windows", () => {
   const markup = renderVisualDemo(createVisualDemoState("en"));
-  for (const windowId of ["cost-control", "progress-control", "procurement", "changes-claims", "organization", "smart-guide", "assistant", "search", "comments"]) {
+  for (const windowId of ["cost-control", "progress-control", "procurement", "changes-claims", "organization", "search", "comments"]) {
     assert.ok(markup.includes(`"window":"${windowId}"`));
   }
 });
@@ -222,4 +222,25 @@ test("Form Builder has separate organization and project libraries and a visual 
   assert.match(markup, /accept="image\/jpeg,image\/png"/);
   assert.match(markup, /Transparent PNG logos retain their transparency/);
   assert.match(markup, /Publish to project record/);
+});
+test("Engineering Assistant shows project context, text, voice, file and approval surfaces", () => {
+  const state = createVisualDemoState("en");
+  state.window = "assistant";
+  const markup = renderVisualDemo(state);
+  assert.match(markup, /Current context/);
+  assert.match(markup, /data-vd-window="trace"/);
+  assert.match(markup, /data-vd-dialog="module-actions"/);
+  assert.match(markup, /accept="\.xlsx,.xls,.docx,.doc,.mpp,.xer,.xml,.pdf,.csv"/);
+  assert.match(markup, /Voice/);
+  assert.match(markup, /requires your approval/i);
+});
+
+test("Smart Guide shows staged project setup and schedule quality checks", () => {
+  const state = createVisualDemoState("en");
+  state.window = "smart-guide";
+  const markup = renderVisualDemo(state);
+  assert.match(markup, /cp-vd-guide-steps/);
+  assert.match(markup, /Connect logic/);
+  assert.match(markup, /Review activities with no predecessors or successors/);
+  assert.match(markup, /data-vd-window="assignments"/);
 });
