@@ -7832,3 +7832,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-calendar-month-legend i.is-nonwork{background:#e8edf3}
 .cp-p6 .cp-calendar-month-legend em{flex:1 1 100%;color:#7b8795;font-style:normal}
 @media(max-width:680px){.cp-p6 .cp-calendar-day{min-height:38px;padding:4px}.cp-p6 .cp-calendar-month-view{padding:6px}.cp-p6 .cp-calendar-month-legend{gap:7px}}
+
+.cp-p6 .cp-wbs-gantt-view{min-width:0;min-height:150px;overflow:auto;border:1px solid #d6dee8;background:#fff}
+.cp-p6 .cp-wbs-gantt-empty{display:grid;gap:8px;place-content:center;min-height:150px;padding:18px;text-align:center;color:#65758a;font-size:11px}
+.cp-p6 .cp-wbs-gantt-empty strong{color:#244463;font-size:12px}
