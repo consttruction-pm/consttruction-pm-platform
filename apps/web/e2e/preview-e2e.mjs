@@ -1979,6 +1979,11 @@ async function main() {
         "visual workspace exits full screen",
         6000,
       );
+      await deepLinkPage.waitFor(
+        `document.querySelector("[data-vd-fullscreen]")?.getAttribute("aria-pressed") === "false"`,
+        "visual workspace restores the normal-view toolbar state after fullscreenchange",
+        6000,
+      );
       const visualFullscreenExit = await deepLinkPage.evaluate(`(() => ({
         targetPreserved: document.querySelector("[data-visual-demo]") === window.__cubiVisualFullscreenTarget,
         pressed: document.querySelector("[data-vd-fullscreen]")?.getAttribute("aria-pressed") ?? null,
