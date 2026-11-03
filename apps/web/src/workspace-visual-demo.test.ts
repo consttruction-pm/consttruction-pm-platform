@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { createVisualDemoState, renderVisualDemo } from "./workspace-visual-demo.js";
@@ -840,4 +841,17 @@ test("Administration hierarchy and financial controls retain RTL layout and Pers
   const eps = renderVisualDemo(state);
   assert.match(eps, /ساختار سازمانی پروژه‌ها/);
   assert.match(eps, /ساختار سلسله‌مراتبی سبد پروژه/);
+});
+
+
+test("administration visual styles stay on canonical CUBI tokens and mirrored bundles", () => {
+  const sourceStyles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+  const publicStyles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+  const adminStyles = sourceStyles.slice(sourceStyles.lastIndexOf("/* Administration workspaces"));
+
+  assert.equal(sourceStyles, publicStyles, "source and public stylesheets must remain byte-identical");
+  for (const token of ["--cp-border", "--cp-surface", "--cp-navy", "--cp-blue", "--cp-copper", "--cp-success", "--cp-muted"]) {
+    assert.ok(adminStyles.includes(`var(${token})`), `administration styles must use ${token}`);
+  }
+  assert.doesNotMatch(adminStyles, /#[0-9a-fA-F]{3,8}\\b/, "administration surfaces must not introduce unregistered hard-coded palette values");
 });
