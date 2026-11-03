@@ -65,7 +65,7 @@ function record(name, details = {}) {
 }
 
 function relativeArtifact(file) {
-  return file.replace(`${artifactsDir}\`, "").replace(`${artifactsDir}/`, "");
+  return file.replace(`${artifactsDir}\\`, "").replace(`${artifactsDir}/`, "");
 }
 
 function gitHead() {
