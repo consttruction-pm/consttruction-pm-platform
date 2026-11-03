@@ -176,11 +176,6 @@ def build_project_lifecycle_wsgi_app(
             resource_spread_api=resource_spread_api,
             resource_capacity_read_api=p6_resource_capacity_read_api,
             resource_capacity_write_api=p6_resource_capacity_write_api,
-            resource_read_api=resource_read_api,
-            resource_write_api=resource_write_api,
-            resource_spread_api=resource_spread_api,
-            resource_capacity_read_api=p6_resource_capacity_read_api,
-            resource_capacity_write_api=p6_resource_capacity_write_api,
         ),
     )
     schedule_query_api = shared_core_runtime.schedule_query_api
