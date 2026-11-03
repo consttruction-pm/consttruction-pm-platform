@@ -186,6 +186,8 @@ class SharedCoreRuntime:
     operations: Mapping[str, SharedCoreOperation] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        if self.mutation_executor is not None and not callable(self.mutation_executor):
+            raise ValueError("RUNTIME_MUTATION_EXECUTOR_INVALID")
         registry = dict(self.operations)
         for name, spec in registry.items():
             if (
