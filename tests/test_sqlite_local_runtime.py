@@ -948,6 +948,21 @@ def test_local_shared_runtime_exposes_versioned_calendar_catalog_and_snapshot_op
         })
         assert calendar["result"]["item"]["calendar_version"] == "1"
 
+        exception = invoke("calendar.exception.save", {
+            "exception": {
+                "calendar_id": "CAL-P",
+                "calendar_version": "1",
+                "exception_date": "2026-11-05",
+                "mode": "nonwork",
+            }
+        })
+        assert exception["result"]["item"]["date"] == "2026-11-05"
+        exceptions = invoke("calendar.exception_list", {
+            "calendar_id": "CAL-P",
+            "calendar_version": "1",
+        })
+        assert exceptions["result"]["count"] == 1
+
         advertised = {item["operation"] for item in shared.supported_operations}
         assert {"calendar.create", "calendar.list", "calendar.get", "calendar.delete"} <= advertised
 
