@@ -7081,3 +7081,13 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-vd-period-batch-grid input,.cp-vd-period-batch-grid select{min-width:0;width:100%;padding:5px;border:1px solid #cbd6e2;background:#fff;font-size:10px}
 .cp-vd-period-batch>small{font-size:9px;color:#6b7787}
 @media(max-width:760px){.cp-vd-admin-pref-grid{grid-template-columns:1fr}.cp-vd-period-batch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Selection-aware context menus for activity and WBS rows. */
+.cp-vd-context-menu{position:fixed;z-index:10000;min-width:218px;max-width:min(280px,calc(100vw - 16px));padding:5px;border:1px solid #aebdcd;border-radius:5px;background:#fff;box-shadow:0 10px 28px rgba(8,26,47,.22);color:#263d56}
+.cp-vd-context-menu[hidden],.cp-vd-context-menu [hidden]{display:none}
+.cp-vd-context-menu strong{display:block;padding:7px 9px;border-bottom:1px solid #e3e8ee;color:#0f2747;font-size:10px;overflow-wrap:anywhere}
+.cp-vd-context-menu button{display:block;width:100%;padding:7px 9px;border:0;border-radius:3px;background:#fff;color:#294765;text-align:start;font-size:11px;cursor:pointer}
+.cp-vd-context-menu button:hover:not(:disabled),.cp-vd-context-menu button:focus-visible{background:#eaf2fb;color:#123d70}
+.cp-vd-context-menu button:disabled{color:#98a2ad;cursor:not-allowed}
+.cp-vd-context-menu hr{border:0;border-top:1px solid #e3e8ee;margin:4px 2px}
+.cp-vd-row[aria-haspopup=menu]:focus-visible{outline:2px solid var(--cp-blue,#1976d2);outline-offset:-2px}
