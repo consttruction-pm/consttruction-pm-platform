@@ -197,3 +197,14 @@ test("register column chooser uses the current page fields instead of activity f
   assert.match(markup, /name="Material / Equipment"/);
   assert.doesNotMatch(markup, /name="Activity ID"/);
 });
+test("scheduling dialogs expose the key CPM handling and baseline options", () => {
+  const markup = renderVisualDemo(createVisualDemoState("en"));
+  for (const value of ["Retained Logic", "Progress Override", "Actual Dates", "Total Float → Activity Priority", "Primary baseline", "Secondary baseline", "Tertiary baseline"]) {
+    assert.ok(markup.includes(value), `expected scheduling option: ${value}`);
+  }
+  for (const relationship of ["FS — Finish to Start", "SS — Start to Start", "FF — Finish to Finish", "SF — Start to Finish"]) {
+    assert.ok(markup.includes(relationship), `expected relationship type: ${relationship}`);
+  }
+  assert.match(markup, /Lag calendar/);
+  assert.match(markup, /Level only within available total float/);
+});
