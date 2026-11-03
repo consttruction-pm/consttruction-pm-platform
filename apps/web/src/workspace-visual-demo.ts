@@ -1646,7 +1646,8 @@ export function renderVisualDemo(state: DemoState): string {
   const navGroups: Array<{ id: string; en: string; fa: string; items: DemoWindowId[] }> = [
     { id: "planning", en: "Planning & Schedule", fa: "برنامه‌ریزی و زمان‌بندی", items: ["wbs", "activities", "network", "trace", "timeline", "activity-profile", "resource-profile", "activity-sheet", "resource-sheet", "calendars"] },
     { id: "controls", en: "Project Controls", fa: "کنترل پروژه", items: ["assignments", "resources", "roles", "cost-control", "progress-control", "procurement", "changes-claims", "tracking", "expenses", "thresholds", "issues", "risks"] },
-    { id: "information", en: "Information & Administration", fa: "اطلاعات و مدیریت", items: ["documents", "reports", "form-builder", "comments", "organization", "administration", "smart-guide", "assistant", "search"] },
+    { id: "information", en: "Information & Administration", fa: "اطلاعات و مدیریت", items: ["documents", "reports", "comments", "organization", "administration", "smart-guide", "assistant", "search"] },
+    { id: "forms", en: "Forms & Workflows", fa: "فرم‌ها و گردش‌کار", items: ["form-builder"] },
   ];
   const navGroup = (group: typeof navGroups[number]): string => {
     const collapsed = state.collapsedNavGroups.includes(group.id);
@@ -1889,8 +1890,8 @@ function bind(root: HTMLElement): void {
       "activity-profile": "planning", "resource-profile": "planning", "activity-sheet": "planning", "resource-sheet": "planning", calendars: "planning",
       assignments: "controls", resources: "controls", roles: "controls", "cost-control": "controls", "progress-control": "controls", procurement: "controls",
       "changes-claims": "controls", tracking: "controls", expenses: "controls", thresholds: "controls", issues: "controls", risks: "controls",
-      documents: "information", reports: "information", "form-builder": "information", comments: "information", organization: "information", administration: "information",
-      "smart-guide": "information", assistant: "information", search: "information",
+      documents: "information", reports: "information", comments: "information", organization: "information", administration: "information",
+      "smart-guide": "information", assistant: "information", search: "information", "form-builder": "forms",
     };
     const activeGroup = groupByWindow[id];
     if (activeGroup) state.collapsedNavGroups = state.collapsedNavGroups.filter((group) => group !== activeGroup);
