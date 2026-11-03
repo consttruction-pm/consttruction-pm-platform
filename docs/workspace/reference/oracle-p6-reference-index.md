@@ -19,6 +19,8 @@ This index records which official pages were reviewed, what each page contribute
 | Financial periods v26 | https://docs.oracle.com/cd/G48902_01/English/admin/p6_pro_admin/managingfinancialperiods.htm | Period calendars, individual periods, batch creation and delete rules; batch durations include weeks/months/years and have date-overlap constraints |
 | Create financial period calendar v26 | https://docs.oracle.com/cd/G48902_01/client_help/en_US/create_a_financial_period.htm | Multiple project-specific period calendars and default calendar behavior |
 | User Guide v26 structure topics | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm | EPS hierarchy, OBS responsibility structure, custom fields and global/project/resource calendars |
+| Import/export topics in Version 26 Help | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm | Version 26 Help TOC contains import/export wizard, XER/XML, spreadsheet and Microsoft Project task topics |
+| P6 Professional Importing and Exporting Guide (latest standalone guide located: Version 25) | https://docs.oracle.com/cd/G18296_01/English/admin/p6_pro_importing_exporting/toc.htm | Import/export wizard formats, Project/Resource Only/Role Only, templates, import actions, XML vs XER baseline and transaction differences, spreadsheet and Microsoft Project mappings |
 | Menu bar overview | https://docs.oracle.com/cd/G48902_01/client_help/en_US/menu_bar.htm | Menu set: File, Edit, View, Project, Enterprise, Tools, Admin, Help |
 | File menu | https://docs.oracle.com/cd/G48902_01/client_help/en_US/49093.htm | Project lifecycle, import/export, portfolio, commit/refresh, recent projects |
 | Edit menu | https://docs.oracle.com/cd/G48902_01/client_help/en_US/49094.htm | Undo, clipboard, add/delete/dissolve, assign submenu, link/unlink, renumber, fill down, find/replace, user preferences |
@@ -131,3 +133,5 @@ These are visual-only records. EPS/OBS, administration, currencies, period calen
 
 
 | Selection context menus | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm | Workspace basics include shortcut menus and selection-dependent commands; context actions are scoped to the selected activity or WBS item in CUBI |
+
+| Import / Export visual slice | Version 26 Help TOC plus latest standalone Professional Import/Export Guide located (Version 25) | CUBI import/export dialog: format, information type, template, destination, create/add/replace/update, baseline compatibility, mapping preview, validation, output selection, export privilege and personal-information safeguards |
