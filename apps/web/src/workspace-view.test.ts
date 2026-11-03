@@ -2029,7 +2029,8 @@ test("Tracking layout selection switches desktop panes and persists across rende
   };
   const state = { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "tracking" as const };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  listeners.get("change")?.({ target: { dataset: { trackingLayout: "" }, value: "gantt-profile", querySelector: select.querySelector } } as unknown as Event);
+  const target = { dataset: { trackingLayout: "" }, value: "gantt-profile", querySelector: select.querySelector, closest: () => target };
+  listeners.get("change")?.({ target } as unknown as Event);
   assert.equal(frame.dataset.trackingLayoutType, "gantt-profile");
   assert.equal(surface.dataset.trackingSurface, "gantt-profile");
   assert.equal(heading.textContent, "Project Gantt / Profile");
