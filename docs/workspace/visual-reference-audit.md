@@ -275,7 +275,7 @@ The Version 26 desktop Professional Help index distinguishes desktop Activity De
 
 Official reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/detailswindows-postdropdowns.htm
 
-The same Version 26 Details Windows index lists **Update History** as an Activity Details tab. The visual inventory now includes it. The CUBI Summary tab remains an additive convenience and is not represented as a native desktop tab. The EPPM-only Tasks tab remains excluded.
+The Version 26 Activity Details page lists **Summary** as a native tab, and the Details Windows index separately lists **Update History**. The prior audit incorrectly classified Summary as a CUBI extension; its origin is corrected to `desktop-reference`. Update History is retained as a native tab. The EPPM-only Tasks tab remains excluded.
 
 
 
@@ -346,7 +346,7 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 ## WBS Details — native inventory vs CUBI extension — 2026-11-03
 
 - The Version 26 Professional WBS Details inventory contains General, Notebook, Budget Log, Spending Plan, Budget Summary, WBS Milestones, WPs & Docs, Earned Value and User Defined Fields. Planning Resources is EPPM-only; there is no native WBS Details Activities tab.
-- CUBI retains the useful linked-activities view as an explicitly marked **Related Activities (CUBI extension)** tab. Its origin is encoded in the tab metadata and its tooltip, so it is not presented as a native desktop tab.
+- CUBI retains the useful linked-activities view as an explicitly marked **Related Activities (CUBI extension)** tab, appended after all native WBS Details tabs. Its origin is encoded in tab metadata and its tooltip.
 - Reference: https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_details.htm.
 
 ## Calendar window — read-only month canvas — 2026-11-03
@@ -359,10 +359,10 @@ The same Version 26 Details Windows index lists **Update History** as an Activit
 - Reference: Version 26 Professional User Guide, “Edit a global calendar” and “Edit a project calendar”: https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/edit_a_global_calendar.htm. The calendar dialog's month navigation, Work/Nonwork/Standard, Workweek, and Time Periods controls are also documented here: https://docs.oracle.com/cd/F51303_01/client_help/en_US/calendar_dialog_box.htm.
 
 
-## Project and Activity Details — additive CUBI tabs — 2026-11-03
+## Project and Activity Details — native and additive tab provenance — 2026-11-03
 
-- The Version 26 Professional details index does not list Contract Management under Project Details or Summary under Activity Details. These remain useful CUBI additions, but must not be mistaken for native desktop tabs.
-- CUBI correction: both tabs are visibly labeled as CUBI extensions and carry `data-detail-origin="cubi-extension"` metadata and explanatory tooltips. Native detail tabs retain `desktop-reference` origin metadata.
+- Contract Management is a CUBI addition to Project Details and is not part of the Version 26 native tab inventory. Summary is a native Activity Details tab and must not be classified as a CUBI extension.
+- CUBI correction: Contract Management is visibly labeled as a CUBI extension, appended after the native Project Details tabs, and carries `data-detail-origin="cubi-extension"` metadata and an explanatory tooltip. Activity Summary carries `data-detail-origin="desktop-reference"`.
 - References: https://docs.oracle.com/cd/G48902_01/client_help/en_US/detailswindows-postdropdowns.htm; https://docs.oracle.com/cd/G48902_01/client_help/en_US/wbs_details.htm.
 
 ## WBS top-layout parity refinement — 2026-11-03
