@@ -2880,7 +2880,7 @@ function renderGantt(
 
 const WBS_DETAIL_TABS = [
   ["general", "General", "عمومی"],
-  ["activities", "Activities", "فعالیت‌ها"],
+  ["activities", "Related Activities (CUBI extension)", "فعالیت‌های مرتبط (افزوده CUBI)"],
   ["notebook", "Notebook", "دفترچه"],
   ["budget-log", "Budget Log", "دفتر ثبت بودجه"],
   ["spending-plan", "Spending Plan", "برنامه هزینه"],
@@ -2926,7 +2926,7 @@ function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
   return `<section class="cp-wbs-details">
     <header class="cp-wbs-details-heading"><strong>${escapeHtml(uiText(state.locale, "WBS Details", "جزئیات ساختار شکست"))}</strong><span>${escapeHtml(node?.localCode ?? "—")}</span></header>
     <nav class="cp-activity-detail-tabs" role="tablist" aria-label="${escapeAttribute(uiText(state.locale, "WBS detail tabs", "زبانه‌های جزئیات WBS"))}">
-      ${WBS_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-wbs-detail-tab="${key}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-wbs-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
+      ${WBS_DETAIL_TABS.map(([key, en, fa]) => `<button type="button" role="tab" data-wbs-detail-tab="${key}" title="${key === "activities" ? escapeAttribute(uiText(state.locale, "CUBI extension; not part of the native WBS Details tab inventory.", "افزوده CUBI؛ جزو فهرست بومی زبانه‌های جزئیات WBS نیست.")) : ""}" data-detail-origin="${key === "activities" ? "cubi-extension" : "desktop-reference"}" aria-selected="${activeTab === key}" class="${activeTab === key ? "is-active" : ""}" aria-controls="cp-wbs-detail-panel-${key}">${escapeHtml(uiText(state.locale, en, fa))}</button>`).join("")}
     </nav>
     ${WBS_DETAIL_TABS.map(([key]) => `<div id="cp-wbs-detail-panel-${key}" role="tabpanel" data-wbs-detail-panel="${key}"${activeTab === key ? "" : " hidden"}>${panel(key)}</div>`).join("")}
   </section>`;
