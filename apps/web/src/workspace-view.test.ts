@@ -194,7 +194,8 @@ test("Projects window switches among table, chart and honest empty Gantt top lay
   assert.match(html, /data-project-view-toggle="table"/);
   assert.match(html, /Add Project/);
   assert.match(html, /Open Project/);
-  assert.match(html, /data-window-close="project"/);
+  assert.match(html, /Close Project/);
+  assert.match(html, /Closing the project requires the project lifecycle service/);
   assert.match(html, /Portfolio/);
   assert.match(html, /data-project-view-toggle="chart"/);
   assert.match(html, /data-project-view-toggle="gantt"/);
