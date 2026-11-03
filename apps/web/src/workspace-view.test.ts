@@ -27,7 +27,7 @@ function render(locale: "en" | "fa", activeMenu: WorkspaceMenuKey): string {
 }
 
 test("workspace shell uses the canonical CUBI logo and focused module layout contracts", () => {
-  for (const menu of ["project", "schedule", "progress", "resources", "cost", "documents", "reports", "control", "settings"] as const) {
+  for (const menu of ["project", "wbs", "schedule", "progress", "resources", "assignments", "roles", "calendars", "cost", "expenses", "documents", "reports", "tracking", "issues", "risks", "thresholds", "control", "settings"] as const) {
     const html = render("en", menu);
     assert.match(html, new RegExp(`data-active-menu="${menu}"`));
     assert.ok(html.includes('class="cp-brand-logo"'));
@@ -84,6 +84,42 @@ test("WBS create form dispatches validated fields to its workspace callback", ()
     sequenceNumber: 4,
     parentWbsId: "WBS-ROOT",
   });
+});
+
+test("Calendar Register displays only authenticated project calendar records", () => {
+  const state = {
+    ...createWorkspaceState(
+      { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+      "en",
+    ),
+    activeMenu: "calendars" as const,
+    calendarCatalog: {
+      status: "loaded" as const,
+      calendars: [{
+        calendarId: "CAL-01",
+        calendarVersion: "v2",
+        kind: "working-time",
+        calendarType: "project",
+        name: "Project Standard",
+        recordRevision: 5,
+      }],
+      errorCode: null,
+    },
+  };
+  const container = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /CAL-01/);
+  assert.match(container.innerHTML, /Project Standard/);
+  assert.match(container.innerHTML, /working-time/);
+  assert.doesNotMatch(container.innerHTML, />0<\/span>/);
+});
+
+test("WBS register exposes the connected add workflow and never fabricates a chart action", () => {
+  const html = render("en", "wbs");
+  assert.match(html, /data-rail-action="wbs"/);
+  assert.match(html, /data-rail-action="wbs">Add WBS/);
+  assert.match(html, /data-wbs-delete disabled/);
+  assert.match(html, /WBS chart view is not connected yet/);
 });
 
 test("Activity Group and Sort defaults to WBS in English and Persian", () => {
@@ -167,6 +203,95 @@ test("rendered schedule surface exposes localized label and implemented status",
   assert.match(html, /data-surface-status="implemented">Implemented<\/span>/);
   assert.match(html, /Activity Grid/);
   assert.match(html, /Gantt Chart/);
+});
+
+test("Activities window exposes a real Layout Options dialog with current timescale and relationship visibility", () => {
+  const english = render("en", "schedule");
+  assert.match(english, /data-layout-options-open/);
+  assert.match(english, /data-layout-options-dialog/);
+  assert.match(english, /data-layout-timescale/);
+  assert.match(english, /data-layout-links/);
+  assert.match(english, /Show relationship lines/);
+  assert.match(english, /Display interval/);
+
+  const persian = render("fa", "schedule");
+  assert.match(persian, /گزینه‌های چیدمان/);
+  assert.match(persian, /مقیاس زمانی/);
+  assert.match(persian, /نمایش خطوط روابط/);
+});
+
+test("Activity Details exposes the Bottom Layout Options tab customization dialog", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-activity-details-options-open/);
+  assert.match(html, /data-activity-details-options-dialog/);
+  assert.match(html, /data-activity-detail-visible="general" checked/);
+  assert.match(html, /data-activity-detail-visible="risks" checked/);
+  assert.match(html, /Customize Activity Details/);
+  assert.match(html, /Choose which detail tabs are visible/);
+});
+
+test("Activities Layout Options inventories top and bottom chart layouts without enabling unimplemented renderers", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-top-layout/);
+  assert.match(html, /Activity Table \+ Gantt Chart/);
+  assert.match(html, /Activity Network/);
+  assert.match(html, /Activity Usage Spreadsheet/);
+  assert.match(html, /Resource Usage Profile/);
+  assert.match(html, /data-bottom-layout/);
+  assert.match(html, /Show critical path/);
+  assert.match(html, /Show progress line/);
+  assert.match(html, /Show baseline bars/);
+  assert.match(html, /disabled>Activity Network/);
+});
+
+test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
+  const html = render("en", "schedule");
+  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "tasks", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
+    assert.ok(html.includes(`data-activity-detail-tab="${tab}"`), `missing Activity Details tab: ${tab}`);
+  }
+  assert.match(html, /Select an activity in the table or Gantt chart/);
+});
+test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const closed: WorkspaceMenuKey[] = [];
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    {
+      openWindows: ["project", "schedule"],
+      onWindowClose: (menu) => closed.push(menu),
+    },
+  );
+  assert.match(container.innerHTML, /data-window-tab="project"/);
+  assert.match(container.innerHTML, /data-window-tab="schedule"/);
+  assert.match(container.innerHTML, /data-window-close="project"/);
+  const target = { dataset: { windowClose: "project" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.deepEqual(closed, ["project"]);
+});
+
+test("View menu Timescale command opens the current window Layout Options dialog", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let opened = false;
+  const dialog = { showModal: () => { opened = true; }, setAttribute: () => {} };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-layout-options-dialog]" ? dialog : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(
+    container as unknown as HTMLElement,
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+  );
+  const target = { dataset: { shellCommand: "Timescale" }, closest: () => target };
+  listeners.get("click")?.({ target } as unknown as Event);
+  assert.equal(opened, true);
 });
 
 test("rendered preview surfaces remain explicitly marked", () => {
@@ -1387,6 +1512,73 @@ test("project settings button dispatches a single open request", () => {
   assert.equal(opened, 1);
 });
 
+test("WBS, assignments, expenses, issues, risks and thresholds have separate register windows", () => {
+  const cases: Array<[WorkspaceMenuKey, string]> = [
+    ["wbs", "Work Breakdown Structure"],
+    ["assignments", "Resource Assignments"],
+    ["expenses", "Project Expenses"],
+    ["issues", "Project Issues"],
+    ["risks", "Project Risks"],
+    ["thresholds", "Project Thresholds"],
+  ];
+  for (const [menu, title] of cases) {
+    const html = render("en", menu);
+    assert.ok(html.includes(title), `missing register surface: ${title}`);
+    assert.match(html, /No records are loaded for this project|WBS hierarchy/);
+  }
+});
+
+test("Roles and Tracking are first-class windows with their documented visual surfaces", () => {
+  const roles = render("en", "roles");
+  assert.match(roles, /Role Register/);
+  assert.match(roles, /Max Units \/ Time/);
+  assert.match(roles, /data-register-tab="roles:rates"/);
+  assert.match(roles, /Select a role to view its limits information/);
+  const tracking = render("en", "tracking");
+  assert.match(tracking, /Tracking Layout/);
+  assert.match(tracking, /Project Table/);
+  assert.match(tracking, /Project Bar Chart/);
+  assert.match(tracking, /Project Gantt \/ Profile/);
+  assert.match(tracking, /Resource Analysis/);
+  assert.match(tracking, /data-tracking-layout/);
+});
+
+test("Calendar Register opens as a first-class window with documented editor controls", () => {
+  const html = render("en", "calendars");
+  assert.match(html, /data-active-menu="calendars"/);
+  assert.match(html, /Calendar Register/);
+  assert.match(html, /Calendar Scope/);
+  assert.match(html, /Workweek/);
+  assert.match(html, /Exceptions and Holidays/);
+  assert.match(html, /Assignments/);
+  assert.match(html, /split shifts, multiple work intervals, overnight shifts/);
+  assert.match(html, /Editing and saving are disabled until the authoritative calendar service/i);
+});
+
+test("Project and WBS Details use their Version 26 tab inventories and switch by window context", () => {
+  const project = render("en", "project");
+  for (const tab of ["general", "dates", "notebook", "budget-log", "spending-plan", "budget-summary", "funding", "codes", "defaults", "resources", "settings", "calculations", "planning-resources", "contract-management", "udfs"]) {
+    assert.ok(project.includes(`data-project-detail-tab="${tab}"`), `missing Project Details tab: ${tab}`);
+  }
+  const reports = render("en", "reports");
+  assert.doesNotMatch(reports, /data-activity-detail-tab=/);
+  assert.doesNotMatch(reports, /data-project-detail-tab=/);
+  assert.match(reports, /Select a record in this window to display its details/);
+
+  const base = withWbsNodes(
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    [{ id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1.1", name: "Structure", sequenceNumber: 1, recordRevision: 2 }],
+  );
+  const wbsState = { ...base, selectedWbsId: "WBS-1" };
+  const container = { innerHTML: "", querySelectorAll: () => [], addEventListener: () => {} };
+  renderMainWorkspace(container as unknown as HTMLElement, wbsState);
+  for (const tab of ["general", "notebook", "budget-log", "spending-plan", "budget-summary", "milestones", "documents", "earned-value", "planning-resources", "udfs"]) {
+    assert.ok(container.innerHTML.includes(`data-wbs-detail-tab="${tab}"`), `missing WBS Details tab: ${tab}`);
+  }
+  assert.match(container.innerHTML, /WBS Details/);
+  assert.match(container.innerHTML, /Structure/);
+});
+
 test("empty and preview-only modules show an explicit truthful surface", () => {
   const reports = render("en", "reports");
   assert.match(reports, /data-workspace-menu="reports"/);
@@ -1402,4 +1594,34 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 
   const settings = render("en", "settings");
   assert.match(settings, /id="cp-settings-panel"[^>]*data-workspace-menu="settings"/);
+});
+
+
+test("desktop workbench renders a grouped navigation tree, window tabs and contextual command rail", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /class="[^"]*cp-navigation-tree/);
+  const navigationStart = html.indexOf('class="cp-menu cp-p6-rail cp-navigation-tree"');
+  const navigationEnd = html.indexOf("</nav>", navigationStart);
+  const navigationMarkup = html.slice(navigationStart, navigationEnd + 6);
+  assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 18);
+  assert.match(html, /Project workspace/);
+  assert.match(html, /Planning &amp; execution/);
+  assert.match(html, /Resources &amp; cost/);
+  assert.match(html, /class="cp-window-tabs"/);
+  assert.match(html, /role="tab" data-window-tab="schedule" data-menu="schedule" aria-selected="true"/);
+  assert.match(html, /class="cp-context-command-bar"/);
+  assert.match(html, /Current window commands/);
+  assert.match(html, /class="[^"]*cp-context-command-rail/);
+  assert.match(html, /class="cp-context-add-menu"/);
+  assert.match(html, /Calendars/);
+  assert.match(html, /Roles/);
+  assert.match(html, /Tracking/);
+  assert.match(html, /Thresholds/);
+  assert.match(html, /Add to current window/);
+});
+
+test("desktop workbench keeps contextual Add actions visibly unavailable until workflows exist", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /role="menuitem" disabled/);
+  assert.match(html, /create workflow is not connected yet/);
 });

@@ -21,7 +21,7 @@ Status values: **Implemented** = usable with real data; **Partial** = some real 
 
 | CUBI window | Current implementation | Status | Gap to target |
 | --- | --- | --- | --- |
-| Projects / Business Domains | Project picker in `main.ts:1306-1344`; `GET /api/projects`, `POST /api/projects/{id}/open` | Preview | No window, no business-domain tree, no EPS/portfolio grouping |
+| Projects / Business Domains | Projects module shell with current-project register, loaded WBS structure summary and bottom Project Details; project picker still uses project list/open APIs | Partial | Organization-wide register/tree, multi-project list context, full tab data and persistent project defaults still require service contracts |
 | Activities | Activity grid `#cp-activity-grid` (`workspace-view.ts:518`), Gantt `#cp-gantt` (`:544`), filter/group/sort (`:1159-1180`), P6 field chooser (`:1183-1240`) | Partial | No window tabs, no Activity Details tabs, no menu commands, no resizable layouts |
 | Comparisons | No dedicated window/run history yet | Missing | Implement CMP-01 / Issue #1669: saved comparison-run list, New Comparison action, immutable result viewer, WBS-grouped differences, before/after fields, filters and drill-through; never mistake a placeholder for a working comparison |
 | WBS | `#cp-project-wbs` aside (`:489`), create/edit forms (`:492-515`) | Partial | No WBS window, chart view or element details |
@@ -36,6 +36,16 @@ Status values: **Implemented** = usable with real data; **Partial** = some real 
 | Issues | Field/site issues `#cp-field-operations` (`:909`), quality/safety panels | Partial | Project issue register with history/notify |
 | Risks | None | Missing | Risk register and exposure |
 | Administration | None | Missing | Users, profiles, preferences, categories, currencies, periods |
+
+## Projects window composition (current shell and target)
+
+| Region | Current | Target |
+| --- | --- | --- |
+| Project Register | Current authorized/open project facts and loaded WBS summary | Full authorized project list with domain/portfolio tree, table columns, grouping, sorting and filters |
+| Project Details | Bottom-docked tab surface; project-scoped tabs | General, Dates, Defaults, Resources, Settings, Codes, Notebook, budget/funding, Baselines, Documents, History and UDFs |
+| Project metadata edit | Existing metadata dialog/API | Editing for every field with service contract, revision guard and audit |
+
+See the Projects Window and Project Details specification for field inventory, choices and acceptance gates.
 
 ## Activities window composition (target)
 
@@ -85,3 +95,35 @@ Status values: **Implemented** = usable with real data; **Partial** = some real 
 - `apps/web/src/workspace-view.ts`, `workspace-model.ts`, `workspace-navigation.ts`, `workspace-preferences.ts`, `workspace-filter-sort.ts`, `schedule-cycle.ts`, `main.ts`.
 - `apps/web/styles.css` grid definitions.
 - Read-only audit on 2026-10-30 (file/line references above reflect that revision).
+
+
+## Master visual-shell audit status (2026-11-02)
+
+The full target inventory is documented in [workspace-visual-shell-master-audit.md](./workspace-visual-shell-master-audit.md). Current UI remains substantially incomplete relative to that target:
+
+- The global menu/toolbar catalogue is rendered as a visual-only shell; command entries are intentionally not wired to APIs or actions.
+- The existing left rail is still not the complete hierarchical navigation tree.
+- Most listed windows remain partial, preview, or missing; they are not independently navigable as real window tabs.
+- Page-specific Details inventories are specified, but only partial Project Details/Activity Details surfaces are rendered; other page-specific detail tabs are not complete.
+- Contextual command bars for each window are not complete. The right-side CUBI Add (+) command bar remains a separately tracked requirement.
+- Layout dialogs for network/chart/profile/spreadsheet, advanced filters, multi-level group/sort, bar styles, tab groups, and per-window layouts remain visual work.
+- Form Builder is additive and must coexist with all baseline windows; its organization and project libraries remain distinct.
+
+Do not mark the visual shell complete based on this catalogue or disabled menu labels. Completion requires running-app acceptance evidence listed in the master audit. This inventory is visual-only and makes no statement about API readiness.
+
+
+## Detailed desktop visual parity gate (2026-11-02)
+
+The master audit now contains the full visual composition rule, window/mode matrix, layout dialogs, calendar editor, object-property dialogs and menu/command presentation requirements. This is the normative design inventory for the skin-only phase.
+
+**Critical layout rule:** the application must not become one wide page containing every control. It must render as a desktop workbench with independent window tabs, a collapsible/resizable left navigation tree, a compact global menu and toolbar, a page-specific horizontal command bar, a central top-layout surface (table/tree synchronized with Gantt/network/chart where relevant), and a docked page-specific bottom Details pane. The right-edge CUBI Add (+) rail remains a separate narrow strip. Panes and splitters are independently adjustable. Responsive mode may reflow these regions but must preserve their identity and interaction.
+
+**Visual parity inventory includes:**
+- Projects, Activities, WBS, Resource Assignments, Resources, Roles, Calendars, Documents, Expenses, Thresholds, Issues, Risks, Reports and Tracking windows.
+- CUBI-only Form Builder, Cost & Financial Control, Progress & Field Control, Procurement, Changes & Claims and Engineering Intelligence surfaces.
+- Grid/table, Gantt, project bar chart, network diagram, usage spreadsheet, resource profile/histogram and tracking profile modes.
+- Layout open/save/import/export, columns, advanced filters, multi-level grouping/sorting, timescale, bars/labels/legend, Gantt/network/profile options, tab configuration and font/row/color dialogs.
+- Calendar register, workweek and split-shift editor, recurring and one-off exceptions, holidays, calendar preview and assignment dialogs.
+- Project/activity/WBS/resource/role properties, relationships, baselines, schedule, resource leveling, import/export, print/page setup, preferences, security, search, global change and recovery dialogs.
+
+**Status:** this is a completed target inventory only. It does not mean those visual surfaces have all been implemented. The running application remains partial until each window, pane, menu, submenu, dialog and layout mode exists and is proven in browser interaction and screenshots. Do not merge or mark skin complete based on the written catalogue.

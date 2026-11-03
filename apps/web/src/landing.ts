@@ -93,10 +93,9 @@ import { LANDING_LOCALE_STORAGE_KEY } from "./workspace-preferences.js";
 /** The un-prefixed landing document is the default language route. */
 export const DEFAULT_LANDING_LOCALE = "en";
 /**
- * Locales that ship a real, indexable landing document. A downloaded language
- * pack may register more locales in the workspace, but advertising a route that
- * has no document would create a dead link, so the public switcher stays bound
- * to this accepted set.
+ * Locales that have complete, indexable public-site routes. A locale is not added
+ * to this list until its homepage and every public marketing route (including
+ * pricing) have translated documents, correct metadata and working twin links.
  */
 export const LANDING_LANGUAGE_ROUTES: readonly string[] = Object.freeze(["en", "fa"]);
 let locale: LandingLocale = "en";

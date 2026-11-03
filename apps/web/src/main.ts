@@ -1150,6 +1150,8 @@ function renderApp(
   };
 
   renderMainWorkspace(workspace, state, {
+    openWindows: getOpenWindows(),
+    onWindowClose: (menu) => closeDesktopWindow(menu),
     onMenuSelect: (menu) => {
       rememberWorkspaceMenu(menu);
       rememberOpenWindows(openWorkspaceWindow(getOpenWindows(), menu));
@@ -2073,11 +2075,19 @@ function getInitialLocale(): WorkspaceLocale {
   const language = navigator.language.toLowerCase();
   const detected = language.startsWith("fa")
     ? "fa"
-    : language.startsWith("de")
-      ? "de"
-      : language.startsWith("zh")
-        ? "zh"
-        : "en";
+    : language.startsWith("ar")
+      ? "ar"
+      : language.startsWith("de")
+        ? "de"
+        : language.startsWith("fr")
+          ? "fr"
+          : language.startsWith("ja")
+            ? "ja"
+            : language.startsWith("ko")
+              ? "ko"
+              : language.startsWith("zh")
+                ? "zh"
+                : "en";
   return available.includes(detected) ? detected : "en";
 }
 

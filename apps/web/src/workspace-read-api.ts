@@ -1,5 +1,5 @@
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
-import { createWorkspaceState, setSmartGuide, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, withRelationships, withWbsNodes, type WorkspaceCalendarMode, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
+import { createWorkspaceState, setSmartGuide, setControlSummary, setDocuments, setProcurementRecords, setFieldAssurance, setFieldIssues, setFieldOperations, setSiteDailyLogs, setChangeClaimRecords, withActivities, withRelationships, withWbsNodes, type WorkspaceCalendarMode, type WorkspaceCalendarRecord, type WorkspaceLocale, type WorkspaceState } from "./workspace-model.js";
 import { workspaceActivitiesFromSnapshot, workspaceRelationshipsFromSnapshot, workspaceWbsNodesFromSnapshot, type WorkspaceControlRoomSnapshot } from "./workspace-contract.js";
 import { localizeWorkspaceLabel } from "./workspace-localization.js";
 import { projectControlIntelligence, type ControlRoomIntelligenceSnapshot } from "./workspace-control-intelligence.js";
@@ -180,6 +180,67 @@ export class WorkspaceReadClient {
           project_revision: context.revision,
         })),
       });
+
+
+      const calendarResult = await this.transport.get<{
+        contract_version: string;
+        kind: string;
+        scope: { tenant_id: string; project_id: string; project_revision: number };
+        calendars: readonly {
+          calendar_id: string;
+          calendar_version: string;
+          kind: string;
+          calendar_type: string;
+          name: string;
+          record_revision: number;
+        }[];
+      }>(`/api/projects/${encodeURIComponent(context.project_id)}/p6/calendars`, context);
+      if (calendarResult.ok) {
+        const payload = calendarResult.data;
+        if (
+          payload.contract_version !== "p6-calendar-read-api.v1" ||
+          payload.kind !== "calendar_catalog" ||
+          payload.scope?.tenant_id !== context.tenant_id ||
+          payload.scope?.project_id !== context.project_id ||
+          payload.scope?.project_revision !== context.revision ||
+          !Array.isArray(payload.calendars)
+        ) {
+          state = {
+            ...state,
+            calendarCatalog: { status: "unavailable", calendars: [], errorCode: "INVALID_CALENDAR_CATALOG" },
+          };
+        } else {
+          const calendars: WorkspaceCalendarRecord[] = payload.calendars.map((item) => {
+            if (
+              !item || typeof item.calendar_id !== "string" || !item.calendar_id ||
+              typeof item.calendar_version !== "string" || !item.calendar_version ||
+              typeof item.kind !== "string" || typeof item.calendar_type !== "string" ||
+              typeof item.name !== "string" || !Number.isInteger(item.record_revision)
+            ) throw new Error("INVALID_CALENDAR_CATALOG_RECORD");
+            return {
+              calendarId: item.calendar_id,
+              calendarVersion: item.calendar_version,
+              kind: item.kind,
+              calendarType: item.calendar_type,
+              name: item.name,
+              recordRevision: item.record_revision,
+            };
+          });
+          state = {
+            ...state,
+            calendarCatalog: { status: "loaded", calendars, errorCode: null },
+          };
+        }
+      } else {
+        state = {
+          ...state,
+          calendarCatalog: {
+            status: "unavailable",
+            calendars: [],
+            errorCode: calendarResult.error.code,
+          },
+        };
+      }
 
       return { ok: true, data: state };
     } catch (error) {

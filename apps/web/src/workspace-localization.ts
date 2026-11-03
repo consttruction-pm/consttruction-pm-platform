@@ -16,6 +16,10 @@ const localeDefinitions = new Map<string, WorkspaceLocaleDefinition>([
   ["fa", { locale: "fa", displayName: "فارسی", direction: "rtl", translations: {} }],
   ["de", { locale: "de", displayName: "Deutsch", direction: "ltr", translations: {} }],
   ["zh", { locale: "zh", displayName: "中文", direction: "ltr", translations: {} }],
+  ["ar", { locale: "ar", displayName: "العربية", direction: "rtl", translations: {} }],
+  ["fr", { locale: "fr", displayName: "Français", direction: "ltr", translations: {} }],
+  ["ja", { locale: "ja", displayName: "日本語", direction: "ltr", translations: {} }],
+  ["ko", { locale: "ko", displayName: "한국어", direction: "ltr", translations: {} }],
 ]);
 
 /** Register translations from a verified, activated language pack. Keys are stable IDs, not English labels. */
@@ -115,6 +119,8 @@ export function translateWorkspaceText(locale: WorkspaceLocale, key: string, fal
  * back to its English source so no raw key ever reaches the screen.
  */
 export function translateWorkspaceUiText(locale: WorkspaceLocale, english: string, persian: string): string {
+  const packed = translateWorkspaceText(locale, `ui.${english}`, "");
+  if (packed) return packed;
   const base = locale.split("-")[0].toLowerCase();
   if (base === "fa") return persian;
   if (base === "de" || base === "zh") return translateUiString(locale, english) ?? english;
@@ -123,5 +129,5 @@ export function translateWorkspaceUiText(locale: WorkspaceLocale, english: strin
 
 /** Translate a persisted English presentation label for the active locale. */
 export function localizeWorkspaceLabel(locale: WorkspaceLocale, english: string): string {
-  return translateColumnLabel(locale, english);
+  return translateWorkspaceText(locale, `column.label.${english}`, "") || translateColumnLabel(locale, english);
 }

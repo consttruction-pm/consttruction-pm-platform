@@ -117,3 +117,41 @@ test("language-pack UI translations require the versioned schema before activati
     [{ path: "translations/ui.json", bytes: new TextEncoder().encode("{}") }],
   ), /UNSUPPORTED_WORKSPACE_LOCALE_TRANSLATION_SCHEMA/);
 });
+
+
+test("Arabic, French, Japanese and Korean are registered as selectable workspace locales", () => {
+  const expected = [
+    ["ar", "العربية", "rtl"],
+    ["fr", "Français", "ltr"],
+    ["ja", "日本語", "ltr"],
+    ["ko", "한국어", "ltr"],
+  ] as const;
+  for (const [locale, displayName, direction] of expected) {
+    assert.ok(getAvailableWorkspaceLocales().includes(locale));
+    assert.equal(getWorkspaceLocaleDisplayName(locale), displayName);
+    assert.equal(getWorkspaceLocaleDirection(locale), direction);
+    const state = setLocale(createWorkspaceState(context, "en"), locale);
+    assert.equal(state.locale, locale);
+    assert.equal(state.direction, direction);
+  }
+});
+
+
+test("verified locale resources can translate the visual command menu and shared UI labels", async () => {
+  registerWorkspaceLocale({
+    locale: "fr",
+    displayName: "Français",
+    direction: "ltr",
+    translations: {
+      "command.Workspace": "Espace de travail",
+      "command.New Project": "Nouveau projet",
+      "ui.Project": "Projet",
+      "column.label.Activity Name": "Nom de l’activité",
+    },
+  });
+  const { renderWorkspaceCommandShell } = await import("./workspace-command-shell.js");
+  const shell = renderWorkspaceCommandShell("fr");
+  assert.match(shell, /Espace de travail/);
+  assert.match(shell, /Nouveau projet/);
+  assert.equal(translateWorkspaceText("fr", "ui.Project", "Project"), "Projet");
+});

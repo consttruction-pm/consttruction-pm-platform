@@ -42,6 +42,136 @@
         "voice_output": true,
         "offline_ai": false
       }
+    },
+    {
+      "language_tag": "de",
+      "display_names": {
+        "en": "German",
+        "fa": "آلمانی"
+      },
+      "enabled": true,
+      "direction": "ltr",
+      "locale": "de-DE",
+      "fallback_chain": [
+        "en"
+      ],
+      "capabilities": {
+        "ui": true,
+        "help": true,
+        "ai_text": true,
+        "voice_input": true,
+        "voice_output": true,
+        "offline_ai": false
+      }
+    },
+    {
+      "language_tag": "zh",
+      "display_names": {
+        "en": "Chinese",
+        "fa": "چینی"
+      },
+      "enabled": true,
+      "direction": "ltr",
+      "locale": "zh-CN",
+      "fallback_chain": [
+        "en"
+      ],
+      "capabilities": {
+        "ui": true,
+        "help": true,
+        "ai_text": true,
+        "voice_input": true,
+        "voice_output": true,
+        "offline_ai": false
+      }
+    },
+    {
+      "language_tag": "ar",
+      "display_names": {
+        "en": "Arabic",
+        "fa": "عربی",
+        "ar": "العربية"
+      },
+      "enabled": true,
+      "direction": "rtl",
+      "locale": "ar",
+      "fallback_chain": [
+        "en"
+      ],
+      "capabilities": {
+        "ui": true,
+        "help": true,
+        "ai_text": true,
+        "voice_input": true,
+        "voice_output": true,
+        "offline_ai": false
+      }
+    },
+    {
+      "language_tag": "fr",
+      "display_names": {
+        "en": "French",
+        "fa": "فرانسوی",
+        "fr": "Français"
+      },
+      "enabled": true,
+      "direction": "ltr",
+      "locale": "fr-FR",
+      "fallback_chain": [
+        "en"
+      ],
+      "capabilities": {
+        "ui": true,
+        "help": true,
+        "ai_text": true,
+        "voice_input": true,
+        "voice_output": true,
+        "offline_ai": false
+      }
+    },
+    {
+      "language_tag": "ja",
+      "display_names": {
+        "en": "Japanese",
+        "fa": "ژاپنی",
+        "ja": "日本語"
+      },
+      "enabled": true,
+      "direction": "ltr",
+      "locale": "ja-JP",
+      "fallback_chain": [
+        "en"
+      ],
+      "capabilities": {
+        "ui": true,
+        "help": true,
+        "ai_text": true,
+        "voice_input": true,
+        "voice_output": true,
+        "offline_ai": false
+      }
+    },
+    {
+      "language_tag": "ko",
+      "display_names": {
+        "en": "Korean",
+        "fa": "کره‌ای",
+        "ko": "한국어"
+      },
+      "enabled": true,
+      "direction": "ltr",
+      "locale": "ko-KR",
+      "fallback_chain": [
+        "en"
+      ],
+      "capabilities": {
+        "ui": true,
+        "help": true,
+        "ai_text": true,
+        "voice_input": true,
+        "voice_output": true,
+        "offline_ai": false
+      }
     }
   ],
   "title": "Construction PM Language Registry Example",

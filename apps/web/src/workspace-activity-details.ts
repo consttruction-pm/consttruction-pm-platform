@@ -53,16 +53,18 @@ export const ACTIVITY_DETAILS_TABS: readonly TabLabel[] = [
 const PROJECT_DETAILS_TABS: readonly TabLabel[] = [
   { id: "general", en: "General", fa: "عمومی" },
   { id: "dates", en: "Dates", fa: "تاریخ‌ها" },
+  { id: "defaults", en: "Defaults", fa: "پیش‌فرض‌ها" },
+  { id: "resources", en: "Resources", fa: "منابع" },
+  { id: "settings", en: "Settings", fa: "تنظیمات" },
+  { id: "codes", en: "Codes", fa: "کدها" },
   { id: "notebook", en: "Notebook", fa: "دفترچه" },
   { id: "budget-log", en: "Budget Log", fa: "گزارش بودجه" },
   { id: "spending-plan", en: "Spending Plan", fa: "برنامهٔ هزینه" },
   { id: "budget-summary", en: "Budget Summary", fa: "خلاصهٔ بودجه" },
   { id: "funding", en: "Funding", fa: "تأمین مالی" },
-  { id: "codes", en: "Codes", fa: "کدها" },
-  { id: "defaults", en: "Defaults", fa: "پیش‌فرض‌ها" },
-  { id: "resources", en: "Resources", fa: "منابع" },
-  { id: "settings", en: "Settings", fa: "تنظیمات" },
-  { id: "calculations", en: "Calculations", fa: "محاسبات" },
+  { id: "baselines", en: "Baselines", fa: "مبناها" },
+  { id: "documents", en: "Documents", fa: "اسناد" },
+  { id: "history", en: "History", fa: "تاریخچه" },
   { id: "udfs", en: "UDFs", fa: "فیلدهای سفارشی" },
 ];
 
@@ -337,38 +339,75 @@ function projectTabBody(tab: string, input: ActivityDetailsInput, state: Workspa
     case "general":
       return `<div class="cp-detail-grid">
         ${field(locale, t(locale, "Project ID", "شناسهٔ پروژه"), state.context.project_id)}
-        ${field(locale, t(locale, "Project name", "نام پروژه"), input.projectName)}
-        ${field(locale, t(locale, "EPS", "EPS"), "")}
-        ${field(locale, t(locale, "OBS", "OBS"), "")}
+        ${field(locale, t(locale, "Project name", "نام پروژه"), "")}
+        ${field(locale, t(locale, "Business Domain", "حوزه کسب‌وکار"), "")}
+        ${field(locale, t(locale, "Portfolio", "سبد پروژه"), "")}
         ${field(locale, t(locale, "Responsible manager", "مدیر مسئول"), "")}
-        ${field(locale, t(locale, "Status", "وضعیت"), "")}
+        ${field(locale, t(locale, "Project owner", "مالک پروژه"), "")}
+        ${field(locale, t(locale, "Project status", "وضعیت پروژه"), "")}
+        ${field(locale, t(locale, "Project priority", "اولویت پروژه"), "")}
+        ${field(locale, t(locale, "Project type", "نوع پروژه"), "")}
+        ${field(locale, t(locale, "Location", "موقعیت"), "")}
+        ${field(locale, t(locale, "Currency", "واحد پول"), "")}
+        ${field(locale, t(locale, "Time zone", "منطقه زمانی"), "")}
         ${field(locale, t(locale, "Revision", "ویرایش"), `R${state.context.revision}`)}
-      </div>${stateCounts(state)}`;
+      </div>
+      <p class="cp-detail-hint">${esc(t(locale, "Only values supplied by the project service are displayed. Missing project metadata is not inferred.", "فقط مقادیری نمایش داده می‌شوند که سرویس پروژه ارائه کرده است. اطلاعات مفقود پروژه حدس زده نمی‌شود."))}</p>
+      <button type="button" class="cp-p6-module-button" data-project-settings>${esc(t(locale, "Edit project properties", "ویرایش مشخصات پروژه"))}</button>
+      ${stateCounts(state)}`;
     case "dates":
       return `<div class="cp-detail-grid">
         ${field(locale, t(locale, "Planned start", "شروع برنامه‌ای"), "")}
         ${field(locale, t(locale, "Planned finish", "پایان برنامه‌ای"), "")}
         ${field(locale, t(locale, "Actual start", "شروع واقعی"), "")}
         ${field(locale, t(locale, "Actual finish", "پایان واقعی"), "")}
+        ${field(locale, t(locale, "Anticipated start", "شروع مورد انتظار"), "")}
+        ${field(locale, t(locale, "Anticipated finish", "پایان مورد انتظار"), "")}
+        ${field(locale, t(locale, "Must finish by", "الزام پایان تا"), "")}
         ${field(locale, t(locale, "Data date", "تاریخ داده"), input.dataDate === "—" ? "" : input.dataDate)}
-        ${field(locale, t(locale, "Calendar", "تقویم"), state.calendarMode === "jalali" ? t(locale, "Jalali", "شمسی") : t(locale, "Gregorian", "میلادی"))}
+        ${field(locale, t(locale, "Scheduled start", "شروع زمان‌بندی‌شده"), "")}
+        ${field(locale, t(locale, "Scheduled finish", "پایان زمان‌بندی‌شده"), "")}
+        ${field(locale, t(locale, "Baseline start", "شروع مبنا"), "")}
+        ${field(locale, t(locale, "Baseline finish", "پایان مبنا"), "")}
+        ${field(locale, t(locale, "Date display calendar", "تقویم نمایش تاریخ"), state.calendarMode === "jalali" ? t(locale, "Jalali", "شمسی") : t(locale, "Gregorian", "میلادی"))}
       </div>
-      <p class="cp-detail-hint">${esc(t(locale, "Project date facts are not returned by the workspace read model.", "واقعیت‌های تاریخ پروژه توسط مدل خواندن محیط کار برگردانده نمی‌شوند."))}</p>`;
+      <p class="cp-detail-hint">${esc(t(locale, "Only the date display preference and Data Date context are currently available here. Project date facts require the project and scheduling read models.", "در حال حاضر فقط ترجیح نمایش تاریخ و زمینه تاریخ داده در دسترس است. تاریخ‌های پروژه به مدل‌های خواندن پروژه و زمان‌بندی نیاز دارند."))}</p>`
     case "settings":
       return `<div class="cp-detail-grid">
-        ${field(locale, t(locale, "Locale", "زبان"), state.locale)}
-        ${field(locale, t(locale, "Direction", "جهت"), state.direction)}
-        ${field(locale, t(locale, "Group by", "گروه‌بندی"), state.activityGroupBy)}
-        ${field(locale, t(locale, "Gantt scale", "مقیاس گانت"), state.ganttScale)}
+        ${field(locale, t(locale, "Scheduling mode", "حالت زمان‌بندی"), "")}
+        ${field(locale, t(locale, "Duration calculation basis", "مبنای محاسبه مدت"), "")}
+        ${field(locale, t(locale, "Project calendar", "تقویم پروژه"), "")}
+        ${field(locale, t(locale, "Lag calendar", "تقویم وقفه"), "")}
+        ${field(locale, t(locale, "Constraint policy", "سیاست محدودیت‌ها"), "")}
+        ${field(locale, t(locale, "Critical activity definition", "تعریف فعالیت بحرانی"), "")}
+        ${field(locale, t(locale, "Total Float threshold", "آستانه شناوری کل"), "")}
+        ${field(locale, t(locale, "Out-of-sequence progress policy", "سیاست پیشرفت خارج از توالی"), "")}
+        ${field(locale, t(locale, "Actual-date handling", "نحوه مدیریت تاریخ واقعی"), "")}
+        ${field(locale, t(locale, "Resource leveling policy", "سیاست تسطیح منابع"), "")}
+        ${field(locale, t(locale, "Fiscal year start", "شروع سال مالی"), "")}
+        ${field(locale, t(locale, "Currency", "واحد پول"), "")}
+        ${field(locale, t(locale, "Date and number formats", "قالب تاریخ و اعداد"), "")}
       </div>
-      <button type="button" class="cp-p6-module-button" data-project-settings>${esc(t(locale, "Open project properties", "بازکردن مشخصات پروژه"))}</button>`;
+      <p class="cp-detail-hint">${esc(t(locale, "Project scheduling and financial settings are not yet exposed by a complete project-settings contract. These values are intentionally not inferred from the current workspace display preferences.", "تنظیمات زمان‌بندی و مالی پروژه هنوز از طریق قرارداد کامل تنظیمات پروژه ارائه نشده‌اند. این مقادیر عمداً از ترجیحات نمایشی محیط کار حدس زده نمی‌شوند."))}</p>
+      <button type="button" class="cp-p6-module-button" data-project-settings>${esc(t(locale, "Edit supported project properties", "ویرایش مشخصات پشتیبانی‌شده پروژه"))}</button>`
     case "defaults":
       return `<div class="cp-detail-grid">
-        ${field(locale, t(locale, "Calendar mode", "حالت تقویم"), state.calendarMode)}
-        ${field(locale, t(locale, "Default grouping", "گروه‌بندی پیش‌فرض"), state.activityGroupBy)}
-        ${field(locale, t(locale, "Relationships on Gantt", "روابط در گانت"), state.showGanttRelationships ? t(locale, "Shown", "نمایش") : t(locale, "Hidden", "پنهان"))}
-        ${field(locale, t(locale, "Visible panels", "پنل‌های نمایان"), Object.entries(state.visiblePanels).filter(([, visible]) => visible).map(([key]) => key).join(", "))}
-      </div>`;
+        ${field(locale, t(locale, "Default activity type", "نوع پیش‌فرض فعالیت"), "")}
+        ${field(locale, t(locale, "Default duration type", "نوع پیش‌فرض مدت"), "")}
+        ${field(locale, t(locale, "Default percent complete type", "نوع پیش‌فرض درصد پیشرفت"), "")}
+        ${field(locale, t(locale, "Default activity calendar", "تقویم پیش‌فرض فعالیت"), "")}
+        ${field(locale, t(locale, "Default cost account", "حساب هزینه پیش‌فرض"), "")}
+        ${field(locale, t(locale, "Default activity priority", "اولویت پیش‌فرض فعالیت"), "")}
+        ${field(locale, t(locale, "Default WBS", "WBS پیش‌فرض"), "")}
+        ${field(locale, t(locale, "Activity ID prefix", "پیشوند شناسه فعالیت"), "")}
+        ${field(locale, t(locale, "Activity ID start number", "شماره شروع شناسه فعالیت"), "")}
+        ${field(locale, t(locale, "Activity ID increment", "افزایش شناسه فعالیت"), "")}
+        ${field(locale, t(locale, "Automatic Activity ID", "تولید خودکار شناسه فعالیت"), "")}
+        ${field(locale, t(locale, "Default rate type", "نوع نرخ پیش‌فرض"), "")}
+        ${field(locale, t(locale, "Default resource calendar", "تقویم پیش‌فرض منبع"), "")}
+        ${field(locale, t(locale, "WBS code separator", "جداکننده کد WBS"), "")}
+      </div>
+      <p class="cp-detail-hint">${esc(t(locale, "These project defaults are catalogued for the final design, but are not yet persisted by the current project metadata API. They remain read-only until a versioned settings contract is available.", "این پیش‌فرض‌های پروژه در طراحی نهایی تعریف شده‌اند، اما هنوز توسط API فراداده پروژه ذخیره نمی‌شوند. تا زمان ارائه قرارداد نسخه‌بندی‌شده تنظیمات، فقط‌خواندنی باقی می‌مانند."))}</p>`
     case "calculations":
       return `<p class="cp-detail-empty">${esc(t(locale, "Scheduling, float and cost calculations are performed by the authoritative core. Open Schedule (F9) to run them; this pane never recomputes values.", "زمان‌بندی، شناوری و محاسبات هزینه توسط هستهٔ مرجع انجام می‌شوند. برای اجرا، زمان‌بندی (F9) را باز کنید؛ این پنل هرگز مقادیر را بازمحاسبه نمی‌کند."))}</p>
         ${stateCounts(state)}`;
@@ -381,6 +420,12 @@ function projectTabBody(tab: string, input: ActivityDetailsInput, state: Workspa
     case "budget-summary":
     case "funding":
       return empty(locale, t(locale, "No budget or funding records are returned by the workspace read model.", "هیچ رکورد بودجه یا تأمین مالی توسط مدل خواندن محیط کار برگردانده نشده است."));
+    case "baselines":
+      return empty(locale, t(locale, "No project baseline records are returned by the current workspace read model.", "مدل خواندن فعلی محیط کار هیچ رکورد مبنای پروژه‌ای برنمی‌گرداند."));
+    case "documents":
+      return documentTabBody("general", locale, state);
+    case "history":
+      return empty(locale, t(locale, "Project audit history is not exposed by the current workspace read model.", "تاریخچه ممیزی پروژه در مدل خواندن فعلی محیط کار ارائه نشده است."));
     case "resources":
       return empty(locale, t(locale, "No project resource master is returned by the workspace read model.", "هیچ فهرست مرجع منبع پروژه‌ای توسط مدل خواندن محیط کار برگردانده نشده است."));
     case "codes":
@@ -463,10 +508,8 @@ function countGrid(locale: string, counts: Array<[string, number]>): string {
 function entityTabBody(tab: string, input: ActivityDetailsInput, state: WorkspaceState): string {
   const locale = input.locale;
   switch (state.activeMenu) {
-    case "project": {
-      const selected = state.wbsNodes.find((node) => node.id === state.selectedWbsId);
-      return selected ? wbsTabBody(tab, input, state, selected) : projectTabBody(tab, input, state);
-    }
+    case "project":
+      return projectTabBody(tab, input, state);
     case "resources":
       return resourceTabBody(tab, locale);
     case "documents":
@@ -533,7 +576,7 @@ function tabsFor(input: ActivityDetailsInput): readonly TabLabel[] {
   const state = input.state;
   if (!state || state.activeMenu === "schedule") return ACTIVITY_DETAILS_TABS;
   switch (state.activeMenu) {
-    case "project": return state.selectedWbsId ? WBS_DETAILS_TABS : PROJECT_DETAILS_TABS;
+    case "project": return PROJECT_DETAILS_TABS;
     case "resources": return RESOURCE_DETAILS_TABS;
     case "documents": return DOCUMENT_DETAILS_TABS;
     case "cost": return COST_DETAILS_TABS;
@@ -550,7 +593,7 @@ function titleFor(input: ActivityDetailsInput): string {
   if (!state || state.activeMenu === "schedule") return t(input.locale, "Activity Details", "جزئیات فعالیت");
   switch (state.activeMenu) {
     case "project":
-      return state.selectedWbsId ? t(input.locale, "WBS Details", "جزئیات WBS") : t(input.locale, "Project Details", "جزئیات پروژه");
+      return t(input.locale, "Project Details", "جزئیات پروژه");
     case "resources": return t(input.locale, "Resource Details", "جزئیات منبع");
     case "documents": return t(input.locale, "Document Details", "جزئیات سند");
     case "cost": return t(input.locale, "Cost Details", "جزئیات هزینه");
@@ -568,10 +611,7 @@ function identityFor(input: ActivityDetailsInput): string {
     const activity = input.activities.find((row) => row.id === input.selectedActivityId);
     return activity?.code ?? "—";
   }
-  if (state.activeMenu === "project") {
-    const node = state.wbsNodes.find((item) => item.id === state.selectedWbsId);
-    return node?.localCode ?? state.context.project_id;
-  }
+  if (state.activeMenu === "project") return state.context.project_id;
   return state.context.project_id;
 }
 
