@@ -863,6 +863,28 @@ test("administration visual styles stay on canonical CUBI tokens and mirrored bu
 });
 
 
+test("Version 26 workspace shell uses the canonical CUBI theme across chrome, dialogs and Gantt", () => {
+  const sourceStyles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+  const publicStyles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+  assert.equal(sourceStyles, publicStyles, "source and public stylesheets must remain byte-identical");
+  for (const selector of [
+    ".cp-p6 .cp-vd-titlebar",
+    ".cp-p6 .cp-vd-menubar",
+    ".cp-p6 .cp-vd-toolbars",
+    ".cp-p6 .cp-vd-tab.is-active",
+    ".cp-p6 .cp-vd-dialog-title",
+    ".cp-p6 .cp-vd-bar.is-normal",
+    ".cp-p6 .cp-vd-bar.is-critical",
+    ".cp-p6 .cp-vd-bar.is-summary",
+    ".cp-p6 .cp-vd-bar.is-milestone",
+  ]) {
+    assert.ok(sourceStyles.includes(selector), "missing themed workspace selector: " + selector);
+  }
+  for (const token of ["--cp-navy", "--cp-navy-dark", "--cp-blue", "--cp-copper", "--cp-success", "--cp-error"]) {
+    assert.ok(sourceStyles.includes(`var(${token})`), "workspace theme must use " + token);
+  }
+});
+
 test("Activity and WBS selection context menus expose scoped commands and safe disabled destructive actions", () => {
   const activity = renderVisualDemo(createVisualDemoState("en"));
   for (const action of ["activity-details", "assign-resources", "add-predecessor", "add-successor", "activity-codes"]) {
