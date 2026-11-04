@@ -2057,7 +2057,7 @@ def test_p6_interchange_http_records_idempotent_parse_batch_and_lists_import_his
     )
     assert status == 200
 
-    xer = b"%T\\tTASK\\n%F\\ttask_code\\n%R\\tA-100\\n%E\\n"
+    xer = b"%T\tTASK\n%F\ttask_code\n%R\tA-100\n%E\n"
     headers = {"Idempotency-Key": "route-import-001"}
     status, _, body = r.handle(
         "POST", "/api/projects/p1/p6/interchange/XER_PROJECT/import",
