@@ -209,5 +209,5 @@ test("import history list and batch detail render mapping and privacy-safe field
   assert.match(detail, /activity\.id/);
   assert.match(detail, /PRESERVED_UNKNOWN_FIELD:vendor_field/);
   assert.match(detail, /Value hashes only/);
-  assert.doesNotMatch(detail, /raw source value/);
+  assert.match(detail, /raw source values are not stored/);
 });
