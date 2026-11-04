@@ -65,6 +65,41 @@ function isSchedulingDuration(value: unknown): value is SchedulingDuration {
     (duration.unit === "working-day" || duration.unit === "working-hour");
 }
 
+/** Validate persisted hierarchy references before exposing a project to the shell. */
+function validateLocalProjectHierarchy(project: MobileLocalProject): void {
+  const nodes = new Map<string, MobileWbsNode>();
+  for (const node of project.wbs) {
+    if (!node.id.trim() || !node.code.trim() || !node.name.trim() || nodes.has(node.id)) {
+      throw new Error("INVALID_LOCAL_PROJECT_WBS");
+    }
+    nodes.set(node.id, node);
+  }
+
+  for (const node of project.wbs) {
+    if (node.parent_id !== null && !nodes.has(node.parent_id)) {
+      throw new Error("INVALID_LOCAL_PROJECT_WBS_PARENT");
+    }
+    const ancestors = new Set<string>([node.id]);
+    let parentId = node.parent_id;
+    while (parentId !== null) {
+      if (ancestors.has(parentId)) throw new Error("INVALID_LOCAL_PROJECT_WBS_CYCLE");
+      ancestors.add(parentId);
+      const parent = nodes.get(parentId);
+      if (!parent) throw new Error("INVALID_LOCAL_PROJECT_WBS_PARENT");
+      parentId = parent.parent_id;
+    }
+  }
+
+  const activityIds = new Set<string>();
+  for (const activity of project.activities) {
+    if (!activity.id.trim() || !activity.name.trim() || activityIds.has(activity.id)) {
+      throw new Error("INVALID_LOCAL_PROJECT_ACTIVITY");
+    }
+    if (!nodes.has(activity.wbs_id)) throw new Error("INVALID_LOCAL_PROJECT_ACTIVITY_WBS");
+    activityIds.add(activity.id);
+  }
+}
+
 /** Persistence-backed store; the host supplies durable local storage. */
 export class PersistentMobileLocalProjectStore implements MobileLocalProjectStore {
   constructor(private readonly persistence: MobileLocalProjectPersistence) {}
@@ -103,6 +138,7 @@ export class PersistentMobileLocalProjectStore implements MobileLocalProjectStor
     if (project.tenant_id !== tenantId || project.project_id !== projectId) {
       throw new Error("INVALID_LOCAL_PROJECT_CONTEXT");
     }
+    validateLocalProjectHierarchy(project as MobileLocalProject);
     return Object.freeze({
       tenant_id: project.tenant_id, project_id: project.project_id, revision: project.revision,
       name: project.name, wbs: project.wbs, activities: project.activities, relationships: project.relationships,
