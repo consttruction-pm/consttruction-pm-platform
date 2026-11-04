@@ -631,3 +631,43 @@ def test_audit_compares_baseline_to_current_forecast_in_calendar_days() -> None:
     assert "CURRENT_ACTIVITY_NOT_IN_BASELINE" in by_rule
     assert "BASELINE_WBS_ABSENT_FROM_CURRENT_REGISTRY" not in by_rule
     assert report["summary"]["baseline_forecast_variance_count"] == 2
+
+
+def test_audit_allows_multiple_project_level_wbs_branches() -> None:
+    payload = _audit_payload(activities=[], relationships=[])
+    report = build_schedule_quality_audit(
+        payload,
+        audit_context={
+            "wbs_nodes": [
+                {
+                    "wbs_id": "W-CIVIL",
+                    "parent_kind": "project",
+                    "parent_wbs_id": None,
+                    "code": "1",
+                    "name": "Civil",
+                    "sequence_number": 0,
+                },
+                {
+                    "wbs_id": "W-MEP",
+                    "parent_kind": "project",
+                    "parent_wbs_id": None,
+                    "code": "2",
+                    "name": "MEP",
+                    "sequence_number": 1,
+                },
+            ],
+            "baselines": [],
+            "baseline_activities": [],
+            "baseline_assignments": [],
+            "resource_assignments": [],
+            "resource_periods": [],
+            "code_definitions": [],
+            "code_assignments": [],
+        },
+    )
+    rules = {item["rule_id"] for item in report["findings"]}
+
+    assert "PROJECT_WBS_ROOT_MISSING" not in rules
+    assert "PROJECT_WBS_REGISTRY_EMPTY" not in rules
+    assert "PROJECT_WBS_ROOT_COUNT_INVALID" not in rules
+    assert report["summary"]["wbs_node_count"] == 2
