@@ -21,7 +21,9 @@ type RawCall = {
   body: string;
   contentType: string;
   context: ProjectContext;
+  idempotencyKey?: string;
 };
+type GetCall = { path: string; context: ProjectContext };
 
 function transportWith(
   result: ApiResult<unknown>,
@@ -29,12 +31,15 @@ function transportWith(
     calls?: PostCall[];
     rawCalls?: RawCall[];
     rawResult?: ApiResult<unknown>;
+    getResult?: ApiResult<unknown>;
+    getCalls?: GetCall[];
     withRaw?: boolean;
   } = {},
 ): ApiTransport {
   const transport: ApiTransport = {
-    async get() {
-      throw new Error("GET_NOT_EXPECTED");
+    async get(path, context) {
+      options.getCalls?.push({ path, context });
+      return (options.getResult ?? result) as ApiResult<never>;
     },
     async post(path, request, context) {
       options.calls?.push({ path, request, context });
@@ -42,8 +47,8 @@ function transportWith(
     },
   };
   if (options.withRaw) {
-    transport.postRaw = async (path, body, contentType, context) => {
-      options.rawCalls?.push({ path, body, contentType, context });
+    transport.postRaw = async (path, body, contentType, context, idempotencyKey) => {
+      options.rawCalls?.push({ path, body, contentType, context, idempotencyKey });
       return (options.rawResult ?? result) as ApiResult<never>;
     };
   }
@@ -63,7 +68,7 @@ function exportEnvelope(document: unknown = { encoding: "utf-8", data: "<root/>"
   };
 }
 
-function importEnvelope(rows: unknown[] = []) {
+function importEnvelope(rows: unknown[] = [], importAudit?: unknown) {
   return {
     contract_version: "p6-interchange-api.v1",
     scope: {
@@ -73,6 +78,7 @@ function importEnvelope(rows: unknown[] = []) {
     },
     format: "PRIMAVERA_XML",
     rows,
+    ...(importAudit === undefined ? {} : { import_audit: importAudit }),
   };
 }
 
@@ -132,6 +138,7 @@ test("import sends the provider document verbatim as XML and projects mapped row
   assert.equal(rawCalls[0].body, document);
   assert.equal(rawCalls[0].contentType, "application/xml; charset=utf-8");
   assert.deepEqual(rawCalls[0].context, CONTEXT);
+  assert.equal(typeof rawCalls[0].idempotencyKey, "string");
   assert.equal(result.rows.length, 1);
   assert.equal(result.rows[0].values["activity.name"], "Earthworks");
   assert.deepEqual(result.rows[0].warnings, []);
@@ -268,4 +275,93 @@ test("malformed documents and rows are rejected instead of being rendered", asyn
     ).importDocument("<APIBusinessObjects/>"),
     /INVALID_INTERCHANGE_ROW_WARNINGS/,
   );
+});
+
+
+test("import response validates and preserves its durable audit receipt", async () => {
+  const audit = {
+    status: "recorded",
+    target_application_status: "PARSED_NOT_APPLIED",
+    batch_id: "batch-1",
+    source_sha256: "a".repeat(64),
+    source_byte_count: 200,
+    row_count: 1,
+    mapping_count: 3,
+    warning_count: 1,
+  };
+  const client = createP6InterchangeClient(
+    transportWith(
+      { ok: true, data: importEnvelope() },
+      { withRaw: true, rawResult: { ok: true, data: importEnvelope([], audit) } },
+    ),
+    CONTEXT,
+  );
+  const result = await client.importDocument("<root/>");
+  assert.equal(result.import_audit?.status, "recorded");
+  assert.equal(result.import_audit?.target_application_status, "PARSED_NOT_APPLIED");
+  assert.equal(result.import_audit?.batch_id, "batch-1");
+  assert.equal(result.import_audit?.source_sha256, "a".repeat(64));
+
+  const invalid = { ...audit, source_sha256: "not-a-hash" };
+  const invalidClient = createP6InterchangeClient(
+    transportWith(
+      { ok: true, data: importEnvelope() },
+      { withRaw: true, rawResult: { ok: true, data: importEnvelope([], invalid) } },
+    ),
+    CONTEXT,
+  );
+  await assert.rejects(invalidClient.importDocument("<root/>"), /INVALID_INTERCHANGE_IMPORT_AUDIT/);
+});
+
+test("import history list and detail reads validate the active project scope", async () => {
+  const calls: GetCall[] = [];
+  const list = {
+    contract_version: "p6-interchange-api.v1",
+    scope: { tenant_id: "t1", project_id: "preview-rps-01", project_revision: 7 },
+    status: "available",
+    batches: [{
+      batch_id: "batch-1",
+      format: "XER_PROJECT",
+      source_sha256: "a".repeat(64),
+      source_byte_count: 200,
+      row_count: 1,
+      mapping_count: 2,
+      warning_count: 1,
+      imported_by: "user-1",
+      imported_at: "2026-11-04T20:00:00+00:00",
+      target_application_status: "PARSED_NOT_APPLIED",
+    }],
+  };
+  const listClient = createP6InterchangeClient(
+    transportWith({ ok: true, data: importEnvelope() }, {
+      getCalls: calls,
+      getResult: { ok: true, data: list },
+    }),
+    CONTEXT,
+  );
+  const history = await listClient.listImportBatches();
+  assert.equal(history.batches[0].batch_id, "batch-1");
+  assert.equal(calls[0].path, "/api/projects/preview-rps-01/p6/interchange/imports");
+
+  const detail = {
+    contract_version: "p6-interchange-api.v1",
+    batch: {
+      tenant_id: "t1",
+      project_id: "preview-rps-01",
+      project_revision: 7,
+      request_key: "request-1",
+      ...list.batches[0],
+      mapping_snapshot: [{ mapping_id: "task-code", source_field: "task_code", canonical_field: "activity.id", status: "SUPPORTED" }],
+      row_summaries: [{ row_index: 0, source_fields: ["task_code"], canonical_fields: ["activity.id"], preserved_extension_fields: [], source_value_hashes: {}, warnings: [] }],
+    },
+  };
+  const detailClient = createP6InterchangeClient(
+    transportWith({ ok: true, data: importEnvelope() }, {
+      getResult: { ok: true, data: detail },
+    }),
+    CONTEXT,
+  );
+  const saved = await detailClient.getImportBatch("batch-1");
+  assert.equal(saved.batch.batch_id, "batch-1");
+  assert.equal(saved.batch.mapping_snapshot[0].mapping_id, "task-code");
 });
