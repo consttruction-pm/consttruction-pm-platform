@@ -143,6 +143,14 @@ export function bindWorkspaceResizeInteractions(
   state: WorkspaceState,
   options: WorkspaceRendererOptions,
 ): void {
+  // The renderer is also exercised by server-side and DOM-light unit fixtures.
+  // Only install browser interactions when this is a real mounted browser node.
+  if (
+    typeof container?.querySelector !== "function" ||
+    typeof container.addEventListener !== "function" ||
+    typeof window === "undefined" ||
+    typeof document === "undefined"
+  ) return;
   const runtime: ResizeRuntime = { state, options };
   runtimes.set(container, runtime);
 
