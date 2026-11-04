@@ -5470,13 +5470,17 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 
 .cp-p6 #cp-activity-grid thead th.cp-p6-column { position: sticky; }
 .cp-p6 .cp-column-resize-handle {
-  position: absolute;
+  position: relative;
   z-index: 8;
-  inset-block: 0;
-  inset-inline-end: -3px;
-  display: block;
+  display: inline-block;
+  float: inline-end;
   width: 8px;
   min-width: 8px;
+  height: 24px;
+  min-height: 24px;
+  margin-block: -2px;
+  margin-inline-end: -4px;
+  vertical-align: middle;
   cursor: col-resize;
   touch-action: none;
   user-select: none;
@@ -5484,7 +5488,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-column-resize-handle::after {
   content: "";
   position: absolute;
-  inset-block: 5px;
+  inset-block: 3px;
   inset-inline-start: 3px;
   width: 1px;
   background: transparent;
