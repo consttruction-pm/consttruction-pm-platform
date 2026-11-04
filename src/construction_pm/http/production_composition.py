@@ -215,6 +215,7 @@ def build_project_lifecycle_wsgi_app(
                 if resource_read_api is None
                 else getattr(resource_read_api.assignment_service, "transaction_manager", None)
             )
+            or quality_policy_transaction_manager
         )
         if any(
             repository is not None
