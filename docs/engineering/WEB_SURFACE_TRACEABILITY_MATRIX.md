@@ -1,8 +1,8 @@
 # CUBI Web Surface Traceability Matrix
 
-Audit date: 2026-11-03
+Audit date: 2026-11-03 (surface updates through 2026-11-04)
 Branch: `codex/jalal/resource-dependent-core-20261102`
-Audited head: `beeb856a` (latest code head `a0823f4c`)
+Audited head: `beeb856a` (latest code head `dc545031`)
 Reference baseline: Primavera P6 Professional Version 26 official documentation
 (see `CORE_COMPLETION_EXECUTION_LEDGER.md` for the calculation-core matrix).
 
