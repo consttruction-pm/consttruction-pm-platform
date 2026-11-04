@@ -47,8 +47,7 @@ export type DesktopCommand =
   | "dialog.bars"
   | "dialog.font-row"
   | "help.shortcuts"
-  | "help.about"
-;
+  | "help.about";
 
 export type DesktopShellCapabilities = {
   canUndoLayout: boolean;
