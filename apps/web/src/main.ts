@@ -617,8 +617,6 @@ function renderApp(
 
   if (!appShell || !status || !workspace || !desktopHost || !desktopStatus) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
   appShell.classList.add("cp-p6");
-  // Expose only the server-confirmed active project to page-aware integrations.
-  appShell.dataset.project = state.context.project_id;
   mountWorkspaceMobile(container, state.locale);
   // The inline activity editor is created on demand. A background render (layout
   // history, authoritative schedule facts) must not close it under the user's
