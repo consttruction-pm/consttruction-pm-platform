@@ -299,6 +299,23 @@ export const ENGINEERING_SHELL_STYLES = `
 .cp-vd-engine-detail-panel .cp-vd-engine-detail-note{margin-top:10px;padding:7px 9px;border-inline-start:2px solid #d5a36b;background:#fffaf3;color:#876337;font-size:9px}
 @media(max-width:900px){.cp-vd-engine-workarea{grid-template-columns:1fr}.cp-vd-engine-side{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none}.cp-vd-engine-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.cp-vd-engine-head{display:grid}.cp-vd-engine-state{justify-self:start}.cp-vd-engine-side{grid-template-columns:1fr}.cp-vd-engine-detail-panel ul{grid-template-columns:1fr}.cp-vd-engine-toolbar .cp-vd-engine-toolbar-note{width:100%;margin-inline-start:0}}
+.cp-vd-engine-menu{position:relative;display:inline-flex;min-width:0}
+.cp-vd-engine-menu>summary{display:inline-flex;align-items:center;gap:6px;min-height:27px;padding:5px 9px;border:1px solid #c9d5e0;border-radius:4px;background:#fff;color:#36536f;font:10px Inter,Vazirmatn,sans-serif;cursor:pointer;list-style:none;user-select:none;white-space:nowrap}
+.cp-vd-engine-menu>summary::-webkit-details-marker{display:none}
+.cp-vd-engine-menu>summary:after{content:"";width:5px;height:5px;margin-inline-start:3px;border-inline-end:1.5px solid currentColor;border-block-end:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px)}
+.cp-vd-engine-menu[open]>summary{border-color:#6f91b2;background:#e8f0f7;color:#173d68}
+.cp-vd-engine-menu-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px}
+.cp-vd-engine-menu-icon svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.cp-vd-engine-menu-panel{position:absolute;z-index:90;inset-block-start:calc(100% + 5px);inset-inline-start:0;display:grid;gap:5px;width:min(220px,calc(100vw - 40px));padding:7px;border:1px solid #c8d4df;border-radius:5px;background:#fff;box-shadow:0 10px 24px rgba(23,47,72,.18)}
+.cp-vd-engine-menu-panel>button{display:flex;align-items:center;gap:8px;min-height:28px;padding:6px 8px;border:1px solid #e0e6ed;border-radius:3px;background:#f9fbfd;color:#4a6178;text-align:start;font:10px Inter,Vazirmatn,sans-serif}
+.cp-vd-engine-menu-panel>button>span{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:3px;background:#eaf0f6;color:#345f84;font-size:13px;font-weight:700}
+.cp-vd-engine-menu-panel>button:disabled{opacity:.58;cursor:not-allowed}
+.cp-vd-engine-filter-panel{width:min(270px,calc(100vw - 40px))}
+.cp-vd-engine-filter-panel label{display:grid;gap:4px;color:#405b76;font-size:9px;font-weight:700}
+.cp-vd-engine-filter-panel input,.cp-vd-engine-filter-panel select{width:100%;min-width:0;min-height:27px;padding:5px 7px;border:1px solid #d4dee8;border-radius:3px;background:#f4f7fa;color:#667a8e;font:10px Inter,Vazirmatn,sans-serif}
+.cp-vd-engine-filter-panel input:disabled,.cp-vd-engine-filter-panel select:disabled{opacity:.72;cursor:not-allowed}
+.cp-vd-engine-filter-panel p{margin:2px 0 0;padding:6px 7px;border-inline-start:2px solid #c87935;background:#fff8ef;color:#8a6748;font-size:9px;line-height:1.5}
+
 `;
 
 export function renderEngineeringShell(
@@ -328,10 +345,49 @@ export function renderEngineeringShell(
   const tabs = definition.details.map((tab) =>
     "<button type=\"button\" role=\"tab\" class=\"" + (tab.id === tabId ? "is-active" : "") + "\" aria-selected=\"" + (tab.id === tabId ? "true" : "false") + "\" data-vd-engine-tab=\"" + esc(tab.id) + "\">" + esc(text(locale, tab.label)) + "</button>",
   ).join("");
-  const commandLabels: Bilingual[] = [["Add", "افزودن"], ["Edit", "ویرایش"], ["Delete", "حذف"], ["Run", "اجرا"], ["Export", "خروجی"]];
-  const commands = commandLabels.map((command) =>
-    "<button type=\"button\" disabled title=\"" + esc(text(locale, ["Not connected in this shell preview.", "در این پیش‌نمایش به عملیات واقعی متصل نیست."])) + "\">" + esc(text(locale, command)) + "</button>",
-  ).join("");
+  const disabledTitle = text(locale, ["Not connected in this shell preview.", "در این پیش‌نمایش به عملیات واقعی متصل نیست."]);
+  const commandGroups = [
+    {
+      id: "records",
+      label: ["Records", "رکوردها"] as Bilingual,
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h16"/><circle cx="7" cy="6.5" r="1"/><circle cx="7" cy="12" r="1"/><circle cx="7" cy="17.5" r="1"/></svg>',
+      commands: [["Add", "افزودن", "+"], ["Edit", "ویرایش", "✎"], ["Delete", "حذف", "×"]] as const,
+    },
+    {
+      id: "analysis",
+      label: ["Analysis", "تحلیل"] as Bilingual,
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V5m0 14h15"/><path d="m8 15 3-4 3 2 5-7"/></svg>',
+      commands: [["Run", "اجرا", "▶"]] as const,
+    },
+    {
+      id: "filters",
+      label: ["Filters", "فیلترها"] as Bilingual,
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6.2 7.1v5.1l-3.6 1.8v-6.9L4 5Z"/></svg>',
+      commands: [] as const,
+    },
+    {
+      id: "export",
+      label: ["Export", "خروجی"] as Bilingual,
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4"/><path d="M5 16v4h14v-4"/></svg>',
+      commands: [["Export", "خروجی", "↓"]] as const,
+    },
+  ] as const;
+  const commands = commandGroups.map((group) => {
+    const groupLabel = esc(text(locale, group.label));
+    const groupIcon = '<span class="cp-vd-engine-menu-icon">' + group.icon + "</span>";
+    const content = group.id === "filters"
+      ? '<div class="cp-vd-engine-menu-panel cp-vd-engine-filter-panel">'
+        + '<label><span>' + esc(text(locale, ["Search records", "جست‌وجو در رکوردها"])) + '</span><input type="search" disabled title="' + esc(disabledTitle) + '" placeholder="' + esc(text(locale, ["Connect the data source first", "ابتدا منبع داده را متصل کنید"])) + '"></label>'
+        + '<label><span>' + esc(text(locale, ["Status", "وضعیت"])) + '</span><select disabled title="' + esc(disabledTitle) + '"><option>' + esc(text(locale, ["All statuses", "همه وضعیت‌ها"])) + '</option></select></label>'
+        + '<label><span>' + esc(text(locale, ["Category", "دسته‌بندی"])) + '</span><select disabled title="' + esc(disabledTitle) + '"><option>' + esc(text(locale, ["All categories", "همه دسته‌بندی‌ها"])) + '</option></select></label>'
+        + '<p>' + esc(text(locale, ["Filters unlock when authorized project records are connected.", "فیلترها پس از اتصال رکوردهای مجاز پروژه فعال می‌شوند."])) + '</p></div>'
+      : '<div class="cp-vd-engine-menu-panel">' + group.commands.map((command) =>
+        '<button type="button" disabled title="' + esc(disabledTitle) + '"><span aria-hidden="true">' + esc(command[2]) + '</span><strong>' + esc(text(locale, [command[0], command[1]])) + '</strong></button>',
+      ).join("") + '</div>';
+    return '<details class="cp-vd-engine-menu cp-vd-engine-' + group.id + '-menu">'
+      + '<summary aria-label="' + groupLabel + '">' + groupIcon + '<span>' + groupLabel + '</span></summary>'
+      + content + '</details>';
+  }).join("");
   const methodList = renderList(definition.methods.slice(0, 4), locale);
   const inputList = renderList(definition.inputs, locale);
   return "<section class=\"cp-vd-windowbody cp-vd-engine-shell\" data-engine-window=\"" + windowId + "\">"
@@ -339,7 +395,7 @@ export function renderEngineeringShell(
     + "<span class=\"cp-vd-engine-state\">" + esc(text(locale, ["Planned · shell only", "برنامه‌ریزی‌شده · پوسته بصری"])) + "</span></header>"
     + "<div class=\"cp-vd-engine-notice\"><strong>ⓘ</strong><span>" + esc(text(locale, ["Visual shell only. No project records, calculations, alerts or actions are connected in this window yet.", "این صفحه فعلاً فقط پوسته بصری است؛ هنوز رکورد پروژه، محاسبات، هشدارها یا عملیات واقعی به آن متصل نشده‌اند."])) + "</span></div>"
     + "<div class=\"cp-vd-engine-toolbar\" role=\"toolbar\" aria-label=\"" + esc(text(locale, ["Engine commands", "فرمان‌های موتور"])) + "\">" + commands
-    + "<span class=\"cp-vd-engine-toolbar-note\">" + esc(text(locale, ["Commands disabled until implementation and acceptance.", "فرمان‌ها تا زمان پیاده‌سازی و پذیرش غیرفعال هستند."])) + "</span></div>"
+    + "<span class=\"cp-vd-engine-toolbar-note\">" + esc(text(locale, ["Commands and filters stay disabled until the real data and permission paths pass acceptance.", "فرمان‌ها و فیلترها تا تأیید مسیر واقعی داده و مجوز غیرفعال می‌مانند."])) + "</span></div>"
     + "<div class=\"cp-vd-engine-kpis\">" + metrics + "</div>"
     + "<div class=\"cp-vd-engine-workarea\">"
     + "<section class=\"cp-vd-engine-panel\"><header class=\"cp-vd-engine-panel-head\"><strong>" + esc(text(locale, definition.viewTitle)) + "</strong><span>" + esc(text(locale, ["No live records", "بدون رکورد زنده"])) + "</span></header>"
