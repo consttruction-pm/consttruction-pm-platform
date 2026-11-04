@@ -130,7 +130,11 @@ def test_audit_reports_data_date_and_zero_lag_fs_out_of_sequence_candidate() -> 
     assert report["coverage"]["progress_out_of_sequence"] == "evaluated_zero_lag_all_relationship_types"
 
 
-def _query_service(source: AuthoritativeScheduleInput):
+def _query_service(
+    source: AuthoritativeScheduleInput,
+    *,
+    quality_audit_context_loader=None,
+):
     connection = sqlite3.connect(":memory:")
     snapshots = SQLiteScheduleInputSnapshotRepository(connection)
     context = CalculationContext(
@@ -155,7 +159,11 @@ def _query_service(source: AuthoritativeScheduleInput):
         day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
     )
     service = AuthoritativeScheduleQueryApplicationService(
-        AuthoritativeScheduleQueryProvider(snapshots, lambda: registry),
+        AuthoritativeScheduleQueryProvider(
+            snapshots,
+            lambda: registry,
+            quality_audit_context_loader=quality_audit_context_loader,
+        ),
         RoleBasedAuthorizationPolicy(
             {"viewer": frozenset({Permission.PROJECT_READ})}
         ),
@@ -451,3 +459,70 @@ def test_audit_flags_inverted_actual_window_and_duplicate_constraints() -> None:
     assert "ACTUAL_FINISH_BEFORE_ACTUAL_START" in rules
     assert "DUPLICATE_ACTIVITY_CONSTRAINT" in rules
     assert report["summary"]["duplicate_constraint_count"] == 1
+
+
+def test_query_binds_auxiliary_audit_data_to_authenticated_snapshot_scope() -> None:
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-AUDIT-CONTEXT",
+        tenant_id="tenant-1",
+        project_id="project-1",
+        project_revision=7,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A-1", 2, wbs_id="W-1", wbs_ancestry=("W-ROOT",)),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 11, 4),
+    )
+    calls = []
+
+    def load_context(scope, auth_context):
+        calls.append((scope, auth_context))
+        return {
+            "wbs_nodes": [
+                {
+                    "wbs_id": "W-ROOT",
+                    "parent_kind": "project",
+                    "parent_wbs_id": None,
+                    "code": "1",
+                    "name": "Project",
+                    "sequence_number": 0,
+                },
+                {
+                    "wbs_id": "W-1",
+                    "parent_kind": "wbs",
+                    "parent_wbs_id": "W-ROOT",
+                    "code": "1.1",
+                    "name": "Work package",
+                    "sequence_number": 1,
+                },
+            ],
+            "baselines": [],
+            "baseline_activities": [],
+            "baseline_assignments": [],
+            "resource_assignments": [],
+            "resource_periods": [],
+        }
+
+    connection, service, request, auth, context, snapshot = _query_service(
+        source,
+        quality_audit_context_loader=load_context,
+    )
+    try:
+        answer = service.execute(
+            request,
+            auth_context=auth,
+            calculation_context=context,
+        )
+        report = answer.data["quality_audit"]
+
+        assert len(calls) == 1
+        assert calls[0][0].tenant_id == source.tenant_id
+        assert calls[0][0].project_id == source.project_id
+        assert calls[0][0].project_revision == source.project_revision
+        assert calls[0][1] == auth
+        assert report["coverage"]["wbs_registry_and_activity_assignment"] == "evaluated"
+        assert report["summary"]["wbs_node_count"] == 2
+        assert report["snapshot"]["snapshot_hash"] == snapshot.snapshot_hash
+    finally:
+        connection.close()
