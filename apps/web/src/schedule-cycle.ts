@@ -1231,6 +1231,171 @@ function mountRunPanel(
     applyAuditFilters();
   };
 
+  const qualityPolicyCollection = `/api/projects/${encodeURIComponent(context.project_id)}/p6/quality-policy-packs`;
+  let qualityPolicyLoaded = false;
+  const loadQualityPolicies = async (): Promise<void> => {
+    if (!policyStatus || !policyListPanel || !policyForm) return;
+    policyRefreshButton && (policyRefreshButton.disabled = true);
+    policyStatus.textContent = labels.qualityPolicyLoading;
+    policyListPanel.innerHTML = "";
+    try {
+      const sessionResult = await transport.get<SessionInfo>("/api/session", context);
+      if (!sessionResult.ok) throw new Error(sessionResult.error.code);
+      const isAdmin = sessionResult.data.roles.includes("project_admin");
+      policyForm.hidden = !isAdmin;
+      const policyResult = await transport.get<ScheduleQualityPolicyList>(
+        qualityPolicyCollection,
+        context,
+      );
+      if (!policyResult.ok) throw new Error(policyResult.error.code);
+      const packs = Array.isArray(policyResult.data.policy_packs)
+        ? policyResult.data.policy_packs
+        : [];
+      if (packs.length === 0) {
+        policyListPanel.innerHTML = `<p class="cp-audit-history-empty">${safe(labels.qualityPolicyEmpty)}</p>`;
+      } else {
+        const rows = packs.map((pack) => {
+          const approved = pack.status === "approved";
+          const statusText = approved ? labels.qualityPolicyStatusApproved : labels.qualityPolicyDraft;
+          const approveAction = !approved && isAdmin
+            ? `<button type="button" class="cp-audit-policy-approve" data-quality-policy-approve="${safe(pack.policy_id)}" data-quality-policy-version="${safe(pack.version)}">${safe(labels.qualityPolicyApprove)}</button>`
+            : "";
+          return `<tr>
+            <td><strong>${safe(pack.name)}</strong><code class="cp-audit-policy-identity">${safe(pack.policy_id)} · ${safe(pack.version)}</code></td>
+            <td><span class="cp-audit-status-pill ${approved ? "is-approved" : "is-draft"}">${safe(statusText)}</span></td>
+            <td>${safe(pack.created_by)}</td>
+            <td>${safe(pack.approved_by ?? "—")}</td>
+            <td>${approveAction}</td>
+          </tr>`;
+        }).join("");
+        policyListPanel.innerHTML = `<section class="cp-audit-policy-list-card">
+          <div class="cp-audit-section-heading"><span class="cp-audit-section-mark"></span><h4>${safe(labels.qualityPolicyList)}</h4><span class="cp-audit-filter-count">${safe(packs.length)}</span></div>
+          <div class="cp-register-table-wrap cp-audit-table-wrap"><table class="cp-schedule-result-table cp-audit-table">
+            <thead><tr><th>${safe(labels.qualityPolicyName)}</th><th>${safe(labels.auditAuditStatus)}</th><th>${safe(labels.qualityPolicyCreatedBy)}</th><th>${safe(labels.qualityPolicyApprovedBy)}</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table></div>
+        </section>`;
+        for (const approveButton of policyListPanel.querySelectorAll<HTMLButtonElement>("[data-quality-policy-approve]")) {
+          approveButton.addEventListener("click", async () => {
+            const policyId = approveButton.dataset.qualityPolicyApprove;
+            const version = approveButton.dataset.qualityPolicyVersion;
+            if (!policyId || !version) return;
+            approveButton.disabled = true;
+            if (policyStatus) policyStatus.textContent = labels.qualityPolicyApproving;
+            try {
+              const response = await transport.post<
+                Record<string, never>,
+                ScheduleQualityPolicyResponse
+              >(
+                `${qualityPolicyCollection}/${encodeURIComponent(policyId)}/${encodeURIComponent(version)}/approve`,
+                {},
+                context,
+                crypto.randomUUID(),
+              );
+              if (!response.ok) throw new Error(response.error.code);
+              if (policyStatus) policyStatus.textContent = labels.qualityPolicyApproved;
+              await loadQualityPolicies();
+            } catch (error) {
+              if (policyStatus) policyStatus.textContent = `${labels.qualityPolicyFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_POLICY_APPROVAL_FAILED"})`;
+            } finally {
+              approveButton.disabled = false;
+            }
+          });
+        }
+      }
+      if (!isAdmin && policyStatus) policyStatus.textContent = labels.qualityPolicyNoAdmin;
+      else if (policyStatus) policyStatus.textContent = "";
+      qualityPolicyLoaded = true;
+    } catch (error) {
+      if (policyStatus) policyStatus.textContent = `${labels.qualityPolicyFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_POLICY_LOAD_FAILED"})`;
+      policyListPanel.innerHTML = "";
+    } finally {
+      if (policyRefreshButton) policyRefreshButton.disabled = false;
+    }
+  };
+
+  policyDetails?.addEventListener("toggle", () => {
+    if (policyDetails.open && !qualityPolicyLoaded) void loadQualityPolicies();
+  });
+  policyRefreshButton?.addEventListener("click", () => {
+    qualityPolicyLoaded = false;
+    void loadQualityPolicies();
+  });
+  policyForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!policyForm || !policyStatus || !policyListPanel) return;
+    const value = (name: string): string =>
+      (policyForm.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null)?.value.trim() ?? "";
+    const required = [
+      "policy_id", "version", "name", "lag_date", "lag_working_day", "lag_working_hour",
+      "lag_severity", "duration_date", "duration_working_day", "duration_working_hour",
+      "duration_severity", "constraints_max", "constraints_severity",
+      "weight_lag", "weight_duration", "weight_constraints",
+    ];
+    if (required.some((name) => value(name) === "")) {
+      policyStatus.textContent = labels.qualityPolicyValidation;
+      return;
+    }
+    const dateLag = Number(value("lag_date"));
+    const maxConstraints = Number(value("constraints_max"));
+    if (!Number.isInteger(dateLag) || !Number.isInteger(maxConstraints)) {
+      policyStatus.textContent = labels.qualityPolicyValidation;
+      return;
+    }
+    const request = {
+      policy_id: value("policy_id"),
+      version: value("version"),
+      name: value("name"),
+      scoring_method: "weighted_pass_rate.v1",
+      thresholds: {
+        positive_lag: {
+          date_based_max_working_days: dateLag,
+          time_aware_max: {
+            "working-day": value("lag_working_day"),
+            "working-hour": value("lag_working_hour"),
+          },
+          severity: value("lag_severity"),
+        },
+        activity_duration: {
+          date_based_max_working_days: value("duration_date"),
+          time_aware_max: {
+            "working-day": value("duration_working_day"),
+            "working-hour": value("duration_working_hour"),
+          },
+          severity: value("duration_severity"),
+        },
+        constraints_per_activity: {
+          maximum: maxConstraints,
+          severity: value("constraints_severity"),
+        },
+      },
+      weights: {
+        positive_lag: value("weight_lag"),
+        activity_duration: value("weight_duration"),
+        constraints_per_activity: value("weight_constraints"),
+      },
+    };
+    const saveButton = policyForm.querySelector<HTMLButtonElement>("[type=submit]");
+    if (saveButton) saveButton.disabled = true;
+    policyStatus.textContent = labels.qualityPolicyCreating;
+    try {
+      const response = await transport.post<
+        typeof request,
+        ScheduleQualityPolicyResponse
+      >(qualityPolicyCollection, request, context, crypto.randomUUID());
+      if (!response.ok) throw new Error(response.error.code);
+      policyForm.reset();
+      policyStatus.textContent = labels.qualityPolicyCreated;
+      qualityPolicyLoaded = false;
+      await loadQualityPolicies();
+      if (policyStatus) policyStatus.textContent = labels.qualityPolicyCreated;
+    } catch (error) {
+      policyStatus.textContent = `${labels.qualityPolicyFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_POLICY_CREATE_FAILED"})`;
+    } finally {
+      if (saveButton) saveButton.disabled = false;
+    }
+  });
+
   auditHistoryButton?.addEventListener("click", async () => {
     if (!auditHistoryButton || !auditHistoryPanel || !auditStatus) return;
     auditHistoryButton.disabled = true;
