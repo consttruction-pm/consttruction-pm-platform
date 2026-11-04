@@ -24,6 +24,10 @@ from construction_pm.control_intelligence.quality_audit_history import (
 from construction_pm.control_intelligence.quality_audit_history_api import (
     ScheduleQualityAuditHistoryAPI,
 )
+from construction_pm.control_intelligence.quality_policy_pack import (
+    ScheduleQualityPolicyRepository,
+)
+from construction_pm.control_intelligence.quality_policy_pack_api import ScheduleQualityPolicyAPI
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
@@ -116,6 +120,8 @@ def build_project_lifecycle_wsgi_app(
     quality_audit_context_loader: Callable[[BackendScope, AuthorizationContext], Mapping[str, object]] | None = None,
     quality_audit_history_repository: ScheduleQualityAuditHistoryRepository | None = None,
     quality_audit_history_transaction_manager: object | None = None,
+    quality_policy_repository: ScheduleQualityPolicyRepository | None = None,
+    quality_policy_transaction_manager: object | None = None,
     p6_code_repository: P6CodeRepository | None = None,
     p6_code_assignment_repository: P6CodeAssignmentRepository | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
@@ -221,6 +227,7 @@ def build_project_lifecycle_wsgi_app(
                 quality_resource_period_repository,
                 p6_code_repository,
                 p6_code_assignment_repository,
+                quality_policy_repository,
             )
         ):
             resolved_quality_audit_context_loader = ScheduleQualityAuditContextReader(
@@ -233,6 +240,7 @@ def build_project_lifecycle_wsgi_app(
                 resource_period_repository=quality_resource_period_repository,
                 code_definition_repository=p6_code_repository,
                 code_assignment_repository=p6_code_assignment_repository,
+                quality_policy_repository=quality_policy_repository,
                 transaction_manager=quality_transaction_manager,
             ).load
 
@@ -259,6 +267,15 @@ def build_project_lifecycle_wsgi_app(
         if quality_audit_history_repository is None
         else ScheduleQualityAuditHistoryAPI(
             quality_audit_history_repository, authorization_policy
+        )
+    )
+    if quality_policy_repository is not None and quality_policy_transaction_manager is None:
+        raise ValueError("SCHEDULE_QUALITY_POLICY_TRANSACTION_MANAGER_REQUIRED")
+    quality_policy_api = (
+        None
+        if quality_policy_repository is None
+        else ScheduleQualityPolicyAPI(
+            quality_policy_repository, authorization_policy, quality_policy_transaction_manager
         )
     )
     runtime_config_requested = (
@@ -355,6 +372,7 @@ def build_project_lifecycle_wsgi_app(
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
         schedule_quality_audit_history_api=quality_audit_history_api,
+        schedule_quality_policy_api=quality_policy_api,
         ai_action_runtime=ai_action_runtime,
         ai_assistant_orchestrator=ai_assistant_orchestrator,
         form_builder_api=form_builder_api,
