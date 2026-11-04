@@ -13,11 +13,9 @@ type ActiveDrag = {
   kind: ResizeKind;
   handle: HTMLElement;
   startX: number;
-  startY: number;
   startValue: number;
   startWidth?: number;
   apply(value: number): void;
-  finish(commit: boolean): void;
 };
 
 const runtimes = new WeakMap<HTMLElement, ResizeRuntime>();
@@ -171,7 +169,8 @@ export function bindWorkspaceResizeInteractions(
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", onPointerUp);
     window.removeEventListener("pointercancel", onPointerCancel);
-    container.classList.remove("is-resizing", `is-resizing-${drag.kind}`);
+    const shell = container.closest<HTMLElement>(".cp-app-shell") ?? container;
+    shell.classList.remove("is-resizing", `is-resizing-${drag.kind}`);
     document.documentElement.classList.remove("cubi-is-resizing");
     if (!commit) {
       drag.apply(drag.startValue);
@@ -276,7 +275,6 @@ export function bindWorkspaceResizeInteractions(
       kind,
       handle: target,
       startX: pointerEvent.clientX,
-      startY: pointerEvent.clientY,
       startValue,
       startWidth,
       apply(value: number) {
@@ -288,10 +286,10 @@ export function bindWorkspaceResizeInteractions(
         }
         setSplitRatio(container, kind, value);
       },
-      finish(commit) { endDrag(commit); },
     };
     active = drag;
-    container.classList.add("is-resizing", `is-resizing-${kind}`);
+    const shell = container.closest<HTMLElement>(".cp-app-shell") ?? container;
+    shell.classList.add("is-resizing", `is-resizing-${kind}`);
     document.documentElement.classList.add("cubi-is-resizing");
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
