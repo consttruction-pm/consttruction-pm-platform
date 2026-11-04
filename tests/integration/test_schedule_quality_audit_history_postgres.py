@@ -65,3 +65,22 @@ def test_postgres_schedule_quality_audit_history_is_scoped_and_idempotent(postgr
         changed["summary"] = {"finding_count": 88}
         with pytest.raises(ScheduleQualityAuditHistoryError, match="QUERY_ID_REUSED"):
             repository.record(scope, f"query-{suffix}", changed, created_at=now)
+
+        with pytest.raises(
+            psycopg.errors.RaiseException,
+            match="SCHEDULE_QUALITY_AUDIT_HISTORY_IMMUTABLE",
+        ):
+            with postgres_connection.transaction():
+                postgres_connection.execute(
+                    "UPDATE schedule_quality_audit_history SET report_json=%s WHERE audit_id=%s",
+                    ("{}", first.audit_id),
+                )
+        with pytest.raises(
+            psycopg.errors.RaiseException,
+            match="SCHEDULE_QUALITY_AUDIT_HISTORY_IMMUTABLE",
+        ):
+            with postgres_connection.transaction():
+                postgres_connection.execute(
+                    "DELETE FROM schedule_quality_audit_history WHERE audit_id=%s",
+                    (first.audit_id,),
+                )
