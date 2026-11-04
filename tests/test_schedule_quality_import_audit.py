@@ -33,6 +33,7 @@ def test_import_parse_ledger_reports_preserved_unknown_fields_and_unapplied_batc
             "interchange_import_batches": [
                 {
                     "batch_id": "batch-1",
+                    "project_revision": 9,
                     "format": "XER_PROJECT",
                     "source_sha256": "a" * 64,
                     "source_byte_count": 1200,
