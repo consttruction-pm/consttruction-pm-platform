@@ -6,21 +6,12 @@ export const VISUAL_WORKSPACE_PREVIEW_PROJECT_ID = "preview-rps-01";
  * project. The explicit "live" switch is retained so the real API workspace
  * remains available for integration testing and development.
  */
+/** No alternate demo route is exposed: every /app URL enters the authenticated workspace. */
 export function shouldRenderVisualWorkspaceDemo(
-  pathname: string,
-  search: string,
+  _pathname: string,
+  _search: string,
 ): boolean {
-  const parameters = new URLSearchParams(search);
-  if (parameters.get("view") === "live") return false;
-  if (parameters.get("view") === "visual") return true;
-  if (pathname !== "/app") return false;
-
-  // The accepted entry flow is Home → Login → Visual Workspace. A direct
-  // login with no project context must therefore land in the visual shell,
-  // not the unrelated live/API workspace. Explicit non-preview project IDs
-  // continue to select the authenticated live workspace.
-  const projectId = parameters.get("project");
-  return !projectId || projectId === VISUAL_WORKSPACE_PREVIEW_PROJECT_ID;
+  return false;
 }
 
 /**
