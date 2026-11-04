@@ -949,7 +949,7 @@ def _audit_interchange_import_batches(
                         "source_sha256": source_hash,
                         "source_field": source_field,
                         "mapping_id": mapping.get("mapping_id") if isinstance(mapping, Mapping) else None,
-                        "mapping_status": mapping.get("status") if isinstance(mapping, Mapping) else "UNKNOWN",
+                        "mapping_status": (mapping.get("status") or "UNKNOWN") if isinstance(mapping, Mapping) else "UNKNOWN",
                         "canonical_fields": row.get("canonical_fields", ()),
                         "preserved_extension_fields": row.get("preserved_extension_fields", ()),
                         "warning_code": warning,
