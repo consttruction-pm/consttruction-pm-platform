@@ -2732,6 +2732,7 @@ async function main() {
 
     // Drag a real header resize handle. The revision-checked layout callback
     // must persist the result through the same API used by the field chooser.
+    const columnDragLayoutBefore = await readLayoutFromPage(page);
     const columnDragBefore = await page.evaluate(`() => {
       const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
         .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
@@ -2762,20 +2763,23 @@ async function main() {
       columnDragBefore > 0 && !columnDragProbe.missing && columnDragProbe.width > columnDragBefore,
       "dragging a column edge must resize the live grid cell",
     );
-    await page.waitFor(
-      `(() => {
-        const head = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
-          .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
-        return head && Number.parseFloat(head.style.width) >= ${Number(columnDragProbe.width)};
-      })()`,
-      "dragged column width is committed through the layout API",
+    let columnDragLayoutAfter = await readLayoutFromPage(page);
+    for (let attempt = 0; attempt < 30 && columnDragLayoutAfter.body.revision <= columnDragLayoutBefore.body.revision; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      columnDragLayoutAfter = await readLayoutFromPage(page);
+    }
+    const committedColumnWidth = columnDragLayoutAfter.body.columns.find((column) => column.field_id === addTarget)?.width;
+    assert(
+      columnDragLayoutAfter.body.revision > columnDragLayoutBefore.body.revision &&
+        committedColumnWidth >= columnDragProbe.width,
+      "dragging a column edge must append a revision with the new width",
     );
     const columnDragAfter = await page.evaluate(`() => {
       const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
         .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
       return header ? Number.parseFloat(header.style.width) : null;
     }`);
-    assert(columnDragAfter >= columnDragProbe.width, "API-confirmed column width must not shrink after commit");
+    assert(columnDragAfter >= columnDragProbe.width, "the committed width must remain rendered");
 
     const paneDrag = await page.evaluate(`() => {
       const detailsHandle = document.querySelector('[data-resize-handle="details"]');
@@ -2824,6 +2828,8 @@ async function main() {
         paneDrag.keys.some((key) => key.endsWith(":table-gantt")),
       "pane splitter preferences must be stored per project and workspace window",
     );
+    record("Details and table/Gantt panes respond to mouse resizing and persist local layout preferences", paneDrag);
+    await page.screenshot("04f-resizable-pane-layout.png");
     const splitPreferencesBeforeReload = paneDrag;
 
     await page.click(`[data-p6-field-pin="${addTarget}"]`);
