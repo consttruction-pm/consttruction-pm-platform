@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  filterScheduleAuditFindings,
   filterScheduleReferences,
   type ScheduleCodeReferenceCatalog,
 } from "./schedule-cycle.js";
@@ -88,4 +89,31 @@ test("reference explorer can show formula-only results", () => {
   assert.deepEqual(optionResult.options.map((item) => item.id), ["OPT-SCH-001"]);
   assert.deepEqual(optionResult.requirements, []);
   assert.deepEqual(optionResult.formulas, []);
+});
+
+
+test("schedule quality audit filters findings by severity, object type and searchable evidence", () => {
+  const findings = [
+    { severity: "critical", rule_id: "NETWORK_CYCLE", object_type: "relationship", object_id: "A-B", evidence: { path: "A > B > A" } },
+    { severity: "warning", rule_id: "BASELINE_FORECAST_FINISH_VARIANCE", object_type: "baseline_activity", object_id: "A-1", message_key: "finish variance" },
+    { severity: "info", rule_id: "CURRENT_ACTIVITY_NOT_IN_BASELINE", object_type: "activity", object_id: "A-2" },
+  ] as const;
+
+  assert.deepEqual(
+    filterScheduleAuditFindings(findings, { severity: "critical" }).map((item) => item.rule_id),
+    ["NETWORK_CYCLE"],
+  );
+  assert.deepEqual(
+    filterScheduleAuditFindings(findings, { objectType: "activity" }).map((item) => item.rule_id),
+    ["CURRENT_ACTIVITY_NOT_IN_BASELINE"],
+  );
+  assert.deepEqual(
+    filterScheduleAuditFindings(findings, { query: "a > b > a" }).map((item) => item.rule_id),
+    ["NETWORK_CYCLE"],
+  );
+  assert.deepEqual(
+    filterScheduleAuditFindings(findings, { query: "finish variance", severity: "warning" }).map((item) => item.object_id),
+    ["A-1"],
+  );
+  assert.equal(filterScheduleAuditFindings(findings, { severity: "critical", objectType: "activity" }).length, 0);
 });
