@@ -335,6 +335,7 @@ def test_reader_loads_project_scoped_interchange_parse_evidence() -> None:
     assert result["interchange_import_ledger_configured"] is True
     assert len(batches) == 1
     assert batches[0]["batch_id"] == "batch-1"
+    assert batches[0]["project_revision"] == scope.project_revision
     assert batches[0]["row_summaries"][0]["warnings"] == ["PRESERVED_UNKNOWN_FIELD:vendor_code"]
     assert batches[0]["target_application_status"] == "PARSED_NOT_APPLIED"
 
