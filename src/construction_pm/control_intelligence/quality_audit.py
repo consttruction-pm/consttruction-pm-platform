@@ -808,6 +808,8 @@ def _audit_activity_codes(
 
 def _audit_interchange_import_batches(
     audit_context: Mapping[str, object] | None,
+    *,
+    current_revision: object,
     add,
 ) -> tuple[str, int, int, int]:
     if not isinstance(audit_context, Mapping):
@@ -820,11 +822,18 @@ def _audit_interchange_import_batches(
     if not raw_batches:
         return "not_evaluated_no_import_batches", 0, 0, 0
 
+    matching_batches = [
+        item for item in raw_batches
+        if isinstance(item, Mapping) and item.get("project_revision") == current_revision
+    ]
+    if not matching_batches:
+        return "not_evaluated_no_import_batches_for_snapshot_revision", 0, 0, 0
+
     batch_count = 0
     row_count = 0
     preservation_warning_count = 0
     statuses: set[str] = set()
-    for batch in raw_batches:
+    for batch in matching_batches:
         if not isinstance(batch, Mapping):
             continue
         batch_id = batch.get("batch_id")
@@ -1700,7 +1709,11 @@ def build_schedule_quality_audit(
         import_batch_count,
         import_row_count,
         import_preservation_warning_count,
-    ) = _audit_interchange_import_batches(audit_context, add)
+    ) = _audit_interchange_import_batches(
+        audit_context,
+        current_revision=payload.get("project_revision"),
+        add=add,
+    )
 
     findings.sort(
         key=lambda item: (
