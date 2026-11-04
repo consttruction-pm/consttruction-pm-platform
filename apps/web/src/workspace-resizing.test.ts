@@ -21,3 +21,10 @@ test("column drag enforces min/max widths without changing the source width", ()
   assert.equal(resizedColumnWidth(700, 200, 900, "ltr"), 720);
   assert.equal(resizedColumnWidth(120, 200, 200, "ltr"), 120);
 });
+
+test("resize binding safely ignores DOM-light renderer fixtures", async () => {
+  const { bindWorkspaceResizeInteractions } = await import("./workspace-resizing.js");
+  assert.doesNotThrow(() => {
+    bindWorkspaceResizeInteractions({} as HTMLElement, {} as never, {} as never);
+  });
+});
