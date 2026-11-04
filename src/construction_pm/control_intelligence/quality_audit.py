@@ -1134,7 +1134,7 @@ def build_schedule_quality_audit(
             and actual_finish < actual_start
         ):
             progress_problem = "ACTUAL_FINISH_BEFORE_ACTUAL_START"
-        elif status == "Completed" and actual_finish is None:
+        elif date_based and status == "Completed" and actual_finish is None:
             progress_problem = "COMPLETED_ACTIVITY_MISSING_ACTUAL_FINISH"
         elif status == "In Progress" and actual_start is None:
             progress_problem = "IN_PROGRESS_ACTIVITY_MISSING_ACTUAL_START"
