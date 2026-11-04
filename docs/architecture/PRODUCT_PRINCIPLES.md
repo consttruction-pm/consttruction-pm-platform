@@ -138,6 +138,19 @@ The detailed binding contract is `docs/requirements/CUBI_MULTILINGUAL_AND_AI_PER
 
 Principle 8 is elaborated by `docs/requirements/CUBI_MULTILINGUAL_AND_AI_PERMISSION_REQUIREMENTS.md`. Persian and English are initial baseline languages, not a two-language ceiling. Only explicitly declared languages with end-to-end acceptance evidence may be advertised as supported. Language-pack infrastructure, client integration and translated product coverage are separate completion items. The same rule applies to AI language capabilities, voice, generated outputs and offline behavior. Locale/display translation must never alter project data or calculation semantics.
 
+
+## Principle 13 — Fully CUBI-owned, model-free Engineering Command Assistant
+
+The CUBI assistant must be entirely a CUBI product and technology. **No third-party AI model of any kind, no local or remote model runtime, no Ollama, no ChatGPT or other model, no external AI service/provider, no AI API or key, and no optional model/provider fallback or abstraction may be part of its architecture.** This is an absolute product constraint, not a no-key mode or a local-model preference.
+
+The assistant is a command-oriented engineering system, not an open-ended chatbot. It receives typed or supported voice commands, identifies language and intent, extracts entities and parameters, resolves authorized project context, validates the request, asks focused clarification only when mandatory information is missing or ambiguous, then reads/analyzes data or prepares an authorized action. It uses CUBI-owned deterministic algorithms, grammars, dictionaries, domain ontology, engineering rules, typed application tools, durable knowledge and the authoritative Shared Domain/Calculation Core. No pretrained AI/ML inference model or external inference service may supply its command understanding, semantic reasoning, speech/OCR intelligence, recommendations or responses.
+
+Its complete capability scope—including multilingual command understanding, project-aware analysis, controlled project operations, guided project creation, file/document intake, reports/charts, durable engineering knowledge and learning, authorized research, CUBI-owned voice input, Smart Guide and integration across Web, Windows Desktop and Flutter/Mobile—is defined in [CUBI_INTERNAL_COMMAND_ASSISTANT_PRINCIPLE.md](CUBI_INTERNAL_COMMAND_ASSISTANT_PRINCIPLE.md).
+
+This principle is an explicit owner-approved correction to prior assistant architecture plans. It supersedes every conflicting provision that proposes or permits a local model, remote model, provider abstraction, external AI endpoint, AI API key, model-based embeddings or model fallback. The earlier Engineering Intelligence Toolchain plan is historical and is not an approved architecture. Preserve its non-conflicting capability requirements—security, real application tools, project creation, file intake, reporting, durable knowledge, research, backup/restore and cross-client acceptance—only as restated in the binding CUBI-owned scope document.
+
+Existing proposal, authorization, approval, audit, idempotency, revision and Shared Core foundations must be reused where valid. Existing provider-backed orchestration and chat UI are legacy paths to retire or replace through tested changes; their presence in the current tree is not permission to retain them as a supported option. No documentation-only change counts as implementation completion. Every capability requires code-path evidence, tests and end-to-end verification.
+
 ## Release Gate
 
 Every release candidate must pass two sequential product gates:
