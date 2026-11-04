@@ -14,6 +14,7 @@ from construction_pm.application.authorization import (
     Permission,
 )
 from construction_pm.backend_p0.models import BackendScope
+from .quality_policy_pack import ScheduleQualityPolicyRepository
 
 
 class ReadRepository(Protocol):
@@ -55,6 +56,7 @@ class ScheduleQualityAuditContextReader:
     resource_period_repository: ResourcePeriodRepository | None = None
     code_definition_repository: ReadRepository | None = None
     code_assignment_repository: ReadRepository | None = None
+    quality_policy_repository: ScheduleQualityPolicyRepository | None = None
     transaction_manager: TransactionManager | None = None
 
     def load(
@@ -87,6 +89,7 @@ class ScheduleQualityAuditContextReader:
             resource_periods = self._load_resource_periods(scope)
             code_definitions = self._load_code_definitions(scope)
             code_assignments = self._load_code_assignments(scope)
+            quality_policy_pack = self._load_approved_quality_policy(scope)
 
         return {
             "wbs_nodes": wbs_nodes,
@@ -97,6 +100,8 @@ class ScheduleQualityAuditContextReader:
             "resource_periods": resource_periods,
             "code_definitions": code_definitions,
             "code_assignments": code_assignments,
+            "quality_policy_repository_configured": self.quality_policy_repository is not None,
+            "approved_quality_policy_pack": quality_policy_pack,
         }
 
     def _load_wbs(self, scope: BackendScope) -> list[dict[str, object]] | None:
@@ -230,6 +235,27 @@ class ScheduleQualityAuditContextReader:
             }
             for item in self.code_assignment_repository.list(scope)
         ]
+
+    def _load_approved_quality_policy(
+        self, scope: BackendScope
+    ) -> dict[str, object] | None:
+        if self.quality_policy_repository is None:
+            return None
+        pack = self.quality_policy_repository.latest_approved(scope)
+        if pack is None:
+            return None
+        return {
+            "policy_id": pack.policy_id,
+            "version": pack.version,
+            "name": pack.name,
+            "scoring_method": pack.scoring_method,
+            "thresholds": dict(pack.thresholds),
+            "weights": dict(pack.weights),
+            "created_by": pack.created_by,
+            "created_at": pack.created_at.isoformat(),
+            "approved_by": pack.approved_by,
+            "approved_at": None if pack.approved_at is None else pack.approved_at.isoformat(),
+        }
 
     def _load_resource_periods(
         self, scope: BackendScope
