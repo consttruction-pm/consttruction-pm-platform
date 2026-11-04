@@ -694,6 +694,12 @@ def test_time_aware_audit_uses_offset_aware_actual_start_and_duration_lag() -> N
                     "status": "In Progress",
                     "actual_start": "2026-11-04T09:00:00+00:00",
                 },
+                {
+                    "id": "C",
+                    "activity_type": "Task Dependent",
+                    "status": "Completed",
+                    "actual_start": "2026-11-03T09:00:00+00:00",
+                },
             ],
             "relationships": [
                 {
@@ -721,6 +727,7 @@ def test_time_aware_audit_uses_offset_aware_actual_start_and_duration_lag() -> N
     )
 
     assert "ACTUAL_AFTER_DATA_DATE" in rules
+    assert "COMPLETED_ACTIVITY_MISSING_ACTUAL_FINISH" not in rules
     assert candidate["evidence"]["relationship_type"] == "SS"
     assert candidate["evidence"]["rule_scope"] == "TIME_AWARE_ZERO_LAG_SS_ACTUAL_START_ONLY"
     assert report["coverage"]["progress_out_of_sequence"] == (
