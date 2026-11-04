@@ -36,6 +36,7 @@ from construction_pm.p6_resource_rate_write_api import P6ResourceRateWriteAPI
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_relationship_api import P6RelationshipAPI
+from construction_pm.p6_role_api import P6RoleAPI
 from construction_pm.p6_schedule_snapshot_publication_api import P6ScheduleSnapshotPublicationAPI
 from construction_pm.relationship_master_repository import RelationshipMasterRepository
 from construction_pm.wbs_master_repository import WBSMasterRepository
@@ -86,6 +87,7 @@ def build_project_lifecycle_wsgi_app(
     p6_baseline_conversion_api: P6BaselineConversionAPI | None = None,
     p6_earned_value_read_api: P6EarnedValueReadModelAPI | None = None,
     p6_interchange_api: P6InterchangeAPI | None = None,
+    p6_role_api: P6RoleAPI | None = None,
     clock: Clock | None = None,
     ai_action_runtime: AIActionRuntime | None = None,
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
@@ -242,6 +244,7 @@ def build_project_lifecycle_wsgi_app(
         p6_baseline_conversion_api=p6_baseline_conversion_api,
         p6_earned_value_read_api=p6_earned_value_read_api,
         p6_interchange_api=p6_interchange_api,
+        p6_role_api=p6_role_api,
         p6_resource_read_api=resource_read_api,
         p6_resource_write_api=resource_write_api,
         p6_resource_capacity_read_api=p6_resource_capacity_read_api,

@@ -1528,12 +1528,11 @@ test("WBS, assignments, expenses, issues, risks and thresholds have separate reg
   }
 });
 
-test("Roles and Tracking are first-class windows with their documented visual surfaces", () => {
+test("Roles is a first-class window mounted on the real role register", () => {
   const roles = render("en", "roles");
-  assert.match(roles, /Role Register/);
-  assert.match(roles, /Max Units \/ Time/);
-  assert.match(roles, /data-register-tab="roles:rates"/);
-  assert.match(roles, /Select a role to view its limits information/);
+  assert.match(roles, /data-roles-page/);
+  assert.doesNotMatch(roles, /data-register-tab="roles:rates"/);
+  assert.doesNotMatch(roles, /Role management is a visual shell only/);
   const tracking = render("en", "tracking");
   assert.match(tracking, /Tracking Layout/);
   assert.match(tracking, /Project Table/);

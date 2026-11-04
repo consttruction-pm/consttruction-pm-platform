@@ -43,7 +43,7 @@ test that exercises the real path, and verified in a browser.
 | `progress` | Progress | preview | `case "progress"` metrics | Field records already loaded in state | Field operations/application APIs; `/p6/activity-period-actuals` exists for schedule progress | Open field-record tools | Page itself shows only counts; no progress update grid, out-of-sequence handling or update log | `SHELL` | GAP-PRG-01 | `workspace-view.test.ts` |
 | `resources` | Resources | partial | `case "resources"` + `p6-capacity-panel.ts` | Workspace state counts; capacity panel via `/p6/resource-capacities` | Resource read/write, capacity read/write/resolve, rate read/write, spreads | Open capacity panel, open assignments page | No resource dictionary register (labor/nonlabor/material/roles) on this page | `WIRED-READ` | GAP-RES-01 | `p6-capacity-panel.test.ts`, `p6-capacity-api.test.ts` |
 | `assignments` | Resource Assignments | preview | `renderRegisterWindow` shell | Static empty table | `/p6/resource-assignments` GET/POST, assignment periods/spreads, baseline assignments | None | Whole register, tabs, New/Edit/Delete/Filter are decorative | `SHELL` | GAP-ASN-01 | `workspace-view.test.ts` |
-| `roles` | Roles | preview | `case "roles"` static register | Static empty table | `/p6/roles` create/update/list (`p6_role_api`) | None | New/Edit/Delete disabled; details tabs are text placeholders | `SHELL` | GAP-ROL-01 | `workspace-view.test.ts` |
+| `roles` | Roles | partial | `workspace-roles.ts` mounted on `[data-roles-page]` | `/p6/roles` list/item/create/update (`p6_role_api`) | Role create/update/list with project-write authorization and record revisions | Create a role with id/name/description, select a row to read the persisted definition, edit name/description with `expected_revision`, refresh | No delete route; no rates/limits or role-assignment tabs; an empty register is shown until a role is created because the fixtures define none | `WIRED` | GAP-ROL-01 (resolved) | `workspace-roles.test.ts`, `test_preview_roles.py`, `workspace-surface-matrix.test.ts` |
 | `calendars` | Calendars | partial | `workspace-calendars.ts` mounted on `[data-calendar-page]` (static shell replaced on render) | `/p6/calendars` catalogue, `/p6/calendars/{id}/{version}/snapshot` and `/exceptions` | Calendar catalogue/snapshot/exceptions/work-hours GET+POST, create/update/delete/copy/replace | Select a catalogue row, read persisted snapshot factors/workweek/holidays, edit name/type with expected revision, save, copy to a new reference, delete with confirmation, add all four exception modes (Gregorian or Jalali date conversion) | No blank-calendar creation (no snapshot-create HTTP route), workweek writes go through the copy contract, and no exception delete route exists yet | `WIRED` | GAP-CAL-01 (resolved) | `workspace-calendars.test.ts`, `workspace-surface-matrix.test.ts` |
 | `cost` | Cost | preview | `case "cost"` metrics | Procurement/change/claim counts | `/p6/expenses`, `/p6/cost-accounts`, `/p6/financial-periods`, `/p6/earned-value` | Open cost-record tools | Cost page shows unrelated counts; no cost accounts, expense ledger, cash flow, EVM summary, variance or forecast | `SHELL` | GAP-COST-01 | `workspace-view.test.ts`, `p6-formula-grid-binding.test.ts` |
 | `expenses` | Expenses | preview | `renderRegisterWindow` shell | Static empty table | `/p6/expenses` create/list (`p6_expense_api`), `/p6/cost-accounts` | None | Whole register and New/Edit/Delete/Filter are decorative | `SHELL` | GAP-EXP-01 | `workspace-view.test.ts` |
@@ -90,9 +90,9 @@ kept in sync by `apps/web/src/workspace-surface-matrix.test.ts`.
 | assignments | 1 | Assignment Register | Empty register shell | SHELL |
 | assignments | 2 | Resource Usage | Empty register shell | SHELL |
 | assignments | 3 | Assignment Details | Placeholder tabs | SHELL |
-| roles | 1 | Role Register | Static empty table | SHELL |
-| roles | 2 | Rates & Limits | Placeholder tab | SHELL |
-| roles | 3 | Assignments | Placeholder tab | SHELL |
+| roles | 1 | Role Register | Real register bound to `/p6/roles` | WIRED |
+| roles | 2 | Rates & Limits | Not present on the role page | SHELL |
+| roles | 3 | Assignments | Not present on the role page | SHELL |
 | calendars | 1 | Calendar Register | Real catalogue | WIRED-READ |
 | calendars | 2 | Workweek & Shifts | Disabled editor | SHELL |
 | calendars | 3 | Exceptions & Holidays | Disabled editor (holiday editor exists only in schedule options) | SHELL |
@@ -134,7 +134,7 @@ faked in the UI.
 | GAP-CAL-01 | Wiring | Calendar page editor disconnected from calendar core — resolved 2026-11-04 | Replaced by `workspace-calendars.ts`: catalogue selection, snapshot read, revision-checked update, copy, delete and exception writes. Browser-verified against the real preview WSGI/SQLite runtime (select, workweek, holidays, save revision 1→2, copy, delete, nonwork exception); unit tests cover fail-closed parsing and all write payloads. Remaining sub-gaps: no blank-calendar creation route, workweek writes only through copy, no exception delete route | — | No |
 | GAP-RES-01 | Wiring | No resource dictionary register for labor/nonlabor/material/roles | `case "resources"` shows capacity and counts; `p6_resource_read_api.py`/`p6_resource_write_api.py` and `/p6/resource-*` routes exist | Load the resource dictionary and bind register/details after the calendar page | No |
 | GAP-ASN-01 | Wiring | Assignment register is a static shell | `renderRegisterWindow`; `/p6/resource-assignments` GET/POST and period/spread read models exist | Load assignments for the project and bind register/details; use existing schedule commands for writes | No |
-| GAP-ROL-01 | Wiring | Role register is a static shell | `p6_role_api.py` create/update/list; `/p6/roles` routed | Load roles, bind details, create/update with revision | No |
+| GAP-ROL-01 | Wiring | Role register is a static shell — resolved 2026-11-04 | Replaced by `workspace-roles.ts`: list/read/create/update through `p6_role_api`, mounted with a real `P6RoleAPI` + `SQLiteP6RoleRepository` in both preview and production composition. Browser-verified against the preview WSGI/SQLite runtime (create `RPS-ROLE-CIVIL`, edit name, revision 1→2, survived a full page reload). Remaining sub-gaps: no delete route, no rates/limits or role-assignment tabs | — | No |
 | GAP-EXP-01 | Wiring | Expense register is a static shell | `p6_expense_api.py` create/list; `/p6/expenses` routed | Load expenses, bind register/details, create with cost account and activity references | No |
 | GAP-COST-01 | Wiring | Cost page shows unrelated counts | `case "cost"`; cost accounts/financial periods/EVM routes exist | Build cost overview from expenses, cost accounts, financial periods and the EVM read model; never compute finance in the browser | No |
 | GAP-PRG-01 | Wiring | Progress page does not expose progress updating | `case "progress"` counts; `/p6/activity-period-actuals` and schedule progress write paths exist | Bind activity progress/actuals/remaining work to authoritative endpoints and reuse schedule recalculation | No |
@@ -157,7 +157,7 @@ faked in the UI.
 ## 4. Order of completion
 
 1. `GAP-CAL-01` — Calendars page (core and HTTP already complete). **Resolved 2026-11-04.**
-2. `GAP-ROL-01`, `GAP-ASN-01`, `GAP-EXP-01` — resource/cost registers.
+2. `GAP-ROL-01`, `GAP-ASN-01`, `GAP-EXP-01` — resource/cost registers. `GAP-ROL-01` **resolved 2026-11-04**; assignments and expenses remain.
 3. `GAP-PRG-01` — progress updating bound to the schedule core.
 4. `GAP-COST-01` — cost overview from authoritative reads.
 5. `GAP-WBS-01`, `GAP-DOC-01`, `GAP-PRJ-02`, `GAP-CTL-01`, `GAP-ADM-01` — remaining wiring.

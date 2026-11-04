@@ -161,6 +161,8 @@ from construction_pm.p6_resource_rate_repository import (
 )
 from construction_pm.resources.rate_facts import ResourceRateFact
 from construction_pm.p6_relationship_api import P6RelationshipAPI
+from construction_pm.p6_role_api import P6RoleAPI
+from construction_pm.p6_role_repository import SQLiteP6RoleRepository
 from construction_pm.p6_resource_assignment_repository import (
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
@@ -281,6 +283,7 @@ class PreviewRepositories:
     baseline_assignments: SQLiteP6BaselineRoleAssignmentRepository
     current_activity_values: SQLiteP6CurrentActivityRepository
     current_activity_service: P6CurrentActivityApplicationService
+    roles: SQLiteP6RoleRepository
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -322,6 +325,7 @@ class PreviewRepositories:
         current_activity_service = P6CurrentActivityApplicationService(
             current_activity_values, transaction_manager
         )
+        roles = SQLiteP6RoleRepository(connection)
         return cls(
             activities=activities,
             wbs=wbs,
@@ -353,6 +357,7 @@ class PreviewRepositories:
             baseline_assignments=baseline_assignments,
             current_activity_values=current_activity_values,
             current_activity_service=current_activity_service,
+            roles=roles,
             transaction_manager=transaction_manager,
         )
 
@@ -1311,6 +1316,7 @@ def open_preview_runtime(
             authorization_policy=policy,
             codecs={PREVIEW_INTERCHANGE_FORMAT: P6PrimaveraXmlCodec()},
         ),
+        p6_role_api=P6RoleAPI(repositories.roles, policy),
         p6_resource_capacity_read_api=P6ResourceCapacityReadAPI(
             repositories.capacity_service,
             policy,

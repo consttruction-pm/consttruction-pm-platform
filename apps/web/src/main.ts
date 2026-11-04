@@ -50,6 +50,7 @@ import { mountAIActionPanel } from "./ai-action-panel.js";
 import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
+import { mountWorkspaceRolesPage } from "./workspace-roles.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
@@ -1592,6 +1593,15 @@ function renderApp(
       context: state.context,
       locale: state.locale,
       catalog: state.calendarCatalog,
+    });
+  }
+
+  const rolesPage = workspace.querySelector<HTMLElement>("[data-roles-page]");
+  if (rolesPage) {
+    mountWorkspaceRolesPage(rolesPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
     });
   }
 
