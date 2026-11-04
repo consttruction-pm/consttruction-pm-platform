@@ -138,6 +138,8 @@ from construction_pm.p6_current_activity_value_repository import (
     P6CurrentActivityApplicationService,
     SQLiteP6CurrentActivityRepository,
 )
+from construction_pm.p6_code_repository import SQLiteP6CodeRepository
+from construction_pm.p6_code_assignment_repository import SQLiteP6CodeAssignmentRepository
 from construction_pm.p6_field_registry import get_field
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_field_registry_repository import (
@@ -309,6 +311,8 @@ class PreviewRepositories:
     baselines: SQLiteP6BaselineRepository
     baseline_activities: SQLiteP6BaselineActivityRepository
     baseline_assignments: SQLiteP6BaselineRoleAssignmentRepository
+    code_definitions: SQLiteP6CodeRepository
+    code_assignments: SQLiteP6CodeAssignmentRepository
     current_activity_values: SQLiteP6CurrentActivityRepository
     current_activity_service: P6CurrentActivityApplicationService
     roles: SQLiteP6RoleRepository
@@ -364,6 +368,8 @@ class PreviewRepositories:
         baselines = SQLiteP6BaselineRepository(connection)
         baseline_activities = SQLiteP6BaselineActivityRepository(connection)
         baseline_assignments = SQLiteP6BaselineRoleAssignmentRepository(connection)
+        code_definitions = SQLiteP6CodeRepository(connection)
+        code_assignments = SQLiteP6CodeAssignmentRepository(connection)
         current_activity_values = SQLiteP6CurrentActivityRepository(connection)
         current_activity_service = P6CurrentActivityApplicationService(
             current_activity_values, transaction_manager
@@ -411,6 +417,8 @@ class PreviewRepositories:
             baselines=baselines,
             baseline_activities=baseline_activities,
             baseline_assignments=baseline_assignments,
+            code_definitions=code_definitions,
+            code_assignments=code_assignments,
             current_activity_values=current_activity_values,
             current_activity_service=current_activity_service,
             roles=roles,
@@ -1165,6 +1173,8 @@ def open_preview_runtime(
         baseline_assignment_repository=repositories.baseline_assignments,
         resource_assignment_repository=repositories.resource_assignments,
         resource_period_repository=repositories.resource_periods,
+        code_definition_repository=repositories.code_definitions,
+        code_assignment_repository=repositories.code_assignments,
         transaction_manager=repositories.transaction_manager,
     )
     query_provider = AuthoritativeScheduleQueryProvider(
