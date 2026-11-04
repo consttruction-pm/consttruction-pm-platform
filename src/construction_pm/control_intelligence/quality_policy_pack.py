@@ -206,6 +206,8 @@ class _SqlScheduleQualityPolicyRepository:
         self.connection = connection
 
     def _initialize(self, *, postgres: bool) -> None:
+        if not postgres:
+            self.connection.execute("PRAGMA foreign_keys = ON")
         if postgres:
             self.connection.execute(
                 "CREATE TABLE IF NOT EXISTS schedule_quality_policy_pack ("
