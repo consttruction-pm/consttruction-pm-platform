@@ -2891,12 +2891,23 @@ async function main() {
         committedColumnWidth >= columnDragProbe.width,
       "dragging a column edge must append a revision with the new width",
     );
+    // The API revision can become visible just before the save callback's
+    // render completes. Wait for the actual DOM to reflect the committed width
+    // rather than racing the independent API read against the UI re-render.
+    await page.waitFor(
+      `(() => {
+        const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
+          .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)} && item.getBoundingClientRect().width > 0);
+        return Boolean(header && Number.parseFloat(header.style.width) >= ${Number(committedColumnWidth)});
+      })()`,
+      "committed layout width must be reflected in the visible activity grid",
+    );
     const columnDragAfter = await page.evaluate(`() => {
       const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
         .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)} && item.getBoundingClientRect().width > 0);
       return header ? Number.parseFloat(header.style.width) : null;
     }`);
-    assert(columnDragAfter >= columnDragProbe.width, "the committed width must remain rendered");
+    assert(columnDragAfter >= committedColumnWidth, `the committed width must remain rendered: persisted=${committedColumnWidth}, rendered=${columnDragAfter}`);
 
     await page.drag('[data-resize-handle="details"]', 0, 36);
     await page.drag('[data-resize-handle="table-gantt"]', 72, 0);
