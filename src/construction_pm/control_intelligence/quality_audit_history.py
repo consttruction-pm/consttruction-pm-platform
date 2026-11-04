@@ -185,6 +185,9 @@ class _SqlScheduleQualityAuditHistoryRepository:
         if not isinstance(query_id, str) or not query_id.strip():
             raise ScheduleQualityAuditHistoryError("SCHEDULE_QUALITY_AUDIT_QUERY_ID_REQUIRED")
         when = created_at or datetime.now(timezone.utc)
+        if not isinstance(when, datetime) or when.tzinfo is None or when.utcoffset() is None:
+            raise ScheduleQualityAuditHistoryError("SCHEDULE_QUALITY_AUDIT_TIMESTAMP_INVALID")
+        when = when.astimezone(timezone.utc)
         snapshot = report.get("snapshot") if isinstance(report, Mapping) else None
         if not isinstance(snapshot, Mapping):
             raise ScheduleQualityAuditHistoryError("SCHEDULE_QUALITY_AUDIT_SNAPSHOT_REQUIRED")
