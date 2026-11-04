@@ -11,9 +11,12 @@ import {
 } from "./workspace-visual-demo-route.js";
 
 
-test("a direct post-login app entry defaults to the visual workspace", () => {
-  assert.equal(shouldRenderVisualWorkspaceDemo("/app", ""), true);
-  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?locale=fa"), true);
+test("every app entry uses the single authenticated Visual Workspace", () => {
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", ""), false);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?locale=fa"), false);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?view=visual"), false);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?project=preview-rps-01"), false);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?project=project-123"), false);
 });
 
 test("session recovery returns to the visual workspace unless another project was explicitly selected", () => {
@@ -31,13 +34,13 @@ test("session recovery returns to the visual workspace unless another project wa
   );
 });
 
-test("the shared preview project opens the visual workspace at its canonical URL", () => {
+test("the legacy preview project ID no longer selects a separate demo environment", () => {
   assert.equal(
     shouldRenderVisualWorkspaceDemo(
       "/app",
       `?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`,
     ),
-    true,
+    false,
   );
 });
 
@@ -55,14 +58,14 @@ test("the visual preview route does not replace the data-backed workspace", () =
   );
 });
 
-test("the explicit visual-demo switch remains supported", () => {
-  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?view=visual"), true);
+test("legacy visual-demo query parameters cannot open a second product surface", () => {
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?view=visual"), false);
   assert.equal(
     shouldRenderVisualWorkspaceDemo(
       "/app",
       "?project=another-project&view=visual",
     ),
-    true,
+    false,
   );
 });
 
