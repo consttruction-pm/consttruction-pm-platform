@@ -2902,11 +2902,11 @@ async function main() {
       })()`,
       "committed layout width must be reflected in the visible activity grid",
     );
-    const columnDragAfter = await page.evaluate(`() => {
+    const columnDragAfter = await page.evaluate(`(() => {
       const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
         .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)} && item.getBoundingClientRect().width > 0);
       return header ? Number.parseFloat(header.style.width) : null;
-    }`);
+    })()`);
     assert(columnDragAfter >= committedColumnWidth, `the committed width must remain rendered: persisted=${committedColumnWidth}, rendered=${columnDragAfter}`);
 
     await page.drag('[data-resize-handle="details"]', 0, 36);
