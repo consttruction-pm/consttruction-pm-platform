@@ -1525,6 +1525,25 @@ def build_schedule_quality_audit(
     code_coverage, code_definition_count, code_assignment_count = _audit_activity_codes(
         audit_context, activity_rows, add
     )
+    approved_policy_pack = (
+        audit_context.get("approved_quality_policy_pack")
+        if isinstance(audit_context, Mapping)
+        else None
+    )
+    policy_repository_configured = (
+        bool(audit_context.get("quality_policy_repository_configured"))
+        if isinstance(audit_context, Mapping)
+        else False
+    )
+    quality_index, policy_coverage, policy_violation_count = _evaluate_approved_policy_pack(
+        approved_policy_pack if isinstance(approved_policy_pack, Mapping) else None,
+        policy_repository_configured=policy_repository_configured,
+        mode=str(payload.get("mode")),
+        activity_rows=activity_rows,
+        relationships=relationships,
+        constraints=constraints,
+        add=add,
+    )
 
     findings.sort(
         key=lambda item: (
@@ -1581,9 +1600,7 @@ def build_schedule_quality_audit(
             if resource_coverage.startswith("evaluated")
             else resource_coverage
         ),
-        "excessive_lag_threshold": "not_evaluated_policy_pack_required",
-        "long_duration_threshold": "not_evaluated_policy_pack_required",
-        "excessive_constraint_threshold": "not_evaluated_policy_pack_required",
+        **policy_coverage,
         "import_interchange_loss": "not_evaluated_persisted_import_reconciliation_required",
     }
     incomplete = [key for key, status in coverage.items() if status.startswith("not_evaluated")]
@@ -1631,14 +1648,10 @@ def build_schedule_quality_audit(
             "resource_period_count": resource_period_count,
             "activity_code_definition_count": code_definition_count,
             "activity_code_assignment_count": code_assignment_count,
+            "policy_threshold_violation_count": policy_violation_count,
             "activity_constraint_counts": dict(sorted(constraint_count_by_activity.items())),
         },
-        "quality_index": {
-            "status": "not_calculated",
-            "value": None,
-            "reason": "VERSIONED_WEIGHTED_POLICY_PACK_REQUIRED",
-            "score_components": [],
-        },
+        "quality_index": quality_index,
         "findings": findings,
         "coverage": coverage,
         "not_evaluated": incomplete,
