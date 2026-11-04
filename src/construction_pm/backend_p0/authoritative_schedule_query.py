@@ -17,6 +17,7 @@ from construction_pm.control_intelligence.contracts import SourceReference
 from construction_pm.control_intelligence.graph import ControlDomain
 from construction_pm.control_intelligence.scenario import ScenarioChange
 from construction_pm.control_intelligence.query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
+from construction_pm.control_intelligence.quality_audit import build_schedule_quality_audit
 from construction_pm.schedule_evaluator import (
     ScheduleEvaluationError,
     ScheduleEvaluationResult,
@@ -28,6 +29,7 @@ from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.leveling_cost_recalculation import LevelingCostInputs
+from construction_pm.scheduling.diagnostics import ScheduleInfeasibilityError
 
 
 @dataclass(frozen=True)
@@ -149,6 +151,41 @@ class AuthoritativeScheduleQueryProvider:
                 leveling_input=leveling_input,
                 cost_inputs=cost_inputs,
             )
+        except ScheduleInfeasibilityError as exc:
+            # The audit path can still report a deterministic structural/core
+            # finding when the Shared Core correctly rejects an infeasible
+            # network. Ordinary FACT/EXPLANATION queries remain fail-closed.
+            if request.kind is ScheduleQueryKind.QUALITY_AUDIT:
+                source = SourceReference(
+                    source_id=snapshot.snapshot_id,
+                    source_type="schedule-input-snapshot",
+                    locator=f"/schedule/input-snapshots/{snapshot.snapshot_id}",
+                    revision=request.scope.project_revision,
+                    content_hash=snapshot.snapshot_hash,
+                )
+                core_diagnostics = (
+                    ()
+                    if exc.code.value == "NETWORK_CYCLE"
+                    else (exc.diagnostic.to_payload(),)
+                )
+                report = build_schedule_quality_audit(
+                    snapshot.canonical_payload,
+                    core_diagnostics=core_diagnostics,
+                    evaluation_status="blocked",
+                )
+                report["evaluation_error_code"] = exc.code.value
+                return ScheduleQueryAnswer(
+                    query_id=request.query_id,
+                    scope=request.scope,
+                    answer_key="schedule.query.quality_audit",
+                    data={"quality_audit": report},
+                    source_refs=(source,),
+                )
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                str(exc) or "SCHEDULE_EVALUATION_FAILED",
+                "Schedule evaluation could not be completed from the immutable inputs.",
+            ) from exc
         except ValueError as exc:
             # Keep fail-closed calculation behavior while translating a core
             # rejection into the stable Schedule Query validation contract.
@@ -167,7 +204,7 @@ class AuthoritativeScheduleQueryProvider:
             content_hash=result.calculation_run_identity,
         )
 
-        data = _project_result(request, result, source)
+        data = _project_result(request, result, source, snapshot)
         return ScheduleQueryAnswer(
             query_id=request.query_id,
             scope=request.scope,
@@ -344,9 +381,25 @@ def _project_result(
     request: ScheduleQueryRequest,
     result: ScheduleEvaluationResult | None,
     source: SourceReference,
+    snapshot: ScheduleInputSnapshot | None = None,
 ) -> Mapping[str, object]:
     if request.kind is ScheduleQueryKind.SCENARIO:
         return _project_scenario_proposal(request, source)
+    if request.kind is ScheduleQueryKind.QUALITY_AUDIT:
+        if snapshot is None:
+            raise ValueError("SCHEDULE_AUDIT_SNAPSHOT_REQUIRED")
+        diagnostics = (
+            _diagnostic_payload(result)
+            if result is not None and result.date_result is not None
+            else ()
+        )
+        return {
+            "quality_audit": build_schedule_quality_audit(
+                snapshot.canonical_payload,
+                core_diagnostics=diagnostics,
+                evaluation_status="completed",
+            )
+        }
     if result is None:
         raise ValueError("SCHEDULE_EVALUATION_RESULT_REQUIRED")
     if result.date_result is not None:
