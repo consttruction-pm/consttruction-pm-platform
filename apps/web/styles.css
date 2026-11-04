@@ -7139,3 +7139,12 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-audit-history-card{display:grid;gap:.6rem;padding:.75rem;border:1px solid #d5dee8;border-radius:.65rem;background:#fff}
 .cp-audit-history-empty{margin:0;padding:.85rem;border:1px dashed #c5d0dc;border-radius:.45rem;background:#f8fafc;color:#677c90;text-align:center;font-size:.8rem}
 .cp-audit-history-open{min-height:1.8rem;padding:.3rem .55rem;font-size:.7rem}
+
+
+.cp-audit-history-note{display:flex;align-items:flex-start;gap:.6rem;padding:.65rem .75rem;border:1px solid #d6e0e9;border-radius:.55rem;background:#f7fafc;color:#3c5873}
+.cp-audit-history-note>span{display:grid;place-items:center;flex:0 0 1.3rem;width:1.3rem;height:1.3rem;border-radius:50%;background:#e8eef4;color:#44647f;font-weight:800}
+.cp-audit-history-note.is-saved{border-color:#c4d9cf;background:#f4faf6;color:#315d48}
+.cp-audit-history-note.is-saved>span{background:#dceee2;color:#2c7650}
+.cp-audit-history-note>div{display:grid;gap:.2rem;min-width:0}
+.cp-audit-history-note strong{font-size:.77rem}
+.cp-audit-history-note code{color:#627c91;font-size:.7rem;overflow-wrap:anywhere}
