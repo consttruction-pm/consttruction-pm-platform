@@ -170,11 +170,18 @@ def _audit_wbs_registry(
                 add("DUPLICATE_WBS_SIBLING_CODE", "critical", "quality.finding.duplicate_wbs_sibling_code", object_type="wbs", object_id=wbs_id)
             sibling_codes.add(code_key)
 
-    if not nodes or roots != 1:
+    if not nodes:
         add(
-            "PROJECT_WBS_ROOT_COUNT_INVALID",
+            "PROJECT_WBS_REGISTRY_EMPTY",
+            "warning",
+            "quality.finding.project_wbs_registry_empty",
+            evidence={"root_count": 0, "node_count": 0},
+        )
+    elif roots == 0:
+        add(
+            "PROJECT_WBS_ROOT_MISSING",
             "critical",
-            "quality.finding.project_wbs_root_count_invalid",
+            "quality.finding.project_wbs_root_missing",
             evidence={"root_count": roots, "node_count": len(nodes)},
         )
 
