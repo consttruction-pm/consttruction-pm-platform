@@ -54,6 +54,7 @@ class AuthoritativeScheduleQueryProvider:
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None
     quality_audit_context_loader: Callable[[BackendScope, AuthorizationContext], Mapping[str, object]] | None = None
     quality_audit_history_repository: ScheduleQualityAuditHistoryRepository | None = None
+    quality_audit_history_transaction_manager: object | None = None
 
     def _persist_quality_audit(
         self,
@@ -65,9 +66,13 @@ class AuthoritativeScheduleQueryProvider:
             report["audit_history"] = {"status": "not_configured", "audit_id": None}
             return
         try:
-            record: ScheduleQualityAuditHistoryRecord = self.quality_audit_history_repository.record(
-                scope, request.query_id, report
-            )
+            manager = self.quality_audit_history_transaction_manager
+            if manager is None:
+                raise RuntimeError("SCHEDULE_QUALITY_AUDIT_HISTORY_TRANSACTION_MANAGER_REQUIRED")
+            with manager.transaction():
+                record: ScheduleQualityAuditHistoryRecord = self.quality_audit_history_repository.record(
+                    scope, request.query_id, report
+                )
         except Exception as exc:
             raise BackendApplicationError(
                 ErrorCategory.VALIDATION,
