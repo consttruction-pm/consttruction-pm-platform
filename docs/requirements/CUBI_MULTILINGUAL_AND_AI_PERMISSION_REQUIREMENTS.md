@@ -1,4 +1,4 @@
-# CUBI Multilingual Experience and AI Assistant Permission Contract
+# CUBI Multilingual Experience and Engineering Command Assistant Permission Contract
 
 **Status:** Binding product requirement; implementation completion must be proven separately.  
 **Applies to:** Public website, authenticated Web workspace first, Desktop second, Mobile when delivered, shared APIs/services, reports/exports/help, offline workflows and the embedded CUBI assistant.
