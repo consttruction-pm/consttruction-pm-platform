@@ -1552,6 +1552,7 @@ function renderLanguageSwitch(state: DemoState): string {
 
 export function renderVisualDemo(state: DemoState): string {
   const index = WINDOWS.findIndex((window) => window.id === state.window);
+  const engineShellActive = isEngineeringShellWindow(state.window);
   const navGroups: Array<{ id: string; en: string; fa: string; items: DemoWindowId[] }> = [
     { id: "planning", en: "Planning & Schedule", fa: "برنامه‌ریزی و زمان‌بندی", items: ["wbs", "activities", "network", "trace", "timeline", "activity-profile", "resource-profile", "activity-sheet", "resource-sheet", "calendars"] },
     { id: "controls", en: "Project Controls", fa: "کنترل پروژه", items: ["assignments", "resources", "roles", "cost-control", "progress-control", "procurement", "tracking", "expenses", "thresholds", "issues"] },
@@ -1614,11 +1615,11 @@ export function renderVisualDemo(state: DemoState): string {
       </nav>
       <main class="cp-vd-main">${renderWindow(state)}</main>
       <aside class="cp-vd-right-rail" aria-label="${esc(t(state.locale, "Context commands", "فرمان‌های زمینه‌ای"))}">
-        <button type="button" class="cp-vd-rail-add" data-vd-dialog="module-actions" title="${esc(t(state.locale, "Add item", "افزودن آیتم"))}">＋<span>${esc(t(state.locale, "Add", "افزودن"))}</span></button>
-        <button type="button" data-vd-dialog="module-actions" title="${esc(t(state.locale, "Edit selected item", "ویرایش آیتم انتخاب‌شده"))}">✎</button>
-        <button type="button" data-vd-dialog="module-actions" title="${esc(t(state.locale, "Assign or link", "تخصیص یا پیوند"))}">↗</button>
-        <button type="button" data-vd-window="comments" title="${esc(t(state.locale, "Comments and notes", "دیدگاه‌ها و یادداشت‌ها"))}">▤</button>
-        <button type="button" data-vd-dialog="module-actions" title="${esc(t(state.locale, "More commands", "فرمان‌های بیشتر"))}">⋯</button>
+        <button type="button" class="cp-vd-rail-add" data-vd-dialog="module-actions" ${engineShellActive ? "disabled" : ""} title="${esc(t(state.locale, engineShellActive ? "Engine tools are planned and not connected yet." : "Add item", engineShellActive ? "ابزار موتور هنوز برنامه‌ریزی شده و متصل نیست." : "افزودن آیتم"))}">＋<span>${esc(t(state.locale, "Add", "افزودن"))}</span></button>
+        <button type="button" data-vd-dialog="module-actions" ${engineShellActive ? "disabled" : ""} title="${esc(t(state.locale, "Edit selected item", "ویرایش آیتم انتخاب‌شده"))}">✎</button>
+        <button type="button" data-vd-dialog="module-actions" ${engineShellActive ? "disabled" : ""} title="${esc(t(state.locale, "Assign or link", "تخصیص یا پیوند"))}">↗</button>
+        <button type="button" data-vd-window="comments" ${engineShellActive ? "disabled" : ""} title="${esc(t(state.locale, "Comments and notes", "دیدگاه‌ها و یادداشت‌ها"))}">▤</button>
+        <button type="button" data-vd-dialog="module-actions" ${engineShellActive ? "disabled" : ""} title="${esc(t(state.locale, "More commands", "فرمان‌های بیشتر"))}">⋯</button>
       </aside>
     </div>
     <div class="cp-vd-status"><span>${esc(t(state.locale, "Project", "پروژه"))}: CUBI-DEMO-001</span><span>${esc(t(state.locale, "Data date", "تاریخ داده"))}: <bdi dir="ltr">03-Dec-2026</bdi></span><span>${esc(t(state.locale, "Baseline", "خط مبنا"))}: BL-01</span><span>${esc(t(state.locale, "Window", "پنجره"))}: ${esc(label(WINDOWS[index] ?? WINDOWS[0], state.locale))}</span><span class="cp-vd-status-end">${esc(t(state.locale, "Preview data — not saved or calculated", "دادهٔ پیش‌نمایش — ذخیره یا محاسبه نشده"))}</span></div>
@@ -1780,6 +1781,7 @@ function bind(root: HTMLElement): void {
     state.history.push(state.window);
     state.forward.length = 0;
     state.window = id;
+    if (isEngineeringShellWindow(id)) state.engineDetailTab = "general";
     const groupByWindow: Partial<Record<DemoWindowId, string>> = {
       ...Object.fromEntries(ENGINEERING_SHELLS.map((item) => [item.id, "engineering"])) as Partial<Record<DemoWindowId, string>>,
       wbs: "planning", activities: "planning", network: "planning", trace: "planning", timeline: "planning",
