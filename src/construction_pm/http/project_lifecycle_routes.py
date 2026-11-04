@@ -28,6 +28,7 @@ from ..backend_p0.schedule_query import SCHEDULE_QUERY_VERSION, ScheduleQueryAPI
 from ..scheduling_code_reference_api import build_scheduling_code_reference_payload
 from ..control_intelligence.contracts import ControlScope
 from ..control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
+from ..control_intelligence.quality_audit_history_api import ScheduleQualityAuditHistoryAPI
 from ..backend_p0.models import BackendScope
 from ..calendar_master_repository import CalendarMasterRepository, SQLiteCalendarMasterRepository
 from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
@@ -232,6 +233,7 @@ class ProjectLifecycleHttpRoutes:
         backend_p0_api: BackendP0API | None = None,
         workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
         schedule_query_api: ScheduleQueryAPI | None = None,
+        schedule_quality_audit_history_api: ScheduleQualityAuditHistoryAPI | None = None,
         ai_action_runtime: AIActionRuntime | None = None,
         ai_assistant_orchestrator: AIAssistantTurnOrchestrator | None = None,
         form_builder_api: object | None = None,
@@ -273,6 +275,7 @@ class ProjectLifecycleHttpRoutes:
         self._backend_p0_api = backend_p0_api
         self._workspace_read_v2_service = workspace_read_v2_service
         self._schedule_query_api = schedule_query_api
+        self._schedule_quality_audit_history_api = schedule_quality_audit_history_api
         self._ai_action_runtime = ai_action_runtime
         self._ai_assistant_orchestrator = ai_assistant_orchestrator
         self._form_builder_routes = (
@@ -320,6 +323,61 @@ class ProjectLifecycleHttpRoutes:
             )
             if earned_value_response is not None:
                 return earned_value_response
+            parsed_route = urlsplit(path)
+            history_collection_path = "/api/v1/schedule/quality-audits"
+            if method == "GET" and (
+                parsed_route.path == history_collection_path
+                or (
+                    parsed_route.path.startswith(history_collection_path + "/")
+                    and parsed_route.path.count("/") == history_collection_path.count("/") + 1
+                )
+            ):
+                history_api = self._schedule_quality_audit_history_api
+                if history_api is None:
+                    return self._error(404, "SCHEDULE_QUALITY_AUDIT_HISTORY_NOT_CONFIGURED", "error.route.not_found")
+                parameters = parse_qs(parsed_route.query, keep_blank_values=True)
+                project_values = parameters.get("project_id", [])
+                if len(project_values) != 1 or not project_values[0].strip():
+                    return self._error(400, "SCHEDULE_QUALITY_AUDIT_PROJECT_REQUIRED", "error.request.invalid")
+                try:
+                    context = self._api.open_project(
+                        session_id, project_values[0], now=now
+                    ).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(
+                    context.tenant_id, context.project_id, context.revision
+                )
+                try:
+                    if parsed_route.path == history_collection_path:
+                        raw_limits = parameters.get("limit", ["100"])
+                        if len(raw_limits) != 1:
+                            return self._error(400, "SCHEDULE_QUALITY_AUDIT_LIMIT_INVALID", "error.request.invalid")
+                        try:
+                            limit = int(raw_limits[0])
+                        except (TypeError, ValueError):
+                            return self._error(400, "SCHEDULE_QUALITY_AUDIT_LIMIT_INVALID", "error.request.invalid")
+                        result = history_api.list_for_project(
+                            scope, auth_context=auth, limit=limit
+                        )
+                    else:
+                        audit_id = parsed_route.path[len(history_collection_path) + 1:]
+                        if not audit_id or "/" in audit_id:
+                            return self._error(400, "SCHEDULE_QUALITY_AUDIT_ID_INVALID", "error.request.invalid")
+                        result = history_api.get(
+                            scope, audit_id, auth_context=auth
+                        )
+                        if result is None:
+                            return self._error(404, "SCHEDULE_QUALITY_AUDIT_NOT_FOUND", "error.schedule_audit.not_found")
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    return self._error(400, str(exc), "error.request.invalid")
+                return self._json(200, result)
             if method == "GET" and path == "/api/v1/schedule/code-reference":
                 # The catalogue contains no project records, but a valid active session is required.
                 self._api.get_session(session_id, now=now)
