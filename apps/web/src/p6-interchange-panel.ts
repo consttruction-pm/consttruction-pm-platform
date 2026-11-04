@@ -59,6 +59,7 @@ export type InterchangePanelLabels = {
   importHistoryLoading: string;
   importHistoryFailed: string;
   importHistoryEmpty: string;
+  importHistoryNotConfigured: string;
   importHistoryOpen: string;
   importHistoryRows: string;
   importHistoryWarnings: string;
@@ -124,6 +125,7 @@ const LABELS: Record<"en" | "fa", InterchangePanelLabels> = {
     importHistoryLoading: "Loading project import history…",
     importHistoryFailed: "Project import history could not be loaded.",
     importHistoryEmpty: "No import batches have been recorded for this project.",
+    importHistoryNotConfigured: "The import ledger is not configured for this project environment.",
     importHistoryOpen: "View evidence",
     importHistoryRows: "Rows",
     importHistoryWarnings: "Warnings",
@@ -187,6 +189,7 @@ const LABELS: Record<"en" | "fa", InterchangePanelLabels> = {
     importHistoryLoading: "در حال خواندن تاریخچهٔ ورود پروژه…",
     importHistoryFailed: "خواندن تاریخچهٔ ورود پروژه ممکن نشد.",
     importHistoryEmpty: "هنوز نوبت ورودی برای این پروژه ثبت نشده است.",
+    importHistoryNotConfigured: "دفتر ثبت ورود اطلاعات برای محیط این پروژه پیکربندی نشده است.",
     importHistoryOpen: "مشاهدهٔ شواهد",
     importHistoryRows: "ردیف‌ها",
     importHistoryWarnings: "هشدارها",
@@ -407,7 +410,10 @@ export function renderInterchangeImportBatchList(
   result: InterchangeImportBatchList,
   labels: InterchangePanelLabels,
 ): string {
-  if (result.status === "not_configured" || result.batches.length === 0) {
+  if (result.status === "not_configured") {
+    return `<p class="cp-empty" role="status">${escapeHtml(labels.importHistoryNotConfigured)}</p>`;
+  }
+  if (result.batches.length === 0) {
     return `<p class="cp-empty" role="status">${escapeHtml(labels.importHistoryEmpty)}</p>`;
   }
   return `<div class="cp-table-wrap"><table class="cp-interchange-table">
@@ -432,6 +438,10 @@ export function renderInterchangeImportBatchList(
   </table></div>`;
 }
 
+function isInterchangeRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export function renderInterchangeImportBatchDetail(
   detail: InterchangeImportBatchDetail,
   labels: InterchangePanelLabels,
@@ -448,7 +458,7 @@ export function renderInterchangeImportBatchDetail(
     const preserved = Array.isArray(row.preserved_extension_fields) ? row.preserved_extension_fields : [];
     const source = Array.isArray(row.source_fields) ? row.source_fields : [];
     const canonical = Array.isArray(row.canonical_fields) ? row.canonical_fields : [];
-    const hashes = isRecord(row.source_value_hashes) ? Object.entries(row.source_value_hashes) : [];
+    const hashes = isInterchangeRecord(row.source_value_hashes) ? Object.entries(row.source_value_hashes) : [];
     return `<article class="cp-interchange-row-evidence">
       <strong>${escapeHtml(labels.row)} ${escapeHtml(String(Number(row.row_index ?? 0) + 1))}</strong>
       <dl>
