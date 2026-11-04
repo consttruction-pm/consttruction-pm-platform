@@ -1,9 +1,11 @@
 # CUBI Workspace Information Architecture
 
 Status: Phase 3 blueprint. Implementation starts after this document set is merged.
-Scope: the authenticated CUBI workspace only. Public marketing pages, pricing and site identity are out of scope and must not be changed by this programme.
+Scope: the authenticated CUBI workspace only. Public marketing pages, pricing and site identity are out of scope and must not be changed by this programme. The website/product entry sequence and the single-workspace rule are governed by [`CUBI_PRODUCT_SURFACE_ARCHITECTURE.md`](../../product/CUBI_PRODUCT_SURFACE_ARCHITECTURE.md).
 
 ## Product intent
+
+This document defines the interior of the single canonical CUBI Visual Workspace. It does not define a second application or a competing dashboard. Public website pages are ordinary public pages; the product entry point leads into this one workspace.
 
 CUBI's workspace is a professional project-controls environment, not a SaaS dashboard. It must feel like a desktop planning tool that happens to run in the browser: persistent menus, a dense activity table, a synchronised Gantt, configurable detail tabs, saved layouts and real data operations.
 
