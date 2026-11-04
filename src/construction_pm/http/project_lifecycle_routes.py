@@ -29,6 +29,11 @@ from ..scheduling_code_reference_api import build_scheduling_code_reference_payl
 from ..control_intelligence.contracts import ControlScope
 from ..control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
 from ..control_intelligence.quality_audit_history_api import ScheduleQualityAuditHistoryAPI
+from ..control_intelligence.quality_policy_pack import (
+    SCORING_METHOD,
+    ScheduleQualityPolicyPack,
+)
+from ..control_intelligence.quality_policy_pack_api import ScheduleQualityPolicyAPI
 from ..backend_p0.models import BackendScope
 from ..calendar_master_repository import CalendarMasterRepository, SQLiteCalendarMasterRepository
 from ..calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
@@ -234,6 +239,7 @@ class ProjectLifecycleHttpRoutes:
         workspace_read_v2_service: WorkspaceControlRoomReadService | None = None,
         schedule_query_api: ScheduleQueryAPI | None = None,
         schedule_quality_audit_history_api: ScheduleQualityAuditHistoryAPI | None = None,
+        schedule_quality_policy_api: ScheduleQualityPolicyAPI | None = None,
         ai_action_runtime: AIActionRuntime | None = None,
         ai_assistant_orchestrator: AIAssistantTurnOrchestrator | None = None,
         form_builder_api: object | None = None,
@@ -276,6 +282,7 @@ class ProjectLifecycleHttpRoutes:
         self._workspace_read_v2_service = workspace_read_v2_service
         self._schedule_query_api = schedule_query_api
         self._schedule_quality_audit_history_api = schedule_quality_audit_history_api
+        self._schedule_quality_policy_api = schedule_quality_policy_api
         self._ai_action_runtime = ai_action_runtime
         self._ai_assistant_orchestrator = ai_assistant_orchestrator
         self._form_builder_routes = (
@@ -378,6 +385,71 @@ class ProjectLifecycleHttpRoutes:
                 except ValueError as exc:
                     return self._error(400, str(exc), "error.request.invalid")
                 return self._json(200, result)
+            policy_collection_path = "/p6/quality-policy-packs"
+            if method in {"GET", "POST"} and "/api/projects/" in path and policy_collection_path in path:
+                prefix, policy_suffix = path.split(policy_collection_path, 1)
+                if not prefix.startswith("/api/projects/"):
+                    return self._error(400, "SCHEDULE_QUALITY_POLICY_ROUTE_INVALID", "error.request.invalid")
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or "/" in project_id:
+                    return self._error(400, "SCHEDULE_QUALITY_POLICY_PROJECT_INVALID", "error.request.invalid")
+                policy_api = self._schedule_quality_policy_api
+                if policy_api is None:
+                    return self._error(404, "SCHEDULE_QUALITY_POLICY_NOT_CONFIGURED", "error.route.not_found")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    session = self._api.get_session(session_id, now=now)
+                    auth = context.authorization_context(session.roles)
+                    scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                    if method == "GET" and policy_suffix == "":
+                        return self._json(200, policy_api.list(scope, auth_context=auth))
+                    if method == "GET" and policy_suffix == "/approved":
+                        approved = policy_api.latest_approved(scope, auth_context=auth)
+                        return self._json(200, {
+                            "contract_version": "schedule-quality-policy-api.v1",
+                            "scope": {"tenant_id": scope.tenant_id, "project_id": scope.project_id},
+                            "policy_pack": None if approved is None else approved["policy_pack"],
+                        })
+                    if method == "POST" and policy_suffix == "":
+                        request = json.loads(body.decode("utf-8") or "{}")
+                        if not isinstance(request, dict):
+                            return self._error(400, "SCHEDULE_QUALITY_POLICY_REQUEST_INVALID", "error.request.invalid")
+                        pack = ScheduleQualityPolicyPack(
+                            scope=scope,
+                            policy_id=str(request.get("policy_id", "")),
+                            version=str(request.get("version", "")),
+                            name=str(request.get("name", "")),
+                            scoring_method=str(request.get("scoring_method", SCORING_METHOD)),
+                            thresholds=request.get("thresholds", {}),
+                            weights=request.get("weights", {}),
+                            created_by=auth.user_id,
+                            created_at=now,
+                        )
+                        return self._json(201, policy_api.create(pack, auth_context=auth))
+                    if method == "POST":
+                        parts = [part for part in policy_suffix.strip("/").split("/") if part]
+                        if len(parts) != 3 or parts[2] != "approve":
+                            return self._error(400, "SCHEDULE_QUALITY_POLICY_ROUTE_INVALID", "error.request.invalid")
+                        result = policy_api.approve(
+                            scope, parts[0], parts[1], auth_context=auth
+                        )
+                        return self._json(200, result)
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(400, str(exc), "error.request.invalid")
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except json.JSONDecodeError:
+                    return self._error(400, "SCHEDULE_QUALITY_POLICY_REQUEST_INVALID", "error.request.invalid")
+                except ValueError as exc:
+                    code = str(exc) or "SCHEDULE_QUALITY_POLICY_REQUEST_INVALID"
+                    status = 409 if code in {
+                        "SCHEDULE_QUALITY_POLICY_VERSION_REUSED",
+                        "SCHEDULE_QUALITY_POLICY_ALREADY_APPROVED_OR_INVALID",
+                    } else 400
+                    return self._error(status, code, "error.request.invalid")
             if method == "GET" and path == "/api/v1/schedule/code-reference":
                 # The catalogue contains no project records, but a valid active session is required.
                 self._api.get_session(session_id, now=now)
