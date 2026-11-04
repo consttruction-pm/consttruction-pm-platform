@@ -19,15 +19,9 @@ test("every app entry uses the single authenticated Visual Workspace", () => {
   assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?project=project-123"), false);
 });
 
-test("session recovery returns to the visual workspace unless another project was explicitly selected", () => {
-  assert.equal(
-    workspaceLoginNextPath(null),
-    `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`,
-  );
-  assert.equal(
-    workspaceLoginNextPath(VISUAL_WORKSPACE_PREVIEW_PROJECT_ID),
-    `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`,
-  );
+test("session recovery returns to the canonical workspace without forcing a demo project", () => {
+  assert.equal(workspaceLoginNextPath(null), "/app");
+  assert.equal(workspaceLoginNextPath(VISUAL_WORKSPACE_PREVIEW_PROJECT_ID), "/app");
   assert.equal(
     workspaceLoginNextPath("project-123"),
     "/app?project=project-123&view=live",
