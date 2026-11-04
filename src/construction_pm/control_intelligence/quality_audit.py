@@ -37,46 +37,50 @@ def _cycle_components(
     activity_ids: set[str],
     adjacency: Mapping[str, set[str]],
 ) -> list[tuple[str, ...]]:
-    """Return strongly connected components that actually contain a cycle."""
-    index = 0
-    stack: list[str] = []
-    on_stack: set[str] = set()
-    indices: dict[str, int] = {}
-    lowlink: dict[str, int] = {}
-    components: list[tuple[str, ...]] = []
+    """Return cyclic strongly connected components with iterative Kosaraju DFS."""
+    reverse: dict[str, set[str]] = defaultdict(set)
+    for predecessor, successors in adjacency.items():
+        for successor in successors:
+            if predecessor in activity_ids and successor in activity_ids:
+                reverse[successor].add(predecessor)
 
-    def visit(node: str) -> None:
-        nonlocal index
-        indices[node] = index
-        lowlink[node] = index
-        index += 1
-        stack.append(node)
-        on_stack.add(node)
-
-        for successor in sorted(adjacency.get(node, set())):
-            if successor not in activity_ids:
+    visited: set[str] = set()
+    finish_order: list[str] = []
+    for start in sorted(activity_ids):
+        if start in visited:
+            continue
+        visited.add(start)
+        pending = [(start, iter(sorted(adjacency.get(start, set()))))]
+        while pending:
+            node, successors = pending[-1]
+            try:
+                successor = next(successors)
+            except StopIteration:
+                pending.pop()
+                finish_order.append(node)
                 continue
-            if successor not in indices:
-                visit(successor)
-                lowlink[node] = min(lowlink[node], lowlink[successor])
-            elif successor in on_stack:
-                lowlink[node] = min(lowlink[node], indices[successor])
+            if successor in activity_ids and successor not in visited:
+                visited.add(successor)
+                pending.append((successor, iter(sorted(adjacency.get(successor, set())))))
 
-        if lowlink[node] == indices[node]:
-            component: list[str] = []
-            while stack:
-                current = stack.pop()
-                on_stack.remove(current)
-                component.append(current)
-                if current == node:
-                    break
-            has_self_loop = len(component) == 1 and component[0] in adjacency.get(component[0], set())
-            if len(component) > 1 or has_self_loop:
-                components.append(tuple(sorted(component)))
-
-    for activity_id in sorted(activity_ids):
-        if activity_id not in indices:
-            visit(activity_id)
+    visited.clear()
+    components: list[tuple[str, ...]] = []
+    for start in reversed(finish_order):
+        if start in visited:
+            continue
+        component: list[str] = []
+        pending_nodes = [start]
+        visited.add(start)
+        while pending_nodes:
+            node = pending_nodes.pop()
+            component.append(node)
+            for predecessor in reverse.get(node, set()):
+                if predecessor not in visited:
+                    visited.add(predecessor)
+                    pending_nodes.append(predecessor)
+        self_loop = len(component) == 1 and component[0] in adjacency.get(component[0], set())
+        if len(component) > 1 or self_loop:
+            components.append(tuple(sorted(component)))
     return sorted(components)
 
 
@@ -254,6 +258,8 @@ def build_schedule_quality_audit(
     open_successors = 0
     for activity_id, activity in sorted(activity_rows.items()):
         activity_type = activity.get("activity_type")
+        if activity.get("status_code") == "Inactive":
+            continue
         if predecessor_count[activity_id] == 0 and activity_type not in {
             "Start Milestone",
             "WBS Summary",
@@ -420,7 +426,12 @@ def build_schedule_quality_audit(
         "relationship_integrity": "evaluated",
         "network_cycles": "evaluated",
         "negative_float_and_core_diagnostics": (
-            "evaluated" if evaluation_status == "completed" or core_diagnostics else "not_evaluated"
+            "evaluated"
+            if payload.get("mode") == "DATE_BASED"
+            and (evaluation_status == "completed" or core_diagnostics)
+            else "not_applicable_time_aware"
+            if payload.get("mode") == "TIME_AWARE" and evaluation_status == "completed"
+            else "not_evaluated"
         ),
         "lead_inventory": "evaluated",
         "excessive_lag_threshold": "not_evaluated_policy_pack_required",
