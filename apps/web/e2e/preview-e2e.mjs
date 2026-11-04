@@ -979,7 +979,7 @@ class Page {
   /** Native CDP mouse drag, producing genuine browser pointer events. */
   async drag(selector, deltaX, deltaY) {
     const point = await this.evaluate(`(() => {
-      const matches = Array.from(document.querySelectorAll(${JSON.stringify(selector)});
+      const matches = Array.from(document.querySelectorAll(${JSON.stringify(selector)}));
       const isVisible = (element) => {
         const rect = element.getBoundingClientRect();
         const style = getComputedStyle(element);
