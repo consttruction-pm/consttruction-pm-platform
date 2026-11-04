@@ -671,3 +671,59 @@ def test_audit_allows_multiple_project_level_wbs_branches() -> None:
     assert "PROJECT_WBS_REGISTRY_EMPTY" not in rules
     assert "PROJECT_WBS_ROOT_COUNT_INVALID" not in rules
     assert report["summary"]["wbs_node_count"] == 2
+
+
+def test_time_aware_audit_uses_offset_aware_actual_start_and_duration_lag() -> None:
+    payload = json.dumps(
+        {
+            "snapshot_id": "snapshot-time-audit",
+            "tenant_id": "tenant-1",
+            "project_id": "project-1",
+            "project_revision": 7,
+            "mode": "TIME_AWARE",
+            "activities": [
+                {
+                    "id": "A",
+                    "activity_type": "Task Dependent",
+                    "status": "In Progress",
+                    "actual_start": "2026-11-04T10:00:00+00:00",
+                },
+                {
+                    "id": "B",
+                    "activity_type": "Task Dependent",
+                    "status": "In Progress",
+                    "actual_start": "2026-11-04T09:00:00+00:00",
+                },
+            ],
+            "relationships": [
+                {
+                    "predecessor_id": "A",
+                    "successor_id": "B",
+                    "type": "SS",
+                    "lag": {"value": "0", "unit": "WORKING_HOUR"},
+                }
+            ],
+            "constraints": [],
+            "activity_calendar_assignments": [],
+            "schedule_options": {
+                "data_date": "2026-11-04T09:30:00+00:00",
+            },
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    report = build_schedule_quality_audit(payload)
+    rules = {item["rule_id"] for item in report["findings"]}
+    candidate = next(
+        item for item in report["findings"]
+        if item["rule_id"] == "OUT_OF_SEQUENCE_PROGRESS_CANDIDATE"
+    )
+
+    assert "ACTUAL_AFTER_DATA_DATE" in rules
+    assert candidate["evidence"]["relationship_type"] == "SS"
+    assert candidate["evidence"]["rule_scope"] == "TIME_AWARE_ZERO_LAG_SS_ACTUAL_START_ONLY"
+    assert report["coverage"]["progress_out_of_sequence"] == (
+        "evaluated_time_aware_ss_actual_start_only"
+    )
+    assert report["coverage"]["data_date_actual_consistency"] == "evaluated"
