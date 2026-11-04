@@ -53,11 +53,17 @@ class ScheduleQualityAuditHistoryAPI:
         record = self.repository.get(scope.tenant_id, scope.project_id, audit_id)
         if record is None:
             return None
+        report = dict(record.report)
+        report["audit_history"] = {
+            "status": "persisted",
+            "audit_id": record.audit_id,
+            "created_at": record.created_at.isoformat(),
+        }
         return {
             "contract_version": SCHEDULE_QUALITY_AUDIT_HISTORY_VERSION,
             "audit": {
                 **self._summary(record),
-                "report": dict(record.report),
+                "report": report,
             },
         }
 
