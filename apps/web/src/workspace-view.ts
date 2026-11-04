@@ -804,7 +804,7 @@ function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState):
   return previous.context === next.context && previous.locale === next.locale && previous.direction === next.direction && previous.calendarMode === next.calendarMode && previous.ganttScale === next.ganttScale && previous.showGanttRelationships === next.showGanttRelationships && previous.visiblePanels === next.visiblePanels && previous.columns === next.columns && previous.activities === next.activities && previous.wbsNodes === next.wbsNodes && previous.relationships === next.relationships && previous.activityFilter === next.activityFilter && previous.activityGroupBy === next.activityGroupBy && previous.activitySort === next.activitySort && previous.controlSummary === next.controlSummary && previous.smartGuide === next.smartGuide && previous.siteDailyLogs === next.siteDailyLogs && previous.timecards === next.timecards && previous.equipmentReports === next.equipmentReports && previous.fieldIssues === next.fieldIssues && previous.changeNotices === next.changeNotices && previous.changeCases === next.changeCases && previous.claims === next.claims && previous.changeClaimImpacts === next.changeClaimImpacts && previous.documents === next.documents && previous.procurementRecords === next.procurementRecords && previous.inspections === next.inspections && previous.qualityRecords === next.qualityRecords && previous.safetyObservations === next.safetyObservations && previous.punchItems === next.punchItems && previous.p6FieldRegistry === next.p6FieldRegistry && previous.p6Layout === next.p6Layout;
 }
 
-function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: WorkspaceState, next: WorkspaceState): boolean {
+function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: WorkspaceState, next: WorkspaceState, options: WorkspaceRendererOptions): boolean {
   if (!canIncrementallyUpdate(previous, next)) return false;
   const menuChanged = previous.activeMenu !== next.activeMenu;
   const wbsChanged = previous.selectedWbsId !== next.selectedWbsId;
@@ -826,7 +826,7 @@ function applyIncrementalWorkspaceUpdate(container: HTMLElement, previous: Works
     const kind = container.querySelector<HTMLElement>("[data-activity-header] .cp-p6-activity-heading span");
     if (kind) kind.textContent = next.activeMenu === "schedule" ? uiText(next.locale, "Activity workspace", "محیط کار فعالیت") : uiText(next.locale, "Workspace page", "صفحهٔ محیط کار");
     const stage = container.querySelector<HTMLElement>("#cp-p6-module-stage");
-    if (stage) stage.outerHTML = renderP6ModuleStage(container, next, labels);
+    if (stage) stage.outerHTML = renderP6ModuleStage(container, next, labels, options);
     container.querySelector<HTMLElement>("[data-nav-flyout]")?.setAttribute("hidden", "");
     const schedulingReference = container.querySelector<HTMLElement>("#cp-scheduling-reference");
     if (schedulingReference) schedulingReference.hidden = next.activeMenu !== "schedule";
@@ -905,7 +905,7 @@ export type WorkspaceRendererOptions = {
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
   const previous = workspaceRenderRecords.get(container);
-  if (previous && applyIncrementalWorkspaceUpdate(container, previous.state, state)) {
+  if (previous && applyIncrementalWorkspaceUpdate(container, previous.state, state, options)) {
     workspaceRenderRecords.set(container, { state, options });
     return;
   }
@@ -1132,7 +1132,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}
                 </section>
               </section>
-              ${renderP6ModuleStage(container, state, t)}
+              ${renderP6ModuleStage(container, state, t, options)}
             </div>
             <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading">${renderWindowDetailsPanel(state, t, container)}</aside>
           </main>
@@ -1279,7 +1279,7 @@ function renderCalendarCatalog(state: WorkspaceState): string {
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
 
-function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: WorkspaceLabels): string {
+function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: WorkspaceLabels, options: WorkspaceRendererOptions): string {
   if (state.activeMenu === "schedule") return `<section id="cp-p6-module-stage" class="cp-p6-module-stage" data-workspace-menu="schedule" hidden></section>`;
   const navigation = getWorkspaceNavigation(state.activeMenu);
   const title = getWorkspaceNavigationLabel(navigation, state.locale);
@@ -1439,7 +1439,8 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
     case "settings":
       body = `
         <p>${escapeHtml(uiText(state.locale, "Project settings are edited through the existing authoritative project service.", "تنظیمات پروژه از طریق سرویس مرجع موجود پروژه ویرایش می‌شود."))}</p>
-        ${controls(projectSettingsButton(state, t))}`;
+        ${controls(projectSettingsButton(state, t))}
+        ${renderSettingsLayoutAdministration(state, options)}`;
       break;
     default:
       body = "";
@@ -2122,6 +2123,29 @@ function renderActivityFilterSort(
     <button type="button" data-activity-sort-direction title="${escapeAttribute(direction === "asc" ? t.sortAscending : t.sortDescending)}" aria-label="${escapeAttribute(direction === "asc" ? t.sortAscending : t.sortDescending)}" ${sort ? "" : "disabled"}>${direction === "asc" ? "↑" : "↓"}</button>
     <output data-activity-count aria-live="polite">${visibleCount} / ${state.activities.length} ${escapeHtml(t.matchingActivities)}</output>
   </div>`;
+}
+
+function renderSettingsLayoutAdministration(state: WorkspaceState, options: WorkspaceRendererOptions): string {
+  const heading = `<div class="cp-settings-layout-heading"><h3>${escapeHtml(uiText(state.locale, "Layout Administration", "مدیریت چیدمان"))}</h3><span>${escapeHtml(uiText(state.locale, "Activity grid · persisted layout", "شبکه فعالیت · چیدمان ذخیره‌شده"))}</span></div>`;
+  const layout = state.p6Layout;
+  if (!layout) {
+    return `<section class="cp-settings-layout" data-settings-layout aria-label="${escapeAttribute(uiText(state.locale, "Layout administration", "مدیریت چیدمان"))}">${heading}<p class="cp-settings-layout-empty">${escapeHtml(uiText(state.locale, "No saved activity-grid layout is loaded for this project revision. The project service did not return a layout, so this page shows no field list and invents no layout.", "هیچ چیدمان ذخیره‌شدهٔ شبکهٔ فعالیت برای این ویرایش پروژه بارگذاری نشده است. سرویس پروژه چیدمانی برنگردانده؛ بنابراین این صفحه فهرست فیلدی نمایش نمی‌دهد و چیدمانی نمی‌سازد."))}</p></section>`;
+  }
+  const visibleColumns = layout.columns.filter((column) => column.visible).length;
+  const facts: ReadonlyArray<readonly [string, string]> = [
+    [uiText(state.locale, "Scope", "دامنه"), layout.scope],
+    [uiText(state.locale, "View", "نما"), layout.view_id],
+    [uiText(state.locale, "Revision", "ویرایش"), `R${layout.revision}`],
+    [uiText(state.locale, "Columns", "ستون‌ها"), `${visibleColumns} / ${layout.columns.length}`],
+  ];
+  const revisionsPending = Boolean(options.layoutHistory) && !options.layoutHistory?.revisions;
+  return `<section class="cp-settings-layout" data-settings-layout aria-label="${escapeAttribute(uiText(state.locale, "Layout administration", "مدیریت چیدمان"))}">
+    ${heading}
+    <dl class="cp-settings-layout-facts">${facts.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>
+    ${renderP6FieldChooser(state, options.layoutHistory)}
+    ${revisionsPending ? `<p class="cp-settings-layout-note" role="status">${escapeHtml(uiText(state.locale, "Saved revisions are loaded when layout history is requested; no revision list is shown before the server responds.", "نسخه‌های ذخیره‌شده هنگام درخواست تاریخچهٔ چیدمان بارگذاری می‌شوند؛ پیش از پاسخ سرور هیچ فهرست نسخه‌ای نمایش داده نمی‌شود."))}</p>` : ""}
+    <p class="cp-register-notice">${escapeHtml(uiText(state.locale, "Layout changes persist through the shared layout contract with optimistic revision checks. Only the activity-grid layout is exposed; other surfaces keep the shared contract until their own layouts are stored.", "تغییرات چیدمان از طریق قرارداد مشترک چیدمان با بررسی خوش‌بینانهٔ ویرایش ذخیره می‌شود. فقط چیدمان شبکهٔ فعالیت در دسترس است؛ سایر سطوح تا ذخیرهٔ چیدمان خود از همان قرارداد مشترک استفاده می‌کنند."))}</p>
+  </section>`;
 }
 
 function renderP6FieldChooser(

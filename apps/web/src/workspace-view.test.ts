@@ -1807,3 +1807,124 @@ test("desktop workbench keeps contextual Add actions visibly unavailable until w
   assert.match(html, /role="menuitem" disabled/);
   assert.match(html, /create workflow is not connected yet/);
 });
+
+test("Settings layout administration states honestly when no layout is loaded", () => {
+  const html = render("en", "settings");
+  assert.match(html, /data-settings-layout/);
+  assert.match(html, /Layout Administration/);
+  assert.match(html, /No saved activity-grid layout is loaded for this project revision/);
+  assert.match(html, /id="cp-project-settings-open"/);
+  assert.doesNotMatch(html, /data-p6-layout-undo/);
+  assert.doesNotMatch(html, /data-p6-field-add/);
+});
+
+test("Settings layout administration reads the persisted layout and dispatches history actions", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "settings" as const,
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "26",
+      status: "active",
+      fields: [
+        {
+          field_id: "activity.activity_id",
+          subject_area: "activity",
+          p6_field: "Activity ID",
+          display_name: "Activity ID",
+          data_type: "string",
+          writable: false,
+          computed: false,
+          disposition: "supported",
+        },
+        {
+          field_id: "activity.name",
+          subject_area: "activity",
+          p6_field: "Activity Name",
+          display_name: "Activity Name",
+          data_type: "string",
+          writable: false,
+          computed: false,
+          disposition: "supported",
+        },
+      ],
+    } as const,
+    p6Layout: {
+      schema_version: "p6-layout.v1",
+      scope: "project",
+      view_id: "activity-grid",
+      revision: 4,
+      columns: [
+        {
+          field_id: "activity.activity_id",
+          visible: true,
+          order: 0,
+          width: 120,
+          alignment: "start",
+          pinned: false,
+          frozen: false,
+        },
+        {
+          field_id: "activity.name",
+          visible: false,
+          order: 1,
+          width: 240,
+          alignment: "start",
+          pinned: false,
+          frozen: false,
+        },
+      ],
+    } as const,
+  };
+  const events: string[] = [];
+  let clickListener: ((event: Event) => void) | undefined;
+  const undoButton = { dataset: { p6LayoutUndo: "" }, closest: () => undoButton };
+  const redoButton = { dataset: { p6LayoutRedo: "" }, closest: () => redoButton };
+  const restoreButton = { dataset: { p6LayoutRestore: "" }, closest: () => restoreButton };
+  const revisionSelect = { value: "2" };
+  const container: RenderContainer & {
+    addEventListener: (event: string, listener: (event: Event) => void) => void;
+    querySelector: (selector: string) => unknown;
+  } = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (event, listener) => { if (event === "click") clickListener = listener; },
+    querySelector: (selector) => selector === "[data-p6-layout-revision-select]" ? revisionSelect : null,
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    layoutHistory: {
+      canUndo: true,
+      canRedo: false,
+      revisions: [
+        { revision: 4, columnCount: 2 },
+        { revision: 2, columnCount: 1 },
+      ],
+    },
+    onP6LayoutUndo: () => events.push("undo"),
+    onP6LayoutRedo: () => events.push("redo"),
+    onP6LayoutRestore: (revision) => events.push(`restore:${revision}`),
+  });
+
+  assert.match(container.innerHTML, /data-settings-layout/);
+  assert.match(container.innerHTML, /aria-label="Layout administration"/);
+  assert.match(container.innerHTML, /<dt>Scope<\/dt><dd>project<\/dd>/);
+  assert.match(container.innerHTML, /<dt>View<\/dt><dd>activity-grid<\/dd>/);
+  assert.match(container.innerHTML, /<dt>Revision<\/dt><dd>R4<\/dd>/);
+  assert.match(container.innerHTML, /<dt>Columns<\/dt><dd>1 \/ 2<\/dd>/);
+  assert.match(container.innerHTML, /Field Registry · project · R4/);
+  const undoMarkup = container.innerHTML.match(/<button[^>]*data-p6-layout-undo[^>]*>/)?.[0] ?? "";
+  const redoMarkup = container.innerHTML.match(/<button[^>]*data-p6-layout-redo[^>]*>/)?.[0] ?? "";
+  const restoreMarkup = container.innerHTML.match(/<button[^>]*data-p6-layout-restore[^>]*>/)?.[0] ?? "";
+  assert.ok(!undoMarkup.includes("disabled"), "undo must be enabled when canUndo is true");
+  assert.ok(redoMarkup.includes("disabled"), "redo must be disabled when canRedo is false");
+  assert.ok(!restoreMarkup.includes("disabled"), "restore must be enabled when older revisions exist");
+  assert.match(container.innerHTML, /<option value="2">R2 · 1 column\(s\)<\/option>/);
+  assert.match(container.innerHTML, /Only the activity-grid layout is exposed/);
+
+  clickListener?.({ target: undoButton } as unknown as Event);
+  clickListener?.({ target: redoButton } as unknown as Event);
+  clickListener?.({ target: restoreButton } as unknown as Event);
+  assert.deepEqual(events, ["undo", "redo", "restore:2"]);
+});
