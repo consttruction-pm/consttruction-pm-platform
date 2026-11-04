@@ -78,7 +78,7 @@ test("each engineering shell opens through the visual workspace window router an
     state.engineDetailTab = "methods";
     const html = renderVisualDemo(state);
     assert.ok(html.includes('data-engine-window="' + item.id + '"'), item.id);
-    assert.match(html, /data-vd-engine-tab="methods"[^>]*aria-selected="true"/, item.id);
+    assert.match(html, /aria-selected="true" data-vd-engine-tab="methods"/, item.id);
     assert.match(html, /پوسته بصری/, item.id);
   }
 });
@@ -92,4 +92,13 @@ test("existing Risks, Changes & Claims and Smart Guide windows remain distinct e
     assert.ok(html.includes('data-vd-window="' + id + '"'));
     assert.doesNotMatch(html, /data-engine-window=/);
   }
+});
+
+test("unconnected engine shells disable the generic context action rail", () => {
+  const state = createVisualDemoState("en");
+  state.window = "engineering-analysis";
+  const html = renderVisualDemo(state);
+  const rail = html.match(/<aside class="cp-vd-right-rail"[\s\S]*?<\/aside>/)?.[0] ?? "";
+  assert.ok(rail.includes("disabled"));
+  assert.equal((rail.match(/disabled/g) ?? []).length, 5);
 });
