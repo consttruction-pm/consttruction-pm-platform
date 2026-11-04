@@ -2909,8 +2909,8 @@ async function main() {
     })()`);
     assert(columnDragAfter >= committedColumnWidth, `the committed width must remain rendered: persisted=${committedColumnWidth}, rendered=${columnDragAfter}`);
 
-    await page.drag('[data-resize-handle="details"]', 0, 36);
-    await page.drag('[data-resize-handle="table-gantt"]', 72, 0);
+    const detailsDragResult = await page.drag('[data-resize-handle="details"]', 0, 36);
+    const tableDragResult = await page.drag('[data-resize-handle="table-gantt"]', 72, 0);
     const paneDrag = await page.evaluate(`(() => {
       const visible = (element) => {
         const rect = element.getBoundingClientRect();
@@ -2925,13 +2925,18 @@ async function main() {
         details: main?.style.getPropertyValue("--cp-split-details") ?? "",
         table: split?.style.getPropertyValue("--cp-split-table") ?? "",
         keys: Object.keys(localStorage).filter((key) => key.startsWith("cubi:workspace:split:")),
+        storage: Object.entries(localStorage).filter(([key]) => key.startsWith("cubi:workspace:split:")),
+        activeWindow: document.querySelector(".cp-p6-workspace")?.getAttribute("data-active-menu") ?? null,
       };
     })()`);
-    assert(!paneDrag.missing && paneDrag.details && paneDrag.table, "both live pane splitters must respond to native mouse drags");
+    assert(
+      !paneDrag.missing && paneDrag.details && paneDrag.table,
+      "both live pane splitters must respond to native mouse drags: " + JSON.stringify({ paneDrag, detailsDragResult, tableDragResult }),
+    );
     assert(
       paneDrag.keys.some((key) => key.endsWith(":details")) &&
         paneDrag.keys.some((key) => key.endsWith(":table-gantt")),
-      "pane splitter preferences must be stored per project and workspace window",
+      "pane splitter preferences must be stored per project and workspace window: " + JSON.stringify({ paneDrag, detailsDragResult, tableDragResult }),
     );
     record("Details and table/Gantt panes respond to mouse resizing and persist local layout preferences", paneDrag);
     await page.screenshot("04f-resizable-pane-layout.png");
