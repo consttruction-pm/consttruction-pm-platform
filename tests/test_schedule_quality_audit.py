@@ -13,6 +13,7 @@ from construction_pm.backend_p0.authoritative_schedule_query import (
     AuthoritativeScheduleQueryApplicationService,
     AuthoritativeScheduleQueryProvider,
 )
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.control_intelligence.contracts import ControlScope
 from construction_pm.control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
 from construction_pm.control_intelligence.quality_audit import build_schedule_quality_audit
@@ -164,6 +165,11 @@ def _query_service(
         if persist_quality_audit_history
         else None
     )
+    quality_audit_history_transaction_manager = (
+        SQLiteTransactionManager(connection)
+        if persist_quality_audit_history
+        else None
+    )
     registry = CalendarResolverRegistry(
         day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
     )
@@ -173,6 +179,7 @@ def _query_service(
             lambda: registry,
             quality_audit_context_loader=quality_audit_context_loader,
             quality_audit_history_repository=quality_audit_history_repository,
+            quality_audit_history_transaction_manager=quality_audit_history_transaction_manager,
         ),
         RoleBasedAuthorizationPolicy(
             {"viewer": frozenset({Permission.PROJECT_READ})}
