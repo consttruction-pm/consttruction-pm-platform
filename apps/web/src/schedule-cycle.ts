@@ -233,6 +233,27 @@ type ScheduleQualityAuditHistoryDetail = {
   contract_version: string;
   audit: { report?: unknown };
 };
+type ScheduleQualityPolicyPackDTO = {
+  policy_id: string;
+  version: string;
+  name: string;
+  scoring_method: string;
+  thresholds: Record<string, unknown>;
+  weights: Record<string, string>;
+  created_by: string;
+  created_at: string;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  status: "draft" | "approved";
+};
+type ScheduleQualityPolicyList = {
+  contract_version: string;
+  policy_packs: ScheduleQualityPolicyPackDTO[];
+};
+type ScheduleQualityPolicyResponse = {
+  contract_version: string;
+  policy_pack: ScheduleQualityPolicyPackDTO;
+};
 
 const STATUS_LABELS: Record<ScheduleReferenceStatus, { en: string; fa: string }> = {
   mapped_unverified: { en: "Mapped — not verified", fa: "کد‌یابی‌شده؛ تأییدنشده" },
@@ -250,6 +271,7 @@ const LABELS = {
     qualityAudit: "Run read-only quality audit", qualityAuditIntro: "Audit this exact project revision through the authenticated schedule service and Shared Core. No project data is changed.",
     qualityAuditRunning: "Publishing the project snapshot and checking schedule quality…", qualityAuditFailed: "The schedule quality audit could not be completed.",
     auditHistory: "Audit history", auditHistoryLoading: "Loading saved audit runs…", auditHistoryFailed: "Saved audit history could not be loaded.", auditHistoryEmpty: "No saved audit runs exist for this project.", auditHistoryOpen: "Open report", auditHistoryRevision: "Revision", auditHistoryCreated: "Run time", auditHistoryFindings: "Findings", auditHistoryStored: "Saved to project audit history", auditHistoryNotConfigured: "Persistent history is not configured",
+    qualityPolicy: "Quality policy", qualityPolicyIntro: "Project-specific, versioned thresholds and weights. A policy affects the score only after a project administrator approves it.", qualityPolicyLoading: "Loading project quality policies…", qualityPolicyFailed: "Project quality policies could not be loaded.", qualityPolicyEmpty: "No policy versions have been created for this project.", qualityPolicyAdminOnly: "Only project administrators can create or approve a quality policy.", qualityPolicyCreate: "Save policy draft", qualityPolicyCreating: "Saving draft…", qualityPolicyApprove: "Approve version", qualityPolicyApproving: "Approving…", qualityPolicyCreated: "Draft saved. It does not affect the audit score until approved.", qualityPolicyApproved: "Policy approved. New audits will use the latest approved version.", qualityPolicyId: "Policy ID", qualityPolicyVersion: "Version", qualityPolicyName: "Policy name", qualityPolicyPositiveLag: "Maximum positive relationship lag", qualityPolicyDuration: "Maximum activity duration", qualityPolicyConstraints: "Maximum constraints per activity", qualityPolicyDateLimit: "DATE_BASED maximum (working days)", qualityPolicyWorkingDayLimit: "TIME_AWARE maximum (working days)", qualityPolicyWorkingHourLimit: "TIME_AWARE maximum (working hours)", qualityPolicySeverity: "Severity", qualityPolicyWarning: "Warning", qualityPolicyCritical: "Critical", qualityPolicyWeights: "Scoring weights (must sum exactly to 1)", qualityPolicyWeightLag: "Positive lag weight", qualityPolicyWeightDuration: "Activity duration weight", qualityPolicyWeightConstraints: "Constraint count weight", qualityPolicyDraft: "Draft — not active", qualityPolicyStatusApproved: "Approved — active", qualityPolicyList: "Policy versions", qualityPolicyValidation: "Complete every field. All weights must sum exactly to 1.000000.", qualityPolicyNoAdmin: "Your role can read policies but cannot administer them.", qualityPolicyRefresh: "Refresh policies", qualityPolicyCreatedBy: "Created by", qualityPolicyApprovedBy: "Approved by",
     auditFindings: "Findings", auditCoverage: "Coverage and limitations", auditNoFindings: "No findings were returned for the checks evaluated.",
     auditSeverity: "Severity", auditRule: "Rule", auditObject: "Object", auditRelated: "Related objects", auditEvidence: "Evidence", auditMessageKey: "Message key",
     auditCritical: "Critical", auditWarnings: "Warnings", auditInfo: "Information", auditSnapshot: "Snapshot", auditRevision: "Revision", auditHash: "SHA-256", auditQualityIndex: "Quality index", auditPolicyPackRequired: "Approved policy pack required",
@@ -284,6 +306,7 @@ const LABELS = {
     qualityAudit: "اجرای ممیزی کیفیت", qualityAuditIntro: "همین نسخهٔ پروژه از مسیر احراز هویت‌شدهٔ زمان‌بندی و هستهٔ مشترک بررسی می‌شود؛ هیچ داده‌ای در پروژه تغییر نمی‌کند.",
     qualityAuditRunning: "در حال انتشار تصویر پروژه و بررسی کیفیت زمان‌بندی…", qualityAuditFailed: "ممیزی کیفیت زمان‌بندی کامل نشد.",
     auditHistory: "تاریخچهٔ ممیزی", auditHistoryLoading: "در حال خواندن اجراهای ذخیره‌شدهٔ ممیزی…", auditHistoryFailed: "خواندن تاریخچهٔ ممیزی ممکن نشد.", auditHistoryEmpty: "هنوز اجرای ذخیره‌شده‌ای برای ممیزی این پروژه وجود ندارد.", auditHistoryOpen: "بازکردن گزارش", auditHistoryRevision: "بازبینی", auditHistoryCreated: "زمان اجرا", auditHistoryFindings: "یافته‌ها", auditHistoryStored: "گزارش در تاریخچهٔ پروژه ذخیره شد", auditHistoryNotConfigured: "ذخیره‌سازی پایدار تاریخچه پیکربندی نشده است",
+    qualityPolicy: "سیاست کیفیت", qualityPolicyIntro: "آستانه‌ها و وزن‌های نسخه‌بندی‌شده و مختص پروژه. سیاست فقط پس از تأیید مدیر پروژه بر شاخص کیفیت اثر می‌گذارد.", qualityPolicyLoading: "در حال خواندن سیاست‌های کیفیت پروژه…", qualityPolicyFailed: "خواندن سیاست‌های کیفیت پروژه ممکن نشد.", qualityPolicyEmpty: "هنوز نسخه‌ای از سیاست کیفیت برای این پروژه ساخته نشده است.", qualityPolicyAdminOnly: "فقط مدیر پروژه می‌تواند سیاست کیفیت بسازد یا تأیید کند.", qualityPolicyCreate: "ذخیرهٔ پیش‌نویس سیاست", qualityPolicyCreating: "در حال ذخیرهٔ پیش‌نویس…", qualityPolicyApprove: "تأیید نسخه", qualityPolicyApproving: "در حال تأیید…", qualityPolicyCreated: "پیش‌نویس ذخیره شد؛ تا زمان تأیید بر شاخص ممیزی اثر ندارد.", qualityPolicyApproved: "سیاست تأیید شد؛ ممیزی‌های بعدی از آخرین نسخهٔ تأییدشده استفاده می‌کنند.", qualityPolicyId: "شناسهٔ سیاست", qualityPolicyVersion: "نسخه", qualityPolicyName: "نام سیاست", qualityPolicyPositiveLag: "حد بیشینهٔ وقفهٔ مثبت رابطه", qualityPolicyDuration: "حد بیشینهٔ مدت فعالیت", qualityPolicyConstraints: "حداکثر محدودیت برای هر فعالیت", qualityPolicyDateLimit: "حد بیشینه در DATE_BASED (روز کاری)", qualityPolicyWorkingDayLimit: "حد بیشینه در TIME_AWARE (روز کاری)", qualityPolicyWorkingHourLimit: "حد بیشینه در TIME_AWARE (ساعت کاری)", qualityPolicySeverity: "شدت", qualityPolicyWarning: "هشدار", qualityPolicyCritical: "بحرانی", qualityPolicyWeights: "وزن‌های امتیازدهی (مجموع دقیقاً ۱ باشد)", qualityPolicyWeightLag: "وزن وقفهٔ مثبت", qualityPolicyWeightDuration: "وزن مدت فعالیت", qualityPolicyWeightConstraints: "وزن تعداد محدودیت‌ها", qualityPolicyDraft: "پیش‌نویس — غیرفعال", qualityPolicyStatusApproved: "تأییدشده — فعال", qualityPolicyList: "نسخه‌های سیاست", qualityPolicyValidation: "همهٔ فیلدها را تکمیل کنید. مجموع وزن‌ها باید دقیقاً ۱٫۰۰۰۰۰۰ باشد.", qualityPolicyNoAdmin: "نقش شما اجازهٔ خواندن سیاست‌ها را دارد اما اجازهٔ مدیریت آن‌ها را ندارد.", qualityPolicyRefresh: "بازخوانی سیاست‌ها", qualityPolicyCreatedBy: "ایجادکننده", qualityPolicyApprovedBy: "تأییدکننده",
     auditFindings: "یافته‌ها", auditCoverage: "دامنهٔ بررسی و محدودیت‌ها", auditNoFindings: "در کنترل‌های ارزیابی‌شده یافته‌ای بازگردانده نشد.",
     auditSeverity: "شدت", auditRule: "قاعده", auditObject: "موضوع", auditRelated: "موضوعات مرتبط", auditEvidence: "شواهد", auditMessageKey: "کلید پیام",
     auditCritical: "بحرانی", auditWarnings: "هشدارها", auditInfo: "اطلاعات", auditSnapshot: "تصویر مبنا", auditRevision: "بازبینی", auditHash: "SHA-256", auditQualityIndex: "شاخص کیفیت", auditPolicyPackRequired: "نیازمند بسته سیاست مصوب",
@@ -935,6 +958,43 @@ function mountRunPanel(
         <button type="button" data-run-quality-audit>${safe(labels.qualityAudit)}</button>
         <button type="button" data-load-quality-audit-history>${safe(labels.auditHistory)}</button>
       </div>
+      <details class="cp-audit-policy-admin" data-quality-policy-admin>
+        <summary>${safe(labels.qualityPolicy)}</summary>
+        <p class="cp-audit-policy-intro">${safe(labels.qualityPolicyIntro)}</p>
+        <p role="status" data-quality-policy-status></p>
+        <button type="button" data-quality-policy-refresh>${safe(labels.qualityPolicyRefresh)}</button>
+        <section data-quality-policy-list aria-live="polite"></section>
+        <form data-quality-policy-form hidden>
+          <div class="cp-audit-policy-grid">
+            <label><span>${safe(labels.qualityPolicyId)}</span><input name="policy_id" required maxlength="80" autocomplete="off"></label>
+            <label><span>${safe(labels.qualityPolicyVersion)}</span><input name="version" required maxlength="40" placeholder="1.0.0" autocomplete="off"></label>
+            <label class="is-wide"><span>${safe(labels.qualityPolicyName)}</span><input name="name" required maxlength="120" autocomplete="off"></label>
+          </div>
+          <fieldset><legend>${safe(labels.qualityPolicyPositiveLag)}</legend><div class="cp-audit-policy-grid">
+            <label><span>${safe(labels.qualityPolicyDateLimit)}</span><input name="lag_date" type="number" min="0" step="1" required></label>
+            <label><span>${safe(labels.qualityPolicyWorkingDayLimit)}</span><input name="lag_working_day" type="number" min="0" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicyWorkingHourLimit)}</span><input name="lag_working_hour" type="number" min="0" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicySeverity)}</span><select name="lag_severity" required><option value="">—</option><option value="warning">${safe(labels.qualityPolicyWarning)}</option><option value="critical">${safe(labels.qualityPolicyCritical)}</option></select></label>
+          </div></fieldset>
+          <fieldset><legend>${safe(labels.qualityPolicyDuration)}</legend><div class="cp-audit-policy-grid">
+            <label><span>${safe(labels.qualityPolicyDateLimit)}</span><input name="duration_date" type="number" min="0" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicyWorkingDayLimit)}</span><input name="duration_working_day" type="number" min="0" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicyWorkingHourLimit)}</span><input name="duration_working_hour" type="number" min="0" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicySeverity)}</span><select name="duration_severity" required><option value="">—</option><option value="warning">${safe(labels.qualityPolicyWarning)}</option><option value="critical">${safe(labels.qualityPolicyCritical)}</option></select></label>
+          </div></fieldset>
+          <fieldset><legend>${safe(labels.qualityPolicyConstraints)}</legend><div class="cp-audit-policy-grid">
+            <label><span>${safe(labels.qualityPolicyConstraints)}</span><input name="constraints_max" type="number" min="0" step="1" required></label>
+            <label><span>${safe(labels.qualityPolicySeverity)}</span><select name="constraints_severity" required><option value="">—</option><option value="warning">${safe(labels.qualityPolicyWarning)}</option><option value="critical">${safe(labels.qualityPolicyCritical)}</option></select></label>
+          </div></fieldset>
+          <fieldset><legend>${safe(labels.qualityPolicyWeights)}</legend><div class="cp-audit-policy-grid">
+            <label><span>${safe(labels.qualityPolicyWeightLag)}</span><input name="weight_lag" type="number" min="0.0000000001" max="1" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicyWeightDuration)}</span><input name="weight_duration" type="number" min="0.0000000001" max="1" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicyWeightConstraints)}</span><input name="weight_constraints" type="number" min="0.0000000001" max="1" step="any" required></label>
+          </div></fieldset>
+          <p class="cp-audit-policy-hint">${safe(labels.qualityPolicyValidation)}</p>
+          <button type="submit" class="cp-audit-policy-save">${safe(labels.qualityPolicyCreate)}</button>
+        </form>
+      </details>
       <p role="status" data-quality-audit-status></p>
       <section data-quality-audit-history aria-live="polite"></section>
       <section data-quality-audit-results aria-live="polite"></section>
@@ -947,6 +1007,11 @@ function mountRunPanel(
   const auditResults = panel.querySelector<HTMLElement>("[data-quality-audit-results]");
   const auditHistoryButton = panel.querySelector<HTMLButtonElement>("[data-load-quality-audit-history]");
   const auditHistoryPanel = panel.querySelector<HTMLElement>("[data-quality-audit-history]");
+  const policyDetails = panel.querySelector<HTMLDetailsElement>("[data-quality-policy-admin]");
+  const policyStatus = panel.querySelector<HTMLElement>("[data-quality-policy-status]");
+  const policyRefreshButton = panel.querySelector<HTMLButtonElement>("[data-quality-policy-refresh]");
+  const policyListPanel = panel.querySelector<HTMLElement>("[data-quality-policy-list]");
+  const policyForm = panel.querySelector<HTMLFormElement>("[data-quality-policy-form]");
   const cached = scheduleRunResults.get(scheduleRunCacheKey(context));
   if (cached && resultPanel) renderScheduleRunResult(resultPanel, cached, labels);
   button?.addEventListener("click", async () => {
