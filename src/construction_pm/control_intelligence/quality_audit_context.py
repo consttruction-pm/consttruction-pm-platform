@@ -249,6 +249,7 @@ class ScheduleQualityAuditContextReader:
         return [
             {
                 "batch_id": item.batch_id,
+                "project_revision": item.scope.project_revision,
                 "format": item.format,
                 "source_sha256": item.source_sha256,
                 "source_byte_count": item.source_byte_count,
