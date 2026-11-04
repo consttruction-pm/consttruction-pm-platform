@@ -210,7 +210,7 @@ test("every registered workspace window renders a concrete page surface", () => 
     state.window = windowId;
     const markup = renderVisualDemo(state);
     assert.match(markup, /class="cp-vd-windowbody/);
-    assert.match(markup, /class="cp-vd-winhead"/);
+    assert.match(markup, /class="[^"]*cp-vd-winhead[^"]*"/);
     assert.ok(markup.length > 12000, `expected a fully rendered workspace for ${windowId}`);
   }
 });
