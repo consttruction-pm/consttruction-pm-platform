@@ -886,7 +886,9 @@ def _evaluate_approved_policy_pack(
         for index, relationship in enumerate(relationships):
             lag = relationship.get("lag", 0)
             value = _lag_number(lag, mode)
-            if value is None:
+            # Only strictly positive lag belongs to this threshold family.
+            # Zero lag and negative lead remain in their own network/progress checks.
+            if value is None or value <= 0:
                 continue
             if mode == "DATE_BASED":
                 limit = _decimal_value(lag_rule.get("date_based_max_working_days"))
