@@ -134,7 +134,7 @@ def test_unapproved_or_unconfigured_policy_never_fabricates_a_score() -> None:
 
     missing = build_schedule_quality_audit(payload())
     assert missing["quality_index"]["status"] == "not_calculated"
-    assert missing["quality_index"]["reason"] == "APPROVED_POLICY_PACK_REQUIRED"
+    assert missing["quality_index"]["reason"] == "APPROVED_POLICY_PACK_NOT_CONFIGURED"
 
 
 def test_positive_lag_score_excludes_zero_lag_and_negative_lead_observations() -> None:
