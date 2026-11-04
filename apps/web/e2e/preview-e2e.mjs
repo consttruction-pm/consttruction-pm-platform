@@ -2764,6 +2764,23 @@ async function main() {
       },
     );
 
+    // Capacity is tested in the Resources window. Return to the Activities
+    // surface before checking header geometry or dragging its column handles;
+    // inactive workspace windows remain mounted but have zero layout bounds.
+    await page.click('[data-menu="schedule"]');
+    await page.waitFor(
+      `document.querySelector(".cp-navigation-surface strong")?.textContent.trim() === "Schedule"`,
+      "schedule surface before resize tests",
+    );
+    await page.waitFor(
+      `(() => {
+        const grid = document.querySelector("#cp-activity-grid");
+        const rect = grid?.getBoundingClientRect();
+        return Boolean(grid && !grid.hidden && rect && rect.width > 0 && rect.height > 0 &&
+          getComputedStyle(grid).display !== "none");
+      })()`,
+      "visible Activities grid before resize tests",
+    );
     await page.waitForSelector("[data-schedule-settings-form]", "schedule settings form");
     await page.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "grid after menu renders");
     const initialHeaders = await page.evaluate(`(() =>
