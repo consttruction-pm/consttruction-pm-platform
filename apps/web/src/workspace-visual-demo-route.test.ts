@@ -200,7 +200,10 @@ test("every registered workspace window renders a concrete page surface", () => 
     "tracking", "documents", "expenses", "thresholds", "issues", "risks", "administration",
     "network", "trace", "timeline", "activity-profile", "resource-profile", "activity-sheet", "resource-sheet",
     "cost-control", "progress-control", "procurement", "changes-claims", "form-builder", "organization",
-    "smart-guide", "assistant", "search", "comments",
+    "engineering-analysis", "project-watchdog", "scenario-lab", "optimization-studio", "project-quality",
+    "construction-productivity", "data-reconciliation", "portfolio-capacity", "automation-center",
+    "engineering-standards", "project-templates", "decision-register", "deadline-monitor", "data-quality",
+    "recovery-center", "command-dictionaries", "smart-guide", "assistant", "search", "comments",
   ] as const;
   for (const windowId of windows) {
     const state = createVisualDemoState("en");
