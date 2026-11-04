@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from datetime import date
 from typing import Protocol
 
 from .backend_p0.models import BackendScope, MAX_SAFE_REVISION
@@ -35,6 +36,22 @@ class P6FinancialPeriod:
                 raise P6FinancialPeriodPersistenceError(f"INVALID_{code}")
         if self.status not in {"OPEN", "CLOSED"}:
             raise P6FinancialPeriodPersistenceError("INVALID_STATUS")
+
+        try:
+            start_date = date.fromisoformat(self.start_date)
+        except ValueError as exc:
+            raise P6FinancialPeriodPersistenceError("INVALID_START_DATE") from exc
+        if start_date.isoformat() != self.start_date:
+            raise P6FinancialPeriodPersistenceError("INVALID_START_DATE")
+
+        try:
+            end_date = date.fromisoformat(self.end_date)
+        except ValueError as exc:
+            raise P6FinancialPeriodPersistenceError("INVALID_END_DATE") from exc
+        if end_date.isoformat() != self.end_date:
+            raise P6FinancialPeriodPersistenceError("INVALID_END_DATE")
+        if end_date < start_date:
+            raise P6FinancialPeriodPersistenceError("END_DATE_BEFORE_START_DATE")
 
 
 class P6FinancialPeriodRepository(Protocol):
