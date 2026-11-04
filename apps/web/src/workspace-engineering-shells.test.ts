@@ -75,10 +75,11 @@ test("each engineering shell opens through the visual workspace window router an
   for (const item of ENGINEERING_SHELLS) {
     const state = createVisualDemoState("fa");
     state.window = item.id;
-    state.engineDetailTab = "methods";
+    const activeTabId = item.details[1]?.id ?? "general";
+    state.engineDetailTab = activeTabId;
     const html = renderVisualDemo(state);
     assert.ok(html.includes('data-engine-window="' + item.id + '"'), item.id);
-    assert.match(html, /aria-selected="true" data-vd-engine-tab="methods"/, item.id);
+    assert.ok(html.includes('aria-selected="true" data-vd-engine-tab="' + activeTabId + '"'), item.id);
     assert.match(html, /پوسته بصری/, item.id);
   }
 });
