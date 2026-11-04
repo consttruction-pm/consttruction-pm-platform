@@ -207,6 +207,34 @@ def test_preview_financial_period_writes_are_authorized_and_immutable(tmp_path: 
         runtime.close()
 
 
+def test_preview_financial_period_http_rejects_invalid_dates_before_persisting(
+    tmp_path: Path,
+) -> None:
+    runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        invalid_periods = (
+            _period(start_date="2026-02-30", end_date="2026-03-31"),
+            _period(start_date="2026-10-01", end_date="2026-09-30"),
+        )
+        for invalid in invalid_periods:
+            status, body = _request(
+                runtime.app,
+                "POST",
+                PERIOD_PATH,
+                cookie=planner.session_id,
+                body=json.dumps(invalid).encode(),
+            )
+            assert status == 400, body[:300]
+            assert json.loads(body)["code"] == "P6_FINANCIAL_PERIOD_REQUEST_INVALID"
+
+        status, body = _request(runtime.app, "GET", PERIOD_PATH, cookie=planner.session_id)
+        assert status == 200, body[:300]
+        assert json.loads(body)["financial_periods"] == []
+    finally:
+        runtime.close()
+
+
 def test_preview_earned_value_read_model_measures_stored_baseline_facts(tmp_path: Path) -> None:
     runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
     try:
