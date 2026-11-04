@@ -150,6 +150,21 @@ class _SqlScheduleQualityAuditHistoryRepository:
                 "CREATE INDEX IF NOT EXISTS idx_schedule_quality_audit_history_project "
                 "ON schedule_quality_audit_history (tenant_id, project_id, created_at, history_seq)"
             )
+            self.connection.execute(
+                "CREATE OR REPLACE FUNCTION cubi_schedule_quality_audit_history_no_mutation() "
+                "RETURNS TRIGGER AS $ BEGIN "
+                "RAISE EXCEPTION 'SCHEDULE_QUALITY_AUDIT_HISTORY_IMMUTABLE'; "
+                "END; $ LANGUAGE plpgsql"
+            )
+            self.connection.execute(
+                "DROP TRIGGER IF EXISTS trg_schedule_quality_audit_history_no_mutation "
+                "ON schedule_quality_audit_history"
+            )
+            self.connection.execute(
+                "CREATE TRIGGER trg_schedule_quality_audit_history_no_mutation "
+                "BEFORE UPDATE OR DELETE ON schedule_quality_audit_history "
+                "FOR EACH ROW EXECUTE FUNCTION cubi_schedule_quality_audit_history_no_mutation()"
+            )
             return
         self.connection.execute(
             "CREATE TABLE IF NOT EXISTS schedule_quality_audit_history ("
