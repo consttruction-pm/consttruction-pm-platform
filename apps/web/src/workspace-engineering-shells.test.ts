@@ -28,7 +28,7 @@ test("each shell renders a titled page, page toolbar, empty table and engine-spe
     assert.ok(html.includes(item.id), item.id);
     assert.match(html, /Planned · shell only/, item.id);
     assert.match(html, /No records to display/, item.id);
-    assert.match(html, /No sample project values/, item.id);
+    assert.match(html, /no sample project values/i, item.id);
     assert.match(html, /data-vd-engine-tab="general"/, item.id);
     assert.match(html, /Engine commands/, item.id);
     assert.match(html, /disabled title=/, item.id);
@@ -36,20 +36,20 @@ test("each shell renders a titled page, page toolbar, empty table and engine-spe
 });
 
 test("method, input and output detail tabs expose the engine-specific method catalogue", () => {
-  const item = ENGINEERING_SHELLS.find((entry) => entry.id === "optimization-studio");
+  const item = ENGINEERING_SHELLS.find((entry) => entry.id === "engineering-analysis");
   assert.ok(item);
   const methods = renderEngineeringShell(item.id, "en", "methods");
   assert.match(methods, /data-vd-engine-tab="methods"/);
-  assert.match(methods, /Linear and mixed-integer programming/);
-  assert.match(methods, /Pareto analysis/);
+  assert.match(methods, /Forward and backward rule chaining/);
+  assert.match(methods, /Fault isolation and cause trees/);
 
   const inputs = renderEngineeringShell(item.id, "en", "inputs");
   assert.match(inputs, /data-vd-engine-tab="inputs"/);
-  assert.match(inputs, /Decision variables and objective weights/);
+  assert.match(inputs, /Revision-bound project facts/);
 
   const outputs = renderEngineeringShell(item.id, "en", "outputs");
   assert.match(outputs, /data-vd-engine-tab="outputs"/);
-  assert.match(outputs, /Feasible candidate solutions/);
+  assert.match(outputs, /Confirmed causes vs possible contributors/);
 });
 
 test("Persian engine shell preserves RTL direction and Persian control labels", () => {
