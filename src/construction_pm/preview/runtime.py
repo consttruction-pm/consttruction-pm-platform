@@ -56,6 +56,10 @@ from construction_pm.control_intelligence.quality_audit_context import (
 from construction_pm.control_intelligence.quality_audit_history import (
     SQLiteScheduleQualityAuditHistoryRepository,
 )
+from construction_pm.control_intelligence.quality_policy_pack import (
+    SQLiteScheduleQualityPolicyRepository,
+)
+from construction_pm.control_intelligence.quality_policy_pack_api import ScheduleQualityPolicyAPI
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.repository import InMemoryBackendP0Repository
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
@@ -308,6 +312,7 @@ class PreviewRepositories:
     udf_service: P6UserDefinedFieldApplicationService
     mappings: SQLiteP6MappingRegistryRepository
     mapping_service: P6MappingRegistryApplicationService
+    quality_policies: SQLiteScheduleQualityPolicyRepository
     layouts: SQLiteP6LayoutRepository
     snapshots: SQLiteScheduleInputSnapshotRepository
     contexts: SQLiteCalculationContextRepository
@@ -365,6 +370,7 @@ class PreviewRepositories:
         mapping_service = P6MappingRegistryApplicationService(
             mappings, transaction_manager
         )
+        quality_policies = SQLiteScheduleQualityPolicyRepository(connection)
         layouts = SQLiteP6LayoutRepository(connection)
         snapshots = SQLiteScheduleInputSnapshotRepository(connection)
         contexts = SQLiteCalculationContextRepository(connection)
@@ -414,6 +420,7 @@ class PreviewRepositories:
             udf_service=udf_service,
             mappings=mappings,
             mapping_service=mapping_service,
+            quality_policies=quality_policies,
             layouts=layouts,
             snapshots=snapshots,
             contexts=contexts,
