@@ -48,6 +48,8 @@ class ProjectLifecycleWsgiApp:
         if query_string and (
             path.startswith("/api/forms/")
             or (path.startswith("/api/projects/") and "/forms" in path)
+            or path == "/api/v1/schedule/quality-audits"
+            or path.startswith("/api/v1/schedule/quality-audits/")
         ):
             # Form endpoints read filters and locale from the query string;
             # carry it on the routed path so the shared handler sees it.
