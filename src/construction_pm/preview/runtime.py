@@ -1191,6 +1191,7 @@ def open_preview_runtime(
         code_definition_repository=repositories.code_definitions,
         code_assignment_repository=repositories.code_assignments,
         quality_policy_repository=repositories.quality_policies,
+        interchange_import_ledger_repository=repositories.interchange_import_ledger,
         transaction_manager=repositories.transaction_manager,
     )
     query_provider = AuthoritativeScheduleQueryProvider(
