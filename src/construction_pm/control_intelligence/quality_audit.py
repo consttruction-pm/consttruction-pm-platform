@@ -806,6 +806,155 @@ def _audit_activity_codes(
     return "evaluated_reference_integrity_only_required_code_policy_not_configured", len(definitions_by_id), activity_assignment_count
 
 
+def _audit_interchange_import_batches(
+    audit_context: Mapping[str, object] | None,
+    add,
+) -> tuple[str, int, int, int]:
+    if not isinstance(audit_context, Mapping):
+        return "not_evaluated_import_ledger_not_configured", 0, 0, 0
+    if not audit_context.get("interchange_import_ledger_configured"):
+        return "not_evaluated_import_ledger_not_configured", 0, 0, 0
+    raw_batches = audit_context.get("interchange_import_batches")
+    if not isinstance(raw_batches, list):
+        return "not_evaluated_import_ledger_not_readable", 0, 0, 0
+    if not raw_batches:
+        return "not_evaluated_no_import_batches", 0, 0, 0
+
+    batch_count = 0
+    row_count = 0
+    preservation_warning_count = 0
+    statuses: set[str] = set()
+    for batch in raw_batches:
+        if not isinstance(batch, Mapping):
+            continue
+        batch_id = batch.get("batch_id")
+        source_hash = batch.get("source_sha256")
+        format_value = batch.get("format")
+        target_status = batch.get("target_application_status")
+        try:
+            batch_rows = int(batch.get("row_count", 0))
+        except (TypeError, ValueError):
+            batch_rows = -1
+        if (
+            not isinstance(batch_id, str)
+            or not batch_id
+            or not isinstance(source_hash, str)
+            or len(source_hash) != 64
+            or batch_rows < 0
+        ):
+            add(
+                "INTERCHANGE_IMPORT_LEDGER_BATCH_INVALID",
+                "critical",
+                "quality.finding.interchange_import_ledger_batch_invalid",
+                object_type="import_batch",
+                object_id=batch_id if isinstance(batch_id, str) else None,
+            )
+            continue
+        batch_count += 1
+        row_count += batch_rows
+        statuses.add(str(target_status))
+        if target_status != "PARSED_NOT_APPLIED":
+            add(
+                "INTERCHANGE_IMPORT_APPLICATION_STATUS_UNRECOGNIZED",
+                "critical",
+                "quality.finding.interchange_import_application_status_unrecognized",
+                object_type="import_batch",
+                object_id=batch_id,
+                evidence={
+                    "target_application_status": target_status,
+                    "source_sha256": source_hash,
+                    "format": format_value,
+                },
+            )
+        else:
+            add(
+                "INTERCHANGE_BATCH_NOT_APPLIED",
+                "info",
+                "quality.finding.interchange_batch_not_applied",
+                object_type="import_batch",
+                object_id=batch_id,
+                evidence={
+                    "target_application_status": "PARSED_NOT_APPLIED",
+                    "source_sha256": source_hash,
+                    "source_byte_count": batch.get("source_byte_count"),
+                    "row_count": batch_rows,
+                    "format": format_value,
+                    "imported_by": batch.get("imported_by"),
+                    "imported_at": batch.get("imported_at"),
+                    "mapping_count": len(batch.get("mapping_snapshot", ()))
+                    if isinstance(batch.get("mapping_snapshot"), (list, tuple)) else None,
+                    "note": "Source parsing and mapping evidence is recorded; target project records were not applied.",
+                },
+            )
+        mapping_snapshot = batch.get("mapping_snapshot", ())
+        mapping_by_source = {
+            str(item.get("source_field")): item
+            for item in mapping_snapshot
+            if isinstance(item, Mapping) and isinstance(item.get("source_field"), str)
+        } if isinstance(mapping_snapshot, (list, tuple)) else {}
+        row_summaries = batch.get("row_summaries", ())
+        if not isinstance(row_summaries, (list, tuple)) or len(row_summaries) != batch_rows:
+            add(
+                "INTERCHANGE_IMPORT_ROW_EVIDENCE_INCOMPLETE",
+                "critical",
+                "quality.finding.interchange_import_row_evidence_incomplete",
+                object_type="import_batch",
+                object_id=batch_id,
+                evidence={
+                    "declared_row_count": batch_rows,
+                    "evidence_row_count": len(row_summaries) if isinstance(row_summaries, (list, tuple)) else None,
+                },
+            )
+            continue
+        for row_index, row in enumerate(row_summaries):
+            if not isinstance(row, Mapping):
+                continue
+            warnings = row.get("warnings", ())
+            if not isinstance(warnings, (list, tuple)):
+                continue
+            for warning in warnings:
+                if not isinstance(warning, str):
+                    continue
+                if warning.startswith("PRESERVED_UNKNOWN_FIELD:"):
+                    source_field = warning.split(":", 1)[1]
+                    rule_id = "INTERCHANGE_UNKNOWN_SOURCE_FIELD_PRESERVED"
+                    message_key = "quality.finding.interchange_unknown_source_field_preserved"
+                elif warning.startswith("PRESERVED_UNSUPPORTED_FIELD:"):
+                    source_field = warning.split(":", 1)[1]
+                    rule_id = "INTERCHANGE_UNSUPPORTED_SOURCE_FIELD_PRESERVED"
+                    message_key = "quality.finding.interchange_unsupported_source_field_preserved"
+                else:
+                    continue
+                preservation_warning_count += 1
+                mapping = mapping_by_source.get(source_field, {})
+                add(
+                    rule_id,
+                    "warning",
+                    message_key,
+                    object_type="import_batch_row",
+                    object_id=f"{batch_id}:{row_index}",
+                    evidence={
+                        "batch_id": batch_id,
+                        "row_index": row_index,
+                        "format": format_value,
+                        "source_sha256": source_hash,
+                        "source_field": source_field,
+                        "mapping_id": mapping.get("mapping_id") if isinstance(mapping, Mapping) else None,
+                        "mapping_status": mapping.get("status") if isinstance(mapping, Mapping) else "UNKNOWN",
+                        "canonical_fields": row.get("canonical_fields", ()),
+                        "preserved_extension_fields": row.get("preserved_extension_fields", ()),
+                        "warning_code": warning,
+                    },
+                )
+    if batch_count == 0:
+        return "not_evaluated_no_valid_import_batches", 0, 0, preservation_warning_count
+    if statuses == {"PARSED_NOT_APPLIED"}:
+        coverage = "partial_source_mapping_audited_target_records_not_applied"
+    else:
+        coverage = "partial_import_batch_application_state_requires_review"
+    return coverage, batch_count, row_count, preservation_warning_count
+
+
 def _evaluate_approved_policy_pack(
     policy_pack: Mapping[str, object] | None,
     *,
