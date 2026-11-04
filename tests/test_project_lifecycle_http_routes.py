@@ -2088,6 +2088,17 @@ def test_p6_interchange_http_records_idempotent_parse_batch_and_lists_import_his
     assert listing["batches"][0]["batch_id"] == first["import_audit"]["batch_id"]
     assert listing["batches"][0]["target_application_status"] == "PARSED_NOT_APPLIED"
 
+    status, _, body = r.handle(
+        "GET",
+        f"/api/projects/p1/p6/interchange/imports/{first['import_audit']['batch_id']}",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    detail = json.loads(body)["batch"]
+    assert detail["source_sha256"] == first["import_audit"]["source_sha256"]
+    assert detail["target_application_status"] == "PARSED_NOT_APPLIED"
+    assert detail["mapping_snapshot"][0]["mapping_id"] == "MAP-LEDGER-1"
+
 
 def test_p6_interchange_http_requires_scope_and_permission():
     r, _, _ = p6_routes(roles=frozenset({"viewer"}))
