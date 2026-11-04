@@ -171,13 +171,12 @@ export function bindWorkspaceResizeInteractions(
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", onPointerUp);
     window.removeEventListener("pointercancel", onPointerCancel);
-    container.classList.remove("is-resizing");
+    container.classList.remove("is-resizing", `is-resizing-${drag.kind}`);
     document.documentElement.classList.remove("cubi-is-resizing");
     if (!commit) {
       drag.apply(drag.startValue);
     } else if (drag.kind === "table-gantt" || drag.kind === "details") {
       const latest = runtimes.get(container);
-      if (latest) writePercent(storageKey(latest.state, drag.kind), drag.startValue);
       const finalValue = drag.kind === "table-gantt"
         ? Number.parseFloat(container.querySelector<HTMLElement>("[data-panel-split]")?.style.getPropertyValue("--cp-split-table") ?? "")
         : Number.parseFloat(container.querySelector<HTMLElement>(".cp-main")?.style.getPropertyValue("--cp-split-details") ?? "");
@@ -292,7 +291,7 @@ export function bindWorkspaceResizeInteractions(
       finish(commit) { endDrag(commit); },
     };
     active = drag;
-    container.classList.add("is-resizing");
+    container.classList.add("is-resizing", `is-resizing-${kind}`);
     document.documentElement.classList.add("cubi-is-resizing");
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
