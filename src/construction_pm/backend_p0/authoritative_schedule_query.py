@@ -29,7 +29,6 @@ from construction_pm.scheduling.calendar_context import CalendarResolverRegistry
 from construction_pm.scheduling.calculation_context import CalculationContext
 from construction_pm.scheduling.leveling_boundary import SchedulerLevelingInput
 from construction_pm.scheduling.leveling_cost_recalculation import LevelingCostInputs
-from construction_pm.scheduling.diagnostics import ScheduleInfeasibilityError
 
 
 @dataclass(frozen=True)
@@ -151,11 +150,20 @@ class AuthoritativeScheduleQueryProvider:
                 leveling_input=leveling_input,
                 cost_inputs=cost_inputs,
             )
-        except ScheduleInfeasibilityError as exc:
-            # The audit path can still report a deterministic structural/core
-            # finding when the Shared Core correctly rejects an infeasible
-            # network. Ordinary FACT/EXPLANATION queries remain fail-closed.
-            if request.kind is ScheduleQueryKind.QUALITY_AUDIT:
+        except ScheduleEvaluationError as exc:
+            # The evaluator preserves core rejection codes as
+            # SCHEDULE_INFEASIBLE:<CODE>. Only a proven network cycle is
+            # projected as an audit finding; all other calculation failures
+            # retain the normal fail-closed behavior.
+            error_code = (
+                str(exc).partition(":")[2]
+                if str(exc).startswith("SCHEDULE_INFEASIBLE:")
+                else str(exc)
+            )
+            if (
+                request.kind is ScheduleQueryKind.QUALITY_AUDIT
+                and error_code == "NETWORK_CYCLE"
+            ):
                 source = SourceReference(
                     source_id=snapshot.snapshot_id,
                     source_type="schedule-input-snapshot",
@@ -163,17 +171,11 @@ class AuthoritativeScheduleQueryProvider:
                     revision=request.scope.project_revision,
                     content_hash=snapshot.snapshot_hash,
                 )
-                core_diagnostics = (
-                    ()
-                    if exc.code.value == "NETWORK_CYCLE"
-                    else (exc.diagnostic.to_payload(),)
-                )
                 report = build_schedule_quality_audit(
                     snapshot.canonical_payload,
-                    core_diagnostics=core_diagnostics,
                     evaluation_status="blocked",
                 )
-                report["evaluation_error_code"] = exc.code.value
+                report["evaluation_error_code"] = error_code
                 return ScheduleQueryAnswer(
                     query_id=request.query_id,
                     scope=request.scope,
