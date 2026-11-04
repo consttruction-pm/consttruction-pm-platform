@@ -165,3 +165,14 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 3. **Code slice completed:** PR #1553 adds the proposal-only server-side provider orchestration and authenticated conversation endpoint. Next, wire it into a real deployed backend with production session/project selection, current grant provider, transaction manager and approved server-side `CUBI_AI_*` configuration; verify the live conversation → proposal → approve → execute → fresh-read path.
 4. Implement authoritative reconciliation for interrupted/uncertain actions, then add WBS/relationship/calendar/resource/cost tools and Shared Core run/result grounding.
 5. Keep #1423/#1530/#1540 and #82 open until the complete release acceptance suite, multilingual and Jalali/Gregorian coverage, import/export round-trip, and exact-main end-to-end gates pass.
+
+
+## Product-owner decision — single canonical Visual Workspace (2026-11-04)
+
+- **Decision:** CUBI has exactly one main product environment: the Visual Workspace. No separate dashboard, generic authenticated SaaS app, alternate workspace shell or separate visual-demo/help route is permitted.
+- **Public site order:** Home → normal public/informational pages (Platform, Solutions, Resources, Pricing, Contact, etc.) → one clear product/login entry point to the Visual Workspace.
+- **Session flow:** successful login opens the Visual Workspace by default (or restores a requested deep link inside that same shell); logout returns to public Home.
+- **Capability placement:** all projects, engineering engines, tools, reports, forms, settings and administration are windows/pages/menus/tabs/panels/dialogs inside the one persistent Visual Workspace.
+- **No-regression:** preserve existing approved workspace dimensions, layout, navigation and functions. This decision does not authorize a redesign, removal of existing pages, or changes to the Gantt sizing.
+- **Governance:** issue #1712 is the P0 acceptance gate. Visual shell audit and workspace IA now reference this product-surface rule. Keep the issue open until the running website proves public navigation → login → single workspace → logout → Home and no competing app shell exists.
+- **Documentation change baseline:** branch `docs/single-visual-workspace-product-principle`, based on main SHA `3214e3c8cd204d772ae641dd489a97c781c87e59`. Documentation-only changes; no runtime/UI code changed. Exact branch head and PR checks are recorded in the PR when opened.
