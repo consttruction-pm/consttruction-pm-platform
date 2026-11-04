@@ -125,8 +125,9 @@ def test_audit_reports_data_date_and_zero_lag_fs_out_of_sequence_candidate() -> 
         f for f in report["findings"]
         if f["rule_id"] == "OUT_OF_SEQUENCE_PROGRESS_CANDIDATE"
     )
-    assert oos["evidence"]["rule_scope"] == "FS_ZERO_LAG_ONLY"
-    assert report["coverage"]["progress_out_of_sequence"] == "evaluated_fs_zero_lag_only"
+    assert oos["evidence"]["rule_scope"] == "ZERO_LAG_ALL_RELATIONSHIP_TYPES"
+    assert oos["evidence"]["relationship_type"] == "FS"
+    assert report["coverage"]["progress_out_of_sequence"] == "evaluated_zero_lag_all_relationship_types"
 
 
 def _query_service(source: AuthoritativeScheduleInput):
@@ -248,3 +249,205 @@ def test_quality_audit_returns_core_cycle_finding_when_scheduler_rejects_network
         assert answer.source_refs[0].source_type == "schedule-input-snapshot"
     finally:
         connection.close()
+
+
+def test_audit_checks_zero_lag_ss_ff_and_sf_progress_order() -> None:
+    payload = _audit_payload(
+        activities=[
+            {"id": "SS-P", "activity_type": "Task Dependent", "actual_start": "2026-10-05"},
+            {"id": "SS-S", "activity_type": "Task Dependent", "actual_start": "2026-10-01"},
+            {"id": "FF-P", "activity_type": "Task Dependent", "actual_finish": "2026-10-08"},
+            {"id": "FF-S", "activity_type": "Task Dependent", "actual_finish": "2026-10-04"},
+            {"id": "SF-P", "activity_type": "Task Dependent", "actual_start": "2026-10-09"},
+            {"id": "SF-S", "activity_type": "Task Dependent", "actual_finish": "2026-10-03"},
+        ],
+        relationships=[
+            {"predecessor_id": "SS-P", "successor_id": "SS-S", "type": "SS", "lag": 0},
+            {"predecessor_id": "FF-P", "successor_id": "FF-S", "type": "FF", "lag": 0},
+            {"predecessor_id": "SF-P", "successor_id": "SF-S", "type": "SF", "lag": 0},
+        ],
+    )
+    report = build_schedule_quality_audit(payload)
+    candidates = [
+        item for item in report["findings"]
+        if item["rule_id"] == "OUT_OF_SEQUENCE_PROGRESS_CANDIDATE"
+    ]
+
+    assert len(candidates) == 3
+    assert {item["evidence"]["relationship_type"] for item in candidates} == {"SS", "FF", "SF"}
+
+
+def test_audit_checks_wbs_baseline_and_resource_references_from_bound_context() -> None:
+    payload = _audit_payload(
+        activities=[
+            {
+                "id": "A",
+                "activity_type": "Task Dependent",
+                "status": "In Progress",
+                "wbs_id": "W-1",
+                "wbs_ancestry": ["W-ROOT"],
+                "actual_start": "2026-11-02",
+            },
+            {
+                "id": "B",
+                "activity_type": "Task Dependent",
+                "status": "Completed",
+                "wbs_id": "W-NOT-FOUND",
+                "wbs_ancestry": [],
+                "actual_start": "2026-11-03",
+            },
+        ],
+        relationships=[],
+    )
+    context = {
+        "wbs_nodes": [
+            {
+                "wbs_id": "W-ROOT",
+                "parent_kind": "project",
+                "parent_wbs_id": None,
+                "code": "1",
+                "name": "Project",
+                "sequence_number": 0,
+            },
+            {
+                "wbs_id": "W-1",
+                "parent_kind": "wbs",
+                "parent_wbs_id": "W-ROOT",
+                "code": "1.1",
+                "name": "Civil",
+                "sequence_number": 1,
+            },
+            {
+                "wbs_id": "W-2",
+                "parent_kind": "wbs",
+                "parent_wbs_id": "W-ROOT",
+                "code": "1.1",
+                "name": "Duplicate sibling code",
+                "sequence_number": 2,
+            },
+        ],
+        "baselines": [
+            {
+                "baseline_id": "BL-1",
+                "baseline_type": "PRIMARY",
+                "source_revision": 8,
+                "name": "Primary",
+            }
+        ],
+        "baseline_activities": [
+            {
+                "baseline_id": "BL-1",
+                "activity_id": "A",
+                "planned_start": "2026-11-02",
+                "planned_finish": "2026-11-06",
+                "budgeted_cost": "1000",
+                "currency": "USD",
+                "wbs_id": "W-OLD",
+            },
+            {
+                "baseline_id": "BL-1",
+                "activity_id": "REMOVED",
+                "planned_start": "2026-11-02",
+                "planned_finish": "2026-11-06",
+                "budgeted_cost": "500",
+                "currency": "USD",
+                "wbs_id": "W-OLD",
+            },
+        ],
+        "baseline_assignments": [
+            {"role": "PRIMARY", "baseline_id": "BL-MISSING"}
+        ],
+        "resource_assignments": [
+            {
+                "assignment_id": "RA-1",
+                "activity_id": "B",
+                "resource_id": "RES-1",
+                "units": "2",
+                "actual_units": None,
+                "remaining_units": None,
+                "planned_cost": "100",
+                "actual_cost": None,
+                "remaining_cost": None,
+                "unit": None,
+                "currency": None,
+                "is_driving": None,
+            },
+            {
+                "assignment_id": "RA-2",
+                "activity_id": "DELETED",
+                "resource_id": "RES-2",
+                "units": None,
+                "actual_units": None,
+                "remaining_units": None,
+                "planned_cost": None,
+                "actual_cost": None,
+                "remaining_cost": None,
+                "unit": None,
+                "currency": None,
+                "is_driving": None,
+            },
+        ],
+        "resource_periods": [
+            {
+                "assignment_id": "RA-1",
+                "activity_id": "A",
+                "resource_id": "RES-OTHER",
+                "period_start": "2026-11-02",
+                "units": "2",
+                "cost": "100",
+            }
+        ],
+    }
+    report = build_schedule_quality_audit(payload, audit_context=context)
+    rules = {item["rule_id"] for item in report["findings"]}
+
+    assert "ACTIVITY_WBS_NOT_FOUND" in rules
+    assert "DUPLICATE_WBS_SIBLING_CODE" in rules
+    assert "BASELINE_SOURCE_REVISION_IN_FUTURE" in rules
+    assert "BASELINE_ROLE_TARGET_MISSING" in rules
+    assert "BASELINE_ACTIVITY_ABSENT_FROM_CURRENT_SCHEDULE" in rules
+    assert "RESOURCE_ASSIGNMENT_ACTIVITY_NOT_FOUND" in rules
+    assert "RESOURCE_ASSIGNMENT_UNIT_MISSING" in rules
+    assert "RESOURCE_ASSIGNMENT_CURRENCY_MISSING" in rules
+    assert "RESOURCE_PERIOD_PARENT_MISMATCH" in rules
+    assert "COMPLETED_ACTIVITY_MISSING_ACTUAL_FINISH" in rules
+    assert report["coverage"]["wbs_registry_and_activity_assignment"] == "evaluated"
+    assert report["coverage"]["baseline_metadata_and_activity_references"] == "evaluated"
+    assert report["coverage"]["resource_assignment_referential_integrity"] == "evaluated_referential_integrity"
+    assert report["coverage"]["resource_cost_quantity_reconciliation"].startswith("not_evaluated")
+
+
+def test_audit_flags_inverted_actual_window_and_duplicate_constraints() -> None:
+    payload = json.dumps(
+        {
+            "snapshot_id": "snapshot-audit",
+            "tenant_id": "tenant-1",
+            "project_id": "project-1",
+            "project_revision": 7,
+            "mode": "DATE_BASED",
+            "activities": [
+                {
+                    "id": "A",
+                    "activity_type": "Task Dependent",
+                    "status": "In Progress",
+                    "actual_start": "2026-11-05",
+                    "actual_finish": "2026-11-02",
+                }
+            ],
+            "relationships": [],
+            "constraints": [
+                {"activity_id": "A", "type": "Start On or After", "date": "2026-11-01"},
+                {"activity_id": "A", "type": "Start On or After", "date": "2026-11-01"},
+            ],
+            "activity_calendar_assignments": [],
+            "schedule_options": {},
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    report = build_schedule_quality_audit(payload)
+    rules = {item["rule_id"] for item in report["findings"]}
+
+    assert "ACTUAL_FINISH_BEFORE_ACTUAL_START" in rules
+    assert "DUPLICATE_ACTIVITY_CONSTRAINT" in rules
+    assert report["summary"]["duplicate_constraint_count"] == 1
