@@ -2745,19 +2745,29 @@ async function main() {
       if (!header || !handle) return { missing: true, width: null };
       const rect = handle.getBoundingClientRect();
       const pointerId = 917;
+      // The resize handle sits on the logical inline-end edge. In RTL that
+      // edge is physically left, so move left to grow the column; in LTR move right.
+      const direction = getComputedStyle(header).direction;
+      const startX = rect.left + 3;
+      const endX = startX + (direction === "rtl" ? -30 : 30);
       handle.dispatchEvent(new PointerEvent("pointerdown", {
         bubbles: true, pointerId, isPrimary: true, button: 0,
-        clientX: rect.left + 3, clientY: rect.top + rect.height / 2,
+        clientX: startX, clientY: rect.top + rect.height / 2,
       }));
       window.dispatchEvent(new PointerEvent("pointermove", {
         bubbles: true, pointerId, isPrimary: true, button: 0,
-        clientX: rect.left + 33, clientY: rect.top + rect.height / 2,
+        clientX: endX, clientY: rect.top + rect.height / 2,
       }));
       window.dispatchEvent(new PointerEvent("pointerup", {
         bubbles: true, pointerId, isPrimary: true, button: 0,
-        clientX: rect.left + 33, clientY: rect.top + rect.height / 2,
+        clientX: endX, clientY: rect.top + rect.height / 2,
       }));
-      return { missing: false, width: Number.parseFloat(header.style.width) };
+      return {
+        missing: false,
+        width: Number.parseFloat(header.style.width),
+        direction,
+        drag_delta: endX - startX,
+      };
     }`);
     assert(
       columnDragBefore > 0 && !columnDragProbe.missing && columnDragProbe.width > columnDragBefore,
