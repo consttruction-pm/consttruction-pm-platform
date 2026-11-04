@@ -21,6 +21,10 @@ from construction_pm.control_intelligence.quality_policy_pack import (
     ScheduleQualityPolicyPack,
     SQLiteScheduleQualityPolicyRepository,
 )
+from construction_pm.p6_interchange_import_ledger import (
+    P6InterchangeImportBatch,
+    SQLiteP6InterchangeImportLedgerRepository,
+)
 from construction_pm.p6_code_repository import (
     P6CodeDefinition,
     P6CodeValue,
@@ -289,4 +293,51 @@ def test_reader_exposes_only_the_latest_approved_project_policy_pack() -> None:
     assert approved["version"] == "1.0.0"
     assert approved["approved_by"] == "admin-2"
     assert approved["weights"]["positive_lag"] == "0.50"
+    connection.close()
+
+
+def test_reader_loads_project_scoped_interchange_parse_evidence() -> None:
+    connection = sqlite3.connect(":memory:")
+    scope = _scope()
+    ledger = SQLiteP6InterchangeImportLedgerRepository(connection)
+    ledger.record(
+        P6InterchangeImportBatch(
+            batch_id="batch-1",
+            scope=scope,
+            request_key="request-1",
+            format="XER_PROJECT",
+            source_sha256="a" * 64,
+            source_byte_count=512,
+            row_count=1,
+            mapping_snapshot=(
+                {"mapping_id": "task-code", "source_field": "task_code", "status": "SUPPORTED"},
+            ),
+            row_summaries=(
+                {
+                    "row_index": 0,
+                    "source_fields": ["task_code", "vendor_code"],
+                    "canonical_fields": ["activity.activity_id"],
+                    "preserved_extension_fields": ["p6.interchange.vendor_code"],
+                    "warnings": ["PRESERVED_UNKNOWN_FIELD:vendor_code"],
+                },
+            ),
+            imported_by="admin-1",
+            imported_at=datetime(2026, 11, 4, 20, 0, tzinfo=timezone.utc),
+        )
+    )
+    reader = ScheduleQualityAuditContextReader(
+        authorization_policy=default_project_policy(),
+        interchange_import_ledger_repository=ledger,
+        transaction_manager=SQLiteTransactionManager(connection),
+    )
+    result = reader.load(scope, _auth(scope))
+    batches = result["interchange_import_batches"]
+    assert result["interchange_import_ledger_configured"] is True
+    assert len(batches) == 1
+    assert batches[0]["batch_id"] == "batch-1"
+    assert batches[0]["row_summaries"][0]["warnings"] == ["PRESERVED_UNKNOWN_FIELD:vendor_code"]
+    assert batches[0]["target_application_status"] == "PARSED_NOT_APPLIED"
+
+    other = reader.load(_scope(8), _auth(_scope(8)))
+    assert other["interchange_import_batches"] == []
     connection.close()
