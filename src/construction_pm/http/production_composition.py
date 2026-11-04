@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable
+from typing import Callable, Mapping
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
 from construction_pm.calendar_exception_repository import CalendarExceptionRepository
@@ -12,6 +12,7 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.ai_action_boundary import AIToolPermissionAdapter
 from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.backend_p0.api import BackendP0API
+from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
@@ -101,6 +102,7 @@ def build_project_lifecycle_wsgi_app(
     ai_assistant_provider: AIChatProvider | None = None,
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None,
+    quality_audit_context_loader: Callable[[BackendScope, AuthorizationContext], Mapping[str, object]] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
     p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
@@ -162,6 +164,7 @@ def build_project_lifecycle_wsgi_app(
         calculation_context_repository=calculation_context_repository,
         leveling_input_resolver=leveling_input_resolver,
         cost_inputs_resolver=cost_inputs_resolver,
+        quality_audit_context_loader=quality_audit_context_loader,
     )
     schedule_query_api = ScheduleQueryAPI(
         ScheduleQueryApplicationService(

@@ -50,6 +50,9 @@ from construction_pm.backend_p0.authoritative_schedule_facts import (
 from construction_pm.backend_p0.authoritative_schedule_query import (
     AuthoritativeScheduleQueryProvider,
 )
+from construction_pm.control_intelligence.quality_audit_context import (
+    ScheduleQualityAuditContextReader,
+)
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.repository import InMemoryBackendP0Repository
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
@@ -1154,10 +1157,21 @@ def open_preview_runtime(
     lifecycle_service = ProjectLifecycleService(sessions, project_repository, policy)
     lifecycle_api = ProjectLifecycleAPI(lifecycle_service)
 
+    quality_audit_context_reader = ScheduleQualityAuditContextReader(
+        authorization_policy=policy,
+        wbs_repository=repositories.wbs,
+        baseline_repository=repositories.baselines,
+        baseline_activity_repository=repositories.baseline_activities,
+        baseline_assignment_repository=repositories.baseline_assignments,
+        resource_assignment_repository=repositories.resource_assignments,
+        resource_period_repository=repositories.resource_periods,
+        transaction_manager=repositories.transaction_manager,
+    )
     query_provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=repositories.snapshots,
         calendar_registry_factory=lambda: build_calendar_registry(connection),
         calculation_context_repository=repositories.contexts,
+        quality_audit_context_loader=quality_audit_context_reader.load,
     )
     facts_provider = PublishedScheduleFactsProvider(repositories.snapshots, query_provider)
     legacy_workspace_provider = PreviewWorkspaceReadProvider(
