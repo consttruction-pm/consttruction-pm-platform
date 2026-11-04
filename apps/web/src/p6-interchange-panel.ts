@@ -364,6 +364,7 @@ export function renderInterchangeImportResult(
       ? `<section class="cp-interchange-audit-receipt is-recorded">
           <h4>${escapeHtml(labels.importAuditTitle)}</h4>
           <p>${escapeHtml(labels.importAuditRecorded)}</p>
+          <p><strong>${escapeHtml(audit.target_application_status ?? "—")}</strong></p>
           <strong>${escapeHtml(labels.importTargetNotApplied)}</strong>
           <dl>
             <div><dt>${escapeHtml(labels.importBatchId)}</dt><dd><code>${escapeHtml(audit.batch_id ?? "—")}</code></dd></div>
