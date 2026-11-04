@@ -125,7 +125,7 @@ def test_audit_reports_data_date_and_zero_lag_fs_out_of_sequence_candidate() -> 
         f for f in report["findings"]
         if f["rule_id"] == "OUT_OF_SEQUENCE_PROGRESS_CANDIDATE"
     )
-    assert oos["evidence"]["rule_scope"] == "ZERO_LAG_ALL_RELATIONSHIP_TYPES"
+    assert oos["evidence"]["rule_scope"] == "DATE_BASED_ZERO_LAG_ALL_RELATIONSHIP_TYPES"
     assert oos["evidence"]["relationship_type"] == "FS"
     assert report["coverage"]["progress_out_of_sequence"] == "evaluated_zero_lag_all_relationship_types"
 
