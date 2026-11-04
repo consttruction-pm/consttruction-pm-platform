@@ -1187,6 +1187,7 @@ def open_preview_runtime(
         calculation_context_repository=repositories.contexts,
         quality_audit_context_loader=quality_audit_context_reader.load,
         quality_audit_history_repository=quality_audit_history_repository,
+        quality_audit_history_transaction_manager=repositories.transaction_manager,
     )
     facts_provider = PublishedScheduleFactsProvider(repositories.snapshots, query_provider)
     legacy_workspace_provider = PreviewWorkspaceReadProvider(
@@ -1451,6 +1452,7 @@ def open_preview_runtime(
         ai_assistant_provider=ai_assistant_provider,
         form_builder_api=form_builder_api,
         quality_audit_history_repository=quality_audit_history_repository,
+        quality_audit_history_transaction_manager=repositories.transaction_manager,
     )
     return PreviewRuntime(
         database=database,
