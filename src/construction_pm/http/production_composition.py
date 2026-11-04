@@ -18,6 +18,12 @@ from construction_pm.p6_code_assignment_repository import P6CodeAssignmentReposi
 from construction_pm.control_intelligence.quality_audit_context import (
     ScheduleQualityAuditContextReader,
 )
+from construction_pm.control_intelligence.quality_audit_history import (
+    ScheduleQualityAuditHistoryRepository,
+)
+from construction_pm.control_intelligence.quality_audit_history_api import (
+    ScheduleQualityAuditHistoryAPI,
+)
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
@@ -108,6 +114,7 @@ def build_project_lifecycle_wsgi_app(
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None,
     quality_audit_context_loader: Callable[[BackendScope, AuthorizationContext], Mapping[str, object]] | None = None,
+    quality_audit_history_repository: ScheduleQualityAuditHistoryRepository | None = None,
     p6_code_repository: P6CodeRepository | None = None,
     p6_code_assignment_repository: P6CodeAssignmentRepository | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
@@ -235,11 +242,19 @@ def build_project_lifecycle_wsgi_app(
         leveling_input_resolver=leveling_input_resolver,
         cost_inputs_resolver=cost_inputs_resolver,
         quality_audit_context_loader=resolved_quality_audit_context_loader,
+        quality_audit_history_repository=quality_audit_history_repository,
     )
     schedule_query_api = ScheduleQueryAPI(
         ScheduleQueryApplicationService(
             provider=provider,
             authorization_policy=authorization_policy,
+        )
+    )
+    quality_audit_history_api = (
+        None
+        if quality_audit_history_repository is None
+        else ScheduleQualityAuditHistoryAPI(
+            quality_audit_history_repository, authorization_policy
         )
     )
     runtime_config_requested = (
@@ -335,6 +350,7 @@ def build_project_lifecycle_wsgi_app(
         p6_resource_rate_write_api=p6_resource_rate_write_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
+        schedule_quality_audit_history_api=quality_audit_history_api,
         ai_action_runtime=ai_action_runtime,
         ai_assistant_orchestrator=ai_assistant_orchestrator,
         form_builder_api=form_builder_api,
