@@ -9,7 +9,7 @@ or resource demand. Those values remain owned by the Shared Core.
 
 from collections import defaultdict
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import hashlib
 import json
 from typing import Mapping, Sequence
@@ -804,6 +804,262 @@ def _audit_activity_codes(
     if not definitions and not assignments:
         return "evaluated_no_code_definitions_or_assignments", 0, 0
     return "evaluated_reference_integrity_only_required_code_policy_not_configured", len(definitions_by_id), activity_assignment_count
+
+
+def _evaluate_approved_policy_pack(
+    policy_pack: Mapping[str, object] | None,
+    *,
+    policy_repository_configured: bool,
+    mode: str,
+    activity_rows: Mapping[str, dict[str, object]],
+    relationships: Sequence[dict[str, object]],
+    constraints: Sequence[dict[str, object]],
+    add,
+) -> tuple[dict[str, object], dict[str, str], int]:
+    rule_names = ("positive_lag", "activity_duration", "constraints_per_activity")
+    coverage = {
+        "excessive_lag_threshold": "not_evaluated_policy_pack_not_approved",
+        "long_duration_threshold": "not_evaluated_policy_pack_not_approved",
+        "excessive_constraint_threshold": "not_evaluated_policy_pack_not_approved",
+    }
+    if policy_pack is None:
+        reason = (
+            "APPROVED_POLICY_PACK_NOT_CONFIGURED"
+            if not policy_repository_configured
+            else "APPROVED_POLICY_PACK_REQUIRED"
+        )
+        for key in coverage:
+            coverage[key] = (
+                "not_evaluated_policy_repository_not_configured"
+                if not policy_repository_configured
+                else "not_evaluated_no_approved_policy_pack"
+            )
+        return (
+            {"status": "not_calculated", "value": None, "reason": reason, "score_components": []},
+            coverage,
+            0,
+        )
+    if (
+        not isinstance(policy_pack, Mapping)
+        or policy_pack.get("scoring_method") != "weighted_pass_rate.v1"
+        or not isinstance(policy_pack.get("approved_by"), str)
+        or not policy_pack.get("approved_by")
+        or not isinstance(policy_pack.get("approved_at"), str)
+        or not policy_pack.get("approved_at")
+        or not isinstance(policy_pack.get("thresholds"), Mapping)
+        or not isinstance(policy_pack.get("weights"), Mapping)
+    ):
+        for key in coverage:
+            coverage[key] = "not_evaluated_approved_policy_pack_invalid"
+        return (
+            {"status": "not_calculated", "value": None, "reason": "APPROVED_POLICY_PACK_INVALID", "score_components": []},
+            coverage,
+            0,
+        )
+
+    thresholds = policy_pack["thresholds"]
+    weights = policy_pack["weights"]
+    if set(thresholds) != set(rule_names) or set(weights) != set(rule_names):
+        for key in coverage:
+            coverage[key] = "not_evaluated_approved_policy_rules_incomplete"
+        return (
+            {"status": "not_calculated", "value": None, "reason": "APPROVED_POLICY_RULES_INCOMPLETE", "score_components": []},
+            coverage,
+            0,
+        )
+
+    metrics: dict[str, dict[str, int]] = {
+        key: {"eligible": 0, "passed": 0, "failed": 0}
+        for key in rule_names
+    }
+    policy = {
+        "policy_id": policy_pack.get("policy_id"),
+        "version": policy_pack.get("version"),
+        "name": policy_pack.get("name"),
+        "scoring_method": policy_pack.get("scoring_method"),
+        "approved_by": policy_pack.get("approved_by"),
+        "approved_at": policy_pack.get("approved_at"),
+    }
+
+    lag_rule = thresholds["positive_lag"]
+    if isinstance(lag_rule, Mapping):
+        for index, relationship in enumerate(relationships):
+            lag = relationship.get("lag", 0)
+            value = _lag_number(lag, mode)
+            if value is None:
+                continue
+            if mode == "DATE_BASED":
+                limit = _decimal_value(lag_rule.get("date_based_max_working_days"))
+                unit = "working-day"
+            else:
+                unit = (
+                    str(lag.get("unit"))
+                    if isinstance(lag, Mapping)
+                    else str(relationship.get("lag_unit", "working-day"))
+                )
+                time_limits = lag_rule.get("time_aware_max", {})
+                limit = _decimal_value(time_limits.get(unit)) if isinstance(time_limits, Mapping) else None
+            if limit is None:
+                continue
+            metrics["positive_lag"]["eligible"] += 1
+            if value <= limit:
+                metrics["positive_lag"]["passed"] += 1
+            else:
+                metrics["positive_lag"]["failed"] += 1
+                add(
+                    "EXCESSIVE_POSITIVE_LAG",
+                    str(lag_rule.get("severity")),
+                    "quality.finding.excessive_positive_lag",
+                    object_type="relationship",
+                    related_ids=tuple(
+                        value for value in (relationship.get("predecessor_id"), relationship.get("successor_id"))
+                        if isinstance(value, str) and value
+                    ),
+                    evidence={
+                        "relationship_index": index,
+                        "observed_value": str(value),
+                        "configured_maximum": str(limit),
+                        "unit": unit,
+                        "policy_id": policy.get("policy_id"),
+                        "policy_version": policy.get("version"),
+                    },
+                )
+
+    duration_rule = thresholds["activity_duration"]
+    if isinstance(duration_rule, Mapping):
+        for activity_id, activity in sorted(activity_rows.items()):
+            if activity.get("status_code") == "Inactive":
+                continue
+            raw_duration = activity.get("duration")
+            if mode == "DATE_BASED":
+                value = _decimal_value(raw_duration)
+                limit = _decimal_value(duration_rule.get("date_based_max_working_days"))
+                unit = "working-day"
+            else:
+                if isinstance(raw_duration, Mapping):
+                    unit = str(raw_duration.get("unit", ""))
+                    value = _decimal_value(raw_duration.get("value"))
+                else:
+                    unit = str(activity.get("duration_unit", ""))
+                    value = _decimal_value(raw_duration)
+                limits = duration_rule.get("time_aware_max", {})
+                limit = _decimal_value(limits.get(unit)) if isinstance(limits, Mapping) else None
+            if value is None or limit is None:
+                continue
+            metrics["activity_duration"]["eligible"] += 1
+            if value <= limit:
+                metrics["activity_duration"]["passed"] += 1
+            else:
+                metrics["activity_duration"]["failed"] += 1
+                add(
+                    "LONG_ACTIVITY_DURATION",
+                    str(duration_rule.get("severity")),
+                    "quality.finding.long_activity_duration",
+                    object_type="activity",
+                    object_id=activity_id,
+                    evidence={
+                        "observed_value": str(value),
+                        "configured_maximum": str(limit),
+                        "unit": unit,
+                        "policy_id": policy.get("policy_id"),
+                        "policy_version": policy.get("version"),
+                    },
+                )
+
+    constraint_rule = thresholds["constraints_per_activity"]
+    if isinstance(constraint_rule, Mapping):
+        try:
+            maximum = int(constraint_rule.get("maximum"))
+        except (TypeError, ValueError):
+            maximum = -1
+        if maximum >= 0:
+            counts: dict[str, int] = defaultdict(int)
+            for constraint in constraints:
+                activity_id = constraint.get("activity_id")
+                if isinstance(activity_id, str) and activity_id in activity_rows:
+                    counts[activity_id] += 1
+            for activity_id, activity in sorted(activity_rows.items()):
+                if activity.get("status_code") == "Inactive":
+                    continue
+                observed = counts[activity_id]
+                metrics["constraints_per_activity"]["eligible"] += 1
+                if observed <= maximum:
+                    metrics["constraints_per_activity"]["passed"] += 1
+                else:
+                    metrics["constraints_per_activity"]["failed"] += 1
+                    add(
+                        "EXCESSIVE_CONSTRAINTS_PER_ACTIVITY",
+                        str(constraint_rule.get("severity")),
+                        "quality.finding.excessive_constraints_per_activity",
+                        object_type="activity",
+                        object_id=activity_id,
+                        evidence={
+                            "observed_count": observed,
+                            "configured_maximum": maximum,
+                            "policy_id": policy.get("policy_id"),
+                            "policy_version": policy.get("version"),
+                        },
+                    )
+
+    coverage_keys = {
+        "positive_lag": "excessive_lag_threshold",
+        "activity_duration": "long_duration_threshold",
+        "constraints_per_activity": "excessive_constraint_threshold",
+    }
+    missing: list[str] = []
+    components: list[dict[str, object]] = []
+    total = Decimal("0")
+    for rule_id in rule_names:
+        values = metrics[rule_id]
+        if values["eligible"] == 0:
+            missing.append(rule_id)
+            coverage[coverage_keys[rule_id]] = "not_evaluated_no_applicable_observations"
+            continue
+        weight = _decimal_value(weights.get(rule_id))
+        if weight is None or weight <= 0:
+            missing.append(rule_id)
+            coverage[coverage_keys[rule_id]] = "not_evaluated_invalid_policy_weight"
+            continue
+        rate = Decimal(values["passed"]) / Decimal(values["eligible"])
+        points = weight * rate * Decimal("100")
+        total += points
+        components.append({
+            "rule": rule_id,
+            "weight": str(weight),
+            "eligible_count": values["eligible"],
+            "passed_count": values["passed"],
+            "failed_count": values["failed"],
+            "pass_rate": str(rate.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)),
+            "weighted_points": str(points.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+        })
+        coverage[coverage_keys[rule_id]] = "evaluated_by_approved_policy_pack"
+
+    if missing:
+        return (
+            {
+                "status": "not_calculated",
+                "value": None,
+                "reason": "APPROVED_POLICY_RULES_HAVE_NO_APPLICABLE_OBSERVATIONS",
+                "policy": policy,
+                "missing_rules": missing,
+                "score_components": components,
+            },
+            coverage,
+            sum(item["failed"] for item in metrics.values()),
+        )
+    rounded = total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return (
+        {
+            "status": "calculated",
+            "value": float(rounded),
+            "reason": None,
+            "policy": policy,
+            "formula": "100 * SUM(rule_weight * (passed_observations / eligible_observations))",
+            "score_components": components,
+        },
+        coverage,
+        sum(item["failed"] for item in metrics.values()),
+    )
 
 
 def build_schedule_quality_audit(
