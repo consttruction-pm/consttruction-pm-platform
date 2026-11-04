@@ -155,7 +155,7 @@ function projectImportRow(value: unknown): InterchangeImportRow {
 function projectImport(
   payload: unknown,
   context: ProjectContext,
-): InterchangeImportResult {
+): InterchangeImportResultWithAudit {
   const envelope = requireEnvelope(payload, context);
   if (!Array.isArray(envelope.rows)) invalid("INVALID_INTERCHANGE_ROWS");
   let importAudit: InterchangeImportAudit | undefined;
@@ -170,7 +170,10 @@ function projectImport(
       invalid("INVALID_INTERCHANGE_IMPORT_AUDIT");
     }
     for (const key of ["source_byte_count", "row_count", "mapping_count", "warning_count"] as const) {
-      if (audit[key] !== undefined && (typeof audit[key] !== "number" || !Number.isInteger(audit[key]) || audit[key] < 0)) {
+      const numericValue = audit[key];
+      if (numericValue !== undefined && (
+        typeof numericValue !== "number" || !Number.isInteger(numericValue) || numericValue < 0
+      )) {
         invalid("INVALID_INTERCHANGE_IMPORT_AUDIT");
       }
     }
