@@ -123,6 +123,23 @@ test("empty WBS and empty activities add an honest load step before menu steps",
   assert.equal(emptyActivities.action?.target, "#cp-activity-grid");
 });
 
+test("live assistant guide detects the authenticated project workspace shell", () => {
+  const projectShell = {} as Element;
+  const doc = {
+    documentElement: { lang: "en" },
+    location: { pathname: "/app/" },
+    querySelector(selector: string) {
+      if (selector === ".cp-app-shell[data-project]") return projectShell;
+      return null;
+    },
+    querySelectorAll() { return []; },
+  } as unknown as Document;
+
+  const query = readAssistantGuideQuery(doc);
+  assert.equal(query.page, "workspace");
+  assert.equal(query.state, "empty-activities");
+});
+
 test("page resolution understands Pages bases, language routes and unknown addresses", () => {
   assert.equal(resolveAssistantPage("/"), "home");
   assert.equal(resolveAssistantPage("/index.html"), "home");
