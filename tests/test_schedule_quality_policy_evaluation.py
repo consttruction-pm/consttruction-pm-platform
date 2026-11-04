@@ -135,3 +135,26 @@ def test_unapproved_or_unconfigured_policy_never_fabricates_a_score() -> None:
     missing = build_schedule_quality_audit(payload())
     assert missing["quality_index"]["status"] == "not_calculated"
     assert missing["quality_index"]["reason"] == "APPROVED_POLICY_PACK_REQUIRED"
+
+
+def test_positive_lag_score_excludes_zero_lag_and_negative_lead_observations() -> None:
+    source = json.loads(payload())
+    source["relationships"] = [
+        {"predecessor_id": "A", "successor_id": "B", "type": "FS", "lag": 1},
+        {"predecessor_id": "B", "successor_id": "C", "type": "FS", "lag": 0},
+        {"predecessor_id": "C", "successor_id": "D", "type": "FS", "lag": -2},
+    ]
+    report = build_schedule_quality_audit(
+        json.dumps(source, sort_keys=True, separators=(",", ":")),
+        audit_context={
+            "quality_policy_repository_configured": True,
+            "approved_quality_policy_pack": policy_pack(),
+        },
+    )
+    component = next(
+        item for item in report["quality_index"]["score_components"]
+        if item["rule"] == "positive_lag"
+    )
+    assert component["eligible_count"] == 1
+    assert component["passed_count"] == 1
+    assert component["failed_count"] == 0
