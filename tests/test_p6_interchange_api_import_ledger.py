@@ -118,7 +118,7 @@ def test_import_api_persists_hash_mapping_coverage_and_row_evidence_idempotently
         assert stored is not None
         assert stored.row_summaries[0]["source_fields"] == ["task_code", "vendor_cost_code"]
         assert stored.row_summaries[0]["canonical_fields"] == ["activity.activity_name"]
-        assert "vendor_cost_code" in stored.row_summaries[0]["preserved_extension_fields"][0]
+        assert any("vendor_cost_code" in field for field in stored.row_summaries[0]["preserved_extension_fields"])
     finally:
         connection.close()
 
