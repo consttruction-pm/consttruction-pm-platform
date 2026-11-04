@@ -1540,6 +1540,13 @@ test("Progress is a first-class window mounted on the shared activity progress s
   assert.doesNotMatch(html, /Progress presentation reads the field records/);
 });
 
+test("Cost is a first-class window mounted on the shared cost and earned-value reads", () => {
+  const html = render("en", "cost");
+  assert.match(html, /data-cost-page/);
+  assert.match(html, /Cost Overview/);
+  assert.doesNotMatch(html, /procurement, change and claim records already loaded/i);
+});
+
 test("Resource Assignments is a first-class window mounted on the real assignment register", () => {
   const html = render("en", "assignments");
   assert.match(html, /data-assignments-page/);

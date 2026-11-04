@@ -52,6 +52,7 @@ import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
 import { mountWorkspaceAssignmentsPage } from "./workspace-assignments.js";
 import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
+import { mountWorkspaceCostPage } from "./workspace-cost.js";
 import { mountWorkspaceProgressPage } from "./workspace-progress.js";
 import { mountWorkspaceRolesPage } from "./workspace-roles.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
@@ -1640,6 +1641,16 @@ function renderApp(
         code: node.localCode,
         name: node.name,
       })),
+    });
+  }
+
+  const costPage = workspace.querySelector<HTMLElement>("[data-cost-page]");
+  if (costPage) {
+    mountWorkspaceCostPage(costPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      onNavigate: (menu) => activateWindow(menu),
     });
   }
 

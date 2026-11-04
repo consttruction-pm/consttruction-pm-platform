@@ -106,6 +106,11 @@ from construction_pm.p6_expense_repository import (
     P6ExpenseApplicationService,
     SQLiteP6ExpenseRepository,
 )
+from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI
+from construction_pm.p6_financial_period_repository import (
+    P6FinancialPeriodApplicationService,
+    SQLiteP6FinancialPeriodRepository,
+)
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_baseline_activity_repository import (
     SQLiteP6BaselineActivityRepository,
@@ -308,6 +313,8 @@ class PreviewRepositories:
     expense_service: P6ExpenseApplicationService
     cost_accounts: SQLiteP6CostAccountRepository
     cost_account_service: P6CostAccountApplicationService
+    financial_periods: SQLiteP6FinancialPeriodRepository
+    financial_period_service: P6FinancialPeriodApplicationService
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -365,6 +372,10 @@ class PreviewRepositories:
         cost_account_service = P6CostAccountApplicationService(
             cost_accounts, transaction_manager
         )
+        financial_periods = SQLiteP6FinancialPeriodRepository(connection)
+        financial_period_service = P6FinancialPeriodApplicationService(
+            financial_periods, transaction_manager
+        )
         return cls(
             activities=activities,
             wbs=wbs,
@@ -404,6 +415,8 @@ class PreviewRepositories:
             expense_service=expense_service,
             cost_accounts=cost_accounts,
             cost_account_service=cost_account_service,
+            financial_periods=financial_periods,
+            financial_period_service=financial_period_service,
             transaction_manager=transaction_manager,
         )
 
@@ -1365,6 +1378,9 @@ def open_preview_runtime(
         p6_role_api=P6RoleAPI(repositories.roles, policy),
         p6_expense_api=P6ExpenseAPI(repositories.expense_service, policy),
         p6_cost_account_api=P6CostAccountAPI(repositories.cost_account_service, policy),
+        p6_financial_period_api=P6FinancialPeriodAPI(
+            repositories.financial_period_service, policy
+        ),
         resource_read_api=P6ResourceReadAPI(
             repositories.resource_assignment_service,
             repositories.resource_period_service,

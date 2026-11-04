@@ -1211,13 +1211,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       body += controls(moduleButton("tools", "file", uiText(state.locale, "Open workspace tools", "بازکردن ابزارهای محیط کار")));
       break;
     case "cost":
-      body = `
-        <div class="cp-p6-module-metrics">
-          ${metric(state.procurementRecords.length, t.procurement)}
-          ${metric(state.changeNotices.length + state.changeCases.length + state.claims.length, t.commercial)}
-        </div>
-        <p>${escapeHtml(uiText(state.locale, "Cost presentation uses the procurement, change and claim records already loaded for this project. Financial calculations remain in the authoritative core.", "نمایش هزینه از سوابق تدارکات، تغییر و ادعای بارگذاری‌شده برای این پروژه استفاده می‌کند. محاسبات مالی در هستهٔ مرجع باقی می‌ماند."))}</p>
-        ${controls(moduleButton("tools", "money", uiText(state.locale, "Open cost records", "بازکردن سوابق هزینه")))}`;
+      body = `<div class="cp-register-window" data-cost-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Cost Overview", "نمای کلی هزینه"))}"></div>`;
       break;
     case "progress":
       body = `<div class="cp-register-window" data-progress-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Activity Progress", "پیشرفت فعالیت‌ها"))}"></div>`;
@@ -1303,8 +1297,8 @@ function renderModuleEmptyState(state: WorkspaceState): string {
       : { title: "Project progress", message: "Activity progress is read from and edited through the shared activity service. Use the activity grid to add activities and Run Schedule to recalculate dates; this page does not invent percentages or dates." };
   } else if (state.activeMenu === "cost") {
     copy = locale === "fa"
-      ? { title: "هزینه و جریان مالی", message: "نمای کامل هزینه، پیش‌بینی و نمودارهای مالی هنوز در این پیش‌نمایش تکمیل نشده است. سوابق موجودِ تدارکات، تغییرات و ادعاها فقط در بخش‌های مربوط به خود نمایش داده می‌شوند." }
-      : { title: "Cost & financial control", message: "The full cost view, forecast and financial charts are not complete in this preview. Existing procurement, change and claim records remain available only in their respective panels." };
+      ? { title: "هزینه و جریان مالی", message: "نمای هزینه از هزینه‌ها، حساب‌های هزینه، دوره‌های مالی، مبناها و مدل خواندن مشترک ارزش کسب‌شده خوانده می‌شود. نمودارهای مالی تکمیلی هنوز در این پیش‌نمایش وجود ندارند و هیچ محاسبه‌ای در مرورگر انجام نمی‌شود." }
+      : { title: "Cost & financial control", message: "The cost overview reads stored expenses, cost accounts, financial periods, baselines and the shared earned-value read model. Additional financial charts are not available in this preview, and no calculation is performed in the browser." };
   } else if (state.activeMenu === "documents" && state.documents.length === 0) {
     copy = locale === "fa"
       ? { title: "اسناد پروژه", message: "هنوز سندی برای این پروژه ثبت یا پیوند داده نشده است. وقتی سندی افزوده شود، در این بخش نمایش داده خواهد شد." }
@@ -1360,7 +1354,7 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
     case "tracking":
       return [];
     case "cost":
-      return ["#cp-procurement", "#cp-change-claim"];
+      return ["#cp-cost-overview", "#cp-cost-registers"];
     case "documents":
       return ["#cp-documents", null];
     case "reports":

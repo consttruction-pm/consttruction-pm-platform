@@ -6841,7 +6841,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-expense-fields label,.cp-p6 .cp-progress-fields label{display:flex;flex-direction:column;gap:3px;min-width:0;color:#52657a;font-size:9px}
 .cp-p6 .cp-expense-fields input,.cp-p6 .cp-expense-fields select,.cp-p6 .cp-progress-fields input,.cp-p6 .cp-progress-fields select{width:100%;min-width:0;min-height:28px;padding:4px 6px;border:1px solid #cbd5e1;background:#f7f9fc;color:#31465e;font:inherit}
 .cp-p6 .cp-expense-fields .cp-expense-note,.cp-p6 .cp-expense-fields .cp-calendar-panel-actions,.cp-p6 .cp-progress-fields .cp-calendar-panel-actions{grid-column:1/-1;margin-top:0}
-.cp-p6 .cp-cost-account-panel{display:flex;flex-direction:column;gap:8px;min-width:0;margin-top:10px}
+.cp-p6 .cp-cost-account-panel,.cp-p6 .cp-cost-panel{display:flex;flex-direction:column;gap:8px;min-width:0;margin-top:10px}
 @media(max-width:900px){.cp-p6 .cp-expense-fields,.cp-p6 .cp-progress-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.cp-p6 .cp-expense-fields,.cp-p6 .cp-progress-fields{grid-template-columns:minmax(0,1fr)}}
 .cp-p6 .cp-register-notice{padding:7px 9px;border:1px solid #e1d4b8;background:#fffaf0;color:#785a2b}
