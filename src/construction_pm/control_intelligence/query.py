@@ -10,6 +10,7 @@ class ScheduleQueryKind(str, Enum):
     EXPLANATION = "explanation"
     FILTER = "filter"
     SCENARIO = "scenario"
+    QUALITY_AUDIT = "quality_audit"
 
 
 @dataclass(frozen=True)
