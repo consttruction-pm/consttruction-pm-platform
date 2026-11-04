@@ -18,6 +18,10 @@ from construction_pm.control_intelligence.graph import ControlDomain
 from construction_pm.control_intelligence.scenario import ScenarioChange
 from construction_pm.control_intelligence.query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
 from construction_pm.control_intelligence.quality_audit import build_schedule_quality_audit
+from construction_pm.control_intelligence.quality_audit_history import (
+    ScheduleQualityAuditHistoryRepository,
+    ScheduleQualityAuditHistoryRecord,
+)
 from construction_pm.schedule_evaluator import (
     ScheduleEvaluationError,
     ScheduleEvaluationResult,
@@ -49,6 +53,32 @@ class AuthoritativeScheduleQueryProvider:
     # them as immutable LevelingCostInputs and reads no repository itself.
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None
     quality_audit_context_loader: Callable[[BackendScope, AuthorizationContext], Mapping[str, object]] | None = None
+    quality_audit_history_repository: ScheduleQualityAuditHistoryRepository | None = None
+
+    def _persist_quality_audit(
+        self,
+        scope: BackendScope,
+        request: ScheduleQueryRequest,
+        report: dict[str, object],
+    ) -> None:
+        if self.quality_audit_history_repository is None:
+            report["audit_history"] = {"status": "not_configured", "audit_id": None}
+            return
+        try:
+            record: ScheduleQualityAuditHistoryRecord = self.quality_audit_history_repository.record(
+                scope, request.query_id, report
+            )
+        except Exception as exc:
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                "SCHEDULE_QUALITY_AUDIT_HISTORY_PERSISTENCE_FAILED",
+                "The audit report could not be durably recorded; no unpersisted report was returned as saved.",
+            ) from exc
+        report["audit_history"] = {
+            "status": "persisted",
+            "audit_id": record.audit_id,
+            "created_at": record.created_at.isoformat(),
+        }
 
     def execute(
         self,
@@ -198,6 +228,7 @@ class AuthoritativeScheduleQueryProvider:
                     audit_context=load_quality_audit_context(),
                 )
                 report["evaluation_error_code"] = error_code
+                self._persist_quality_audit(scope, request, report)
                 return ScheduleQueryAnswer(
                     query_id=request.query_id,
                     scope=request.scope,
@@ -235,6 +266,15 @@ class AuthoritativeScheduleQueryProvider:
             snapshot,
             audit_context=load_quality_audit_context(),
         )
+        if request.kind is ScheduleQueryKind.QUALITY_AUDIT:
+            report = data.get("quality_audit")
+            if not isinstance(report, dict):
+                raise BackendApplicationError(
+                    ErrorCategory.VALIDATION,
+                    "INVALID_SCHEDULE_QUALITY_AUDIT_REPORT",
+                    "The schedule quality audit did not produce a persistable report.",
+                )
+            self._persist_quality_audit(scope, request, report)
         return ScheduleQueryAnswer(
             query_id=request.query_id,
             scope=request.scope,
