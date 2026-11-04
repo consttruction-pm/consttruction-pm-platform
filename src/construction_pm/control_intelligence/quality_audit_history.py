@@ -152,9 +152,8 @@ class _SqlScheduleQualityAuditHistoryRepository:
             )
             self.connection.execute(
                 "CREATE OR REPLACE FUNCTION cubi_schedule_quality_audit_history_no_mutation() "
-                "RETURNS TRIGGER AS $ BEGIN "
-                "RAISE EXCEPTION 'SCHEDULE_QUALITY_AUDIT_HISTORY_IMMUTABLE'; "
-                "END; $ LANGUAGE plpgsql"
+                "RETURNS TRIGGER LANGUAGE plpgsql AS "
+                "'BEGIN RAISE EXCEPTION ''SCHEDULE_QUALITY_AUDIT_HISTORY_IMMUTABLE''; END;'"
             )
             self.connection.execute(
                 "DROP TRIGGER IF EXISTS trg_schedule_quality_audit_history_no_mutation "
