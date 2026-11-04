@@ -60,6 +60,7 @@ from construction_pm.control_intelligence.quality_policy_pack import (
     SQLiteScheduleQualityPolicyRepository,
 )
 from construction_pm.control_intelligence.quality_policy_pack_api import ScheduleQualityPolicyAPI
+from construction_pm.p6_interchange_import_ledger import SQLiteP6InterchangeImportLedgerRepository
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.repository import InMemoryBackendP0Repository
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
@@ -313,6 +314,7 @@ class PreviewRepositories:
     mappings: SQLiteP6MappingRegistryRepository
     mapping_service: P6MappingRegistryApplicationService
     quality_policies: SQLiteScheduleQualityPolicyRepository
+    interchange_import_ledger: SQLiteP6InterchangeImportLedgerRepository
     layouts: SQLiteP6LayoutRepository
     snapshots: SQLiteScheduleInputSnapshotRepository
     contexts: SQLiteCalculationContextRepository
@@ -371,6 +373,7 @@ class PreviewRepositories:
             mappings, transaction_manager
         )
         quality_policies = SQLiteScheduleQualityPolicyRepository(connection)
+        interchange_import_ledger = SQLiteP6InterchangeImportLedgerRepository(connection)
         layouts = SQLiteP6LayoutRepository(connection)
         snapshots = SQLiteScheduleInputSnapshotRepository(connection)
         contexts = SQLiteCalculationContextRepository(connection)
@@ -421,6 +424,7 @@ class PreviewRepositories:
             mappings=mappings,
             mapping_service=mapping_service,
             quality_policies=quality_policies,
+            interchange_import_ledger=interchange_import_ledger,
             layouts=layouts,
             snapshots=snapshots,
             contexts=contexts,
@@ -1412,6 +1416,8 @@ def open_preview_runtime(
             mapping_service=repositories.mapping_service,
             authorization_policy=policy,
             codecs={PREVIEW_INTERCHANGE_FORMAT: P6PrimaveraXmlCodec()},
+            import_ledger_repository=repositories.interchange_import_ledger,
+            import_ledger_transaction_manager=repositories.transaction_manager,
         ),
         p6_role_api=P6RoleAPI(repositories.roles, policy),
         p6_expense_api=P6ExpenseAPI(repositories.expense_service, policy),
