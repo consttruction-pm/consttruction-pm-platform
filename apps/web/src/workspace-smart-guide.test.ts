@@ -118,3 +118,18 @@ test("schedule query composer rejects invalid identity and kind", () => {
     /INVALID_SCHEDULE_QUERY_KIND/,
   );
 });
+
+test("schedule query composer supports the governed quality-audit operation", () => {
+  const request = buildScheduleQueryRequest(
+    context,
+    "planner-1",
+    "audit-1",
+    "Run schedule quality audit",
+    "quality_audit",
+    "fa-IR",
+    { snapshot_id: "snapshot-1" },
+  );
+
+  assert.equal(request.kind, "quality_audit");
+  assert.deepEqual(request.constraints, { snapshot_id: "snapshot-1" });
+});
