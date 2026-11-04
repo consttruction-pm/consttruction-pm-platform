@@ -1,5 +1,7 @@
 # CUBI Engineering Intelligence — Interactive Learning and Durable Memory
 
+> **Binding scope correction (2026-11-04):** Principle 13 and [CUBI_INTERNAL_COMMAND_ASSISTANT_PRINCIPLE.md](CUBI_INTERNAL_COMMAND_ASSISTANT_PRINCIPLE.md) govern the assistant. All references below to conversations, discussion or interaction mean structured command clarification, explicit feedback and approved knowledge capture—not an open-ended chatbot product. No third-party AI/ML model, model runtime, provider, external AI service, AI API/key or model-based fallback is permitted. Learning means versioned, privacy-governed knowledge and rule/dictionary curation inside CUBI, not model training. Where this document conflicts with the command-oriented interaction mode or no-model rule, Principle 13 prevails.
+
 **Requirement date:** 2026-10-23  
 **Status:** Mandatory assistant scope; implementation tracked by Issue #1540 and the V1 assistant gate #1423.  
 **Scope:** Engineering reasoning, personalization, reusable methods and recommendations. This does not authorize automatic changes to CUBI's calculation engine, product behavior or project data.
