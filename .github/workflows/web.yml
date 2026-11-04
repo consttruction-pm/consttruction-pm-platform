@@ -18,6 +18,7 @@ on:
 jobs:
   web:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: apps/web
@@ -64,11 +65,13 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install -e ../..
 
       - name: Browser E2E for rendered assistant avatars
+        timeout-minutes: 8
         env:
           CUBI_PYTHON: python
         run: npm run test:e2e:preview
 
       - name: Browser E2E for the Form Builder workflow
+        timeout-minutes: 8
         env:
           CUBI_PYTHON: python
         run: npm run test:e2e:forms
