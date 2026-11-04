@@ -445,22 +445,15 @@ async function login(page, baseUrl, role) {
   // The product's default /app route is the visual preview shell. This
   // Form Builder journey exercises the authenticated data-backed workspace,
   // so it explicitly selects that route after the session is established.
+  // This workflow always exercises the seeded Forms project. Enter it by
+  // explicit deep link in the authenticated, data-backed workspace; the
+  // default /app route is intentionally the separate visual preview shell.
   await page.navigate(
-    `${baseUrl}/app?view=live`,
-    null,
-    `${role} live workspace route`,
+    `${baseUrl}/app?project=${encodeURIComponent(PROJECT_ID)}&view=live`,
+    ".cp-workspace",
+    `${role} Forms project workspace`,
   );
-  // The shell may restore the previously opened project instead of asking
-  // again; both entries are valid for the same session.
-  await page.waitFor(
-    `Boolean(document.querySelector("[data-project-id]")) ||
-     Boolean(document.querySelector('[data-rail-action="forms"]'))`,
-    `${role} workspace entry`,
-  );
-  if (await page.evaluate(`Boolean(document.querySelector("[data-project-id]"))`)) {
-    await page.click(`button[data-project-id="${PROJECT_ID}"]`);
-  }
-  await page.waitForSelector('[data-rail-action="forms"]', "workspace shell");
+  await page.waitForSelector('[data-rail-action="forms"]', "workspace Forms entry");
 }
 
 async function logout(page, baseUrl) {
