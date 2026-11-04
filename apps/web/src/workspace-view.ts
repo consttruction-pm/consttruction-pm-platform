@@ -1187,7 +1187,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         </div>`;
       break;
     case "assignments":
-      body = renderRegisterWindow(state, uiText(state.locale, "Resource Assignments", "تخصیص منابع"), [["Activity ID","شناسه فعالیت"],["Activity Name","نام فعالیت"],["Resource","منبع"],["Role","نقش"],["Budgeted Units","واحد بودجه"],["Actual Units","واحد واقعی"],["Remaining Units","واحد باقی‌مانده"],["Units / Time","واحد / زمان"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Rate Type","نوع نرخ"],["Calendar","تقویم"]], [["general","General","عمومی"],["planning","Planning","برنامه‌ریزی"],["costs","Costs","هزینه‌ها"],["units-prices","Units & Prices","واحدها و قیمت‌ها"],["udfs","UDFs","فیلدهای کاربر"]]);
+      body = `<div class="cp-register-window" data-assignments-page></div>`;
       break;
     case "roles":
       body = `<div class="cp-register-window cp-roles-window" data-roles-page></div>`;

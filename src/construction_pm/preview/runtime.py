@@ -164,9 +164,17 @@ from construction_pm.p6_relationship_api import P6RelationshipAPI
 from construction_pm.p6_role_api import P6RoleAPI
 from construction_pm.p6_role_repository import SQLiteP6RoleRepository
 from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignmentApplicationService,
+    P6ResourceAssignmentPeriodApplicationService,
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
 )
+from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.p6_resource_spread_repository import (
+    P6ResourceSpreadApplicationService,
+    SQLiteP6ResourceSpreadRepository,
+)
+from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6ScheduleSnapshotPublicationAPI,
 )
@@ -264,6 +272,9 @@ class PreviewRepositories:
     calendar_work_hours: SQLiteCalendarWorkHourRepository
     resource_assignments: SQLiteP6ResourceAssignmentRepository
     resource_periods: SQLiteP6ResourceAssignmentPeriodRepository
+    resource_assignment_service: P6ResourceAssignmentApplicationService
+    resource_period_service: P6ResourceAssignmentPeriodApplicationService
+    resource_spread_service: P6ResourceSpreadApplicationService
     capacities: SQLiteP6ResourceCapacityRepository
     capacity_service: P6ResourceCapacityApplicationService
     rates: SQLiteP6ResourceRateRepository
@@ -300,6 +311,15 @@ class PreviewRepositories:
         calendar_work_hours = SQLiteCalendarWorkHourRepository(connection)
         resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
         resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
+        resource_assignment_service = P6ResourceAssignmentApplicationService(
+            resource_assignments, transaction_manager
+        )
+        resource_period_service = P6ResourceAssignmentPeriodApplicationService(
+            resource_periods, transaction_manager
+        )
+        resource_spread_service = P6ResourceSpreadApplicationService(
+            SQLiteP6ResourceSpreadRepository(connection), transaction_manager
+        )
         capacities = SQLiteP6ResourceCapacityRepository(connection)
         capacity_service = P6ResourceCapacityApplicationService(
             capacities, transaction_manager
@@ -338,6 +358,9 @@ class PreviewRepositories:
             calendar_work_hours=calendar_work_hours,
             resource_assignments=resource_assignments,
             resource_periods=resource_periods,
+            resource_assignment_service=resource_assignment_service,
+            resource_period_service=resource_period_service,
+            resource_spread_service=resource_spread_service,
             capacities=capacities,
             capacity_service=capacity_service,
             rates=rates,
@@ -1317,6 +1340,24 @@ def open_preview_runtime(
             codecs={PREVIEW_INTERCHANGE_FORMAT: P6PrimaveraXmlCodec()},
         ),
         p6_role_api=P6RoleAPI(repositories.roles, policy),
+        resource_read_api=P6ResourceReadAPI(
+            repositories.resource_assignment_service,
+            repositories.resource_period_service,
+            repositories.resource_spread_service,
+            policy,
+        ),
+        resource_write_api=P6ResourceWriteAPI(
+            repositories.resource_period_service,
+            policy,
+            assignment_service=repositories.resource_assignment_service,
+        ),
+        # The assignment read API also feeds the persisted leveling resolver,
+        # so the resolver receives the exact same calendar repositories the
+        # schedule core already reads.
+        resource_calendar_master_repository=repositories.calendars,
+        resource_calendar_snapshot_repository=repositories.calendar_snapshots,
+        resource_calendar_exception_repository=repositories.calendar_exceptions,
+        resource_calendar_work_hours_repository=repositories.calendar_work_hours,
         p6_resource_capacity_read_api=P6ResourceCapacityReadAPI(
             repositories.capacity_service,
             policy,
