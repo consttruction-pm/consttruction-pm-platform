@@ -39,9 +39,12 @@ def _iso_datetime(value: object) -> date | datetime | None:
         return None
     if "T" in value:
         try:
-            return datetime.fromisoformat(value)
+            parsed = datetime.fromisoformat(value)
         except ValueError:
             return None
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed
     return _iso_date(value)
 
 
