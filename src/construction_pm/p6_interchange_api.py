@@ -168,6 +168,43 @@ class P6InterchangeAPI:
         }
         return response
 
+    def get_import_batch(
+        self,
+        *,
+        scope: BackendScope,
+        batch_id: str,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any] | None:
+        _require_scope(scope, auth_context)
+        _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
+        if self.import_ledger_repository is None:
+            return None
+        if self.import_ledger_transaction_manager is None:
+            raise ValueError("P6_INTERCHANGE_IMPORT_LEDGER_TRANSACTION_MANAGER_REQUIRED")
+        with self.import_ledger_transaction_manager.transaction():
+            batch = self.import_ledger_repository.get(scope, batch_id)
+        if batch is None:
+            return None
+        return {
+            "contract_version": P6_INTERCHANGE_API_VERSION,
+            "batch": {
+                "batch_id": batch.batch_id,
+                "tenant_id": batch.scope.tenant_id,
+                "project_id": batch.scope.project_id,
+                "project_revision": batch.scope.project_revision,
+                "request_key": batch.request_key,
+                "format": batch.format,
+                "source_sha256": batch.source_sha256,
+                "source_byte_count": batch.source_byte_count,
+                "row_count": batch.row_count,
+                "mapping_snapshot": [dict(item) for item in batch.mapping_snapshot],
+                "row_summaries": [dict(item) for item in batch.row_summaries],
+                "imported_by": batch.imported_by,
+                "imported_at": batch.imported_at.isoformat(),
+                "target_application_status": batch.target_application_status,
+            },
+        }
+
     def list_import_batches(
         self,
         *,
