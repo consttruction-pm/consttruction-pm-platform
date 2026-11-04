@@ -217,6 +217,22 @@ type ScheduleQueryResult = {
   data?: Record<string, unknown>;
   error?: { category?: string; code?: string; message?: string };
 };
+type ScheduleQualityAuditHistoryItem = {
+  audit_id: string;
+  created_at: string;
+  scope: { project_revision: number };
+  status?: string;
+  evaluation_status?: string;
+  summary?: { finding_count?: number; critical_count?: number; warning_count?: number; info_count?: number };
+};
+type ScheduleQualityAuditHistoryList = {
+  contract_version: string;
+  audits: ScheduleQualityAuditHistoryItem[];
+};
+type ScheduleQualityAuditHistoryDetail = {
+  contract_version: string;
+  audit: { report?: unknown };
+};
 
 const STATUS_LABELS: Record<ScheduleReferenceStatus, { en: string; fa: string }> = {
   mapped_unverified: { en: "Mapped — not verified", fa: "کد‌یابی‌شده؛ تأییدنشده" },
@@ -233,6 +249,7 @@ const LABELS = {
     runIntro: "Publish an immutable snapshot from saved project data, then request results from the authoritative schedule service.",
     qualityAudit: "Run read-only quality audit", qualityAuditIntro: "Audit this exact project revision through the authenticated schedule service and Shared Core. No project data is changed.",
     qualityAuditRunning: "Publishing the project snapshot and checking schedule quality…", qualityAuditFailed: "The schedule quality audit could not be completed.",
+    auditHistory: "Audit history", auditHistoryLoading: "Loading saved audit runs…", auditHistoryFailed: "Saved audit history could not be loaded.", auditHistoryEmpty: "No saved audit runs exist for this project.", auditHistoryOpen: "Open report", auditHistoryRevision: "Revision", auditHistoryCreated: "Run time", auditHistoryFindings: "Findings",
     auditFindings: "Findings", auditCoverage: "Coverage and limitations", auditNoFindings: "No findings were returned for the checks evaluated.",
     auditSeverity: "Severity", auditRule: "Rule", auditObject: "Object", auditRelated: "Related objects", auditEvidence: "Evidence", auditMessageKey: "Message key",
     auditCritical: "Critical", auditWarnings: "Warnings", auditInfo: "Information", auditSnapshot: "Snapshot", auditRevision: "Revision", auditHash: "SHA-256", auditQualityIndex: "Quality index", auditPolicyPackRequired: "Approved policy pack required",
@@ -266,6 +283,7 @@ const LABELS = {
     runIntro: "از داده‌های ذخیره‌شده یک تصویر تغییرناپذیر ایجاد می‌شود و سپس نتیجه از سرویس اصلی زمان‌بندی دریافت می‌شود.",
     qualityAudit: "اجرای ممیزی کیفیت", qualityAuditIntro: "همین نسخهٔ پروژه از مسیر احراز هویت‌شدهٔ زمان‌بندی و هستهٔ مشترک بررسی می‌شود؛ هیچ داده‌ای در پروژه تغییر نمی‌کند.",
     qualityAuditRunning: "در حال انتشار تصویر پروژه و بررسی کیفیت زمان‌بندی…", qualityAuditFailed: "ممیزی کیفیت زمان‌بندی کامل نشد.",
+    auditHistory: "تاریخچهٔ ممیزی", auditHistoryLoading: "در حال خواندن اجراهای ذخیره‌شدهٔ ممیزی…", auditHistoryFailed: "خواندن تاریخچهٔ ممیزی ممکن نشد.", auditHistoryEmpty: "هنوز اجرای ذخیره‌شده‌ای برای ممیزی این پروژه وجود ندارد.", auditHistoryOpen: "بازکردن گزارش", auditHistoryRevision: "بازبینی", auditHistoryCreated: "زمان اجرا", auditHistoryFindings: "یافته‌ها",
     auditFindings: "یافته‌ها", auditCoverage: "دامنهٔ بررسی و محدودیت‌ها", auditNoFindings: "در کنترل‌های ارزیابی‌شده یافته‌ای بازگردانده نشد.",
     auditSeverity: "شدت", auditRule: "قاعده", auditObject: "موضوع", auditRelated: "موضوعات مرتبط", auditEvidence: "شواهد", auditMessageKey: "کلید پیام",
     auditCritical: "بحرانی", auditWarnings: "هشدارها", auditInfo: "اطلاعات", auditSnapshot: "تصویر مبنا", auditRevision: "بازبینی", auditHash: "SHA-256", auditQualityIndex: "شاخص کیفیت", auditPolicyPackRequired: "نیازمند بسته سیاست مصوب",
@@ -913,8 +931,12 @@ function mountRunPanel(
     <div class="cp-schedule-quality-audit">
       <h3>${safe(labels.qualityAudit)}</h3>
       <p>${safe(labels.qualityAuditIntro)}</p>
-      <button type="button" data-run-quality-audit>${safe(labels.qualityAudit)}</button>
+      <div class="cp-audit-actions">
+        <button type="button" data-run-quality-audit>${safe(labels.qualityAudit)}</button>
+        <button type="button" data-load-quality-audit-history>${safe(labels.auditHistory)}</button>
+      </div>
       <p role="status" data-quality-audit-status></p>
+      <section data-quality-audit-history aria-live="polite"></section>
       <section data-quality-audit-results aria-live="polite"></section>
     </div>`;
   const button = panel.querySelector<HTMLButtonElement>("[data-run-schedule]");
@@ -923,6 +945,8 @@ function mountRunPanel(
   const auditButton = panel.querySelector<HTMLButtonElement>("[data-run-quality-audit]");
   const auditStatus = panel.querySelector<HTMLElement>("[data-quality-audit-status]");
   const auditResults = panel.querySelector<HTMLElement>("[data-quality-audit-results]");
+  const auditHistoryButton = panel.querySelector<HTMLButtonElement>("[data-load-quality-audit-history]");
+  const auditHistoryPanel = panel.querySelector<HTMLElement>("[data-quality-audit-history]");
   const cached = scheduleRunResults.get(scheduleRunCacheKey(context));
   if (cached && resultPanel) renderScheduleRunResult(resultPanel, cached, labels);
   button?.addEventListener("click", async () => {
@@ -1133,6 +1157,71 @@ function mountRunPanel(
     });
     applyAuditFilters();
   };
+
+  auditHistoryButton?.addEventListener("click", async () => {
+    if (!auditHistoryButton || !auditHistoryPanel || !auditStatus) return;
+    auditHistoryButton.disabled = true;
+    auditStatus.textContent = labels.auditHistoryLoading;
+    auditHistoryPanel.innerHTML = "";
+    try {
+      const response = await transport.get<ScheduleQualityAuditHistoryList>(
+        `/api/v1/schedule/quality-audits?project_id=${encodeURIComponent(context.project_id)}&limit=100`,
+        context,
+      );
+      if (!response.ok) throw new Error(response.error.code);
+      const audits = Array.isArray(response.data.audits) ? response.data.audits : [];
+      if (audits.length === 0) {
+        auditHistoryPanel.innerHTML = `<p class="cp-audit-history-empty">${safe(labels.auditHistoryEmpty)}</p>`;
+      } else {
+        const rows = audits.map((item) => {
+          const revision = Number(item.scope?.project_revision ?? 0);
+          const findings = Number(item.summary?.finding_count ?? 0);
+          return `<tr>
+            <td><code>${safe(item.audit_id)}</code></td>
+            <td>${safe(item.created_at)}</td>
+            <td>${safe(revision)}</td>
+            <td>${safe(findings)}</td>
+            <td><span class="cp-audit-status-pill">${safe(item.status ?? item.evaluation_status ?? "—")}</span></td>
+            <td><button type="button" class="cp-audit-history-open" data-audit-history-id="${safe(item.audit_id)}">${safe(labels.auditHistoryOpen)}</button></td>
+          </tr>`;
+        }).join("");
+        auditHistoryPanel.innerHTML = `<div class="cp-audit-history-card">
+          <div class="cp-audit-section-heading"><span class="cp-audit-section-mark"></span><h4>${safe(labels.auditHistory)}</h4><span class="cp-audit-filter-count">${safe(audits.length)}</span></div>
+          <div class="cp-register-table-wrap cp-audit-table-wrap"><table class="cp-schedule-result-table cp-audit-table">
+            <thead><tr><th>${safe(labels.auditHistory)}</th><th>${safe(labels.auditHistoryCreated)}</th><th>${safe(labels.auditHistoryRevision)}</th><th>${safe(labels.auditHistoryFindings)}</th><th>${safe(labels.auditAuditStatus)}</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table></div>
+        </div>`;
+        for (const openButton of auditHistoryPanel.querySelectorAll<HTMLButtonElement>("[data-audit-history-id]")) {
+          openButton.addEventListener("click", async () => {
+            const auditId = openButton.dataset.auditHistoryId;
+            if (!auditId) return;
+            openButton.disabled = true;
+            try {
+              const detail = await transport.get<ScheduleQualityAuditHistoryDetail>(
+                `/api/v1/schedule/quality-audits/${encodeURIComponent(auditId)}?project_id=${encodeURIComponent(context.project_id)}`,
+                context,
+              );
+              if (!detail.ok) throw new Error(detail.error.code);
+              if (!detail.data.audit?.report) throw new Error("SCHEDULE_QUALITY_AUDIT_HISTORY_REPORT_MISSING");
+              renderQualityAudit(detail.data.audit.report);
+              auditStatus.textContent = "";
+            } catch (error) {
+              auditStatus.textContent = `${labels.auditHistoryFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_AUDIT_HISTORY_FAILED"})`;
+            } finally {
+              openButton.disabled = false;
+            }
+          });
+        }
+      }
+      auditStatus.textContent = "";
+    } catch (error) {
+      auditStatus.textContent = `${labels.auditHistoryFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_AUDIT_HISTORY_FAILED"})`;
+      auditHistoryPanel.innerHTML = "";
+    } finally {
+      auditHistoryButton.disabled = false;
+    }
+  });
 
   auditButton?.addEventListener("click", async () => {
     if (!auditButton || !auditStatus || !auditResults) return;
