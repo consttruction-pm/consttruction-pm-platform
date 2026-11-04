@@ -16,6 +16,15 @@ from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.control_intelligence.quality_audit_context import (
     ScheduleQualityAuditContextReader,
 )
+from construction_pm.p6_code_repository import (
+    P6CodeDefinition,
+    P6CodeValue,
+    SQLiteP6CodeRepository,
+)
+from construction_pm.p6_code_assignment_repository import (
+    P6CodeAssignment,
+    SQLiteP6CodeAssignmentRepository,
+)
 from construction_pm.p6_baseline_activity_repository import (
     P6BaselineActivity,
     SQLiteP6BaselineActivityRepository,
@@ -111,6 +120,22 @@ def test_reader_loads_revision_scoped_wbs_baselines_and_resources_read_only() ->
         )
     )
     resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
+    code_definitions = SQLiteP6CodeRepository(connection)
+    code_assignments = SQLiteP6CodeAssignmentRepository(connection)
+    code_definitions.upsert(
+        P6CodeDefinition(
+            scope,
+            "DISCIPLINE",
+            "Discipline",
+            "Activity",
+            "PROJECT",
+            "project-1",
+            (P6CodeValue("CIVIL", "Civil"), P6CodeValue("MEP", "MEP")),
+        )
+    )
+    code_assignments.upsert(
+        P6CodeAssignment(scope, "DISCIPLINE", "CIVIL", "ACTIVITY", "A-1")
+    )
     resource_periods.upsert(
         P6ResourceAssignmentPeriodValue(
             scope,
@@ -131,6 +156,8 @@ def test_reader_loads_revision_scoped_wbs_baselines_and_resources_read_only() ->
         baseline_assignment_repository=baseline_assignments,
         resource_assignment_repository=resource_assignments,
         resource_period_repository=resource_periods,
+        code_definition_repository=code_definitions,
+        code_assignment_repository=code_assignments,
         transaction_manager=tx,
     )
 
@@ -141,6 +168,8 @@ def test_reader_loads_revision_scoped_wbs_baselines_and_resources_read_only() ->
         baseline_assignments.list(scope),
         resource_assignments.list(scope),
         resource_periods.list(scope),
+        code_definitions.list(scope),
+        code_assignments.list(scope),
     )
     result = reader.load(scope, _auth(scope))
     after = (
@@ -150,6 +179,8 @@ def test_reader_loads_revision_scoped_wbs_baselines_and_resources_read_only() ->
         baseline_assignments.list(scope),
         resource_assignments.list(scope),
         resource_periods.list(scope),
+        code_definitions.list(scope),
+        code_assignments.list(scope),
     )
 
     assert before == after
@@ -159,6 +190,8 @@ def test_reader_loads_revision_scoped_wbs_baselines_and_resources_read_only() ->
     assert result["baseline_assignments"] == [{"role": "PRIMARY", "baseline_id": "BL-1"}]
     assert result["resource_assignments"][0]["unit"] == "hours"
     assert result["resource_periods"][0]["cost"] == "160"
+    assert result["code_definitions"][0]["values"][0]["value_id"] == "CIVIL"
+    assert result["code_assignments"][0]["owner_id"] == "A-1"
     connection.close()
 
 
@@ -191,4 +224,6 @@ def test_reader_distinguishes_unconfigured_repositories_from_empty_sources() -> 
     assert result["baseline_activities"] is None
     assert result["resource_assignments"] is None
     assert result["resource_periods"] is None
+    assert result["code_definitions"] is None
+    assert result["code_assignments"] is None
     connection.close()
