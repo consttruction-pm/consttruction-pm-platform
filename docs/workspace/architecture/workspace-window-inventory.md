@@ -34,13 +34,14 @@ Status values: **Implemented** = usable with real data; **Partial** = some real 
 | Expenses | Cost module is a preview | Preview | Expense register per activity |
 | Thresholds | None | Missing | Threshold dictionary and monitor |
 | Issues | Field/site issues `#cp-field-operations` (`:909`), quality/safety panels | Partial | Project issue register with history/notify |
-| Risks | None | Missing | Risk register and exposure |
+| Risks | None | Missing | ENG-05 extends this window with probability-impact, risk response, simulation, sensitivity and exposure analysis; real Risk API/window behavior remains missing; Issue #1706 |
 | Engineering Analysis & Root Cause | None | Missing | ENG-01; evidence-backed rules, causal graph, root-cause trace and alternatives; Issue #1706 |
 | Project Watchdog | None | Missing | ENG-02; event/threshold monitors, alerts, acknowledgement, escalation and history; Issue #1706 |
 | Scenario Lab | None | Missing | ENG-03; revision-bound scenario fork, assumptions, run results and comparison; Issue #1706 |
 | Optimization Studio | None | Missing | ENG-04; objectives, constraints, feasibility, candidate solutions and trade-offs; Issue #1706 |
 | Project Quality Audit | Existing Tools → Quality Checks entry only | Partial | ENG-06; full schedule/project audit register, transparent score breakdown and remediation history; Issue #1706 |
 | Construction Productivity | Existing field/quantity foundations only | Partial | ENG-07; quantities, production, crews, equipment, shifts, workface constraints and productivity variance; Issue #1706 |
+| Changes & Claims | Existing CUBI Changes & Claims surface; depth varies by module | Partial | ENG-08; extend the existing surface with notice control, event chronology, entitlement, TIA/windows/concurrency, cost quantum and evidence schedule; no duplicate window; Issue #1706 |
 | Data Reconciliation | Import preview foundations only | Partial | ENG-09; source mapping, deterministic matching, conflict resolution and field-level provenance; Issue #1706 |
 | Portfolio Capacity | Resource-capacity foundations only | Partial | ENG-11; authorized multi-project demand/supply, resource allocation, scenarios and bottlenecks; Issue #1706 |
 | Automation Center | None | Missing | ENG-10; workflow designer, trigger/condition/approval steps, run history and recovery; Issue #1706 |
