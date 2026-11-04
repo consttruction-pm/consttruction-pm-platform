@@ -59,3 +59,31 @@ def test_definition_is_immutable_but_identical_replay_is_idempotent():
 def test_invalid_status_fails_closed():
     with pytest.raises(P6FinancialPeriodPersistenceError, match="INVALID_STATUS"):
         period(scope(), status="UNKNOWN").validate()
+
+
+@pytest.mark.parametrize(
+    ("start_date", "end_date", "error"),
+    [
+        ("2026-02-30", "2026-03-31", "INVALID_START_DATE"),
+        ("2026-02-01", "2026-02-30", "INVALID_END_DATE"),
+        ("2026-10-01", "2026-09-30", "END_DATE_BEFORE_START_DATE"),
+        ("20260201", "2026-02-28", "INVALID_START_DATE"),
+    ],
+)
+def test_invalid_period_dates_fail_before_persistence(start_date, end_date, error):
+    repo = SQLiteP6FinancialPeriodRepository(sqlite3.connect(":memory:"))
+    invalid = P6FinancialPeriod(
+        scope(), "invalid-period", "Invalid period", start_date, end_date
+    )
+
+    with pytest.raises(P6FinancialPeriodPersistenceError, match=error):
+        repo.upsert(invalid)
+
+    assert repo.list(scope()) == ()
+
+
+def test_valid_leap_day_financial_period_is_accepted():
+    leap_period = P6FinancialPeriod(
+        scope(), "2024-02", "February 2024", "2024-02-01", "2024-02-29"
+    )
+    leap_period.validate()

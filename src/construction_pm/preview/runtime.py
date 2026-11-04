@@ -73,6 +73,9 @@ from construction_pm.calendar_master_repository import (
 from construction_pm.calendar_snapshot_repository import (
     SQLiteCalendarSnapshotRepository,
 )
+from construction_pm.calendar_work_hours_repository import (
+    SQLiteCalendarWorkHourRepository,
+)
 from construction_pm.constraint_master_repository import (
     SQLiteConstraintMasterRepository,
 )
@@ -93,7 +96,21 @@ from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadMode
 from construction_pm.p6_activity_period_actual_repository import (
     SQLiteP6ActivityPeriodActualRepository,
 )
-from construction_pm.p6_expense_repository import SQLiteP6ExpenseRepository
+from construction_pm.p6_cost_account_api import P6CostAccountAPI
+from construction_pm.p6_cost_account_repository import (
+    P6CostAccountApplicationService,
+    SQLiteP6CostAccountRepository,
+)
+from construction_pm.p6_expense_api import P6ExpenseAPI
+from construction_pm.p6_expense_repository import (
+    P6ExpenseApplicationService,
+    SQLiteP6ExpenseRepository,
+)
+from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI
+from construction_pm.p6_financial_period_repository import (
+    P6FinancialPeriodApplicationService,
+    SQLiteP6FinancialPeriodRepository,
+)
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_baseline_activity_repository import (
     SQLiteP6BaselineActivityRepository,
@@ -158,10 +175,20 @@ from construction_pm.p6_resource_rate_repository import (
 )
 from construction_pm.resources.rate_facts import ResourceRateFact
 from construction_pm.p6_relationship_api import P6RelationshipAPI
+from construction_pm.p6_role_api import P6RoleAPI
+from construction_pm.p6_role_repository import SQLiteP6RoleRepository
 from construction_pm.p6_resource_assignment_repository import (
+    P6ResourceAssignmentApplicationService,
+    P6ResourceAssignmentPeriodApplicationService,
     SQLiteP6ResourceAssignmentPeriodRepository,
     SQLiteP6ResourceAssignmentRepository,
 )
+from construction_pm.p6_resource_read_api import P6ResourceReadAPI
+from construction_pm.p6_resource_spread_repository import (
+    P6ResourceSpreadApplicationService,
+    SQLiteP6ResourceSpreadRepository,
+)
+from construction_pm.p6_resource_write_api import P6ResourceWriteAPI
 from construction_pm.p6_schedule_snapshot_publication_api import (
     P6ScheduleSnapshotPublicationAPI,
 )
@@ -256,8 +283,12 @@ class PreviewRepositories:
     calendar_assignments: SQLiteCalendarAssignmentRepository
     calendar_snapshots: SQLiteCalendarSnapshotRepository
     calendar_exceptions: SQLiteCalendarExceptionRepository
+    calendar_work_hours: SQLiteCalendarWorkHourRepository
     resource_assignments: SQLiteP6ResourceAssignmentRepository
     resource_periods: SQLiteP6ResourceAssignmentPeriodRepository
+    resource_assignment_service: P6ResourceAssignmentApplicationService
+    resource_period_service: P6ResourceAssignmentPeriodApplicationService
+    resource_spread_service: P6ResourceSpreadApplicationService
     capacities: SQLiteP6ResourceCapacityRepository
     capacity_service: P6ResourceCapacityApplicationService
     rates: SQLiteP6ResourceRateRepository
@@ -277,6 +308,13 @@ class PreviewRepositories:
     baseline_assignments: SQLiteP6BaselineRoleAssignmentRepository
     current_activity_values: SQLiteP6CurrentActivityRepository
     current_activity_service: P6CurrentActivityApplicationService
+    roles: SQLiteP6RoleRepository
+    expenses: SQLiteP6ExpenseRepository
+    expense_service: P6ExpenseApplicationService
+    cost_accounts: SQLiteP6CostAccountRepository
+    cost_account_service: P6CostAccountApplicationService
+    financial_periods: SQLiteP6FinancialPeriodRepository
+    financial_period_service: P6FinancialPeriodApplicationService
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -290,8 +328,18 @@ class PreviewRepositories:
         calendar_assignments = SQLiteCalendarAssignmentRepository(connection)
         calendar_snapshots = SQLiteCalendarSnapshotRepository(connection)
         calendar_exceptions = SQLiteCalendarExceptionRepository(connection)
+        calendar_work_hours = SQLiteCalendarWorkHourRepository(connection)
         resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
         resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
+        resource_assignment_service = P6ResourceAssignmentApplicationService(
+            resource_assignments, transaction_manager
+        )
+        resource_period_service = P6ResourceAssignmentPeriodApplicationService(
+            resource_periods, transaction_manager
+        )
+        resource_spread_service = P6ResourceSpreadApplicationService(
+            SQLiteP6ResourceSpreadRepository(connection), transaction_manager
+        )
         capacities = SQLiteP6ResourceCapacityRepository(connection)
         capacity_service = P6ResourceCapacityApplicationService(
             capacities, transaction_manager
@@ -317,6 +365,17 @@ class PreviewRepositories:
         current_activity_service = P6CurrentActivityApplicationService(
             current_activity_values, transaction_manager
         )
+        roles = SQLiteP6RoleRepository(connection)
+        expenses = SQLiteP6ExpenseRepository(connection)
+        expense_service = P6ExpenseApplicationService(expenses, transaction_manager)
+        cost_accounts = SQLiteP6CostAccountRepository(connection)
+        cost_account_service = P6CostAccountApplicationService(
+            cost_accounts, transaction_manager
+        )
+        financial_periods = SQLiteP6FinancialPeriodRepository(connection)
+        financial_period_service = P6FinancialPeriodApplicationService(
+            financial_periods, transaction_manager
+        )
         return cls(
             activities=activities,
             wbs=wbs,
@@ -326,8 +385,12 @@ class PreviewRepositories:
             calendar_assignments=calendar_assignments,
             calendar_snapshots=calendar_snapshots,
             calendar_exceptions=calendar_exceptions,
+            calendar_work_hours=calendar_work_hours,
             resource_assignments=resource_assignments,
             resource_periods=resource_periods,
+            resource_assignment_service=resource_assignment_service,
+            resource_period_service=resource_period_service,
+            resource_spread_service=resource_spread_service,
             capacities=capacities,
             capacity_service=capacity_service,
             rates=rates,
@@ -347,6 +410,13 @@ class PreviewRepositories:
             baseline_assignments=baseline_assignments,
             current_activity_values=current_activity_values,
             current_activity_service=current_activity_service,
+            roles=roles,
+            expenses=expenses,
+            expense_service=expense_service,
+            cost_accounts=cost_accounts,
+            cost_account_service=cost_account_service,
+            financial_periods=financial_periods,
+            financial_period_service=financial_period_service,
             transaction_manager=transaction_manager,
         )
 
@@ -1199,7 +1269,7 @@ def open_preview_runtime(
             baseline_activities=repositories.baseline_activities,
             activities=repositories.activities,
             actuals=SQLiteP6ActivityPeriodActualRepository(connection),
-            expenses=SQLiteP6ExpenseRepository(connection),
+            expenses=repositories.expenses,
             resolver_provider=_evm_resolver,
             wbs_repository=repositories.wbs,
             resource_assignments=repositories.resource_assignments,
@@ -1292,6 +1362,7 @@ def open_preview_runtime(
             repositories.calendar_snapshots,
             repositories.calendar_exceptions,
             policy,
+            work_hours_repository=repositories.calendar_work_hours,
             transaction_manager=repositories.transaction_manager,
         ),
         p6_baseline_api=baseline_api,
@@ -1304,6 +1375,30 @@ def open_preview_runtime(
             authorization_policy=policy,
             codecs={PREVIEW_INTERCHANGE_FORMAT: P6PrimaveraXmlCodec()},
         ),
+        p6_role_api=P6RoleAPI(repositories.roles, policy),
+        p6_expense_api=P6ExpenseAPI(repositories.expense_service, policy),
+        p6_cost_account_api=P6CostAccountAPI(repositories.cost_account_service, policy),
+        p6_financial_period_api=P6FinancialPeriodAPI(
+            repositories.financial_period_service, policy
+        ),
+        resource_read_api=P6ResourceReadAPI(
+            repositories.resource_assignment_service,
+            repositories.resource_period_service,
+            repositories.resource_spread_service,
+            policy,
+        ),
+        resource_write_api=P6ResourceWriteAPI(
+            repositories.resource_period_service,
+            policy,
+            assignment_service=repositories.resource_assignment_service,
+        ),
+        # The assignment read API also feeds the persisted leveling resolver,
+        # so the resolver receives the exact same calendar repositories the
+        # schedule core already reads.
+        resource_calendar_master_repository=repositories.calendars,
+        resource_calendar_snapshot_repository=repositories.calendar_snapshots,
+        resource_calendar_exception_repository=repositories.calendar_exceptions,
+        resource_calendar_work_hours_repository=repositories.calendar_work_hours,
         p6_resource_capacity_read_api=P6ResourceCapacityReadAPI(
             repositories.capacity_service,
             policy,

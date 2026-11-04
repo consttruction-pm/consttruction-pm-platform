@@ -52,10 +52,11 @@ test("schedule navigation exposes run controls and every reference section", () 
 });
 
 test("unsupported V1 surfaces are explicitly marked preview instead of being presented as implemented", () => {
-  assert.equal(getWorkspaceNavigation("progress").status, "preview");
+  assert.equal(getWorkspaceNavigation("progress").status, "partial");
   assert.equal(getWorkspaceNavigation("resources").status, "partial");
-  assert.equal(getWorkspaceNavigation("cost").status, "preview");
+  assert.equal(getWorkspaceNavigation("cost").status, "partial");
   assert.equal(getWorkspaceNavigation("reports").status, "preview");
+  assert.equal(getWorkspaceNavigation("issues").status, "preview");
 });
 
 test("navigation status follows the workspace active menu", () => {

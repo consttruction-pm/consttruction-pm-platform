@@ -174,3 +174,50 @@ def test_holiday_write_rejects_viewer_and_immutable_conflicts(tmp_path: Path) ->
         assert json.loads(body)["code"] == "P6_CALENDAR_REQUEST_INVALID"
     finally:
         runtime.close()
+
+
+def test_calendar_copy_and_delete_are_persisted_through_the_preview_api(tmp_path: Path) -> None:
+    runtime = open_preview_runtime(tmp_path / "preview.sqlite3", reset=True)
+    try:
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, body = _request(
+            runtime.app,
+            "POST",
+            f"/api/projects/{RPS_PROJECT}/p6/calendars/{RPS_CALENDAR}/1/copy",
+            body=json.dumps(
+                {"target_calendar_id": "CUBI-RPS-CAL-COPY", "target_calendar_version": "1"}
+            ).encode("utf-8"),
+            cookie=planner.session_id,
+            headers=_headers(),
+        )
+        assert status == 200, body[:300]
+        copied = json.loads(body)
+        assert copied["calendar_id"] == "CUBI-RPS-CAL-COPY"
+        expected_revision = copied["record_revision"]
+
+        # The preview runtime must expose the same dependent tables as the
+        # production composition. Delete previously failed with a raw
+        # sqlite3.OperationalError because calendar_work_hour_rule was absent.
+        status, body = _request(
+            runtime.app,
+            "DELETE",
+            f"/api/projects/{RPS_PROJECT}/p6/calendars/CUBI-RPS-CAL-COPY/1",
+            body=json.dumps({"expected_revision": expected_revision}).encode("utf-8"),
+            cookie=planner.session_id,
+            headers=_headers(),
+        )
+        assert status == 200, body[:300]
+        assert json.loads(body)["deleted"] is True
+
+        status, body = _request(
+            runtime.app,
+            "GET",
+            f"/api/projects/{RPS_PROJECT}/p6/calendars",
+            cookie=planner.session_id,
+            headers=_headers(),
+        )
+        assert status == 200
+        calendars = json.loads(body)["calendars"]
+        assert [item["calendar_id"] for item in calendars] == [RPS_CALENDAR]
+    finally:
+        runtime.close()

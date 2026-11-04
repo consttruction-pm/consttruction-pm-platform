@@ -3,7 +3,9 @@ import test from "node:test";
 
 import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
-import { createWorkspaceState, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
+import type { WorkspaceDocument } from "./workspace-document.js";
+import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
+import { createWorkspaceState, setDocuments, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -114,12 +116,167 @@ test("Calendar Register displays only authenticated project calendar records", (
   assert.doesNotMatch(container.innerHTML, />0<\/span>/);
 });
 
-test("WBS register exposes the connected add workflow and never fabricates a chart action", () => {
+test("WBS register exposes connected add, delete and view controls", () => {
   const html = render("en", "wbs");
   assert.match(html, /data-rail-action="wbs"/);
   assert.match(html, /data-rail-action="wbs">Add WBS/);
   assert.match(html, /data-wbs-delete disabled/);
-  assert.match(html, /WBS chart view is not connected yet/);
+  assert.match(html, /data-wbs-view="tree"/);
+  assert.match(html, /data-wbs-view="chart"/);
+  assert.doesNotMatch(html, /WBS chart view is not connected yet/);
+});
+
+test("WBS chart view draws the loaded hierarchy and keeps selection on the same records", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const hierarchy = { innerHTML: "" };
+  const chartButton = {
+    dataset: { wbsView: "chart" } as Record<string, string>,
+    setAttribute: () => undefined,
+    classList: { toggle: () => undefined },
+  };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => (selector === "[data-wbs-hierarchy]" ? hierarchy : null),
+    querySelectorAll: () => [chartButton],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = withWbsNodes(
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    [
+      { id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Project management", sequenceNumber: 1, recordRevision: 2 },
+      { id: "WBS-2", parentKind: "wbs", parentWbsId: "WBS-1", localCode: "2", name: "Civil works", sequenceNumber: 1, recordRevision: 4 },
+    ],
+  );
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const clickTarget = {
+    dataset: { wbsView: "chart" },
+    closest: (selector: string) => (selector.includes("[data-wbs-view]") ? chartButton : null),
+  };
+  listeners.get("click")?.({ target: clickTarget } as unknown as Event);
+  assert.match(hierarchy.innerHTML, /data-wbs-chart/);
+  assert.match(hierarchy.innerHTML, /1<\/span>\s*<strong>Project management<\/strong>/);
+  assert.match(hierarchy.innerHTML, /2<\/span>\s*<strong>Civil works<\/strong>/);
+  assert.match(hierarchy.innerHTML, /data-wbs-id="WBS-2"/);
+});
+
+function documentRecord(overrides: Partial<WorkspaceDocument> & Pick<WorkspaceDocument, "documentId" | "title">): WorkspaceDocument {
+  return {
+    resourceType: "rfi",
+    status: "submitted",
+    revision: 1,
+    contentHash: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    linkedEntityRefs: [],
+    hasStorageRef: true,
+    ...overrides,
+  };
+}
+
+test("Documents register and evidence read the authoritative workspace records", () => {
+  const state = setDocuments(
+    { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "documents" as const },
+    [
+      documentRecord({ documentId: "DOC-EVID-1", title: "Poured concrete record", resourceType: "evidence", status: "approved", revision: 4, linkedEntityRefs: ["A-101"] }),
+      documentRecord({ documentId: "DOC-RFI-1", title: "Request for information", linkedEntityRefs: ["A-130"] }),
+    ],
+  );
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const html = container.innerHTML;
+  assert.match(html, /id="cp-documents-register"/);
+  assert.match(html, /id="cp-documents-evidence"/);
+  assert.match(html, /data-document-row="DOC-EVID-1"/);
+  assert.match(html, /data-document-row="DOC-RFI-1"/);
+  assert.match(html, /Document Details/);
+  assert.match(html, /sha256:0123456789abcdef/);
+  assert.doesNotMatch(html, /data-document-create/);
+  assert.match(html, /does not expose yet/);
+
+  const evidenceStart = html.indexOf('id="cp-documents-evidence"');
+  const evidenceEnd = html.indexOf("</section>", evidenceStart);
+  const evidence = html.slice(evidenceStart, evidenceEnd);
+  assert.match(evidence, /DOC-EVID-1/);
+  assert.doesNotMatch(evidence, /DOC-RFI-1/);
+});
+
+test("selecting a document keeps the same authoritative record in the details panel", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const details = { innerHTML: "" };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => (selector === "[data-document-details]" ? details : null),
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = setDocuments(
+    { ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"), activeMenu: "documents" as const },
+    [
+      documentRecord({ documentId: "DOC-EVID-1", title: "Poured concrete record", resourceType: "evidence", status: "approved", revision: 4 }),
+      documentRecord({ documentId: "DOC-RFI-1", title: "Request for information", status: "submitted", revision: 2 }),
+    ],
+  );
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const clickTarget = {
+    dataset: { documentRow: "DOC-RFI-1" },
+    closest: (selector: string) => (selector.includes("[data-document-row]") ? clickTarget : null),
+  };
+  listeners.get("click")?.({ target: clickTarget } as unknown as Event);
+  assert.match(details.innerHTML, /DOC-RFI-1/);
+  assert.match(details.innerHTML, /Request for information/);
+  assert.match(details.innerHTML, /submitted/);
+  assert.match(details.innerHTML, /R2/);
+  assert.doesNotMatch(details.innerHTML, /DOC-EVID-1/);
+  assert.match(details.innerHTML, /data-document-detail-panel="files"/);
+  assert.match(details.innerHTML, /No upload or download route/);
+  assert.match(details.innerHTML, /only the current revision/);
+});
+
+test("Control page states honestly when no control-intelligence snapshot is loaded", () => {
+  const html = render("en", "control");
+  assert.match(html, /cp-control-window/);
+  assert.match(html, /No control-intelligence snapshot is loaded for this project revision/);
+  assert.match(html, /no analysis is calculated in the browser/);
+});
+
+test("Control page renders the stored control-room metrics, findings and actions", () => {
+  const source = { source_id: "SRC-1", source_type: "activity", locator: "A-100", revision: 3 };
+  const summary: WorkspaceControlSummary = {
+    resultId: "CR-RESULT-1",
+    generatedAt: "2026-11-04T10:00:00Z",
+    summaryKey: "CONTROL_SUMMARY",
+    metrics: { schedule_variance_days: 3, open_findings: 1 },
+    findings: [{
+      finding_id: "F-1",
+      domain: "schedule",
+      severity: "warning",
+      title_key: "Schedule slip detected",
+      detail_key: "Finish date moved beyond the stored baseline",
+      source_refs: [source],
+    }],
+    proposedActions: [{
+      action_id: "PA-1",
+      action_type: "review",
+      title_key: "Review the recovery plan",
+      source_refs: [source],
+      requires_approval: true,
+    }],
+  };
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "control" as const,
+    controlSummary: summary,
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const html = container.innerHTML;
+  assert.match(html, /CR-RESULT-1/);
+  assert.match(html, /2026-11-04T10:00:00Z/);
+  assert.match(html, /schedule_variance_days/);
+  assert.match(html, /<strong>3<\/strong>/);
+  assert.match(html, /Schedule slip detected/);
+  assert.match(html, /Finish date moved beyond the stored baseline/);
+  assert.match(html, /Review the recovery plan/);
+  assert.match(html, /Approval Required/);
+  assert.match(html, /performs no client-side analysis/);
 });
 
 test("Activity Group and Sort defaults to WBS in English and Persian", () => {
@@ -1512,11 +1669,9 @@ test("project settings button dispatches a single open request", () => {
   assert.equal(opened, 1);
 });
 
-test("WBS, assignments, expenses, issues, risks and thresholds have separate register windows", () => {
+test("WBS, issues, risks and thresholds have separate register windows", () => {
   const cases: Array<[WorkspaceMenuKey, string]> = [
     ["wbs", "Work Breakdown Structure"],
-    ["assignments", "Resource Assignments"],
-    ["expenses", "Project Expenses"],
     ["issues", "Project Issues"],
     ["risks", "Project Risks"],
     ["thresholds", "Project Thresholds"],
@@ -1528,12 +1683,38 @@ test("WBS, assignments, expenses, issues, risks and thresholds have separate reg
   }
 });
 
-test("Roles and Tracking are first-class windows with their documented visual surfaces", () => {
+test("Expenses is a first-class window mounted on the real expense and cost-account registers", () => {
+  const html = render("en", "expenses");
+  assert.match(html, /data-expenses-page/);
+  assert.match(html, /Project Expenses/);
+  assert.doesNotMatch(html, /data-register-tab="expenses:costs"/);
+});
+
+test("Progress is a first-class window mounted on the shared activity progress service", () => {
+  const html = render("en", "progress");
+  assert.match(html, /data-progress-page/);
+  assert.match(html, /Activity Progress/);
+  assert.doesNotMatch(html, /Progress presentation reads the field records/);
+});
+
+test("Cost is a first-class window mounted on the shared cost and earned-value reads", () => {
+  const html = render("en", "cost");
+  assert.match(html, /data-cost-page/);
+  assert.match(html, /Cost Overview/);
+  assert.doesNotMatch(html, /procurement, change and claim records already loaded/i);
+});
+
+test("Resource Assignments is a first-class window mounted on the real assignment register", () => {
+  const html = render("en", "assignments");
+  assert.match(html, /data-assignments-page/);
+  assert.doesNotMatch(html, /data-register-tab="assignments:costs"/);
+});
+
+test("Roles is a first-class window mounted on the real role register", () => {
   const roles = render("en", "roles");
-  assert.match(roles, /Role Register/);
-  assert.match(roles, /Max Units \/ Time/);
-  assert.match(roles, /data-register-tab="roles:rates"/);
-  assert.match(roles, /Select a role to view its limits information/);
+  assert.match(roles, /data-roles-page/);
+  assert.doesNotMatch(roles, /data-register-tab="roles:rates"/);
+  assert.doesNotMatch(roles, /Role management is a visual shell only/);
   const tracking = render("en", "tracking");
   assert.match(tracking, /Tracking Layout/);
   assert.match(tracking, /Project Table/);
@@ -1587,7 +1768,8 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 
   const progress = render("fa", "progress");
   assert.match(progress, /data-workspace-menu="progress"/);
-  assert.match(progress, /داشبورد و نمودارهای اختصاصی پیشرفت/);
+  assert.match(progress, /data-progress-page/);
+  assert.match(progress, /پیشرفت هر فعالیت از سرویس مشترک فعالیت/);
 
   const documents = render("en", "documents");
   assert.match(documents, /No project documents have been added or linked yet/);
@@ -1624,4 +1806,125 @@ test("desktop workbench keeps contextual Add actions visibly unavailable until w
   const html = render("en", "schedule");
   assert.match(html, /role="menuitem" disabled/);
   assert.match(html, /create workflow is not connected yet/);
+});
+
+test("Settings layout administration states honestly when no layout is loaded", () => {
+  const html = render("en", "settings");
+  assert.match(html, /data-settings-layout/);
+  assert.match(html, /Layout Administration/);
+  assert.match(html, /No saved activity-grid layout is loaded for this project revision/);
+  assert.match(html, /id="cp-project-settings-open"/);
+  assert.doesNotMatch(html, /data-p6-layout-undo/);
+  assert.doesNotMatch(html, /data-p6-field-add/);
+});
+
+test("Settings layout administration reads the persisted layout and dispatches history actions", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "settings" as const,
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "Oracle Primavera P6 Professional",
+      reference_version: "26",
+      status: "active",
+      fields: [
+        {
+          field_id: "activity.activity_id",
+          subject_area: "activity",
+          p6_field: "Activity ID",
+          display_name: "Activity ID",
+          data_type: "string",
+          writable: false,
+          computed: false,
+          disposition: "supported",
+        },
+        {
+          field_id: "activity.name",
+          subject_area: "activity",
+          p6_field: "Activity Name",
+          display_name: "Activity Name",
+          data_type: "string",
+          writable: false,
+          computed: false,
+          disposition: "supported",
+        },
+      ],
+    } as const,
+    p6Layout: {
+      schema_version: "p6-layout.v1",
+      scope: "project",
+      view_id: "activity-grid",
+      revision: 4,
+      columns: [
+        {
+          field_id: "activity.activity_id",
+          visible: true,
+          order: 0,
+          width: 120,
+          alignment: "start",
+          pinned: false,
+          frozen: false,
+        },
+        {
+          field_id: "activity.name",
+          visible: false,
+          order: 1,
+          width: 240,
+          alignment: "start",
+          pinned: false,
+          frozen: false,
+        },
+      ],
+    } as const,
+  };
+  const events: string[] = [];
+  let clickListener: ((event: Event) => void) | undefined;
+  const undoButton = { dataset: { p6LayoutUndo: "" }, closest: () => undoButton };
+  const redoButton = { dataset: { p6LayoutRedo: "" }, closest: () => redoButton };
+  const restoreButton = { dataset: { p6LayoutRestore: "" }, closest: () => restoreButton };
+  const revisionSelect = { value: "2" };
+  const container: RenderContainer & {
+    addEventListener: (event: string, listener: (event: Event) => void) => void;
+    querySelector: (selector: string) => unknown;
+  } = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (event, listener) => { if (event === "click") clickListener = listener; },
+    querySelector: (selector) => selector === "[data-p6-layout-revision-select]" ? revisionSelect : null,
+  };
+
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    layoutHistory: {
+      canUndo: true,
+      canRedo: false,
+      revisions: [
+        { revision: 4, columnCount: 2 },
+        { revision: 2, columnCount: 1 },
+      ],
+    },
+    onP6LayoutUndo: () => events.push("undo"),
+    onP6LayoutRedo: () => events.push("redo"),
+    onP6LayoutRestore: (revision) => events.push(`restore:${revision}`),
+  });
+
+  assert.match(container.innerHTML, /data-settings-layout/);
+  assert.match(container.innerHTML, /aria-label="Layout administration"/);
+  assert.match(container.innerHTML, /<dt>Scope<\/dt><dd>project<\/dd>/);
+  assert.match(container.innerHTML, /<dt>View<\/dt><dd>activity-grid<\/dd>/);
+  assert.match(container.innerHTML, /<dt>Revision<\/dt><dd>R4<\/dd>/);
+  assert.match(container.innerHTML, /<dt>Columns<\/dt><dd>1 \/ 2<\/dd>/);
+  assert.match(container.innerHTML, /Field Registry · project · R4/);
+  const undoMarkup = container.innerHTML.match(/<button[^>]*data-p6-layout-undo[^>]*>/)?.[0] ?? "";
+  const redoMarkup = container.innerHTML.match(/<button[^>]*data-p6-layout-redo[^>]*>/)?.[0] ?? "";
+  const restoreMarkup = container.innerHTML.match(/<button[^>]*data-p6-layout-restore[^>]*>/)?.[0] ?? "";
+  assert.ok(!undoMarkup.includes("disabled"), "undo must be enabled when canUndo is true");
+  assert.ok(redoMarkup.includes("disabled"), "redo must be disabled when canRedo is false");
+  assert.ok(!restoreMarkup.includes("disabled"), "restore must be enabled when older revisions exist");
+  assert.match(container.innerHTML, /<option value="2">R2 · 1 column\(s\)<\/option>/);
+  assert.match(container.innerHTML, /Only the activity-grid layout is exposed/);
+
+  clickListener?.({ target: undoButton } as unknown as Event);
+  clickListener?.({ target: redoButton } as unknown as Event);
+  clickListener?.({ target: restoreButton } as unknown as Event);
+  assert.deepEqual(events, ["undo", "redo", "restore:2"]);
 });

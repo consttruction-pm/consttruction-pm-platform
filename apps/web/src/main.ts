@@ -49,6 +49,12 @@ import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspace
 import { mountAIActionPanel } from "./ai-action-panel.js";
 import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
+import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
+import { mountWorkspaceAssignmentsPage } from "./workspace-assignments.js";
+import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
+import { mountWorkspaceCostPage } from "./workspace-cost.js";
+import { mountWorkspaceProgressPage } from "./workspace-progress.js";
+import { mountWorkspaceRolesPage } from "./workspace-roles.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
@@ -87,6 +93,8 @@ let currentBootstrap: ProjectBootstrap | null = null;
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
 let pendingDesktopFocusSelector: string | null = null;
 let pendingDesktopAction: (() => void) | null = null;
+/** Progress edits re-render the workspace; keep the edited activity selected. */
+let progressSelection: string | null = null;
 
 /**
  * Visual preferences are browser-local and deliberately outside project state:
@@ -1583,6 +1591,91 @@ function renderApp(
       console.error("Authoritative schedule result projection failed", error);
     }
   });
+
+  const calendarPage = workspace.querySelector<HTMLElement>("[data-calendar-page]");
+  if (calendarPage) {
+    mountWorkspaceCalendarPage(calendarPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      catalog: state.calendarCatalog,
+    });
+  }
+
+  const rolesPage = workspace.querySelector<HTMLElement>("[data-roles-page]");
+  if (rolesPage) {
+    mountWorkspaceRolesPage(rolesPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+    });
+  }
+
+  const assignmentsPage = workspace.querySelector<HTMLElement>("[data-assignments-page]");
+  if (assignmentsPage) {
+    mountWorkspaceAssignmentsPage(assignmentsPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      activities: state.activities.map((activity) => ({
+        id: activity.id,
+        code: activity.code,
+        name: activity.name,
+      })),
+    });
+  }
+
+  const expensesPage = workspace.querySelector<HTMLElement>("[data-expenses-page]");
+  if (expensesPage) {
+    mountWorkspaceExpensesPage(expensesPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      activities: state.activities.map((activity) => ({
+        id: activity.id,
+        code: activity.code,
+        name: activity.name,
+      })),
+      wbsNodes: state.wbsNodes.map((node) => ({
+        id: node.id,
+        code: node.localCode,
+        name: node.name,
+      })),
+    });
+  }
+
+  const costPage = workspace.querySelector<HTMLElement>("[data-cost-page]");
+  if (costPage) {
+    mountWorkspaceCostPage(costPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      onNavigate: (menu) => activateWindow(menu),
+    });
+  }
+
+  const progressPage = workspace.querySelector<HTMLElement>("[data-progress-page]");
+  if (progressPage) {
+    mountWorkspaceProgressPage(progressPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      initialActivityId: progressSelection,
+      onUpdated: async (activity) => {
+        // Progress is stored by the shared activity service. Re-read the
+        // workspace so the activity grid and Gantt show the same persisted
+        // values, while keeping the Progress window and selection in place.
+        progressSelection = activity.activityId;
+        const refreshed = await new WorkspaceReadClient(aiTransport).load(state.context, {
+          locale: state.locale,
+          calendarMode: state.calendarMode,
+        });
+        if (!refreshed.ok) return;
+        const nextState = await loadP6Presentation(refreshed.data, aiTransport, state.context);
+        renderApp(container, { ...nextState, activeMenu: "progress" }, persistence);
+      },
+    });
+  }
 
   // The bottom details pane is a real tabbed surface, not a placeholder. It
   // reads the selected row and the same relationships the Gantt draws.
