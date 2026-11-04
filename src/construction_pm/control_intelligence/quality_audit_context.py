@@ -53,6 +53,8 @@ class ScheduleQualityAuditContextReader:
     baseline_assignment_repository: ReadRepository | None = None
     resource_assignment_repository: ReadRepository | None = None
     resource_period_repository: ResourcePeriodRepository | None = None
+    code_definition_repository: ReadRepository | None = None
+    code_assignment_repository: ReadRepository | None = None
     transaction_manager: TransactionManager | None = None
 
     def load(
@@ -83,6 +85,8 @@ class ScheduleQualityAuditContextReader:
             baseline_assignments = self._load_baseline_assignments(scope)
             resource_assignments = self._load_resource_assignments(scope)
             resource_periods = self._load_resource_periods(scope)
+            code_definitions = self._load_code_definitions(scope)
+            code_assignments = self._load_code_assignments(scope)
 
         return {
             "wbs_nodes": wbs_nodes,
@@ -91,6 +95,8 @@ class ScheduleQualityAuditContextReader:
             "baseline_assignments": baseline_assignments,
             "resource_assignments": resource_assignments,
             "resource_periods": resource_periods,
+            "code_definitions": code_definitions,
+            "code_assignments": code_assignments,
         }
 
     def _load_wbs(self, scope: BackendScope) -> list[dict[str, object]] | None:
@@ -185,6 +191,44 @@ class ScheduleQualityAuditContextReader:
                 ),
             }
             for item in self.resource_assignment_repository.list(scope)
+        ]
+
+    def _load_code_definitions(
+        self, scope: BackendScope
+    ) -> list[dict[str, object]] | None:
+        if self.code_definition_repository is None:
+            return None
+        return [
+            {
+                "code_id": item.code_id,
+                "name": item.name,
+                "subject_area": item.subject_area,
+                "scope_kind": item.scope_kind,
+                "scope_key": item.scope_key,
+                "values": [
+                    {
+                        "value_id": value.value_id,
+                        "value": value.value,
+                    }
+                    for value in item.values
+                ],
+            }
+            for item in self.code_definition_repository.list(scope)
+        ]
+
+    def _load_code_assignments(
+        self, scope: BackendScope
+    ) -> list[dict[str, object]] | None:
+        if self.code_assignment_repository is None:
+            return None
+        return [
+            {
+                "code_id": item.code_id,
+                "value_id": item.value_id,
+                "owner_type": item.owner_type,
+                "owner_id": item.owner_id,
+            }
+            for item in self.code_assignment_repository.list(scope)
         ]
 
     def _load_resource_periods(
