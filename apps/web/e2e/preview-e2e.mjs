@@ -977,16 +977,39 @@ class Page {
   }
 
   /** Native CDP mouse drag, producing genuine browser pointer events. */
+  /** Native CDP mouse drag, producing genuine browser pointer events. */
   async drag(selector, deltaX, deltaY) {
-    const point = await this.evaluate(`(() => {
+    const point = await this.evaluate(`() => {
       const element = document.querySelector(${JSON.stringify(selector)});
-      if (!element) return null;
+      if (!element) return { found: false, selector: ${JSON.stringify(selector)} };
       element.scrollIntoView({ block: "center", inline: "nearest" });
       const rect = element.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return null;
-      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    })()`);
-    assert(point, `drag target not found or not visible: ${selector}`);
+      const style = getComputedStyle(element);
+      const parentRect = element.parentElement?.getBoundingClientRect();
+      return {
+        found: true,
+        selector: ${JSON.stringify(selector)},
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+        width: rect.width,
+        height: rect.height,
+        display: style.display,
+        position: style.position,
+        float: style.float,
+        cssWidth: style.width,
+        cssHeight: style.height,
+        visibility: style.visibility,
+        opacity: style.opacity,
+        parentWidth: parentRect?.width ?? null,
+        parentHeight: parentRect?.height ?? null,
+        parentPosition: element.parentElement ? getComputedStyle(element.parentElement).position : null,
+      };
+    }`);
+    assert(
+      point?.found && point.width > 0 && point.height > 0 &&
+        point.visibility !== "hidden" && point.display !== "none",
+      `drag target not found or not visible: ${selector}; metrics=${JSON.stringify(point)}`,
+    );
     await this.cdp.send("Input.dispatchMouseEvent", {
       type: "mouseMoved",
       x: point.x,
@@ -1017,7 +1040,7 @@ class Page {
       buttons: 0,
       clickCount: 1,
     });
-    return { start: point, end: { x: point.x + deltaX, y: point.y + deltaY } };
+    return { start: { x: point.x, y: point.y }, end: { x: point.x + deltaX, y: point.y + deltaY }, metrics: point };
   }
 
   async setInput(selector, value) {
