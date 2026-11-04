@@ -84,11 +84,475 @@ def _cycle_components(
     return sorted(components)
 
 
+def _context_records(
+    audit_context: Mapping[str, object] | None,
+    key: str,
+) -> list[dict[str, object]] | None:
+    if audit_context is None or key not in audit_context or audit_context[key] is None:
+        return None
+    return _as_records(audit_context[key], key)
+
+
+def _audit_wbs_registry(
+    audit_context: Mapping[str, object] | None,
+    activities: Mapping[str, dict[str, object]],
+    add,
+) -> tuple[str, int]:
+    nodes = _context_records(audit_context, "wbs_nodes")
+    if nodes is None:
+        return "not_evaluated_wbs_repository_not_configured", 0
+
+    node_by_id: dict[str, dict[str, object]] = {}
+    sibling_codes: set[tuple[str, str, str]] = set()
+    adjacency: dict[str, set[str]] = defaultdict(set)
+    roots = 0
+
+    for node in nodes:
+        wbs_id = node.get("wbs_id")
+        if not isinstance(wbs_id, str) or not wbs_id.strip():
+            add("INVALID_WBS_ID", "critical", "quality.finding.invalid_wbs_id", object_type="wbs")
+            continue
+        if wbs_id in node_by_id:
+            add("DUPLICATE_WBS_ID", "critical", "quality.finding.duplicate_wbs_id", object_type="wbs", object_id=wbs_id)
+            continue
+        node_by_id[wbs_id] = node
+        parent_kind = node.get("parent_kind")
+        parent_id = node.get("parent_wbs_id")
+        code = node.get("code")
+        if not isinstance(code, str) or not code.strip():
+            add("INVALID_WBS_CODE", "critical", "quality.finding.invalid_wbs_code", object_type="wbs", object_id=wbs_id)
+        if parent_kind == "project":
+            roots += 1
+            if parent_id is not None:
+                add("INVALID_WBS_ROOT_PARENT", "critical", "quality.finding.invalid_wbs_root_parent", object_type="wbs", object_id=wbs_id)
+        elif parent_kind == "wbs":
+            if not isinstance(parent_id, str) or not parent_id:
+                add("WBS_PARENT_MISSING", "critical", "quality.finding.wbs_parent_missing", object_type="wbs", object_id=wbs_id)
+            else:
+                adjacency[parent_id].add(wbs_id)
+        else:
+            add("INVALID_WBS_PARENT_KIND", "critical", "quality.finding.invalid_wbs_parent_kind", object_type="wbs", object_id=wbs_id)
+        if isinstance(code, str) and code.strip():
+            code_key = (str(parent_kind), str(parent_id or ""), code)
+            if code_key in sibling_codes:
+                add("DUPLICATE_WBS_SIBLING_CODE", "critical", "quality.finding.duplicate_wbs_sibling_code", object_type="wbs", object_id=wbs_id)
+            sibling_codes.add(code_key)
+
+    if not nodes or roots != 1:
+        add(
+            "PROJECT_WBS_ROOT_COUNT_INVALID",
+            "critical",
+            "quality.finding.project_wbs_root_count_invalid",
+            evidence={"root_count": roots, "node_count": len(nodes)},
+        )
+
+    for wbs_id, node in node_by_id.items():
+        if node.get("parent_kind") == "wbs":
+            parent_id = node.get("parent_wbs_id")
+            if isinstance(parent_id, str) and parent_id not in node_by_id:
+                add(
+                    "DANGLING_WBS_PARENT",
+                    "critical",
+                    "quality.finding.dangling_wbs_parent",
+                    object_type="wbs",
+                    object_id=wbs_id,
+                    related_ids=(parent_id,),
+                )
+    for component in _cycle_components(set(node_by_id), adjacency):
+        add(
+            "WBS_HIERARCHY_CYCLE",
+            "critical",
+            "quality.finding.wbs_hierarchy_cycle",
+            object_type="wbs_hierarchy",
+            object_id=component[0],
+            related_ids=component,
+        )
+
+    expected_ancestry: dict[str, list[str] | None] = {}
+    for wbs_id, node in node_by_id.items():
+        parent = node.get("parent_wbs_id")
+        ancestors: list[str] = []
+        visited: set[str] = set()
+        valid = True
+        while isinstance(parent, str):
+            if parent in visited or parent not in node_by_id:
+                valid = False
+                break
+            visited.add(parent)
+            ancestors.append(parent)
+            parent_node = node_by_id[parent]
+            if parent_node.get("parent_kind") != "wbs":
+                break
+            parent = parent_node.get("parent_wbs_id")
+        expected_ancestry[wbs_id] = list(reversed(ancestors)) if valid else None
+
+    for activity_id, activity in sorted(activities.items()):
+        if activity.get("status_code") == "Inactive" or activity.get("activity_type") == "WBS Summary":
+            continue
+        wbs_id = activity.get("wbs_id")
+        if not isinstance(wbs_id, str) or not wbs_id:
+            add(
+                "ACTIVITY_MISSING_WBS_ASSIGNMENT",
+                "warning",
+                "quality.finding.activity_missing_wbs_assignment",
+                object_type="activity",
+                object_id=activity_id,
+            )
+            continue
+        if wbs_id not in node_by_id:
+            add(
+                "ACTIVITY_WBS_NOT_FOUND",
+                "critical",
+                "quality.finding.activity_wbs_not_found",
+                object_type="activity",
+                object_id=activity_id,
+                related_ids=(wbs_id,),
+            )
+            continue
+        actual_ancestry = activity.get("wbs_ancestry", [])
+        expected = expected_ancestry.get(wbs_id)
+        if expected is not None and actual_ancestry != expected:
+            add(
+                "ACTIVITY_WBS_ANCESTRY_MISMATCH",
+                "warning",
+                "quality.finding.activity_wbs_ancestry_mismatch",
+                object_type="activity",
+                object_id=activity_id,
+                related_ids=(wbs_id,),
+                evidence={"expected_ancestry": expected, "snapshot_ancestry": actual_ancestry},
+            )
+    return "evaluated", len(nodes)
+
+
+def _audit_baselines(
+    audit_context: Mapping[str, object] | None,
+    activities: Mapping[str, dict[str, object]],
+    wbs_nodes: list[dict[str, object]] | None,
+    add,
+) -> tuple[str, int, int]:
+    baselines = _context_records(audit_context, "baselines")
+    rows = _context_records(audit_context, "baseline_activities")
+    assignments = _context_records(audit_context, "baseline_assignments")
+    if baselines is None:
+        return "not_evaluated_baseline_repository_not_configured", 0, 0
+
+    by_id: dict[str, dict[str, object]] = {}
+    for baseline in baselines:
+        baseline_id = baseline.get("baseline_id")
+        if not isinstance(baseline_id, str) or not baseline_id.strip():
+            add("INVALID_BASELINE_ID", "critical", "quality.finding.invalid_baseline_id", object_type="baseline")
+            continue
+        if baseline_id in by_id:
+            add("DUPLICATE_BASELINE_ID", "critical", "quality.finding.duplicate_baseline_id", object_type="baseline", object_id=baseline_id)
+            continue
+        by_id[baseline_id] = baseline
+        source_revision = baseline.get("source_revision")
+        current_revision = None
+        if audit_context is not None:
+            snapshot = audit_context.get("snapshot_scope")
+            if isinstance(snapshot, Mapping):
+                current_revision = snapshot.get("project_revision")
+        if isinstance(source_revision, int) and isinstance(current_revision, int) and source_revision > current_revision:
+            add(
+                "BASELINE_SOURCE_REVISION_IN_FUTURE",
+                "critical",
+                "quality.finding.baseline_source_revision_in_future",
+                object_type="baseline",
+                object_id=baseline_id,
+                evidence={"source_revision": source_revision, "current_revision": current_revision},
+            )
+
+    if assignments is not None:
+        roles: set[str] = set()
+        for assignment in assignments:
+            role = assignment.get("role")
+            baseline_id = assignment.get("baseline_id")
+            if not isinstance(role, str) or not role:
+                add("INVALID_BASELINE_ROLE_ASSIGNMENT", "critical", "quality.finding.invalid_baseline_role_assignment", object_type="baseline_role")
+                continue
+            if role in roles:
+                add("DUPLICATE_BASELINE_ROLE_ASSIGNMENT", "critical", "quality.finding.duplicate_baseline_role_assignment", object_type="baseline_role", object_id=role)
+            roles.add(role)
+            if not isinstance(baseline_id, str) or baseline_id not in by_id:
+                add(
+                    "BASELINE_ROLE_TARGET_MISSING",
+                    "critical",
+                    "quality.finding.baseline_role_target_missing",
+                    object_type="baseline_role",
+                    object_id=role,
+                    related_ids=(baseline_id,) if isinstance(baseline_id, str) else (),
+                )
+
+    if rows is None:
+        return "partial_baseline_metadata_only", len(by_id), 0
+
+    seen: set[tuple[str, str]] = set()
+    current_wbs_ids = (
+        {str(node["wbs_id"]) for node in wbs_nodes if isinstance(node.get("wbs_id"), str)}
+        if wbs_nodes is not None
+        else None
+    )
+    row_count = 0
+    rows_by_baseline: dict[str, int] = defaultdict(int)
+    for row in rows:
+        baseline_id = row.get("baseline_id")
+        activity_id = row.get("activity_id")
+        if not isinstance(baseline_id, str) or baseline_id not in by_id:
+            add(
+                "BASELINE_ACTIVITY_PARENT_MISSING",
+                "critical",
+                "quality.finding.baseline_activity_parent_missing",
+                object_type="baseline_activity",
+                object_id=activity_id if isinstance(activity_id, str) else None,
+                related_ids=(baseline_id,) if isinstance(baseline_id, str) else (),
+            )
+            continue
+        if not isinstance(activity_id, str) or not activity_id:
+            add("INVALID_BASELINE_ACTIVITY_ID", "critical", "quality.finding.invalid_baseline_activity_id", object_type="baseline_activity", related_ids=(baseline_id,))
+            continue
+        key = (baseline_id, activity_id)
+        if key in seen:
+            add(
+                "DUPLICATE_BASELINE_ACTIVITY",
+                "critical",
+                "quality.finding.duplicate_baseline_activity",
+                object_type="baseline_activity",
+                object_id=activity_id,
+                related_ids=(baseline_id,),
+            )
+            continue
+        seen.add(key)
+        row_count += 1
+        rows_by_baseline[baseline_id] += 1
+        start = _iso_date(row.get("planned_start"))
+        finish = _iso_date(row.get("planned_finish"))
+        if start is None or finish is None or finish < start:
+            add(
+                "INVALID_BASELINE_ACTIVITY_WINDOW",
+                "critical",
+                "quality.finding.invalid_baseline_activity_window",
+                object_type="baseline_activity",
+                object_id=activity_id,
+                related_ids=(baseline_id,),
+                evidence={"planned_start": row.get("planned_start"), "planned_finish": row.get("planned_finish")},
+            )
+        if activity_id not in activities:
+            add(
+                "BASELINE_ACTIVITY_ABSENT_FROM_CURRENT_SCHEDULE",
+                "info",
+                "quality.finding.baseline_activity_absent_from_current_schedule",
+                object_type="baseline_activity",
+                object_id=activity_id,
+                related_ids=(baseline_id,),
+            )
+        wbs_id = row.get("wbs_id")
+        if wbs_id is not None and current_wbs_ids is not None and wbs_id not in current_wbs_ids:
+            add(
+                "BASELINE_WBS_ABSENT_FROM_CURRENT_REGISTRY",
+                "info",
+                "quality.finding.baseline_wbs_absent_from_current_registry",
+                object_type="baseline_activity",
+                object_id=activity_id,
+                related_ids=(baseline_id, str(wbs_id)),
+            )
+    for baseline_id in by_id:
+        if rows_by_baseline[baseline_id] == 0:
+            add(
+                "BASELINE_HAS_NO_ACTIVITY_ROWS",
+                "warning",
+                "quality.finding.baseline_has_no_activity_rows",
+                object_type="baseline",
+                object_id=baseline_id,
+            )
+    if not by_id:
+        return "evaluated_no_baselines", 0, 0
+    return "evaluated", len(by_id), row_count
+
+
+def _decimal_value(value: object) -> Decimal | None:
+    if value is None:
+        return None
+    try:
+        result = Decimal(str(value))
+    except Exception:
+        return None
+    return result if result.is_finite() else None
+
+
+def _audit_resources(
+    audit_context: Mapping[str, object] | None,
+    activities: Mapping[str, dict[str, object]],
+    add,
+) -> tuple[str, int, int]:
+    assignments = _context_records(audit_context, "resource_assignments")
+    periods = _context_records(audit_context, "resource_periods")
+    if assignments is None:
+        return "not_evaluated_resource_assignment_repository_not_configured", 0, 0
+
+    by_id: dict[str, dict[str, object]] = {}
+    by_activity: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for assignment in assignments:
+        assignment_id = assignment.get("assignment_id")
+        activity_id = assignment.get("activity_id")
+        resource_id = assignment.get("resource_id")
+        if not isinstance(assignment_id, str) or not assignment_id:
+            add("INVALID_RESOURCE_ASSIGNMENT_ID", "critical", "quality.finding.invalid_resource_assignment_id", object_type="resource_assignment")
+            continue
+        if assignment_id in by_id:
+            add("DUPLICATE_RESOURCE_ASSIGNMENT_ID", "critical", "quality.finding.duplicate_resource_assignment_id", object_type="resource_assignment", object_id=assignment_id)
+            continue
+        by_id[assignment_id] = assignment
+        if not isinstance(activity_id, str) or activity_id not in activities:
+            add(
+                "RESOURCE_ASSIGNMENT_ACTIVITY_NOT_FOUND",
+                "critical",
+                "quality.finding.resource_assignment_activity_not_found",
+                object_type="resource_assignment",
+                object_id=assignment_id,
+                related_ids=(activity_id,) if isinstance(activity_id, str) else (),
+            )
+        else:
+            by_activity[activity_id].append(assignment)
+        if not isinstance(resource_id, str) or not resource_id:
+            add("INVALID_RESOURCE_ASSIGNMENT_RESOURCE", "critical", "quality.finding.invalid_resource_assignment_resource", object_type="resource_assignment", object_id=assignment_id)
+
+        quantities = ("units", "actual_units", "remaining_units")
+        if any(assignment.get(field) is not None for field in quantities):
+            if not isinstance(assignment.get("unit"), str) or not assignment.get("unit"):
+                add(
+                    "RESOURCE_ASSIGNMENT_UNIT_MISSING",
+                    "warning",
+                    "quality.finding.resource_assignment_unit_missing",
+                    object_type="resource_assignment",
+                    object_id=assignment_id,
+                )
+        costs = ("planned_cost", "actual_cost", "remaining_cost")
+        if any(assignment.get(field) is not None for field in costs):
+            if not isinstance(assignment.get("currency"), str) or not assignment.get("currency"):
+                add(
+                    "RESOURCE_ASSIGNMENT_CURRENCY_MISSING",
+                    "warning",
+                    "quality.finding.resource_assignment_currency_missing",
+                    object_type="resource_assignment",
+                    object_id=assignment_id,
+                )
+        for field in (*quantities, *costs, "units_per_time", "hours_per_units_time_period"):
+            if assignment.get(field) is not None and _decimal_value(assignment.get(field)) is None:
+                add(
+                    "INVALID_RESOURCE_ASSIGNMENT_NUMERIC_VALUE",
+                    "critical",
+                    "quality.finding.invalid_resource_assignment_numeric_value",
+                    object_type="resource_assignment",
+                    object_id=assignment_id,
+                    evidence={"field": field, "value": assignment.get(field)},
+                )
+
+    for activity_id, activity in sorted(activities.items()):
+        if activity.get("activity_type") != "Resource Dependent" or activity.get("status_code") == "Inactive":
+            continue
+        linked = by_activity.get(activity_id, [])
+        if not linked:
+            add(
+                "RESOURCE_DEPENDENT_ACTIVITY_WITHOUT_ASSIGNMENT",
+                "critical",
+                "quality.finding.resource_dependent_activity_without_assignment",
+                object_type="activity",
+                object_id=activity_id,
+            )
+            continue
+        unresolved = [row for row in linked if row.get("is_driving") is None]
+        if unresolved:
+            add(
+                "RESOURCE_DEPENDENT_DRIVING_ROLE_UNRESOLVED",
+                "warning",
+                "quality.finding.resource_dependent_driving_role_unresolved",
+                object_type="activity",
+                object_id=activity_id,
+                related_ids=[str(row["assignment_id"]) for row in unresolved if isinstance(row.get("assignment_id"), str)],
+            )
+        else:
+            driving = [row for row in linked if row.get("is_driving") is True]
+            if len(driving) != 1:
+                add(
+                    "RESOURCE_DEPENDENT_DRIVING_ASSIGNMENT_COUNT_INVALID",
+                    "critical",
+                    "quality.finding.resource_dependent_driving_assignment_count_invalid",
+                    object_type="activity",
+                    object_id=activity_id,
+                    evidence={"driving_assignment_count": len(driving)},
+                )
+
+    if periods is None:
+        return "partial_resource_assignments_only", len(by_id), 0
+
+    seen_periods: set[tuple[str, str]] = set()
+    for period in periods:
+        assignment_id = period.get("assignment_id")
+        period_start = period.get("period_start")
+        if not isinstance(assignment_id, str) or assignment_id not in by_id:
+            add(
+                "RESOURCE_PERIOD_ASSIGNMENT_NOT_FOUND",
+                "critical",
+                "quality.finding.resource_period_assignment_not_found",
+                object_type="resource_period",
+                object_id=period_start if isinstance(period_start, str) else None,
+                related_ids=(assignment_id,) if isinstance(assignment_id, str) else (),
+            )
+            continue
+        assignment = by_id[assignment_id]
+        key = (assignment_id, str(period_start))
+        if key in seen_periods:
+            add(
+                "DUPLICATE_RESOURCE_ASSIGNMENT_PERIOD",
+                "critical",
+                "quality.finding.duplicate_resource_assignment_period",
+                object_type="resource_period",
+                object_id=assignment_id,
+                evidence={"period_start": period_start},
+            )
+        seen_periods.add(key)
+        if period.get("activity_id") != assignment.get("activity_id") or period.get("resource_id") != assignment.get("resource_id"):
+            add(
+                "RESOURCE_PERIOD_PARENT_MISMATCH",
+                "critical",
+                "quality.finding.resource_period_parent_mismatch",
+                object_type="resource_period",
+                object_id=assignment_id,
+                evidence={
+                    "period_activity_id": period.get("activity_id"),
+                    "assignment_activity_id": assignment.get("activity_id"),
+                    "period_resource_id": period.get("resource_id"),
+                    "assignment_resource_id": assignment.get("resource_id"),
+                },
+            )
+        if _iso_date(period_start) is None:
+            add(
+                "INVALID_RESOURCE_PERIOD_START",
+                "critical",
+                "quality.finding.invalid_resource_period_start",
+                object_type="resource_period",
+                object_id=assignment_id,
+                evidence={"period_start": period_start},
+            )
+        for field in ("units", "cost"):
+            if period.get(field) is not None and _decimal_value(period.get(field)) is None:
+                add(
+                    "INVALID_RESOURCE_PERIOD_VALUE",
+                    "critical",
+                    "quality.finding.invalid_resource_period_value",
+                    object_type="resource_period",
+                    object_id=assignment_id,
+                    evidence={"field": field, "value": period.get(field)},
+                )
+    return "evaluated_referential_integrity", len(by_id), len(periods)
+
+
 def build_schedule_quality_audit(
     canonical_payload: str,
     *,
     core_diagnostics: Sequence[Mapping[str, object]] = (),
     evaluation_status: str = "completed",
+    audit_context: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     """Build a revision-bound audit report without modifying the project.
 
