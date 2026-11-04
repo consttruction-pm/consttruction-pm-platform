@@ -889,11 +889,24 @@ def build_schedule_quality_audit(
 
     progress_consistency_count = 0
     for activity_id, activity in sorted(activity_rows.items()):
-        actual_start = _iso_date(activity.get("actual_start"))
-        actual_finish = _iso_date(activity.get("actual_finish"))
+        actual_start = (
+            _iso_date(activity.get("actual_start"))
+            if date_based
+            else _iso_datetime(activity.get("actual_start"))
+        )
+        actual_finish = (
+            _iso_date(activity.get("actual_finish"))
+            if date_based
+            else _iso_datetime(activity.get("actual_finish"))
+        )
         status = activity.get("status")
         progress_problem: str | None = None
-        if actual_start is not None and actual_finish is not None and actual_finish < actual_start:
+        if (
+            date_based
+            and actual_start is not None
+            and actual_finish is not None
+            and actual_finish < actual_start
+        ):
             progress_problem = "ACTUAL_FINISH_BEFORE_ACTUAL_START"
         elif status == "Completed" and actual_finish is None:
             progress_problem = "COMPLETED_ACTIVITY_MISSING_ACTUAL_FINISH"
@@ -918,28 +931,46 @@ def build_schedule_quality_audit(
 
     out_of_sequence_candidates = 0
     for relationship in valid_edges:
-        if relationship.get("lag", 0) != 0:
+        lag_number = _lag_number(
+            relationship.get("lag", 0), str(payload.get("mode"))
+        )
+        if lag_number != 0:
             continue
         predecessor = str(relationship["predecessor_id"])
         successor = str(relationship["successor_id"])
-        relationship_type = str(relationship.get("type", "FS"))
         predecessor_activity = activity_rows[predecessor]
         successor_activity = activity_rows[successor]
-        predecessor_start = _iso_date(predecessor_activity.get("actual_start"))
-        predecessor_finish = _iso_date(predecessor_activity.get("actual_finish"))
-        successor_start = _iso_date(successor_activity.get("actual_start"))
-        successor_finish = _iso_date(successor_activity.get("actual_finish"))
-        left_event: date | None
-        right_event: date | None
-        if relationship_type == "FS":
-            left_event, right_event = predecessor_finish, successor_start
+        relationship_type = str(relationship.get("type", "FS"))
+
+        if date_based:
+            predecessor_start = _iso_date(predecessor_activity.get("actual_start"))
+            predecessor_finish = _iso_date(predecessor_activity.get("actual_finish"))
+            successor_start = _iso_date(successor_activity.get("actual_start"))
+            successor_finish = _iso_date(successor_activity.get("actual_finish"))
+            if relationship_type == "FS":
+                left_event, right_event = predecessor_finish, successor_start
+            elif relationship_type == "SS":
+                left_event, right_event = predecessor_start, successor_start
+            elif relationship_type == "FF":
+                left_event, right_event = predecessor_finish, successor_finish
+            else:
+                left_event, right_event = predecessor_start, successor_finish
+            rule_scope = "DATE_BASED_ZERO_LAG_ALL_RELATIONSHIP_TYPES"
         elif relationship_type == "SS":
-            left_event, right_event = predecessor_start, successor_start
-        elif relationship_type == "FF":
-            left_event, right_event = predecessor_finish, successor_finish
-        else:  # SF
-            left_event, right_event = predecessor_start, successor_finish
-        if left_event is not None and right_event is not None and right_event < left_event:
+            left_event = _iso_datetime(predecessor_activity.get("actual_start"))
+            right_event = _iso_datetime(successor_activity.get("actual_start"))
+            rule_scope = "TIME_AWARE_ZERO_LAG_SS_ACTUAL_START_ONLY"
+        else:
+            # TIME_AWARE snapshots carry Actual Start but not Actual Finish.
+            # Do not fabricate finish-event evidence for FS/FF/SF relationships.
+            continue
+
+        if (
+            left_event is not None
+            and right_event is not None
+            and type(left_event) is type(right_event)
+            and right_event < left_event
+        ):
             out_of_sequence_candidates += 1
             add(
                 "OUT_OF_SEQUENCE_PROGRESS_CANDIDATE",
@@ -955,7 +986,7 @@ def build_schedule_quality_audit(
                     "configured_oos_mode": schedule_options.get(
                         "out_of_sequence_schedule_type"
                     ),
-                    "rule_scope": "ZERO_LAG_ALL_RELATIONSHIP_TYPES",
+                    "rule_scope": rule_scope,
                 },
             )
 
@@ -1022,7 +1053,11 @@ def build_schedule_quality_audit(
     }
 
     data_date_status = (
-        "evaluated" if data_date is not None else "not_evaluated_no_data_date"
+        "evaluated"
+        if data_date is not None
+        else "not_applicable_no_time_aware_data_date"
+        if payload.get("mode") == "TIME_AWARE"
+        else "not_evaluated_no_data_date"
     )
     coverage = {
         "open_ends": "evaluated",
@@ -1037,8 +1072,16 @@ def build_schedule_quality_audit(
             else "not_evaluated"
         ),
         "lead_inventory": "evaluated",
-        "progress_out_of_sequence": "evaluated_zero_lag_all_relationship_types",
-        "progress_actual_consistency": "evaluated",
+        "progress_out_of_sequence": (
+            "evaluated_zero_lag_all_relationship_types"
+            if date_based
+            else "evaluated_time_aware_ss_actual_start_only"
+        ),
+        "progress_actual_consistency": (
+            "evaluated_date_based"
+            if date_based
+            else "evaluated_status_and_actual_start_presence_only"
+        ),
         "constraint_references_and_duplicates": "evaluated",
         "data_date_actual_consistency": data_date_status,
         "activity_calendar_assignment_integrity": "evaluated",
