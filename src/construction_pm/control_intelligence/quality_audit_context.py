@@ -15,6 +15,7 @@ from construction_pm.application.authorization import (
 )
 from construction_pm.backend_p0.models import BackendScope
 from .quality_policy_pack import ScheduleQualityPolicyRepository
+from construction_pm.p6_interchange_import_ledger import P6InterchangeImportLedgerRepository
 
 
 class ReadRepository(Protocol):
@@ -57,6 +58,7 @@ class ScheduleQualityAuditContextReader:
     code_definition_repository: ReadRepository | None = None
     code_assignment_repository: ReadRepository | None = None
     quality_policy_repository: ScheduleQualityPolicyRepository | None = None
+    interchange_import_ledger_repository: P6InterchangeImportLedgerRepository | None = None
     transaction_manager: TransactionManager | None = None
 
     def load(
@@ -90,6 +92,7 @@ class ScheduleQualityAuditContextReader:
             code_definitions = self._load_code_definitions(scope)
             code_assignments = self._load_code_assignments(scope)
             quality_policy_pack = self._load_approved_quality_policy(scope)
+            interchange_import_batches = self._load_interchange_import_batches(scope)
 
         return {
             "wbs_nodes": wbs_nodes,
@@ -102,6 +105,8 @@ class ScheduleQualityAuditContextReader:
             "code_assignments": code_assignments,
             "quality_policy_repository_configured": self.quality_policy_repository is not None,
             "approved_quality_policy_pack": quality_policy_pack,
+            "interchange_import_ledger_configured": self.interchange_import_ledger_repository is not None,
+            "interchange_import_batches": interchange_import_batches,
         }
 
     def _load_wbs(self, scope: BackendScope) -> list[dict[str, object]] | None:
@@ -234,6 +239,27 @@ class ScheduleQualityAuditContextReader:
                 "owner_id": item.owner_id,
             }
             for item in self.code_assignment_repository.list(scope)
+        ]
+
+    def _load_interchange_import_batches(
+        self, scope: BackendScope
+    ) -> list[dict[str, object]] | None:
+        if self.interchange_import_ledger_repository is None:
+            return None
+        return [
+            {
+                "batch_id": item.batch_id,
+                "format": item.format,
+                "source_sha256": item.source_sha256,
+                "source_byte_count": item.source_byte_count,
+                "row_count": item.row_count,
+                "mapping_snapshot": [dict(mapping) for mapping in item.mapping_snapshot],
+                "row_summaries": [dict(row) for row in item.row_summaries],
+                "imported_by": item.imported_by,
+                "imported_at": item.imported_at.isoformat(),
+                "target_application_status": item.target_application_status,
+            }
+            for item in self.interchange_import_ledger_repository.list(scope, limit=100)
         ]
 
     def _load_approved_quality_policy(
