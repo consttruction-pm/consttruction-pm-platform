@@ -35,6 +35,22 @@ Status values: **Implemented** = usable with real data; **Partial** = some real 
 | Thresholds | None | Missing | Threshold dictionary and monitor |
 | Issues | Field/site issues `#cp-field-operations` (`:909`), quality/safety panels | Partial | Project issue register with history/notify |
 | Risks | None | Missing | Risk register and exposure |
+| Engineering Analysis & Root Cause | None | Missing | ENG-01; evidence-backed rules, causal graph, root-cause trace and alternatives; Issue #1706 |
+| Project Watchdog | None | Missing | ENG-02; event/threshold monitors, alerts, acknowledgement, escalation and history; Issue #1706 |
+| Scenario Lab | None | Missing | ENG-03; revision-bound scenario fork, assumptions, run results and comparison; Issue #1706 |
+| Optimization Studio | None | Missing | ENG-04; objectives, constraints, feasibility, candidate solutions and trade-offs; Issue #1706 |
+| Project Quality Audit | Existing Tools → Quality Checks entry only | Partial | ENG-06; full schedule/project audit register, transparent score breakdown and remediation history; Issue #1706 |
+| Construction Productivity | Existing field/quantity foundations only | Partial | ENG-07; quantities, production, crews, equipment, shifts, workface constraints and productivity variance; Issue #1706 |
+| Data Reconciliation | Import preview foundations only | Partial | ENG-09; source mapping, deterministic matching, conflict resolution and field-level provenance; Issue #1706 |
+| Portfolio Capacity | Resource-capacity foundations only | Partial | ENG-11; authorized multi-project demand/supply, resource allocation, scenarios and bottlenecks; Issue #1706 |
+| Automation Center | None | Missing | ENG-10; workflow designer, trigger/condition/approval steps, run history and recovery; Issue #1706 |
+| Engineering Standards & Methods | Knowledge record contract only | Missing | ENG-12; governed standards, source/version, applicability, validation and publication |
+| Project Templates | Existing project/form template fragments only | Partial | ENG-13; organization/project libraries, WBS/activity/calendar/resource/risk/report templates and controlled apply |
+| Decision Register | None | Missing | ENG-14; decision context, options, criteria/weights, approvals, outcomes and links |
+| Deadlines & SLA | Existing dates/notifications only | Partial | ENG-15; contract/procurement/approval notice deadlines, work-calendar logic, escalation and acknowledgement |
+| Data Quality Profiler | Existing validation checks only | Partial | ENG-16; field/record/project profiles, completeness/consistency/provenance scores and remediation |
+| Recovery & History | Layout undo/redo and some revision history | Partial | ENG-17; shared typed command journal, supported undo/compensation, restore preview and audit |
+| Command Dictionaries | Existing localization and Smart Guide terms only | Partial | ENG-18; user/project/tenant scoped multilingual aliases, acronyms, collision handling and parser tests |
 | Administration | None | Missing | Users, profiles, preferences, categories, currencies, periods |
 
 ## Projects window composition (current shell and target)
@@ -96,6 +112,12 @@ See the Projects Window and Project Details specification for field inventory, c
 - `apps/web/styles.css` grid definitions.
 - Read-only audit on 2026-10-30 (file/line references above reflect that revision).
 
+
+## Engineering Intelligence engine window reservation (2026-11-04)
+
+Issue [#1706](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1706) adds the 19-engine CUBI-owned suite and reserves **Tools → Engineering Intelligence** plus the corresponding left-navigation branch. The rows above are target inventory only: Missing/Partial remains the honest status until code paths and browser acceptance exist. Risk & Uncertainty extends the existing Risks window; Contract & Claims Analysis extends the existing Changes & Claims surface; Smart Guide is extended in place. The engine method catalogue and prerequisites are in `docs/architecture/CUBI_ENGINEERING_INTELLIGENCE_ENGINES.md`.
+
+No UI code or workspace geometry is changed by this registration. BIM/model integration and 4D/5D are excluded and require separate discussion.
 
 ## Master visual-shell audit status (2026-11-02)
 
