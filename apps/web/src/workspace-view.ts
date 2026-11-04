@@ -118,6 +118,7 @@ const activityDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<string>>();
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
+const wbsViewByContainer = new WeakMap<HTMLElement, "tree" | "chart">();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
@@ -292,7 +293,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -319,6 +320,23 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       container.querySelectorAll<HTMLElement>("[data-calendar-editor-panel]").forEach((panel) => {
         panel.hidden = panel.dataset.calendarEditorPanel !== tab;
       });
+      return;
+    }
+    if (target.dataset.wbsView) {
+      const view = target.dataset.wbsView === "chart" ? "chart" : "tree";
+      wbsViewByContainer.set(container, view);
+      container.querySelectorAll<HTMLElement>("[data-wbs-view]").forEach((button) => {
+        const active = button.dataset.wbsView === view;
+        button.setAttribute("aria-pressed", String(active));
+        button.classList.toggle("is-active", active);
+      });
+      const hierarchy = container.querySelector<HTMLElement>("[data-wbs-hierarchy]");
+      if (hierarchy) {
+        const labels = getWorkspaceLabels(state.locale);
+        hierarchy.innerHTML = view === "chart"
+          ? renderWbsChart(state.wbsNodes, state.selectedWbsId, labels)
+          : renderWbsTree(state.wbsNodes, state.selectedWbsId, labels);
+      }
       return;
     }
     if (target.dataset.wbsDetailTab) {
@@ -612,6 +630,46 @@ function renderWbsTree(
     </li>`;
   }).join("");
   return `<ul class="cp-wbs-tree" role="tree" aria-label="${escapeAttribute(labels.wbs)}">${renderChildren(null, 1, new Set())}</ul>`;
+}
+
+function renderWbsChart(
+  nodes: WorkspaceState["wbsNodes"],
+  selectedWbsId: string | null,
+  labels: WorkspaceLabels,
+): string {
+  if (!nodes.length) return `<div class="cp-empty">${escapeHtml(labels.noWbs)}</div>`;
+  const children = new Map<string | null, WorkspaceState["wbsNodes"][number][]>();
+  for (const node of nodes) {
+    const parentId = node.parentKind === "project" ? null : node.parentWbsId;
+    const siblings = children.get(parentId) ?? [];
+    siblings.push(node);
+    children.set(parentId, siblings);
+  }
+  for (const siblings of children.values()) {
+    siblings.sort((a, b) => a.sequenceNumber - b.sequenceNumber || a.id.localeCompare(b.id));
+  }
+  const renderChildren = (
+    parentId: string | null,
+    level: number,
+    ancestors: ReadonlySet<string>,
+  ): string => (children.get(parentId) ?? []).map((node) => {
+    if (ancestors.has(node.id)) {
+      return `<li class="cp-wbs-invalid" role="treeitem"><span class="cp-empty">Invalid WBS hierarchy</span></li>`;
+    }
+    const nested = children.get(node.id) ?? [];
+    const selected = selectedWbsId === node.id;
+    const nextAncestors = new Set(ancestors);
+    nextAncestors.add(node.id);
+    return `<li class="cp-wbs-chart-item" role="treeitem" aria-level="${level}"${nested.length ? ' aria-expanded="true"' : ""}>
+      <button type="button" class="cp-wbs-chart-node${selected ? " is-selected" : ""}" data-wbs-id="${escapeAttribute(node.id)}" aria-current="${selected ? "true" : "false"}">
+        <span class="cp-wbs-chart-code">${escapeHtml(node.localCode)}</span>
+        <strong>${escapeHtml(node.name)}</strong>
+        <small>R${node.recordRevision} · #${node.sequenceNumber}</small>
+      </button>
+      ${nested.length ? `<ul class="cp-wbs-chart-children" role="group">${renderChildren(node.id, level + 1, nextAncestors)}</ul>` : ""}
+    </li>`;
+  }).join("");
+  return `<div class="cp-wbs-chart" data-wbs-chart><ul role="tree" aria-label="${escapeAttribute(labels.wbs)} Chart">${renderChildren(null, 1, new Set())}</ul></div>`;
 }
 
 function canIncrementallyUpdate(previous: WorkspaceState, next: WorkspaceState): boolean {
@@ -1133,9 +1191,11 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         <p class="cp-project-window-note">${escapeHtml(uiText(state.locale, "This build displays the project authorized for the current session. Organization-wide domains, portfolios and additional projects are not invented when the API does not provide them.", "این نسخه پروژه مجاز برای نشست جاری را نمایش می‌دهد. حوزه‌های سازمانی، سبدها و پروژه‌های دیگر در صورت نبود داده از API ساخته یا حدس زده نمی‌شوند."))}</p>`;
       break;
     }
-    case "wbs":
-      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "WBS chart view is not connected yet.", "نمای نمودار WBS هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></div></div><div class="cp-wbs-window-layout"><section><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3>${renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "WBS hierarchy and details are shown from the current project state. Chart rendering and additional WBS detail data remain pending.", "سلسله‌مراتب و جزئیات WBS از وضعیت فعلی پروژه نمایش داده می‌شوند. ترسیم نمودار و سایر داده‌های جزئیات WBS در انتظار تکمیل هستند."))}</p></div>`;
+    case "wbs": {
+      const wbsView = wbsViewByContainer.get(container) ?? "tree";
+      body = `<div class="cp-wbs-window"><div class="cp-register-toolbar"><strong>${escapeHtml(uiText(state.locale, "Work Breakdown Structure", "ساختار شکست کار"))}</strong><div><button type="button" data-rail-action="wbs">${escapeHtml(uiText(state.locale, "Add WBS", "افزودن WBS"))}</button><button type="button" data-wbs-delete ${state.selectedWbsId ? "" : "disabled"}>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button><span class="cp-wbs-view-toggle" role="group" aria-label="${escapeAttribute(uiText(state.locale, "WBS view", "نمای WBS"))}"><button type="button" data-wbs-view="tree" aria-pressed="${wbsView === "tree"}" class="${wbsView === "tree" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Tree View", "نمای درختی"))}</button><button type="button" data-wbs-view="chart" aria-pressed="${wbsView === "chart"}" class="${wbsView === "chart" ? "is-active" : ""}">${escapeHtml(uiText(state.locale, "Chart View", "نمای نمودار"))}</button></span></div></div><div class="cp-wbs-window-layout"><section><h3>${escapeHtml(uiText(state.locale, "WBS Hierarchy", "سلسله‌مراتب WBS"))}</h3><div data-wbs-hierarchy>${wbsView === "chart" ? renderWbsChart(state.wbsNodes, state.selectedWbsId, t) : renderWbsTree(state.wbsNodes, state.selectedWbsId, t)}</div></section><section>${renderWbsDetails(state, wbsDetailsTabByContainer.get(container) ?? "general")}</section></div><p class="cp-register-notice">${escapeHtml(uiText(state.locale, "The tree and chart are generated from the loaded WBS hierarchy; selecting a card reads the same authoritative WBS record. Detail tabs show only fields the WBS core returns, so budget, milestone and document tabs stay explicitly empty until those models are exposed.", "درخت و نمودار از سلسله‌مراتب WBS بارگذاری‌شده ساخته می‌شوند و انتخاب هر کارت همان رکورد مرجع WBS را می‌خواند. زبانه‌های جزئیات فقط فیلدهای برگشتی هستهٔ WBS را نشان می‌دهند؛ بنابراین زبانه‌های بودجه، نقاط عطف و اسناد تا زمان ارائهٔ آن مدل‌ها صریحاً خالی می‌مانند."))}</p></div>`;
       break;
+    }
     case "calendars":
       body = `
         <div class="cp-calendar-window" data-calendar-page>
@@ -2045,11 +2105,15 @@ function renderWbsDetails(state: WorkspaceState, activeTab: string): string {
   const panel = (tab: string): string => {
     if (!node) return `<p class="cp-activity-detail-empty">${escapeHtml(uiText(state.locale, "Select a WBS element to display its details.", "برای نمایش جزئیات، یک عنصر ساختار شکست انتخاب کنید."))}</p>`;
     if (tab === "general") {
-      const parent = node.parentWbsId ? state.wbsNodes.find((item) => item.id === node.parentWbsId)?.name ?? node.parentWbsId : uiText(state.locale, "Project root", "ریشه پروژه");
+      const parentNode = node.parentWbsId ? state.wbsNodes.find((item) => item.id === node.parentWbsId) : null;
+      const parent = node.parentKind === "project"
+        ? uiText(state.locale, "Project root", "ریشه پروژه")
+        : parentNode ? `${parentNode.localCode} — ${parentNode.name}` : node.parentWbsId ?? "—";
       const fields = [
         [uiText(state.locale, "WBS ID", "شناسه WBS"), node.id],
         [uiText(state.locale, "WBS Code", "کد WBS"), node.localCode],
         [uiText(state.locale, "WBS Name", "نام WBS"), node.name],
+        [uiText(state.locale, "Parent kind", "نوع والد"), node.parentKind === "project" ? uiText(state.locale, "Project", "پروژه") : uiText(state.locale, "WBS element", "عنصر WBS")],
         [uiText(state.locale, "Parent", "والد"), parent],
         [uiText(state.locale, "Sequence", "ترتیب"), String(node.sequenceNumber)],
         [uiText(state.locale, "Record revision", "ویرایش رکورد"), String(node.recordRevision)],

@@ -114,12 +114,47 @@ test("Calendar Register displays only authenticated project calendar records", (
   assert.doesNotMatch(container.innerHTML, />0<\/span>/);
 });
 
-test("WBS register exposes the connected add workflow and never fabricates a chart action", () => {
+test("WBS register exposes connected add, delete and view controls", () => {
   const html = render("en", "wbs");
   assert.match(html, /data-rail-action="wbs"/);
   assert.match(html, /data-rail-action="wbs">Add WBS/);
   assert.match(html, /data-wbs-delete disabled/);
-  assert.match(html, /WBS chart view is not connected yet/);
+  assert.match(html, /data-wbs-view="tree"/);
+  assert.match(html, /data-wbs-view="chart"/);
+  assert.doesNotMatch(html, /WBS chart view is not connected yet/);
+});
+
+test("WBS chart view draws the loaded hierarchy and keeps selection on the same records", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const hierarchy = { innerHTML: "" };
+  const chartButton = {
+    dataset: { wbsView: "chart" } as Record<string, string>,
+    setAttribute: () => undefined,
+    classList: { toggle: () => undefined },
+  };
+  const container = {
+    innerHTML: "",
+    querySelector: (selector: string) => (selector === "[data-wbs-hierarchy]" ? hierarchy : null),
+    querySelectorAll: () => [chartButton],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const state = withWbsNodes(
+    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    [
+      { id: "WBS-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Project management", sequenceNumber: 1, recordRevision: 2 },
+      { id: "WBS-2", parentKind: "wbs", parentWbsId: "WBS-1", localCode: "2", name: "Civil works", sequenceNumber: 1, recordRevision: 4 },
+    ],
+  );
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const clickTarget = {
+    dataset: { wbsView: "chart" },
+    closest: (selector: string) => (selector.includes("[data-wbs-view]") ? chartButton : null),
+  };
+  listeners.get("click")?.({ target: clickTarget } as unknown as Event);
+  assert.match(hierarchy.innerHTML, /data-wbs-chart/);
+  assert.match(hierarchy.innerHTML, /1<\/span>\s*<strong>Project management<\/strong>/);
+  assert.match(hierarchy.innerHTML, /2<\/span>\s*<strong>Civil works<\/strong>/);
+  assert.match(hierarchy.innerHTML, /data-wbs-id="WBS-2"/);
 });
 
 test("Activity Group and Sort defaults to WBS in English and Persian", () => {
