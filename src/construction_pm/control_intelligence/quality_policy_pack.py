@@ -11,7 +11,7 @@ from construction_pm.backend_p0.models import BackendScope
 
 
 SCORING_METHOD = "weighted_pass_rate.v1"
-_ALLOWED_UNITS = frozenset({"working-hour", "working-day", "elapsed-hour", "elapsed-day"})
+_ALLOWED_UNITS = frozenset({"working-hour", "working-day"})
 _ALLOWED_RULES = frozenset({"positive_lag", "activity_duration", "constraints_per_activity"})
 _ALLOWED_SEVERITIES = frozenset({"warning", "critical"})
 
@@ -40,8 +40,8 @@ def _severity(rule: Mapping[str, object], code: str) -> None:
 def _validate_thresholds(value: Mapping[str, object]) -> dict[str, object]:
     if not isinstance(value, Mapping) or not value:
         raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_THRESHOLDS_REQUIRED")
-    if set(value) - _ALLOWED_RULES:
-        raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_UNKNOWN_RULE")
+    if set(value) != _ALLOWED_RULES:
+        raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_ALL_RULES_REQUIRED")
     normalized: dict[str, object] = {}
     for rule_id, raw in value.items():
         if not isinstance(raw, Mapping):
@@ -65,8 +65,10 @@ def _validate_thresholds(value: Mapping[str, object]) -> dict[str, object]:
                         raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_LAG_UNIT_INVALID")
                     parsed_limits[str(unit)] = str(_decimal(limit, "SCHEDULE_QUALITY_POLICY_LAG_LIMIT_INVALID"))
                 rule["time_aware_max"] = parsed_limits
-            if date_limit is None and time_limits is None:
+            if date_limit is None or time_limits is None:
                 raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_LAG_LIMIT_REQUIRED")
+            if set(rule["time_aware_max"]) != _ALLOWED_UNITS:
+                raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_LAG_LIMITS_MUST_COVER_SUPPORTED_UNITS")
         elif rule_id == "activity_duration":
             date_limit = raw.get("date_based_max_working_days")
             time_limits = raw.get("time_aware_max")
@@ -83,8 +85,10 @@ def _validate_thresholds(value: Mapping[str, object]) -> dict[str, object]:
                         raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_DURATION_UNIT_INVALID")
                     parsed_limits[str(unit)] = str(_decimal(limit, "SCHEDULE_QUALITY_POLICY_DURATION_LIMIT_INVALID"))
                 rule["time_aware_max"] = parsed_limits
-            if date_limit is None and time_limits is None:
+            if date_limit is None or time_limits is None:
                 raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_DURATION_LIMIT_REQUIRED")
+            if set(rule["time_aware_max"]) != _ALLOWED_UNITS:
+                raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_DURATION_LIMITS_MUST_COVER_SUPPORTED_UNITS")
         else:
             maximum = raw.get("maximum")
             if isinstance(maximum, bool) or not isinstance(maximum, int) or maximum < 0:
