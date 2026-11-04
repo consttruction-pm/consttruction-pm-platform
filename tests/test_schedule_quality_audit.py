@@ -526,3 +526,66 @@ def test_query_binds_auxiliary_audit_data_to_authenticated_snapshot_scope() -> N
         assert report["snapshot"]["snapshot_hash"] == snapshot.snapshot_hash
     finally:
         connection.close()
+
+
+def test_audit_checks_activity_code_definition_and_value_references() -> None:
+    payload = _audit_payload(
+        activities=[
+            {"id": "A-1", "activity_type": "Task Dependent"},
+            {"id": "B-1", "activity_type": "Task Dependent"},
+        ],
+        relationships=[],
+    )
+    context = {
+        "code_definitions": [
+            {
+                "code_id": "DISCIPLINE",
+                "name": "Discipline",
+                "subject_area": "Activity",
+                "scope_kind": "PROJECT",
+                "scope_key": "project-1",
+                "values": [
+                    {"value_id": "CIVIL", "value": "Civil"},
+                    {"value_id": "MEP", "value": "MEP"},
+                ],
+            }
+        ],
+        "code_assignments": [
+            {
+                "code_id": "DISCIPLINE",
+                "value_id": "CIVIL",
+                "owner_type": "ACTIVITY",
+                "owner_id": "A-1",
+            },
+            {
+                "code_id": "DISCIPLINE",
+                "value_id": "UNKNOWN",
+                "owner_type": "ACTIVITY",
+                "owner_id": "B-1",
+            },
+            {
+                "code_id": "MISSING",
+                "value_id": "X",
+                "owner_type": "ACTIVITY",
+                "owner_id": "B-1",
+            },
+            {
+                "code_id": "DISCIPLINE",
+                "value_id": "CIVIL",
+                "owner_type": "ACTIVITY",
+                "owner_id": "DELETED",
+            },
+        ],
+    }
+
+    report = build_schedule_quality_audit(payload, audit_context=context)
+    rules = {item["rule_id"] for item in report["findings"]}
+
+    assert "ACTIVITY_CODE_VALUE_NOT_FOUND" in rules
+    assert "ACTIVITY_CODE_DEFINITION_NOT_FOUND" in rules
+    assert "ACTIVITY_CODE_OWNER_NOT_FOUND" in rules
+    assert report["coverage"]["activity_code_assignment_integrity"] == (
+        "evaluated_reference_integrity_only_required_code_policy_not_configured"
+    )
+    assert report["summary"]["activity_code_definition_count"] == 1
+    assert report["summary"]["activity_code_assignment_count"] == 4
