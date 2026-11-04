@@ -472,3 +472,88 @@ def test_production_composition_persists_and_reads_schedule_quality_audit_histor
     assert response_status[-1] == "200 OK"
     assert detail_payload["audit"]["report"]["snapshot"]["snapshot_hash"] == audit["snapshot"]["snapshot_hash"]
     conn.close()
+
+
+def test_production_composition_exposes_authenticated_quality_policy_lifecycle_routes():
+    connection = sqlite3.connect(":memory:")
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(connection)
+    context_repo = SQLiteCalculationContextRepository(connection)
+    policy_repo = SQLiteScheduleQualityPolicyRepository(connection)
+    now = datetime(2026, 11, 4, 19, 0, tzinfo=timezone.utc)
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now),
+        snapshot_repository=snapshot_repo,
+        calendar_registry_factory=lambda: CalendarResolverRegistry(
+            day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+        ),
+        calculation_context_repository=context_repo,
+        authorization_policy=default_project_policy(),
+        quality_policy_repository=policy_repo,
+        quality_policy_transaction_manager=SQLiteTransactionManager(connection),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+    )
+
+    def request(method: str, path: str, payload: dict[str, object] | None = None):
+        body = b"" if payload is None else json.dumps(payload).encode()
+        statuses: list[str] = []
+        chunks = app(
+            {
+                "REQUEST_METHOD": method,
+                "PATH_INFO": path,
+                "HTTP_COOKIE": "cp_session=s1",
+                "CONTENT_LENGTH": str(len(body)),
+                "wsgi.input": BytesIO(body),
+            },
+            lambda status, headers: statuses.append(status),
+        )
+        return statuses[-1], json.loads(b"".join(chunks))
+
+    policy_body = {
+        "policy_id": "schedule-quality",
+        "version": "1.0.0",
+        "name": "Project schedule policy",
+        "scoring_method": SCORING_METHOD,
+        "thresholds": {
+            "positive_lag": {
+                "date_based_max_working_days": 5,
+                "time_aware_max": {"working-day": "5", "working-hour": "40"},
+                "severity": "warning",
+            },
+            "activity_duration": {
+                "date_based_max_working_days": "60",
+                "time_aware_max": {"working-day": "60", "working-hour": "480"},
+                "severity": "critical",
+            },
+            "constraints_per_activity": {"maximum": 2, "severity": "warning"},
+        },
+        "weights": {
+            "positive_lag": "0.50",
+            "activity_duration": "0.30",
+            "constraints_per_activity": "0.20",
+        },
+    }
+    collection = "/api/projects/P-1/p6/quality-policy-packs"
+    status, created = request("POST", collection, policy_body)
+    assert status == "201 Created"
+    assert created["policy_pack"]["status"] == "draft"
+    assert created["policy_pack"]["created_by"] == "u1"
+
+    status, approved_before = request("GET", collection + "/approved")
+    assert status == "200 OK"
+    assert approved_before["policy_pack"] is None
+
+    status, approved = request("POST", collection + "/schedule-quality/1.0.0/approve")
+    assert status == "200 OK"
+    assert approved["policy_pack"]["status"] == "approved"
+    assert approved["policy_pack"]["approved_by"] == "u1"
+
+    status, listed = request("GET", collection)
+    assert status == "200 OK"
+    assert len(listed["policy_packs"]) == 1
+    assert listed["policy_packs"][0]["version"] == "1.0.0"
+
+    status, approved_after = request("GET", collection + "/approved")
+    assert status == "200 OK"
+    assert approved_after["policy_pack"]["policy_id"] == "schedule-quality"
+    assert approved_after["policy_pack"]["weights"]["positive_lag"] == "0.50"
+    connection.close()
