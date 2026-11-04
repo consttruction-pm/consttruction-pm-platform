@@ -115,6 +115,7 @@ def build_project_lifecycle_wsgi_app(
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None,
     quality_audit_context_loader: Callable[[BackendScope, AuthorizationContext], Mapping[str, object]] | None = None,
     quality_audit_history_repository: ScheduleQualityAuditHistoryRepository | None = None,
+    quality_audit_history_transaction_manager: object | None = None,
     p6_code_repository: P6CodeRepository | None = None,
     p6_code_assignment_repository: P6CodeAssignmentRepository | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
@@ -235,6 +236,8 @@ def build_project_lifecycle_wsgi_app(
                 transaction_manager=quality_transaction_manager,
             ).load
 
+    if quality_audit_history_repository is not None and quality_audit_history_transaction_manager is None:
+        raise ValueError("SCHEDULE_QUALITY_AUDIT_HISTORY_TRANSACTION_MANAGER_REQUIRED")
     provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,
@@ -243,6 +246,7 @@ def build_project_lifecycle_wsgi_app(
         cost_inputs_resolver=cost_inputs_resolver,
         quality_audit_context_loader=resolved_quality_audit_context_loader,
         quality_audit_history_repository=quality_audit_history_repository,
+        quality_audit_history_transaction_manager=quality_audit_history_transaction_manager,
     )
     schedule_query_api = ScheduleQueryAPI(
         ScheduleQueryApplicationService(
