@@ -8,7 +8,7 @@ or resource demand. Those values remain owned by the Shared Core.
 """
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 import hashlib
 import json
 from typing import Mapping, Sequence
@@ -31,6 +31,35 @@ def _iso_date(value: object) -> date | None:
         return date.fromisoformat(value)
     except ValueError:
         return None
+
+
+def _iso_datetime(value: object) -> date | datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    if "T" in value:
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return None
+    return _iso_date(value)
+
+
+def _lag_number(value: object, mode: str) -> Decimal | None:
+    if mode == "DATE_BASED":
+        if isinstance(value, bool) or not isinstance(value, int):
+            return None
+        return Decimal(value)
+    if mode == "TIME_AWARE":
+        if not isinstance(value, dict):
+            return None
+        if not isinstance(value.get("unit"), str) or not value.get("unit"):
+            return None
+        try:
+            parsed = Decimal(str(value.get("value")))
+        except Exception:
+            return None
+        return parsed if parsed.is_finite() else None
+    return None
 
 
 def _cycle_components(
@@ -97,6 +126,8 @@ def _audit_wbs_registry(
     audit_context: Mapping[str, object] | None,
     activities: Mapping[str, dict[str, object]],
     add,
+    *,
+    mode: str,
 ) -> tuple[str, int]:
     nodes = _context_records(audit_context, "wbs_nodes")
     if nodes is None:
@@ -187,6 +218,8 @@ def _audit_wbs_registry(
         expected_ancestry[wbs_id] = list(reversed(ancestors)) if valid else None
 
     for activity_id, activity in sorted(activities.items()):
+        if mode == "TIME_AWARE":
+            break
         if activity.get("status_code") == "Inactive" or activity.get("activity_type") == "WBS Summary":
             continue
         wbs_id = activity.get("wbs_id")
@@ -221,7 +254,11 @@ def _audit_wbs_registry(
                 related_ids=(wbs_id,),
                 evidence={"expected_ancestry": expected, "snapshot_ancestry": actual_ancestry},
             )
-    return "evaluated", len(nodes)
+    return (
+        "evaluated_registry_only_activity_assignment_not_in_time_aware_snapshot"
+        if mode == "TIME_AWARE"
+        else "evaluated"
+    ), len(nodes)
 
 
 def _audit_baselines(
@@ -642,6 +679,7 @@ def build_schedule_quality_audit(
         successor = relationship.get("successor_id")
         relationship_type = relationship.get("type", "FS")
         lag = relationship.get("lag", 0)
+        lag_number = _lag_number(lag, str(payload.get("mode")))
         evidence = {
             "relationship_index": index,
             "relationship_type": relationship_type,
@@ -657,8 +695,7 @@ def build_schedule_quality_audit(
             or successor not in activity_ids
             or not isinstance(relationship_type, str)
             or relationship_type not in _VALID_RELATIONSHIP_TYPES
-            or isinstance(lag, bool)
-            or not isinstance(lag, int)
+            or lag_number is None
         ):
             invalid_relationship_count += 1
             related = [
@@ -675,7 +712,7 @@ def build_schedule_quality_audit(
             )
             continue
 
-        edge_key = (predecessor, successor, relationship_type, lag)
+        edge_key = (predecessor, successor, relationship_type, str(lag_number))
         if edge_key in seen_edges:
             add(
                 "DUPLICATE_RELATIONSHIP",
@@ -692,7 +729,7 @@ def build_schedule_quality_audit(
         successor_count[predecessor] += 1
         adjacency[predecessor].add(successor)
 
-        if lag < 0:
+        if lag_number < 0:
             lead_count += 1
             add(
                 "RELATIONSHIP_LEAD_PRESENT",
@@ -702,7 +739,7 @@ def build_schedule_quality_audit(
                 related_ids=(predecessor, successor),
                 evidence=evidence,
             )
-        elif lag > 0:
+        elif lag_number > 0:
             positive_lag_count += 1
 
     for component in _cycle_components(activity_ids, adjacency):
@@ -943,7 +980,7 @@ def build_schedule_quality_audit(
         )
 
     wbs_coverage, wbs_node_count = _audit_wbs_registry(
-        audit_context, activity_rows, add
+        audit_context, activity_rows, add, mode=str(payload.get("mode"))
     )
     wbs_nodes = _context_records(audit_context, "wbs_nodes")
     baseline_coverage, baseline_count, baseline_activity_count = _audit_baselines(
