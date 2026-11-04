@@ -48,7 +48,7 @@ export type DesktopCommand =
   | "dialog.font-row"
   | "help.shortcuts"
   | "help.about"
-  | "help.visual-demo";
+;
 
 export type DesktopShellCapabilities = {
   canUndoLayout: boolean;
@@ -351,7 +351,6 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "tools.formula", label: { en: "Formula editor", fa: "ویرایشگر فرمول" }, command: "tools.formula" },
         { id: "tools.reference", label: { en: "Scheduling reference", fa: "مرجع زمان‌بندی" }, command: "tools.reference" },
         { id: "tools.help", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts" },
-        { id: "tools.demo", label: { en: "Visual workspace demo", fa: "نمایش بصری محیط کار" }, command: "help.visual-demo" },
       ],
     },
     {
@@ -381,7 +380,6 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
       label: { en: "Help", fa: "راهنما" },
       items: [
         { id: "help.shortcuts", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1" },
-        { id: "help.visual-demo", label: { en: "Visual workspace demo", fa: "نمایش بصری محیط کار" }, command: "help.visual-demo" },
         { id: "help.about", label: { en: "About CUBI Workspace", fa: "دربارهٔ محیط کار CUBI" }, command: "help.about" },
       ],
     },
