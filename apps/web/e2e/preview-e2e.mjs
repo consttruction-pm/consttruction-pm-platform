@@ -977,11 +977,29 @@ class Page {
   }
 
   /** Native CDP mouse drag, producing genuine browser pointer events. */
-  /** Native CDP mouse drag, producing genuine browser pointer events. */
   async drag(selector, deltaX, deltaY) {
     const point = await this.evaluate(`(() => {
-      const element = document.querySelector(${JSON.stringify(selector)});
-      if (!element) return { found: false, selector: ${JSON.stringify(selector)} };
+      const matches = Array.from(document.querySelectorAll(${JSON.stringify(selector)});
+      const isVisible = (element) => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" &&
+          style.visibility !== "hidden" && element.getClientRects().length > 0;
+      };
+      const element = matches.find(isVisible) ?? null;
+      if (!element) {
+        const first = matches[0] ?? null;
+        const rect = first?.getBoundingClientRect();
+        const parentRect = first?.parentElement?.getBoundingClientRect();
+        return {
+          found: Boolean(first),
+          visible: false,
+          selector: ${JSON.stringify(selector)},
+          matches: matches.length,
+          firstRect: rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null,
+          firstParentRect: parentRect ? { width: parentRect.width, height: parentRect.height } : null,
+        };
+      }
       element.scrollIntoView({ block: "center", inline: "nearest" });
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
@@ -2830,14 +2848,14 @@ async function main() {
     const columnDragLayoutBefore = await readLayoutFromPage(page);
     const columnDragBefore = await page.evaluate(`(() => {
       const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
-        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
+        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)} && item.getBoundingClientRect().width > 0);
       return header ? Number.parseFloat(header.style.width) : null;
     })()`);
     const columnHandleSelector = `#cp-activity-grid th[data-column-id="${addTarget}"] [data-resize-handle="column"]`;
     await page.drag(columnHandleSelector, 30, 0);
     const columnDragAfterPointer = await page.evaluate(`(() => {
       const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
-        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
+        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)} && item.getBoundingClientRect().width > 0);
       return header ? Number.parseFloat(header.style.width) : null;
     })()`);
     const columnDragProbe = { missing: !Number.isFinite(columnDragAfterPointer), width: columnDragAfterPointer };
@@ -2858,7 +2876,7 @@ async function main() {
     );
     const columnDragAfter = await page.evaluate(`() => {
       const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
-        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
+        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)} && item.getBoundingClientRect().width > 0);
       return header ? Number.parseFloat(header.style.width) : null;
     }`);
     assert(columnDragAfter >= columnDragProbe.width, "the committed width must remain rendered");
@@ -2866,8 +2884,14 @@ async function main() {
     await page.drag('[data-resize-handle="details"]', 0, 36);
     await page.drag('[data-resize-handle="table-gantt"]', 72, 0);
     const paneDrag = await page.evaluate(`(() => {
-      const main = document.querySelector(".cp-main");
-      const split = document.querySelector("[data-panel-split]");
+      const visible = (element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && getComputedStyle(element).display !== "none";
+      };
+      const detailsHandle = Array.from(document.querySelectorAll('[data-resize-handle="details"]')).find(visible);
+      const tableHandle = Array.from(document.querySelectorAll('[data-resize-handle="table-gantt"]')).find(visible);
+      const main = detailsHandle?.closest(".cp-main");
+      const split = tableHandle?.closest("[data-panel-split]");
       return {
         missing: !main || !split,
         details: main?.style.getPropertyValue("--cp-split-details") ?? "",
@@ -2919,8 +2943,14 @@ async function main() {
       "persisted column count after reload",
     );
     const splitPreferencesAfterReload = await page.evaluate(`() => {
-      const main = document.querySelector(".cp-main");
-      const split = document.querySelector("[data-panel-split]");
+      const visible = (element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && getComputedStyle(element).display !== "none";
+      };
+      const detailsHandle = Array.from(document.querySelectorAll('[data-resize-handle="details"]')).find(visible);
+      const tableHandle = Array.from(document.querySelectorAll('[data-resize-handle="table-gantt"]')).find(visible);
+      const main = detailsHandle?.closest(".cp-main");
+      const split = tableHandle?.closest("[data-panel-split]");
       return {
         details: main?.style.getPropertyValue("--cp-split-details") ?? "",
         table: split?.style.getPropertyValue("--cp-split-table") ?? "",
