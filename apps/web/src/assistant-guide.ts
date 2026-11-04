@@ -893,7 +893,9 @@ export function readAssistantGuideQuery(
 ): AssistantGuideQuery {
   const locale = (doc.documentElement.lang || "en").trim().toLowerCase() || "en";
   const page = resolveAssistantPage(doc.location?.pathname ?? "", basePath);
-  // The live Visual Workspace is mounted as .cp-app-shell.cp-p6. Its project\n  // identity is attached by renderApp only after the server confirms access.\n  const workspace = doc.querySelector(".cp-app-shell[data-project]");
+  // The live Visual Workspace is mounted as .cp-app-shell.cp-p6. Its project
+  // identity is attached by renderApp only after the server confirms access.
+  const workspace = doc.querySelector(".cp-app-shell[data-project]");
   const selection = doc.querySelector(".cp-project-selection");
   const shellError = doc.querySelector(".cp-shell-error");
   const loading = doc.querySelector(".cp-shell-loading");
