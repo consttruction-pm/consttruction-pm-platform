@@ -87,7 +87,7 @@ def test_audit_reports_open_ends_cycles_and_leads_without_scoring() -> None:
     assert report["quality_index"] == {
         "status": "not_calculated",
         "value": None,
-        "reason": "APPROVED_POLICY_PACK_REQUIRED",
+        "reason": "APPROVED_POLICY_PACK_NOT_CONFIGURED",
         "score_components": [],
     }
     assert report["status"] == "partial"
