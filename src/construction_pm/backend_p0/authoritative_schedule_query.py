@@ -431,6 +431,17 @@ def _project_result(
                 core_diagnostics=diagnostics,
                 evaluation_status="completed",
                 audit_context=audit_context,
+                core_schedule_facts=(
+                    {
+                        activity_id: {
+                            "start": activity.start.isoformat(),
+                            "finish": activity.finish.isoformat(),
+                        }
+                        for activity_id, activity in result.date_result.activities.items()
+                    }
+                    if result is not None and result.date_result is not None
+                    else None
+                ),
             )
         }
     if result is None:
