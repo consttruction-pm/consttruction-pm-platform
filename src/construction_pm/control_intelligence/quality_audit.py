@@ -750,10 +750,44 @@ def build_schedule_quality_audit(
             )
 
     constraint_count_by_activity: dict[str, int] = defaultdict(int)
+    seen_constraints: set[tuple[str, str, str]] = set()
+    duplicate_constraint_count = 0
+    invalid_constraint_reference_count = 0
     for constraint in constraints:
         activity_id = constraint.get("activity_id")
-        if isinstance(activity_id, str) and activity_id:
-            constraint_count_by_activity[activity_id] += 1
+        constraint_type = constraint.get("type")
+        constraint_date = constraint.get("date")
+        if not isinstance(activity_id, str) or not activity_id:
+            add(
+                "INVALID_ACTIVITY_CONSTRAINT",
+                "critical",
+                "quality.finding.invalid_activity_constraint",
+                object_type="constraint",
+            )
+            invalid_constraint_reference_count += 1
+            continue
+        if activity_id not in activity_ids:
+            add(
+                "CONSTRAINT_ACTIVITY_NOT_FOUND",
+                "critical",
+                "quality.finding.constraint_activity_not_found",
+                object_type="constraint",
+                object_id=activity_id,
+            )
+            invalid_constraint_reference_count += 1
+        constraint_count_by_activity[activity_id] += 1
+        key = (activity_id, str(constraint_type), str(constraint_date))
+        if key in seen_constraints:
+            duplicate_constraint_count += 1
+            add(
+                "DUPLICATE_ACTIVITY_CONSTRAINT",
+                "warning",
+                "quality.finding.duplicate_activity_constraint",
+                object_type="constraint",
+                object_id=activity_id,
+                evidence={"type": constraint_type, "date": constraint_date},
+            )
+        seen_constraints.add(key)
 
     assigned_activity_ids: set[str] = set()
     for assignment in calendar_assignments:
@@ -805,19 +839,59 @@ def build_schedule_quality_audit(
                         },
                     )
 
+    progress_consistency_count = 0
+    for activity_id, activity in sorted(activity_rows.items()):
+        actual_start = _iso_date(activity.get("actual_start"))
+        actual_finish = _iso_date(activity.get("actual_finish"))
+        status = activity.get("status")
+        progress_problem: str | None = None
+        if actual_start is not None and actual_finish is not None and actual_finish < actual_start:
+            progress_problem = "ACTUAL_FINISH_BEFORE_ACTUAL_START"
+        elif status == "Completed" and actual_finish is None:
+            progress_problem = "COMPLETED_ACTIVITY_MISSING_ACTUAL_FINISH"
+        elif status == "In Progress" and actual_start is None:
+            progress_problem = "IN_PROGRESS_ACTIVITY_MISSING_ACTUAL_START"
+        elif status == "Not Started" and (actual_start is not None or actual_finish is not None):
+            progress_problem = "NOT_STARTED_ACTIVITY_HAS_ACTUAL_DATES"
+        if progress_problem is not None:
+            progress_consistency_count += 1
+            add(
+                progress_problem,
+                "critical" if progress_problem == "ACTUAL_FINISH_BEFORE_ACTUAL_START" else "warning",
+                f"quality.finding.{progress_problem.lower()}",
+                object_type="activity",
+                object_id=activity_id,
+                evidence={
+                    "status": status,
+                    "actual_start": None if actual_start is None else actual_start.isoformat(),
+                    "actual_finish": None if actual_finish is None else actual_finish.isoformat(),
+                },
+            )
+
     out_of_sequence_candidates = 0
     for relationship in valid_edges:
-        if relationship.get("type", "FS") != "FS" or relationship.get("lag", 0) != 0:
+        if relationship.get("lag", 0) != 0:
             continue
         predecessor = str(relationship["predecessor_id"])
         successor = str(relationship["successor_id"])
-        predecessor_finish = _iso_date(activity_rows[predecessor].get("actual_finish"))
-        successor_start = _iso_date(activity_rows[successor].get("actual_start"))
-        if (
-            predecessor_finish is not None
-            and successor_start is not None
-            and successor_start < predecessor_finish
-        ):
+        relationship_type = str(relationship.get("type", "FS"))
+        predecessor_activity = activity_rows[predecessor]
+        successor_activity = activity_rows[successor]
+        predecessor_start = _iso_date(predecessor_activity.get("actual_start"))
+        predecessor_finish = _iso_date(predecessor_activity.get("actual_finish"))
+        successor_start = _iso_date(successor_activity.get("actual_start"))
+        successor_finish = _iso_date(successor_activity.get("actual_finish"))
+        left_event: date | None
+        right_event: date | None
+        if relationship_type == "FS":
+            left_event, right_event = predecessor_finish, successor_start
+        elif relationship_type == "SS":
+            left_event, right_event = predecessor_start, successor_start
+        elif relationship_type == "FF":
+            left_event, right_event = predecessor_finish, successor_finish
+        else:  # SF
+            left_event, right_event = predecessor_start, successor_finish
+        if left_event is not None and right_event is not None and right_event < left_event:
             out_of_sequence_candidates += 1
             add(
                 "OUT_OF_SEQUENCE_PROGRESS_CANDIDATE",
@@ -826,12 +900,14 @@ def build_schedule_quality_audit(
                 object_type="relationship",
                 related_ids=(predecessor, successor),
                 evidence={
-                    "predecessor_actual_finish": predecessor_finish.isoformat(),
-                    "successor_actual_start": successor_start.isoformat(),
+                    "relationship_type": relationship_type,
+                    "lag": 0,
+                    "predecessor_event_date": left_event.isoformat(),
+                    "successor_event_date": right_event.isoformat(),
                     "configured_oos_mode": schedule_options.get(
                         "out_of_sequence_schedule_type"
                     ),
-                    "rule_scope": "FS_ZERO_LAG_ONLY",
+                    "rule_scope": "ZERO_LAG_ALL_RELATIONSHIP_TYPES",
                 },
             )
 
@@ -869,6 +945,21 @@ def build_schedule_quality_audit(
             },
         )
 
+    wbs_coverage, wbs_node_count = _audit_wbs_registry(
+        audit_context, activity_rows, add
+    )
+    wbs_nodes = _context_records(audit_context, "wbs_nodes")
+    baseline_coverage, baseline_count, baseline_activity_count = _audit_baselines(
+        audit_context,
+        activity_rows,
+        wbs_nodes,
+        add,
+        current_revision=payload.get("project_revision"),
+    )
+    resource_coverage, resource_assignment_count, resource_period_count = _audit_resources(
+        audit_context, activity_rows, add
+    )
+
     findings.sort(
         key=lambda item: (
             {"critical": 0, "warning": 1, "info": 2}.get(str(item["severity"]), 3),
@@ -901,16 +992,32 @@ def build_schedule_quality_audit(
         "excessive_lag_threshold": "not_evaluated_policy_pack_required",
         "long_duration_threshold": "not_evaluated_policy_pack_required",
         "excessive_constraint_threshold": "not_evaluated_policy_pack_required",
-        "progress_out_of_sequence": "evaluated_fs_zero_lag_only",
+        "progress_out_of_sequence": "evaluated_zero_lag_all_relationship_types",
+        "progress_actual_consistency": "evaluated",
+        "constraint_references_and_duplicates": "evaluated",
         "data_date_actual_consistency": data_date_status,
         "activity_calendar_assignment_integrity": "evaluated",
-        "baseline_integrity": "not_evaluated_baseline_snapshot_required",
-        "wbs_and_code_completeness": "not_evaluated_authoritative_registry_required",
-        "resource_cost_quantity_reconciliation": "not_evaluated_authoritative_resource_cost_inputs_required",
-        "import_interchange_loss": "not_evaluated_import_reconciliation_required",
+        "wbs_registry_and_activity_assignment": wbs_coverage,
+        "baseline_metadata_and_activity_references": baseline_coverage,
+        "resource_assignment_referential_integrity": resource_coverage,
+        "resource_cost_quantity_reconciliation": (
+            "not_evaluated_financial_policy_and_period_reconciliation_required"
+            if resource_coverage.startswith("evaluated")
+            else resource_coverage
+        ),
+        "excessive_lag_threshold": "not_evaluated_policy_pack_required",
+        "long_duration_threshold": "not_evaluated_policy_pack_required",
+        "excessive_constraint_threshold": "not_evaluated_policy_pack_required",
+        "import_interchange_loss": "not_evaluated_persisted_import_reconciliation_required",
     }
     incomplete = [key for key, status in coverage.items() if status.startswith("not_evaluated")]
-    partial = evaluation_status != "completed" or bool(incomplete)
+    partial = (
+        evaluation_status != "completed"
+        or bool(incomplete)
+        or wbs_coverage.startswith("partial")
+        or baseline_coverage.startswith("partial")
+        or resource_coverage.startswith("partial")
+    )
 
     return {
         "engine": "ENG-06",
@@ -936,6 +1043,14 @@ def build_schedule_quality_audit(
             "positive_lag_count": positive_lag_count,
             "actual_after_data_date_count": actual_after_data_date,
             "out_of_sequence_candidate_count": out_of_sequence_candidates,
+            "progress_consistency_finding_count": progress_consistency_count,
+            "duplicate_constraint_count": duplicate_constraint_count,
+            "invalid_constraint_reference_count": invalid_constraint_reference_count,
+            "wbs_node_count": wbs_node_count,
+            "baseline_count": baseline_count,
+            "baseline_activity_count": baseline_activity_count,
+            "resource_assignment_count": resource_assignment_count,
+            "resource_period_count": resource_period_count,
             "activity_constraint_counts": dict(sorted(constraint_count_by_activity.items())),
         },
         "quality_index": {
