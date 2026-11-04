@@ -2800,18 +2800,18 @@ async function main() {
     // Drag a real header resize handle. The revision-checked layout callback
     // must persist the result through the same API used by the field chooser.
     const columnDragLayoutBefore = await readLayoutFromPage(page);
-    const columnDragBefore = await page.evaluate(`() => {
+    const columnDragBefore = await page.evaluate(`(() => {
       const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
         .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
       return header ? Number.parseFloat(header.style.width) : null;
-    }`);
+    })()`);
     const columnHandleSelector = `#cp-activity-grid th[data-column-id="${addTarget}"] [data-resize-handle="column"]`;
     await page.drag(columnHandleSelector, 30, 0);
-    const columnDragAfterPointer = await page.evaluate(`() => {
+    const columnDragAfterPointer = await page.evaluate(`(() => {
       const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
         .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
       return header ? Number.parseFloat(header.style.width) : null;
-    }`);
+    })()`);
     const columnDragProbe = { missing: !Number.isFinite(columnDragAfterPointer), width: columnDragAfterPointer };
     assert(
       columnDragBefore > 0 && !columnDragProbe.missing && columnDragProbe.width > columnDragBefore,
@@ -2837,7 +2837,7 @@ async function main() {
 
     await page.drag('[data-resize-handle="details"]', 0, 36);
     await page.drag('[data-resize-handle="table-gantt"]', 72, 0);
-    const paneDrag = await page.evaluate(`() => {
+    const paneDrag = await page.evaluate(`(() => {
       const main = document.querySelector(".cp-main");
       const split = document.querySelector("[data-panel-split]");
       return {
@@ -2846,7 +2846,7 @@ async function main() {
         table: split?.style.getPropertyValue("--cp-split-table") ?? "",
         keys: Object.keys(localStorage).filter((key) => key.startsWith("cubi:workspace:split:")),
       };
-    }`);
+    })()`);
     assert(!paneDrag.missing && paneDrag.details && paneDrag.table, "both live pane splitters must respond to native mouse drags");
     assert(
       paneDrag.keys.some((key) => key.endsWith(":details")) &&
