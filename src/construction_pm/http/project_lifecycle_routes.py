@@ -900,6 +900,37 @@ class ProjectLifecycleHttpRoutes:
                 except (TypeError, ValueError):
                     return self._error(400, "P6_MAPPING_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            if method == "GET" and "/p6/interchange/imports/" in path:
+                if self._p6_interchange_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, batch_path = path.split("/p6/interchange/imports/", 1)
+                if not prefix.startswith("/api/projects/") or not batch_path or "/" in batch_path:
+                    return self._error(400, "P6_INTERCHANGE_REQUEST_INVALID", "error.request.invalid")
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id or "/" in project_id:
+                    return self._error(400, "P6_INTERCHANGE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    auth = context.authorization_context(
+                        self._api.get_session(session_id, now=now).roles
+                    )
+                    result = self._p6_interchange_api.get_import_batch(
+                        scope=BackendScope(context.tenant_id, context.project_id, context.revision),
+                        batch_id=batch_path,
+                        auth_context=auth,
+                    )
+                    if result is None:
+                        return self._error(404, "P6_INTERCHANGE_IMPORT_BATCH_NOT_FOUND", "error.interchange.import_batch_not_found")
+                    return self._json(200, result)
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(400, str(exc), "error.request.invalid")
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    return self._error(400, str(exc), "error.request.invalid")
+
             if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/interchange/imports"):
                 if self._p6_interchange_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
