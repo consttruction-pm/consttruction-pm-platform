@@ -1186,6 +1186,7 @@ def open_preview_runtime(
         resource_period_repository=repositories.resource_periods,
         code_definition_repository=repositories.code_definitions,
         code_assignment_repository=repositories.code_assignments,
+        quality_policy_repository=repositories.quality_policies,
         transaction_manager=repositories.transaction_manager,
     )
     query_provider = AuthoritativeScheduleQueryProvider(
@@ -1460,6 +1461,8 @@ def open_preview_runtime(
         form_builder_api=form_builder_api,
         quality_audit_history_repository=quality_audit_history_repository,
         quality_audit_history_transaction_manager=repositories.transaction_manager,
+        quality_policy_repository=repositories.quality_policies,
+        quality_policy_transaction_manager=repositories.transaction_manager,
     )
     return PreviewRuntime(
         database=database,
