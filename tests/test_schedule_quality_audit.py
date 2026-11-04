@@ -589,3 +589,45 @@ def test_audit_checks_activity_code_definition_and_value_references() -> None:
     )
     assert report["summary"]["activity_code_definition_count"] == 1
     assert report["summary"]["activity_code_assignment_count"] == 4
+
+
+def test_audit_compares_baseline_to_current_forecast_in_calendar_days() -> None:
+    payload = _audit_payload(
+        activities=[
+            {"id": "A-1", "activity_type": "Task Dependent", "wbs_id": "W-1"},
+            {"id": "NEW-1", "activity_type": "Task Dependent", "wbs_id": "W-1"},
+        ],
+        relationships=[],
+    )
+    report = build_schedule_quality_audit(
+        payload,
+        audit_context={
+            "baselines": [{"baseline_id": "BL-1", "source_revision": 6}],
+            "baseline_activities": [
+                {
+                    "baseline_id": "BL-1",
+                    "activity_id": "A-1",
+                    "planned_start": "2026-11-02",
+                    "planned_finish": "2026-11-06",
+                    "budgeted_cost": "500",
+                    "currency": "EUR",
+                    "wbs_id": "W-OLD",
+                }
+            ],
+            "baseline_assignments": [],
+        },
+        core_schedule_facts={
+            "A-1": {"start": "2026-11-04", "finish": "2026-11-10"}
+        },
+    )
+
+    by_rule = {
+        item["rule_id"]: item
+        for item in report["findings"]
+    }
+    assert by_rule["BASELINE_FORECAST_START_VARIANCE"]["evidence"]["calendar_day_variance"] == 2
+    assert by_rule["BASELINE_FORECAST_FINISH_VARIANCE"]["evidence"]["calendar_day_variance"] == 4
+    assert by_rule["BASELINE_FORECAST_FINISH_VARIANCE"]["evidence"]["unit"] == "calendar_days"
+    assert "CURRENT_ACTIVITY_NOT_IN_BASELINE" in by_rule
+    assert "BASELINE_WBS_ABSENT_FROM_CURRENT_REGISTRY" not in by_rule
+    assert report["summary"]["baseline_forecast_variance_count"] == 2
