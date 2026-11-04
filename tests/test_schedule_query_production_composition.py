@@ -13,6 +13,7 @@ from construction_pm.control_intelligence.quality_audit_history import (
     SQLiteScheduleQualityAuditHistoryRepository,
 )
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository, build_persisted_context
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, build_snapshot
@@ -406,6 +407,7 @@ def test_production_composition_persists_and_reads_schedule_quality_audit_histor
         calculation_context_repository=context_repo,
         authorization_policy=default_project_policy(),
         quality_audit_history_repository=history_repo,
+        quality_audit_history_transaction_manager=SQLiteTransactionManager(conn),
         clock=type("Clock", (), {"now": lambda self: now})(),
     )
 
