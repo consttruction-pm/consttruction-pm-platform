@@ -1533,6 +1533,13 @@ test("Expenses is a first-class window mounted on the real expense and cost-acco
   assert.doesNotMatch(html, /data-register-tab="expenses:costs"/);
 });
 
+test("Progress is a first-class window mounted on the shared activity progress service", () => {
+  const html = render("en", "progress");
+  assert.match(html, /data-progress-page/);
+  assert.match(html, /Activity Progress/);
+  assert.doesNotMatch(html, /Progress presentation reads the field records/);
+});
+
 test("Resource Assignments is a first-class window mounted on the real assignment register", () => {
   const html = render("en", "assignments");
   assert.match(html, /data-assignments-page/);
@@ -1597,7 +1604,8 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 
   const progress = render("fa", "progress");
   assert.match(progress, /data-workspace-menu="progress"/);
-  assert.match(progress, /داشبورد و نمودارهای اختصاصی پیشرفت/);
+  assert.match(progress, /data-progress-page/);
+  assert.match(progress, /پیشرفت هر فعالیت از سرویس مشترک فعالیت/);
 
   const documents = render("en", "documents");
   assert.match(documents, /No project documents have been added or linked yet/);

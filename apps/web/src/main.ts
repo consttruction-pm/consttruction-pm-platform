@@ -52,6 +52,7 @@ import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
 import { mountWorkspaceAssignmentsPage } from "./workspace-assignments.js";
 import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
+import { mountWorkspaceProgressPage } from "./workspace-progress.js";
 import { mountWorkspaceRolesPage } from "./workspace-roles.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
@@ -91,6 +92,8 @@ let currentBootstrap: ProjectBootstrap | null = null;
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
 let pendingDesktopFocusSelector: string | null = null;
 let pendingDesktopAction: (() => void) | null = null;
+/** Progress edits re-render the workspace; keep the edited activity selected. */
+let progressSelection: string | null = null;
 
 /**
  * Visual preferences are browser-local and deliberately outside project state:
@@ -1637,6 +1640,29 @@ function renderApp(
         code: node.localCode,
         name: node.name,
       })),
+    });
+  }
+
+  const progressPage = workspace.querySelector<HTMLElement>("[data-progress-page]");
+  if (progressPage) {
+    mountWorkspaceProgressPage(progressPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      initialActivityId: progressSelection,
+      onUpdated: async (activity) => {
+        // Progress is stored by the shared activity service. Re-read the
+        // workspace so the activity grid and Gantt show the same persisted
+        // values, while keeping the Progress window and selection in place.
+        progressSelection = activity.activityId;
+        const refreshed = await new WorkspaceReadClient(aiTransport).load(state.context, {
+          locale: state.locale,
+          calendarMode: state.calendarMode,
+        });
+        if (!refreshed.ok) return;
+        const nextState = await loadP6Presentation(refreshed.data, aiTransport, state.context);
+        renderApp(container, { ...nextState, activeMenu: "progress" }, persistence);
+      },
     });
   }
 

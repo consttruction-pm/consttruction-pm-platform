@@ -1220,14 +1220,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         ${controls(moduleButton("tools", "money", uiText(state.locale, "Open cost records", "بازکردن سوابق هزینه")))}`;
       break;
     case "progress":
-      body = `
-        <div class="cp-p6-module-metrics">
-          ${metric(state.siteDailyLogs.length, t.siteLogs)}
-          ${metric(state.timecards.length + state.equipmentReports.length, `${t.attendance} / ${t.equipment}`)}
-          ${metric(state.fieldIssues.length, t.issues)}
-        </div>
-        <p>${escapeHtml(uiText(state.locale, "Progress presentation reads the field records already saved for this project. No progress percentages are computed on this page.", "نمایش پیشرفت از سوابق کارگاهی ذخیره‌شده برای این پروژه می‌خواند. هیچ درصد پیشرفتی در این صفحه محاسبه نمی‌شود."))}</p>
-        ${controls(moduleButton("tools", "progress", uiText(state.locale, "Open field records", "بازکردن سوابق کارگاه")))}`;
+      body = `<div class="cp-register-window" data-progress-page role="region" aria-label="${escapeAttribute(uiText(state.locale, "Activity Progress", "پیشرفت فعالیت‌ها"))}"></div>`;
       break;
     case "control":
       body = `
@@ -1306,8 +1299,8 @@ function renderModuleEmptyState(state: WorkspaceState): string {
       : { title: "Reports & print", message: "Report generation and print layouts are not available in this preview yet. This page has not generated a report or claimed that reporting is complete." };
   } else if (state.activeMenu === "progress") {
     copy = locale === "fa"
-      ? { title: "نمای پیشرفت پروژه", message: "داشبورد و نمودارهای اختصاصی پیشرفت هنوز در مرحله پیش‌نمایش هستند. داده‌های ثبت‌شده را از جدول فعالیت‌ها و سوابق کارگاه بررسی کنید؛ در این صفحه شاخص یا درصد ساختگی نمایش داده نمی‌شود." }
-      : { title: "Project progress", message: "The dedicated progress dashboard and charts are still in preview. Review recorded data in the activity grid and field records; this page does not invent metrics or percentages." };
+      ? { title: "نمای پیشرفت پروژه", message: "پیشرفت هر فعالیت از سرویس مشترک فعالیت خوانده و ویرایش می‌شود. برای ثبت یا تغییر فعالیت‌ها از جدول فعالیت‌ها و برای بازمحاسبهٔ تاریخ‌ها از اجرای زمان‌بندی استفاده کنید؛ در این صفحه درصد یا تاریخ ساختگی نمایش داده نمی‌شود." }
+      : { title: "Project progress", message: "Activity progress is read from and edited through the shared activity service. Use the activity grid to add activities and Run Schedule to recalculate dates; this page does not invent percentages or dates." };
   } else if (state.activeMenu === "cost") {
     copy = locale === "fa"
       ? { title: "هزینه و جریان مالی", message: "نمای کامل هزینه، پیش‌بینی و نمودارهای مالی هنوز در این پیش‌نمایش تکمیل نشده است. سوابق موجودِ تدارکات، تغییرات و ادعاها فقط در بخش‌های مربوط به خود نمایش داده می‌شوند." }
