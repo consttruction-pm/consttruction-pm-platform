@@ -986,6 +986,29 @@ class Page {
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
       const parentRect = element.parentElement?.getBoundingClientRect();
+      const ancestors = [];
+      for (let current = element; current && ancestors.length < 10; current = current.parentElement) {
+        const bounds = current.getBoundingClientRect();
+        const css = getComputedStyle(current);
+        ancestors.push({
+          tag: current.tagName,
+          id: current.id || null,
+          className: typeof current.className === "string" ? current.className : "",
+          hidden: current.hidden,
+          ariaHidden: current.getAttribute("aria-hidden"),
+          width: bounds.width,
+          height: bounds.height,
+          display: css.display,
+          visibility: css.visibility,
+          position: css.position,
+          overflowX: css.overflowX,
+          overflowY: css.overflowY,
+        });
+      }
+      const grid = document.querySelector("#cp-activity-grid");
+      const table = grid?.querySelector("table");
+      const gridRect = grid?.getBoundingClientRect();
+      const tableRect = table?.getBoundingClientRect();
       return {
         found: true,
         selector: ${JSON.stringify(selector)},
@@ -1003,6 +1026,11 @@ class Page {
         parentWidth: parentRect?.width ?? null,
         parentHeight: parentRect?.height ?? null,
         parentPosition: element.parentElement ? getComputedStyle(element.parentElement).position : null,
+        gridHidden: grid?.hidden ?? null,
+        gridRect: gridRect ? { width: gridRect.width, height: gridRect.height } : null,
+        tableRect: tableRect ? { width: tableRect.width, height: tableRect.height } : null,
+        tableStyleWidth: table?.getAttribute("style") ?? null,
+        ancestors,
       };
     })()`);
     assert(
