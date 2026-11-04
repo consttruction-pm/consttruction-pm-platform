@@ -234,6 +234,7 @@ const LABELS = {
     qualityAudit: "Run read-only quality audit", qualityAuditIntro: "Audit this exact project revision through the authenticated schedule service and Shared Core. No project data is changed.",
     qualityAuditRunning: "Publishing the project snapshot and checking schedule quality…", qualityAuditFailed: "The schedule quality audit could not be completed.",
     auditFindings: "Findings", auditCoverage: "Coverage and limitations", auditNoFindings: "No findings were returned for the checks evaluated.",
+    auditSeverity: "Severity", auditRule: "Rule", auditObject: "Object", auditRelated: "Related objects", auditEvidence: "Evidence", auditMessageKey: "Message key",
     calendarId: "Project calendar ID", calendarVersion: "Calendar version", chooseCalendar: "Choose an existing project calendar", calendarLoadError: "Could not load project calendars; enter an existing calendar ID and version.", calendarSystem: "Calendar date system",
     start: "Project start", finish: "Project finish (optional)", mode: "Calculation mode", priority: "Project leveling priority",
     jalaliDateHint: "Type a Jalali date, for example ۱۴۰۵/۰۷/۱۵. It is stored as the canonical Gregorian date.",
@@ -264,6 +265,7 @@ const LABELS = {
     qualityAudit: "اجرای ممیزی کیفیت", qualityAuditIntro: "همین نسخهٔ پروژه از مسیر احراز هویت‌شدهٔ زمان‌بندی و هستهٔ مشترک بررسی می‌شود؛ هیچ داده‌ای در پروژه تغییر نمی‌کند.",
     qualityAuditRunning: "در حال انتشار تصویر پروژه و بررسی کیفیت زمان‌بندی…", qualityAuditFailed: "ممیزی کیفیت زمان‌بندی کامل نشد.",
     auditFindings: "یافته‌ها", auditCoverage: "دامنهٔ بررسی و محدودیت‌ها", auditNoFindings: "در کنترل‌های ارزیابی‌شده یافته‌ای بازگردانده نشد.",
+    auditSeverity: "شدت", auditRule: "قاعده", auditObject: "موضوع", auditRelated: "موضوعات مرتبط", auditEvidence: "شواهد", auditMessageKey: "کلید پیام",
     calendarId: "شناسهٔ تقویم پروژه", calendarVersion: "نسخهٔ تقویم", chooseCalendar: "انتخاب تقویم ثبت‌شدهٔ پروژه", calendarLoadError: "فهرست تقویم‌ها دریافت نشد؛ شناسه و نسخهٔ موجود را وارد کنید.", calendarSystem: "سیستم تاریخ تقویم",
     start: "شروع پروژه", finish: "پایان پروژه (اختیاری)", mode: "روش محاسبه", priority: "اولویت تسطیح منابع پروژه",
     jalaliDateHint: "تاریخ شمسی را مانند ۱۴۰۵/۰۷/۱۵ وارد کنید؛ به‌صورت تاریخ میلادی استاندارد ذخیره می‌شود.",
@@ -955,7 +957,15 @@ function mountRunPanel(
       const related = Array.isArray(finding.related_object_ids)
         ? finding.related_object_ids.map(String).join(", ")
         : "";
-      return `<tr><td>${safe(finding.severity)}</td><td><code>${safe(finding.rule_id)}</code></td><td>${safe(finding.object_type)} / ${safe(finding.object_id)}</td><td>${safe(related)}</td><td>${safe(finding.message_key)}</td></tr>`;
+      const evidence = JSON.stringify(finding.evidence ?? {});
+      return `<tr>
+        <td>${safe(finding.severity)}</td>
+        <td><code>${safe(finding.rule_id)}</code></td>
+        <td>${safe(finding.object_type)} / ${safe(finding.object_id)}</td>
+        <td>${safe(related)}</td>
+        <td><details><summary>${safe(labels.auditEvidence)}</summary><code>${safe(evidence)}</code></details></td>
+        <td><code>${safe(finding.message_key)}</code></td>
+      </tr>`;
     }).join("");
     const coverage = report.coverage && typeof report.coverage === "object"
       ? Object.entries(report.coverage as Record<string, unknown>)
@@ -976,7 +986,11 @@ function mountRunPanel(
       <p><b>Quality index:</b> ${safe(qualityIndex.status ?? "not_calculated")} — ${safe(qualityIndex.reason ?? "Policy pack not supplied")}</p>
       <h4>${safe(labels.auditFindings)}</h4>
       ${rows
-        ? `<div class="cp-register-table-wrap"><table class="cp-schedule-result-table"><thead><tr><th>Severity</th><th>Rule</th><th>Object</th><th>Related objects</th><th>Evidence key</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        ? `<div class="cp-register-table-wrap"><table class="cp-schedule-result-table"><thead><tr>
+          <th>${safe(labels.auditSeverity)}</th><th>${safe(labels.auditRule)}</th>
+          <th>${safe(labels.auditObject)}</th><th>${safe(labels.auditRelated)}</th>
+          <th>${safe(labels.auditEvidence)}</th><th>${safe(labels.auditMessageKey)}</th>
+        </tr></thead><tbody>${rows}</tbody></table></div>`
         : `<p class="cp-empty">${safe(labels.auditNoFindings)}</p>`}
       <details><summary>${safe(labels.auditCoverage)}</summary><ul>${coverageRows}</ul></details>`;
   };
