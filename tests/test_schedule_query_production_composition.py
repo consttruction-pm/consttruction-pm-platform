@@ -12,6 +12,10 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.control_intelligence.quality_audit_history import (
     SQLiteScheduleQualityAuditHistoryRepository,
 )
+from construction_pm.control_intelligence.quality_policy_pack import (
+    SCORING_METHOD,
+    SQLiteScheduleQualityPolicyRepository,
+)
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
