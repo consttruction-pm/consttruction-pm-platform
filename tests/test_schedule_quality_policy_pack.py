@@ -149,3 +149,29 @@ def test_policy_api_requires_project_admin_and_binds_authenticated_author_and_ap
         assert latest["policy_pack"]["policy_id"] == "schedule-quality"
     finally:
         connection.close()
+
+
+def test_policy_repository_rejects_preapproved_creation_and_naive_timestamps() -> None:
+    connection = sqlite3.connect(":memory:")
+    try:
+        repository = SQLiteScheduleQualityPolicyRepository(connection)
+        draft = policy_pack()
+        preapproved = ScheduleQualityPolicyPack(
+            scope=draft.scope, policy_id=draft.policy_id, version="1.0.2",
+            name=draft.name, scoring_method=draft.scoring_method,
+            thresholds=draft.thresholds, weights=draft.weights,
+            created_by=draft.created_by, created_at=NOW,
+            approved_by="admin-1", approved_at=NOW,
+        )
+        with pytest.raises(ScheduleQualityPolicyError, match="CANNOT_CREATE_PREAPPROVED_PACK"):
+            repository.create(preapproved)
+        naive = ScheduleQualityPolicyPack(
+            scope=draft.scope, policy_id=draft.policy_id, version="1.0.3",
+            name=draft.name, scoring_method=draft.scoring_method,
+            thresholds=draft.thresholds, weights=draft.weights,
+            created_by=draft.created_by, created_at=datetime(2026, 11, 4, 15, 0),
+        )
+        with pytest.raises(ScheduleQualityPolicyError, match="TIMESTAMP_INVALID"):
+            repository.create(naive)
+    finally:
+        connection.close()
