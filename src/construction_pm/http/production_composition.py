@@ -43,6 +43,7 @@ from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadMode
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
 from construction_pm.p6_interchange_api import P6InterchangeAPI
+from construction_pm.p6_interchange_import_ledger import P6InterchangeImportLedgerRepository
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_persisted_resource_leveling_resolver import build_persisted_resource_leveling_input_resolver
 from construction_pm.p6_resource_capacity_read_api import P6ResourceCapacityReadAPI
@@ -180,6 +181,12 @@ def build_project_lifecycle_wsgi_app(
             calendar_work_hours_repository=resource_calendar_work_hours_repository,
         )
     resolved_quality_audit_context_loader = quality_audit_context_loader
+    interchange_import_ledger_repository = (
+        None if p6_interchange_api is None else p6_interchange_api.import_ledger_repository
+    )
+    interchange_import_ledger_transaction_manager = (
+        None if p6_interchange_api is None else p6_interchange_api.import_ledger_transaction_manager
+    )
     if resolved_quality_audit_context_loader is None:
         baseline_service = None if p6_baseline_api is None else p6_baseline_api.service
         baseline_update_service = (
@@ -216,6 +223,7 @@ def build_project_lifecycle_wsgi_app(
                 else getattr(resource_read_api.assignment_service, "transaction_manager", None)
             )
             or quality_policy_transaction_manager
+            or interchange_import_ledger_transaction_manager
         )
         if any(
             repository is not None
@@ -229,6 +237,7 @@ def build_project_lifecycle_wsgi_app(
                 p6_code_repository,
                 p6_code_assignment_repository,
                 quality_policy_repository,
+                interchange_import_ledger_repository,
             )
         ):
             resolved_quality_audit_context_loader = ScheduleQualityAuditContextReader(
@@ -242,6 +251,7 @@ def build_project_lifecycle_wsgi_app(
                 code_definition_repository=p6_code_repository,
                 code_assignment_repository=p6_code_assignment_repository,
                 quality_policy_repository=quality_policy_repository,
+                interchange_import_ledger_repository=interchange_import_ledger_repository,
                 transaction_manager=quality_transaction_manager,
             ).load
 
