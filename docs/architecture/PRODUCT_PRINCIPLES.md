@@ -151,6 +151,20 @@ This principle is an explicit owner-approved correction to prior assistant archi
 
 Existing proposal, authorization, approval, audit, idempotency, revision and Shared Core foundations must be reused where valid. Existing provider-backed orchestration and chat UI are legacy paths to retire or replace through tested changes; their presence in the current tree is not permission to retain them as a supported option. No documentation-only change counts as implementation completion. Every capability requires code-path evidence, tests and end-to-end verification.
 
+## Principle 14 — CUBI-owned Engineering Intelligence Engine Suite
+
+CUBI must provide a reusable suite of internal engineering and project-control engines, callable both from the command-oriented CUBI assistant and from the professional workspace. The suite includes Engineering Reasoning and Root-Cause Analysis; Project Watchdog and Event Monitoring; Scenario Lab and Simulation; Project/Portfolio Optimization; Risk and Uncertainty Analysis; Schedule/Project Quality Audit; Construction Production and Productivity; Contract, Change, Claims and Delay Analysis; Project Data Reconciliation; Workflow and Automation; Portfolio Capacity; Engineering Standards and Methods; Project Templates; Decision Register; Deadline/SLA Control; Data Quality Profiling; Change Recovery/Undo; scoped Command Dictionaries; and Contextual Smart Guide.
+
+These engines must use CUBI-owned algorithms, rules, typed application tools, statistical methods and mathematical optimization. They must obey Principle 13: no third-party AI/ML model/runtime, no external AI service/provider, no AI API/key, no model abstraction or fallback. They must reuse the authoritative Shared Domain/Calculation Core for all schedule, calendar, progress, resource, cost and EVM results and must never create parallel calculation authorities.
+
+The binding method catalogue, shared prerequisites, engine-specific dependencies, assistant command families, menu/window reservations and acceptance gates are specified in [CUBI_ENGINEERING_INTELLIGENCE_ENGINES.md](CUBI_ENGINEERING_INTELLIGENCE_ENGINES.md) and tracked in [Issue #1706](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1706).
+
+Workspace entry is reserved under **Tools → Engineering Intelligence**, with relevant project/organization navigation-tree entries. All new commands and windows remain planned/disabled until their real application paths, permissions, localization, regression tests and end-to-end behavior are verified. The existing assistant launcher remains the single command interface.
+
+The suite is additive to existing product scope. It must not change the approved workspace geometry or replace existing windows. **BIM/model coordination, drawing/model interpretation, map/model integration and 4D/5D are explicitly excluded from this principle and Issue #1706; they require a separate product discussion and decision.**
+
+Implementation credit requires code-path evidence, deterministic/appropriate golden tests, security and cross-scope negatives, authoritative calculation grounding, fresh read-back where applicable and exact-head CI/E2E. Documentation and menu reservations alone are not completion.
+
 ## Release Gate
 
 Every release candidate must pass two sequential product gates:
