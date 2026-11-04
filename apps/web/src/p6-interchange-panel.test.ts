@@ -6,6 +6,8 @@ import {
   getInterchangePanelLabels,
   renderInterchangeExportResult,
   renderInterchangeImportResult,
+  renderInterchangeImportBatchList,
+  renderInterchangeImportBatchDetail,
   renderInterchangePanel,
 } from "./p6-interchange-panel.js";
 
@@ -111,4 +113,101 @@ test("server errors map to explicit permission, session, mapping and request sta
   );
   assert.match(describeInterchangeError("INVALID_XML", labels), /rejected this document/);
   assert.match(describeInterchangeError("NETWORK_ERROR", labels), /could not be reached/);
+});
+
+
+test("import result reports durable batch receipt and no target application", () => {
+  const html = renderInterchangeImportResult(
+    {
+      contract_version: "p6-interchange-api.v1",
+      format: "PRIMAVERA_XML",
+      rows: [],
+      import_audit: {
+        status: "recorded",
+        target_application_status: "PARSED_NOT_APPLIED",
+        batch_id: "batch-1",
+        source_sha256: "a".repeat(64),
+        source_byte_count: 120,
+        row_count: 0,
+        mapping_count: 3,
+        warning_count: 0,
+      },
+    },
+    getInterchangePanelLabels("en"),
+  );
+  assert.match(html, /Import audit receipt/);
+  assert.match(html, /batch-1/);
+  assert.match(html, /PARSED_NOT_APPLIED/);
+  assert.match(html, /no project activities or resources were changed/);
+  assert.match(html, /aaaa/);
+});
+
+test("import history list and batch detail render mapping and privacy-safe field evidence", () => {
+  const labels = getInterchangePanelLabels("en");
+  const history = renderInterchangeImportBatchList(
+    {
+      contract_version: "p6-interchange-api.v1",
+      scope: { tenant_id: "t1", project_id: "preview-rps-01", project_revision: 7 },
+      status: "available",
+      batches: [{
+        batch_id: "batch-1",
+        format: "XER_PROJECT",
+        source_sha256: "a".repeat(64),
+        source_byte_count: 120,
+        row_count: 1,
+        mapping_count: 2,
+        warning_count: 1,
+        imported_by: "user-1",
+        imported_at: "2026-11-04T20:00:00+00:00",
+        target_application_status: "PARSED_NOT_APPLIED",
+      }],
+    },
+    labels,
+  );
+  assert.match(history, /batch-1/);
+  assert.match(history, /data-interchange-batch-id/);
+  assert.match(history, /user-1/);
+
+  const detail = renderInterchangeImportBatchDetail(
+    {
+      contract_version: "p6-interchange-api.v1",
+      batch: {
+        batch_id: "batch-1",
+        tenant_id: "t1",
+        project_id: "preview-rps-01",
+        project_revision: 7,
+        request_key: "request-1",
+        format: "XER_PROJECT",
+        source_sha256: "a".repeat(64),
+        source_byte_count: 120,
+        row_count: 1,
+        mapping_count: 2,
+        warning_count: 1,
+        imported_by: "user-1",
+        imported_at: "2026-11-04T20:00:00+00:00",
+        target_application_status: "PARSED_NOT_APPLIED",
+        mapping_snapshot: [{
+          mapping_id: "task-code",
+          source_field: "task_code",
+          canonical_field: "activity.id",
+          status: "SUPPORTED",
+        }],
+        row_summaries: [{
+          row_index: 0,
+          source_fields: ["task_code", "vendor_field"],
+          canonical_fields: ["activity.id"],
+          preserved_extension_fields: ["p6.interchange.vendor_field"],
+          source_value_hashes: { task_code: "b".repeat(64) },
+          warnings: ["PRESERVED_UNKNOWN_FIELD:vendor_field"],
+        }],
+      },
+    },
+    labels,
+  );
+  assert.match(detail, /task-code/);
+  assert.match(detail, /task_code/);
+  assert.match(detail, /activity\.id/);
+  assert.match(detail, /PRESERVED_UNKNOWN_FIELD:vendor_field/);
+  assert.match(detail, /Value hashes only/);
+  assert.doesNotMatch(detail, /raw source value/);
 });
