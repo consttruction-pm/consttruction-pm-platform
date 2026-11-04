@@ -73,6 +73,9 @@ from construction_pm.calendar_master_repository import (
 from construction_pm.calendar_snapshot_repository import (
     SQLiteCalendarSnapshotRepository,
 )
+from construction_pm.calendar_work_hours_repository import (
+    SQLiteCalendarWorkHourRepository,
+)
 from construction_pm.constraint_master_repository import (
     SQLiteConstraintMasterRepository,
 )
@@ -256,6 +259,7 @@ class PreviewRepositories:
     calendar_assignments: SQLiteCalendarAssignmentRepository
     calendar_snapshots: SQLiteCalendarSnapshotRepository
     calendar_exceptions: SQLiteCalendarExceptionRepository
+    calendar_work_hours: SQLiteCalendarWorkHourRepository
     resource_assignments: SQLiteP6ResourceAssignmentRepository
     resource_periods: SQLiteP6ResourceAssignmentPeriodRepository
     capacities: SQLiteP6ResourceCapacityRepository
@@ -290,6 +294,7 @@ class PreviewRepositories:
         calendar_assignments = SQLiteCalendarAssignmentRepository(connection)
         calendar_snapshots = SQLiteCalendarSnapshotRepository(connection)
         calendar_exceptions = SQLiteCalendarExceptionRepository(connection)
+        calendar_work_hours = SQLiteCalendarWorkHourRepository(connection)
         resource_assignments = SQLiteP6ResourceAssignmentRepository(connection)
         resource_periods = SQLiteP6ResourceAssignmentPeriodRepository(connection)
         capacities = SQLiteP6ResourceCapacityRepository(connection)
@@ -326,6 +331,7 @@ class PreviewRepositories:
             calendar_assignments=calendar_assignments,
             calendar_snapshots=calendar_snapshots,
             calendar_exceptions=calendar_exceptions,
+            calendar_work_hours=calendar_work_hours,
             resource_assignments=resource_assignments,
             resource_periods=resource_periods,
             capacities=capacities,
@@ -1292,6 +1298,7 @@ def open_preview_runtime(
             repositories.calendar_snapshots,
             repositories.calendar_exceptions,
             policy,
+            work_hours_repository=repositories.calendar_work_hours,
             transaction_manager=repositories.transaction_manager,
         ),
         p6_baseline_api=baseline_api,

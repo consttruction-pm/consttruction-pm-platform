@@ -1138,7 +1138,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       break;
     case "calendars":
       body = `
-        <div class="cp-calendar-window">
+        <div class="cp-calendar-window" data-calendar-page>
           <div class="cp-calendar-window-toolbar">
             <strong>${escapeHtml(uiText(state.locale, "Calendar Register", "فهرست تقویم‌ها"))}</strong>
             <div><button type="button" disabled title="${escapeAttribute(uiText(state.locale, "Calendar persistence is not connected yet.", "ذخیره‌سازی تقویم هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, "New Calendar", "تقویم جدید"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Edit", "ویرایش"))}</button><button type="button" disabled>${escapeHtml(uiText(state.locale, "Delete", "حذف"))}</button></div>
@@ -1362,12 +1362,6 @@ function navigationAnchors(menu: WorkspaceState["activeMenu"]): readonly (string
       return ["#cp-site-logs", "#cp-field-operations"];
     case "resources":
       return ["#cp-resource-capacity", "#cp-field-operations"];
-    case "wbs":
-    case "assignments":
-    case "expenses":
-    case "issues":
-    case "risks":
-    case "thresholds":
     case "wbs":
     case "assignments":
     case "expenses":

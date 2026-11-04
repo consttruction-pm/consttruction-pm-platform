@@ -6787,6 +6787,15 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-calendar-table-wrap input[type=time],.cp-p6 .cp-calendar-table-wrap input[type=text]{width:92px;min-height:24px;border:1px solid #d4dce6;background:#f7f9fc}
 .cp-p6 .cp-calendar-hint{margin:8px 0 0;color:#748399;font-size:9px;line-height:1.5}
 .cp-p6 .cp-calendar-notice{margin:0;padding:7px 9px;border:1px solid #e1d4b8;background:#fffaf0;color:#785a2b;font-size:9px;line-height:1.5}
+.cp-p6 .cp-calendar-register tbody tr[data-calendar-row]{cursor:pointer}
+.cp-p6 .cp-calendar-register tbody tr[data-calendar-row]:hover{background:#f4f8fd}
+.cp-p6 .cp-calendar-register tbody tr[data-calendar-row]:focus-visible{outline:2px solid #173d68;outline-offset:-2px}
+.cp-p6 .cp-calendar-register tbody tr.is-selected{background:#e8f0fa;box-shadow:inset 3px 0 0 #173d68}
+.cp-p6 .cp-calendar-panel-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cp-p6 .cp-calendar-dialog{margin-top:8px;padding:8px;border:1px solid #cbd5e1;background:#f7f9fc;display:grid;gap:6px;font-size:10px}
+.cp-p6 .cp-calendar-dialog strong{color:#173d68}
+.cp-p6 .cp-calendar-notice[data-state="ok"]{border-color:#b7d8c2;background:#f2fbf5;color:#1d6b42}
+.cp-p6 .cp-calendar-notice[data-state="error"]{border-color:#e3bcbc;background:#fff5f5;color:#8c2626}
 @media(max-width:900px){.cp-p6 .cp-calendar-window-layout{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-calendar-register{min-height:130px}}
 @media(max-width:560px){.cp-p6 .cp-calendar-fields{grid-template-columns:minmax(0,1fr)}.cp-p6 .cp-calendar-window-toolbar{align-items:flex-start;flex-direction:column}}
 

@@ -10,7 +10,7 @@ const matrix = readFileSync(
   "utf8",
 );
 
-const navigationKeys = new Set(WORKSPACE_NAVIGATION.map((item) => item.key));
+const navigationKeys = new Set<string>(WORKSPACE_NAVIGATION.map((item) => item.key));
 
 const pageRows = matrix
   .split("\n")

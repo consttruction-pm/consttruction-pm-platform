@@ -49,6 +49,7 @@ import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspace
 import { mountAIActionPanel } from "./ai-action-panel.js";
 import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
+import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
@@ -1583,6 +1584,16 @@ function renderApp(
       console.error("Authoritative schedule result projection failed", error);
     }
   });
+
+  const calendarPage = workspace.querySelector<HTMLElement>("[data-calendar-page]");
+  if (calendarPage) {
+    mountWorkspaceCalendarPage(calendarPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      catalog: state.calendarCatalog,
+    });
+  }
 
   // The bottom details pane is a real tabbed surface, not a placeholder. It
   // reads the selected row and the same relationships the Gantt draws.
