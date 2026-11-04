@@ -96,7 +96,16 @@ from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadMode
 from construction_pm.p6_activity_period_actual_repository import (
     SQLiteP6ActivityPeriodActualRepository,
 )
-from construction_pm.p6_expense_repository import SQLiteP6ExpenseRepository
+from construction_pm.p6_cost_account_api import P6CostAccountAPI
+from construction_pm.p6_cost_account_repository import (
+    P6CostAccountApplicationService,
+    SQLiteP6CostAccountRepository,
+)
+from construction_pm.p6_expense_api import P6ExpenseAPI
+from construction_pm.p6_expense_repository import (
+    P6ExpenseApplicationService,
+    SQLiteP6ExpenseRepository,
+)
 from construction_pm.p6_activity_master_api import P6ActivityMasterAPI
 from construction_pm.p6_baseline_activity_repository import (
     SQLiteP6BaselineActivityRepository,
@@ -295,6 +304,10 @@ class PreviewRepositories:
     current_activity_values: SQLiteP6CurrentActivityRepository
     current_activity_service: P6CurrentActivityApplicationService
     roles: SQLiteP6RoleRepository
+    expenses: SQLiteP6ExpenseRepository
+    expense_service: P6ExpenseApplicationService
+    cost_accounts: SQLiteP6CostAccountRepository
+    cost_account_service: P6CostAccountApplicationService
     transaction_manager: SQLiteTransactionManager
 
     @classmethod
@@ -346,6 +359,12 @@ class PreviewRepositories:
             current_activity_values, transaction_manager
         )
         roles = SQLiteP6RoleRepository(connection)
+        expenses = SQLiteP6ExpenseRepository(connection)
+        expense_service = P6ExpenseApplicationService(expenses, transaction_manager)
+        cost_accounts = SQLiteP6CostAccountRepository(connection)
+        cost_account_service = P6CostAccountApplicationService(
+            cost_accounts, transaction_manager
+        )
         return cls(
             activities=activities,
             wbs=wbs,
@@ -381,6 +400,10 @@ class PreviewRepositories:
             current_activity_values=current_activity_values,
             current_activity_service=current_activity_service,
             roles=roles,
+            expenses=expenses,
+            expense_service=expense_service,
+            cost_accounts=cost_accounts,
+            cost_account_service=cost_account_service,
             transaction_manager=transaction_manager,
         )
 
@@ -1233,7 +1256,7 @@ def open_preview_runtime(
             baseline_activities=repositories.baseline_activities,
             activities=repositories.activities,
             actuals=SQLiteP6ActivityPeriodActualRepository(connection),
-            expenses=SQLiteP6ExpenseRepository(connection),
+            expenses=repositories.expenses,
             resolver_provider=_evm_resolver,
             wbs_repository=repositories.wbs,
             resource_assignments=repositories.resource_assignments,
@@ -1340,6 +1363,8 @@ def open_preview_runtime(
             codecs={PREVIEW_INTERCHANGE_FORMAT: P6PrimaveraXmlCodec()},
         ),
         p6_role_api=P6RoleAPI(repositories.roles, policy),
+        p6_expense_api=P6ExpenseAPI(repositories.expense_service, policy),
+        p6_cost_account_api=P6CostAccountAPI(repositories.cost_account_service, policy),
         resource_read_api=P6ResourceReadAPI(
             repositories.resource_assignment_service,
             repositories.resource_period_service,

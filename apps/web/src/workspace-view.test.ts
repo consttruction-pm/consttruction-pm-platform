@@ -1512,10 +1512,9 @@ test("project settings button dispatches a single open request", () => {
   assert.equal(opened, 1);
 });
 
-test("WBS, expenses, issues, risks and thresholds have separate register windows", () => {
+test("WBS, issues, risks and thresholds have separate register windows", () => {
   const cases: Array<[WorkspaceMenuKey, string]> = [
     ["wbs", "Work Breakdown Structure"],
-    ["expenses", "Project Expenses"],
     ["issues", "Project Issues"],
     ["risks", "Project Risks"],
     ["thresholds", "Project Thresholds"],
@@ -1525,6 +1524,13 @@ test("WBS, expenses, issues, risks and thresholds have separate register windows
     assert.ok(html.includes(title), `missing register surface: ${title}`);
     assert.match(html, /No records are loaded for this project|WBS hierarchy/);
   }
+});
+
+test("Expenses is a first-class window mounted on the real expense and cost-account registers", () => {
+  const html = render("en", "expenses");
+  assert.match(html, /data-expenses-page/);
+  assert.match(html, /Project Expenses/);
+  assert.doesNotMatch(html, /data-register-tab="expenses:costs"/);
 });
 
 test("Resource Assignments is a first-class window mounted on the real assignment register", () => {

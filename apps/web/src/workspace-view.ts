@@ -1202,7 +1202,7 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
         ${controls(`${moduleButton("tools", "resource", uiText(state.locale, "Open resource capacity", "بازکردن ظرفیت منابع"))}${moduleButton("assignments", "link", uiText(state.locale, "Resource assignments", "تخصیص منابع"))}`)}`;
       break;
     case "expenses":
-      body = renderRegisterWindow(state, uiText(state.locale, "Project Expenses", "هزینه‌های پروژه"), [["Expense Item","شرح هزینه"],["Expense ID","شناسه هزینه"],["Activity ID","شناسه فعالیت"],["WBS","ساختار شکست"],["Cost Account","حساب هزینه"],["Budgeted Cost","هزینه بودجه"],["Actual Cost","هزینه واقعی"],["Accrual Type","نوع تعهد"],["Vendor","تأمین‌کننده"],["Status","وضعیت"]], [["general","General","عمومی"],["costs","Costs","هزینه‌ها"],["description","Description","شرح"],["documents","Documents","اسناد"],["udfs","UDFs","فیلدهای کاربر"]]);
+      body = `<div class="cp-register-window" data-expenses-page role="region" aria-label="${escapeHtml(uiText(state.locale, "Project Expenses", "هزینه‌های پروژه"))}"></div>`;
       break;
     case "documents":
       body = state.documents.length

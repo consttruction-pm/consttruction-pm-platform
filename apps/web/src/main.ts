@@ -51,6 +51,7 @@ import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
 import { mountWorkspaceCalendarPage } from "./workspace-calendars.js";
 import { mountWorkspaceAssignmentsPage } from "./workspace-assignments.js";
+import { mountWorkspaceExpensesPage } from "./workspace-expenses.js";
 import { mountWorkspaceRolesPage } from "./workspace-roles.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
@@ -1616,6 +1617,25 @@ function renderApp(
         id: activity.id,
         code: activity.code,
         name: activity.name,
+      })),
+    });
+  }
+
+  const expensesPage = workspace.querySelector<HTMLElement>("[data-expenses-page]");
+  if (expensesPage) {
+    mountWorkspaceExpensesPage(expensesPage, {
+      transport: aiTransport,
+      context: state.context,
+      locale: state.locale,
+      activities: state.activities.map((activity) => ({
+        id: activity.id,
+        code: activity.code,
+        name: activity.name,
+      })),
+      wbsNodes: state.wbsNodes.map((node) => ({
+        id: node.id,
+        code: node.localCode,
+        name: node.name,
       })),
     });
   }
