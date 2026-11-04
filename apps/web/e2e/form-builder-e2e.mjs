@@ -442,6 +442,14 @@ async function login(page, baseUrl, role) {
   await openLogin(page, baseUrl);
   await page.click(`button[name="role"][value="${role}"]`);
   await page.waitFor(`location.pathname === "/app"`, `${role} redirect`);
+  // The product's default /app route is the visual preview shell. This
+  // Form Builder journey exercises the authenticated data-backed workspace,
+  // so it explicitly selects that route after the session is established.
+  await page.navigate(
+    `${baseUrl}/app?view=live`,
+    null,
+    `${role} live workspace route`,
+  );
   // The shell may restore the previously opened project instead of asking
   // again; both entries are valid for the same session.
   await page.waitFor(
