@@ -7175,3 +7175,31 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-audit-status-pill.is-approved{border-color:#c6ddcf;background:#edf7f0;color:#2f6a49}
 .cp-audit-status-pill.is-draft{border-color:#e6d4bd;background:#fff5e9;color:#8b5a2d}
 @media(max-width:760px){.cp-audit-policy-grid{grid-template-columns:minmax(0,1fr)}.cp-audit-policy-grid label.is-wide{grid-column:auto}}
+
+
+.cp-interchange-history{display:grid;gap:.6rem;margin-top:.65rem;padding:.8rem;border:1px solid var(--cp-border);border-radius:.6rem;background:#f8fafc}
+.cp-interchange-history>header{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.cp-interchange-history>header h3{margin:0;font-size:.88rem}
+.cp-interchange-history>header button{padding:.35rem .65rem;font-size:.74rem}
+.cp-interchange-history [role=status]{margin:0;color:var(--cp-muted);font-size:.76rem}
+.cp-interchange-audit-receipt{display:grid;gap:.4rem;padding:.7rem;border:1px solid #d4dfe8;border-radius:.5rem;background:#f8fafc}
+.cp-interchange-audit-receipt.is-recorded{border-color:#c6ddcf;background:#f4faf6}
+.cp-interchange-audit-receipt h4{margin:0;color:var(--cp-navy);font-size:.83rem}
+.cp-interchange-audit-receipt p,.cp-interchange-audit-receipt strong{margin:0;font-size:.75rem;color:#425d75}
+.cp-interchange-audit-receipt strong{color:#8b542d}
+.cp-interchange-audit-receipt dl,.cp-interchange-batch-detail dl{display:grid;gap:.25rem;margin:0}
+.cp-interchange-audit-receipt dl>div,.cp-interchange-batch-detail dl>div{display:grid;grid-template-columns:minmax(100px,.45fr) minmax(0,1.4fr);gap:.5rem}
+.cp-interchange-audit-receipt dt,.cp-interchange-batch-detail dt{color:#73869a;font-size:.7rem}
+.cp-interchange-audit-receipt dd,.cp-interchange-batch-detail dd{margin:0;color:#34536f;font-size:.72rem;overflow-wrap:anywhere}
+.cp-interchange-batch-detail{display:grid;gap:.55rem;margin-top:.6rem;padding:.75rem;border:1px solid #d4dfe8;border-radius:.55rem;background:#fff}
+.cp-interchange-batch-detail h4,.cp-interchange-batch-detail h5{margin:0;color:var(--cp-navy)}
+.cp-interchange-batch-detail h4{font-size:.84rem}
+.cp-interchange-batch-detail h5{margin-top:.2rem;font-size:.76rem}
+.cp-interchange-batch-detail>p{margin:0;color:#536d84;font-size:.73rem;overflow-wrap:anywhere}
+.cp-interchange-row-evidence{display:grid;gap:.45rem;padding:.65rem;border:1px solid #e0e7ee;border-radius:.45rem;background:#f8fafc}
+.cp-interchange-row-evidence>strong{color:#2e4f6e;font-size:.76rem}
+.cp-interchange-row-evidence>ul{margin:0;padding-inline-start:1.1rem;font-size:.72rem}
+.cp-interchange-row-evidence details summary{color:#486b8b;cursor:pointer;font-size:.72rem}
+.cp-interchange-row-evidence pre{max-height:14rem;margin:.35rem 0 0;padding:.5rem;overflow:auto;border:1px solid #dce4eb;border-radius:.35rem;background:#fff;color:#51677c;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.68rem}
+.cp-interchange-history [data-interchange-history-list] .cp-interchange-table{min-width:650px}
+@media(max-width:760px){.cp-interchange-history>header{align-items:flex-start;flex-direction:column}.cp-interchange-audit-receipt dl>div,.cp-interchange-batch-detail dl>div{grid-template-columns:1fr}}
