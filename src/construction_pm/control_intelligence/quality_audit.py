@@ -269,12 +269,13 @@ def _audit_baselines(
     add,
     *,
     current_revision: object,
-) -> tuple[str, int, int]:
+    core_schedule_facts: Mapping[str, Mapping[str, object]] | None = None,
+) -> tuple[str, int, int, int]:
     baselines = _context_records(audit_context, "baselines")
     rows = _context_records(audit_context, "baseline_activities")
     assignments = _context_records(audit_context, "baseline_assignments")
     if baselines is None:
-        return "not_evaluated_baseline_repository_not_configured", 0, 0
+        return "not_evaluated_baseline_repository_not_configured", 0, 0, 0
 
     by_id: dict[str, dict[str, object]] = {}
     for baseline in baselines:
@@ -319,7 +320,7 @@ def _audit_baselines(
                 )
 
     if rows is None:
-        return "partial_baseline_metadata_only", len(by_id), 0
+        return "partial_baseline_metadata_only", len(by_id), 0, 0
 
     seen: set[tuple[str, str]] = set()
     current_wbs_ids = (
@@ -328,6 +329,7 @@ def _audit_baselines(
         else None
     )
     row_count = 0
+    variance_count = 0
     rows_by_baseline: dict[str, int] = defaultdict(int)
     for row in rows:
         baseline_id = row.get("baseline_id")
@@ -390,7 +392,77 @@ def _audit_baselines(
                 object_id=activity_id,
                 related_ids=(baseline_id, str(wbs_id)),
             )
+
+        current_activity = activities.get(activity_id)
+        if (
+            current_activity is not None
+            and isinstance(wbs_id, str)
+            and isinstance(current_activity.get("wbs_id"), str)
+            and wbs_id != current_activity.get("wbs_id")
+        ):
+            add(
+                "ACTIVITY_WBS_CHANGED_SINCE_BASELINE",
+                "info",
+                "quality.finding.activity_wbs_changed_since_baseline",
+                object_type="baseline_activity",
+                object_id=activity_id,
+                related_ids=(baseline_id, wbs_id, str(current_activity["wbs_id"])),
+            )
+
+        current_fact = (
+            None
+            if core_schedule_facts is None
+            else core_schedule_facts.get(activity_id)
+        )
+        if isinstance(current_fact, Mapping):
+            forecast_start = _iso_date(current_fact.get("start"))
+            forecast_finish = _iso_date(current_fact.get("finish"))
+            if start is not None and forecast_start is not None and forecast_start != start:
+                variance_count += 1
+                add(
+                    "BASELINE_FORECAST_START_VARIANCE",
+                    "info",
+                    "quality.finding.baseline_forecast_start_variance",
+                    object_type="baseline_activity",
+                    object_id=activity_id,
+                    related_ids=(baseline_id,),
+                    evidence={
+                        "baseline_start": start.isoformat(),
+                        "forecast_start": forecast_start.isoformat(),
+                        "calendar_day_variance": (forecast_start - start).days,
+                        "unit": "calendar_days",
+                    },
+                )
+            if finish is not None and forecast_finish is not None and forecast_finish != finish:
+                variance_count += 1
+                add(
+                    "BASELINE_FORECAST_FINISH_VARIANCE",
+                    "info",
+                    "quality.finding.baseline_forecast_finish_variance",
+                    object_type="baseline_activity",
+                    object_id=activity_id,
+                    related_ids=(baseline_id,),
+                    evidence={
+                        "baseline_finish": finish.isoformat(),
+                        "forecast_finish": forecast_finish.isoformat(),
+                        "calendar_day_variance": (forecast_finish - finish).days,
+                        "unit": "calendar_days",
+                    },
+                )
     for baseline_id in by_id:
+        baseline_activity_ids = {
+            activity_id for candidate_id, activity_id in seen
+            if candidate_id == baseline_id
+        }
+        for activity_id in sorted(set(activities) - baseline_activity_ids):
+            add(
+                "CURRENT_ACTIVITY_NOT_IN_BASELINE",
+                "info",
+                "quality.finding.current_activity_not_in_baseline",
+                object_type="activity",
+                object_id=activity_id,
+                related_ids=(baseline_id,),
+            )
         if rows_by_baseline[baseline_id] == 0:
             add(
                 "BASELINE_HAS_NO_ACTIVITY_ROWS",
@@ -400,8 +472,8 @@ def _audit_baselines(
                 object_id=baseline_id,
             )
     if not by_id:
-        return "evaluated_no_baselines", 0, 0
-    return "evaluated", len(by_id), row_count
+        return "evaluated_no_baselines", 0, 0, 0
+    return "evaluated", len(by_id), row_count, variance_count
 
 
 def _decimal_value(value: object) -> Decimal | None:
@@ -730,6 +802,7 @@ def build_schedule_quality_audit(
     core_diagnostics: Sequence[Mapping[str, object]] = (),
     evaluation_status: str = "completed",
     audit_context: Mapping[str, object] | None = None,
+    core_schedule_facts: Mapping[str, Mapping[str, object]] | None = None,
 ) -> dict[str, object]:
     """Build a revision-bound audit report without modifying the project.
 
@@ -1171,12 +1244,13 @@ def build_schedule_quality_audit(
         audit_context, activity_rows, add, mode=str(payload.get("mode"))
     )
     wbs_nodes = _context_records(audit_context, "wbs_nodes")
-    baseline_coverage, baseline_count, baseline_activity_count = _audit_baselines(
+    baseline_coverage, baseline_count, baseline_activity_count, baseline_variance_count = _audit_baselines(
         audit_context,
         activity_rows,
         wbs_nodes,
         add,
         current_revision=payload.get("project_revision"),
+        core_schedule_facts=core_schedule_facts,
     )
     resource_coverage, resource_assignment_count, resource_period_count = _audit_resources(
         audit_context, activity_rows, add
@@ -1286,6 +1360,7 @@ def build_schedule_quality_audit(
             "wbs_node_count": wbs_node_count,
             "baseline_count": baseline_count,
             "baseline_activity_count": baseline_activity_count,
+            "baseline_forecast_variance_count": baseline_variance_count,
             "resource_assignment_count": resource_assignment_count,
             "resource_period_count": resource_period_count,
             "activity_code_definition_count": code_definition_count,
