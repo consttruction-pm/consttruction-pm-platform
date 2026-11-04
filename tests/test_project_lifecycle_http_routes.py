@@ -32,6 +32,7 @@ from construction_pm.p6_baseline_api import P6BaselineAPI, P6_BASELINE_API_VERSI
 from construction_pm.p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from construction_pm.p6_mapping_api import P6MappingAPI, P6_MAPPING_API_VERSION
 from construction_pm.p6_interchange_api import P6InterchangeAPI, P6_INTERCHANGE_API_VERSION
+from construction_pm.p6_interchange_import_ledger import SQLiteP6InterchangeImportLedgerRepository
 from construction_pm.p6_resource_read_api import P6ResourceReadAPI, P6_RESOURCE_READ_API_VERSION
 from construction_pm.p6_resource_write_api import P6ResourceWriteAPI, P6_RESOURCE_WRITE_API_VERSION
 from construction_pm.p6_resource_assignment_repository import P6ResourceAssignment, P6ResourceAssignmentApplicationService, P6ResourceAssignmentPeriodApplicationService, P6ResourceAssignmentPeriodValue, SQLiteP6ResourceAssignmentRepository, SQLiteP6ResourceAssignmentPeriodRepository
@@ -1079,7 +1080,7 @@ def test_browser_cannot_supply_identity_headers_as_authority():
     assert status == 401
 
 
-def p6_routes(roles=frozenset({"project_admin"})):
+def p6_routes(roles=frozenset({"project_admin"}), *, with_import_ledger=False):
     import sqlite3
     now = datetime(2026, 9, 30, tzinfo=timezone.utc)
     session = AuthenticatedSession("s1", "u1", "t1", roles, now + timedelta(hours=1))
@@ -1112,6 +1113,11 @@ def p6_routes(roles=frozenset({"project_admin"})):
         mapping_service,
         default_project_policy(),
         {P6MappingFormat.XER_PROJECT: P6XerCodec()},
+        import_ledger_repository=(
+            SQLiteP6InterchangeImportLedgerRepository(connection)
+            if with_import_ledger else None
+        ),
+        import_ledger_transaction_manager=transaction_manager if with_import_ledger else None,
     )
     return ProjectLifecycleHttpRoutes(
         ProjectLifecycleAPI(service),
@@ -2028,6 +2034,59 @@ def test_p6_interchange_http_import_export_preserves_versioned_contract_and_scop
     assert exported["contract_version"] == P6_INTERCHANGE_API_VERSION
     assert exported["document"]["encoding"] == "utf-8"
     assert "%R\tA-100" in exported["document"]["data"]
+
+
+def test_p6_interchange_http_records_idempotent_parse_batch_and_lists_import_history():
+    r, _, _ = p6_routes(with_import_ledger=True)
+    mapping_payload = {
+        "mapping_id": "MAP-LEDGER-1",
+        "registry_version": "p6-field-registry.v1",
+        "format": "XER_PROJECT",
+        "subject_area": "Activity",
+        "source_field": "task_code",
+        "canonical_field": "activity.activity_id",
+        "status": "SUPPORTED",
+        "source_type": "TEXT",
+        "canonical_type": "TEXT",
+        "unit": None,
+        "notes": "Import ledger route test",
+    }
+    status, _, _ = r.handle(
+        "POST", "/api/projects/p1/p6/mappings",
+        cookies={"cp_session": "s1"}, body=json.dumps(mapping_payload).encode(),
+    )
+    assert status == 200
+
+    xer = b"%T\\tTASK\\n%F\\ttask_code\\n%R\\tA-100\\n%E\\n"
+    headers = {"Idempotency-Key": "route-import-001"}
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/interchange/XER_PROJECT/import",
+        cookies={"cp_session": "s1"}, headers=headers, body=xer,
+    )
+    assert status == 200
+    first = json.loads(body)
+    assert first["import_audit"]["status"] == "recorded"
+    assert first["import_audit"]["target_application_status"] == "PARSED_NOT_APPLIED"
+    assert first["rows"][0]["values"]["activity.activity_id"] == "A-100"
+
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/interchange/XER_PROJECT/import",
+        cookies={"cp_session": "s1"}, headers=headers, body=xer,
+    )
+    assert status == 200
+    replay = json.loads(body)
+    assert replay["import_audit"]["batch_id"] == first["import_audit"]["batch_id"]
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/interchange/imports",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    listing = json.loads(body)
+    assert listing["status"] == "available"
+    assert len(listing["batches"]) == 1
+    assert listing["batches"][0]["batch_id"] == first["import_audit"]["batch_id"]
+    assert listing["batches"][0]["target_application_status"] == "PARSED_NOT_APPLIED"
 
 
 def test_p6_interchange_http_requires_scope_and_permission():
