@@ -235,7 +235,8 @@ const LABELS = {
     qualityAuditRunning: "Publishing the project snapshot and checking schedule quality…", qualityAuditFailed: "The schedule quality audit could not be completed.",
     auditFindings: "Findings", auditCoverage: "Coverage and limitations", auditNoFindings: "No findings were returned for the checks evaluated.",
     auditSeverity: "Severity", auditRule: "Rule", auditObject: "Object", auditRelated: "Related objects", auditEvidence: "Evidence", auditMessageKey: "Message key",
-    auditCritical: "Critical", auditWarnings: "Warnings", auditSnapshot: "Snapshot", auditRevision: "Revision", auditHash: "SHA-256", auditQualityIndex: "Quality index", auditPolicyPackRequired: "Approved policy pack required",
+    auditCritical: "Critical", auditWarnings: "Warnings", auditInfo: "Information", auditSnapshot: "Snapshot", auditRevision: "Revision", auditHash: "SHA-256", auditQualityIndex: "Quality index", auditPolicyPackRequired: "Approved policy pack required",
+    auditFilters: "Filters", auditSearchFindings: "Search findings", auditAllSeverities: "All severities", auditAllObjectTypes: "All object types", auditResetFilters: "Clear filters", auditShowing: "Showing {visible} of {total} findings", auditNoFilterMatches: "No findings match these filters.", auditCoverageMenu: "Coverage & limitations", auditAuditStatus: "Audit status", auditFindingCount: "Total findings", auditShowingAll: "All findings",
     calendarId: "Project calendar ID", calendarVersion: "Calendar version", chooseCalendar: "Choose an existing project calendar", calendarLoadError: "Could not load project calendars; enter an existing calendar ID and version.", calendarSystem: "Calendar date system",
     start: "Project start", finish: "Project finish (optional)", mode: "Calculation mode", priority: "Project leveling priority",
     jalaliDateHint: "Type a Jalali date, for example ۱۴۰۵/۰۷/۱۵. It is stored as the canonical Gregorian date.",
@@ -267,7 +268,8 @@ const LABELS = {
     qualityAuditRunning: "در حال انتشار تصویر پروژه و بررسی کیفیت زمان‌بندی…", qualityAuditFailed: "ممیزی کیفیت زمان‌بندی کامل نشد.",
     auditFindings: "یافته‌ها", auditCoverage: "دامنهٔ بررسی و محدودیت‌ها", auditNoFindings: "در کنترل‌های ارزیابی‌شده یافته‌ای بازگردانده نشد.",
     auditSeverity: "شدت", auditRule: "قاعده", auditObject: "موضوع", auditRelated: "موضوعات مرتبط", auditEvidence: "شواهد", auditMessageKey: "کلید پیام",
-    auditCritical: "بحرانی", auditWarnings: "هشدارها", auditSnapshot: "تصویر مبنا", auditRevision: "بازبینی", auditHash: "SHA-256", auditQualityIndex: "شاخص کیفیت", auditPolicyPackRequired: "نیازمند بسته سیاست مصوب",
+    auditCritical: "بحرانی", auditWarnings: "هشدارها", auditInfo: "اطلاعات", auditSnapshot: "تصویر مبنا", auditRevision: "بازبینی", auditHash: "SHA-256", auditQualityIndex: "شاخص کیفیت", auditPolicyPackRequired: "نیازمند بسته سیاست مصوب",
+    auditFilters: "فیلترها", auditSearchFindings: "جست‌وجو در یافته‌ها", auditAllSeverities: "همه شدت‌ها", auditAllObjectTypes: "همه انواع موضوع", auditResetFilters: "پاک‌کردن فیلترها", auditShowing: "نمایش {visible} از {total} یافته", auditNoFilterMatches: "یافته‌ای با این فیلترها مطابقت ندارد.", auditCoverageMenu: "دامنه پوشش و محدودیت‌ها", auditAuditStatus: "وضعیت ممیزی", auditFindingCount: "مجموع یافته‌ها", auditShowingAll: "نمایش همه یافته‌ها",
     calendarId: "شناسهٔ تقویم پروژه", calendarVersion: "نسخهٔ تقویم", chooseCalendar: "انتخاب تقویم ثبت‌شدهٔ پروژه", calendarLoadError: "فهرست تقویم‌ها دریافت نشد؛ شناسه و نسخهٔ موجود را وارد کنید.", calendarSystem: "سیستم تاریخ تقویم",
     start: "شروع پروژه", finish: "پایان پروژه (اختیاری)", mode: "روش محاسبه", priority: "اولویت تسطیح منابع پروژه",
     jalaliDateHint: "تاریخ شمسی را مانند ۱۴۰۵/۰۷/۱۵ وارد کنید؛ به‌صورت تاریخ میلادی استاندارد ذخیره می‌شود.",
@@ -373,6 +375,38 @@ function localDateTimeString(date: Date): string {
 function humanize(value: string): string {
   return value.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/^./, (character) => character.toUpperCase());
+}
+
+export type ScheduleAuditFinding = Readonly<Record<string, unknown>>;
+export type ScheduleAuditFindingFilters = Readonly<{
+  query?: string;
+  severity?: string;
+  objectType?: string;
+}>;
+
+export function filterScheduleAuditFindings(
+  findings: readonly ScheduleAuditFinding[],
+  filters: ScheduleAuditFindingFilters = {},
+): ScheduleAuditFinding[] {
+  const query = (filters.query ?? "").trim().toLocaleLowerCase();
+  const severity = (filters.severity ?? "").trim().toLocaleLowerCase();
+  const objectType = (filters.objectType ?? "").trim().toLocaleLowerCase();
+  return findings.filter((finding) => {
+    const findingSeverity = String(finding.severity ?? "").toLocaleLowerCase();
+    const findingObjectType = String(finding.object_type ?? "").toLocaleLowerCase();
+    const relatedIds = Array.isArray(finding.related_object_ids)
+      ? finding.related_object_ids.map(String).join(" ")
+      : "";
+    const evidence = finding.evidence && typeof finding.evidence === "object"
+      ? Object.entries(finding.evidence as Record<string, unknown>).flat().join(" ")
+      : String(finding.evidence ?? "");
+    const searchable = [
+      finding.rule_id, finding.object_type, finding.object_id, finding.message_key, relatedIds, evidence,
+    ].map((item) => String(item ?? "")).join(" ").toLocaleLowerCase();
+    return (!severity || findingSeverity === severity) &&
+      (!objectType || findingObjectType === objectType) &&
+      (!query || searchable.includes(query));
+  });
 }
 
 export function filterScheduleReferences(
@@ -953,48 +987,151 @@ function mountRunPanel(
       ? report.quality_index as Record<string, unknown>
       : {};
     const findings = Array.isArray(report.findings) ? report.findings : [];
-    const rows = findings.map((raw) => {
-      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "";
-      const finding = raw as Record<string, unknown>;
+    const normalizedFindings = findings.filter(
+      (raw): raw is Record<string, unknown> => Boolean(raw) && typeof raw === "object" && !Array.isArray(raw),
+    );
+    const objectTypes = [...new Set(normalizedFindings.map((finding) => String(finding.object_type ?? "project")))]
+      .sort((left, right) => left.localeCompare(right));
+    const severityCount = (severity: string): number =>
+      normalizedFindings.filter((finding) => String(finding.severity ?? "").toLowerCase() === severity).length;
+    const criticalCount = Number(summary.critical_count ?? severityCount("critical"));
+    const warningCount = Number(summary.warning_count ?? severityCount("warning"));
+    const infoCount = severityCount("info");
+    const totalCount = Number(summary.finding_count ?? normalizedFindings.length);
+    const severityLabel = (severity: string): string => {
+      if (severity === "critical") return labels.auditCritical;
+      if (severity === "warning") return labels.auditWarnings;
+      if (severity === "info") return labels.auditInfo;
+      return severity || labels.auditInfo;
+    };
+    const rows = normalizedFindings.map((finding, index) => {
+      const severity = String(finding.severity ?? "info").toLowerCase();
+      const severityClass = severity.replace(/[^a-z0-9_-]/g, "-");
+      const objectType = String(finding.object_type ?? "project");
       const related = Array.isArray(finding.related_object_ids)
         ? finding.related_object_ids.map(String).join(", ")
         : "";
-      const evidence = JSON.stringify(finding.evidence ?? {});
-      return `<tr>
-        <td>${safe(finding.severity)}</td>
-        <td><code>${safe(finding.rule_id)}</code></td>
-        <td>${safe(finding.object_type)} / ${safe(finding.object_id)}</td>
-        <td>${safe(related)}</td>
-        <td><details><summary>${safe(labels.auditEvidence)}</summary><code>${safe(evidence)}</code></details></td>
-        <td><code>${safe(finding.message_key)}</code></td>
+      const evidence = JSON.stringify(finding.evidence ?? {}, null, 2);
+      const searchable = [
+        finding.rule_id, finding.object_type, finding.object_id, finding.message_key, related, evidence,
+      ].map((item) => String(item ?? "")).join(" ");
+      return `<tr data-audit-finding-row data-audit-index="${index}"
+        data-audit-search="${safe(searchable)}"
+        data-audit-severity="${safe(severity)}"
+        data-audit-object-type="${safe(objectType)}">
+        <td><span class="cp-audit-severity is-${safe(severityClass)}"><span aria-hidden="true"></span>${safe(severityLabel(severity))}</span></td>
+        <td><code class="cp-audit-rule">${safe(finding.rule_id)}</code></td>
+        <td><strong>${safe(objectType)}</strong><span class="cp-audit-object-id">${safe(finding.object_id ?? "—")}</span></td>
+        <td>${related ? `<span class="cp-audit-related">${safe(related)}</span>` : '<span class="cp-audit-dash">—</span>'}</td>
+        <td><details class="cp-audit-evidence"><summary>${safe(labels.auditEvidence)}</summary><pre>${safe(evidence)}</pre></details></td>
+        <td><code class="cp-audit-message-key">${safe(finding.message_key ?? "—")}</code></td>
       </tr>`;
     }).join("");
     const coverage = report.coverage && typeof report.coverage === "object"
-      ? Object.entries(report.coverage as Record<string, unknown>)
+      ? Object.entries(report.coverage as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right))
       : [];
     const coverageRows = coverage.map(([key, status]) =>
-      `<li><code>${safe(key)}</code>: ${safe(status)}</li>`
+      `<li><code>${safe(key)}</code><span class="cp-audit-coverage-status">${safe(status)}</span></li>`
     ).join("");
+    const filterIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6.2 7.1v5.1l-3.6 1.8v-6.9L4 5Z"/></svg>';
+    const coverageIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16"/><path d="M8 3v4M16 10v4M11 17v4"/></svg>';
+    const runIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>';
+    const coverageSummary = coverage.length
+      ? `<details class="cp-audit-dropdown cp-audit-coverage-menu">
+          <summary><span class="cp-audit-icon">${coverageIcon}</span><span>${safe(labels.auditCoverageMenu)}</span></summary>
+          <div class="cp-audit-dropdown-panel cp-audit-coverage-panel">
+            <ul class="cp-audit-coverage-list">${coverageRows}</ul>
+          </div>
+        </details>`
+      : "";
     auditResults.innerHTML =
-      `<div class="cp-schedule-result-meta">
-        <span><b>ENG-06</b>: ${safe(report.status)}</span>
-        <span><b>${safe(labels.auditFindings)}:</b> ${safe(summary.finding_count ?? findings.length)}</span>
-        <span><b>${safe(labels.auditCritical)}:</b> ${safe(summary.critical_count ?? 0)}</span>
-        <span><b>${safe(labels.auditWarnings)}:</b> ${safe(summary.warning_count ?? 0)}</span>
-        <span><b>${safe(labels.auditSnapshot)}:</b> ${safe(snapshot.snapshot_id)}</span>
-        <span><b>${safe(labels.auditRevision)}:</b> ${safe(snapshot.project_revision)}</span>
-        <span><b>${safe(labels.auditHash)}:</b> <code>${safe(snapshot.snapshot_hash)}</code></span>
+      `<div class="cp-audit-overview">
+        <section class="cp-audit-stat-card is-total"><span class="cp-audit-stat-icon" aria-hidden="true">▤</span><span class="cp-audit-stat-label">${safe(labels.auditFindingCount)}</span><strong>${safe(totalCount)}</strong></section>
+        <section class="cp-audit-stat-card is-critical"><span class="cp-audit-stat-icon" aria-hidden="true">!</span><span class="cp-audit-stat-label">${safe(labels.auditCritical)}</span><strong>${safe(criticalCount)}</strong></section>
+        <section class="cp-audit-stat-card is-warning"><span class="cp-audit-stat-icon" aria-hidden="true">△</span><span class="cp-audit-stat-label">${safe(labels.auditWarnings)}</span><strong>${safe(warningCount)}</strong></section>
+        <section class="cp-audit-stat-card is-info"><span class="cp-audit-stat-icon" aria-hidden="true">i</span><span class="cp-audit-stat-label">${safe(labels.auditInfo)}</span><strong>${safe(infoCount)}</strong></section>
       </div>
-      <p><b>${safe(labels.auditQualityIndex)}:</b> ${safe(qualityIndex.status ?? "not_calculated")} — ${safe(qualityIndex.reason ?? labels.auditPolicyPackRequired)}</p>
-      <h4>${safe(labels.auditFindings)}</h4>
-      ${rows
-        ? `<div class="cp-register-table-wrap"><table class="cp-schedule-result-table"><thead><tr>
-          <th>${safe(labels.auditSeverity)}</th><th>${safe(labels.auditRule)}</th>
-          <th>${safe(labels.auditObject)}</th><th>${safe(labels.auditRelated)}</th>
-          <th>${safe(labels.auditEvidence)}</th><th>${safe(labels.auditMessageKey)}</th>
-        </tr></thead><tbody>${rows}</tbody></table></div>`
-        : `<p class="cp-empty">${safe(labels.auditNoFindings)}</p>`}
-      <details><summary>${safe(labels.auditCoverage)}</summary><ul>${coverageRows}</ul></details>`;
+      <section class="cp-audit-provenance">
+        <div class="cp-audit-section-heading"><span class="cp-audit-section-mark"></span><h4>${safe(labels.auditSnapshot)}</h4><span class="cp-audit-status-pill">${safe(report.evaluation_status ?? report.status ?? "unknown")}</span></div>
+        <div class="cp-audit-provenance-grid">
+          <div><span>${safe(labels.auditSnapshot)}</span><strong>${safe(snapshot.snapshot_id ?? "—")}</strong></div>
+          <div><span>${safe(labels.auditRevision)}</span><strong>${safe(snapshot.project_revision ?? "—")}</strong></div>
+          <div class="is-hash"><span>${safe(labels.auditHash)}</span><code>${safe(snapshot.snapshot_hash ?? "—")}</code></div>
+        </div>
+      </section>
+      <section class="cp-audit-quality-index">
+        <div><span class="cp-audit-section-mark is-copper"></span><strong>${safe(labels.auditQualityIndex)}</strong></div>
+        <span class="cp-audit-index-status">${safe(qualityIndex.status ?? "not_calculated")}</span>
+        <p>${safe(qualityIndex.reason ?? labels.auditPolicyPackRequired)}</p>
+      </section>
+      <section class="cp-audit-findings">
+        <div class="cp-audit-findings-heading">
+          <div><span class="cp-audit-section-mark"></span><h4>${safe(labels.auditFindings)}</h4></div>
+          <div class="cp-audit-toolbar">
+            <details class="cp-audit-dropdown cp-audit-filter-menu">
+              <summary><span class="cp-audit-icon">${filterIcon}</span><span>${safe(labels.auditFilters)}</span><span class="cp-audit-filter-count" data-audit-active-filters>0</span></summary>
+              <div class="cp-audit-dropdown-panel cp-audit-filter-panel">
+                <label class="cp-audit-filter-field"><span>${safe(labels.auditSearchFindings)}</span><input type="search" data-audit-search placeholder="${safe(labels.auditSearchFindings)}" autocomplete="off"></label>
+                <label class="cp-audit-filter-field"><span>${safe(labels.auditSeverity)}</span><select data-audit-severity><option value="">${safe(labels.auditAllSeverities)}</option><option value="critical">${safe(labels.auditCritical)}</option><option value="warning">${safe(labels.auditWarnings)}</option><option value="info">${safe(labels.auditInfo)}</option></select></label>
+                <label class="cp-audit-filter-field"><span>${safe(labels.auditObject)}</span><select data-audit-object-type><option value="">${safe(labels.auditAllObjectTypes)}</option>${objectTypes.map((type) => `<option value="${safe(type)}">${safe(type)}</option>`).join("")}</select></label>
+                <button type="button" class="cp-audit-reset-button" data-audit-filter-reset>${safe(labels.auditResetFilters)}</button>
+              </div>
+            </details>
+            ${coverageSummary}
+          </div>
+        </div>
+        <div class="cp-audit-table-card">
+          <div class="cp-audit-table-meta"><span data-audit-visible-count></span><span>${safe(labels.auditShowingAll)}</span></div>
+          <div class="cp-register-table-wrap cp-audit-table-wrap">
+            <table class="cp-schedule-result-table cp-audit-table">
+              <thead><tr>
+                <th scope="col">${safe(labels.auditSeverity)}</th><th scope="col">${safe(labels.auditRule)}</th>
+                <th scope="col">${safe(labels.auditObject)}</th><th scope="col">${safe(labels.auditRelated)}</th>
+                <th scope="col">${safe(labels.auditEvidence)}</th><th scope="col">${safe(labels.auditMessageKey)}</th>
+              </tr></thead>
+              <tbody>${rows || `<tr><td colspan="6" class="cp-audit-empty-cell">${safe(labels.auditNoFindings)}</td></tr>`}</tbody>
+            </table>
+          </div>
+          <p class="cp-audit-filter-empty" data-audit-no-filter-results hidden>${safe(labels.auditNoFilterMatches)}</p>
+        </div>
+      </section>`;
+    const searchInput = auditResults.querySelector<HTMLInputElement>("[data-audit-search]");
+    const severitySelect = auditResults.querySelector<HTMLSelectElement>("[data-audit-severity]");
+    const objectTypeSelect = auditResults.querySelector<HTMLSelectElement>("[data-audit-object-type]");
+    const resetFiltersButton = auditResults.querySelector<HTMLButtonElement>("[data-audit-filter-reset]");
+    const visibleCount = auditResults.querySelector<HTMLElement>("[data-audit-visible-count]");
+    const activeFilterCount = auditResults.querySelector<HTMLElement>("[data-audit-active-filters]");
+    const noFilterResults = auditResults.querySelector<HTMLElement>("[data-audit-no-filter-results]");
+    const applyAuditFilters = (): void => {
+      const filters = {
+        query: searchInput?.value ?? "",
+        severity: severitySelect?.value ?? "",
+        objectType: objectTypeSelect?.value ?? "",
+      };
+      const visible = filterScheduleAuditFindings(normalizedFindings, filters);
+      const visibleSet = new Set(visible);
+      for (const row of auditResults?.querySelectorAll<HTMLElement>("[data-audit-finding-row]") ?? []) {
+        const index = Number(row.dataset.auditIndex);
+        const finding = normalizedFindings[index];
+        row.hidden = !finding || !visibleSet.has(finding);
+      }
+      const active = [filters.query.trim(), filters.severity, filters.objectType].filter(Boolean).length;
+      if (activeFilterCount) activeFilterCount.textContent = String(active);
+      if (visibleCount) visibleCount.textContent = labels.auditShowing
+        .replace("{visible}", String(visible.length))
+        .replace("{total}", String(normalizedFindings.length));
+      if (noFilterResults) noFilterResults.hidden = normalizedFindings.length === 0 || visible.length > 0;
+    };
+    searchInput?.addEventListener("input", applyAuditFilters);
+    severitySelect?.addEventListener("change", applyAuditFilters);
+    objectTypeSelect?.addEventListener("change", applyAuditFilters);
+    resetFiltersButton?.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      if (severitySelect) severitySelect.value = "";
+      if (objectTypeSelect) objectTypeSelect.value = "";
+      applyAuditFilters();
+    });
+    applyAuditFilters();
   };
 
   auditButton?.addEventListener("click", async () => {
