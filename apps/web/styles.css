@@ -7129,3 +7129,13 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   .cp-audit-toolbar { width:100%; justify-content:flex-start; flex-wrap:wrap; }
   .cp-audit-dropdown-panel { inset-inline-start:0; inset-inline-end:auto; }
 }
+
+
+/* ENG-06 persisted history controls and report drill-through. */
+.cp-audit-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}
+.cp-audit-actions>button,.cp-audit-history-open{min-height:2.15rem;padding:.42rem .75rem;border:1px solid #aebfd0;border-radius:.45rem;background:#f7fafc;color:#264966;cursor:pointer;font:inherit;font-size:.78rem;font-weight:700}
+.cp-audit-actions>button:first-child{border-color:#315f88;background:#315f88;color:#fff}
+.cp-audit-actions>button:disabled,.cp-audit-history-open:disabled{opacity:.58;cursor:wait}
+.cp-audit-history-card{display:grid;gap:.6rem;padding:.75rem;border:1px solid #d5dee8;border-radius:.65rem;background:#fff}
+.cp-audit-history-empty{margin:0;padding:.85rem;border:1px dashed #c5d0dc;border-radius:.45rem;background:#f8fafc;color:#677c90;text-align:center;font-size:.8rem}
+.cp-audit-history-open{min-height:1.8rem;padding:.3rem .55rem;font-size:.7rem}
