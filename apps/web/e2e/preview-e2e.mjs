@@ -4471,7 +4471,7 @@ async function main() {
         window.fetch = () => Promise.reject(new Error("PREVIEW_API_UNAVAILABLE"));
       `,
     });
-    await page.navigate(`${baseUrl}/app`, ".cp-shell-error", "workspace failure page");
+    await page.navigate(`${baseUrl}/app?view=live`, ".cp-shell-error", "live workspace failure page");
     const workspaceErrorGuide = await page.evaluate(`(async () => {
       const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const errorPanel = document.querySelector(".cp-shell-error");
@@ -4514,17 +4514,17 @@ async function main() {
     record("assistant guide explains a failed workspace with the real reference code", workspaceErrorGuide);
     // Restore a working document before the session is signed out below.
     await page.navigate(
-      `${baseUrl}/app`,
+      `${baseUrl}/app?project=${PROJECT_ID}&view=live`,
       ".cp-workspace",
-      "workspace restored after the failure check",
+      "live workspace restored after the failure check",
     );
 
     await page.click("#cubi-preview-banner button");
     await page.waitForSelector('form[action="/preview/login"]', "logout returns to login");
     await page.navigate(
-      `${baseUrl}/app`,
+      `${baseUrl}/app?view=live`,
       'form[action="/preview/login"]',
-      "guarded /app",
+      "guarded live /app",
       `${baseUrl}/preview/login`,
     );
     assert(
