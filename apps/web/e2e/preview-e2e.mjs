@@ -976,6 +976,50 @@ class Page {
     });
   }
 
+  /** Native CDP mouse drag, producing genuine browser pointer events. */
+  async drag(selector, deltaX, deltaY) {
+    const point = await this.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      if (!element) return null;
+      element.scrollIntoView({ block: "center", inline: "nearest" });
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return null;
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })()`);
+    assert(point, `drag target not found or not visible: ${selector}`);
+    await this.cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x: point.x,
+      y: point.y,
+      button: "none",
+      buttons: 0,
+    });
+    await this.cdp.send("Input.dispatchMouseEvent", {
+      type: "mousePressed",
+      x: point.x,
+      y: point.y,
+      button: "left",
+      buttons: 1,
+      clickCount: 1,
+    });
+    await this.cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x: point.x + deltaX,
+      y: point.y + deltaY,
+      button: "left",
+      buttons: 1,
+    });
+    await this.cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseReleased",
+      x: point.x + deltaX,
+      y: point.y + deltaY,
+      button: "left",
+      buttons: 0,
+      clickCount: 1,
+    });
+    return { start: point, end: { x: point.x + deltaX, y: point.y + deltaY } };
+  }
+
   async setInput(selector, value) {
     const changed = await this.evaluate(`(() => {
       const element = document.querySelector(${JSON.stringify(selector)});
@@ -2738,40 +2782,17 @@ async function main() {
         .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
       return header ? Number.parseFloat(header.style.width) : null;
     }`);
-    const columnDragProbe = await page.evaluate(`() => {
+    const columnHandleSelector = `#cp-activity-grid th[data-column-id="${addTarget}"] [data-resize-handle="column"]`;
+    await page.drag(columnHandleSelector, 30, 0);
+    const columnDragAfterPointer = await page.evaluate(`() => {
       const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
         .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
-      const handle = header?.querySelector("[data-resize-handle=column]");
-      if (!header || !handle) return { missing: true, width: null };
-      const rect = handle.getBoundingClientRect();
-      const pointerId = 917;
-      // The resize handle sits on the logical inline-end edge. In RTL that
-      // edge is physically left, so move left to grow the column; in LTR move right.
-      const direction = getComputedStyle(header).direction;
-      const startX = rect.left + 3;
-      const endX = startX + (direction === "rtl" ? -30 : 30);
-      handle.dispatchEvent(new PointerEvent("pointerdown", {
-        bubbles: true, pointerId, isPrimary: true, button: 0,
-        clientX: startX, clientY: rect.top + rect.height / 2,
-      }));
-      window.dispatchEvent(new PointerEvent("pointermove", {
-        bubbles: true, pointerId, isPrimary: true, button: 0,
-        clientX: endX, clientY: rect.top + rect.height / 2,
-      }));
-      window.dispatchEvent(new PointerEvent("pointerup", {
-        bubbles: true, pointerId, isPrimary: true, button: 0,
-        clientX: endX, clientY: rect.top + rect.height / 2,
-      }));
-      return {
-        missing: false,
-        width: Number.parseFloat(header.style.width),
-        direction,
-        drag_delta: endX - startX,
-      };
+      return header ? Number.parseFloat(header.style.width) : null;
     }`);
+    const columnDragProbe = { missing: !Number.isFinite(columnDragAfterPointer), width: columnDragAfterPointer };
     assert(
       columnDragBefore > 0 && !columnDragProbe.missing && columnDragProbe.width > columnDragBefore,
-      "dragging a column edge must resize the live grid cell",
+      `native mouse drag must resize the live grid column: before=${columnDragBefore}, after=${columnDragProbe.width}`,
     );
     let columnDragLayoutAfter = await readLayoutFromPage(page);
     for (let attempt = 0; attempt < 30 && columnDragLayoutAfter.body.revision <= columnDragLayoutBefore.body.revision; attempt++) {
@@ -2791,48 +2812,19 @@ async function main() {
     }`);
     assert(columnDragAfter >= columnDragProbe.width, "the committed width must remain rendered");
 
+    await page.drag('[data-resize-handle="details"]', 0, 36);
+    await page.drag('[data-resize-handle="table-gantt"]', 72, 0);
     const paneDrag = await page.evaluate(`() => {
-      const detailsHandle = document.querySelector('[data-resize-handle="details"]');
-      const main = detailsHandle?.closest(".cp-main");
-      const tableHandle = document.querySelector('[data-resize-handle="table-gantt"]');
-      const split = tableHandle?.closest("[data-panel-split]");
-      if (!detailsHandle || !main || !tableHandle || !split) return { missing: true };
-      const detailsRect = main.getBoundingClientRect();
-      const detailsPointer = 918;
-      detailsHandle.dispatchEvent(new PointerEvent("pointerdown", {
-        bubbles: true, pointerId: detailsPointer, isPrimary: true, button: 0,
-        clientX: detailsRect.left + 10, clientY: detailsRect.top + detailsRect.height * 0.7,
-      }));
-      window.dispatchEvent(new PointerEvent("pointermove", {
-        bubbles: true, pointerId: detailsPointer, isPrimary: true, button: 0,
-        clientX: detailsRect.left + 10, clientY: detailsRect.top + detailsRect.height * 0.76,
-      }));
-      window.dispatchEvent(new PointerEvent("pointerup", {
-        bubbles: true, pointerId: detailsPointer, isPrimary: true, button: 0,
-        clientX: detailsRect.left + 10, clientY: detailsRect.top + detailsRect.height * 0.76,
-      }));
-      const splitRect = split.getBoundingClientRect();
-      const tablePointer = 919;
-      tableHandle.dispatchEvent(new PointerEvent("pointerdown", {
-        bubbles: true, pointerId: tablePointer, isPrimary: true, button: 0,
-        clientX: splitRect.left + splitRect.width * 0.45, clientY: splitRect.top + 8,
-      }));
-      window.dispatchEvent(new PointerEvent("pointermove", {
-        bubbles: true, pointerId: tablePointer, isPrimary: true, button: 0,
-        clientX: splitRect.left + splitRect.width * 0.55, clientY: splitRect.top + 8,
-      }));
-      window.dispatchEvent(new PointerEvent("pointerup", {
-        bubbles: true, pointerId: tablePointer, isPrimary: true, button: 0,
-        clientX: splitRect.left + splitRect.width * 0.55, clientY: splitRect.top + 8,
-      }));
+      const main = document.querySelector(".cp-main");
+      const split = document.querySelector("[data-panel-split]");
       return {
-        missing: false,
-        details: main.style.getPropertyValue("--cp-split-details"),
-        table: split.style.getPropertyValue("--cp-split-table"),
+        missing: !main || !split,
+        details: main?.style.getPropertyValue("--cp-split-details") ?? "",
+        table: split?.style.getPropertyValue("--cp-split-table") ?? "",
         keys: Object.keys(localStorage).filter((key) => key.startsWith("cubi:workspace:split:")),
       };
     }`);
-    assert(!paneDrag.missing && paneDrag.details && paneDrag.table, "both live pane splitters must respond to pointer drags");
+    assert(!paneDrag.missing && paneDrag.details && paneDrag.table, "both live pane splitters must respond to native mouse drags");
     assert(
       paneDrag.keys.some((key) => key.endsWith(":details")) &&
         paneDrag.keys.some((key) => key.endsWith(":table-gantt")),
