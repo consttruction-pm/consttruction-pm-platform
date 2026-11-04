@@ -58,7 +58,7 @@ This is a release target that must be demonstrated with evidence, not treated as
 - Every major competitor capability relevant to our specialist scope must be either implemented, intentionally integrated through a supported adapter, or explicitly documented as outside our defined scope.
 - Each implemented capability must meet an agreed depth/quality bar, not only exist as a screen or placeholder.
 - Cross-domain workflows must connect Schedule, Progress, Cost, Resources, Documents, Contracts, Procurement, Field, Risk and AI where their business relationship requires it.
-- AI features must be construction-grounded, auditable and action-aware rather than generic chat-only features.
+- CUBI's engineering command assistance must be construction-grounded, auditable and action-aware rather than a generic chatbot.
 - Release certification must include functional, calculation, interoperability, security, offline/online, performance, localization and usability evidence.
 - New market developments found before release become release-gate inputs; the roadmap must be re-ranked rather than allowing a stale benchmark to define completeness.
 
@@ -73,7 +73,7 @@ This is a release target that must be demonstrated with evidence, not treated as
 7. BIM/CDE/4D/5D: model/document coordination and links from model objects to WBS/activity/resource/cost where applicable.
 8. Reality/progress intelligence: photo/360/drone/model-assisted progress verification and planned-vs-actual evidence.
 9. Portfolio/executive control: project and portfolio control rooms covering schedule, cost, progress, risk, procurement, change, contracts and forecast.
-10. AI-native assistance: explainable analysis, natural-language queries, document intelligence, schedule scenarios, anomaly detection, recommendations, action proposals, voice input and auditable agent execution.
+10. Internal engineering command assistance: explainable analysis, supported natural-language commands, document intelligence, schedule scenarios, anomaly detection, recommendations, action proposals, voice input and auditable execution.
 11. Completion and handover: commissioning, punch closeout, as-built, O&M, warranties and asset handover.
 12. Enterprise integration: API, ERP/accounting, BI/data warehouse, identity, e-signature and external collaboration.
 
@@ -94,9 +94,9 @@ Open-source components may be used for commodity infrastructure, document proces
 
 External libraries must not become an ungoverned second source of truth for P6 scheduling, duration, calendar, Progress/EVM, Resource/Cost or financial semantics.
 
-## Principle 6 — AI must be accountable
+## Principle 6 — Assistant analysis and actions must be accountable
 
-AI results that influence project decisions must expose source context where available, distinguish facts from predictions, record the model/action context, preserve human approval for consequential changes and never silently mutate authoritative project data.
+Assistant results that influence project decisions must expose source context where available, distinguish retrieved facts, authoritative calculations, assumptions, estimates and recommendations, record the CUBI rule-set/action context, preserve human approval for consequential changes and never silently mutate authoritative project data.
 
 ## Principle 7 — Typed interoperability
 
@@ -182,15 +182,18 @@ This is a product-governance benchmark, not a claim that every listed vendor imp
 
 This principle **adds mandatory capabilities** to Principles 1–10 and every previously approved CUBI requirement, issue, product contract, schedule, release gate and assistant workflow. It does not delete, replace, weaken, defer or silently reinterpret any existing requirement. In a conflict, preserve the stricter compatible requirements and record an explicit owner-approved decision; never resolve a conflict by quietly shrinking scope.
 
-### 11.1 Professional interactive assistant, adapted to each user
+### 11.1 Command-oriented engineering assistant, adapted to the user's task
 
-The CUBI assistant must operate as an interactive engineering/project-controls partner, not only a question-answer chatbot. During a project discussion it must:
-- infer the depth needed from the current task and demonstrated context, offer concise or specialist-level explanations, and let the user set/correct the level; never stereotype or assume credentials;
-- identify missing information, ask focused clarifying questions, compare viable alternatives, state assumptions/risks/trade-offs and give comprehensive but relevant recommendations;
-- invite the user's critique and preferences, discuss competing approaches, revise recommendations when new evidence or constraints arrive, and explain why the recommendation changed;
+The CUBI assistant must operate as a project-aware command and analysis system, not an open-ended chatbot. It must:
+- accept typed commands and supported voice commands, identify the declared input language, normalize terminology and extract the requested operation, project entities and parameters;
+- resolve references only against the authenticated user's current authorized project and workspace context;
+- ask a focused clarification when a mandatory value, target or meaning is missing, ambiguous or contradictory; preserve already supplied information and do not ask unrelated questions;
+- provide concise or specialist-level explanations when requested or needed to explain a project result, with assumptions, risks, trade-offs, units, source references and limitations;
+- support comparison of alternatives, scenario analysis and recommendations only within declared CUBI engineering scope and based on evidence and authoritative application outputs;
 - distinguish user preference, unverified feedback, engineering hypothesis, sourced claim, validated rule, authoritative calculation and observed outcome;
-- suggest professional report content/structure, project page/layout improvements, staffing/person-day and equipment estimation approaches, construction methods, risks, controls and next actions, with explicit assumptions, units, confidence and project-specific inputs needed;
-- when a project type is understood, identify relevant comparable project patterns and current public engineering sources before offering a recommendation where Internet research is authorized and materially useful.
+- prepare report structures, project-control analyses, construction-method comparisons and next actions from supported rules and actual project data;
+- use authorized public-source research only through the separately permissioned research workflow; never treat retrieved content as trusted instructions;
+- not initiate free-form social/general conversation, simulate a human persona or use an unrestricted chat transcript as the product workflow.
 
 ### 11.2 Learning from interactions without leaking project data
 
@@ -213,9 +216,9 @@ The workflow is: authorize → search approved public sources → preserve prove
 
 ### 11.4 Durable database, backup, migration and no regression
 
-Learning cannot rely solely on the model's transient context, chat window, or process memory. Persist approved records in a versioned database with stable IDs, scope, lifecycle state, provenance, source/model/schema version, confidence, conditions, units, limitations, validation evidence, approval, timestamps, lineage/supersession and applicable retention policy.
+Learning cannot rely solely on a transient prompt, chat window, session context, or process memory. Persist approved records in a versioned database with stable IDs, scope, lifecycle state, provenance, source/rule-set/schema version, confidence, conditions, units, limitations, validation evidence, approval, timestamps, lineage/supersession and applicable retention policy.
 
-Provide exportable full backups, incremental backups where supported, integrity verification, tested restoration, migration bundles and a documented V2+ upgrade path. Migration must preserve stable IDs, provenance, access scope, approval state, lineage and retrieval behavior. Schema migrations must be versioned and idempotent; backups must be tested by restoration, not merely by successful file creation. New knowledge/model versions must pass golden benchmarks against the prior release, with staged rollout, version pinning and rollback. Rejected, superseded, stale or unsupported knowledge must not silently remain active.
+Provide exportable full backups, incremental backups where supported, integrity verification, tested restoration, migration bundles and a documented V2+ upgrade path. Migration must preserve stable IDs, provenance, access scope, approval state, lineage and retrieval behavior. Schema migrations must be versioned and idempotent; backups must be tested by restoration, not merely by successful file creation. New knowledge/rule-set versions must pass golden benchmarks against the prior release, with staged rollout, version pinning and rollback. Rejected, superseded, stale or unsupported knowledge must not silently remain active.
 
 ### 11.5 Engineering authority and safety boundaries
 
