@@ -431,8 +431,8 @@ export function renderInterchangeImportBatchList(
       <td>${escapeHtml(batch.format)}</td>
       <td>${escapeHtml(batch.imported_at)}</td>
       <td>${escapeHtml(batch.imported_by)}</td>
-      <td>${escapeHtml(batch.row_count)}</td>
-      <td>${escapeHtml(batch.warning_count)}</td>
+      <td>${escapeHtml(String(batch.row_count))}</td>
+      <td>${escapeHtml(String(batch.warning_count))}</td>
       <td><button type="button" data-interchange-batch-id="${escapeHtml(batch.batch_id)}">${escapeHtml(labels.importHistoryOpen)}</button></td>
     </tr>`).join("")}</tbody>
   </table></div>`;
