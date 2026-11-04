@@ -2730,6 +2730,102 @@ async function main() {
       return index >= 0 ? Number.parseFloat(ths[index].style.width) : null;
     })()`);
 
+    // Drag a real header resize handle. The revision-checked layout callback
+    // must persist the result through the same API used by the field chooser.
+    const columnDragBefore = await page.evaluate(`() => {
+      const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
+        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
+      return header ? Number.parseFloat(header.style.width) : null;
+    }`);
+    const columnDragProbe = await page.evaluate(`() => {
+      const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
+        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
+      const handle = header?.querySelector("[data-resize-handle=column]");
+      if (!header || !handle) return { missing: true, width: null };
+      const rect = handle.getBoundingClientRect();
+      const pointerId = 917;
+      handle.dispatchEvent(new PointerEvent("pointerdown", {
+        bubbles: true, pointerId, isPrimary: true, button: 0,
+        clientX: rect.left + 3, clientY: rect.top + rect.height / 2,
+      }));
+      window.dispatchEvent(new PointerEvent("pointermove", {
+        bubbles: true, pointerId, isPrimary: true, button: 0,
+        clientX: rect.left + 33, clientY: rect.top + rect.height / 2,
+      }));
+      window.dispatchEvent(new PointerEvent("pointerup", {
+        bubbles: true, pointerId, isPrimary: true, button: 0,
+        clientX: rect.left + 33, clientY: rect.top + rect.height / 2,
+      }));
+      return { missing: false, width: Number.parseFloat(header.style.width) };
+    }`);
+    assert(
+      columnDragBefore > 0 && !columnDragProbe.missing && columnDragProbe.width > columnDragBefore,
+      "dragging a column edge must resize the live grid cell",
+    );
+    await page.waitFor(
+      `(() => {
+        const head = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
+          .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
+        return head && Number.parseFloat(head.style.width) >= ${Number(columnDragProbe.width)};
+      })()`,
+      "dragged column width is committed through the layout API",
+    );
+    const columnDragAfter = await page.evaluate(`() => {
+      const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
+        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)});
+      return header ? Number.parseFloat(header.style.width) : null;
+    }`);
+    assert(columnDragAfter >= columnDragProbe.width, "API-confirmed column width must not shrink after commit");
+
+    const paneDrag = await page.evaluate(`() => {
+      const detailsHandle = document.querySelector('[data-resize-handle="details"]');
+      const main = detailsHandle?.closest(".cp-main");
+      const tableHandle = document.querySelector('[data-resize-handle="table-gantt"]');
+      const split = tableHandle?.closest("[data-panel-split]");
+      if (!detailsHandle || !main || !tableHandle || !split) return { missing: true };
+      const detailsRect = main.getBoundingClientRect();
+      const detailsPointer = 918;
+      detailsHandle.dispatchEvent(new PointerEvent("pointerdown", {
+        bubbles: true, pointerId: detailsPointer, isPrimary: true, button: 0,
+        clientX: detailsRect.left + 10, clientY: detailsRect.top + detailsRect.height * 0.7,
+      }));
+      window.dispatchEvent(new PointerEvent("pointermove", {
+        bubbles: true, pointerId: detailsPointer, isPrimary: true, button: 0,
+        clientX: detailsRect.left + 10, clientY: detailsRect.top + detailsRect.height * 0.76,
+      }));
+      window.dispatchEvent(new PointerEvent("pointerup", {
+        bubbles: true, pointerId: detailsPointer, isPrimary: true, button: 0,
+        clientX: detailsRect.left + 10, clientY: detailsRect.top + detailsRect.height * 0.76,
+      }));
+      const splitRect = split.getBoundingClientRect();
+      const tablePointer = 919;
+      tableHandle.dispatchEvent(new PointerEvent("pointerdown", {
+        bubbles: true, pointerId: tablePointer, isPrimary: true, button: 0,
+        clientX: splitRect.left + splitRect.width * 0.45, clientY: splitRect.top + 8,
+      }));
+      window.dispatchEvent(new PointerEvent("pointermove", {
+        bubbles: true, pointerId: tablePointer, isPrimary: true, button: 0,
+        clientX: splitRect.left + splitRect.width * 0.55, clientY: splitRect.top + 8,
+      }));
+      window.dispatchEvent(new PointerEvent("pointerup", {
+        bubbles: true, pointerId: tablePointer, isPrimary: true, button: 0,
+        clientX: splitRect.left + splitRect.width * 0.55, clientY: splitRect.top + 8,
+      }));
+      return {
+        missing: false,
+        details: main.style.getPropertyValue("--cp-split-details"),
+        table: split.style.getPropertyValue("--cp-split-table"),
+        keys: Object.keys(localStorage).filter((key) => key.startsWith("cubi:workspace:split:")),
+      };
+    }`);
+    assert(!paneDrag.missing && paneDrag.details && paneDrag.table, "both live pane splitters must respond to pointer drags");
+    assert(
+      paneDrag.keys.some((key) => key.endsWith(":details")) &&
+        paneDrag.keys.some((key) => key.endsWith(":table-gantt")),
+      "pane splitter preferences must be stored per project and workspace window",
+    );
+    const splitPreferencesBeforeReload = paneDrag;
+
     await page.click(`[data-p6-field-pin="${addTarget}"]`);
     await page.waitFor(
       `(() => {
@@ -2762,6 +2858,20 @@ async function main() {
     await page.waitFor(
       `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length}`,
       "persisted column count after reload",
+    );
+    const splitPreferencesAfterReload = await page.evaluate(`() => {
+      const main = document.querySelector(".cp-main");
+      const split = document.querySelector("[data-panel-split]");
+      return {
+        details: main?.style.getPropertyValue("--cp-split-details") ?? "",
+        table: split?.style.getPropertyValue("--cp-split-table") ?? "",
+        keys: Object.keys(localStorage).filter((key) => key.startsWith("cubi:workspace:split:")),
+      };
+    }`);
+    assert(
+      splitPreferencesAfterReload.details === splitPreferencesBeforeReload.details &&
+        splitPreferencesAfterReload.table === splitPreferencesBeforeReload.table,
+      "Details and table/Gantt pane ratios must survive a full reload",
     );
     const orderAfterReload = await page.evaluate(`(() =>
       Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
