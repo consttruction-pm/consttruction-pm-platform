@@ -13,6 +13,9 @@ from construction_pm.ai_action_boundary import AIToolPermissionAdapter
 from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.backend_p0.api import BackendP0API
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.control_intelligence.quality_audit_context import (
+    ScheduleQualityAuditContextReader,
+)
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
@@ -158,13 +161,72 @@ def build_project_lifecycle_wsgi_app(
             calendar_exception_repository=resource_calendar_exception_repository,
             calendar_work_hours_repository=resource_calendar_work_hours_repository,
         )
+    resolved_quality_audit_context_loader = quality_audit_context_loader
+    if resolved_quality_audit_context_loader is None:
+        baseline_service = None if p6_baseline_api is None else p6_baseline_api.service
+        baseline_update_service = (
+            None if p6_baseline_update_api is None else p6_baseline_update_api.service
+        )
+        baseline_assignment_service = (
+            None if p6_baseline_assignment_api is None else p6_baseline_assignment_api.service
+        )
+        quality_wbs_repository = wbs_master_repository
+        quality_baseline_repository = getattr(baseline_service, "repository", None)
+        quality_baseline_activity_repository = getattr(
+            baseline_update_service, "repository", None
+        )
+        quality_baseline_assignment_repository = getattr(
+            baseline_assignment_service, "repository", None
+        )
+        quality_resource_assignment_repository = (
+            None
+            if resource_read_api is None
+            else getattr(resource_read_api.assignment_service, "repository", None)
+        )
+        quality_resource_period_repository = (
+            None
+            if resource_read_api is None
+            else getattr(resource_read_api.period_service, "repository", None)
+        )
+        quality_transaction_manager = (
+            getattr(baseline_service, "transaction_manager", None)
+            or getattr(baseline_update_service, "transaction_manager", None)
+            or getattr(baseline_assignment_service, "transaction_manager", None)
+            or (
+                None
+                if resource_read_api is None
+                else getattr(resource_read_api.assignment_service, "transaction_manager", None)
+            )
+        )
+        if any(
+            repository is not None
+            for repository in (
+                quality_wbs_repository,
+                quality_baseline_repository,
+                quality_baseline_activity_repository,
+                quality_baseline_assignment_repository,
+                quality_resource_assignment_repository,
+                quality_resource_period_repository,
+            )
+        ):
+            resolved_quality_audit_context_loader = ScheduleQualityAuditContextReader(
+                authorization_policy=authorization_policy,
+                wbs_repository=quality_wbs_repository,
+                baseline_repository=quality_baseline_repository,
+                baseline_activity_repository=quality_baseline_activity_repository,
+                baseline_assignment_repository=quality_baseline_assignment_repository,
+                resource_assignment_repository=quality_resource_assignment_repository,
+                resource_period_repository=quality_resource_period_repository,
+                transaction_manager=quality_transaction_manager,
+            ).load
+
     provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,
         calculation_context_repository=calculation_context_repository,
         leveling_input_resolver=leveling_input_resolver,
         cost_inputs_resolver=cost_inputs_resolver,
-        quality_audit_context_loader=quality_audit_context_loader,
+        quality_audit_context_loader=resolved_quality_audit_context_loader,
     )
     schedule_query_api = ScheduleQueryAPI(
         ScheduleQueryApplicationService(
