@@ -1403,13 +1403,16 @@ function renderP6ModuleStage(container: HTMLElement, state: WorkspaceState, t: W
       break;
     case "control":
       body = `
-        <div class="cp-p6-module-metrics">
-          ${metric(state.inspections.length + state.qualityRecords.length, t.assurance)}
-          ${metric(state.safetyObservations.length, t.safety)}
-          ${metric(state.fieldIssues.length, t.issues)}
-          ${metric(state.punchItems.length, t.punchCloseout)}
-        </div>
-        ${controls(`${moduleButton("forms", "forms", uiText(state.locale, "Forms & Workflows", "فرم‌ها و گردش‌کار"))}${moduleButton("tools", "warning", uiText(state.locale, "Open control records", "بازکردن سوابق کنترل"))}`)}`;
+        <div class="cp-control-window">
+          <div class="cp-p6-module-metrics">
+            ${metric(state.inspections.length + state.qualityRecords.length, t.assurance)}
+            ${metric(state.safetyObservations.length, t.safety)}
+            ${metric(state.fieldIssues.length, t.issues)}
+            ${metric(state.punchItems.length, t.punchCloseout)}
+          </div>
+          ${controls(`${moduleButton("forms", "forms", uiText(state.locale, "Forms & Workflows", "فرم‌ها و گردش‌کار"))}${moduleButton("tools", "warning", uiText(state.locale, "Open control records", "بازکردن سوابق کنترل"))}`)}
+          ${renderControlStage(state, t)}
+        </div>`;
       break;
     case "reports":
       body = `
@@ -1735,6 +1738,42 @@ function renderSmartGuide(
       </div>
     </section>
   `;
+}
+
+function renderControlStage(state: WorkspaceState, t: WorkspaceLabels): string {
+  const locale = state.locale;
+  const summary = state.controlSummary;
+  if (!summary) {
+    return `<section class="cp-control-stage-summary" aria-label="${escapeAttribute(t.controlSummary)}">
+      <div class="cp-control-summary-empty">${escapeHtml(uiText(locale, "No control-intelligence snapshot is loaded for this project revision. The record counts above come only from the workspace read model; no analysis is calculated in the browser.", "هیچ تصویر لحظه‌ای از هوش کنترل برای این ویرایش پروژه بارگذاری نشده است. شمارش‌های بالا فقط از مدل خواندن محیط کار می‌آیند و هیچ تحلیلی در مرورگر محاسبه نمی‌شود."))}</div>
+    </section>`;
+  }
+  const metrics = Object.entries(summary.metrics)
+    .map(([key, value]) => `<div class="cp-control-metric"><span>${escapeHtml(key)}</span><strong>${escapeHtml(String(value))}</strong></div>`)
+    .join("");
+  const findings = summary.findings.length
+    ? summary.findings.map((finding) => `<article class="cp-control-finding is-${escapeHtml(finding.severity)}">
+        <div class="cp-control-finding-title">${escapeHtml(finding.title_key)}</div>
+        <div class="cp-control-finding-detail">${escapeHtml(finding.detail_key)}</div>
+        <div class="cp-control-finding-meta">${escapeHtml(finding.domain)} · ${escapeHtml(finding.severity)} · ${finding.source_refs.length} ${escapeHtml(t.sourceUnit)}</div>
+      </article>`).join("")
+    : `<div class="cp-empty">—</div>`;
+  const actions = summary.proposedActions.length
+    ? `<div class="cp-control-actions">${summary.proposedActions.map((action) => `<article class="cp-control-action">
+        <strong>${escapeHtml(action.title_key)}</strong>
+        <span>${escapeHtml(action.action_type)} · ${action.requires_approval ? escapeHtml(t.approvalRequired) : escapeHtml(t.noApprovalFlag)}</span>
+      </article>`).join("")}</div>`
+    : `<div class="cp-empty">—</div>`;
+  return `<section class="cp-control-stage-summary" aria-label="${escapeAttribute(t.controlSummary)}">
+    <div class="cp-control-heading">
+      <div><h3>${escapeHtml(t.controlSummary)}</h3><div class="cp-control-result">${escapeHtml(summary.resultId)}</div></div>
+      <time datetime="${escapeAttribute(summary.generatedAt)}">${escapeHtml(summary.generatedAt)}</time>
+    </div>
+    <div class="cp-control-section"><h4>${escapeHtml(t.metrics)}</h4><div class="cp-control-metrics">${metrics || '<div class="cp-empty">—</div>'}</div></div>
+    <div class="cp-control-section"><h4>${escapeHtml(t.findings)}</h4><div class="cp-control-findings">${findings}</div></div>
+    <div class="cp-control-section"><h4>${escapeHtml(t.proposedActions)}</h4>${actions}</div>
+    <p class="cp-register-notice">${escapeHtml(uiText(locale, "Metrics, findings and proposed actions are rendered from the control-room read model for this project revision. This page performs no client-side analysis and invents no finding.", "شاخص‌ها، یافته‌ها و اقدامات پیشنهادی از مدل خواندن اتاق کنترل برای این ویرایش پروژه نمایش داده می‌شوند. این صفحه هیچ تحلیلی در مرورگر انجام نمی‌دهد و هیچ یافته‌ای نمی‌سازد."))}</p>
+  </section>`;
 }
 
 function renderControlSummary(

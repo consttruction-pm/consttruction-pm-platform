@@ -4,6 +4,7 @@ import test from "node:test";
 import { renderMainWorkspace } from "./workspace-view.js";
 import type { WorkspaceMenuKey } from "./workspace-model.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
+import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 import { createWorkspaceState, setDocuments, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
 
 type RenderContainer = {
@@ -227,6 +228,55 @@ test("selecting a document keeps the same authoritative record in the details pa
   assert.match(details.innerHTML, /data-document-detail-panel="files"/);
   assert.match(details.innerHTML, /No upload or download route/);
   assert.match(details.innerHTML, /only the current revision/);
+});
+
+test("Control page states honestly when no control-intelligence snapshot is loaded", () => {
+  const html = render("en", "control");
+  assert.match(html, /cp-control-window/);
+  assert.match(html, /No control-intelligence snapshot is loaded for this project revision/);
+  assert.match(html, /no analysis is calculated in the browser/);
+});
+
+test("Control page renders the stored control-room metrics, findings and actions", () => {
+  const source = { source_id: "SRC-1", source_type: "activity", locator: "A-100", revision: 3 };
+  const summary: WorkspaceControlSummary = {
+    resultId: "CR-RESULT-1",
+    generatedAt: "2026-11-04T10:00:00Z",
+    summaryKey: "CONTROL_SUMMARY",
+    metrics: { schedule_variance_days: 3, open_findings: 1 },
+    findings: [{
+      finding_id: "F-1",
+      domain: "schedule",
+      severity: "warning",
+      title_key: "Schedule slip detected",
+      detail_key: "Finish date moved beyond the stored baseline",
+      source_refs: [source],
+    }],
+    proposedActions: [{
+      action_id: "PA-1",
+      action_type: "review",
+      title_key: "Review the recovery plan",
+      source_refs: [source],
+      requires_approval: true,
+    }],
+  };
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    activeMenu: "control" as const,
+    controlSummary: summary,
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const html = container.innerHTML;
+  assert.match(html, /CR-RESULT-1/);
+  assert.match(html, /2026-11-04T10:00:00Z/);
+  assert.match(html, /schedule_variance_days/);
+  assert.match(html, /<strong>3<\/strong>/);
+  assert.match(html, /Schedule slip detected/);
+  assert.match(html, /Finish date moved beyond the stored baseline/);
+  assert.match(html, /Review the recovery plan/);
+  assert.match(html, /Approval Required/);
+  assert.match(html, /performs no client-side analysis/);
 });
 
 test("Activity Group and Sort defaults to WBS in English and Persian", () => {

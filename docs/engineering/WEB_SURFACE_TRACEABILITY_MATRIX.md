@@ -53,7 +53,7 @@ test that exercises the real path, and verified in a browser.
 | `issues` | Issues | preview | `renderRegisterWindow` shell | Static empty table | Field issues exist in field-operations domain; no P6-style issue register API | None | Whole register is decorative; loaded field issues are not shown here | `SHELL` | GAP-ISS-01 | `workspace-view.test.ts` |
 | `risks` | Risks | preview | `renderRegisterWindow` shell | Static empty table | None | None | Whole register is decorative | `GAP-CORE` | GAP-RSK-01 | `workspace-view.test.ts` |
 | `thresholds` | Thresholds | preview | `renderRegisterWindow` shell | Static empty table | None | None | Whole register is decorative | `GAP-CORE` | GAP-THR-01 | `workspace-view.test.ts` |
-| `control` | Control | partial | `case "control"` metrics | Field assurance/quality/safety/punch counts | Form builder and field-operations APIs | Open forms and workflows, open control records | Control summary is count-only; changes/claims page is separate rail surface | `WIRED-READ` | GAP-CTL-01 | `workspace-view.test.ts`, `workspace-control-intelligence.test.ts` |
+| `control` | Control | partial | `workspace-view.ts` `renderControlStage` + `case "control"` | Field assurance/quality/safety/punch counts; `state.controlSummary` from `/api/v2/workspace/control-room/read` (`workspace-control-room-read.v2`) | Workspace control-room read HTTP; form builder and field-operations APIs | Control summary metrics, findings and proposed actions; forms/workflows and control-record tools | Changes/claims stay on their separate rail surface; no browser-side analysis | `WIRED-READ` | GAP-CTL-01 (resolved) | `workspace-view.test.ts`, `workspace-control-intelligence.test.ts` |
 | `settings` | Settings | partial | `case "settings"` | Locale and preferences | Project settings HTTP; locale registry (8 locales, en/fa authored strings) | Project settings dialog, language/workspace preferences | No per-surface layout administration; translated-string coverage for de/zh/ar/fr/ja/ko depends on activated language packs and is not audited | `WIRED-READ` | GAP-I18N-01, GAP-ADM-01 | `workspace-preferences.test.ts`, `workspace-localization.test.ts` |
 
 ## 2. Submenu inventory (58 entries)
@@ -118,7 +118,7 @@ kept in sync by `apps/web/src/workspace-surface-matrix.test.ts`.
 | thresholds | 1 | Threshold Register | Empty register shell | GAP-CORE |
 | thresholds | 2 | Monitoring Rules | Empty register shell | GAP-CORE |
 | thresholds | 3 | Threshold Details | Placeholder tabs | GAP-CORE |
-| control | 1 | Control Summary | Count metrics | WIRED-READ |
+| control | 1 | Control Summary | Authoritative control-room metrics, findings and proposed actions (`renderControlStage`) | WIRED-READ |
 | control | 2 | Changes & Claims | Change/claim rail surface | WIRED |
 | settings | 1 | Language | Locale selector (8 registered locales) | WIRED |
 | settings | 2 | Workspace | Project settings and preferences | WIRED-READ |
@@ -154,7 +154,7 @@ faked in the UI.
 | GAP-SCH-01 | Audit | Long-tail schedule dialogs not yet line-by-line audited | This matrix | Complete page/dialog audit for schedule submenus 1-13 against V26 Help | No |
 | GAP-I18N-01 | Audit | Eight locales registered, but translated-string coverage is not verified per page | `workspace-localization.ts` registry; `sync-runtime.language-pack.test.ts` | Audit each page in de/zh/ar/fr/ja/ko with activated packs; fix mixed-language and width breakage | No |
 | GAP-ADM-01 | Wiring | No per-surface layout administration | Settings page | Bind layout save/restore administration to the layouts API | No |
-| GAP-CTL-01 | Wiring | Control summary is count-only | `case "control"` | Bind control summary metrics to the control-intelligence read API | No |
+| GAP-CTL-01 | Wiring | Control summary was count-only — resolved 2026-11-04 | `case "control"` | The page now renders every stored control-room metric, finding (domain, severity, source count) and proposed action (type, approval flag) from `state.controlSummary`, alongside the loaded field-record counts. The empty state states that no snapshot is loaded and that no browser-side analysis runs. `workspace-view.test.ts` covers both the empty and populated snapshots. Browser-verified in the preview: the page mounted, showed the honest empty snapshot state because the preview provider supplies no `control_intelligence`, and reported no console error. The populated path is not claimed as browser-verified because no authoritative preview snapshot exists and none was fabricated | — | No |
 | GAP-V26-01 | Evidence | No licensed Version 26 reference run available in this environment | `CORE_COMPLETION_EXECUTION_LEDGER.md` | Obtain an authorized reference dataset and run numeric parity; until then no row is `IMPLEMENTED_AND_PARITY_TESTED` | Yes (external) |
 
 ## 4. Order of completion
@@ -163,7 +163,7 @@ faked in the UI.
 2. `GAP-ROL-01`, `GAP-ASN-01`, `GAP-EXP-01` — resource/cost registers. **All three resolved 2026-11-04.**
 3. `GAP-PRG-01` — progress updating bound to the schedule core — resolved 2026-11-04.
 4. `GAP-COST-01` — cost overview from authoritative reads. **Resolved 2026-11-04**; baseline capture remains as `GAP-BAS-03` (server).
-5. `GAP-WBS-01` — WBS chart and authoritative details — resolved 2026-11-04. `GAP-DOC-01` — read-side register/evidence/details wired 2026-11-04; remaining write actions reclassified as Core/server. `GAP-PRJ-02`, `GAP-CTL-01`, `GAP-ADM-01` — remaining wiring.
+5. `GAP-WBS-01` — WBS chart and authoritative details — resolved 2026-11-04. `GAP-DOC-01` — read-side register/evidence/details wired 2026-11-04; remaining write actions reclassified as Core/server. `GAP-CTL-01` — control-intelligence summary wired 2026-11-04. `GAP-PRJ-02`, `GAP-ADM-01` — remaining wiring.
 6. `GAP-RPT-01`, `GAP-TRK-01`, `GAP-RSK-01`, `GAP-THR-01`, `GAP-ISS-01` — server-side contracts.
 7. `GAP-SCH-01`, `GAP-I18N-01` — audits and fixes.
 8. `GAP-V26-01` — numeric parity once an authorized reference run exists.
