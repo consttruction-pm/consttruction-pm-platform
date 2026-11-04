@@ -979,7 +979,7 @@ class Page {
   /** Native CDP mouse drag, producing genuine browser pointer events. */
   /** Native CDP mouse drag, producing genuine browser pointer events. */
   async drag(selector, deltaX, deltaY) {
-    const point = await this.evaluate(`() => {
+    const point = await this.evaluate(`(() => {
       const element = document.querySelector(${JSON.stringify(selector)});
       if (!element) return { found: false, selector: ${JSON.stringify(selector)} };
       element.scrollIntoView({ block: "center", inline: "nearest" });
@@ -1004,7 +1004,7 @@ class Page {
         parentHeight: parentRect?.height ?? null,
         parentPosition: element.parentElement ? getComputedStyle(element.parentElement).position : null,
       };
-    }`);
+    })()`);
     assert(
       point?.found && point.width > 0 && point.height > 0 &&
         point.visibility !== "hidden" && point.display !== "none",
