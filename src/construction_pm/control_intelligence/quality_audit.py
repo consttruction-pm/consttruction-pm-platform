@@ -9,6 +9,7 @@ or resource demand. Those values remain owned by the Shared Core.
 
 from collections import defaultdict
 from datetime import date, datetime
+from decimal import Decimal
 import hashlib
 import json
 from typing import Mapping, Sequence
