@@ -3,8 +3,10 @@ import {
   createP6InterchangeClient,
   type InterchangeExportDocument,
   type InterchangeExportResult,
-  type InterchangeImportResult,
+  type InterchangeImportResultWithAudit,
   type InterchangeImportRow,
+  type InterchangeImportBatchList,
+  type InterchangeImportBatchDetail,
 } from "./p6-interchange-api.js";
 
 export type InterchangePanelActivity = {
@@ -46,6 +48,31 @@ export type InterchangePanelLabels = {
   mappingRegistryEmpty: string;
   networkError: string;
   readFileError: string;
+  importAuditTitle: string;
+  importAuditRecorded: string;
+  importAuditNotConfigured: string;
+  importTargetNotApplied: string;
+  importBatchId: string;
+  importSourceHash: string;
+  importHistoryTitle: string;
+  importHistoryRefresh: string;
+  importHistoryLoading: string;
+  importHistoryFailed: string;
+  importHistoryEmpty: string;
+  importHistoryOpen: string;
+  importHistoryRows: string;
+  importHistoryWarnings: string;
+  importHistoryFormat: string;
+  importHistoryImportedAt: string;
+  importHistoryImportedBy: string;
+  importEvidenceTitle: string;
+  importEvidenceMappings: string;
+  importEvidenceRows: string;
+  importEvidenceSourceFields: string;
+  importEvidenceCanonicalFields: string;
+  importEvidencePreservedFields: string;
+  importEvidenceHashes: string;
+  importEvidenceNoValues: string;
 };
 
 const LABELS: Record<"en" | "fa", InterchangePanelLabels> = {
@@ -86,6 +113,31 @@ const LABELS: Record<"en" | "fa", InterchangePanelLabels> = {
     mappingRegistryEmpty: "No provider mapping is registered for this project.",
     networkError: "The server could not be reached. Try again.",
     readFileError: "The selected file could not be read.",
+    importAuditTitle: "Import audit receipt",
+    importAuditRecorded: "The parse evidence was saved to the project ledger.",
+    importAuditNotConfigured: "The import ledger is not configured in this environment.",
+    importTargetNotApplied: "Parsed and mapped only — no project activities or resources were changed.",
+    importBatchId: "Batch ID",
+    importSourceHash: "Source SHA-256",
+    importHistoryTitle: "Import history",
+    importHistoryRefresh: "Refresh history",
+    importHistoryLoading: "Loading project import history…",
+    importHistoryFailed: "Project import history could not be loaded.",
+    importHistoryEmpty: "No import batches have been recorded for this project.",
+    importHistoryOpen: "View evidence",
+    importHistoryRows: "Rows",
+    importHistoryWarnings: "Warnings",
+    importHistoryFormat: "Format",
+    importHistoryImportedAt: "Imported at",
+    importHistoryImportedBy: "Imported by",
+    importEvidenceTitle: "Immutable import evidence",
+    importEvidenceMappings: "Mapping snapshot",
+    importEvidenceRows: "Row evidence",
+    importEvidenceSourceFields: "Source fields",
+    importEvidenceCanonicalFields: "Canonical fields",
+    importEvidencePreservedFields: "Preserved extension fields",
+    importEvidenceHashes: "Value hashes only; raw source values are not stored.",
+    importEvidenceNoValues: "No rows were recorded.",
   },
   fa: {
     intro:
@@ -124,6 +176,31 @@ const LABELS: Record<"en" | "fa", InterchangePanelLabels> = {
     mappingRegistryEmpty: "هیچ نگاشتی برای این پروژه ثبت نشده است.",
     networkError: "سرور در دسترس نبود. دوباره تلاش کنید.",
     readFileError: "فایل انتخاب‌شده خوانده نشد.",
+    importAuditTitle: "رسید ممیزی ورود اطلاعات",
+    importAuditRecorded: "شواهد Parse در دفتر پروژه ذخیره شد.",
+    importAuditNotConfigured: "دفتر ثبت ورود اطلاعات در این محیط پیکربندی نشده است.",
+    importTargetNotApplied: "فقط Parse و نگاشت انجام شد؛ هیچ فعالیت یا منبع پروژه‌ای تغییر نکرد.",
+    importBatchId: "شناسهٔ نوبت ورود",
+    importSourceHash: "هش SHA-256 منبع",
+    importHistoryTitle: "تاریخچهٔ ورود اطلاعات",
+    importHistoryRefresh: "بازخوانی تاریخچه",
+    importHistoryLoading: "در حال خواندن تاریخچهٔ ورود پروژه…",
+    importHistoryFailed: "خواندن تاریخچهٔ ورود پروژه ممکن نشد.",
+    importHistoryEmpty: "هنوز نوبت ورودی برای این پروژه ثبت نشده است.",
+    importHistoryOpen: "مشاهدهٔ شواهد",
+    importHistoryRows: "ردیف‌ها",
+    importHistoryWarnings: "هشدارها",
+    importHistoryFormat: "قالب",
+    importHistoryImportedAt: "زمان ورود",
+    importHistoryImportedBy: "واردکننده",
+    importEvidenceTitle: "شواهد تغییرناپذیر ورود",
+    importEvidenceMappings: "تصویر نگاشت‌ها",
+    importEvidenceRows: "شواهد ردیف‌ها",
+    importEvidenceSourceFields: "فیلدهای منبع",
+    importEvidenceCanonicalFields: "فیلدهای متعارف",
+    importEvidencePreservedFields: "فیلدهای افزونهٔ حفظ‌شده",
+    importEvidenceHashes: "فقط هش مقادیر نگهداری می‌شود؛ مقادیر خام منبع ذخیره نمی‌شوند.",
+    importEvidenceNoValues: "ردیفی ثبت نشده است.",
   },
 };
 
@@ -214,7 +291,15 @@ export function renderInterchangePanel(
       <button type="submit" data-interchange-import>${escapeHtml(labels.importAction)}</button>
     </form>
     <p data-interchange-import-status role="status"></p>
-    <div data-interchange-import-result></div>`;
+    <div data-interchange-import-result></div>
+    <section class="cp-interchange-history" data-interchange-history-section>
+      <header><h3>${escapeHtml(labels.importHistoryTitle)}</h3>
+        <button type="button" data-interchange-history-refresh>${escapeHtml(labels.importHistoryRefresh)}</button>
+      </header>
+      <p data-interchange-history-status role="status"></p>
+      <div data-interchange-history-list></div>
+      <div data-interchange-history-detail></div>
+    </section>`;
 }
 
 export function renderInterchangeExportResult(
@@ -266,11 +351,28 @@ function renderImportRow(
 }
 
 export function renderInterchangeImportResult(
-  result: InterchangeImportResult,
+  result: InterchangeImportResultWithAudit,
   labels: InterchangePanelLabels,
 ): string {
+  const audit = result.import_audit;
+  const auditMarkup = !audit
+    ? ""
+    : audit.status === "recorded"
+      ? `<section class="cp-interchange-audit-receipt is-recorded">
+          <h4>${escapeHtml(labels.importAuditTitle)}</h4>
+          <p>${escapeHtml(labels.importAuditRecorded)}</p>
+          <strong>${escapeHtml(labels.importTargetNotApplied)}</strong>
+          <dl>
+            <div><dt>${escapeHtml(labels.importBatchId)}</dt><dd><code>${escapeHtml(audit.batch_id ?? "—")}</code></dd></div>
+            <div><dt>${escapeHtml(labels.importSourceHash)}</dt><dd><code>${escapeHtml(audit.source_sha256 ?? "—")}</code></dd></div>
+          </dl>
+        </section>`
+      : `<section class="cp-interchange-audit-receipt">
+          <h4>${escapeHtml(labels.importAuditTitle)}</h4>
+          <p>${escapeHtml(labels.importAuditNotConfigured)}</p>
+        </section>`;
   if (result.rows.length === 0) {
-    return `<div class="cp-interchange-success"><p role="status">${escapeHtml(
+    return `<div class="cp-interchange-success">${auditMarkup}<p role="status">${escapeHtml(
       labels.importNoRows,
     )}</p></div>`;
   }
@@ -280,6 +382,7 @@ export function renderInterchangeImportResult(
       ? `<p class="cp-interchange-meta">${escapeHtml(labels.showingRows)}</p>`
       : "";
   return `<div class="cp-interchange-success">
+    ${auditMarkup}
     <p role="status"><strong>${result.rows.length}</strong> ${escapeHtml(
       labels.importReady,
     )}</p>
@@ -297,6 +400,79 @@ export function renderInterchangeImportResult(
       </table>
     </div>
   </div>`;
+}
+
+
+export function renderInterchangeImportBatchList(
+  result: InterchangeImportBatchList,
+  labels: InterchangePanelLabels,
+): string {
+  if (result.status === "not_configured" || result.batches.length === 0) {
+    return `<p class="cp-empty" role="status">${escapeHtml(labels.importHistoryEmpty)}</p>`;
+  }
+  return `<div class="cp-table-wrap"><table class="cp-interchange-table">
+    <thead><tr>
+      <th>${escapeHtml(labels.importBatchId)}</th>
+      <th>${escapeHtml(labels.importHistoryFormat)}</th>
+      <th>${escapeHtml(labels.importHistoryImportedAt)}</th>
+      <th>${escapeHtml(labels.importHistoryImportedBy)}</th>
+      <th>${escapeHtml(labels.importHistoryRows)}</th>
+      <th>${escapeHtml(labels.importHistoryWarnings)}</th>
+      <th></th>
+    </tr></thead>
+    <tbody>${result.batches.map((batch) => `<tr>
+      <td><code>${escapeHtml(batch.batch_id)}</code></td>
+      <td>${escapeHtml(batch.format)}</td>
+      <td>${escapeHtml(batch.imported_at)}</td>
+      <td>${escapeHtml(batch.imported_by)}</td>
+      <td>${escapeHtml(batch.row_count)}</td>
+      <td>${escapeHtml(batch.warning_count)}</td>
+      <td><button type="button" data-interchange-batch-id="${escapeHtml(batch.batch_id)}">${escapeHtml(labels.importHistoryOpen)}</button></td>
+    </tr>`).join("")}</tbody>
+  </table></div>`;
+}
+
+export function renderInterchangeImportBatchDetail(
+  detail: InterchangeImportBatchDetail,
+  labels: InterchangePanelLabels,
+): string {
+  const batch = detail.batch;
+  const mappingRows = batch.mapping_snapshot.map((mapping) => `<tr>
+    <td><code>${escapeHtml(String(mapping.mapping_id ?? "—"))}</code></td>
+    <td>${escapeHtml(String(mapping.source_field ?? "—"))}</td>
+    <td>${escapeHtml(String(mapping.canonical_field ?? "—"))}</td>
+    <td>${escapeHtml(String(mapping.status ?? "—"))}</td>
+  </tr>`).join("");
+  const rowCards = batch.row_summaries.map((row) => {
+    const warnings = Array.isArray(row.warnings) ? row.warnings : [];
+    const preserved = Array.isArray(row.preserved_extension_fields) ? row.preserved_extension_fields : [];
+    const source = Array.isArray(row.source_fields) ? row.source_fields : [];
+    const canonical = Array.isArray(row.canonical_fields) ? row.canonical_fields : [];
+    const hashes = isRecord(row.source_value_hashes) ? Object.entries(row.source_value_hashes) : [];
+    return `<article class="cp-interchange-row-evidence">
+      <strong>${escapeHtml(labels.row)} ${escapeHtml(String(Number(row.row_index ?? 0) + 1))}</strong>
+      <dl>
+        <div><dt>${escapeHtml(labels.importEvidenceSourceFields)}</dt><dd>${escapeHtml(source.join(", ") || labels.none)}</dd></div>
+        <div><dt>${escapeHtml(labels.importEvidenceCanonicalFields)}</dt><dd>${escapeHtml(canonical.join(", ") || labels.none)}</dd></div>
+        <div><dt>${escapeHtml(labels.importEvidencePreservedFields)}</dt><dd>${escapeHtml(preserved.join(", ") || labels.none)}</dd></div>
+      </dl>
+      <ul>${warnings.length ? warnings.map((warning) => `<li><code>${escapeHtml(String(warning))}</code></li>`).join("") : `<li>${escapeHtml(labels.none)}</li>`}</ul>
+      <details><summary>${escapeHtml(labels.importEvidenceHashes)}</summary>
+        <pre>${escapeHtml(JSON.stringify(Object.fromEntries(hashes), null, 2))}</pre>
+      </details>
+    </article>`;
+  }).join("");
+  return `<section class="cp-interchange-batch-detail">
+    <h4>${escapeHtml(labels.importEvidenceTitle)}</h4>
+    <p><strong>${escapeHtml(batch.target_application_status)}</strong></p>
+    <p><code>${escapeHtml(batch.source_sha256)}</code></p>
+    <h5>${escapeHtml(labels.importEvidenceMappings)}</h5>
+    <div class="cp-table-wrap"><table class="cp-interchange-table"><thead><tr>
+      <th>ID</th><th>${escapeHtml(labels.importEvidenceSourceFields)}</th><th>${escapeHtml(labels.importEvidenceCanonicalFields)}</th><th>Status</th>
+    </tr></thead><tbody>${mappingRows}</tbody></table></div>
+    <h5>${escapeHtml(labels.importEvidenceRows)}</h5>
+    ${rowCards || `<p>${escapeHtml(labels.importEvidenceNoValues)}</p>`}
+  </section>`;
 }
 
 function documentBytes(document: InterchangeExportDocument): ArrayBuffer {
