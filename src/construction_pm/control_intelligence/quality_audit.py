@@ -229,6 +229,8 @@ def _audit_baselines(
     activities: Mapping[str, dict[str, object]],
     wbs_nodes: list[dict[str, object]] | None,
     add,
+    *,
+    current_revision: object,
 ) -> tuple[str, int, int]:
     baselines = _context_records(audit_context, "baselines")
     rows = _context_records(audit_context, "baseline_activities")
@@ -247,11 +249,6 @@ def _audit_baselines(
             continue
         by_id[baseline_id] = baseline
         source_revision = baseline.get("source_revision")
-        current_revision = None
-        if audit_context is not None:
-            snapshot = audit_context.get("snapshot_scope")
-            if isinstance(snapshot, Mapping):
-                current_revision = snapshot.get("project_revision")
         if isinstance(source_revision, int) and isinstance(current_revision, int) and source_revision > current_revision:
             add(
                 "BASELINE_SOURCE_REVISION_IN_FUTURE",
@@ -989,9 +986,6 @@ def build_schedule_quality_audit(
             else "not_evaluated"
         ),
         "lead_inventory": "evaluated",
-        "excessive_lag_threshold": "not_evaluated_policy_pack_required",
-        "long_duration_threshold": "not_evaluated_policy_pack_required",
-        "excessive_constraint_threshold": "not_evaluated_policy_pack_required",
         "progress_out_of_sequence": "evaluated_zero_lag_all_relationship_types",
         "progress_actual_consistency": "evaluated",
         "constraint_references_and_duplicates": "evaluated",
