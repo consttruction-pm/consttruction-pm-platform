@@ -9,6 +9,9 @@ import sqlite3
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
+from construction_pm.control_intelligence.quality_audit_history import (
+    SQLiteScheduleQualityAuditHistoryRepository,
+)
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository, build_persisted_context
@@ -357,4 +360,113 @@ def test_leveling_enabled_snapshot_without_immutable_leveling_input_returns_stru
     assert payload_out["error"]["code"] == "SCHEDULE_LEVELING_INPUT_REQUIRED"
     assert payload_out["error"]["retryable"] is False
     assert "data" not in payload_out
+    conn.close()
+
+
+def test_production_composition_persists_and_reads_schedule_quality_audit_history():
+    conn = sqlite3.connect(":memory:")
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
+    context_repo = SQLiteCalculationContextRepository(conn)
+    history_repo = SQLiteScheduleQualityAuditHistoryRepository(conn)
+    now = datetime(2026, 11, 4, tzinfo=timezone.utc)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-PROD-AUDIT",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 11, 4),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp=now.isoformat(),
+        input_snapshot_id="S-PROD-AUDIT",
+        tenant_id="T-1",
+        actor_id="authoritative-actor",
+    )
+    snapshot_repo.save(build_snapshot(source, context, now))
+    context_repo.save(build_persisted_context(BackendScope("T-1", "P-1", 9), context))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now),
+        snapshot_repository=snapshot_repo,
+        calendar_registry_factory=lambda: registry,
+        calculation_context_repository=context_repo,
+        authorization_policy=default_project_policy(),
+        quality_audit_history_repository=history_repo,
+        clock=type("Clock", (), {"now": lambda self: now})(),
+    )
+
+    request = {
+        "contract_version": "schedule-query.v1",
+        "query_id": "Q-PROD-AUDIT",
+        "scope": {"tenant_id": "T-1", "project_id": "P-1", "project_revision": 9},
+        "requested_by": "u1",
+        "query_text": "audit schedule quality",
+        "kind": "quality_audit",
+        "language": "en",
+        "constraints": {"snapshot_id": "S-PROD-AUDIT"},
+    }
+    body = json.dumps(request).encode()
+    response_status: list[str] = []
+    response_status: list[str] = []
+
+    chunks = app(
+        {
+            "REQUEST_METHOD": "POST",
+            "PATH_INFO": "/api/v1/schedule/query",
+            "HTTP_COOKIE": "cp_session=s1",
+            "CONTENT_LENGTH": str(len(body)),
+            "wsgi.input": BytesIO(body),
+        },
+        lambda status, headers: response_status.append(status),
+    )
+    response = json.loads(b"".join(chunks))
+    assert response_status[-1] == "200 OK"
+    audit = response["data"]["quality_audit"]
+    assert audit["audit_history"]["status"] == "persisted"
+    audit_id = audit["audit_history"]["audit_id"]
+
+    listing = app(
+        {
+            "REQUEST_METHOD": "GET",
+            "PATH_INFO": "/api/v1/schedule/quality-audits",
+            "QUERY_STRING": "project_id=P-1",
+            "HTTP_COOKIE": "cp_session=s1",
+            "CONTENT_LENGTH": "0",
+            "wsgi.input": BytesIO(b""),
+        },
+        lambda status, headers: response_status.append(status),
+    )
+    listing_payload = json.loads(b"".join(listing))
+    assert response_status[-1] == "200 OK"
+    assert len(listing_payload["audits"]) == 1
+    assert listing_payload["audits"][0]["audit_id"] == audit_id
+
+    detail = app(
+        {
+            "REQUEST_METHOD": "GET",
+            "PATH_INFO": f"/api/v1/schedule/quality-audits/{audit_id}",
+            "QUERY_STRING": "project_id=P-1",
+            "HTTP_COOKIE": "cp_session=s1",
+            "CONTENT_LENGTH": "0",
+            "wsgi.input": BytesIO(b""),
+        },
+        lambda status, headers: response_status.append(status),
+    )
+    detail_payload = json.loads(b"".join(detail))
+    assert response_status[-1] == "200 OK"
+    assert detail_payload["audit"]["report"]["snapshot"]["snapshot_hash"] == audit["snapshot"]["snapshot_hash"]
     conn.close()
