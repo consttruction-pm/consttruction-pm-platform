@@ -900,6 +900,31 @@ class ProjectLifecycleHttpRoutes:
                 except (TypeError, ValueError):
                     return self._error(400, "P6_MAPPING_REQUEST_INVALID", "error.request.invalid")
                 return self._json(200, result)
+            if method == "GET" and path.startswith("/api/projects/") and path.endswith("/p6/interchange/imports"):
+                if self._p6_interchange_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/interchange/imports")].rstrip("/")
+                if not project_id:
+                    return self._error(400, "P6_INTERCHANGE_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                    auth = context.authorization_context(
+                        self._api.get_session(session_id, now=now).roles
+                    )
+                    result = self._p6_interchange_api.list_import_batches(
+                        scope=BackendScope(context.tenant_id, context.project_id, context.revision),
+                        auth_context=auth,
+                    )
+                    return self._json(200, result)
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    return self._error(400, str(exc), "error.request.invalid")
+                except AuthorizationError as exc:
+                    return self._error(403, str(exc), "error.authorization.denied")
+                except ValueError as exc:
+                    return self._error(400, str(exc), "error.request.invalid")
+
             if method == "POST" and path.startswith("/api/projects/") and "/p6/interchange/" in path and path.endswith("/import"):
                 if self._p6_interchange_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
@@ -917,6 +942,7 @@ class ProjectLifecycleHttpRoutes:
                         format=format,
                         payload=body,
                         auth_context=auth,
+                        idempotency_key=request_headers.get("Idempotency-Key"),
                     )
                     return self._json(200, result)
                 except ProjectLifecycleError as exc:
