@@ -249,7 +249,7 @@ const LABELS = {
     runIntro: "Publish an immutable snapshot from saved project data, then request results from the authoritative schedule service.",
     qualityAudit: "Run read-only quality audit", qualityAuditIntro: "Audit this exact project revision through the authenticated schedule service and Shared Core. No project data is changed.",
     qualityAuditRunning: "Publishing the project snapshot and checking schedule quality…", qualityAuditFailed: "The schedule quality audit could not be completed.",
-    auditHistory: "Audit history", auditHistoryLoading: "Loading saved audit runs…", auditHistoryFailed: "Saved audit history could not be loaded.", auditHistoryEmpty: "No saved audit runs exist for this project.", auditHistoryOpen: "Open report", auditHistoryRevision: "Revision", auditHistoryCreated: "Run time", auditHistoryFindings: "Findings",
+    auditHistory: "Audit history", auditHistoryLoading: "Loading saved audit runs…", auditHistoryFailed: "Saved audit history could not be loaded.", auditHistoryEmpty: "No saved audit runs exist for this project.", auditHistoryOpen: "Open report", auditHistoryRevision: "Revision", auditHistoryCreated: "Run time", auditHistoryFindings: "Findings", auditHistoryStored: "Saved to project audit history", auditHistoryNotConfigured: "Persistent history is not configured";
     auditFindings: "Findings", auditCoverage: "Coverage and limitations", auditNoFindings: "No findings were returned for the checks evaluated.",
     auditSeverity: "Severity", auditRule: "Rule", auditObject: "Object", auditRelated: "Related objects", auditEvidence: "Evidence", auditMessageKey: "Message key",
     auditCritical: "Critical", auditWarnings: "Warnings", auditInfo: "Information", auditSnapshot: "Snapshot", auditRevision: "Revision", auditHash: "SHA-256", auditQualityIndex: "Quality index", auditPolicyPackRequired: "Approved policy pack required",
@@ -283,7 +283,7 @@ const LABELS = {
     runIntro: "از داده‌های ذخیره‌شده یک تصویر تغییرناپذیر ایجاد می‌شود و سپس نتیجه از سرویس اصلی زمان‌بندی دریافت می‌شود.",
     qualityAudit: "اجرای ممیزی کیفیت", qualityAuditIntro: "همین نسخهٔ پروژه از مسیر احراز هویت‌شدهٔ زمان‌بندی و هستهٔ مشترک بررسی می‌شود؛ هیچ داده‌ای در پروژه تغییر نمی‌کند.",
     qualityAuditRunning: "در حال انتشار تصویر پروژه و بررسی کیفیت زمان‌بندی…", qualityAuditFailed: "ممیزی کیفیت زمان‌بندی کامل نشد.",
-    auditHistory: "تاریخچهٔ ممیزی", auditHistoryLoading: "در حال خواندن اجراهای ذخیره‌شدهٔ ممیزی…", auditHistoryFailed: "خواندن تاریخچهٔ ممیزی ممکن نشد.", auditHistoryEmpty: "هنوز اجرای ذخیره‌شده‌ای برای ممیزی این پروژه وجود ندارد.", auditHistoryOpen: "بازکردن گزارش", auditHistoryRevision: "بازبینی", auditHistoryCreated: "زمان اجرا", auditHistoryFindings: "یافته‌ها",
+    auditHistory: "تاریخچهٔ ممیزی", auditHistoryLoading: "در حال خواندن اجراهای ذخیره‌شدهٔ ممیزی…", auditHistoryFailed: "خواندن تاریخچهٔ ممیزی ممکن نشد.", auditHistoryEmpty: "هنوز اجرای ذخیره‌شده‌ای برای ممیزی این پروژه وجود ندارد.", auditHistoryOpen: "بازکردن گزارش", auditHistoryRevision: "بازبینی", auditHistoryCreated: "زمان اجرا", auditHistoryFindings: "یافته‌ها", auditHistoryStored: "گزارش در تاریخچهٔ پروژه ذخیره شد", auditHistoryNotConfigured: "ذخیره‌سازی پایدار تاریخچه پیکربندی نشده است";
     auditFindings: "یافته‌ها", auditCoverage: "دامنهٔ بررسی و محدودیت‌ها", auditNoFindings: "در کنترل‌های ارزیابی‌شده یافته‌ای بازگردانده نشد.",
     auditSeverity: "شدت", auditRule: "قاعده", auditObject: "موضوع", auditRelated: "موضوعات مرتبط", auditEvidence: "شواهد", auditMessageKey: "کلید پیام",
     auditCritical: "بحرانی", auditWarnings: "هشدارها", auditInfo: "اطلاعات", auditSnapshot: "تصویر مبنا", auditRevision: "بازبینی", auditHash: "SHA-256", auditQualityIndex: "شاخص کیفیت", auditPolicyPackRequired: "نیازمند بسته سیاست مصوب",
@@ -1010,6 +1010,13 @@ function mountRunPanel(
     const qualityIndex = report.quality_index && typeof report.quality_index === "object"
       ? report.quality_index as Record<string, unknown>
       : {};
+    const history = report.audit_history && typeof report.audit_history === "object"
+      ? report.audit_history as Record<string, unknown>
+      : {};
+    const historyStatus = String(history.status ?? "not_configured");
+    const historyNotice = historyStatus === "persisted"
+      ? `<section class="cp-audit-history-note is-saved"><span aria-hidden="true">✓</span><div><strong>${safe(labels.auditHistoryStored)}</strong><code>${safe(history.audit_id ?? "—")}</code></div></section>`
+      : `<section class="cp-audit-history-note"><span aria-hidden="true">i</span><div><strong>${safe(labels.auditHistoryNotConfigured)}</strong></div></section>`;
     const findings = Array.isArray(report.findings) ? report.findings : [];
     const normalizedFindings = findings.filter(
       (raw): raw is Record<string, unknown> => Boolean(raw) && typeof raw === "object" && !Array.isArray(raw),
@@ -1088,6 +1095,7 @@ function mountRunPanel(
         <span class="cp-audit-index-status">${safe(qualityIndex.status ?? "not_calculated")}</span>
         <p>${safe(qualityIndex.reason ?? labels.auditPolicyPackRequired)}</p>
       </section>
+      ${historyNotice}
       <section class="cp-audit-findings">
         <div class="cp-audit-findings-heading">
           <div><span class="cp-audit-section-mark"></span><h4>${safe(labels.auditFindings)}</h4></div>
