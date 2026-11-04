@@ -1898,6 +1898,47 @@ async function main() {
         ...deepLinkWorkspace,
       });
 
+      // Browser-level acceptance for the new engine shell: navigation opens
+      // the dedicated window, methods are shown in its Details pane, and
+      // actions remain disabled until real engine tools are connected.
+      await deepLinkPage.click(
+        '.cp-vd-left-nav button[data-vd-window="engineering-analysis"]',
+      );
+      await deepLinkPage.waitForSelector(
+        '[data-engine-window="engineering-analysis"]',
+        "Engineering Analysis visual shell",
+      );
+      await deepLinkPage.click('[data-vd-engine-tab="methods"]');
+      await deepLinkPage.waitFor(
+        `document.querySelector('[data-vd-engine-tab="methods"]')?.getAttribute("aria-selected") === "true" &&
+         document.querySelector(".cp-vd-engine-detail-panel")?.textContent.includes("Forward and backward rule chaining")`,
+        "Engineering Analysis methods Details tab",
+      );
+      const engineShellEvidence = await deepLinkPage.evaluate(`(() => {
+        const shell = document.querySelector('[data-engine-window="engineering-analysis"]');
+        const commands = Array.from(shell?.querySelectorAll(".cp-vd-engine-toolbar button") ?? []);
+        return {
+          title: shell?.querySelector(".cp-vd-engine-title h2")?.textContent?.trim() ?? "",
+          methodTab: shell?.querySelector('[data-vd-engine-tab="methods"]')?.getAttribute("aria-selected") ?? "",
+          methodText: shell?.querySelector(".cp-vd-engine-detail-panel")?.textContent?.includes("Forward and backward rule chaining") ?? false,
+          disabledCommands: commands.length === 5 && commands.every((button) => button.disabled),
+          emptyState: shell?.querySelector(".cp-vd-engine-empty")?.textContent?.includes("No records to display") ?? false,
+        };
+      })()`);
+      assert(
+        engineShellEvidence.title.includes("Engineering Analysis") &&
+          engineShellEvidence.methodTab === "true" &&
+          engineShellEvidence.methodText &&
+          engineShellEvidence.disabledCommands &&
+          engineShellEvidence.emptyState,
+        "engineering visual shell must expose its Details and remain non-executable: " +
+          JSON.stringify(engineShellEvidence),
+      );
+      await deepLinkPage.screenshot("07-engineering-analysis-shell.png");
+      record("Engineering Analysis visual shell opens with Details and disabled actions", engineShellEvidence);
+      await deepLinkPage.click('.cp-vd-left-nav button[data-vd-window="activities"]');
+      await deepLinkPage.waitForSelector('[data-vd-window="activities"].is-active', "return to Activities window");
+
       await deepLinkPage.setSelect('select[data-vd-locale]', "fa");
       await deepLinkPage.waitFor(
         `document.documentElement.lang === "fa" && document.documentElement.dir === "rtl"`,
@@ -1963,7 +2004,14 @@ async function main() {
 
     await page.click('button[name="role"][value="planner"]');
     await page.waitFor(`location.pathname === "/app"`, "planner redirect to /app");
-    await page.waitForSelector(".cp-project-selection", "project selection");
+    // The product default /app route is the visual preview shell. This legacy
+    // data-backed project-directory journey must explicitly request the live
+    // workspace so the test exercises the authenticated project picker.
+    await page.navigate(
+      `${baseUrl}/app?view=live`,
+      ".cp-project-selection",
+      "planner project selection in live workspace",
+    );
     const projectButtons = await page.evaluate(`(() =>
       Array.from(document.querySelectorAll("button[data-project-id]")).map((button) => ({
         id: button.dataset.projectId,
@@ -4488,7 +4536,12 @@ async function main() {
     });
 
     await page.click('button[name="role"][value="viewer"]');
-    await page.waitForSelector(".cp-project-selection", "viewer project selection");
+    await page.waitFor(`location.pathname === "/app"`, "viewer redirect to /app");
+    await page.navigate(
+      `${baseUrl}/app?view=live`,
+      ".cp-project-selection",
+      "viewer project selection in live workspace",
+    );
     await page.click(`button[data-project-id="${PROJECT_ID}"]`);
     await page.waitForSelector(".cp-workspace", "viewer workspace");
     await page.waitFor(
@@ -4763,7 +4816,12 @@ async function main() {
     await page.waitForSelector('form[action="/preview/login"]', "final logout");
 
     await page.click('button[name="role"][value="admin"]');
-    await page.waitForSelector(".cp-project-selection", "admin project selection");
+    await page.waitFor(`location.pathname === "/app"`, "admin redirect to /app");
+    await page.navigate(
+      `${baseUrl}/app?view=live`,
+      ".cp-project-selection",
+      "admin project selection in live workspace",
+    );
     const createdProjectName = `E2E project ${Date.now()}`;
     const createdProjectDescription = "CUBI E2E persisted scope";
     await page.evaluate(
@@ -6221,7 +6279,12 @@ async function main() {
     await page.click("#cubi-preview-banner button");
     await page.waitForSelector('form[action="/preview/login"]', "newcomer login");
     await page.click('button[name="role"][value="newcomer"]');
-    await page.waitForSelector(".cp-project-selection", "newcomer first-run page");
+    await page.waitFor(`location.pathname === "/app"`, "newcomer redirect to /app");
+    await page.navigate(
+      `${baseUrl}/app?view=live`,
+      ".cp-project-selection",
+      "newcomer first-run page in live workspace",
+    );
     // The stored workspace language is English from the earlier explicit
     // choice; select it again only if a different profile locale won.
     if ((await page.evaluate(`document.documentElement.lang`)) !== "en") {
@@ -6470,7 +6533,12 @@ async function main() {
         "login after service restart",
       );
       await page.click('button[name="role"][value="admin"]');
-      await page.waitForSelector(".cp-project-selection", "project list after restart");
+      await page.waitFor(`location.pathname === "/app"`, "admin redirect after restart");
+      await page.navigate(
+        `${restarted.baseUrl}/app?view=live`,
+        ".cp-project-selection",
+        "project list after restart in live workspace",
+      );
       await page.waitForSelector(
         `button[data-project-id="${wbsJourney.project_id}"]`,
         "persisted project in the list after restart",
