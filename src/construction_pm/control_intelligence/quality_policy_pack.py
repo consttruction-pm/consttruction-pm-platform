@@ -140,13 +140,18 @@ class ScheduleQualityPolicyPack:
             raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_SCORING_METHOD_UNSUPPORTED")
         normalized = _validate_thresholds(self.thresholds)
         _validate_weights(self.weights, set(normalized))
-        for stamp in (self.created_at, self.approved_at):
-            if stamp is not None and (
-                not isinstance(stamp, datetime)
-                or stamp.tzinfo is None
-                or stamp.utcoffset() is None
-            ):
-                raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_TIMESTAMP_INVALID")
+        if (
+            not isinstance(self.created_at, datetime)
+            or self.created_at.tzinfo is None
+            or self.created_at.utcoffset() is None
+        ):
+            raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_TIMESTAMP_INVALID")
+        if self.approved_at is not None and (
+            not isinstance(self.approved_at, datetime)
+            or self.approved_at.tzinfo is None
+            or self.approved_at.utcoffset() is None
+        ):
+            raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_TIMESTAMP_INVALID")
         if (self.approved_by is None) != (self.approved_at is None):
             raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_APPROVAL_INCOMPLETE")
 
@@ -272,6 +277,8 @@ class _SqlScheduleQualityPolicyRepository:
 
     def create(self, pack: ScheduleQualityPolicyPack) -> ScheduleQualityPolicyPack:
         pack.validate()
+        if pack.approved_by is not None or pack.approved_at is not None:
+            raise ScheduleQualityPolicyError("SCHEDULE_QUALITY_POLICY_CANNOT_CREATE_PREAPPROVED_PACK")
         thresholds_json, weights_json = _pack_json(pack)
         p = self.placeholder
         self._insert_pack(pack, thresholds_json, weights_json)
