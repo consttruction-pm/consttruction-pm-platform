@@ -16,6 +16,11 @@ from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.control_intelligence.quality_audit_context import (
     ScheduleQualityAuditContextReader,
 )
+from construction_pm.control_intelligence.quality_policy_pack import (
+    SCORING_METHOD,
+    ScheduleQualityPolicyPack,
+    SQLiteScheduleQualityPolicyRepository,
+)
 from construction_pm.p6_code_repository import (
     P6CodeDefinition,
     P6CodeValue,
@@ -226,4 +231,62 @@ def test_reader_distinguishes_unconfigured_repositories_from_empty_sources() -> 
     assert result["resource_periods"] is None
     assert result["code_definitions"] is None
     assert result["code_assignments"] is None
+    connection.close()
+
+
+def test_reader_exposes_only_the_latest_approved_project_policy_pack() -> None:
+    connection = sqlite3.connect(":memory:")
+    scope = _scope()
+    repository = SQLiteScheduleQualityPolicyRepository(connection)
+    draft = ScheduleQualityPolicyPack(
+        scope=scope,
+        policy_id="schedule-quality",
+        version="1.0.0",
+        name="Project quality rules",
+        scoring_method=SCORING_METHOD,
+        thresholds={
+            "positive_lag": {
+                "date_based_max_working_days": 5,
+                "time_aware_max": {"working-day": "5", "working-hour": "40"},
+                "severity": "warning",
+            },
+            "activity_duration": {
+                "date_based_max_working_days": "60",
+                "time_aware_max": {"working-day": "60", "working-hour": "480"},
+                "severity": "critical",
+            },
+            "constraints_per_activity": {"maximum": 2, "severity": "warning"},
+        },
+        weights={
+            "positive_lag": "0.50",
+            "activity_duration": "0.30",
+            "constraints_per_activity": "0.20",
+        },
+        created_by="admin-1",
+        created_at=datetime(2026, 11, 4, 15, 0, tzinfo=timezone.utc),
+    )
+    repository.create(draft)
+    reader = ScheduleQualityAuditContextReader(
+        authorization_policy=default_project_policy(),
+        quality_policy_repository=repository,
+        transaction_manager=SQLiteTransactionManager(connection),
+    )
+
+    before_approval = reader.load(scope, _auth(scope))
+    assert before_approval["quality_policy_repository_configured"] is True
+    assert before_approval["approved_quality_policy_pack"] is None
+
+    repository.approve(
+        scope,
+        "schedule-quality",
+        "1.0.0",
+        approved_by="admin-2",
+        approved_at=datetime(2026, 11, 4, 16, 0, tzinfo=timezone.utc),
+    )
+    after_approval = reader.load(scope, _auth(scope))
+    approved = after_approval["approved_quality_policy_pack"]
+    assert approved["policy_id"] == "schedule-quality"
+    assert approved["version"] == "1.0.0"
+    assert approved["approved_by"] == "admin-2"
+    assert approved["weights"]["positive_lag"] == "0.50"
     connection.close()
