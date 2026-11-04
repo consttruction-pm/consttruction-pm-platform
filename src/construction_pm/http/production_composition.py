@@ -211,6 +211,8 @@ def build_project_lifecycle_wsgi_app(
                 quality_baseline_assignment_repository,
                 quality_resource_assignment_repository,
                 quality_resource_period_repository,
+                p6_code_repository,
+                p6_code_assignment_repository,
             )
         ):
             resolved_quality_audit_context_loader = ScheduleQualityAuditContextReader(

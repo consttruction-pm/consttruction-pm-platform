@@ -235,6 +235,7 @@ const LABELS = {
     qualityAuditRunning: "Publishing the project snapshot and checking schedule quality…", qualityAuditFailed: "The schedule quality audit could not be completed.",
     auditFindings: "Findings", auditCoverage: "Coverage and limitations", auditNoFindings: "No findings were returned for the checks evaluated.",
     auditSeverity: "Severity", auditRule: "Rule", auditObject: "Object", auditRelated: "Related objects", auditEvidence: "Evidence", auditMessageKey: "Message key",
+    auditCritical: "Critical", auditWarnings: "Warnings", auditSnapshot: "Snapshot", auditRevision: "Revision", auditHash: "SHA-256", auditQualityIndex: "Quality index", auditPolicyPackRequired: "Approved policy pack required",
     calendarId: "Project calendar ID", calendarVersion: "Calendar version", chooseCalendar: "Choose an existing project calendar", calendarLoadError: "Could not load project calendars; enter an existing calendar ID and version.", calendarSystem: "Calendar date system",
     start: "Project start", finish: "Project finish (optional)", mode: "Calculation mode", priority: "Project leveling priority",
     jalaliDateHint: "Type a Jalali date, for example ۱۴۰۵/۰۷/۱۵. It is stored as the canonical Gregorian date.",
@@ -266,6 +267,7 @@ const LABELS = {
     qualityAuditRunning: "در حال انتشار تصویر پروژه و بررسی کیفیت زمان‌بندی…", qualityAuditFailed: "ممیزی کیفیت زمان‌بندی کامل نشد.",
     auditFindings: "یافته‌ها", auditCoverage: "دامنهٔ بررسی و محدودیت‌ها", auditNoFindings: "در کنترل‌های ارزیابی‌شده یافته‌ای بازگردانده نشد.",
     auditSeverity: "شدت", auditRule: "قاعده", auditObject: "موضوع", auditRelated: "موضوعات مرتبط", auditEvidence: "شواهد", auditMessageKey: "کلید پیام",
+    auditCritical: "بحرانی", auditWarnings: "هشدارها", auditSnapshot: "تصویر مبنا", auditRevision: "بازبینی", auditHash: "SHA-256", auditQualityIndex: "شاخص کیفیت", auditPolicyPackRequired: "نیازمند بسته سیاست مصوب",
     calendarId: "شناسهٔ تقویم پروژه", calendarVersion: "نسخهٔ تقویم", chooseCalendar: "انتخاب تقویم ثبت‌شدهٔ پروژه", calendarLoadError: "فهرست تقویم‌ها دریافت نشد؛ شناسه و نسخهٔ موجود را وارد کنید.", calendarSystem: "سیستم تاریخ تقویم",
     start: "شروع پروژه", finish: "پایان پروژه (اختیاری)", mode: "روش محاسبه", priority: "اولویت تسطیح منابع پروژه",
     jalaliDateHint: "تاریخ شمسی را مانند ۱۴۰۵/۰۷/۱۵ وارد کنید؛ به‌صورت تاریخ میلادی استاندارد ذخیره می‌شود.",
@@ -977,13 +979,13 @@ function mountRunPanel(
       `<div class="cp-schedule-result-meta">
         <span><b>ENG-06</b>: ${safe(report.status)}</span>
         <span><b>${safe(labels.auditFindings)}:</b> ${safe(summary.finding_count ?? findings.length)}</span>
-        <span><b>Critical:</b> ${safe(summary.critical_count ?? 0)}</span>
-        <span><b>Warnings:</b> ${safe(summary.warning_count ?? 0)}</span>
-        <span><b>Snapshot:</b> ${safe(snapshot.snapshot_id)}</span>
-        <span><b>Revision:</b> ${safe(snapshot.project_revision)}</span>
-        <span><b>SHA-256:</b> <code>${safe(snapshot.snapshot_hash)}</code></span>
+        <span><b>${safe(labels.auditCritical)}:</b> ${safe(summary.critical_count ?? 0)}</span>
+        <span><b>${safe(labels.auditWarnings)}:</b> ${safe(summary.warning_count ?? 0)}</span>
+        <span><b>${safe(labels.auditSnapshot)}:</b> ${safe(snapshot.snapshot_id)}</span>
+        <span><b>${safe(labels.auditRevision)}:</b> ${safe(snapshot.project_revision)}</span>
+        <span><b>${safe(labels.auditHash)}:</b> <code>${safe(snapshot.snapshot_hash)}</code></span>
       </div>
-      <p><b>Quality index:</b> ${safe(qualityIndex.status ?? "not_calculated")} — ${safe(qualityIndex.reason ?? "Policy pack not supplied")}</p>
+      <p><b>${safe(labels.auditQualityIndex)}:</b> ${safe(qualityIndex.status ?? "not_calculated")} — ${safe(qualityIndex.reason ?? labels.auditPolicyPackRequired)}</p>
       <h4>${safe(labels.auditFindings)}</h4>
       ${rows
         ? `<div class="cp-register-table-wrap"><table class="cp-schedule-result-table"><thead><tr>

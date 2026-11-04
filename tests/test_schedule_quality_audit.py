@@ -727,3 +727,45 @@ def test_time_aware_audit_uses_offset_aware_actual_start_and_duration_lag() -> N
         "evaluated_time_aware_ss_actual_start_only"
     )
     assert report["coverage"]["data_date_actual_consistency"] == "evaluated"
+
+
+def test_audit_distinguishes_empty_wbs_registry_from_a_tree_without_a_project_root() -> None:
+    payload = _audit_payload(activities=[], relationships=[])
+    base_context = {
+        "baselines": [],
+        "baseline_activities": [],
+        "baseline_assignments": [],
+        "resource_assignments": [],
+        "resource_periods": [],
+        "code_definitions": [],
+        "code_assignments": [],
+    }
+    empty_report = build_schedule_quality_audit(
+        payload,
+        audit_context={**base_context, "wbs_nodes": []},
+    )
+    empty_rules = {item["rule_id"] for item in empty_report["findings"]}
+
+    assert "PROJECT_WBS_REGISTRY_EMPTY" in empty_rules
+    assert "PROJECT_WBS_ROOT_MISSING" not in empty_rules
+
+    rootless_report = build_schedule_quality_audit(
+        payload,
+        audit_context={
+            **base_context,
+            "wbs_nodes": [
+                {
+                    "wbs_id": "W-CHILD",
+                    "parent_kind": "wbs",
+                    "parent_wbs_id": "W-MISSING",
+                    "code": "1.1",
+                    "name": "Orphan",
+                    "sequence_number": 1,
+                }
+            ],
+        },
+    )
+    rootless_rules = {item["rule_id"] for item in rootless_report["findings"]}
+
+    assert "PROJECT_WBS_ROOT_MISSING" in rootless_rules
+    assert "DANGLING_WBS_PARENT" in rootless_rules
