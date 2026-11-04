@@ -231,6 +231,9 @@ const LABELS = {
     options: "Calculation settings", run: "Run schedule", reference: "Scheduling code reference",
     intro: "Settings are saved to the project and consumed by the shared scheduling engine. The browser does not calculate dates.",
     runIntro: "Publish an immutable snapshot from saved project data, then request results from the authoritative schedule service.",
+    qualityAudit: "Run read-only quality audit", qualityAuditIntro: "Audit this exact project revision through the authenticated schedule service and Shared Core. No project data is changed.",
+    qualityAuditRunning: "Publishing the project snapshot and checking schedule quality…", qualityAuditFailed: "The schedule quality audit could not be completed.",
+    auditFindings: "Findings", auditCoverage: "Coverage and limitations", auditNoFindings: "No findings were returned for the checks evaluated.",
     calendarId: "Project calendar ID", calendarVersion: "Calendar version", chooseCalendar: "Choose an existing project calendar", calendarLoadError: "Could not load project calendars; enter an existing calendar ID and version.", calendarSystem: "Calendar date system",
     start: "Project start", finish: "Project finish (optional)", mode: "Calculation mode", priority: "Project leveling priority",
     jalaliDateHint: "Type a Jalali date, for example ۱۴۰۵/۰۷/۱۵. It is stored as the canonical Gregorian date.",
@@ -258,6 +261,9 @@ const LABELS = {
     options: "تنظیمات محاسبه", run: "اجرای زمان‌بندی", reference: "مرجع کد زمان‌بندی",
     intro: "تنظیمات در پروژه ذخیره می‌شود و هستهٔ مشترک زمان‌بندی از آن استفاده می‌کند. مرورگر محاسبهٔ تاریخ‌ها را انجام نمی‌دهد.",
     runIntro: "از داده‌های ذخیره‌شده یک تصویر تغییرناپذیر ایجاد می‌شود و سپس نتیجه از سرویس اصلی زمان‌بندی دریافت می‌شود.",
+    qualityAudit: "اجرای ممیزی کیفیت", qualityAuditIntro: "همین نسخهٔ پروژه از مسیر احراز هویت‌شدهٔ زمان‌بندی و هستهٔ مشترک بررسی می‌شود؛ هیچ داده‌ای در پروژه تغییر نمی‌کند.",
+    qualityAuditRunning: "در حال انتشار تصویر پروژه و بررسی کیفیت زمان‌بندی…", qualityAuditFailed: "ممیزی کیفیت زمان‌بندی کامل نشد.",
+    auditFindings: "یافته‌ها", auditCoverage: "دامنهٔ بررسی و محدودیت‌ها", auditNoFindings: "در کنترل‌های ارزیابی‌شده یافته‌ای بازگردانده نشد.",
     calendarId: "شناسهٔ تقویم پروژه", calendarVersion: "نسخهٔ تقویم", chooseCalendar: "انتخاب تقویم ثبت‌شدهٔ پروژه", calendarLoadError: "فهرست تقویم‌ها دریافت نشد؛ شناسه و نسخهٔ موجود را وارد کنید.", calendarSystem: "سیستم تاریخ تقویم",
     start: "شروع پروژه", finish: "پایان پروژه (اختیاری)", mode: "روش محاسبه", priority: "اولویت تسطیح منابع پروژه",
     jalaliDateHint: "تاریخ شمسی را مانند ۱۴۰۵/۰۷/۱۵ وارد کنید؛ به‌صورت تاریخ میلادی استاندارد ذخیره می‌شود.",
@@ -865,10 +871,20 @@ function mountRunPanel(
 ): void {
   panel.innerHTML = `<p>${safe(labels.runIntro)}</p><p class="cp-muted">${safe(labels.mustSave)}</p>
     <button type="button" data-run-schedule>${safe(labels.calculate)}</button>
-    <p role="status" data-run-status></p><section data-run-results aria-live="polite"></section>`;
+    <p role="status" data-run-status></p><section data-run-results aria-live="polite"></section>
+    <div class="cp-schedule-quality-audit">
+      <h3>${safe(labels.qualityAudit)}</h3>
+      <p>${safe(labels.qualityAuditIntro)}</p>
+      <button type="button" data-run-quality-audit>${safe(labels.qualityAudit)}</button>
+      <p role="status" data-quality-audit-status></p>
+      <section data-quality-audit-results aria-live="polite"></section>
+    </div>`;
   const button = panel.querySelector<HTMLButtonElement>("[data-run-schedule]");
   const status = panel.querySelector<HTMLElement>("[data-run-status]");
   const resultPanel = panel.querySelector<HTMLElement>("[data-run-results]");
+  const auditButton = panel.querySelector<HTMLButtonElement>("[data-run-quality-audit]");
+  const auditStatus = panel.querySelector<HTMLElement>("[data-quality-audit-status]");
+  const auditResults = panel.querySelector<HTMLElement>("[data-quality-audit-results]");
   const cached = scheduleRunResults.get(scheduleRunCacheKey(context));
   if (cached && resultPanel) renderScheduleRunResult(resultPanel, cached, labels);
   button?.addEventListener("click", async () => {
@@ -915,6 +931,111 @@ function mountRunPanel(
       resultPanel.innerHTML = "";
     } finally {
       button.disabled = false;
+    }
+  });
+
+  const renderQualityAudit = (value: unknown): void => {
+    if (!auditResults || !value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("SCHEDULE_QUALITY_AUDIT_RESULT_MISSING");
+    }
+    const report = value as Record<string, unknown>;
+    const summary = report.summary && typeof report.summary === "object"
+      ? report.summary as Record<string, unknown>
+      : {};
+    const snapshot = report.snapshot && typeof report.snapshot === "object"
+      ? report.snapshot as Record<string, unknown>
+      : {};
+    const qualityIndex = report.quality_index && typeof report.quality_index === "object"
+      ? report.quality_index as Record<string, unknown>
+      : {};
+    const findings = Array.isArray(report.findings) ? report.findings : [];
+    const rows = findings.map((raw) => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "";
+      const finding = raw as Record<string, unknown>;
+      const related = Array.isArray(finding.related_object_ids)
+        ? finding.related_object_ids.map(String).join(", ")
+        : "";
+      return `<tr><td>${safe(finding.severity)}</td><td><code>${safe(finding.rule_id)}</code></td><td>${safe(finding.object_type)} / ${safe(finding.object_id)}</td><td>${safe(related)}</td><td>${safe(finding.message_key)}</td></tr>`;
+    }).join("");
+    const coverage = report.coverage && typeof report.coverage === "object"
+      ? Object.entries(report.coverage as Record<string, unknown>)
+      : [];
+    const coverageRows = coverage.map(([key, status]) =>
+      `<li><code>${safe(key)}</code>: ${safe(status)}</li>`
+    ).join("");
+    auditResults.innerHTML =
+      `<div class="cp-schedule-result-meta">
+        <span><b>ENG-06</b>: ${safe(report.status)}</span>
+        <span><b>${safe(labels.auditFindings)}:</b> ${safe(summary.finding_count ?? findings.length)}</span>
+        <span><b>Critical:</b> ${safe(summary.critical_count ?? 0)}</span>
+        <span><b>Warnings:</b> ${safe(summary.warning_count ?? 0)}</span>
+        <span><b>Snapshot:</b> ${safe(snapshot.snapshot_id)}</span>
+        <span><b>Revision:</b> ${safe(snapshot.project_revision)}</span>
+        <span><b>SHA-256:</b> <code>${safe(snapshot.snapshot_hash)}</code></span>
+      </div>
+      <p><b>Quality index:</b> ${safe(qualityIndex.status ?? "not_calculated")} — ${safe(qualityIndex.reason ?? "Policy pack not supplied")}</p>
+      <h4>${safe(labels.auditFindings)}</h4>
+      ${rows
+        ? `<div class="cp-register-table-wrap"><table class="cp-schedule-result-table"><thead><tr><th>Severity</th><th>Rule</th><th>Object</th><th>Related objects</th><th>Evidence key</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        : `<p class="cp-empty">${safe(labels.auditNoFindings)}</p>`}
+      <details><summary>${safe(labels.auditCoverage)}</summary><ul>${coverageRows}</ul></details>`;
+  };
+
+  auditButton?.addEventListener("click", async () => {
+    if (!auditButton || !auditStatus || !auditResults) return;
+    auditButton.disabled = true;
+    auditStatus.textContent = labels.qualityAuditRunning;
+    auditResults.innerHTML = "";
+    try {
+      const sessionResult = await transport.get<SessionInfo>("/api/session", context);
+      if (!sessionResult.ok || !sessionResult.data.user_id) {
+        throw new Error(sessionResult.ok ? "SESSION_USER_REQUIRED" : sessionResult.error.code);
+      }
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      const snapshotResult = await transport.post<Record<string, string>, PublishedSnapshot>(
+        `/api/projects/${encodeURIComponent(context.project_id)}/p6/schedule/snapshots`,
+        { contract_version: "p6-schedule-snapshot-api.v1", timezone },
+        context,
+        crypto.randomUUID(),
+      );
+      if (!snapshotResult.ok) throw new Error(snapshotResult.error.code);
+      const queryPayload = {
+        contract_version: "schedule-query.v1",
+        query_id: crypto.randomUUID(),
+        scope: {
+          tenant_id: context.tenant_id,
+          project_id: context.project_id,
+          project_revision: context.revision,
+        },
+        requested_by: sessionResult.data.user_id,
+        query_text: "Run the read-only schedule quality audit on this saved project revision.",
+        kind: "quality_audit",
+        language: locale,
+        constraints: { snapshot_id: snapshotResult.data.snapshot_id },
+      };
+      const queryResult = await transport.post<typeof queryPayload, ScheduleQueryResult>(
+        "/api/v1/schedule/query",
+        queryPayload,
+        context,
+        crypto.randomUUID(),
+      );
+      if (!queryResult.ok) throw new Error(queryResult.error.code);
+      const queryData = queryResult.data;
+      if (queryData.error) {
+        throw new Error(queryData.error.code ?? queryData.error.message ?? "SCHEDULE_QUALITY_AUDIT_FAILED");
+      }
+      const data = queryData.answer?.data ?? queryData.data ?? queryData as unknown as Record<string, unknown>;
+      const report = data && typeof data === "object"
+        ? (data as Record<string, unknown>).quality_audit
+        : null;
+      if (!report) throw new Error("SCHEDULE_QUALITY_AUDIT_RESULT_MISSING");
+      renderQualityAudit(report);
+      auditStatus.textContent = "";
+    } catch (error) {
+      auditStatus.textContent = `${labels.qualityAuditFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_AUDIT_FAILED"})`;
+      auditResults.innerHTML = "";
+    } finally {
+      auditButton.disabled = false;
     }
   });
 }

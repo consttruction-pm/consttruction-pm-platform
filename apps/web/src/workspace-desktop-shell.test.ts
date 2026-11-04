@@ -127,3 +127,11 @@ test("Persian labels are provided for menus, items and window titles", () => {
   assert.ok(menus.every((menu) => menu.items.every((item) => item.label.fa.trim().length > 0)));
   assert.equal(WINDOW_TITLES.schedule.fa, "فعالیت‌ها");
 });
+
+test("Tools menu exposes the live, governed ENG-06 schedule quality audit command", () => {
+  const toolsMenu = getDesktopMenus(shellState()).find((menu) => menu.id === "tools");
+  const audit = toolsMenu?.items.find((item) => item.id === "tools.engineering-quality-audit");
+  assert.equal(audit?.command, "tools.quality-audit");
+  assert.equal(audit?.label.en, "Engineering Intelligence — Schedule quality audit");
+  assert.equal(audit?.label.fa, "هوشمندی مهندسی — ممیزی کیفیت زمان‌بندی");
+});
