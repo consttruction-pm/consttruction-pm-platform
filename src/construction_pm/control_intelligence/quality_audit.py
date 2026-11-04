@@ -1695,6 +1695,12 @@ def build_schedule_quality_audit(
         constraints=constraints,
         add=add,
     )
+    (
+        import_coverage,
+        import_batch_count,
+        import_row_count,
+        import_preservation_warning_count,
+    ) = _audit_interchange_import_batches(audit_context, add)
 
     findings.sort(
         key=lambda item: (
@@ -1752,7 +1758,7 @@ def build_schedule_quality_audit(
             else resource_coverage
         ),
         **policy_coverage,
-        "import_interchange_loss": "not_evaluated_persisted_import_reconciliation_required",
+        "import_interchange_loss": import_coverage,
     }
     incomplete = [key for key, status in coverage.items() if status.startswith("not_evaluated")]
     partial = (
@@ -1762,6 +1768,7 @@ def build_schedule_quality_audit(
         or baseline_coverage.startswith("partial")
         or resource_coverage.startswith("partial")
         or code_coverage.startswith("partial")
+        or import_coverage.startswith("partial")
     )
 
     return {
@@ -1800,6 +1807,9 @@ def build_schedule_quality_audit(
             "activity_code_definition_count": code_definition_count,
             "activity_code_assignment_count": code_assignment_count,
             "policy_threshold_violation_count": policy_violation_count,
+            "import_batch_count": import_batch_count,
+            "import_row_count": import_row_count,
+            "import_preservation_warning_count": import_preservation_warning_count,
             "activity_constraint_counts": dict(sorted(constraint_count_by_activity.items())),
         },
         "quality_index": quality_index,
