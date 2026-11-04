@@ -852,13 +852,27 @@ def build_schedule_quality_audit(
             )
         assigned_activity_ids.add(activity_id)
 
-    data_date = _iso_date(schedule_options.get("data_date"))
+    date_based = payload.get("mode") == "DATE_BASED"
+    data_date = (
+        _iso_date(schedule_options.get("data_date"))
+        if date_based
+        else _iso_datetime(schedule_options.get("data_date"))
+    )
     actual_after_data_date = 0
     if data_date is not None:
         for activity_id, activity in sorted(activity_rows.items()):
-            for field_name in ("actual_start", "actual_finish"):
-                actual_value = _iso_date(activity.get(field_name))
-                if actual_value is not None and actual_value > data_date:
+            fields = ("actual_start", "actual_finish") if date_based else ("actual_start",)
+            for field_name in fields:
+                actual_value = (
+                    _iso_date(activity.get(field_name))
+                    if date_based
+                    else _iso_datetime(activity.get(field_name))
+                )
+                if (
+                    actual_value is not None
+                    and type(actual_value) is type(data_date)
+                    and actual_value > data_date
+                ):
                     actual_after_data_date += 1
                     add(
                         "ACTUAL_AFTER_DATA_DATE",
