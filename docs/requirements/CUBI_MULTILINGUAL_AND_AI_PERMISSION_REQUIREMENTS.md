@@ -1,4 +1,4 @@
-# CUBI Multilingual Experience and AI Assistant Permission Contract
+# CUBI Multilingual Experience and Engineering Command Assistant Permission Contract
 
 **Status:** Binding product requirement; implementation completion must be proven separately.  
 **Applies to:** Public website, authenticated Web workspace first, Desktop second, Mobile when delivered, shared APIs/services, reports/exports/help, offline workflows and the embedded CUBI assistant.
@@ -42,7 +42,7 @@ The CUBI assistant is a project-aware, action-capable product assistant—not me
 ### 3.2 Proposal, approval and execution
 
 - Any mutation must be represented as a typed, scoped, versioned proposal before execution. The proposal identifies target project/revision, operation, affected records, expected changes, source/evidence, risks, and whether approval is required.
-- The application re-checks identity, tenant/project scope, current revision, operation-level permission, tool allowlist, policy and approval immediately before execution. Never trust model-generated permission claims or a prior UI-only check.
+- The application re-checks identity, tenant/project scope, current revision, operation-level permission, tool allowlist, policy and approval immediately before execution. Never trust client-supplied or assistant-engine-generated permission claims or a prior UI-only check.
 - Human approval is required for consequential actions, including destructive changes, baseline/publication changes, bulk edits, changes to actual/progress records, permission/security changes, external sharing and other configured high-impact operations. Approval must identify the human actor and bind to the exact proposal/revision; stale proposals require revalidation and renewed approval.
 - Bounded automatic execution is permitted only for operations explicitly granted by the user/admin, with scope and limits visible, and only where policy permits. Never infer automatic-write consent from a general chat request or a read-only grant.
 - Reject, cancellation, timeout, permission denial, stale revision and partial failure must be explicit and auditable. Multi-record changes require defined transaction/compensation behavior and idempotency.

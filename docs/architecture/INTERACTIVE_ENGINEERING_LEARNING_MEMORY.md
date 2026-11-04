@@ -1,5 +1,7 @@
 # CUBI Engineering Intelligence — Interactive Learning and Durable Memory
 
+> **Binding scope correction (2026-11-04):** Principle 13 and [CUBI_INTERNAL_COMMAND_ASSISTANT_PRINCIPLE.md](CUBI_INTERNAL_COMMAND_ASSISTANT_PRINCIPLE.md) govern the assistant. All references below to conversations, discussion or interaction mean structured command clarification, explicit feedback and approved knowledge capture—not an open-ended chatbot product. No third-party AI/ML model, model runtime, provider, external AI service, AI API/key or model-based fallback is permitted. Learning means versioned, privacy-governed knowledge and rule/dictionary curation inside CUBI, not model training. Where this document conflicts with the command-oriented interaction mode or no-model rule, Principle 13 prevails.
+
 **Requirement date:** 2026-10-23  
 **Status:** Mandatory assistant scope; implementation tracked by Issue #1540 and the V1 assistant gate #1423.  
 **Scope:** Engineering reasoning, personalization, reusable methods and recommendations. This does not authorize automatic changes to CUBI's calculation engine, product behavior or project data.
@@ -59,7 +61,7 @@ Required lifecycle: authorize → search allowed sources → record source/versi
 
 ## 6. Persistence, provenance and version migration
 
-Memory must be stored in a durable database, not only a prompt, model context or in-process list. Each record needs a stable ID, schema/version, scope, lifecycle status, provenance/evidence references, validation state, timestamps, limitations, relationships/supersession and publication approval where applicable.
+Memory must be stored in a durable database, not only transient session context or an in-process list. Each record needs a stable ID, schema/version, scope, lifecycle status, provenance/evidence references, validation state, timestamps, limitations, relationships/supersession and publication approval where applicable.
 
 The implementation must support:
 - persistent storage and retrieval across process restart;
@@ -75,7 +77,7 @@ A successful backup job is not a restore test. A schema upgrade is not accepted 
 
 ## 7. Privacy and cross-user firewall
 
-- Resolve caller identity from the authenticated server context; never trust model/client-supplied requester or scope claims.
+- Resolve caller identity from the authenticated server context; never trust client-supplied or assistant-engine-supplied requester or scope claims.
 - Default deny for unknown scope, missing consent, invalid publication state or uncertain authorization.
 - Do not query or rank another tenant's private records as candidates for a general answer.
 - Cross-user retrieval is restricted to approved generalized knowledge. Never return source project records, exact values, names, documents, schedules, transcripts or reconstructable details.

@@ -8,13 +8,14 @@
  * project routes here by default; use the explicit live view to open API-backed data.
  */
 import { workspaceIcon } from "./workspace-icons.js";
+import { ENGINEERING_SHELLS, ENGINEERING_SHELL_STYLES, isEngineeringShellWindow, renderEngineeringShell, type EngineeringShellWindowId } from "./workspace-engineering-shells.js";
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceUiText } from "./workspace-localization.js";
 import { LANDING_LOCALE_STORAGE_KEY, rememberWorkspaceLocale, writeStoredValue } from "./workspace-preferences.js";
 
 export type DemoWindowId =
   | "projects" | "wbs" | "activities" | "assignments" | "resources" | "roles" | "calendars" | "reports"
   | "tracking" | "documents" | "expenses" | "thresholds" | "issues" | "risks" | "administration"
-  | "network" | "trace" | "timeline" | "activity-profile" | "resource-profile" | "activity-sheet" | "resource-sheet" | "cost-control" | "progress-control" | "procurement" | "changes-claims" | "form-builder" | "organization" | "smart-guide" | "assistant" | "search" | "comments";
+  | "network" | "trace" | "timeline" | "activity-profile" | "resource-profile" | "activity-sheet" | "resource-sheet" | "cost-control" | "progress-control" | "procurement" | "changes-claims" | "form-builder" | "organization" | "smart-guide" | "assistant" | "search" | "comments" | EngineeringShellWindowId;
 
 type Label = { en: string; fa: string };
 type Row = Record<string, string | number>;
@@ -48,6 +49,22 @@ const WINDOWS: Array<{ id: DemoWindowId; en: string; fa: string }> = [
   { id: "changes-claims", en: "Changes & Claims", fa: "تغییرات و ادعاها" },
   { id: "form-builder", en: "Form Builder", fa: "فرم‌ساز" },
   { id: "organization", en: "Organization", fa: "سازمان" },
+  { id: "engineering-analysis", en: "Engineering Analysis & Root Cause", fa: "تحلیل مهندسی و علت ریشه‌ای" },
+  { id: "project-watchdog", en: "Project Watchdog", fa: "ناظر هوشمند پروژه" },
+  { id: "scenario-lab", en: "Scenario Lab & Simulation", fa: "آزمایشگاه سناریو و شبیه‌سازی" },
+  { id: "optimization-studio", en: "Optimization Studio", fa: "استودیوی بهینه‌سازی" },
+  { id: "project-quality", en: "Schedule & Project Quality", fa: "ممیزی کیفیت زمان‌بندی و پروژه" },
+  { id: "construction-productivity", en: "Construction Productivity", fa: "بهره‌وری عملیات ساخت" },
+  { id: "data-reconciliation", en: "Project Data Reconciliation", fa: "تطبیق اطلاعات پروژه" },
+  { id: "portfolio-capacity", en: "Portfolio Capacity", fa: "ظرفیت سبد پروژه‌ها" },
+  { id: "automation-center", en: "Automation Center", fa: "مرکز اتوماسیون" },
+  { id: "engineering-standards", en: "Engineering Standards & Methods", fa: "استانداردها و روش‌های مهندسی" },
+  { id: "project-templates", en: "Project & Work-Method Templates", fa: "الگوهای پروژه و روش اجرا" },
+  { id: "decision-register", en: "Decision Register & Support", fa: "دفتر ثبت و پشتیبانی تصمیم" },
+  { id: "deadline-monitor", en: "Deadlines & SLA", fa: "مهلت‌ها و SLA" },
+  { id: "data-quality", en: "Data Quality Profiler", fa: "ارزیاب کیفیت داده" },
+  { id: "recovery-center", en: "Recovery & Change History", fa: "بازیابی و تاریخچه تغییرات" },
+  { id: "command-dictionaries", en: "Command Dictionaries", fa: "فرهنگ واژگان فرمان" },
   { id: "smart-guide", en: "Smart Guide", fa: "راهنمای هوشمند" },
   { id: "assistant", en: "Engineering Assistant", fa: "دستیار مهندسی" },
   { id: "search", en: "Global Search", fa: "جست‌وجوی سراسری" },
@@ -185,6 +202,7 @@ type DemoState = {
   activityView: "schedule" | "relationships";
   detailTab: string;
   moduleDetailTab: "general" | "status" | "relationships" | "comments" | "history";
+  engineDetailTab: string;
   moduleSelectedRow: number;
   moduleSearch: string;
   moduleSort: "default" | "ascending" | "descending";
@@ -857,6 +875,7 @@ function renderFormBuilderWindow(state: DemoState): string {
 }
 
 function renderWindow(state: DemoState): string {
+  if (isEngineeringShellWindow(state.window)) return renderEngineeringShell(state.window, state.locale, state.engineDetailTab);
   switch (state.window) {
     case "projects":
       return renderTableWindow(state, { en: "Projects", fa: "پروژه‌ها" }, ["Project ID", "Project name", "Status", "Start", "Finish", "Data date", "Activities"], [
@@ -1214,6 +1233,27 @@ const MENUS: Array<{ id: string; label: Label; items: Array<{ label: Label; shor
       { label: { en: "Report wizard…", fa: "جادوگر گزارش…" }, action: { dialog: "report-wizard" } },
       { label: { en: "Report preview", fa: "پیش‌نمایش گزارش" }, action: { window: "reports" } },
     ] },
+    { label: { en: "Engineering Intelligence", fa: "هوشمندی مهندسی" }, children: [
+      { label: { en: "Engineering Analysis & Root Cause", fa: "تحلیل مهندسی و علت ریشه‌ای" }, action: { window: "engineering-analysis" } },
+      { label: { en: "Project Watchdog", fa: "ناظر هوشمند پروژه" }, action: { window: "project-watchdog" } },
+      { label: { en: "Scenario Lab", fa: "آزمایشگاه سناریو" }, action: { window: "scenario-lab" } },
+      { label: { en: "Optimization Studio", fa: "استودیوی بهینه‌سازی" }, action: { window: "optimization-studio" } },
+      { label: { en: "Risk & Uncertainty", fa: "ریسک و عدم‌قطعیت" }, action: { window: "risks" } },
+      { label: { en: "Schedule & Project Quality", fa: "کیفیت زمان‌بندی و پروژه" }, action: { window: "project-quality" } },
+      { label: { en: "Construction Productivity", fa: "بهره‌وری عملیات ساخت" }, action: { window: "construction-productivity" } },
+      { label: { en: "Contract & Claims Analysis", fa: "تحلیل قرارداد و ادعا" }, action: { window: "changes-claims" } },
+      { label: { en: "Data Reconciliation", fa: "تطبیق اطلاعات" }, action: { window: "data-reconciliation" } },
+      { label: { en: "Automation Center", fa: "مرکز اتوماسیون" }, action: { window: "automation-center" } },
+      { label: { en: "Portfolio Capacity", fa: "ظرفیت سبد پروژه‌ها" }, action: { window: "portfolio-capacity" } },
+      { label: { en: "Engineering Standards & Methods", fa: "استانداردها و روش‌های مهندسی" }, action: { window: "engineering-standards" } },
+      { label: { en: "Project Templates", fa: "الگوهای پروژه" }, action: { window: "project-templates" } },
+      { label: { en: "Decision Register", fa: "دفتر ثبت تصمیم" }, action: { window: "decision-register" } },
+      { label: { en: "Deadlines & SLA", fa: "مهلت‌ها و SLA" }, action: { window: "deadline-monitor" } },
+      { label: { en: "Data Quality", fa: "کیفیت داده" }, action: { window: "data-quality" } },
+      { label: { en: "Recovery & History", fa: "بازیابی و تاریخچه" }, action: { window: "recovery-center" } },
+      { label: { en: "Command Dictionaries", fa: "فرهنگ واژگان فرمان" }, action: { window: "command-dictionaries" } },
+      { label: { en: "Contextual Smart Guide", fa: "راهنمای هوشمند زمینه‌ای" }, action: { window: "smart-guide" } },
+    ] },
     { label: { en: "Preferences…", fa: "تنظیمات…" }, action: { dialog: "preferences" } },
   ] },
   { id: "administration", label: { en: "Administration", fa: "مدیریت" }, items: [
@@ -1512,10 +1552,12 @@ function renderLanguageSwitch(state: DemoState): string {
 
 export function renderVisualDemo(state: DemoState): string {
   const index = WINDOWS.findIndex((window) => window.id === state.window);
+  const engineShellActive = isEngineeringShellWindow(state.window);
   const navGroups: Array<{ id: string; en: string; fa: string; items: DemoWindowId[] }> = [
     { id: "planning", en: "Planning & Schedule", fa: "برنامه‌ریزی و زمان‌بندی", items: ["wbs", "activities", "network", "trace", "timeline", "activity-profile", "resource-profile", "activity-sheet", "resource-sheet", "calendars"] },
-    { id: "controls", en: "Project Controls", fa: "کنترل پروژه", items: ["assignments", "resources", "roles", "cost-control", "progress-control", "procurement", "changes-claims", "tracking", "expenses", "thresholds", "issues", "risks"] },
-    { id: "information", en: "Information & Administration", fa: "اطلاعات و مدیریت", items: ["documents", "reports", "form-builder", "comments", "organization", "administration", "smart-guide", "assistant", "search"] },
+    { id: "controls", en: "Project Controls", fa: "کنترل پروژه", items: ["assignments", "resources", "roles", "cost-control", "progress-control", "procurement", "tracking", "expenses", "thresholds", "issues"] },
+    { id: "engineering", en: "Engineering Intelligence", fa: "هوشمندی مهندسی", items: [...ENGINEERING_SHELLS.map((item) => item.id), "risks", "changes-claims", "smart-guide"] },
+    { id: "information", en: "Information & Administration", fa: "اطلاعات و مدیریت", items: ["documents", "reports", "form-builder", "comments", "organization", "administration", "assistant", "search"] },
   ];
   const navGroup = (group: typeof navGroups[number]): string => {
     const collapsed = state.collapsedNavGroups.includes(group.id);
@@ -1560,7 +1602,7 @@ export function renderVisualDemo(state: DemoState): string {
 .cp-vd-assistant-layout{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:10px;padding:12px;background:#eef2f7}.cp-vd-assistant-chat{display:flex;flex-direction:column;gap:10px;min-width:0}.cp-vd-assistant-context{display:flex;flex-wrap:wrap;gap:8px 16px;padding:9px 12px;border:1px solid #d5dee8;border-radius:5px;background:#fff;font-size:10px;color:#64748b}.cp-vd-assistant-context strong{color:#294765}.cp-vd-assistant-message{max-width:88%;padding:11px 13px;border:1px solid #d5dee8;border-radius:7px;background:#fff;color:#334155;font-size:11px}.cp-vd-assistant-message.is-user{align-self:flex-end;background:#e7f0fa;border-color:#c7d9ed}.cp-vd-assistant-message>b{color:#173d68}.cp-vd-assistant-message p{margin:7px 0;line-height:1.55}.cp-vd-assistant-message small{color:#718096}.cp-vd-assistant-message ul{padding-inline-start:18px;line-height:1.8}.cp-vd-assistant-proposal{margin-top:9px;padding:10px;border:1px solid #d8b78f;border-inline-start:4px solid #c87935;border-radius:4px;background:#fff9f1}.cp-vd-assistant-proposal p{margin:5px 0 9px}.cp-vd-assistant-composer{padding:10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff}.cp-vd-assistant-composer textarea{width:100%;resize:vertical;border:1px solid #cbd5e1;border-radius:4px;padding:8px;font:12px Inter,Vazirmatn,sans-serif}.cp-vd-assistant-composer>div{display:flex;align-items:center;gap:7px;margin-top:7px}.cp-vd-assistant-composer button,.cp-vd-assistant-file{border:1px solid #cbd5e1;border-radius:4px;background:#f8fafc;padding:6px 9px;color:#425a73;font-size:10px}.cp-vd-assistant-file input{max-width:145px}.cp-vd-assistant-composer button:disabled,.cp-vd-assistant-composer textarea:disabled{opacity:.6}.cp-vd-assistant-composer small{display:block;margin-top:7px;color:#718096;font-size:9px}.cp-vd-assistant-side{padding:12px;border:1px solid #d5dee8;border-radius:5px;background:#f8fafc}.cp-vd-assistant-side h3{margin:0 0 9px;color:#294765;font-size:13px}.cp-vd-assistant-side article{padding:9px 0;border-bottom:1px solid #dce3eb}.cp-vd-assistant-side article strong{font-size:11px;color:#334b66}.cp-vd-assistant-side article p{font-size:10px;color:#718096;line-height:1.5}.cp-vd-smart-guide{padding:12px;background:#f7f9fc}.cp-vd-guide-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px}.cp-vd-guide-summary div{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid #d5dee8;border-radius:5px;background:#fff}.cp-vd-guide-summary strong{font-size:19px;color:#173d68}.cp-vd-guide-summary span{font-size:10px;color:#718096}.cp-vd-guide-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:10px}.cp-vd-guide-steps{display:grid;gap:7px}.cp-vd-guide-step{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px;border:1px solid #d5dee8;border-radius:5px;background:#fff}.cp-vd-guide-step>b{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#e8edf4;color:#53677e}.cp-vd-guide-step.is-complete>b{background:#d8efe4;color:#26724e}.cp-vd-guide-step.is-current>b{background:#dce9f7;color:#173d68}.cp-vd-guide-step.is-warning>b{background:#fff0d8;color:#9a5b1d}.cp-vd-guide-step strong{font-size:11px;color:#294765}.cp-vd-guide-step p{margin:4px 0 0;font-size:10px;color:#718096}.cp-vd-guide-step>span{font-size:10px;color:#64748b;white-space:nowrap}.cp-vd-guide-checks{padding:11px;border:1px solid #d5dee8;border-radius:5px;background:#fff}.cp-vd-guide-checks h3{margin:0 0 9px;color:#294765;font-size:12px}.cp-vd-guide-check{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #edf1f5;font-size:10px;color:#53677e}.cp-vd-guide-check b{font-size:13px}.cp-vd-guide-check.is-pass b{color:#2c8a61}.cp-vd-guide-check.is-warning b{color:#c87935}.cp-vd-guide-check.is-pending b{color:#94a3b8}@media(max-width:900px){.cp-vd-assistant-layout,.cp-vd-guide-layout{grid-template-columns:1fr}.cp-vd-assistant-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.cp-vd-assistant-side h3,.cp-vd-assistant-side .cp-vd-hintbox{grid-column:1/-1}}@media(max-width:560px){.cp-vd-guide-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.cp-vd-guide-step{grid-template-columns:30px minmax(0,1fr)}.cp-vd-guide-step>span,.cp-vd-guide-step button{grid-column:2}.cp-vd-assistant-message{max-width:100%}.cp-vd-assistant-side{grid-template-columns:1fr}}
 .cp-vd-form-builder-grid{display:grid;grid-template-columns:minmax(170px,19%) minmax(360px,1fr) minmax(220px,26%);min-height:570px;background:#eef2f7}.cp-vd-form-library-tabs{display:flex;gap:5px;padding:8px 12px;border-bottom:1px solid #d4dde7;background:#f4f7fa}.cp-vd-form-library-tabs button{display:flex;align-items:center;gap:10px;border:1px solid #cbd6e2;border-radius:4px;background:#fff;padding:7px 11px;color:#425a73;font-size:11px}.cp-vd-form-library-tabs button.is-active{background:#dce9f7;border-color:#7898bb;color:#173d68;font-weight:700}.cp-vd-form-library-tabs span{border-radius:10px;background:#e8edf4;padding:2px 6px}.cp-vd-form-list{padding:10px;border-inline-end:1px solid #cbd5e1;background:#f6f8fb;min-width:0}.cp-vd-form-list>strong{display:block;margin-bottom:8px;color:#425a73;font-size:12px}.cp-vd-form-list-item{display:flex;flex-direction:column;gap:4px;width:100%;margin-bottom:6px;padding:8px;border:1px solid #d5dee8;border-radius:4px;background:#fff;text-align:start;color:#334b66}.cp-vd-form-list-item span{display:flex;flex-direction:column;gap:3px}.cp-vd-form-list-item strong{font-size:11px}.cp-vd-form-list-item small{font-size:10px;color:#718096}.cp-vd-form-canvas{padding:10px;min-width:0;overflow:auto}.cp-vd-form-canvas-toolbar{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;color:#53677e;font-size:11px}.cp-vd-form-paper{max-width:760px;min-height:500px;margin:auto;padding:26px;background:#fff;border:1px solid #cbd5e1;box-shadow:0 2px 9px #1e293b12;color:#334155}.cp-vd-form-paper>header{display:flex;gap:18px;align-items:center;border-bottom:2px solid #c87935;padding-bottom:15px}.cp-vd-form-logo{display:grid;place-content:center;min-width:76px;height:64px;border:1px dashed #9aa9ba;color:#173d68;text-align:center;font-weight:800}.cp-vd-form-logo small{font-size:7px}.cp-vd-form-paper h3{margin:0 0 5px;color:#173d68}.cp-vd-form-paper p{margin:3px 0;font-size:10px;color:#64748b}.cp-vd-form-paper section{margin-top:18px;padding:12px;border:1px solid #dce3eb;border-radius:4px}.cp-vd-form-paper h4{margin:0 0 10px;font-size:12px;color:#294765}.cp-vd-form-paper label{display:flex;flex-direction:column;gap:4px;margin:7px 0;font-size:10px;color:#53677e}.cp-vd-form-paper input,.cp-vd-form-paper textarea{width:100%;border:1px solid #d5dee8;border-radius:3px;padding:6px;background:#fbfcfd;font:11px Inter,Vazirmatn,sans-serif}.cp-vd-form-paper-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cp-vd-form-paper footer{display:flex;justify-content:space-between;margin-top:18px;padding-top:12px;border-top:1px solid #dce3eb;font-size:10px}.cp-vd-form-properties{background:#f6f8fb;border-inline-start:1px solid #cbd5e1;min-width:0}.cp-vd-form-property-tabs{display:flex;flex-wrap:wrap;gap:2px;padding:6px;border-bottom:1px solid #d5dee8}.cp-vd-form-property-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:6px 7px;font-size:10px;color:#64748b}.cp-vd-form-property-tabs button.is-active{border-color:#c87935;color:#173d68;font-weight:700}.cp-vd-form-property-panel{padding:10px}.cp-vd-form-workflow{list-style:none;padding:0;margin:0;display:grid;gap:8px}.cp-vd-form-workflow li{display:flex;gap:9px;align-items:center;padding:10px;border:1px solid #d5dee8;border-radius:4px;background:#fff}.cp-vd-form-workflow li>b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#dce9f7;color:#173d68}.cp-vd-form-workflow li span{display:flex;flex-direction:column;gap:3px}.cp-vd-form-workflow small{font-size:10px;color:#718096}@media(max-width:1100px){.cp-vd-form-builder-grid{grid-template-columns:180px minmax(0,1fr)}.cp-vd-form-properties{grid-column:1/-1;border-inline-start:0;border-top:1px solid #cbd5e1}}@media(max-width:700px){.cp-vd-form-builder-grid{grid-template-columns:1fr}.cp-vd-form-list{border-inline-end:0;border-bottom:1px solid #cbd5e1}.cp-vd-form-paper{padding:14px}.cp-vd-form-paper-row{grid-template-columns:1fr}}
 .cp-vd-module-overview{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,27%);gap:10px;padding:10px 12px;border-bottom:1px solid #d8e0e9;background:#f8fafc}.cp-vd-metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.cp-vd-metric-card{display:flex;flex-direction:column;gap:4px;min-width:0;padding:9px;border:1px solid #d9e1ea;border-radius:5px;background:#fff}.cp-vd-metric-card>span{font-size:10px;color:#64748b}.cp-vd-metric-card>strong{font-size:19px;line-height:1.2;color:#1e3d60;overflow-wrap:anywhere}.cp-vd-metric-card>small{font-size:10px;color:#718096}.cp-vd-metric-card>i{height:4px;margin-top:3px;border-radius:5px;background:#e7edf4;overflow:hidden}.cp-vd-metric-card>i>b{display:block;height:100%;background:#376da8}.cp-vd-metric-card.is-orange>i>b{background:#c87935}.cp-vd-metric-card.is-green>i>b{background:#3b8a69}.cp-vd-metric-card.is-red>i>b{background:#c04e4e}.cp-vd-module-chart{display:flex;flex-direction:column;justify-content:center;gap:10px;padding:8px;border:1px solid #d9e1ea;border-radius:5px;background:#fff;min-width:0}.cp-vd-module-chart>strong{font-size:11px;color:#425a73}.cp-vd-module-stack{display:flex;height:12px;overflow:hidden;border-radius:6px;background:#e7edf4}.cp-vd-module-stack span.is-blue,.cp-vd-module-legend i.is-blue{background:#376da8}.cp-vd-module-stack span.is-orange,.cp-vd-module-legend i.is-orange{background:#c87935}.cp-vd-module-stack span.is-green,.cp-vd-module-legend i.is-green{background:#3b8a69}.cp-vd-module-stack span.is-red,.cp-vd-module-legend i.is-red{background:#c04e4e}.cp-vd-module-legend{display:flex;flex-wrap:wrap;gap:6px 10px}.cp-vd-module-legend span{display:flex;align-items:center;gap:4px;font-size:9px;color:#64748b}.cp-vd-module-legend i{width:7px;height:7px;border-radius:2px}@media(max-width:900px){.cp-vd-module-overview{grid-template-columns:1fr}.cp-vd-module-chart{min-height:76px}}@media(max-width:560px){.cp-vd-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.cp-vd-calendar-hours{width:100%;min-width:145px;border:1px solid #cbd5e1;border-radius:3px;background:#fff;padding:4px 6px;color:#334155;font:11px Inter,Vazirmatn,sans-serif}.cp-vd-calendar-working{display:flex;align-items:center;gap:5px;white-space:nowrap}.cp-vd-calendar-working input{accent-color:#3b8a69}.cp-vd-register-search,.cp-vd-register-sort{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-register-search input,.cp-vd-register-sort select{min-width:118px;max-width:190px;height:29px;border:1px solid var(--cp-vd-border);border-radius:5px;background:var(--cp-vd-panel);color:var(--cp-vd-text);padding:3px 7px}.cp-vd-register-search input{min-width:170px}.cp-vd-register-count{font-size:11px;font-weight:700;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-empty-state{text-align:center;padding:28px!important;color:var(--cp-vd-muted)}@media(max-width:760px){.cp-vd-register-search,.cp-vd-register-sort{width:100%;justify-content:space-between}.cp-vd-register-search input,.cp-vd-register-sort select{flex:1;max-width:none}.cp-vd-register-count{margin-inline-start:auto}}</style><div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
+.cp-vd-calendar-hours{width:100%;min-width:145px;border:1px solid #cbd5e1;border-radius:3px;background:#fff;padding:4px 6px;color:#334155;font:11px Inter,Vazirmatn,sans-serif}.cp-vd-calendar-working{display:flex;align-items:center;gap:5px;white-space:nowrap}.cp-vd-calendar-working input{accent-color:#3b8a69}.cp-vd-register-search,.cp-vd-register-sort{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-register-search input,.cp-vd-register-sort select{min-width:118px;max-width:190px;height:29px;border:1px solid var(--cp-vd-border);border-radius:5px;background:var(--cp-vd-panel);color:var(--cp-vd-text);padding:3px 7px}.cp-vd-register-search input{min-width:170px}.cp-vd-register-count{font-size:11px;font-weight:700;color:var(--cp-vd-muted);white-space:nowrap}.cp-vd-empty-state{text-align:center;padding:28px!important;color:var(--cp-vd-muted)}@media(max-width:760px){.cp-vd-register-search,.cp-vd-register-sort{width:100%;justify-content:space-between}.cp-vd-register-search input,.cp-vd-register-sort select{flex:1;max-width:none}.cp-vd-register-count{margin-inline-start:auto}}${ENGINEERING_SHELL_STYLES}</style><div class="cp-vd" data-visual-demo dir="${state.locale.startsWith("fa") ? "rtl" : "ltr"}">
     <div class="cp-vd-titlebar"><strong>CUBI</strong><span>${esc(t(state.locale, "Professional Workspace", "محیط کار حرفه‌ای"))}</span><span class="cp-vd-project">CUBI-DEMO-001 — ${esc(t(state.locale, "Riverside Pump Station Upgrade", "ارتقای ایستگاه پمپ ریورساید"))}</span><span class="cp-vd-demo-badge">${esc(t(state.locale, "Visual demo · sample data", "نمایش بصری · دادهٔ نمونه"))}</span><span class="cp-vd-titlebar-spacer"></span>${renderLanguageSwitch(state)}<button type="button" class="cp-vd-fullscreen" data-vd-fullscreen aria-pressed="${state.fullscreen ? "true" : "false"}" title="${esc(t(state.locale, "Toggle full screen", "تغییر حالت تمام‌صفحه"))}">${esc(state.fullscreen ? t(state.locale, "Return to normal view", "بازگشت به نمای اصلی") : t(state.locale, "Full screen", "تمام‌صفحه"))}</button><button type="button" class="cp-vd-exit" data-vd-action='{"command":"sign-out"}' title="${esc(t(state.locale, "Sign out and return to home page", "خروج از حساب و بازگشت به صفحه اصلی"))}">${esc(t(state.locale, "Sign out", "خروج از حساب"))}</button></div>
     ${renderMenus(state)}
     ${renderToolbars(state)}
@@ -1573,11 +1615,11 @@ export function renderVisualDemo(state: DemoState): string {
       </nav>
       <main class="cp-vd-main">${renderWindow(state)}</main>
       <aside class="cp-vd-right-rail" aria-label="${esc(t(state.locale, "Context commands", "فرمان‌های زمینه‌ای"))}">
-        <button type="button" class="cp-vd-rail-add" data-vd-dialog="module-actions" title="${esc(t(state.locale, "Add item", "افزودن آیتم"))}">＋<span>${esc(t(state.locale, "Add", "افزودن"))}</span></button>
-        <button type="button" data-vd-dialog="module-actions" title="${esc(t(state.locale, "Edit selected item", "ویرایش آیتم انتخاب‌شده"))}">✎</button>
-        <button type="button" data-vd-dialog="module-actions" title="${esc(t(state.locale, "Assign or link", "تخصیص یا پیوند"))}">↗</button>
-        <button type="button" data-vd-window="comments" title="${esc(t(state.locale, "Comments and notes", "دیدگاه‌ها و یادداشت‌ها"))}">▤</button>
-        <button type="button" data-vd-dialog="module-actions" title="${esc(t(state.locale, "More commands", "فرمان‌های بیشتر"))}">⋯</button>
+        <button type="button" class="cp-vd-rail-add" data-vd-dialog="module-actions" ${engineShellActive ? "disabled" : ""} title="${esc(t(state.locale, engineShellActive ? "Engine tools are planned and not connected yet." : "Add item", engineShellActive ? "ابزار موتور هنوز برنامه‌ریزی شده و متصل نیست." : "افزودن آیتم"))}">＋<span>${esc(t(state.locale, "Add", "افزودن"))}</span></button>
+        <button type="button" data-vd-dialog="module-actions" ${engineShellActive ? "disabled" : ""} title="${esc(t(state.locale, "Edit selected item", "ویرایش آیتم انتخاب‌شده"))}">✎</button>
+        <button type="button" data-vd-dialog="module-actions" ${engineShellActive ? "disabled" : ""} title="${esc(t(state.locale, "Assign or link", "تخصیص یا پیوند"))}">↗</button>
+        <button type="button" data-vd-window="comments" ${engineShellActive ? "disabled" : ""} title="${esc(t(state.locale, "Comments and notes", "دیدگاه‌ها و یادداشت‌ها"))}">▤</button>
+        <button type="button" data-vd-dialog="module-actions" ${engineShellActive ? "disabled" : ""} title="${esc(t(state.locale, "More commands", "فرمان‌های بیشتر"))}">⋯</button>
       </aside>
     </div>
     <div class="cp-vd-status"><span>${esc(t(state.locale, "Project", "پروژه"))}: CUBI-DEMO-001</span><span>${esc(t(state.locale, "Data date", "تاریخ داده"))}: <bdi dir="ltr">03-Dec-2026</bdi></span><span>${esc(t(state.locale, "Baseline", "خط مبنا"))}: BL-01</span><span>${esc(t(state.locale, "Window", "پنجره"))}: ${esc(label(WINDOWS[index] ?? WINDOWS[0], state.locale))}</span><span class="cp-vd-status-end">${esc(t(state.locale, "Preview data — not saved or calculated", "دادهٔ پیش‌نمایش — ذخیره یا محاسبه نشده"))}</span></div>
@@ -1597,6 +1639,7 @@ export function createVisualDemoState(locale: string): DemoState {
     activityView: "schedule",
     detailTab: "general",
     moduleDetailTab: "general",
+    engineDetailTab: "general",
     moduleSelectedRow: 0,
     moduleSearch: "",
     moduleSort: "default",
@@ -1738,13 +1781,16 @@ function bind(root: HTMLElement): void {
     state.history.push(state.window);
     state.forward.length = 0;
     state.window = id;
+    if (isEngineeringShellWindow(id)) state.engineDetailTab = "general";
     const groupByWindow: Partial<Record<DemoWindowId, string>> = {
+      ...Object.fromEntries(ENGINEERING_SHELLS.map((item) => [item.id, "engineering"])) as Partial<Record<DemoWindowId, string>>,
       wbs: "planning", activities: "planning", network: "planning", trace: "planning", timeline: "planning",
       "activity-profile": "planning", "resource-profile": "planning", "activity-sheet": "planning", "resource-sheet": "planning", calendars: "planning",
       assignments: "controls", resources: "controls", roles: "controls", "cost-control": "controls", "progress-control": "controls", procurement: "controls",
-      "changes-claims": "controls", tracking: "controls", expenses: "controls", thresholds: "controls", issues: "controls", risks: "controls",
+      tracking: "controls", expenses: "controls", thresholds: "controls", issues: "controls",
       documents: "information", reports: "information", "form-builder": "information", comments: "information", organization: "information", administration: "information",
-      "smart-guide": "information", assistant: "information", search: "information",
+      assistant: "information", search: "information",
+      risks: "engineering", "changes-claims": "engineering", "smart-guide": "engineering",
     };
     const activeGroup = groupByWindow[id];
     if (activeGroup) state.collapsedNavGroups = state.collapsedNavGroups.filter((group) => group !== activeGroup);
@@ -1886,6 +1932,12 @@ function bind(root: HTMLElement): void {
     const formTab = target.closest<HTMLElement>("[data-vd-form-tab]");
     if (formTab?.dataset.vdFormTab && ["design", "fields", "workflow", "permissions", "versions"].includes(formTab.dataset.vdFormTab)) {
       state.formTab = formTab.dataset.vdFormTab as DemoState["formTab"];
+      draw();
+      return;
+    }
+    const engineTab = target.closest<HTMLElement>("[data-vd-engine-tab]");
+    if (engineTab?.dataset.vdEngineTab) {
+      state.engineDetailTab = engineTab.dataset.vdEngineTab;
       draw();
       return;
     }

@@ -13,10 +13,14 @@ export function shouldRenderVisualWorkspaceDemo(
   const parameters = new URLSearchParams(search);
   if (parameters.get("view") === "live") return false;
   if (parameters.get("view") === "visual") return true;
-  return (
-    pathname === "/app" &&
-    parameters.get("project") === VISUAL_WORKSPACE_PREVIEW_PROJECT_ID
-  );
+  if (pathname !== "/app") return false;
+
+  // The accepted entry flow is Home → Login → Visual Workspace. A direct
+  // login with no project context must therefore land in the visual shell,
+  // not the unrelated live/API workspace. Explicit non-preview project IDs
+  // continue to select the authenticated live workspace.
+  const projectId = parameters.get("project");
+  return !projectId || projectId === VISUAL_WORKSPACE_PREVIEW_PROJECT_ID;
 }
 
 /**
@@ -29,4 +33,16 @@ export function liveWorkspaceProjectHref(href: string, projectId: string): strin
   url.searchParams.set("project", projectId);
   url.searchParams.set("view", "live");
   return url.href;
+}
+
+
+/**
+ * Keep session-recovery sign-in on the visual entry surface unless the user
+ * explicitly opened a different project.
+ */
+export function workspaceLoginNextPath(projectId: string | null): string {
+  if (!projectId || projectId === VISUAL_WORKSPACE_PREVIEW_PROJECT_ID) {
+    return `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`;
+  }
+  return `/app?project=${encodeURIComponent(projectId)}&view=live`;
 }
