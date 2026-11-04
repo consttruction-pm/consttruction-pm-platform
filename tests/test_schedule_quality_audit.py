@@ -16,6 +16,9 @@ from construction_pm.backend_p0.authoritative_schedule_query import (
 from construction_pm.control_intelligence.contracts import ControlScope
 from construction_pm.control_intelligence.query import ScheduleQueryKind, ScheduleQueryRequest
 from construction_pm.control_intelligence.quality_audit import build_schedule_quality_audit
+from construction_pm.control_intelligence.quality_audit_history import (
+    SQLiteScheduleQualityAuditHistoryRepository,
+)
 from construction_pm.schedule_calculation_context_repository import (
     SQLiteCalculationContextRepository,
 )
@@ -134,6 +137,7 @@ def _query_service(
     source: AuthoritativeScheduleInput,
     *,
     quality_audit_context_loader=None,
+    persist_quality_audit_history: bool = False,
 ):
     connection = sqlite3.connect(":memory:")
     snapshots = SQLiteScheduleInputSnapshotRepository(connection)
@@ -155,6 +159,11 @@ def _query_service(
         datetime(2026, 11, 4, 9, 0, tzinfo=timezone.utc),
     )
     snapshots.save(snapshot)
+    quality_audit_history_repository = (
+        SQLiteScheduleQualityAuditHistoryRepository(connection)
+        if persist_quality_audit_history
+        else None
+    )
     registry = CalendarResolverRegistry(
         day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
     )
@@ -163,6 +172,7 @@ def _query_service(
             snapshots,
             lambda: registry,
             quality_audit_context_loader=quality_audit_context_loader,
+            quality_audit_history_repository=quality_audit_history_repository,
         ),
         RoleBasedAuthorizationPolicy(
             {"viewer": frozenset({Permission.PROJECT_READ})}
@@ -218,6 +228,50 @@ def test_quality_audit_query_runs_on_authorized_immutable_snapshot() -> None:
         assert report["summary"]["open_successor_count"] == 1
         assert answer.source_refs[0].revision == source.project_revision
         assert answer.source_refs[0].source_id == source.snapshot_id
+    finally:
+        connection.close()
+
+
+def test_quality_audit_query_persists_immutable_history_and_is_idempotent() -> None:
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-AUDIT-HISTORY",
+        tenant_id="tenant-1",
+        project_id="project-1",
+        project_revision=7,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A-1", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 11, 4),
+    )
+    connection, service, request, auth, context, snapshot = _query_service(
+        source,
+        persist_quality_audit_history=True,
+    )
+    try:
+        first_answer = service.execute(
+            request,
+            auth_context=auth,
+            calculation_context=context,
+        )
+        first_report = first_answer.data["quality_audit"]
+        history = service.provider.quality_audit_history_repository
+        first_history = history.list_for_project("tenant-1", "project-1")
+        assert first_report["audit_history"]["status"] == "persisted"
+        assert first_report["audit_history"]["audit_id"] == first_history[0].audit_id
+        assert first_history[0].scope.project_revision == 7
+        assert first_history[0].snapshot_id == snapshot.snapshot_id
+        assert first_history[0].snapshot_hash == snapshot.snapshot_hash
+        assert first_history[0].report["snapshot"]["snapshot_hash"] == snapshot.snapshot_hash
+
+        replay_answer = service.execute(
+            request,
+            auth_context=auth,
+            calculation_context=context,
+        )
+        assert replay_answer.data["quality_audit"]["audit_history"]["audit_id"] == first_history[0].audit_id
+        assert len(history.list_for_project("tenant-1", "project-1")) == 1
     finally:
         connection.close()
 
