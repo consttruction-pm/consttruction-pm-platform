@@ -119,6 +119,19 @@ def test_import_api_persists_hash_mapping_coverage_and_row_evidence_idempotently
         assert stored.row_summaries[0]["source_fields"] == ["task_code", "vendor_cost_code"]
         assert stored.row_summaries[0]["canonical_fields"] == ["activity.activity_name"]
         assert any("vendor_cost_code" in field for field in stored.row_summaries[0]["preserved_extension_fields"])
+
+        detail = api.get_import_batch(
+            scope=SCOPE,
+            batch_id=audit["batch_id"],
+            auth_context=ADMIN,
+        )
+        assert detail is not None
+        assert detail["batch"]["source_sha256"] == hashlib.sha256(source).hexdigest()
+        assert detail["batch"]["mapping_snapshot"][0]["mapping_id"] == "activity.code"
+        assert detail["batch"]["row_summaries"][0]["source_value_hashes"]["task_code"]
+        assert api.get_import_batch(
+            scope=SCOPE, batch_id="not-found", auth_context=ADMIN
+        ) is None
     finally:
         connection.close()
 
