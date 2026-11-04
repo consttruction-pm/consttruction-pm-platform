@@ -2970,7 +2970,7 @@ async function main() {
       `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length}`,
       "persisted column count after reload",
     );
-    const splitPreferencesAfterReload = await page.evaluate(`() => {
+    const splitPreferencesAfterReload = await page.evaluate(`(() => {
       const visible = (element) => {
         const rect = element.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0 && getComputedStyle(element).display !== "none";
@@ -2984,7 +2984,7 @@ async function main() {
         table: split?.style.getPropertyValue("--cp-split-table") ?? "",
         keys: Object.keys(localStorage).filter((key) => key.startsWith("cubi:workspace:split:")),
       };
-    }`);
+    })()`);
     assert(
       splitPreferencesAfterReload.details === splitPreferencesBeforeReload.details &&
         splitPreferencesAfterReload.table === splitPreferencesBeforeReload.table,
