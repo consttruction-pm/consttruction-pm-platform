@@ -4,7 +4,7 @@ export const VOICE_COMMAND_VERSION = "voice-command.v1" as const;
 export const SCHEDULE_QUERY_VERSION = "schedule-query.v1" as const;
 
 export type VoiceCommandSource = "microphone" | "imported_audio" | "manual_transcript";
-export type ScheduleQueryKind = "fact" | "explanation" | "filter" | "scenario";
+export type ScheduleQueryKind = "fact" | "explanation" | "filter" | "scenario" | "quality_audit";
 
 export type VoiceCommand = Readonly<{
   contract_version: typeof VOICE_COMMAND_VERSION;
@@ -146,7 +146,7 @@ function isTimezoneAwareDateTime(value: string): boolean {
 }
 
 function isQueryKind(value: string): value is ScheduleQueryKind {
-  return ["fact", "explanation", "filter", "scenario"].includes(value);
+  return ["fact", "explanation", "filter", "scenario", "quality_audit"].includes(value);
 }
 
 function isSource(value: string): value is VoiceCommandSource {
