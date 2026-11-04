@@ -582,6 +582,148 @@ def _audit_resources(
     return "evaluated_referential_integrity", len(by_id), len(periods)
 
 
+def _audit_activity_codes(
+    audit_context: Mapping[str, object] | None,
+    activities: Mapping[str, dict[str, object]],
+    add,
+) -> tuple[str, int, int]:
+    definitions = _context_records(audit_context, "code_definitions")
+    assignments = _context_records(audit_context, "code_assignments")
+    if definitions is None:
+        return "not_evaluated_code_definition_repository_not_configured", 0, 0
+    if assignments is None:
+        return "partial_code_definitions_only_assignment_repository_not_configured", len(definitions), 0
+
+    definitions_by_id: dict[str, dict[str, object]] = {}
+    value_ids_by_code: dict[str, set[str]] = {}
+    for definition in definitions:
+        code_id = definition.get("code_id")
+        if not isinstance(code_id, str) or not code_id.strip():
+            add(
+                "INVALID_ACTIVITY_CODE_DEFINITION_ID",
+                "critical",
+                "quality.finding.invalid_activity_code_definition_id",
+                object_type="activity_code",
+            )
+            continue
+        if code_id in definitions_by_id:
+            add(
+                "DUPLICATE_ACTIVITY_CODE_DEFINITION",
+                "critical",
+                "quality.finding.duplicate_activity_code_definition",
+                object_type="activity_code",
+                object_id=code_id,
+            )
+            continue
+        definitions_by_id[code_id] = definition
+        raw_values = definition.get("values")
+        if not isinstance(raw_values, list):
+            add(
+                "INVALID_ACTIVITY_CODE_VALUES",
+                "critical",
+                "quality.finding.invalid_activity_code_values",
+                object_type="activity_code",
+                object_id=code_id,
+            )
+            value_ids_by_code[code_id] = set()
+            continue
+        value_ids: set[str] = set()
+        for value in raw_values:
+            if not isinstance(value, dict):
+                continue
+            value_id = value.get("value_id")
+            if not isinstance(value_id, str) or not value_id.strip():
+                add(
+                    "INVALID_ACTIVITY_CODE_VALUE_ID",
+                    "critical",
+                    "quality.finding.invalid_activity_code_value_id",
+                    object_type="activity_code",
+                    object_id=code_id,
+                )
+                continue
+            if value_id in value_ids:
+                add(
+                    "DUPLICATE_ACTIVITY_CODE_VALUE",
+                    "critical",
+                    "quality.finding.duplicate_activity_code_value",
+                    object_type="activity_code",
+                    object_id=code_id,
+                    related_ids=(value_id,),
+                )
+            value_ids.add(value_id)
+        value_ids_by_code[code_id] = value_ids
+
+    seen: set[tuple[str, str, str, str]] = set()
+    activity_assignment_count = 0
+    for assignment in assignments:
+        owner_type = assignment.get("owner_type")
+        if owner_type != "ACTIVITY":
+            continue
+        activity_id = assignment.get("owner_id")
+        code_id = assignment.get("code_id")
+        value_id = assignment.get("value_id")
+        if (
+            not isinstance(activity_id, str)
+            or not activity_id
+            or not isinstance(code_id, str)
+            or not code_id
+            or not isinstance(value_id, str)
+            or not value_id
+        ):
+            add(
+                "INVALID_ACTIVITY_CODE_ASSIGNMENT",
+                "critical",
+                "quality.finding.invalid_activity_code_assignment",
+                object_type="activity_code_assignment",
+            )
+            continue
+        activity_assignment_count += 1
+        key = (owner_type, activity_id, code_id, value_id)
+        if key in seen:
+            add(
+                "DUPLICATE_ACTIVITY_CODE_ASSIGNMENT",
+                "critical",
+                "quality.finding.duplicate_activity_code_assignment",
+                object_type="activity_code_assignment",
+                object_id=activity_id,
+                related_ids=(code_id, value_id),
+            )
+            continue
+        seen.add(key)
+        if activity_id not in activities:
+            add(
+                "ACTIVITY_CODE_OWNER_NOT_FOUND",
+                "critical",
+                "quality.finding.activity_code_owner_not_found",
+                object_type="activity_code_assignment",
+                object_id=activity_id,
+                related_ids=(code_id, value_id),
+            )
+        if code_id not in definitions_by_id:
+            add(
+                "ACTIVITY_CODE_DEFINITION_NOT_FOUND",
+                "critical",
+                "quality.finding.activity_code_definition_not_found",
+                object_type="activity_code_assignment",
+                object_id=activity_id,
+                related_ids=(code_id,),
+            )
+            continue
+        if value_id not in value_ids_by_code.get(code_id, set()):
+            add(
+                "ACTIVITY_CODE_VALUE_NOT_FOUND",
+                "critical",
+                "quality.finding.activity_code_value_not_found",
+                object_type="activity_code_assignment",
+                object_id=activity_id,
+                related_ids=(code_id, value_id),
+            )
+
+    if not definitions and not assignments:
+        return "evaluated_no_code_definitions_or_assignments", 0, 0
+    return "evaluated_reference_integrity_only_required_code_policy_not_configured", len(definitions_by_id), activity_assignment_count
+
+
 def build_schedule_quality_audit(
     canonical_payload: str,
     *,
@@ -1040,6 +1182,10 @@ def build_schedule_quality_audit(
         audit_context, activity_rows, add
     )
 
+    code_coverage, code_definition_count, code_assignment_count = _audit_activity_codes(
+        audit_context, activity_rows, add
+    )
+
     findings.sort(
         key=lambda item: (
             {"critical": 0, "warning": 1, "info": 2}.get(str(item["severity"]), 3),
@@ -1089,6 +1235,7 @@ def build_schedule_quality_audit(
         "wbs_registry_and_activity_assignment": wbs_coverage,
         "baseline_metadata_and_activity_references": baseline_coverage,
         "resource_assignment_referential_integrity": resource_coverage,
+        "activity_code_assignment_integrity": code_coverage,
         "resource_cost_quantity_reconciliation": (
             "not_evaluated_financial_policy_and_period_reconciliation_required"
             if resource_coverage.startswith("evaluated")
@@ -1106,6 +1253,7 @@ def build_schedule_quality_audit(
         or wbs_coverage.startswith("partial")
         or baseline_coverage.startswith("partial")
         or resource_coverage.startswith("partial")
+        or code_coverage.startswith("partial")
     )
 
     return {
@@ -1140,6 +1288,8 @@ def build_schedule_quality_audit(
             "baseline_activity_count": baseline_activity_count,
             "resource_assignment_count": resource_assignment_count,
             "resource_period_count": resource_period_count,
+            "activity_code_definition_count": code_definition_count,
+            "activity_code_assignment_count": code_assignment_count,
             "activity_constraint_counts": dict(sorted(constraint_count_by_activity.items())),
         },
         "quality_index": {
