@@ -11,7 +11,7 @@ from typing import Callable, Mapping
 from construction_pm.backend_p0.schedule_query import ScheduleQueryApplicationService
 from construction_pm.backend_p0.errors import BackendApplicationError, ErrorCategory
 from construction_pm.backend_p0.models import BackendScope
-from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
+from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy, AuthorizationError
 
 from construction_pm.control_intelligence.contracts import SourceReference
 from construction_pm.control_intelligence.graph import ControlDomain
@@ -48,6 +48,7 @@ class AuthoritativeScheduleQueryProvider:
     # snapshot enables post-leveling cost recalculation. The evaluator receives
     # them as immutable LevelingCostInputs and reads no repository itself.
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None
+    quality_audit_context_loader: Callable[[BackendScope, AuthorizationContext], Mapping[str, object]] | None = None
 
     def execute(
         self,
@@ -65,6 +66,26 @@ class AuthoritativeScheduleQueryProvider:
         snapshot = self.snapshot_repository.get(scope, snapshot_id)
         if snapshot is None:
             raise ValueError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
+
+        def load_quality_audit_context() -> Mapping[str, object] | None:
+            if request.kind is not ScheduleQueryKind.QUALITY_AUDIT:
+                return None
+            if self.quality_audit_context_loader is None:
+                return None
+            if auth_context is None:
+                raise BackendApplicationError(
+                    ErrorCategory.AUTHORIZATION,
+                    "SCHEDULE_AUDIT_AUTH_CONTEXT_REQUIRED",
+                    "The schedule quality audit requires an authorized project read context.",
+                )
+            try:
+                return self.quality_audit_context_loader(scope, auth_context)
+            except AuthorizationError as exc:
+                raise BackendApplicationError(
+                    ErrorCategory.AUTHORIZATION,
+                    "FORBIDDEN",
+                    "The schedule quality audit context is not authorized.",
+                ) from exc
 
         if self.calculation_context_repository is not None:
             persisted = self.calculation_context_repository.get(
@@ -174,6 +195,7 @@ class AuthoritativeScheduleQueryProvider:
                 report = build_schedule_quality_audit(
                     snapshot.canonical_payload,
                     evaluation_status="blocked",
+                    audit_context=load_quality_audit_context(),
                 )
                 report["evaluation_error_code"] = error_code
                 return ScheduleQueryAnswer(
@@ -206,7 +228,13 @@ class AuthoritativeScheduleQueryProvider:
             content_hash=result.calculation_run_identity,
         )
 
-        data = _project_result(request, result, source, snapshot)
+        data = _project_result(
+            request,
+            result,
+            source,
+            snapshot,
+            audit_context=load_quality_audit_context(),
+        )
         return ScheduleQueryAnswer(
             query_id=request.query_id,
             scope=request.scope,
@@ -384,6 +412,8 @@ def _project_result(
     result: ScheduleEvaluationResult | None,
     source: SourceReference,
     snapshot: ScheduleInputSnapshot | None = None,
+    *,
+    audit_context: Mapping[str, object] | None = None,
 ) -> Mapping[str, object]:
     if request.kind is ScheduleQueryKind.SCENARIO:
         return _project_scenario_proposal(request, source)
@@ -400,6 +430,7 @@ def _project_result(
                 snapshot.canonical_payload,
                 core_diagnostics=diagnostics,
                 evaluation_status="completed",
+                audit_context=audit_context,
             )
         }
     if result is None:
