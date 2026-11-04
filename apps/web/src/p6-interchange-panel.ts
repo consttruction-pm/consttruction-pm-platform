@@ -589,6 +589,65 @@ export function mountInterchangePanel(
     });
   }
 
+  const importHistoryStatus = panel.querySelector<HTMLElement>(
+    "[data-interchange-history-status]",
+  );
+  const importHistoryList = panel.querySelector<HTMLElement>(
+    "[data-interchange-history-list]",
+  );
+  const importHistoryDetail = panel.querySelector<HTMLElement>(
+    "[data-interchange-history-detail]",
+  );
+  const importHistoryRefresh = panel.querySelector<HTMLButtonElement>(
+    "[data-interchange-history-refresh]",
+  );
+  const loadImportHistory = async (): Promise<void> => {
+    if (!importHistoryStatus || !importHistoryList || !importHistoryDetail) return;
+    if (importHistoryRefresh) importHistoryRefresh.disabled = true;
+    importHistoryStatus.textContent = labels.importHistoryLoading;
+    importHistoryList.innerHTML = "";
+    importHistoryDetail.innerHTML = "";
+    try {
+      const result = await client.listImportBatches();
+      importHistoryList.innerHTML = renderInterchangeImportBatchList(result, labels);
+      if (result.status === "not_configured") {
+        importHistoryStatus.textContent = labels.importHistoryNotConfigured;
+      } else {
+        importHistoryStatus.textContent = "";
+      }
+      for (const button of importHistoryList.querySelectorAll<HTMLButtonElement>(
+        "[data-interchange-batch-id]",
+      )) {
+        button.addEventListener("click", async () => {
+          const batchId = button.dataset.interchangeBatchId;
+          if (!batchId || !importHistoryStatus || !importHistoryDetail) return;
+          button.disabled = true;
+          importHistoryStatus.textContent = labels.importHistoryLoading;
+          importHistoryDetail.innerHTML = "";
+          try {
+            const detail = await client.getImportBatch(batchId);
+            importHistoryDetail.innerHTML = renderInterchangeImportBatchDetail(detail, labels);
+            importHistoryStatus.textContent = "";
+          } catch (error) {
+            importHistoryStatus.textContent = labels.importHistoryFailed;
+            importHistoryDetail.innerHTML = renderError(errorCode(error), labels);
+          } finally {
+            button.disabled = false;
+          }
+        });
+      }
+    } catch (error) {
+      importHistoryStatus.textContent = labels.importHistoryFailed;
+      importHistoryList.innerHTML = renderError(errorCode(error), labels);
+    } finally {
+      if (importHistoryRefresh) importHistoryRefresh.disabled = false;
+    }
+  };
+  importHistoryRefresh?.addEventListener("click", () => {
+    void loadImportHistory();
+  });
+  void loadImportHistory();
+
   const importForm = panel.querySelector<HTMLFormElement>(
     "[data-interchange-import-form]",
   );
@@ -641,6 +700,7 @@ export function mountInterchangePanel(
         const result = await client.importDocument(document);
         importStatus.textContent = `${result.rows.length} ${labels.importReady}`;
         importResult.innerHTML = renderInterchangeImportResult(result, labels);
+        await loadImportHistory();
       } catch (error) {
         const code = errorCode(error);
         importStatus.textContent = labels.error;
