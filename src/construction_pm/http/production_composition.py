@@ -13,6 +13,8 @@ from construction_pm.ai_action_boundary import AIToolPermissionAdapter
 from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.backend_p0.api import BackendP0API
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.p6_code_repository import P6CodeRepository
+from construction_pm.p6_code_assignment_repository import P6CodeAssignmentRepository
 from construction_pm.control_intelligence.quality_audit_context import (
     ScheduleQualityAuditContextReader,
 )
@@ -106,6 +108,8 @@ def build_project_lifecycle_wsgi_app(
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None,
     quality_audit_context_loader: Callable[[BackendScope, AuthorizationContext], Mapping[str, object]] | None = None,
+    p6_code_repository: P6CodeRepository | None = None,
+    p6_code_assignment_repository: P6CodeAssignmentRepository | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
     p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
@@ -217,6 +221,8 @@ def build_project_lifecycle_wsgi_app(
                 baseline_assignment_repository=quality_baseline_assignment_repository,
                 resource_assignment_repository=quality_resource_assignment_repository,
                 resource_period_repository=quality_resource_period_repository,
+                code_definition_repository=p6_code_repository,
+                code_assignment_repository=p6_code_assignment_repository,
                 transaction_manager=quality_transaction_manager,
             ).load
 
