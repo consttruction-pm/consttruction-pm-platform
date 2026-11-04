@@ -40,7 +40,7 @@ export type WorkspaceSmartGuide = Readonly<{
   approvalRequiredCount: number;
 }>;
 
-export type ScheduleQueryKind = "fact" | "explanation" | "filter" | "scenario";
+export type ScheduleQueryKind = "fact" | "explanation" | "filter" | "scenario" | "quality_audit";
 
 export type ScheduleQueryRequest = Readonly<{
   contract_version: typeof SCHEDULE_QUERY_VERSION;
@@ -113,7 +113,7 @@ export function buildScheduleQueryRequest(
   if (!requestedBy.trim() || !queryId.trim() || !queryText.trim() || !language.trim()) {
     throw new Error("INVALID_SCHEDULE_QUERY_REQUEST");
   }
-  if (!["fact", "explanation", "filter", "scenario"].includes(kind)) {
+  if (!["fact", "explanation", "filter", "scenario", "quality_audit"].includes(kind)) {
     throw new Error("INVALID_SCHEDULE_QUERY_KIND");
   }
   if (
