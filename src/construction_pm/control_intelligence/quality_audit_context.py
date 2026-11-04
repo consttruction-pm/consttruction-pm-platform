@@ -261,6 +261,7 @@ class ScheduleQualityAuditContextReader:
                 "target_application_status": item.target_application_status,
             }
             for item in self.interchange_import_ledger_repository.list(scope, limit=100)
+            if item.scope.project_revision == scope.project_revision
         ]
 
     def _load_approved_quality_policy(
