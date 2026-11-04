@@ -64,7 +64,13 @@ def test_history_api_lists_and_reads_immutable_reports_with_project_read_grant()
 
         detail = api.get(scope, record.audit_id, auth_context=auth)
         assert detail is not None
-        assert detail["audit"]["report"] == report
+        assert detail["audit"]["report"] == report | {
+            "audit_history": {
+                "status": "persisted",
+                "audit_id": record.audit_id,
+                "created_at": record.created_at.isoformat(),
+            }
+        }
         assert api.get(scope, "missing", auth_context=auth) is None
     finally:
         connection.close()
