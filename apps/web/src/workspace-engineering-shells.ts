@@ -384,7 +384,7 @@ export function renderEngineeringShell(
       : '<div class="cp-vd-engine-menu-panel">' + group.commands.map((command) =>
         '<button type="button" disabled title="' + esc(disabledTitle) + '"><span aria-hidden="true">' + esc(command[2]) + '</span><strong>' + esc(text(locale, [command[0], command[1]])) + '</strong></button>',
       ).join("") + '</div>';
-    return '<details class="cp-vd-engine-menu cp-vd-engine-' + group.id + '-menu">'
+    return '<details class="cp-vd-engine-menu cp-vd-engine-' + group.id + '-menu' + (group.id === "filters" ? " cp-vd-engine-filter-menu" : "") + '">'
       + '<summary aria-label="' + groupLabel + '">' + groupIcon + '<span>' + groupLabel + '</span></summary>'
       + content + '</details>';
   }).join("");
