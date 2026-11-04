@@ -1,11 +1,5 @@
 export const VISUAL_WORKSPACE_PREVIEW_PROJECT_ID = "preview-rps-01";
 
-/**
- * Select the curated visual shell for the shared preview project without
- * changing the authenticated, data-backed workspace used by every other
- * project. The explicit "live" switch is retained so the real API workspace
- * remains available for integration testing and development.
- */
 /** No alternate demo route is exposed: every /app URL enters the authenticated workspace. */
 export function shouldRenderVisualWorkspaceDemo(
   _pathname: string,
@@ -14,11 +8,7 @@ export function shouldRenderVisualWorkspaceDemo(
   return false;
 }
 
-/**
- * Persist the distinction between a visual sample and the real, project-backed
- * workspace in a shareable URL. Live bootstrap always writes this view marker
- * so refresh/re-entry cannot fall back into the visual preview route.
- */
+/** Keep project deep links stable inside the single authenticated workspace. */
 export function liveWorkspaceProjectHref(href: string, projectId: string): string {
   const url = new URL(href);
   url.searchParams.set("project", projectId);
@@ -27,13 +17,8 @@ export function liveWorkspaceProjectHref(href: string, projectId: string): strin
 }
 
 
-/**
- * Keep session-recovery sign-in on the visual entry surface unless the user
- * explicitly opened a different project.
- */
+/** Return session recovery to the canonical workspace, preserving only real project deep links. */
 export function workspaceLoginNextPath(projectId: string | null): string {
-  if (!projectId || projectId === VISUAL_WORKSPACE_PREVIEW_PROJECT_ID) {
-    return `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`;
-  }
+  if (!projectId || projectId === VISUAL_WORKSPACE_PREVIEW_PROJECT_ID) return "/app";
   return `/app?project=${encodeURIComponent(projectId)}&view=live`;
 }
