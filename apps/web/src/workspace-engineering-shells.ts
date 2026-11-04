@@ -335,7 +335,7 @@ export function renderEngineeringShell(
   const methodList = renderList(definition.methods.slice(0, 4), locale);
   const inputList = renderList(definition.inputs, locale);
   return "<section class=\"cp-vd-windowbody cp-vd-engine-shell\" data-engine-window=\"" + windowId + "\">"
-    + "<header class=\"cp-vd-engine-head\"><div class=\"cp-vd-engine-title\"><h2>" + esc(text(locale, definition.title)) + "</h2><p>" + esc(text(locale, definition.description)) + "</p></div>"
+    + "<header class=\"cp-vd-engine-head cp-vd-winhead\"><div class=\"cp-vd-engine-title\"><h2>" + esc(text(locale, definition.title)) + "</h2><p>" + esc(text(locale, definition.description)) + "</p></div>"
     + "<span class=\"cp-vd-engine-state\">" + esc(text(locale, ["Planned · shell only", "برنامه‌ریزی‌شده · پوسته بصری"])) + "</span></header>"
     + "<div class=\"cp-vd-engine-notice\"><strong>ⓘ</strong><span>" + esc(text(locale, ["Visual shell only. No project records, calculations, alerts or actions are connected in this window yet.", "این صفحه فعلاً فقط پوسته بصری است؛ هنوز رکورد پروژه، محاسبات، هشدارها یا عملیات واقعی به آن متصل نشده‌اند."])) + "</span></div>"
     + "<div class=\"cp-vd-engine-toolbar\" role=\"toolbar\" aria-label=\"" + esc(text(locale, ["Engine commands", "فرمان‌های موتور"])) + "\">" + commands
