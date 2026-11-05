@@ -131,7 +131,10 @@ test("layout options enable the network only with persisted logic and the choice
     renderMainWorkspace(container as unknown as HTMLElement, state);
     assert.match(container.innerHTML, /data-network-view/);
     assert.match(container.innerHTML, /data-gantt-activity-id="A"/);
-    assert.doesNotMatch(container.innerHTML, /id="cp-activity-grid"/);
+    // The network replaces the Gantt in the right pane; the activity table stays on the left.
+    assert.match(container.innerHTML, /id="cp-activity-grid"/);
+    assert.doesNotMatch(container.innerHTML, /id="cp-gantt"/);
+    assert.match(container.innerHTML, /class="cp-p6-split"[^>]*>[\s\S]*id="cp-activity-grid"[\s\S]*data-network-view/);
     assert.match(container.innerHTML, /<option value="activity-network" selected>Activity Network<\/option>/);
 
     // Without persisted logic the stored choice cannot activate an empty graph.

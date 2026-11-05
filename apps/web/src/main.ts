@@ -101,12 +101,14 @@ let progressSelection: string | null = null;
  */
 type VisualPreferences = {
   density: ChromeLayoutState["density"];
+  rowHeight: number;
+  fontSize: number;
   barHeight: number;
   barTone: "crimson" | "vermilion" | "amber";
 };
 
 const VISUAL_PREFERENCES_KEY = "cubi:workspace-visual-preferences";
-const DEFAULT_VISUAL_PREFERENCES: VisualPreferences = { density: "compact", barHeight: 16, barTone: "crimson" };
+const DEFAULT_VISUAL_PREFERENCES: VisualPreferences = { density: "compact", rowHeight: 22, fontSize: 11, barHeight: 16, barTone: "crimson" };
 
 function readVisualPreferences(): VisualPreferences {
   try {
@@ -115,6 +117,8 @@ function readVisualPreferences(): VisualPreferences {
     const parsed = JSON.parse(raw) as Partial<VisualPreferences>;
     return {
       density: parsed.density === "comfortable" ? "comfortable" : "compact",
+      rowHeight: typeof parsed.rowHeight === "number" && parsed.rowHeight >= 18 && parsed.rowHeight <= 34 ? Math.round(parsed.rowHeight) : 22,
+      fontSize: typeof parsed.fontSize === "number" && parsed.fontSize >= 10 && parsed.fontSize <= 13 ? Math.round(parsed.fontSize) : 11,
       barHeight: typeof parsed.barHeight === "number" && parsed.barHeight >= 12 && parsed.barHeight <= 24 ? parsed.barHeight : 16,
       barTone: parsed.barTone === "vermilion" || parsed.barTone === "amber" ? parsed.barTone : "crimson",
     };
@@ -884,9 +888,12 @@ function renderApp(
   } as const;
   const applyDesktopVisuals = (): void => {
     desktopHost.dataset.density = visualPreferences.density;
-    // The Gantt lives in the workspace below the chrome, so the bar tokens are
+    // Density and bar tokens style the workspace below the chrome, so they are
     // applied at the document root where both regions inherit them.
+    document.documentElement.dataset.tableDensity = visualPreferences.density;
     document.documentElement.dataset.barTone = visualPreferences.barTone;
+    document.documentElement.style.setProperty("--cp-p6-row-height", `${visualPreferences.rowHeight}px`);
+    document.documentElement.style.setProperty("--cp-p6-font-size", `${visualPreferences.fontSize}px`);
     document.documentElement.style.setProperty("--cp-bar-height", `${visualPreferences.barHeight}px`);
   };
   applyDesktopVisuals();
@@ -901,9 +908,14 @@ function renderApp(
     }
     if (patch.ganttScale) next = setGanttScale(next, patch.ganttScale);
     if (patch.showRelationships !== undefined) next = setGanttRelationshipsVisible(next, patch.showRelationships);
-    if (patch.density || patch.barHeight || patch.barTone) {
+    if (patch.density || patch.rowHeight || patch.fontSize || patch.barHeight || patch.barTone) {
+      // The density preset and the fixed row height describe the same table
+      // property. An explicit height wins; otherwise the preset sets its value.
+      const rowHeight = patch.rowHeight ?? (patch.density ? (patch.density === "comfortable" ? 30 : 22) : visualPreferences.rowHeight);
       rememberVisualPreferences({
-        density: patch.density ?? visualPreferences.density,
+        density: patch.rowHeight !== undefined ? (rowHeight >= 28 ? "comfortable" : "compact") : patch.density ?? visualPreferences.density,
+        rowHeight,
+        fontSize: patch.fontSize ?? visualPreferences.fontSize,
         barHeight: patch.barHeight ?? visualPreferences.barHeight,
         barTone: patch.barTone ?? visualPreferences.barTone,
       });
@@ -957,6 +969,8 @@ function renderApp(
       sortColumns: state.columns.map((column) => ({ id: column.id, label: column.label })),
       sortColumnId: state.activitySort?.columnId ?? null,
       sortDirection: state.activitySort?.direction ?? "asc",
+      rowHeight: visualPreferences.rowHeight,
+      fontSize: visualPreferences.fontSize,
       barHeight: visualPreferences.barHeight,
       barTone: visualPreferences.barTone,
     },

@@ -16,6 +16,8 @@ export type DesktopLayoutPatch = {
   ganttScale?: ChromeLayoutState["ganttScale"];
   showRelationships?: boolean;
   density?: ChromeLayoutState["density"];
+  rowHeight?: number;
+  fontSize?: number;
   barHeight?: number;
   barTone?: "crimson" | "vermilion" | "amber";
 };
@@ -26,6 +28,8 @@ export type DialogOptions = {
   sortColumns: DesktopSortColumn[];
   sortColumnId: string | null;
   sortDirection: "asc" | "desc";
+  rowHeight: number;
+  fontSize: number;
   barHeight: number;
   barTone: DesktopLayoutPatch["barTone"];
 };
@@ -113,10 +117,14 @@ export function renderLayoutDialogs(options: DialogOptions): string {
 
   const fontRow = `<fieldset class="cp-dialog-group">
       <legend>${esc(t(locale, "Table font and row", "قلم و ردیف جدول"))}</legend>
-      <div class="cp-dialog-radios" role="radiogroup" aria-label="${esc(t(locale, "Row density", "تراکم ردیف"))}">
-        <label><input type="radio" name="density" value="compact"${layout.density === "compact" ? " checked" : ""}> ${esc(t(locale, "Compact rows", "ردیف فشرده"))}</label>
-        <label><input type="radio" name="density" value="comfortable"${layout.density === "comfortable" ? " checked" : ""}> ${esc(t(locale, "Comfortable rows", "ردیف راحت"))}</label>
-      </div>
+      <label class="cp-dialog-row"><span>${esc(t(locale, "Font size", "اندازهٔ قلم"))}</span>
+        <select name="fontSize">
+          ${[10, 11, 12, 13].map((size) => `<option value="${size}"${options.fontSize === size ? " selected" : ""}>${size} px</option>`).join("")}
+        </select>
+      </label>
+      <label class="cp-dialog-row"><span>${esc(t(locale, "Row height", "ارتفاع ردیف"))}</span>
+        <input type="number" name="rowHeight" min="18" max="34" step="1" value="${options.rowHeight}">
+      </label>
     </fieldset>`;
 
   return [
@@ -127,8 +135,8 @@ export function renderLayoutDialogs(options: DialogOptions): string {
   ].join("");
 }
 
-export function readLayoutPatch(form: HTMLFormElement): DesktopLayoutPatch {
-  const data = new FormData(form);
+export function readLayoutPatch(form: HTMLFormElement | FormData): DesktopLayoutPatch {
+  const data = form instanceof FormData ? form : new FormData(form);
   const patch: DesktopLayoutPatch = {};
   const groupBy = data.get("groupBy");
   if (groupBy === "wbs" || groupBy === "none") patch.groupBy = groupBy;
@@ -145,13 +153,26 @@ export function readLayoutPatch(form: HTMLFormElement): DesktopLayoutPatch {
   if (data.has("showRelationships")) patch.showRelationships = data.get("showRelationships") === "on";
   const density = data.get("density");
   if (density === "compact" || density === "comfortable") patch.density = density;
-  const height = Number(data.get("barHeight"));
-  if (Number.isFinite(height)) patch.barHeight = Math.min(24, Math.max(12, height));
+  const rowHeightValue = data.get("rowHeight");
+  const rowHeight = Number(rowHeightValue);
+  if (typeof rowHeightValue === "string" && rowHeightValue.trim() !== "" && Number.isFinite(rowHeight)) {
+    patch.rowHeight = Math.min(34, Math.max(18, Math.round(rowHeight)));
+  }
+  const fontSizeValue = data.get("fontSize");
+  const fontSize = Number(fontSizeValue);
+  if (typeof fontSizeValue === "string" && fontSizeValue.trim() !== "" && Number.isFinite(fontSize)) {
+    patch.fontSize = Math.min(13, Math.max(10, Math.round(fontSize)));
+  }
+  const heightValue = data.get("barHeight");
+  const height = Number(heightValue);
+  if (typeof heightValue === "string" && heightValue.trim() !== "" && Number.isFinite(height)) {
+    patch.barHeight = Math.min(24, Math.max(12, height));
+  }
   const tone = data.get("barTone");
   if (tone === "crimson" || tone === "vermilion" || tone === "amber") patch.barTone = tone;
   return patch;
 }
 
 export function defaultLayoutPatch(): DesktopLayoutPatch {
-  return { groupBy: "wbs", sortColumnId: "wbs", sortDirection: "asc", ganttScale: "day", showRelationships: true, density: "compact", barHeight: 16, barTone: "crimson" };
+  return { groupBy: "wbs", sortColumnId: "wbs", sortDirection: "asc", ganttScale: "day", showRelationships: true, density: "compact", rowHeight: 22, fontSize: 11, barHeight: 16, barTone: "crimson" };
 }

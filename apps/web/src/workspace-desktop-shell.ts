@@ -122,6 +122,8 @@ export type DesktopShellState = {
   sortColumns?: readonly DesktopSortColumn[];
   sortColumnId?: string | null;
   sortDirection?: "asc" | "desc";
+  rowHeight?: number;
+  fontSize?: number;
   barHeight?: number;
   barTone?: "crimson" | "vermilion" | "amber";
 };
@@ -599,6 +601,8 @@ export function renderDesktopShell(
     sortColumns: [...(state.sortColumns ?? [])],
     sortColumnId: state.sortColumnId ?? null,
     sortDirection: state.sortDirection ?? "asc",
+    rowHeight: state.rowHeight ?? 22,
+    fontSize: state.fontSize ?? 11,
     barHeight: state.barHeight ?? 16,
     barTone: state.barTone ?? "crimson",
   })}

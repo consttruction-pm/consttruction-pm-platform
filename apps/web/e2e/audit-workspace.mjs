@@ -328,6 +328,49 @@ async function main() {
       await sleep(200);
     }
 
+    // Table Font and Row must change the real table, not only the form state.
+    const tableFontRowApplied = await page.evaluate(`(() => {
+      const open = document.querySelector('[data-desktop-command="dialog.font-row"]');
+      open?.click();
+      const form = document.querySelector('dialog[data-desktop-dialog="font-row"] form');
+      if (!form) return null;
+      const height = form.querySelector('input[name="rowHeight"]');
+      const fontSize = form.querySelector('select[name="fontSize"]');
+      if (!height || !fontSize) return null;
+      height.value = "30";
+      fontSize.value = "12";
+      form.requestSubmit();
+      const cell = document.querySelector("#cp-activity-grid tbody td");
+      const table = document.querySelector("#cp-activity-grid table");
+      return {
+        rowHeight: cell ? Math.round(cell.getBoundingClientRect().height) : 0,
+        fontSize: table ? getComputedStyle(table).fontSize : null,
+        cssHeight: getComputedStyle(document.documentElement).getPropertyValue("--cp-p6-row-height").trim(),
+      };
+    })()`);
+    await sleep(350);
+    const tableFontRowMeasured = await page.evaluate(`(() => {
+      const cell = document.querySelector("#cp-activity-grid tbody td");
+      const table = document.querySelector("#cp-activity-grid table");
+      return {
+        rowHeight: cell ? Math.round(cell.getBoundingClientRect().height) : 0,
+        fontSize: table ? getComputedStyle(table).fontSize : null,
+      };
+    })()`);
+    // Restore the default row so later screenshots keep the baseline density.
+    await page.evaluate(`(() => {
+      document.querySelector('[data-desktop-command="dialog.font-row"]')?.click();
+      const form = document.querySelector('dialog[data-desktop-dialog="font-row"] form');
+      if (!form) return false;
+      form.querySelector('input[name="rowHeight"]').value = "22";
+      form.querySelector('select[name="fontSize"]').value = "11";
+      form.requestSubmit();
+      return true;
+    })()`);
+    await sleep(300);
+    REPORT.journey.table_font_row = { patchRead: tableFontRowApplied, applied: tableFontRowMeasured };
+    log(`  table font/row applied: ${JSON.stringify(tableFontRowMeasured)}`);
+
     // Eight-language matrix at 1280x720.
     REPORT.language_options = await page.evaluate(`(() => {
       const select = document.querySelector("[data-workspace-language]");

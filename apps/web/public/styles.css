@@ -3762,6 +3762,7 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
 :root[data-bar-tone="vermilion"] { --cp-ui-critical: #e0552f; }
 :root[data-bar-tone="amber"] { --cp-ui-critical: #d99a00; }
 .cp-desktop[data-density="comfortable"] { --cp-row-height: 34px; }
+:root[data-table-density="comfortable"] { --cp-p6-row-height: 30px; }
 
 @media (max-width: 760px) {
   .cp-titlebar { flex-wrap: wrap; gap: 6px 10px; }
@@ -5284,6 +5285,10 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   overflow: hidden;
   background: #fff;
 }
+.cp-p6 .cp-p6-split > .cp-p6-network {
+  grid-column: 3;
+  min-height: 0;
+}
 .cp-p6 .cp-p6-network-head {
   display: flex;
   align-items: center;
@@ -5452,7 +5457,7 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 }
 .cp-p6 .cp-activity-toolbar output { font-size: 9px; color: #5f6b7a; white-space: nowrap; }
 .cp-p6 .cp-table-wrap { flex: 1 1 auto; min-height: 0; max-width: none; overflow: auto; background: #fff; }
-.cp-p6 #cp-activity-grid table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 10.5px; }
+.cp-p6 #cp-activity-grid table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: var(--cp-p6-font-size, 10.5px); }
 .cp-p6 #cp-activity-grid thead th {
   position: sticky;
   top: 0;
@@ -5496,7 +5501,7 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-p6-column-resize:focus-visible::after { background: #1c66ad; }
 .cp-p6 .cp-p6-column-resize:focus-visible { outline: none; }
 .cp-p6 #cp-activity-grid tbody td {
-  height: 22px;
+  height: var(--cp-p6-row-height, 22px);
   padding: 0 5px;
   border-bottom: 1px solid #e1e7ee;
   border-inline-end: 1px solid #edf1f5;

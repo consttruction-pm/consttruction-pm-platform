@@ -327,12 +327,45 @@ The sibling continuation branch was merged into `codex/jalal/cubi-shell-v26-2026
 - Before/after evidence was captured at 1280×720; geometry was checked at 1280×720, 1366×768 and 1920×1080.
 - The assistant launcher and closed assistant surface stay inside the right rail gutter and no longer cover Details or the status bar.
 
+### Version 26 documentation pass — 2026-11-05
+
+The six required Oracle Version 26 pages were opened and read in this session:
+the user-guide index (`G57529-01`, October 2026), the help table of contents,
+the Menu bar reference, the Layout toolbar reference, "Change Activity Table
+font, color, and row height", and the Gantt "Change a bar's style" page.
+The index is a JavaScript shell whose substantive content lives in the linked
+chapters, so structure was read from the table of contents rather than the
+index shell. Four deeper help pages (status/layout-options bar, main windows,
+Activity Network, Activity Details) returned HTTP 403 when fetched and are
+therefore **not** claimed as studied.
+
+Two documentation-backed corrections were made:
+
+- **Activity Network placement.** The documentation describes the Activities
+  window as an activity table with a Gantt chart or Activity Network beside it.
+  The network previously replaced the whole split; it now occupies the right
+  pane while the activity table stays on the left, with the same splitter and
+  selection model.
+- **Table Font and Row.** The dialog now has a real font-size selector
+  (10–13 px) and a fixed row-height field (18–34 px), both persisted and applied
+  to the rendered activity grid. The earlier density radio only set an unused
+  CSS variable; it is replaced by the height control, and density is derived
+  from the chosen height. Font family, background colour, "optimize row heights
+  by content" and "Show Icons" from the reference dialog are still missing.
+
+The reference Layout toolbar lists twelve actions; CUBI exposes Columns,
+Filter, Group/Sort, Timescale, Bars and Table Font and Row. Line Numbers and
+User Preferences are not on CUBI's bar, and "Save/Save As/Open Layout" are
+handled elsewhere. This divergence is recorded rather than hidden.
+
 ### Gaps that remain open
 
 1. The 48-window visual catalogue is **not** fully migrated. Windows without an authoritative service remain visibly unavailable; do not create demo records.
 2. Reporting, tracking, thresholds, issues/risks, engineering intelligence, project comparison and several administration surfaces still need real service contracts.
-3. Column drag, filters, timescale and bars have acceptance coverage; the Activity Network top-layout slice now renders from persisted relationships. Activity/resource Usage Spreadsheet/Profile and Trace Logic remain disabled because their authoritative time-phased services are not wired.
+3. Column drag, filters, timescale and bars have acceptance coverage; the Activity Network now renders beside the activity table from persisted relationships. Activity/resource Usage Spreadsheet/Profile and Trace Logic remain disabled because their authoritative time-phased services are not wired.
 4. Jalali/Gregorian rendering and the 48-window catalogue were re-audited. Arabic, French, Japanese and Korean remain selectable language-pack targets but carry no UI pack; the switcher now labels them as English-until-installed rather than implying a translated interface.
+5. The Bars dialog still lacks the documented bar definitions, start/body/finish shapes, colours, patterns, filters, labels and row assignment. Only bar height and critical tone are implemented, so it is not presented as a full bar-style editor.
+6. The reference Menu bar has eight fixed menus plus a conditional Admin menu; CUBI exposes eleven task-oriented menus (adding Schedule, Resources, Reports and Window) and no Admin menu because the preview has no database administration surface.
 
 ### Integration guard
 
