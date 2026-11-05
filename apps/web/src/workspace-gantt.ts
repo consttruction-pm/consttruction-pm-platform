@@ -205,6 +205,7 @@ export function createGanttAxisTicks(
 export function createGanttLinkGeometry(
   relationships: readonly WorkspaceRelationshipRow[],
   bars: readonly GanttBarGeometry[],
+  presentationRowByActivity?: ReadonlyMap<string, number>,
 ): readonly GanttLinkGeometry[] {
   if (!relationships.length || !bars.length) return [];
   const rowByActivity = new Map<string, number>();
@@ -216,14 +217,19 @@ export function createGanttLinkGeometry(
     if (fromIndex === undefined || toIndex === undefined) continue;
     const from = bars[fromIndex];
     const to = bars[toIndex];
+    const fromRow = presentationRowByActivity?.get(relationship.predecessorId) ?? fromIndex;
+    const toRow = presentationRowByActivity?.get(relationship.successorId) ?? toIndex;
+    if (presentationRowByActivity &&
+        (!presentationRowByActivity.has(relationship.predecessorId) ||
+         !presentationRowByActivity.has(relationship.successorId))) continue;
     const path = relationshipPath(
       relationship.type,
       from.leftPercent,
       from.leftPercent + from.widthPercent,
       to.leftPercent,
       to.leftPercent + to.widthPercent,
-      fromIndex * 100 + 50,
-      toIndex * 100 + 50,
+      fromRow * 100 + 50,
+      toRow * 100 + 50,
     );
     links.push(Object.freeze({
       relationshipId: relationship.id,
