@@ -2025,11 +2025,11 @@ async function main() {
         ".cp-workspace",
         "legacy visual URL resolves to canonical workspace",
       );
-      const legacyRoute = await deepLinkPage.evaluate(`() => ({
+      const legacyRoute = await deepLinkPage.evaluate(`(() => ({
         view: new URLSearchParams(location.search).get("view"),
         visualDemo: Boolean(document.querySelector("[data-visual-demo]")),
         liveGrid: Boolean(document.querySelector("#cp-activity-grid")),
-      })()`);
+      }))()`);
       assert(
         legacyRoute.view === "live" && !legacyRoute.visualDemo && legacyRoute.liveGrid,
         "legacy visual URLs must canonicalize to the single live workspace: " + JSON.stringify(legacyRoute),
@@ -2046,11 +2046,11 @@ async function main() {
         ".cp-workspace",
         "authenticated workspace reload with saved language",
       );
-      const savedLanguage = await deepLinkPage.evaluate(`() => ({
+      const savedLanguage = await deepLinkPage.evaluate(`(() => ({
         lang: document.documentElement.lang,
         dir: document.documentElement.dir,
         selected: document.querySelector("select[data-workspace-language]")?.value ?? null,
-      })()`);
+      }))()`);
       assert(
         savedLanguage.lang === "fa" && savedLanguage.dir === "rtl" && savedLanguage.selected === "fa",
         "authenticated workspace language must persist across refresh: " + JSON.stringify(savedLanguage),
