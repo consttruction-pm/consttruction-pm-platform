@@ -49,9 +49,14 @@ function esc(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function readComments(): CommentEntry[] {
+export type WorkspaceCommentSummary = Readonly<Pick<CommentEntry, "id" | "author" | "body" | "createdAt" | "parentId">>;
+
+export type WorkspaceCommentStorage = Pick<Storage, "getItem">;
+
+function readComments(storage?: WorkspaceCommentStorage): CommentEntry[] {
   try {
-    const raw = window.localStorage.getItem(WORKSPACE_COMMENTS_STORAGE_KEY);
+    const target = storage ?? (typeof window !== "undefined" ? window.localStorage : undefined);
+    const raw = target?.getItem(WORKSPACE_COMMENTS_STORAGE_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -67,6 +72,16 @@ function readComments(): CommentEntry[] {
   } catch {
     return [];
   }
+}
+
+export function listWorkspaceEntityComments(
+  input: Pick<WorkspaceCommentsInput, "projectId" | "entityKind" | "entityId">,
+  storage?: WorkspaceCommentStorage,
+): readonly WorkspaceCommentSummary[] {
+  return readComments(storage)
+    .filter((entry) => entry.projectId === input.projectId && entry.entityKind === input.entityKind && entry.entityId === input.entityId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map(({ id, author, body, createdAt, parentId }) => Object.freeze({ id, author, body, createdAt, parentId }));
 }
 
 function writeComments(entries: readonly CommentEntry[]): void {
