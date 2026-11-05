@@ -7,7 +7,6 @@
 import type { ApiTransport } from "./client.js";
 import { loadAssignments, type AssignmentRecord } from "./workspace-assignments.js";
 import { loadExpenses, type ExpenseRecord } from "./workspace-expenses.js";
-import { loadActivitySteps, type ActivityStepRecord } from "./workspace-activity-steps.js";
 import { loadScheduleDataDate } from "./workspace-cost.js";
 import { fetchP6ActivityUdfs } from "./p6-udf-http.js";
 import type { P6UdfEditorMetadata } from "./p6-field-editor.js";
@@ -166,7 +165,6 @@ export type ActivityDetailsInput = {
   transport?: ApiTransport;
   resourceAssignments?: ActivityDetailsLoadState<AssignmentRecord>;
   activityExpenses?: ActivityDetailsLoadState<ExpenseRecord>;
-  activitySteps?: ActivityDetailsLoadState<ActivityStepRecord>;
   activityUdfs?: ActivityDetailsLoadState<P6UdfEditorMetadata>;
   /** Full authoritative state is optional so pure render tests stay small. */
   state?: WorkspaceState;
@@ -292,21 +290,6 @@ function renderResourceAssignments(locale: string, input: ActivityDetailsInput, 
   return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
-function renderActivitySteps(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
-  if (!activity) return empty(locale, t(locale, "Select an activity to view its steps.", "برای مشاهده گام‌ها، یک فعالیت انتخاب کنید."));
-  const data = input.activitySteps;
-  if (!data || data.status === "idle") return empty(locale, t(locale, "Activity steps have not been loaded yet.", "گام‌های فعالیت هنوز بارگذاری نشده‌اند."));
-  if (data.status === "loading") return empty(locale, t(locale, "Loading activity steps from the project record store…", "در حال بارگذاری گام‌های فعالیت از سوابق پروژه…"));
-  if (data.status === "error") return `<p class="cp-detail-empty" role="alert">${esc(t(locale, "Activity steps could not be loaded.", "بارگذاری گام‌های فعالیت ناموفق بود."))} ${esc(data.errorCode ?? "API_ERROR")}</p><button type="button" data-detail-retry="steps">${esc(t(locale, "Retry", "تلاش دوباره"))}</button>`;
-  const rows = data.records.filter((item) => item.activityId === activity.id).sort((left, right) => left.sequence - right.sequence || left.stepId.localeCompare(right.stepId));
-  if (!rows.length) return empty(locale, t(locale, "No activity-step records are stored for this activity at the current project revision.", "در ویرایش فعلی پروژه برای این فعالیت رکورد گامی ذخیره نشده است."));
-  const headings = ["Step ID", "Sequence", "Description", "Weight", "Start", "Finish", "User-defined values"];
-  const persianHeadings = ["شناسه گام", "ترتیب", "شرح", "وزن", "شروع", "پایان", "مقادیر تعریف‌شده کاربر"];
-  const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
-  const body = rows.map((item) => `<tr><td>${esc(item.stepId)}</td><td>${item.sequence}</td><td>${esc(item.description)}</td><td>${esc(item.weight ?? "—")}</td><td>${esc(item.startDate ?? "—")}</td><td>${esc(item.finishDate ?? "—")}</td><td>${esc(item.udfValues.map((value) => `${value.fieldId}: ${value.value}`).join(", ") || "—")}</td></tr>`).join("");
-  return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><p class="cp-detail-hint">${esc(t(locale, "Values are read from revision-scoped Activity Step records. Weight and dates are displayed as stored; this pane does not calculate activity progress.", "مقادیر از سوابق گامِ وابسته به ویرایش پروژه خوانده می‌شوند. وزن و تاریخ همان‌گونه که ذخیره شده‌اند نمایش داده می‌شوند و این پنل پیشرفت فعالیت را محاسبه نمی‌کند."))}</p></div>`;
-}
-
 function renderActivityDocuments(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
   if (!activity) return empty(locale, t(locale, "Select an activity to view its linked documents.", "برای مشاهده اسناد پیوندشده، یک فعالیت انتخاب کنید."));
   const documents = (input.state?.documents ?? []).filter((document) =>
@@ -429,7 +412,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       </div>
       ${empty(locale, t(locale, "No activity code assignments are returned by the project read model.", "هیچ تخصیص کد فعالیتی توسط مدل خواندن پروژه برگردانده نشده است."))}`;
     case "steps":
-      return renderActivitySteps(locale, input, activity);
+      return empty(locale, t(locale, "Activity-step records are not included in the current workspace projection. This view cannot determine whether the activity has steps.", "سوابق گام‌های فعالیت در نمای فعلی محیط کار بارگذاری نشده‌اند؛ بنابراین از این صفحه نمی‌توان وجود یا نبود گام برای این فعالیت را نتیجه گرفت."));
     case "relationships": {
       const gantt = activity?.gantt;
       return `${section(t(locale, "Predecessors", "پیش‌نیازها"), relationshipRows(locale, predecessors))}${section(t(locale, "Successors", "پس‌نیازها"), relationshipRows(locale, successors))}
@@ -858,8 +841,7 @@ export function renderActivityDetailsPanel(input: ActivityDetailsInput): string 
  * the table keeps its scroll position; only the active tab has content in the
  * DOM, which keeps the lower pane cheap on mobile.
  */
-type ActivityDetailsDataTab = "resources" | "expenses" | "steps";
-type DetailsRuntime = { input: ActivityDetailsInput; onSelect: (id: string) => void; inFlight: Set<ActivityDetailsDataTab> };
+type DetailsRuntime = { input: ActivityDetailsInput; onSelect: (id: string) => void; inFlight: Set<"resources" | "expenses"> };
 const detailsRuntime = new WeakMap<HTMLElement, DetailsRuntime>();
 const detailsBound = new WeakSet<HTMLElement>();
 
@@ -919,13 +901,13 @@ function sameProjectRevision(left: ActivityDetailsInput, right: ActivityDetailsI
   return Boolean(a && b && a.tenant_id === b.tenant_id && a.project_id === b.project_id && a.revision === b.revision);
 }
 
-function renderLoadedTab(host: HTMLElement, runtime: DetailsRuntime, tab: ActivityDetailsDataTab): void {
+function renderLoadedTab(host: HTMLElement, runtime: DetailsRuntime, tab: "resources" | "expenses"): void {
   const panel = host.querySelector<HTMLElement>(`[data-detail-panel="${tab}"]`);
   if (panel && !panel.hidden) panel.innerHTML = activeBody(tab, runtime.input);
 }
 
-function ensureActivityDetailsData(host: HTMLElement, runtime: DetailsRuntime, tab: ActivityDetailsDataTab): void {
-  const key = tab === "resources" ? "resourceAssignments" : tab === "expenses" ? "activityExpenses" : "activitySteps";
+function ensureActivityDetailsData(host: HTMLElement, runtime: DetailsRuntime, tab: "resources" | "expenses"): void {
+  const key = tab === "resources" ? "resourceAssignments" : "activityExpenses";
   const current = runtime.input[key];
   if (current?.status === "loaded" || current?.status === "loading" || runtime.inFlight.has(tab)) return;
   const transport = runtime.input.transport;
@@ -934,11 +916,7 @@ function ensureActivityDetailsData(host: HTMLElement, runtime: DetailsRuntime, t
   runtime.input = { ...runtime.input, [key]: { status: "loading", records: [], errorCode: null } };
   runtime.inFlight.add(tab);
   renderLoadedTab(host, runtime, tab);
-  const request = tab === "resources"
-    ? loadAssignments(transport, context)
-    : tab === "expenses"
-      ? loadExpenses(transport, context)
-      : loadActivitySteps(transport, context);
+  const request = tab === "resources" ? loadAssignments(transport, context) : loadExpenses(transport, context);
   void request.then((result) => {
     if (detailsRuntime.get(host) !== runtime) return;
     runtime.inFlight.delete(tab);
@@ -971,18 +949,16 @@ export function enhanceActivityDetails(
     ? previous.input.resourceAssignments : input.resourceAssignments;
   const activityExpenses = reuse && previous.input.activityExpenses?.status !== "loading"
     ? previous.input.activityExpenses : input.activityExpenses;
-  const activitySteps = reuse && previous.input.activitySteps?.status !== "loading"
-    ? previous.input.activitySteps : input.activitySteps;
   const dataDate = reuse && previous.input.dataDate !== "—" ? previous.input.dataDate : input.dataDate;
   const runtime: DetailsRuntime = {
-    input: { ...input, resourceAssignments, activityExpenses, activitySteps, dataDate },
+    input: { ...input, resourceAssignments, activityExpenses, dataDate },
     onSelect: onSelectActivity,
     inFlight: new Set(),
   };
   detailsRuntime.set(host, runtime);
   host.innerHTML = renderActivityDetailsPanel(runtime.input);
   const activeTab = host.querySelector<HTMLElement>("[data-detail-tab].is-active")?.dataset.detailTab;
-  if (activeTab === "resources" || activeTab === "expenses" || activeTab === "steps") ensureActivityDetailsData(host, runtime, activeTab);
+  if (activeTab === "resources" || activeTab === "expenses") ensureActivityDetailsData(host, runtime, activeTab);
   if (activeTab === "udfs") ensureActivityUdfs(host, runtime);
   ensureActivityDataDate(host, runtime);
   if (detailsBound.has(host)) return;
@@ -1000,9 +976,9 @@ export function enhanceActivityDetails(
       ensureActivityUdfs(host, current);
       return;
     }
-    if (retry?.dataset.detailRetry === "resources" || retry?.dataset.detailRetry === "expenses" || retry?.dataset.detailRetry === "steps") {
-      const tabId = retry.dataset.detailRetry as ActivityDetailsDataTab;
-      const key = tabId === "resources" ? "resourceAssignments" : tabId === "expenses" ? "activityExpenses" : "activitySteps";
+    if (retry?.dataset.detailRetry === "resources" || retry?.dataset.detailRetry === "expenses") {
+      const tabId = retry.dataset.detailRetry;
+      const key = tabId === "resources" ? "resourceAssignments" : "activityExpenses";
       current.input = { ...current.input, [key]: { status: "idle", records: [], errorCode: null } };
       ensureActivityDetailsData(host, current, tabId);
       return;
@@ -1047,7 +1023,7 @@ export function enhanceActivityDetails(
         panel.hidden = !selected;
         panel.innerHTML = selected ? activeBody(id, current.input) : "";
       });
-      if (id === "resources" || id === "expenses" || id === "steps") ensureActivityDetailsData(host, current, id);
+      if (id === "resources" || id === "expenses") ensureActivityDetailsData(host, current, id);
       if (id === "udfs") ensureActivityUdfs(host, current);
       return;
     }
