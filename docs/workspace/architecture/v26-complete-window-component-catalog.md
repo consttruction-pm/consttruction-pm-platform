@@ -18,7 +18,7 @@
 8. Filtering, sorting, collapsing WBS, changing layout, hiding rows, using a different top/bottom view or virtualizing the DOM must never mutate project records or alter the schedule input population.
 9. Every persisted edit uses authenticated scope, permission checks, revision/concurrency controls, audit where applicable and a visible result/error. Destructive actions confirm affected records and dependencies.
 10. Customer-visible CUBI labels, help, URLs, icons and branding are independent of the reference product. Reference product names and logos are allowed only in internal source notes where needed to identify the standard.
-11. Keep the established CUBI visual identity: Deep Navy, Engineering Blue, Copper Orange and Brushed Titanium, with a consistent icon family and consistent state colors. Use CUBI color tokens; do not copy branded artwork or proprietary screenshots.
+11. Preserve the CUBI logo and brand identity, but do not constrain workspace presentation to the brand palette. Support coordinated light/dark themes, configurable window/panel/grid/Gantt backgrounds, user-selected colors and distinct WBS level treatments. Maintain readable contrast and independent visual signals for WBS level, status, criticality and selection. Do not copy third-party branded artwork or proprietary screenshots.
 12. Preserve the user's approved proportions and existing working behavior. Do not invent a new ratio file or change the timeline scale merely to accommodate a different monitor. Resizable regions need bounded, persisted user settings.
 
 ## 2. Global workspace shell
@@ -109,7 +109,7 @@ Required command families:
 - Font, color, row height, chart font/color, zoom, best fit and expand/collapse.
 - Toolbars, toolbar reset/lock/customization and tab groups.
 - Hint help/context hints and full-screen control.
-- CUBI theme selection only as an approved CUBI addition, without breaking the engineering color semantics.
+- Workspace theme selection, including complete light/dark palettes, window/panel background customization and user-defined color presets. Brand logo colors remain unchanged; workspace colors are not limited to brand tokens.
 
 ### 3.4 Project menu
 
@@ -272,7 +272,7 @@ Every context command has the same permission, dirty-state, validation, revision
 
 **WBS hierarchy behavior inside Activities**
 - WBS summary/group rows must be visually distinct from activity rows.
-- Each WBS level has a coherent level-specific visual treatment: background tint, font weight, indentation, label, icon and separator hierarchy. Colors must come from a consistent CUBI palette and be legible in both themes.
+- Each WBS level has a coherent level-specific visual treatment: independently configurable background color/tint, font weight, indentation, label, icon and separator hierarchy. WBS colors may be chosen from the active workspace theme or user palette and must remain legible in both light and dark themes.
 - WBS level styling is separate from status, criticality, selection and activity-type styling. These signals must not overwrite one another.
 - Every expandable WBS node has a clear plus/minus affordance.
 - Clicking minus collapses only that node's descendant rows. Clicking plus restores only that node's descendants.
