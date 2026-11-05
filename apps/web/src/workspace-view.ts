@@ -2377,18 +2377,17 @@ const ACTIVITY_DETAIL_TABS = [
   ["resources", "Resources", "منابع"],
   ["predecessors", "Predecessors", "پیش‌نیازها"],
   ["successors", "Successors", "پس‌نیازها"],
+  ["relationships", "Relationships", "روابط"],
   ["codes", "Codes", "کدها"],
-  ["tasks", "Tasks", "وظایف"],
-  ["discussion", "Discussion", "گفت‌وگو"],
-  ["notebook", "Notebook", "دفترچه"],
+  ["notebook", "Notebook", "دفترچه یادداشت"],
   ["steps", "Steps", "گام‌ها"],
-  ["feedback", "Feedback", "بازخورد"],
   ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
   ["expenses", "Expenses", "هزینه‌ها"],
-  ["summary", "Summary", "خلاصه"],
-  ["relationships", "Relationships", "روابط"],
+  ["issues", "Issues", "مسائل"],
   ["risks", "Risks", "ریسک‌ها"],
-  ["udfs", "UDFs", "فیلدهای کاربر"],
+  ["summary", "Summary", "خلاصه"],
+  ["udfs", "UDFs", "فیلدهای سفارشی"],
+  ["update-history", "Update History", "تاریخچه تغییرات"],
 ] as const;
 
 function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, activeTab: string, visibleTabs: ReadonlySet<string>): string {
@@ -2433,10 +2432,16 @@ function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, a
       return `<div class="cp-activity-detail-fields">${keys.map((key) => field(key.replaceAll("_", " "), value(key))).join("")}</div>`;
     }
     if (tab === "predecessors" || tab === "successors" || tab === "relationships") return relationshipRows(tab);
+    if (tab === "issues") {
+      const linkedIssues = state.fieldIssues.filter((issue) => issue.activityIds.includes(activity.id));
+      if (!linkedIssues.length) return empty(uiText(state.locale, "No linked issue records are present in the current workspace projection. An empty projection does not prove that no issues exist.", "در نمای فعلی محیط کار رکورد مسئله پیوندشده‌ای وجود ندارد. خالی بودن این نما اثبات نمی‌کند که هیچ مسئله‌ای وجود ندارد."));
+      return `<div class="cp-activity-detail-table-wrap"><table class="cp-activity-detail-table"><thead><tr><th>Issue ID</th><th>Title</th><th>Category</th><th>Severity</th><th>Status</th><th>Reported by</th><th>Updated</th></tr></thead><tbody>${linkedIssues.map((issue) => `<tr><td>${escapeHtml(issue.issueId)}</td><td>${escapeHtml(translateWorkspaceUiText(state.locale, issue.titleKey, issue.titleKey))}</td><td>${escapeHtml(issue.category)}</td><td>${escapeHtml(issue.severity)}</td><td>${escapeHtml(issue.status)}</td><td>${escapeHtml(issue.reportedBy)}</td><td>${escapeHtml(issue.updatedAt)}</td></tr>`).join("")}</tbody></table></div>`;
+    }
     if (tab === "summary") {
       const facts = activity.gantt;
-      return facts ? `<div class="cp-activity-detail-fields">${field(uiText(state.locale, "Start", "شروع"), String(facts.start ?? "—"))}${field(uiText(state.locale, "Finish", "پایان"), String(facts.finish ?? "—"))}${field(uiText(state.locale, "Critical", "بحرانی"), facts.critical ? uiText(state.locale, "Yes", "بله") : uiText(state.locale, "No", "خیر"))}</div>` : empty(uiText(state.locale, "No authoritative schedule summary is available for this activity.", "خلاصه زمان‌بندی مرجع برای این فعالیت موجود نیست."));
+      return `<div class="cp-activity-detail-fields">${field(uiText(state.locale, "Start", "شروع"), String(activity.cells?.early_start ?? facts?.start ?? "—"))}${field(uiText(state.locale, "Finish", "پایان"), String(activity.cells?.early_finish ?? facts?.finish ?? "—"))}${field(uiText(state.locale, "Duration", "مدت"), String(activity.cells?.duration ?? "—"))}${field(uiText(state.locale, "Percent complete", "درصد پیشرفت"), String(activity.cells?.percent_complete ?? facts?.progressPercent ?? "—"))}${field(uiText(state.locale, "Total float", "شناوری کل"), String(activity.cells?.total_float ?? "—"))}${field(uiText(state.locale, "Free float", "شناوری آزاد"), String(activity.cells?.free_float ?? "—"))}${field(uiText(state.locale, "Critical", "بحرانی"), String(activity.cells?.is_critical ?? (facts ? (facts.critical ? uiText(state.locale, "Yes", "بله") : uiText(state.locale, "No", "خیر")) : "—")))}</div>`;
     }
+    if (tab === "update-history") return empty(uiText(state.locale, "Activity-specific audit history is not included in the current workspace projection. No change entries are inferred or synthesized.", "تاریخچه ممیزی مختص فعالیت در نمای فعلی محیط کار موجود نیست. هیچ سابقه تغییری حدس زده یا ساخته نمی‌شود."));
     const tabLabel = ACTIVITY_DETAIL_TABS.find(([key]) => key === tab);
     return empty(uiText(state.locale, `No ${tabLabel?.[1] ?? "detail"} records are loaded for this activity.`, `برای این فعالیت هنوز سابقه‌ای در بخش «${tabLabel?.[2] ?? "جزئیات"}» بارگذاری نشده است.`));
   };
