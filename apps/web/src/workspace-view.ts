@@ -491,8 +491,10 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     host.innerHTML = '<div class="cp-workspace-context-menu" role="menu" aria-label="' + escapeAttribute(tx("Activity context menu", "منوی زمینه‌ای فعالیت")) + '">' + items.join("") + '</div>';
     host.hidden = false;
     host.style.position = "fixed";
-    host.style.left = String(Math.max(8, Math.min(event.clientX, window.innerWidth - 230))) + "px";
-    host.style.top = String(Math.max(8, Math.min(event.clientY, window.innerHeight - 220))) + "px";
+    const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
+    const viewportHeight = typeof window === "undefined" ? 768 : window.innerHeight;
+    host.style.left = String(Math.max(8, Math.min(event.clientX, viewportWidth - 230))) + "px";
+    host.style.top = String(Math.max(8, Math.min(event.clientY, viewportHeight - 220))) + "px";
     host.querySelector<HTMLButtonElement>("[data-context-action]")?.focus({ preventScroll: true });
   });
   container.addEventListener("click", (event) => {
@@ -530,7 +532,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
         if (relationship && menuAction === "edit-relationship") {
           activityDetailsTabByContainer.set(container, "relationships");
           options.onActivitySelect?.(relationship.successorId);
-        } else if (relationship && menuAction === "delete-relationship" && window.confirm(uiText(state.locale, "Delete this relationship?", "این رابطه حذف شود؟"))) {
+        } else if (relationship && menuAction === "delete-relationship" && typeof window !== "undefined" && window.confirm(uiText(state.locale, "Delete this relationship?", "این رابطه حذف شود؟"))) {
           options.onRelationshipDelete?.(relationship.id, relationship.recordRevision);
         }
       } else if (context.kind === "grid") {
