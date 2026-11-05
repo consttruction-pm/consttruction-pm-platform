@@ -2408,7 +2408,30 @@ async function main() {
       critical_bars: criticalBars,
       schedule_submenus: scheduleSubmenus,
     });
+('#cp-activity-grid tbody tr[data-activity-id="A130"]');
 
+    // Exercise both Activity palettes and prove the WBS band is independently configurable.
+    await page.evaluate("(() => { const group = document.querySelector('[data-activity-group]'); if (!group) throw new Error('Activity grouping selector missing'); group.value = 'wbs'; group.dispatchEvent(new Event('change', { bubbles: true })); return true; })()");
+    await page.waitForSelector("#cp-activity-grid tbody tr.cp-activity-group-band", "hierarchical WBS group bands");
+    await page.click('[data-workspace-appearance-open]');
+    await page.waitForSelector("[data-workspace-appearance-dialog][open]", "workspace appearance dialog");
+    await page.evaluate("(() => { const mode = document.querySelector('[data-appearance-mode]'); mode.value = 'dark'; mode.dispatchEvent(new Event('change', { bubbles: true })); document.querySelector('[data-appearance-color=grid]').value = '#1d2a39'; document.querySelector('[data-appearance-color=gantt]').value = '#172536'; document.querySelector('[data-appearance-color=wbs1]').value = '#174e70'; document.querySelector('[data-appearance-color=wbs2]').value = '#28647d'; return true; })()");
+    await page.click('[data-workspace-appearance-apply]');
+    await page.waitFor("document.querySelector('.cp-p6-workspace')?.dataset.workspaceTheme === 'dark'", "dark Activity palette");
+    const darkAppearance = await page.evaluate("(() => { const workspace = document.querySelector('.cp-p6-workspace'); const band = document.querySelector('.cp-activity-group-band td'); return { theme: workspace?.dataset.workspaceTheme, directoryWidth: getComputedStyle(document.querySelector('.cp-navigation-tree')).width, grid: getComputedStyle(document.querySelector('#cp-activity-grid')).backgroundColor, gantt: getComputedStyle(document.querySelector('#cp-gantt')).backgroundColor, wbsBand: band ? getComputedStyle(band).backgroundColor : null, wbsPalette: workspace ? getComputedStyle(workspace).getPropertyValue('--cp-wbs-level-1').trim() : null }; })()");
+    assert(darkAppearance.theme === "dark", "dark palette must apply to the active Activity shell");
+    assert(darkAppearance.wbsBand === "rgb(23, 78, 112)", "WBS band must render its independent configured colour: " + JSON.stringify(darkAppearance));
+    assert(Number.parseFloat(darkAppearance.directoryWidth) <= 50, "Activity directory must be a compact icon rail: " + darkAppearance.directoryWidth);
+    await page.screenshot("03a-activity-dark-palette.png");
+    record("Activity shell exposes compact directory rail and configurable dark WBS/Gantt palette", darkAppearance);
+
+    await page.click('[data-workspace-appearance-open]');
+    await page.waitForSelector("[data-workspace-appearance-dialog][open]", "workspace appearance dialog for light reset");
+    await page.evaluate("(() => { const mode = document.querySelector('[data-appearance-mode]'); mode.value = 'light'; mode.dispatchEvent(new Event('change', { bubbles: true })); return true; })()");
+    await page.click('[data-workspace-appearance-apply]');
+    await page.waitFor("document.querySelector('.cp-p6-workspace')?.dataset.workspaceTheme === 'light'", "light Activity palette restoration");
+    await page.evaluate("(() => { const group = document.querySelector('[data-activity-group]'); group.value = 'none'; group.dispatchEvent(new Event('change', { bubbles: true })); return true; })()");
+    await page.waitFor("!document.querySelector('#cp-activity-grid tbody tr.cp-activity-group-band')", "restore ungrouped Activity table");
     await page.click('#cp-activity-grid tbody tr[data-activity-id="A130"]');
     await page.waitFor(
       `document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() === "A130"`,
