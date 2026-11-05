@@ -2496,6 +2496,65 @@ async function main() {
     );
     const scheduleSubmenus = await page.count(".cp-navigation-surface a.cp-submenu-item");
     assert(scheduleSubmenus === 13, "thirteen schedule submenu anchors expected");
+    const chromeStructure = await page.evaluate(`(() => {
+      const desktop = document.querySelector(".cp-desktop");
+      const visible = (element) => Boolean(element && getComputedStyle(element).display !== "none");
+      const order = Array.from(desktop?.children ?? []).map((element) =>
+        element.classList.contains("cp-titlebar") ? "titlebar" :
+        element.classList.contains("cubi-command-shell") ? "menu" :
+        element.classList.contains("cp-toolbar") ? "toolbar" :
+        element.classList.contains("cp-window-tabs") ? "tabs" : "other"
+      );
+      return {
+        order,
+        menuCount: Array.from(document.querySelectorAll(".cubi-command-menubar")).filter(visible).length,
+        toolbarCount: Array.from(document.querySelectorAll(".cp-toolbar")).filter(visible).length,
+        tabsCount: Array.from(document.querySelectorAll(".cp-window-tabs")).filter(visible).length,
+        groupedToolbarCount: document.querySelectorAll(".cubi-toolbar").length,
+        layoutbarCount: document.querySelectorAll(".cp-layoutbar").length,
+        barsButton: Boolean(document.querySelector('[data-toolbar-command="toolbar.bars"]')),
+        fontRowButton: Boolean(document.querySelector('[data-toolbar-command="toolbar.font-row"]')),
+        contextCommandCount: document.querySelectorAll(".cp-context-command-bar button:not(:disabled)").length,
+      };
+    })()`);
+    const titleIndex = chromeStructure.order.indexOf("titlebar");
+    const menuIndex = chromeStructure.order.indexOf("menu");
+    const toolbarIndex = chromeStructure.order.indexOf("toolbar");
+    const tabsIndex = chromeStructure.order.indexOf("tabs");
+    assert(
+      chromeStructure.menuCount === 1 && chromeStructure.toolbarCount === 1 && chromeStructure.tabsCount === 1 &&
+        chromeStructure.groupedToolbarCount === 0 && chromeStructure.layoutbarCount === 0 &&
+        titleIndex >= 0 && titleIndex < menuIndex && menuIndex < toolbarIndex && toolbarIndex < tabsIndex &&
+        chromeStructure.barsButton && chromeStructure.fontRowButton,
+      "workspace chrome must render one title/menu/icon-toolbar/tab sequence with promoted layout commands: " +
+        JSON.stringify(chromeStructure),
+    );
+
+    await page.evaluate(`(() => {
+      const summary = Array.from(document.querySelectorAll(".cubi-menu-root > details > summary"))
+        .find((element) => element.textContent.trim() === "View");
+      summary?.click();
+    })()`);
+    await page.click('[data-shell-command="Timescale"]');
+    await page.waitFor(
+      'document.querySelector(\'dialog[data-desktop-dialog="timescale"]\')?.open === true',
+      "View menu Timescale command opens the real dialog",
+    );
+    await page.click('dialog[data-desktop-dialog="timescale"] [data-dialog-cancel]');
+    await page.click('[data-toolbar-command="toolbar.bars"]');
+    await page.waitFor(
+      'document.querySelector(\'dialog[data-desktop-dialog="bars"]\')?.open === true',
+      "primary toolbar Bars command opens the real dialog",
+    );
+    await page.click('dialog[data-desktop-dialog="bars"] [data-dialog-cancel]');
+    await page.click('[data-toolbar-command="toolbar.font-row"]');
+    await page.waitFor(
+      'document.querySelector(\'dialog[data-desktop-dialog="font-row"]\')?.open === true',
+      "primary toolbar Font and Row command opens the real dialog",
+    );
+    await page.click('dialog[data-desktop-dialog="font-row"] [data-dialog-cancel]');
+    record("single desktop chrome sequence and promoted layout commands work", chromeStructure);
+
     const headerLabels = await page.evaluate(`(() =>
       Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
