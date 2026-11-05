@@ -580,7 +580,7 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
 
   // Pointer resizing is owned by the dedicated browser-only resize module;
   // this DOM-light fixture exercises only the renderer's delegated commands.
-  assert.deepEqual(registrations, ["input", "submit", "click", "keydown", "change"]);
+  assert.deepEqual(registrations, ["input", "submit", "click", "focusin", "keydown", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
