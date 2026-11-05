@@ -2047,6 +2047,53 @@ test("Activity row right-click opens a target-aware context menu and Activity De
   assert.deepEqual(selected, ["A-1"]);
 });
 
+test("Activity column header context menu can hide only the targeted presentation column", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const header = { dataset: { columnId: "activity.name" } };
+  const source = { closest: (selector: string) => selector.includes("th[data-column-id]") ? header : null };
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = { innerHTML: "", hidden: true, style: {}, querySelector: () => ({ focus: () => {} }) };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const visibility: Array<[string, boolean]> = [];
+  renderMainWorkspace(container as unknown as HTMLElement, base, {
+    onP6FieldVisibilityChange: (fieldId, visible) => visibility.push([fieldId, visible]),
+  });
+  listeners.get("contextmenu")?.({ target: source, clientX: 100, clientY: 80, preventDefault: () => {} } as unknown as Event);
+  assert.match(host.innerHTML, /data-context-action="hide-column"/);
+  const menu = { closest: (selector: string) => selector.includes("[data-workspace-context-menu]") ? menu : null };
+  const action = { dataset: { contextAction: "hide-column" }, closest: (selector: string) => selector.includes("[data-context-action]") ? action : menu };
+  listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event);
+  assert.deepEqual(visibility, [["activity.name", false]]);
+  assert.equal(host.hidden, true);
+});
+
+test("WBS tree item context menu selects the addressed WBS node", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const node = { dataset: { wbsId: "WBS-22" } };
+  const source = { closest: (selector: string) => selector.includes("[data-wbs-id]") ? node : null };
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = { innerHTML: "", hidden: true, style: {}, querySelector: () => ({ focus: () => {} }) };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const selected: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, base, { onWbsSelect: (id) => selected.push(id) });
+  listeners.get("contextmenu")?.({ target: source, clientX: 120, clientY: 90, preventDefault: () => {} } as unknown as Event);
+  assert.match(host.innerHTML, /data-context-action="select-wbs"/);
+  const menu = { closest: (selector: string) => selector.includes("[data-workspace-context-menu]") ? menu : null };
+  const action = { dataset: { contextAction: "select-wbs" }, closest: (selector: string) => selector.includes("[data-context-action]") ? action : menu };
+  listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event);
+  assert.deepEqual(selected, ["WBS-22"]);
+});
+
 test("Activity context menu opens with ContextMenu or Shift+F10 and Escape restores focus", () => {
   for (const [key, shiftKey] of [["ContextMenu", false], ["F10", true]] as const) {
     const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
