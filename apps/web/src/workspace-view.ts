@@ -549,7 +549,9 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       workspaceContextMenuState.delete(container);
       return;
     }
-    const menuHost = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
+    const menuHost = typeof container.querySelector === "function"
+      ? container.querySelector<HTMLElement>("[data-workspace-context-menu-host]")
+      : null;
     if (menuHost && !target.closest("[data-workspace-context-menu]")) menuHost.hidden = true;
     if (target.dataset.activityWbsGroupToggle) {
       const wbsId = target.dataset.activityWbsGroupToggle;
