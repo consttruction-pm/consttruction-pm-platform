@@ -101,8 +101,6 @@ from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VE
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
-from ..p6_activity_step_api import P6ActivityStepAPI, P6_ACTIVITY_STEP_API_VERSION
-from ..p6_activity_step_repository import P6ActivityStepPersistenceError
 from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
 from ..p6_cost_account_repository import P6CostAccount
 from ..p6_activity_period_actual_api import P6ActivityPeriodActualAPI, P6_ACTIVITY_PERIOD_ACTUAL_API_VERSION
@@ -212,7 +210,6 @@ class ProjectLifecycleHttpRoutes:
         change_claim_api: ChangeClaimAPI | None = None,
         p6_financial_period_api: P6FinancialPeriodAPI | None = None,
         p6_expense_api: P6ExpenseAPI | None = None,
-        p6_activity_step_api: P6ActivityStepAPI | None = None,
         p6_cost_account_api: P6CostAccountAPI | None = None,
         p6_activity_period_actual_api: P6ActivityPeriodActualAPI | None = None,
         p6_activity_master_api: P6ActivityMasterAPI | None = None,
@@ -254,7 +251,6 @@ class ProjectLifecycleHttpRoutes:
         self._change_claim_api = change_claim_api
         self._p6_financial_period_api = p6_financial_period_api
         self._p6_expense_api = p6_expense_api
-        self._p6_activity_step_api = p6_activity_step_api
         self._p6_cost_account_api = p6_cost_account_api
         self._p6_activity_period_actual_api = p6_activity_period_actual_api
         self._p6_activity_master_api = p6_activity_master_api
@@ -1637,54 +1633,6 @@ class ProjectLifecycleHttpRoutes:
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
                 except (TypeError, ValueError, ArithmeticError):
                     return self._error(400, "P6_RELATIONSHIP_REQUEST_INVALID", "error.request.invalid")
-            if path.startswith("/api/projects/") and "/p6/activity-steps" in urlsplit(path).path and self._p6_activity_step_api is not None:
-                clean_path = urlsplit(path).path
-                prefix = "/p6/activity-steps"
-                project_id = clean_path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
-                suffix = clean_path[len("/api/projects/") + len(project_id) + len(prefix):]
-                if not project_id:
-                    return self._error(400, "P6_ACTIVITY_STEP_REQUEST_INVALID", "error.request.invalid")
-                try:
-                    context = self._api.open_project(session_id, project_id, now=now).context
-                except ProjectLifecycleError as exc:
-                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
-                        return self._error(403, str(exc), "error.authorization.denied")
-                    raise
-                session = self._api.get_session(session_id, now=now)
-                auth = context.authorization_context(session.roles)
-                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
-                step_id = suffix.strip("/")
-                try:
-                    if method == "GET" and not step_id:
-                        query = parse_qs(urlsplit(path).query, keep_blank_values=True)
-                        activity_values = query.get("activity_id", [])
-                        if len(activity_values) > 1:
-                            raise ValueError("duplicate activity_id")
-                        activity_id = activity_values[0] if activity_values else None
-                        result = self._p6_activity_step_api.list(scope, activity_id=activity_id, auth_context=auth)
-                        return self._json(200, {
-                            "contract_version": P6_ACTIVITY_STEP_API_VERSION,
-                            "scope": {
-                                "tenant_id": scope.tenant_id,
-                                "project_id": scope.project_id,
-                                "project_revision": scope.project_revision,
-                            },
-                            "steps": list(result),
-                        })
-                    if method == "GET" and step_id and "/" not in step_id:
-                        result = self._p6_activity_step_api.get(scope, step_id, auth_context=auth)
-                        if result is None:
-                            return self._error(404, "P6_ACTIVITY_STEP_NOT_FOUND", "error.p6.activity_step.not_found")
-                        return self._json(200, result)
-                    return self._error(405, "P6_ACTIVITY_STEP_METHOD_NOT_ALLOWED", "error.request.method_not_allowed")
-                except AuthorizationError as exc:
-                    return self._error(403, str(exc), "error.authorization.denied")
-                except P6ActivityStepPersistenceError as exc:
-                    if str(exc) == "REVISION_CONFLICT":
-                        return self._error(409, str(exc), "error.revision.conflict")
-                    return self._error(400, "P6_ACTIVITY_STEP_REQUEST_INVALID", "error.request.invalid")
-                except (TypeError, ValueError, ArithmeticError):
-                    return self._error(400, "P6_ACTIVITY_STEP_REQUEST_INVALID", "error.request.invalid")
             if path.startswith("/api/projects/") and "/p6/expenses" in path and self._p6_expense_api is not None:
                 prefix = "/p6/expenses"
                 project_id = path[len("/api/projects/"):].split(prefix, 1)[0].rstrip("/")
