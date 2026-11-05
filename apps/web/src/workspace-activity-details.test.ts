@@ -193,8 +193,7 @@ test("Activity Resources tab does not mistake an unloaded projection for no assi
     dataDate: "—",
     calendarMode: "gregorian",
   });
-  assert.match(html, /not included in the current Activity Details projection/i);
-  assert.match(html, /does not mean the activity has no resources/i);
+  assert.match(html, /Resource assignments have not been loaded yet/i);
 });
 
 test("Activity Update History remains explicit when authoritative activity audit history is absent", () => {
