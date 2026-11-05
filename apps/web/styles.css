@@ -4836,7 +4836,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
    never covers the Activities grid, Gantt, Details fields or status bar. */
 body:has(.cp-p6) .cubi-assistant-launcher {
   inset-inline-end: 1px;
-  bottom: 52px;
+  bottom: 60px;
   gap: 0;
 }
 body:has(.cp-p6) .cubi-assistant-launcher-button {
