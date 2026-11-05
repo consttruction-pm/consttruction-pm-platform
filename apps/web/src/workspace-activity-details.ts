@@ -270,6 +270,36 @@ function rememberTab(id: ActivityDetailsTabId): void {
   }
 }
 
+function renderResourceAssignments(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
+  if (!activity) return empty(locale, t(locale, "Select an activity to view its resource assignments.", "برای مشاهده تخصیص منابع، یک فعالیت انتخاب کنید."));
+  const data = input.resourceAssignments;
+  if (!data || data.status === "idle") return empty(locale, t(locale, "Resource assignments have not been loaded yet.", "تخصیص منابع هنوز بارگذاری نشده است."));
+  if (data.status === "loading") return empty(locale, t(locale, "Loading authoritative resource assignments…", "در حال بارگذاری تخصیص منابع از داده‌های مرجع…"));
+  if (data.status === "error") return `<p class="cp-detail-empty" role="alert">${esc(t(locale, "Resource assignments could not be loaded.", "بارگذاری تخصیص منابع ناموفق بود."))} ${esc(data.errorCode ?? "API_ERROR")}</p><button type="button" data-detail-retry="resources">${esc(t(locale, "Retry", "تلاش دوباره"))}</button>`;
+  const rows = data.records.filter((item) => item.activityId === activity.id);
+  if (!rows.length) return empty(locale, t(locale, "No resource assignments are recorded for this activity.", "برای این فعالیت تخصیص منبعی در سوابق ثبت‌شده وجود ندارد."));
+  const headings = ["Resource ID", "Role ID", "Budgeted units", "Actual units", "Remaining units", "Budgeted cost", "Actual cost", "Remaining cost", "Unit", "Currency", "Driving"];
+  const persianHeadings = ["شناسه منبع", "شناسه نقش", "واحد برنامه‌ای", "واحد واقعی", "واحد باقیمانده", "هزینه برنامه‌ای", "هزینه واقعی", "هزینه باقیمانده", "واحد", "ارز", "تعیین‌کننده"];
+  const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
+  const body = rows.map((item) => `<tr><td>${esc(item.resourceId)}</td><td>${esc(item.roleId ?? "—")}</td><td>${esc(item.units ?? "—")}</td><td>${esc(item.actualUnits ?? "—")}</td><td>${esc(item.remainingUnits ?? "—")}</td><td>${esc(item.plannedCost ?? "—")}</td><td>${esc(item.actualCost ?? "—")}</td><td>${esc(item.remainingCost ?? "—")}</td><td>${esc(item.unit ?? "—")}</td><td>${esc(item.currency ?? "—")}</td><td>${esc(item.isDriving === null ? "—" : t(locale, item.isDriving ? "Yes" : "No", item.isDriving ? "بله" : "خیر"))}</td></tr>`).join("");
+  return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function renderActivityExpenses(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
+  if (!activity) return empty(locale, t(locale, "Select an activity to view its expenses.", "برای مشاهده هزینه‌ها، یک فعالیت انتخاب کنید."));
+  const data = input.activityExpenses;
+  if (!data || data.status === "idle") return empty(locale, t(locale, "Activity expenses have not been loaded yet.", "هزینه‌های فعالیت هنوز بارگذاری نشده‌اند."));
+  if (data.status === "loading") return empty(locale, t(locale, "Loading authoritative activity expenses…", "در حال بارگذاری هزینه‌های فعالیت از داده‌های مرجع…"));
+  if (data.status === "error") return `<p class="cp-detail-empty" role="alert">${esc(t(locale, "Activity expenses could not be loaded.", "بارگذاری هزینه‌های فعالیت ناموفق بود."))} ${esc(data.errorCode ?? "API_ERROR")}</p><button type="button" data-detail-retry="expenses">${esc(t(locale, "Retry", "تلاش دوباره"))}</button>`;
+  const rows = data.records.filter((item) => item.activityId === activity.id);
+  if (!rows.length) return empty(locale, t(locale, "No expense records are assigned to this activity.", "هزینه‌ای برای این فعالیت ثبت نشده است."));
+  const headings = ["Expense ID", "Name", "Category", "Date", "Budgeted cost", "Actual cost", "Remaining cost", "Currency", "Note"];
+  const persianHeadings = ["شناسه هزینه", "نام", "دسته‌بندی", "تاریخ", "هزینه برنامه‌ای", "هزینه واقعی", "هزینه باقیمانده", "ارز", "یادداشت"];
+  const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
+  const body = rows.map((item) => `<tr><td>${esc(item.expenseId)}</td><td>${esc(item.name)}</td><td>${esc(item.category)}</td><td>${esc(item.expenseDate ?? "—")}</td><td>${esc(item.plannedCost ?? "—")}</td><td>${esc(item.actualCost ?? "—")}</td><td>${esc(item.remainingCost ?? "—")}</td><td>${esc(item.currency ?? "—")}</td><td>${esc(item.note ?? "—")}</td></tr>`).join("");
+  return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
 function activityWbsLabel(input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
   if (!activity) return "";
   const node = input.state?.wbsNodes.find((item) => item.id === activity.wbsId);
@@ -332,7 +362,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       </div>
       <p class="cp-detail-hint">${esc(t(locale, "Duration, float and critical values are produced by the schedule core; this pane only displays them.", "مقادیر مدت، شناوری و بحرانی توسط هستهٔ زمان‌بندی تولید می‌شوند؛ این پنل فقط آن‌ها را نمایش می‌دهد."))}</p>`;
     case "resources":
-      return empty(locale, t(locale, "Resource assignments are not included in the current Activity Details projection. Open Resource Assignments to inspect the authoritative assignment register; this empty panel does not mean the activity has no resources.", "تخصیص منابع در نمای فعلی جزئیات فعالیت بارگذاری نشده است. برای مشاهده تخصیص‌های مرجع، پنجره تخصیص منابع را باز کنید؛ خالی بودن این پنل به معنی نداشتن منبع نیست."));
+      return renderResourceAssignments(locale, input, activity);
     case "predecessors":
       return relationshipRows(locale, predecessors);
     case "successors":
@@ -354,7 +384,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
     case "documents":
       return empty(locale, t(locale, "No documents are linked to this activity in the project read model. Project documents are listed on the Documents page.", "هیچ سندی در مدل خواندن پروژه به این فعالیت پیوند ندارد. اسناد پروژه در صفحهٔ اسناد فهرست می‌شوند."));
     case "expenses":
-      return empty(locale, t(locale, "No activity expense records are returned by the project read model.", "هیچ رکورد هزینهٔ فعالیتی توسط مدل خواندن پروژه برگردانده نشده است."));
+      return renderActivityExpenses(locale, input, activity);
     case "issues": {
       if (!activity) return empty(locale, t(locale, "Select an activity to view linked issues.", "برای مشاهده مسائل پیوندشده، یک فعالیت انتخاب کنید."));
       const linkedIssues = (state?.fieldIssues ?? []).filter((issue) => issue.activityIds.includes(activity.id));
