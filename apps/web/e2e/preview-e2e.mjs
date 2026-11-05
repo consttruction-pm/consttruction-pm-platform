@@ -3148,6 +3148,11 @@ async function main() {
           geometry.assistantInsideRail && geometry.assistantOutsideWorkspace,
         `workspace splitters must fit and receive pointer events at ${viewport.width}x${viewport.height}: ${JSON.stringify(geometry)}`,
       );
+      await page.cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x: viewport.width / 2,
+        y: viewport.height / 2,
+      });
       const navigationGeometry = await page.evaluate(`(() => {
         const navigation = document.querySelector(".cp-navigation-tree");
         const toggle = navigation?.querySelector("[data-navigation-toggle]");
