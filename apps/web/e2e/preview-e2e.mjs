@@ -1004,6 +1004,7 @@ class Page {
       const rect = element.getBoundingClientRect();
       const style = getComputedStyle(element);
       const parentRect = element.parentElement?.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
       const ancestors = [];
       for (let current = element; current && ancestors.length < 10; current = current.parentElement) {
         const bounds = current.getBoundingClientRect();
@@ -1032,6 +1033,11 @@ class Page {
         selector: ${JSON.stringify(selector)},
         x: rect.left + rect.width / 2,
         y: rect.top + rect.height / 2,
+        hitTag: hit?.tagName ?? null,
+        hitClass: hit && typeof hit.className === "string" ? hit.className : null,
+        hitResizeKind: hit instanceof HTMLElement ? hit.dataset.resizeHandle ?? hit.closest<HTMLElement>("[data-resize-handle]")?.dataset.resizeHandle ?? null : null,
+        hitIsTargetOrChild: Boolean(hit && (hit === element || element.contains(hit))),
+        pointerEvents: style.pointerEvents,
         width: rect.width,
         height: rect.height,
         display: style.display,
