@@ -6,6 +6,8 @@
 
 ## 1. Selection and authority rules
 
+The implementation feasibility and priority decision are recorded in [CUBI_KNOWLEDGE_BASE_FEASIBILITY_AND_PHASE_PLAN.md](../architecture/CUBI_KNOWLEDGE_BASE_FEASIBILITY_AND_PHASE_PLAN.md). Source registration is preparatory only; production implementation is deferred until the single canonical Visual Workspace shell is accepted.
+
 - Separate software-operation knowledge from management-science knowledge.
 - Prefer primary publishers and official release records.
 - Record edition, document ID, publication date, status, retrieval date, checksum, exact page/section and rights decision.
