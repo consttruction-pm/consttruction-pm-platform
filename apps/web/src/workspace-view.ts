@@ -358,11 +358,20 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.activityWbsGroupToggle) {
+      const wbsId = target.dataset.activityWbsGroupToggle;
+      const collapsed = new Set(collapsedActivityWbsGroups(container));
+      if (collapsed.has(wbsId)) collapsed.delete(wbsId);
+      else collapsed.add(wbsId);
+      collapsedActivityWbsGroupsByContainer.set(container, collapsed);
+      renderMainWorkspace(container, state, options);
+      return;
+    }
     if (target.dataset.registerTab) {
       const tab = target.dataset.registerTab;
       container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
@@ -1198,7 +1207,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                     <h2>${escapeHtml(t.gantt)}</h2>
                     <button type="button" data-tools-open title="${escapeAttribute(rail.bars)}">${workspaceIcon("bars")}</button>
                   </div>
-                  ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, activityWbsGroups)}
+                  ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, state.locale, activityWbsGroups)}
                 </section>
               </section>
               ${renderP6ModuleStage(container, state, t, options)}
@@ -2323,6 +2332,7 @@ function renderGantt(
   t: WorkspaceLabels,
   selectedActivityId: string | null,
   showRelationships: boolean,
+  locale: WorkspaceState["locale"],
   activityGroups: readonly ActivityWbsDisplayGroup[] | null = null,
 ): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
@@ -2331,9 +2341,32 @@ function renderGantt(
     .map((activity) => createGanttBarGeometry(activity, scale))
     .filter((bar): bar is GanttBarGeometry => bar !== null);
   if (!bars.length) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
+  const barsByActivityId = new Map(bars.map((bar) => [bar.activityId, bar] as const));
+  type DisplayRow =
+    | { kind: "group"; group: ActivityWbsDisplayGroup }
+    | { kind: "activity"; activity: WorkspaceActivityRow; bar: GanttBarGeometry | null };
+  const displayRows: DisplayRow[] = [];
+  if (activityGroups) {
+    for (const group of activityGroups) {
+      displayRows.push({ kind: "group", group });
+      if (!group.collapsed) {
+        for (const activity of group.activities) {
+          displayRows.push({ kind: "activity", activity, bar: barsByActivityId.get(activity.id) ?? null });
+        }
+      }
+    }
+  } else {
+    for (const activity of activities) {
+      displayRows.push({ kind: "activity", activity, bar: barsByActivityId.get(activity.id) ?? null });
+    }
+  }
+  const presentationRowByActivity = new Map<string, number>();
+  displayRows.forEach((row, index) => {
+    if (row.kind === "activity" && row.bar) presentationRowByActivity.set(row.activity.id, index);
+  });
 
   const ticks = createGanttAxisTicks(scale, ganttScale);
-  const links = createGanttLinkGeometry(relationships, bars);
+  const links = createGanttLinkGeometry(relationships, bars, presentationRowByActivity);
   const scaleModeLabels: Record<WorkspaceGanttScale, string> = {
     day: t.scaleDay,
     week: t.scaleWeek,
@@ -2353,11 +2386,28 @@ function renderGantt(
     return `<span class="cp-gantt-axis-tick${index === 0 ? " is-first" : tick.leftPercent > 88 ? " is-last" : ""}${dayClass}" data-gantt-tick="${escapeAttribute(tick.date)}"${dayAttribute} title="${escapeAttribute(fullLabel)}" style="left:${tick.leftPercent}%">${escapeHtml(fullLabel)}</span>`;
   }).join("")}</div></div>`;
   const linkSvg = showRelationships && links.length
-    ? `<svg class="cp-gantt-links" viewBox="0 0 100 ${bars.length * 100}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"></path>`).join("")}</svg>`
+    ? `<svg class="cp-gantt-links" viewBox="0 0 100 ${displayRows.length * 100}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"></path>`).join("")}</svg>`
     : "";
-  const rows = bars.map((bar) => `<div class="cp-gantt-row${bar.activityId === selectedActivityId ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(bar.activityId)}" tabindex="0" aria-pressed="${bar.activityId === selectedActivityId ? "true" : "false"}" aria-label="${escapeAttribute(bar.activityId)}"><span class="cp-gantt-label">${escapeHtml(bar.activityId)}</span><div class="cp-gantt-track"><div class="cp-gantt-bar${bar.critical ? " is-critical" : ""}${bar.milestone ? " is-milestone" : ""}" style="left:${bar.leftPercent}%;width:${bar.widthPercent}%" title="${escapeAttribute(bar.activityId + (bar.milestone ? " — " + t.milestone : "") + " — " + bar.progressPercent + "%" + (bar.critical ? " — " + t.critical : ""))}"><span class="cp-gantt-progress" style="width:${bar.progressPercent}%"></span></div></div></div>`).join("");
+  const expandGroupLabel = uiText(locale, "Expand WBS group", "باز کردن گروه WBS");
+  const collapseGroupLabel = uiText(locale, "Collapse WBS group", "جمع کردن گروه WBS");
+  const rows = displayRows.map((row) => {
+    if (row.kind === "group") {
+      const group = row.group;
+      const action = group.collapsed ? expandGroupLabel : collapseGroupLabel;
+      return `<div class="cp-gantt-group-row" data-activity-group-band="${escapeAttribute(group.wbsId)}" data-wbs-depth="${group.depth}">
+        <span class="cp-gantt-group-label" style="padding-inline-start:${group.depth * 14}px">
+          <button type="button" data-activity-wbs-group-toggle="${escapeAttribute(group.wbsId)}" aria-expanded="${group.collapsed ? "false" : "true"}" title="${escapeAttribute(action)}" aria-label="${escapeAttribute(action + ": " + group.path)}">${group.collapsed ? "+" : "−"}</button>
+          <strong title="${escapeAttribute(group.path)}">${escapeHtml(group.path)}</strong>
+          <small>${group.count}</small>
+        </span>
+        <div class="cp-gantt-group-track"></div>
+      </div>`;
+    }
+    const { activity, bar } = row;
+    return `<div class="cp-gantt-row${activity.id === selectedActivityId ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-pressed="${activity.id === selectedActivityId ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}"><span class="cp-gantt-label">${escapeHtml(activity.id)}</span><div class="cp-gantt-track">${bar ? `<div class="cp-gantt-bar${bar.critical ? " is-critical" : ""}${bar.milestone ? " is-milestone" : ""}" style="left:${bar.leftPercent}%;width:${bar.widthPercent}%" title="${escapeAttribute(activity.id + (bar.milestone ? " — " + t.milestone : "") + " — " + bar.progressPercent + "%" + (bar.critical ? " — " + t.critical : ""))}"><span class="cp-gantt-progress" style="width:${bar.progressPercent}%"></span></div>` : ""}</div></div>`;
+  }).join("");
 
-  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}">${toolbar}${axis}<div class="cp-gantt-chart" style="--cp-gantt-rows:${bars.length}">${rows}${linkSvg}</div></div>`;
+  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}">${toolbar}${axis}<div class="cp-gantt-chart" style="--cp-gantt-rows:${displayRows.length}">${rows}${linkSvg}</div></div>`;
 }
 
 
