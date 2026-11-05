@@ -219,7 +219,7 @@ export function readActivityDetailsTab(storage?: Storage): ActivityDetailsTabId 
 }
 
 export function readActivityDetailsVisibleTabs(storage?: Storage): ActivityDetailsTabId[] {
-  const defaults = ACTIVITY_DETAILS_TABS.map((tab) => tab.id);
+  const defaults = ACTIVITY_DETAILS_TABS.map((tab) => tab.id as ActivityDetailsTabId);
   try {
     const target = storage ?? (typeof window !== "undefined" ? window.localStorage : undefined);
     const raw = target?.getItem(ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY);
@@ -726,8 +726,8 @@ export function renderActivityDetailsPanel(input: ActivityDetailsInput): string 
         <span class="cp-details-id cp-detail-selected">${esc(identityFor(input))}</span>
       </div>`;
   return `<div class="cp-details-head">
-      <div><h2 id="cp-details-heading">${esc(titleFor(input))}</h2>
-      ${activityMode ? `<button type="button" class="cp-detail-customize" data-detail-tabs-customize>${esc(t(locale, "Customize Tabs", "تنظیم زبانه‌ها"))}</button>` : ""}</div>
+      <div><h2 id="cp-details-heading">${esc(titleFor(input))}</h2></div>
+      ${activityMode ? `<div class="cp-activity-details-heading-actions"><small>${esc(t(locale, "Activity Details", "جزئیات فعالیت"))}</small><button type="button" data-detail-tabs-customize>${esc(t(locale, "Customize Tabs", "تنظیم زبانه‌ها"))}</button></div>` : ""}
       ${nav}
     </div>
     <div class="cp-detail-tabs" role="tablist" aria-label="${esc(t(locale, "Detail tabs", "زبانه‌های جزئیات"))}">
