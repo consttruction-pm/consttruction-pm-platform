@@ -857,12 +857,6 @@ function renderApp(
       case "admin.calendar":
         toggleCalendar();
         return;
-      case "help.visual-demo": {
-        const url = new URL(window.location.href);
-        url.searchParams.set("view", "visual");
-        window.location.assign(url.toString());
-        return;
-      }
       default:
         return;
     }
