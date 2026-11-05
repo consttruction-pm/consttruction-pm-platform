@@ -75,3 +75,14 @@ jobs:
         env:
           CUBI_PYTHON: python
         run: npm run test:e2e:forms
+
+      - name: Upload visual workspace browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cubi-workspace-visual-evidence
+          path: |
+            apps/web/e2e/artifacts/*.png
+            apps/web/e2e/artifacts/evidence.json
+          if-no-files-found: warn
+          retention-days: 14
