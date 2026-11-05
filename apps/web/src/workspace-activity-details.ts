@@ -390,6 +390,13 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
   }
 }
 
+export function renderActivityDetailsTabContent(
+  tab: ActivityDetailsTabId,
+  input: ActivityDetailsInput,
+): string {
+  return activityTabBody(tab, input);
+}
+
 function stateCounts(state: WorkspaceState): string {
   const locale = state.locale;
   return `<div class="cp-detail-grid">
