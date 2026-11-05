@@ -74,6 +74,7 @@ test("layout commands from the global menu open their owning desktop dialog", ()
   });
   const target = {
     dataset: { shellCommand: "Timescale" },
+    hasAttribute: () => false,
     closest: (selector: string) => selector === "[data-shell-command]" ? target : null,
   };
   listeners.get("click")?.({ target, stopPropagation: () => {} } as unknown as Event);
