@@ -4875,11 +4875,11 @@ async function main() {
     );
 
     await page.click("#cubi-preview-banner button");
-    await page.waitForSelector('form[action="/preview/login"]', "logout returns to login");
+    await page.waitFor(`location.pathname === "/"`, "logout returns to public home");
     await page.navigate(
       `${baseUrl}/app?view=live`,
       'form[action="/preview/login"]',
-      "guarded live /app",
+      "guarded live /app after sign out",
       `${baseUrl}/preview/login`,
     );
     assert(
