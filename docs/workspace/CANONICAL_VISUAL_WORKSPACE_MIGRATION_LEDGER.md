@@ -286,3 +286,38 @@ Append one record for every slice. Do not overwrite prior records.
 - Baseline, Documents write/upload, Reports, Tracking, Risks, Thresholds and Issues service gaps remain open unless separately verified with exact-head tests.
 - Numerical schedule parity against an authorized latest-version reference remains unverified; no parity claim is made.
 - No production deploy or merge was performed. The PR branch must be reconciled with the four newer main commits and re-tested before any merge decision.
+
+## 12. Exact-head resize and viewport verification — 2026-11-05
+
+**Verified implementation/test head:** `c796954086c1d7bab88f61e3bd622638f3f591b8`  
+**PR:** #1716 — open, not merged, not deployed.  
+**Exact-head CI:**
+- Client Typecheck run `41943063171`: passed (web, mobile, desktop, client-sync).
+- ConstructionPM CI run `41943063191`: passed (Python 3.11, 3.12, 3.13).
+- ConstructionPM Web CI run `41943063397`: passed (typecheck, unit tests, build, production-shaped Pages artifact, preview runtime smoke test, browser E2E, Form Builder E2E, evidence upload).
+- Browser evidence artifact: `cubi-workspace-visual-evidence`, artifact ID `13377855522`.
+
+### Verified by browser E2E
+- Details and table/Gantt splitters respond to mouse resizing and preserve layout preferences.
+- Activity column hide/add/reorder/width/pin/freeze operations persist through the layout API.
+- Layout survives a full reload through the real API and SQLite.
+- Geometry checks and pointer hit-target checks passed at 1280×720, 1366×768 and 1920×1080.
+- Assistant launcher and workspace content geometry assertions passed after the full-coordinate diagnostic was added.
+- Both browser E2E suites passed, including Form Builder.
+
+### Manual screenshot audit — findings still open
+Screenshots `05-workspace-1280x720.png`, `05-workspace-1366x768.png` and `05-workspace-1920x1080.png` were opened and visually inspected from the exact-head artifact.
+
+The resize geometry is accepted for this slice, but the requested shell redesign is **not** complete:
+1. Multiple command surfaces remain visible at once: global icon toolbar, layout/options row, workspace tabs, main text menu, grouped Standard/Project/Layout commands, another page-tab row, activity metadata, Commands row and grid controls. This is still vertically expensive and duplicates several command categories.
+2. The left workspace directory remains expanded as a wide text navigation panel rather than the requested compact icon strip with expandable labels.
+3. The Details area is visible but its field density at 1280×720 is still constrained; do not compensate by changing the Gantt timescale or hiding fields.
+4. The assistant launcher is compact in the right rail; the lower viewport screenshots also show a partially visible assistant surface near the bottom edge that needs a separate interaction/overlap review.
+5. No evidence in this slice proves the full 48-window visual catalogue has been migrated into the single authenticated workspace. The separate demo/bootstrap must not be removed until every approved window and handler is migrated and verified.
+
+### Integration guard
+At this audit, the continuation branch compares with current `main` as 48 commits ahead and 4 commits behind, with merge-base `3214e3c8cd204d772ae641dd489a97c781c87e59`. The four main-side commits must be reconciled without dropping the branch's resize implementation or the independent main fixes. Keep PR #1716 unmerged and undeployed until this reconciliation and exact-head regression checks are complete.
+
+### Next controlled slice
+Consolidate the visible command hierarchy without deleting any menu, command or handler; then compress the directory navigation into a compact icon strip with expandable labels. Implement as a separate reviewable slice with before/after screenshots and browser assertions. Do not combine it with service-gap work or calculation changes.
+
