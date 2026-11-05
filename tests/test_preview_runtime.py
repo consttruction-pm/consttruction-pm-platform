@@ -609,7 +609,7 @@ def test_preview_project_deep_link_survives_login_and_rejects_external_redirects
             content_type="application/x-www-form-urlencoded",
         )
         assert status == 303
-        assert headers["location"] == "/app"
+        assert headers["location"] == "/app?view=live"
     finally:
         runtime.close()
 
@@ -1514,7 +1514,7 @@ def test_expired_preview_session_recovers_through_login_and_clears_stale_cookie(
         )
         assert status == 302
         assert headers["location"] == (
-            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01"
+            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive"
         )
         assert "Max-Age=0" in headers["set-cookie"]
 
@@ -1522,11 +1522,11 @@ def test_expired_preview_session_recovers_through_login_and_clears_stale_cookie(
             app,
             "POST",
             "/preview/login",
-            body=b"role=planner&next=%2Fapp%3Fproject%3Dpreview-rps-01",
+            body=b"role=planner&next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive",
             content_type="application/x-www-form-urlencoded",
         )
         assert status == 303
-        assert headers["location"] == "/app?project=preview-rps-01"
+        assert headers["location"] == "/app?project=preview-rps-01&view=live"
         refreshed_cookie = _session_cookie(headers)
 
         status, _, body = _request(
