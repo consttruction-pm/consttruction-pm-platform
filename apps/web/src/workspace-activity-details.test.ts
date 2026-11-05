@@ -94,10 +94,10 @@ test("Activity Details visible-tab preferences ignore stale ids and never hide a
 
   const staleOnlyStorage = {
     getItem: () => JSON.stringify(["removed-tab", "calendar"]),
-  } as Storage;
+  } as unknown as Storage;
   assert.equal(readActivityDetailsVisibleTabs(staleOnlyStorage).length, 16);
 
-  const malformedStorage = { getItem: () => "not-json" } as Storage;
+  const malformedStorage = { getItem: () => "not-json" } as unknown as Storage;
   assert.equal(readActivityDetailsVisibleTabs(malformedStorage).length, 16);
 });
 
