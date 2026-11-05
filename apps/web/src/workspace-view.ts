@@ -121,6 +121,12 @@ const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsViewByContainer = new WeakMap<HTMLElement, "tree" | "chart">();
 const collapsedActivityWbsGroupsByContainer = new WeakMap<HTMLElement, Set<string>>();
+type WorkspaceContextMenuState =
+  | { kind: "activity"; activityId: string }
+  | { kind: "wbs"; wbsId: string }
+  | { kind: "relationship"; relationshipId: string }
+  | { kind: "grid" | "gantt" };
+const workspaceContextMenuState = new WeakMap<HTMLElement, WorkspaceContextMenuState>();
 
 type ActivityWbsDisplayGroup = {
   wbsId: string;
@@ -431,12 +437,118 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       if (wbsId) void record.options.onWbsUpdate?.(wbsId, { code: readText("code"), name: readText("name"), sequenceNumber });
     }
   });
+  container.addEventListener("contextmenu", (event) => {
+    const source = event.target as HTMLElement | null;
+    if (!source || typeof source.closest !== "function") return;
+    const activity = source.closest<HTMLElement>("#cp-activity-grid tr[data-activity-id]");
+    const ganttActivity = source.closest<HTMLElement>(".cp-gantt-row[data-gantt-activity-id]");
+    const group = source.closest<HTMLElement>("[data-activity-group-band]");
+    const link = source.closest<SVGPathElement>("path[data-gantt-link]");
+    let context: WorkspaceContextMenuState | null = null;
+    if (link?.dataset.ganttLink) context = { kind: "relationship", relationshipId: link.dataset.ganttLink };
+    else if (group?.dataset.activityGroupBand) context = { kind: "wbs", wbsId: group.dataset.activityGroupBand };
+    else if (activity?.dataset.activityId) context = { kind: "activity", activityId: activity.dataset.activityId };
+    else if (ganttActivity?.dataset.ganttActivityId) context = { kind: "activity", activityId: ganttActivity.dataset.ganttActivityId };
+    else if (source.closest("#cp-activity-grid")) context = { kind: "grid" };
+    else if (source.closest("#cp-gantt")) context = { kind: "gantt" };
+    if (!context) return;
+    event.preventDefault();
+    workspaceContextMenuState.set(container, context);
+    const host = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
+    const record = workspaceRenderRecords.get(container);
+    if (!host || !record) return;
+    const state = record.state;
+    const item = (action: string, label: string): string => '<button type="button" role="menuitem" data-context-action="' + action + '">' + escapeHtml(label) + '</button>';
+    const tx = (en: string, fa: string): string => uiText(state.locale, en, fa);
+    let items: string[] = [];
+    if (context.kind === "activity") items = [
+      item("details", tx("Open Activity Details", "بازکردن جزئیات فعالیت")),
+      item("edit-activity", tx("Edit Activity", "ویرایش فعالیت")),
+      item("predecessors", tx("Show Predecessors", "نمایش پیش‌نیازها")),
+      item("successors", tx("Show Successors", "نمایش پس‌نیازها")),
+      item("relationships", tx("Show Relationships", "نمایش روابط")),
+      item("select-wbs", tx("Select WBS", "انتخاب WBS")),
+    ];
+    else if (context.kind === "wbs") items = [
+      item("toggle-wbs", tx("Expand / Collapse Branch", "بازکردن / جمع‌کردن شاخه")),
+      item("select-wbs", tx("Open WBS Details", "بازکردن جزئیات WBS")),
+      item("filter", tx("Filter Activities", "فیلتر فعالیت‌ها")),
+    ];
+    else if (context.kind === "relationship") items = [
+      item("edit-relationship", tx("Open Relationship Details", "بازکردن جزئیات رابطه")),
+      item("delete-relationship", tx("Delete Relationship", "حذف رابطه")),
+    ];
+    else if (context.kind === "grid") items = [
+      item("columns", tx("Columns & Fields", "ستون‌ها و فیلدها")),
+      item("filter", tx("Filter By", "فیلتر بر اساس")),
+      item("group-sort", tx("Group and Sort By", "گروه‌بندی و مرتب‌سازی")),
+    ];
+    else items = [
+      item("timescale", tx("Timescale", "مقیاس زمانی")),
+      item("toggle-links", tx("Show / Hide Relationships", "نمایش / پنهان‌کردن روابط")),
+      item("columns", tx("Bar & Chart Options", "گزینه‌های میله و نمودار")),
+    ];
+    host.innerHTML = '<div class="cp-workspace-context-menu" role="menu" aria-label="' + escapeAttribute(tx("Activity context menu", "منوی زمینه‌ای فعالیت")) + '">' + items.join("") + '</div>';
+    host.hidden = false;
+    host.style.position = "fixed";
+    host.style.left = String(Math.max(8, Math.min(event.clientX, window.innerWidth - 230))) + "px";
+    host.style.top = String(Math.max(8, Math.min(event.clientY, window.innerHeight - 220))) + "px";
+    host.querySelector<HTMLButtonElement>("[data-context-action]")?.focus({ preventScroll: true });
+  });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-gantt-link],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-context-action]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    const menuAction = target.dataset.contextAction;
+    if (menuAction) {
+      const context = workspaceContextMenuState.get(container);
+      const host = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
+      if (host) host.hidden = true;
+      if (!context) return;
+      if (context.kind === "activity") {
+        const activityId = context.activityId;
+        if (menuAction === "details" || menuAction === "predecessors" || menuAction === "successors" || menuAction === "relationships") {
+          activityDetailsTabByContainer.set(container, menuAction === "details" ? "general" : menuAction);
+          options.onActivitySelect?.(activityId);
+        } else if (menuAction === "edit-activity") options.onActivityEdit?.(activityId);
+        else if (menuAction === "select-wbs") {
+          const activityRow = state.activities.find((item) => item.id === activityId);
+          if (activityRow?.wbsId) options.onWbsSelect?.(activityRow.wbsId);
+        }
+      } else if (context.kind === "wbs") {
+        if (menuAction === "toggle-wbs") {
+          const collapsed = new Set(collapsedActivityWbsGroups(container));
+          if (collapsed.has(context.wbsId)) collapsed.delete(context.wbsId); else collapsed.add(context.wbsId);
+          collapsedActivityWbsGroupsByContainer.set(container, collapsed);
+          renderMainWorkspace(container, state, options);
+        } else if (menuAction === "select-wbs") options.onWbsSelect?.(context.wbsId);
+        else if (menuAction === "filter") container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
+      } else if (context.kind === "relationship") {
+        const relationship = state.relationships.find((item) => item.id === context.relationshipId);
+        if (relationship && menuAction === "edit-relationship") {
+          activityDetailsTabByContainer.set(container, "relationships");
+          options.onActivitySelect?.(relationship.successorId);
+        } else if (relationship && menuAction === "delete-relationship" && window.confirm(uiText(state.locale, "Delete this relationship?", "این رابطه حذف شود؟"))) {
+          options.onRelationshipDelete?.(relationship.id, relationship.recordRevision);
+        }
+      } else if (context.kind === "grid") {
+        if (menuAction === "columns") openToolsDrawer(container);
+        else if (menuAction === "filter") container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
+        else if (menuAction === "group-sort") container.querySelector<HTMLSelectElement>("[data-activity-group]")?.focus();
+      } else if (context.kind === "gantt") {
+        if (menuAction === "timescale") {
+          const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
+          if (dialog && typeof dialog.showModal === "function") dialog.showModal(); else dialog?.setAttribute("open", "");
+        } else if (menuAction === "toggle-links") options.onGanttRelationshipsChange?.(!state.showGanttRelationships);
+        else if (menuAction === "columns") openToolsDrawer(container);
+      }
+      workspaceContextMenuState.delete(container);
+      return;
+    }
+    const menuHost = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
+    if (menuHost && !target.closest("[data-workspace-context-menu]")) menuHost.hidden = true;
     if (target.dataset.activityWbsGroupToggle) {
       const wbsId = target.dataset.activityWbsGroupToggle;
       const collapsed = new Set(collapsedActivityWbsGroups(container));
@@ -1382,6 +1494,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         </div>
       </div>
       <aside class="cp-comments-dock" data-comments-panel hidden aria-label="${escapeAttribute(rail.comments)}"></aside>
+      <div class="cp-workspace-context-menu-host" data-workspace-context-menu-host hidden></div>
     </section>
   `;
 
