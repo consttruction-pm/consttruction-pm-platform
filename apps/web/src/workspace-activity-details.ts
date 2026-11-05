@@ -800,26 +800,90 @@ export function renderActivityDetailsPanel(input: ActivityDetailsInput): string 
  * the table keeps its scroll position; only the active tab has content in the
  * DOM, which keeps the lower pane cheap on mobile.
  */
-type DetailsRuntime = { input: ActivityDetailsInput; onSelect: (id: string) => void };
+type DetailsRuntime = { input: ActivityDetailsInput; onSelect: (id: string) => void; inFlight: Set<"resources" | "expenses"> };
 const detailsRuntime = new WeakMap<HTMLElement, DetailsRuntime>();
 const detailsBound = new WeakSet<HTMLElement>();
+
+function sameProjectRevision(left: ActivityDetailsInput, right: ActivityDetailsInput): boolean {
+  const a = left.state?.context;
+  const b = right.state?.context;
+  return Boolean(a && b && a.tenant_id === b.tenant_id && a.project_id === b.project_id && a.revision === b.revision);
+}
+
+function renderLoadedTab(host: HTMLElement, runtime: DetailsRuntime, tab: "resources" | "expenses"): void {
+  const panel = host.querySelector<HTMLElement>(`[data-detail-panel="${tab}"]`);
+  if (panel && !panel.hidden) panel.innerHTML = activeBody(tab, runtime.input);
+}
+
+function ensureActivityDetailsData(host: HTMLElement, runtime: DetailsRuntime, tab: "resources" | "expenses"): void {
+  const key = tab === "resources" ? "resourceAssignments" : "activityExpenses";
+  const current = runtime.input[key];
+  if (current?.status === "loaded" || current?.status === "loading" || runtime.inFlight.has(tab)) return;
+  const transport = runtime.input.transport;
+  const context = runtime.input.state?.context;
+  if (!transport || !context || !runtime.input.selectedActivityId) return;
+  runtime.input = { ...runtime.input, [key]: { status: "loading", records: [], errorCode: null } };
+  runtime.inFlight.add(tab);
+  renderLoadedTab(host, runtime, tab);
+  const request = tab === "resources" ? loadAssignments(transport, context) : loadExpenses(transport, context);
+  void request.then((result) => {
+    if (detailsRuntime.get(host) !== runtime) return;
+    runtime.inFlight.delete(tab);
+    runtime.input = {
+      ...runtime.input,
+      [key]: result.ok
+        ? { status: "loaded", records: result.data, errorCode: null }
+        : { status: "error", records: [], errorCode: result.error.code },
+    };
+    renderLoadedTab(host, runtime, tab);
+  }).catch((error: unknown) => {
+    if (detailsRuntime.get(host) !== runtime) return;
+    runtime.inFlight.delete(tab);
+    runtime.input = {
+      ...runtime.input,
+      [key]: { status: "error", records: [], errorCode: error instanceof Error ? error.message : "API_ERROR" },
+    };
+    renderLoadedTab(host, runtime, tab);
+  });
+}
 
 export function enhanceActivityDetails(
   host: HTMLElement,
   input: ActivityDetailsInput,
   onSelectActivity: (id: string) => void,
 ): void {
-  detailsRuntime.set(host, { input, onSelect: onSelectActivity });
-  host.innerHTML = renderActivityDetailsPanel(input);
+  const previous = detailsRuntime.get(host);
+  const reuse = previous && sameProjectRevision(previous.input, input);
+  const carry = (key: "resourceAssignments" | "activityExpenses") => {
+    const prior = reuse ? previous.input[key] : undefined;
+    return prior && prior.status !== "loading" ? prior : input[key];
+  };
+  const runtime: DetailsRuntime = {
+    input: { ...input, resourceAssignments: carry("resourceAssignments"), activityExpenses: carry("activityExpenses") },
+    onSelect: onSelectActivity,
+    inFlight: new Set(),
+  };
+  detailsRuntime.set(host, runtime);
+  host.innerHTML = renderActivityDetailsPanel(runtime.input);
+  const activeTab = host.querySelector<HTMLElement>("[data-detail-tab].is-active")?.dataset.detailTab;
+  if (activeTab === "resources" || activeTab === "expenses") ensureActivityDetailsData(host, runtime, activeTab);
   if (detailsBound.has(host)) return;
   detailsBound.add(host);
   host.addEventListener("click", (event) => {
-    const runtime = detailsRuntime.get(host);
-    if (!runtime) return;
-    const input = runtime.input;
-    const onSelectActivity = runtime.onSelect;
+    const current = detailsRuntime.get(host);
+    if (!current) return;
+    const currentInput = current.input;
+    const onSelect = current.onSelect;
     const target = event.target as HTMLElement | null;
     if (!target || typeof target.closest !== "function") return;
+    const retry = target.closest<HTMLElement>("[data-detail-retry]");
+    if (retry?.dataset.detailRetry === "resources" || retry?.dataset.detailRetry === "expenses") {
+      const tabId = retry.dataset.detailRetry;
+      const key = tabId === "resources" ? "resourceAssignments" : "activityExpenses";
+      current.input = { ...current.input, [key]: { status: "idle", records: [], errorCode: null } };
+      ensureActivityDetailsData(host, current, tabId);
+      return;
+    }
     const customize = target.closest<HTMLElement>("[data-detail-tabs-customize]");
     if (customize) {
       const dialog = host.querySelector<HTMLDialogElement>("[data-detail-tabs-dialog]");
@@ -842,13 +906,13 @@ export function enhanceActivityDetails(
       if (!selected.length) return;
       rememberVisibleTabs(selected);
       if (!selected.includes(readActivityDetailsTab())) rememberTab(selected[0]);
-      host.innerHTML = renderActivityDetailsPanel(input);
+      host.innerHTML = renderActivityDetailsPanel(current.input);
       return;
     }
     const tab = target.closest<HTMLElement>("[data-detail-tab]");
     if (tab?.dataset.detailTab) {
       const id = tab.dataset.detailTab;
-      if (isActivityTab(id) && (!input.state || input.state.activeMenu === "schedule")) rememberTab(id);
+      if (isActivityTab(id) && (!currentInput.state || currentInput.state.activeMenu === "schedule")) rememberTab(id);
       host.querySelectorAll<HTMLElement>("[data-detail-tab]").forEach((button) => {
         const selected = button.dataset.detailTab === id;
         button.classList.toggle("is-active", selected);
@@ -858,13 +922,14 @@ export function enhanceActivityDetails(
       host.querySelectorAll<HTMLElement>("[data-detail-panel]").forEach((panel) => {
         const selected = panel.dataset.detailPanel === id;
         panel.hidden = !selected;
-        panel.innerHTML = selected ? activeBody(id, input) : "";
+        panel.innerHTML = selected ? activeBody(id, current.input) : "";
       });
+      if (id === "resources" || id === "expenses") ensureActivityDetailsData(host, current, id);
       return;
     }
     const prev = target.closest<HTMLElement>("[data-details-prev]");
-    if (prev?.dataset.detailsPrev) { onSelectActivity(prev.dataset.detailsPrev); return; }
+    if (prev?.dataset.detailsPrev) { onSelect(prev.dataset.detailsPrev); return; }
     const next = target.closest<HTMLElement>("[data-details-next]");
-    if (next?.dataset.detailsNext) { onSelectActivity(next.dataset.detailsNext); return; }
+    if (next?.dataset.detailsNext) { onSelect(next.dataset.detailsNext); return; }
   });
 }
