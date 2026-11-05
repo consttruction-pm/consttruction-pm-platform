@@ -6637,7 +6637,13 @@ async function main() {
     // not a mocked state: the newcomer session, the empty project list and the
     // created project all go through the same preview API and SQLite store.
     await page.click("#cubi-preview-banner button");
-    await page.waitForSelector('form[action="/preview/login"]', "newcomer login");
+    await page.waitFor(`location.pathname === "/"`, "logout before newcomer login returns Home");
+    await page.navigate(
+      `${baseUrl}/app?view=live`,
+      'form[action="/preview/login"]',
+      "newcomer login after sign out",
+      `${baseUrl}/preview/login`,
+    );
     await page.click('button[name="role"][value="newcomer"]');
     await page.waitFor(`location.pathname === "/app"`, "newcomer redirect to /app");
     await page.navigate(
