@@ -87,3 +87,11 @@ test("Arabic command shell applies RTL layout direction", async () => {
   assert.match(html, /مساحة العمل/);
   assert.match(html, /مشروع جديد/);
 });
+
+test("Activity window enables Theme / Appearance and the toolbar Theme command", () => {
+  const html = renderWorkspaceCommandShell("en", "schedule");
+  assert.match(html, /data-shell-command="Theme \/ Appearance" title="Open the corresponding options for the current view"/);
+  assert.match(html, /data-shell-command="Theme" title="Open current view options"/);
+  assert.doesNotMatch(html, /data-shell-command="Theme \/ Appearance"[^>]*disabled/);
+  assert.doesNotMatch(html, /data-shell-command="Theme"[^>]*disabled/);
+});
