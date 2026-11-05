@@ -1013,7 +1013,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
       const focused = event.target as HTMLElement | null;
-      const anchor = focused?.closest?.<HTMLElement>("#cp-activity-grid tr[data-activity-id], #cp-activity-grid tr[data-activity-group-band], #cp-activity-grid, .cp-gantt-row[data-gantt-activity-id], .cp-gantt-group-row[data-activity-group-band], path[data-gantt-link], #cp-gantt");
+      const anchor = focused?.closest?.<HTMLElement>("#cp-activity-grid tr[data-activity-id], #cp-activity-grid th[data-column-id], #cp-activity-grid td[data-column-id], #cp-activity-grid tr[data-activity-group-band], [data-wbs-id], #cp-activity-grid, .cp-gantt-row[data-gantt-activity-id], .cp-gantt-group-row[data-activity-group-band], path[data-gantt-link], #cp-gantt");
       if (!anchor) return;
       const bounds = anchor.getBoundingClientRect();
       const clientX = Math.max(8, bounds.left + Math.min(Math.max(bounds.width / 2, 24), 120));
