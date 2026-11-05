@@ -545,6 +545,15 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.ganttActivityId) return void options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
     if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
   });
+  container.addEventListener("focusin", (event) => {
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
+      ? (event.target as HTMLElement).closest<HTMLElement>(".cp-navigation-tree")
+      : null;
+    // A deliberate click on the toggle can close the rail while its toggle
+    // retains focus. When focus later re-enters the directory, clear that
+    // one-shot closed state so keyboard navigation can reveal labels again.
+    if (target?.dataset.expanded === "false") target.removeAttribute("data-expanded");
+  });
   container.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id],[data-document-row]") : null;
