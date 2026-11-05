@@ -498,7 +498,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     host.querySelector<HTMLButtonElement>("[data-context-action]")?.focus({ preventScroll: true });
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-gantt-link],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-context-action]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-workspace-appearance-open],[data-workspace-appearance-close],[data-workspace-appearance-apply],[data-workspace-appearance-reset],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-gantt-link],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-context-action]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -708,9 +708,38 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       }
       return;
     }
+    if (target.dataset.workspaceAppearanceOpen !== undefined) { openWorkspaceAppearanceDialog(container); return; }
+    if (target.dataset.workspaceAppearanceClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-workspace-appearance-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close(); else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.workspaceAppearanceReset !== undefined) {
+      const mode = container.querySelector<HTMLSelectElement>("[data-appearance-mode]")?.value === "dark" ? "dark" : "light";
+      syncWorkspaceAppearanceDialog(container, defaultWorkspaceAppearance(mode));
+      return;
+    }
+    if (target.dataset.workspaceAppearanceApply !== undefined) {
+      const mode = container.querySelector<HTMLSelectElement>("[data-appearance-mode]")?.value === "dark" ? "dark" : "light";
+      const defaults = defaultWorkspaceAppearance(mode);
+      const colors = { ...defaults.colors };
+      for (const { key } of WORKSPACE_APPEARANCE_LABELS) {
+        const value = container.querySelector<HTMLInputElement>(`[data-appearance-color="${key}"]`)?.value;
+        if (!isAppearanceHex(value)) return;
+        colors[key] = value;
+      }
+      const appearance: WorkspaceAppearance = { mode, colors };
+      applyWorkspaceAppearance(container, appearance);
+      try { window.localStorage.setItem(WORKSPACE_APPEARANCE_STORAGE_KEY, JSON.stringify(appearance)); } catch { /* Current view remains styled when storage is unavailable. */ }
+      const dialog = container.querySelector<HTMLDialogElement>("[data-workspace-appearance-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close(); else dialog?.removeAttribute("open");
+      return;
+    }
     if (target.dataset.shellCommand) {
       const command = target.dataset.shellCommand;
-      if (command === "Timescale") {
+      if (command === "Theme" || command === "Theme / Appearance") {
+        openWorkspaceAppearanceDialog(container);
+      } else if (command === "Timescale") {
         const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
@@ -852,6 +881,11 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       if (surface) surface.dataset.trackingSurface = value;
       const heading = container.querySelector<HTMLElement>("[data-tracking-layout-label]");
       if (heading) heading.textContent = label;
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "appearanceMode")) {
+      const mode = (element as HTMLSelectElement).value === "dark" ? "dark" : "light";
+      syncWorkspaceAppearanceDialog(container, defaultWorkspaceAppearance(mode));
       return;
     }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutTimescale")) {
@@ -1458,11 +1492,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <button type="button" class="cp-p6-chip" data-rail-action="wbs" title="${escapeAttribute(rail.wbs)}">${workspaceIcon("wbs")}<span>${escapeHtml(rail.wbs)}</span></button>
             <button type="button" class="cp-p6-chip" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}<span>${escapeHtml(rail.columns)}</span></button>
             <button type="button" class="cp-p6-chip" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span>${escapeHtml(rail.comments)}</span></button>
+            <button type="button" class="cp-p6-chip" data-workspace-appearance-open title="${escapeAttribute(uiText(state.locale, "Workspace appearance", "ظاهر محیط کار"))}">${workspaceIcon("settings")}<span>${escapeHtml(uiText(state.locale, "Appearance", "ظاهر"))}</span></button>
           </header>
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
             <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>` : ""}
           </div>
           ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}
+          ${renderWorkspaceAppearanceDialog(state.locale)}
           <main class="cp-main">
             <div class="cp-p6-primary">
               <section class="cp-p6-split" data-panel-split data-workspace-menu="schedule">
@@ -1598,6 +1634,11 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   `;
 
   workspaceRenderRecords.set(container, { state, options });
+  if (typeof container.querySelector === "function") {
+    const appearance = readWorkspaceAppearance();
+    applyWorkspaceAppearance(container, appearance);
+    syncWorkspaceAppearanceDialog(container, appearance);
+  }
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
 }
 
