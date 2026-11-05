@@ -756,7 +756,9 @@ function bindHost(host: HTMLElement): void {
       };
       const command = commands[shellCommand.dataset.shellCommand ?? ""];
       host.querySelectorAll<HTMLDetailsElement>(".cubi-command-menubar details[open]").forEach((item) => item.removeAttribute("open"));
-      if (command) runtime.handlers.onCommand(command);
+      const dialogName = command ? dialogNameForCommand(command) : null;
+      if (dialogName) openDialog(host, dialogName);
+      else if (command) runtime.handlers.onCommand(command);
       return;
     }
 
