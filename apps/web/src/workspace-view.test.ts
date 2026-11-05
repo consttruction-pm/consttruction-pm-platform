@@ -2047,6 +2047,55 @@ test("Activity row right-click opens a target-aware context menu and Activity De
   assert.deepEqual(selected, ["A-1"]);
 });
 
+test("Activity context menu opens with ContextMenu or Shift+F10 and Escape restores focus", () => {
+  for (const [key, shiftKey] of [["ContextMenu", false], ["F10", true]] as const) {
+    const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+    const state = { ...base, activities: [{ id: "A-1", wbsId: "WBS-1", code: "A-1", name: "Excavate" }] };
+    const listeners = new Map<string, (event: Event) => void>();
+    let focused = false;
+    const row = {
+      dataset: { activityId: "A-1" },
+      closest: (selector: string) => selector.includes("#cp-activity-grid tr[data-activity-id]") ? row : null,
+      getBoundingClientRect: () => ({ left: 100, top: 40, width: 300, height: 28 }),
+      focus: () => { focused = true; },
+    };
+    const source = {
+      closest: (selector: string) => selector.includes("#cp-activity-grid tr[data-activity-id]") ? row : null,
+    };
+    const host = {
+      innerHTML: "",
+      hidden: true,
+      style: {} as Record<string, string>,
+      querySelector: () => ({ focus: () => {} }),
+    };
+    const container = {
+      innerHTML: "",
+      querySelectorAll: () => [],
+      querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
+      addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    };
+    renderMainWorkspace(container as unknown as HTMLElement, state);
+    let prevented = false;
+    listeners.get("keydown")?.({
+      key,
+      shiftKey,
+      target: source,
+      preventDefault: () => { prevented = true; },
+    } as unknown as Event);
+    assert.equal(prevented, true, key);
+    assert.equal(host.hidden, false, key);
+    assert.match(host.innerHTML, /data-context-action="details"/);
+    listeners.get("keydown")?.({
+      key: "Escape",
+      shiftKey: false,
+      target: source,
+      preventDefault: () => {},
+    } as unknown as Event);
+    assert.equal(host.hidden, true, key);
+    assert.equal(focused, true, key);
+  }
+});
+
 test("Relationship context menu uses the persisted relationship identity and revision", () => {
   const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
   const state = {
