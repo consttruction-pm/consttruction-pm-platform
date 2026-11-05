@@ -1035,7 +1035,7 @@ class Page {
         y: rect.top + rect.height / 2,
         hitTag: hit?.tagName ?? null,
         hitClass: hit && typeof hit.className === "string" ? hit.className : null,
-        hitResizeKind: hit instanceof HTMLElement ? hit.dataset.resizeHandle ?? hit.closest<HTMLElement>("[data-resize-handle]")?.dataset.resizeHandle ?? null : null,
+        hitResizeKind: hit instanceof Element ? hit.getAttribute("data-resize-handle") ?? hit.closest("[data-resize-handle]")?.getAttribute("data-resize-handle") ?? null : null,
         hitIsTargetOrChild: Boolean(hit && (hit === element || element.contains(hit))),
         pointerEvents: style.pointerEvents,
         width: rect.width,
