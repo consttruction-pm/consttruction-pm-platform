@@ -121,6 +121,139 @@ const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsViewByContainer = new WeakMap<HTMLElement, "tree" | "chart">();
 const collapsedActivityWbsGroupsByContainer = new WeakMap<HTMLElement, Set<string>>();
+
+type ActivityTopLayout = "table-gantt" | "activity-network";
+type ActivityBottomLayout = "activity-details" | "activity-network" | "trace-logic";
+const activityTopLayoutByContainer = new WeakMap<HTMLElement, ActivityTopLayout>();
+const activityBottomLayoutByContainer = new WeakMap<HTMLElement, ActivityBottomLayout>();
+
+function currentActivityTopLayout(container: HTMLElement): ActivityTopLayout {
+  return activityTopLayoutByContainer.get(container) ?? "table-gantt";
+}
+function currentActivityBottomLayout(container: HTMLElement): ActivityBottomLayout {
+  return activityBottomLayoutByContainer.get(container) ?? "activity-details";
+}
+function relationshipLabel(link: WorkspaceRelationshipRow): string {
+  return `${link.type} · ${link.lagValue} ${link.lagUnit}`.trim();
+}
+function activityNodeButton(activity: WorkspaceState["activities"][number], state: WorkspaceState, selected: boolean, depth: number): string {
+  const start = activity.cells?.early_start ?? activity.cells?.start_date ?? "—";
+  const finish = activity.cells?.early_finish ?? activity.cells?.finish_date ?? "—";
+  const status = activity.cells?.status ?? "—";
+  return `<button type="button" class="cp-network-node${selected ? " is-selected" : ""}" data-network-activity="${escapeAttribute(activity.id)}" data-network-depth="${depth}" aria-pressed="${selected ? "true" : "false"}">
+    <span class="cp-network-node-id">${escapeHtml(activity.code)}</span>
+    <strong>${escapeHtml(activity.name)}</strong>
+    <span class="cp-network-node-meta">${escapeHtml(String(status))}</span>
+    <span class="cp-network-node-dates">${escapeHtml(String(start))} → ${escapeHtml(String(finish))}</span>
+  </button>`;
+}
+
+/** Presentation-only DAG layering; does not calculate or alter schedule dates. */
+export function renderActivityNetwork(state: WorkspaceState): string {
+  if (!state.activities.length) {
+    return `<p class="cp-network-empty">${escapeHtml(uiText(state.locale, "No activities are loaded for the Activity Network.", "فعالیتی برای نمایش در شبکه فعالیت‌ها بارگذاری نشده است."))}</p>`;
+  }
+  const ids = new Set(state.activities.map((activity) => activity.id));
+  const outgoing = new Map<string, WorkspaceRelationshipRow[]>();
+  const indegree = new Map<string, number>();
+  for (const activity of state.activities) { outgoing.set(activity.id, []); indegree.set(activity.id, 0); }
+  for (const link of state.relationships) {
+    if (!ids.has(link.predecessorId) || !ids.has(link.successorId)) continue;
+    outgoing.get(link.predecessorId)?.push(link);
+    indegree.set(link.successorId, (indegree.get(link.successorId) ?? 0) + 1);
+  }
+  const depths = new Map<string, number>();
+  const queue = state.activities.filter((activity) => (indegree.get(activity.id) ?? 0) === 0).map((activity) => activity.id);
+  for (const id of queue) depths.set(id, 0);
+  const visited = new Set<string>();
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const id = queue[cursor];
+    if (visited.has(id)) continue;
+    visited.add(id);
+    for (const link of outgoing.get(id) ?? []) {
+      depths.set(link.successorId, Math.max(depths.get(link.successorId) ?? 0, (depths.get(id) ?? 0) + 1));
+      const count = (indegree.get(link.successorId) ?? 1) - 1;
+      indegree.set(link.successorId, count);
+      if (count === 0) queue.push(link.successorId);
+    }
+  }
+  const unresolved = state.activities.filter((activity) => !visited.has(activity.id));
+  const unresolvedDepth = Math.max(0, ...depths.values()) + 1;
+  const levels = new Map<number, WorkspaceState["activities"][number][]>();
+  for (const activity of state.activities) {
+    const level = visited.has(activity.id) ? (depths.get(activity.id) ?? 0) : unresolvedDepth;
+    const bucket = levels.get(level) ?? [];
+    bucket.push(activity);
+    levels.set(level, bucket);
+  }
+  const columns = [...levels.entries()].sort((a, b) => a[0] - b[0]).map(([level, activities]) =>
+    `<section class="cp-network-level" data-network-level="${level}">
+      <h3>${escapeHtml(uiText(state.locale, `Stage ${level + 1}`, `مرحله ${level + 1}`))}<small>${activities.length}</small></h3>
+      <div class="cp-network-level-nodes">${activities.map((activity) => activityNodeButton(activity, state, activity.id === state.selectedActivityId, level)).join("")}</div>
+    </section>`
+  ).join("");
+  const edges = state.relationships.filter((link) => ids.has(link.predecessorId) && ids.has(link.successorId)).map((link) => {
+    const predecessor = state.activities.find((activity) => activity.id === link.predecessorId);
+    const successor = state.activities.find((activity) => activity.id === link.successorId);
+    return `<li><button type="button" data-network-activity="${escapeAttribute(link.successorId)}">${escapeHtml(predecessor?.code ?? link.predecessorId)} → ${escapeHtml(successor?.code ?? link.successorId)}</button><span>${escapeHtml(relationshipLabel(link))}</span></li>`;
+  }).join("");
+  const warning = unresolved.length ? `<p class="cp-network-warning">${escapeHtml(uiText(state.locale, "Some nodes are grouped as unresolved because the relationship graph contains a cycle or unresolved dependency.", "برخی گره‌ها به‌دلیل چرخه یا وابستگی حل‌نشده در گروه روابط حل‌نشده قرار گرفته‌اند."))}</p>` : "";
+  return `<section class="cp-activity-network" aria-label="${escapeAttribute(uiText(state.locale, "Activity Network", "شبکه فعالیت‌ها"))}">
+    <header class="cp-activity-network-heading"><strong>${escapeHtml(uiText(state.locale, "Activity Network", "شبکه فعالیت‌ها"))}</strong><span>${state.activities.length} ${escapeHtml(uiText(state.locale, "activities", "فعالیت"))} · ${state.relationships.length} ${escapeHtml(uiText(state.locale, "relationships", "رابطه"))}</span></header>
+    ${warning}<div class="cp-network-columns">${columns}</div>
+    <section class="cp-network-edge-list"><h3>${escapeHtml(uiText(state.locale, "Relationship register", "فهرست روابط"))}</h3><ul>${edges || `<li>${escapeHtml(uiText(state.locale, "No relationships are loaded.", "رابطه‌ای بارگذاری نشده است."))}</li>`}</ul></section>
+  </section>`;
+}
+
+/** Shows the actual transitive predecessor/successor chain around the selected activity. */
+export function renderActivityTraceLogic(state: WorkspaceState): string {
+  const selected = state.activities.find((activity) => activity.id === state.selectedActivityId);
+  if (!selected) return `<p class="cp-trace-empty">${escapeHtml(uiText(state.locale, "Select an activity to trace its predecessor and successor logic.", "برای ردیابی منطق روابط، یک فعالیت انتخاب کنید."))}</p>`;
+  const byId = new Map(state.activities.map((activity) => [activity.id, activity]));
+  const predecessorDepth = new Map<string, number>();
+  const successorDepth = new Map<string, number>();
+  const walk = (forward: boolean, output: Map<string, number>): void => {
+    const visited = new Set<string>([selected.id]);
+    const queue: Array<{ id: string; depth: number }> = [{ id: selected.id, depth: 0 }];
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const current = queue[cursor];
+      const links = state.relationships.filter((link) => forward ? link.predecessorId === current.id : link.successorId === current.id);
+      for (const link of links) {
+        const nextId = forward ? link.successorId : link.predecessorId;
+        if (!byId.has(nextId) || visited.has(nextId)) continue;
+        visited.add(nextId);
+        output.set(nextId, current.depth + 1);
+        queue.push({ id: nextId, depth: current.depth + 1 });
+      }
+    }
+  };
+  walk(false, predecessorDepth);
+  walk(true, successorDepth);
+  const maxPred = Math.max(0, ...predecessorDepth.values());
+  const maxSucc = Math.max(0, ...successorDepth.values());
+  const lane = (label: string, activities: readonly WorkspaceState["activities"][number][], depth: number, direction: string): string =>
+    `<section class="cp-trace-lane" data-trace-depth="${depth}" data-trace-direction="${direction}"><h3>${escapeHtml(label)}<small>${activities.length}</small></h3><div>${activities.map((activity) => activityNodeButton(activity, state, activity.id === selected.id, depth)).join("")}</div></section>`;
+  const predecessors = Array.from({ length: maxPred }, (_, index) => maxPred - index).map((depth) =>
+    lane(uiText(state.locale, `Predecessor level ${depth}`, `سطح پیش‌نیاز ${depth}`), state.activities.filter((activity) => predecessorDepth.get(activity.id) === depth), depth, "predecessor")
+  ).join("");
+  const successors = Array.from({ length: maxSucc }, (_, index) => index + 1).map((depth) =>
+    lane(uiText(state.locale, `Successor level ${depth}`, `سطح پس‌نیاز ${depth}`), state.activities.filter((activity) => successorDepth.get(activity.id) === depth), depth, "successor")
+  ).join("");
+  const edges = state.relationships.filter((link) =>
+    (link.successorId === selected.id || predecessorDepth.has(link.predecessorId) && predecessorDepth.has(link.successorId)) ||
+    (link.predecessorId === selected.id || successorDepth.has(link.predecessorId) && successorDepth.has(link.successorId))
+  );
+  const uniqueEdges = [...new Map(edges.map((link) => [link.id, link])).values()];
+  const edgeList = uniqueEdges.map((link) =>
+    `<li><button type="button" data-network-activity="${escapeAttribute(link.successorId)}">${escapeHtml(byId.get(link.predecessorId)?.code ?? link.predecessorId)} → ${escapeHtml(byId.get(link.successorId)?.code ?? link.successorId)}</button><span>${escapeHtml(relationshipLabel(link))}</span></li>`
+  ).join("");
+  return `<section class="cp-activity-trace" aria-label="${escapeAttribute(uiText(state.locale, "Trace Logic", "ردیابی منطق روابط"))}">
+    <header class="cp-activity-network-heading"><strong>${escapeHtml(uiText(state.locale, "Trace Logic", "ردیابی منطق روابط"))}</strong><span>${escapeHtml(selected.code)} — ${escapeHtml(selected.name)}</span></header>
+    <div class="cp-trace-columns">${predecessors}${lane(uiText(state.locale, "Selected Activity", "فعالیت منتخب"), [selected], 0, "selected")}${successors}</div>
+    <section class="cp-network-edge-list"><h3>${escapeHtml(uiText(state.locale, "Trace relationships", "روابط مسیر"))}</h3><ul>${edgeList || `<li>${escapeHtml(uiText(state.locale, "No connected relationships are loaded for this activity.", "رابطه متصل به این فعالیت بارگذاری نشده است."))}</li>`}</ul></section>
+  </section>`;
+}
+
 type WorkspaceContextMenuState =
   | { kind: "activity"; activityId: string }
   | { kind: "wbs"; wbsId: string }
