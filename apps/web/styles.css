@@ -7107,3 +7107,166 @@ html.cubi-is-resizing:has(.cp-p6.is-resizing) .cp-p6-details-splitter { cursor: 
 .cp-p6 .cp-wbs-window-layout>section>h3{margin:0;padding:7px 9px;border-bottom:1px solid #d8e0e9;background:#f2f5f9;color:#244463;font-size:10px}
 .cp-p6 .cp-wbs-window-layout .cp-wbs-details{margin:0;border:0}
 @media(max-width:800px){.cp-p6 .cp-wbs-window-layout{grid-template-columns:minmax(0,1fr)}}
+
+/* Compact icon-first directory: the flyout overlays the workspace and never
+   changes the activity/Gantt grid or its time scale. Hover, keyboard focus,
+   and the explicit toggle reveal labels; the same rules apply in RTL. */
+.cp-p6 .cp-p6-shell {
+  grid-template-columns: 42px minmax(0, 1fr) 36px;
+}
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
+  position: relative;
+  z-index: 40;
+  width: 42px;
+  min-width: 42px;
+  align-items: center;
+  padding: 6px 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-shadow: none;
+  transition: width 160ms ease, box-shadow 160ms ease;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-tree-title {
+  justify-content: center;
+  width: 34px;
+  min-height: 30px;
+  padding: 0;
+  border-bottom: 0;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-tree-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 34px;
+  min-width: 34px;
+  min-height: 30px;
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #173d68;
+  cursor: pointer;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-tree-toggle:focus-visible {
+  outline: 2px solid #1c66ad;
+  outline-offset: 1px;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-tree-title-label,
+.cp-p6 .cp-navigation-tree .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree .cp-nav-tree-group > span,
+.cp-p6 .cp-navigation-tree .cp-rail-label {
+  display: none;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-tree-group {
+  width: 34px;
+  padding: 4px 0;
+}
+.cp-p6 .cp-navigation-tree .cp-rail-button {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  width: 34px;
+  min-height: 30px;
+  padding: 5px 0;
+}
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:hover,
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:focus-within:not([data-expanded="false"]),
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree[data-expanded="true"] {
+  width: 224px;
+  min-width: 224px;
+  align-items: stretch;
+  padding: 6px 5px;
+  box-shadow: 0 0 18px rgba(15, 35, 58, .22);
+}
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-title,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-title,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-title {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 0 6px 6px;
+  border-bottom: 1px solid #cbd4df;
+}
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-toggle,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-toggle,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-toggle {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 4px 2px;
+}
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-title-label,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-title-label,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-title-label,
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-group > span,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-group > span,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-group > span,
+.cp-p6 .cp-navigation-tree:hover .cp-rail-label,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-rail-label,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-rail-label {
+  display: block;
+}
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-chevron {
+  margin-inline-start: auto;
+  transform: rotate(90deg);
+}
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-group,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-group,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-group {
+  width: 100%;
+}
+.cp-p6 .cp-navigation-tree:hover .cp-rail-button,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-rail-button,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-rail-button {
+  grid-template-columns: 18px minmax(0, 1fr);
+  justify-items: start;
+  width: 100%;
+  padding: 3px 7px;
+}
+.cp-p6 .cp-p6-workspace[dir="rtl"] .cp-p6-shell {
+  grid-template-columns: 36px minmax(0, 1fr) 42px;
+}
+.cp-p6 .cp-p6-workspace[dir="rtl"] .cp-menu.cp-p6-rail.cp-navigation-tree {
+  grid-column: 3;
+  border-inline-start: 1px solid #b7c2d0;
+  border-inline-end: 0;
+}
+@media (max-width: 900px) {
+  .cp-p6 .cp-p6-shell {
+    grid-template-columns: 42px minmax(0, 1fr) 32px;
+  }
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
+    width: 42px;
+    min-width: 42px;
+  }
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:hover,
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:focus-within:not([data-expanded="false"]),
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree[data-expanded="true"] {
+    width: min(224px, calc(100vw - 76px));
+    min-width: min(224px, calc(100vw - 76px));
+  }
+  .cp-p6 .cp-p6-workspace[dir="rtl"] .cp-p6-shell {
+    grid-template-columns: 32px minmax(0, 1fr) 42px;
+  }
+}
+@media (max-width: 640px) {
+  .cp-p6 .cp-p6-shell {
+    grid-template-columns: 36px minmax(0, 1fr) 30px;
+  }
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
+    width: 36px;
+    min-width: 36px;
+  }
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:hover,
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:focus-within:not([data-expanded="false"]),
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree[data-expanded="true"] {
+    width: min(210px, calc(100vw - 66px));
+    min-width: min(210px, calc(100vw - 66px));
+  }
+  .cp-p6 .cp-p6-workspace[dir="rtl"] .cp-p6-shell {
+    grid-template-columns: 30px minmax(0, 1fr) 36px;
+  }
+}

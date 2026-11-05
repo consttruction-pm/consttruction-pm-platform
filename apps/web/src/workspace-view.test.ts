@@ -1779,6 +1779,10 @@ test("desktop workbench renders a grouped navigation tree, window tabs and conte
   const navigationEnd = html.indexOf("</nav>", navigationStart);
   const navigationMarkup = html.slice(navigationStart, navigationEnd + 6);
   assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 18);
+  assert.match(navigationMarkup, /data-navigation-toggle/);
+  assert.match(navigationMarkup, /aria-expanded="false"/);
+  assert.match(navigationMarkup, /data-expand-label=/);
+  assert.match(navigationMarkup, /data-collapse-label=/);
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
   assert.match(html, /Resources &amp; cost/);

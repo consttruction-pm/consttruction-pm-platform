@@ -275,11 +275,24 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-navigation-toggle],[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.navigationToggle !== undefined) {
+      const navigation = target.closest<HTMLElement>(".cp-navigation-tree");
+      if (!navigation) return;
+      const expanded = navigation.dataset.expanded !== "true";
+      navigation.dataset.expanded = String(expanded);
+      target.setAttribute("aria-expanded", String(expanded));
+      const nextLabel = expanded ? target.dataset.collapseLabel : target.dataset.expandLabel;
+      if (nextLabel) {
+        target.setAttribute("aria-label", nextLabel);
+        target.setAttribute("title", nextLabel);
+      }
+      return;
+    }
     if (target.dataset.registerTab) {
       const tab = target.dataset.registerTab;
       container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
@@ -990,7 +1003,17 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       </header>
       <div class="cp-p6-shell">
         <nav class="cp-menu cp-p6-rail cp-navigation-tree" aria-label="${escapeAttribute(t.mainMenu)}">
-          <div class="cp-nav-tree-title">${workspaceIcon("group")}<strong>${escapeHtml(rail.menu)}</strong></div>
+          <div class="cp-nav-tree-title">
+            <button type="button" class="cp-nav-tree-toggle" data-navigation-toggle aria-expanded="false"
+              data-expand-label="${escapeAttribute(uiText(state.locale, "Expand navigation", "بازکردن نوار ناوبری"))}"
+              data-collapse-label="${escapeAttribute(uiText(state.locale, "Collapse navigation", "بستن نوار ناوبری"))}"
+              aria-label="${escapeAttribute(uiText(state.locale, "Expand navigation", "بازکردن نوار ناوبری"))}"
+              title="${escapeAttribute(uiText(state.locale, "Expand navigation", "بازکردن نوار ناوبری"))}">
+              ${workspaceIcon("group")}
+              <span class="cp-nav-tree-title-label">${escapeHtml(rail.menu)}</span>
+              <span class="cp-nav-tree-chevron" aria-hidden="true">›</span>
+            </button>
+          </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
             ${menuButton("project", t.project, state, railMenuIcons.project)}
             ${railActionButton("eps", rail.eps, "portfolio")}
