@@ -1183,8 +1183,8 @@ test("interactive Activity Grid exposes grid row selection semantics", () => {
   assert.match(container.innerHTML, /<table role="grid" aria-label="Activity Grid" aria-multiselectable="false"[^>]*>/);
   assert.match(container.innerHTML, /<thead><tr role="row">/);
   assert.match(container.innerHTML, /<th role="columnheader" scope="col"/);
-  assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" tabindex="0" aria-selected="true" aria-label="A-1"/);
-  assert.match(container.innerHTML, /<td role="gridcell"[^>]*>A-1<\/td>/);
+  assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" data-activity-kind="task" tabindex="0" aria-selected="true" aria-label="A-1"/);
+  assert.match(container.innerHTML, /<td role="gridcell"[^>]*><span class="cp-p6-activity-cell">.*A-1<\/span><\/td>/);
 });
 
 

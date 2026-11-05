@@ -501,7 +501,7 @@ function renderToolbar(state: DesktopShellState): string {
   const more = translateWorkspaceUiText(locale, "More", "بیشتر");
   return `<div class="cp-toolbar" role="toolbar" aria-label="${escapeHtml(toolbarAria)}">
     <div class="cp-toolbar-scroll">
-      ${groups.map((group) => `<div class="cp-toolbar-group" role="group" aria-label="${escapeHtml(pick(group.label, locale))}" title="${escapeHtml(pick(group.label, locale))}">
+      ${groups.map((group) => `<div class="cp-toolbar-group" data-toolbar-group="${escapeHtml(group.id)}" role="group" aria-label="${escapeHtml(pick(group.label, locale))}" title="${escapeHtml(pick(group.label, locale))}">
         ${group.items.map((item) => renderToolbarButton(item, locale, false)).join("")}
       </div>`).join("")}
     </div>

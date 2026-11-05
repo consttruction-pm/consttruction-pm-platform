@@ -2603,11 +2603,13 @@ function renderActivityRow(
   const selected = activity.id === state.selectedActivityId;
   const predecessors = predecessorSummary(activity.id, state);
   const showIcons = presentation.table.showIcons;
-  const firstColumnId = state.columns[0]?.id;
+  const iconColumnId = showIcons
+    ? state.columns.find((column) => column.id === "activity_id" || column.id === "activity.id")?.id ?? null
+    : null;
   const rowIcon = showIcons ? activityTypeIcon(activity) : "";
   const cells = state.columns.map((column) => {
     const value = renderCell(column, activity, state.calendarMode);
-    const content = showIcons && column.id === firstColumnId
+    const content = iconColumnId !== null && column.id === iconColumnId
       ? `<span class="cp-p6-activity-cell">${rowIcon}${value}</span>`
       : value;
     return `<td role="gridcell" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="text-align:${column.alignment};width:${column.width}px${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${content}</td>`;
@@ -2615,14 +2617,18 @@ function renderActivityRow(
   const lineNumberCell = presentation.table.lineNumbers
     ? `<td role="gridcell" class="cp-p6-line-number">${rowNumber}</td>`
     : "";
-  return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" class="${selected ? "is-selected" : ""}">${lineNumberCell}${cells}<td class="cp-logic-column" data-predecessors="${escapeAttribute(activity.id)}">${predecessors ? escapeHtml(predecessors) : "—"}</td><td class="cp-actions-column"><button type="button" data-activity-edit="${escapeAttribute(activity.id)}">${escapeHtml(getWorkspaceLabels(state.locale).activityEdit)}</button></td></tr>`;
+  return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" data-activity-kind="${activityTypeKind(activity)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" class="${selected ? "is-selected" : ""}">${lineNumberCell}${cells}<td class="cp-logic-column" data-predecessors="${escapeAttribute(activity.id)}">${predecessors ? escapeHtml(predecessors) : "—"}</td><td class="cp-actions-column"><button type="button" data-activity-edit="${escapeAttribute(activity.id)}">${escapeHtml(getWorkspaceLabels(state.locale).activityEdit)}</button></td></tr>`;
+}
+
+function activityTypeKind(activity: WorkspaceActivityRow): "milestone" | "summary" | "loe" | "task" {
+  const type = String(activity.cells?.["activity.activity_type"] ?? activity.cells?.activity_type ?? "").toLowerCase();
+  return type.includes("milestone") ? "milestone" : type.includes("summary") ? "summary" : type.includes("level of effort") ? "loe" : "task";
 }
 
 function activityTypeIcon(activity: WorkspaceActivityRow): string {
-  const type = String(activity.cells?.["activity.activity_type"] ?? activity.cells?.activity_type ?? "").toLowerCase();
-  const kind = type.includes("milestone") ? "is-milestone" : type.includes("summary") ? "is-summary" : type.includes("level of effort") ? "is-loe" : "is-task";
-  const icon = kind === "is-milestone" ? "milestone" : kind === "is-summary" ? "wbs" : "activity";
-  return `<span class="cp-p6-activity-icon ${kind}" aria-hidden="true">${workspaceIcon(icon)}</span>`;
+  const kind = activityTypeKind(activity);
+  const icon = kind === "milestone" ? "milestone" : kind === "summary" ? "wbs" : "activity";
+  return `<span class="cp-p6-activity-icon is-${kind}" aria-hidden="true">${workspaceIcon(icon)}</span>`;
 }
 
 function renderCell(column: WorkspaceColumn, activity: WorkspaceActivityRow, calendarMode: WorkspaceState["calendarMode"]): string {

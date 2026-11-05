@@ -76,13 +76,13 @@ export type GanttBarFacts = {
 };
 
 const DEFAULT_TABLE: TablePresentation = {
-  fontFamily: "system",
+  fontFamily: "tahoma",
   fontSize: 11,
-  textColor: "#1f2933",
+  textColor: "#000000",
   backgroundColor: "#ffffff",
   rowHeight: 22,
   rowHeightMode: "fixed",
-  showIcons: false,
+  showIcons: true,
   lineNumbers: false,
 };
 
@@ -108,11 +108,14 @@ function bar(style: Partial<GanttBarStyle> & Pick<GanttBarStyle, "bodyColor">): 
 export const DEFAULT_PRESENTATION: WorkspacePresentation = {
   table: { ...DEFAULT_TABLE },
   bars: {
-    task: bar({ bodyColor: "#1f5e8c", borderColor: "#17486a", filter: "task" }),
-    critical: bar({ bodyColor: "#b3261e", borderColor: "#8c1d18", filter: "critical" }),
-    summary: bar({ bodyColor: "#17324d", borderColor: "#0f2a44", filter: "summary", height: 10, startShape: "triangle-down", finishShape: "triangle-down" }),
-    milestone: bar({ bodyColor: "#c26a2e", borderColor: "#9a5322", filter: "milestone", bodyShape: "diamond", height: 14 }),
-    progress: bar({ bodyColor: "#0b1f33", borderColor: "#0b1f33", filter: "all", height: 6 }),
+    // The default palette follows the classic desktop scheduling worksurface:
+    // light outlined work bars, a dark solid summary, a black milestone diamond
+    // and green actual bars, with the activity id printed beside each bar.
+    task: bar({ bodyColor: "#eef3f8", borderColor: "#1f3b57", filter: "task", labelField: "activity-id" }),
+    critical: bar({ bodyColor: "#f6dcd7", borderColor: "#9e2b25", filter: "critical", labelField: "activity-id" }),
+    summary: bar({ bodyColor: "#17324d", borderColor: "#0f2a44", filter: "summary", height: 10, startShape: "triangle-down", finishShape: "triangle-down", labelField: "activity-id" }),
+    milestone: bar({ bodyColor: "#1f2933", borderColor: "#111827", filter: "milestone", bodyShape: "diamond", height: 14 }),
+    progress: bar({ bodyColor: "#1f3b57", borderColor: "#1f3b57", filter: "all", height: 6 }),
     actual: bar({ bodyColor: "#2e7d5b", borderColor: "#246448", filter: "all", row: 2, height: 6 }),
     baseline: bar({ bodyColor: "#6b7785", borderColor: "#6b7785", filter: "all", row: 3, height: 4, bodyShape: "line" }),
   },

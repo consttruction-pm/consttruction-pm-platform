@@ -7311,3 +7311,205 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-wbs-window-layout>section>h3{margin:0;padding:7px 9px;border-bottom:1px solid #d8e0e9;background:#f2f5f9;color:#244463;font-size:10px}
 .cp-p6 .cp-wbs-window-layout .cp-wbs-details{margin:0;border:0}
 @media(max-width:800px){.cp-p6 .cp-wbs-window-layout{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------------------------------------------------------------------------
+   Classic engineering workbench theme.
+   The chrome uses the light Windows workbench used by desktop scheduling
+   tools: white title and command bars, #f0f0f0 pane headers, beveled edges,
+   a dense grid with yellow summary bands and a classic blue row selection.
+   Colours and icons stay CUBI's own; no third-party branding enters the UI.
+--------------------------------------------------------------------------- */
+.cp-p6 .cp-titlebar {
+  background: linear-gradient(180deg, #ffffff, #f1f1f1);
+  color: #111;
+  border-bottom: 1px solid #9a9a9a;
+}
+.cp-p6 .cp-titlebar-mark { background: #1c4f8f; color: #fff; border: 1px solid #0b2b4d; }
+.cp-p6 .cp-titlebar-preview { border-color: #b08a4a; background: #fff8e8; color: #7a4a10; }
+.cp-p6 .cp-titlebar-action { border: 1px solid #c4c4c4; background: #f6f6f6; color: #111; }
+.cp-p6 .cp-titlebar-action:hover,
+.cp-p6 .cp-titlebar-action:focus-visible { border-color: #7f9db9; background: #e6f0fb; }
+.cp-p6 .cp-titlebar-language select {
+  border: 1px solid #7f9db9;
+  background: #fff;
+  color: #111;
+}
+
+.cp-p6 .cp-menubar { background: #f0f0f0; border-bottom: 1px solid #c6c6c6; }
+.cp-p6 .cp-menubar-trigger { color: #111; }
+.cp-p6 .cp-menubar-trigger:hover,
+.cp-p6 .cp-menubar-trigger[aria-expanded="true"] { background: #dbe7f5; box-shadow: inset 0 0 0 1px #b9cfe6; }
+.cp-p6 .cp-menubar-popup {
+  border: 1px solid #7f9db9;
+  background: #fff;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, .28);
+}
+.cp-p6 .cp-menubar-item:hover:not(.is-disabled) { background: #dbe7f5; }
+
+.cp-p6 .cp-toolbar {
+  background: linear-gradient(180deg, #fafafa, #efefef);
+  border-bottom: 1px solid #9a9a9a;
+}
+.cp-p6 .cp-toolbar-group { border-inline-end: 1px solid #cfcfcf; }
+.cp-p6 .cp-toolbar-button { border: 1px solid transparent; color: #111; }
+.cp-p6 .cp-toolbar-button:hover:not(:disabled) {
+  border-color: #7f9db9;
+  background: #e6f0fb;
+  box-shadow: none;
+}
+.cp-p6 .cp-toolbar-button[aria-pressed="true"] { border-color: #7f9db9; background: #d3e5f8; color: #0b2b4d; }
+.cp-p6 .cp-toolbar-group[data-toolbar-group="file"] .cp-icon { color: #1c5f9e; }
+.cp-p6 .cp-toolbar-group[data-toolbar-group="edit"] .cp-icon { color: #2f7d32; }
+.cp-p6 .cp-toolbar-group[data-toolbar-group="layout"] .cp-icon { color: #b7791f; }
+.cp-p6 .cp-toolbar-group[data-toolbar-group="view"] .cp-icon { color: #007c86; }
+.cp-p6 .cp-toolbar-group[data-toolbar-group="project"] .cp-icon { color: #1c4f8f; }
+.cp-p6 .cp-toolbar-group[data-toolbar-group="activities"] .cp-icon { color: #2f6f4f; }
+.cp-p6 .cp-toolbar-group[data-toolbar-group="tools"] .cp-icon { color: #5b4a8a; }
+
+.cp-p6 .cp-window-tabs { background: #f0f0f0; border-bottom: 1px solid #9a9a9a; }
+.cp-p6 .cp-window-tab { border-radius: 2px 2px 0 0; }
+.cp-p6 .cp-window-tab.is-active {
+  border-color: #9a9a9a;
+  background: #fff;
+  box-shadow: none;
+}
+.cp-p6 .cp-window-tab-label { color: #111; }
+
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
+  background: linear-gradient(90deg, #ededed, #f7f7f7);
+  border-inline-end: 1px solid #9a9a9a;
+}
+.cp-p6 .cp-nav-tree-title { color: #173d68; border-bottom: 1px solid #c6c6c6; }
+.cp-p6 .cp-rail-button { color: #333; }
+.cp-p6 .cp-rail-button .cp-icon { color: #44546a; }
+.cp-p6 .cp-rail-button[data-menu="project"] .cp-icon,
+.cp-p6 .cp-rail-button[data-menu="wbs"] .cp-icon,
+.cp-p6 .cp-rail-button[data-rail-action="eps"] .cp-icon { color: #1c5f9e; }
+.cp-p6 .cp-rail-button[data-menu="schedule"] .cp-icon,
+.cp-p6 .cp-rail-button[data-menu="progress"] .cp-icon,
+.cp-p6 .cp-rail-button[data-rail-action="activities"] .cp-icon { color: #2f7d32; }
+.cp-p6 .cp-rail-button[data-menu="resources"] .cp-icon,
+.cp-p6 .cp-rail-button[data-menu="assignments"] .cp-icon,
+.cp-p6 .cp-rail-button[data-menu="calendars"] .cp-icon,
+.cp-p6 .cp-rail-button[data-menu="roles"] .cp-icon { color: #007c86; }
+.cp-p6 .cp-rail-button[data-menu="cost"] .cp-icon,
+.cp-p6 .cp-rail-button[data-menu="expenses"] .cp-icon { color: #b7791f; }
+.cp-p6 .cp-rail-button[data-menu="documents"] .cp-icon,
+.cp-p6 .cp-rail-button[data-menu="reports"] .cp-icon,
+.cp-p6 .cp-rail-button[data-rail-action="documents"] .cp-icon,
+.cp-p6 .cp-rail-button[data-rail-action="notebook"] .cp-icon { color: #4a5b8c; }
+.cp-p6 .cp-rail-button[data-menu="risks"] .cp-icon,
+.cp-p6 .cp-rail-button[data-menu="issues"] .cp-icon,
+.cp-p6 .cp-rail-button[data-rail-action="risks"] .cp-icon { color: #a12a1f; }
+.cp-p6 .cp-rail-button[data-menu="settings"] .cp-icon,
+.cp-p6 .cp-rail-button[data-rail-action="tools"] .cp-icon { color: #5b4a8a; }
+.cp-p6 .cp-rail-button:hover { background: #dbe7f5; }
+.cp-p6 .cp-rail-button[aria-current="page"],
+.cp-p6 .cp-rail-button.is-active { background: #c9dcf1; box-shadow: inset 2px 0 0 #1c4f8f; }
+
+.cp-p6 .cp-p6-grid-head,
+.cp-p6 .cp-p6-gantt-head {
+  background: linear-gradient(180deg, #f6f6f6, #e8e8e8);
+  border-bottom: 1px solid #a0a0a0;
+  color: #111;
+}
+.cp-p6 .cp-activity-toolbar,
+.cp-p6 .cp-gantt-toolbar { background: #f0f0f0; border-bottom: 1px solid #b0b0b0; }
+.cp-p6 .cp-gantt-scale-button,
+.cp-p6 .cp-gantt-command-button,
+.cp-p6 .cp-gantt-relationships-toggle {
+  border: 1px solid #9a9a9a;
+  background: linear-gradient(180deg, #fdfdfd, #ececec);
+  color: #111;
+}
+.cp-p6 .cp-gantt-scale-button.is-active { border-color: #5f7f9f; background: #d3e5f8; color: #0b2b4d; }
+
+.cp-p6 #cp-activity-grid thead th {
+  background: #f0f0f0;
+  border-bottom: 1px solid #9a9a9a;
+  border-inline-end: 1px solid #c0c0c0;
+  color: #111;
+}
+.cp-p6 #cp-activity-grid tbody .cp-p6-activity-icon { width: 13px; height: 13px; }
+.cp-p6 #cp-activity-grid tbody .cp-p6-activity-icon svg { width: 13px; height: 13px; }
+.cp-p6 #cp-activity-grid tbody tr:not(.is-selected):not([data-activity-kind="summary"]) .cp-p6-activity-icon.is-task { color: #2e7d32; }
+.cp-p6 #cp-activity-grid tbody tr:not(.is-selected):not([data-activity-kind="summary"]) .cp-p6-activity-icon.is-loe { color: #607d8b; }
+.cp-p6 #cp-activity-grid tbody tr:not(.is-selected):not([data-activity-kind="summary"]) .cp-p6-activity-icon.is-milestone { color: #b2531e; }
+.cp-p6 #cp-activity-grid thead .cp-p6-column.is-pinned,
+.cp-p6 #cp-activity-grid thead .cp-p6-column.is-frozen { background: #efefef; }
+.cp-p6 #cp-activity-grid tbody td {
+  border-bottom: 1px solid #e3e3e3;
+  border-inline-end: 1px solid #ececec;
+}
+.cp-p6 #cp-activity-grid tbody tr:nth-child(even) td { background: #fafafa; }
+.cp-p6 #cp-activity-grid tbody tr[data-activity-kind="summary"] td {
+  background: #ffff00;
+  color: #0000b8;
+  font-weight: 700;
+}
+.cp-p6 #cp-activity-grid tbody tr[data-activity-kind="summary"] td.is-pinned,
+.cp-p6 #cp-activity-grid tbody tr[data-activity-kind="summary"] td.is-frozen { background: #ffff00; }
+.cp-p6 #cp-activity-grid tbody tr[data-activity-kind="summary"]:hover td { background: #f2f200; }
+.cp-p6 #cp-activity-grid tbody tr[data-activity-kind="summary"] .cp-p6-activity-icon { color: #0000b8; }
+.cp-p6 #cp-activity-grid tbody tr.is-selected td,
+.cp-p6 #cp-activity-grid tbody tr[data-activity-kind="summary"].is-selected td {
+  background: #0000ff;
+  color: #fff;
+}
+.cp-p6 #cp-activity-grid tbody tr.is-selected td.is-pinned,
+.cp-p6 #cp-activity-grid tbody tr.is-selected td.is-frozen { background: #0000ff; }
+.cp-p6 #cp-activity-grid tbody tr.is-selected td.cp-p6-line-number { background: #0000cc; color: #fff; }
+.cp-p6 #cp-activity-grid tbody tr.is-selected .cp-p6-activity-icon,
+.cp-p6 #cp-activity-grid tbody tr.is-selected .cp-actions-column button { color: #fff; }
+.cp-p6 #cp-activity-grid tbody tr.is-selected .cp-actions-column button { border-color: rgba(255, 255, 255, .6); }
+
+.cp-p6 .cp-gantt-axis {
+  background: linear-gradient(180deg, #f7f7f7, #ececec);
+  border-bottom: 1px solid #9a9a9a;
+}
+.cp-p6 .cp-gantt-axis-tick { color: #111; }
+.cp-p6 .cp-gantt-chart { background-image: linear-gradient(90deg, rgba(0, 0, 0, .05) 1px, transparent 1px); }
+.cp-p6 .cp-gantt-row { border-bottom: 1px solid #e3e3e3; }
+.cp-p6 .cp-gantt-row:nth-child(even) { background: #fafafa; }
+.cp-p6 .cp-gantt-row:hover { background: #eaf3fd; }
+.cp-p6 .cp-gantt-row.is-selected { background: #dbe7f5; }
+.cp-p6 .cp-gantt-bar-label.is-right,
+.cp-p6 .cp-gantt-bar-label.is-above,
+.cp-p6 .cp-gantt-bar-label.is-below { color: #111; }
+.cp-p6 .cp-gantt-link { stroke: #4a4a4a; }
+.cp-p6 .cp-gantt-arrow-head { fill: #4a4a4a; }
+
+.cp-p6 #cp-details { border-top: 1px solid #9a9a9a; }
+.cp-p6 .cp-details-head,
+.cp-p6 .cp-details-tabs { background: linear-gradient(180deg, #f5f5f5, #e9e9e9); }
+.cp-p6 .cp-details-head { border-bottom: 1px solid #b0b0b0; }
+
+.cp-p6 .cp-desktop-dialog {
+  border: 1px solid #7f9db9;
+  border-radius: 0;
+  background: #f0f0f0;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .3);
+}
+.cp-p6 .cp-desktop-dialog::backdrop { background: rgba(0, 0, 0, .28); }
+.cp-p6 .cp-desktop-dialog select,
+.cp-p6 .cp-desktop-dialog input[type="number"],
+.cp-p6 .cp-desktop-dialog input[type="text"] {
+  border: 1px solid #7f9db9;
+  border-radius: 0;
+  background: #fff;
+  color: #111;
+}
+.cp-p6 .cp-dialog-buttons button {
+  border: 1px solid #7f9db9;
+  border-radius: 0;
+  background: linear-gradient(180deg, #fdfdfd, #e6e6e6);
+  color: #111;
+}
+.cp-p6 .cp-dialog-buttons .cp-dialog-primary {
+  border-color: #0b2b4d;
+  background: linear-gradient(180deg, #3f7fbf, #1c4f8f);
+  color: #fff;
+}
+
+.cp-p6 .cp-statusbar { background: #f0f0f0; border-color: #9a9a9a; }
+.cp-p6 .cp-statusbar-cell { border-inline-end: 1px solid #c6c6c6; }

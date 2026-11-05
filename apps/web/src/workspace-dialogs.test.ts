@@ -77,7 +77,7 @@ test("Table Font and Row dialog exposes the real controls and persisted values",
   assert.match(html, /name="fontSize"/);
   assert.match(html, /<option value="11" selected>11 px<\/option>/);
   assert.match(html, /name="fontFamily"/);
-  assert.match(html, /name="textColor" value="#1f2933"/);
+  assert.match(html, /name="textColor" value="#000000"/);
   assert.match(html, /name="backgroundColor" value="#ffffff"/);
   assert.match(html, /name="rowHeightMode" value="keep"/);
   assert.match(html, /name="rowHeightMode" value="content"/);
@@ -142,7 +142,7 @@ test("default layout patch keeps the professional compact defaults", () => {
   assert.equal(defaults.rowHeight, 22);
   assert.equal(defaults.fontSize, 11);
   assert.equal(defaults.rowHeightMode, "fixed");
-  assert.equal(defaults.showIcons, false);
+  assert.equal(defaults.showIcons, true);
   assert.equal(defaults.lineNumbers, false);
   assert.deepEqual(defaults.presentation, DEFAULT_PRESENTATION);
   assert.equal(defaults.groupBy, "wbs");

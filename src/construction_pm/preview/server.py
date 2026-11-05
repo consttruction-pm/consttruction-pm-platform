@@ -711,19 +711,20 @@ class PreviewApplication:
         return f"""<style>
   #cubi-preview-banner {{
     position: fixed; inset: auto 0 0 0; z-index: 2147483000;
-    display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
-    padding: 7px 14px; background: #12263f; color: #f7fbff;
-    font: 12px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
-    box-shadow: 0 -1px 0 rgba(255,255,255,.18);
+    display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+    padding: 4px 12px; background: #f0f0f0; color: #111;
+    font: 11px/1.5 "Segoe UI", Tahoma, system-ui, sans-serif;
+    border-top: 1px solid #9a9a9a;
   }}
-  #cubi-preview-banner strong {{ color: #ffd166; letter-spacing: .04em; }}
+  #cubi-preview-banner strong {{ color: #a12a1f; letter-spacing: .04em; }}
   #cubi-preview-banner .fa {{ direction: rtl; unicode-bidi: isolate; }}
   #cubi-preview-banner .grow {{ flex: 1 1 auto; }}
   #cubi-preview-banner form {{ margin: 0; }}
   #cubi-preview-banner button {{
-    border: 1px solid rgba(255,255,255,.5); background: transparent; color: inherit;
-    border-radius: 4px; padding: 2px 9px; cursor: pointer; font: inherit;
+    border: 1px solid #7f9db9; background: linear-gradient(180deg, #fdfdfd, #e6e6e6); color: #111;
+    border-radius: 0; padding: 1px 9px; cursor: pointer; font: inherit;
   }}
+  #cubi-preview-banner button:hover {{ background: #e6f0fb; }}
 </style>
 <div id="cubi-preview-banner" role="status">
   <strong>{banner_title}</strong>
