@@ -337,8 +337,7 @@ test("Activity Steps tab does not treat an unloaded projection as proof that no 
     locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
     projectName: "project-1", dataDate: "—", calendarMode: "gregorian",
   });
-  assert.match(html, /Activity-step records are not included in the current workspace projection/i);
-  assert.match(html, /cannot determine whether the activity has steps/i);
+  assert.match(html, /Activity steps have not been loaded yet/i);
   assert.doesNotMatch(html, /This activity has no steps/i);
 });
 
@@ -349,4 +348,43 @@ test("Activity Documents tab qualifies an empty read projection instead of asser
     projectName: "project-1", dataDate: "—", calendarMode: "gregorian", state: base,
   });
   assert.match(html, /empty projection does not confirm that no documents exist/i);
+});
+test("Activity Steps tab renders only persisted steps for the selected activity without computing progress", () => {
+  const html = renderActivityDetailsTabContent("steps", {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "—", calendarMode: "gregorian",
+    activitySteps: {
+      status: "loaded", errorCode: null,
+      records: [
+        { stepId: "STEP-2", activityId: "act-2", sequence: 2, description: "Inspect reinforcement", weight: "35.50", startDate: "2026-11-04", finishDate: "2026-11-05", udfValues: [{ fieldId: "crew", value: "C-02" }] },
+        { stepId: "STEP-1", activityId: "act-1", sequence: 1, description: "Excavate formation", weight: "64.50", startDate: null, finishDate: null, udfValues: [] },
+      ],
+    },
+  });
+  assert.match(html, /STEP-2/);
+  assert.match(html, /Inspect reinforcement/);
+  assert.match(html, /35.50/);
+  assert.match(html, /crew: C-02/);
+  assert.doesNotMatch(html, /STEP-1/);
+  assert.doesNotMatch(html, /Excavate formation/);
+  assert.match(html, /does not calculate activity progress/i);
+});
+
+test("Activity Steps tab exposes retry when its authenticated project read fails", () => {
+  const html = renderActivityDetailsTabContent("steps", {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "—", calendarMode: "gregorian",
+    activitySteps: { status: "error", records: [], errorCode: "NETWORK_TIMEOUT" },
+  });
+  assert.match(html, /NETWORK_TIMEOUT/);
+  assert.match(html, /data-detail-retry="steps"/);
+});
+
+test("Activity Steps tab distinguishes a successful empty project read from an unloaded request", () => {
+  const html = renderActivityDetailsTabContent("steps", {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "—", calendarMode: "gregorian",
+    activitySteps: { status: "loaded", records: [], errorCode: null },
+  });
+  assert.match(html, /No activity-step records are stored for this activity at the current project revision/i);
 });
