@@ -14,6 +14,7 @@ import type {
 import { translateWorkspaceUiText } from "./workspace-localization.js";
 
 export const ACTIVITY_DETAILS_STORAGE_KEY = "cubi:activity-details-tab";
+export const ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v2";
 
 export type ActivityDetailsTabId =
   | "general"
@@ -21,15 +22,17 @@ export type ActivityDetailsTabId =
   | "resources"
   | "predecessors"
   | "successors"
-  | "codes"
-  | "steps"
   | "relationships"
-  | "calendar"
+  | "codes"
+  | "notebook"
+  | "steps"
   | "documents"
   | "expenses"
+  | "issues"
   | "risks"
-  | "notebook"
-  | "udfs";
+  | "summary"
+  | "udfs"
+  | "update-history";
 
 type TabLabel = { id: string; en: string; fa: string };
 
@@ -39,15 +42,17 @@ export const ACTIVITY_DETAILS_TABS: readonly TabLabel[] = [
   { id: "resources", en: "Resources", fa: "منابع" },
   { id: "predecessors", en: "Predecessors", fa: "پیش‌نیازها" },
   { id: "successors", en: "Successors", fa: "پس‌نیازها" },
-  { id: "codes", en: "Codes", fa: "کدها" },
-  { id: "steps", en: "Steps", fa: "گام‌ها" },
   { id: "relationships", en: "Relationships", fa: "روابط" },
-  { id: "calendar", en: "Calendar", fa: "تقویم" },
-  { id: "documents", en: "Documents", fa: "اسناد" },
+  { id: "codes", en: "Codes", fa: "کدها" },
+  { id: "notebook", en: "Notebook", fa: "دفترچه یادداشت" },
+  { id: "steps", en: "Steps", fa: "گام‌ها" },
+  { id: "documents", en: "WPs & Docs", fa: "محصولات کاری و اسناد" },
   { id: "expenses", en: "Expenses", fa: "هزینه‌ها" },
+  { id: "issues", en: "Issues", fa: "مسائل" },
   { id: "risks", en: "Risks", fa: "ریسک‌ها" },
-  { id: "notebook", en: "Notes", fa: "یادداشت‌ها" },
+  { id: "summary", en: "Summary", fa: "خلاصه" },
   { id: "udfs", en: "UDFs", fa: "فیلدهای سفارشی" },
+  { id: "update-history", en: "Update History", fa: "تاریخچه تغییرات" },
 ];
 
 const PROJECT_DETAILS_TABS: readonly TabLabel[] = [
@@ -204,12 +209,39 @@ function isActivityTab(id: string): id is ActivityDetailsTabId {
 
 export function readActivityDetailsTab(storage?: Storage): ActivityDetailsTabId {
   try {
-    const raw = (storage ?? window.localStorage).getItem(ACTIVITY_DETAILS_STORAGE_KEY);
+    const target = storage ?? (typeof window !== "undefined" ? window.localStorage : undefined);
+    const raw = target?.getItem(ACTIVITY_DETAILS_STORAGE_KEY);
     if (raw && isActivityTab(raw)) return raw;
   } catch {
     // Storage can be unavailable in a sandboxed frame.
   }
   return "general";
+}
+
+export function readActivityDetailsVisibleTabs(storage?: Storage): ActivityDetailsTabId[] {
+  const defaults = ACTIVITY_DETAILS_TABS.map((tab) => tab.id);
+  try {
+    const target = storage ?? (typeof window !== "undefined" ? window.localStorage : undefined);
+    const raw = target?.getItem(ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY);
+    if (!raw) return defaults;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return defaults;
+    const selected = defaults.filter((id) => parsed.includes(id));
+    return selected.length ? selected : defaults;
+  } catch {
+    // Invalid or unavailable browser storage must never hide every detail tab.
+    return defaults;
+  }
+}
+
+function rememberVisibleTabs(ids: readonly ActivityDetailsTabId[]): void {
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY, JSON.stringify(ids));
+    }
+  } catch {
+    // Tab visibility is a presentation preference, not project data.
+  }
 }
 
 function rememberTab(id: ActivityDetailsTabId): void {
@@ -282,7 +314,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       </div>
       <p class="cp-detail-hint">${esc(t(locale, "Duration, float and critical values are produced by the schedule core; this pane only displays them.", "مقادیر مدت، شناوری و بحرانی توسط هستهٔ زمان‌بندی تولید می‌شوند؛ این پنل فقط آن‌ها را نمایش می‌دهد."))}</p>`;
     case "resources":
-      return empty(locale, t(locale, "No resource assignments are returned for this activity. Assignments are read from the project service; this pane does not invent resource rows.", "هیچ تخصیص منبعی برای این فعالیت برگردانده نشده است. تخصیص‌ها از سرویس پروژه خوانده می‌شوند؛ این پنل سطر منبعی نمی‌سازد."));
+      return empty(locale, t(locale, "Resource assignments are not included in the current Activity Details projection. Open Resource Assignments to inspect the authoritative assignment register; this empty panel does not mean the activity has no resources.", "تخصیص منابع در نمای فعلی جزئیات فعالیت بارگذاری نشده است. برای مشاهده تخصیص‌های مرجع، پنجره تخصیص منابع را باز کنید؛ خالی بودن این پنل به معنی نداشتن منبع نیست."));
     case "predecessors":
       return relationshipRows(locale, predecessors);
     case "successors":
@@ -301,21 +333,56 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       return `${section(t(locale, "Predecessors", "پیش‌نیازها"), relationshipRows(locale, predecessors))}${section(t(locale, "Successors", "پس‌نیازها"), relationshipRows(locale, successors))}
         ${gantt ? `<div class="cp-detail-grid">${field(locale, t(locale, "Gantt start", "شروع گانت"), gantt.start)}${field(locale, t(locale, "Gantt finish", "پایان گانت"), gantt.finish)}${field(locale, t(locale, "Gantt progress", "پیشرفت گانت"), `${gantt.progressPercent}%`)}</div>` : ""}`;
     }
-    case "calendar":
-      return `<div class="cp-detail-grid">
-        ${field(locale, t(locale, "Activity calendar", "تقویم فعالیت"), cell(activity, "calendar_id", "calendar_name", "calendar"))}
-        ${field(locale, t(locale, "Project calendar", "تقویم پروژه"), state?.calendarMode === "jalali" ? t(locale, "Jalali display", "نمایش شمسی") : t(locale, "Gregorian display", "نمایش میلادی"))}
-        ${field(locale, t(locale, "Data date", "تاریخ داده"), dataDate === "—" ? "" : dataDate)}
-      </div>
-      <p class="cp-detail-hint">${esc(t(locale, "The project read model does not return activity calendar assignments yet.", "مدل خواندن پروژه هنوز تخصیص تقویم فعالیت را برنمی‌گرداند."))}</p>`;
     case "documents":
       return empty(locale, t(locale, "No documents are linked to this activity in the project read model. Project documents are listed on the Documents page.", "هیچ سندی در مدل خواندن پروژه به این فعالیت پیوند ندارد. اسناد پروژه در صفحهٔ اسناد فهرست می‌شوند."));
     case "expenses":
       return empty(locale, t(locale, "No activity expense records are returned by the project read model.", "هیچ رکورد هزینهٔ فعالیتی توسط مدل خواندن پروژه برگردانده نشده است."));
+    case "issues": {
+      if (!activity) return empty(locale, t(locale, "Select an activity to view linked issues.", "برای مشاهده مسائل پیوندشده، یک فعالیت انتخاب کنید."));
+      const linkedIssues = (state?.fieldIssues ?? []).filter((issue) => issue.activityIds.includes(activity.id));
+      if (!linkedIssues.length) {
+        return empty(locale, t(locale, "No linked issue records are present in the current workspace projection. An empty projection does not prove that no issues exist.", "در نمای فعلی محیط کار رکورد مسئله پیوندشده‌ای وجود ندارد. خالی بودن این نما اثبات نمی‌کند که هیچ مسئله‌ای وجود ندارد."));
+      }
+      return `<table class="cp-detail-table"><thead><tr>
+        <th>${esc(t(locale, "Issue ID", "شناسه مسئله"))}</th>
+        <th>${esc(t(locale, "Title", "عنوان"))}</th>
+        <th>${esc(t(locale, "Category", "دسته‌بندی"))}</th>
+        <th>${esc(t(locale, "Severity", "شدت"))}</th>
+        <th>${esc(t(locale, "Status", "وضعیت"))}</th>
+        <th>${esc(t(locale, "Reported by", "گزارش‌دهنده"))}</th>
+        <th>${esc(t(locale, "Updated", "آخرین به‌روزرسانی"))}</th>
+      </tr></thead><tbody>${linkedIssues.map((issue) => `<tr>
+        <td>${esc(issue.issueId)}</td>
+        <td>${esc(translateWorkspaceUiText(locale, issue.titleKey, issue.titleKey))}</td>
+        <td>${esc(issue.category)}</td>
+        <td>${esc(issue.severity)}</td>
+        <td>${esc(issue.status)}</td>
+        <td>${esc(issue.reportedBy)}</td>
+        <td>${esc(issue.updatedAt)}</td>
+      </tr>`).join("")}</tbody></table>`;
+    }
     case "risks":
-      return empty(locale, t(locale, "No activity risk records are returned by the project read model. Project issues are listed on the Control page.", "هیچ رکورد ریسک فعالیتی توسط مدل خواندن پروژه برگردانده نشده است. مسائل پروژه در صفحهٔ کنترل فهرست می‌شوند."));
+      return empty(locale, t(locale, "No activity risk records are included in the current workspace projection. This does not establish that the activity has no risks.", "سوابق ریسک فعالیت در نمای فعلی محیط کار بارگذاری نشده‌اند؛ این موضوع به معنی نداشتن ریسک نیست."));
+    case "summary": {
+      const gantt = activity?.gantt;
+      return `<div class="cp-detail-grid">
+        ${field(locale, t(locale, "Activity ID", "شناسه فعالیت"), activity?.code ?? "")}
+        ${field(locale, t(locale, "Activity name", "نام فعالیت"), activity?.name ?? "")}
+        ${field(locale, t(locale, "WBS", "ساختار شکست"), activityWbsLabel(input, activity))}
+        ${field(locale, t(locale, "Start", "شروع"), cell(activity, "early_start", "start_date", "start") || gantt?.start || "")}
+        ${field(locale, t(locale, "Finish", "پایان"), cell(activity, "early_finish", "finish_date", "finish") || gantt?.finish || "")}
+        ${field(locale, t(locale, "Duration", "مدت"), cell(activity, "duration", "planned_duration"))}
+        ${field(locale, t(locale, "Percent complete", "درصد پیشرفت"), cell(activity, "duration_percent_complete", "percent_complete", "progress") || (gantt ? String(gantt.progressPercent) : ""))}
+        ${field(locale, t(locale, "Total float", "شناوری کل"), cell(activity, "total_float"))}
+        ${field(locale, t(locale, "Free float", "شناوری آزاد"), cell(activity, "free_float"))}
+        ${field(locale, t(locale, "Critical", "بحرانی"), cell(activity, "is_critical") || (gantt ? (gantt.critical ? t(locale, "Yes", "بله") : t(locale, "No", "خیر")) : ""))}
+      </div>
+      <p class="cp-detail-hint">${esc(t(locale, "Summary fields are displayed only from the selected activity projection and authoritative schedule facts; this panel does not calculate rollups.", "فیلدهای خلاصه فقط از نمای فعالیت انتخاب‌شده و اطلاعات مرجع زمان‌بندی نمایش داده می‌شوند؛ این پنل محاسبات تجمیعی انجام نمی‌دهد."))}</p>`;
+    }
+    case "update-history":
+      return empty(locale, t(locale, "Activity-specific audit history is not included in the current workspace read model. No change entries are inferred or synthesized.", "تاریخچه ممیزی مختص فعالیت در مدل خواندن فعلی محیط کار وجود ندارد. هیچ سابقه تغییری حدس زده یا ساخته نمی‌شود."));
     case "notebook":
-      return `<p class="cp-detail-empty">${esc(t(locale, "Notebook entries are not stored by the project read model. Browser-local notes for this activity are available from the Comments rail.", "مدخل‌های دفترچه توسط مدل خواندن پروژه ذخیره نمی‌شوند. یادداشت‌های محلی این فعالیت از نوار یادداشت‌ها در دسترس است."))}</p>`;
+      return `<p class="cp-detail-empty">${esc(t(locale, "Notebook entries are not stored by the project read model. Browser-local notes for this activity are available from the Comments rail.", "مدخل‌های دفترچه در مدل خواندن پروژه ذخیره نمی‌شوند. یادداشت‌های محلی این فعالیت از نوار یادداشت‌ها در دسترس است."))}</p>`;
     case "udfs":
       return empty(locale, t(locale, "No user-defined fields are returned for this activity.", "هیچ فیلد سفارشی برای این فعالیت برگردانده نشده است."));
     default:
@@ -621,12 +688,31 @@ function activeBody(tab: string, input: ActivityDetailsInput): string {
   return isActivityTab(tab) ? activityTabBody(tab, input) : "";
 }
 
+function renderActivityDetailsTabsDialog(locale: string, tabs: readonly TabLabel[], visible: readonly ActivityDetailsTabId[]): string {
+  const selected = new Set(visible);
+  return `<dialog class="cp-activity-details-options" data-detail-tabs-dialog aria-labelledby="cp-detail-tabs-title">
+    <div class="cp-activity-details-options-head">
+      <h3 id="cp-detail-tabs-title">${esc(t(locale, "Customize Activity Details", "تنظیم زبانه‌های جزئیات فعالیت"))}</h3>
+      <button type="button" data-detail-tabs-close aria-label="${esc(t(locale, "Close", "بستن"))}">×</button>
+    </div>
+    <p>${esc(t(locale, "Choose which detail tabs are visible in the bottom layout.", "زبانه‌هایی را که در پنل جزئیات پایین نمایش داده می‌شوند انتخاب کنید."))}</p>
+    <div class="cp-activity-details-options-list">${tabs.map((tab) => `<label><input type="checkbox" data-detail-tab-visible="${tab.id}"${selected.has(tab.id as ActivityDetailsTabId) ? " checked" : ""}> ${esc(translateWorkspaceUiText(locale, tab.en, tab.fa))}</label>`).join("")}</div>
+    <footer>
+      <button type="button" data-detail-tabs-close>${esc(t(locale, "Cancel", "انصراف"))}</button>
+      <button type="button" data-detail-tabs-apply>${esc(t(locale, "Apply", "اعمال"))}</button>
+    </footer>
+  </dialog>`;
+}
+
 export function renderActivityDetailsPanel(input: ActivityDetailsInput): string {
   const { locale } = input;
-  const tabs = tabsFor(input);
+  const allTabs = tabsFor(input);
   const state = input.state;
   const activityMode = !state || state.activeMenu === "schedule";
-  const active = activityMode ? readActivityDetailsTab() : (tabs[0]?.id ?? "general");
+  const visibleIds = activityMode ? readActivityDetailsVisibleTabs() : allTabs.map((tab) => tab.id as ActivityDetailsTabId);
+  const tabs = activityMode ? allTabs.filter((tab) => visibleIds.includes(tab.id as ActivityDetailsTabId)) : allTabs;
+  const activeCandidate = activityMode ? readActivityDetailsTab() : (tabs[0]?.id ?? "general");
+  const active = tabs.some((tab) => tab.id === activeCandidate) ? activeCandidate : (tabs[0]?.id ?? "general");
   const index = input.activities.findIndex((row) => row.id === input.selectedActivityId);
   const previous = index > 0 ? input.activities[index - 1] : null;
   const next = index >= 0 && index < input.activities.length - 1 ? input.activities[index + 1] : null;
@@ -640,15 +726,18 @@ export function renderActivityDetailsPanel(input: ActivityDetailsInput): string 
         <span class="cp-details-id cp-detail-selected">${esc(identityFor(input))}</span>
       </div>`;
   return `<div class="cp-details-head">
-      <h2 id="cp-details-heading">${esc(titleFor(input))}</h2>
+      <div><h2 id="cp-details-heading">${esc(titleFor(input))}</h2>
+      ${activityMode ? `<button type="button" class="cp-detail-customize" data-detail-tabs-customize>${esc(t(locale, "Customize Tabs", "تنظیم زبانه‌ها"))}</button>` : ""}</div>
       ${nav}
     </div>
     <div class="cp-detail-tabs" role="tablist" aria-label="${esc(t(locale, "Detail tabs", "زبانه‌های جزئیات"))}">
-      ${tabs.map((tab) => `<button type="button" role="tab" class="cp-detail-tab${tab.id === active ? " is-active" : ""}" data-detail-tab="${tab.id}" aria-selected="${tab.id === active ? "true" : "false"}" tabindex="${tab.id === active ? "0" : "-1"}">${esc(translateWorkspaceUiText(locale, tab.en, tab.fa))}</button>`).join("")}
+      ${tabs.map((tab) => `<button type="button" role="tab" class="cp-detail-tab${tab.id === active ? " is-active" : ""}" data-detail-tab="${tab.id}" aria-controls="cp-detail-panel-${tab.id}" aria-selected="${tab.id === active ? "true" : "false"}" tabindex="${tab.id === active ? "0" : "-1"}">${esc(translateWorkspaceUiText(locale, tab.en, tab.fa))}</button>`).join("")}
     </div>
-    ${tabs.map((tab) => `<div class="cp-detail-panel" role="tabpanel" data-detail-panel="${tab.id}"${tab.id === active ? "" : " hidden"}>
+    ${tabs.map((tab) => `<div id="cp-detail-panel-${tab.id}" class="cp-detail-panel" role="tabpanel" data-detail-panel="${tab.id}"${tab.id === active ? "" : " hidden"}>
       ${tab.id === active ? activeBody(tab.id, input) : ""}
-    </div>`).join("")}`;
+    </div>`).join("")}
+    ${activityMode ? renderActivityDetailsTabsDialog(locale, allTabs, visibleIds) : ""}
+  `;
 }
 
 /**
@@ -676,6 +765,31 @@ export function enhanceActivityDetails(
     const onSelectActivity = runtime.onSelect;
     const target = event.target as HTMLElement | null;
     if (!target || typeof target.closest !== "function") return;
+    const customize = target.closest<HTMLElement>("[data-detail-tabs-customize]");
+    if (customize) {
+      const dialog = host.querySelector<HTMLDialogElement>("[data-detail-tabs-dialog]");
+      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+      else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.closest<HTMLElement>("[data-detail-tabs-close]")) {
+      const dialog = host.querySelector<HTMLDialogElement>("[data-detail-tabs-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.closest<HTMLElement>("[data-detail-tabs-apply]")) {
+      const dialog = host.querySelector<HTMLElement>("[data-detail-tabs-dialog]");
+      const selected = Array.from(dialog?.querySelectorAll<HTMLInputElement>("[data-detail-tab-visible]") ?? [])
+        .filter((checkbox) => checkbox.checked)
+        .map((checkbox) => checkbox.dataset.detailTabVisible ?? "")
+        .filter(isActivityTab);
+      if (!selected.length) return;
+      rememberVisibleTabs(selected);
+      if (!selected.includes(readActivityDetailsTab())) rememberTab(selected[0]);
+      host.innerHTML = renderActivityDetailsPanel(input);
+      return;
+    }
     const tab = target.closest<HTMLElement>("[data-detail-tab]");
     if (tab?.dataset.detailTab) {
       const id = tab.dataset.detailTab;
