@@ -4,6 +4,7 @@ import {
   WINDOW_TITLES,
   getDesktopMenus,
   getDesktopToolbar,
+  renderDesktopShell,
   type DesktopShellCapabilities,
   type DesktopShellState,
 } from "./workspace-desktop-shell.js";
@@ -126,4 +127,31 @@ test("Persian labels are provided for menus, items and window titles", () => {
   assert.equal(menus[0]?.label.fa, "فایل");
   assert.ok(menus.every((menu) => menu.items.every((item) => item.label.fa.trim().length > 0)));
   assert.equal(WINDOW_TITLES.schedule.fa, "فعالیت‌ها");
+});
+
+test("the desktop shell renders one tab strip and dispatches close for the selected window", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = {
+    innerHTML: "",
+    querySelectorAll: () => [] as HTMLElement[],
+    querySelector: () => null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const closed: string[] = [];
+  renderDesktopShell(host as unknown as HTMLElement, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: (window) => closed.push(window),
+    onCommand: () => {},
+  });
+  assert.match(host.innerHTML, /class="cp-window-tabs"/);
+  assert.match(host.innerHTML, /role="tab" aria-selected="true" data-window-tab="schedule"/);
+  assert.match(host.innerHTML, /data-window-tab="project"/);
+  assert.match(host.innerHTML, /data-window-close="project"/);
+  assert.equal((host.innerHTML.match(/class="cp-window-tabs"/g) ?? []).length, 1);
+  const target = {
+    dataset: { windowClose: "project" },
+    closest: (selector: string) => (selector === "[data-window-close]" ? target : null),
+  };
+  listeners.get("click")?.({ target, stopPropagation: () => {} } as unknown as Event);
+  assert.deepEqual(closed, ["project"]);
 });

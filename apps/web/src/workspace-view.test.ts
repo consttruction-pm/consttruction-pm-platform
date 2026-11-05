@@ -408,28 +408,15 @@ test("Activities Details renders the complete Version 26 tab inventory without f
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
-test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
-  const listeners = new Map<string, (event: Event) => void>();
-  const closed: WorkspaceMenuKey[] = [];
-  const container = {
-    innerHTML: "",
-    querySelectorAll: () => [],
-    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
-  };
-  renderMainWorkspace(
-    container as unknown as HTMLElement,
-    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
-    {
-      openWindows: ["project", "schedule"],
-      onWindowClose: (menu) => closed.push(menu),
-    },
-  );
-  assert.match(container.innerHTML, /data-window-tab="project"/);
-  assert.match(container.innerHTML, /data-window-tab="schedule"/);
-  assert.match(container.innerHTML, /data-window-close="project"/);
-  const target = { dataset: { windowClose: "project" }, closest: () => target };
-  listeners.get("click")?.({ target } as unknown as Event);
-  assert.deepEqual(closed, ["project"]);
+test("workspace view leaves window tabs to the single desktop tab bar instead of duplicating them", () => {
+  const state = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    openWindows: ["project", "schedule"],
+  });
+  assert.doesNotMatch(container.innerHTML, /class="cp-window-tabs"/);
+  assert.doesNotMatch(container.innerHTML, /data-window-tab=/);
+  assert.doesNotMatch(container.innerHTML, /class="cp-window-tab/);
 });
 
 test("View menu Timescale command opens the current window Layout Options dialog", () => {
@@ -1779,33 +1766,45 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 });
 
 
-test("desktop workbench renders a grouped navigation tree, window tabs and contextual command rail", () => {
+test("desktop workbench renders one compact navigation rail, a full menu flyout and a single contextual command bar", () => {
   const html = render("en", "schedule");
   assert.match(html, /class="[^"]*cp-navigation-tree/);
   const navigationStart = html.indexOf('class="cp-menu cp-p6-rail cp-navigation-tree"');
   const navigationEnd = html.indexOf("</nav>", navigationStart);
   const navigationMarkup = html.slice(navigationStart, navigationEnd + 6);
   assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 18);
+  assert.match(html, /data-rail-action="navigation" data-nav-flyout-toggle aria-expanded="false" aria-haspopup="true"/);
+  const flyoutStart = html.indexOf('<div class="cp-p6-flyout" data-nav-flyout hidden>');
+  assert.ok(flyoutStart > -1, "the full navigation flyout must be rendered");
+  const flyoutEnd = html.indexOf('<div class="cp-p6-drawer', flyoutStart);
+  const flyoutMarkup = html.slice(flyoutStart, flyoutEnd);
+  assert.equal((flyoutMarkup.match(/data-menu=/g) ?? []).length, 18);
+  assert.match(flyoutMarkup, /class="cp-p6-flyout-tree"/);
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
   assert.match(html, /Resources &amp; cost/);
-  assert.match(html, /class="cp-window-tabs"/);
-  assert.match(html, /role="tab" data-window-tab="schedule" data-menu="schedule" aria-selected="true"/);
-  assert.match(html, /class="cp-context-command-bar"/);
+  assert.equal((html.match(/class="cp-context-command-bar"/g) ?? []).length, 1);
   assert.match(html, /Current window commands/);
-  assert.match(html, /class="[^"]*cp-context-command-rail/);
-  assert.match(html, /class="cp-context-add-menu"/);
+  assert.doesNotMatch(html, /class="cp-window-tabs"/);
+  assert.doesNotMatch(html, /class="cp-context-add-menu"/);
+  assert.doesNotMatch(html, /class="cp-window-tab\b/);
   assert.match(html, /Calendars/);
   assert.match(html, /Roles/);
   assert.match(html, /Tracking/);
   assert.match(html, /Thresholds/);
-  assert.match(html, /Add to current window/);
 });
 
-test("desktop workbench keeps contextual Add actions visibly unavailable until workflows exist", () => {
+test("desktop workbench exposes real keyboard-operable resize separators and reset commands instead of disabled placeholders", () => {
   const html = render("en", "schedule");
-  assert.match(html, /role="menuitem" disabled/);
-  assert.match(html, /create workflow is not connected yet/);
+  assert.match(html, /data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0"[^>]*aria-valuemin="25"[^>]*aria-valuemax="75"[^>]*aria-valuenow="45"/);
+  assert.match(html, /data-details-splitter[^>]*role="separator" aria-orientation="horizontal" tabindex="0"[^>]*aria-valuemin="40"[^>]*aria-valuemax="80"[^>]*aria-valuenow="70"/);
+  assert.match(html, /data-column-resize="[^"]+" role="separator" aria-orientation="vertical"[^>]*aria-valuemin="48"[^>]*aria-valuemax="640"[^>]*aria-valuenow="\d+"/);
+  assert.match(html, /data-layout-options-open/);
+  assert.match(html, /data-reset-table-split/);
+  assert.match(html, /data-reset-details-split/);
+  assert.match(html, /data-reset-column-widths/);
+  assert.doesNotMatch(html, /role="menuitem" disabled/);
+  assert.doesNotMatch(html, /create workflow is not connected yet/);
 });
 
 test("Settings layout administration states honestly when no layout is loaded", () => {

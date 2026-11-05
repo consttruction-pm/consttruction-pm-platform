@@ -8,7 +8,6 @@ import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiTex
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon } from "./workspace-icons.js";
-import { renderWorkspaceCommandShell } from "./workspace-command-shell.js";
 
 const labels = {
   en: {
@@ -125,6 +124,52 @@ const selectedDocumentByContainer = new WeakMap<HTMLElement, string>();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
+const WORKSPACE_SPLIT_STORAGE_KEY = "cubi:workspace-split:v1";
+const WORKSPACE_DETAILS_SPLIT_STORAGE_KEY = "cubi:workspace-details-split:v1";
+const DEFAULT_TABLE_SPLIT = 45;
+const DEFAULT_DETAILS_SPLIT = 70;
+const MIN_TABLE_SPLIT = 25;
+const MAX_TABLE_SPLIT = 75;
+const MIN_DETAILS_SPLIT = 40;
+const MAX_DETAILS_SPLIT = 80;
+const MIN_COLUMN_WIDTH = 48;
+const MAX_COLUMN_WIDTH = 640;
+
+function splitStorageKey(prefix: string, state: WorkspaceState): string {
+  return `${prefix}:${state.context.project_id}:${state.activeMenu}`;
+}
+
+function readStoredSplit(key: string, fallback: number): number {
+  try {
+    const raw = window.localStorage.getItem(key);
+    const parsed = raw === null ? Number.NaN : Number.parseFloat(raw);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(100, Math.max(0, parsed));
+  } catch {
+    return fallback;
+  }
+}
+
+function storeSplit(key: string, value: number): void {
+  try {
+    window.localStorage.setItem(key, String(value));
+  } catch {
+    // Preference storage is optional; the resize still applies for this session.
+  }
+}
+
+function clearStoredSplit(key: string): void {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Preference storage is optional.
+  }
+}
+
+function isRtlElement(element: Element | null): boolean {
+  const direction = element?.closest?.("[dir]")?.getAttribute("dir");
+  return direction === "rtl";
+}
 
 function toggleDrawer(container: HTMLElement, selector: string): void {
   const drawer = container.querySelector<HTMLElement>(selector);
@@ -158,29 +203,159 @@ function openWbsDrawer(container: HTMLElement): void {
   drawer.hidden = false;
 }
 
+function startTableGanttResize(splitter: HTMLElement, event: PointerEvent): void {
+  const split = splitter.closest<HTMLElement>("[data-panel-split]");
+  if (!split) return;
+  event.preventDefault();
+  const rect = split.getBoundingClientRect();
+  if (rect.width <= 0) return;
+  const rtl = isRtlElement(split);
+  const key = split.dataset.splitKey ?? "";
+  try { splitter.setPointerCapture?.(event.pointerId); } catch { /* optional pointer capture */ }
+  const move = (moveEvent: PointerEvent): void => {
+    const offset = rtl ? rect.right - moveEvent.clientX : moveEvent.clientX - rect.left;
+    const percent = Math.min(MAX_TABLE_SPLIT, Math.max(MIN_TABLE_SPLIT, (offset / rect.width) * 100));
+    split.style.setProperty("--cp-split-table", `${percent.toFixed(2)}%`);
+    splitter.setAttribute("aria-valuenow", percent.toFixed(0));
+  };
+  const stop = (): void => {
+    splitter.removeEventListener("pointermove", move);
+    splitter.removeEventListener("pointerup", stop);
+    splitter.removeEventListener("pointercancel", stop);
+    const current = Number.parseFloat(split.style.getPropertyValue("--cp-split-table"));
+    if (key && Number.isFinite(current)) storeSplit(key, current);
+  };
+  splitter.addEventListener("pointermove", move);
+  splitter.addEventListener("pointerup", stop);
+  splitter.addEventListener("pointercancel", stop);
+}
+
+function startDetailsResize(splitter: HTMLElement, event: PointerEvent): void {
+  const main = splitter.closest<HTMLElement>(".cp-main");
+  if (!main) return;
+  event.preventDefault();
+  const rect = main.getBoundingClientRect();
+  if (rect.height <= 0) return;
+  const key = splitter.dataset.splitKey ?? "";
+  try { splitter.setPointerCapture?.(event.pointerId); } catch { /* optional pointer capture */ }
+  const move = (moveEvent: PointerEvent): void => {
+    const percent = Math.min(MAX_DETAILS_SPLIT, Math.max(MIN_DETAILS_SPLIT, ((moveEvent.clientY - rect.top) / rect.height) * 100));
+    main.style.setProperty("--cp-split-primary", `${percent.toFixed(2)}%`);
+    splitter.setAttribute("aria-valuenow", percent.toFixed(0));
+  };
+  const stop = (): void => {
+    splitter.removeEventListener("pointermove", move);
+    splitter.removeEventListener("pointerup", stop);
+    splitter.removeEventListener("pointercancel", stop);
+    const current = Number.parseFloat(main.style.getPropertyValue("--cp-split-primary"));
+    if (key && Number.isFinite(current)) storeSplit(key, current);
+  };
+  splitter.addEventListener("pointermove", move);
+  splitter.addEventListener("pointerup", stop);
+  splitter.addEventListener("pointercancel", stop);
+}
+
+function defaultActivityColumnWidth(column: { id: string; label: string; dataType: string }): number {
+  // Keep the reset widths aligned with the persisted P6 layout seed so a reset
+  // restores the compact professional table rather than an inflated one.
+  const canonical: Record<string, number> = {
+    "activity.id": 48,
+    "activity.name": 130,
+    "activity.wbs": 100,
+    "activity.planned_duration": 50,
+    "activity.remaining_duration": 50,
+    "activity.duration_percent_complete": 50,
+    "activity.early_start": 68,
+    "activity.early_finish": 68,
+    "activity.status": 70,
+    "activity.total_float": 50,
+    "activity.is_critical": 55,
+  };
+  if (canonical[column.id] !== undefined) return canonical[column.id];
+  const key = `${column.id} ${column.label}`.toLowerCase();
+  if (/name|title|نام/.test(key)) return 130;
+  if (/wbs|ساختار/.test(key)) return 100;
+  if (/float|شناور/.test(key)) return 50;
+  if (/status|وضعیت/.test(key)) return 70;
+  if (/%|percent|progress|پیشرفت|درصد/.test(key)) return 50;
+  if (/start|finish|date|شروع|پایان|تاریخ/.test(key)) return 68;
+  if (/duration|مدت/.test(key)) return 50;
+  if (/id|code|شناسه|کد/.test(key)) return 48;
+  return 70;
+}
+
+function activityColumnCells(container: HTMLElement, columnId: string): HTMLElement[] {
+  const grid = container.querySelector<HTMLElement>("#cp-activity-grid");
+  if (!grid) return [];
+  return Array.from(grid.querySelectorAll<HTMLElement>("[data-column-id]")).filter((element) => element.dataset.columnId === columnId);
+}
+
+function applyActivityColumnWidth(container: HTMLElement, columnId: string, width: number, persist: boolean): number {
+  const cells = activityColumnCells(container, columnId);
+  const header = cells.find((element) => element.tagName === "TH");
+  if (!header) return 0;
+  const current = Number.parseFloat(header.style.width) || header.getBoundingClientRect?.().width || MIN_COLUMN_WIDTH;
+  const next = Math.round(Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, width)));
+  const table = header.closest("table");
+  if (table) {
+    const base = Number.parseFloat(table.style.width) || table.getBoundingClientRect?.().width || 0;
+    table.style.width = `${Math.max(320, Math.round(base + next - current))}px`;
+  }
+  for (const cell of cells) cell.style.width = `${next}px`;
+  header.querySelector<HTMLElement>("[data-column-resize]")?.setAttribute("aria-valuenow", String(next));
+  if (persist) {
+    const record = workspaceRenderRecords.get(container);
+    if (record?.state.p6Layout?.columns.some((column) => column.field_id === columnId)) {
+      record.options.onP6FieldWidthChange?.(columnId, next);
+    }
+  }
+  return next;
+}
+
+function startColumnResize(container: HTMLElement, handle: HTMLElement, event: PointerEvent): void {
+  const columnId = handle.dataset.columnResize;
+  if (!columnId) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const rtl = isRtlElement(container);
+  const startX = event.clientX;
+  const startWidth = Number.parseFloat(handle.closest<HTMLElement>("th")?.style.width ?? "") || handle.closest<HTMLElement>("th")?.getBoundingClientRect?.().width || MIN_COLUMN_WIDTH;
+  let next = startWidth;
+  try { handle.setPointerCapture?.(event.pointerId); } catch { /* optional pointer capture */ }
+  const move = (moveEvent: PointerEvent): void => {
+    const delta = (moveEvent.clientX - startX) * (rtl ? -1 : 1);
+    next = applyActivityColumnWidth(container, columnId, startWidth + delta, false);
+  };
+  const stop = (): void => {
+    handle.removeEventListener("pointermove", move);
+    handle.removeEventListener("pointerup", stop);
+    handle.removeEventListener("pointercancel", stop);
+    if (next) applyActivityColumnWidth(container, columnId, next, true);
+  };
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", stop);
+  handle.addEventListener("pointercancel", stop);
+}
+
 function bindWorkspaceEvents(container: HTMLElement): void {
   if (typeof container.addEventListener !== "function" || workspaceEventDelegation.has(container)) return;
   workspaceEventDelegation.add(container);
   container.addEventListener("pointerdown", (event) => {
-    const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
-    if (!splitter) return;
-    const split = splitter.closest<HTMLElement>("[data-panel-split]");
-    if (!split) return;
-    event.preventDefault();
-    const move = (moveEvent: PointerEvent): void => {
-      const rect = split.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const percent = ((moveEvent.clientX - rect.left) / rect.width) * 100;
-      const clamped = Math.min(70, Math.max(30, percent));
-      split.style.setProperty("--cp-split-table", `${clamped.toFixed(2)}%`);
-      splitter.setAttribute("aria-valuenow", clamped.toFixed(0));
-    };
-    const stop = (): void => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", stop);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stop, { once: true });
+    const target = event.target as HTMLElement | null;
+    const columnHandle = target?.closest?.<HTMLElement>("[data-column-resize]");
+    if (columnHandle) {
+      startColumnResize(container, columnHandle, event);
+      return;
+    }
+    const tableSplitter = target?.closest?.<HTMLElement>("[data-panel-splitter]");
+    if (tableSplitter) {
+      startTableGanttResize(tableSplitter, event);
+      return;
+    }
+    const detailsSplitter = target?.closest?.<HTMLElement>("[data-details-splitter]");
+    if (detailsSplitter) {
+      startDetailsResize(detailsSplitter, event);
+    }
   });
   container.addEventListener("input", (event) => {
     const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
@@ -296,7 +471,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-reset-table-split],[data-reset-details-split],[data-reset-column-widths]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -463,12 +638,53 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if ("projectSettings" in target.dataset) return void options.onProjectSettings?.();
+    if (target.dataset.resetTableSplit !== undefined) {
+      const split = container.querySelector<HTMLElement>("[data-panel-split]");
+      if (split) {
+        if (split.dataset.splitKey) clearStoredSplit(split.dataset.splitKey);
+        split.style.setProperty("--cp-split-table", `${DEFAULT_TABLE_SPLIT}%`);
+        split.querySelector<HTMLElement>("[data-panel-splitter]")?.setAttribute("aria-valuenow", String(DEFAULT_TABLE_SPLIT));
+      }
+      return;
+    }
+    if (target.dataset.resetDetailsSplit !== undefined) {
+      const main = container.querySelector<HTMLElement>(".cp-main");
+      const splitter = container.querySelector<HTMLElement>("[data-details-splitter]");
+      if (main) {
+        if (splitter?.dataset.splitKey) clearStoredSplit(splitter.dataset.splitKey);
+        main.style.setProperty("--cp-split-primary", `${DEFAULT_DETAILS_SPLIT}%`);
+        splitter?.setAttribute("aria-valuenow", String(DEFAULT_DETAILS_SPLIT));
+      }
+      return;
+    }
+    if (target.dataset.resetColumnWidths !== undefined) {
+      const record = workspaceRenderRecords.get(container);
+      const widths: Record<string, number> = {};
+      for (const column of record?.state.columns ?? []) {
+        if (record?.state.p6Layout?.columns.some((entry) => entry.field_id === column.id)) {
+          widths[column.id] = defaultActivityColumnWidth(column);
+        }
+      }
+      if (record?.options.onP6ColumnWidthsReset && Object.keys(widths).length > 0) {
+        record.options.onP6ColumnWidthsReset(widths);
+        return;
+      }
+      for (const [columnId, width] of Object.entries(widths)) {
+        applyActivityColumnWidth(container, columnId, width, false);
+      }
+      return;
+    }
     if (target.dataset.toolsOpen !== undefined) { openToolsDrawer(container); return; }
     if (target.dataset.toolsClose !== undefined) { closeDrawer(container, "[data-tools-drawer]"); return; }
     if (target.dataset.wbsDrawerClose !== undefined) { closeDrawer(container, "[data-wbs-drawer]"); return; }
     if (target.dataset.railAction) {
       const action = target.dataset.railAction;
-      if (action === "navigation") { toggleDrawer(container, "[data-nav-flyout]"); return; }
+      if (action === "navigation") {
+        toggleDrawer(container, "[data-nav-flyout]");
+        const flyout = container.querySelector<HTMLElement>("[data-nav-flyout]");
+        container.querySelectorAll<HTMLElement>("[data-nav-flyout-toggle]").forEach((button) => button.setAttribute("aria-expanded", String(Boolean(flyout && !flyout.hidden))));
+        return;
+      }
       if (action === "wbs") { openWbsDrawer(container); return; }
       if (action === "tools") { toggleDrawer(container, "[data-tools-drawer]"); return; }
       options.onRailAction?.(action);
@@ -554,30 +770,66 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
   });
   container.addEventListener("keydown", (event) => {
-    const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
-    if (splitter && splitter.dataset && "panelSplitter" in splitter.dataset) {
+    const keyTarget = event.target as HTMLElement | null;
+    if (event.key === "Enter" || event.key === " ") {
+      const activationTarget = keyTarget && typeof keyTarget.closest === "function"
+        ? keyTarget.closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id],[data-document-row]")
+        : null;
+      if (!activationTarget) return;
+      event.preventDefault();
+      if (activationTarget.dataset.documentRow) {
+        activationTarget.click();
+        return;
+      }
+      const record = workspaceRenderRecords.get(container);
+      if (!record) return;
+      if (activationTarget.dataset.ganttActivityId) record.options.onGanttActivitySelect?.(activationTarget.dataset.ganttActivityId);
+      else if (activationTarget.dataset.activityId) record.options.onActivitySelect?.(activationTarget.dataset.activityId);
+      return;
+    }
+    const columnHandle = keyTarget?.closest?.<HTMLElement>("[data-column-resize]");
+    if (columnHandle) {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-      const split = splitter.closest<HTMLElement>("[data-panel-split]");
+      const columnId = columnHandle.dataset.columnResize;
+      if (!columnId) return;
+      event.preventDefault();
+      const header = columnHandle.closest<HTMLElement>("th");
+      const current = Number.parseFloat(header?.style.width ?? "") || MIN_COLUMN_WIDTH;
+      const step = event.shiftKey ? 40 : 10;
+      const delta = (event.key === "ArrowRight" ? step : -step) * (isRtlElement(container) ? -1 : 1);
+      applyActivityColumnWidth(container, columnId, current + delta, true);
+      return;
+    }
+    const tableSplitter = keyTarget?.closest?.<HTMLElement>("[data-panel-splitter]");
+    if (tableSplitter) {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const split = tableSplitter.closest<HTMLElement>("[data-panel-split]");
       if (!split) return;
       event.preventDefault();
-      const current = Number.parseFloat(split.style.getPropertyValue("--cp-split-table")) || 53.5;
-      const next = Math.min(70, Math.max(30, current + (event.key === "ArrowRight" ? 2 : -2)));
+      const current = Number.parseFloat(split.style.getPropertyValue("--cp-split-table")) || DEFAULT_TABLE_SPLIT;
+      const logical = (event.key === "ArrowRight" ? 2 : -2) * (isRtlElement(split) ? -1 : 1);
+      const next = Math.min(MAX_TABLE_SPLIT, Math.max(MIN_TABLE_SPLIT, current + logical));
       split.style.setProperty("--cp-split-table", `${next}%`);
-      splitter.setAttribute("aria-valuenow", next.toFixed(0));
+      tableSplitter.setAttribute("aria-valuenow", next.toFixed(0));
+      if (split.dataset.splitKey) storeSplit(split.dataset.splitKey, next);
       return;
     }
-    if (event.key !== "Enter" && event.key !== " ") return;
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id],[data-document-row]") : null;
-    if (!target) return;
-    event.preventDefault();
-    if (target.dataset.documentRow) {
-      target.click();
-      return;
+    const detailsSplitter = keyTarget?.closest?.<HTMLElement>("[data-details-splitter]");
+    if (detailsSplitter) {
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown" && event.key !== "Home" && event.key !== "End") return;
+      const main = detailsSplitter.closest<HTMLElement>(".cp-main");
+      if (!main) return;
+      event.preventDefault();
+      const current = Number.parseFloat(main.style.getPropertyValue("--cp-split-primary")) || DEFAULT_DETAILS_SPLIT;
+      const next = event.key === "Home"
+        ? DEFAULT_DETAILS_SPLIT
+        : event.key === "End"
+          ? MAX_DETAILS_SPLIT
+          : Math.min(MAX_DETAILS_SPLIT, Math.max(MIN_DETAILS_SPLIT, current + (event.key === "ArrowDown" ? 2 : -2)));
+      main.style.setProperty("--cp-split-primary", `${next}%`);
+      detailsSplitter.setAttribute("aria-valuenow", next.toFixed(0));
+      if (detailsSplitter.dataset.splitKey) storeSplit(detailsSplitter.dataset.splitKey, next);
     }
-    const record = workspaceRenderRecords.get(container);
-    if (!record) return;
-    if (target.dataset.ganttActivityId) record.options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
-    else if (target.dataset.activityId) record.options.onActivitySelect?.(target.dataset.activityId);
   });
   container.addEventListener("change", (event) => {
     const element = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
@@ -889,6 +1141,7 @@ export type WorkspaceRendererOptions = {
   onP6FieldRemove?: (fieldId: string) => void;
   onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;
   onP6FieldWidthChange?: (fieldId: string, width: number) => void;
+  onP6ColumnWidthsReset?: (widths: Readonly<Record<string, number>>) => void;
   onP6FieldVisibilityChange?: (fieldId: string, visible: boolean) => void;
   onP6FieldPresentationChange?: (fieldId: string, patch: { label?: string; alignment?: "start" | "center" | "end"; pinned?: boolean; frozen?: boolean }) => void;
   onP6LayoutUndo?: () => void;
@@ -990,52 +1243,29 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     settings: "settings",
   };
   const activityFilterLabel = state.activityFilter.trim() || uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
-  const windowTabs = ([
-    ["project", uiText(state.locale, "Projects", "پروژه‌ها")],
-    ["wbs", uiText(state.locale, "WBS", "ساختار شکست")],
-    ["schedule", uiText(state.locale, "Activities", "فعالیت‌ها")],
-    ["progress", uiText(state.locale, "Progress", "پیشرفت")],
-    ["resources", uiText(state.locale, "Resources", "منابع")],
-    ["assignments", uiText(state.locale, "Resource Assignments", "تخصیص منابع")],
-    ["roles", uiText(state.locale, "Roles", "نقش‌ها")],
-    ["calendars", uiText(state.locale, "Calendars", "تقویم‌ها")],
-    ["cost", uiText(state.locale, "Cost", "هزینه")],
-    ["expenses", uiText(state.locale, "Expenses", "هزینه‌ها")],
-    ["documents", uiText(state.locale, "Documents", "اسناد")],
-    ["reports", uiText(state.locale, "Reports", "گزارش‌ها")],
-    ["tracking", uiText(state.locale, "Tracking", "رهگیری")],
-    ["issues", uiText(state.locale, "Issues", "مسائل")],
-    ["risks", uiText(state.locale, "Risks", "ریسک‌ها")],
-    ["thresholds", uiText(state.locale, "Thresholds", "آستانه‌ها")],
-    ["control", uiText(state.locale, "Project Controls", "کنترل پروژه")],
-    ["settings", uiText(state.locale, "Settings", "تنظیمات")],
-  ] as const).filter(([key]) => (options.openWindows ?? [state.activeMenu]).includes(key));
-  const contextCommands: Array<{ label: string; action?: "project-settings" | "wbs" | "tools"; disabled?: boolean }> = state.activeMenu === "project"
+  const contextCommands: Array<{ label: string; action: "project-settings" | "wbs" | "tools" }> = state.activeMenu === "project"
     ? [
       { label: uiText(state.locale, "Project properties", "مشخصات پروژه"), action: "project-settings" },
       { label: uiText(state.locale, "WBS structure", "ساختار شکست"), action: "wbs" },
-      { label: uiText(state.locale, "Import / Export", "ورود و خروج اطلاعات"), disabled: true },
     ]
     : state.activeMenu === "schedule"
       ? [
         { label: uiText(state.locale, "Add activity", "افزودن فعالیت"), action: "tools" },
         { label: uiText(state.locale, "WBS", "ساختار شکست"), action: "wbs" },
         { label: uiText(state.locale, "Columns & fields", "ستون‌ها و فیلدها"), action: "tools" },
-        { label: uiText(state.locale, "Relationships", "روابط"), disabled: true },
-        { label: uiText(state.locale, "Timescale & bars", "مقیاس زمانی و میله‌ها"), disabled: true },
       ]
       : [
         { label: uiText(state.locale, "Open tools", "بازکردن ابزارها"), action: "tools" },
-        { label: uiText(state.locale, "Configure layout", "تنظیم چیدمان"), disabled: true },
-        { label: uiText(state.locale, "Page options", "گزینه‌های صفحه"), disabled: true },
       ];
   const contextCommandMarkup = contextCommands.map((command) => command.action === "project-settings"
     ? `<button type="button" data-project-settings>${escapeHtml(command.label)}</button>`
     : command.action === "wbs"
       ? `<button type="button" data-rail-action="wbs">${escapeHtml(command.label)}</button>`
-      : command.action === "tools"
-        ? `<button type="button" data-tools-open>${escapeHtml(command.label)}</button>`
-        : `<button type="button" disabled title="${escapeAttribute(uiText(state.locale, "This visual command is not connected yet.", "این فرمان بصری هنوز متصل نشده است."))}">${escapeHtml(command.label)}</button>`).join("");
+      : `<button type="button" data-tools-open>${escapeHtml(command.label)}</button>`).join("");
+  const tableSplitKey = splitStorageKey(WORKSPACE_SPLIT_STORAGE_KEY, state);
+  const detailsSplitKey = splitStorageKey(WORKSPACE_DETAILS_SPLIT_STORAGE_KEY, state);
+  const tableSplit = Math.min(MAX_TABLE_SPLIT, Math.max(MIN_TABLE_SPLIT, readStoredSplit(tableSplitKey, DEFAULT_TABLE_SPLIT)));
+  const detailsSplit = Math.min(MAX_DETAILS_SPLIT, Math.max(MIN_DETAILS_SPLIT, readStoredSplit(detailsSplitKey, DEFAULT_DETAILS_SPLIT)));
 
   container.innerHTML = `
     <section class="cp-workspace cp-p6-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}">
@@ -1047,7 +1277,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       </header>
       <div class="cp-p6-shell">
         <nav class="cp-menu cp-p6-rail cp-navigation-tree" aria-label="${escapeAttribute(t.mainMenu)}">
-          <div class="cp-nav-tree-title">${workspaceIcon("group")}<strong>${escapeHtml(rail.menu)}</strong></div>
+          <button type="button" class="cp-nav-tree-title" data-rail-action="navigation" data-nav-flyout-toggle aria-expanded="false" aria-haspopup="true" title="${escapeAttribute(uiText(state.locale, "All menus and categories", "همهٔ منوها و دسته‌ها"))}" aria-label="${escapeAttribute(uiText(state.locale, "All menus and categories", "همهٔ منوها و دسته‌ها"))}">${workspaceIcon("group")}<strong>${escapeHtml(rail.menu)}</strong></button>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
             ${menuButton("project", t.project, state, railMenuIcons.project)}
             ${railActionButton("eps", rail.eps, "portfolio")}
@@ -1082,10 +1312,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </div>
         </nav>
         <div class="cp-p6-body">
-          ${renderWorkspaceCommandShell(state.locale, state.activeMenu)}
-          <nav class="cp-window-tabs" aria-label="${escapeAttribute(uiText(state.locale, "Workspace windows", "پنجره‌های محیط کار"))}" role="tablist">
-            ${windowTabs.map(([key, label]) => `<span class="cp-window-tab-item"><button type="button" role="tab" data-window-tab="${key}" data-menu="${key}" aria-selected="${key === state.activeMenu}" aria-current="${key === state.activeMenu ? "page" : "false"}" class="cp-window-tab${key === state.activeMenu ? " is-active" : ""}">${escapeHtml(label)}</button>${windowTabs.length > 1 ? `<button type="button" class="cp-window-tab-close" data-window-close="${key}" aria-label="${escapeAttribute(uiText(state.locale, `Close ${label}`, `بستن ${label}`))}" title="${escapeAttribute(uiText(state.locale, `Close ${label}`, `بستن ${label}`))}">×</button>` : ""}</span>`).join("")}
-          </nav>
           <header class="cp-p6-activity-header" data-activity-header>
             <span class="cp-p6-activity-heading">
               <strong>${escapeHtml(navigationLabel)}</strong>
@@ -1095,45 +1321,41 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <span class="cp-p6-activity-meta">${escapeHtml(rail.dataDate)}: ${escapeHtml(rail.noDataDate)}</span>
             <span class="cp-p6-activity-meta">${escapeHtml(rail.filter)}: ${escapeHtml(activityFilterLabel)}</span>
             <span class="cp-p6-activity-spacer"></span>
-            <button type="button" class="cp-p6-chip" data-rail-action="wbs" title="${escapeAttribute(rail.wbs)}">${workspaceIcon("wbs")}<span>${escapeHtml(rail.wbs)}</span></button>
-            <button type="button" class="cp-p6-chip" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}<span>${escapeHtml(rail.columns)}</span></button>
-            <button type="button" class="cp-p6-chip" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span>${escapeHtml(rail.comments)}</span></button>
           </header>
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
-            <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>` : ""}
+            <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<span class="cp-context-command-separator" aria-hidden="true"></span>
+            <button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>
+            <button type="button" data-reset-table-split title="${escapeAttribute(uiText(state.locale, "Restore the default table / Gantt width split", "بازگردانی تقسیم پیش‌فرض عرض جدول و گانت"))}">${escapeHtml(uiText(state.locale, "Reset table split", "بازنشانی تقسیم جدول"))}</button>
+            <button type="button" data-reset-details-split title="${escapeAttribute(uiText(state.locale, "Restore the default 70/30 activity / details height split", "بازگردانی تقسیم ارتفاع پیش‌فرض ۷۰/۳۰ فعالیت و جزئیات"))}">${escapeHtml(uiText(state.locale, "Reset details split", "بازنشانی تقسیم جزئیات"))}</button>
+            <button type="button" data-reset-column-widths title="${escapeAttribute(uiText(state.locale, "Restore the saved column widths", "بازگردانی عرض‌های ذخیره‌شدهٔ ستون‌ها"))}">${escapeHtml(uiText(state.locale, "Reset column widths", "بازنشانی عرض ستون‌ها"))}</button>` : ""}
           </div>
           ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}
-          <main class="cp-main">
+          <main class="cp-main" data-details-split style="--cp-split-primary:${detailsSplit.toFixed(2)}%">
             <div class="cp-p6-primary">
-              <section class="cp-p6-split" data-panel-split data-workspace-menu="schedule">
+              <section class="cp-p6-split" data-panel-split data-split-key="${escapeAttribute(tableSplitKey)}" data-workspace-menu="schedule" style="--cp-split-table:${tableSplit.toFixed(2)}%">
                 <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-grid-head">
                     <h2>${escapeHtml(t.activities)}</h2>
-                    <span class="cp-p6-grid-actions">
-                      <button type="button" data-rail-action="wbs" title="${escapeAttribute(rail.wbs)}">${workspaceIcon("wbs")}</button>
-                      <button type="button" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}</button>
-                      <button type="button" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}</button>
-                    </span>
                   </div>
                   ${renderActivityFilterSort(state, visibleActivities.length, t)}
                   <div class="cp-table-wrap">
                     <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false" style="width:${activityTableWidth}px">
-                      <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
+                      <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}"><span class="cp-p6-column-label">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</span><span class="cp-p6-column-resize" data-column-resize="${escapeAttribute(column.id)}" role="separator" aria-orientation="vertical" aria-label="${escapeAttribute(uiText(state.locale, `Resize ${localizeWorkspaceLabel(state.locale, column.label)} column`, `تغییر عرض ستون ${localizeWorkspaceLabel(state.locale, column.label)}`))}" aria-valuemin="${MIN_COLUMN_WIDTH}" aria-valuemax="${MAX_COLUMN_WIDTH}" aria-valuenow="${column.width}" tabindex="0"></span></th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
                       <tbody>${visibleActivities.length ? visibleActivities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length + 2)}">${escapeHtml(state.activities.length ? t.noMatchingActivities : t.noActivities)}</td></tr>`}</tbody>
                     </table>
                   </div>
                 </section>
-                <div class="cp-p6-splitter" data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize table and Gantt", "تغییر اندازهٔ جدول و گانت"))}"><span></span></div>
+                <div class="cp-p6-splitter" data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize table and Gantt", "تغییر اندازهٔ جدول و گانت"))}" aria-valuemin="${MIN_TABLE_SPLIT}" aria-valuemax="${MAX_TABLE_SPLIT}" aria-valuenow="${tableSplit.toFixed(0)}"><span></span></div>
                 <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
-                    <button type="button" data-tools-open title="${escapeAttribute(rail.bars)}">${workspaceIcon("bars")}</button>
                   </div>
                   ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}
                 </section>
               </section>
               ${renderP6ModuleStage(container, state, t, options)}
             </div>
+            <div class="cp-details-splitter" data-details-splitter data-split-key="${escapeAttribute(detailsSplitKey)}" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize activity area and details", "تغییر اندازهٔ ناحیهٔ فعالیت و جزئیات"))}" aria-valuemin="${MIN_DETAILS_SPLIT}" aria-valuemax="${MAX_DETAILS_SPLIT}" aria-valuenow="${detailsSplit.toFixed(0)}"><span></span></div>
             <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading">${renderWindowDetailsPanel(state, t, container)}</aside>
           </main>
           <div class="cp-p6-drawer cp-p6-wbs-drawer" data-wbs-drawer hidden aria-label="${escapeAttribute(t.wbs)}">
@@ -1170,21 +1392,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </div>
         </div>
         <aside class="cp-comments-dock-rail cp-context-command-rail" aria-label="${escapeAttribute(uiText(state.locale, "Contextual commands", "فرمان‌های زمینه‌ای"))}">
-          <details class="cp-context-add-menu">
-            <summary title="${escapeAttribute(uiText(state.locale, "Add", "افزودن"))}" aria-label="${escapeAttribute(uiText(state.locale, "Add", "افزودن"))}">+</summary>
-            <div class="cp-context-add-popup" role="menu" aria-label="${escapeAttribute(uiText(state.locale, "Add to current window", "افزودن به پنجره جاری"))}">
-              <strong>${escapeHtml(uiText(state.locale, "Add to current window", "افزودن به پنجره جاری"))}</strong>
-              ${["Activity","WBS element","Relationship","Resource assignment","Expense","Document","Issue","Risk"].map((label) => `<button type="button" role="menuitem" disabled title="${escapeAttribute(uiText(state.locale, "Visual entry only; the owning create workflow is not connected yet.", "گزینه نمایشی است؛ گردش‌کار ایجاد هنوز متصل نشده است."))}">${escapeHtml(uiText(state.locale, label, label))}</button>`).join("")}
-            </div>
-          </details>
-          <span class="cp-rail-separator" aria-hidden="true"></span>
           <button type="button" class="cp-rail-button cp-comments-toggle" data-comments-toggle title="${escapeAttribute(rail.comments)}" aria-label="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span class="cp-rail-label">${escapeHtml(rail.comments)}</span></button>
           <button type="button" class="cp-rail-button" data-rail-action="notebook" title="${escapeAttribute(rail.notes)}" aria-label="${escapeAttribute(rail.notes)}">${workspaceIcon("book")}<span class="cp-rail-label">${escapeHtml(rail.notes)}</span></button>
           <button type="button" class="cp-rail-button" data-rail-action="documents" title="${escapeAttribute(rail.documents)}" aria-label="${escapeAttribute(rail.documents)}">${workspaceIcon("file")}<span class="cp-rail-label">${escapeHtml(rail.documents)}</span></button>
           <button type="button" class="cp-rail-button" data-rail-action="risks" title="${escapeAttribute(rail.risks)}" aria-label="${escapeAttribute(rail.risks)}">${workspaceIcon("warning")}<span class="cp-rail-label">${escapeHtml(rail.risks)}</span></button>
         </aside>
       </div>
-      <div class="cp-p6-flyout" data-nav-flyout hidden>${renderNavigationSurface(state)}</div>
+      <div class="cp-p6-flyout" data-nav-flyout hidden>${renderFullNavigationMenu(state, railMenuIcons)}${renderNavigationSurface(state)}</div>
       <div class="cp-p6-drawer cp-p6-tools-drawer" data-tools-drawer hidden aria-label="${escapeAttribute(rail.tools)}">
         <div class="cp-p6-drawer-head"><strong>${escapeHtml(rail.tools)}</strong><button type="button" data-tools-close title="${escapeAttribute(rail.close)}" aria-label="${escapeAttribute(rail.close)}">${workspaceIcon("close")}</button></div>
         <div class="cp-p6-tool-scroll">
@@ -1500,6 +1714,44 @@ function renderModuleEmptyState(state: WorkspaceState): string {
 
   if (!copy) return "";
   return `<section class="cp-panel cp-module-empty-state" data-workspace-menu="${state.activeMenu}" aria-live="polite"><h2>${escapeHtml(copy.title)}</h2><p>${escapeHtml(copy.message)}</p></section>`;
+}
+
+function renderFullNavigationMenu(state: WorkspaceState, icons: Record<WorkspaceState["activeMenu"], string>): string {
+  const t = getWorkspaceLabels(state.locale);
+  return `<nav class="cp-p6-flyout-tree" aria-label="${escapeAttribute(t.mainMenu)}">
+    <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
+      ${menuButton("project", t.project, state, icons.project)}
+      ${railActionButton("eps", uiText(state.locale, "EPS / Portfolio", "EPS / سبد پروژه"), "portfolio")}
+      ${menuButton("wbs", uiText(state.locale, "WBS", "ساختار شکست"), state, icons.wbs)}
+    </div>
+    <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Planning & execution", "برنامه‌ریزی و اجرا"))}</span>
+      ${menuButton("schedule", t.schedule, state, icons.schedule)}
+      ${railActionButton("activities", uiText(state.locale, "Activities", "فعالیت‌ها"), "activity")}
+      ${menuButton("progress", t.progress, state, icons.progress)}
+    </div>
+    <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Resources & cost", "منابع و هزینه"))}</span>
+      ${menuButton("resources", t.resources, state, icons.resources)}
+      ${menuButton("assignments", uiText(state.locale, "Assignments", "تخصیص‌ها"), state, icons.assignments)}
+      ${menuButton("calendars", uiText(state.locale, "Calendars", "تقویم‌ها"), state, icons.calendars)}
+      ${menuButton("roles", uiText(state.locale, "Roles", "نقش‌ها"), state, icons.roles)}
+      ${menuButton("cost", t.cost, state, icons.cost)}
+      ${menuButton("expenses", uiText(state.locale, "Expenses", "هزینه‌ها"), state, icons.expenses)}
+    </div>
+    <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "Project information", "اطلاعات پروژه"))}</span>
+      ${menuButton("documents", t.documents, state, icons.documents)}
+      ${menuButton("reports", t.reports, state, icons.reports)}
+      ${menuButton("tracking", uiText(state.locale, "Tracking", "رهگیری"), state, icons.tracking)}
+      ${menuButton("control", t.control, state, icons.control)}
+      ${menuButton("thresholds", uiText(state.locale, "Thresholds", "آستانه‌ها"), state, icons.thresholds)}
+      ${menuButton("risks", uiText(state.locale, "Risks", "ریسک‌ها"), state, icons.risks)}
+      ${menuButton("issues", uiText(state.locale, "Issues", "مسائل"), state, icons.issues)}
+    </div>
+    <div class="cp-p6-flyout-group"><span>${escapeHtml(uiText(state.locale, "CUBI tools & administration", "ابزارها و مدیریت CUBI"))}</span>
+      ${railActionButton("forms", uiText(state.locale, "Form Builder", "فرم‌ساز"), "forms")}
+      ${menuButton("settings", t.settings, state, icons.settings)}
+      ${railActionButton("tools", uiText(state.locale, "Tools", "ابزارها"), "tools")}
+    </div>
+  </nav>`;
 }
 
 function renderNavigationSurface(state: WorkspaceState): string {

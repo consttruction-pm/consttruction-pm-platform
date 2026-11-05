@@ -1475,6 +1475,15 @@ function renderApp(
     onP6FieldAdd: (fieldId) => mutateLayout(() => addP6Field(state, fieldId)),
     onP6FieldReorder: (orderedFieldIds) => mutateLayout(() => reorderP6Fields(state, orderedFieldIds)),
     onP6FieldWidthChange: (fieldId, width) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, { width })),
+    onP6ColumnWidthsReset: (widths) => mutateLayout(() => {
+      if (!state.p6Layout || !state.p6FieldRegistry) return state;
+      return setP6Presentation(state, state.p6FieldRegistry, {
+        ...state.p6Layout,
+        revision: state.p6Layout.revision + 1,
+        columns: state.p6Layout.columns.map((column) =>
+          widths[column.field_id] === undefined ? column : { ...column, width: widths[column.field_id] }),
+      });
+    }),
     onP6FieldPresentationChange: (fieldId, patch) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, patch)),
     onP6FieldVisibilityChange: (fieldId, visible) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, { visible })),
     onP6FieldRemove: (fieldId) => mutateLayout(() => removeP6Field(state, fieldId)),

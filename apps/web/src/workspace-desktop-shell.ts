@@ -1,5 +1,5 @@
 import type { WorkspaceMenuKey } from "./workspace-model.js";
-import { renderLayoutBar, renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } from "./workspace-chrome.js";
+import { renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } from "./workspace-chrome.js";
 import { defaultLayoutPatch, readLayoutPatch, renderLayoutDialogs, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
 import { workspaceIcon } from "./workspace-icons.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
@@ -410,6 +410,8 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
     { id: "toolbar.zoom-out", label: { en: "Zoom Out", fa: "کوچک‌نمایی" }, title: { en: "Zoom out of the timescale", fa: "کوچک‌نمایی مقیاس زمانی" }, command: "view.zoom-out", icon: "left", group: "view" },
     { id: "toolbar.fit", label: { en: "Fit", fa: "تناسب" }, title: { en: "Fit the Gantt to the window", fa: "تناسب گانت با پنجره" }, command: "view.fit", icon: "bars", group: "view" },
     { id: "toolbar.timescale", label: { en: "Timescale", fa: "مقیاس زمانی" }, title: { en: "Timescale dialog", fa: "دیالوگ مقیاس زمانی" }, command: "dialog.timescale", icon: "clock", group: "view" },
+    { id: "toolbar.bars", label: { en: "Bars", fa: "میله‌ها" }, title: { en: "Bar chart options", fa: "تنظیمات نمودار میله‌ای" }, command: "dialog.bars", icon: "bars", group: "view" },
+    { id: "toolbar.font-row", label: { en: "Font & Row", fa: "قلم و ردیف" }, title: { en: "Table font and row height", fa: "قلم و ارتفاع ردیف جدول" }, command: "dialog.font-row", icon: "table", group: "view" },
     { id: "toolbar.panels", label: { en: "Panels", fa: "پنل‌ها" }, title: { en: "Show or hide the details panel", fa: "نمایش یا پنهان‌کردن پنل جزئیات" }, command: "view.toggle-details", icon: "table", group: "view" },
     { id: "toolbar.fullscreen", label: { en: "Full Screen", fa: "تمام‌صفحه" }, title: { en: "Enter full screen", fa: "ورود به تمام‌صفحه" }, fullscreen: true, icon: "fullscreen", group: "view" },
 
@@ -591,7 +593,6 @@ export function renderDesktopShell(
     ${renderTitleBar(chrome)}
     ${renderMenus(state)}
     ${renderToolbar(state)}
-    ${renderLayoutBar(chrome)}
     ${renderTabs(state)}
   </section>
   ${renderLayoutDialogs({
