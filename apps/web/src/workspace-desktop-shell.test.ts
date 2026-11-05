@@ -115,6 +115,8 @@ test("toolbar commands are real and track layout history and selection", () => {
   assert.ok(toolbar.every((item) => !item.disabledReason));
   const group = toolbar.find((item) => item.id === "toolbar.group-wbs");
   assert.equal(group?.active, true);
+  assert.ok(toolbar.some((item) => item.id === "toolbar.bars" && item.command === "dialog.bars"));
+  assert.ok(toolbar.some((item) => item.id === "toolbar.font-row" && item.command === "dialog.font-row"));
 
   const limited = getDesktopToolbar(shellState({ canUndoLayout: false, hasSelectedActivity: false }));
   assert.ok(limited.find((item) => item.id === "toolbar.undo")?.disabledReason);
