@@ -2409,6 +2409,28 @@ async function main() {
       schedule_submenus: scheduleSubmenus,
     });
 
+    // Exercise both Activity palettes and prove the WBS band is independently configurable.
+    await page.evaluate("(() => { const group = document.querySelector('[data-activity-group]'); if (!group) throw new Error('Activity grouping selector missing'); group.value = 'wbs'; group.dispatchEvent(new Event('change', { bubbles: true })); return true; })()");
+    await page.waitForSelector("#cp-activity-grid tbody tr.cp-activity-group-band", "hierarchical WBS group bands");
+    await page.click('[data-workspace-appearance-open]');
+    await page.waitForSelector("[data-workspace-appearance-dialog][open]", "workspace appearance dialog");
+    await page.evaluate("(() => { const mode = document.querySelector('[data-appearance-mode]'); mode.value = 'dark'; mode.dispatchEvent(new Event('change', { bubbles: true })); document.querySelector('[data-appearance-color=grid]').value = '#1d2a39'; document.querySelector('[data-appearance-color=gantt]').value = '#172536'; document.querySelector('[data-appearance-color=wbs1]').value = '#174e70'; document.querySelector('[data-appearance-color=wbs2]').value = '#28647d'; return true; })()");
+    await page.click('[data-workspace-appearance-apply]');
+    await page.waitFor("document.querySelector('.cp-p6-workspace')?.dataset.workspaceTheme === 'dark'", "dark Activity palette");
+    const darkAppearance = await page.evaluate("(() => { const workspace = document.querySelector('.cp-p6-workspace'); const band = document.querySelector('.cp-activity-group-band td'); return { theme: workspace?.dataset.workspaceTheme, directoryWidth: getComputedStyle(document.querySelector('.cp-navigation-tree')).width, grid: getComputedStyle(document.querySelector('#cp-activity-grid')).backgroundColor, gantt: getComputedStyle(document.querySelector('#cp-gantt')).backgroundColor, wbsBand: band ? getComputedStyle(band).backgroundColor : null, wbsPalette: workspace ? getComputedStyle(workspace).getPropertyValue('--cp-wbs-level-1').trim() : null }; })()");
+    assert(darkAppearance.theme === "dark", "dark palette must apply to the active Activity shell");
+    assert(darkAppearance.wbsBand === "rgb(23, 78, 112)", "WBS band must render its independent configured colour: " + JSON.stringify(darkAppearance));
+    assert(Number.parseFloat(darkAppearance.directoryWidth) <= 50, "Activity directory must be a compact icon rail: " + darkAppearance.directoryWidth);
+    await page.screenshot("03a-activity-dark-palette.png");
+    record("Activity shell exposes compact directory rail and configurable dark WBS/Gantt palette", darkAppearance);
+
+    await page.click('[data-workspace-appearance-open]');
+    await page.waitForSelector("[data-workspace-appearance-dialog][open]", "workspace appearance dialog for light reset");
+    await page.evaluate("(() => { const mode = document.querySelector('[data-appearance-mode]'); mode.value = 'light'; mode.dispatchEvent(new Event('change', { bubbles: true })); return true; })()");
+    await page.click('[data-workspace-appearance-apply]');
+    await page.waitFor("document.querySelector('.cp-p6-workspace')?.dataset.workspaceTheme === 'light'", "light Activity palette restoration");
+    await page.evaluate("(() => { const group = document.querySelector('[data-activity-group]'); group.value = 'none'; group.dispatchEvent(new Event('change', { bubbles: true })); return true; })()");
+    await page.waitFor("!document.querySelector('#cp-activity-grid tbody tr.cp-activity-group-band')", "restore ungrouped Activity table");
     await page.click('#cp-activity-grid tbody tr[data-activity-id="A130"]');
     await page.waitFor(
       `document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() === "A130"`,
@@ -2430,6 +2452,57 @@ async function main() {
       "table and Gantt must share activity selection",
     );
     record("grid and Gantt share real activity selection", { activity: "A130" });
+    await page.evaluate(`(() => {
+      const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"]');
+      if (!row) return false;
+      return row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 240, clientY: 180 }));
+    })()`);
+    await page.waitFor(
+      `document.querySelector("[data-workspace-context-menu-host]")?.hidden === false && document.querySelector('[data-context-action="details"]') !== null`,
+      "Activity row context menu opens",
+    );
+    const contextLabels = await page.evaluate(`Array.from(document.querySelectorAll("[data-context-action]")).map((item) => item.textContent.trim())`);
+    assert(contextLabels.some((label) => label.includes("Open Activity Details")), "Activity context menu must expose Open Activity Details");
+    assert(contextLabels.some((label) => label.includes("Show Predecessors")), "Activity context menu must expose predecessor navigation");
+    await page.click('[data-context-action="details"]');
+    await page.waitFor('document.querySelector("#cp-details [data-detail-tab=general]")?.classList.contains("is-active") === true', "context menu opens Activity General details");
+    record("Activity row context menu exposes and executes activity detail commands", { activity: "A130", actions: contextLabels });
+
+    await page.click('[data-detail-tab="resources"]');
+    await page.waitFor(
+      `(() => { const text = document.querySelector("#cp-detail-panel-resources")?.textContent ?? ""; return text.includes("No resource assignments are recorded") || text.includes("Resource assignments could not be loaded"); })()`,
+      "activity resource assignments loaded or explicit error",
+    );
+    const resourceDetails = await page.text("#cp-detail-panel-resources");
+    assert(resourceDetails && !resourceDetails.includes("not included in the current Activity Details projection"), "Activity Resources must use the live assignment API");
+    record("Activity Details Resources reads selected activity assignments", { activity: "A130", excerpt: resourceDetails.slice(0, 240) });
+
+    await page.click('[data-detail-tab="expenses"]');
+    await page.waitFor(
+      `(() => { const text = document.querySelector("#cp-detail-panel-expenses")?.textContent ?? ""; return text.includes("No expense records are assigned to this activity") || text.includes("Activity expenses could not be loaded"); })()`,
+      "activity expenses loaded or explicit error",
+    );
+    const expenseDetails = await page.text("#cp-detail-panel-expenses");
+    assert(expenseDetails && !expenseDetails.includes("No activity expense records are returned by the project read model"), "Activity Expenses must use the live expense API");
+    record("Activity Details Expenses reads selected activity expense records", { activity: "A130", excerpt: expenseDetails.slice(0, 240) });
+
+    const notebookProbe = "Activity Notebook browser E2E A130";
+    await page.click("[data-comments-toggle]");
+    await page.setInput('[data-comment-form] input[name="author"]', "CUBI E2E");
+    await page.setInput('[data-comment-form] textarea[name="body"]', notebookProbe);
+    await page.click('[data-comment-form] button[type="submit"]');
+    await page.waitFor(
+      `JSON.parse(localStorage.getItem("cubi:workspace-comments:v1") || "[]").some((entry) => entry.entityId === "A130" && entry.body === ${JSON.stringify(notebookProbe)})`,
+      "browser-local Activity comment persisted",
+    );
+    await page.click('[data-detail-tab="notebook"]');
+    await page.waitFor(
+      `document.querySelector("#cp-detail-panel-notebook")?.textContent.includes(${JSON.stringify(notebookProbe)}) === true`,
+      "Activity Notebook shows the same scoped local comment",
+    );
+    assert((await page.text("#cp-detail-panel-notebook")).includes(notebookProbe), "Notebook must show the selected activity local note");
+    await page.screenshot("04-activity-details-notebook.png");
+    record("Activity Notebook renders the selected activity browser-local comments", { activity: "A130", note: notebookProbe });
 
     const isoTooltip = await page.evaluate(
       `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim()`,

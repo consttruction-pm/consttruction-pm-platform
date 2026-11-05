@@ -98,7 +98,7 @@ function esc(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
-const connectedShellCommands = new Set(["Columns", "Filter By", "Group and Sort By", "Timescale", "Bars", "Bar Chart Options"]);
+const connectedShellCommands = new Set(["Columns", "Filter By", "Group and Sort By", "Timescale", "Bars", "Bar Chart Options", "Theme / Appearance", "Theme"]);
 
 function renderEntry(entry: MenuEntry, locale: string, activeMenu: string): string {
   if (entry.divider) return '<li class="cubi-command-divider" role="separator"></li>';

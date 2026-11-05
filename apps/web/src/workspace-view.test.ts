@@ -403,9 +403,12 @@ test("Activities Layout Options inventories top and bottom chart layouts without
 
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
   const html = render("en", "schedule");
-  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "tasks", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
+  for (const tab of ["general", "status", "resources", "predecessors", "successors", "relationships", "codes", "notebook", "steps", "documents", "expenses", "issues", "risks", "summary", "udfs", "update-history"]) {
     assert.ok(html.includes(`data-activity-detail-tab="${tab}"`), `missing Activity Details tab: ${tab}`);
   }
+  assert.doesNotMatch(html, /data-activity-detail-tab="tasks"/);
+  assert.doesNotMatch(html, /data-activity-detail-tab="discussion"/);
+  assert.doesNotMatch(html, /data-activity-detail-tab="feedback"/);
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
 test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
@@ -587,7 +590,7 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["pointerdown", "input", "submit", "click", "keydown", "change"]);
+  assert.deepEqual(registrations, ["pointerdown", "input", "submit", "contextmenu", "click", "keydown", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -1927,4 +1930,160 @@ test("Settings layout administration reads the persisted layout and dispatches h
   clickListener?.({ target: redoButton } as unknown as Event);
   clickListener?.({ target: restoreButton } as unknown as Event);
   assert.deepEqual(events, ["undo", "redo", "restore:2"]);
+});
+
+
+test("Activities renders hierarchical WBS group bands in the table and the same order in Gantt", () => {
+  const state = {
+    ...withActivities(
+      withWbsNodes(
+        createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+        [
+          { id: "WBS-PROJECT", parentKind: "project" as const, parentWbsId: null, localCode: "P", name: "Project root", sequenceNumber: 0, recordRevision: 1 },
+          { id: "WBS-01", parentKind: "wbs" as const, parentWbsId: "WBS-PROJECT", localCode: "01", name: "Civil works", sequenceNumber: 1, recordRevision: 1 },
+          { id: "WBS-01A", parentKind: "wbs" as const, parentWbsId: "WBS-01", localCode: "01.A", name: "Foundations", sequenceNumber: 1, recordRevision: 1 },
+          { id: "WBS-02", parentKind: "wbs" as const, parentWbsId: "WBS-PROJECT", localCode: "02", name: "Mechanical works", sequenceNumber: 2, recordRevision: 1 },
+        ],
+      ),
+      [
+        { id: "A-01", wbsId: "WBS-01", code: "01", name: "Civil enabling", cells: {}, gantt: { start: "2026-11-01T08:00:00Z", finish: "2026-11-03T17:00:00Z", progressPercent: 0, critical: true } },
+        { id: "A-02", wbsId: "WBS-01A", code: "02", name: "Foundation pour", cells: {}, gantt: { start: "2026-11-04T08:00:00Z", finish: "2026-11-06T17:00:00Z", progressPercent: 0, critical: true } },
+        { id: "A-03", wbsId: "WBS-02", code: "03", name: "Install pump", cells: {}, gantt: { start: "2026-11-07T08:00:00Z", finish: "2026-11-09T17:00:00Z", progressPercent: 0, critical: false } },
+      ],
+    ),
+    activeMenu: "schedule" as const,
+  };
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const html = container.innerHTML;
+
+  const civilGroup = html.indexOf('data-activity-group-band="WBS-01"');
+  const foundationsGroup = html.indexOf('data-activity-group-band="WBS-01A"');
+  const mechanicalGroup = html.indexOf('data-activity-group-band="WBS-02"');
+  assert.ok(civilGroup >= 0);
+  assert.ok(foundationsGroup > civilGroup);
+  assert.ok(mechanicalGroup > foundationsGroup);
+  assert.match(html, /Civil works \/ 01\.A — Foundations/);
+  assert.match(html, /data-activity-wbs-group-toggle="WBS-01A"/);
+  assert.match(html, /class="cp-gantt-group-row" data-activity-group-band="WBS-01A"/);
+  assert.match(html, /data-gantt-activity-id="A-01"/);
+  assert.match(html, /data-gantt-activity-id="A-02"/);
+  assert.match(html, /data-gantt-activity-id="A-03"/);
+});
+
+test("collapsing a parent WBS group hides its descendant table and Gantt rows without changing schedule inputs", () => {
+  const state = {
+    ...withActivities(
+      withWbsNodes(
+        createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+        [
+          { id: "WBS-PROJECT", parentKind: "project" as const, parentWbsId: null, localCode: "P", name: "Project root", sequenceNumber: 0, recordRevision: 1 },
+          { id: "WBS-01", parentKind: "wbs" as const, parentWbsId: "WBS-PROJECT", localCode: "01", name: "Civil works", sequenceNumber: 1, recordRevision: 1 },
+          { id: "WBS-01A", parentKind: "wbs" as const, parentWbsId: "WBS-01", localCode: "01.A", name: "Foundations", sequenceNumber: 1, recordRevision: 1 },
+          { id: "WBS-02", parentKind: "wbs" as const, parentWbsId: "WBS-PROJECT", localCode: "02", name: "Mechanical works", sequenceNumber: 2, recordRevision: 1 },
+        ],
+      ),
+      [
+        { id: "A-01", wbsId: "WBS-01", code: "01", name: "Civil enabling", cells: {}, gantt: { start: "2026-11-01T08:00:00Z", finish: "2026-11-03T17:00:00Z", progressPercent: 0, critical: true } },
+        { id: "A-02", wbsId: "WBS-01A", code: "02", name: "Foundation pour", cells: {}, gantt: { start: "2026-11-04T08:00:00Z", finish: "2026-11-06T17:00:00Z", progressPercent: 0, critical: true } },
+        { id: "A-03", wbsId: "WBS-02", code: "03", name: "Install pump", cells: {}, gantt: { start: "2026-11-07T08:00:00Z", finish: "2026-11-09T17:00:00Z", progressPercent: 0, critical: false } },
+      ],
+    ),
+    activeMenu: "schedule" as const,
+  };
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  assert.match(container.innerHTML, /data-gantt-activity-id="A-02"/);
+
+  const toggle = {
+    dataset: { activityWbsGroupToggle: "WBS-01" },
+  };
+  const clickTarget = {
+    closest: (selector: string) => selector.includes("[data-activity-wbs-group-toggle]") ? toggle : null,
+  };
+  listeners.get("click")?.({ target: clickTarget } as unknown as Event);
+
+  assert.match(container.innerHTML, /data-activity-group-band="WBS-01"/);
+  assert.doesNotMatch(container.innerHTML, /data-activity-group-band="WBS-01A"/);
+  assert.doesNotMatch(container.innerHTML, /data-activity-id="A-01"/);
+  assert.doesNotMatch(container.innerHTML, /data-activity-id="A-02"/);
+  assert.doesNotMatch(container.innerHTML, /data-gantt-activity-id="A-01"/);
+  assert.doesNotMatch(container.innerHTML, /data-gantt-activity-id="A-02"/);
+  assert.match(container.innerHTML, /data-gantt-activity-id="A-03"/);
+  assert.equal(state.activities.length, 3);
+  assert.deepEqual(state.activities.map((activity) => activity.id), ["A-01", "A-02", "A-03"]);
+});
+
+test("Activity row right-click opens a target-aware context menu and Activity Details", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const state = { ...base, activities: [{ id: "A-1", wbsId: "WBS-1", code: "A-1", name: "Excavate" }] };
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = { innerHTML: "", hidden: true, style: {}, querySelector: () => ({ focus: () => {} }) };
+  const row = { dataset: { activityId: "A-1" } };
+  const source = { closest: (selector: string) => selector.includes("#cp-activity-grid tr[data-activity-id]") ? row : null };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const selected: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onActivitySelect: (id) => selected.push(id) });
+  let prevented = false;
+  listeners.get("contextmenu")?.({ target: source, clientX: 180, clientY: 120, preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.equal(host.hidden, false);
+  assert.match(host.innerHTML, /data-context-action="details"/);
+  assert.match(host.innerHTML, /Show Predecessors/);
+  const menu = { closest: (selector: string) => selector.includes("[data-workspace-context-menu]") ? menu : null };
+  const action = { dataset: { contextAction: "details" }, closest: (selector: string) => selector.includes("[data-context-action]") ? action : menu };
+  listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event);
+  assert.equal(host.hidden, true);
+  assert.deepEqual(selected, ["A-1"]);
+});
+
+test("Relationship context menu uses the persisted relationship identity and revision", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const state = {
+    ...base,
+    activities: [
+      { id: "A-1", wbsId: "WBS-1", code: "A-1", name: "Start" },
+      { id: "A-2", wbsId: "WBS-1", code: "A-2", name: "Finish" },
+    ],
+    relationships: [{ id: "REL-1", predecessorId: "A-1", successorId: "A-2", type: "FS" as const, lagValue: "0", lagUnit: "working-day", recordRevision: 7 }],
+  };
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = { innerHTML: "", hidden: true, style: {}, querySelector: () => ({ focus: () => {} }) };
+  const path = { dataset: { ganttLink: "REL-1" } };
+  const source = { closest: (selector: string) => selector.includes("path[data-gantt-link]") ? path : null };
+  const container = {
+    innerHTML: "", querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const selected: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onActivitySelect: (id) => selected.push(id) });
+  listeners.get("contextmenu")?.({ target: source, clientX: 200, clientY: 100, preventDefault: () => {} } as unknown as Event);
+  assert.match(host.innerHTML, /data-context-action="delete-relationship"/);
+  assert.match(host.innerHTML, /data-context-action="edit-relationship"/);
+  const menu = { closest: (selector: string) => selector.includes("[data-workspace-context-menu]") ? menu : null };
+  const action = { dataset: { contextAction: "edit-relationship" }, closest: (selector: string) => selector.includes("[data-context-action]") ? action : menu };
+  listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event);
+  assert.deepEqual(selected, ["A-2"]);
+});
+
+test("Activity shell exposes saved light/dark appearance controls and independent WBS colour inputs", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-workspace-appearance-open/);
+  assert.match(html, /data-workspace-appearance-dialog/);
+  assert.match(html, /data-appearance-mode/);
+  for (const key of ["window", "navigation", "panel", "grid", "gridHeader", "gantt", "wbs1", "wbs2", "wbs3", "wbs4"]) {
+    assert.match(html, new RegExp(`data-appearance-color="${key}"`));
+  }
+  assert.match(html, /selection, status, critical bars and milestones retain their own semantic colours/i);
 });

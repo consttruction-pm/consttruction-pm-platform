@@ -120,7 +120,282 @@ const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<strin
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsViewByContainer = new WeakMap<HTMLElement, "tree" | "chart">();
-const documentDetailsTabByContainer = new WeakMap<HTMLElement, string>();
+const collapsedActivityWbsGroupsByContainer = new WeakMap<HTMLElement, Set<string>>();
+
+type ActivityTopLayout = "table-gantt" | "activity-network";
+type ActivityBottomLayout = "activity-details" | "activity-network" | "trace-logic";
+const activityTopLayoutByContainer = new WeakMap<HTMLElement, ActivityTopLayout>();
+const activityBottomLayoutByContainer = new WeakMap<HTMLElement, ActivityBottomLayout>();
+
+function currentActivityTopLayout(container: HTMLElement): ActivityTopLayout {
+  return activityTopLayoutByContainer.get(container) ?? "table-gantt";
+}
+function currentActivityBottomLayout(container: HTMLElement): ActivityBottomLayout {
+  return activityBottomLayoutByContainer.get(container) ?? "activity-details";
+}
+function relationshipLabel(link: WorkspaceRelationshipRow): string {
+  return `${link.type} · ${link.lagValue} ${link.lagUnit}`.trim();
+}
+function activityNodeButton(activity: WorkspaceState["activities"][number], state: WorkspaceState, selected: boolean, depth: number): string {
+  const start = activity.cells?.early_start ?? activity.cells?.start_date ?? "—";
+  const finish = activity.cells?.early_finish ?? activity.cells?.finish_date ?? "—";
+  const status = activity.cells?.status ?? "—";
+  return `<button type="button" class="cp-network-node${selected ? " is-selected" : ""}" data-network-activity="${escapeAttribute(activity.id)}" data-network-depth="${depth}" aria-pressed="${selected ? "true" : "false"}">
+    <span class="cp-network-node-id">${escapeHtml(activity.code)}</span>
+    <strong>${escapeHtml(activity.name)}</strong>
+    <span class="cp-network-node-meta">${escapeHtml(String(status))}</span>
+    <span class="cp-network-node-dates">${escapeHtml(String(start))} → ${escapeHtml(String(finish))}</span>
+  </button>`;
+}
+
+/** Presentation-only DAG layering; does not calculate or alter schedule dates. */
+export function renderActivityNetwork(state: WorkspaceState): string {
+  if (!state.activities.length) {
+    return `<p class="cp-network-empty">${escapeHtml(uiText(state.locale, "No activities are loaded for the Activity Network.", "فعالیتی برای نمایش در شبکه فعالیت‌ها بارگذاری نشده است."))}</p>`;
+  }
+  const ids = new Set(state.activities.map((activity) => activity.id));
+  const outgoing = new Map<string, WorkspaceRelationshipRow[]>();
+  const indegree = new Map<string, number>();
+  for (const activity of state.activities) { outgoing.set(activity.id, []); indegree.set(activity.id, 0); }
+  for (const link of state.relationships) {
+    if (!ids.has(link.predecessorId) || !ids.has(link.successorId)) continue;
+    outgoing.get(link.predecessorId)?.push(link);
+    indegree.set(link.successorId, (indegree.get(link.successorId) ?? 0) + 1);
+  }
+  const depths = new Map<string, number>();
+  const queue = state.activities.filter((activity) => (indegree.get(activity.id) ?? 0) === 0).map((activity) => activity.id);
+  for (const id of queue) depths.set(id, 0);
+  const visited = new Set<string>();
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const id = queue[cursor];
+    if (visited.has(id)) continue;
+    visited.add(id);
+    for (const link of outgoing.get(id) ?? []) {
+      depths.set(link.successorId, Math.max(depths.get(link.successorId) ?? 0, (depths.get(id) ?? 0) + 1));
+      const count = (indegree.get(link.successorId) ?? 1) - 1;
+      indegree.set(link.successorId, count);
+      if (count === 0) queue.push(link.successorId);
+    }
+  }
+  const unresolved = state.activities.filter((activity) => !visited.has(activity.id));
+  const unresolvedDepth = Math.max(0, ...depths.values()) + 1;
+  const levels = new Map<number, WorkspaceState["activities"][number][]>();
+  for (const activity of state.activities) {
+    const level = visited.has(activity.id) ? (depths.get(activity.id) ?? 0) : unresolvedDepth;
+    const bucket = levels.get(level) ?? [];
+    bucket.push(activity);
+    levels.set(level, bucket);
+  }
+  const columns = [...levels.entries()].sort((a, b) => a[0] - b[0]).map(([level, activities]) =>
+    `<section class="cp-network-level" data-network-level="${level}">
+      <h3>${escapeHtml(uiText(state.locale, `Stage ${level + 1}`, `مرحله ${level + 1}`))}<small>${activities.length}</small></h3>
+      <div class="cp-network-level-nodes">${activities.map((activity) => activityNodeButton(activity, state, activity.id === state.selectedActivityId, level)).join("")}</div>
+    </section>`
+  ).join("");
+  const edges = state.relationships.filter((link) => ids.has(link.predecessorId) && ids.has(link.successorId)).map((link) => {
+    const predecessor = state.activities.find((activity) => activity.id === link.predecessorId);
+    const successor = state.activities.find((activity) => activity.id === link.successorId);
+    return `<li><button type="button" data-network-activity="${escapeAttribute(link.successorId)}">${escapeHtml(predecessor?.code ?? link.predecessorId)} → ${escapeHtml(successor?.code ?? link.successorId)}</button><span>${escapeHtml(relationshipLabel(link))}</span></li>`;
+  }).join("");
+  const warning = unresolved.length ? `<p class="cp-network-warning">${escapeHtml(uiText(state.locale, "Some nodes are grouped as unresolved because the relationship graph contains a cycle or unresolved dependency.", "برخی گره‌ها به‌دلیل چرخه یا وابستگی حل‌نشده در گروه روابط حل‌نشده قرار گرفته‌اند."))}</p>` : "";
+  return `<section class="cp-activity-network" aria-label="${escapeAttribute(uiText(state.locale, "Activity Network", "شبکه فعالیت‌ها"))}">
+    <header class="cp-activity-network-heading"><strong>${escapeHtml(uiText(state.locale, "Activity Network", "شبکه فعالیت‌ها"))}</strong><span>${state.activities.length} ${escapeHtml(uiText(state.locale, "activities", "فعالیت"))} · ${state.relationships.length} ${escapeHtml(uiText(state.locale, "relationships", "رابطه"))}</span></header>
+    ${warning}<div class="cp-network-columns">${columns}</div>
+    <section class="cp-network-edge-list"><h3>${escapeHtml(uiText(state.locale, "Relationship register", "فهرست روابط"))}</h3><ul>${edges || `<li>${escapeHtml(uiText(state.locale, "No relationships are loaded.", "رابطه‌ای بارگذاری نشده است."))}</li>`}</ul></section>
+  </section>`;
+}
+
+/** Shows the actual transitive predecessor/successor chain around the selected activity. */
+export function renderActivityTraceLogic(state: WorkspaceState): string {
+  const selected = state.activities.find((activity) => activity.id === state.selectedActivityId);
+  if (!selected) return `<p class="cp-trace-empty">${escapeHtml(uiText(state.locale, "Select an activity to trace its predecessor and successor logic.", "برای ردیابی منطق روابط، یک فعالیت انتخاب کنید."))}</p>`;
+  const byId = new Map(state.activities.map((activity) => [activity.id, activity]));
+  const predecessorDepth = new Map<string, number>();
+  const successorDepth = new Map<string, number>();
+  const walk = (forward: boolean, output: Map<string, number>): void => {
+    const visited = new Set<string>([selected.id]);
+    const queue: Array<{ id: string; depth: number }> = [{ id: selected.id, depth: 0 }];
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const current = queue[cursor];
+      const links = state.relationships.filter((link) => forward ? link.predecessorId === current.id : link.successorId === current.id);
+      for (const link of links) {
+        const nextId = forward ? link.successorId : link.predecessorId;
+        if (!byId.has(nextId) || visited.has(nextId)) continue;
+        visited.add(nextId);
+        output.set(nextId, current.depth + 1);
+        queue.push({ id: nextId, depth: current.depth + 1 });
+      }
+    }
+  };
+  walk(false, predecessorDepth);
+  walk(true, successorDepth);
+  const maxPred = Math.max(0, ...predecessorDepth.values());
+  const maxSucc = Math.max(0, ...successorDepth.values());
+  const lane = (label: string, activities: readonly WorkspaceState["activities"][number][], depth: number, direction: string): string =>
+    `<section class="cp-trace-lane" data-trace-depth="${depth}" data-trace-direction="${direction}"><h3>${escapeHtml(label)}<small>${activities.length}</small></h3><div>${activities.map((activity) => activityNodeButton(activity, state, activity.id === selected.id, depth)).join("")}</div></section>`;
+  const predecessors = Array.from({ length: maxPred }, (_, index) => maxPred - index).map((depth) =>
+    lane(uiText(state.locale, `Predecessor level ${depth}`, `سطح پیش‌نیاز ${depth}`), state.activities.filter((activity) => predecessorDepth.get(activity.id) === depth), depth, "predecessor")
+  ).join("");
+  const successors = Array.from({ length: maxSucc }, (_, index) => index + 1).map((depth) =>
+    lane(uiText(state.locale, `Successor level ${depth}`, `سطح پس‌نیاز ${depth}`), state.activities.filter((activity) => successorDepth.get(activity.id) === depth), depth, "successor")
+  ).join("");
+  const edges = state.relationships.filter((link) =>
+    (link.successorId === selected.id || predecessorDepth.has(link.predecessorId) && predecessorDepth.has(link.successorId)) ||
+    (link.predecessorId === selected.id || successorDepth.has(link.predecessorId) && successorDepth.has(link.successorId))
+  );
+  const uniqueEdges = [...new Map(edges.map((link) => [link.id, link])).values()];
+  const edgeList = uniqueEdges.map((link) =>
+    `<li><button type="button" data-network-activity="${escapeAttribute(link.successorId)}">${escapeHtml(byId.get(link.predecessorId)?.code ?? link.predecessorId)} → ${escapeHtml(byId.get(link.successorId)?.code ?? link.successorId)}</button><span>${escapeHtml(relationshipLabel(link))}</span></li>`
+  ).join("");
+  return `<section class="cp-activity-trace" aria-label="${escapeAttribute(uiText(state.locale, "Trace Logic", "ردیابی منطق روابط"))}">
+    <header class="cp-activity-network-heading"><strong>${escapeHtml(uiText(state.locale, "Trace Logic", "ردیابی منطق روابط"))}</strong><span>${escapeHtml(selected.code)} — ${escapeHtml(selected.name)}</span></header>
+    <div class="cp-trace-columns">${predecessors}${lane(uiText(state.locale, "Selected Activity", "فعالیت منتخب"), [selected], 0, "selected")}${successors}</div>
+    <section class="cp-network-edge-list"><h3>${escapeHtml(uiText(state.locale, "Trace relationships", "روابط مسیر"))}</h3><ul>${edgeList || `<li>${escapeHtml(uiText(state.locale, "No connected relationships are loaded for this activity.", "رابطه متصل به این فعالیت بارگذاری نشده است."))}</li>`}</ul></section>
+  </section>`;
+}
+
+type WorkspaceContextMenuState =
+  | { kind: "activity"; activityId: string }
+  | { kind: "wbs"; wbsId: string }
+  | { kind: "relationship"; relationshipId: string }
+  | { kind: "grid" | "gantt" };
+const workspaceContextMenuState = new WeakMap<HTMLElement, WorkspaceContextMenuState>();
+
+type ActivityWbsDisplayGroup = {
+  wbsId: string;
+  label: string;
+  path: string;
+  depth: number;
+  count: number;
+  collapsed: boolean;
+  activities: readonly WorkspaceActivityRow[];
+};
+
+function collapsedActivityWbsGroups(container: HTMLElement): Set<string> {
+  let groups = collapsedActivityWbsGroupsByContainer.get(container);
+  if (!groups) {
+    groups = new Set<string>();
+    collapsedActivityWbsGroupsByContainer.set(container, groups);
+  }
+  return groups;
+}
+
+function activityWbsGroupPath(
+  wbsId: string,
+  nodes: readonly WorkspaceState["wbsNodes"][number][],
+): { label: string; path: string; depth: number } {
+  const byId = new Map(nodes.map((node) => [node.id, node] as const));
+  const parts: string[] = [];
+  const visited = new Set<string>();
+  let current = byId.get(wbsId);
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    parts.unshift(`${current.localCode} — ${current.name}`);
+    current = current.parentKind === "project" || !current.parentWbsId
+      ? undefined
+      : byId.get(current.parentWbsId);
+  }
+  const label = parts.at(-1) ?? wbsId;
+  return { label, path: parts.join(" / ") || wbsId, depth: Math.max(0, parts.length - 1) };
+}
+
+function buildActivityWbsDisplayGroups(
+  activities: readonly WorkspaceActivityRow[],
+  nodes: readonly WorkspaceState["wbsNodes"][number][],
+  collapsed: ReadonlySet<string>,
+): ActivityWbsDisplayGroup[] {
+  const rowsByWbs = new Map<string, WorkspaceActivityRow[]>();
+  for (const activity of activities) {
+    const rows = rowsByWbs.get(activity.wbsId) ?? [];
+    rows.push(activity);
+    rowsByWbs.set(activity.wbsId, rows);
+  }
+
+  const byId = new Map(nodes.map((node) => [node.id, node] as const));
+  const children = new Map<string | null, WorkspaceState["wbsNodes"][number][]>();
+  for (const node of nodes) {
+    const parentId = node.parentKind === "project" ? null : node.parentWbsId;
+    const siblings = children.get(parentId) ?? [];
+    siblings.push(node);
+    children.set(parentId, siblings);
+  }
+  for (const siblings of children.values()) {
+    siblings.sort((left, right) =>
+      left.sequenceNumber - right.sequenceNumber
+      || left.localCode.localeCompare(right.localCode, undefined, { numeric: true, sensitivity: "base" })
+      || left.id.localeCompare(right.id),
+    );
+  }
+
+  const countCache = new Map<string, number>();
+  const countBelow = (wbsId: string, visiting: ReadonlySet<string> = new Set()): number => {
+    const cached = countCache.get(wbsId);
+    if (cached !== undefined) return cached;
+    if (visiting.has(wbsId)) return rowsByWbs.get(wbsId)?.length ?? 0;
+    const nextVisiting = new Set(visiting);
+    nextVisiting.add(wbsId);
+    const ownCount = rowsByWbs.get(wbsId)?.length ?? 0;
+    const descendantCount = (children.get(wbsId) ?? []).reduce(
+      (total, child) => total + countBelow(child.id, nextVisiting),
+      0,
+    );
+    const count = ownCount + descendantCount;
+    countCache.set(wbsId, count);
+    return count;
+  };
+
+  const groups: ActivityWbsDisplayGroup[] = [];
+  const visited = new Set<string>();
+  const visit = (parentId: string | null): void => {
+    for (const node of children.get(parentId) ?? []) {
+      if (visited.has(node.id)) continue;
+      visited.add(node.id);
+      const count = countBelow(node.id);
+      if (count > 0) {
+        const identity = activityWbsGroupPath(node.id, nodes);
+        const isCollapsed = collapsed.has(node.id);
+        groups.push({
+          wbsId: node.id,
+          ...identity,
+          count,
+          collapsed: isCollapsed,
+          activities: rowsByWbs.get(node.id) ?? [],
+        });
+        if (!isCollapsed) {
+          visit(node.id);
+        } else {
+          const markHiddenDescendants = (parentId: string): void => {
+            for (const child of children.get(parentId) ?? []) {
+              if (visited.has(child.id)) continue;
+              visited.add(child.id);
+              markHiddenDescendants(child.id);
+            }
+          };
+          markHiddenDescendants(node.id);
+        }
+      } else {
+        visit(node.id);
+      }
+    }
+  };
+  visit(null);
+
+  // Keep activity groups with a missing/orphaned WBS reference visible and deterministic.
+  for (const [wbsId, rows] of [...rowsByWbs].sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" }))) {
+    if (visited.has(wbsId) || groups.some((group) => group.wbsId === wbsId)) continue;
+    const identity = byId.has(wbsId)
+      ? activityWbsGroupPath(wbsId, nodes)
+      : { label: wbsId, path: wbsId, depth: 0 };
+    groups.push({
+      wbsId,
+      ...identity,
+      count: rows.length,
+      collapsed: collapsed.has(wbsId),
+      activities: rows,
+    });
+  }
+  return groups;
+}const documentDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const selectedDocumentByContainer = new WeakMap<HTMLElement, string>();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
@@ -295,12 +570,131 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       if (wbsId) void record.options.onWbsUpdate?.(wbsId, { code: readText("code"), name: readText("name"), sequenceNumber });
     }
   });
+  container.addEventListener("contextmenu", (event) => {
+    const source = event.target as HTMLElement | null;
+    if (!source || typeof source.closest !== "function") return;
+    const activity = source.closest<HTMLElement>("#cp-activity-grid tr[data-activity-id]");
+    const ganttActivity = source.closest<HTMLElement>(".cp-gantt-row[data-gantt-activity-id]");
+    const group = source.closest<HTMLElement>("[data-activity-group-band]");
+    const link = source.closest<SVGPathElement>("path[data-gantt-link]");
+    let context: WorkspaceContextMenuState | null = null;
+    if (link?.dataset.ganttLink) context = { kind: "relationship", relationshipId: link.dataset.ganttLink };
+    else if (group?.dataset.activityGroupBand) context = { kind: "wbs", wbsId: group.dataset.activityGroupBand };
+    else if (activity?.dataset.activityId) context = { kind: "activity", activityId: activity.dataset.activityId };
+    else if (ganttActivity?.dataset.ganttActivityId) context = { kind: "activity", activityId: ganttActivity.dataset.ganttActivityId };
+    else if (source.closest("#cp-activity-grid")) context = { kind: "grid" };
+    else if (source.closest("#cp-gantt")) context = { kind: "gantt" };
+    if (!context) return;
+    event.preventDefault();
+    workspaceContextMenuState.set(container, context);
+    const host = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
+    const record = workspaceRenderRecords.get(container);
+    if (!host || !record) return;
+    const state = record.state;
+    const item = (action: string, label: string): string => '<button type="button" role="menuitem" data-context-action="' + action + '">' + escapeHtml(label) + '</button>';
+    const tx = (en: string, fa: string): string => uiText(state.locale, en, fa);
+    let items: string[] = [];
+    if (context.kind === "activity") items = [
+      item("details", tx("Open Activity Details", "بازکردن جزئیات فعالیت")),
+      item("edit-activity", tx("Edit Activity", "ویرایش فعالیت")),
+      item("predecessors", tx("Show Predecessors", "نمایش پیش‌نیازها")),
+      item("successors", tx("Show Successors", "نمایش پس‌نیازها")),
+      item("relationships", tx("Show Relationships", "نمایش روابط")),
+      item("select-wbs", tx("Select WBS", "انتخاب WBS")),
+    ];
+    else if (context.kind === "wbs") items = [
+      item("toggle-wbs", tx("Expand / Collapse Branch", "بازکردن / جمع‌کردن شاخه")),
+      item("select-wbs", tx("Open WBS Details", "بازکردن جزئیات WBS")),
+      item("filter", tx("Filter Activities", "فیلتر فعالیت‌ها")),
+    ];
+    else if (context.kind === "relationship") items = [
+      item("edit-relationship", tx("Open Relationship Details", "بازکردن جزئیات رابطه")),
+      item("delete-relationship", tx("Delete Relationship", "حذف رابطه")),
+    ];
+    else if (context.kind === "grid") items = [
+      item("columns", tx("Columns & Fields", "ستون‌ها و فیلدها")),
+      item("filter", tx("Filter By", "فیلتر بر اساس")),
+      item("group-sort", tx("Group and Sort By", "گروه‌بندی و مرتب‌سازی")),
+    ];
+    else items = [
+      item("timescale", tx("Timescale", "مقیاس زمانی")),
+      item("toggle-links", tx("Show / Hide Relationships", "نمایش / پنهان‌کردن روابط")),
+      item("columns", tx("Bar & Chart Options", "گزینه‌های میله و نمودار")),
+    ];
+    host.innerHTML = '<div class="cp-workspace-context-menu" role="menu" aria-label="' + escapeAttribute(tx("Activity context menu", "منوی زمینه‌ای فعالیت")) + '">' + items.join("") + '</div>';
+    host.hidden = false;
+    host.style.position = "fixed";
+    const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
+    const viewportHeight = typeof window === "undefined" ? 768 : window.innerHeight;
+    host.style.left = String(Math.max(8, Math.min(event.clientX, viewportWidth - 230))) + "px";
+    host.style.top = String(Math.max(8, Math.min(event.clientY, viewportHeight - 220))) + "px";
+    host.querySelector<HTMLButtonElement>("[data-context-action]")?.focus({ preventScroll: true });
+  });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-workspace-appearance-open],[data-workspace-appearance-close],[data-workspace-appearance-apply],[data-workspace-appearance-reset],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-gantt-link],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-context-action]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    const menuAction = target.dataset.contextAction;
+    if (menuAction) {
+      const context = workspaceContextMenuState.get(container);
+      const host = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
+      if (host) host.hidden = true;
+      if (!context) return;
+      if (context.kind === "activity") {
+        const activityId = context.activityId;
+        if (menuAction === "details" || menuAction === "predecessors" || menuAction === "successors" || menuAction === "relationships") {
+          activityDetailsTabByContainer.set(container, menuAction === "details" ? "general" : menuAction);
+          options.onActivitySelect?.(activityId);
+        } else if (menuAction === "edit-activity") options.onActivityEdit?.(activityId);
+        else if (menuAction === "select-wbs") {
+          const activityRow = state.activities.find((item) => item.id === activityId);
+          if (activityRow?.wbsId) options.onWbsSelect?.(activityRow.wbsId);
+        }
+      } else if (context.kind === "wbs") {
+        if (menuAction === "toggle-wbs") {
+          const collapsed = new Set(collapsedActivityWbsGroups(container));
+          if (collapsed.has(context.wbsId)) collapsed.delete(context.wbsId); else collapsed.add(context.wbsId);
+          collapsedActivityWbsGroupsByContainer.set(container, collapsed);
+          renderMainWorkspace(container, state, options);
+        } else if (menuAction === "select-wbs") options.onWbsSelect?.(context.wbsId);
+        else if (menuAction === "filter") container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
+      } else if (context.kind === "relationship") {
+        const relationship = state.relationships.find((item) => item.id === context.relationshipId);
+        if (relationship && menuAction === "edit-relationship") {
+          activityDetailsTabByContainer.set(container, "relationships");
+          options.onActivitySelect?.(relationship.successorId);
+        } else if (relationship && menuAction === "delete-relationship" && typeof window !== "undefined" && window.confirm(uiText(state.locale, "Delete this relationship?", "این رابطه حذف شود؟"))) {
+          options.onRelationshipDelete?.(relationship.id, relationship.recordRevision);
+        }
+      } else if (context.kind === "grid") {
+        if (menuAction === "columns") openToolsDrawer(container);
+        else if (menuAction === "filter") container.querySelector<HTMLInputElement>("[data-activity-filter]")?.focus();
+        else if (menuAction === "group-sort") container.querySelector<HTMLSelectElement>("[data-activity-group]")?.focus();
+      } else if (context.kind === "gantt") {
+        if (menuAction === "timescale") {
+          const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
+          if (dialog && typeof dialog.showModal === "function") dialog.showModal(); else dialog?.setAttribute("open", "");
+        } else if (menuAction === "toggle-links") options.onGanttRelationshipsChange?.(!state.showGanttRelationships);
+        else if (menuAction === "columns") openToolsDrawer(container);
+      }
+      workspaceContextMenuState.delete(container);
+      return;
+    }
+    const menuHost = typeof container.querySelector === "function"
+      ? container.querySelector<HTMLElement>("[data-workspace-context-menu-host]")
+      : null;
+    if (menuHost && !target.closest("[data-workspace-context-menu]")) menuHost.hidden = true;
+    if (target.dataset.activityWbsGroupToggle) {
+      const wbsId = target.dataset.activityWbsGroupToggle;
+      const collapsed = new Set(collapsedActivityWbsGroups(container));
+      if (collapsed.has(wbsId)) collapsed.delete(wbsId);
+      else collapsed.add(wbsId);
+      collapsedActivityWbsGroupsByContainer.set(container, collapsed);
+      renderMainWorkspace(container, state, options);
+      return;
+    }
     if (target.dataset.registerTab) {
       const tab = target.dataset.registerTab;
       container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
@@ -447,9 +841,38 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       }
       return;
     }
+    if (target.dataset.workspaceAppearanceOpen !== undefined) { openWorkspaceAppearanceDialog(container); return; }
+    if (target.dataset.workspaceAppearanceClose !== undefined) {
+      const dialog = container.querySelector<HTMLDialogElement>("[data-workspace-appearance-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close(); else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.dataset.workspaceAppearanceReset !== undefined) {
+      const mode = container.querySelector<HTMLSelectElement>("[data-appearance-mode]")?.value === "dark" ? "dark" : "light";
+      syncWorkspaceAppearanceDialog(container, defaultWorkspaceAppearance(mode));
+      return;
+    }
+    if (target.dataset.workspaceAppearanceApply !== undefined) {
+      const mode = container.querySelector<HTMLSelectElement>("[data-appearance-mode]")?.value === "dark" ? "dark" : "light";
+      const defaults = defaultWorkspaceAppearance(mode);
+      const colors = { ...defaults.colors };
+      for (const { key } of WORKSPACE_APPEARANCE_LABELS) {
+        const value = container.querySelector<HTMLInputElement>(`[data-appearance-color="${key}"]`)?.value;
+        if (!isAppearanceHex(value)) return;
+        colors[key] = value;
+      }
+      const appearance: WorkspaceAppearance = { mode, colors };
+      applyWorkspaceAppearance(container, appearance);
+      try { window.localStorage.setItem(WORKSPACE_APPEARANCE_STORAGE_KEY, JSON.stringify(appearance)); } catch { /* Current view remains styled when storage is unavailable. */ }
+      const dialog = container.querySelector<HTMLDialogElement>("[data-workspace-appearance-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close(); else dialog?.removeAttribute("open");
+      return;
+    }
     if (target.dataset.shellCommand) {
       const command = target.dataset.shellCommand;
-      if (command === "Timescale") {
+      if (command === "Theme" || command === "Theme / Appearance") {
+        openWorkspaceAppearanceDialog(container);
+      } else if (command === "Timescale") {
         const dialog = container.querySelector<HTMLDialogElement>("[data-layout-options-dialog]");
         if (dialog && typeof dialog.showModal === "function") dialog.showModal();
         else dialog?.setAttribute("open", "");
@@ -591,6 +1014,11 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       if (surface) surface.dataset.trackingSurface = value;
       const heading = container.querySelector<HTMLElement>("[data-tracking-layout-label]");
       if (heading) heading.textContent = label;
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "appearanceMode")) {
+      const mode = (element as HTMLSelectElement).value === "dark" ? "dark" : "light";
+      syncWorkspaceAppearanceDialog(container, defaultWorkspaceAppearance(mode));
       return;
     }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "layoutTimescale")) {
@@ -903,6 +1331,122 @@ export type WorkspaceRendererOptions = {
   onRailAction?: (action: string) => void;
 };
 
+const WORKSPACE_APPEARANCE_STORAGE_KEY = "cubi:workspace-appearance:v1";
+type WorkspaceAppearanceMode = "light" | "dark";
+type WorkspaceAppearanceColorKey = "window" | "navigation" | "panel" | "grid" | "gridHeader" | "gantt" | "wbs1" | "wbs2" | "wbs3" | "wbs4";
+type WorkspaceAppearance = { mode: WorkspaceAppearanceMode; colors: Record<WorkspaceAppearanceColorKey, string> };
+
+const WORKSPACE_APPEARANCE_LABELS: readonly { key: WorkspaceAppearanceColorKey; en: string; fa: string }[] = [
+  { key: "window", en: "Workspace background", fa: "پس‌زمینه محیط کار" },
+  { key: "navigation", en: "Directory background", fa: "پس‌زمینه نوار راهبری" },
+  { key: "panel", en: "Panel background", fa: "پس‌زمینه پنل‌ها" },
+  { key: "grid", en: "Activity table background", fa: "پس‌زمینه جدول فعالیت" },
+  { key: "gridHeader", en: "Table header background", fa: "پس‌زمینه سرستون جدول" },
+  { key: "gantt", en: "Gantt background", fa: "پس‌زمینه گانت" },
+  { key: "wbs1", en: "WBS level 1 band", fa: "نوار سطح اول WBS" },
+  { key: "wbs2", en: "WBS level 2 band", fa: "نوار سطح دوم WBS" },
+  { key: "wbs3", en: "WBS level 3 band", fa: "نوار سطح سوم WBS" },
+  { key: "wbs4", en: "WBS level 4+ band", fa: "نوار سطح چهارم و بالاتر WBS" },
+];
+
+function defaultWorkspaceAppearance(mode: WorkspaceAppearanceMode): WorkspaceAppearance {
+  return mode === "dark"
+    ? { mode, colors: { window: "#182432", navigation: "#111d2a", panel: "#202f40", grid: "#1d2a39", gridHeader: "#304357", gantt: "#172536", wbs1: "#174e70", wbs2: "#28647d", wbs3: "#3d7180", wbs4: "#5b7784" } }
+    : { mode, colors: { window: "#e8edf3", navigation: "#e1e8f0", panel: "#ffffff", grid: "#ffffff", gridHeader: "#dde5ee", gantt: "#ffffff", wbs1: "#1b5278", wbs2: "#286c88", wbs3: "#467f91", wbs4: "#6a8796" } };
+}
+
+function isAppearanceHex(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+function appearanceContrastText(hex: string): string {
+  const channels = [1, 3, 5].map((index) => Number.parseInt(hex.slice(index, index + 2), 16) / 255);
+  const linear = channels.map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  const luminance = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+  const darkLuminance = 0.012;
+  const lightContrast = 1.05 / (luminance + 0.05);
+  const darkContrast = (luminance + 0.05) / (darkLuminance + 0.05);
+  return lightContrast >= darkContrast ? "#ffffff" : "#17202a";
+}
+
+function readWorkspaceAppearance(): WorkspaceAppearance {
+  const fallback = defaultWorkspaceAppearance("light");
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(WORKSPACE_APPEARANCE_STORAGE_KEY);
+    if (!raw) return fallback;
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== "object" || value === null || !("mode" in value) || !("colors" in value)) return fallback;
+    const candidate = value as { mode?: unknown; colors?: Record<string, unknown> };
+    const mode: WorkspaceAppearanceMode = candidate.mode === "dark" ? "dark" : "light";
+    const defaults = defaultWorkspaceAppearance(mode);
+    const colors = { ...defaults.colors };
+    for (const { key } of WORKSPACE_APPEARANCE_LABELS) {
+      const saved = candidate.colors?.[key];
+      if (isAppearanceHex(saved)) colors[key] = saved;
+    }
+    return { mode, colors };
+  } catch {
+    return fallback;
+  }
+}
+
+function applyWorkspaceAppearance(container: HTMLElement, appearance: WorkspaceAppearance): void {
+  const workspace = container.querySelector<HTMLElement>(".cp-p6-workspace");
+  if (!workspace) return;
+  workspace.dataset.workspaceTheme = appearance.mode;
+  const variables: Record<WorkspaceAppearanceColorKey, string> = {
+    window: "--cp-ws-window-bg", navigation: "--cp-ws-navigation-bg", panel: "--cp-ws-panel-bg",
+    grid: "--cp-ws-grid-bg", gridHeader: "--cp-ws-grid-header-bg", gantt: "--cp-ws-gantt-bg",
+    wbs1: "--cp-wbs-level-1", wbs2: "--cp-wbs-level-2", wbs3: "--cp-wbs-level-3", wbs4: "--cp-wbs-level-4",
+  };
+  for (const { key } of WORKSPACE_APPEARANCE_LABELS) workspace.style.setProperty(variables[key], appearance.colors[key]);
+  workspace.style.setProperty("--cp-ws-text", appearanceContrastText(appearance.colors.window));
+  workspace.style.setProperty("--cp-ws-navigation-text", appearanceContrastText(appearance.colors.navigation));
+  workspace.style.setProperty("--cp-ws-panel-text", appearanceContrastText(appearance.colors.panel));
+  workspace.style.setProperty("--cp-ws-muted", appearanceContrastText(appearance.colors.panel));
+  workspace.style.setProperty("--cp-ws-grid-text", appearanceContrastText(appearance.colors.grid));
+  workspace.style.setProperty("--cp-ws-grid-header-text", appearanceContrastText(appearance.colors.gridHeader));
+  workspace.style.setProperty("--cp-ws-gantt-text", appearanceContrastText(appearance.colors.gantt));
+  workspace.style.setProperty("--cp-ws-header-text", appearance.mode === "dark" ? "#e5edf5" : "#1f2d3d");
+  for (const key of ["wbs1", "wbs2", "wbs3", "wbs4"] as const) {
+    workspace.style.setProperty(`--cp-wbs-level-${key.slice(3)}-text`, appearanceContrastText(appearance.colors[key]));
+  }
+}
+
+function syncWorkspaceAppearanceDialog(container: HTMLElement, appearance = readWorkspaceAppearance()): void {
+  const dialog = container.querySelector<HTMLElement>("[data-workspace-appearance-dialog]");
+  if (!dialog) return;
+  const mode = dialog.querySelector<HTMLSelectElement>("[data-appearance-mode]");
+  if (mode) mode.value = appearance.mode;
+  for (const { key } of WORKSPACE_APPEARANCE_LABELS) {
+    const input = dialog.querySelector<HTMLInputElement>(`[data-appearance-color="${key}"]`);
+    if (input) input.value = appearance.colors[key];
+  }
+}
+
+function openWorkspaceAppearanceDialog(container: HTMLElement): void {
+  const dialog = container.querySelector<HTMLDialogElement>("[data-workspace-appearance-dialog]");
+  if (!dialog) return;
+  syncWorkspaceAppearanceDialog(container);
+  if (typeof dialog.showModal === "function") dialog.showModal(); else dialog.setAttribute("open", "");
+}
+
+function renderWorkspaceAppearanceDialog(locale: string): string {
+  const isFa = locale.split("-")[0] === "fa";
+  const appearance = defaultWorkspaceAppearance("light");
+  const label = (en: string, fa: string): string => uiText(locale, en, fa);
+  return `<dialog class="cp-workspace-appearance-dialog" data-workspace-appearance-dialog aria-labelledby="cp-workspace-appearance-title">
+    <header><div><h2 id="cp-workspace-appearance-title">${escapeHtml(label("Workspace Appearance", "ظاهر محیط کار"))}</h2><p>${escapeHtml(label("Choose light or dark mode and independent window, panel, grid, Gantt and WBS band colours.", "قالب روشن یا تیره و رنگ مستقل پنجره، پنل، جدول، گانت و نوارهای WBS را انتخاب کنید."))}</p></div><button type="button" data-workspace-appearance-close aria-label="${escapeAttribute(label("Close", "بستن"))}">×</button></header>
+    <div class="cp-workspace-appearance-body">
+      <label class="cp-workspace-appearance-mode"><span>${escapeHtml(label("Workspace palette", "قالب محیط کار"))}</span><select data-appearance-mode><option value="light">${escapeHtml(label("Light", "روشن"))}</option><option value="dark">${escapeHtml(label("Dark", "تیره"))}</option></select></label>
+      <div class="cp-workspace-appearance-grid">${WORKSPACE_APPEARANCE_LABELS.map(({ key, en, fa }) => `<label><span>${escapeHtml(isFa ? fa : en)}</span><input type="color" data-appearance-color="${key}" value="${appearance.colors[key]}" aria-label="${escapeAttribute(isFa ? fa : en)}"></label>`).join("")}</div>
+      <p class="cp-workspace-appearance-note">${escapeHtml(label("Activity selection, status, critical bars and milestones retain their own semantic colours. WBS band colours do not replace them.", "رنگ انتخاب فعالیت، وضعیت، میله‌های بحرانی و نقاط عطف معنای مستقل خود را حفظ می‌کنند و رنگ نوار WBS جایگزین آن‌ها نمی‌شود."))}</p>
+    </div>
+    <footer><button type="button" data-workspace-appearance-reset>${escapeHtml(label("Load palette defaults", "بازنشانی رنگ‌های پیش‌فرض"))}</button><span></span><button type="button" data-workspace-appearance-close>${escapeHtml(label("Cancel", "انصراف"))}</button><button type="button" class="is-primary" data-workspace-appearance-apply>${escapeHtml(label("Apply", "اعمال"))}</button></footer>
+  </dialog>`;
+}
+
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
   const previous = workspaceRenderRecords.get(container);
   if (previous && applyIncrementalWorkspaceUpdate(container, previous.state, state, options)) {
@@ -917,6 +1461,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     state.activityGroupBy,
     state.wbsNodes,
   );
+  const collapsedWbsGroups = collapsedActivityWbsGroups(container);
+  const activityWbsGroups = state.activityGroupBy === "wbs"
+    ? buildActivityWbsDisplayGroups(visibleActivities, state.wbsNodes, collapsedWbsGroups)
+    : null;
   const scale = createGanttScale(visibleActivities);
   let stickyOffsets = workspaceStickyOffsetsCache.get(state.columns);
   if (!stickyOffsets) {
@@ -1098,11 +1646,13 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <button type="button" class="cp-p6-chip" data-rail-action="wbs" title="${escapeAttribute(rail.wbs)}">${workspaceIcon("wbs")}<span>${escapeHtml(rail.wbs)}</span></button>
             <button type="button" class="cp-p6-chip" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}<span>${escapeHtml(rail.columns)}</span></button>
             <button type="button" class="cp-p6-chip" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span>${escapeHtml(rail.comments)}</span></button>
+            <button type="button" class="cp-p6-chip" data-workspace-appearance-open title="${escapeAttribute(uiText(state.locale, "Workspace appearance", "ظاهر محیط کار"))}">${workspaceIcon("settings")}<span>${escapeHtml(uiText(state.locale, "Appearance", "ظاهر"))}</span></button>
           </header>
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
             <span>${escapeHtml(uiText(state.locale, "Commands", "فرمان‌ها"))}</span>${contextCommandMarkup}${state.activeMenu === "schedule" ? `<button type="button" data-layout-options-open>${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</button>` : ""}
           </div>
           ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}
+          ${renderWorkspaceAppearanceDialog(state.locale)}
           <main class="cp-main">
             <div class="cp-p6-primary">
               <section class="cp-p6-split" data-panel-split data-workspace-menu="schedule">
@@ -1119,7 +1669,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   <div class="cp-table-wrap">
                     <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false" style="width:${activityTableWidth}px">
                       <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
-                      <tbody>${visibleActivities.length ? visibleActivities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length + 2)}">${escapeHtml(state.activities.length ? t.noMatchingActivities : t.noActivities)}</td></tr>`}</tbody>
+                      <tbody>${visibleActivities.length ? (activityWbsGroups
+                        ? activityWbsGroups.map((group) => `${renderActivityGroupBand(group, state, state.columns.length + 2)}${group.collapsed ? "" : group.activities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("")}`).join("")
+                        : visibleActivities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join(""))
+                        : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length + 2)}">${escapeHtml(state.activities.length ? t.noMatchingActivities : t.noActivities)}</td></tr>`}</tbody>
                     </table>
                   </div>
                 </section>
@@ -1129,7 +1682,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                     <h2>${escapeHtml(t.gantt)}</h2>
                     <button type="button" data-tools-open title="${escapeAttribute(rail.bars)}">${workspaceIcon("bars")}</button>
                   </div>
-                  ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}
+                  ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, state.locale, activityWbsGroups)}
                 </section>
               </section>
               ${renderP6ModuleStage(container, state, t, options)}
@@ -1230,10 +1783,16 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         </div>
       </div>
       <aside class="cp-comments-dock" data-comments-panel hidden aria-label="${escapeAttribute(rail.comments)}"></aside>
+      <div class="cp-workspace-context-menu-host" data-workspace-context-menu-host hidden></div>
     </section>
   `;
 
   workspaceRenderRecords.set(container, { state, options });
+  if (typeof container.querySelector === "function") {
+    const appearance = readWorkspaceAppearance();
+    applyWorkspaceAppearance(container, appearance);
+    syncWorkspaceAppearanceDialog(container, appearance);
+  }
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
 }
 
@@ -2207,6 +2766,21 @@ function renderP6FieldChooser(
   </section>`;
 }
 
+function renderActivityGroupBand(group: ActivityWbsDisplayGroup, state: WorkspaceState, colSpan: number): string {
+  const expandLabel = uiText(state.locale, "Expand WBS group", "باز کردن گروه WBS");
+  const collapseLabel = uiText(state.locale, "Collapse WBS group", "جمع کردن گروه WBS");
+  const action = group.collapsed ? expandLabel : collapseLabel;
+  return `<tr role="row" class="cp-activity-group-band" data-activity-group-band="${escapeAttribute(group.wbsId)}" data-wbs-depth="${group.depth}">
+    <td role="gridcell" colspan="${colSpan}">
+      <div class="cp-activity-group-band-content" style="padding-inline-start:${group.depth * 14}px">
+        <button type="button" data-activity-wbs-group-toggle="${escapeAttribute(group.wbsId)}" aria-expanded="${group.collapsed ? "false" : "true"}" title="${escapeAttribute(action)}" aria-label="${escapeAttribute(action + ": " + group.path)}">${group.collapsed ? "+" : "−"}</button>
+        <span class="cp-activity-group-band-label" title="${escapeAttribute(group.path)}">${escapeHtml(group.path)}</span>
+        <span class="cp-activity-group-band-count">${group.count} ${escapeHtml(uiText(state.locale, "activities", "فعالیت"))}</span>
+      </div>
+    </td>
+  </tr>`;
+}
+
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState, stickyOffsets: ReadonlyMap<string, number>): string {
   const selected = activity.id === state.selectedActivityId;
   const predecessors = predecessorSummary(activity.id, state);
@@ -2239,6 +2813,8 @@ function renderGantt(
   t: WorkspaceLabels,
   selectedActivityId: string | null,
   showRelationships: boolean,
+  locale: WorkspaceState["locale"],
+  activityGroups: readonly ActivityWbsDisplayGroup[] | null = null,
 ): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
 
@@ -2246,9 +2822,32 @@ function renderGantt(
     .map((activity) => createGanttBarGeometry(activity, scale))
     .filter((bar): bar is GanttBarGeometry => bar !== null);
   if (!bars.length) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
+  const barsByActivityId = new Map(bars.map((bar) => [bar.activityId, bar] as const));
+  type DisplayRow =
+    | { kind: "group"; group: ActivityWbsDisplayGroup }
+    | { kind: "activity"; activity: WorkspaceActivityRow; bar: GanttBarGeometry | null };
+  const displayRows: DisplayRow[] = [];
+  if (activityGroups) {
+    for (const group of activityGroups) {
+      displayRows.push({ kind: "group", group });
+      if (!group.collapsed) {
+        for (const activity of group.activities) {
+          displayRows.push({ kind: "activity", activity, bar: barsByActivityId.get(activity.id) ?? null });
+        }
+      }
+    }
+  } else {
+    for (const activity of activities) {
+      displayRows.push({ kind: "activity", activity, bar: barsByActivityId.get(activity.id) ?? null });
+    }
+  }
+  const presentationRowByActivity = new Map<string, number>();
+  displayRows.forEach((row, index) => {
+    if (row.kind === "activity" && row.bar) presentationRowByActivity.set(row.activity.id, index);
+  });
 
   const ticks = createGanttAxisTicks(scale, ganttScale);
-  const links = createGanttLinkGeometry(relationships, bars);
+  const links = createGanttLinkGeometry(relationships, bars, presentationRowByActivity);
   const scaleModeLabels: Record<WorkspaceGanttScale, string> = {
     day: t.scaleDay,
     week: t.scaleWeek,
@@ -2268,11 +2867,28 @@ function renderGantt(
     return `<span class="cp-gantt-axis-tick${index === 0 ? " is-first" : tick.leftPercent > 88 ? " is-last" : ""}${dayClass}" data-gantt-tick="${escapeAttribute(tick.date)}"${dayAttribute} title="${escapeAttribute(fullLabel)}" style="left:${tick.leftPercent}%">${escapeHtml(fullLabel)}</span>`;
   }).join("")}</div></div>`;
   const linkSvg = showRelationships && links.length
-    ? `<svg class="cp-gantt-links" viewBox="0 0 100 ${bars.length * 100}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"></path>`).join("")}</svg>`
+    ? `<svg class="cp-gantt-links" viewBox="0 0 100 ${displayRows.length * 100}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"></path>`).join("")}</svg>`
     : "";
-  const rows = bars.map((bar) => `<div class="cp-gantt-row${bar.activityId === selectedActivityId ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(bar.activityId)}" tabindex="0" aria-pressed="${bar.activityId === selectedActivityId ? "true" : "false"}" aria-label="${escapeAttribute(bar.activityId)}"><span class="cp-gantt-label">${escapeHtml(bar.activityId)}</span><div class="cp-gantt-track"><div class="cp-gantt-bar${bar.critical ? " is-critical" : ""}${bar.milestone ? " is-milestone" : ""}" style="left:${bar.leftPercent}%;width:${bar.widthPercent}%" title="${escapeAttribute(bar.activityId + (bar.milestone ? " — " + t.milestone : "") + " — " + bar.progressPercent + "%" + (bar.critical ? " — " + t.critical : ""))}"><span class="cp-gantt-progress" style="width:${bar.progressPercent}%"></span></div></div></div>`).join("");
+  const expandGroupLabel = uiText(locale, "Expand WBS group", "باز کردن گروه WBS");
+  const collapseGroupLabel = uiText(locale, "Collapse WBS group", "جمع کردن گروه WBS");
+  const rows = displayRows.map((row) => {
+    if (row.kind === "group") {
+      const group = row.group;
+      const action = group.collapsed ? expandGroupLabel : collapseGroupLabel;
+      return `<div class="cp-gantt-group-row" data-activity-group-band="${escapeAttribute(group.wbsId)}" data-wbs-depth="${group.depth}">
+        <span class="cp-gantt-group-label" style="padding-inline-start:${group.depth * 14}px">
+          <button type="button" data-activity-wbs-group-toggle="${escapeAttribute(group.wbsId)}" aria-expanded="${group.collapsed ? "false" : "true"}" title="${escapeAttribute(action)}" aria-label="${escapeAttribute(action + ": " + group.path)}">${group.collapsed ? "+" : "−"}</button>
+          <strong title="${escapeAttribute(group.path)}">${escapeHtml(group.path)}</strong>
+          <small>${group.count}</small>
+        </span>
+        <div class="cp-gantt-group-track"></div>
+      </div>`;
+    }
+    const { activity, bar } = row;
+    return `<div class="cp-gantt-row${activity.id === selectedActivityId ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-pressed="${activity.id === selectedActivityId ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}"><span class="cp-gantt-label">${escapeHtml(activity.id)}</span><div class="cp-gantt-track">${bar ? `<div class="cp-gantt-bar${bar.critical ? " is-critical" : ""}${bar.milestone ? " is-milestone" : ""}" style="left:${bar.leftPercent}%;width:${bar.widthPercent}%" title="${escapeAttribute(activity.id + (bar.milestone ? " — " + t.milestone : "") + " — " + bar.progressPercent + "%" + (bar.critical ? " — " + t.critical : ""))}"><span class="cp-gantt-progress" style="width:${bar.progressPercent}%"></span></div>` : ""}</div></div>`;
+  }).join("");
 
-  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}">${toolbar}${axis}<div class="cp-gantt-chart" style="--cp-gantt-rows:${bars.length}">${rows}${linkSvg}</div></div>`;
+  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}">${toolbar}${axis}<div class="cp-gantt-chart" style="--cp-gantt-rows:${displayRows.length}">${rows}${linkSvg}</div></div>`;
 }
 
 
@@ -2377,18 +2993,17 @@ const ACTIVITY_DETAIL_TABS = [
   ["resources", "Resources", "منابع"],
   ["predecessors", "Predecessors", "پیش‌نیازها"],
   ["successors", "Successors", "پس‌نیازها"],
+  ["relationships", "Relationships", "روابط"],
   ["codes", "Codes", "کدها"],
-  ["tasks", "Tasks", "وظایف"],
-  ["discussion", "Discussion", "گفت‌وگو"],
-  ["notebook", "Notebook", "دفترچه"],
+  ["notebook", "Notebook", "دفترچه یادداشت"],
   ["steps", "Steps", "گام‌ها"],
-  ["feedback", "Feedback", "بازخورد"],
   ["documents", "WPs & Docs", "محصولات کاری و اسناد"],
   ["expenses", "Expenses", "هزینه‌ها"],
-  ["summary", "Summary", "خلاصه"],
-  ["relationships", "Relationships", "روابط"],
+  ["issues", "Issues", "مسائل"],
   ["risks", "Risks", "ریسک‌ها"],
-  ["udfs", "UDFs", "فیلدهای کاربر"],
+  ["summary", "Summary", "خلاصه"],
+  ["udfs", "UDFs", "فیلدهای سفارشی"],
+  ["update-history", "Update History", "تاریخچه تغییرات"],
 ] as const;
 
 function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, activeTab: string, visibleTabs: ReadonlySet<string>): string {
@@ -2433,10 +3048,20 @@ function renderActivityDetailsPanel(state: WorkspaceState, t: WorkspaceLabels, a
       return `<div class="cp-activity-detail-fields">${keys.map((key) => field(key.replaceAll("_", " "), value(key))).join("")}</div>`;
     }
     if (tab === "predecessors" || tab === "successors" || tab === "relationships") return relationshipRows(tab);
+    if (tab === "issues") {
+      const linkedIssues = state.fieldIssues.filter((issue) => issue.activityIds.includes(activity.id));
+      if (!linkedIssues.length) return empty(uiText(state.locale, "No linked issue records are present in the current workspace projection. An empty projection does not prove that no issues exist.", "در نمای فعلی محیط کار رکورد مسئله پیوندشده‌ای وجود ندارد. خالی بودن این نما اثبات نمی‌کند که هیچ مسئله‌ای وجود ندارد."));
+      return `<div class="cp-activity-detail-table-wrap"><table class="cp-activity-detail-table"><thead><tr><th>Issue ID</th><th>Title</th><th>Category</th><th>Severity</th><th>Status</th><th>Reported by</th><th>Updated</th></tr></thead><tbody>${linkedIssues.map((issue) => `<tr><td>${escapeHtml(issue.issueId)}</td><td>${escapeHtml(translateWorkspaceUiText(state.locale, issue.titleKey, issue.titleKey))}</td><td>${escapeHtml(issue.category)}</td><td>${escapeHtml(issue.severity)}</td><td>${escapeHtml(issue.status)}</td><td>${escapeHtml(issue.reportedBy)}</td><td>${escapeHtml(issue.updatedAt)}</td></tr>`).join("")}</tbody></table></div>`;
+    }
     if (tab === "summary") {
       const facts = activity.gantt;
-      return facts ? `<div class="cp-activity-detail-fields">${field(uiText(state.locale, "Start", "شروع"), String(facts.start ?? "—"))}${field(uiText(state.locale, "Finish", "پایان"), String(facts.finish ?? "—"))}${field(uiText(state.locale, "Critical", "بحرانی"), facts.critical ? uiText(state.locale, "Yes", "بله") : uiText(state.locale, "No", "خیر"))}</div>` : empty(uiText(state.locale, "No authoritative schedule summary is available for this activity.", "خلاصه زمان‌بندی مرجع برای این فعالیت موجود نیست."));
+      const criticalCell = activity.cells?.is_critical;
+      const criticalLabel = typeof criticalCell === "boolean"
+        ? (criticalCell ? uiText(state.locale, "Yes", "بله") : uiText(state.locale, "No", "خیر"))
+        : String(criticalCell ?? (facts ? (facts.critical ? uiText(state.locale, "Yes", "بله") : uiText(state.locale, "No", "خیر")) : "—"));
+      return `<div class="cp-activity-detail-fields">${field(uiText(state.locale, "Start", "شروع"), String(activity.cells?.early_start ?? facts?.start ?? "—"))}${field(uiText(state.locale, "Finish", "پایان"), String(activity.cells?.early_finish ?? facts?.finish ?? "—"))}${field(uiText(state.locale, "Duration", "مدت"), String(activity.cells?.duration ?? "—"))}${field(uiText(state.locale, "Percent complete", "درصد پیشرفت"), String(activity.cells?.percent_complete ?? facts?.progressPercent ?? "—"))}${field(uiText(state.locale, "Total float", "شناوری کل"), String(activity.cells?.total_float ?? "—"))}${field(uiText(state.locale, "Free float", "شناوری آزاد"), String(activity.cells?.free_float ?? "—"))}${field(uiText(state.locale, "Critical", "بحرانی"), criticalLabel)}</div>`;
     }
+    if (tab === "update-history") return empty(uiText(state.locale, "Activity-specific audit history is not included in the current workspace projection. No change entries are inferred or synthesized.", "تاریخچه ممیزی مختص فعالیت در نمای فعلی محیط کار موجود نیست. هیچ سابقه تغییری حدس زده یا ساخته نمی‌شود."));
     const tabLabel = ACTIVITY_DETAIL_TABS.find(([key]) => key === tab);
     return empty(uiText(state.locale, `No ${tabLabel?.[1] ?? "detail"} records are loaded for this activity.`, `برای این فعالیت هنوز سابقه‌ای در بخش «${tabLabel?.[2] ?? "جزئیات"}» بارگذاری نشده است.`));
   };

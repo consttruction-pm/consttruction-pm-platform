@@ -182,3 +182,33 @@ test("Gantt axis ticks follow the selected day/week/month/quarter/year scale", (
   assert.deepEqual(year.map((tick) => tick.date), ["2026-09-28", "2027-01-01", "2028-01-01"]);
   assert.ok(year[2].leftPercent > 50 && year[2].leftPercent < 75);
 });
+
+
+test("Gantt relationship paths account for WBS group bands while retaining activity bar geometry", () => {
+  const scheduled = [
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Excavate", gantt: { start: "2026-09-02T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 0, critical: true } },
+    { id: "A-2", wbsId: "W-2", code: "02", name: "Concrete", gantt: { start: "2026-09-03T00:00:00Z", finish: "2026-09-05T00:00:00Z", progressPercent: 0, critical: true } },
+  ];
+  const scale = createGanttScale(scheduled);
+  assert.ok(scale);
+  const bars = scheduled
+    .map((activity) => createGanttBarGeometry(activity, scale))
+    .filter((bar): bar is NonNullable<typeof bar> => bar !== null);
+  const links = createGanttLinkGeometry([
+    { id: "R-GROUPED", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+  ], bars, new Map([["A-1", 1], ["A-2", 3]]));
+  assert.equal(links.length, 1);
+  assert.match(links[0].path, / 150 H .* V 350 H /);
+});
+
+test("Gantt relationship geometry omits links to activities hidden by a collapsed display group", () => {
+  const scale = createGanttScale(activities);
+  assert.ok(scale);
+  const bars = activities
+    .map((activity) => createGanttBarGeometry(activity, scale))
+    .filter((bar): bar is NonNullable<typeof bar> => bar !== null);
+  const links = createGanttLinkGeometry([
+    { id: "R-HIDDEN", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+  ], bars, new Map([["A-1", 1]]));
+  assert.deepEqual(links, []);
+});

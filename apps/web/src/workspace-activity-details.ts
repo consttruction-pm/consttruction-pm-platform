@@ -4,6 +4,12 @@
  * that the read model does not provide show an explicit empty state instead of
  * sample figures, so the pane never reports invented project facts.
  */
+import type { ApiTransport } from "./client.js";
+import { loadAssignments, type AssignmentRecord } from "./workspace-assignments.js";
+import { loadExpenses, type ExpenseRecord } from "./workspace-expenses.js";
+import { loadScheduleDataDate } from "./workspace-cost.js";
+import { fetchP6ActivityUdfs } from "./p6-udf-http.js";
+import type { P6UdfEditorMetadata } from "./p6-field-editor.js";
 import type {
   WorkspaceActivityRow,
   WorkspaceMenuKey,
@@ -11,9 +17,11 @@ import type {
   WorkspaceState,
   WorkspaceWbsNode,
 } from "./workspace-model.js";
+import { listWorkspaceEntityComments } from "./workspace-comments.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
 
 export const ACTIVITY_DETAILS_STORAGE_KEY = "cubi:activity-details-tab";
+export const ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v2";
 
 export type ActivityDetailsTabId =
   | "general"
@@ -21,15 +29,17 @@ export type ActivityDetailsTabId =
   | "resources"
   | "predecessors"
   | "successors"
-  | "codes"
-  | "steps"
   | "relationships"
-  | "calendar"
+  | "codes"
+  | "notebook"
+  | "steps"
   | "documents"
   | "expenses"
+  | "issues"
   | "risks"
-  | "notebook"
-  | "udfs";
+  | "summary"
+  | "udfs"
+  | "update-history";
 
 type TabLabel = { id: string; en: string; fa: string };
 
@@ -39,15 +49,17 @@ export const ACTIVITY_DETAILS_TABS: readonly TabLabel[] = [
   { id: "resources", en: "Resources", fa: "منابع" },
   { id: "predecessors", en: "Predecessors", fa: "پیش‌نیازها" },
   { id: "successors", en: "Successors", fa: "پس‌نیازها" },
-  { id: "codes", en: "Codes", fa: "کدها" },
-  { id: "steps", en: "Steps", fa: "گام‌ها" },
   { id: "relationships", en: "Relationships", fa: "روابط" },
-  { id: "calendar", en: "Calendar", fa: "تقویم" },
-  { id: "documents", en: "Documents", fa: "اسناد" },
+  { id: "codes", en: "Codes", fa: "کدها" },
+  { id: "notebook", en: "Notebook", fa: "دفترچه یادداشت" },
+  { id: "steps", en: "Steps", fa: "گام‌ها" },
+  { id: "documents", en: "WPs & Docs", fa: "محصولات کاری و اسناد" },
   { id: "expenses", en: "Expenses", fa: "هزینه‌ها" },
+  { id: "issues", en: "Issues", fa: "مسائل" },
   { id: "risks", en: "Risks", fa: "ریسک‌ها" },
-  { id: "notebook", en: "Notes", fa: "یادداشت‌ها" },
+  { id: "summary", en: "Summary", fa: "خلاصه" },
   { id: "udfs", en: "UDFs", fa: "فیلدهای سفارشی" },
+  { id: "update-history", en: "Update History", fa: "تاریخچه تغییرات" },
 ];
 
 const PROJECT_DETAILS_TABS: readonly TabLabel[] = [
@@ -136,6 +148,12 @@ const SETTINGS_DETAILS_TABS: readonly TabLabel[] = [
   { id: "notebook", en: "Notes", fa: "یادداشت‌ها" },
 ];
 
+export type ActivityDetailsLoadState<T> = {
+  status: "idle" | "loading" | "loaded" | "error";
+  records: readonly T[];
+  errorCode: string | null;
+};
+
 export type ActivityDetailsInput = {
   locale: string;
   activities: readonly WorkspaceActivityRow[];
@@ -144,6 +162,10 @@ export type ActivityDetailsInput = {
   projectName: string;
   dataDate: string;
   calendarMode: "jalali" | "gregorian";
+  transport?: ApiTransport;
+  resourceAssignments?: ActivityDetailsLoadState<AssignmentRecord>;
+  activityExpenses?: ActivityDetailsLoadState<ExpenseRecord>;
+  activityUdfs?: ActivityDetailsLoadState<P6UdfEditorMetadata>;
   /** Full authoritative state is optional so pure render tests stay small. */
   state?: WorkspaceState;
 };
@@ -168,6 +190,12 @@ function cell(row: WorkspaceActivityRow | null, ...keys: string[]): string {
     if (value !== undefined && value !== null && value !== "") return String(value);
   }
   return "";
+}
+
+function booleanCell(locale: string, activity: WorkspaceActivityRow | null, key: string): string {
+  const raw = activity?.cells?.[key] ?? activity?.cells?.[`activity.${key}`];
+  if (typeof raw === "boolean") return t(locale, raw ? "Yes" : "No", raw ? "بله" : "خیر");
+  return cell(activity, key);
 }
 
 function field(locale: string, label: string, value: string): string {
@@ -204,12 +232,39 @@ function isActivityTab(id: string): id is ActivityDetailsTabId {
 
 export function readActivityDetailsTab(storage?: Storage): ActivityDetailsTabId {
   try {
-    const raw = (storage ?? window.localStorage).getItem(ACTIVITY_DETAILS_STORAGE_KEY);
+    const target = storage ?? (typeof window !== "undefined" ? window.localStorage : undefined);
+    const raw = target?.getItem(ACTIVITY_DETAILS_STORAGE_KEY);
     if (raw && isActivityTab(raw)) return raw;
   } catch {
     // Storage can be unavailable in a sandboxed frame.
   }
   return "general";
+}
+
+export function readActivityDetailsVisibleTabs(storage?: Storage): ActivityDetailsTabId[] {
+  const defaults = ACTIVITY_DETAILS_TABS.map((tab) => tab.id as ActivityDetailsTabId);
+  try {
+    const target = storage ?? (typeof window !== "undefined" ? window.localStorage : undefined);
+    const raw = target?.getItem(ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY);
+    if (!raw) return defaults;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return defaults;
+    const selected = defaults.filter((id) => parsed.includes(id));
+    return selected.length ? selected : defaults;
+  } catch {
+    // Invalid or unavailable browser storage must never hide every detail tab.
+    return defaults;
+  }
+}
+
+function rememberVisibleTabs(ids: readonly ActivityDetailsTabId[]): void {
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY, JSON.stringify(ids));
+    }
+  } catch {
+    // Tab visibility is a presentation preference, not project data.
+  }
 }
 
 function rememberTab(id: ActivityDetailsTabId): void {
@@ -218,6 +273,68 @@ function rememberTab(id: ActivityDetailsTabId): void {
   } catch {
     // Persisting the tab is a convenience, never a requirement.
   }
+}
+
+function renderResourceAssignments(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
+  if (!activity) return empty(locale, t(locale, "Select an activity to view its resource assignments.", "برای مشاهده تخصیص منابع، یک فعالیت انتخاب کنید."));
+  const data = input.resourceAssignments;
+  if (!data || data.status === "idle") return empty(locale, t(locale, "Resource assignments have not been loaded yet.", "تخصیص منابع هنوز بارگذاری نشده است."));
+  if (data.status === "loading") return empty(locale, t(locale, "Loading authoritative resource assignments…", "در حال بارگذاری تخصیص منابع از داده‌های مرجع…"));
+  if (data.status === "error") return `<p class="cp-detail-empty" role="alert">${esc(t(locale, "Resource assignments could not be loaded.", "بارگذاری تخصیص منابع ناموفق بود."))} ${esc(data.errorCode ?? "API_ERROR")}</p><button type="button" data-detail-retry="resources">${esc(t(locale, "Retry", "تلاش دوباره"))}</button>`;
+  const rows = data.records.filter((item) => item.activityId === activity.id);
+  if (!rows.length) return empty(locale, t(locale, "No resource assignments are recorded for this activity.", "برای این فعالیت تخصیص منبعی در سوابق ثبت‌شده وجود ندارد."));
+  const headings = ["Resource ID", "Role ID", "Budgeted units", "Actual units", "Remaining units", "Budgeted cost", "Actual cost", "Remaining cost", "Unit", "Currency", "Driving"];
+  const persianHeadings = ["شناسه منبع", "شناسه نقش", "واحد برنامه‌ای", "واحد واقعی", "واحد باقیمانده", "هزینه برنامه‌ای", "هزینه واقعی", "هزینه باقیمانده", "واحد", "ارز", "تعیین‌کننده"];
+  const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
+  const body = rows.map((item) => `<tr><td>${esc(item.resourceId)}</td><td>${esc(item.roleId ?? "—")}</td><td>${esc(item.units ?? "—")}</td><td>${esc(item.actualUnits ?? "—")}</td><td>${esc(item.remainingUnits ?? "—")}</td><td>${esc(item.plannedCost ?? "—")}</td><td>${esc(item.actualCost ?? "—")}</td><td>${esc(item.remainingCost ?? "—")}</td><td>${esc(item.unit ?? "—")}</td><td>${esc(item.currency ?? "—")}</td><td>${esc(item.isDriving === null ? "—" : t(locale, item.isDriving ? "Yes" : "No", item.isDriving ? "بله" : "خیر"))}</td></tr>`).join("");
+  return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function renderActivityDocuments(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
+  if (!activity) return empty(locale, t(locale, "Select an activity to view its linked documents.", "برای مشاهده اسناد پیوندشده، یک فعالیت انتخاب کنید."));
+  const documents = (input.state?.documents ?? []).filter((document) =>
+    document.linkedEntityRefs.includes(activity.id) || document.linkedEntityRefs.includes(activity.code),
+  );
+  if (!documents.length) return empty(locale, t(locale, "The current workspace projection contains no document links for this activity. An empty projection does not confirm that no documents exist.", "در مدل خواندن فعلی پروژه سندی به این فعالیت پیوند داده نشده است."));
+  const headings = ["Document ID", "Title", "Type", "Status", "Revision", "Content hash"];
+  const persianHeadings = ["شناسه سند", "عنوان", "نوع", "وضعیت", "ویرایش", "هش محتوا"];
+  const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
+  const body = documents.map((document) => `<tr><td>${esc(document.documentId)}</td><td>${esc(document.title)}</td><td>${esc(document.resourceType)}</td><td>${esc(document.status)}</td><td>R${document.revision}</td><td><code>${esc(document.contentHash)}</code></td></tr>`).join("");
+  return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><p class="cp-detail-hint">${esc(t(locale, "Document metadata is read-only here. File open/download actions are not exposed by the current document API.", "اطلاعات سند در این بخش فقط‌خواندنی است. API فعلی اسناد امکان بازکردن یا دریافت فایل را ارائه نمی‌کند."))}</p></div>`;
+}
+
+function renderActivityUdfs(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
+  if (!activity) return empty(locale, t(locale, "Select an activity to view its custom fields.", "برای مشاهده فیلدهای سفارشی، یک فعالیت انتخاب کنید."));
+  const data = input.activityUdfs;
+  if (!data || data.status === "idle") return empty(locale, t(locale, "Activity custom fields have not been loaded yet.", "فیلدهای سفارشی فعالیت هنوز بارگذاری نشده‌اند."));
+  if (data.status === "loading") return empty(locale, t(locale, "Loading activity custom-field definitions…", "در حال بارگذاری تعریف فیلدهای سفارشی فعالیت…"));
+  if (data.status === "error") return `<p class="cp-detail-empty" role="alert">${esc(t(locale, "Activity custom fields could not be loaded.", "بارگذاری فیلدهای سفارشی فعالیت ناموفق بود."))} ${esc(data.errorCode ?? "API_ERROR")}</p><button type="button" data-detail-retry="udfs">${esc(t(locale, "Retry", "تلاش دوباره"))}</button>`;
+  const fields = data.records.filter((item) => item.subject_area.toLowerCase() === "activity");
+  if (!fields.length) return empty(locale, t(locale, "No activity custom-field definitions are registered for this project.", "برای این پروژه تعریف فیلد سفارشی فعالیت ثبت نشده است."));
+  const headings = ["Field", "Type", "Value", "Unit", "Writable", "Allowed values"];
+  const persianHeadings = ["فیلد", "نوع", "مقدار", "واحد", "قابل ویرایش", "مقادیر مجاز"];
+  const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
+  const body = fields.map((item) => {
+    const raw = activity.cells?.[item.udf_id] ?? activity.cells?.[`activity.${item.udf_id}`];
+    const value = raw === undefined || raw === null || raw === "" ? t(locale, "Not returned for this activity", "برای این فعالیت برگردانده نشده") : String(raw);
+    return `<tr><td>${esc(item.display_name)}<small>${esc(item.udf_id)}</small></td><td>${esc(item.data_type)}</td><td>${esc(value)}</td><td>${esc(item.unit ?? "—")}</td><td>${esc(t(locale, item.writable ? "Yes" : "No", item.writable ? "بله" : "خیر"))}</td><td>${esc(item.allowed_values?.join(", ") ?? "—")}</td></tr>`;
+  }).join("");
+  return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><p class="cp-detail-hint">${esc(t(locale, "Definitions come from the authenticated project registry. Values are shown only when present in the selected activity read model; this pane does not invent or write UDF values.", "تعریف‌ها از فهرست مرجع احراز هویت‌شده پروژه می‌آیند. مقدار فقط در صورت وجود در مدل خواندن فعالیت انتخاب‌شده نمایش داده می‌شود؛ این پنل مقداری جعل یا ذخیره نمی‌کند."))}</p></div>`;
+}
+
+function renderActivityExpenses(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
+  if (!activity) return empty(locale, t(locale, "Select an activity to view its expenses.", "برای مشاهده هزینه‌ها، یک فعالیت انتخاب کنید."));
+  const data = input.activityExpenses;
+  if (!data || data.status === "idle") return empty(locale, t(locale, "Activity expenses have not been loaded yet.", "هزینه‌های فعالیت هنوز بارگذاری نشده‌اند."));
+  if (data.status === "loading") return empty(locale, t(locale, "Loading authoritative activity expenses…", "در حال بارگذاری هزینه‌های فعالیت از داده‌های مرجع…"));
+  if (data.status === "error") return `<p class="cp-detail-empty" role="alert">${esc(t(locale, "Activity expenses could not be loaded.", "بارگذاری هزینه‌های فعالیت ناموفق بود."))} ${esc(data.errorCode ?? "API_ERROR")}</p><button type="button" data-detail-retry="expenses">${esc(t(locale, "Retry", "تلاش دوباره"))}</button>`;
+  const rows = data.records.filter((item) => item.activityId === activity.id);
+  if (!rows.length) return empty(locale, t(locale, "No expense records are assigned to this activity.", "هزینه‌ای برای این فعالیت ثبت نشده است."));
+  const headings = ["Expense ID", "Name", "Category", "Date", "Budgeted cost", "Actual cost", "Remaining cost", "Currency", "Note"];
+  const persianHeadings = ["شناسه هزینه", "نام", "دسته‌بندی", "تاریخ", "هزینه برنامه‌ای", "هزینه واقعی", "هزینه باقیمانده", "ارز", "یادداشت"];
+  const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
+  const body = rows.map((item) => `<tr><td>${esc(item.expenseId)}</td><td>${esc(item.name)}</td><td>${esc(item.category)}</td><td>${esc(item.expenseDate ?? "—")}</td><td>${esc(item.plannedCost ?? "—")}</td><td>${esc(item.actualCost ?? "—")}</td><td>${esc(item.remainingCost ?? "—")}</td><td>${esc(item.currency ?? "—")}</td><td>${esc(item.note ?? "—")}</td></tr>`).join("");
+  return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 function activityWbsLabel(input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
@@ -278,11 +395,11 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         ${field(locale, t(locale, "Scheduled duration", "مدت زمان‌بندی‌شده"), cell(activity, "duration"))}
         ${field(locale, t(locale, "Total float", "شناوری کل"), cell(activity, "total_float"))}
         ${field(locale, t(locale, "Free float", "شناوری آزاد"), cell(activity, "free_float"))}
-        ${field(locale, t(locale, "Critical", "بحرانی"), cell(activity, "is_critical"))}
+        ${field(locale, t(locale, "Critical", "بحرانی"), booleanCell(locale, activity, "is_critical"))}
       </div>
       <p class="cp-detail-hint">${esc(t(locale, "Duration, float and critical values are produced by the schedule core; this pane only displays them.", "مقادیر مدت، شناوری و بحرانی توسط هستهٔ زمان‌بندی تولید می‌شوند؛ این پنل فقط آن‌ها را نمایش می‌دهد."))}</p>`;
     case "resources":
-      return empty(locale, t(locale, "No resource assignments are returned for this activity. Assignments are read from the project service; this pane does not invent resource rows.", "هیچ تخصیص منبعی برای این فعالیت برگردانده نشده است. تخصیص‌ها از سرویس پروژه خوانده می‌شوند؛ این پنل سطر منبعی نمی‌سازد."));
+      return renderResourceAssignments(locale, input, activity);
     case "predecessors":
       return relationshipRows(locale, predecessors);
     case "successors":
@@ -295,32 +412,78 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       </div>
       ${empty(locale, t(locale, "No activity code assignments are returned by the project read model.", "هیچ تخصیص کد فعالیتی توسط مدل خواندن پروژه برگردانده نشده است."))}`;
     case "steps":
-      return empty(locale, t(locale, "This activity has no steps in the current project data. Steps are not synthesised here.", "این فعالیت در دادهٔ فعلی پروژه گامی ندارد. گام‌ها در این پنل ساخته نمی‌شوند."));
+      return empty(locale, t(locale, "Activity steps have not been loaded yet. Activity-step records are not included in the current workspace projection, so this view cannot determine whether the activity has steps.", "سوابق گام‌های فعالیت در نمای فعلی محیط کار بارگذاری نشده‌اند؛ بنابراین از این صفحه نمی‌توان وجود یا نبود گام برای این فعالیت را نتیجه گرفت."));
     case "relationships": {
       const gantt = activity?.gantt;
       return `${section(t(locale, "Predecessors", "پیش‌نیازها"), relationshipRows(locale, predecessors))}${section(t(locale, "Successors", "پس‌نیازها"), relationshipRows(locale, successors))}
         ${gantt ? `<div class="cp-detail-grid">${field(locale, t(locale, "Gantt start", "شروع گانت"), gantt.start)}${field(locale, t(locale, "Gantt finish", "پایان گانت"), gantt.finish)}${field(locale, t(locale, "Gantt progress", "پیشرفت گانت"), `${gantt.progressPercent}%`)}</div>` : ""}`;
     }
-    case "calendar":
-      return `<div class="cp-detail-grid">
-        ${field(locale, t(locale, "Activity calendar", "تقویم فعالیت"), cell(activity, "calendar_id", "calendar_name", "calendar"))}
-        ${field(locale, t(locale, "Project calendar", "تقویم پروژه"), state?.calendarMode === "jalali" ? t(locale, "Jalali display", "نمایش شمسی") : t(locale, "Gregorian display", "نمایش میلادی"))}
-        ${field(locale, t(locale, "Data date", "تاریخ داده"), dataDate === "—" ? "" : dataDate)}
-      </div>
-      <p class="cp-detail-hint">${esc(t(locale, "The project read model does not return activity calendar assignments yet.", "مدل خواندن پروژه هنوز تخصیص تقویم فعالیت را برنمی‌گرداند."))}</p>`;
     case "documents":
-      return empty(locale, t(locale, "No documents are linked to this activity in the project read model. Project documents are listed on the Documents page.", "هیچ سندی در مدل خواندن پروژه به این فعالیت پیوند ندارد. اسناد پروژه در صفحهٔ اسناد فهرست می‌شوند."));
+      return renderActivityDocuments(locale, input, activity);
     case "expenses":
-      return empty(locale, t(locale, "No activity expense records are returned by the project read model.", "هیچ رکورد هزینهٔ فعالیتی توسط مدل خواندن پروژه برگردانده نشده است."));
+      return renderActivityExpenses(locale, input, activity);
+    case "issues": {
+      if (!activity) return empty(locale, t(locale, "Select an activity to view linked issues.", "برای مشاهده مسائل پیوندشده، یک فعالیت انتخاب کنید."));
+      const linkedIssues = (state?.fieldIssues ?? []).filter((issue) => issue.activityIds.includes(activity.id));
+      if (!linkedIssues.length) {
+        return empty(locale, t(locale, "No linked issue records are present in the current workspace projection. An empty projection does not prove that no issues exist.", "در نمای فعلی محیط کار رکورد مسئله پیوندشده‌ای وجود ندارد. خالی بودن این نما اثبات نمی‌کند که هیچ مسئله‌ای وجود ندارد."));
+      }
+      return `<table class="cp-detail-table"><thead><tr>
+        <th>${esc(t(locale, "Issue ID", "شناسه مسئله"))}</th>
+        <th>${esc(t(locale, "Title", "عنوان"))}</th>
+        <th>${esc(t(locale, "Category", "دسته‌بندی"))}</th>
+        <th>${esc(t(locale, "Severity", "شدت"))}</th>
+        <th>${esc(t(locale, "Status", "وضعیت"))}</th>
+        <th>${esc(t(locale, "Reported by", "گزارش‌دهنده"))}</th>
+        <th>${esc(t(locale, "Updated", "آخرین به‌روزرسانی"))}</th>
+      </tr></thead><tbody>${linkedIssues.map((issue) => `<tr>
+        <td>${esc(issue.issueId)}</td>
+        <td>${esc(translateWorkspaceUiText(locale, issue.titleKey, issue.titleKey))}</td>
+        <td>${esc(issue.category)}</td>
+        <td>${esc(issue.severity)}</td>
+        <td>${esc(issue.status)}</td>
+        <td>${esc(issue.reportedBy)}</td>
+        <td>${esc(issue.updatedAt)}</td>
+      </tr>`).join("")}</tbody></table>`;
+    }
     case "risks":
-      return empty(locale, t(locale, "No activity risk records are returned by the project read model. Project issues are listed on the Control page.", "هیچ رکورد ریسک فعالیتی توسط مدل خواندن پروژه برگردانده نشده است. مسائل پروژه در صفحهٔ کنترل فهرست می‌شوند."));
-    case "notebook":
-      return `<p class="cp-detail-empty">${esc(t(locale, "Notebook entries are not stored by the project read model. Browser-local notes for this activity are available from the Comments rail.", "مدخل‌های دفترچه توسط مدل خواندن پروژه ذخیره نمی‌شوند. یادداشت‌های محلی این فعالیت از نوار یادداشت‌ها در دسترس است."))}</p>`;
+      return empty(locale, t(locale, "No activity risk records are included in the current workspace projection. This does not establish that the activity has no risks.", "سوابق ریسک فعالیت در نمای فعلی محیط کار بارگذاری نشده‌اند؛ این موضوع به معنی نداشتن ریسک نیست."));
+    case "summary": {
+      const gantt = activity?.gantt;
+      return `<div class="cp-detail-grid">
+        ${field(locale, t(locale, "Activity ID", "شناسه فعالیت"), activity?.code ?? "")}
+        ${field(locale, t(locale, "Activity name", "نام فعالیت"), activity?.name ?? "")}
+        ${field(locale, t(locale, "WBS", "ساختار شکست"), activityWbsLabel(input, activity))}
+        ${field(locale, t(locale, "Start", "شروع"), cell(activity, "early_start", "start_date", "start") || gantt?.start || "")}
+        ${field(locale, t(locale, "Finish", "پایان"), cell(activity, "early_finish", "finish_date", "finish") || gantt?.finish || "")}
+        ${field(locale, t(locale, "Duration", "مدت"), cell(activity, "duration", "planned_duration"))}
+        ${field(locale, t(locale, "Percent complete", "درصد پیشرفت"), cell(activity, "duration_percent_complete", "percent_complete", "progress") || (gantt ? String(gantt.progressPercent) : ""))}
+        ${field(locale, t(locale, "Total float", "شناوری کل"), cell(activity, "total_float"))}
+        ${field(locale, t(locale, "Free float", "شناوری آزاد"), cell(activity, "free_float"))}
+        ${field(locale, t(locale, "Critical", "بحرانی"), booleanCell(locale, activity, "is_critical") || (gantt ? (gantt.critical ? t(locale, "Yes", "بله") : t(locale, "No", "خیر")) : ""))}
+      </div>
+      <p class="cp-detail-hint">${esc(t(locale, "Summary fields are displayed only from the selected activity projection and authoritative schedule facts; this panel does not calculate rollups.", "فیلدهای خلاصه فقط از نمای فعالیت انتخاب‌شده و اطلاعات مرجع زمان‌بندی نمایش داده می‌شوند؛ این پنل محاسبات تجمیعی انجام نمی‌دهد."))}</p>`;
+    }
+    case "update-history":
+      return empty(locale, t(locale, "Activity-specific audit history is not included in the current workspace read model. No change entries are inferred or synthesized.", "تاریخچه ممیزی مختص فعالیت در مدل خواندن فعلی محیط کار وجود ندارد. هیچ سابقه تغییری حدس زده یا ساخته نمی‌شود."));
+    case "notebook": {
+      if (!activity || !state) return empty(locale, t(locale, "Select an activity to view its local notes.", "برای مشاهده یادداشت‌های محلی، یک فعالیت انتخاب کنید."));
+      const notes = listWorkspaceEntityComments({ projectId: state.context.project_id, entityKind: "activity", entityId: activity.id });
+      if (!notes.length) return empty(locale, t(locale, "No browser-local notes have been recorded for this activity. Add one from the Comments rail.", "برای این فعالیت یادداشت محلی ثبت نشده است. از نوار یادداشت‌ها یک یادداشت اضافه کنید."));
+      return `<div class="cp-detail-notes">${notes.map((note) => `<article class="cp-detail-note"><header><strong>${esc(note.author)}</strong><time datetime="${esc(note.createdAt)}">${esc(note.createdAt)}</time></header><p>${esc(note.body)}</p>${note.parentId ? `<small>${esc(t(locale, "Reply", "پاسخ"))}</small>` : ""}</article>`).join("")}</div><p class="cp-detail-hint">${esc(t(locale, "These notes are stored in this browser only. They are not part of the project database or formal audit history.", "این یادداشت‌ها فقط در همین مرورگر ذخیره شده‌اند و بخشی از پایگاه داده پروژه یا تاریخچه رسمی ممیزی نیستند."))}</p>`;
+    }
     case "udfs":
-      return empty(locale, t(locale, "No user-defined fields are returned for this activity.", "هیچ فیلد سفارشی برای این فعالیت برگردانده نشده است."));
+      return renderActivityUdfs(locale, input, activity);
     default:
       return "";
   }
+}
+
+export function renderActivityDetailsTabContent(
+  tab: ActivityDetailsTabId,
+  input: ActivityDetailsInput,
+): string {
+  return activityTabBody(tab, input);
 }
 
 function stateCounts(state: WorkspaceState): string {
@@ -621,12 +784,31 @@ function activeBody(tab: string, input: ActivityDetailsInput): string {
   return isActivityTab(tab) ? activityTabBody(tab, input) : "";
 }
 
+function renderActivityDetailsTabsDialog(locale: string, tabs: readonly TabLabel[], visible: readonly ActivityDetailsTabId[]): string {
+  const selected = new Set(visible);
+  return `<dialog class="cp-activity-details-options" data-detail-tabs-dialog aria-labelledby="cp-detail-tabs-title">
+    <div class="cp-activity-details-options-head">
+      <h3 id="cp-detail-tabs-title">${esc(t(locale, "Customize Activity Details", "تنظیم زبانه‌های جزئیات فعالیت"))}</h3>
+      <button type="button" data-detail-tabs-close aria-label="${esc(t(locale, "Close", "بستن"))}">×</button>
+    </div>
+    <p>${esc(t(locale, "Choose which detail tabs are visible in the bottom layout.", "زبانه‌هایی را که در پنل جزئیات پایین نمایش داده می‌شوند انتخاب کنید."))}</p>
+    <div class="cp-activity-details-options-list">${tabs.map((tab) => `<label><input type="checkbox" data-detail-tab-visible="${tab.id}"${selected.has(tab.id as ActivityDetailsTabId) ? " checked" : ""}> ${esc(translateWorkspaceUiText(locale, tab.en, tab.fa))}</label>`).join("")}</div>
+    <footer>
+      <button type="button" data-detail-tabs-close>${esc(t(locale, "Cancel", "انصراف"))}</button>
+      <button type="button" data-detail-tabs-apply>${esc(t(locale, "Apply", "اعمال"))}</button>
+    </footer>
+  </dialog>`;
+}
+
 export function renderActivityDetailsPanel(input: ActivityDetailsInput): string {
   const { locale } = input;
-  const tabs = tabsFor(input);
+  const allTabs = tabsFor(input);
   const state = input.state;
   const activityMode = !state || state.activeMenu === "schedule";
-  const active = activityMode ? readActivityDetailsTab() : (tabs[0]?.id ?? "general");
+  const visibleIds = activityMode ? readActivityDetailsVisibleTabs() : allTabs.map((tab) => tab.id as ActivityDetailsTabId);
+  const tabs = activityMode ? allTabs.filter((tab) => visibleIds.includes(tab.id as ActivityDetailsTabId)) : allTabs;
+  const activeCandidate = activityMode ? readActivityDetailsTab() : (tabs[0]?.id ?? "general");
+  const active = tabs.some((tab) => tab.id === activeCandidate) ? activeCandidate : (tabs[0]?.id ?? "general");
   const index = input.activities.findIndex((row) => row.id === input.selectedActivityId);
   const previous = index > 0 ? input.activities[index - 1] : null;
   const next = index >= 0 && index < input.activities.length - 1 ? input.activities[index + 1] : null;
@@ -640,15 +822,18 @@ export function renderActivityDetailsPanel(input: ActivityDetailsInput): string 
         <span class="cp-details-id cp-detail-selected">${esc(identityFor(input))}</span>
       </div>`;
   return `<div class="cp-details-head">
-      <h2 id="cp-details-heading">${esc(titleFor(input))}</h2>
+      <div><h2 id="cp-details-heading">${esc(titleFor(input))}</h2></div>
+      ${activityMode ? `<div class="cp-activity-details-heading-actions"><small>${esc(t(locale, "Activity Details", "جزئیات فعالیت"))}</small><button type="button" data-detail-tabs-customize>${esc(t(locale, "Customize Tabs", "تنظیم زبانه‌ها"))}</button></div>` : ""}
       ${nav}
     </div>
     <div class="cp-detail-tabs" role="tablist" aria-label="${esc(t(locale, "Detail tabs", "زبانه‌های جزئیات"))}">
-      ${tabs.map((tab) => `<button type="button" role="tab" class="cp-detail-tab${tab.id === active ? " is-active" : ""}" data-detail-tab="${tab.id}" aria-selected="${tab.id === active ? "true" : "false"}" tabindex="${tab.id === active ? "0" : "-1"}">${esc(translateWorkspaceUiText(locale, tab.en, tab.fa))}</button>`).join("")}
+      ${tabs.map((tab) => `<button type="button" role="tab" class="cp-detail-tab${tab.id === active ? " is-active" : ""}" data-detail-tab="${tab.id}" aria-controls="cp-detail-panel-${tab.id}" aria-selected="${tab.id === active ? "true" : "false"}" tabindex="${tab.id === active ? "0" : "-1"}">${esc(translateWorkspaceUiText(locale, tab.en, tab.fa))}</button>`).join("")}
     </div>
-    ${tabs.map((tab) => `<div class="cp-detail-panel" role="tabpanel" data-detail-panel="${tab.id}"${tab.id === active ? "" : " hidden"}>
+    ${tabs.map((tab) => `<div id="cp-detail-panel-${tab.id}" class="cp-detail-panel" role="tabpanel" data-detail-panel="${tab.id}"${tab.id === active ? "" : " hidden"}>
       ${tab.id === active ? activeBody(tab.id, input) : ""}
-    </div>`).join("")}`;
+    </div>`).join("")}
+    ${activityMode ? renderActivityDetailsTabsDialog(locale, allTabs, visibleIds) : ""}
+  `;
 }
 
 /**
@@ -656,30 +841,177 @@ export function renderActivityDetailsPanel(input: ActivityDetailsInput): string 
  * the table keeps its scroll position; only the active tab has content in the
  * DOM, which keeps the lower pane cheap on mobile.
  */
-type DetailsRuntime = { input: ActivityDetailsInput; onSelect: (id: string) => void };
+type DetailsRuntime = { input: ActivityDetailsInput; onSelect: (id: string) => void; inFlight: Set<"resources" | "expenses"> };
 const detailsRuntime = new WeakMap<HTMLElement, DetailsRuntime>();
 const detailsBound = new WeakSet<HTMLElement>();
+
+const activityDataDateRequests = new Map<string, Promise<string | null>>();
+const activityUdfRequests = new Map<string, Promise<readonly P6UdfEditorMetadata[]>>();
+
+function ensureActivityUdfs(host: HTMLElement, runtime: DetailsRuntime): void {
+  const current = runtime.input.activityUdfs;
+  if (current?.status === "loaded" || current?.status === "error") return;
+  const context = runtime.input.state?.context;
+  if (!context) return;
+  runtime.input = { ...runtime.input, activityUdfs: { status: "loading", records: [], errorCode: null } };
+  const panel = host.querySelector<HTMLElement>(`[data-detail-panel="udfs"]`);
+  if (panel && !panel.hidden) panel.innerHTML = activeBody("udfs", runtime.input);
+  const key = `${context.tenant_id}:${context.project_id}:${context.revision}`;
+  let request = activityUdfRequests.get(key);
+  if (!request) {
+    request = fetchP6ActivityUdfs(context.project_id, "p6-field-registry.v1").then((result) => result.udfs);
+    activityUdfRequests.set(key, request);
+  }
+  void request.then((records) => {
+    if (detailsRuntime.get(host) !== runtime) return;
+    runtime.input = { ...runtime.input, activityUdfs: { status: "loaded", records, errorCode: null } };
+    const activePanel = host.querySelector<HTMLElement>(`[data-detail-panel="udfs"]`);
+    if (activePanel && !activePanel.hidden) activePanel.innerHTML = activeBody("udfs", runtime.input);
+  }).catch((error: unknown) => {
+    if (detailsRuntime.get(host) !== runtime) return;
+    activityUdfRequests.delete(key);
+    runtime.input = { ...runtime.input, activityUdfs: { status: "error", records: [], errorCode: error instanceof Error ? error.message : "API_ERROR" } };
+    const activePanel = host.querySelector<HTMLElement>(`[data-detail-panel="udfs"]`);
+    if (activePanel && !activePanel.hidden) activePanel.innerHTML = activeBody("udfs", runtime.input);
+  });
+}
+
+function ensureActivityDataDate(host: HTMLElement, runtime: DetailsRuntime): void {
+  if (runtime.input.dataDate !== "—") return;
+  const context = runtime.input.state?.context;
+  const transport = runtime.input.transport;
+  if (!context || !transport) return;
+  const key = `${context.tenant_id}:${context.project_id}:${context.revision}`;
+  let request = activityDataDateRequests.get(key);
+  if (!request) {
+    request = loadScheduleDataDate(transport, context).then((result) => result.ok ? result.data : null);
+    activityDataDateRequests.set(key, request);
+  }
+  void request.then((dataDate) => {
+    if (detailsRuntime.get(host) !== runtime || dataDate === null) return;
+    runtime.input = { ...runtime.input, dataDate };
+    const panel = host.querySelector<HTMLElement>(`[data-detail-panel="general"]`);
+    if (panel && !panel.hidden) panel.innerHTML = activeBody("general", runtime.input);
+  });
+}
+
+function sameProjectRevision(left: ActivityDetailsInput, right: ActivityDetailsInput): boolean {
+  const a = left.state?.context;
+  const b = right.state?.context;
+  return Boolean(a && b && a.tenant_id === b.tenant_id && a.project_id === b.project_id && a.revision === b.revision);
+}
+
+function renderLoadedTab(host: HTMLElement, runtime: DetailsRuntime, tab: "resources" | "expenses"): void {
+  const panel = host.querySelector<HTMLElement>(`[data-detail-panel="${tab}"]`);
+  if (panel && !panel.hidden) panel.innerHTML = activeBody(tab, runtime.input);
+}
+
+function ensureActivityDetailsData(host: HTMLElement, runtime: DetailsRuntime, tab: "resources" | "expenses"): void {
+  const key = tab === "resources" ? "resourceAssignments" : "activityExpenses";
+  const current = runtime.input[key];
+  if (current?.status === "loaded" || current?.status === "loading" || runtime.inFlight.has(tab)) return;
+  const transport = runtime.input.transport;
+  const context = runtime.input.state?.context;
+  if (!transport || !context || !runtime.input.selectedActivityId) return;
+  runtime.input = { ...runtime.input, [key]: { status: "loading", records: [], errorCode: null } };
+  runtime.inFlight.add(tab);
+  renderLoadedTab(host, runtime, tab);
+  const request = tab === "resources" ? loadAssignments(transport, context) : loadExpenses(transport, context);
+  void request.then((result) => {
+    if (detailsRuntime.get(host) !== runtime) return;
+    runtime.inFlight.delete(tab);
+    runtime.input = {
+      ...runtime.input,
+      [key]: result.ok
+        ? { status: "loaded", records: result.data, errorCode: null }
+        : { status: "error", records: [], errorCode: result.error.code },
+    };
+    renderLoadedTab(host, runtime, tab);
+  }).catch((error: unknown) => {
+    if (detailsRuntime.get(host) !== runtime) return;
+    runtime.inFlight.delete(tab);
+    runtime.input = {
+      ...runtime.input,
+      [key]: { status: "error", records: [], errorCode: error instanceof Error ? error.message : "API_ERROR" },
+    };
+    renderLoadedTab(host, runtime, tab);
+  });
+}
 
 export function enhanceActivityDetails(
   host: HTMLElement,
   input: ActivityDetailsInput,
   onSelectActivity: (id: string) => void,
 ): void {
-  detailsRuntime.set(host, { input, onSelect: onSelectActivity });
-  host.innerHTML = renderActivityDetailsPanel(input);
+  const previous = detailsRuntime.get(host);
+  const reuse = previous !== undefined && sameProjectRevision(previous.input, input);
+  const resourceAssignments = reuse && previous.input.resourceAssignments?.status !== "loading"
+    ? previous.input.resourceAssignments : input.resourceAssignments;
+  const activityExpenses = reuse && previous.input.activityExpenses?.status !== "loading"
+    ? previous.input.activityExpenses : input.activityExpenses;
+  const dataDate = reuse && previous.input.dataDate !== "—" ? previous.input.dataDate : input.dataDate;
+  const runtime: DetailsRuntime = {
+    input: { ...input, resourceAssignments, activityExpenses, dataDate },
+    onSelect: onSelectActivity,
+    inFlight: new Set(),
+  };
+  detailsRuntime.set(host, runtime);
+  host.innerHTML = renderActivityDetailsPanel(runtime.input);
+  const activeTab = host.querySelector<HTMLElement>("[data-detail-tab].is-active")?.dataset.detailTab;
+  if (activeTab === "resources" || activeTab === "expenses") ensureActivityDetailsData(host, runtime, activeTab);
+  if (activeTab === "udfs") ensureActivityUdfs(host, runtime);
+  ensureActivityDataDate(host, runtime);
   if (detailsBound.has(host)) return;
   detailsBound.add(host);
   host.addEventListener("click", (event) => {
-    const runtime = detailsRuntime.get(host);
-    if (!runtime) return;
-    const input = runtime.input;
-    const onSelectActivity = runtime.onSelect;
+    const current = detailsRuntime.get(host);
+    if (!current) return;
+    const currentInput = current.input;
+    const onSelect = current.onSelect;
     const target = event.target as HTMLElement | null;
     if (!target || typeof target.closest !== "function") return;
+    const retry = target.closest<HTMLElement>("[data-detail-retry]");
+    if (retry?.dataset.detailRetry === "udfs") {
+      current.input = { ...current.input, activityUdfs: { status: "idle", records: [], errorCode: null } };
+      ensureActivityUdfs(host, current);
+      return;
+    }
+    if (retry?.dataset.detailRetry === "resources" || retry?.dataset.detailRetry === "expenses") {
+      const tabId = retry.dataset.detailRetry;
+      const key = tabId === "resources" ? "resourceAssignments" : "activityExpenses";
+      current.input = { ...current.input, [key]: { status: "idle", records: [], errorCode: null } };
+      ensureActivityDetailsData(host, current, tabId);
+      return;
+    }
+    const customize = target.closest<HTMLElement>("[data-detail-tabs-customize]");
+    if (customize) {
+      const dialog = host.querySelector<HTMLDialogElement>("[data-detail-tabs-dialog]");
+      if (dialog && typeof dialog.showModal === "function") dialog.showModal();
+      else dialog?.setAttribute("open", "");
+      return;
+    }
+    if (target.closest<HTMLElement>("[data-detail-tabs-close]")) {
+      const dialog = host.querySelector<HTMLDialogElement>("[data-detail-tabs-dialog]");
+      if (dialog && typeof dialog.close === "function") dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
+    if (target.closest<HTMLElement>("[data-detail-tabs-apply]")) {
+      const dialog = host.querySelector<HTMLElement>("[data-detail-tabs-dialog]");
+      const selected = Array.from(dialog?.querySelectorAll<HTMLInputElement>("[data-detail-tab-visible]") ?? [])
+        .filter((checkbox) => checkbox.checked)
+        .map((checkbox) => checkbox.dataset.detailTabVisible ?? "")
+        .filter(isActivityTab);
+      if (!selected.length) return;
+      rememberVisibleTabs(selected);
+      if (!selected.includes(readActivityDetailsTab())) rememberTab(selected[0]);
+      host.innerHTML = renderActivityDetailsPanel(current.input);
+      return;
+    }
     const tab = target.closest<HTMLElement>("[data-detail-tab]");
     if (tab?.dataset.detailTab) {
       const id = tab.dataset.detailTab;
-      if (isActivityTab(id) && (!input.state || input.state.activeMenu === "schedule")) rememberTab(id);
+      if (isActivityTab(id) && (!currentInput.state || currentInput.state.activeMenu === "schedule")) rememberTab(id);
       host.querySelectorAll<HTMLElement>("[data-detail-tab]").forEach((button) => {
         const selected = button.dataset.detailTab === id;
         button.classList.toggle("is-active", selected);
@@ -689,13 +1021,15 @@ export function enhanceActivityDetails(
       host.querySelectorAll<HTMLElement>("[data-detail-panel]").forEach((panel) => {
         const selected = panel.dataset.detailPanel === id;
         panel.hidden = !selected;
-        panel.innerHTML = selected ? activeBody(id, input) : "";
+        panel.innerHTML = selected ? activeBody(id, current.input) : "";
       });
+      if (id === "resources" || id === "expenses") ensureActivityDetailsData(host, current, id);
+      if (id === "udfs") ensureActivityUdfs(host, current);
       return;
     }
     const prev = target.closest<HTMLElement>("[data-details-prev]");
-    if (prev?.dataset.detailsPrev) { onSelectActivity(prev.dataset.detailsPrev); return; }
+    if (prev?.dataset.detailsPrev) { onSelect(prev.dataset.detailsPrev); return; }
     const next = target.closest<HTMLElement>("[data-details-next]");
-    if (next?.dataset.detailsNext) { onSelectActivity(next.dataset.detailsNext); return; }
+    if (next?.dataset.detailsNext) { onSelect(next.dataset.detailsNext); return; }
   });
 }
