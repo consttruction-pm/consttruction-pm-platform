@@ -39,7 +39,7 @@ function decimalText(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   if (typeof value !== "string" && typeof value !== "number") throw new Error("INVALID_ACTIVITY_STEP_RECORD");
   const result = String(value).trim();
-  if (!/^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$/.test(result)) throw new Error("INVALID_ACTIVITY_STEP_RECORD");
+  if (!/^-?(?:0|[1-9]\d*)(?:\\.\d+)?$/.test(result)) throw new Error("INVALID_ACTIVITY_STEP_RECORD");
   return result;
 }
 
