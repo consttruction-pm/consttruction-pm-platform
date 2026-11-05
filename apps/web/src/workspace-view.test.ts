@@ -2008,7 +2008,8 @@ test("collapsing a parent WBS group hides its descendant table and Gantt rows wi
 
   assert.match(container.innerHTML, /data-activity-group-band="WBS-01"/);
   assert.doesNotMatch(container.innerHTML, /data-activity-group-band="WBS-01A"/);
-  assert.doesNotMatch(container.innerHTML, /data-activity-detail-tab="A-02"/);
+  assert.doesNotMatch(container.innerHTML, /data-activity-id="A-01"/);
+  assert.doesNotMatch(container.innerHTML, /data-activity-id="A-02"/);
   assert.doesNotMatch(container.innerHTML, /data-gantt-activity-id="A-01"/);
   assert.doesNotMatch(container.innerHTML, /data-gantt-activity-id="A-02"/);
   assert.match(container.innerHTML, /data-gantt-activity-id="A-03"/);
