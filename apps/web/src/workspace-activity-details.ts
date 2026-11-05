@@ -7,6 +7,7 @@
 import type { ApiTransport } from "./client.js";
 import { loadAssignments, type AssignmentRecord } from "./workspace-assignments.js";
 import { loadExpenses, type ExpenseRecord } from "./workspace-expenses.js";
+import { loadScheduleDataDate } from "./workspace-cost.js";
 import type {
   WorkspaceActivityRow,
   WorkspaceMenuKey,
@@ -285,6 +286,19 @@ function renderResourceAssignments(locale: string, input: ActivityDetailsInput, 
   return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
+function renderActivityDocuments(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
+  if (!activity) return empty(locale, t(locale, "Select an activity to view its linked documents.", "برای مشاهده اسناد پیوندشده، یک فعالیت انتخاب کنید."));
+  const documents = (input.state?.documents ?? []).filter((document) =>
+    document.linkedEntityRefs.includes(activity.id) || document.linkedEntityRefs.includes(activity.code),
+  );
+  if (!documents.length) return empty(locale, t(locale, "No documents in the current project read model are linked to this activity.", "در مدل خواندن فعلی پروژه سندی به این فعالیت پیوند داده نشده است."));
+  const headings = ["Document ID", "Title", "Type", "Status", "Revision", "Content hash"];
+  const persianHeadings = ["شناسه سند", "عنوان", "نوع", "وضعیت", "ویرایش", "هش محتوا"];
+  const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
+  const body = documents.map((document) => `<tr><td>${esc(document.documentId)}</td><td>${esc(document.title)}</td><td>${esc(document.resourceType)}</td><td>${esc(document.status)}</td><td>R${document.revision}</td><td><code>${esc(document.contentHash)}</code></td></tr>`).join("");
+  return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><p class="cp-detail-hint">${esc(t(locale, "Document metadata is read-only here. File open/download actions are not exposed by the current document API.", "اطلاعات سند در این بخش فقط‌خواندنی است. API فعلی اسناد امکان بازکردن یا دریافت فایل را ارائه نمی‌کند."))}</p></div>`;
+}
+
 function renderActivityExpenses(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
   if (!activity) return empty(locale, t(locale, "Select an activity to view its expenses.", "برای مشاهده هزینه‌ها، یک فعالیت انتخاب کنید."));
   const data = input.activityExpenses;
@@ -382,7 +396,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         ${gantt ? `<div class="cp-detail-grid">${field(locale, t(locale, "Gantt start", "شروع گانت"), gantt.start)}${field(locale, t(locale, "Gantt finish", "پایان گانت"), gantt.finish)}${field(locale, t(locale, "Gantt progress", "پیشرفت گانت"), `${gantt.progressPercent}%`)}</div>` : ""}`;
     }
     case "documents":
-      return empty(locale, t(locale, "No documents are linked to this activity in the project read model. Project documents are listed on the Documents page.", "هیچ سندی در مدل خواندن پروژه به این فعالیت پیوند ندارد. اسناد پروژه در صفحهٔ اسناد فهرست می‌شوند."));
+      return renderActivityDocuments(locale, input, activity);
     case "expenses":
       return renderActivityExpenses(locale, input, activity);
     case "issues": {
@@ -804,6 +818,27 @@ type DetailsRuntime = { input: ActivityDetailsInput; onSelect: (id: string) => v
 const detailsRuntime = new WeakMap<HTMLElement, DetailsRuntime>();
 const detailsBound = new WeakSet<HTMLElement>();
 
+const activityDataDateRequests = new Map<string, Promise<string | null>>();
+
+function ensureActivityDataDate(host: HTMLElement, runtime: DetailsRuntime): void {
+  if (runtime.input.dataDate !== "—") return;
+  const context = runtime.input.state?.context;
+  const transport = runtime.input.transport;
+  if (!context || !transport) return;
+  const key = `${context.tenant_id}:${context.project_id}:${context.revision}`;
+  let request = activityDataDateRequests.get(key);
+  if (!request) {
+    request = loadScheduleDataDate(transport, context).then((result) => result.ok ? result.data : null);
+    activityDataDateRequests.set(key, request);
+  }
+  void request.then((dataDate) => {
+    if (detailsRuntime.get(host) !== runtime || dataDate === null) return;
+    runtime.input = { ...runtime.input, dataDate };
+    const panel = host.querySelector<HTMLElement>(`[data-detail-panel="general"]`);
+    if (panel && !panel.hidden) panel.innerHTML = activeBody("general", runtime.input);
+  });
+}
+
 function sameProjectRevision(left: ActivityDetailsInput, right: ActivityDetailsInput): boolean {
   const a = left.state?.context;
   const b = right.state?.context;
@@ -858,8 +893,9 @@ export function enhanceActivityDetails(
     ? previous.input.resourceAssignments : input.resourceAssignments;
   const activityExpenses = reuse && previous.input.activityExpenses?.status !== "loading"
     ? previous.input.activityExpenses : input.activityExpenses;
+  const dataDate = reuse && previous.input.dataDate !== "—" ? previous.input.dataDate : input.dataDate;
   const runtime: DetailsRuntime = {
-    input: { ...input, resourceAssignments, activityExpenses },
+    input: { ...input, resourceAssignments, activityExpenses, dataDate },
     onSelect: onSelectActivity,
     inFlight: new Set(),
   };
@@ -867,6 +903,7 @@ export function enhanceActivityDetails(
   host.innerHTML = renderActivityDetailsPanel(runtime.input);
   const activeTab = host.querySelector<HTMLElement>("[data-detail-tab].is-active")?.dataset.detailTab;
   if (activeTab === "resources" || activeTab === "expenses") ensureActivityDetailsData(host, runtime, activeTab);
+  ensureActivityDataDate(host, runtime);
   if (detailsBound.has(host)) return;
   detailsBound.add(host);
   host.addEventListener("click", (event) => {
