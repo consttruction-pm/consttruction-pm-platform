@@ -2098,9 +2098,8 @@ async function main() {
 
     await page.click('button[name="role"][value="planner"]');
     await page.waitFor(`location.pathname === "/app"`, "planner redirect to /app");
-    // The product default /app route is the visual preview shell. This legacy
-    // data-backed project-directory journey must explicitly request the live
-    // workspace so the test exercises the authenticated project picker.
+    // The canonical /app route is now always the authenticated workspace.
+    // The project picker is the first step when no project is in the URL.
     await page.navigate(
       `${baseUrl}/app?view=live`,
       ".cp-project-selection",
