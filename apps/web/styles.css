@@ -7477,3 +7477,77 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   .cp-p6 .cp-workspace-appearance-grid { grid-template-columns: minmax(0, 1fr); }
   .cp-p6 .cp-workspace-appearance-mode { grid-template-columns: minmax(0, 1fr); }
 }
+
+
+/* Foreground colours are computed from each user-selected surface colour. */
+.cp-p6 .cp-p6-workspace {
+  --cp-ws-navigation-text: #1f2d3d;
+  --cp-ws-panel-text: #1f2d3d;
+  --cp-ws-grid-text: #1f2d3d;
+  --cp-ws-grid-header-text: #1f2d3d;
+  --cp-ws-gantt-text: #1f2d3d;
+  --cp-ws-header-text: #1f2d3d;
+  --cp-wbs-level-1-text: #ffffff;
+  --cp-wbs-level-2-text: #ffffff;
+  --cp-wbs-level-3-text: #ffffff;
+  --cp-wbs-level-4-text: #ffffff;
+}
+.cp-p6 .cp-navigation-tree .cp-rail-button,
+.cp-p6 .cp-nav-tree-title { color: var(--cp-ws-navigation-text); }
+.cp-p6 .cubi-command-shell { color: var(--cp-ws-header-text); }
+.cp-p6 .cubi-command-menubar,
+.cp-p6 .cubi-menu-root > details > summary { color: var(--cp-ws-header-text); }
+.cp-p6 .cubi-menu-popup li button,
+.cp-p6 .cubi-command-parent summary { color: var(--cp-ws-panel-text); }
+.cp-p6 .cubi-toolbar-group button { color: var(--cp-ws-panel-text); }
+.cp-p6 .cp-window-tabs,
+.cp-p6 .cp-p6-activity-header,
+.cp-p6 .cp-context-command-bar,
+.cp-p6 .cp-p6-grid-head,
+.cp-p6 .cp-p6-gantt-head,
+.cp-p6 .cp-details-head,
+.cp-p6 .cp-detail-tabs { color: var(--cp-ws-header-text); }
+.cp-p6 .cp-p6-activity-heading strong,
+.cp-p6 .cp-p6-activity-meta,
+.cp-p6 .cp-details-head h2 { color: var(--cp-ws-header-text); }
+.cp-p6 .cp-p6-chip,
+.cp-p6 .cp-context-command-bar button,
+.cp-p6 .cp-details-nav button,
+.cp-p6 .cp-detail-id { color: var(--cp-ws-panel-text); }
+.cp-p6 #cp-activity-grid { color: var(--cp-ws-grid-text); }
+.cp-p6 #cp-activity-grid thead th { color: var(--cp-ws-grid-header-text); }
+.cp-p6 #cp-activity-grid tbody td { color: var(--cp-ws-grid-text); }
+.cp-p6 #cp-gantt { color: var(--cp-ws-gantt-text); }
+.cp-p6 .cp-gantt-axis-tick { color: var(--cp-ws-grid-header-text); }
+.cp-p6 .cp-gantt-label { color: var(--cp-ws-gantt-text); }
+.cp-p6 #cp-details,
+.cp-p6 .cp-detail-panel,
+.cp-p6 .cp-detail-table { color: var(--cp-ws-panel-text); }
+.cp-p6 .cp-detail-field,
+.cp-p6 .cp-detail-table td { color: var(--cp-ws-panel-text); }
+.cp-p6 .cp-detail-table th { color: var(--cp-ws-grid-header-text); }
+.cp-p6 .cp-p6-flyout,
+.cp-p6 .cp-p6-drawer,
+.cp-p6 .cp-comments-dock,
+.cp-p6 .cp-p6-tool-panel,
+.cp-p6 .cp-p6-tools-drawer .cp-panel,
+.cp-p6 .cp-p6-wbs-drawer > .cp-wbs { color: var(--cp-ws-panel-text); }
+.cp-p6 .cp-workspace-appearance-dialog { color: var(--cp-ws-panel-text); }
+.cp-p6 .cp-workspace-appearance-dialog > header { color: var(--cp-ws-header-text); }
+.cp-p6 .cp-workspace-appearance-dialog > footer button { color: var(--cp-ws-panel-text); }
+.cp-p6 .cp-activity-group-band-content > button,
+.cp-p6 .cp-gantt-group-label > button {
+  color: var(--cp-ws-panel-text);
+}
+.cp-p6 #cp-activity-grid tbody tr.cp-activity-group-band[data-wbs-depth="1"] td { color: var(--cp-wbs-level-1-text) !important; }
+.cp-p6 #cp-activity-grid tbody tr.cp-activity-group-band[data-wbs-depth="2"] td { color: var(--cp-wbs-level-2-text) !important; }
+.cp-p6 #cp-activity-grid tbody tr.cp-activity-group-band[data-wbs-depth="3"] td { color: var(--cp-wbs-level-3-text) !important; }
+.cp-p6 #cp-activity-grid tbody tr.cp-activity-group-band[data-wbs-depth="4"] td,
+.cp-p6 #cp-activity-grid tbody tr.cp-activity-group-band[data-wbs-depth="5"] td { color: var(--cp-wbs-level-4-text) !important; }
+.cp-p6 .cp-gantt-group-row[data-wbs-depth="1"] { color: var(--cp-wbs-level-1-text); }
+.cp-p6 .cp-gantt-group-row[data-wbs-depth="2"] { color: var(--cp-wbs-level-2-text); }
+.cp-p6 .cp-gantt-group-row[data-wbs-depth="3"] { color: var(--cp-wbs-level-3-text); }
+.cp-p6 .cp-gantt-group-row[data-wbs-depth="4"],
+.cp-p6 .cp-gantt-group-row[data-wbs-depth="5"] { color: var(--cp-wbs-level-4-text); }
+.cp-p6 .cp-activity-group-band-count,
+.cp-p6 .cp-gantt-group-label > small { color: inherit; opacity: .88; }
