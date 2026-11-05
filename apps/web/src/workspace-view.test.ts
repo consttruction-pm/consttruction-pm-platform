@@ -2018,3 +2018,63 @@ test("collapsing a parent WBS group hides its descendant table and Gantt rows wi
   assert.equal(state.activities.length, 3);
   assert.deepEqual(state.activities.map((activity) => activity.id), ["A-01", "A-02", "A-03"]);
 });
+
+test("Activity row right-click opens a target-aware context menu and Activity Details", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const state = { ...base, activities: [{ id: "A-1", wbsId: "WBS-1", code: "A-1", name: "Excavate" }] };
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = { innerHTML: "", hidden: true, style: {}, querySelector: () => ({ focus: () => {} }) };
+  const row = { dataset: { activityId: "A-1" } };
+  const source = { closest: (selector: string) => selector.includes("#cp-activity-grid tr[data-activity-id]") ? row : null };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const selected: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onActivitySelect: (id) => selected.push(id) });
+  let prevented = false;
+  listeners.get("contextmenu")?.({ target: source, clientX: 180, clientY: 120, preventDefault: () => { prevented = true; } } as unknown as Event);
+  assert.equal(prevented, true);
+  assert.equal(host.hidden, false);
+  assert.match(host.innerHTML, /data-context-action="details"/);
+  assert.match(host.innerHTML, /Show Predecessors/);
+  const menu = { closest: (selector: string) => selector.includes("[data-workspace-context-menu]") ? menu : null };
+  const action = { dataset: { contextAction: "details" }, closest: (selector: string) => selector.includes("[data-context-action]") ? action : menu };
+  listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event);
+  assert.equal(host.hidden, true);
+  assert.deepEqual(selected, ["A-1"]);
+});
+
+test("Relationship context menu uses the persisted relationship identity and revision", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const state = {
+    ...base,
+    activities: [
+      { id: "A-1", wbsId: "WBS-1", code: "A-1", name: "Start" },
+      { id: "A-2", wbsId: "WBS-1", code: "A-2", name: "Finish" },
+    ],
+    relationships: [{ id: "REL-1", predecessorId: "A-1", successorId: "A-2", type: "FS" as const, lagValue: "0", lagUnit: "working-day", recordRevision: 7 }],
+  };
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = { innerHTML: "", hidden: true, style: {}, querySelector: () => ({ focus: () => {} }) };
+  const path = { dataset: { ganttLink: "REL-1" } };
+  const source = { closest: (selector: string) => selector.includes("path[data-gantt-link]") ? path : null };
+  const container = {
+    innerHTML: "", querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const deleted: Array<[string, number]> = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onRelationshipDelete: (id, revision) => deleted.push([id, revision]) });
+  listeners.get("contextmenu")?.({ target: source, clientX: 200, clientY: 100, preventDefault: () => {} } as unknown as Event);
+  assert.match(host.innerHTML, /data-context-action="delete-relationship"/);
+  const menu = { closest: (selector: string) => selector.includes("[data-workspace-context-menu]") ? menu : null };
+  const action = { dataset: { contextAction: "delete-relationship" }, closest: (selector: string) => selector.includes("[data-context-action]") ? action : menu };
+  const originalConfirm = globalThis.confirm;
+  globalThis.confirm = () => true;
+  try { listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event); }
+  finally { globalThis.confirm = originalConfirm; }
+  assert.deepEqual(deleted, [["REL-1", 7]]);
+});
