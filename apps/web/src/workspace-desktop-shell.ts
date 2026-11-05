@@ -139,7 +139,7 @@ export const WINDOW_TITLES: Record<WorkspaceMenuKey, LocalizedLabel> = {
   project: { en: "Projects", fa: "پروژه‌ها" },
   wbs: { en: "WBS", fa: "ساختار شکست" },
   schedule: { en: "Activities", fa: "فعالیت‌ها" },
-  progress: { en: "Tracking", fa: "پیگیری" },
+  progress: { en: "Progress", fa: "پیشرفت" },
   resources: { en: "Resources", fa: "منابع" },
   assignments: { en: "Resource Assignments", fa: "تخصیص منابع" },
   roles: { en: "Roles", fa: "نقش‌ها" },

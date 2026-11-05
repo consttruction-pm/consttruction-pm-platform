@@ -146,6 +146,12 @@ test("window titles cover every navigation surface and avoid third-party product
     .flatMap((menu) => [menu.label.en, ...menu.items.flatMap((item) => [item.label.en, item.shortcut ?? ""])])
     .join(" ");
   assert.ok(!/oracle|primavera/i.test(text), "user-facing chrome must use CUBI names only");
+  // Distinct windows must be distinguishable in the tab strip; two menus named
+  // "Tracking" would make the progress and tracking windows indistinguishable.
+  for (const language of ["en", "fa"] as const) {
+    const labels = Object.values(WINDOW_TITLES).map((title) => title[language]);
+    assert.equal(new Set(labels).size, labels.length, `${language} window titles must be unique`);
+  }
 });
 
 test("disabled commands explain the missing precondition instead of failing silently", () => {
