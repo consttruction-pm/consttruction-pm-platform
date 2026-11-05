@@ -46,6 +46,7 @@ import {
 import { getWorkspaceShellLabels } from "./shell-labels.js";
 import { renderLandingPage } from "./landing.js";
 import { getAvailableWorkspaceLocales, getWorkspaceLocaleDirection, getWorkspaceLocaleDisplayName, translateWorkspaceUiText } from "./workspace-localization.js";
+import { createWorkspaceLanguageSelect } from "./workspace-language-switch.js";
 import { mountAIActionPanel } from "./ai-action-panel.js";
 import { mountAIAssistantChatPanel } from "./ai-assistant-chat.js";
 import { mountScheduleCyclePanels } from "./schedule-cycle.js";
@@ -646,7 +647,8 @@ function renderApp(
     renderApp(container, setCalendarMode(state, nextCalendarMode), persistence);
   };
   calendarButton.onclick = toggleCalendar;
-  status.replaceChildren(document.createTextNode(shellLabels.status), calendarButton);
+  const languageSelect = createWorkspaceLanguageSelect(state.locale, changeLocale);
+  status.replaceChildren(document.createTextNode(shellLabels.status), languageSelect, calendarButton);
   const aiTransport = new FetchApiTransport(window.location.origin);
   const reportWbsMutationError = (error: unknown): void => {
     console.error("WBS mutation failed", error);
