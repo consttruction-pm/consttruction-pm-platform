@@ -81,6 +81,25 @@ button { color: inherit; }
   cursor:pointer;
 }
 .cp-app-status button:hover { border-color: rgba(242,140,40,.75); }
+
+.cp-app-status .cp-workspace-language {
+  min-width:7.25rem;
+  max-width:9rem;
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:.45rem;
+  padding:.35rem .7rem;
+  background:rgba(255,255,255,.06);
+  color:#fff;
+  cursor:pointer;
+}
+.cp-app-status .cp-workspace-language:focus-visible {
+  outline:2px solid #f28c28;
+  outline-offset:2px;
+}
+.cp-app-status .cp-workspace-language option {
+  background:#fff;
+  color:var(--cp-navy);
+}
 .cp-workspace { min-height: calc(100vh - 52px); padding: 1rem; }
 .cp-header {
   display:flex;

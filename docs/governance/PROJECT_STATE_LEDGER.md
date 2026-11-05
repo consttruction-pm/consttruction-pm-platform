@@ -165,3 +165,40 @@ The CI results prove the tested code paths, not live deployment or full V1 accep
 3. **Code slice completed:** PR #1553 adds the proposal-only server-side provider orchestration and authenticated conversation endpoint. Next, wire it into a real deployed backend with production session/project selection, current grant provider, transaction manager and approved server-side `CUBI_AI_*` configuration; verify the live conversation → proposal → approve → execute → fresh-read path.
 4. Implement authoritative reconciliation for interrupted/uncertain actions, then add WBS/relationship/calendar/resource/cost tools and Shared Core run/result grounding.
 5. Keep #1423/#1530/#1540 and #82 open until the complete release acceptance suite, multilingual and Jalali/Gregorian coverage, import/export round-trip, and exact-main end-to-end gates pass.
+
+
+## Product-owner decision — single canonical Visual Workspace (2026-11-04)
+
+- **Decision:** CUBI has exactly one main product environment: the Visual Workspace. No separate dashboard, generic authenticated SaaS app, alternate workspace shell or separate visual-demo/help route is permitted.
+- **Public site order:** Home → normal public/informational pages (Platform, Solutions, Resources, Pricing, Contact, etc.) → one clear product/login entry point to the Visual Workspace.
+- **Session flow:** successful login opens the Visual Workspace by default (or restores a requested deep link inside that same shell); logout returns to public Home.
+- **Capability placement:** all projects, engineering engines, tools, reports, forms, settings and administration are windows/pages/menus/tabs/panels/dialogs inside the one persistent Visual Workspace.
+- **No-regression:** preserve existing approved workspace dimensions, layout, navigation and functions. This decision does not authorize a redesign, removal of existing pages, or changes to the Gantt sizing.
+- **Governance:** issue #1712 is the P0 acceptance gate. Visual shell audit and workspace IA now reference this product-surface rule. Keep the issue open until the running website proves public navigation → login → single workspace → logout → Home and no competing app shell exists.
+- **Documentation change baseline:** branch `docs/single-visual-workspace-product-principle`, based on main SHA `3214e3c8cd204d772ae641dd489a97c781c87e59`. Documentation-only changes; no runtime/UI code changed. Exact branch head and PR checks are recorded in the PR when opened.
+
+## Canonical workspace and multilingual audit — 2026-11-04
+
+**Product invariant:** the authenticated Visual Workspace is the only product environment. Public informational pages remain separate; every authenticated project tool/window must live inside the one persistent workspace. Preserve the approved shell geometry and Gantt dimensions.
+
+### Runtime reconciliation findings
+
+- Current main still routes /app?project=preview-rps-01 and legacy ?view=visual to workspace-visual-demo; Help/Tools also expose a command to that route. The live authenticated workspace is a different UI surface. This is a real mismatch against Issue #1712.
+- PR #1700 is an unmerged, divergent branch changing the static workspace-visual-demo prototype and preview E2E. Its sample records must not be copied into authenticated project data. It is not safe to merge as a second product environment.
+- Draft PR #1715 proposes removing the alternate route and sending all app entries through authenticated project bootstrap, but it is blocked from merge until the approved visual windows/components are migrated into the authenticated shell and browser E2E no longer depends on the demo surface. Do not replace the richer visual shell with a less-complete live shell as a shortcut.
+- Gantt sizing and approved workspace geometry remain protected. The shell migration must preserve the existing page/window inventory, menu/submenu interactions, Details panels, and real-data or truthful disabled states.
+
+### Multilingual runtime audit
+
+- The registered workspace locale list contains exactly: en, fa, de, zh, ar, fr, ja, ko.
+- The locale registry provides display names and RTL/LTR direction, but registry membership and selector visibility are not proof of translation coverage.
+- The authenticated live shell currently lacks a direct eight-language dropdown; Draft PR #1714 adds one using the registry and preserves the existing locale-change/project-state flow. It is not yet visible on the default visual-demo entry route and is not proof that all UI strings are translated.
+- workspace-ui-translations.ts currently contains broad German/Chinese dictionaries; Arabic/French/Japanese/Korean and other uncovered labels fall back to English. The Language Manager route is not composed into the live Web entrypoint, and durable pack activation/reload is not proven.
+- Issues #1428 and #1531 remain release blockers. Do not claim all-language activation until each enabled language has complete coverage for menus, submenus, windows, Details, grids, Gantt, charts, calendars, dialogs, reports/exports, accessibility labels, errors and offline/pack lifecycle, with exact-head tests and browser evidence.
+
+### Current PR gates
+
+- PR #1711 (ENG-06) head 821be2cf7d56b8690b783708471c46323190e451: ConstructionPM CI, PostgreSQL Integration, ConstructionPM Web CI and Client Typecheck all passed on this exact head. PR remains open and unmerged; no review submissions were present at the last audit. Its stated policy-pack, aggregate reconciliation and governed remediation limits remain open.
+- PR #1713 records the canonical single-workspace product principle; docs-only and not runtime acceptance.
+- PR #1714 is Draft. Its first Web CI/Typecheck test run found exactly one failure: source and published workspace CSS copies were not identical (562 tests passed, 1 failed). The published CSS copy was synchronized on head f78749137fa496d2f3ff9725cee2ed4a8a563520; a fresh exact-head CI run was not yet visible at the last check. Do not merge until fresh CI passes and full translation coverage is delivered.
+- PR #1715 is Draft and blocked: it removes the demo route but must not merge until the richer visual shell and its browser E2E are migrated into the authenticated shell. Do not replace the richer shell with a less-complete live surface.

@@ -23,6 +23,7 @@ A web-ready construction project management platform designed as a structured re
 7. Audit/revision history is append-only for effective project changes.
 8. **GitHub/Codex is the canonical development, code-execution and test environment. ChatGPT is a coordination/review/support environment. The temporary rule that moved full development and testing into ChatGPT is revoked.**
 9. Database-backed and runtime verification must use the intended SQL/PostgreSQL-capable GitHub/Codex environment.
+10. **CUBI has exactly one product environment: the Visual Workspace.** The public website contains Home and normal informational pages, followed by one product entry point. Login opens the Visual Workspace by default; logout returns to Home. No separate dashboard, generic authenticated app, alternate workspace or visual-demo route may be introduced. All product capabilities live inside this single workspace.
 
 ## Mandatory continuity entrypoint
 

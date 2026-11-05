@@ -1,5 +1,14 @@
 # CUBI Visual Workspace Master Audit
 
+## Canonical product-environment rule (product-owner decision, 2026-11-04)
+
+CUBI has **one and only one main product environment: this Visual Workspace**. There is no second dashboard, generic SaaS application shell, alternate authenticated workspace, or separate visual-demo/help route. The workspace described in this audit is the product itself, not an optional mode.
+
+The public website remains a conventional public site: Home first, then normal informational pages (Platform, Solutions, Resources, Pricing, Contact and other approved public pages), with one clear product/login entry point. After successful login, the default destination is this Visual Workspace. Logout returns to the public Home page. A requested deep link may be restored only as a window/page inside this same workspace shell.
+
+All authenticated capabilities—including projects, engineering engines, tools, reports, forms, settings and administration—must be implemented as windows, menus, submenus, tabs, panels or dialogs within this single persistent workspace. Do not create a competing dashboard or second app shell. Existing approved dimensions, page layouts and functions are preserved; this rule does not authorize a redesign or removal. See issue [#1712](https://github.com/consttruction-pm/consttruction-pm-platform/issues/1712).
+
+
 Scope: visual shell only. API, persistence, calculation logic and service wiring are out of scope until the visual design is complete.
 
 CUBI must expose the full professional project-controls desktop workspace: complete menu bar, nested menus, toolbars, window tabs, left navigation tree, contextual command bars, layout options and page-specific Details tabs. CUBI additions are additive and must never displace baseline functions. All visible but unwired commands must be marked visual-only/disabled and must not claim success or invent data. Customer-facing UI/help must use CUBI vocabulary and branding only.
