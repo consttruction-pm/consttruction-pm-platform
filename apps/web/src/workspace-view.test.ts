@@ -2067,7 +2067,7 @@ test("Relationship context menu uses the persisted relationship identity and rev
     addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
   };
   const deleted: Array<[string, number]> = [];
-  renderMainWorkspace(container as unknown as HTMLElement, state, { onRelationshipDelete: (id, revision) => deleted.push([id, revision]) });
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onRelationshipDelete: (id, revision) => { deleted.push([id, revision]); } });
   listeners.get("contextmenu")?.({ target: source, clientX: 200, clientY: 100, preventDefault: () => {} } as unknown as Event);
   assert.match(host.innerHTML, /data-context-action="delete-relationship"/);
   const menu = { closest: (selector: string) => selector.includes("[data-workspace-context-menu]") ? menu : null };
