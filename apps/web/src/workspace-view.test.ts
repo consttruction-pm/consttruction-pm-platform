@@ -2076,3 +2076,14 @@ test("Relationship context menu uses the persisted relationship identity and rev
   listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event);
   assert.deepEqual(selected, ["A-2"]);
 });
+
+test("Activity shell exposes saved light/dark appearance controls and independent WBS colour inputs", () => {
+  const html = render("en", "schedule");
+  assert.match(html, /data-workspace-appearance-open/);
+  assert.match(html, /data-workspace-appearance-dialog/);
+  assert.match(html, /data-appearance-mode/);
+  for (const key of ["window", "navigation", "panel", "grid", "gridHeader", "gantt", "wbs1", "wbs2", "wbs3", "wbs4"]) {
+    assert.match(html, new RegExp(`data-appearance-color="${key}"`));
+  }
+  assert.match(html, /selection, status, critical bars and milestones retain their own semantic colours/i);
+});
