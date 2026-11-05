@@ -4834,12 +4834,12 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 
 /* Keep the persistent assistant entry inside the narrow command rail so it
    never covers the Activities grid, Gantt, Details fields or status bar. */
-.cp-p6 .cubi-assistant-launcher {
+body:has(.cp-p6) .cubi-assistant-launcher {
   inset-inline-end: 1px;
   bottom: 52px;
   gap: 0;
 }
-.cp-p6 .cubi-assistant-launcher-button {
+body:has(.cp-p6) .cubi-assistant-launcher-button {
   width: 32px;
   height: 32px;
   min-height: 32px;
@@ -4848,7 +4848,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   gap: 0;
   border-radius: 5px;
 }
-.cp-p6 .cubi-assistant-launcher-button > span:last-child {
+body:has(.cp-p6) .cubi-assistant-launcher-button > span:last-child {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -4860,13 +4860,13 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   white-space: nowrap;
   border: 0;
 }
-.cp-p6 .cubi-assistant-launcher .cubi-assistant-avatar-slot {
+body:has(.cp-p6) .cubi-assistant-launcher .cubi-assistant-avatar-slot {
   flex-basis: 28px;
   width: 28px;
   height: 28px;
 }
-.cp-p6 .cubi-assistant-launcher .cubi-assistant-avatar-slot img,
-.cp-p6 .cubi-assistant-launcher .cubi-assistant-avatar-fallback {
+body:has(.cp-p6) .cubi-assistant-launcher .cubi-assistant-avatar-slot img,
+body:has(.cp-p6) .cubi-assistant-launcher .cubi-assistant-avatar-fallback {
   width: 28px;
   height: 28px;
 }
