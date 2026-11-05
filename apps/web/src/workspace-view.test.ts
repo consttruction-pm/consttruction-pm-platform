@@ -403,9 +403,12 @@ test("Activities Layout Options inventories top and bottom chart layouts without
 
 test("Activities Details renders the complete Version 26 tab inventory without fabricating unloaded records", () => {
   const html = render("en", "schedule");
-  for (const tab of ["general", "status", "resources", "predecessors", "successors", "codes", "tasks", "discussion", "notebook", "steps", "feedback", "documents", "expenses", "summary", "relationships", "risks", "udfs"]) {
+  for (const tab of ["general", "status", "resources", "predecessors", "successors", "relationships", "codes", "notebook", "steps", "documents", "expenses", "issues", "risks", "summary", "udfs", "update-history"]) {
     assert.ok(html.includes(`data-activity-detail-tab="${tab}"`), `missing Activity Details tab: ${tab}`);
   }
+  assert.doesNotMatch(html, /data-activity-detail-tab="tasks"/);
+  assert.doesNotMatch(html, /data-activity-detail-tab="discussion"/);
+  assert.doesNotMatch(html, /data-activity-detail-tab="feedback"/);
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
 test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
