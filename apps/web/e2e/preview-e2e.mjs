@@ -1972,130 +1972,105 @@ async function main() {
       }))()`);
       assert(
         deepLinkLogin.pathname === "/preview/login" &&
-          deepLinkLogin.next === `/app?project=${PROJECT_ID}` &&
+          deepLinkLogin.next === `/app?project=${PROJECT_ID}&view=live` &&
           deepLinkLogin.project === null,
-        "login must preserve the requested project in its validated next path: " +
+        "login must preserve the requested project and canonical live mode: " +
           JSON.stringify(deepLinkLogin),
       );
       await deepLinkPage.click('button[name="role"][value="planner"]');
       await deepLinkPage.waitFor(
-        `location.pathname === "/app" && new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)}`,
-        "login returns to the requested project deep link",
+        `location.pathname === "/app" &&
+         new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)} &&
+         new URLSearchParams(location.search).get("view") === "live"`,
+        "login returns to the requested project in the canonical workspace",
       );
-      // The visual demo is bootstrapped after the session/project fetches settle.
-      // On a busy machine that can take longer than the default wait, so allow more
-      // time for the real render instead of weakening the assertion.
-      await deepLinkPage.waitForSelector("[data-visual-demo]", "canonical visual workspace preview", 60000);
+      await deepLinkPage.waitForSelector(".cp-workspace", "canonical authenticated workspace", 60000);
+      await deepLinkPage.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "live activity grid", 60000);
       const deepLinkWorkspace = await deepLinkPage.evaluate(`(async () => {
         const sessionResponse = await fetch("/api/session");
         const projectsResponse = await fetch("/api/projects");
         const projects = await projectsResponse.json();
         const project = (projects.projects || []).find((item) => item.project_id === ${JSON.stringify(PROJECT_ID)});
-        const demo = document.querySelector("[data-visual-demo]");
         return {
           pathname: location.pathname,
+          view: new URLSearchParams(location.search).get("view"),
           requested_project: new URLSearchParams(location.search).get("project"),
           project_found_in_session_list: Boolean(project),
           project_name: project?.name ?? null,
-          visual_demo_visible: Boolean(demo),
-          sample_data_label: document.querySelector(".cp-vd-demo-badge")?.textContent?.trim() ?? null,
-          live_grid_hidden: !document.querySelector("#cp-activity-grid"),
+          visual_demo_visible: Boolean(document.querySelector("[data-visual-demo]")),
+          live_grid_visible: Boolean(document.querySelector("#cp-activity-grid")),
+          activity_rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+          gantt_rows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
           session_authenticated: sessionResponse.status === 200,
         };
       })()`, { awaitPromise: true });
       assert(
-        deepLinkWorkspace.requested_project === PROJECT_ID &&
+        deepLinkWorkspace.view === "live" &&
+          deepLinkWorkspace.requested_project === PROJECT_ID &&
           deepLinkWorkspace.project_found_in_session_list &&
-          deepLinkWorkspace.visual_demo_visible &&
-          deepLinkWorkspace.sample_data_label &&
-          deepLinkWorkspace.live_grid_hidden &&
+          !deepLinkWorkspace.visual_demo_visible &&
+          deepLinkWorkspace.live_grid_visible &&
+          deepLinkWorkspace.activity_rows === 14 &&
+          deepLinkWorkspace.gantt_rows === 14 &&
           deepLinkWorkspace.session_authenticated,
-        "the canonical preview link must open the visual shell while clearly labelling its sample data: " +
+        "the first post-login project link must open the one data-backed workspace: " +
           JSON.stringify(deepLinkWorkspace),
       );
-      record("first-visit project deep link opens the visual workspace preview after login", {
-        ...deepLinkWorkspace,
-      });
+      record("first-visit project deep link opens the canonical authenticated workspace", deepLinkWorkspace);
 
-      // Browser-level acceptance for the new engine shell: navigation opens
-      // the dedicated window, methods are shown in its Details pane, and
-      // actions remain disabled until real engine tools are connected.
-      await deepLinkPage.click(
-        '.cp-vd-left-nav button[data-vd-window="engineering-analysis"]',
+      // Legacy visual URLs must resolve to the same live shell; they may not
+      // mount or expose a second workspace application.
+      await deepLinkPage.navigate(
+        `${baseUrl}/app?project=${PROJECT_ID}&view=visual`,
+        ".cp-workspace",
+        "legacy visual URL resolves to canonical workspace",
       );
-      await deepLinkPage.waitForSelector(
-        '[data-engine-window="engineering-analysis"]',
-        "Engineering Analysis visual shell",
-      );
-      await deepLinkPage.click('[data-vd-engine-tab="methods"]');
-      await deepLinkPage.waitFor(
-        `document.querySelector('[data-vd-engine-tab="methods"]')?.getAttribute("aria-selected") === "true" &&
-         document.querySelector(".cp-vd-engine-detail-panel")?.textContent.includes("Forward and backward rule chaining")`,
-        "Engineering Analysis methods Details tab",
-      );
-      const engineShellEvidence = await deepLinkPage.evaluate(`(() => {
-        const shell = document.querySelector('[data-engine-window="engineering-analysis"]');
-        const commands = Array.from(shell?.querySelectorAll(".cp-vd-engine-toolbar button") ?? []);
-        return {
-          title: shell?.querySelector(".cp-vd-engine-title h2")?.textContent?.trim() ?? "",
-          methodTab: shell?.querySelector('[data-vd-engine-tab="methods"]')?.getAttribute("aria-selected") ?? "",
-          methodText: shell?.querySelector(".cp-vd-engine-detail-panel")?.textContent?.includes("Forward and backward rule chaining") ?? false,
-          disabledCommands: commands.length === 5 && commands.every((button) => button.disabled),
-          emptyState: shell?.querySelector(".cp-vd-engine-empty")?.textContent?.includes("No records to display") ?? false,
-        };
+      const legacyRoute = await deepLinkPage.evaluate(`() => ({
+        view: new URLSearchParams(location.search).get("view"),
+        visualDemo: Boolean(document.querySelector("[data-visual-demo]")),
+        liveGrid: Boolean(document.querySelector("#cp-activity-grid")),
       })()`);
       assert(
-        engineShellEvidence.title.includes("Engineering Analysis") &&
-          engineShellEvidence.methodTab === "true" &&
-          engineShellEvidence.methodText &&
-          engineShellEvidence.disabledCommands &&
-          engineShellEvidence.emptyState,
-        "engineering visual shell must expose its Details and remain non-executable: " +
-          JSON.stringify(engineShellEvidence),
+        legacyRoute.view === "live" && !legacyRoute.visualDemo && legacyRoute.liveGrid,
+        "legacy visual URLs must canonicalize to the single live workspace: " + JSON.stringify(legacyRoute),
       );
-      await deepLinkPage.screenshot("07-engineering-analysis-shell.png");
-      record("Engineering Analysis visual shell opens with Details and disabled actions", engineShellEvidence);
-      await deepLinkPage.click('.cp-vd-left-nav button[data-vd-window="activities"]');
-      await deepLinkPage.waitForSelector('[data-vd-window="activities"].is-active', "return to Activities window");
+      record("legacy visual URL is canonicalized without mounting another shell", legacyRoute);
 
-      await deepLinkPage.setSelect('select[data-vd-locale]', "fa");
+      await deepLinkPage.setSelect('select[data-workspace-language]', "fa");
       await deepLinkPage.waitFor(
         `document.documentElement.lang === "fa" && document.documentElement.dir === "rtl"`,
-        "visual workspace language switches to Persian",
+        "authenticated workspace language switches to Persian",
       );
       await deepLinkPage.navigate(
-        `${baseUrl}/app?project=${PROJECT_ID}`,
-        "[data-visual-demo]",
-        "visual workspace reload with saved language",
+        `${baseUrl}/app?project=${PROJECT_ID}&view=live`,
+        ".cp-workspace",
+        "authenticated workspace reload with saved language",
       );
-      const savedLanguage = await deepLinkPage.evaluate(`(() => ({
+      const savedLanguage = await deepLinkPage.evaluate(`() => ({
         lang: document.documentElement.lang,
         dir: document.documentElement.dir,
-        selected: document.querySelector("select[data-vd-locale]")?.value ?? null,
-      }))()`);
+        selected: document.querySelector("select[data-workspace-language]")?.value ?? null,
+      })()`);
       assert(
         savedLanguage.lang === "fa" && savedLanguage.dir === "rtl" && savedLanguage.selected === "fa",
-        "visual workspace language must persist across refresh: " + JSON.stringify(savedLanguage),
+        "authenticated workspace language must persist across refresh: " + JSON.stringify(savedLanguage),
       );
-      record("visual workspace language preference persists across refresh", savedLanguage);
-      await deepLinkPage.setSelect('select[data-vd-locale]', "en");
+      record("authenticated workspace language preference persists across refresh", savedLanguage);
+      await deepLinkPage.setSelect('select[data-workspace-language]', "en");
 
-      await deepLinkPage.click(".cp-vd-exit");
-      await deepLinkPage.waitFor(
-        `location.pathname === "/"`,
-        "visual workspace sign out returns the user to the public home page",
-      );
-      const visualSignOutSession = await deepLinkPage.evaluate(
+      await deepLinkPage.click("#cubi-preview-banner button");
+      await deepLinkPage.waitFor(`location.pathname === "/"`, "sign out returns to public home");
+      const liveSignOutSession = await deepLinkPage.evaluate(
         `fetch("/api/session").then((response) => response.status)`,
         { awaitPromise: true },
       );
       assert(
-        visualSignOutSession === 401,
-        `the visual workspace sign-out control must revoke the preview session, got HTTP ${visualSignOutSession}`,
+        liveSignOutSession === 401,
+        `authenticated workspace sign-out must revoke the session and return Home, got HTTP ${liveSignOutSession}`,
       );
-      record("visual workspace sign out revokes the session and returns home", {
+      record("authenticated workspace sign out revokes the session and returns home", {
         pathname: "/",
-        session_status: visualSignOutSession,
+        session_status: liveSignOutSession,
       });
     } finally {
       if (deepLinkPage) deepLinkPage.cdp.close();
