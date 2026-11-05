@@ -7109,3 +7109,12 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   border-radius: 2px;
   background: rgba(255,255,255,.45);
 }
+
+/* Activities right-click command surface. */
+.cp-p6 .cp-workspace-context-menu-host[hidden] { display: none !important; }
+.cp-p6 .cp-workspace-context-menu-host { z-index: 12000; min-width: 205px; max-width: min(280px, calc(100vw - 16px)); }
+.cp-p6 .cp-workspace-context-menu { display: grid; gap: 2px; padding: 4px; border: 1px solid #8fa2b8; border-radius: 3px; background: #f9fbfd; box-shadow: 0 8px 24px rgba(18, 40, 65, .22); color: #213c5a; }
+.cp-p6 .cp-workspace-context-menu button { display: block; width: 100%; min-height: 27px; padding: 4px 9px; border: 1px solid transparent; border-radius: 2px; background: transparent; color: inherit; font: inherit; font-size: 10px; text-align: start; white-space: nowrap; cursor: pointer; }
+.cp-p6 .cp-workspace-context-menu button:hover, .cp-p6 .cp-workspace-context-menu button:focus-visible { border-color: #b5c7da; background: #e8f0f8; outline: none; }
+.cp-p6 .cp-gantt-link { pointer-events: stroke; cursor: context-menu; }
+.cp-p6 #cp-activity-grid tbody tr[data-activity-id], .cp-p6 .cp-gantt-row[data-gantt-activity-id] { cursor: context-menu; }
