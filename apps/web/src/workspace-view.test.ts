@@ -408,28 +408,19 @@ test("Activities Details renders the complete Version 26 tab inventory without f
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
-test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
-  const listeners = new Map<string, (event: Event) => void>();
-  const closed: WorkspaceMenuKey[] = [];
+test("workspace renderer leaves the single persisted tab strip to desktop chrome", () => {
   const container = {
     innerHTML: "",
     querySelectorAll: () => [],
-    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
   };
   renderMainWorkspace(
     container as unknown as HTMLElement,
     createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
-    {
-      openWindows: ["project", "schedule"],
-      onWindowClose: (menu) => closed.push(menu),
-    },
+    { openWindows: ["project", "schedule"] },
   );
-  assert.match(container.innerHTML, /data-window-tab="project"/);
-  assert.match(container.innerHTML, /data-window-tab="schedule"/);
-  assert.match(container.innerHTML, /data-window-close="project"/);
-  const target = { dataset: { windowClose: "project" }, closest: () => target };
-  listeners.get("click")?.({ target } as unknown as Event);
-  assert.deepEqual(closed, ["project"]);
+  assert.doesNotMatch(container.innerHTML, /class="cp-window-tabs"/);
+  assert.doesNotMatch(container.innerHTML, /data-window-tab=/);
+  assert.doesNotMatch(container.innerHTML, /data-window-close=/);
 });
 
 test("View menu Timescale command opens the current window Layout Options dialog", () => {
