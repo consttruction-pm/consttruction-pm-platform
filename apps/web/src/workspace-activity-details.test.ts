@@ -210,3 +210,68 @@ test("Activity Update History remains explicit when authoritative activity audit
   assert.match(html, /Activity-specific audit history is not included/i);
   assert.doesNotMatch(html, /sample|example change/i);
 });
+test("Activity Resources tab renders only persisted assignments for the selected activity", () => {
+  const html = renderActivityDetailsTabContent("resources", {
+    locale: "en",
+    activities: ACTIVITIES,
+    selectedActivityId: "act-2",
+    relationships: [],
+    projectName: "project-1",
+    dataDate: "—",
+    calendarMode: "gregorian",
+    resourceAssignments: {
+      status: "loaded",
+      errorCode: null,
+      records: [
+        { assignmentId: "ASG-2", activityId: "act-2", resourceId: "CRANE-01", roleId: "OPERATOR", units: "40", actualUnits: "12", remainingUnits: "28", plannedCost: "4000", actualCost: "1200", remainingCost: "2800", unit: "h", currency: "EUR", calendarId: "CAL-1", calendarVersion: "1", note: null, isDriving: true, unitsPerTime: "8", unitsPerTimePeriod: "day", hoursPerUnitsTimePeriod: "8" },
+        { assignmentId: "ASG-1", activityId: "act-1", resourceId: "EXCAVATOR-01", roleId: null, units: "20", actualUnits: null, remainingUnits: null, plannedCost: null, actualCost: null, remainingCost: null, unit: "h", currency: null, calendarId: null, calendarVersion: null, note: null, isDriving: false, unitsPerTime: null, unitsPerTimePeriod: null, hoursPerUnitsTimePeriod: null },
+      ],
+    },
+  });
+  assert.match(html, /CRANE-01/);
+  assert.match(html, /ASG-2|OPERATOR/);
+  assert.match(html, /4000/);
+  assert.doesNotMatch(html, /EXCAVATOR-01/);
+});
+
+test("Activity Expenses tab renders linked persisted expenses and excludes other activities", () => {
+  const html = renderActivityDetailsTabContent("expenses", {
+    locale: "en",
+    activities: ACTIVITIES,
+    selectedActivityId: "act-2",
+    relationships: [],
+    projectName: "project-1",
+    dataDate: "—",
+    calendarMode: "gregorian",
+    activityExpenses: {
+      status: "loaded",
+      errorCode: null,
+      records: [
+        { expenseId: "EXP-2", name: "Concrete testing", category: "Quality", activityId: "act-2", wbsId: "wbs-1", expenseDate: "2026-11-05", plannedCost: "1500", actualCost: "650", remainingCost: "850", currency: "EUR", note: "Lab batch 04" },
+        { expenseId: "EXP-1", name: "Excavator fuel", category: "Plant", activityId: "act-1", wbsId: "wbs-1", expenseDate: null, plannedCost: "500", actualCost: null, remainingCost: null, currency: "EUR", note: null },
+      ],
+    },
+  });
+  assert.match(html, /EXP-2/);
+  assert.match(html, /Concrete testing/);
+  assert.match(html, /Lab batch 04/);
+  assert.doesNotMatch(html, /EXP-1/);
+  assert.doesNotMatch(html, /Excavator fuel/);
+});
+
+test("Activity Details exposes retry states for authoritative related-data failures", () => {
+  const resourceHtml = renderActivityDetailsTabContent("resources", {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "—", calendarMode: "gregorian",
+    resourceAssignments: { status: "error", records: [], errorCode: "NETWORK_TIMEOUT" },
+  });
+  const expenseHtml = renderActivityDetailsTabContent("expenses", {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "—", calendarMode: "gregorian",
+    activityExpenses: { status: "error", records: [], errorCode: "FORBIDDEN" },
+  });
+  assert.match(resourceHtml, /data-detail-retry="resources"/);
+  assert.match(resourceHtml, /NETWORK_TIMEOUT/);
+  assert.match(expenseHtml, /data-detail-retry="expenses"/);
+  assert.match(expenseHtml, /FORBIDDEN/);
+});
