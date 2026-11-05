@@ -1963,7 +1963,7 @@ test("Activities renders hierarchical WBS group bands in the table and the same 
   assert.ok(civilGroup >= 0);
   assert.ok(foundationsGroup > civilGroup);
   assert.ok(mechanicalGroup > foundationsGroup);
-  assert.match(html, /Civil works \/ Foundations/);
+  assert.match(html, /Civil works \/ 01\.A — Foundations/);
   assert.match(html, /data-activity-wbs-group-toggle="WBS-01A"/);
   assert.match(html, /class="cp-gantt-group-row" data-activity-group-band="WBS-01A"/);
   assert.match(html, /data-gantt-activity-id="A-01"/);
