@@ -3076,7 +3076,7 @@ async function main() {
         const rail = document.querySelector(".cp-p6 .cp-comments-dock-rail");
         const rect = (element) => {
           const value = element?.getBoundingClientRect();
-          return value ? { left: value.left, right: value.right, width: value.width, height: value.height } : null;
+          return value ? { left: value.left, right: value.right, top: value.top, bottom: value.bottom, width: value.width, height: value.height } : null;
         };
         const bodyRect = body?.getBoundingClientRect();
         const mainRect = main?.getBoundingClientRect();
