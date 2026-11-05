@@ -4,6 +4,9 @@
  * that the read model does not provide show an explicit empty state instead of
  * sample figures, so the pane never reports invented project facts.
  */
+import type { ApiTransport } from "./client.js";
+import { loadAssignments, type AssignmentRecord } from "./workspace-assignments.js";
+import { loadExpenses, type ExpenseRecord } from "./workspace-expenses.js";
 import type {
   WorkspaceActivityRow,
   WorkspaceMenuKey,
@@ -141,6 +144,12 @@ const SETTINGS_DETAILS_TABS: readonly TabLabel[] = [
   { id: "notebook", en: "Notes", fa: "یادداشت‌ها" },
 ];
 
+export type ActivityDetailsLoadState<T> = {
+  status: "idle" | "loading" | "loaded" | "error";
+  records: readonly T[];
+  errorCode: string | null;
+};
+
 export type ActivityDetailsInput = {
   locale: string;
   activities: readonly WorkspaceActivityRow[];
@@ -149,6 +158,9 @@ export type ActivityDetailsInput = {
   projectName: string;
   dataDate: string;
   calendarMode: "jalali" | "gregorian";
+  transport?: ApiTransport;
+  resourceAssignments?: ActivityDetailsLoadState<AssignmentRecord>;
+  activityExpenses?: ActivityDetailsLoadState<ExpenseRecord>;
   /** Full authoritative state is optional so pure render tests stay small. */
   state?: WorkspaceState;
 };
