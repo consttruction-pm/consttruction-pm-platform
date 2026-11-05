@@ -222,7 +222,18 @@ function buildActivityWbsDisplayGroups(
           collapsed: isCollapsed,
           activities: rowsByWbs.get(node.id) ?? [],
         });
-        if (!isCollapsed) visit(node.id);
+        if (!isCollapsed) {
+          visit(node.id);
+        } else {
+          const markHiddenDescendants = (parentId: string): void => {
+            for (const child of children.get(parentId) ?? []) {
+              if (visited.has(child.id)) continue;
+              visited.add(child.id);
+              markHiddenDescendants(child.id);
+            }
+          };
+          markHiddenDescendants(node.id);
+        }
       } else {
         visit(node.id);
       }
