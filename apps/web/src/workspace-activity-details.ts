@@ -412,7 +412,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       </div>
       ${empty(locale, t(locale, "No activity code assignments are returned by the project read model.", "هیچ تخصیص کد فعالیتی توسط مدل خواندن پروژه برگردانده نشده است."))}`;
     case "steps":
-      return empty(locale, t(locale, "Activity-step records are not included in the current workspace projection. This view cannot determine whether the activity has steps.", "سوابق گام‌های فعالیت در نمای فعلی محیط کار بارگذاری نشده‌اند؛ بنابراین از این صفحه نمی‌توان وجود یا نبود گام برای این فعالیت را نتیجه گرفت."));
+      return empty(locale, t(locale, "Activity steps have not been loaded yet. Activity-step records are not included in the current workspace projection, so this view cannot determine whether the activity has steps.", "سوابق گام‌های فعالیت در نمای فعلی محیط کار بارگذاری نشده‌اند؛ بنابراین از این صفحه نمی‌توان وجود یا نبود گام برای این فعالیت را نتیجه گرفت."));
     case "relationships": {
       const gantt = activity?.gantt;
       return `${section(t(locale, "Predecessors", "پیش‌نیازها"), relationshipRows(locale, predecessors))}${section(t(locale, "Successors", "پس‌نیازها"), relationshipRows(locale, successors))}
