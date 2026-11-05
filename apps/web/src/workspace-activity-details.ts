@@ -8,6 +8,8 @@ import type { ApiTransport } from "./client.js";
 import { loadAssignments, type AssignmentRecord } from "./workspace-assignments.js";
 import { loadExpenses, type ExpenseRecord } from "./workspace-expenses.js";
 import { loadScheduleDataDate } from "./workspace-cost.js";
+import { fetchP6ActivityUdfs } from "./p6-udf-http.js";
+import type { P6UdfEditorMetadata } from "./p6-field-editor.js";
 import type {
   WorkspaceActivityRow,
   WorkspaceMenuKey,
@@ -162,6 +164,7 @@ export type ActivityDetailsInput = {
   transport?: ApiTransport;
   resourceAssignments?: ActivityDetailsLoadState<AssignmentRecord>;
   activityExpenses?: ActivityDetailsLoadState<ExpenseRecord>;
+  activityUdfs?: ActivityDetailsLoadState<P6UdfEditorMetadata>;
   /** Full authoritative state is optional so pure render tests stay small. */
   state?: WorkspaceState;
 };
@@ -297,6 +300,25 @@ function renderActivityDocuments(locale: string, input: ActivityDetailsInput, ac
   const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
   const body = documents.map((document) => `<tr><td>${esc(document.documentId)}</td><td>${esc(document.title)}</td><td>${esc(document.resourceType)}</td><td>${esc(document.status)}</td><td>R${document.revision}</td><td><code>${esc(document.contentHash)}</code></td></tr>`).join("");
   return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><p class="cp-detail-hint">${esc(t(locale, "Document metadata is read-only here. File open/download actions are not exposed by the current document API.", "اطلاعات سند در این بخش فقط‌خواندنی است. API فعلی اسناد امکان بازکردن یا دریافت فایل را ارائه نمی‌کند."))}</p></div>`;
+}
+
+function renderActivityUdfs(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
+  if (!activity) return empty(locale, t(locale, "Select an activity to view its custom fields.", "برای مشاهده فیلدهای سفارشی، یک فعالیت انتخاب کنید."));
+  const data = input.activityUdfs;
+  if (!data || data.status === "idle") return empty(locale, t(locale, "Activity custom fields have not been loaded yet.", "فیلدهای سفارشی فعالیت هنوز بارگذاری نشده‌اند."));
+  if (data.status === "loading") return empty(locale, t(locale, "Loading activity custom-field definitions…", "در حال بارگذاری تعریف فیلدهای سفارشی فعالیت…"));
+  if (data.status === "error") return `<p class="cp-detail-empty" role="alert">${esc(t(locale, "Activity custom fields could not be loaded.", "بارگذاری فیلدهای سفارشی فعالیت ناموفق بود."))} ${esc(data.errorCode ?? "API_ERROR")}</p><button type="button" data-detail-retry="udfs">${esc(t(locale, "Retry", "تلاش دوباره"))}</button>`;
+  const fields = data.records.filter((item) => item.subject_area.toLowerCase() === "activity");
+  if (!fields.length) return empty(locale, t(locale, "No activity custom-field definitions are registered for this project.", "برای این پروژه تعریف فیلد سفارشی فعالیت ثبت نشده است."));
+  const headings = ["Field", "Type", "Value", "Unit", "Writable", "Allowed values"];
+  const persianHeadings = ["فیلد", "نوع", "مقدار", "واحد", "قابل ویرایش", "مقادیر مجاز"];
+  const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
+  const body = fields.map((item) => {
+    const raw = activity.cells?.[item.udf_id] ?? activity.cells?.[`activity.${item.udf_id}`];
+    const value = raw === undefined || raw === null || raw === "" ? t(locale, "Not returned for this activity", "برای این فعالیت برگردانده نشده") : String(raw);
+    return `<tr><td>${esc(item.display_name)}<small>${esc(item.udf_id)}</small></td><td>${esc(item.data_type)}</td><td>${esc(value)}</td><td>${esc(item.unit ?? "—")}</td><td>${esc(t(locale, item.writable ? "Yes" : "No", item.writable ? "بله" : "خیر"))}</td><td>${esc(item.allowed_values?.join(", ") ?? "—")}</td></tr>`;
+  }).join("");
+  return `<div class="cp-detail-table-wrap"><table class="cp-detail-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><p class="cp-detail-hint">${esc(t(locale, "Definitions come from the authenticated project registry. Values are shown only when present in the selected activity read model; this pane does not invent or write UDF values.", "تعریف‌ها از فهرست مرجع احراز هویت‌شده پروژه می‌آیند. مقدار فقط در صورت وجود در مدل خواندن فعالیت انتخاب‌شده نمایش داده می‌شود؛ این پنل مقداری جعل یا ذخیره نمی‌کند."))}</p></div>`;
 }
 
 function renderActivityExpenses(locale: string, input: ActivityDetailsInput, activity: WorkspaceActivityRow | null): string {
@@ -446,7 +468,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
     case "notebook":
       return `<p class="cp-detail-empty">${esc(t(locale, "Notebook entries are not stored by the project read model. Browser-local notes for this activity are available from the Comments rail.", "مدخل‌های دفترچه در مدل خواندن پروژه ذخیره نمی‌شوند. یادداشت‌های محلی این فعالیت از نوار یادداشت‌ها در دسترس است."))}</p>`;
     case "udfs":
-      return empty(locale, t(locale, "No user-defined fields are returned for this activity.", "هیچ فیلد سفارشی برای این فعالیت برگردانده نشده است."));
+      return renderActivityUdfs(locale, input, activity);
     default:
       return "";
   }
@@ -819,6 +841,35 @@ const detailsRuntime = new WeakMap<HTMLElement, DetailsRuntime>();
 const detailsBound = new WeakSet<HTMLElement>();
 
 const activityDataDateRequests = new Map<string, Promise<string | null>>();
+const activityUdfRequests = new Map<string, Promise<readonly P6UdfEditorMetadata[]>>();
+
+function ensureActivityUdfs(host: HTMLElement, runtime: DetailsRuntime): void {
+  const current = runtime.input.activityUdfs;
+  if (current?.status === "loaded" || current?.status === "error") return;
+  const context = runtime.input.state?.context;
+  if (!context) return;
+  runtime.input = { ...runtime.input, activityUdfs: { status: "loading", records: [], errorCode: null } };
+  const panel = host.querySelector<HTMLElement>(`[data-detail-panel="udfs"]`);
+  if (panel && !panel.hidden) panel.innerHTML = activeBody("udfs", runtime.input);
+  const key = `${context.tenant_id}:${context.project_id}:${context.revision}`;
+  let request = activityUdfRequests.get(key);
+  if (!request) {
+    request = fetchP6ActivityUdfs(context.project_id, "p6-field-registry.v1").then((result) => result.udfs);
+    activityUdfRequests.set(key, request);
+  }
+  void request.then((records) => {
+    if (detailsRuntime.get(host) !== runtime) return;
+    runtime.input = { ...runtime.input, activityUdfs: { status: "loaded", records, errorCode: null } };
+    const activePanel = host.querySelector<HTMLElement>(`[data-detail-panel="udfs"]`);
+    if (activePanel && !activePanel.hidden) activePanel.innerHTML = activeBody("udfs", runtime.input);
+  }).catch((error: unknown) => {
+    if (detailsRuntime.get(host) !== runtime) return;
+    activityUdfRequests.delete(key);
+    runtime.input = { ...runtime.input, activityUdfs: { status: "error", records: [], errorCode: error instanceof Error ? error.message : "API_ERROR" } };
+    const activePanel = host.querySelector<HTMLElement>(`[data-detail-panel="udfs"]`);
+    if (activePanel && !activePanel.hidden) activePanel.innerHTML = activeBody("udfs", runtime.input);
+  });
+}
 
 function ensureActivityDataDate(host: HTMLElement, runtime: DetailsRuntime): void {
   if (runtime.input.dataDate !== "—") return;
@@ -903,6 +954,7 @@ export function enhanceActivityDetails(
   host.innerHTML = renderActivityDetailsPanel(runtime.input);
   const activeTab = host.querySelector<HTMLElement>("[data-detail-tab].is-active")?.dataset.detailTab;
   if (activeTab === "resources" || activeTab === "expenses") ensureActivityDetailsData(host, runtime, activeTab);
+  if (activeTab === "udfs") ensureActivityUdfs(host, runtime);
   ensureActivityDataDate(host, runtime);
   if (detailsBound.has(host)) return;
   detailsBound.add(host);
@@ -914,6 +966,11 @@ export function enhanceActivityDetails(
     const target = event.target as HTMLElement | null;
     if (!target || typeof target.closest !== "function") return;
     const retry = target.closest<HTMLElement>("[data-detail-retry]");
+    if (retry?.dataset.detailRetry === "udfs") {
+      current.input = { ...current.input, activityUdfs: { status: "idle", records: [], errorCode: null } };
+      ensureActivityUdfs(host, current);
+      return;
+    }
     if (retry?.dataset.detailRetry === "resources" || retry?.dataset.detailRetry === "expenses") {
       const tabId = retry.dataset.detailRetry;
       const key = tabId === "resources" ? "resourceAssignments" : "activityExpenses";
@@ -962,6 +1019,7 @@ export function enhanceActivityDetails(
         panel.innerHTML = selected ? activeBody(id, current.input) : "";
       });
       if (id === "resources" || id === "expenses") ensureActivityDetailsData(host, current, id);
+      if (id === "udfs") ensureActivityUdfs(host, current);
       return;
     }
     const prev = target.closest<HTMLElement>("[data-details-prev]");
