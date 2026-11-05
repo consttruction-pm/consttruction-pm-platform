@@ -1404,6 +1404,7 @@ function applyWorkspaceAppearance(container: HTMLElement, appearance: WorkspaceA
   workspace.style.setProperty("--cp-ws-text", appearanceContrastText(appearance.colors.window));
   workspace.style.setProperty("--cp-ws-navigation-text", appearanceContrastText(appearance.colors.navigation));
   workspace.style.setProperty("--cp-ws-panel-text", appearanceContrastText(appearance.colors.panel));
+  workspace.style.setProperty("--cp-ws-muted", appearanceContrastText(appearance.colors.panel));
   workspace.style.setProperty("--cp-ws-grid-text", appearanceContrastText(appearance.colors.grid));
   workspace.style.setProperty("--cp-ws-grid-header-text", appearanceContrastText(appearance.colors.gridHeader));
   workspace.style.setProperty("--cp-ws-gantt-text", appearanceContrastText(appearance.colors.gantt));
