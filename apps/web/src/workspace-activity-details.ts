@@ -295,7 +295,7 @@ function renderActivityDocuments(locale: string, input: ActivityDetailsInput, ac
   const documents = (input.state?.documents ?? []).filter((document) =>
     document.linkedEntityRefs.includes(activity.id) || document.linkedEntityRefs.includes(activity.code),
   );
-  if (!documents.length) return empty(locale, t(locale, "No documents in the current project read model are linked to this activity.", "در مدل خواندن فعلی پروژه سندی به این فعالیت پیوند داده نشده است."));
+  if (!documents.length) return empty(locale, t(locale, "The current workspace projection contains no document links for this activity. An empty projection does not confirm that no documents exist.", "در مدل خواندن فعلی پروژه سندی به این فعالیت پیوند داده نشده است."));
   const headings = ["Document ID", "Title", "Type", "Status", "Revision", "Content hash"];
   const persianHeadings = ["شناسه سند", "عنوان", "نوع", "وضعیت", "ویرایش", "هش محتوا"];
   const head = headings.map((label, index) => `<th>${esc(t(locale, label, persianHeadings[index]))}</th>`).join("");
@@ -412,7 +412,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
       </div>
       ${empty(locale, t(locale, "No activity code assignments are returned by the project read model.", "هیچ تخصیص کد فعالیتی توسط مدل خواندن پروژه برگردانده نشده است."))}`;
     case "steps":
-      return empty(locale, t(locale, "This activity has no steps in the current project data. Steps are not synthesised here.", "این فعالیت در دادهٔ فعلی پروژه گامی ندارد. گام‌ها در این پنل ساخته نمی‌شوند."));
+      return empty(locale, t(locale, "Activity-step records are not included in the current workspace projection. This view cannot determine whether the activity has steps.", "این فعالیت در دادهٔ فعلی پروژه گامی ندارد. گام‌ها در این پنل ساخته نمی‌شوند."));
     case "relationships": {
       const gantt = activity?.gantt;
       return `${section(t(locale, "Predecessors", "پیش‌نیازها"), relationshipRows(locale, predecessors))}${section(t(locale, "Successors", "پس‌نیازها"), relationshipRows(locale, successors))}
