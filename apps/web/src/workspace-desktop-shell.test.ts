@@ -4,6 +4,7 @@ import {
   WINDOW_TITLES,
   getDesktopMenus,
   getDesktopToolbar,
+  renderDesktopShell,
   type DesktopShellCapabilities,
   type DesktopShellState,
 } from "./workspace-desktop-shell.js";
@@ -26,6 +27,33 @@ function shellState(patch: Partial<DesktopShellCapabilities> = {}, locale = "en"
     capabilities: { ...capable, ...patch },
   };
 }
+
+test("desktop chrome owns exactly one persisted window tab strip and dispatches close", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const closed: string[] = [];
+  const host = {
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    contains: () => true,
+  };
+  renderDesktopShell(host as unknown as HTMLElement, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: (window) => closed.push(window),
+    onCommand: () => {},
+  });
+  assert.equal((host.innerHTML.match(/class="cp-window-tabs"/g) ?? []).length, 1);
+  assert.match(host.innerHTML, /data-window-tab="project"/);
+  assert.match(host.innerHTML, /data-window-tab="schedule"/);
+  assert.match(host.innerHTML, /data-window-close="project"/);
+  const target = {
+    dataset: { windowClose: "project" },
+    closest: (selector: string) => selector === "[data-window-close]" ? target : null,
+  };
+  listeners.get("click")?.({ target, stopPropagation: () => {} } as unknown as Event);
+  assert.deepEqual(closed, ["project"]);
+});
 
 test("the menu bar mirrors the eleven professional workspace menus in order", () => {
   const menus = getDesktopMenus(shellState());
