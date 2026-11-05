@@ -6,7 +6,7 @@ Scope: Web, Desktop, Mobile client presentation layers, exported visual/report s
 
 ## Purpose
 
-CUBI uses a restrained engineering-oriented visual language. Color must support project data hierarchy rather than compete with scheduling grids, Gantt charts, cost/EVM tables, reports, or control-room information.
+CUBI uses a professional engineering-oriented visual language. The brand palette defines CUBI identity, not a mandatory limit on workspace presentation. Workspace themes, window backgrounds, panel surfaces, WBS level treatments, Gantt backgrounds and user-selected colors may use broader coordinated palettes when they improve readability, hierarchy, accessibility or user preference.
 
 ## Registered brand palette
 
@@ -49,12 +49,13 @@ The registered homepage direction is:
 ### Product workspace
 
 The main application workspace remains calm and data-first:
-- white/light neutral surfaces;
-- Deep Navy for headings and authoritative labels;
-- Engineering Blue for interaction/focus/selection;
-- Copper reserved for important actions or high-value emphasis;
-- semantic status colors for state/KPI meaning;
-- no decorative gradients inside dense scheduling, cost, EVM or Gantt data areas unless they improve interpretation.
+- provide complete, usable light and dark workspace themes;
+- allow configurable workspace, window, panel, grid and Gantt background colors;
+- allow coordinated theme palettes and distinct but consistent window-level color treatments;
+- retain sufficient text contrast, visible selection/focus states and distinguishable semantic status colors;
+- preserve activity/status/criticality/selection meaning independently of WBS grouping colors;
+- permit user-selected colors and custom theme palettes without requiring every color to be a tint of a brand token;
+- keep branded logo colors and commercial brand surfaces governed by the registered brand palette, while treating workspace presentation as a separately configurable product capability.
 
 ### Brushed-metal texture
 
@@ -97,15 +98,12 @@ Implementation rules:
 
 ## Forbidden drift
 
-Do not introduce:
-- new cyan/teal brand accents;
-- arbitrary saturated gradients;
-- decorative construction imagery as a substitute for product identity;
-- per-screen color systems;
-- a second component/theme palette;
-- decorative color that competes with project data.
+The following restrictions apply only to brand identity assets and must not be used to block workspace customization:
+- do not recolor or redraw the approved logo;
+- do not present workspace theme colors as a replacement for the registered CUBI brand identity;
+- do not use decorative imagery as a substitute for product identity.
 
-New colors require a documented semantic purpose and should normally be a tint/shade of an existing registered token.
+Workspace color restrictions that previously prohibited per-screen/window color treatments, a second workspace theme palette, broader background choices or custom user palettes are withdrawn. New workspace colors may be selected for usability, accessibility, semantic meaning or user preference. Dense data views must remain legible, but they are not required to use only neutral/brand-tinted backgrounds.
 
 ## Implementation anchors
 
