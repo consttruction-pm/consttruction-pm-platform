@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createWorkspaceState, type WorkspaceActivityRow } from "./workspace-model.js";
-import { renderActivityDetailsPanel } from "./workspace-activity-details.js";
+import {
+  ACTIVITY_DETAILS_TABS,
+  ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY,
+  readActivityDetailsVisibleTabs,
+  renderActivityDetailsPanel,
+  renderActivityDetailsTabContent,
+} from "./workspace-activity-details.js";
 
 const ACTIVITIES: WorkspaceActivityRow[] = [
   { id: "act-1", wbsId: "wbs-1", code: "A120", name: "Excavate foundation" },
@@ -60,4 +66,147 @@ test("Projects window keeps the bottom pane scoped to Project Details", () => {
   assert.match(html, /data-detail-tab="documents"/);
   assert.match(html, /data-detail-tab="history"/);
   assert.doesNotMatch(html, /WBS Details/);
+});
+
+
+test("Activity Details exposes the exact Version 26 Professional tab inventory and Customize Tabs dialog", () => {
+  assert.deepEqual(ACTIVITY_DETAILS_TABS.map((tab) => tab.id), [
+    "general", "status", "resources", "predecessors", "successors", "relationships",
+    "codes", "notebook", "steps", "documents", "expenses", "issues", "risks",
+    "summary", "udfs", "update-history",
+  ]);
+  const html = render("act-2");
+  assert.match(html, /data-detail-tabs-customize/);
+  assert.match(html, /data-detail-tabs-dialog/);
+  assert.match(html, /data-detail-tab-visible="issues"/);
+  assert.match(html, /data-detail-tab-visible="update-history"/);
+  assert.doesNotMatch(html, /data-detail-tab="calendar"/);
+  assert.doesNotMatch(html, /data-detail-tab="tasks"/);
+});
+
+test("Activity Details visible-tab preferences ignore stale ids and never hide all tabs", () => {
+  const partialStorage = {
+    getItem: (key: string) => key === ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY
+      ? JSON.stringify(["general", "issues", "calendar", "unknown"])
+      : null,
+  } as Storage;
+  assert.deepEqual(readActivityDetailsVisibleTabs(partialStorage), ["general", "issues"]);
+
+  const staleOnlyStorage = {
+    getItem: () => JSON.stringify(["removed-tab", "calendar"]),
+  } as Storage;
+  assert.equal(readActivityDetailsVisibleTabs(staleOnlyStorage).length, 16);
+
+  const malformedStorage = { getItem: () => "not-json" } as Storage;
+  assert.equal(readActivityDetailsVisibleTabs(malformedStorage).length, 16);
+});
+
+test("Activity Issues tab renders only issue records linked to the selected activity", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 7 });
+  const state = {
+    ...base,
+    activities: ACTIVITIES,
+    fieldIssues: [
+      {
+        issueId: "ISS-LINKED",
+        category: "quality",
+        severity: "high" as const,
+        status: "open" as const,
+        titleKey: "Foundation concrete test failed",
+        detailKey: null,
+        reportedBy: "site.manager",
+        locationKey: null,
+        activityIds: ["act-2"],
+        evidenceCount: 1,
+        updatedAt: "2026-11-05T09:30:00Z",
+      },
+      {
+        issueId: "ISS-OTHER",
+        category: "safety",
+        severity: "medium" as const,
+        status: "in_progress" as const,
+        titleKey: "Unrelated access issue",
+        detailKey: null,
+        reportedBy: "safety.officer",
+        locationKey: null,
+        activityIds: ["act-1"],
+        evidenceCount: 1,
+        updatedAt: "2026-11-05T10:30:00Z",
+      },
+    ],
+  };
+  const html = renderActivityDetailsTabContent("issues", {
+    locale: "en",
+    activities: ACTIVITIES,
+    selectedActivityId: "act-2",
+    relationships: [],
+    projectName: "project-1",
+    dataDate: "—",
+    calendarMode: "gregorian",
+    state,
+  });
+  assert.match(html, /ISS-LINKED/);
+  assert.match(html, /Foundation concrete test failed/);
+  assert.doesNotMatch(html, /ISS-OTHER/);
+  assert.doesNotMatch(html, /Unrelated access issue/);
+});
+
+test("Activity Summary displays supplied facts without deriving or fabricating schedule values", () => {
+  const activities: WorkspaceActivityRow[] = [{
+    ...ACTIVITIES[1],
+    cells: {
+      early_start: "2026-11-01",
+      early_finish: "2026-11-05",
+      duration: 4,
+      percent_complete: 25,
+      total_float: 0,
+      free_float: 1,
+      is_critical: false,
+    },
+    gantt: { start: "2026-11-01", finish: "2026-11-05", progressPercent: 25, critical: false },
+  }];
+  const html = renderActivityDetailsTabContent("summary", {
+    locale: "en",
+    activities,
+    selectedActivityId: "act-2",
+    relationships: [],
+    projectName: "project-1",
+    dataDate: "—",
+    calendarMode: "gregorian",
+  });
+  assert.match(html, /2026-11-01/);
+  assert.match(html, /2026-11-05/);
+  assert.match(html, />4</);
+  assert.match(html, />25</);
+  assert.match(html, />0</);
+  assert.match(html, />1</);
+  assert.match(html, />No</);
+});
+
+test("Activity Resources tab does not mistake an unloaded projection for no assignments", () => {
+  const html = renderActivityDetailsTabContent("resources", {
+    locale: "en",
+    activities: ACTIVITIES,
+    selectedActivityId: "act-2",
+    relationships: [],
+    projectName: "project-1",
+    dataDate: "—",
+    calendarMode: "gregorian",
+  });
+  assert.match(html, /not included in the current Activity Details projection/i);
+  assert.match(html, /does not mean the activity has no resources/i);
+});
+
+test("Activity Update History remains explicit when authoritative activity audit history is absent", () => {
+  const html = renderActivityDetailsTabContent("update-history", {
+    locale: "en",
+    activities: ACTIVITIES,
+    selectedActivityId: "act-2",
+    relationships: [],
+    projectName: "project-1",
+    dataDate: "—",
+    calendarMode: "gregorian",
+  });
+  assert.match(html, /Activity-specific audit history is not included/i);
+  assert.doesNotMatch(html, /sample|example change/i);
 });
