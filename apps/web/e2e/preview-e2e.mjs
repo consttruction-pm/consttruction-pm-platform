@@ -2431,6 +2431,42 @@ async function main() {
     );
     record("grid and Gantt share real activity selection", { activity: "A130" });
 
+    await page.click('[data-detail-tab="resources"]');
+    await page.waitFor(
+      `(() => { const text = document.querySelector("#cp-detail-panel-resources")?.textContent ?? ""; return text.includes("No resource assignments are recorded") || text.includes("Resource assignments could not be loaded"); })()`,
+      "activity resource assignments loaded or explicit error",
+    );
+    const resourceDetails = await page.text("#cp-detail-panel-resources");
+    assert(resourceDetails && !resourceDetails.includes("not included in the current Activity Details projection"), "Activity Resources must use the live assignment API");
+    record("Activity Details Resources reads selected activity assignments", { activity: "A130", excerpt: resourceDetails.slice(0, 240) });
+
+    await page.click('[data-detail-tab="expenses"]');
+    await page.waitFor(
+      `(() => { const text = document.querySelector("#cp-detail-panel-expenses")?.textContent ?? ""; return text.includes("No expense records are assigned to this activity") || text.includes("Activity expenses could not be loaded"); })()`,
+      "activity expenses loaded or explicit error",
+    );
+    const expenseDetails = await page.text("#cp-detail-panel-expenses");
+    assert(expenseDetails && !expenseDetails.includes("No activity expense records are returned by the project read model"), "Activity Expenses must use the live expense API");
+    record("Activity Details Expenses reads selected activity expense records", { activity: "A130", excerpt: expenseDetails.slice(0, 240) });
+
+    const notebookProbe = "Activity Notebook browser E2E A130";
+    await page.click("[data-comments-toggle]");
+    await page.setInput('[data-comment-form] input[name="author"]', "CUBI E2E");
+    await page.setInput('[data-comment-form] textarea[name="body"]', notebookProbe);
+    await page.click('[data-comment-form] button[type="submit"]');
+    await page.waitFor(
+      `JSON.parse(localStorage.getItem("cubi:workspace-comments:v1") || "[]").some((entry) => entry.entityId === "A130" && entry.body === ${JSON.stringify(notebookProbe)})`,
+      "browser-local Activity comment persisted",
+    );
+    await page.click('[data-detail-tab="notebook"]');
+    await page.waitFor(
+      `document.querySelector("#cp-detail-panel-notebook")?.textContent.includes(${JSON.stringify(notebookProbe)}) === true`,
+      "Activity Notebook shows the same scoped local comment",
+    );
+    assert((await page.text("#cp-detail-panel-notebook")).includes(notebookProbe), "Notebook must show the selected activity local note");
+    await page.screenshot("04-activity-details-notebook.png");
+    record("Activity Notebook renders the selected activity browser-local comments", { activity: "A130", note: notebookProbe });
+
     const isoTooltip = await page.evaluate(
       `document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"] td[data-column-id="activity.early_start"]')?.textContent.trim()`,
     );
