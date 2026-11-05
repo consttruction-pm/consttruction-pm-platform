@@ -2408,7 +2408,6 @@ async function main() {
       critical_bars: criticalBars,
       schedule_submenus: scheduleSubmenus,
     });
-('#cp-activity-grid tbody tr[data-activity-id="A130"]');
 
     // Exercise both Activity palettes and prove the WBS band is independently configurable.
     await page.evaluate("(() => { const group = document.querySelector('[data-activity-group]'); if (!group) throw new Error('Activity grouping selector missing'); group.value = 'wbs'; group.dispatchEvent(new Event('change', { bubbles: true })); return true; })()");
