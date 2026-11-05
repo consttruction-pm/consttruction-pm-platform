@@ -331,3 +331,22 @@ test("Activity General tab displays the supplied authoritative Data Date", () =>
   });
   assert.match(html, /2026-11-05/);
 });
+
+test("Activity Steps tab does not treat an unloaded projection as proof that no steps exist", () => {
+  const html = renderActivityDetailsTabContent("steps", {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "—", calendarMode: "gregorian",
+  });
+  assert.match(html, /Activity-step records are not included in the current workspace projection/i);
+  assert.match(html, /cannot determine whether the activity has steps/i);
+  assert.doesNotMatch(html, /This activity has no steps/i);
+});
+
+test("Activity Documents tab qualifies an empty read projection instead of asserting no links exist", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 7 });
+  const html = renderActivityDetailsTabContent("documents", {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "—", calendarMode: "gregorian", state: base,
+  });
+  assert.match(html, /empty projection does not confirm that no documents exist/i);
+});
