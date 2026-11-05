@@ -3072,6 +3072,8 @@ async function main() {
         const main = document.querySelector(".cp-main");
         const details = document.querySelector('[data-resize-handle="details"]');
         const table = document.querySelector('[data-resize-handle="table-gantt"]');
+        const launcher = document.querySelector(".cp-p6 .cubi-assistant-launcher");
+        const rail = document.querySelector(".cp-p6 .cp-comments-dock-rail");
         const rect = (element) => {
           const value = element?.getBoundingClientRect();
           return value ? { left: value.left, right: value.right, width: value.width, height: value.height } : null;
@@ -3080,6 +3082,8 @@ async function main() {
         const mainRect = main?.getBoundingClientRect();
         const detailsRect = details?.getBoundingClientRect();
         const tableRect = table?.getBoundingClientRect();
+        const launcherRect = launcher?.getBoundingClientRect();
+        const railRect = rail?.getBoundingClientRect();
         const hit = (element, bounds) => {
           if (!element || !bounds) return false;
           const target = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
@@ -3090,6 +3094,14 @@ async function main() {
           main: rect(main),
           details: rect(details),
           table: rect(table),
+          assistantLauncher: rect(launcher),
+          assistantRail: rect(rail),
+          assistantInsideRail: Boolean(launcherRect && railRect &&
+            launcherRect.left >= railRect.left - 1 && launcherRect.right <= railRect.right + 1 &&
+            launcherRect.top >= railRect.top - 1 && launcherRect.bottom <= railRect.bottom + 1),
+          assistantOutsideWorkspace: Boolean(launcherRect && bodyRect &&
+            (launcherRect.right <= bodyRect.left || launcherRect.left >= bodyRect.right ||
+              launcherRect.bottom <= bodyRect.top || launcherRect.top >= bodyRect.bottom)),
           mainFits: Boolean(bodyRect && mainRect && mainRect.width <= bodyRect.width + 1),
           detailsFits: Boolean(bodyRect && detailsRect && detailsRect.left >= bodyRect.left - 1 && detailsRect.right <= bodyRect.right + 1),
           tableFits: Boolean(bodyRect && tableRect && tableRect.left >= bodyRect.left - 1 && tableRect.right <= bodyRect.right + 1),
@@ -3099,7 +3111,8 @@ async function main() {
       })()`);
       assert(
         geometry.mainFits && geometry.detailsFits && geometry.tableFits &&
-          geometry.detailsReceivesPointer && geometry.tableReceivesPointer,
+          geometry.detailsReceivesPointer && geometry.tableReceivesPointer &&
+          geometry.assistantInsideRail && geometry.assistantOutsideWorkspace,
         `workspace splitters must fit and receive pointer events at ${viewport.width}x${viewport.height}: ${JSON.stringify(geometry)}`,
       );
       await page.screenshot(`05-workspace-${viewport.width}x${viewport.height}.png`);
