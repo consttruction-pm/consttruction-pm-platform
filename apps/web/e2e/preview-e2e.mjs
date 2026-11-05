@@ -2443,7 +2443,7 @@ async function main() {
     assert(contextLabels.some((label) => label.includes("Open Activity Details")), "Activity context menu must expose Open Activity Details");
     assert(contextLabels.some((label) => label.includes("Show Predecessors")), "Activity context menu must expose predecessor navigation");
     await page.click('[data-context-action="details"]');
-    await page.waitFor('document.querySelector("#cp-details [data-detail-tab=\"general\"]")?.classList.contains("is-active") === true', "context menu opens Activity General details");
+    await page.waitFor('document.querySelector("#cp-details [data-detail-tab=general]")?.classList.contains("is-active") === true', "context menu opens Activity General details");
     record("Activity row context menu exposes and executes activity detail commands", { activity: "A130", actions: contextLabels });
 
     await page.click('[data-detail-tab="resources"]');
