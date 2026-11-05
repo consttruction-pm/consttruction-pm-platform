@@ -2532,7 +2532,7 @@ async function main() {
 
     await page.evaluate(`(() => {
       const summary = Array.from(document.querySelectorAll(".cubi-menu-root > details > summary"))
-        .find((element) => element.textContent.trim() === "View");
+        .find((element) => element.textContent.trim().startsWith("View"));
       summary?.click();
     })()`);
     await page.click('[data-shell-command="Timescale"]');
