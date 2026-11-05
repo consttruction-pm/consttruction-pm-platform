@@ -588,7 +588,7 @@ def test_preview_project_deep_link_survives_login_and_rejects_external_redirects
         assert status == 200
         assert (
             b'<input type="hidden" name="next" '
-            b'value="/app?project=preview-rps-01&view=live">'
+            b'value="/app?project=preview-rps-01&amp;view=live">'
         ) in body
 
         status, headers, _ = _request(
@@ -653,7 +653,7 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
             content_type="application/x-www-form-urlencoded",
         )
         assert status == 303
-        assert headers["location"] == "/app"
+        assert headers["location"] == "/app?view=live"
         cookie = _session_cookie(headers)
 
         status, _, body = _request(app, "GET", "/app", cookie=cookie)
