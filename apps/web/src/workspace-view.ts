@@ -171,18 +171,81 @@ function buildActivityWbsDisplayGroups(
     rows.push(activity);
     rowsByWbs.set(activity.wbsId, rows);
   }
-  return [...rowsByWbs].map(([wbsId, rows]) => {
-    const identity = activityWbsGroupPath(wbsId, nodes);
-    return {
+
+  const byId = new Map(nodes.map((node) => [node.id, node] as const));
+  const children = new Map<string | null, WorkspaceState["wbsNodes"][number][]>();
+  for (const node of nodes) {
+    const parentId = node.parentKind === "project" ? null : node.parentWbsId;
+    const siblings = children.get(parentId) ?? [];
+    siblings.push(node);
+    children.set(parentId, siblings);
+  }
+  for (const siblings of children.values()) {
+    siblings.sort((left, right) =>
+      left.sequenceNumber - right.sequenceNumber
+      || left.localCode.localeCompare(right.localCode, undefined, { numeric: true, sensitivity: "base" })
+      || left.id.localeCompare(right.id),
+    );
+  }
+
+  const countCache = new Map<string, number>();
+  const countBelow = (wbsId: string, visiting: ReadonlySet<string> = new Set()): number => {
+    const cached = countCache.get(wbsId);
+    if (cached !== undefined) return cached;
+    if (visiting.has(wbsId)) return rowsByWbs.get(wbsId)?.length ?? 0;
+    const nextVisiting = new Set(visiting);
+    nextVisiting.add(wbsId);
+    const ownCount = rowsByWbs.get(wbsId)?.length ?? 0;
+    const descendantCount = (children.get(wbsId) ?? []).reduce(
+      (total, child) => total + countBelow(child.id, nextVisiting),
+      0,
+    );
+    const count = ownCount + descendantCount;
+    countCache.set(wbsId, count);
+    return count;
+  };
+
+  const groups: ActivityWbsDisplayGroup[] = [];
+  const visited = new Set<string>();
+  const visit = (parentId: string | null): void => {
+    for (const node of children.get(parentId) ?? []) {
+      if (visited.has(node.id)) continue;
+      visited.add(node.id);
+      const count = countBelow(node.id);
+      if (count > 0) {
+        const identity = activityWbsGroupPath(node.id, nodes);
+        const isCollapsed = collapsed.has(node.id);
+        groups.push({
+          wbsId: node.id,
+          ...identity,
+          count,
+          collapsed: isCollapsed,
+          activities: rowsByWbs.get(node.id) ?? [],
+        });
+        if (!isCollapsed) visit(node.id);
+      } else {
+        visit(node.id);
+      }
+    }
+  };
+  visit(null);
+
+  // Keep activity groups with a missing/orphaned WBS reference visible and deterministic.
+  for (const [wbsId, rows] of [...rowsByWbs].sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" }))) {
+    if (visited.has(wbsId) || groups.some((group) => group.wbsId === wbsId)) continue;
+    const identity = byId.has(wbsId)
+      ? activityWbsGroupPath(wbsId, nodes)
+      : { label: wbsId, path: wbsId, depth: 0 };
+    groups.push({
       wbsId,
       ...identity,
       count: rows.length,
       collapsed: collapsed.has(wbsId),
       activities: rows,
-    };
-  });
-}
-const documentDetailsTabByContainer = new WeakMap<HTMLElement, string>();
+    });
+  }
+  return groups;
+}const documentDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const selectedDocumentByContainer = new WeakMap<HTMLElement, string>();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1";
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
