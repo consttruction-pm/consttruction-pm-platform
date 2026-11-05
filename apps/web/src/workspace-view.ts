@@ -1164,6 +1164,101 @@ export type WorkspaceRendererOptions = {
   onRailAction?: (action: string) => void;
 };
 
+const WORKSPACE_APPEARANCE_STORAGE_KEY = "cubi:workspace-appearance:v1";
+type WorkspaceAppearanceMode = "light" | "dark";
+type WorkspaceAppearanceColorKey = "window" | "navigation" | "panel" | "grid" | "gridHeader" | "gantt" | "wbs1" | "wbs2" | "wbs3" | "wbs4";
+type WorkspaceAppearance = { mode: WorkspaceAppearanceMode; colors: Record<WorkspaceAppearanceColorKey, string> };
+
+const WORKSPACE_APPEARANCE_LABELS: readonly { key: WorkspaceAppearanceColorKey; en: string; fa: string }[] = [
+  { key: "window", en: "Workspace background", fa: "پس‌زمینه محیط کار" },
+  { key: "navigation", en: "Directory background", fa: "پس‌زمینه نوار راهبری" },
+  { key: "panel", en: "Panel background", fa: "پس‌زمینه پنل‌ها" },
+  { key: "grid", en: "Activity table background", fa: "پس‌زمینه جدول فعالیت" },
+  { key: "gridHeader", en: "Table header background", fa: "پس‌زمینه سرستون جدول" },
+  { key: "gantt", en: "Gantt background", fa: "پس‌زمینه گانت" },
+  { key: "wbs1", en: "WBS level 1 band", fa: "نوار سطح اول WBS" },
+  { key: "wbs2", en: "WBS level 2 band", fa: "نوار سطح دوم WBS" },
+  { key: "wbs3", en: "WBS level 3 band", fa: "نوار سطح سوم WBS" },
+  { key: "wbs4", en: "WBS level 4+ band", fa: "نوار سطح چهارم و بالاتر WBS" },
+];
+
+function defaultWorkspaceAppearance(mode: WorkspaceAppearanceMode): WorkspaceAppearance {
+  return mode === "dark"
+    ? { mode, colors: { window: "#182432", navigation: "#111d2a", panel: "#202f40", grid: "#1d2a39", gridHeader: "#304357", gantt: "#172536", wbs1: "#174e70", wbs2: "#28647d", wbs3: "#3d7180", wbs4: "#5b7784" } }
+    : { mode, colors: { window: "#e8edf3", navigation: "#e1e8f0", panel: "#ffffff", grid: "#ffffff", gridHeader: "#dde5ee", gantt: "#ffffff", wbs1: "#1b5278", wbs2: "#286c88", wbs3: "#467f91", wbs4: "#6a8796" } };
+}
+
+function isAppearanceHex(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+function readWorkspaceAppearance(): WorkspaceAppearance {
+  const fallback = defaultWorkspaceAppearance("light");
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(WORKSPACE_APPEARANCE_STORAGE_KEY);
+    if (!raw) return fallback;
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== "object" || value === null || !("mode" in value) || !("colors" in value)) return fallback;
+    const candidate = value as { mode?: unknown; colors?: Record<string, unknown> };
+    const mode: WorkspaceAppearanceMode = candidate.mode === "dark" ? "dark" : "light";
+    const defaults = defaultWorkspaceAppearance(mode);
+    const colors = { ...defaults.colors };
+    for (const { key } of WORKSPACE_APPEARANCE_LABELS) {
+      const saved = candidate.colors?.[key];
+      if (isAppearanceHex(saved)) colors[key] = saved;
+    }
+    return { mode, colors };
+  } catch {
+    return fallback;
+  }
+}
+
+function applyWorkspaceAppearance(container: HTMLElement, appearance: WorkspaceAppearance): void {
+  const workspace = container.querySelector<HTMLElement>(".cp-p6-workspace");
+  if (!workspace) return;
+  workspace.dataset.workspaceTheme = appearance.mode;
+  const variables: Record<WorkspaceAppearanceColorKey, string> = {
+    window: "--cp-ws-window-bg", navigation: "--cp-ws-navigation-bg", panel: "--cp-ws-panel-bg",
+    grid: "--cp-ws-grid-bg", gridHeader: "--cp-ws-grid-header-bg", gantt: "--cp-ws-gantt-bg",
+    wbs1: "--cp-wbs-level-1", wbs2: "--cp-wbs-level-2", wbs3: "--cp-wbs-level-3", wbs4: "--cp-wbs-level-4",
+  };
+  for (const { key } of WORKSPACE_APPEARANCE_LABELS) workspace.style.setProperty(variables[key], appearance.colors[key]);
+}
+
+function syncWorkspaceAppearanceDialog(container: HTMLElement, appearance = readWorkspaceAppearance()): void {
+  const dialog = container.querySelector<HTMLElement>("[data-workspace-appearance-dialog]");
+  if (!dialog) return;
+  const mode = dialog.querySelector<HTMLSelectElement>("[data-appearance-mode]");
+  if (mode) mode.value = appearance.mode;
+  for (const { key } of WORKSPACE_APPEARANCE_LABELS) {
+    const input = dialog.querySelector<HTMLInputElement>(`[data-appearance-color="${key}"]`);
+    if (input) input.value = appearance.colors[key];
+  }
+}
+
+function openWorkspaceAppearanceDialog(container: HTMLElement): void {
+  const dialog = container.querySelector<HTMLDialogElement>("[data-workspace-appearance-dialog]");
+  if (!dialog) return;
+  syncWorkspaceAppearanceDialog(container);
+  if (typeof dialog.showModal === "function") dialog.showModal(); else dialog.setAttribute("open", "");
+}
+
+function renderWorkspaceAppearanceDialog(locale: string): string {
+  const isFa = locale.split("-")[0] === "fa";
+  const appearance = defaultWorkspaceAppearance("light");
+  const label = (en: string, fa: string): string => uiText(locale, en, fa);
+  return `<dialog class="cp-workspace-appearance-dialog" data-workspace-appearance-dialog aria-labelledby="cp-workspace-appearance-title">
+    <header><div><h2 id="cp-workspace-appearance-title">${escapeHtml(label("Workspace Appearance", "ظاهر محیط کار"))}</h2><p>${escapeHtml(label("Choose light or dark mode and independent window, panel, grid, Gantt and WBS band colours.", "قالب روشن یا تیره و رنگ مستقل پنجره، پنل، جدول، گانت و نوارهای WBS را انتخاب کنید."))}</p></div><button type="button" data-workspace-appearance-close aria-label="${escapeAttribute(label("Close", "بستن"))}">×</button></header>
+    <div class="cp-workspace-appearance-body">
+      <label class="cp-workspace-appearance-mode"><span>${escapeHtml(label("Workspace palette", "قالب محیط کار"))}</span><select data-appearance-mode><option value="light">${escapeHtml(label("Light", "روشن"))}</option><option value="dark">${escapeHtml(label("Dark", "تیره"))}</option></select></label>
+      <div class="cp-workspace-appearance-grid">${WORKSPACE_APPEARANCE_LABELS.map(({ key, en, fa }) => `<label><span>${escapeHtml(isFa ? fa : en)}</span><input type="color" data-appearance-color="${key}" value="${appearance.colors[key]}" aria-label="${escapeAttribute(isFa ? fa : en)}"></label>`).join("")}</div>
+      <p class="cp-workspace-appearance-note">${escapeHtml(label("Activity selection, status, critical bars and milestones retain their own semantic colours. WBS band colours do not replace them.", "رنگ انتخاب فعالیت، وضعیت، میله‌های بحرانی و نقاط عطف معنای مستقل خود را حفظ می‌کنند و رنگ نوار WBS جایگزین آن‌ها نمی‌شود."))}</p>
+    </div>
+    <footer><button type="button" data-workspace-appearance-reset>${escapeHtml(label("Load palette defaults", "بازنشانی رنگ‌های پیش‌فرض"))}</button><span></span><button type="button" data-workspace-appearance-close>${escapeHtml(label("Cancel", "انصراف"))}</button><button type="button" class="is-primary" data-workspace-appearance-apply>${escapeHtml(label("Apply", "اعمال"))}</button></footer>
+  </dialog>`;
+}
+
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
   const previous = workspaceRenderRecords.get(container);
   if (previous && applyIncrementalWorkspaceUpdate(container, previous.state, state, options)) {
