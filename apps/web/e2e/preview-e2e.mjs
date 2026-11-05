@@ -7158,26 +7158,43 @@ async function main() {
   }
 }
 
-let failure = null;
-try {
-  await main();
-} catch (error) {
-  failure = error;
-  EVIDENCE.failure = {
-    message: error instanceof Error ? error.message : String(error),
-    stack: error instanceof Error ? error.stack : null,
-  };
-  log(`\nE2E FAILED: ${EVIDENCE.failure.message}`);
-} finally {
-  EVIDENCE.finished_at = new Date().toISOString();
-  EVIDENCE.status = failure ? "failed" : "passed";
-  const evidenceFile = join(artifactsDir, "evidence.json");
-  writeFileSync(evidenceFile, JSON.stringify(EVIDENCE, null, 2));
-  log(`\nEvidence: ${evidenceFile}`);
-  log(`Screenshots: ${SCREENSHOTS.length}`);
-  if (failure) {
-    process.exitCode = 1;
-  } else {
-    log(`\nCUBI full-stack preview E2E passed (${CHECKS.length} recorded checks).`);
+const isDirectInvocation =
+  Boolean(process.argv[1]) &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isDirectInvocation) {
+  let failure = null;
+  try {
+    await main();
+  } catch (error) {
+    failure = error;
+    EVIDENCE.failure = {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : null,
+    };
+    log(`\nE2E FAILED: ${EVIDENCE.failure.message}`);
+  } finally {
+    EVIDENCE.finished_at = new Date().toISOString();
+    EVIDENCE.status = failure ? "failed" : "passed";
+    const evidenceFile = join(artifactsDir, "evidence.json");
+    writeFileSync(evidenceFile, JSON.stringify(EVIDENCE, null, 2));
+    log(`\nEvidence: ${evidenceFile}`);
+    log(`Screenshots: ${SCREENSHOTS.length}`);
+    if (failure) {
+      process.exitCode = 1;
+    } else {
+      log(`\nCUBI full-stack preview E2E passed (${CHECKS.length} recorded checks).`);
+    }
   }
 }
+
+// The journey audit reuses this harness instead of duplicating CDP plumbing.
+// Importing this module must never start the full E2E suite.
+export {
+  Page,
+  launchChrome,
+  waitForHttp,
+  startManagedRuntime,
+  gitHead,
+  artifactsDir,
+};

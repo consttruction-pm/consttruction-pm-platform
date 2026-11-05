@@ -57,7 +57,7 @@ The approved visual-demo catalogue in `apps/web/src/workspace-visual-demo.ts` co
 | 13 | `issues` | `issues` | Existing shell; P6-style register gap |
 | 14 | `risks` | `risks` | Existing shell; risk model gap |
 | 15 | `administration` | `settings` plus existing Administration menu surfaces | Verify every admin operation and permission separately |
-| 16 | `network` | Schedule subview | Not a separate application/window; requires real relationship data |
+| 16 | `network` | Schedule subview | Migrated as a top-layout projection of persisted activities/relationships; selectable, keyboard-operable and persisted per tenant/project |
 | 17 | `trace` | Schedule subview | Not a separate application/window; requires trace/relationship presentation |
 | 18 | `timeline` | Schedule subview | Not a separate application/window; preserve Gantt time-scale behaviour |
 | 19 | `activity-profile` | Schedule subview | Requires authoritative time-phased activity data |
@@ -331,8 +331,8 @@ The sibling continuation branch was merged into `codex/jalal/cubi-shell-v26-2026
 
 1. The 48-window visual catalogue is **not** fully migrated. Windows without an authoritative service remain visibly unavailable; do not create demo records.
 2. Reporting, tracking, thresholds, issues/risks, engineering intelligence, project comparison and several administration surfaces still need real service contracts.
-3. Column drag, filters, timescale, bars and network/usage views need their own acceptance slices; this slice covers the pane/column presentation layer only.
-4. Jalali/Gregorian parity and the eight-language matrix are not re-proven here beyond the existing locale tests.
+3. Column drag, filters, timescale and bars have acceptance coverage; the Activity Network top-layout slice now renders from persisted relationships. Activity/resource Usage Spreadsheet/Profile and Trace Logic remain disabled because their authoritative time-phased services are not wired.
+4. Jalali/Gregorian rendering and the 48-window catalogue were re-audited. Arabic, French, Japanese and Korean remain selectable language-pack targets but carry no UI pack; the switcher now labels them as English-until-installed rather than implying a translated interface.
 
 ### Integration guard
 

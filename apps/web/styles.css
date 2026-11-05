@@ -5275,6 +5275,47 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   min-height: 0;
   overflow: hidden;
 }
+.cp-p6 .cp-p6-network {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+}
+.cp-p6 .cp-p6-network-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 30px;
+  min-height: 30px;
+  padding: 0 8px;
+  border-bottom: 1px solid #c3ccd8;
+  background: #e6ebf2;
+}
+.cp-p6 .cp-p6-network-head h2 { margin: 0; font-size: 11px; font-weight: 700; }
+.cp-p6 .cp-p6-network-head span { font-size: 10px; color: #4a5c70; }
+.cp-p6 .cp-p6-network-note { max-width: 58%; text-align: end; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-p6 .cp-p6-network .cp-register-notice { margin: 4px 8px; }
+.cp-p6 .cp-network-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px; background: #f7f9fb; }
+.cp-p6 .cp-network-svg { display: block; }
+.cp-p6 .cp-network-node { cursor: pointer; }
+.cp-p6 .cp-network-node-surface { fill: #fff; stroke: #9db4cc; stroke-width: 1; }
+.cp-p6 .cp-network-node-accent { fill: #4a7bb7; }
+.cp-p6 .cp-network-node.is-critical .cp-network-node-accent { fill: #c0392b; }
+.cp-p6 .cp-network-node.is-critical .cp-network-node-surface { stroke: #c0392b; }
+.cp-p6 .cp-network-node.is-selected .cp-network-node-surface { stroke: #1e5fa8; stroke-width: 2; fill: #eaf2fb; }
+.cp-p6 .cp-network-node:focus-visible .cp-network-node-surface { stroke: #b97400; stroke-width: 2; }
+.cp-p6 .cp-network-node-id { font-size: 11px; font-weight: 700; fill: #1f2d3d; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.cp-p6 .cp-network-node-name { font-size: 10px; fill: #33465c; }
+.cp-p6 .cp-network-node-status { font-size: 9px; fill: #5b6b7c; }
+.cp-p6 .cp-network-edge { fill: none; stroke: #8093a8; stroke-width: 1.2; }
+.cp-p6 .cp-network-edge-group.is-critical .cp-network-edge { stroke: #c0392b; }
+.cp-p6 .cp-network-arrow { fill: #8093a8; }
+.cp-p6 .cp-network-edge-label { font-size: 9px; fill: #4a5c70; paint-order: stroke; stroke: #f7f9fb; stroke-width: 3px; }
+@media (max-width: 900px) { .cp-p6 .cp-p6-network-note { display: none; } }
 .cp-p6 .cp-p6-split {
   display: none !important;
   grid-template-columns: minmax(0, var(--cp-split-table, 45%)) 4px minmax(0, calc(100% - var(--cp-split-table, 45%) - 4px));
@@ -5463,6 +5504,14 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* ISO and Jalali date text must fit the persisted 68px date columns without
+   clipping, so date cells use a compact type scale and tighter padding. */
+.cp-p6 #cp-activity-grid tbody td[data-column-type="date"],
+.cp-p6 #cp-activity-grid tbody td[data-column-type="datetime"] {
+  padding-inline: 3px;
+  font-size: 9.5px;
+  letter-spacing: -0.1px;
 }
 .cp-p6 #cp-activity-grid tbody tr:nth-child(even) td { background: #f7f9fc; }
 .cp-p6 #cp-activity-grid tbody tr:hover td { background: #eaf3fd; }

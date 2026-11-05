@@ -8,6 +8,7 @@ import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiTex
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon } from "./workspace-icons.js";
+import { renderActivityNetwork } from "./workspace-network.js";
 
 const labels = {
   en: {
@@ -125,6 +126,7 @@ const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1
 const workspaceEventDelegation = new WeakSet<HTMLElement>();
 const workspaceStickyOffsetsCache = new WeakMap<readonly WorkspaceColumn[], ReadonlyMap<string, number>>();
 const WORKSPACE_SPLIT_STORAGE_KEY = "cubi:workspace:split";
+const WORKSPACE_TOP_LAYOUT_STORAGE_KEY = "cubi:workspace:top-layout";
 const DEFAULT_TABLE_SPLIT = 45;
 const DEFAULT_DETAILS_SPLIT = 70;
 const MIN_TABLE_SPLIT = 25;
@@ -144,6 +146,44 @@ function splitStorageKey(kind: "table-gantt" | "details", state: WorkspaceState)
     state.activeMenu,
     kind,
   ].join(":");
+}
+
+type WorkspaceTopLayout = "table-gantt" | "activity-network";
+
+function topLayoutStorageKey(state: WorkspaceState): string {
+  // Presentation-only preference scoped like the pane splits, so a second
+  // project or window never inherits another plan's chosen layout.
+  return [
+    WORKSPACE_TOP_LAYOUT_STORAGE_KEY,
+    encodeURIComponent(state.context.tenant_id ?? ""),
+    encodeURIComponent(state.context.project_id),
+    state.activeMenu,
+  ].join(":");
+}
+
+function isTopLayoutAvailable(layout: WorkspaceTopLayout, state: WorkspaceState): boolean {
+  if (layout === "table-gantt") return true;
+  // The network is drawn only from persisted activities and relationships.
+  // Without both, the option stays unavailable instead of rendering a shell.
+  return state.activities.length > 0 && state.relationships.length > 0;
+}
+
+function readStoredTopLayout(state: WorkspaceState): WorkspaceTopLayout {
+  try {
+    const raw = window.localStorage.getItem(topLayoutStorageKey(state));
+    if (raw === "activity-network" && isTopLayoutAvailable(raw, state)) return raw;
+  } catch {
+    // Preference storage is optional; fall back to the table + Gantt layout.
+  }
+  return "table-gantt";
+}
+
+function storeTopLayout(state: WorkspaceState, layout: WorkspaceTopLayout): void {
+  try {
+    window.localStorage.setItem(topLayoutStorageKey(state), layout);
+  } catch {
+    // Preference storage is optional; the choice still applies to this render.
+  }
 }
 
 function readStoredSplit(key: string, fallback: number): number {
@@ -846,6 +886,19 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       ? event.target as HTMLElement
       : null;
     if (!element) return;
+    if (Object.prototype.hasOwnProperty.call(element.dataset, "topLayout")) {
+      const value = (element as HTMLSelectElement).value;
+      const record = workspaceRenderRecords.get(container);
+      if (!record) return;
+      if (value !== "table-gantt" && value !== "activity-network") return;
+      if (!isTopLayoutAvailable(value, record.state)) return;
+      storeTopLayout(record.state, value);
+      // Presentation-only switch: the workspace state, revision and schedule
+      // result are untouched. A full render swaps the primary view and closes
+      // the options dialog while the details pane and selection survive.
+      renderMainWorkspace(container, record.state, record.options);
+      return;
+    }
     if (Object.prototype.hasOwnProperty.call(element.dataset, "trackingLayout")) {
       const value = (element as HTMLSelectElement).value;
       const surface = container.querySelector<HTMLElement>("[data-tracking-surface]");
@@ -1276,6 +1329,8 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   const detailsSplitKey = splitStorageKey("details", state);
   const tableSplit = Math.min(MAX_TABLE_SPLIT, Math.max(MIN_TABLE_SPLIT, readStoredSplit(tableSplitKey, DEFAULT_TABLE_SPLIT)));
   const detailsSplit = Math.min(MAX_DETAILS_SPLIT, Math.max(MIN_DETAILS_SPLIT, readStoredSplit(detailsSplitKey, DEFAULT_DETAILS_SPLIT)));
+  const topLayout: WorkspaceTopLayout = state.activeMenu === "schedule" ? readStoredTopLayout(state) : "table-gantt";
+
 
   container.innerHTML = `
     <section class="cp-workspace cp-p6-workspace" dir="${state.direction}" data-project="${escapeAttribute(state.context.project_id)}" data-active-menu="${state.activeMenu}">
@@ -1342,7 +1397,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}
           <main class="cp-main" data-details-split style="--cp-split-primary:${detailsSplit.toFixed(2)}%;--cp-split-details:${detailsSplit.toFixed(2)}%">
             <div class="cp-p6-primary">
-              <section class="cp-p6-split" data-panel-split data-split-key="${escapeAttribute(tableSplitKey)}" data-workspace-menu="schedule" style="--cp-split-table:${tableSplit.toFixed(2)}%">
+              ${topLayout === "activity-network"
+                ? renderActivityNetwork(state.activities, state.relationships, state.locale, state.selectedActivityId)
+                : `<section class="cp-p6-split" data-panel-split data-split-key="${escapeAttribute(tableSplitKey)}" data-workspace-menu="schedule" style="--cp-split-table:${tableSplit.toFixed(2)}%">
                 <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-grid-head">
                     <h2>${escapeHtml(t.activities)}</h2>
@@ -1362,7 +1419,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   </div>
                   ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}
                 </section>
-              </section>
+              </section>`}
               ${renderP6ModuleStage(container, state, t, options)}
             </div>
             <div class="cp-details-splitter" data-details-splitter data-split-key="${escapeAttribute(detailsSplitKey)}" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize activity area and details", "تغییر اندازهٔ ناحیهٔ فعالیت و جزئیات"))}" aria-valuemin="${MIN_DETAILS_SPLIT}" aria-valuemax="${MAX_DETAILS_SPLIT}" aria-valuenow="${detailsSplit.toFixed(0)}" data-resize-handle="details"><span></span></div>
@@ -2472,7 +2529,7 @@ function renderP6FieldChooser(
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState, stickyOffsets: ReadonlyMap<string, number>): string {
   const selected = activity.id === state.selectedActivityId;
   const predecessors = predecessorSummary(activity.id, state);
-  return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" class="${selected ? "is-selected" : ""}">${state.columns.map((column) => `<td role="gridcell" data-column-id="${escapeAttribute(column.id)}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="text-align:${column.alignment};width:${column.width}px${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${renderCell(column, activity, state.calendarMode)}</td>`).join("")}<td class="cp-logic-column" data-predecessors="${escapeAttribute(activity.id)}">${predecessors ? escapeHtml(predecessors) : "—"}</td><td class="cp-actions-column"><button type="button" data-activity-edit="${escapeAttribute(activity.id)}">${escapeHtml(getWorkspaceLabels(state.locale).activityEdit)}</button></td></tr>`;
+  return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" class="${selected ? "is-selected" : ""}">${state.columns.map((column) => `<td role="gridcell" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="text-align:${column.alignment};width:${column.width}px${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${renderCell(column, activity, state.calendarMode)}</td>`).join("")}<td class="cp-logic-column" data-predecessors="${escapeAttribute(activity.id)}">${predecessors ? escapeHtml(predecessors) : "—"}</td><td class="cp-actions-column"><button type="button" data-activity-edit="${escapeAttribute(activity.id)}">${escapeHtml(getWorkspaceLabels(state.locale).activityEdit)}</button></td></tr>`;
 }
 
 function renderCell(column: WorkspaceColumn, activity: WorkspaceActivityRow, calendarMode: WorkspaceState["calendarMode"]): string {
@@ -2741,14 +2798,18 @@ function renderLayoutOptionsDialog(state: WorkspaceState, t: WorkspaceLabels): s
     quarter: t.scaleQuarter,
     year: t.scaleYear,
   };
+  const topLayout = readStoredTopLayout(state);
+  const networkAvailable = isTopLayoutAvailable("activity-network", state);
   return `<dialog class="cp-layout-options-dialog" data-layout-options-dialog aria-labelledby="cp-layout-options-title">
     <form method="dialog" class="cp-layout-options-form">
       <header><div><small>${escapeHtml(uiText(state.locale, "Activities window", "پنجره فعالیت‌ها"))}</small><h2 id="cp-layout-options-title">${escapeHtml(uiText(state.locale, "Layout Options", "گزینه‌های چیدمان"))}</h2></div><button type="button" data-layout-options-close aria-label="${escapeAttribute(uiText(state.locale, "Close", "بستن"))}">×</button></header>
       <section class="cp-layout-options-section">
         <h3>${escapeHtml(uiText(state.locale, "Top Layout", "چیدمان بالا"))}</h3>
         <label>${escapeHtml(uiText(state.locale, "Primary view", "نمای اصلی"))}
-          <select data-top-layout><option value="table-gantt" selected>${escapeHtml(uiText(state.locale, "Activity Table + Gantt Chart", "جدول فعالیت‌ها + نمودار گانت"))}</option><option value="activity-network" disabled>Activity Network</option><option value="activity-usage-spreadsheet" disabled>Activity Usage Spreadsheet</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="resource-usage-spreadsheet" disabled>Resource Usage Spreadsheet</option><option value="resource-usage-profile" disabled>Resource Usage Profile</option><option value="trace-logic" disabled>Trace Logic</option></select>
+          <select data-top-layout><option value="table-gantt"${topLayout === "table-gantt" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Table + Gantt Chart", "جدول فعالیت‌ها + نمودار گانت"))}</option><option value="activity-network"${networkAvailable ? "" : " disabled"}${topLayout === "activity-network" ? " selected" : ""}>${escapeHtml(uiText(state.locale, "Activity Network", "شبکهٔ فعالیت‌ها"))}</option><option value="activity-usage-spreadsheet" disabled>Activity Usage Spreadsheet</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option><option value="resource-usage-spreadsheet" disabled>Resource Usage Spreadsheet</option><option value="resource-usage-profile" disabled>Resource Usage Profile</option><option value="trace-logic" disabled>Trace Logic</option></select>
         </label>
+        ${networkAvailable ? "" : `<p>${escapeHtml(uiText(state.locale, "The Activity Network needs persisted activities and relationships. It stays disabled for this project instead of drawing placeholder nodes.", "شبکهٔ فعالیت‌ها به فعالیت‌ها و روابط ذخیره‌شده نیاز دارد. برای این پروژه غیرفعال می‌ماند تا گره‌های ساختگی ترسیم نشوند."))}</p>`}
+        <p>${escapeHtml(uiText(state.locale, "The Activity Network is drawn from the persisted plan logic already loaded in this workspace; Usage and Trace Logic views stay disabled until their authoritative services are wired.", "شبکهٔ فعالیت‌ها از منطق برنامهٔ ذخیره‌شده و بارگذاری‌شده در این محیط کار ترسیم می‌شود؛ نماهای مصرف و ردیابی منطق تا اتصال سرویس‌های مرجع غیرفعال می‌مانند."))}</p>
         <h3>${escapeHtml(uiText(state.locale, "Bottom Layout", "چیدمان پایین"))}</h3>
         <label>${escapeHtml(uiText(state.locale, "Details view", "نمای جزئیات"))}
           <select data-bottom-layout><option value="activity-details" selected>Activity Details</option><option value="activity-network" disabled>Activity Network</option><option value="trace-logic" disabled>Trace Logic</option><option value="activity-usage-profile" disabled>Activity Usage Profile</option></select>

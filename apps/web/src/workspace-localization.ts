@@ -109,6 +109,21 @@ export function getAvailableWorkspaceLocales(): readonly WorkspaceLocale[] {
   return [...localeDefinitions.keys()];
 }
 
+/**
+ * True only when selecting this locale actually changes UI text. Arabic,
+ * French, Japanese and Korean are registered as selectable targets for signed
+ * language packs, but no pack is installed by default, so their interface
+ * remains English. The switcher labels that fallback instead of presenting an
+ * untranslated locale as complete.
+ */
+export function hasWorkspaceUiTranslations(locale: WorkspaceLocale): boolean {
+  const definition = localeDefinitions.get(locale);
+  if (!definition) return false;
+  if (Object.keys(definition.translations).length > 0) return true;
+  const base = locale.split("-")[0].toLowerCase();
+  return base === "en" || base === "fa" || base === "de" || base === "zh";
+}
+
 export function translateWorkspaceText(locale: WorkspaceLocale, key: string, fallback: string): string {
   return localeDefinitions.get(locale)?.translations[key] ?? fallback;
 }
