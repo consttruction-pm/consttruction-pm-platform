@@ -255,7 +255,8 @@ export function renderActivityTraceLogic(state: WorkspaceState): string {
 }
 
 type WorkspaceContextMenuState =
-  | { kind: "activity"; activityId: string }
+  | { kind: "activity"; activityId: string; columnId?: string }
+  | { kind: "activity-column"; columnId: string }
   | { kind: "wbs"; wbsId: string }
   | { kind: "relationship"; relationshipId: string }
   | { kind: "grid" | "gantt" };
@@ -573,15 +574,20 @@ function bindWorkspaceEvents(container: HTMLElement): void {
   });
   const openWorkspaceContextMenu = (source: HTMLElement, clientX: number, clientY: number): boolean => {
     if (typeof source.closest !== "function") return false;
+    const header = source.closest<HTMLElement>("#cp-activity-grid th[data-column-id]");
+    const cell = source.closest<HTMLElement>("#cp-activity-grid td[data-column-id]");
     const activity = source.closest<HTMLElement>("#cp-activity-grid tr[data-activity-id]");
     const ganttActivity = source.closest<HTMLElement>(".cp-gantt-row[data-gantt-activity-id]");
     const group = source.closest<HTMLElement>("[data-activity-group-band]");
+    const wbsTreeItem = source.closest<HTMLElement>("[data-wbs-id]");
     const link = source.closest<SVGPathElement>("path[data-gantt-link]");
     let context: WorkspaceContextMenuState | null = null;
     if (link?.dataset.ganttLink) context = { kind: "relationship", relationshipId: link.dataset.ganttLink };
     else if (group?.dataset.activityGroupBand) context = { kind: "wbs", wbsId: group.dataset.activityGroupBand };
-    else if (activity?.dataset.activityId) context = { kind: "activity", activityId: activity.dataset.activityId };
+    else if (header?.dataset.columnId) context = { kind: "activity-column", columnId: header.dataset.columnId };
+    else if (activity?.dataset.activityId) context = { kind: "activity", activityId: activity.dataset.activityId, columnId: cell?.dataset.columnId };
     else if (ganttActivity?.dataset.ganttActivityId) context = { kind: "activity", activityId: ganttActivity.dataset.ganttActivityId };
+    else if (wbsTreeItem?.dataset.wbsId) context = { kind: "wbs", wbsId: wbsTreeItem.dataset.wbsId };
     else if (source.closest("#cp-activity-grid")) context = { kind: "grid" };
     else if (source.closest("#cp-gantt")) context = { kind: "gantt" };
     if (!context) return false;
@@ -600,6 +606,11 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       item("successors", tx("Show Successors", "نمایش پس‌نیازها")),
       item("relationships", tx("Show Relationships", "نمایش روابط")),
       item("select-wbs", tx("Select WBS", "انتخاب WBS")),
+      ...(context.columnId ? [item("hide-column", tx("Hide This Column", "پنهان‌کردن این ستون"))] : []),
+    ];
+    else if (context.kind === "activity-column") items = [
+      item("hide-column", tx("Hide This Column", "پنهان‌کردن این ستون")),
+      item("columns", tx("Manage Columns & Fields", "مدیریت ستون‌ها و فیلدها")),
     ];
     else if (context.kind === "wbs") items = [
       item("toggle-wbs", tx("Expand / Collapse Branch", "بازکردن / جمع‌کردن شاخه")),
@@ -647,8 +658,16 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const host = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
       if (host) host.hidden = true;
       if (!context) return;
-      if (context.kind === "activity") {
+      if (context.kind === "activity-column") {
+        if (menuAction === "hide-column") options.onP6FieldVisibilityChange?.(context.columnId, false);
+        else if (menuAction === "columns") openToolsDrawer(container);
+      } else if (context.kind === "activity") {
         const activityId = context.activityId;
+        if (menuAction === "hide-column" && context.columnId) {
+          options.onP6FieldVisibilityChange?.(context.columnId, false);
+          workspaceContextMenuState.delete(container);
+          return;
+        }
         if (menuAction === "details" || menuAction === "predecessors" || menuAction === "successors" || menuAction === "relationships") {
           activityDetailsTabByContainer.set(container, menuAction === "details" ? "general" : menuAction);
           options.onActivitySelect?.(activityId);
