@@ -5167,7 +5167,13 @@ async function main() {
       result_rows: viewerRunRows,
     });
     await page.click("#cubi-preview-banner button");
-    await page.waitForSelector('form[action="/preview/login"]', "final logout");
+    await page.waitFor(`location.pathname === "/"`, "final logout returns to public Home");
+    await page.navigate(
+      `${baseUrl}/app?view=live`,
+      'form[action="/preview/login"]',
+      "admin login after final sign out",
+      `${baseUrl}/preview/login`,
+    );
 
     await page.click('button[name="role"][value="admin"]');
     await page.waitFor(`location.pathname === "/app"`, "admin redirect to /app");
