@@ -2430,6 +2430,21 @@ async function main() {
       "table and Gantt must share activity selection",
     );
     record("grid and Gantt share real activity selection", { activity: "A130" });
+    await page.evaluate(`(() => {
+      const row = document.querySelector('#cp-activity-grid tbody tr[data-activity-id="A130"]');
+      if (!row) return false;
+      return row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 240, clientY: 180 }));
+    })()`);
+    await page.waitFor(
+      `document.querySelector("[data-workspace-context-menu-host]")?.hidden === false && document.querySelector('[data-context-action="details"]') !== null`,
+      "Activity row context menu opens",
+    );
+    const contextLabels = await page.evaluate(`Array.from(document.querySelectorAll("[data-context-action]")).map((item) => item.textContent.trim())`);
+    assert(contextLabels.some((label) => label.includes("Open Activity Details")), "Activity context menu must expose Open Activity Details");
+    assert(contextLabels.some((label) => label.includes("Show Predecessors")), "Activity context menu must expose predecessor navigation");
+    await page.click('[data-context-action="details"]');
+    await page.waitFor('document.querySelector("#cp-details [data-detail-tab=\"general\"]")?.classList.contains("is-active") === true', "context menu opens Activity General details");
+    record("Activity row context menu exposes and executes activity detail commands", { activity: "A130", actions: contextLabels });
 
     await page.click('[data-detail-tab="resources"]');
     await page.waitFor(
