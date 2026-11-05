@@ -120,6 +120,68 @@ const activityDetailsVisibleTabsByContainer = new WeakMap<HTMLElement, Set<strin
 const projectDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const wbsViewByContainer = new WeakMap<HTMLElement, "tree" | "chart">();
+const collapsedActivityWbsGroupsByContainer = new WeakMap<HTMLElement, Set<string>>();
+
+type ActivityWbsDisplayGroup = {
+  wbsId: string;
+  label: string;
+  path: string;
+  depth: number;
+  count: number;
+  collapsed: boolean;
+  activities: readonly WorkspaceActivityRow[];
+};
+
+function collapsedActivityWbsGroups(container: HTMLElement): Set<string> {
+  let groups = collapsedActivityWbsGroupsByContainer.get(container);
+  if (!groups) {
+    groups = new Set<string>();
+    collapsedActivityWbsGroupsByContainer.set(container, groups);
+  }
+  return groups;
+}
+
+function activityWbsGroupPath(
+  wbsId: string,
+  nodes: readonly WorkspaceState["wbsNodes"][number][],
+): { label: string; path: string; depth: number } {
+  const byId = new Map(nodes.map((node) => [node.id, node] as const));
+  const parts: string[] = [];
+  const visited = new Set<string>();
+  let current = byId.get(wbsId);
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    parts.unshift(`${current.localCode} — ${current.name}`);
+    current = current.parentKind === "project" || !current.parentWbsId
+      ? undefined
+      : byId.get(current.parentWbsId);
+  }
+  const label = parts.at(-1) ?? wbsId;
+  return { label, path: parts.join(" / ") || wbsId, depth: Math.max(0, parts.length - 1) };
+}
+
+function buildActivityWbsDisplayGroups(
+  activities: readonly WorkspaceActivityRow[],
+  nodes: readonly WorkspaceState["wbsNodes"][number][],
+  collapsed: ReadonlySet<string>,
+): ActivityWbsDisplayGroup[] {
+  const rowsByWbs = new Map<string, WorkspaceActivityRow[]>();
+  for (const activity of activities) {
+    const rows = rowsByWbs.get(activity.wbsId) ?? [];
+    rows.push(activity);
+    rowsByWbs.set(activity.wbsId, rows);
+  }
+  return [...rowsByWbs].map(([wbsId, rows]) => {
+    const identity = activityWbsGroupPath(wbsId, nodes);
+    return {
+      wbsId,
+      ...identity,
+      count: rows.length,
+      collapsed: collapsed.has(wbsId),
+      activities: rows,
+    };
+  });
+}
 const documentDetailsTabByContainer = new WeakMap<HTMLElement, string>();
 const selectedDocumentByContainer = new WeakMap<HTMLElement, string>();
 const ACTIVITY_DETAILS_TABS_STORAGE_KEY = "cubi:activity-details-visible-tabs:v1";
@@ -917,6 +979,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     state.activityGroupBy,
     state.wbsNodes,
   );
+  const collapsedWbsGroups = collapsedActivityWbsGroups(container);
+  const activityWbsGroups = state.activityGroupBy === "wbs"
+    ? buildActivityWbsDisplayGroups(visibleActivities, state.wbsNodes, collapsedWbsGroups)
+    : null;
   const scale = createGanttScale(visibleActivities);
   let stickyOffsets = workspaceStickyOffsetsCache.get(state.columns);
   if (!stickyOffsets) {
@@ -1119,7 +1185,10 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   <div class="cp-table-wrap">
                     <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false" style="width:${activityTableWidth}px">
                       <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
-                      <tbody>${visibleActivities.length ? visibleActivities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length + 2)}">${escapeHtml(state.activities.length ? t.noMatchingActivities : t.noActivities)}</td></tr>`}</tbody>
+                      <tbody>${visibleActivities.length ? (activityWbsGroups
+                        ? activityWbsGroups.map((group) => `${renderActivityGroupBand(group, state, state.columns.length + 2)}${group.collapsed ? "" : group.activities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("")}`).join("")
+                        : visibleActivities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join(""))
+                        : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length + 2)}">${escapeHtml(state.activities.length ? t.noMatchingActivities : t.noActivities)}</td></tr>`}</tbody>
                     </table>
                   </div>
                 </section>
@@ -1129,7 +1198,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                     <h2>${escapeHtml(t.gantt)}</h2>
                     <button type="button" data-tools-open title="${escapeAttribute(rail.bars)}">${workspaceIcon("bars")}</button>
                   </div>
-                  ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships)}
+                  ${renderGantt(visibleActivities, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, activityWbsGroups)}
                 </section>
               </section>
               ${renderP6ModuleStage(container, state, t, options)}
@@ -2207,6 +2276,21 @@ function renderP6FieldChooser(
   </section>`;
 }
 
+function renderActivityGroupBand(group: ActivityWbsDisplayGroup, state: WorkspaceState, colSpan: number): string {
+  const expandLabel = uiText(state.locale, "Expand WBS group", "باز کردن گروه WBS");
+  const collapseLabel = uiText(state.locale, "Collapse WBS group", "جمع کردن گروه WBS");
+  const action = group.collapsed ? expandLabel : collapseLabel;
+  return `<tr role="row" class="cp-activity-group-band" data-activity-group-band="${escapeAttribute(group.wbsId)}" data-wbs-depth="${group.depth}">
+    <td role="gridcell" colspan="${colSpan}">
+      <div class="cp-activity-group-band-content" style="padding-inline-start:${group.depth * 14}px">
+        <button type="button" data-activity-wbs-group-toggle="${escapeAttribute(group.wbsId)}" aria-expanded="${group.collapsed ? "false" : "true"}" title="${escapeAttribute(action)}" aria-label="${escapeAttribute(action + ": " + group.path)}">${group.collapsed ? "+" : "−"}</button>
+        <span class="cp-activity-group-band-label" title="${escapeAttribute(group.path)}">${escapeHtml(group.path)}</span>
+        <span class="cp-activity-group-band-count">${group.count} ${escapeHtml(uiText(state.locale, "activities", "فعالیت"))}</span>
+      </div>
+    </td>
+  </tr>`;
+}
+
 function renderActivityRow(activity: WorkspaceActivityRow, state: WorkspaceState, stickyOffsets: ReadonlyMap<string, number>): string {
   const selected = activity.id === state.selectedActivityId;
   const predecessors = predecessorSummary(activity.id, state);
@@ -2239,6 +2323,7 @@ function renderGantt(
   t: WorkspaceLabels,
   selectedActivityId: string | null,
   showRelationships: boolean,
+  activityGroups: readonly ActivityWbsDisplayGroup[] | null = null,
 ): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
 
