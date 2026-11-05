@@ -7174,6 +7174,7 @@ html.cubi-is-resizing:has(.cp-p6.is-resizing) .cp-p6-details-splitter { cursor: 
 .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree[data-expanded="true"] {
   width: 224px;
   min-width: 224px;
+  max-width: 224px;
   align-items: stretch;
   padding: 6px 5px;
   box-shadow: 0 0 18px rgba(15, 35, 58, .22);
@@ -7247,6 +7248,7 @@ html.cubi-is-resizing:has(.cp-p6.is-resizing) .cp-p6-details-splitter { cursor: 
   .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree[data-expanded="true"] {
     width: min(224px, calc(100vw - 76px));
     min-width: min(224px, calc(100vw - 76px));
+    max-width: min(224px, calc(100vw - 76px));
   }
   .cp-p6 .cp-p6-workspace[dir="rtl"] .cp-p6-shell {
     grid-template-columns: 32px minmax(0, 1fr) 42px;
@@ -7265,6 +7267,7 @@ html.cubi-is-resizing:has(.cp-p6.is-resizing) .cp-p6-details-splitter { cursor: 
   .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree[data-expanded="true"] {
     width: min(210px, calc(100vw - 66px));
     min-width: min(210px, calc(100vw - 66px));
+    max-width: min(210px, calc(100vw - 66px));
   }
   .cp-p6 .cp-p6-workspace[dir="rtl"] .cp-p6-shell {
     grid-template-columns: 30px minmax(0, 1fr) 36px;
