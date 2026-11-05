@@ -6,6 +6,7 @@ import type { WorkspaceMenuKey } from "./workspace-model.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 import { createWorkspaceState, setDocuments, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
+import { normalizePresentation } from "./workspace-presentation.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -574,7 +575,7 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["pointerdown", "input", "submit", "click", "keydown", "change"]);
+  assert.deepEqual(registrations, ["scroll", "pointerdown", "input", "submit", "click", "keydown", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -1160,7 +1161,7 @@ test("interactive Gantt rows expose button selection semantics", () => {
   };
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  assert.match(container.innerHTML, /class="cp-gantt-row is-selected" role="button" data-gantt-activity-id="A-1" tabindex="0" aria-pressed="true" aria-label="A-1"/);
+  assert.match(container.innerHTML, /class="cp-gantt-row is-selected" role="button" data-gantt-activity-id="A-1" tabindex="0" aria-pressed="true" aria-label="A-1 — Foundation"/);
   assert.doesNotMatch(container.innerHTML, /cp-gantt-row[^>]*aria-selected=/);
 });
 
@@ -1580,7 +1581,12 @@ test("Gantt renders persisted dependency arrows, a dated axis and milestone mark
   assert.match(container.innerHTML, /data-gantt-scale-mode="day"/);
   assert.match(container.innerHTML, /data-gantt-scale="day" aria-pressed="true"/);
   assert.match(container.innerHTML, /data-gantt-scale="week" aria-pressed="false"/);
-  assert.match(container.innerHTML, /class="cp-gantt-bar is-critical is-milestone"/);
+  assert.match(container.innerHTML, /data-gantt-bar-kind="critical" data-gantt-bar-row="1"/);
+  assert.match(container.innerHTML, /data-gantt-bar-kind="milestone" data-gantt-bar-row="1" data-gantt-bar-shape="diamond"/);
+  assert.equal((container.innerHTML.match(/class="cp-gantt-row/g) ?? []).length, 3);
+  assert.match(container.innerHTML, /data-gantt-command="bars"/);
+  assert.match(container.innerHTML, /data-gantt-command="font-row"/);
+  assert.match(container.innerHTML, /data-gantt-command="user-preferences"/);
 });
 
 test("Gantt axis shows the Jalali display date while keeping canonical tick dates", () => {
@@ -1635,6 +1641,97 @@ test("Gantt dependency line visibility is an accessible selectable presentation 
   });
   assert.match(hiddenContainer.innerHTML, /data-gantt-relationships-toggle="true" aria-pressed="false"/);
   assert.doesNotMatch(hiddenContainer.innerHTML, /class="cp-gantt-links"/);
+});
+
+test("the saved table presentation styles the real grid, rows, icons and line numbers", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const presentation = normalizePresentation({
+    table: {
+      fontFamily: "cairo",
+      fontSize: 14,
+      textColor: "#102030",
+      backgroundColor: "#eef4f9",
+      rowHeight: 30,
+      rowHeightMode: "content",
+      showIcons: true,
+      lineNumbers: true,
+    },
+  });
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState(), { presentation });
+  assert.match(container.innerHTML, /data-table-row-mode="content"/);
+  assert.match(container.innerHTML, /data-show-icons="true"/);
+  assert.match(container.innerHTML, /data-line-numbers="true"/);
+  assert.match(container.innerHTML, /--cp-p6-row-height:30px/);
+  assert.match(container.innerHTML, /--cp-p6-font-size:14px/);
+  assert.match(container.innerHTML, /--cp-p6-text-color:#102030/);
+  assert.match(container.innerHTML, /--cp-p6-bg-color:#eef4f9/);
+  assert.match(container.innerHTML, /class="cp-p6-line-number">#</);
+  assert.match(container.innerHTML, /class="cp-p6-line-number">1</);
+  assert.match(container.innerHTML, /class="cp-p6-activity-icon is-task"/);
+  assert.match(container.innerHTML, /class="cp-gantt-row[^"]*" role="button" data-gantt-activity-id="A-1"/);
+});
+
+test("bar styles change the real bar layers while the schedule facts stay untouched", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const presentation = normalizePresentation({
+    bars: {
+      task: { bodyColor: "#123456", borderColor: "#0a0b0c", height: 8, pattern: "hatched", labelField: "activity-name", labelPosition: "right" },
+      critical: { visible: false },
+      milestone: { visible: false },
+      progress: { visible: false },
+    },
+  });
+  const state = scheduledGanttState();
+  renderMainWorkspace(container as unknown as HTMLElement, state, { presentation });
+  assert.match(container.innerHTML, /data-gantt-bar-kind="task"[^>]*data-gantt-bar-shape="bar"[^>]*data-gantt-bar-pattern="hatched"/);
+  assert.match(container.innerHTML, /--cp-bar-body:#123456/);
+  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-right">Excavate</);
+  assert.doesNotMatch(container.innerHTML, /data-gantt-bar-kind="milestone"/);
+  // The three activity rows and their persisted dependency links are unchanged.
+  assert.equal((container.innerHTML.match(/class="cp-gantt-row/g) ?? []).length, 3);
+  assert.match(container.innerHTML, /data-gantt-link="R-FS"/);
+});
+
+test("actual and baseline bars are drawn only from persisted date facts", () => {
+  const planned: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(planned as unknown as HTMLElement, scheduledGanttState());
+  assert.doesNotMatch(planned.innerHTML, /data-gantt-bar-kind="actual"/);
+  assert.doesNotMatch(planned.innerHTML, /data-gantt-bar-kind="baseline"/);
+
+  let state = createWorkspaceState({ tenant_id: "t", project_id: "p", revision: 1 });
+  state = withActivities(state, [{
+    id: "A-1", wbsId: "W-1", code: "01", name: "Excavate",
+    gantt: { start: "2026-09-02T00:00:00Z", finish: "2026-09-04T00:00:00Z", progressPercent: 50, critical: false },
+    cells: {
+      "activity.actual_start": "2026-09-02T00:00:00Z",
+      "activity.actual_finish": "2026-09-03T00:00:00Z",
+      "activity.baseline_start": "2026-09-01T00:00:00Z",
+      "activity.baseline_finish": "2026-09-04T00:00:00Z",
+    },
+  }]);
+  const progressed: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(progressed as unknown as HTMLElement, state);
+  assert.match(progressed.innerHTML, /data-gantt-bar-kind="actual" data-gantt-bar-row="2"/);
+  assert.match(progressed.innerHTML, /data-gantt-bar-kind="baseline" data-gantt-bar-row="3"/);
+  assert.match(progressed.innerHTML, /class="cp-gantt-progress"/);
+});
+
+test("Gantt command buttons open the owning layout dialogs", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const commands: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState(), {
+    onGanttCommand: (command) => commands.push(command),
+  });
+  for (const command of ["bars", "font-row", "user-preferences", "unknown"]) {
+    const button = { dataset: { ganttCommand: command }, closest: () => button };
+    listeners.get("click")?.({ target: button } as unknown as Event);
+  }
+  assert.deepEqual(commands, ["bars", "font-row", "user-preferences"]);
 });
 
 test("project settings button dispatches a single open request", () => {

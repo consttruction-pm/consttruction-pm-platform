@@ -8,6 +8,7 @@ import {
   type DesktopShellCapabilities,
   type DesktopShellState,
 } from "./workspace-desktop-shell.js";
+import { DEFAULT_PRESENTATION, type WorkspacePresentation } from "./workspace-presentation.js";
 
 const capable: DesktopShellCapabilities = {
   canUndoLayout: true,
@@ -16,17 +17,24 @@ const capable: DesktopShellCapabilities = {
   hasSelectedActivity: true,
   hasMultipleWindows: true,
   canOpenFieldChooser: true,
+  hasLayout: true,
   groupByWbs: true,
 };
 
-function shellState(patch: Partial<DesktopShellCapabilities> = {}, locale = "en"): DesktopShellState {
+function shellState(patch: Partial<DesktopShellCapabilities> = {}, locale = "en", presentation?: WorkspacePresentation): DesktopShellState {
   return {
     locale,
     activeWindow: "schedule",
     openWindows: ["project", "schedule"],
     capabilities: { ...capable, ...patch },
+    presentation,
   };
 }
+
+const DEFAULT_PRESENTATION_FOR_TEST: WorkspacePresentation = {
+  ...DEFAULT_PRESENTATION,
+  table: { ...DEFAULT_PRESENTATION.table, lineNumbers: true },
+};
 
 test("desktop chrome owns exactly one persisted window tab strip and dispatches close", () => {
   const listeners = new Map<string, (event: Event) => void>();
@@ -91,15 +99,42 @@ test("the canonical workspace exposes no alternate visual-demo menu entry", () =
   assert.ok(help?.items.some((item) => item.id === "help.about"));
 });
 
-test("the menu bar mirrors the eleven professional workspace menus in order", () => {
+test("the menu bar mirrors the eight professional workspace menus in order", () => {
   const menus = getDesktopMenus(shellState());
   assert.deepEqual(
     menus.map((menu) => menu.id),
-    ["file", "edit", "view", "project", "enterprise", "schedule", "resources", "tools", "reports", "window", "help"],
+    ["file", "edit", "view", "project", "enterprise", "tools", "window", "help"],
   );
   for (const menu of menus) {
     assert.ok(menu.items.length > 0, `${menu.id} must not be empty`);
   }
+});
+
+test("the consolidated menus keep every scheduling, resource and report command", () => {
+  const byId = new Map(getDesktopMenus(shellState()).flatMap((menu) => menu.items.map((item) => [item.id, item])));
+  for (const id of [
+    "file.open-layout",
+    "file.save-layout",
+    "file.save-layout-as",
+    "view.bars",
+    "view.font-row",
+    "view.preferences",
+    "view.line-numbers",
+    "project.schedule",
+    "project.schedule-options",
+    "project.formula",
+    "project.assign-resources",
+    "project.predecessors",
+    "enterprise.resources",
+    "enterprise.calendars",
+    "tools.reports",
+    "tools.print-preview",
+    "tools.generate-report",
+  ]) {
+    assert.ok(byId.has(id), `${id} must survive the menu consolidation`);
+  }
+  const save = byId.get("file.save-layout");
+  assert.equal(save?.command, "layout.save");
 });
 
 test("every menu entry opens a window, runs a command, or states why it is unavailable", () => {
@@ -187,6 +222,11 @@ test("toolbar commands are real and track layout history and selection", () => {
   assert.equal(group?.active, true);
   assert.ok(toolbar.some((item) => item.id === "toolbar.bars" && item.command === "dialog.bars"));
   assert.ok(toolbar.some((item) => item.id === "toolbar.font-row" && item.command === "dialog.font-row"));
+  assert.ok(toolbar.some((item) => item.id === "toolbar.line-numbers" && item.command === "view.line-numbers"));
+  assert.ok(toolbar.some((item) => item.id === "toolbar.preferences" && item.command === "dialog.user-preferences"));
+
+  const withNumbers = getDesktopToolbar(shellState({}, "en", DEFAULT_PRESENTATION_FOR_TEST));
+  assert.equal(withNumbers.find((item) => item.id === "toolbar.line-numbers")?.active, true);
 
   const limited = getDesktopToolbar(shellState({ canUndoLayout: false, hasSelectedActivity: false }));
   assert.ok(limited.find((item) => item.id === "toolbar.undo")?.disabledReason);

@@ -305,6 +305,7 @@ async function main() {
       ["timescale", "dialog.timescale"],
       ["bars", "dialog.bars"],
       ["font-row", "dialog.font-row"],
+      ["user-preferences", "dialog.user-preferences"],
     ]) {
       const opened = await page.evaluate(`(() => {
         const button = document.querySelector('[data-desktop-command="${command}"]');
@@ -328,7 +329,163 @@ async function main() {
       await sleep(200);
     }
 
-    // Table Font and Row must change the real table, not only the form state.
+    // Activity Table presentation: font family/size, text and background
+    // colour, row-height mode, activity icons and line numbers must reach the
+    // real grid and survive a reload through the saved layout.
+    const tableSnapshot = `(() => {
+      const table = document.querySelector("#cp-activity-grid table");
+      const cell = document.querySelector("#cp-activity-grid tbody td");
+      const style = table ? getComputedStyle(table) : null;
+      return {
+        fontFamily: style?.fontFamily ?? null,
+        fontSize: style?.fontSize ?? null,
+        color: style?.color ?? null,
+        background: style?.backgroundColor ?? null,
+        rowHeight: cell ? Math.round(cell.getBoundingClientRect().height) : 0,
+        lineNumbers: document.querySelectorAll("#cp-activity-grid .cp-p6-line-number").length,
+        icons: document.querySelectorAll("#cp-activity-grid .cp-p6-activity-icon").length,
+        dates: [...document.querySelectorAll('#cp-activity-grid tbody td[data-column-type="date"]')].map((cell) => cell.textContent.trim()),
+      };
+    })()`;
+    const tableBefore = await page.evaluate(tableSnapshot);
+    await page.screenshot("audit/table-before-1280.png");
+
+    const preferencesPatch = await page.evaluate(`(() => {
+      document.querySelector('[data-desktop-command="dialog.user-preferences"]')?.click();
+      const form = document.querySelector('dialog[data-desktop-dialog="user-preferences"] form');
+      if (!form) return { form: false };
+      const set = (name, value) => {
+        const control = form.querySelector('[name="' + name + '"]');
+        if (!control) return false;
+        control.value = value;
+        return true;
+      };
+      const check = (name, checked) => {
+        const control = form.querySelector('[name="' + name + '"]');
+        if (!control) return false;
+        control.checked = checked;
+        return true;
+      };
+      const fixed = form.querySelector('[name="rowHeightMode"][value="fixed"]');
+      if (fixed) fixed.checked = true;
+      const fields = ["fontFamily", "fontSize", "textColor", "backgroundColor", "rowHeight", "rowHeightMode", "showIcons", "lineNumbers"].map((name) => Boolean(form.querySelector('[name="' + name + '"]')));
+      set("fontFamily", "cairo");
+      set("fontSize", "13");
+      set("textColor", "#102a43");
+      set("backgroundColor", "#eef3f8");
+      set("rowHeight", "30");
+      check("showIcons", true);
+      check("lineNumbers", true);
+      form.requestSubmit();
+      return { form: true, fields };
+    })()`);
+    await sleep(500);
+    const tableCustom = await page.evaluate(tableSnapshot);
+    await page.screenshot("audit/table-custom-1280.png");
+
+    // The table and the chart are one vertical surface: scrolling one pane must
+    // move the other so bars stay on their activity rows.
+    const scrollSync = await page.evaluate(`(async () => {
+      const table = document.querySelector("#cp-activity-grid .cp-table-wrap");
+      const chart = document.querySelector("#cp-gantt .cp-gantt-chart");
+      if (!table || !chart) return null;
+      const settle = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const aligned = () => {
+        const firstTable = document.querySelector("#cp-activity-grid tbody tr");
+        const firstChart = document.querySelector("#cp-gantt .cp-gantt-row");
+        if (!firstTable || !firstChart) return null;
+        return Math.abs(firstTable.getBoundingClientRect().top - firstChart.getBoundingClientRect().top) <= 1;
+      };
+      const rowAligned = aligned();
+      table.scrollTop = 45;
+      await settle();
+      const chartFollows = chart.scrollTop;
+      chart.scrollTop = 10;
+      await settle();
+      const tableFollows = table.scrollTop;
+      table.scrollTop = 0;
+      chart.scrollTop = 0;
+      await settle();
+      return {
+        chartFollows,
+        tableFollows,
+        tableScrollable: table.scrollHeight > table.clientHeight,
+        chartScrollable: chart.scrollHeight > chart.clientHeight,
+        rowAligned,
+        rowAlignedAfterReset: aligned(),
+      };
+    })()`, { awaitPromise: true });
+    REPORT.journey.gantt_table_sync = scrollSync;
+    log(`  table/chart sync: chart ${scrollSync?.chartFollows}, table ${scrollSync?.tableFollows}, aligned ${scrollSync?.rowAligned}`);
+
+    await page.reload("#cp-activity-grid table", "table presentation persists after reload");
+    await sleep(500);
+    const tablePersisted = await page.evaluate(tableSnapshot);
+    REPORT.journey.table_presentation = {
+      before: tableBefore,
+      patch: preferencesPatch,
+      applied: tableCustom,
+      persisted: tablePersisted,
+      calendarDatesUnchanged: JSON.stringify(tableBefore.dates) === JSON.stringify(tablePersisted.dates),
+    };
+    log(`  table presentation persisted: ${tablePersisted.fontSize} / ${tablePersisted.fontFamily} / row ${tablePersisted.rowHeight}px / numbers ${tablePersisted.lineNumbers} / icons ${tablePersisted.icons}`);
+
+    // Optimize by content must let long activity names wrap instead of clipping.
+    const contentModeApplied = await page.evaluate(`(() => {
+      document.querySelector('[data-desktop-command="dialog.user-preferences"]')?.click();
+      const form = document.querySelector('dialog[data-desktop-dialog="user-preferences"] form');
+      if (!form) return false;
+      const radio = form.querySelector('[name="rowHeightMode"][value="content"]');
+      if (radio) radio.checked = true;
+      const height = form.querySelector('[name="rowHeight"]');
+      if (height) height.value = "22";
+      form.requestSubmit();
+      return true;
+    })()`);
+    await sleep(500);
+    const contentMode = await page.evaluate(`(() => {
+      const workspace = document.querySelector("[data-table-row-mode]");
+      const cell = document.querySelector('#cp-activity-grid tbody td[data-column-id$=".name"], #cp-activity-grid tbody td[data-column-id="activity_name"]');
+      return {
+        mode: workspace?.getAttribute("data-table-row-mode") ?? null,
+        whiteSpace: cell ? getComputedStyle(cell).whiteSpace : null,
+        height: cell ? Math.round(cell.getBoundingClientRect().height) : 0,
+      };
+    })()`);
+    await page.screenshot("audit/table-content-row-mode-1280.png");
+    REPORT.journey.table_row_mode = { applied: contentModeApplied, ...contentMode };
+    log(`  row mode ${contentMode.mode}: white-space ${contentMode.whiteSpace}, cell ${contentMode.height}px`);
+
+    // Explicit Save Layout, then restore the shipped defaults so the size and
+    // locale screenshots keep the documented density.
+    const savedLayout = await page.evaluate(`(() => {
+      const button = document.querySelector('[data-desktop-command="layout.save"]');
+      if (!button) return { available: false };
+      const disabled = button.disabled || button.getAttribute("aria-disabled") === "true";
+      if (!disabled) button.click();
+      return { available: true, disabled, title: button.getAttribute("title") };
+    })()`);
+    await sleep(900);
+    const layoutNotice = await page.evaluate(`(() => {
+      const status = document.querySelector(".cp-statusbar")?.textContent ?? "";
+      const failed = /failed|خطا|تعارض|conflict/i.test(status);
+      return { failed, status: status.replace(/\\s+/g, " ").trim().slice(0, 200) };
+    })()`);
+    await page.evaluate(`(() => {
+      document.querySelector('[data-desktop-command="dialog.user-preferences"]')?.click();
+      document.querySelector('dialog[data-desktop-dialog="user-preferences"] [data-dialog-default]')?.click();
+    })()`);
+    await sleep(500);
+    const tableRestored = await page.evaluate(tableSnapshot);
+    REPORT.journey.layout_save_restore = {
+      save: savedLayout,
+      notice: layoutNotice,
+      restored: tableRestored,
+      restoredMatchesBefore: JSON.stringify(tableBefore) === JSON.stringify(tableRestored),
+    };
+    log(`  layout save ${savedLayout.available ? (savedLayout.disabled ? "disabled" : "clicked") : "missing"}; restored ${tableRestored.fontSize} / row ${tableRestored.rowHeight}px`);
+
+    // Activity Table row height must actually change the table, not only the form.
     const tableFontRowApplied = await page.evaluate(`(() => {
       const open = document.querySelector('[data-desktop-command="dialog.font-row"]');
       open?.click();
@@ -370,6 +527,111 @@ async function main() {
     await sleep(300);
     REPORT.journey.table_font_row = { patchRead: tableFontRowApplied, applied: tableFontRowMeasured };
     log(`  table font/row applied: ${JSON.stringify(tableFontRowMeasured)}`);
+
+    // Gantt Bar Styles: independent shape, colour, pattern, label and height
+    // settings must reach the real bars while schedule dates stay untouched.
+    const ganttSnapshot = `(() => {
+      const rows = [...document.querySelectorAll("#cp-gantt .cp-gantt-row")];
+      const bars = [...document.querySelectorAll("#cp-gantt .cp-gantt-bar")];
+      const task = document.querySelector("#cp-gantt .cp-gantt-bar-task");
+      const rect = (element) => (element ? element.getBoundingClientRect() : null);
+      const overflow = rows.map((row) => {
+        const bounds = rect(row);
+        return [...row.querySelectorAll(".cp-gantt-bar")].filter((bar) => {
+          const barBounds = rect(bar);
+          return barBounds.top < bounds.top - 1 || barBounds.bottom > bounds.bottom + 1;
+        }).map((bar) => ({
+          activity: row.getAttribute("data-gantt-activity-id"),
+          kind: bar.getAttribute("data-gantt-bar-kind"),
+          rowTop: Math.round(bounds.top),
+          rowBottom: Math.round(bounds.bottom),
+          barTop: Math.round(rect(bar).top),
+          barBottom: Math.round(rect(bar).bottom),
+        }));
+      }).flat();
+      return {
+        rowCount: rows.length,
+        barCount: bars.length,
+        task: task ? {
+          height: Math.round(rect(task).height),
+          background: getComputedStyle(task).backgroundColor,
+          pattern: task.getAttribute("data-gantt-bar-pattern"),
+          shape: task.getAttribute("data-gantt-bar-shape"),
+        } : null,
+        taskLabel: task?.querySelector(".cp-gantt-bar-label")?.textContent?.trim() ?? null,
+        overflowRows: overflow.length,
+        overflowDetail: overflow,
+        tableDates: [...document.querySelectorAll('#cp-activity-grid tbody td[data-column-type="date"]')].map((cell) => cell.textContent.trim()).join("|"),
+        rows: rows.map((row) => ({
+          activity: row.getAttribute("data-gantt-activity-id"),
+          height: Math.round(rect(row).height),
+          bars: row.querySelectorAll(".cp-gantt-bar").length,
+        })),
+      };
+    })()`;
+    const ganttBefore = await page.evaluate(ganttSnapshot);
+    await page.screenshot("audit/gantt-before-1280.png");
+    const barsPatch = await page.evaluate(`(() => {
+      document.querySelector('[data-desktop-command="dialog.bars"]')?.click();
+      const form = document.querySelector('dialog[data-desktop-dialog="bars"] form');
+      if (!form) return { form: false };
+      const set = (name, value) => {
+        const control = form.querySelector('[name="' + name + '"]');
+        if (!control) return false;
+        control.value = value;
+        return true;
+      };
+      const check = (name, checked) => {
+        const control = form.querySelector('[name="' + name + '"]');
+        if (!control) return false;
+        control.checked = checked;
+        return true;
+      };
+      check("bar.task.visible", true);
+      set("bar.task.height", "18");
+      set("bar.task.pattern", "striped");
+      set("bar.task.bodyColor", "#0f4c81");
+      set("bar.task.startColor", "#0f4c81");
+      set("bar.task.finishColor", "#0f4c81");
+      set("bar.task.labelField", "activity-name");
+      set("bar.task.labelPosition", "right");
+      check("bar.summary.visible", true);
+      set("bar.summary.height", "10");
+      set("bar.summary.pattern", "hatched");
+      set("bar.summary.bodyColor", "#17324d");
+      set("bar.milestone.visible", true);
+      set("bar.milestone.bodyShape", "diamond");
+      set("bar.milestone.bodyColor", "#c26a2e");
+      form.requestSubmit();
+      return {
+        form: true,
+        taskFields: ["visible", "height", "pattern", "bodyColor", "labelField", "labelPosition"].map((field) => Boolean(form.querySelector('[name="bar.task.' + field + '"]'))),
+      };
+    })()`);
+    await sleep(600);
+    const ganttCustom = await page.evaluate(ganttSnapshot);
+    await page.screenshot("audit/gantt-custom-1280.png");
+    await page.reload("#cp-gantt .cp-gantt-row", "bar styles persist after reload");
+    await sleep(500);
+    const ganttPersisted = await page.evaluate(ganttSnapshot);
+    REPORT.journey.gantt_bar_styles = {
+      before: ganttBefore,
+      patch: barsPatch,
+      applied: ganttCustom,
+      persisted: ganttPersisted,
+      scheduleDatesUnchanged: ganttBefore.tableDates === ganttCustom.tableDates
+        && ganttBefore.tableDates === ganttPersisted.tableDates,
+      rowsStable: ganttBefore.rowCount === ganttCustom.rowCount
+        && ganttBefore.rowCount === ganttPersisted.rowCount,
+      noBarOverflow: ganttCustom.overflowRows === 0 && ganttPersisted.overflowRows === 0,
+    };
+    log(`  bar styles: ${ganttPersisted.task?.height}px ${ganttPersisted.task?.pattern} ${ganttPersisted.task?.background}; rows ${ganttPersisted.rowCount}; overflow ${JSON.stringify(ganttPersisted.overflowDetail)}`);
+    // Restore defaults for the remaining locale/size captures.
+    await page.evaluate(`(() => {
+      document.querySelector('[data-desktop-command="dialog.user-preferences"]')?.click();
+      document.querySelector('dialog[data-desktop-dialog="user-preferences"] [data-dialog-default]')?.click();
+    })()`);
+    await sleep(400);
 
     // Eight-language matrix at 1280x720.
     REPORT.language_options = await page.evaluate(`(() => {
@@ -445,6 +707,7 @@ async function main() {
       { width: 1024, height: 768 },
       { width: 1280, height: 720 },
       { width: 1366, height: 768 },
+      { width: 1440, height: 900 },
       { width: 1920, height: 1080 },
     ]) {
       await page.cdp.send("Emulation.setDeviceMetricsOverride", {
@@ -458,9 +721,10 @@ async function main() {
     }
 
     // Assistant must not sit on top of page content at any size.
-    for (const width of [1024, 1280, 1366, 1920]) {
+    for (const width of [1024, 1280, 1366, 1440, 1920]) {
       await page.cdp.send("Emulation.setDeviceMetricsOverride", {
-        width, height: width === 1920 ? 1080 : width === 1024 ? 768 : 720,
+        width,
+        height: width === 1920 ? 1080 : width === 1440 ? 900 : width === 1024 ? 768 : 720,
         deviceScaleFactor: 1, mobile: false,
       });
       await sleep(500);

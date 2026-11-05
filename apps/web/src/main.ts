@@ -59,13 +59,20 @@ import { mountWorkspaceRolesPage } from "./workspace-roles.js";
 import { mountFormulaEditorPanel } from "./p6-formula-panel.js";
 import { mountInterchangePanel } from "./p6-interchange-panel.js";
 import { mountCapacityPanel } from "./p6-capacity-panel.js";
-import { renderDesktopShell, WINDOW_TITLES, type DesktopCommand } from "./workspace-desktop-shell.js";
+import { openDesktopDialog, renderDesktopShell, WINDOW_TITLES, type DesktopCommand } from "./workspace-desktop-shell.js";
 import { renderStatusBar, type ChromeLayoutState } from "./workspace-chrome.js";
 import { enhanceActivityDetails } from "./workspace-activity-details.js";
 import { enhanceWorkspaceComments } from "./workspace-comments.js";
 import { mountWorkspaceMobile } from "./workspace-mobile.js";
 import { openFormBuilder, type FormBuilderHandle } from "./workspace-forms.js";
 import type { DesktopLayoutPatch } from "./workspace-dialogs.js";
+import {
+  DEFAULT_PRESENTATION,
+  normalizePresentation,
+  presentationDataAvailability,
+  presentationFontFamily,
+  type WorkspacePresentation,
+} from "./workspace-presentation.js";
 import {
   closeWorkspaceWindow,
   openWorkspaceWindow,
@@ -102,26 +109,38 @@ let progressSelection: string | null = null;
  */
 type VisualPreferences = {
   density: ChromeLayoutState["density"];
-  rowHeight: number;
-  fontSize: number;
-  barHeight: number;
-  barTone: "crimson" | "vermilion" | "amber";
+  presentation: WorkspacePresentation;
+  /** Wall-clock time of the last local edit; layout metadata carries the same stamp. */
+  updatedAt: number;
 };
 
 const VISUAL_PREFERENCES_KEY = "cubi:workspace-visual-preferences";
-const DEFAULT_VISUAL_PREFERENCES: VisualPreferences = { density: "compact", rowHeight: 22, fontSize: 11, barHeight: 16, barTone: "crimson" };
+const DEFAULT_VISUAL_PREFERENCES: VisualPreferences = { density: "compact", presentation: DEFAULT_PRESENTATION, updatedAt: 0 };
 
 function readVisualPreferences(): VisualPreferences {
   try {
     const raw = window.localStorage.getItem(VISUAL_PREFERENCES_KEY);
     if (!raw) return DEFAULT_VISUAL_PREFERENCES;
-    const parsed = JSON.parse(raw) as Partial<VisualPreferences>;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    // Migrate the earlier flat preference shape (rowHeight/fontSize) into the
+    // presentation model without discarding the stored values.
+    const legacy = parsed.presentation && typeof parsed.presentation === "object"
+      ? parsed
+      : {
+        presentation: {
+          ...DEFAULT_PRESENTATION,
+          table: {
+            ...DEFAULT_PRESENTATION.table,
+            rowHeight: parsed.rowHeight,
+            fontSize: parsed.fontSize,
+          },
+        },
+      };
+    const updatedAt = typeof parsed.updatedAt === "number" && Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : 0;
     return {
       density: parsed.density === "comfortable" ? "comfortable" : "compact",
-      rowHeight: typeof parsed.rowHeight === "number" && parsed.rowHeight >= 18 && parsed.rowHeight <= 34 ? Math.round(parsed.rowHeight) : 22,
-      fontSize: typeof parsed.fontSize === "number" && parsed.fontSize >= 10 && parsed.fontSize <= 13 ? Math.round(parsed.fontSize) : 11,
-      barHeight: typeof parsed.barHeight === "number" && parsed.barHeight >= 12 && parsed.barHeight <= 24 ? parsed.barHeight : 16,
-      barTone: parsed.barTone === "vermilion" || parsed.barTone === "amber" ? parsed.barTone : "crimson",
+      presentation: normalizePresentation((legacy as Record<string, unknown>).presentation),
+      updatedAt,
     };
   } catch {
     return DEFAULT_VISUAL_PREFERENCES;
@@ -130,13 +149,58 @@ function readVisualPreferences(): VisualPreferences {
 
 let visualPreferences = readVisualPreferences();
 
-function rememberVisualPreferences(next: VisualPreferences): void {
-  visualPreferences = next;
+function rememberVisualPreferences(next: Omit<VisualPreferences, "updatedAt"> & { updatedAt?: number }): void {
+  visualPreferences = {
+    density: next.density,
+    presentation: next.presentation,
+    updatedAt: next.updatedAt ?? Date.now(),
+  };
   try {
-    window.localStorage.setItem(VISUAL_PREFERENCES_KEY, JSON.stringify(next));
+    window.localStorage.setItem(VISUAL_PREFERENCES_KEY, JSON.stringify(visualPreferences));
   } catch {
     // Preferences are optional; the current session keeps the value in memory.
   }
+}
+
+/**
+ * The saved project layout is authoritative for presentation when it carries
+ * presentation metadata. Adopting it once per layout revision keeps a reload
+ * and another machine consistent without overwriting a newer local edit.
+ */
+let hydratedPresentationKey: string | null = null;
+function hydratePresentationFromLayout(state: WorkspaceState): void {
+  const layout = state.p6Layout;
+  const raw = layout?.metadata?.presentation;
+  if (!layout || !raw) return;
+  const key = `${state.context.tenant_id}:${state.context.project_id}:${layout.revision}`;
+  if (key === hydratedPresentationKey) return;
+  const savedAt = typeof layout.metadata?.presentationUpdatedAt === "number"
+    ? layout.metadata.presentationUpdatedAt
+    : 0;
+  // An older saved layout must not roll back a newer browser-local edit. A
+  // layout saved before presentation stamps existed is only adopted when this
+  // browser has no presentation edit of its own.
+  if (savedAt < visualPreferences.updatedAt || (savedAt === 0 && visualPreferences.updatedAt > 0)) {
+    hydratedPresentationKey = key;
+    return;
+  }
+  hydratedPresentationKey = key;
+  rememberVisualPreferences({
+    density: visualPreferences.density,
+    presentation: normalizePresentation(raw),
+    updatedAt: savedAt || visualPreferences.updatedAt,
+  });
+}
+
+function presentationMetadata(layout: LayoutDefinition): LayoutDefinition {
+  return {
+    ...layout,
+    metadata: {
+      ...(layout.metadata ?? {}),
+      presentation: visualPreferences.presentation,
+      presentationUpdatedAt: visualPreferences.updatedAt,
+    },
+  };
 }
 
 function getOpenWindows(): WorkspaceMenuKey[] {
@@ -598,6 +662,8 @@ function renderApp(
   preserveLayoutNotice = false,
 ): void {
   currentWorkspaceState = state;
+  // Apply saved layout presentation before the chrome and grid read it.
+  hydratePresentationFromLayout(state);
   // The workspace language belongs to the document, not only to the panels:
   // assistive technology, the floating assistant and every CSS logical direction
   // read it from the root element.
@@ -819,6 +885,35 @@ function renderApp(
         activateWindow("schedule");
         openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
+      case "view.line-numbers": {
+        const table = visualPreferences.presentation.table;
+        rememberVisualPreferences({
+          density: visualPreferences.density,
+          presentation: normalizePresentation({
+            ...visualPreferences.presentation,
+            table: { ...table, lineNumbers: !table.lineNumbers },
+          }),
+        });
+        renderApp(container, state, persistence);
+        void saveCurrentLayout();
+        return;
+      }
+      case "layout.open":
+        pendingDesktopFocusSelector = ".cp-p6-field-chooser";
+        activateWindow("schedule");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
+        return;
+      case "layout.save":
+        void saveCurrentLayout();
+        return;
+      case "layout.save-as": {
+        const name = window.prompt(
+          translateWorkspaceUiText(state.locale, "Name for the saved layout", "نام چیدمان ذخیره‌شده"),
+          state.p6Layout?.metadata?.layoutName ? String(state.p6Layout.metadata.layoutName) : "",
+        );
+        if (name && name.trim()) void saveCurrentLayout(name.trim());
+        return;
+      }
       case "view.zoom-in":
       case "view.zoom-out": {
         const order: WorkspaceState["ganttScale"][] = ["year", "quarter", "month", "week", "day"];
@@ -889,14 +984,19 @@ function renderApp(
     density: visualPreferences.density,
   } as const;
   const applyDesktopVisuals = (): void => {
+    const table = visualPreferences.presentation.table;
     desktopHost.dataset.density = visualPreferences.density;
-    // Density and bar tokens style the workspace below the chrome, so they are
-    // applied at the document root where both regions inherit them.
+    // Table presentation styles the workspace below the chrome, so it is
+    // applied at the document root where both regions inherit it.
     document.documentElement.dataset.tableDensity = visualPreferences.density;
-    document.documentElement.dataset.barTone = visualPreferences.barTone;
-    document.documentElement.style.setProperty("--cp-p6-row-height", `${visualPreferences.rowHeight}px`);
-    document.documentElement.style.setProperty("--cp-p6-font-size", `${visualPreferences.fontSize}px`);
-    document.documentElement.style.setProperty("--cp-bar-height", `${visualPreferences.barHeight}px`);
+    document.documentElement.dataset.tableRowMode = table.rowHeightMode;
+    document.documentElement.dataset.showIcons = String(table.showIcons);
+    document.documentElement.dataset.lineNumbers = String(table.lineNumbers);
+    document.documentElement.style.setProperty("--cp-p6-row-height", `${table.rowHeight}px`);
+    document.documentElement.style.setProperty("--cp-p6-font-size", `${table.fontSize}px`);
+    document.documentElement.style.setProperty("--cp-p6-font-family", presentationFontFamily(table.fontFamily));
+    document.documentElement.style.setProperty("--cp-p6-text-color", table.textColor);
+    document.documentElement.style.setProperty("--cp-p6-bg-color", table.backgroundColor);
   };
   applyDesktopVisuals();
 
@@ -910,19 +1010,62 @@ function renderApp(
     }
     if (patch.ganttScale) next = setGanttScale(next, patch.ganttScale);
     if (patch.showRelationships !== undefined) next = setGanttRelationshipsVisible(next, patch.showRelationships);
-    if (patch.density || patch.rowHeight || patch.fontSize || patch.barHeight || patch.barTone) {
-      // The density preset and the fixed row height describe the same table
-      // property. An explicit height wins; otherwise the preset sets its value.
-      const rowHeight = patch.rowHeight ?? (patch.density ? (patch.density === "comfortable" ? 30 : 22) : visualPreferences.rowHeight);
+
+    let presentationChanged = false;
+    if (patch.presentation) {
       rememberVisualPreferences({
-        density: patch.rowHeight !== undefined ? (rowHeight >= 28 ? "comfortable" : "compact") : patch.density ?? visualPreferences.density,
-        rowHeight,
-        fontSize: patch.fontSize ?? visualPreferences.fontSize,
-        barHeight: patch.barHeight ?? visualPreferences.barHeight,
-        barTone: patch.barTone ?? visualPreferences.barTone,
+        density: patch.density ?? visualPreferences.density,
+        presentation: normalizePresentation(patch.presentation),
       });
+      presentationChanged = true;
+    } else if (
+      patch.density
+      || patch.rowHeight !== undefined
+      || patch.fontSize !== undefined
+      || patch.fontFamily !== undefined
+      || patch.textColor !== undefined
+      || patch.backgroundColor !== undefined
+      || patch.rowHeightMode !== undefined
+      || patch.showIcons !== undefined
+      || patch.lineNumbers !== undefined
+      || patch.bars !== undefined
+    ) {
+      const base = visualPreferences.presentation;
+      const table = { ...base.table };
+      if (patch.rowHeight !== undefined) table.rowHeight = patch.rowHeight;
+      if (patch.fontSize !== undefined) table.fontSize = patch.fontSize;
+      if (patch.fontFamily) table.fontFamily = patch.fontFamily;
+      if (patch.textColor) table.textColor = patch.textColor;
+      if (patch.backgroundColor) table.backgroundColor = patch.backgroundColor;
+      if (patch.rowHeightMode) table.rowHeightMode = patch.rowHeightMode;
+      if (patch.showIcons !== undefined) table.showIcons = patch.showIcons;
+      if (patch.lineNumbers !== undefined) table.lineNumbers = patch.lineNumbers;
+      rememberVisualPreferences({
+        density: patch.density ?? visualPreferences.density,
+        presentation: normalizePresentation({ table, bars: patch.bars ?? base.bars }),
+      });
+      presentationChanged = true;
     }
     applyDesktopVisuals();
+    if (presentationChanged) {
+      // Show the change immediately, then publish it with the saved layout so a
+      // reload or another session reads the same table and bar presentation.
+      renderApp(container, next, persistence);
+      if (next.p6Layout && next.p6FieldRegistry) {
+        const base = next.p6Layout;
+        const bumped: LayoutDefinition = {
+          ...base,
+          revision: base.revision + 1,
+          metadata: {
+            ...(base.metadata ?? {}),
+            presentation: visualPreferences.presentation,
+            presentationUpdatedAt: visualPreferences.updatedAt,
+          },
+        };
+        void commitLayout(setP6Presentation(next, next.p6FieldRegistry, bumped));
+      }
+      return;
+    }
     if (next !== state) renderApp(container, next, persistence);
   };
 
@@ -964,6 +1107,7 @@ function renderApp(
         hasSelectedActivity: Boolean(state.selectedActivityId),
         hasMultipleWindows: getOpenWindows().length > 1,
         canOpenFieldChooser: Boolean(state.p6Layout && state.p6FieldRegistry),
+        hasLayout: Boolean(state.p6Layout),
         groupByWbs: state.activityGroupBy === "wbs",
       },
       project: chromeProject,
@@ -971,10 +1115,8 @@ function renderApp(
       sortColumns: state.columns.map((column) => ({ id: column.id, label: column.label })),
       sortColumnId: state.activitySort?.columnId ?? null,
       sortDirection: state.activitySort?.direction ?? "asc",
-      rowHeight: visualPreferences.rowHeight,
-      fontSize: visualPreferences.fontSize,
-      barHeight: visualPreferences.barHeight,
-      barTone: visualPreferences.barTone,
+      presentation: visualPreferences.presentation,
+      dataAvailability: presentationDataAvailability(state.activities),
     },
     {
       onWindowOpen: activateWindow,
@@ -1060,7 +1202,7 @@ function renderApp(
   const commitLayout = async (next: WorkspaceState): Promise<void> => {
     if (!next.p6Layout || !next.p6FieldRegistry) return;
     try {
-      const saved = await persistence.save(next.p6Layout);
+      const saved = await persistence.save(presentationMetadata(next.p6Layout));
       const savedHistory = getLayoutHistory(next.context, saved);
       if (state.p6Layout) savedHistory.undo.push(state.p6Layout);
       savedHistory.redo.length = 0;
@@ -1070,6 +1212,22 @@ function renderApp(
     } catch (error) {
       await reportLayoutFailure(error);
     }
+  };
+
+  const saveCurrentLayout = async (name?: string): Promise<void> => {
+    if (!state.p6Layout || !state.p6FieldRegistry) return;
+    const base = state.p6Layout;
+    const bumped: LayoutDefinition = {
+      ...base,
+      revision: base.revision + 1,
+      metadata: {
+        ...(base.metadata ?? {}),
+        ...(name ? { layoutName: name } : {}),
+        presentation: visualPreferences.presentation,
+        presentationUpdatedAt: visualPreferences.updatedAt,
+      },
+    };
+    await commitLayout(setP6Presentation(state, state.p6FieldRegistry, bumped));
   };
 
   const mutateLayout = (mutate: () => WorkspaceState): void => {
@@ -1106,7 +1264,7 @@ function renderApp(
     const target = history.undo.pop();
     if (!target) return;
     try {
-      const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
+      const saved = await persistence.save(presentationMetadata({ ...target, revision: layout.revision + 1 }));
       history.redo.push(layout);
       history.noticeKey = "undone";
       invalidateLayoutRevisions(history);
@@ -1124,7 +1282,7 @@ function renderApp(
     const target = history.redo.pop();
     if (!target) return;
     try {
-      const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
+      const saved = await persistence.save(presentationMetadata({ ...target, revision: layout.revision + 1 }));
       history.undo.push(layout);
       history.noticeKey = "redone";
       invalidateLayoutRevisions(history);
@@ -1155,7 +1313,7 @@ function renderApp(
       return;
     }
     try {
-      const saved = await persistence.save({ ...target, revision: layout.revision + 1 });
+      const saved = await persistence.save(presentationMetadata({ ...target, revision: layout.revision + 1 }));
       history.undo.push(layout);
       history.redo.length = 0;
       history.noticeKey = "restored";
@@ -1168,6 +1326,8 @@ function renderApp(
 
   renderMainWorkspace(workspace, state, {
     openWindows: getOpenWindows(),
+    presentation: visualPreferences.presentation,
+    onGanttCommand: (command) => openDesktopDialog(desktopHost, command),
     onWindowClose: (menu) => closeDesktopWindow(menu),
     onMenuSelect: (menu) => {
       rememberWorkspaceMenu(menu);
