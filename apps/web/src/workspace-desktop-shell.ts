@@ -351,7 +351,6 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "tools.formula", label: { en: "Formula editor", fa: "ویرایشگر فرمول" }, command: "tools.formula" },
         { id: "tools.reference", label: { en: "Scheduling reference", fa: "مرجع زمان‌بندی" }, command: "tools.reference" },
         { id: "tools.help", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts" },
-        { id: "tools.demo", label: { en: "Visual workspace demo", fa: "نمایش بصری محیط کار" }, command: "help.visual-demo" },
       ],
     },
     {
@@ -381,7 +380,6 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
       label: { en: "Help", fa: "راهنما" },
       items: [
         { id: "help.shortcuts", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1" },
-        { id: "help.visual-demo", label: { en: "Visual workspace demo", fa: "نمایش بصری محیط کار" }, command: "help.visual-demo" },
         { id: "help.about", label: { en: "About CUBI Workspace", fa: "دربارهٔ محیط کار CUBI" }, command: "help.about" },
       ],
     },
@@ -741,6 +739,27 @@ function bindHost(host: HTMLElement): void {
     if (!target || typeof target.closest !== "function") return;
     const runtime = runtimeByHost.get(host);
     if (!runtime) return;
+
+    // Layout commands kept for the legacy command ribbon and keyboard paths:
+    // they must open their owning dialog instead of leaving the workspace.
+    const shellCommand = target.closest<HTMLElement>("[data-shell-command]");
+    if (shellCommand) {
+      if (shellCommand.hasAttribute("disabled")) return;
+      const commands: Record<string, DesktopCommand> = {
+        Columns: "view.fields",
+        "Filter By": "edit.find",
+        "Group and Sort By": "dialog.group-sort",
+        Timescale: "dialog.timescale",
+        Bars: "dialog.bars",
+        "Bar Chart Options": "dialog.bars",
+      };
+      const command = commands[shellCommand.dataset.shellCommand ?? ""];
+      host.querySelectorAll<HTMLDetailsElement>(".cubi-command-menubar details[open]").forEach((item) => item.removeAttribute("open"));
+      const dialogName = command ? dialogNameForCommand(command) : null;
+      if (dialogName) openDialog(host, dialogName);
+      else if (command) runtime.handlers.onCommand(command);
+      return;
+    }
 
     const home = target.closest<HTMLElement>("[data-workspace-home]");
     if (home) {

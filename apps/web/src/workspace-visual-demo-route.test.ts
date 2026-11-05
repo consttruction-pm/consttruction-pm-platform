@@ -11,19 +11,18 @@ import {
 } from "./workspace-visual-demo-route.js";
 
 
-test("a direct post-login app entry defaults to the visual workspace", () => {
-  assert.equal(shouldRenderVisualWorkspaceDemo("/app", ""), true);
-  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?locale=fa"), true);
+test("every app entry uses the single authenticated workspace shell", () => {
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", ""), false);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?locale=fa"), false);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?view=visual"), false);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?project=preview-rps-01"), false);
 });
 
-test("session recovery returns to the visual workspace unless another project was explicitly selected", () => {
-  assert.equal(
-    workspaceLoginNextPath(null),
-    `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`,
-  );
+test("session recovery always returns to the authenticated workspace", () => {
+  assert.equal(workspaceLoginNextPath(null), "/app?view=live");
   assert.equal(
     workspaceLoginNextPath(VISUAL_WORKSPACE_PREVIEW_PROJECT_ID),
-    `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`,
+    `/app?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}&view=live`,
   );
   assert.equal(
     workspaceLoginNextPath("project-123"),
@@ -31,13 +30,13 @@ test("session recovery returns to the visual workspace unless another project wa
   );
 });
 
-test("the shared preview project opens the visual workspace at its canonical URL", () => {
+test("the shared preview project opens the authenticated workspace, not a second demo shell", () => {
   assert.equal(
     shouldRenderVisualWorkspaceDemo(
       "/app",
       `?project=${VISUAL_WORKSPACE_PREVIEW_PROJECT_ID}`,
     ),
-    true,
+    false,
   );
 });
 
@@ -55,14 +54,14 @@ test("the visual preview route does not replace the data-backed workspace", () =
   );
 });
 
-test("the explicit visual-demo switch remains supported", () => {
-  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?view=visual"), true);
+test("legacy visual-demo URLs resolve to the authenticated workspace", () => {
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?view=visual"), false);
   assert.equal(
     shouldRenderVisualWorkspaceDemo(
       "/app",
       "?project=another-project&view=visual",
     ),
-    true,
+    false,
   );
 });
 

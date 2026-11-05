@@ -4837,7 +4837,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
    fields, the status bar or each other. */
 body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher {
   inset-inline-end: 1px;
-  bottom: 28px;
+  bottom: 62px;
   gap: 4px;
   z-index: 120;
 }
@@ -4862,7 +4862,7 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 }
 .cp-p6 > #cp-ai-action-panel {
   inset-inline-end: 1px;
-  bottom: 66px;
+  bottom: 100px;
   width: 34px;
   max-height: 34px;
   border-radius: 999px;

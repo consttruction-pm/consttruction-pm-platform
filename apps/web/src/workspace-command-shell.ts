@@ -64,13 +64,7 @@ const menus: MenuDefinition[] = [
   ]},
 ];
 
-const toolbarGroups = [
-  { en: "Standard", fa: "عمومی", items: ["New", "Open", "Save", "Undo", "Redo", "Print", "Find"] },
-  { en: "Project", fa: "پروژه", items: ["Add", "Delete", "WBS", "Activities", "Resources", "Assignments", "Baselines"] },
-  { en: "Layout", fa: "چیدمان", items: ["Open Layout", "Save Layout", "Columns", "Filter", "Group / Sort", "Timescale", "Bars"] },
-  { en: "Schedule", fa: "زمان‌بندی", items: ["Schedule", "Level Resources", "Progress Line", "Critical Path", "Trace Logic"] },
-  { en: "CUBI Tools", fa: "ابزارهای کوبی", items: ["Form Builder", "Smart Guide", "Assistant", "Reports", "Theme"] },
-];
+
 
 const faCommandLabels: Record<string, string> = {
   "New Project":"پروژه جدید","Open Project":"باز کردن پروژه","Close Project":"بستن پروژه","Close All Projects":"بستن همه پروژه‌ها",
@@ -114,10 +108,12 @@ function renderEntry(entry: MenuEntry, locale: string, activeMenu: string): stri
 export function renderWorkspaceCommandShell(locale: string, activeMenu = "schedule"): string {
   const isFa = locale.split("-")[0].toLowerCase() === "fa";
   const direction = getWorkspaceLocaleDirection(locale);
-  const menuMarkup = menus.map((menu) => { const label = isFa ? menu.fa : commandLabel(locale, menu.en); return `<li class="cubi-menu-root"><details><summary>${label}</summary><ul class="cubi-menu-popup" role="menu" aria-label="${label}">${menu.entries.map((entry) => renderEntry(entry, locale, activeMenu)).join("")}</ul></details></li>`; }).join("");
-  const toolbar = toolbarGroups.map((group) => `<section class="cubi-toolbar-group"><strong>${isFa ? group.fa : commandLabel(locale, group.en)}</strong><div>${group.items.map((item) => `<button type="button" data-shell-command="${esc(item)}"${activeMenu === "schedule" && connectedShellCommands.has(item) ? "" : ' aria-disabled="true" disabled'} title="${activeMenu === "schedule" && connectedShellCommands.has(item) ? (isFa ? "بازکردن گزینه‌های نمای جاری" : "Open current view options") : (isFa ? "این فرمان هنوز به پنجره جاری متصل نشده است" : "This command is not connected to the current window yet")}">${esc(commandLabel(locale, item))}</button>`).join("")}</div></section>`).join("");
+  const menuMarkup = menus.map((menu) => {
+    const label = isFa ? menu.fa : commandLabel(locale, menu.en);
+    return `<li class="cubi-menu-root"><details><summary>${label}<span class="cubi-submenu-caret">›</span></summary><ul class="cubi-menu-popup" role="group" aria-label="${label}">${menu.entries.map((entry) => renderEntry(entry, locale, activeMenu)).join("")}</ul></details></li>`;
+  }).join("");
   return `<style>
-  .cubi-command-shell{position:relative;z-index:12;background:#f7f9fc;border-bottom:1px solid #aebdce;color:#172b43;font:12px Inter,Vazirmatn, sans-serif}
+  .cubi-command-shell{position:relative;z-index:22;background:#f7f9fc;border-bottom:1px solid #aebdce;color:#172b43;font:12px Inter,Vazirmatn,sans-serif}
   .cubi-command-menubar{display:flex;align-items:center;gap:2px;min-height:30px;padding:2px 8px;border-bottom:1px solid #d7dee8;background:#edf2f8;list-style:none;margin:0}
   .cubi-menu-root{position:relative}.cubi-menu-root>details>summary{list-style:none;cursor:pointer;padding:6px 10px;border:1px solid transparent;border-radius:3px;font-weight:600}.cubi-menu-root>details>summary::-webkit-details-marker{display:none}
   .cubi-menu-root>details[open]>summary,.cubi-menu-root>details>summary:hover{background:#fff;border-color:#b8c6d8;color:#123a6b}
@@ -125,19 +121,13 @@ export function renderWorkspaceCommandShell(locale: string, activeMenu = "schedu
   .cubi-menu-popup{position:absolute;top:100%;inset-inline-start:0;max-height:min(70vh,560px);overflow:auto}
   .cubi-menu-popup li button,.cubi-command-parent summary{display:flex;align-items:center;justify-content:space-between;gap:22px;width:100%;border:0;background:transparent;color:#24384f;text-align:start;padding:6px 9px;border-radius:2px;font:inherit;cursor:pointer}
   .cubi-menu-popup li button[aria-disabled=true]{opacity:.82}.cubi-menu-popup li button:hover,.cubi-command-parent summary:hover{background:#e8eff8}
-  .cubi-menu-popup kbd{font:10px Inter, sans-serif;color:#69798c}.cubi-command-divider{height:1px;background:#e1e6ed;margin:4px 3px}
+  .cubi-menu-popup kbd{font:10px Inter,sans-serif;color:#69798c}.cubi-command-divider{height:1px;background:#e1e6ed;margin:4px 3px}
   .cubi-command-parent{position:relative}.cubi-command-parent ul{display:none;position:absolute;top:0;inset-inline-start:100%;max-height:60vh;overflow:auto}.cubi-command-parent details[open]>ul{display:block}
   .cubi-submenu-caret{margin-inline-start:auto;color:#73849a}
-  .cubi-toolbar{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:3px 6px;background:#f8fafc}
-  .cubi-toolbar-group{display:flex;flex-direction:column;gap:3px;padding:2px 9px;border-inline-end:1px solid #d8e0e9;white-space:nowrap}
-  .cubi-toolbar-group>strong{font-size:9px;color:#69798c;font-weight:600;text-align:center}.cubi-toolbar-group>div{display:flex;gap:3px}
-  .cubi-toolbar-group button{border:1px solid #d5dde7;border-radius:3px;background:#fff;padding:5px 7px;color:#23405e;font:11px Inter,Vazirmatn,sans-serif}
-  .cubi-toolbar-group button[aria-disabled=true]{opacity:.78}
   [dir=rtl] .cubi-command-menubar{flex-direction:row-reverse}
-  @media(max-width:720px){.cubi-command-menubar{overflow-x:auto}.cubi-menu-popup{position:fixed;top:auto;inset-inline-start:8px;max-width:calc(100vw - 24px)}.cubi-toolbar-group{padding-inline:6px}}
+  @media(max-width:720px){.cubi-command-menubar{overflow-x:auto}.cubi-menu-popup{position:fixed;top:auto;inset-inline-start:8px;max-width:calc(100vw - 24px)}}
   </style>
-  <div class="cubi-command-shell" dir="${direction}" aria-label="${isFa ? "نوار فرمان محیط کار" : commandLabel(locale, "Workspace command surface")}">
-    <ul class="cubi-command-menubar" role="menubar">${menuMarkup}</ul>
-    <div class="cubi-toolbar" role="toolbar" aria-label="${isFa ? "نوار ابزار اصلی" : commandLabel(locale, "Main toolbar")}">${toolbar}</div>
+  <div class="cubi-command-shell" dir="${direction}" aria-label="${isFa ? "نوار منوی محیط کار" : commandLabel(locale, "Workspace command surface")}">
+    <ul class="cubi-command-menubar" role="menubar" aria-label="${isFa ? "منوی اصلی" : "Main menu"}">${menuMarkup}</ul>
   </div>`;
 }

@@ -79,33 +79,38 @@ def _html(status: int, document: str) -> tuple[int, dict[str, str], bytes]:
 
 
 def _safe_next(raw: object) -> str:
-    """Allow only the workspace route and its single, validated project selector."""
+    """Allow only a validated project selector and canonical live workspace mode."""
     value = str(raw or "").strip()
     try:
         parsed = urlsplit(value)
     except ValueError:
-        return "/app"
+        return "/app?view=live"
     if (
         parsed.scheme
         or parsed.netloc
         or parsed.fragment
         or parsed.path not in {"/app", "/app/"}
     ):
-        return "/app"
-    if not parsed.query:
-        return "/app"
+        return "/app?view=live"
     query = parse_qs(parsed.query, keep_blank_values=True)
+    if set(query) - {"project", "view"}:
+        return "/app?view=live"
     project_values = query.get("project", [])
-    if set(query) != {"project"} or len(project_values) != 1:
-        return "/app"
-    project_id = project_values[0].strip()
-    if (
+    if len(project_values) > 1:
+        return "/app?view=live"
+    project_id = project_values[0].strip() if project_values else ""
+    if project_values and (
         not project_id
         or len(project_id) > 200
         or any(ord(char) < 0x20 for char in project_id)
     ):
-        return "/app"
-    return "/app?" + urlencode({"project": project_id})
+        return "/app?view=live"
+    view_values = query.get("view", [])
+    if len(view_values) > 1 or (view_values and view_values[0] not in {"live", "visual"}):
+        return "/app?view=live"
+    if project_id:
+        return "/app?" + urlencode({"project": project_id, "view": "live"})
+    return "/app?view=live"
 
 
 def _cookie_header(
@@ -506,7 +511,7 @@ class PreviewApplication:
             self.runtime.sessions.revoke(session.session_id)
         headers = {
             "Content-Type": "text/html; charset=utf-8",
-            "Location": LOGIN_PATH,
+            "Location": "/",
             "Set-Cookie": _clear_cookie_header()[1],
         }
         return 303, headers, b""
@@ -544,6 +549,10 @@ class PreviewApplication:
         if session is None:
             path = urlsplit(str(environ.get("PATH_INFO", "/"))).path
             query = str(environ.get("QUERY_STRING", "") or "")
+            if path == "/app":
+                parameters = parse_qs(query, keep_blank_values=True)
+                parameters["view"] = ["live"]
+                query = urlencode(parameters, doseq=True)
             requested_next = path + ("?" + query if query else "")
             next_path = _safe_next(requested_next)
             headers = {
