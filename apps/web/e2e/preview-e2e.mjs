@@ -3072,7 +3072,7 @@ async function main() {
         const main = document.querySelector(".cp-main");
         const details = document.querySelector('[data-resize-handle="details"]');
         const table = document.querySelector('[data-resize-handle="table-gantt"]');
-        const launcher = document.querySelector("#cubi-global-assistant .cubi-assistant-launcher");
+        const launcher = document.querySelector("#cubi-global-assistant");
         const rail = document.querySelector(".cp-p6 .cp-comments-dock-rail");
         const rect = (element) => {
           const value = element?.getBoundingClientRect();
