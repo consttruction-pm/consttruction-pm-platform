@@ -175,6 +175,12 @@ function cell(row: WorkspaceActivityRow | null, ...keys: string[]): string {
   return "";
 }
 
+function booleanCell(locale: string, activity: WorkspaceActivityRow | null, key: string): string {
+  const raw = activity?.cells?.[key] ?? activity?.cells?.[`activity.${key}`];
+  if (typeof raw === "boolean") return t(locale, raw ? "Yes" : "No", raw ? "بله" : "خیر");
+  return cell(activity, key);
+}
+
 function field(locale: string, label: string, value: string): string {
   const shown = value || t(locale, "Not available", "در دسترس نیست");
   return `<div class="cp-detail-field"><span class="cp-detail-label">${esc(label)}</span><span class="cp-detail-value${value ? "" : " is-empty"}" title="${esc(shown)}">${esc(shown)}</span></div>`;
@@ -310,7 +316,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         ${field(locale, t(locale, "Scheduled duration", "مدت زمان‌بندی‌شده"), cell(activity, "duration"))}
         ${field(locale, t(locale, "Total float", "شناوری کل"), cell(activity, "total_float"))}
         ${field(locale, t(locale, "Free float", "شناوری آزاد"), cell(activity, "free_float"))}
-        ${field(locale, t(locale, "Critical", "بحرانی"), cell(activity, "is_critical"))}
+        ${field(locale, t(locale, "Critical", "بحرانی"), booleanCell(locale, activity, "is_critical"))}
       </div>
       <p class="cp-detail-hint">${esc(t(locale, "Duration, float and critical values are produced by the schedule core; this pane only displays them.", "مقادیر مدت، شناوری و بحرانی توسط هستهٔ زمان‌بندی تولید می‌شوند؛ این پنل فقط آن‌ها را نمایش می‌دهد."))}</p>`;
     case "resources":
@@ -375,7 +381,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
         ${field(locale, t(locale, "Percent complete", "درصد پیشرفت"), cell(activity, "duration_percent_complete", "percent_complete", "progress") || (gantt ? String(gantt.progressPercent) : ""))}
         ${field(locale, t(locale, "Total float", "شناوری کل"), cell(activity, "total_float"))}
         ${field(locale, t(locale, "Free float", "شناوری آزاد"), cell(activity, "free_float"))}
-        ${field(locale, t(locale, "Critical", "بحرانی"), cell(activity, "is_critical") || (gantt ? (gantt.critical ? t(locale, "Yes", "بله") : t(locale, "No", "خیر")) : ""))}
+        ${field(locale, t(locale, "Critical", "بحرانی"), booleanCell(locale, activity, "is_critical") || (gantt ? (gantt.critical ? t(locale, "Yes", "بله") : t(locale, "No", "خیر")) : ""))}
       </div>
       <p class="cp-detail-hint">${esc(t(locale, "Summary fields are displayed only from the selected activity projection and authoritative schedule facts; this panel does not calculate rollups.", "فیلدهای خلاصه فقط از نمای فعالیت انتخاب‌شده و اطلاعات مرجع زمان‌بندی نمایش داده می‌شوند؛ این پنل محاسبات تجمیعی انجام نمی‌دهد."))}</p>`;
     }
