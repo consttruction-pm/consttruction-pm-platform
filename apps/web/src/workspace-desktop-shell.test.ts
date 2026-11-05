@@ -55,6 +55,32 @@ test("desktop chrome owns exactly one persisted window tab strip and dispatches 
   assert.deepEqual(closed, ["project"]);
 });
 
+test("layout commands from the global menu open their owning desktop dialog", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let opened = false;
+  let dispatched = "";
+  const dialog = { showModal: () => { opened = true; }, setAttribute: () => {} };
+  const host = {
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === '[data-desktop-dialog="timescale"]' ? dialog : null,
+    contains: () => true,
+  };
+  renderDesktopShell(host as unknown as HTMLElement, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: (command) => { dispatched = command; },
+  });
+  const target = {
+    dataset: { shellCommand: "Timescale" },
+    closest: (selector: string) => selector === "[data-shell-command]" ? target : null,
+  };
+  listeners.get("click")?.({ target, stopPropagation: () => {} } as unknown as Event);
+  assert.equal(opened, true);
+  assert.equal(dispatched, "");
+});
+
 test("the menu bar mirrors the eleven professional workspace menus in order", () => {
   const menus = getDesktopMenus(shellState());
   assert.deepEqual(
