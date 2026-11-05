@@ -7028,3 +7028,84 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-wbs-window-layout>section>h3{margin:0;padding:7px 9px;border-bottom:1px solid #d8e0e9;background:#f2f5f9;color:#244463;font-size:10px}
 .cp-p6 .cp-wbs-window-layout .cp-wbs-details{margin:0;border:0}
 @media(max-width:800px){.cp-p6 .cp-wbs-window-layout{grid-template-columns:minmax(0,1fr)}}
+
+/* Activities: WBS group bands are presentation-only and collapse their table/Gantt rows together. */
+.cp-p6 #cp-activity-grid tbody tr.cp-activity-group-band td {
+  height: 26px;
+  padding: 0 7px;
+  border-top: 1px solid #bccbd9;
+  border-bottom: 1px solid #c8d4e0;
+  background: #e7edf4 !important;
+  color: #173d68;
+  font-weight: 700;
+}
+.cp-p6 #cp-activity-grid tbody tr.cp-activity-group-band[data-wbs-depth="1"] td { background: #e1eaf3 !important; }
+.cp-p6 #cp-activity-grid tbody tr.cp-activity-group-band[data-wbs-depth="2"] td { background: #edf2f7 !important; }
+.cp-p6 .cp-activity-group-band-content {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+}
+.cp-p6 .cp-activity-group-band-content > button,
+.cp-p6 .cp-gantt-group-label > button {
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  min-height: 17px;
+  padding: 0;
+  border: 1px solid #9aafc4;
+  border-radius: 2px;
+  background: #fff;
+  color: #173d68;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 14px;
+  cursor: pointer;
+}
+.cp-p6 .cp-activity-group-band-label,
+.cp-p6 .cp-gantt-group-label > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-p6 .cp-activity-group-band-count,
+.cp-p6 .cp-gantt-group-label > small {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  color: #60758a;
+  font-size: 9px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cp-p6 .cp-gantt-group-row {
+  display: grid;
+  grid-template-columns: var(--cp-gantt-label-width) minmax(320px, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 520px;
+  min-height: 28px;
+  padding: 2px 8px;
+  border-top: 1px solid #c2cfdd;
+  border-bottom: 1px solid #d0dbe6;
+  background: #e7edf4;
+  color: #173d68;
+  font-size: 10px;
+  font-weight: 700;
+}
+.cp-p6 .cp-gantt-group-row[data-wbs-depth="1"] { background: #e1eaf3; }
+.cp-p6 .cp-gantt-group-row[data-wbs-depth="2"] { background: #edf2f7; }
+.cp-p6 .cp-gantt-group-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+.cp-p6 .cp-gantt-group-track {
+  height: 18px;
+  border: 1px solid #c4d0dd;
+  border-radius: 2px;
+  background: rgba(255,255,255,.45);
+}
