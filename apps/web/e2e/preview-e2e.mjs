@@ -3148,8 +3148,71 @@ async function main() {
           geometry.assistantInsideRail && geometry.assistantOutsideWorkspace,
         `workspace splitters must fit and receive pointer events at ${viewport.width}x${viewport.height}: ${JSON.stringify(geometry)}`,
       );
+      await page.cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x: viewport.width / 2,
+        y: viewport.height / 2,
+      });
+      const navigationGeometry = await page.evaluate(`(() => {
+        const navigation = document.querySelector(".cp-navigation-tree");
+        const toggle = navigation?.querySelector("[data-navigation-toggle]");
+        const body = document.querySelector(".cp-p6-body");
+        const rect = (element) => {
+          const value = element?.getBoundingClientRect();
+          return value ? { left: value.left, right: value.right, width: value.width, top: value.top, height: value.height } : null;
+        };
+        if (!navigation || !toggle || !body) return { available: false };
+        document.activeElement?.blur?.();
+        const initialNavigation = rect(navigation);
+        const initialBody = rect(body);
+        toggle.focus();
+        const focusExpanded = rect(navigation);
+        toggle.click();
+        const explicitExpanded = rect(navigation);
+        const expandedBody = rect(body);
+        const overlayPoint = document.elementFromPoint(
+          explicitExpanded.left + Math.min(explicitExpanded.width - 4, 200),
+          explicitExpanded.top + Math.min(explicitExpanded.height - 4, 80),
+        );
+        const overlayOwnsHit = Boolean(overlayPoint && navigation.contains(overlayPoint));
+        const expandedState = toggle.getAttribute("aria-expanded");
+        toggle.click();
+        const finalNavigation = rect(navigation);
+        const finalBody = rect(body);
+        const bodyStable = Boolean(initialBody && expandedBody && finalBody &&
+          Math.abs(initialBody.left - expandedBody.left) <= 1 &&
+          Math.abs(initialBody.right - expandedBody.right) <= 1 &&
+          Math.abs(initialBody.width - expandedBody.width) <= 1 &&
+          Math.abs(initialBody.left - finalBody.left) <= 1 &&
+          Math.abs(initialBody.right - finalBody.right) <= 1 &&
+          Math.abs(initialBody.width - finalBody.width) <= 1);
+        return {
+          available: true,
+          initialWidth: initialNavigation?.width ?? null,
+          focusExpandedWidth: focusExpanded?.width ?? null,
+          explicitExpandedWidth: explicitExpanded?.width ?? null,
+          finalWidth: finalNavigation?.width ?? null,
+          ariaExpandedAfterOpen: expandedState,
+          ariaExpandedAfterClose: toggle.getAttribute("aria-expanded"),
+          bodyStable,
+          overlayOwnsHit,
+        };
+      })()`);
+      assert(
+        navigationGeometry.available &&
+          navigationGeometry.initialWidth <= 50 &&
+          navigationGeometry.focusExpandedWidth >= 190 &&
+          navigationGeometry.explicitExpandedWidth >= 190 &&
+          navigationGeometry.finalWidth <= 50 &&
+          navigationGeometry.ariaExpandedAfterOpen === "true" &&
+          navigationGeometry.ariaExpandedAfterClose === "false" &&
+          navigationGeometry.bodyStable &&
+          navigationGeometry.overlayOwnsHit,
+        `icon directory must expand as an overlay and collapse without changing workspace geometry at ${viewport.width}x${viewport.height}: ${JSON.stringify(navigationGeometry)}`,
+      );
+      geometry.navigation = navigationGeometry;
       await page.screenshot(`05-workspace-${viewport.width}x${viewport.height}.png`);
-      record(`workspace geometry verified at ${viewport.width}x${viewport.height}`, geometry);
+      record(`workspace and icon-directory geometry verified at ${viewport.width}x${viewport.height}`, geometry);
     }
     await page.cdp.send("Emulation.setDeviceMetricsOverride", {
       width: 1440,
