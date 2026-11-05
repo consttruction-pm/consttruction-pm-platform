@@ -1693,6 +1693,7 @@ function renderApp(
         projectName: state.context.project_id,
         dataDate: "—",
         calendarMode: state.calendarMode,
+        transport: aiTransport,
         state,
       },
       (activityId) => renderApp(container, selectActivity(state, activityId), persistence),
