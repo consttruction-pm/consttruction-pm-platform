@@ -3024,7 +3024,7 @@ async function main() {
     })()`);
     assert(addedPresentation?.pinned === "true", "pinned state must survive reload");
     assert(addedPresentation?.frozen === "true", "frozen state must survive reload");
-    assert(addedPresentation.width === widthAfter, "width must survive reload");
+    assert(addedPresentation.width === committedColumnWidth, `dragged column width must survive reload: expected=${committedColumnWidth}, restored=${addedPresentation.width}, preDragWidth=${widthAfter}`);
     assert(
       !orderAfterReload.includes(hiddenLabel),
       "hidden column must remain hidden after reload",
