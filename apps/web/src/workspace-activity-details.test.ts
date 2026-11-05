@@ -89,7 +89,7 @@ test("Activity Details visible-tab preferences ignore stale ids and never hide a
     getItem: (key: string) => key === ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY
       ? JSON.stringify(["general", "issues", "calendar", "unknown"])
       : null,
-  } as Storage;
+  } as unknown as Storage;
   assert.deepEqual(readActivityDetailsVisibleTabs(partialStorage), ["general", "issues"]);
 
   const staleOnlyStorage = {
