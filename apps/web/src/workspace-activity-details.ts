@@ -853,13 +853,13 @@ export function enhanceActivityDetails(
   onSelectActivity: (id: string) => void,
 ): void {
   const previous = detailsRuntime.get(host);
-  const reuse = previous && sameProjectRevision(previous.input, input);
-  const carry = (key: "resourceAssignments" | "activityExpenses") => {
-    const prior = reuse ? previous.input[key] : undefined;
-    return prior && prior.status !== "loading" ? prior : input[key];
-  };
+  const reuse = previous !== undefined && sameProjectRevision(previous.input, input);
+  const resourceAssignments = reuse && previous.input.resourceAssignments?.status !== "loading"
+    ? previous.input.resourceAssignments : input.resourceAssignments;
+  const activityExpenses = reuse && previous.input.activityExpenses?.status !== "loading"
+    ? previous.input.activityExpenses : input.activityExpenses;
   const runtime: DetailsRuntime = {
-    input: { ...input, resourceAssignments: carry("resourceAssignments"), activityExpenses: carry("activityExpenses") },
+    input: { ...input, resourceAssignments, activityExpenses },
     onSelect: onSelectActivity,
     inFlight: new Set(),
   };
