@@ -274,3 +274,60 @@ test("Activity Details exposes retry states for authoritative related-data failu
   assert.match(expenseHtml, /data-detail-retry="expenses"/);
   assert.match(expenseHtml, /FORBIDDEN/);
 });
+
+test("Activity Documents tab renders only records linked to the selected activity", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 7 });
+  const state = {
+    ...base,
+    documents: [
+      { documentId: "DOC-ACT-2", resourceType: "drawing" as const, title: "Foundation reinforcement drawing", status: "approved" as const, revision: 3, contentHash: "sha256:" + "a".repeat(64), linkedEntityRefs: ["act-2"], hasStorageRef: true },
+      { documentId: "DOC-ACT-1", resourceType: "evidence" as const, title: "Excavator inspection photo", status: "submitted" as const, revision: 1, contentHash: "sha256:" + "b".repeat(64), linkedEntityRefs: ["act-1"], hasStorageRef: true },
+    ],
+  };
+  const html = renderActivityDetailsTabContent("documents", {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "—", calendarMode: "gregorian", state,
+  });
+  assert.match(html, /DOC-ACT-2/);
+  assert.match(html, /Foundation reinforcement drawing/);
+  assert.match(html, /sha256:/);
+  assert.doesNotMatch(html, /DOC-ACT-1/);
+  assert.doesNotMatch(html, /Excavator inspection photo/);
+});
+
+test("Activity UDFs tab renders registered metadata and only values supplied for the selected activity", () => {
+  const activity = { ...ACTIVITIES[1], cells: { "activity.status-custom": "In Progress" } };
+  const html = renderActivityDetailsTabContent("udfs", {
+    locale: "en", activities: [activity], selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "—", calendarMode: "gregorian",
+    activityUdfs: {
+      status: "loaded", errorCode: null,
+      records: [{ udf_id: "activity.status-custom", subject_area: "Activity", display_name: "Execution status", data_type: "enum", writable: true, nullable: false, unit: null, allowed_values: ["Planned", "In Progress", "Complete"] }],
+    },
+  });
+  assert.match(html, /Execution status/);
+  assert.match(html, /In Progress/);
+  assert.match(html, /Planned, In Progress, Complete/);
+  assert.match(html, /Writable|Yes/);
+});
+
+test("Activity UDFs tab never invents a value missing from the activity read model", () => {
+  const html = renderActivityDetailsTabContent("udfs", {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "—", calendarMode: "gregorian",
+    activityUdfs: {
+      status: "loaded", errorCode: null,
+      records: [{ udf_id: "activity.unknown", subject_area: "Activity", display_name: "Unreturned field", data_type: "string", writable: false, nullable: true, unit: null, allowed_values: null }],
+    },
+  });
+  assert.match(html, /Not returned for this activity/);
+  assert.doesNotMatch(html, /sample value|example value/i);
+});
+
+test("Activity General tab displays the supplied authoritative Data Date", () => {
+  const html = renderActivityDetailsTabContent("general", {
+    locale: "en", activities: ACTIVITIES, selectedActivityId: "act-2", relationships: [],
+    projectName: "project-1", dataDate: "2026-11-05", calendarMode: "gregorian",
+  });
+  assert.match(html, /2026-11-05/);
+});
