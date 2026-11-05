@@ -506,7 +506,7 @@ class PreviewApplication:
             self.runtime.sessions.revoke(session.session_id)
         headers = {
             "Content-Type": "text/html; charset=utf-8",
-            "Location": LOGIN_PATH,
+            "Location": "/",
             "Set-Cookie": _clear_cookie_header()[1],
         }
         return 303, headers, b""
