@@ -3047,6 +3047,76 @@ async function main() {
       frozen: addedPresentation.frozen,
     });
 
+    // Capture the canonical desktop workspace at the three customer reference
+    // sizes. Verify splitter geometry stays inside the body and remains the
+    // topmost pointer target at each viewport; restore the original viewport
+    // before continuing the rest of the workflow.
+    for (const viewport of [
+      { width: 1280, height: 720 },
+      { width: 1366, height: 768 },
+      { width: 1920, height: 1080 },
+    ]) {
+      await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+        width: viewport.width,
+        height: viewport.height,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      await page.waitFor(
+        `window.innerWidth === ${viewport.width} && window.innerHeight === ${viewport.height}`,
+        `workspace viewport ${viewport.width}x${viewport.height}`,
+        4000,
+      );
+      const geometry = await page.evaluate(`() => {
+        const body = document.querySelector(".cp-p6-body");
+        const main = document.querySelector(".cp-main");
+        const details = document.querySelector('[data-resize-handle="details"]');
+        const table = document.querySelector('[data-resize-handle="table-gantt"]');
+        const rect = (element) => {
+          const value = element?.getBoundingClientRect();
+          return value ? { left: value.left, right: value.right, width: value.width, height: value.height } : null;
+        };
+        const bodyRect = body?.getBoundingClientRect();
+        const mainRect = main?.getBoundingClientRect();
+        const detailsRect = details?.getBoundingClientRect();
+        const tableRect = table?.getBoundingClientRect();
+        const hit = (element, bounds) => {
+          if (!element || !bounds) return false;
+          const target = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+          return Boolean(target && (target === element || element.contains(target)));
+        };
+        return {
+          body: rect(body),
+          main: rect(main),
+          details: rect(details),
+          table: rect(table),
+          mainFits: Boolean(bodyRect && mainRect && mainRect.width <= bodyRect.width + 1),
+          detailsFits: Boolean(bodyRect && detailsRect && detailsRect.left >= bodyRect.left - 1 && detailsRect.right <= bodyRect.right + 1),
+          tableFits: Boolean(bodyRect && tableRect && tableRect.left >= bodyRect.left - 1 && tableRect.right <= bodyRect.right + 1),
+          detailsReceivesPointer: hit(details, detailsRect),
+          tableReceivesPointer: hit(table, tableRect),
+        };
+      })()`);
+      assert(
+        geometry.mainFits && geometry.detailsFits && geometry.tableFits &&
+          geometry.detailsReceivesPointer && geometry.tableReceivesPointer,
+        `workspace splitters must fit and receive pointer events at ${viewport.width}x${viewport.height}: ${JSON.stringify(geometry)}`,
+      );
+      await page.screenshot(`05-workspace-${viewport.width}x${viewport.height}.png`);
+      record(`workspace geometry verified at ${viewport.width}x${viewport.height}`, geometry);
+    }
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await page.waitFor(
+      "window.innerWidth === 1440 && window.innerHeight === 900",
+      "restore desktop viewport after reference captures",
+      4000,
+    );
+
     const layoutBeforeUndo = await readLayoutFromPage(page);
     assert(layoutBeforeUndo.status === 200, "layout must be readable before undo");
     const historyBeforeUndo = await readLayoutHistoryFromPage(page);
