@@ -2066,15 +2066,13 @@ test("Relationship context menu uses the persisted relationship identity and rev
     querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
     addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
   };
-  const deleted: Array<[string, number]> = [];
-  renderMainWorkspace(container as unknown as HTMLElement, state, { onRelationshipDelete: (id, revision) => { deleted.push([id, revision]); } });
+  const selected: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, state, { onActivitySelect: (id) => selected.push(id) });
   listeners.get("contextmenu")?.({ target: source, clientX: 200, clientY: 100, preventDefault: () => {} } as unknown as Event);
   assert.match(host.innerHTML, /data-context-action="delete-relationship"/);
+  assert.match(host.innerHTML, /data-context-action="edit-relationship"/);
   const menu = { closest: (selector: string) => selector.includes("[data-workspace-context-menu]") ? menu : null };
-  const action = { dataset: { contextAction: "delete-relationship" }, closest: (selector: string) => selector.includes("[data-context-action]") ? action : menu };
-  const originalConfirm = globalThis.confirm;
-  globalThis.confirm = () => true;
-  try { listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event); }
-  finally { globalThis.confirm = originalConfirm; }
-  assert.deepEqual(deleted, [["REL-1", 7]]);
+  const action = { dataset: { contextAction: "edit-relationship" }, closest: (selector: string) => selector.includes("[data-context-action]") ? action : menu };
+  listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event);
+  assert.deepEqual(selected, ["A-2"]);
 });
