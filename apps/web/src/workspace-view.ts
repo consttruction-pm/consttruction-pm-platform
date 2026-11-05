@@ -1359,6 +1359,16 @@ function isAppearanceHex(value: unknown): value is string {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
 }
 
+function appearanceContrastText(hex: string): string {
+  const channels = [1, 3, 5].map((index) => Number.parseInt(hex.slice(index, index + 2), 16) / 255);
+  const linear = channels.map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  const luminance = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+  const darkLuminance = 0.012;
+  const lightContrast = 1.05 / (luminance + 0.05);
+  const darkContrast = (luminance + 0.05) / (darkLuminance + 0.05);
+  return lightContrast >= darkContrast ? "#ffffff" : "#17202a";
+}
+
 function readWorkspaceAppearance(): WorkspaceAppearance {
   const fallback = defaultWorkspaceAppearance("light");
   if (typeof window === "undefined") return fallback;
@@ -1391,6 +1401,16 @@ function applyWorkspaceAppearance(container: HTMLElement, appearance: WorkspaceA
     wbs1: "--cp-wbs-level-1", wbs2: "--cp-wbs-level-2", wbs3: "--cp-wbs-level-3", wbs4: "--cp-wbs-level-4",
   };
   for (const { key } of WORKSPACE_APPEARANCE_LABELS) workspace.style.setProperty(variables[key], appearance.colors[key]);
+  workspace.style.setProperty("--cp-ws-text", appearanceContrastText(appearance.colors.window));
+  workspace.style.setProperty("--cp-ws-navigation-text", appearanceContrastText(appearance.colors.navigation));
+  workspace.style.setProperty("--cp-ws-panel-text", appearanceContrastText(appearance.colors.panel));
+  workspace.style.setProperty("--cp-ws-grid-text", appearanceContrastText(appearance.colors.grid));
+  workspace.style.setProperty("--cp-ws-grid-header-text", appearanceContrastText(appearance.colors.gridHeader));
+  workspace.style.setProperty("--cp-ws-gantt-text", appearanceContrastText(appearance.colors.gantt));
+  workspace.style.setProperty("--cp-ws-header-text", appearance.mode === "dark" ? "#e5edf5" : "#1f2d3d");
+  for (const key of ["wbs1", "wbs2", "wbs3", "wbs4"] as const) {
+    workspace.style.setProperty(`--cp-wbs-level-${key.slice(3)}-text`, appearanceContrastText(appearance.colors[key]));
+  }
 }
 
 function syncWorkspaceAppearanceDialog(container: HTMLElement, appearance = readWorkspaceAppearance()): void {
