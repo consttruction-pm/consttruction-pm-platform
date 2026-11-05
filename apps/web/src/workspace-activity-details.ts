@@ -17,6 +17,7 @@ import type {
   WorkspaceState,
   WorkspaceWbsNode,
 } from "./workspace-model.js";
+import { listWorkspaceEntityComments } from "./workspace-comments.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
 
 export const ACTIVITY_DETAILS_STORAGE_KEY = "cubi:activity-details-tab";
@@ -465,8 +466,12 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
     }
     case "update-history":
       return empty(locale, t(locale, "Activity-specific audit history is not included in the current workspace read model. No change entries are inferred or synthesized.", "تاریخچه ممیزی مختص فعالیت در مدل خواندن فعلی محیط کار وجود ندارد. هیچ سابقه تغییری حدس زده یا ساخته نمی‌شود."));
-    case "notebook":
-      return `<p class="cp-detail-empty">${esc(t(locale, "Notebook entries are not stored by the project read model. Browser-local notes for this activity are available from the Comments rail.", "مدخل‌های دفترچه در مدل خواندن پروژه ذخیره نمی‌شوند. یادداشت‌های محلی این فعالیت از نوار یادداشت‌ها در دسترس است."))}</p>`;
+    case "notebook": {
+      if (!activity || !state) return empty(locale, t(locale, "Select an activity to view its local notes.", "برای مشاهده یادداشت‌های محلی، یک فعالیت انتخاب کنید."));
+      const notes = listWorkspaceEntityComments({ projectId: state.context.project_id, entityKind: "activity", entityId: activity.id });
+      if (!notes.length) return empty(locale, t(locale, "No browser-local notes have been recorded for this activity. Add one from the Comments rail.", "برای این فعالیت یادداشت محلی ثبت نشده است. از نوار یادداشت‌ها یک یادداشت اضافه کنید."));
+      return `<div class="cp-detail-notes">${notes.map((note) => `<article class="cp-detail-note"><header><strong>${esc(note.author)}</strong><time datetime="${esc(note.createdAt)}">${esc(note.createdAt)}</time></header><p>${esc(note.body)}</p>${note.parentId ? `<small>${esc(t(locale, "Reply", "پاسخ"))}</small>` : ""}</article>`).join("")}</div><p class="cp-detail-hint">${esc(t(locale, "These notes are stored in this browser only. They are not part of the project database or formal audit history.", "این یادداشت‌ها فقط در همین مرورگر ذخیره شده‌اند و بخشی از پایگاه داده پروژه یا تاریخچه رسمی ممیزی نیستند."))}</p>`;
+    }
     case "udfs":
       return renderActivityUdfs(locale, input, activity);
     default:
