@@ -251,3 +251,38 @@ Append one record for every slice. Do not overwrite prior records.
 
 ---
 **Current decision:** keep the continuation PR unmerged and undeployed. Preserve the 48-window visual inventory, authenticated project data, existing shell and Gantt. Continue only with one tested, reversible migration slice at a time.
+
+
+## 11. Continuation evidence — resizable workspace and reference viewports (2026-11-05)
+
+**Verified head:** 5c2a4bc8579d27a90295e013c89c5568c525f202  
+**PR:** #1716 — remains open; not merged or deployed.  
+**Preview evidence:** GitHub Actions run 41942211196; artifact cubi-workspace-visual-evidence (ID 13375889253).
+
+### Accepted in this slice
+
+- The existing authenticated workspace now has a bounded horizontal Details splitter and a bounded vertical table/Gantt splitter. Both respond to pointer drag and keyboard input; double-click restores their default ratios.
+- Split preferences are stored by tenant, project, active window and split kind, and survive a full browser reload.
+- Activity column widths resize with pointer and keyboard input, commit through the existing revision-checked layout API, and survive a full reload. The test compares the restored width to the post-drag API-committed value, not the earlier pre-drag value.
+- The .cp-p6-body grid now has an explicit minmax(0, 1fr) column. This prevents intrinsic child width from expanding the body beyond its available workspace width and displacing the splitters.
+- The persistent assistant launcher is compact and contained in the existing command rail, outside the workspace content rectangle. It remains mounted at the document level; no new workspace shell or width-reducing assistant panel was introduced.
+- Source and published CSS mirrors are synchronized.
+
+### Exact-head verification
+
+- Client Typecheck: passed for web, mobile, desktop and client-sync.
+- ConstructionPM CI: passed on Python 3.11, 3.12 and 3.13.
+- ConstructionPM Web CI: passed — Typecheck, unit tests, build, production-shaped Pages artifact validation, preview runtime smoke test, browser E2E for workspace/assistant, browser E2E for Form Builder, and visual evidence upload.
+- Browser E2E verified pane drag, column drag, persistence and reload, and viewport geometry at 1280×720, 1366×768 and 1920×1080.
+- Screenshots for all three target viewport sizes are included in the run artifact above.
+
+### Still open — do not infer acceptance from the resize pass
+
+- The toolbar/menu hierarchy is still too tall and contains duplicated command surfaces. In the screenshot, the global icon toolbar, layout options row, command menubar, grouped command row, two tab strips, activity metadata row and page command row remain visible. Consolidate these into the approved title/menu/icon-toolbar/single-tabs/context-toolbar sequence without removing commands or breaking handlers.
+- The Details pane's rendered content density at 1280×720 needs a separate visual review; do not change the Gantt timescale or force a global pane ratio to hide clipping.
+- Add a real reset-to-default column widths action and verify it against the existing layout API; this slice does not claim it.
+- The 48 approved visual windows versus 18 authenticated window keys remain a controlled migration. Do not delete the visual-demo bootstrap or expose a second authenticated workspace until the approved window inventory is migrated and verified inside cp-app-shell.
+- The full page-by-page menu/dialog/service/permission audit remains open.
+- Baseline, Documents write/upload, Reports, Tracking, Risks, Thresholds and Issues service gaps remain open unless separately verified with exact-head tests.
+- Numerical schedule parity against an authorized latest-version reference remains unverified; no parity claim is made.
+- No production deploy or merge was performed. The PR branch must be reconciled with the four newer main commits and re-tested before any merge decision.
