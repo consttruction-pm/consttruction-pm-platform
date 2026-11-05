@@ -6730,7 +6730,7 @@ html.cubi-is-resizing:has(.cp-p6.is-resizing) .cp-p6-details-splitter { cursor: 
   .cp-p6 .cp-comments-dock-rail.cp-context-command-rail { width: 32px; min-width: 32px; }
   .cp-p6 .cp-context-command-rail .cp-rail-button,
   .cp-p6 .cp-context-add-menu > summary { width: 27px; min-width: 27px; }
-  .cp-p6 .cp-p6-body { grid-template-rows: auto 28px 30px minmax(0, 1fr); }
+  .cp-p6 .cp-p6-body { grid-template-rows: 30px 32px minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .cp-p6 .cp-p6-shell { grid-template-columns: 36px minmax(0, 1fr) 30px; }
@@ -6742,7 +6742,7 @@ html.cubi-is-resizing:has(.cp-p6.is-resizing) .cp-p6-details-splitter { cursor: 
 }
 
 
-.cp-p6 .cp-p6-body { grid-template-rows: auto 28px 30px 32px minmax(0, 1fr); }
+.cp-p6 .cp-p6-body { grid-template-rows: 30px 32px minmax(0, 1fr); }
 .cp-p6 .cp-context-command-bar {
   display: flex;
   align-items: center;
@@ -6788,7 +6788,7 @@ html.cubi-is-resizing:has(.cp-p6.is-resizing) .cp-p6-details-splitter { cursor: 
   cursor: not-allowed;
 }
 @media (max-width: 900px) {
-  .cp-p6 .cp-p6-body { grid-template-rows: auto 28px 30px 32px minmax(0, 1fr); }
+  .cp-p6 .cp-p6-body { grid-template-rows: 30px 32px minmax(0, 1fr); }
   .cp-p6 .cp-context-command-bar { min-height: 32px; }
 }
 
