@@ -3067,7 +3067,7 @@ async function main() {
         `workspace viewport ${viewport.width}x${viewport.height}`,
         4000,
       );
-      const geometry = await page.evaluate(`() => {
+      const geometry = await page.evaluate(`(() => {
         const body = document.querySelector(".cp-p6-body");
         const main = document.querySelector(".cp-main");
         const details = document.querySelector('[data-resize-handle="details"]');
