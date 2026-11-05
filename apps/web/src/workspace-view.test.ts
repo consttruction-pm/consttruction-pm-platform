@@ -1939,9 +1939,10 @@ test("Activities renders hierarchical WBS group bands in the table and the same 
       withWbsNodes(
         createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
         [
-          { id: "WBS-01", parentKind: "project" as const, parentWbsId: null, localCode: "01", name: "Civil works", sequenceNumber: 1, recordRevision: 1 },
+          { id: "WBS-PROJECT", parentKind: "project" as const, parentWbsId: null, localCode: "P", name: "Project root", sequenceNumber: 0, recordRevision: 1 },
+          { id: "WBS-01", parentKind: "wbs" as const, parentWbsId: "WBS-PROJECT", localCode: "01", name: "Civil works", sequenceNumber: 1, recordRevision: 1 },
           { id: "WBS-01A", parentKind: "wbs" as const, parentWbsId: "WBS-01", localCode: "01.A", name: "Foundations", sequenceNumber: 1, recordRevision: 1 },
-          { id: "WBS-02", parentKind: "project" as const, parentWbsId: null, localCode: "02", name: "Mechanical works", sequenceNumber: 2, recordRevision: 1 },
+          { id: "WBS-02", parentKind: "wbs" as const, parentWbsId: "WBS-PROJECT", localCode: "02", name: "Mechanical works", sequenceNumber: 2, recordRevision: 1 },
         ],
       ),
       [
@@ -1976,9 +1977,10 @@ test("collapsing a parent WBS group hides its descendant table and Gantt rows wi
       withWbsNodes(
         createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
         [
-          { id: "WBS-01", parentKind: "project" as const, parentWbsId: null, localCode: "01", name: "Civil works", sequenceNumber: 1, recordRevision: 1 },
+          { id: "WBS-PROJECT", parentKind: "project" as const, parentWbsId: null, localCode: "P", name: "Project root", sequenceNumber: 0, recordRevision: 1 },
+          { id: "WBS-01", parentKind: "wbs" as const, parentWbsId: "WBS-PROJECT", localCode: "01", name: "Civil works", sequenceNumber: 1, recordRevision: 1 },
           { id: "WBS-01A", parentKind: "wbs" as const, parentWbsId: "WBS-01", localCode: "01.A", name: "Foundations", sequenceNumber: 1, recordRevision: 1 },
-          { id: "WBS-02", parentKind: "project" as const, parentWbsId: null, localCode: "02", name: "Mechanical works", sequenceNumber: 2, recordRevision: 1 },
+          { id: "WBS-02", parentKind: "wbs" as const, parentWbsId: "WBS-PROJECT", localCode: "02", name: "Mechanical works", sequenceNumber: 2, recordRevision: 1 },
         ],
       ),
       [
