@@ -1791,8 +1791,8 @@ test("desktop workbench renders a grouped navigation tree, window tabs and conte
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
   assert.match(html, /Resources &amp; cost/);
-  assert.match(html, /class="cp-window-tabs"/);
-  assert.match(html, /role="tab" data-window-tab="schedule" data-menu="schedule" aria-selected="true"/);
+  assert.doesNotMatch(html, /class="cp-window-tabs"/, "window tabs are rendered once by the desktop shell");
+  assert.doesNotMatch(html, /cubi-command-shell/, "the menu bar is owned by the desktop chrome");
   assert.match(html, /class="cp-context-command-bar"/);
   assert.match(html, /Current window commands/);
   assert.match(html, /class="[^"]*cp-context-command-rail/);
