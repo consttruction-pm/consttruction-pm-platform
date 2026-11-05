@@ -8,7 +8,6 @@ import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiTex
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon } from "./workspace-icons.js";
-import { renderWorkspaceCommandShell } from "./workspace-command-shell.js";
 import { bindWorkspaceResizeInteractions } from "./workspace-resizing.js";
 
 const labels = {
@@ -959,26 +958,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     settings: "settings",
   };
   const activityFilterLabel = state.activityFilter.trim() || uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
-  const windowTabs = ([
-    ["project", uiText(state.locale, "Projects", "پروژه‌ها")],
-    ["wbs", uiText(state.locale, "WBS", "ساختار شکست")],
-    ["schedule", uiText(state.locale, "Activities", "فعالیت‌ها")],
-    ["progress", uiText(state.locale, "Progress", "پیشرفت")],
-    ["resources", uiText(state.locale, "Resources", "منابع")],
-    ["assignments", uiText(state.locale, "Resource Assignments", "تخصیص منابع")],
-    ["roles", uiText(state.locale, "Roles", "نقش‌ها")],
-    ["calendars", uiText(state.locale, "Calendars", "تقویم‌ها")],
-    ["cost", uiText(state.locale, "Cost", "هزینه")],
-    ["expenses", uiText(state.locale, "Expenses", "هزینه‌ها")],
-    ["documents", uiText(state.locale, "Documents", "اسناد")],
-    ["reports", uiText(state.locale, "Reports", "گزارش‌ها")],
-    ["tracking", uiText(state.locale, "Tracking", "رهگیری")],
-    ["issues", uiText(state.locale, "Issues", "مسائل")],
-    ["risks", uiText(state.locale, "Risks", "ریسک‌ها")],
-    ["thresholds", uiText(state.locale, "Thresholds", "آستانه‌ها")],
-    ["control", uiText(state.locale, "Project Controls", "کنترل پروژه")],
-    ["settings", uiText(state.locale, "Settings", "تنظیمات")],
-  ] as const).filter(([key]) => (options.openWindows ?? [state.activeMenu]).includes(key));
+
   const contextCommands: Array<{ label: string; action?: "project-settings" | "wbs" | "tools"; disabled?: boolean }> = state.activeMenu === "project"
     ? [
       { label: uiText(state.locale, "Project properties", "مشخصات پروژه"), action: "project-settings" },
@@ -986,13 +966,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       { label: uiText(state.locale, "Import / Export", "ورود و خروج اطلاعات"), disabled: true },
     ]
     : state.activeMenu === "schedule"
-      ? [
-        { label: uiText(state.locale, "Add activity", "افزودن فعالیت"), action: "tools" },
-        { label: uiText(state.locale, "WBS", "ساختار شکست"), action: "wbs" },
-        { label: uiText(state.locale, "Columns & fields", "ستون‌ها و فیلدها"), action: "tools" },
-        { label: uiText(state.locale, "Relationships", "روابط"), disabled: true },
-        { label: uiText(state.locale, "Timescale & bars", "مقیاس زمانی و میله‌ها"), disabled: true },
-      ]
+      ? []
       : [
         { label: uiText(state.locale, "Open tools", "بازکردن ابزارها"), action: "tools" },
         { label: uiText(state.locale, "Configure layout", "تنظیم چیدمان"), disabled: true },
@@ -1051,10 +1025,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </div>
         </nav>
         <div class="cp-p6-body">
-          ${renderWorkspaceCommandShell(state.locale, state.activeMenu)}
-          <nav class="cp-window-tabs" aria-label="${escapeAttribute(uiText(state.locale, "Workspace windows", "پنجره‌های محیط کار"))}" role="tablist">
-            ${windowTabs.map(([key, label]) => `<span class="cp-window-tab-item"><button type="button" role="tab" data-window-tab="${key}" data-menu="${key}" aria-selected="${key === state.activeMenu}" aria-current="${key === state.activeMenu ? "page" : "false"}" class="cp-window-tab${key === state.activeMenu ? " is-active" : ""}">${escapeHtml(label)}</button>${windowTabs.length > 1 ? `<button type="button" class="cp-window-tab-close" data-window-close="${key}" aria-label="${escapeAttribute(uiText(state.locale, `Close ${label}`, `بستن ${label}`))}" title="${escapeAttribute(uiText(state.locale, `Close ${label}`, `بستن ${label}`))}">×</button>` : ""}</span>`).join("")}
-          </nav>
           <header class="cp-p6-activity-header" data-activity-header>
             <span class="cp-p6-activity-heading">
               <strong>${escapeHtml(navigationLabel)}</strong>
@@ -1064,8 +1034,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <span class="cp-p6-activity-meta">${escapeHtml(rail.dataDate)}: ${escapeHtml(rail.noDataDate)}</span>
             <span class="cp-p6-activity-meta">${escapeHtml(rail.filter)}: ${escapeHtml(activityFilterLabel)}</span>
             <span class="cp-p6-activity-spacer"></span>
-            <button type="button" class="cp-p6-chip" data-rail-action="wbs" title="${escapeAttribute(rail.wbs)}">${workspaceIcon("wbs")}<span>${escapeHtml(rail.wbs)}</span></button>
-            <button type="button" class="cp-p6-chip" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}<span>${escapeHtml(rail.columns)}</span></button>
             <button type="button" class="cp-p6-chip" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span>${escapeHtml(rail.comments)}</span></button>
           </header>
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
@@ -1078,11 +1046,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                 <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-grid-head">
                     <h2>${escapeHtml(t.activities)}</h2>
-                    <span class="cp-p6-grid-actions">
-                      <button type="button" data-rail-action="wbs" title="${escapeAttribute(rail.wbs)}">${workspaceIcon("wbs")}</button>
-                      <button type="button" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}</button>
-                      <button type="button" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}</button>
-                    </span>
+
                   </div>
                   ${renderActivityFilterSort(state, visibleActivities.length, t)}
                   <div class="cp-table-wrap">
