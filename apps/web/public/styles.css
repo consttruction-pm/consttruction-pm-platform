@@ -4832,6 +4832,45 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 > #cp-ai-assistant-chat:not([open]),
 .cp-p6 > #cp-ai-action-panel:not([open]) { max-height: 40px; overflow: hidden; }
 
+/* Keep the persistent assistant entry inside the narrow command rail so it
+   never covers the Activities grid, Gantt, Details fields or status bar. */
+.cp-p6 .cubi-assistant-launcher {
+  inset-inline-end: 1px;
+  bottom: 52px;
+  gap: 0;
+}
+.cp-p6 .cubi-assistant-launcher-button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  max-width: 32px;
+  padding: 2px;
+  gap: 0;
+  border-radius: 5px;
+}
+.cp-p6 .cubi-assistant-launcher-button > span:last-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.cp-p6 .cubi-assistant-launcher .cubi-assistant-avatar-slot {
+  flex-basis: 28px;
+  width: 28px;
+  height: 28px;
+}
+.cp-p6 .cubi-assistant-launcher .cubi-assistant-avatar-slot img,
+.cp-p6 .cubi-assistant-launcher .cubi-assistant-avatar-fallback {
+  width: 28px;
+  height: 28px;
+}
+
 /* Title, menu, toolbar and layout bars keep their reference heights. */
 .cp-p6 .cp-titlebar {
   height: 23px;
