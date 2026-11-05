@@ -690,7 +690,7 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
 
         status, headers, _ = _request(app, "POST", "/preview/logout", cookie=cookie)
         assert status == 303
-        assert headers["location"] == "/preview/login"
+        assert headers["location"] == "/"
 
         status, _, _ = _request(app, "GET", "/api/session", cookie=cookie)
         assert status == 401
