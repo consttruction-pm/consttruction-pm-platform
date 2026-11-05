@@ -1291,7 +1291,7 @@ async function main() {
   const unauthenticatedApp = await fetch(`${baseUrl}/app`, { redirect: "manual" });
   assert(unauthenticatedApp.status === 302, "unauthenticated /app must redirect");
   assert(
-    unauthenticatedApp.headers.get("location") === "/preview/login?next=%2Fapp",
+    unauthenticatedApp.headers.get("location") === "/preview/login?next=%2Fapp%3Fview%3Dlive",
     "unauthenticated /app redirect target",
   );
   const unauthenticatedSession = await fetchJson(`${baseUrl}/api/session`);
