@@ -260,6 +260,7 @@ type WorkspaceContextMenuState =
   | { kind: "relationship"; relationshipId: string }
   | { kind: "grid" | "gantt" };
 const workspaceContextMenuState = new WeakMap<HTMLElement, WorkspaceContextMenuState>();
+const workspaceContextMenuReturnFocusByContainer = new WeakMap<HTMLElement, HTMLElement>();
 
 type ActivityWbsDisplayGroup = {
   wbsId: string;
@@ -570,9 +571,8 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       if (wbsId) void record.options.onWbsUpdate?.(wbsId, { code: readText("code"), name: readText("name"), sequenceNumber });
     }
   });
-  container.addEventListener("contextmenu", (event) => {
-    const source = event.target as HTMLElement | null;
-    if (!source || typeof source.closest !== "function") return;
+  const openWorkspaceContextMenu = (source: HTMLElement, clientX: number, clientY: number): boolean => {
+    if (typeof source.closest !== "function") return false;
     const activity = source.closest<HTMLElement>("#cp-activity-grid tr[data-activity-id]");
     const ganttActivity = source.closest<HTMLElement>(".cp-gantt-row[data-gantt-activity-id]");
     const group = source.closest<HTMLElement>("[data-activity-group-band]");
@@ -584,12 +584,11 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     else if (ganttActivity?.dataset.ganttActivityId) context = { kind: "activity", activityId: ganttActivity.dataset.ganttActivityId };
     else if (source.closest("#cp-activity-grid")) context = { kind: "grid" };
     else if (source.closest("#cp-gantt")) context = { kind: "gantt" };
-    if (!context) return;
-    event.preventDefault();
+    if (!context) return false;
     workspaceContextMenuState.set(container, context);
     const host = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
     const record = workspaceRenderRecords.get(container);
-    if (!host || !record) return;
+    if (!host || !record) return false;
     const state = record.state;
     const item = (action: string, label: string): string => '<button type="button" role="menuitem" data-context-action="' + action + '">' + escapeHtml(label) + '</button>';
     const tx = (en: string, fa: string): string => uiText(state.locale, en, fa);
@@ -621,14 +620,20 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       item("toggle-links", tx("Show / Hide Relationships", "نمایش / پنهان‌کردن روابط")),
       item("columns", tx("Bar & Chart Options", "گزینه‌های میله و نمودار")),
     ];
-    host.innerHTML = '<div class="cp-workspace-context-menu" role="menu" aria-label="' + escapeAttribute(tx("Activity context menu", "منوی زمینه‌ای فعالیت")) + '">' + items.join("") + '</div>';
+    host.innerHTML = '<div class="cp-workspace-context-menu" data-workspace-context-menu role="menu" aria-label="' + escapeAttribute(tx("Activity context menu", "منوی زمینه‌ای فعالیت")) + '">' + items.join("") + '</div>';
     host.hidden = false;
     host.style.position = "fixed";
     const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
     const viewportHeight = typeof window === "undefined" ? 768 : window.innerHeight;
-    host.style.left = String(Math.max(8, Math.min(event.clientX, viewportWidth - 230))) + "px";
-    host.style.top = String(Math.max(8, Math.min(event.clientY, viewportHeight - 220))) + "px";
+    host.style.left = String(Math.max(8, Math.min(clientX, viewportWidth - 230))) + "px";
+    host.style.top = String(Math.max(8, Math.min(clientY, viewportHeight - 220))) + "px";
+    workspaceContextMenuReturnFocusByContainer.set(container, source);
     host.querySelector<HTMLButtonElement>("[data-context-action]")?.focus({ preventScroll: true });
+    return true;
+  };
+  container.addEventListener("contextmenu", (event) => {
+    const source = event.target as HTMLElement | null;
+    if (source && openWorkspaceContextMenu(source, event.clientX, event.clientY)) event.preventDefault();
   });
   container.addEventListener("click", (event) => {
     const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-workspace-appearance-open],[data-workspace-appearance-close],[data-workspace-appearance-apply],[data-workspace-appearance-reset],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-gantt-link],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-context-action]") : null;
@@ -977,6 +982,26 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
   });
   container.addEventListener("keydown", (event) => {
+    const contextHost = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
+    if (event.key === "Escape" && contextHost && !contextHost.hidden) {
+      contextHost.hidden = true;
+      workspaceContextMenuState.delete(container);
+      const returnFocus = workspaceContextMenuReturnFocusByContainer.get(container);
+      workspaceContextMenuReturnFocusByContainer.delete(container);
+      returnFocus?.focus({ preventScroll: true });
+      event.preventDefault();
+      return;
+    }
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+      const focused = event.target as HTMLElement | null;
+      const anchor = focused?.closest?.<HTMLElement>("#cp-activity-grid tr[data-activity-id], #cp-activity-grid tr[data-activity-group-band], #cp-activity-grid, .cp-gantt-row[data-gantt-activity-id], .cp-gantt-group-row[data-activity-group-band], path[data-gantt-link], #cp-gantt");
+      if (!anchor) return;
+      const bounds = anchor.getBoundingClientRect();
+      const clientX = Math.max(8, bounds.left + Math.min(Math.max(bounds.width / 2, 24), 120));
+      const clientY = Math.max(8, bounds.top + Math.min(Math.max(bounds.height / 2, 16), 32));
+      if (openWorkspaceContextMenu(anchor, clientX, clientY)) event.preventDefault();
+      return;
+    }
     const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
     if (splitter && splitter.dataset && "panelSplitter" in splitter.dataset) {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
