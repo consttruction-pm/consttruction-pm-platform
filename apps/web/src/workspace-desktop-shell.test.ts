@@ -82,6 +82,15 @@ test("layout commands from the global menu open their owning desktop dialog", ()
   assert.equal(dispatched, "");
 });
 
+test("the canonical workspace exposes no alternate visual-demo menu entry", () => {
+  const menus = getDesktopMenus(shellState());
+  const items = menus.flatMap((menu) => menu.items);
+  assert.doesNotMatch(JSON.stringify(items), /visual-demo|Visual workspace demo|نمایش بصری محیط کار/);
+  const help = menus.find((menu) => menu.id === "help");
+  assert.ok(help?.items.some((item) => item.id === "help.shortcuts"));
+  assert.ok(help?.items.some((item) => item.id === "help.about"));
+});
+
 test("the menu bar mirrors the eleven professional workspace menus in order", () => {
   const menus = getDesktopMenus(shellState());
   assert.deepEqual(
