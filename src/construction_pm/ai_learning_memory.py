@@ -172,8 +172,13 @@ class AILearningMemoryRecord:
                 raise AILearningMemoryError("GENERAL_LEARNING_VALIDATION_EVIDENCE_REQUIRED")
             if not self.approved_by or self.approved_at is None:
                 raise AILearningMemoryError("GENERAL_LEARNING_ADMIN_APPROVAL_REQUIRED")
-        if self.scope is LearningScope.GENERAL_PUBLISHED and self.status is not LearningStatus.PUBLISHED:
-            raise AILearningMemoryError("GENERAL_PUBLISHED_SCOPE_REQUIRES_PUBLISHED_STATUS")
+        if self.scope is LearningScope.GENERAL_PUBLISHED and self.status not in {
+            LearningStatus.PUBLISHED,
+            LearningStatus.RETIRED,
+        }:
+            raise AILearningMemoryError(
+                "GENERAL_PUBLISHED_SCOPE_REQUIRES_PUBLISHED_OR_RETIRED_STATUS"
+            )
         if self.scope is LearningScope.GENERAL_CANDIDATE and self.status is LearningStatus.PUBLISHED:
             raise AILearningMemoryError("GENERAL_CANDIDATE_CANNOT_BE_PUBLISHED")
 
