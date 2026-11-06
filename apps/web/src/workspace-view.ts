@@ -653,7 +653,7 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       menuHostForDismiss.hidden = true;
       workspaceContextMenuState.delete(container);
     }
-    const target = rawTarget && typeof rawTarget.closest === "function" ? rawTarget.closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-workspace-appearance-open],[data-workspace-appearance-close],[data-workspace-appearance-apply],[data-workspace-appearance-reset],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-gantt-link],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-context-action]") : null;
+    const target = rawTarget && typeof rawTarget.closest === "function" ? rawTarget.closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-workspace-appearance-open],[data-workspace-appearance-close],[data-workspace-appearance-apply],[data-workspace-appearance-reset],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-gantt-link],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-context-action]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -950,6 +950,14 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if (target.dataset.p6FieldAdd) return void options.onP6FieldAdd?.(target.dataset.p6FieldAdd);
+    if ("p6FieldAddAll" in target.dataset) {
+      const layoutFields = new Set(state.p6Layout?.columns.map((column) => column.field_id) ?? []);
+      const fieldIds = state.p6FieldRegistry?.fields
+        .filter((field) => !layoutFields.has(field.field_id))
+        .map((field) => field.field_id) ?? [];
+      if (fieldIds.length) options.onP6FieldAddMany?.(fieldIds);
+      return;
+    }
     if (target.dataset.p6FieldRemove) return void options.onP6FieldRemove?.(target.dataset.p6FieldRemove);
     if (target.dataset.p6FieldVisibility) return void options.onP6FieldVisibilityChange?.(target.dataset.p6FieldVisibility, target.dataset.p6FieldVisible === "true");
     if (target.dataset.p6FieldWidth) {
@@ -1364,6 +1372,7 @@ export type WorkspaceRendererOptions = {
   onActivityGroupByChange?: (groupBy: "wbs" | "none") => void;
   onActivitySortDirectionToggle?: () => void;
   onP6FieldAdd?: (fieldId: string) => void;
+  onP6FieldAddMany?: (fieldIds: readonly string[]) => void;
   onP6FieldRemove?: (fieldId: string) => void;
   onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;
   onP6FieldWidthChange?: (fieldId: string, width: number) => void;
@@ -2811,6 +2820,7 @@ function renderP6FieldChooser(
         if (!field) return "";
         return `<span class="cp-p6-field-item is-hidden"><button type="button" data-p6-field-visibility="${escapeAttribute(field.field_id)}" data-p6-field-visible="true" title="${escapeAttribute(t.show + ": " + (column.label ?? field.display_name))}" aria-label="${escapeAttribute(t.show + ": " + (column.label ?? field.display_name))}">${escapeHtml(column.label ?? field.display_name)}</button><button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="${escapeAttribute(t.remove + ": " + (column.label ?? field.display_name))}" aria-label="${escapeAttribute(t.remove + ": " + (column.label ?? field.display_name))}">${escapeHtml(t.remove)}</button></span>`;
       }).join("")}
+      ${available.length ? `<button type="button" data-p6-field-add-all="true" title="${escapeAttribute(uiText(state.locale, "Add all available fields", "افزودن همهٔ فیلدهای موجود"))}">${escapeHtml(uiText(state.locale, "Add All", "افزودن همه"))} (${available.length})</button>` : ""}
       ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="${escapeAttribute(t.add)}">${escapeHtml(field.display_name)}</button>`).join("")}
     </div>
   </section>`;
