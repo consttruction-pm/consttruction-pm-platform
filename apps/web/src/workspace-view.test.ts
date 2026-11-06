@@ -1693,6 +1693,35 @@ test("bar styles change the real bar layers while the schedule facts stay untouc
   assert.match(container.innerHTML, /data-gantt-link="R-FS"/);
 });
 
+test("summary bars consume the configured summary style", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const presentation = normalizePresentation({
+    bars: {
+      summary: {
+        bodyColor: "#0b5fa5",
+        borderColor: "#063b69",
+        height: 16,
+        pattern: "hatched",
+        startShape: "diamond",
+        finishShape: "diamond",
+        labelField: "activity-name",
+        labelPosition: "right",
+      },
+    },
+  });
+  const state = withWbsNodes(scheduledGanttState(), [
+    { id: "W-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Civil works", sequenceNumber: 1, recordRevision: 1 },
+  ]);
+  renderMainWorkspace(container as unknown as HTMLElement, state, { presentation });
+  assert.match(container.innerHTML, /class="cp-gantt-summary-bar is-body-bar is-pattern-hatched"/);
+  assert.match(container.innerHTML, /data-gantt-bar-pattern="hatched"/);
+  assert.match(container.innerHTML, /height:16px/);
+  assert.match(container.innerHTML, /--cp-bar-body:#0b5fa5/);
+  assert.match(container.innerHTML, /cp-gantt-endpoint is-start is-diamond/);
+  assert.match(container.innerHTML, /cp-gantt-endpoint is-finish is-diamond/);
+  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-right">Civil works</);
+});
+
 test("actual and baseline bars are drawn only from persisted date facts", () => {
   const planned: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(planned as unknown as HTMLElement, scheduledGanttState());

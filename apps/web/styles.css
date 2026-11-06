@@ -7640,6 +7640,15 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   border: 1px solid var(--cp-bar-border, #0b2b4d);
   box-sizing: border-box;
 }
+.cp-p6 .cp-gantt-summary-bar.is-pattern-striped { background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.34) 0 2px, transparent 2px 5px); }
+.cp-p6 .cp-gantt-summary-bar.is-pattern-hatched { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.4) 0 1px, transparent 1px 4px); }
+.cp-p6 .cp-gantt-summary-bar.is-pattern-outline { background-color: transparent; border: 2px solid var(--cp-bar-body, #17324d); }
+.cp-p6 .cp-gantt-summary-bar.is-body-line { border-width: 2px 0; border-left: 0; border-right: 0; }
+.cp-p6 .cp-gantt-summary-bar.is-body-diamond { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.cp-p6 .cp-gantt-summary-bar.is-body-circle { border-radius: 50%; }
+.cp-p6 .cp-gantt-summary-bar.is-body-triangle-up { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.cp-p6 .cp-gantt-summary-bar.is-body-triangle-down { clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.cp-p6 .cp-gantt-summary-bar.is-body-none { display: none; }
 .cp-p6 .cp-gantt-summary-cap {
   position: absolute; bottom: -1px; width: 0; height: 0;
   border-style: solid;

@@ -124,7 +124,7 @@ export const DEFAULT_PRESENTATION: WorkspacePresentation = {
     // and green actual bars, with the activity id printed beside each bar.
     task: bar({ bodyColor: "#eef3f8", borderColor: "#1f3b57", filter: "task", labelField: "activity-id" }),
     critical: bar({ bodyColor: "#f6dcd7", borderColor: "#9e2b25", filter: "critical", labelField: "activity-id" }),
-    summary: bar({ bodyColor: "#17324d", borderColor: "#0f2a44", filter: "summary", height: 10, startShape: "triangle-down", finishShape: "triangle-down", labelField: "activity-id" }),
+    summary: bar({ bodyColor: "#17324d", borderColor: "#0f2a44", filter: "summary", height: 10, startShape: "triangle-down", finishShape: "triangle-down", labelField: "none" }),
     milestone: bar({ bodyColor: "#1f2933", borderColor: "#111827", filter: "milestone", bodyShape: "diamond", height: 14 }),
     progress: bar({ bodyColor: "#1f3b57", borderColor: "#1f3b57", filter: "all", height: 6 }),
     actual: bar({ bodyColor: "#2e7d5b", borderColor: "#246448", filter: "all", row: 2, height: 6 }),

@@ -3256,6 +3256,16 @@ function renderGanttRows(
 
 const WBS_LEVEL_COLORS = ["#3b3bbf", "#ffff00", "#c6ffc6", "#ccf2ff", "#ffd9ec", "#eee0ff"] as const;
 
+function summaryLabelText(field: GanttBarStyle["labelField"], row: WorkspaceWbsGroupRow): string {
+  switch (field) {
+    case "activity-id": return row.node.localCode;
+    case "activity-name": return row.node.name;
+    case "duration": return row.summary.duration === null ? "" : String(row.summary.duration);
+    case "progress": return row.summary.progressPercent === null ? "" : `${Math.round(row.summary.progressPercent)}%`;
+    default: return "";
+  }
+}
+
 function renderGanttWbsRow(
   row: WorkspaceWbsGroupRow,
   presentation: WorkspacePresentation,
@@ -3271,8 +3281,22 @@ function renderGanttWbsRow(
     `WBS ${row.node.localCode}: summary derived from ${row.summary.activityCount} persisted activities`,
     `WBS ${row.node.localCode}: خلاصهٔ مشتق‌شده از ${row.summary.activityCount} فعالیت ذخیره‌شده`,
   );
+  // The summary bar is configured by the same Bar Styles editor as task bars:
+  // height, fill pattern, end shapes and label are read from the persisted style.
+  const height = Math.max(3, Math.min(24, style.height));
+  const endpoint = (shape: GanttBarStyle["startShape"], color: string, edge: "start" | "finish"): string =>
+    shape !== "none" && shape !== "bar"
+      ? `<span class="cp-gantt-endpoint is-${edge} is-${shape}" style="--cp-gantt-endpoint:${color}"></span>`
+      : "";
+  const caps = style.startShape === "bar" && style.finishShape === "bar"
+    ? `<span class="cp-gantt-summary-cap is-start" aria-hidden="true"></span><span class="cp-gantt-summary-cap is-finish" aria-hidden="true"></span>`
+    : `${endpoint(style.startShape, style.startColor, "start")}${endpoint(style.finishShape, style.finishColor, "finish")}`;
+  const labelText = summaryLabelText(style.labelField, row);
+  const label = labelText
+    ? `<span class="cp-gantt-bar-label is-${style.labelPosition}">${escapeHtml(labelText)}</span>`
+    : "";
   const bar = geometry
-    ? `<div class="cp-gantt-summary-bar" data-gantt-summary="derived" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" style="left:${ganttRound(geometry.leftPercent)}%;width:${ganttRound(geometry.widthPercent)}%;--cp-bar-body:${style.bodyColor};--cp-bar-border:${style.borderColor}" title="${escapeAttribute(title)}"><span class="cp-gantt-summary-cap is-start" aria-hidden="true"></span><span class="cp-gantt-summary-cap is-finish" aria-hidden="true"></span></div>`
+    ? `<div class="cp-gantt-summary-bar is-body-${style.bodyShape} is-pattern-${style.pattern}" data-gantt-summary="derived" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-bar-shape="${style.bodyShape}" data-gantt-bar-pattern="${style.pattern}" style="left:${ganttRound(geometry.leftPercent)}%;width:${ganttRound(geometry.widthPercent)}%;height:${height}px;--cp-bar-body:${style.bodyColor};--cp-bar-border:${style.borderColor}" title="${escapeAttribute(title)}">${caps}${label}</div>`
     : "";
   const color = WBS_LEVEL_COLORS[Math.min(WBS_LEVEL_COLORS.length - 1, row.depth)] ?? WBS_LEVEL_COLORS[0];
   return `<div class="cp-gantt-row cp-gantt-group-row" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-depth="${row.depth}" style="--cp-wbs-band:${color}" aria-label="${escapeAttribute(title)}"><span class="cp-gantt-label">${escapeHtml(row.node.localCode)}</span><div class="cp-gantt-track">${bar}</div></div>`;
