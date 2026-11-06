@@ -173,3 +173,121 @@ Applying/removing a filter changes only the displayed row set. It never mutates 
 - P6 EPPM REST API Release 26, *UDFType Fields*: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/p6-ws-ref/udftypefields-42370a.html
 - P6 EPPM REST API Release 26, *ActivityFilter*: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-project/26/rest-api/op-activityfilter-post.html
 
+
+
+## 8. Mandatory visual specification — Activity Filters (Version 26)
+
+This section is a **visual acceptance contract**, not optional styling guidance. The Activity filter must not ship as a generic web form, a floating list of chips, a side-panel with unrelated cards, or a single search box. The target is the compact, data-dense desktop interaction documented for P6 Professional Version 26. Use the official Version 26 PDF screenshot on printed page **288** (PDF zero-based page index 287) as the primary visual reference for the **Filter definition** dialog. Use the Version 26 Help page "Filters dialog box" (published July 16, 2026) for the selection/management dialog commands and semantics.
+
+### 8.1 There are two distinct visual surfaces — do not merge them
+
+**A. Filters / selection and management dialog**
+
+This is the dialog opened through Activity > View > Filter By > Customize. It is where a user selects one or more saved filters, combines them, previews the result, returns to all activities, and manages saved filter definitions.
+
+Required visible structure:
+1. A top-level **All Activities** selection at the top of the filter list. Selecting it clears the filter restriction and restores all Activity rows.
+2. A **Show activities that match** group with two mutually exclusive radio choices:
+   - **All selected filters**
+   - **Any selected filter**
+3. A filter register grouped by filter category, not one undifferentiated chip cloud:
+   - **Default**
+   - **Global**
+   - **Layout**
+   - **User-Defined**
+4. A proper list/table with filter name and a **Select** checkbox column. A filter can be selected without opening its definition. The Filter and Select column headings retain their sort affordance.
+5. A lower **When applying the selected filter(s)** group with two mutually exclusive radio choices:
+   - **Replace activities shown in current layout**
+   - **Highlight activities in current layout which match criteria**
+6. A command area with the actions that apply to the selected row/category and are enabled only when valid:
+   - **OK**, **Cancel**, **Apply**, **New**, **Delete**, **Copy**, **Paste**, **Modify**, **Make Global**, **Copy as Layout**, **Help**.
+   - **Apply** previews the chosen filter set and leaves this dialog open.
+   - **Copy as Layout** creates a layout-scoped copy of a Default or Global definition; it is not the same as changing the current filter selection.
+   - **Make Global** promotes an eligible layout/user definition to shared/global availability and requires the appropriate permission.
+7. The filter name register must show the category/group relationship visually (tree/group header or equivalent compact grouped list). Do not represent Default/Global/Layout/User filters as independent large cards.
+8. The dialog must keep a clear distinction between **Select/apply** and **Modify/edit**. Clicking a name to inspect it must not accidentally activate/deactivate it.
+
+**B. Filter definition dialog**
+
+This is the separate editor opened by New or Modify. Its baseline arrangement must follow the Version 26 screenshot:
+1. A compact title bar and a **Filter Name** label with a single-line name input near the top.
+2. A collapsible **Display: Filter** row immediately below the name line.
+3. The main body is a grid/table occupying approximately four-fifths of the dialog width. A compact vertical command strip occupies approximately one-fifth at the right. Keep these relative proportions from the official screenshot; do not replace the grid with one form card per criterion.
+4. The definition grid has the following column order and meaning:
+   - **Display all rows** — logical connector for the criterion row: Where / And / Or.
+   - **Parameter** — field/activity data item.
+   - **Is** — operator / matching condition.
+   - **Value** — primary comparison operand.
+   - **High Value** — second operand for a between/range criterion.
+5. The first group/header row displays **[All of the following]** or the corresponding any-match group mode. Criterion rows appear underneath with the connector in the first column; the first row begins with **Where** and subsequent rows use **And** or **Or** as selected. Preserve the indentation/tree-like grouping shown in the screenshot.
+6. Keep the editor grid spacious enough to add rows without collapsing columns to tiny controls. Use aligned table headers, visible row boundaries, compact row heights, a selected-row highlight, and both vertical and horizontal scrolling when required. Do not truncate Parameter, Is, Value, or High Value so severely that users cannot inspect their criteria.
+7. Double-clicking the **Is** cell opens the operator choices; selecting a Parameter opens the available Activity fields and supports type-ahead search. The Value/High Value cells are editable in-place and display values in the field's declared type/units.
+8. The right-side command strip is vertically ordered as in the reference:
+   - **OK** and **Cancel** at the top;
+   - **Add** and **Delete**;
+   - **Cut**, **Copy**, **Paste**;
+   - criterion-order/group movement arrow controls (up/down and the available left/right hierarchy controls);
+   - **Help** at the bottom.
+   Use icon + readable label treatment like the reference, preserve disabled-state appearance, and do not hide the commands in an ellipsis menu.
+9. The **Optimize** command is accessed from the Activity Display Options bar as documented. It is not an invented, permanently visible button inside every row. It reviews criteria to identify/reduce redundancy; it must not silently alter criteria without user confirmation.
+10. OK commits the filter definition and closes the editor. Cancel closes without saving the unsaved draft. Add creates a new criterion row and places focus in its Parameter cell. Delete removes the selected criterion row, not the saved filter definition unless the user is in the manager dialog and explicitly chooses Delete.
+
+### 8.2 Exact visual states that must be implemented and tested
+
+The browser implementation must provide screenshot evidence for each of these states at the same Activity-window scale:
+- Filters manager with the Default, Global, Layout and User-Defined groups expanded/collapsed as appropriate, including All Activities.
+- Manager with one filter selected and with multiple filters selected.
+- **All selected filters** and **Any selected filter** radio states.
+- Replace vs Highlight application mode.
+- New/Modify definition with one simple criterion (Where).
+- Definition with multiple criteria and mixed Where / And / Or connectors.
+- Definition with the **[All of the following]** group row and the corresponding any-match state.
+- Range criterion showing both Value and High Value columns/cells.
+- Empty/new filter before any criterion is added.
+- Add-row and delete-selected-row states.
+- Parameter type-ahead list open and the Is operator list open.
+- Long text, date, numeric, duration and unit criterion values without clipping.
+- Disabled Cut/Copy/Paste/move controls when no applicable selection exists; enabled state after a row is selected.
+- Apply preview while the dialog remains open; Cancel discards the uncommitted filter-definition draft; OK saves and closes.
+- All Activities restores the full set; unchecking a single Select checkbox removes only that filter.
+- User without Global privilege cannot Make Global or delete/modify protected global definitions; a user without permitted ownership cannot edit/delete another user's definition.
+- RTL Persian localization with the same column order, alignment, keyboard navigation and command hierarchy; RTL must not reverse the logical sequence of the columns or connector semantics.
+- Narrow viewport behavior that preserves the dialog's action strip and permits grid horizontal scrolling; commands must not be pushed off-screen or overlap the grid.
+
+### 8.3 Exact behavior that affects the appearance
+
+- **Replace** mode removes nonmatching rows from the Activity Table display. **Highlight** mode retains all rows and visually marks only matches. These modes must look visibly different in the Activity grid and must be labeled as separate radio options in the manager dialog.
+- Multiple saved filters are combined using All/Any at the **manager** level. Multiple criteria inside one filter use the row connectors and the criterion-group selector inside the **definition** dialog. These are separate controls and separate logic levels.
+- The range operator exposes and uses both **Value** and **High Value**. For non-range operators, High Value is inactive/empty as appropriate; do not hide or repurpose the column only for a custom design.
+- Relative date/time values such as **CD**, **CD+6w**, and **CF+6w** must remain recognizable strings/expressions in the Value/High Value cells and be resolved by the domain filter evaluator. They must not be parsed as ordinary date strings in the browser.
+- Duration/unit criteria preserve entered units. For example, 2d remains two days rather than being converted to 16 hours. Calendar-aware filtering follows task-dependent global/project calendar or resource calendar semantics, and the configured hours-per-period rule when assigned-calendar conversion is disabled.
+- A filter is a temporary view restriction/highlight. It does not modify Activity records, schedule dates, WBS, relationships, resource assignments, calculation facts or the source dataset.
+- The UI must not show fake success or pretend that a filter has been saved if its persistence request fails. Keep a recoverable draft and show a specific validation/conflict message.
+- Default filters are read-only templates. Copy a Default filter before editing its definition. Scope promotion, deletion and modification follow the authenticated permission model; protected built-in definitions must not expose active destructive commands.
+
+### 8.4 Visual rejection criteria
+
+Reject the implementation if any of the following appears:
+- A generic search input is presented as the complete filter feature.
+- One card per condition replaces the compact tabular definition grid.
+- No dedicated Filter Name row or no Display: Filter section exists.
+- The definition grid omits the Display all rows, Parameter, Is, Value or High Value columns.
+- And/Or connectors are represented only as textual prose outside the rows.
+- Add/Delete/Cut/Copy/Paste/movement commands are hidden in a three-dot menu or scattered elsewhere.
+- Manager-level All/Any is incorrectly merged with criterion-level Where/And/Or logic.
+- Replace and Highlight are collapsed into one behavior.
+- No visual distinction exists between filter categories or between selected and unselected checkboxes.
+- Dialog controls overlap, wrap unpredictably, clip values, lose focus on each criterion update, or cause the Activity window to jump/rescale.
+- The filter editor is rendered only in the generic Tools drawer rather than as a first-class Activity-window dialog.
+
+### 8.5 Official visual evidence reviewed
+
+- **P6 Professional User Guide Version 26 (January 2026), printed page 288 / PDF page index 287:** screenshot of the Filter definition dialog. This is the primary visual baseline for the editor's title/name row, Display: Filter row, criterion grid, [All of the following] group, Where/And rows, Value/High Value columns, right-side command stack and Help.
+  https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/p6_pro_user.pdf
+- **P6 Professional User Guide Version 26, printed pages 285–287:** filtering semantics, criteria connectors, creation, ranges, Optimize, applying/combining and duration/calendar notes.
+  https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/p6_pro_user.pdf
+- **P6 Professional Help Version 26, Filters dialog box, last published July 16, 2026:** four filter categories, All Activities, All/Any saved-filter matching, Replace/Highlight modes, Apply, New/Delete/Copy/Paste/Modify/Make Global/Copy as Layout/Help semantics.
+  https://docs.oracle.com/cd/G48902_01/client_help/en_US/filters_dialog_box.htm
+- **P6 Professional Help Version 26, Create a lookahead filter:** type-ahead Parameter selection, High Value, relative date expressions and Replace/Highlight behavior.
+  https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/create_a_lookahead_filter.htm
+
