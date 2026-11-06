@@ -12,6 +12,7 @@ from construction_pm.ai_learning_memory import (
 )
 from construction_pm.ai_learning_memory_repository import (
     AILearningMemoryPersistenceError,
+    PostgresAILearningMemoryRepository,
     SQLiteAILearningMemoryRepository,
 )
 
@@ -306,10 +307,7 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
     import uuid
     import psycopg
 
-    repository = __import__(
-        "construction_pm.ai_learning_memory_repository",
-        fromlist=["PostgresAILearningMemoryRepository"],
-    ).PostgresAILearningMemoryRepository(postgres_connection)
+    repository = PostgresAILearningMemoryRepository(postgres_connection)
     repository.initialize()
     migration = postgres_connection.execute(
         "SELECT version, migration_name, checksum FROM ai_learning_memory_schema_migrations "
@@ -340,10 +338,7 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
 
     reader = psycopg.connect(postgres_dsn)
     try:
-        reader_repository = __import__(
-            "construction_pm.ai_learning_memory_repository",
-            fromlist=["PostgresAILearningMemoryRepository"],
-        ).PostgresAILearningMemoryRepository(reader)
+        reader_repository = PostgresAILearningMemoryRepository(reader)
         assert reader_repository.get(
             private_record.record_id,
             private_record.record_version,
