@@ -4,7 +4,7 @@ import hashlib
 import json
 import sqlite3
 import uuid
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Protocol
 
