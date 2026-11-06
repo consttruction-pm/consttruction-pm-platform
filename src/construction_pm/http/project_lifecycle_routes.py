@@ -106,6 +106,8 @@ from ..p6_formula_definition_api import (
     P6_FORMULA_SEMANTIC_VERSION,
 )
 from ..p6_formula_definition_repository import FormulaDefinitionCreateRequest, P6FormulaDefinitionPersistenceError
+from ..p6_activity_filter_api import P6ActivityFilterAPI
+from ..p6_activity_filter_repository import P6ActivityFilterPersistenceError
 from ..p6_formula_engine import FormulaType
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
@@ -209,6 +211,7 @@ class ProjectLifecycleHttpRoutes:
         p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
         p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
         p6_formula_definition_api: P6FormulaDefinitionAPI | None = None,
+        p6_activity_filter_api: P6ActivityFilterAPI | None = None,
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
@@ -251,6 +254,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_layout_definition_api = p6_layout_definition_api
         self._p6_formula_authority_api = p6_formula_authority_api
         self._p6_formula_definition_api = p6_formula_definition_api
+        self._p6_activity_filter_api = p6_activity_filter_api
         self._p6_calendar_read_api = p6_calendar_read_api
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
@@ -2612,6 +2616,148 @@ class ProjectLifecycleHttpRoutes:
                     context_field_id=context_field_id,
                 )
                 return self._json(200, result)
+            if path.startswith("/api/projects/") and "/p6/activity-filters" in path:
+                if self._p6_activity_filter_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, suffix = path.split("/p6/activity-filters", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id:
+                    return self._error(400, "P6_ACTIVITY_FILTER_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                if method == "GET" and suffix in {"", "/"}:
+                    try:
+                        return self._json(200, self._p6_activity_filter_api.list(scope, auth_context=auth))
+                    except AuthorizationError as exc:
+                        return self._error(403, str(exc), "error.authorization.denied")
+                if method == "POST" and suffix in {"", "/"}:
+                    if self._p6_field_registry_api is None:
+                        return self._error(503, "P6_ACTIVITY_FILTER_FIELD_REGISTRY_UNAVAILABLE", "error.service.unavailable")
+                    try:
+                        payload = json.loads(body.decode("utf-8") or "{}")
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        return self._error(400, "P6_ACTIVITY_FILTER_REQUEST_INVALID", "error.request.invalid")
+                    if not isinstance(payload, dict):
+                        return self._error(400, "P6_ACTIVITY_FILTER_REQUEST_INVALID", "error.request.invalid")
+                    filter_id = payload.get("filter_id")
+                    name = payload.get("name")
+                    category = payload.get("category", "user-defined")
+                    criteria = payload.get("criteria")
+                    match_mode = payload.get("match_mode", "all")
+                    expected_revision = payload.get("expected_revision", 0)
+                    if (
+                        not isinstance(filter_id, str) or not filter_id.startswith("activity.filter.")
+                        or not isinstance(name, str) or not isinstance(category, str)
+                        or category not in {"layout", "user-defined"}
+                        or not isinstance(criteria, list) or not isinstance(match_mode, str)
+                        or not isinstance(expected_revision, int) or isinstance(expected_revision, bool) or expected_revision < 0
+                    ):
+                        return self._error(400, "P6_ACTIVITY_FILTER_REQUEST_INVALID", "error.request.invalid")
+                    try:
+                        registered = self._p6_field_registry_api.list_fields(
+                            scope, "p6-field-registry.v1", "Activity", auth_context=auth
+                        )
+                    except AuthorizationError as exc:
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    by_id = {
+                        item["field"]["field_id"]: item["field"]
+                        for item in registered
+                        if isinstance(item, dict) and isinstance(item.get("field"), dict)
+                    }
+                    allowed = {
+                        "string": {"equals","not-equals","contains","not-contains","starts-with","ends-with","is-empty","is-not-empty"},
+                        "enum": {"equals","not-equals","contains","starts-with","ends-with","is-empty","is-not-empty"},
+                        "boolean": {"equals","not-equals","is-empty","is-not-empty"},
+                        "date": {"equals","not-equals","greater-than","greater-than-or-equal","less-than","less-than-or-equal","between","not-between","is-empty","is-not-empty"},
+                        "datetime": {"equals","not-equals","greater-than","greater-than-or-equal","less-than","less-than-or-equal","between","not-between","is-empty","is-not-empty"},
+                        "integer": {"equals","not-equals","greater-than","greater-than-or-equal","less-than","less-than-or-equal","between","not-between","is-empty","is-not-empty"},
+                        "double": {"equals","not-equals","greater-than","greater-than-or-equal","less-than","less-than-or-equal","between","not-between","is-empty","is-not-empty"},
+                        "decimal": {"equals","not-equals","greater-than","greater-than-or-equal","less-than","less-than-or-equal","between","not-between","is-empty","is-not-empty"},
+                        "percentage": {"equals","not-equals","greater-than","greater-than-or-equal","less-than","less-than-or-equal","between","not-between","is-empty","is-not-empty"},
+                        "cost": {"equals","not-equals","greater-than","greater-than-or-equal","less-than","less-than-or-equal","between","not-between","is-empty","is-not-empty"},
+                        "duration": {"equals","not-equals","greater-than","greater-than-or-equal","less-than","less-than-or-equal","between","not-between","is-empty","is-not-empty"},
+                        "unit": {"equals","not-equals","greater-than","greater-than-or-equal","less-than","less-than-or-equal","between","not-between","is-empty","is-not-empty"},
+                    }
+                    normalized_criteria = []
+                    for index, item in enumerate(criteria):
+                        if not isinstance(item, dict):
+                            return self._error(400, "P6_ACTIVITY_FILTER_CRITERION_INVALID", "error.request.invalid")
+                        field_id = item.get("field_id")
+                        operator = item.get("operator")
+                        connector = item.get("connector", "where" if index == 0 else "and")
+                        field = by_id.get(field_id) if isinstance(field_id, str) else None
+                        if field is None or field.get("filterable") is False:
+                            return self._error(422, "P6_ACTIVITY_FILTER_FIELD_NOT_FILTERABLE", "error.request.invalid")
+                        if operator not in allowed.get(field.get("data_type"), set()):
+                            return self._error(422, "P6_ACTIVITY_FILTER_OPERATOR_NOT_SUPPORTED_FOR_FIELD", "error.request.invalid")
+                        if connector not in ({"where"} if index == 0 else {"and", "or"}):
+                            return self._error(400, "P6_ACTIVITY_FILTER_CONNECTOR_INVALID", "error.request.invalid")
+                        value = item.get("value")
+                        high_value = item.get("high_value")
+                        if operator in {"is-empty", "is-not-empty"}:
+                            value, high_value = None, None
+                        else:
+                            if not isinstance(value, (str, int, float)) or isinstance(value, bool):
+                                return self._error(400, "P6_ACTIVITY_FILTER_VALUE_INVALID", "error.request.invalid")
+                            if isinstance(value, str) and not value.strip():
+                                return self._error(400, "P6_ACTIVITY_FILTER_VALUE_INVALID", "error.request.invalid")
+                        if operator in {"between", "not-between"}:
+                            if not isinstance(high_value, (str, int, float)) or isinstance(high_value, bool):
+                                return self._error(400, "P6_ACTIVITY_FILTER_HIGH_VALUE_INVALID", "error.request.invalid")
+                        else:
+                            high_value = None
+                        normalized_criteria.append({
+                            "connector": connector,
+                            "field_id": field_id,
+                            "operator": operator,
+                            "value": value,
+                            "high_value": high_value,
+                        })
+                    try:
+                        result = self._p6_activity_filter_api.save(
+                            scope,
+                            filter_id=filter_id,
+                            name=name,
+                            category=category,
+                            criteria=tuple(normalized_criteria),
+                            match_mode=match_mode,
+                            expected_revision=expected_revision,
+                            auth_context=auth,
+                        )
+                    except AuthorizationError as exc:
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    except P6ActivityFilterPersistenceError as exc:
+                        code = str(exc)
+                        status = 409 if code == "REVISION_CONFLICT" else 400
+                        return self._error(status, code, "error.p6.activity_filter.conflict" if status == 409 else "error.request.invalid")
+                    return self._json(201 if expected_revision == 0 else 200, result)
+                if method == "DELETE" and suffix.startswith("/") and len(suffix) > 1:
+                    filter_id = suffix[1:]
+                    raw_expected = query.get("expected_revision")
+                    try:
+                        expected_revision = int(raw_expected) if raw_expected is not None else -1
+                    except (TypeError, ValueError):
+                        expected_revision = -1
+                    if expected_revision < 1:
+                        return self._error(400, "P6_ACTIVITY_FILTER_EXPECTED_REVISION_REQUIRED", "error.request.invalid")
+                    try:
+                        self._p6_activity_filter_api.delete(
+                            scope, filter_id, expected_revision=expected_revision, auth_context=auth
+                        )
+                    except AuthorizationError as exc:
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    except P6ActivityFilterPersistenceError as exc:
+                        code = str(exc)
+                        return self._error(409 if code == "REVISION_CONFLICT" else 404, code, "error.p6.activity_filter.conflict")
+                    return self._json(200, {"contract_version": "p6-activity-filter-api.v1", "deleted": True, "filter_id": filter_id})
+                return self._error(405, "METHOD_NOT_ALLOWED", "error.method.not_allowed")
             if path.startswith("/api/projects/") and "/p6/formula-definitions" in path:
                 if self._p6_formula_definition_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
