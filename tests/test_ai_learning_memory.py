@@ -153,3 +153,12 @@ def test_invalid_naive_timestamp_and_missing_evidence_fail_closed():
         record(captured_at=datetime(2026, 10, 23, 12, 0))
     with pytest.raises(AILearningMemoryError, match="AI_LEARNING_EVIDENCE_REQUIRED"):
         record(evidence_refs=())
+
+
+def test_retrieval_scope_access_flags_must_be_explicit_booleans():
+    with pytest.raises(AILearningMemoryError, match="INVALID_AI_LEARNING_SCOPE_USER_PRIVATE_ACCESS_GRANTED"):
+        LearningRetrievalScope(user_id="user-1", user_private_access_granted="yes")
+    with pytest.raises(AILearningMemoryError, match="INVALID_AI_LEARNING_SCOPE_PROJECT_PRIVATE_ACCESS_GRANTED"):
+        LearningRetrievalScope(user_id="user-1", project_private_access_granted=1)
+    with pytest.raises(AILearningMemoryError, match="INVALID_AI_LEARNING_SCOPE_GENERAL_PUBLISHED_ACCESS_GRANTED"):
+        LearningRetrievalScope(user_id="user-1", general_published_access_granted=None)
