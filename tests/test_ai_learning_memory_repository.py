@@ -372,7 +372,7 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
         postgres_connection.info.transaction_status
         == psycopg.pq.TransactionStatus.IDLE
     )
-    postgres_connection.execute("BEGIN")
+    postgres_connection.execute("SELECT 1")
     repository.initialize()
     assert (
         postgres_connection.info.transaction_status
