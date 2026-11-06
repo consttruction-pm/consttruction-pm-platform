@@ -25,3 +25,11 @@ test("startup, progress, and preview-only empty states have visible styling", ()
   assert.match(sourceCss, /\.cp-module-empty-state\{/);
   assert.match(sourceCss, /prefers-reduced-motion:reduce\)\{\.cp-startup-progress span\{animation:none/);
 });
+
+test("WBS band fill reaches every cell including the logic and action columns", () => {
+  const bandRule = /\.cp-p6 #cp-activity-grid tbody tr\.cp-p6-wbs-band > td \{([^}]*)\}/.exec(sourceCss);
+  assert.ok(bandRule, "the WBS band rule must target every td in the band row");
+  assert.match(bandRule[1], /background-color: var\(--cp-wbs-band/);
+  assert.doesNotMatch(sourceCss, /tr\.cp-p6-wbs-band > td\.cp-p6-wbs-cell-td/);
+  assert.doesNotMatch(sourceCss, /tr\.cp-p6-wbs-band:hover > td\.cp-p6-wbs-cell-td/);
+});

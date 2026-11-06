@@ -12,7 +12,7 @@ The reference activity window, Gantt and right-click menu were compared against 
 
 | Requested capability | Status | Evidence | Remaining gap |
 | --- | --- | --- | --- |
-| Per-level WBS colors | Implemented | Level 1 `#3B3BBF` with white text; level 2 `#FFFF00`; band fills measured on real cells including pinned/frozen columns; Gantt group row and summary bar share the level color | The preview dataset has only two real levels. Levels 3–6 (`#C6FFC6`, `#CCF2FF`, `#FFD9EC`, `#EEE0FF`) and deeper indentation are unit-tested but not visually demonstrated |
+| Per-level WBS colors | Implemented | Level 1 `#3B3BBF` with white text; level 2 `#FFFF00`; the fill covers all 12 cells of each band row, including the final Predecessors (`cp-logic-column`) and Edit (`cp-actions-column`) cells, as well as pinned/frozen columns; Gantt group row and summary bar share the level color | The preview dataset has only two real levels. Levels 3–6 (`#C6FFC6`, `#CCF2FF`, `#FFD9EC`, `#EEE0FF`) and deeper indentation are unit-tested but not visually demonstrated |
 | Expand/collapse with `+/−`, synchronized with the Gantt | Implemented | One display-row model feeds both views; collapsing `WBS-RPS-PM` removed `A100`, `A110`, `A210` from the table and the Gantt (14 → 11 activities), kept 7 bands and 7 summary bars, and left unrelated activities visible | No branch deeper than level 2 exists in the preview data |
 | Gantt shape and bar refinement | Implemented in scope | Task, summary, milestone and critical bars from persisted schedule values; FS/SS paths retain their stored semantics; day/week/month/quarter/year ticks; group rows aligned with the table | Baseline/actual/remaining bar editing was not part of this increment and is not claimed by this audit |
 | Activity right-click menu with the reference command set | Implemented with honest disabled states | 20 commands in reference order; 11 enabled through the shared command registry; 9 disabled with a specific reason; menu clamped inside the workspace; Escape closes and restores focus; RTL/Persian variant mirrored and fully visible | Cut, Copy, Paste, Fill Down, Delete, Dissolve, Renumber, XLSX export and Assign need real service routes before they may be enabled |
@@ -22,7 +22,8 @@ The reference activity window, Gantt and right-click menu were compared against 
 - Workspace surface: 1280×609 at top 97.
 - Expanded table: 7 WBS bands, 14 activities, 14 Gantt activity rows, 7 summary bars.
 - WBS toggles: 14×14 px; depth-2 activity indentation 24 px.
-- Band colors read from computed styles: `rgb(59, 59, 191)` (level 1) and `rgb(255, 255, 0)` (level 2); the first cell carries a matching 3 px inset marker.
+- Band colors read from computed styles: `rgb(59, 59, 191)` (level 1) and `rgb(255, 255, 0)` (level 2); every band row reports 12 of 12 cells with the row background, including `cp-logic-column` (Predecessors) and `cp-actions-column` (Edit); the first cell carries a matching 3 px inset marker.
+- After scrolling the table to its end, both final cells remain inside the table viewport and compute to the band color (`lastColumns.last[*].visibleInsideTable: true`).
 - Collapse state: `WBS-RPS-PM` became `+`; table children and Gantt children removed together; `unrelatedActivitiesStillVisible: true`; state stored under `cubi:workspace-wbs-collapse` per project.
 - Context menu: 244×474 at (267, 228); workspace bounds 97–706; `fullyVisible: true`; last item bottom 699.
 - Escape closed the LTR menu (`closedByEscape: true`).
@@ -56,7 +57,7 @@ The reference activity window, Gantt and right-click menu were compared against 
 ## Verification
 
 - `npx tsc --noEmit` — passed.
-- Web unit tests — 614 passed, 0 failed.
+- Web unit tests — 615 passed, 0 failed (includes the new CSS contract test for the full-row band fill).
 - Preview resolver tests — 14 passed, 0 failed.
 - `npm run build` — passed.
 - Managed browser E2E — 98 checks, 53 screenshots. The evidence file records `git_head` `2ccfd942`, the base commit; the tested working-tree content is committed as `3857d7a1`.
@@ -69,6 +70,7 @@ The reference activity window, Gantt and right-click menu were compared against 
 - `docs/workspace/screenshots/visual/45-wbs-collapsed-en-1280.png`
 - `docs/workspace/screenshots/visual/46-context-menu-en-1280.png`
 - `docs/workspace/screenshots/visual/47-context-menu-fa-1280.png`
+- `docs/workspace/screenshots/visual/48-wbs-bands-last-columns-en-1280.png` — table scrolled to the end, proving the Predecessors and Edit cells keep the band fill
 - Capture tool: `apps/web/e2e/capture-wbs-menu.mjs`.
 
 ## Not claimed

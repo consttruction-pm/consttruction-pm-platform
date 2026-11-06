@@ -27,6 +27,7 @@ const metricsSnapshot = `(() => {
     const cell = row.querySelector("td");
     const toggle = row.querySelector("[data-wbs-toggle]");
     const style = getComputedStyle(row);
+    const cellBackgrounds = [...row.querySelectorAll("td")].map((td) => getComputedStyle(td).backgroundColor);
     return {
       wbsId: row.dataset.wbsRow,
       level: Number(row.dataset.wbsLevel),
@@ -34,6 +35,8 @@ const metricsSnapshot = `(() => {
       collapsed: row.dataset.wbsCollapsed === "true",
       bandColor: style.getPropertyValue("--cp-wbs-band").trim(),
       cellBackground: cell ? getComputedStyle(cell).backgroundColor : null,
+      cellBackgrounds,
+      uncoloredCells: cellBackgrounds.filter((background) => background !== (cell ? getComputedStyle(cell).backgroundColor : "")).length,
       firstCellShadow: cell ? getComputedStyle(cell).boxShadow : null,
       label: row.getAttribute("aria-label"),
       toggle: toggle ? toggle.textContent.trim() : null,
@@ -173,6 +176,46 @@ async function main() {
       await page.screenshot(name);
       report.screenshots[`expanded-${width}x${height}`] = name;
     }
+
+    // The band fill must continue through the final Predecessors and Edit
+    // columns, not stop at the last data column. Scroll the table to its end
+    // and record the computed background of those two cells.
+    await setViewport(page, 1280, 720);
+    await page.evaluate(`(() => {
+      const wrap = document.querySelector("#cp-activity-grid .cp-table-wrap");
+      if (!wrap) return false;
+      wrap.scrollLeft = wrap.scrollWidth;
+      return true;
+    })()`);
+    await sleep(500);
+    report.lastColumns = await page.evaluate(`(() => {
+      const row = document.querySelector(".cp-p6-wbs-band");
+      const wrap = document.querySelector("#cp-activity-grid .cp-table-wrap");
+      if (!row || !wrap) return null;
+      const wrapBox = wrap.getBoundingClientRect();
+      const cells = [...row.querySelectorAll("td")];
+      return {
+        cellCount: cells.length,
+        bandColor: getComputedStyle(row).getPropertyValue("--cp-wbs-band").trim(),
+        last: cells.slice(-2).map((cell) => {
+          const box = cell.getBoundingClientRect();
+          return {
+            className: cell.className,
+            background: getComputedStyle(cell).backgroundColor,
+            visibleInsideTable: box.left >= wrapBox.left - 1 && box.right <= wrapBox.right + 1,
+          };
+        }),
+      };
+    })()`);
+    await page.screenshot("wbs-live/expanded-last-columns-1280x720.png");
+    report.screenshots["expanded-last-columns-1280x720"] = "wbs-live/expanded-last-columns-1280x720.png";
+    await page.evaluate(`(() => {
+      const wrap = document.querySelector("#cp-activity-grid .cp-table-wrap");
+      if (!wrap) return false;
+      wrap.scrollLeft = 0;
+      return true;
+    })()`);
+    await sleep(300);
 
     // Collapse one real branch and verify the table rows and Gantt bars of that
     // branch disappear together in the same render.

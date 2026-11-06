@@ -7531,25 +7531,20 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-p6-indent { display: inline-block; flex: none; height: 1px; vertical-align: middle; }
 
 /* The activity grid paints one dedicated colour per WBS level. The selectors
-   carry the grid id and the band cell class so pinned, frozen and striped
-   cells keep the same level colour instead of replacing it with white. */
-.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band > td.cp-p6-wbs-cell-td,
-.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band > td.cp-p6-line-number,
-.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band > td.is-pinned,
-.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band > td.is-frozen {
+   carry the grid id and match every cell so pinned, frozen, striped, logic and
+   action cells keep the same level colour through the last column. */
+.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band > td {
   background-color: var(--cp-wbs-band, #dfe9f3);
   background-image: none;
   border-bottom: 1px solid #9fb3c6;
   font-weight: 700;
   color: #10263a;
 }
-.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band:hover > td.cp-p6-wbs-cell-td,
-.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band:hover > td.cp-p6-line-number {
+.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band:hover > td {
   background-color: var(--cp-wbs-band, #dfe9f3);
   background-image: linear-gradient(rgba(255, 255, 255, .22), rgba(255, 255, 255, .22));
 }
-.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band[data-wbs-level="1"] > td.cp-p6-wbs-cell-td,
-.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band[data-wbs-level="1"] > td.cp-p6-line-number {
+.cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band[data-wbs-level="1"] > td {
   color: #fff;
 }
 .cp-p6 #cp-activity-grid tbody tr.cp-p6-wbs-band[data-wbs-level="1"] .cp-p6-wbs-icon,
