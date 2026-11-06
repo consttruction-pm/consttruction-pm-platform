@@ -151,6 +151,11 @@ def test_general_candidates_never_reach_other_users_but_approved_general_methods
     assert repo.get("candidate", 1, other) is None
     assert repo.get("general", 1, other) == published
 
+    reviewer = LearningRetrievalScope(
+        user_id="reviewer", general_candidate_access_granted=True
+    )
+    assert repo.list_retrievable(reviewer) == (candidate,)
+
     retired = record(
         record_id="general",
         record_version=2,
