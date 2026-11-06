@@ -14,7 +14,7 @@ from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRo
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
-from construction_pm.p6_field_registry import get_field, P6FieldType
+from construction_pm.p6_field_registry import get_field, P6FieldType, P6FieldDefinition
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_field_registry_repository import P6FieldRegistryApplicationService, SQLiteP6FieldRegistryRepository
 from construction_pm.p6_user_defined_fields_repository import (
@@ -2507,3 +2507,51 @@ def test_p6_activity_formula_definition_route_requires_write_permission():
     )
     assert status == 403
     assert json.loads(body)["code"]
+
+def test_p6_activity_formula_definition_route_checks_and_persists_inferred_unit():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(
+        scope,
+        "p6-field-registry.v1",
+        P6FieldDefinition(
+            field_id="activity.quantity",
+            subject_area="Activity",
+            p6_field="Quantity",
+            display_name="Quantity",
+            data_type=P6FieldType.DOUBLE,
+            writable=False,
+            computed=False,
+            unit="m",
+            disposition="implemented",
+        ),
+        auth_context=auth,
+    )
+    payload = {
+        "formula_id": "activity.formula.quantity_total",
+        "version": "1.0",
+        "display_name": "Quantity Total",
+        "expression": "[activity.quantity] * 2",
+        "result_unit": "m",
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 201
+    formula = json.loads(body)["formula"]
+    assert formula["result_unit"] == "m"
+
+    payload["formula_id"] = "activity.formula.quantity_total_mismatch"
+    payload["result_unit"] = "ft"
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 422
+    assert json.loads(body)["validation"]["error_code"] == "FORMULA_RESULT_UNIT_MISMATCH"
