@@ -13,7 +13,10 @@ export function shouldRenderVisualWorkspaceDemo(
   const parameters = new URLSearchParams(search);
   if (parameters.get("view") === "live") return false;
   if (parameters.get("view") === "visual") return true;
-  if (pathname !== "/app") return false;
+  // Login/assistant links may include a trailing slash. Treat /app and /app/
+  // as the same route so the visual entry cannot fall through to the live shell.
+  const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
+  if (normalizedPathname !== "/app") return false;
 
   // The accepted entry flow is Home → Login → Visual Workspace. A direct
   // login with no project context must therefore land in the visual shell,
