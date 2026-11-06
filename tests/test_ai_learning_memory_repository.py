@@ -11,6 +11,7 @@ from construction_pm.ai_learning_memory import (
     LearningStatus,
 )
 from construction_pm.ai_learning_memory_repository import (
+    AILearningMemoryAuditEvent,
     AILearningMemoryPersistenceError,
     PostgresAILearningMemoryRepository,
     SQLiteAILearningMemoryRepository,
@@ -164,11 +165,14 @@ def test_sqlite_schema_migrations_are_versioned_idempotent_and_checksum_checked(
         "SELECT version, migration_name, checksum, applied_at "
         "FROM ai_learning_memory_schema_migrations ORDER BY version"
     ).fetchall()
-    assert len(first) == 1
-    assert first[0][0] == 1
+    assert [row[0] for row in first] == [1, 2]
     assert first[0][1] == "create_ai_learning_memory_records"
-    assert len(first[0][2]) == 64
-    assert first[0][3]
+    assert first[1][1] == "create_ai_learning_memory_audit_events"
+    assert all(len(row[2]) == 64 and row[3] for row in first)
+    assert connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name='ai_learning_memory_audit_events'"
+    ).fetchone() == ("ai_learning_memory_audit_events",)
 
     repo.initialize()
     repeated = connection.execute(
@@ -221,10 +225,16 @@ def test_sqlite_adopts_compatible_legacy_memory_table_without_rewriting_records(
         ("legacy-id",),
     ).fetchone()
     assert stored == ("legacy-id", 1, "{}")
-    migration = connection.execute(
-        "SELECT version, migration_name FROM ai_learning_memory_schema_migrations"
-    ).fetchone()
-    assert migration == (1, "create_ai_learning_memory_records")
+    migrations = connection.execute(
+        "SELECT version, migration_name FROM ai_learning_memory_schema_migrations ORDER BY version"
+    ).fetchall()
+    assert migrations == [
+        (1, "create_ai_learning_memory_records"),
+        (2, "create_ai_learning_memory_audit_events"),
+    ]
+    assert connection.execute(
+        "SELECT event_id FROM ai_learning_memory_audit_events"
+    ).fetchall() == []
 
 
 def test_sqlite_incompatible_legacy_memory_schema_fails_closed():
@@ -333,10 +343,10 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
         "SELECT version, migration_name, checksum FROM ai_learning_memory_schema_migrations "
         "ORDER BY version"
     ).fetchall()
-    assert len(migration) == 1
-    assert migration[0][0] == 1
+    assert [row[0] for row in migration] == [1, 2]
     assert migration[0][1] == "create_ai_learning_memory_records"
-    assert len(migration[0][2]) == 64
+    assert migration[1][1] == "create_ai_learning_memory_audit_events"
+    assert all(len(row[2]) == 64 for row in migration)
 
     repository.initialize()
     repeated = postgres_connection.execute(
@@ -344,7 +354,6 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
         "ORDER BY version"
     ).fetchall()
     assert repeated == migration
-    postgres_connection.commit()
 
     suffix = uuid.uuid4().hex
     private_record = record(
@@ -354,6 +363,19 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
         project_id=None,
     )
     repository.append(private_record)
+    audit = AILearningMemoryAuditEvent(
+        event_id=f"audit-{suffix}",
+        actor_user_id=f"user-{suffix}",
+        tenant_id=f"tenant-{suffix}",
+        project_id=f"project-{suffix}",
+        action="append",
+        outcome="allowed",
+        occurred_at=NOW,
+        scope=LearningScope.USER_PRIVATE.value,
+        record_id=private_record.record_id,
+        record_version=private_record.record_version,
+    )
+    repository.append_audit_event(audit)
     postgres_connection.commit()
 
     reader = psycopg.connect(postgres_dsn)
@@ -373,6 +395,10 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
                 user_id=f"other-{suffix}", user_private_access_granted=True
             ),
         ) is None
+        audit_events = reader_repository.list_audit_events(
+            tenant_id=f"tenant-{suffix}", project_id=f"project-{suffix}"
+        )
+        assert audit_events == (audit,)
     finally:
         reader.rollback()
         reader.close()
@@ -429,3 +455,81 @@ def test_sqlite_incompatible_migration_history_primary_key_fails_closed():
         match="AI_LEARNING_MIGRATION_HISTORY_PRIMARY_KEY_INCOMPATIBLE",
     ):
         SQLiteAILearningMemoryRepository(connection)
+
+
+def test_sqlite_learning_audit_is_append_only_idempotent_and_survives_restart(tmp_path):
+    database = str(tmp_path / "learning-audit.sqlite")
+    writer = sqlite3.connect(database)
+    repository = SQLiteAILearningMemoryRepository(writer)
+    event = AILearningMemoryAuditEvent(
+        event_id="audit-event-1",
+        actor_user_id="user-1",
+        tenant_id="tenant-1",
+        project_id="project-1",
+        action="append",
+        outcome="allowed",
+        occurred_at=NOW,
+        scope=LearningScope.USER_PRIVATE.value,
+        record_id="lesson-1",
+        record_version=1,
+    )
+    assert repository.append_audit_event(event) == event
+    assert repository.append_audit_event(event) == event
+    writer.commit()
+    writer.close()
+
+    reader = sqlite3.connect(database)
+    reader_repository = SQLiteAILearningMemoryRepository(reader)
+    assert reader_repository.list_audit_events(
+        tenant_id="tenant-1", project_id="project-1"
+    ) == (event,)
+    with pytest.raises(
+        AILearningMemoryPersistenceError, match="AI_LEARNING_AUDIT_EVENT_ID_CONFLICT"
+    ):
+        reader_repository.append_audit_event(
+            AILearningMemoryAuditEvent(
+                event_id="audit-event-1",
+                actor_user_id="different-user",
+                tenant_id="tenant-1",
+                project_id="project-1",
+                action="append",
+                outcome="allowed",
+                occurred_at=NOW,
+            )
+        )
+    reader.close()
+
+
+def test_sqlite_learning_audit_rejects_invalid_actor_and_scope_reference():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteAILearningMemoryRepository(connection)
+    with pytest.raises(
+        AILearningMemoryPersistenceError, match="INVALID_AI_LEARNING_AUDIT_ACTOR_USER_ID"
+    ):
+        repository.append_audit_event(
+            AILearningMemoryAuditEvent(
+                event_id="bad-audit",
+                actor_user_id=" ",
+                tenant_id="tenant-1",
+                project_id="project-1",
+                action="append",
+                outcome="allowed",
+                occurred_at=NOW,
+            )
+        )
+    with pytest.raises(
+        AILearningMemoryPersistenceError, match="AI_LEARNING_AUDIT_RECORD_REFERENCE_INVALID"
+    ):
+        repository.append_audit_event(
+            AILearningMemoryAuditEvent(
+                event_id="bad-reference",
+                actor_user_id="user-1",
+                tenant_id="tenant-1",
+                project_id="project-1",
+                action="append",
+                outcome="allowed",
+                occurred_at=NOW,
+                record_id="lesson-1",
+                record_version=None,
+            )
+        )
