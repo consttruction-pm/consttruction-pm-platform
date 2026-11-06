@@ -49,8 +49,8 @@ def test_sqlite_memory_persists_across_independent_connections(tmp_path):
 
     reader = sqlite3.connect(database)
     reader_repo = SQLiteAILearningMemoryRepository(reader)
-    assert reader_repo.get("lesson-1", 1, LearningRetrievalScope(user_id="user-1")) == item
-    assert reader_repo.get("lesson-1", 1, LearningRetrievalScope(user_id="user-2")) is None
+    assert reader_repo.get("lesson-1", 1, LearningRetrievalScope(user_id="user-1", user_private_access_granted=True)) == item
+    assert reader_repo.get("lesson-1", 1, LearningRetrievalScope(user_id="user-2", user_private_access_granted=True)) is None
     writer.close()
     reader.close()
 
@@ -85,15 +85,22 @@ def test_project_and_tenant_queries_are_scoped_and_tenant_sharing_needs_grant():
     repo.append(tenant_item)
     connection.commit()
 
-    exact = LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", project_id="project-1")
+    exact = LearningRetrievalScope(
+        user_id="user-1", tenant_id="tenant-1", project_id="project-1",
+        project_private_access_granted=True,
+    )
     assert repo.get(project_item.record_id, 1, exact) == project_item
     # Creator identity is provenance; a different member with the explicit
     # project-scope retrieval grant may read the same project lesson.
     same_project_member = LearningRetrievalScope(
-        user_id="user-2", tenant_id="tenant-1", project_id="project-1"
+        user_id="user-2", tenant_id="tenant-1", project_id="project-1",
+        project_private_access_granted=True,
     )
     assert repo.get(project_item.record_id, 1, same_project_member) == project_item
-    assert repo.get(project_item.record_id, 1, LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", project_id="project-2")) is None
+    assert repo.get(project_item.record_id, 1, LearningRetrievalScope(
+        user_id="user-1", tenant_id="tenant-1", project_id="project-2",
+        project_private_access_granted=True,
+    )) is None
 
     no_grant = LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1")
     with_grant = LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", tenant_shared_access_granted=True)
@@ -124,7 +131,10 @@ def test_general_candidates_never_reach_other_users_but_approved_general_methods
     repo.append(published)
     connection.commit()
 
-    other = LearningRetrievalScope(user_id="other-user", tenant_id="other-tenant")
+    other = LearningRetrievalScope(
+        user_id="other-user", tenant_id="other-tenant",
+        general_published_access_granted=True,
+    )
     assert repo.get("candidate", 1, other) is None
     assert repo.get("general", 1, other) == published
 
@@ -138,9 +148,9 @@ def test_caller_owned_transaction_is_not_committed_by_repository(tmp_path):
 
     writer.execute("BEGIN")
     repo.append(record())
-    assert reader_repo.get("lesson-1", 1, LearningRetrievalScope(user_id="user-1")) is None
+    assert reader_repo.get("lesson-1", 1, LearningRetrievalScope(user_id="user-1", user_private_access_granted=True)) is None
     writer.rollback()
-    assert reader_repo.get("lesson-1", 1, LearningRetrievalScope(user_id="user-1")) is None
+    assert reader_repo.get("lesson-1", 1, LearningRetrievalScope(user_id="user-1", user_private_access_granted=True)) is None
     writer.close()
     reader.close()
 
