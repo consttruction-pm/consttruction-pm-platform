@@ -434,6 +434,75 @@ class _RepositoryBase:
                 return record
         return None
 
+    def append_audit_event(
+        self, event: AILearningMemoryAuditEvent
+    ) -> AILearningMemoryAuditEvent:
+        if not isinstance(event, AILearningMemoryAuditEvent):
+            raise AILearningMemoryPersistenceError("INVALID_AI_LEARNING_AUDIT_EVENT")
+        event.validate()
+        p = self.placeholder
+        values = (
+            event.event_id, event.actor_user_id, event.tenant_id, event.project_id,
+            event.action, event.outcome, event.occurred_at.isoformat(), event.scope,
+            event.record_id, event.record_version, event.reason_code, event.result_count,
+        )
+        self.connection.execute(
+            f"INSERT INTO {_AUDIT_TABLE} "
+            "(event_id, actor_user_id, tenant_id, project_id, action, outcome, occurred_at, "
+            "scope, record_id, record_version, reason_code, result_count) "
+            f"VALUES ({','.join([p] * 12)}) ON CONFLICT (event_id) DO NOTHING",
+            values,
+        )
+        persisted = self.connection.execute(
+            f"SELECT event_id, actor_user_id, tenant_id, project_id, action, outcome, "
+            f"occurred_at, scope, record_id, record_version, reason_code, result_count "
+            f"FROM {_AUDIT_TABLE} WHERE event_id={p}",
+            (event.event_id,),
+        ).fetchone()
+        if persisted is None or tuple(persisted) != values:
+            raise AILearningMemoryPersistenceError("AI_LEARNING_AUDIT_EVENT_ID_CONFLICT")
+        return event
+
+    def list_audit_events(
+        self, *, tenant_id: str, project_id: str, limit: int = 500
+    ) -> tuple[AILearningMemoryAuditEvent, ...]:
+        for name, value in (("tenant_id", tenant_id), ("project_id", project_id)):
+            if not isinstance(value, str) or not value.strip():
+                raise AILearningMemoryPersistenceError(
+                    f"AI_LEARNING_AUDIT_{name.upper()}_REQUIRED"
+                )
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 5000:
+            raise AILearningMemoryPersistenceError("AI_LEARNING_AUDIT_LIMIT_INVALID")
+        p = self.placeholder
+        rows = self.connection.execute(
+            f"SELECT event_id, actor_user_id, tenant_id, project_id, action, outcome, "
+            f"occurred_at, scope, record_id, record_version, reason_code, result_count "
+            f"FROM {_AUDIT_TABLE} WHERE tenant_id={p} AND project_id={p} "
+            f"ORDER BY occurred_at, event_id LIMIT {limit}",
+            (tenant_id, project_id),
+        ).fetchall()
+        events = []
+        for row in rows:
+            try:
+                event = AILearningMemoryAuditEvent(
+                    event_id=str(row[0]), actor_user_id=str(row[1]),
+                    tenant_id=str(row[2]), project_id=str(row[3]),
+                    action=str(row[4]), outcome=str(row[5]),
+                    occurred_at=datetime.fromisoformat(str(row[6])),
+                    scope=None if row[7] is None else str(row[7]),
+                    record_id=None if row[8] is None else str(row[8]),
+                    record_version=None if row[9] is None else int(row[9]),
+                    reason_code=None if row[10] is None else str(row[10]),
+                    result_count=None if row[11] is None else int(row[11]),
+                )
+                event.validate()
+            except (TypeError, ValueError) as exc:
+                raise AILearningMemoryPersistenceError(
+                    "INVALID_STORED_AI_LEARNING_AUDIT_EVENT"
+                ) from exc
+            events.append(event)
+        return tuple(events)
+
 
 class SQLiteAILearningMemoryRepository(_RepositoryBase):
     """SQLite durable store; preserves caller-owned transactions."""
@@ -521,6 +590,7 @@ class PostgresAILearningMemoryRepository(_RepositoryBase):
 
 __all__ = [
     "AILearningMemoryPersistenceError",
+    "AILearningMemoryAuditEvent",
     "AILearningMemoryRepository",
     "SQLiteAILearningMemoryRepository",
     "PostgresAILearningMemoryRepository",
