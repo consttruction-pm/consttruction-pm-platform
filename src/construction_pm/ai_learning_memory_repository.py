@@ -188,14 +188,20 @@ BEGIN
 END;
 $cubi$"""
 _POSTGRES_APPEND_ONLY_TRIGGERS = (
-    "DROP TRIGGER IF EXISTS cubi_ai_learning_records_no_update_delete ON ai_learning_memory_records",
-    "CREATE TRIGGER cubi_ai_learning_records_no_update_delete "
-    "BEFORE UPDATE OR DELETE ON ai_learning_memory_records "
-    "FOR EACH ROW EXECUTE FUNCTION cubi_reject_ai_learning_mutation()",
-    "DROP TRIGGER IF EXISTS cubi_ai_learning_audit_no_update_delete ON ai_learning_memory_audit_events",
-    "CREATE TRIGGER cubi_ai_learning_audit_no_update_delete "
-    "BEFORE UPDATE OR DELETE ON ai_learning_memory_audit_events "
-    "FOR EACH ROW EXECUTE FUNCTION cubi_reject_ai_learning_mutation()",
+    (
+        "cubi_ai_learning_records_no_update_delete",
+        "ai_learning_memory_records",
+        "CREATE TRIGGER cubi_ai_learning_records_no_update_delete "
+        "BEFORE UPDATE OR DELETE ON ai_learning_memory_records "
+        "FOR EACH ROW EXECUTE FUNCTION cubi_reject_ai_learning_mutation()",
+    ),
+    (
+        "cubi_ai_learning_audit_no_update_delete",
+        "ai_learning_memory_audit_events",
+        "CREATE TRIGGER cubi_ai_learning_audit_no_update_delete "
+        "BEFORE UPDATE OR DELETE ON ai_learning_memory_audit_events "
+        "FOR EACH ROW EXECUTE FUNCTION cubi_reject_ai_learning_mutation()",
+    ),
 )
 # Migration 1 is immutable. Do not edit its DDL or checksum after release.
 _MIGRATION_V1_NAME = "create_ai_learning_memory_records"
@@ -211,7 +217,7 @@ _MIGRATION_V3_CHECKSUM = hashlib.sha256(
     "\\n".join((
         *_SQLITE_APPEND_ONLY_TRIGGERS,
         _POSTGRES_APPEND_ONLY_FUNCTION,
-        *_POSTGRES_APPEND_ONLY_TRIGGERS,
+        *(trigger_sql for _, _, trigger_sql in _POSTGRES_APPEND_ONLY_TRIGGERS),
     )).encode("utf-8")
 ).hexdigest()
 _MIGRATIONS = (
@@ -719,9 +725,20 @@ class PostgresAILearningMemoryRepository(_RepositoryBase):
         return tuple(str(row[0]) for row in rows)
 
     def _ensure_append_only_guards(self) -> None:
+        # Serialize concurrent application instances applying the same guards.
+        self.connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s))",
+            ("cubi_ai_learning_memory_append_only_guards",),
+        )
         self.connection.execute(_POSTGRES_APPEND_ONLY_FUNCTION)
-        for statement in _POSTGRES_APPEND_ONLY_TRIGGERS:
-            self.connection.execute(statement)
+        for trigger_name, table_name, statement in _POSTGRES_APPEND_ONLY_TRIGGERS:
+            exists = self.connection.execute(
+                "SELECT EXISTS (SELECT 1 FROM pg_trigger "
+                "WHERE tgname = %s AND tgrelid = to_regclass(%s) AND NOT tgisinternal)",
+                (trigger_name, table_name),
+            ).fetchone()
+            if exists is None or not bool(exists[0]):
+                self.connection.execute(statement)
 
     def append_with_audit(
         self,
