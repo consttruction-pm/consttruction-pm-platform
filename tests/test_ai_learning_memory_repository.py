@@ -87,6 +87,12 @@ def test_project_and_tenant_queries_are_scoped_and_tenant_sharing_needs_grant():
 
     exact = LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", project_id="project-1")
     assert repo.get(project_item.record_id, 1, exact) == project_item
+    # Creator identity is provenance; a different member with the explicit
+    # project-scope retrieval grant may read the same project lesson.
+    same_project_member = LearningRetrievalScope(
+        user_id="user-2", tenant_id="tenant-1", project_id="project-1"
+    )
+    assert repo.get(project_item.record_id, 1, same_project_member) == project_item
     assert repo.get(project_item.record_id, 1, LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", project_id="project-2")) is None
 
     no_grant = LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1")
