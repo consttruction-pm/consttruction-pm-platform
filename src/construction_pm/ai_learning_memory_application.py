@@ -211,6 +211,16 @@ class AILearningMemoryApplicationService:
             )
             raise AILearningMemoryApplicationError("INVALID_AI_LEARNING_RECORD")
 
+        if record.scope is LearningScope.GENERAL_PUBLISHED:
+            self._record_audit(
+                context, action="append", outcome="denied",
+                reason_code="AI_LEARNING_GENERAL_PUBLISH_REQUIRES_REVIEW_WORKFLOW",
+                record=record,
+            )
+            raise AILearningMemoryApplicationError(
+                "AI_LEARNING_GENERAL_PUBLISH_REQUIRES_REVIEW_WORKFLOW"
+            )
+
         if record.status not in {LearningStatus.CAPTURED, LearningStatus.CANDIDATE}:
             self._record_audit(
                 context, action="append", outcome="denied",
