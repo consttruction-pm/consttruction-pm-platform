@@ -192,6 +192,8 @@ def test_retrieval_scope_access_flags_must_be_explicit_booleans():
         LearningRetrievalScope(user_id="user-1", user_private_access_granted="yes")
     with pytest.raises(AILearningMemoryError, match="INVALID_AI_LEARNING_SCOPE_PROJECT_PRIVATE_ACCESS_GRANTED"):
         LearningRetrievalScope(user_id="user-1", project_private_access_granted=1)
+    with pytest.raises(AILearningMemoryError, match="INVALID_AI_LEARNING_SCOPE_GENERAL_CANDIDATE_ACCESS_GRANTED"):
+        LearningRetrievalScope(user_id="user-1", general_candidate_access_granted=1)
     with pytest.raises(AILearningMemoryError, match="INVALID_AI_LEARNING_SCOPE_GENERAL_PUBLISHED_ACCESS_GRANTED"):
         LearningRetrievalScope(user_id="user-1", general_published_access_granted=None)
 
@@ -203,4 +205,5 @@ def test_retrieval_scope_defaults_to_deny_for_every_knowledge_domain():
     assert scope.user_private_access_granted is False
     assert scope.project_private_access_granted is False
     assert scope.tenant_shared_access_granted is False
+    assert scope.general_candidate_access_granted is False
     assert scope.general_published_access_granted is False
