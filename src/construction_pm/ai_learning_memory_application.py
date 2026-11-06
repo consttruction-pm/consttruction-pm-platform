@@ -47,7 +47,7 @@ class AILearningMemoryApplicationService:
                 "AI_LEARNING_AUTHENTICATED_CONTEXT_INVALID"
             ) from exc
 
-    def _record_audit(
+    def _audit_event(
         self,
         context: AuthorizationContext,
         *,
@@ -56,8 +56,8 @@ class AILearningMemoryApplicationService:
         reason_code: str | None = None,
         record: AILearningMemoryRecord | None = None,
         result_count: int | None = None,
-    ) -> None:
-        event = AILearningMemoryAuditEvent(
+    ) -> AILearningMemoryAuditEvent:
+        return AILearningMemoryAuditEvent(
             event_id=str(uuid.uuid4()),
             actor_user_id=context.user_id,
             tenant_id=context.tenant_id,
@@ -71,8 +71,24 @@ class AILearningMemoryApplicationService:
             reason_code=reason_code,
             result_count=result_count,
         )
+
+    def _record_audit(
+        self,
+        context: AuthorizationContext,
+        *,
+        action: str,
+        outcome: str,
+        reason_code: str | None = None,
+        record: AILearningMemoryRecord | None = None,
+        result_count: int | None = None,
+    ) -> None:
         try:
-            self.repository.append_audit_event(event)
+            self.repository.append_audit_event(
+                self._audit_event(
+                    context, action=action, outcome=outcome,
+                    reason_code=reason_code, record=record, result_count=result_count,
+                )
+            )
         except Exception as exc:
             # Do not report an audited operation as successful when the audit write
             # has failed. The repository uses the same caller-owned transaction.
@@ -285,14 +301,18 @@ class AILearningMemoryApplicationService:
             )
             raise AILearningMemoryApplicationError("AI_LEARNING_SCOPE_UNSUPPORTED")
 
-        stored = self.repository.append(record)
-        self._record_audit(
-            context,
-            action="append",
-            outcome="allowed",
-            record=stored,
-        )
-        return stored
+        try:
+            return self.repository.append_with_audit(
+                record,
+                self._audit_event(
+                    context, action="append", outcome="allowed", record=record
+                ),
+            )
+        except Exception as exc:
+            # The record and its audit event share one savepoint-backed operation.
+            raise AILearningMemoryApplicationError(
+                "AI_LEARNING_PERSISTENCE_FAILED"
+            ) from exc
 
 
 __all__ = [
