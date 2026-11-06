@@ -402,16 +402,22 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
             tenant_id=f"tenant-{suffix}", project_id=f"project-{suffix}"
         )
         assert audit_events == (audit,)
-    finally:
-        reader.rollback()
-        reader.close()
+        reader.commit()
         with pytest.raises(psycopg.Error, match="AI_LEARNING_ROWS_APPEND_ONLY"):
-            reader_repository = PostgresAILearningMemoryRepository(reader)
-            reader_repository.connection.execute(
+            reader.execute(
                 "DELETE FROM ai_learning_memory_audit_events WHERE event_id = %s",
                 (audit.event_id,),
             )
         reader.rollback()
+        with pytest.raises(psycopg.Error, match="AI_LEARNING_ROWS_APPEND_ONLY"):
+            reader.execute(
+                "UPDATE ai_learning_memory_records SET payload_json = %s WHERE record_id = %s",
+                ("{}", private_record.record_id),
+            )
+        reader.rollback()
+    finally:
+        reader.rollback()
+        reader.close()
 
 
 def test_sqlite_legacy_table_with_correct_columns_but_wrong_primary_key_fails_closed():
