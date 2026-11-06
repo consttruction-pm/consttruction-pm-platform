@@ -296,3 +296,33 @@ def test_permission_provider_failure_is_denied_not_interpreted_as_a_grant():
         AILearningMemoryApplicationError, match="AI_LEARNING_PERMISSION_CHECK_FAILED"
     ):
         app.retrieval_scope(context())
+
+def test_permission_provider_failures_are_audited_with_the_requested_operation():
+    class BrokenPolicy:
+        def is_allowed(self, _context, _permission):
+            raise RuntimeError("grant provider unavailable")
+
+    operations = (
+        ("list", lambda app: app.list_retrievable(context())),
+        ("get", lambda app: app.get("missing-record", 1, context())),
+        ("append", lambda app: app.append(memory_record(), context())),
+    )
+    for expected_action, operation in operations:
+        connection = sqlite3.connect(":memory:")
+        repository = SQLiteAILearningMemoryRepository(connection)
+        app = AILearningMemoryApplicationService(repository, BrokenPolicy())
+
+        with pytest.raises(
+            AILearningMemoryApplicationError,
+            match="AI_LEARNING_PERMISSION_CHECK_FAILED",
+        ):
+            operation(app)
+
+        audit = repository.list_audit_events(
+            tenant_id="tenant-1", project_id="project-1"
+        )
+        assert len(audit) == 1
+        assert audit[0].action == expected_action
+        assert audit[0].outcome == "denied"
+        assert audit[0].reason_code == "AI_LEARNING_PERMISSION_PROVIDER_FAILED"
+        connection.close()
