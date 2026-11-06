@@ -240,17 +240,27 @@ class _RepositoryBase:
         if not isinstance(scope, LearningRetrievalScope):
             raise AILearningMemoryPersistenceError("TRUSTED_AI_LEARNING_RETRIEVAL_SCOPE_REQUIRED")
         p = self.placeholder
-        predicates = [
-            "(scope = 'user_private' AND owner_user_id = " + p + ")",
-            "(scope = 'project_private' AND owner_user_id = " + p + " AND tenant_id = " + p + " AND project_id = " + p + ")",
-            "(scope = 'general_published' AND status = 'published')",
-        ]
-        params: list[object] = [scope.user_id, scope.user_id, scope.tenant_id, scope.project_id]
+        predicates: list[str] = []
+        params: list[object] = []
+        if scope.user_private_access_granted:
+            predicates.append("(scope = 'user_private' AND owner_user_id = " + p + ")")
+            params.append(scope.user_id)
+        if scope.project_private_access_granted and scope.tenant_id and scope.project_id:
+            # Project ownership is provenance; authorized project membership is
+            # the retrieval boundary. Never constrain this branch to creator ID.
+            predicates.append(
+                "(scope = 'project_private' AND tenant_id = " + p + " AND project_id = " + p + ")"
+            )
+            params.extend((scope.tenant_id, scope.project_id))
+        if scope.general_published_access_granted:
+            predicates.append("(scope = 'general_published' AND status = 'published')")
         if scope.tenant_shared_access_granted and scope.tenant_id:
             predicates.append(
                 "(scope = 'tenant_shared' AND tenant_id = " + p + " AND status IN ('validated', 'published'))"
             )
             params.append(scope.tenant_id)
+        if not predicates:
+            return []
         rows = self.connection.execute(
             "SELECT payload_json FROM ai_learning_memory_records WHERE " + " OR ".join(predicates)
             + " ORDER BY record_id, record_version",
