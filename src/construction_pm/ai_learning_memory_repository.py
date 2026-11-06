@@ -112,6 +112,18 @@ class _RepositoryBase:
     def _table_columns(self, table_name: str) -> set[str]:
         raise NotImplementedError
 
+    def _table_primary_key_columns(self, table_name: str) -> tuple[str, ...]:
+        raise NotImplementedError
+
+    def _require_primary_key(
+        self, table_name: str, expected: tuple[str, ...], error_code: str
+    ) -> None:
+        actual = self._table_primary_key_columns(table_name)
+        if actual != expected:
+            raise AILearningMemoryPersistenceError(
+                f"{error_code}:expected={','.join(expected)}:actual={','.join(actual)}"
+            )
+
     def _require_columns(
         self, table_name: str, required: set[str], error_code: str
     ) -> None:
@@ -129,6 +141,11 @@ class _RepositoryBase:
             _MIGRATIONS_TABLE,
             _REQUIRED_MIGRATION_COLUMNS,
             "AI_LEARNING_MIGRATION_HISTORY_SCHEMA_INCOMPATIBLE",
+        )
+        self._require_primary_key(
+            _MIGRATIONS_TABLE,
+            ("version",),
+            "AI_LEARNING_MIGRATION_HISTORY_PRIMARY_KEY_INCOMPATIBLE",
         )
 
         p = self.placeholder
@@ -173,6 +190,11 @@ class _RepositoryBase:
                         "AI_LEARNING_LEGACY_SCHEMA_INCOMPATIBLE:"
                         + ",".join(sorted(missing))
                     )
+                self._require_primary_key(
+                    _RECORDS_TABLE,
+                    ("record_id", "record_version"),
+                    "AI_LEARNING_LEGACY_PRIMARY_KEY_INCOMPATIBLE",
+                )
 
             self.connection.execute(_INDEX_SCHEMA)
             self.connection.execute(
@@ -194,6 +216,11 @@ class _RepositoryBase:
             _RECORDS_TABLE,
             _REQUIRED_RECORD_COLUMNS,
             "AI_LEARNING_RECORD_SCHEMA_INCOMPATIBLE",
+        )
+        self._require_primary_key(
+            _RECORDS_TABLE,
+            ("record_id", "record_version"),
+            "AI_LEARNING_RECORD_PRIMARY_KEY_INCOMPATIBLE",
         )
         # Repair a missing non-authoritative index without changing record data.
         self.connection.execute(_INDEX_SCHEMA)
@@ -305,6 +332,14 @@ class SQLiteAILearningMemoryRepository(_RepositoryBase):
             for row in self.connection.execute(f"PRAGMA table_info({table_name})").fetchall()
         }
 
+    def _table_primary_key_columns(self, table_name: str) -> tuple[str, ...]:
+        rows = self.connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        keyed = sorted(
+            ((int(row[5]), str(row[1])) for row in rows if int(row[5]) > 0),
+            key=lambda item: item[0],
+        )
+        return tuple(name for _, name in keyed)
+
     def initialize(self) -> None:
         # Atomic DDL + migration-history write. When a caller already owns a
         # transaction, a savepoint lets initialization roll back only its work.
@@ -345,6 +380,20 @@ class PostgresAILearningMemoryRepository(_RepositoryBase):
             (table_name,),
         ).fetchall()
         return {str(row[0]) for row in rows}
+
+    def _table_primary_key_columns(self, table_name: str) -> tuple[str, ...]:
+        rows = self.connection.execute(
+            "SELECT kcu.column_name FROM information_schema.table_constraints tc "
+            "JOIN information_schema.key_column_usage kcu "
+            "ON tc.constraint_name = kcu.constraint_name "
+            "AND tc.constraint_schema = kcu.constraint_schema "
+            "AND tc.table_name = kcu.table_name "
+            "WHERE tc.constraint_type = 'PRIMARY KEY' "
+            "AND tc.table_schema = current_schema() AND tc.table_name = %s "
+            "ORDER BY kcu.ordinal_position",
+            (table_name,),
+        ).fetchall()
+        return tuple(str(row[0]) for row in rows)
 
     def initialize(self) -> None:
         # Do not commit here: callers own PostgreSQL transaction boundaries.
