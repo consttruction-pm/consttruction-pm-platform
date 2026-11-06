@@ -365,6 +365,14 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
     import psycopg
 
     repository = PostgresAILearningMemoryRepository(postgres_connection)
+    # Initialization owns and commits its transaction when the connection is
+    # idle, but preserves an already active caller transaction.
+    repository.initialize()
+    assert (
+        postgres_connection.info.transaction_status
+        == psycopg.pq.TransactionStatus.IDLE
+    )
+    postgres_connection.execute("BEGIN")
     repository.initialize()
     assert (
         postgres_connection.info.transaction_status
