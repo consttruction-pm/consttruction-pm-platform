@@ -1778,7 +1778,23 @@ function bind(root: HTMLElement): void {
   if (!runtime) return;
   const state = runtime.state;
   const draw = (): void => {
-    root.innerHTML = renderVisualDemo(state);
+    const currentSurface = root.querySelector<HTMLElement>("[data-visual-demo]");
+    const keepFullscreenSurface = Boolean(currentSurface && document.fullscreenElement === currentSurface);
+    if (keepFullscreenSurface && currentSurface) {
+      // Keep the browser's fullscreen element identity stable across ordinary
+      // workspace redraws (navigation, selection, tabs and dialogs).
+      const staging = document.createElement("div");
+      staging.innerHTML = renderVisualDemo(state);
+      const nextSurface = staging.querySelector<HTMLElement>("[data-visual-demo]");
+      if (nextSurface) {
+        currentSurface.replaceChildren(...Array.from(nextSurface.childNodes));
+        currentSurface.dir = nextSurface.dir;
+      } else {
+        root.innerHTML = renderVisualDemo(state);
+      }
+    } else {
+      root.innerHTML = renderVisualDemo(state);
+    }
     layoutConnectors(root);
   };
   document.addEventListener("fullscreenchange", () => {
