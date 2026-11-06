@@ -36,8 +36,12 @@ def record(**overrides):
 
 def test_user_private_learning_is_only_retrievable_by_same_user():
     item = record()
-    assert item.is_retrievable_for(LearningRetrievalScope(user_id="user-1"))
-    assert not item.is_retrievable_for(LearningRetrievalScope(user_id="user-2"))
+    assert item.is_retrievable_for(
+        LearningRetrievalScope(user_id="user-1", user_private_access_granted=True)
+    )
+    assert not item.is_retrievable_for(
+        LearningRetrievalScope(user_id="user-2", user_private_access_granted=True)
+    )
 
 
 def test_project_private_learning_is_visible_to_authorized_members_in_exact_tenant_project():
@@ -47,16 +51,28 @@ def test_project_private_learning_is_visible_to_authorized_members_in_exact_tena
         project_id="project-1",
     )
     assert item.is_retrievable_for(
-        LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", project_id="project-1")
+        LearningRetrievalScope(
+            user_id="user-1", tenant_id="tenant-1", project_id="project-1",
+            project_private_access_granted=True,
+        )
     )
     assert item.is_retrievable_for(
-        LearningRetrievalScope(user_id="user-2", tenant_id="tenant-1", project_id="project-1")
+        LearningRetrievalScope(
+            user_id="user-2", tenant_id="tenant-1", project_id="project-1",
+            project_private_access_granted=True,
+        )
     )
     assert not item.is_retrievable_for(
-        LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", project_id="project-2")
+        LearningRetrievalScope(
+            user_id="user-1", tenant_id="tenant-1", project_id="project-2",
+            project_private_access_granted=True,
+        )
     )
     assert not item.is_retrievable_for(
-        LearningRetrievalScope(user_id="user-2", tenant_id="tenant-2", project_id="project-1")
+        LearningRetrievalScope(
+            user_id="user-2", tenant_id="tenant-2", project_id="project-1",
+            project_private_access_granted=True,
+        )
     )
     assert not item.is_retrievable_for(
         LearningRetrievalScope(
@@ -97,7 +113,10 @@ def test_general_candidate_never_enters_general_retrieval():
         owner_user_id=None,
     )
     assert not item.is_general_retrieval_eligible()
-    assert not item.is_retrievable_for(LearningRetrievalScope(user_id="other-user", tenant_id="other-tenant"))
+    assert not item.is_retrievable_for(LearningRetrievalScope(
+        user_id="other-user", tenant_id="other-tenant",
+        general_published_access_granted=True,
+    ))
 
 
 def test_published_general_learning_requires_privacy_consent_validation_and_admin_approval():
