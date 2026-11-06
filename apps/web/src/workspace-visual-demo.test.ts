@@ -285,6 +285,6 @@ test("Activity and WBS rows retain selectable right-click targets and fullscreen
   const wbs = createVisualDemoState("en");
   wbs.window = "wbs";
   const wbsHtml = renderVisualDemo(wbs);
-  assert.match(wbsHtml, /data-vd-wbs="1\\.2"/);
+  assert.match(wbsHtml, /data-vd-wbs="1\.2"/);
   assert.match(wbsHtml, /data-vd-wbs-toggle="1"/);
 });
