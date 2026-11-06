@@ -4,6 +4,7 @@ from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
+from .p6_layout_defaults import P6_LAYOUT_DEFAULTS_VERSION, default_layout_columns
 from .p6_layout_definition_repository import PersistedP6Layout, P6LayoutRepository
 
 P6_LAYOUT_DEFINITION_API_VERSION = "p6-layout-definition-api.v1"
@@ -51,6 +52,32 @@ class P6LayoutDefinitionAPI:
             raise AuthorizationError("authorization denied")
         layout = self.repository.get(scope, layout_scope, view_id)
         return None if layout is None else _dto(layout)
+
+    def default_layout(
+        self,
+        scope: BackendScope,
+        layout_scope: str,
+        view_id: str,
+        *,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any] | None:
+        """Return the canonical default columns without persisting a revision.
+
+        The Columns dialog uses this when the user chooses Default, so the
+        restored set comes from the same server definition a new layout uses
+        instead of a client-side duplicate.
+        """
+
+        _require_scope(scope, auth_context)
+        if not self.authorization_policy.is_allowed(auth_context, Permission.PROJECT_READ):
+            raise AuthorizationError("authorization denied")
+        columns = default_layout_columns(view_id)
+        if columns is None:
+            return None
+        layout = PersistedP6Layout(scope, layout_scope, view_id, 0, columns, {
+            "source": P6_LAYOUT_DEFAULTS_VERSION,
+        })
+        return _dto(layout)
 
     def list_revisions(
         self,

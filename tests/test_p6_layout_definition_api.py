@@ -77,6 +77,57 @@ def test_layout_api_save_requires_project_write() -> None:
         api.save(_layout(), auth_context=_auth("viewer"))
 
 
+def test_layout_api_default_returns_canonical_columns_without_persisting() -> None:
+    api = _api()
+
+    default = api.default_layout(
+        BackendScope("tenant-a", "project-a", 2),
+        "project",
+        "activity",
+        auth_context=_auth("viewer"),
+    )
+
+    assert default is not None
+    assert default["contract_version"] == P6_LAYOUT_DEFINITION_API_VERSION
+    assert default["kind"] == "layout_definition"
+    assert default["layout"]["revision"] == 0
+    assert default["layout"]["metadata"]["source"] == "p6-layout-defaults.v1"
+    ids = [column["field_id"] for column in default["layout"]["columns"]]
+    assert ids[0] == "activity.id"
+    assert "activity.early_start" in ids
+    assert len(ids) == len(set(ids))
+    # Reading defaults must not create a stored revision.
+    assert api.get(
+        BackendScope("tenant-a", "project-a", 2),
+        "project",
+        "activity",
+        auth_context=_auth("viewer"),
+    ) is None
+
+
+def test_layout_api_default_declines_views_without_a_definition() -> None:
+    api = _api()
+
+    assert api.default_layout(
+        BackendScope("tenant-a", "project-a", 2),
+        "project",
+        "resource",
+        auth_context=_auth("viewer"),
+    ) is None
+
+
+def test_layout_api_default_requires_read_and_same_scope() -> None:
+    api = _api()
+
+    with pytest.raises(AuthorizationError, match="CROSS_SCOPE_ACCESS"):
+        api.default_layout(
+            BackendScope("tenant-a", "project-a", 2),
+            "project",
+            "activity",
+            auth_context=_auth("viewer", tenant="tenant-b"),
+        )
+
+
 def test_layout_api_history_returns_versioned_append_only_revisions() -> None:
     api = _api()
     base = _layout()

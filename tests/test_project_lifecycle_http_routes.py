@@ -1500,6 +1500,38 @@ def test_p6_layout_route_returns_persisted_layout():
     assert payload["metadata"] == {"density": "compact"}
 
 
+def test_p6_layout_default_route_returns_canonical_columns():
+    r, _, _ = p6_routes()
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/layouts/project/activity/default",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    payload = json.loads(body)
+    assert payload["contract_version"] == "p6-layout-definition-api.v1"
+    assert payload["schema_version"] == "p6-layout.v1"
+    assert payload["view_id"] == "activity"
+    assert payload["revision"] == 0
+    assert [column["field_id"] for column in payload["columns"]][:2] == ["activity.id", "activity.name"]
+    # The default is a read; it must not have saved a revision.
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/layouts/project/activity",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 404
+    assert json.loads(body)["code"] == "P6_LAYOUT_NOT_FOUND"
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/layouts/project/resource/default",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 404
+    assert json.loads(body)["code"] == "P6_LAYOUT_DEFAULT_NOT_DEFINED"
+
+
 def test_p6_layout_write_route_persists_authenticated_layout():
     r, _, _ = p6_routes()
     payload = {

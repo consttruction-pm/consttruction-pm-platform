@@ -2,10 +2,12 @@ import { FetchApiTransport, type ProjectContext } from "./client.js";
 import {
   createP6FieldRegistryProvider,
   createP6LayoutPersistence,
+  loadP6DefaultLayout,
   loadP6LayoutRevisions,
   loadP6Presentation,
 } from "./p6-api.js";
 import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
+import { openP6ColumnsDialog } from "./p6-columns-dialog.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
 import { FetchSessionApi, type ProjectSummary } from "./session-api.js";
 import { WebSyncRuntime } from "./sync-runtime.js";
@@ -888,9 +890,8 @@ function renderApp(
         openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
       case "view.fields":
-        pendingDesktopFocusSelector = ".cp-p6-field-chooser";
         activateWindow("schedule");
-        openWorkspaceDrawer(container, "[data-tools-drawer]");
+        openColumnsDialog();
         return;
       case "view.line-numbers": {
         const table = visualPreferences.presentation.table;
@@ -906,9 +907,8 @@ function renderApp(
         return;
       }
       case "layout.open":
-        pendingDesktopFocusSelector = ".cp-p6-field-chooser";
         activateWindow("schedule");
-        openWorkspaceDrawer(container, "[data-tools-drawer]");
+        openColumnsDialog();
         return;
       case "layout.save":
         void saveCurrentLayout();
@@ -1219,18 +1219,21 @@ function renderApp(
     renderApp(container, state, persistence);
   };
 
-  const commitLayout = async (next: WorkspaceState): Promise<void> => {
-    if (!next.p6Layout || !next.p6FieldRegistry) return;
+  const commitLayout = async (next: WorkspaceState): Promise<LayoutDefinition | null> => {
+    if (!next.p6Layout || !next.p6FieldRegistry) return null;
     try {
       const saved = await persistence.save(presentationMetadata(next.p6Layout));
       const savedHistory = getLayoutHistory(next.context, saved);
-      if (state.p6Layout) savedHistory.undo.push(state.p6Layout);
+      const previous = currentWorkspaceState?.p6Layout ?? state.p6Layout;
+      if (previous) savedHistory.undo.push(previous);
       savedHistory.redo.length = 0;
       savedHistory.noticeKey = null;
       invalidateLayoutRevisions(savedHistory);
       renderApp(container, setP6Presentation(next, next.p6FieldRegistry, saved), persistence);
+      return saved;
     } catch (error) {
       await reportLayoutFailure(error);
+      return null;
     }
   };
 
@@ -1256,6 +1259,32 @@ function renderApp(
     } catch (error) {
       void reportLayoutFailure(error);
     }
+  };
+
+  /**
+   * The Columns dialog edits a local draft and publishes it through the same
+   * layout contract as the inline chooser. Defaults are read from the server so
+   * the browser does not keep a second definition of the default layout.
+   */
+  const openColumnsDialog = (): void => {
+    if (!state.p6FieldRegistry || !state.p6Layout) return;
+    const initial = state.p6Layout;
+    openP6ColumnsDialog({
+      registry: state.p6FieldRegistry,
+      layout: initial,
+      locale: state.locale,
+      loadDefaults: () => loadP6DefaultLayout(aiTransport, state.context, initial.scope, initial.view_id),
+      commit: async (draft) => {
+        const latest = currentWorkspaceState ?? state;
+        if (!latest.p6FieldRegistry || !latest.p6Layout) return null;
+        return commitLayout(setP6Presentation(latest, latest.p6FieldRegistry, {
+          ...draft,
+          scope: latest.p6Layout.scope,
+          view_id: latest.p6Layout.view_id,
+          metadata: latest.p6Layout.metadata ?? {},
+        }));
+      },
+    });
   };
 
   const undoLayout = async (): Promise<void> => {

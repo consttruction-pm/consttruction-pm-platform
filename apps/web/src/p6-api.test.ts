@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createP6FieldRegistryProvider, createP6LayoutPersistence, loadP6LayoutRevisions, loadP6Presentation } from "./p6-api.js";
+import { createP6FieldRegistryProvider, createP6LayoutPersistence, loadP6DefaultLayout, loadP6LayoutRevisions, loadP6Presentation } from "./p6-api.js";
 import { createWorkspaceState } from "./workspace-model.js";
 import type { ApiTransport } from "./client.js";
 
@@ -165,6 +165,69 @@ describe("P6 Web API adapters", () => {
   });
 });
 
+
+it("reads the server default column set and treats a missing definition as unavailable", async () => {
+  const paths: string[] = [];
+  const defaultTransport: ApiTransport = {
+    async get(path) {
+      paths.push(path);
+      if (path.endsWith("/resource/default")) {
+        return {
+          ok: false,
+          error: {
+            code: "P6_LAYOUT_DEFAULT_NOT_DEFINED",
+            retryable: false,
+            message_key: "error.p6.layout.default_not_defined",
+            available_actions: [],
+          },
+        } as any;
+      }
+      if (path.endsWith("/default")) {
+        return {
+          ok: true,
+          data: {
+            schema_version: "p6-layout.v1",
+            scope: "project",
+            view_id: "activity",
+            revision: 0,
+            columns: [{
+              field_id: "activity.id",
+              visible: true,
+              order: 0,
+              label: "Activity ID",
+              width: 120,
+              alignment: "start",
+              pinned: false,
+              frozen: false,
+            }],
+            metadata: { source: "p6-layout-defaults.v1" },
+          },
+        } as { ok: true; data: any };
+      }
+      return {
+        ok: false,
+        error: {
+          code: "P6_LAYOUT_DEFAULT_NOT_DEFINED",
+          retryable: false,
+          message_key: "error.p6.layout.default_not_defined",
+          available_actions: [],
+        },
+      } as any;
+    },
+    async post<TRequest, TResponse>() {
+      throw new Error("default reads must not write");
+    },
+  };
+
+  const defaults = await loadP6DefaultLayout(defaultTransport, context);
+  assert.ok(defaults);
+  assert.equal(paths[0], "/api/projects/p1/p6/layouts/project/activity/default");
+  assert.equal(defaults.columns[0]?.field_id, "activity.id");
+  assert.equal(defaults.revision, 0);
+
+  assert.deepEqual(await loadP6DefaultLayout(defaultTransport, context), defaults);
+  assert.equal(await loadP6DefaultLayout(defaultTransport, context, "project", "resource"), null);
+});
 
 it("propagates an authoritative layout save conflict", async () => {
   const conflictTransport: ApiTransport = {
