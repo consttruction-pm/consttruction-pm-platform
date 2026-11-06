@@ -747,11 +747,16 @@ class PostgresAILearningMemoryRepository(_RepositoryBase):
 
     @contextmanager
     def transaction(self) -> Iterator[None]:
+        if bool(getattr(self.connection, "autocommit", False)):
+            raise AILearningMemoryPersistenceError(
+                "POSTGRES_AUTOCOMMIT_DISABLED_REQUIRED"
+            )
         owns_transaction = not self._has_active_transaction(self.connection)
         savepoint = f"cubi_ai_learning_memory_{uuid.uuid4().hex}"
-        if owns_transaction:
-            self.connection.execute("BEGIN")
-        else:
+        # Psycopg starts a transaction automatically on the first statement when
+        # autocommit is disabled. Do not issue a redundant BEGIN (which PostgreSQL
+        # accepts with a warning); only nested callers need an explicit savepoint.
+        if not owns_transaction:
             self.connection.execute(f"SAVEPOINT {savepoint}")
         try:
             yield
