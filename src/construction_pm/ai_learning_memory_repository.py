@@ -182,6 +182,11 @@ _REQUIRED_RECORD_COLUMNS = {
     "owner_user_id", "tenant_id", "project_id", "payload_json",
 }
 _REQUIRED_MIGRATION_COLUMNS = {"version", "migration_name", "checksum", "applied_at"}
+_REQUIRED_AUDIT_COLUMNS = {
+    "event_id", "actor_user_id", "tenant_id", "project_id", "action",
+    "outcome", "occurred_at", "scope", "record_id", "record_version",
+    "reason_code", "result_count",
+}
 
 
 class _RepositoryBase:
@@ -258,26 +263,48 @@ class _RepositoryBase:
             if version in history:
                 continue
 
-            existing_columns = self._table_columns(_RECORDS_TABLE)
-            if not existing_columns:
-                self.connection.execute(_SCHEMA)
-            else:
-                # PR #1542 databases already contain this schema. Adopt them
-                # only after proving the complete v1 shape; do not guess at
-                # missing columns or silently alter persisted learning data.
-                missing = _REQUIRED_RECORD_COLUMNS - existing_columns
-                if missing:
-                    raise AILearningMemoryPersistenceError(
-                        "AI_LEARNING_LEGACY_SCHEMA_INCOMPATIBLE:"
-                        + ",".join(sorted(missing))
+            if version == 1:
+                existing_columns = self._table_columns(_RECORDS_TABLE)
+                if not existing_columns:
+                    self.connection.execute(_SCHEMA)
+                else:
+                    # PR #1542 databases already contain this schema. Adopt them
+                    # only after proving the complete v1 shape; do not guess at
+                    # missing columns or silently alter persisted learning data.
+                    missing = _REQUIRED_RECORD_COLUMNS - existing_columns
+                    if missing:
+                        raise AILearningMemoryPersistenceError(
+                            "AI_LEARNING_LEGACY_SCHEMA_INCOMPATIBLE:"
+                            + ",".join(sorted(missing))
+                        )
+                    self._require_primary_key(
+                        _RECORDS_TABLE,
+                        ("record_id", "record_version"),
+                        "AI_LEARNING_LEGACY_PRIMARY_KEY_INCOMPATIBLE",
                     )
-                self._require_primary_key(
-                    _RECORDS_TABLE,
-                    ("record_id", "record_version"),
-                    "AI_LEARNING_LEGACY_PRIMARY_KEY_INCOMPATIBLE",
+                self.connection.execute(_INDEX_SCHEMA)
+            elif version == 2:
+                audit_columns = self._table_columns(_AUDIT_TABLE)
+                if not audit_columns:
+                    self.connection.execute(_AUDIT_SCHEMA)
+                else:
+                    missing = _REQUIRED_AUDIT_COLUMNS - audit_columns
+                    if missing:
+                        raise AILearningMemoryPersistenceError(
+                            "AI_LEARNING_AUDIT_LEGACY_SCHEMA_INCOMPATIBLE:"
+                            + ",".join(sorted(missing))
+                        )
+                    self._require_primary_key(
+                        _AUDIT_TABLE,
+                        ("event_id",),
+                        "AI_LEARNING_AUDIT_PRIMARY_KEY_INCOMPATIBLE",
+                    )
+                self.connection.execute(_AUDIT_INDEX_SCHEMA)
+            else:
+                raise AILearningMemoryPersistenceError(
+                    "AI_LEARNING_SCHEMA_MIGRATION_IMPLEMENTATION_MISSING"
                 )
 
-            self.connection.execute(_INDEX_SCHEMA)
             self.connection.execute(
                 f"INSERT INTO {_MIGRATIONS_TABLE} "
                 f"(version, migration_name, checksum, applied_at) "
@@ -303,8 +330,19 @@ class _RepositoryBase:
             ("record_id", "record_version"),
             "AI_LEARNING_RECORD_PRIMARY_KEY_INCOMPATIBLE",
         )
-        # Repair a missing non-authoritative index without changing record data.
+        # Repair only non-authoritative indexes; never rewrite existing records.
         self.connection.execute(_INDEX_SCHEMA)
+        self._require_columns(
+            _AUDIT_TABLE,
+            _REQUIRED_AUDIT_COLUMNS,
+            "AI_LEARNING_AUDIT_SCHEMA_INCOMPATIBLE",
+        )
+        self._require_primary_key(
+            _AUDIT_TABLE,
+            ("event_id",),
+            "AI_LEARNING_AUDIT_PRIMARY_KEY_INCOMPATIBLE",
+        )
+        self.connection.execute(_AUDIT_INDEX_SCHEMA)
 
     def initialize(self) -> None:
         """Backend-specific migration transaction ownership."""
