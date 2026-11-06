@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
@@ -110,6 +110,102 @@ class P6CalendarAPI:
             if deleter is None:
                 raise P6CalendarAPIError("CALENDAR_DELETE_NOT_SUPPORTED_BY_REPOSITORY")
             return bool(deleter(scope, calendar_id, calendar_version, expected_revision=expected_revision))
+
+    def revise_work_week(
+        self,
+        scope: BackendScope,
+        calendar_id: str,
+        calendar_version: str,
+        target_calendar_version: str,
+        working_weekdays: tuple[int, ...],
+        *,
+        expected_revision: int,
+        auth_context: AuthorizationContext,
+    ) -> dict[str, Any]:
+        """Create a new immutable calendar version with a different standard work week.
+
+        Snapshots are immutable by calendar ID+version. This operation therefore
+        creates a new version instead of overwriting history, and copies the
+        source calendar's exceptions and work-hour records into the new version.
+        """
+        self._authorize(scope, auth_context, Permission.PROJECT_WRITE)
+        if not isinstance(calendar_id, str) or not calendar_id.strip():
+            raise P6CalendarAPIError("INVALID_CALENDAR_REFERENCE")
+        if not isinstance(calendar_version, str) or not calendar_version.strip():
+            raise P6CalendarAPIError("INVALID_CALENDAR_REFERENCE")
+        if not isinstance(target_calendar_version, str) or not target_calendar_version.strip():
+            raise P6CalendarAPIError("INVALID_TARGET_CALENDAR_VERSION")
+        if target_calendar_version == calendar_version:
+            raise P6CalendarAPIError("CALENDAR_VERSION_MUST_CHANGE")
+        if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 1:
+            raise P6CalendarAPIError("INVALID_EXPECTED_REVISION")
+        if not isinstance(working_weekdays, tuple) or not working_weekdays:
+            raise P6CalendarAPIError("WORKING_WEEKDAYS_REQUIRED")
+        if any(isinstance(day, bool) or not isinstance(day, int) or day not in range(7) for day in working_weekdays):
+            raise P6CalendarAPIError("INVALID_WORKING_WEEKDAY")
+        if len(set(working_weekdays)) != len(working_weekdays):
+            raise P6CalendarAPIError("DUPLICATE_WORKING_WEEKDAY")
+
+        with self._transaction():
+            source = self.calendar_repository.get(scope, calendar_id, calendar_version)
+            if source is None:
+                raise CalendarPersistenceError("CALENDAR_NOT_FOUND")
+            if source.record_revision != expected_revision:
+                raise CalendarPersistenceError("REVISION_CONFLICT")
+            if self.calendar_repository.get(scope, calendar_id, target_calendar_version) is not None:
+                raise CalendarPersistenceError("CALENDAR_VERSION_ALREADY_EXISTS")
+            source_snapshot = self.snapshot_repository.get(source)
+            if source_snapshot is None:
+                raise CalendarPersistenceError("CALENDAR_SNAPSHOT_NOT_FOUND")
+            definition = _definition_from_snapshot(source_snapshot.snapshot, source.kind)
+            try:
+                updated_definition = replace(definition, working_weekdays=frozenset(working_weekdays))
+                updated_definition.canonical_snapshot()
+            except (TypeError, ValueError) as exc:
+                raise P6CalendarAPIError("INVALID_WORKING_WEEKDAYS") from exc
+
+            target = CalendarMaster(
+                scope=scope,
+                calendar_id=source.calendar_id,
+                calendar_version=target_calendar_version,
+                kind=source.kind,
+                name=source.name,
+                base_calendar_id=source.base_calendar_id,
+                base_calendar_version=source.base_calendar_version,
+                calendar_type=source.calendar_type,
+            )
+            stored = self.calendar_repository.save(target, expected_revision=0)
+            self.snapshot_repository.save(stored, updated_definition)
+
+            for exception in self.exception_repository.list(scope, calendar_id, calendar_version):
+                self.exception_repository.save(CalendarException(
+                    scope, calendar_id, target_calendar_version, exception.exception_date,
+                    exception.mode, exception.total_work_hours, exception.intervals, exception.system,
+                ))
+
+            if self.work_hours_repository is not None:
+                for kind in ("standard_work_week", "standard_detailed_work_hours", "detailed_work_hours", "total_work_hours"):
+                    for rule in self.work_hours_repository.list(scope, calendar_id, calendar_version, kind):
+                        is_working_day = rule.is_working_day
+                        total_work_hours = rule.total_work_hours
+                        if rule.weekday is not None and kind in {"standard_work_week", "standard_detailed_work_hours"}:
+                            is_working_day = rule.weekday in working_weekdays
+                            # A saved zero-hour non-working day may become a
+                            # working day. Use the calendar's own default daily
+                            # hours rather than carrying a stale zero override.
+                            if is_working_day and total_work_hours == 0:
+                                total_work_hours = None
+                            elif not is_working_day and total_work_hours is not None:
+                                total_work_hours = type(total_work_hours)("0")
+                        self.work_hours_repository.save(CalendarWorkHourRule(
+                            scope, calendar_id, target_calendar_version, rule.kind,
+                            rule.weekday, is_working_day, total_work_hours, rule.intervals,
+                        ))
+
+            result = self._calendar_dto(stored)
+            result["source_calendar_version"] = calendar_version
+            result["working_weekdays"] = sorted(working_weekdays)
+            return result
 
     def copy(self, scope: BackendScope, source_calendar_id: str, source_calendar_version: str, target_calendar_id: str, target_calendar_version: str, *, auth_context: AuthorizationContext) -> dict[str, Any]:
         self._authorize(scope, auth_context, Permission.PROJECT_WRITE)

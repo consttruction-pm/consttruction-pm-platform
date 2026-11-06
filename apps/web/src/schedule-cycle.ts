@@ -9,6 +9,11 @@ import {
   createCalendarHolidayEditor,
   type CalendarHolidayLabels,
 } from "./calendar-holidays.js";
+import {
+  createCalendarWorkWeekEditor,
+  type CalendarWorkWeekLabels,
+  type CalendarWorkWeekRevision,
+} from "./calendar-work-week.js";
 
 export type ScheduleReferenceStatus =
   | "mapped_unverified"
@@ -251,6 +256,12 @@ const LABELS = {
     holidayEmpty: "No exceptions are recorded for this calendar.", holidayNoCalendar: "Select or save a project calendar before recording a holiday.",
     holidayModeNonwork: "Non-working day", holidayModeTotalHours: "Total work hours", holidayModeDetailedHours: "Detailed work hours", holidayModeResetStandard: "Reset to standard",
     holidayCanonicalDate: "Stored date", holidayRerunHint: "The calendar changed. Run the schedule again to refresh authoritative dates.",
+    workWeekTitle: "Standard working week", workWeekIntro: "Change working weekdays in a new immutable calendar version. After it is created, save the project settings above to activate it.",
+    workWeekDays: "Working weekdays", workWeekReading: "Reading the saved calendar…", workWeekReadFailed: "The working week could not be loaded.",
+    workWeekSave: "Create new calendar version", workWeekSaving: "Saving working week…", workWeekSaved: "New calendar version created:",
+    workWeekFailed: "The working week was not saved.", workWeekNoCalendar: "Select a saved project calendar first.",
+    workWeekRequired: "Select at least one working day.", workWeekApplyHint: "Save the project settings above to use this version.",
+    workWeekDaysNames: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
     results: "Calculation output", snapshot: "Snapshot", hash: "Content hash", outputBinding: "Matching loaded activities are updated in the grid and Gantt; critical status is shown only when returned by the scheduling service.", empty: "—",
     columnActivity: "Activity", columnStart: "Start", columnFinish: "Finish", columnDuration: "Duration", columnTotalFloat: "Total float", columnCritical: "Critical", yes: "Yes", no: "No", projectFinish: "Project finish", activityCount: "Activity count",
   },
@@ -278,6 +289,12 @@ const LABELS = {
     holidayEmpty: "هیچ استثنایی برای این تقویم ثبت نشده است.", holidayNoCalendar: "پیش از ثبت تعطیلی، تقویم پروژه را انتخاب یا ذخیره کنید.",
     holidayModeNonwork: "روز غیرکاری", holidayModeTotalHours: "مجموع ساعت کاری", holidayModeDetailedHours: "ساعت کاری تفصیلی", holidayModeResetStandard: "بازگشت به استاندارد",
     holidayCanonicalDate: "تاریخ ذخیره‌شده", holidayRerunHint: "تقویم تغییر کرد. برای دریافت تاریخ‌های معتبر، زمان‌بندی را دوباره اجرا کنید.",
+    workWeekTitle: "هفتهٔ کاری استاندارد", workWeekIntro: "روزهای کاری در نسخهٔ جدید و تغییرناپذیر تقویم ذخیره می‌شوند. پس از ایجاد نسخه، تنظیمات پروژه را در بالا ذخیره کنید تا فعال شود.",
+    workWeekDays: "روزهای کاری هفته", workWeekReading: "در حال خواندن تقویم ذخیره‌شده…", workWeekReadFailed: "خواندن هفتهٔ کاری ممکن نشد.",
+    workWeekSave: "ایجاد نسخهٔ جدید تقویم", workWeekSaving: "در حال ذخیرهٔ هفتهٔ کاری…", workWeekSaved: "نسخهٔ جدید تقویم ایجاد شد:",
+    workWeekFailed: "ذخیرهٔ هفتهٔ کاری انجام نشد.", workWeekNoCalendar: "ابتدا یک تقویم ذخیره‌شدهٔ پروژه انتخاب کنید.",
+    workWeekRequired: "حداقل یک روز کاری انتخاب کنید.", workWeekApplyHint: "برای استفاده از این نسخه، تنظیمات پروژه را در بالا ذخیره کنید.",
+    workWeekDaysNames: ["دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه", "یکشنبه"],
     results: "خروجی محاسبه", snapshot: "تصویر محاسبات", hash: "هش محتوا", outputBinding: "فعالیت‌های منطبق در جدول و گانت به‌روزرسانی می‌شوند؛ وضعیت بحرانی فقط در صورت بازگشت از سرویس زمان‌بندی نمایش داده می‌شود.", empty: "—",
     columnActivity: "فعالیت", columnStart: "شروع", columnFinish: "پایان", columnDuration: "مدت", columnTotalFloat: "شناوری کل", columnCritical: "بحرانی", yes: "بله", no: "خیر", projectFinish: "پایان پروژه", activityCount: "تعداد فعالیت",
   },
@@ -605,7 +622,8 @@ async function mountSettingsPanel(
       ${controls ? `<h3 class="cp-schedule-options-subtitle">${safe(locale === "fa" ? "گزینه‌های هستهٔ محاسبه" : "Calculation engine options")}</h3><div class="cp-schedule-options-grid">${controls}</div>` : ""}
       <div class="cp-schedule-actions"><button type="submit">${safe(labels.save)}</button><span role="status" data-settings-status></span></div>
     </form>
-    <div data-calendar-holidays-host></div>`;
+    <div data-calendar-holidays-host></div>
+    <div data-calendar-work-week-host></div>`;
   const form = panel.querySelector<HTMLFormElement>("[data-schedule-settings-form]");
   const modeInput = form?.elements.namedItem("mode") as HTMLSelectElement | null;
   const startInput = form?.elements.namedItem("project_start") as HTMLInputElement | null;
@@ -781,6 +799,28 @@ async function mountSettingsPanel(
     }
   });
 
+  // Shared calendar readers are used by both the exception editor and the
+  // versioned working-week editor, so keep them in this panel's common scope.
+  const readSystem = (): "gregorian" | "jalali" =>
+    calendarSystemInput?.value === "jalali" ? "jalali" : "gregorian";
+  const readCalendar = (): { id: string; version: string } => {
+    const raw = calendarRefInput?.value ?? "";
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as { id?: string; version?: string };
+        if (parsed.id && parsed.version) return { id: parsed.id, version: parsed.version };
+      } catch {
+        // A blank or malformed selector falls back to the manual fields.
+      }
+    }
+    const idField = form?.elements.namedItem("calendar_id") as HTMLInputElement | null;
+    const versionField = form?.elements.namedItem("calendar_version") as HTMLInputElement | null;
+    return {
+      id: (idField?.value ?? initial.calendar_id).trim(),
+      version: (versionField?.value ?? initial.calendar_version).trim(),
+    };
+  };
+
   // Calendar exceptions are project data, not presentation state: the editor
   // writes through the calendar API and then re-reads the stored rows. A saved
   // holiday invalidates any cached calculation because the authoritative CPM
@@ -809,25 +849,6 @@ async function mountSettingsPanel(
       resetStandard: labels.holidayModeResetStandard,
       canonicalDate: labels.holidayCanonicalDate,
     };
-    const readSystem = (): "gregorian" | "jalali" =>
-      calendarSystemInput?.value === "jalali" ? "jalali" : "gregorian";
-    const readCalendar = (): { id: string; version: string } => {
-      const raw = calendarRefInput?.value ?? "";
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as { id?: string; version?: string };
-          if (parsed.id && parsed.version) return { id: parsed.id, version: parsed.version };
-        } catch {
-          // A blank or malformed selector falls back to the manual fields.
-        }
-      }
-      const idField = form?.elements.namedItem("calendar_id") as HTMLInputElement | null;
-      const versionField = form?.elements.namedItem("calendar_version") as HTMLInputElement | null;
-      return {
-        id: (idField?.value ?? initial.calendar_id).trim(),
-        version: (versionField?.value ?? initial.calendar_version).trim(),
-      };
-    };
     const selected = readCalendar();
     holidaysEditor = createCalendarHolidayEditor({
       transport,
@@ -851,6 +872,84 @@ async function mountSettingsPanel(
     };
     calendarRefInput?.addEventListener("change", syncHolidayCalendar);
     calendarSystemInput?.addEventListener("change", syncHolidayCalendar);
+  }
+
+  const workWeekHost = panel.querySelector<HTMLElement>("[data-calendar-work-week-host]");
+  let workWeekEditor: ReturnType<typeof createCalendarWorkWeekEditor> | null = null;
+  if (workWeekHost) {
+    const workWeekLabels: CalendarWorkWeekLabels = {
+      title: labels.workWeekTitle,
+      intro: labels.workWeekIntro,
+      weekdays: labels.workWeekDays,
+      reading: labels.workWeekReading,
+      readFailed: labels.workWeekReadFailed,
+      save: labels.workWeekSave,
+      saving: labels.workWeekSaving,
+      saved: labels.workWeekSaved,
+      failed: labels.workWeekFailed,
+      noCalendar: labels.workWeekNoCalendar,
+      weekdayRequired: labels.workWeekRequired,
+      applyHint: labels.workWeekApplyHint,
+      dayNames: labels.workWeekDaysNames,
+    };
+    const selected = readCalendar();
+    workWeekEditor = createCalendarWorkWeekEditor({
+      transport,
+      context,
+      labels: workWeekLabels,
+      calendarId: selected.id,
+      calendarVersion: selected.version,
+      availableVersions: () => {
+        const current = readCalendar();
+        return projectCalendars
+          .filter((calendar) => calendar.calendar_id === current.id)
+          .map((calendar) => calendar.calendar_version);
+      },
+      onSaved: (record: CalendarWorkWeekRevision) => {
+        const existing = projectCalendars.find((calendar) =>
+          calendar.calendar_id === record.calendar_id && calendar.calendar_version === record.calendar_version);
+        if (!existing) {
+          projectCalendars.push({
+            calendar_id: record.calendar_id,
+            calendar_version: record.calendar_version,
+            kind: record.kind,
+            calendar_type: record.calendar_type,
+            name: record.name,
+            record_revision: record.record_revision,
+          });
+        }
+        if (calendarRefInput) {
+          const option = document.createElement("option");
+          option.value = JSON.stringify({
+            id: record.calendar_id,
+            version: record.calendar_version,
+            kind: record.kind,
+          });
+          option.textContent = `${record.name} — ${record.calendar_id} @ ${record.calendar_version} (${record.kind})`;
+          calendarRefInput.append(option);
+          calendarRefInput.value = option.value;
+          calendarRefInput.dispatchEvent(new Event("change", { bubbles: true }));
+        } else {
+          const idField = form?.elements.namedItem("calendar_id") as HTMLInputElement | null;
+          const versionField = form?.elements.namedItem("calendar_version") as HTMLInputElement | null;
+          if (idField) idField.value = record.calendar_id;
+          if (versionField) versionField.value = record.calendar_version;
+          form?.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        scheduleRunResults.delete(scheduleRunCacheKey(context));
+        const results = panel.ownerDocument.querySelector<HTMLElement>("[data-run-results]");
+        if (results) results.innerHTML = "";
+        const runStatus = panel.ownerDocument.querySelector<HTMLElement>("[data-run-status]");
+        if (runStatus) runStatus.textContent = labels.holidayRerunHint;
+      },
+    });
+    workWeekHost.append(workWeekEditor.element);
+    void workWeekEditor.reload();
+    const syncWorkWeekCalendar = () => {
+      const next = readCalendar();
+      workWeekEditor?.setCalendar(next.id, next.version);
+    };
+    calendarRefInput?.addEventListener("change", syncWorkWeekCalendar);
   }
 }
 

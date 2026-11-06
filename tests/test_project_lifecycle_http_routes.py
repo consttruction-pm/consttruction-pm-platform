@@ -162,6 +162,21 @@ class FakeP6CalendarAPI:
         self.calls.append(("replace", scope, target_calendar_id, target_calendar_version, source_calendar_id, source_calendar_version, auth_context))
         return {"contract_version": "p6-calendar.v1", "calendar_id": target_calendar_id}
 
+    def revise_work_week(
+        self, scope, calendar_id, calendar_version, target_calendar_version,
+        working_weekdays, *, expected_revision, auth_context
+    ):
+        self.calls.append((
+            "revise_work_week", scope, calendar_id, calendar_version,
+            target_calendar_version, working_weekdays, expected_revision, auth_context,
+        ))
+        return {
+            "contract_version": "p6-calendar.v1",
+            "calendar_id": calendar_id,
+            "calendar_version": target_calendar_version,
+            "working_weekdays": list(working_weekdays),
+        }
+
     def save_exception(self, exception, *, auth_context):
         self.calls.append(("save_exception", exception, auth_context))
         return exception.canonical_snapshot()
@@ -237,6 +252,42 @@ def test_p6_calendar_http_write_routes_use_authenticated_project_scope():
     )
     assert status == 200
     assert api.calls[-1][0] == "delete"
+
+
+def test_p6_calendar_http_revises_work_week_with_authenticated_scope():
+    r, api = p6_calendar_write_routes()
+    payload = {
+        "target_calendar_version": "2",
+        "working_weekdays": [0, 1, 2, 3, 4, 5],
+        "expected_revision": 1,
+    }
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/calendars/CAL-1/1/work-week",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode(),
+    )
+    assert status == 200
+    assert json.loads(body)["calendar_version"] == "2"
+    call = api.calls[-1]
+    assert call[0] == "revise_work_week"
+    assert call[1] == BackendScope("t1", "p1", 2)
+    assert call[2:7] == ("CAL-1", "1", "2", (0, 1, 2, 3, 4, 5), 1)
+    assert call[7].tenant_id == "t1"
+
+
+def test_p6_calendar_http_rejects_non_integer_work_weekdays():
+    r, api = p6_calendar_write_routes()
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/calendars/CAL-1/1/work-week",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "target_calendar_version": "2",
+            "working_weekdays": [0, True, 5],
+            "expected_revision": 1,
+        }).encode(),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_CALENDAR_REQUEST_INVALID"
+    assert not any(call[0] == "revise_work_week" for call in api.calls)
 
 
 def test_p6_calendar_http_copy_replace_exception_and_work_hours_contracts():
