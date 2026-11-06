@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from .ai_learning_memory import (
     AILearningMemoryRecord,
     LearningRetrievalScope,
     LearningScope,
+    LearningStatus,
 )
-from .ai_learning_memory_repository import AILearningMemoryRepository
+from .ai_learning_memory_repository import (
+    AILearningMemoryAuditEvent,
+    AILearningMemoryRepository,
+)
 from .application.authorization import (
     AuthorizationContext,
     AuthorizationError,
@@ -26,7 +32,8 @@ class AILearningMemoryApplicationService:
 
     AuthorizationContext must be constructed by the authenticated server/session
     layer. The record's owner, scope and client-supplied fields are never accepted
-    as proof of the caller's identity or grants.
+    as proof of the caller's identity or grants. Audit entries share the repository
+    connection/transaction and intentionally contain metadata only, never lesson text.
     """
 
     repository: AILearningMemoryRepository
@@ -40,17 +47,69 @@ class AILearningMemoryApplicationService:
                 "AI_LEARNING_AUTHENTICATED_CONTEXT_INVALID"
             ) from exc
 
+    def _record_audit(
+        self,
+        context: AuthorizationContext,
+        *,
+        action: str,
+        outcome: str,
+        reason_code: str | None = None,
+        record: AILearningMemoryRecord | None = None,
+        result_count: int | None = None,
+    ) -> None:
+        event = AILearningMemoryAuditEvent(
+            event_id=str(uuid.uuid4()),
+            actor_user_id=context.user_id,
+            tenant_id=context.tenant_id,
+            project_id=context.project_id,
+            action=action,
+            outcome=outcome,
+            occurred_at=datetime.now(timezone.utc),
+            scope=None if record is None else record.scope.value,
+            record_id=None if record is None else record.record_id,
+            record_version=None if record is None else record.record_version,
+            reason_code=reason_code,
+            result_count=result_count,
+        )
+        try:
+            self.repository.append_audit_event(event)
+        except Exception as exc:
+            # Do not report an audited operation as successful when the audit write
+            # has failed. The repository uses the same caller-owned transaction.
+            raise AILearningMemoryApplicationError(
+                "AI_LEARNING_AUDIT_PERSISTENCE_FAILED"
+            ) from exc
+
     def _allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         try:
             return self.authorization_policy.is_allowed(context, permission)
         except Exception as exc:
-            # Authorization-provider failures must never become accidental grants.
+            self._record_audit(
+                context,
+                action="list",
+                outcome="denied",
+                reason_code="AI_LEARNING_PERMISSION_PROVIDER_FAILED",
+            )
             raise AILearningMemoryApplicationError(
                 "AI_LEARNING_PERMISSION_CHECK_FAILED"
             ) from exc
 
-    def _require(self, context: AuthorizationContext, permission: Permission) -> None:
+    def _require(
+        self,
+        context: AuthorizationContext,
+        permission: Permission,
+        *,
+        action: str,
+        record: AILearningMemoryRecord | None = None,
+    ) -> None:
         if not self._allowed(context, permission):
+            self._record_audit(
+                context,
+                action=action,
+                outcome="denied",
+                reason_code=f"AI_LEARNING_PERMISSION_DENIED:{permission.value}",
+                record=record,
+            )
             raise AILearningMemoryApplicationError(
                 f"AI_LEARNING_PERMISSION_DENIED:{permission.value}"
             )
@@ -81,7 +140,28 @@ class AILearningMemoryApplicationService:
         self, context: AuthorizationContext
     ) -> tuple[AILearningMemoryRecord, ...]:
         scope = self.retrieval_scope(context)
-        return self.repository.list_retrievable(scope)
+        if not any((
+            scope.user_private_access_granted,
+            scope.project_private_access_granted,
+            scope.tenant_shared_access_granted,
+            scope.general_published_access_granted,
+        )):
+            self._record_audit(
+                context,
+                action="list",
+                outcome="denied",
+                reason_code="AI_LEARNING_READ_PERMISSION_REQUIRED",
+                result_count=0,
+            )
+            raise AILearningMemoryApplicationError("AI_LEARNING_READ_NOT_AUTHORIZED")
+        records = self.repository.list_retrievable(scope)
+        self._record_audit(
+            context,
+            action="list",
+            outcome="allowed",
+            result_count=len(records),
+        )
+        return records
 
     def get(
         self,
@@ -90,51 +170,119 @@ class AILearningMemoryApplicationService:
         context: AuthorizationContext,
     ) -> AILearningMemoryRecord | None:
         scope = self.retrieval_scope(context)
-        return self.repository.get(record_id, record_version, scope)
+        if not any((
+            scope.user_private_access_granted,
+            scope.project_private_access_granted,
+            scope.tenant_shared_access_granted,
+            scope.general_published_access_granted,
+        )):
+            self._record_audit(
+                context,
+                action="get",
+                outcome="denied",
+                reason_code="AI_LEARNING_READ_PERMISSION_REQUIRED",
+            )
+            raise AILearningMemoryApplicationError("AI_LEARNING_READ_NOT_AUTHORIZED")
+        record = self.repository.get(record_id, record_version, scope)
+        self._record_audit(
+            context,
+            action="get",
+            outcome="allowed" if record is not None else "empty",
+            reason_code=None if record is not None else "AI_LEARNING_RECORD_NOT_VISIBLE",
+            record=record,
+        )
+        return record
 
     def append(
         self,
         record: AILearningMemoryRecord,
         context: AuthorizationContext,
     ) -> AILearningMemoryRecord:
-        """Append a new immutable private/tenant/candidate record after exact checks.
+        """Append captured/candidate knowledge after exact scope checks.
 
-        General-published records are deliberately not writable through this
-        generic method. They require the separate review/publication workflow.
+        Validation, approval and publication are separate lifecycle operations;
+        clients cannot create validated or published knowledge through this method.
         """
         self._validate_context(context)
         if not isinstance(record, AILearningMemoryRecord):
+            self._record_audit(
+                context, action="append", outcome="denied",
+                reason_code="INVALID_AI_LEARNING_RECORD",
+            )
             raise AILearningMemoryApplicationError("INVALID_AI_LEARNING_RECORD")
 
+        if record.status not in {LearningStatus.CAPTURED, LearningStatus.CANDIDATE}:
+            self._record_audit(
+                context, action="append", outcome="denied",
+                reason_code="AI_LEARNING_STATUS_REQUIRES_REVIEW_WORKFLOW",
+                record=record,
+            )
+            raise AILearningMemoryApplicationError(
+                "AI_LEARNING_STATUS_REQUIRES_REVIEW_WORKFLOW"
+            )
+
         if record.scope is LearningScope.USER_PRIVATE:
-            self._require(context, Permission.PROJECT_READ)
-            self._require(context, Permission.AI_LEARNING_USER_WRITE)
+            self._require(context, Permission.PROJECT_READ, action="append", record=record)
+            self._require(context, Permission.AI_LEARNING_USER_WRITE, action="append", record=record)
             if record.owner_user_id != context.user_id:
+                self._record_audit(
+                    context, action="append", outcome="denied",
+                    reason_code="AI_LEARNING_USER_SCOPE_MISMATCH", record=record,
+                )
                 raise AILearningMemoryApplicationError("AI_LEARNING_USER_SCOPE_MISMATCH")
         elif record.scope is LearningScope.PROJECT_PRIVATE:
-            self._require(context, Permission.PROJECT_WRITE)
-            self._require(context, Permission.AI_LEARNING_PROJECT_WRITE)
+            self._require(context, Permission.PROJECT_WRITE, action="append", record=record)
+            self._require(context, Permission.AI_LEARNING_PROJECT_WRITE, action="append", record=record)
             if (
                 record.owner_user_id != context.user_id
                 or record.tenant_id != context.tenant_id
                 or record.project_id != context.project_id
             ):
+                self._record_audit(
+                    context, action="append", outcome="denied",
+                    reason_code="AI_LEARNING_PROJECT_SCOPE_MISMATCH", record=record,
+                )
                 raise AILearningMemoryApplicationError("AI_LEARNING_PROJECT_SCOPE_MISMATCH")
         elif record.scope is LearningScope.TENANT_SHARED:
-            self._require(context, Permission.PROJECT_READ)
-            self._require(context, Permission.AI_LEARNING_TENANT_WRITE)
+            self._require(context, Permission.PROJECT_READ, action="append", record=record)
+            self._require(context, Permission.AI_LEARNING_TENANT_WRITE, action="append", record=record)
             if record.tenant_id != context.tenant_id:
+                self._record_audit(
+                    context, action="append", outcome="denied",
+                    reason_code="AI_LEARNING_TENANT_SCOPE_MISMATCH", record=record,
+                )
                 raise AILearningMemoryApplicationError("AI_LEARNING_TENANT_SCOPE_MISMATCH")
         elif record.scope is LearningScope.GENERAL_CANDIDATE:
-            self._require(context, Permission.AI_LEARNING_GENERAL_CANDIDATE_CREATE)
+            self._require(
+                context,
+                Permission.AI_LEARNING_GENERAL_CANDIDATE_CREATE,
+                action="append",
+                record=record,
+            )
         elif record.scope is LearningScope.GENERAL_PUBLISHED:
+            self._record_audit(
+                context, action="append", outcome="denied",
+                reason_code="AI_LEARNING_GENERAL_PUBLISH_REQUIRES_REVIEW_WORKFLOW",
+                record=record,
+            )
             raise AILearningMemoryApplicationError(
                 "AI_LEARNING_GENERAL_PUBLISH_REQUIRES_REVIEW_WORKFLOW"
             )
         else:
+            self._record_audit(
+                context, action="append", outcome="denied",
+                reason_code="AI_LEARNING_SCOPE_UNSUPPORTED", record=record,
+            )
             raise AILearningMemoryApplicationError("AI_LEARNING_SCOPE_UNSUPPORTED")
 
-        return self.repository.append(record)
+        stored = self.repository.append(record)
+        self._record_audit(
+            context,
+            action="append",
+            outcome="allowed",
+            record=stored,
+        )
+        return stored
 
 
 __all__ = [
