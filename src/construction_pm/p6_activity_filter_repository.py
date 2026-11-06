@@ -160,6 +160,7 @@ class SQLiteP6ActivityFilterRepository:
         definition.validate()
         if not isinstance(expected_revision, int) or isinstance(expected_revision, bool) or expected_revision < 0:
             raise P6ActivityFilterPersistenceError("INVALID_ACTIVITY_FILTER_EXPECTED_REVISION")
+        was_in_transaction = self.connection.in_transaction
         row = self.connection.execute(
             "SELECT project_revision,name,category,owner_id,revision,criteria_json,match_mode "
             "FROM p6_activity_filter_definitions WHERE tenant_id=? AND project_id=? AND filter_id=?",
@@ -191,7 +192,8 @@ class SQLiteP6ActivityFilterRepository:
                  definition.filter_id, definition.name.strip(), definition.category, definition.owner_id,
                  definition.revision, definition.payload(), definition.match_mode),
             )
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
         return definition
 
     def get(self, scope: BackendScope, filter_id: str) -> P6ActivityFilterDefinition | None:
@@ -217,6 +219,7 @@ class SQLiteP6ActivityFilterRepository:
 
     def delete(self, scope: BackendScope, filter_id: str, *, expected_revision: int) -> None:
         scope.validate()
+        was_in_transaction = self.connection.in_transaction
         cursor = self.connection.execute(
             "DELETE FROM p6_activity_filter_definitions WHERE tenant_id=? AND project_id=? "
             "AND project_revision=? AND filter_id=? AND revision=?",
@@ -224,7 +227,8 @@ class SQLiteP6ActivityFilterRepository:
         )
         if cursor.rowcount != 1:
             raise P6ActivityFilterPersistenceError("REVISION_CONFLICT")
-        self.connection.commit()
+        if not was_in_transaction:
+            self.connection.commit()
 
 
 class PostgresP6ActivityFilterRepository:
