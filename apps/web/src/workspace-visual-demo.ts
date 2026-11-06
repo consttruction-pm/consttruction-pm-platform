@@ -258,7 +258,7 @@ function filterActivities(state: DemoState): DemoActivity[] {
 }
 
 function activityWbsDepth(row: DemoActivity): number {
-  const code = row.wbs.match(/^\\d+(?:\\.\\d+)*/)?.[0];
+  const code = row.wbs.match(/^\d+(?:\.\d+)*/)?.[0];
   return code ? code.split(".").length : 1;
 }
 function phaseCollapseKey(phase: string): string { return `phase:${phase}`; }
