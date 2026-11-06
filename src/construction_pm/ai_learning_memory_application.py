@@ -279,6 +279,15 @@ class AILearningMemoryApplicationService:
                 )
                 raise AILearningMemoryApplicationError("AI_LEARNING_TENANT_SCOPE_MISMATCH")
         elif record.scope is LearningScope.GENERAL_CANDIDATE:
+            if not record.consent_for_generalization:
+                self._record_audit(
+                    context, action="append", outcome="denied",
+                    reason_code="AI_LEARNING_GENERALIZATION_CONSENT_REQUIRED",
+                    record=record,
+                )
+                raise AILearningMemoryApplicationError(
+                    "AI_LEARNING_GENERALIZATION_CONSENT_REQUIRED"
+                )
             self._require(
                 context,
                 Permission.AI_LEARNING_GENERAL_CANDIDATE_CREATE,
