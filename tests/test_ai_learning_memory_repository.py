@@ -165,9 +165,10 @@ def test_sqlite_schema_migrations_are_versioned_idempotent_and_checksum_checked(
         "SELECT version, migration_name, checksum, applied_at "
         "FROM ai_learning_memory_schema_migrations ORDER BY version"
     ).fetchall()
-    assert [row[0] for row in first] == [1, 2]
+    assert [row[0] for row in first] == [1, 2, 3]
     assert first[0][1] == "create_ai_learning_memory_records"
     assert first[1][1] == "create_ai_learning_memory_audit_events"
+    assert first[2][1] == "enforce_append_only_learning_memory_and_audit_rows"
     assert all(len(row[2]) == 64 and row[3] for row in first)
     assert connection.execute(
         "SELECT name FROM sqlite_master WHERE type='table' "
@@ -231,6 +232,7 @@ def test_sqlite_adopts_compatible_legacy_memory_table_without_rewriting_records(
     assert migrations == [
         (1, "create_ai_learning_memory_records"),
         (2, "create_ai_learning_memory_audit_events"),
+        (3, "enforce_append_only_learning_memory_and_audit_rows"),
     ]
     assert connection.execute(
         "SELECT event_id FROM ai_learning_memory_audit_events"
@@ -343,9 +345,10 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
         "SELECT version, migration_name, checksum FROM ai_learning_memory_schema_migrations "
         "ORDER BY version"
     ).fetchall()
-    assert [row[0] for row in migration] == [1, 2]
+    assert [row[0] for row in migration] == [1, 2, 3]
     assert migration[0][1] == "create_ai_learning_memory_records"
     assert migration[1][1] == "create_ai_learning_memory_audit_events"
+    assert migration[2][1] == "enforce_append_only_learning_memory_and_audit_rows"
     assert all(len(row[2]) == 64 for row in migration)
 
     repository.initialize()
@@ -402,11 +405,13 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
     finally:
         reader.rollback()
         reader.close()
-        postgres_connection.execute(
-            "DELETE FROM ai_learning_memory_records WHERE record_id = %s",
-            (private_record.record_id,),
-        )
-        postgres_connection.commit()
+        with pytest.raises(psycopg.Error, match="AI_LEARNING_ROWS_APPEND_ONLY"):
+            reader_repository = PostgresAILearningMemoryRepository(reader)
+            reader_repository.connection.execute(
+                "DELETE FROM ai_learning_memory_audit_events WHERE event_id = %s",
+                (audit.event_id,),
+            )
+        reader.rollback()
 
 
 def test_sqlite_legacy_table_with_correct_columns_but_wrong_primary_key_fails_closed():
@@ -532,4 +537,44 @@ def test_sqlite_learning_audit_rejects_invalid_actor_and_scope_reference():
                 record_id="lesson-1",
                 record_version=None,
             )
+        )
+
+
+def test_sqlite_memory_and_audit_rows_are_database_enforced_append_only():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteAILearningMemoryRepository(connection)
+    item = record(record_id="immutable-row")
+    repository.append(item)
+    event = AILearningMemoryAuditEvent(
+        event_id="immutable-audit",
+        actor_user_id="user-1",
+        tenant_id="tenant-1",
+        project_id="project-1",
+        action="append",
+        outcome="allowed",
+        occurred_at=NOW,
+        record_id=item.record_id,
+        record_version=item.record_version,
+    )
+    repository.append_audit_event(event)
+
+    with pytest.raises(sqlite3.IntegrityError, match="AI_LEARNING_RECORDS_APPEND_ONLY"):
+        connection.execute(
+            "UPDATE ai_learning_memory_records SET payload_json=? WHERE record_id=?",
+            ("{}", item.record_id),
+        )
+    with pytest.raises(sqlite3.IntegrityError, match="AI_LEARNING_RECORDS_APPEND_ONLY"):
+        connection.execute(
+            "DELETE FROM ai_learning_memory_records WHERE record_id=?",
+            (item.record_id,),
+        )
+    with pytest.raises(sqlite3.IntegrityError, match="AI_LEARNING_AUDIT_APPEND_ONLY"):
+        connection.execute(
+            "UPDATE ai_learning_memory_audit_events SET outcome=? WHERE event_id=?",
+            ("denied", event.event_id),
+        )
+    with pytest.raises(sqlite3.IntegrityError, match="AI_LEARNING_AUDIT_APPEND_ONLY"):
+        connection.execute(
+            "DELETE FROM ai_learning_memory_audit_events WHERE event_id=?",
+            (event.event_id,),
         )
