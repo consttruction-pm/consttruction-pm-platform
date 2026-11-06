@@ -982,7 +982,7 @@ class Page {
       if (!element) return false;
       const rect = element.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return false;
-      return element.dispatchEvent(new MouseEvent("contextmenu", {
+      element.dispatchEvent(new MouseEvent("contextmenu", {
         bubbles: true,
         cancelable: true,
         view: window,
@@ -991,6 +991,7 @@ class Page {
         clientX: rect.left + rect.width / 2,
         clientY: rect.top + rect.height / 2,
       }));
+      return true;
     })()`);
     assert(dispatched, `right-click target not found or context menu event was not accepted: ${selector}`);
   }
