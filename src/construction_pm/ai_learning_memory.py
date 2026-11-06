@@ -43,10 +43,10 @@ class LearningRetrievalScope:
     user_id: str
     tenant_id: str | None = None
     project_id: str | None = None
-    user_private_access_granted: bool = True
-    project_private_access_granted: bool = True
+    user_private_access_granted: bool = False
+    project_private_access_granted: bool = False
     tenant_shared_access_granted: bool = False
-    general_published_access_granted: bool = True
+    general_published_access_granted: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.user_id, str) or not self.user_id.strip():
