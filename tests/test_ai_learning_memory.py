@@ -143,7 +143,15 @@ def test_published_general_learning_requires_privacy_consent_validation_and_admi
         approved_at=NOW,
     )
     assert published.is_general_retrieval_eligible()
-    assert published.is_retrievable_for(LearningRetrievalScope(user_id="other-user", tenant_id="other-tenant"))
+    assert published.is_retrievable_for(
+        LearningRetrievalScope(
+            user_id="other-user", tenant_id="other-tenant",
+            general_published_access_granted=True,
+        )
+    )
+    assert not published.is_retrievable_for(
+        LearningRetrievalScope(user_id="other-user", tenant_id="other-tenant")
+    )
 
 
 def test_general_learning_rejects_source_scope_identifiers_and_expertise_profile():
