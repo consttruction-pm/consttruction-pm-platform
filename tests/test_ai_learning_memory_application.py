@@ -238,9 +238,9 @@ def test_general_candidate_records_are_readable_only_by_explicit_validators():
     reviewer = AILearningMemoryApplicationService(
         creator.repository, reviewer_policy
     )
-    assert reviewer.list_retrievable(
-        context(roles=("reviewer",))
-    ) == (candidate,)
+    reviewer_context = context(roles=("reviewer",))
+    assert reviewer.list_retrievable(reviewer_context) == (candidate,)
+    assert reviewer.get(candidate.record_id, 1, reviewer_context) == candidate
 
     # A reviewer grant is not a published-general read grant; ordinary users
     # still cannot retrieve candidates through general assistant retrieval.
@@ -253,9 +253,9 @@ def test_general_candidate_records_are_readable_only_by_explicit_validators():
     assistant = AILearningMemoryApplicationService(
         creator.repository, assistant_policy
     )
-    assert assistant.list_retrievable(
-        context(roles=("assistant",))
-    ) == ()
+    assistant_context = context(roles=("assistant",))
+    assert assistant.list_retrievable(assistant_context) == ()
+    assert assistant.get(candidate.record_id, 1, assistant_context) is None
     connection.close()
 
 
