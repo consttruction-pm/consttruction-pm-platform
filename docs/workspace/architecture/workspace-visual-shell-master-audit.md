@@ -29,7 +29,7 @@ CUBI must expose the full professional project-controls desktop workspace: compl
 - View: Layout New/Open/Save/Save As/Import/Export; Show on Top Table/Gantt/Network/Chart/Usage Spreadsheet/Profile; Show on Bottom Details/Usage Profiles/Trace Logic/None; Bottom Layout Options; Columns; Filters; Group and Sort; Timescale; Bars; Bar Chart Options; Progress Line/Spotlight; Attachments; Line Numbers; Critical Path; Check Schedule; Font/Row; Chart Colors/Templates; Arrange/Align Children; Zoom; Expand/Collapse; Toolbars; Tab Groups; Tile; Full Screen; Theme.
 - Project: Activities, Additional Activities View, WBS, Resource Assignments, Assign/Maintain Baselines, Expenses, Work Products & Documents, Thresholds, Issues, Risks, Set Default Project, Project Details, Codes, Defaults, Notebook, Calendars, UDFs.
 - Organization: Projects/Business Domains, Portfolios, Responsibility Structure, Resources, Roles, Global/Project/Resource Calendars, Workweeks/Hours/Exceptions/Holidays, Project/Activity/Resource/Role Codes, UDFs, Resource Curves/Shifts, Cost Accounts, Funding Sources, Currencies, Financial Periods.
-- Tools: Schedule, Level Resources, Apply Actuals, Update Progress, Recalculate Assignment Costs, Summarize, Store Period Performance, Global Change, Monitor Thresholds, Issue Navigator, Reports/Groups/Batches/Designer/Preview/Distribution, Form Builder, Smart Guide, Engineering Assistant, Search, Quality Checks, Import Validation.
+- Tools: Schedule, Level Resources, Apply Actuals, Update Progress, Recalculate Assignment Costs, Summarize, Store Period Performance, Global Change, Monitor Thresholds, Issue Navigator, Reports/Groups/Batches/Designer/Preview/Distribution, Form Builder, Smart Guide, CUBI Engineering Command Assistant, **Engineering Intelligence submenu (Issue #1706; planned/disabled)**, Search, Quality Checks, Import Validation.
 - Administration: Users, Teams, Access/Security Profiles, Permissions, Preferences, Categories, Currencies, Financial Periods, System Defaults, Audit Log, Retention/Recovery.
 - Help: Workspace Guide, Context Help, Shortcuts, What's New, Documentation Library, About CUBI.
 
@@ -58,18 +58,45 @@ CUBI must expose the full professional project-controls desktop workspace: compl
 
 The Details pane title identifies the object and record. With no selection it shows page-level context. It changes with the active window and selected record, preserves a valid selected tab, and never leaks stale details from another page. Tab order/visibility are configurable per window/layout.
 
+## Engineering Intelligence window Details inventory — Issue #1706
+
+These are target composition requirements only; the windows are not claimed implemented. Every window uses the existing page-specific Details pane and splitter model, with no flat-page redesign.
+
+| Window | Main view | Required Details tabs |
+|---|---|---|
+| Engineering Analysis | Findings register; cause/dependency graph; rule trace | Summary, Evidence, Rule Trace, Cause Chain, Alternatives, Remediation, Source Revision, History |
+| Project Watchdog | Monitor list; alerts/severity timeline | General, Rule, Thresholds, Monitored Objects, Escalation, Acknowledgements, Alert History |
+| Scenario Lab | Scenario tree; assumptions and result comparison | Source Snapshot, Inputs, Modifications, Assumptions, Schedule Results, Cost/Resources, Comparison, Run History |
+| Optimization Studio | Problem definition; constraints and candidate solution table | Objectives, Variables, Constraints, Feasibility, Alternatives, Pareto/Trade-offs, Sensitivity, Approval, Run History |
+| Risks (extended existing window) | Risk register; probability-impact and exposure views | General, Probability & Impact, Response, Owners, Schedule Impact, Cost Impact, Simulation, Sensitivity, Evidence, History |
+| Project Quality Audit | Findings/severity register; score breakdown | Scope, Schedule Logic, Calendars, Progress, Resources/Cost, Imports, Score Breakdown, Findings, Remediation, History |
+| Construction Productivity | Production/quantity table; productivity and crew/equipment profiles | Quantities, Production Rates, Crews, Equipment, Shifts, Methods, Workface Constraints, Variance, Forecast, Evidence, History |
+| Changes & Claims (extended existing window) | Events/notices/claims register; delay analysis and evidence chronology | Contract, Notice, Event, Entitlement, Schedule Impact, Windows/Fragnet, Concurrency, Cost/Quantum, Evidence, Decision, Correspondence, History |
+| Data Reconciliation | Source list; mapping/match/conflict table | Sources, Mapping, Match Rules, Conflicts, Variances, Preview, Apply Proposal, Provenance, History |
+| Portfolio Capacity | Portfolio/resource demand and supply table; allocation profile | Projects, Resource Pool, Skills/Roles, Demand, Supply, Allocation, Conflicts, Scenario, Priorities, History |
+| Automation Center | Workflow catalog/designer; run queue | Trigger, Steps, Conditions, Branches, Permissions, Approvals, Schedule, Run History, Failures, Version |
+| Engineering Standards & Methods | Standards/method catalogue and applicability matrix | Source/Edition, Clauses, Applicability, Rules, Units/Assumptions, Review, Publication, Version, History |
+| Project Templates | Organization/project template libraries | Template Scope, EPS/WBS, Activities/Logic, Calendars, Resources, Costs/Quantities, Reports/Forms, Preview/Diff, Permissions, Version, History |
+| Decision Register | Decision register; options/criteria matrix | Context, Alternatives, Criteria/Weights, Evidence, Analysis, Approval, Outcome, Linked Records, Review Date, History |
+| Deadlines & SLA | Due/overdue register; calendar/timeline | Obligation, Calendar, Lead Times, Owner, Escalation, Acknowledgement, Evidence, History |
+| Data Quality | Dataset and domain quality profiles; findings | Completeness, Validity, Consistency, Uniqueness, References, Provenance, Score Breakdown, Remediation, Trend, History |
+| Recovery & History | Change ledger; snapshots and recovery preview | Command, Before/After, Source Revision, Reversibility, Compensation, Restore Preview, Approval, Audit, History |
+| Command Dictionaries | Term/alias table by scope and language | Language, Canonical Term, Aliases, User/Project/Tenant Scope, Test Phrases, Conflicts, Review, Version, History |
+
+Risk and Claims views extend their existing windows rather than creating duplicate windows. Smart Guide extends the existing guide. All new details and command surfaces remain planned/disabled until their APIs, permissions, localization and E2E behavior are verified. BIM/4D/5D is excluded.
+
 ## Contextual command bars
 Each page has its own horizontal contextual bar below the global toolbar; the right-edge CUBI Add (+) bar remains separate and never overlays data. Shared commands: Add, Open, Edit, Delete, Duplicate, Copy/Paste, Save/Cancel, Undo/Redo, Refresh, Assign, Link/Unlink, Move, Indent/Outdent, Filter, Group, Sort, Columns, Layout, Export, Print, Details, Help, More. Page-specific commands include baseline/schedule/trace logic for Activities; child/sibling/milestones for WBS; roles/rates/shifts/curves for Resources; usage/spreads for Assignments; workweek/exceptions for Calendars; upload/link/version/launch for Documents; accrual/cash-flow for Expenses/Cost; owner/response/monitor for Issues/Risks/Thresholds; run/preview/distribute for Reports; and field/rule/workflow/preview/version for Form Builder.
 
 ## Left navigation
-Current Project: Activities, WBS, Resource Assignments, Expenses, Documents, Issues, Risks, Thresholds, Baselines, Cost, Progress, Procurement, Changes & Claims, Forms.
-Organization: Projects/Business Domains, Portfolios, Resources, Roles, Calendars, Codes, UDFs, Cost Accounts, Funding Sources, Resource Curves.
-Insights: Reports, Tracking, Dashboards, Smart Guide.
+Current Project: Activities, WBS, Resource Assignments, Expenses, Documents, Issues, Risks, Thresholds, Baselines, Cost, Progress, Procurement, Changes & Claims, Forms, Engineering Analysis, Project Watchdog, Scenario Lab, Project Quality, Construction Productivity, Data Reconciliation, Decision Register, Deadlines & SLA.
+Organization: Projects/Business Domains, Portfolios, Resources, Roles, Calendars, Codes, UDFs, Cost Accounts, Funding Sources, Resource Curves, Portfolio Capacity, Engineering Standards & Methods, Project Templates, Command Dictionaries.
+Insights: Reports, Tracking, Dashboards, Smart Guide, Optimization Studio, Risk & Uncertainty, Data Quality, Automation Center, Recovery & History.
 Administration: Users, Teams, Security, Preferences, Audit.
 Workspace: Recent Windows, Saved Layouts, Form Libraries, Appearance.
 
 ## CUBI-only additions
-Form Builder has two distinct libraries: Organization Form Library (reusable governed templates) and Project Form Library (project-specific forms and tailored versions). Form headers support JPG/PNG, including transparent PNG. It also includes sections, fields, validation, conditional logic, workflow, approval, preview and version history. Other additive areas: Engineering Intelligence Assistant, daily field reports, labour/equipment, inspections, quality/NCR, safety, punch/closeout, procurement/materials, notices/changes/claims, Theme Manager and contextual Add (+).
+Form Builder has two distinct libraries: Organization Form Library (reusable governed templates) and Project Form Library (project-specific forms and tailored versions). Form headers support JPG/PNG, including transparent PNG. It also includes sections, fields, validation, conditional logic, workflow, approval, preview and version history. Other additive areas: CUBI Engineering Command Assistant; the 19-engine Engineering Intelligence suite tracked in Issue #1706 (Engineering Reasoning, Watchdog, Scenario/Simulation, Optimization, Risk, Quality Audit, Construction Productivity, Contract/Claims Analysis, Data Reconciliation, Workflow Automation, Portfolio Capacity, Standards/Methods, Project Templates, Decision Register, Deadline/SLA, Data Quality, Recovery/Undo, Command Dictionaries and expanded Smart Guide); daily field reports, labour/equipment, inspections, quality/NCR, safety, punch/closeout, procurement/materials, notices/changes/claims, Theme Manager and contextual Add (+). The new engine entries are planned/disabled until real implementation and acceptance; they do not change workspace geometry. BIM/model/4D/5D is explicitly outside Issue #1706 and this reservation.
 
 ## Completion evidence
 The shell is complete only after running-app proof that all menus/submenus open and are keyboard accessible; every window opens as a tab; each page has its own Details tabs and contextual bar; table/Gantt/network/chart/profile/spreadsheet options are present; layout dialogs are complete; English/Persian and LTR/RTL are tested; desktop/tablet/mobile layouts are tested; and no control falsely reports execution. A menu catalogue or static placeholder is not proof of completion.
