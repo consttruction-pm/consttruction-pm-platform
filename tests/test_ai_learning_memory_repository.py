@@ -325,6 +325,10 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
 
     repository = PostgresAILearningMemoryRepository(postgres_connection)
     repository.initialize()
+    assert (
+        postgres_connection.info.transaction_status
+        == psycopg.pq.TransactionStatus.INTRANS
+    )
     migration = postgres_connection.execute(
         "SELECT version, migration_name, checksum FROM ai_learning_memory_schema_migrations "
         "ORDER BY version"
