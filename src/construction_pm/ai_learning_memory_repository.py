@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import uuid
 from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Protocol
@@ -21,10 +22,65 @@ class AILearningMemoryPersistenceError(ValueError):
     """Raised for invalid, conflicting or unreadable durable learning records."""
 
 
+@dataclass(frozen=True)
+class AILearningMemoryAuditEvent:
+    event_id: str
+    actor_user_id: str
+    tenant_id: str
+    project_id: str
+    action: str
+    outcome: str
+    occurred_at: datetime
+    scope: str | None = None
+    record_id: str | None = None
+    record_version: int | None = None
+    reason_code: str | None = None
+    result_count: int | None = None
+
+    def validate(self) -> None:
+        for name, value in (
+            ("event_id", self.event_id),
+            ("actor_user_id", self.actor_user_id),
+            ("tenant_id", self.tenant_id),
+            ("project_id", self.project_id),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise AILearningMemoryPersistenceError(
+                    f"INVALID_AI_LEARNING_AUDIT_{name.upper()}"
+                )
+        if self.action not in {"list", "get", "append"}:
+            raise AILearningMemoryPersistenceError("INVALID_AI_LEARNING_AUDIT_ACTION")
+        if self.outcome not in {"allowed", "denied", "empty"}:
+            raise AILearningMemoryPersistenceError("INVALID_AI_LEARNING_AUDIT_OUTCOME")
+        if self.occurred_at.tzinfo is None or self.occurred_at.utcoffset() is None:
+            raise AILearningMemoryPersistenceError("AI_LEARNING_AUDIT_TIMEZONE_REQUIRED")
+        if (self.record_id is None) != (self.record_version is None):
+            raise AILearningMemoryPersistenceError("AI_LEARNING_AUDIT_RECORD_REFERENCE_INVALID")
+        if self.record_id is not None and (
+            not isinstance(self.record_id, str) or not self.record_id.strip()
+            or isinstance(self.record_version, bool)
+            or not isinstance(self.record_version, int)
+            or self.record_version < 1
+        ):
+            raise AILearningMemoryPersistenceError("AI_LEARNING_AUDIT_RECORD_REFERENCE_INVALID")
+        if self.result_count is not None and (
+            isinstance(self.result_count, bool)
+            or not isinstance(self.result_count, int)
+            or self.result_count < 0
+        ):
+            raise AILearningMemoryPersistenceError("AI_LEARNING_AUDIT_RESULT_COUNT_INVALID")
+        for name, value in (("scope", self.scope), ("reason_code", self.reason_code)):
+            if value is not None and (not isinstance(value, str) or not value.strip()):
+                raise AILearningMemoryPersistenceError(
+                    f"INVALID_AI_LEARNING_AUDIT_{name.upper()}"
+                )
+
+
 class AILearningMemoryRepository(Protocol):
     def append(self, record: AILearningMemoryRecord) -> AILearningMemoryRecord: ...
     def get(self, record_id: str, record_version: int, scope: LearningRetrievalScope) -> AILearningMemoryRecord | None: ...
     def list_retrievable(self, scope: LearningRetrievalScope) -> tuple[AILearningMemoryRecord, ...]: ...
+    def append_audit_event(self, event: AILearningMemoryAuditEvent) -> AILearningMemoryAuditEvent: ...
 
 
 def _encode(record: AILearningMemoryRecord) -> str:
@@ -87,14 +143,39 @@ _MIGRATIONS_SCHEMA = f"""CREATE TABLE IF NOT EXISTS {_MIGRATIONS_TABLE} (
     applied_at TEXT NOT NULL
 )"""
 
-# A migration's checksum is immutable after release. Future schema changes must
-# append migration 2+, never edit migration 1 to make existing databases appear
-# to have run different DDL.
+_AUDIT_TABLE = "ai_learning_memory_audit_events"
+_AUDIT_SCHEMA = f"""CREATE TABLE IF NOT EXISTS {_AUDIT_TABLE} (
+    event_id TEXT PRIMARY KEY,
+    actor_user_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    occurred_at TEXT NOT NULL,
+    scope TEXT,
+    record_id TEXT,
+    record_version INTEGER,
+    reason_code TEXT,
+    result_count INTEGER
+)"""
+_AUDIT_INDEX_SCHEMA = (
+    f"CREATE INDEX IF NOT EXISTS idx_ai_learning_audit_scope "
+    f"ON {_AUDIT_TABLE} (tenant_id, project_id, occurred_at, event_id)"
+)
+
+# Migration 1 is immutable. Do not edit its DDL or checksum after release.
 _MIGRATION_V1_NAME = "create_ai_learning_memory_records"
 _MIGRATION_V1_CHECKSUM = hashlib.sha256(
     f"{_SCHEMA}\n{_INDEX_SCHEMA}".encode("utf-8")
 ).hexdigest()
-_MIGRATIONS = ((1, _MIGRATION_V1_NAME, _MIGRATION_V1_CHECKSUM),)
+_MIGRATION_V2_NAME = "create_ai_learning_memory_audit_events"
+_MIGRATION_V2_CHECKSUM = hashlib.sha256(
+    f"{_AUDIT_SCHEMA}\n{_AUDIT_INDEX_SCHEMA}".encode("utf-8")
+).hexdigest()
+_MIGRATIONS = (
+    (1, _MIGRATION_V1_NAME, _MIGRATION_V1_CHECKSUM),
+    (2, _MIGRATION_V2_NAME, _MIGRATION_V2_CHECKSUM),
+)
 
 _REQUIRED_RECORD_COLUMNS = {
     "record_id", "record_version", "scope", "status", "signal_kind",
