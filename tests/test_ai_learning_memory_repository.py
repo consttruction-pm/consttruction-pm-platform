@@ -108,6 +108,18 @@ def test_project_and_tenant_queries_are_scoped_and_tenant_sharing_needs_grant():
     assert repo.get(tenant_item.record_id, 1, no_grant) is None
     assert repo.get(tenant_item.record_id, 1, with_grant) == tenant_item
 
+    newer_unreviewed = record(
+        record_id=tenant_item.record_id,
+        record_version=2,
+        scope=LearningScope.TENANT_SHARED,
+        status=LearningStatus.CANDIDATE,
+        owner_user_id=None,
+        tenant_id="tenant-1",
+    )
+    repo.append(newer_unreviewed)
+    assert repo.list_retrievable(with_grant) == (project_item,)
+    assert repo.get(tenant_item.record_id, 1, with_grant) == tenant_item
+
 
 def test_general_candidates_never_reach_other_users_but_approved_general_methods_do():
     connection = sqlite3.connect(":memory:")
@@ -138,6 +150,23 @@ def test_general_candidates_never_reach_other_users_but_approved_general_methods
     )
     assert repo.get("candidate", 1, other) is None
     assert repo.get("general", 1, other) == published
+
+    retired = record(
+        record_id="general",
+        record_version=2,
+        scope=LearningScope.GENERAL_PUBLISHED,
+        status=LearningStatus.RETIRED,
+        owner_user_id=None,
+        privacy_review_passed=True,
+        consent_for_generalization=True,
+        validation_evidence_refs=("public-source-1", "benchmark-1"),
+        approved_by="admin-1",
+        approved_at=NOW,
+    )
+    repo.append(retired)
+    assert repo.list_retrievable(other) == ()
+    assert repo.get("general", 1, other) == published
+    assert repo.get("general", 2, other) is None
 
 
 def test_caller_owned_transaction_is_not_committed_by_repository(tmp_path):
@@ -584,3 +613,40 @@ def test_sqlite_memory_and_audit_rows_are_database_enforced_append_only():
             "DELETE FROM ai_learning_memory_audit_events WHERE event_id=?",
             (event.event_id,),
         )
+
+
+def test_record_versions_are_contiguous_and_scope_identity_is_immutable():
+    connection = sqlite3.connect(":memory:")
+    repository = SQLiteAILearningMemoryRepository(connection)
+    first = record(record_id="versioned-lesson")
+    repository.append(first)
+
+    skipped = record(record_id="versioned-lesson", record_version=3)
+    with pytest.raises(
+        AILearningMemoryPersistenceError,
+        match="AI_LEARNING_RECORD_VERSION_SEQUENCE_INVALID",
+    ):
+        repository.append(skipped)
+
+    moved_to_project = record(
+        record_id="versioned-lesson",
+        record_version=2,
+        scope=LearningScope.PROJECT_PRIVATE,
+        tenant_id="tenant-1",
+        project_id="project-1",
+    )
+    with pytest.raises(
+        AILearningMemoryPersistenceError,
+        match="AI_LEARNING_RECORD_SCOPE_IMMUTABLE",
+    ):
+        repository.append(moved_to_project)
+
+    second = record(
+        record_id="versioned-lesson",
+        record_version=2,
+        status=LearningStatus.RETIRED,
+    )
+    repository.append(second)
+    assert repository.list_retrievable(
+        LearningRetrievalScope(user_id="user-1", user_private_access_granted=True)
+    ) == ()
