@@ -212,6 +212,7 @@ class AILearningMemoryApplicationService:
             scope.user_private_access_granted,
             scope.project_private_access_granted,
             scope.tenant_shared_access_granted,
+            scope.general_candidate_access_granted,
             scope.general_published_access_granted,
         )):
             self._record_audit(
