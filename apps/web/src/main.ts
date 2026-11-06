@@ -72,8 +72,7 @@ import {
   readWorkspaceWindows,
   rememberWorkspaceWindows,
 } from "./workspace-windows.js";
-import { createVisualDemoState, mountVisualDemo } from "./workspace-visual-demo.js";
-import { liveWorkspaceProjectHref, shouldRenderVisualWorkspaceDemo, workspaceLoginNextPath } from "./workspace-visual-demo-route.js";
+import { liveWorkspaceProjectHref, workspaceLoginNextPath } from "./workspace-visual-demo-route.js";
 
 type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
 
@@ -860,12 +859,6 @@ function renderApp(
       case "admin.calendar":
         toggleCalendar();
         return;
-      case "help.visual-demo": {
-        const url = new URL(window.location.href);
-        url.searchParams.set("view", "visual");
-        window.location.assign(url.toString());
-        return;
-      }
       default:
         return;
     }
@@ -2190,17 +2183,6 @@ async function boot(): Promise<void> {
 
   if (window.location.pathname === "/" || window.location.pathname === "/index.html") {
     renderLandingPage(container);
-    return;
-  }
-
-  // The shared preview project opens the curated visual workspace at its
-  // canonical /app?project=preview-rps-01 address. This surface is intentionally
-  // labelled sample data; use &view=live for the authenticated project-backed UI.
-  if (shouldRenderVisualWorkspaceDemo(window.location.pathname, window.location.search)) {
-    const locale = getInitialLocale();
-    applyDocumentLocale(locale, locale.startsWith("fa") ? "محیط کار CUBI — نمایش بصری" : "CUBI Workspace — visual demo");
-    container.className = "cp-vd-root";
-    mountVisualDemo(container, createVisualDemoState(locale));
     return;
   }
 
