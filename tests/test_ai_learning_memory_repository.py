@@ -394,7 +394,6 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
         tenant_id=None,
         project_id=None,
     )
-    repository.append(private_record)
     audit = AILearningMemoryAuditEvent(
         event_id=f"audit-{suffix}",
         actor_user_id=f"user-{suffix}",
@@ -407,7 +406,38 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
         record_id=private_record.record_id,
         record_version=private_record.record_version,
     )
-    repository.append_audit_event(audit)
+    repository.append_with_audit(private_record, audit)
+    # One atomic record+audit write remains within the caller-owned transaction.
+    assert postgres_connection.info.transaction_status == psycopg.pq.TransactionStatus.INTRANS
+
+    conflicting_record = record(
+        record_id=f"postgres-rolled-back-{suffix}",
+        owner_user_id=f"user-{suffix}",
+        tenant_id=None,
+        project_id=None,
+    )
+    conflicting_event = AILearningMemoryAuditEvent(
+        event_id=audit.event_id,
+        actor_user_id=f"other-user-{suffix}",
+        tenant_id=audit.tenant_id,
+        project_id=audit.project_id,
+        action="append",
+        outcome="allowed",
+        occurred_at=NOW,
+        record_id=conflicting_record.record_id,
+        record_version=1,
+    )
+    with pytest.raises(
+        AILearningMemoryPersistenceError, match="AI_LEARNING_AUDIT_EVENT_ID_CONFLICT"
+    ):
+        repository.append_with_audit(conflicting_record, conflicting_event)
+    assert repository.get(
+        conflicting_record.record_id,
+        1,
+        LearningRetrievalScope(
+            user_id=f"user-{suffix}", user_private_access_granted=True
+        ),
+    ) is None
     postgres_connection.commit()
 
     reader = psycopg.connect(postgres_dsn)
@@ -515,6 +545,29 @@ def test_sqlite_learning_audit_is_append_only_idempotent_and_survives_restart(tm
     )
     assert repository.append_audit_event(event) == event
     assert repository.append_audit_event(event) == event
+    writer.commit()
+
+    conflicting_record = record(record_id="rolled-back-with-audit")
+    conflicting_audit = AILearningMemoryAuditEvent(
+        event_id="audit-event-1",
+        actor_user_id="different-user",
+        tenant_id="tenant-1",
+        project_id="project-1",
+        action="append",
+        outcome="allowed",
+        occurred_at=NOW,
+        record_id=conflicting_record.record_id,
+        record_version=conflicting_record.record_version,
+    )
+    with pytest.raises(
+        AILearningMemoryPersistenceError, match="AI_LEARNING_AUDIT_EVENT_ID_CONFLICT"
+    ):
+        repository.append_with_audit(conflicting_record, conflicting_audit)
+    assert repository.get(
+        conflicting_record.record_id,
+        1,
+        LearningRetrievalScope(user_id="user-1", user_private_access_granted=True),
+    ) is None
     writer.commit()
     writer.close()
 
