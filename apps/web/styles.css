@@ -3728,6 +3728,9 @@ a.cp-submenu-item:hover,a.cp-submenu-item:focus-visible{color:var(--cubi-enginee
   font-size: 12px;
 }
 .cp-filter-row input[type="text"]:disabled { background: #eef2f6; color: #8895a3; }
+.cp-sort-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); margin-top: 6px; }
+.cp-sort-row label { display: grid; gap: 3px; min-width: 0; color: #44576b; font-size: 11px; }
+.cp-sort-row select { min-height: 28px; }
 .cp-bar-style-list { display: grid; gap: 6px; }
 .cp-bar-style { border: 1px solid var(--cp-ui-border); border-radius: 4px; background: #fbfcfe; }
 .cp-bar-style > summary {

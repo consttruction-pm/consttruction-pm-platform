@@ -128,6 +128,7 @@ export type DesktopShellState = {
   sortColumns?: readonly DesktopSortColumn[];
   sortColumnId?: string | null;
   sortDirection?: "asc" | "desc";
+  sortLevels?: readonly { columnId: string; direction: "asc" | "desc" }[];
   presentation?: WorkspacePresentation;
   dataAvailability?: { actual: boolean; baseline: boolean };
 };
@@ -610,6 +611,7 @@ export function renderDesktopShell(
     sortColumns: [...(state.sortColumns ?? [])],
     sortColumnId: state.sortColumnId ?? null,
     sortDirection: state.sortDirection ?? "asc",
+    sortLevels: state.sortLevels ?? [],
     rowHeight: (state.presentation ?? DEFAULT_PRESENTATION).table.rowHeight,
     fontSize: (state.presentation ?? DEFAULT_PRESENTATION).table.fontSize,
     barHeight: (state.presentation ?? DEFAULT_PRESENTATION).bars.task.height,

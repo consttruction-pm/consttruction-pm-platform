@@ -17,6 +17,7 @@ function dialogOptions(patch: Partial<DialogOptions> = {}): DialogOptions {
     sortColumns: [{ id: "name", label: "Activity Name" }],
     sortColumnId: "name",
     sortDirection: "asc",
+    sortLevels: [{ columnId: "name", direction: "asc" }],
     rowHeight: 26,
     fontSize: 12,
     barHeight: 16,
@@ -135,6 +136,36 @@ test("a dialog without numeric fields does not reset visual preferences", () => 
   assert.equal(patch.fontSize, undefined);
   assert.equal(patch.barHeight, undefined);
   assert.equal(patch.presentation, undefined);
+});
+
+test("Group and Sort exposes three ordered sort levels and reads them in order", () => {
+  const html = renderLayoutDialogs(dialogOptions({
+    sortColumns: [{ id: "name", label: "Activity Name" }, { id: "progress", label: "Progress" }],
+    sortLevels: [
+      { columnId: "name", direction: "desc" },
+      { columnId: "progress", direction: "asc" },
+    ],
+  }));
+  for (const index of [0, 1, 2]) {
+    assert.match(html, new RegExp(`name="sort\\.field\\.${index}"`));
+    assert.match(html, new RegExp(`name="sort\\.direction\\.${index}"`));
+  }
+  assert.match(html, /name="sort\.field\.0"[\s\S]*?<option value="name" selected>/);
+  assert.match(html, /name="sort\.field\.1"[\s\S]*?<option value="progress" selected>/);
+
+  const patch = readLayoutPatch(form({
+    "sort.field.0": "name",
+    "sort.direction.0": "desc",
+    "sort.field.1": "progress",
+    "sort.direction.1": "asc",
+    "sort.field.2": "",
+  }));
+  assert.deepEqual(patch.sortLevels, [
+    { columnId: "name", direction: "desc" },
+    { columnId: "progress", direction: "asc" },
+  ]);
+  assert.equal(patch.sortColumnId, "name");
+  assert.equal(patch.sortDirection, "desc");
 });
 
 test("default layout patch keeps the professional compact defaults", () => {

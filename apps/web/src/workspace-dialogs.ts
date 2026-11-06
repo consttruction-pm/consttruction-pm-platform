@@ -47,6 +47,8 @@ export type DesktopLayoutPatch = {
   groupBy?: "wbs" | "none";
   sortColumnId?: string | null;
   sortDirection?: "asc" | "desc";
+  /** Ordered multi-level sort from the Group and Sort dialog. */
+  sortLevels?: readonly { columnId: string; direction: "asc" | "desc" }[];
   ganttScale?: ChromeLayoutState["ganttScale"];
   showRelationships?: boolean;
   density?: ChromeLayoutState["density"];
@@ -70,6 +72,7 @@ export type DialogOptions = {
   sortColumns: DesktopSortColumn[];
   sortColumnId: string | null;
   sortDirection: "asc" | "desc";
+  sortLevels: readonly { columnId: string; direction: "asc" | "desc" }[];
   rowHeight: number;
   fontSize: number;
   barHeight: number;
@@ -320,6 +323,28 @@ export function resetFilterEditor(dialog: HTMLElement): void {
 
 export function renderLayoutDialogs(optionsInput: DialogOptions): string {
   const { locale, layout } = optionsInput;
+  const sortColumns = optionsInput.sortColumns.some((column) => column.id === "wbs")
+    ? optionsInput.sortColumns
+    : [{ id: "wbs", label: "WBS" }, ...optionsInput.sortColumns];
+  const sortRows = [0, 1, 2].map((index) => {
+    const level = optionsInput.sortLevels[index];
+    const field = level?.columnId ?? "";
+    const direction = level?.direction ?? "asc";
+    return `<div class="cp-filter-row cp-sort-row">
+      <label><span>${esc(t(locale, `Sort ${index + 1}`, `ترتیب ${index + 1}`))}</span>
+        <select name="sort.field.${index}" aria-label="${esc(t(locale, `Sort field ${index + 1}`, `فیلد ترتیب ${index + 1}`))}">
+          <option value=""${field ? "" : " selected"}>${esc(t(locale, "No field", "بدون فیلد"))}</option>
+          ${sortColumns.map((column) => `<option value="${esc(column.id)}"${field === column.id ? " selected" : ""}>${esc(column.label)}</option>`).join("")}
+        </select>
+      </label>
+      <label><span>${esc(t(locale, "Order", "جهت"))}</span>
+        <select name="sort.direction.${index}" aria-label="${esc(t(locale, `Sort order ${index + 1}`, `جهت ترتیب ${index + 1}`))}">
+          <option value="asc"${direction === "asc" ? " selected" : ""}>${esc(t(locale, "Ascending", "صعودی"))}</option>
+          <option value="desc"${direction === "desc" ? " selected" : ""}>${esc(t(locale, "Descending", "نزولی"))}</option>
+        </select>
+      </label>
+    </div>`;
+  }).join("");
   const groupSort = `<fieldset class="cp-dialog-group">
       <legend>${esc(t(locale, "Group by", "گروه‌بندی بر اساس"))}</legend>
       <label class="cp-dialog-row"><span>${esc(t(locale, "Group levels", "سطوح گروه"))}</span>
@@ -328,19 +353,12 @@ export function renderLayoutDialogs(optionsInput: DialogOptions): string {
           <option value="none"${layout.groupBy === "none" ? " selected" : ""}>${esc(t(locale, "No grouping", "بدون گروه‌بندی"))}</option>
         </select>
       </label>
+      <p class="cp-dialog-note">${esc(t(locale, "WBS is the only grouping hierarchy persisted for this project. Other group categories are not loaded by this runtime.", "سلسله‌مراتب WBS تنها گروه‌بندی ذخیره‌شدهٔ این پروژه است. دسته‌های گروه‌بندی دیگر در این محیط بارگذاری نشده‌اند."))}</p>
     </fieldset>
     <fieldset class="cp-dialog-group">
       <legend>${esc(t(locale, "Sort", "ترتیب"))}</legend>
-      <label class="cp-dialog-row"><span>${esc(t(locale, "Field", "فیلد"))}</span>
-        <select name="sortColumnId">
-          <option value=""${optionsInput.sortColumnId ? "" : " selected"}>${esc(t(locale, "No sort", "بدون ترتیب"))}</option>
-          ${optionsInput.sortColumns.map((column) => `<option value="${esc(column.id)}"${optionsInput.sortColumnId === column.id ? " selected" : ""}>${esc(column.label)}</option>`).join("")}
-        </select>
-      </label>
-      <div class="cp-dialog-radios" role="radiogroup" aria-label="${esc(t(locale, "Sort order", "جهت ترتیب"))}">
-        <label><input type="radio" name="sortDirection" value="asc"${optionsInput.sortDirection === "asc" ? " checked" : ""}> ${esc(t(locale, "Ascending", "صعودی"))}</label>
-        <label><input type="radio" name="sortDirection" value="desc"${optionsInput.sortDirection === "desc" ? " checked" : ""}> ${esc(t(locale, "Descending", "نزولی"))}</label>
-      </div>
+      <p class="cp-dialog-note">${esc(t(locale, "Up to three fields apply in order; the first field also drives the toolbar sort. Empty rows are ignored.", "حداکثر سه فیلد به‌ترتیب اعمال می‌شود؛ فیلد اول ترتیب نوار ابزار را نیز تعیین می‌کند. ردیف‌های خالی نادیده گرفته می‌شوند."))}</p>
+      ${sortRows}
     </fieldset>`;
 
   const timescale = `<fieldset class="cp-dialog-group">
@@ -378,12 +396,23 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
   const patch: DesktopLayoutPatch = {};
   const groupBy = data.get("groupBy");
   if (groupBy === "wbs" || groupBy === "none") patch.groupBy = groupBy;
-  if (data.has("sortColumnId")) {
+  if (data.has("sort.field.0")) {
+    const sortLevels: { columnId: string; direction: "asc" | "desc" }[] = [];
+    for (const index of [0, 1, 2]) {
+      const field = String(data.get(`sort.field.${index}`) ?? "");
+      if (!field) continue;
+      const direction = data.get(`sort.direction.${index}`) === "desc" ? "desc" : "asc";
+      sortLevels.push({ columnId: field, direction });
+    }
+    patch.sortLevels = sortLevels;
+    patch.sortColumnId = sortLevels[0]?.columnId ?? null;
+    patch.sortDirection = sortLevels[0]?.direction ?? "asc";
+  } else if (data.has("sortColumnId")) {
     const value = String(data.get("sortColumnId") ?? "");
     patch.sortColumnId = value || null;
+    const direction = data.get("sortDirection");
+    if (direction === "asc" || direction === "desc") patch.sortDirection = direction;
   }
-  const direction = data.get("sortDirection");
-  if (direction === "asc" || direction === "desc") patch.sortDirection = direction;
   const scale = data.get("ganttScale");
   if (scale === "day" || scale === "week" || scale === "month" || scale === "quarter" || scale === "year") {
     patch.ganttScale = scale;
@@ -526,6 +555,7 @@ export function defaultLayoutPatch(): DesktopLayoutPatch {
     groupBy: "wbs",
     sortColumnId: "wbs",
     sortDirection: "asc",
+    sortLevels: [{ columnId: "wbs", direction: "asc" }],
     ganttScale: "day",
     showRelationships: true,
     density: "compact",

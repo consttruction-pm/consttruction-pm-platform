@@ -13,6 +13,7 @@ import {
   setActivityFilter,
   setActivityGroupBy,
   setActivitySort,
+  setActivitySortLevels,
   toggleActivitySortDirection,
   updateP6FieldPresentation,
   selectActivity,
@@ -1014,7 +1015,9 @@ function renderApp(
   const applyLayoutOptions = (patch: DesktopLayoutPatch): void => {
     let next = state;
     if (patch.groupBy) next = setActivityGroupBy(next, patch.groupBy);
-    if (patch.sortColumnId !== undefined) {
+    if (patch.sortLevels) {
+      next = setActivitySortLevels(next, patch.sortLevels);
+    } else if (patch.sortColumnId !== undefined) {
       next = setActivitySort(next, patch.sortColumnId, patch.sortDirection ?? next.activitySort?.direction ?? "asc");
     } else if (patch.sortDirection && next.activitySort) {
       next = setActivitySort(next, next.activitySort.columnId, patch.sortDirection);
@@ -1126,6 +1129,7 @@ function renderApp(
       sortColumns: state.columns.map((column) => ({ id: column.id, label: column.label })),
       sortColumnId: state.activitySort?.columnId ?? null,
       sortDirection: state.activitySort?.direction ?? "asc",
+      sortLevels: state.activitySortLevels,
       presentation: visualPreferences.presentation,
       dataAvailability: presentationDataAvailability(state.activities),
     },
