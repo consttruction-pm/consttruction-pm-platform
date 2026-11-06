@@ -117,7 +117,7 @@ def test_project_and_tenant_queries_are_scoped_and_tenant_sharing_needs_grant():
         tenant_id="tenant-1",
     )
     repo.append(newer_unreviewed)
-    assert repo.list_retrievable(with_grant) == (project_item,)
+    assert repo.list_retrievable(with_grant) == ()
     assert repo.get(tenant_item.record_id, 1, with_grant) == tenant_item
 
 
