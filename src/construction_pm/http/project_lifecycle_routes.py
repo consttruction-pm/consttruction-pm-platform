@@ -99,6 +99,15 @@ from ..p6_field_registry import (
 )
 from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VERSION
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
+from ..p6_formula_definition_api import (
+    P6FormulaDefinitionAPI,
+    P6FormulaDefinitionPersistenceError,
+    P6_FORMULA_DEFINITION_API_VERSION,
+    P6_FORMULA_SEMANTIC_REFERENCE,
+    P6_FORMULA_SEMANTIC_VERSION,
+)
+from ..p6_formula_definition_repository import FormulaDefinitionCreateRequest
+from ..p6_formula_engine import FormulaType
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
@@ -200,6 +209,7 @@ class ProjectLifecycleHttpRoutes:
         p6_field_registry_api: P6FieldRegistryAPI | None = None,
         p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
         p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
+        p6_formula_definition_api: P6FormulaDefinitionAPI | None = None,
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
@@ -241,6 +251,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_field_registry_api = p6_field_registry_api
         self._p6_layout_definition_api = p6_layout_definition_api
         self._p6_formula_authority_api = p6_formula_authority_api
+        self._p6_formula_definition_api = p6_formula_definition_api
         self._p6_calendar_read_api = p6_calendar_read_api
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
@@ -2602,6 +2613,130 @@ class ProjectLifecycleHttpRoutes:
                     context_field_id=context_field_id,
                 )
                 return self._json(200, result)
+            if path.startswith("/api/projects/") and "/p6/formula-definitions" in path:
+                if self._p6_formula_definition_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                prefix, suffix = path.split("/p6/formula-definitions", 1)
+                project_id = prefix[len("/api/projects/"):]
+                if not project_id:
+                    return self._error(400, "P6_FORMULA_DEFINITION_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                if method == "POST" and suffix == "":
+                    if self._p6_formula_authority_api is None or self._p6_field_registry_api is None:
+                        return self._error(404, "P6_FORMULA_DEFINITION_DEPENDENCY_MISSING", "error.route.not_found")
+                    try:
+                        payload = json.loads(body.decode("utf-8") or "{}")
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        return self._error(400, "P6_FORMULA_DEFINITION_REQUEST_INVALID", "error.request.invalid")
+                    if not isinstance(payload, dict):
+                        return self._error(400, "P6_FORMULA_DEFINITION_REQUEST_INVALID", "error.request.invalid")
+                    formula_id = payload.get("formula_id")
+                    version = payload.get("version")
+                    expression = payload.get("expression")
+                    display_name = payload.get("display_name")
+                    description = payload.get("description", "")
+                    context_field_id = payload.get("context_field_id")
+                    result_unit = payload.get("result_unit")
+                    if (
+                        not isinstance(formula_id, str) or not formula_id.startswith("activity.")
+                        or not isinstance(version, str) or not version.strip()
+                        or not isinstance(expression, str) or not expression.strip() or len(expression) > 4000
+                        or not isinstance(display_name, str) or not display_name.strip() or len(display_name) > 40
+                        or not isinstance(description, str) or len(description) > 500
+                        or (context_field_id is not None and not isinstance(context_field_id, str))
+                        or (result_unit is not None and (not isinstance(result_unit, str) or not result_unit.strip()))
+                    ):
+                        return self._error(400, "P6_FORMULA_DEFINITION_REQUEST_INVALID", "error.request.invalid")
+                    validation = self._p6_formula_authority_api.validate(
+                        scope,
+                        "p6-field-registry.v1",
+                        expression,
+                        auth_context=auth,
+                        context_field_id=context_field_id,
+                    )
+                    if not validation.get("validation", {}).get("valid", False):
+                        return self._json(422, {
+                            "contract_version": P6_FORMULA_DEFINITION_API_VERSION,
+                            "validation": validation.get("validation", {}),
+                            "dependencies": validation.get("dependencies", {"field_ids": []}),
+                            "result_type": validation.get("result_type", {"data_type": None}),
+                        })
+                    result_data_type = validation.get("result_type", {}).get("data_type")
+                    result_types = {
+                        "string": FormulaType.TEXT,
+                        "double": FormulaType.NUMBER,
+                        "boolean": FormulaType.BOOLEAN,
+                        "date": FormulaType.DATE,
+                        "datetime": FormulaType.DATETIME,
+                    }
+                    formula_type = result_types.get(result_data_type)
+                    dependencies = validation.get("dependencies", {}).get("field_ids")
+                    if formula_type is None or not isinstance(dependencies, list) or any(not isinstance(item, str) for item in dependencies):
+                        return self._error(422, "P6_FORMULA_DEFINITION_RESULT_TYPE_UNSUPPORTED", "error.request.invalid")
+                    request = FormulaDefinitionCreateRequest(
+                        scope=scope,
+                        semantic_version=P6_FORMULA_SEMANTIC_VERSION,
+                        semantic_reference=P6_FORMULA_SEMANTIC_REFERENCE,
+                        formula_id=formula_id,
+                        version=version.strip(),
+                        expression=expression,
+                        result_type=formula_type,
+                        result_unit=result_unit,
+                        dependencies=tuple(dependencies),
+                        metadata={
+                            "subject_area": "Activity",
+                            "display_name": display_name.strip(),
+                            "description": description,
+                            "context_field_id": context_field_id,
+                            "registry_version": "p6-field-registry.v1",
+                        },
+                    )
+                    try:
+                        saved = self._p6_formula_definition_api.create(request, auth_context=auth)
+                    except AuthorizationError as exc:
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    except P6FormulaDefinitionPersistenceError as exc:
+                        return self._error(409, str(exc), "error.p6.formula.conflict")
+                    except (TypeError, ValueError) as exc:
+                        return self._error(400, str(exc), "error.request.invalid")
+                    return self._json(201, saved)
+                if method == "GET":
+                    parts = [part for part in suffix.split("/") if part]
+                    if len(parts) not in {1, 2}:
+                        return self._error(400, "P6_FORMULA_DEFINITION_REQUEST_INVALID", "error.request.invalid")
+                    formula_id = parts[0]
+                    try:
+                        if len(parts) == 1:
+                            result = self._p6_formula_definition_api.list_versions(scope, formula_id, auth_context=auth)
+                            return self._json(200, {
+                                "contract_version": P6_FORMULA_DEFINITION_API_VERSION,
+                                "formula_id": formula_id,
+                                "formulas": list(result),
+                            })
+                        if parts[1] == "audit":
+                            result = self._p6_formula_definition_api.list_audit(scope, formula_id, auth_context=auth)
+                            return self._json(200, {
+                                "contract_version": P6_FORMULA_DEFINITION_API_VERSION,
+                                "formula_id": formula_id,
+                                "audit": list(result),
+                            })
+                        result = self._p6_formula_definition_api.get(scope, formula_id, parts[1], auth_context=auth)
+                    except AuthorizationError as exc:
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    except P6FormulaDefinitionPersistenceError as exc:
+                        return self._error(409, str(exc), "error.p6.formula.conflict")
+                    if result is None:
+                        return self._error(404, "P6_FORMULA_DEFINITION_NOT_FOUND", "error.p6.formula.not_found")
+                    return self._json(200, result)
+                return self._error(405, "METHOD_NOT_ALLOWED", "error.method.not_allowed")
             if method == "POST" and path.startswith("/api/projects/") and "/p6/layouts/" in path:
                 if self._p6_layout_definition_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
