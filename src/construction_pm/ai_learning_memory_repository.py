@@ -449,7 +449,9 @@ class _RepositoryBase:
             )
             params.extend((scope.tenant_id, scope.project_id))
         if scope.general_published_access_granted:
-            predicates.append("(scope = 'general_published' AND status = 'published')")
+            # Include retired/superseding versions in the latest-version decision;
+            # the record contract filters retired rows after version selection.
+            predicates.append("(scope = 'general_published')")
         if scope.tenant_shared_access_granted and scope.tenant_id:
             # Fetch all versions first; latest-version selection must see newer
             # candidates/rejections so an older validated row cannot reappear.
