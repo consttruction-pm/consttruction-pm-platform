@@ -1859,3 +1859,104 @@ def test_preview_earned_value_route_uses_persisted_baseline_and_project_calendar
         assert measurement["earned_value"]["etc_method"] == "PF_ONE"
     finally:
         runtime.close()
+
+
+def test_preview_learning_memory_is_session_scoped_audited_and_persistent(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview.sqlite3"
+    runtime = open_preview_runtime(database, reset=True)
+    try:
+        admin = runtime.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+        payload = {
+            "record_id": "preview-learning-lesson-1",
+            "record_version": 1,
+            "scope": "user_private",
+            "status": "candidate",
+            "signal_kind": "user_correction",
+            "lesson": "Record the measured crew output before changing the productivity assumption.",
+            "conditions": "Planning update based on a field observation.",
+            "limitations": "Do not generalize this observation to another project without review.",
+            "evidence_refs": ["field-note:RPS-042"],
+        }
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"/api/projects/{RPS_PROJECT}/ai/learning-memory",
+            cookie=admin.session_id,
+            body=json.dumps(payload).encode("utf-8"),
+        )
+        assert status == 201
+        created = json.loads(body)["record"]
+        assert created["record_id"] == "preview-learning-lesson-1"
+        assert created["scope"] == "user_private"
+        assert created["status"] == "candidate"
+
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            f"/api/projects/{RPS_PROJECT}/ai/learning-memory",
+            cookie=admin.session_id,
+        )
+        assert status == 200
+        assert [
+            item["record_id"] for item in json.loads(body)["records"]
+        ] == ["preview-learning-lesson-1"]
+
+        # A user without explicit learning grants does not inherit them from
+        # the default planner role, even though the user can read the project.
+        planner = runtime.sessions.create(DEMO_USERS_BY_ROLE["planner"])
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            f"/api/projects/{RPS_PROJECT}/ai/learning-memory",
+            cookie=planner.session_id,
+        )
+        assert status == 403
+        assert json.loads(body)["code"] == "AI_LEARNING_READ_NOT_AUTHORIZED"
+
+        audit = runtime.connection.execute(
+            "SELECT actor_user_id, action, outcome, reason_code "
+            "FROM ai_learning_memory_audit_events "
+            "WHERE tenant_id=? AND project_id=? ORDER BY occurred_at, event_id",
+            (RPS_TENANT, RPS_PROJECT),
+        ).fetchall()
+        assert audit == [
+            ("preview-admin", "append", "allowed", None),
+            ("preview-admin", "list", "allowed", None),
+            (
+                "preview-planner",
+                "list",
+                "denied",
+                "AI_LEARNING_READ_PERMISSION_REQUIRED",
+            ),
+        ]
+        migration_versions = runtime.connection.execute(
+            "SELECT version FROM ai_learning_memory_schema_migrations ORDER BY version"
+        ).fetchall()
+        assert migration_versions == [(1,), (2,), (3,)]
+    finally:
+        runtime.close()
+
+    reopened = open_preview_runtime(database)
+    try:
+        admin = reopened.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+        status, _, body = _request(
+            reopened.app,
+            "GET",
+            f"/api/projects/{RPS_PROJECT}/ai/learning-memory",
+            cookie=admin.session_id,
+        )
+        assert status == 200
+        records = json.loads(body)["records"]
+        assert [item["record_id"] for item in records] == [
+            "preview-learning-lesson-1"
+        ]
+        persisted_audit = reopened.connection.execute(
+            "SELECT COUNT(*) FROM ai_learning_memory_audit_events "
+            "WHERE tenant_id=? AND project_id=?",
+            (RPS_TENANT, RPS_PROJECT),
+        ).fetchone()
+        assert persisted_audit == (3,)
+    finally:
+        reopened.close()
