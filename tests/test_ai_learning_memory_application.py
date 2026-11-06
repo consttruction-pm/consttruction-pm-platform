@@ -210,6 +210,7 @@ def test_general_candidates_require_separate_create_grant_and_never_enter_retrie
     candidate = memory_record(
         scope=LearningScope.GENERAL_CANDIDATE,
         owner_user_id=None,
+        consent_for_generalization=True,
     )
     assert app.append(candidate, context()) == candidate
     with pytest.raises(
