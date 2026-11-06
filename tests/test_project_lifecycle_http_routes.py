@@ -2,12 +2,17 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 import json
 
-from construction_pm.application.authorization import default_project_policy, AuthorizationContext
+from construction_pm.application.authorization import (
+    default_project_policy, AuthorizationContext, Permission, RoleBasedAuthorizationPolicy
+)
+from construction_pm.ai_learning_memory_application import AILearningMemoryApplicationService
+from construction_pm.ai_learning_memory_repository import SQLiteAILearningMemoryRepository
 from construction_pm.change_claim_api import ChangeClaimAPI, P0_CHANGE_CLAIM_API_VERSION
 from construction_pm.change_claims import ChangeClaimService, InMemoryChangeClaimRepository
 from construction_pm.application.project_lifecycle import (
     AuthenticatedSession,
     ProjectSummary,
+    ProjectLifecycleService,
 )
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRoutes
@@ -2398,3 +2403,161 @@ def test_project_http_get_unknown_project_is_forbidden():
     )
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+
+def learning_memory_routes(permission_set):
+    now = datetime(2026, 11, 7, 12, 0, tzinfo=timezone.utc)
+    session = AuthenticatedSession(
+        "learning-session",
+        "learning-user",
+        "learning-tenant",
+        frozenset({"learning-role"}),
+        now + timedelta(hours=1),
+    )
+    policy = RoleBasedAuthorizationPolicy(
+        {"learning-role": frozenset(permission_set)}
+    )
+    lifecycle = ProjectLifecycleService(Sessions(session), Projects(), policy)
+    connection = __import__("sqlite3").connect(":memory:")
+    repository = SQLiteAILearningMemoryRepository(connection)
+    memory_service = AILearningMemoryApplicationService(repository, policy)
+    clock = type("Clock", (), {"now": lambda self: now})()
+    app = ProjectLifecycleHttpRoutes(
+        ProjectLifecycleAPI(lifecycle),
+        clock=clock,
+        ai_learning_memory_service=memory_service,
+    )
+    return app, repository, connection
+
+
+def test_authenticated_project_session_can_capture_and_read_private_learning_memory():
+    permissions = {
+        Permission.PROJECT_READ,
+        Permission.AI_LEARNING_USER_READ,
+        Permission.AI_LEARNING_USER_WRITE,
+    }
+    app, repository, connection = learning_memory_routes(permissions)
+    payload = {
+        "record_id": "http-lesson-1",
+        "record_version": 1,
+        "scope": "user_private",
+        "status": "candidate",
+        "signal_kind": "user_correction",
+        "lesson": "Check the source of a crew production rate.",
+        "conditions": "Early planning when field measurements are unavailable.",
+        "limitations": "Do not treat the rate as a verified project quantity.",
+        "evidence_refs": ["meeting-note:42"],
+        # Client identity/provenance fields are deliberately not accepted.
+    }
+    status, _, body = app.handle(
+        "POST",
+        "/api/projects/p1/ai/learning-memory",
+        cookies={"cp_session": "learning-session"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 201
+    created = json.loads(body)["record"]
+    assert created["record_id"] == "http-lesson-1"
+    assert created["scope"] == "user_private"
+    assert created["status"] == "candidate"
+
+    status, _, body = app.handle(
+        "GET",
+        "/api/projects/p1/ai/learning-memory",
+        cookies={"cp_session": "learning-session"},
+    )
+    assert status == 200
+    records = json.loads(body)["records"]
+    assert [item["record_id"] for item in records] == ["http-lesson-1"]
+
+    stored = repository.get(
+        "http-lesson-1",
+        1,
+        __import__(
+            "construction_pm.ai_learning_memory",
+            fromlist=["LearningRetrievalScope"],
+        ).LearningRetrievalScope(
+            user_id="learning-user", user_private_access_granted=True
+        ),
+    )
+    assert stored is not None
+    assert stored.owner_user_id == "learning-user"
+    assert stored.tenant_id is None
+    assert stored.project_id is None
+
+    audit = repository.list_audit_events(
+        tenant_id="learning-tenant", project_id="p1"
+    )
+    assert [(event.action, event.outcome) for event in audit] == [
+        ("append", "allowed"),
+        ("list", "allowed"),
+    ]
+    connection.close()
+
+
+def test_learning_memory_http_rejects_spoofed_identity_and_reviewed_status():
+    permissions = {
+        Permission.PROJECT_READ,
+        Permission.AI_LEARNING_USER_READ,
+        Permission.AI_LEARNING_USER_WRITE,
+        Permission.AI_LEARNING_PROJECT_WRITE,
+        Permission.PROJECT_WRITE,
+    }
+    app, repository, connection = learning_memory_routes(permissions)
+    forged = {
+        "record_id": "forged",
+        "record_version": 1,
+        "scope": "user_private",
+        "status": "candidate",
+        "signal_kind": "user_correction",
+        "lesson": "A forged memory.",
+        "conditions": "Never accepted.",
+        "limitations": "Never accepted.",
+        "evidence_refs": ["evidence-1"],
+        "owner_user_id": "another-user",
+    }
+    status, _, body = app.handle(
+        "POST",
+        "/api/projects/p1/ai/learning-memory",
+        cookies={"cp_session": "learning-session"},
+        body=json.dumps(forged).encode("utf-8"),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "AI_LEARNING_REQUEST_INVALID"
+
+    reviewed = {
+        key: value for key, value in forged.items() if key != "owner_user_id"
+    }
+    reviewed["record_id"] = "forged-validated"
+    reviewed["status"] = "validated"
+    status, _, body = app.handle(
+        "POST",
+        "/api/projects/p1/ai/learning-memory",
+        cookies={"cp_session": "learning-session"},
+        body=json.dumps(reviewed).encode("utf-8"),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "AI_LEARNING_REQUEST_INVALID"
+    assert repository.list_audit_events(
+        tenant_id="learning-tenant", project_id="p1"
+    ) == ()
+    connection.close()
+
+
+def test_learning_memory_http_denial_is_audited_and_default_deny():
+    app, repository, connection = learning_memory_routes({Permission.PROJECT_READ})
+    status, _, body = app.handle(
+        "GET",
+        "/api/projects/p1/ai/learning-memory",
+        cookies={"cp_session": "learning-session"},
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "AI_LEARNING_READ_NOT_AUTHORIZED"
+    events = repository.list_audit_events(
+        tenant_id="learning-tenant", project_id="p1"
+    )
+    assert len(events) == 1
+    assert events[0].action == "list"
+    assert events[0].outcome == "denied"
+    assert events[0].reason_code == "AI_LEARNING_READ_PERMISSION_REQUIRED"
+    connection.close()
