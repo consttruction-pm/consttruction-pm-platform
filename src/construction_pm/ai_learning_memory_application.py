@@ -170,13 +170,14 @@ class AILearningMemoryApplicationService:
                 result_count=0,
             )
             raise AILearningMemoryApplicationError("AI_LEARNING_READ_NOT_AUTHORIZED")
-        records = self.repository.list_retrievable(scope)
-        self._record_audit(
-            context,
-            action="list",
-            outcome="allowed",
-            result_count=len(records),
-        )
+        with self.repository.transaction():
+            records = self.repository.list_retrievable(scope)
+            self._record_audit(
+                context,
+                action="list",
+                outcome="allowed",
+                result_count=len(records),
+            )
         return records
 
     def get(
@@ -199,14 +200,15 @@ class AILearningMemoryApplicationService:
                 reason_code="AI_LEARNING_READ_PERMISSION_REQUIRED",
             )
             raise AILearningMemoryApplicationError("AI_LEARNING_READ_NOT_AUTHORIZED")
-        record = self.repository.get(record_id, record_version, scope)
-        self._record_audit(
-            context,
-            action="get",
-            outcome="allowed" if record is not None else "empty",
-            reason_code=None if record is not None else "AI_LEARNING_RECORD_NOT_VISIBLE",
-            record=record,
-        )
+        with self.repository.transaction():
+            record = self.repository.get(record_id, record_version, scope)
+            self._record_audit(
+                context,
+                action="get",
+                outcome="allowed" if record is not None else "empty",
+                reason_code=None if record is not None else "AI_LEARNING_RECORD_NOT_VISIBLE",
+                record=record,
+            )
         return record
 
     def append(
