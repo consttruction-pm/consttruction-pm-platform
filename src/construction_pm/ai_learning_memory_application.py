@@ -96,13 +96,19 @@ class AILearningMemoryApplicationService:
                 "AI_LEARNING_AUDIT_PERSISTENCE_FAILED"
             ) from exc
 
-    def _allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
+    def _allowed(
+        self,
+        context: AuthorizationContext,
+        permission: Permission,
+        *,
+        action: str,
+    ) -> bool:
         try:
             return self.authorization_policy.is_allowed(context, permission)
         except Exception as exc:
             self._record_audit(
                 context,
-                action="list",
+                action=action,
                 outcome="denied",
                 reason_code="AI_LEARNING_PERMISSION_PROVIDER_FAILED",
             )
@@ -118,7 +124,7 @@ class AILearningMemoryApplicationService:
         action: str,
         record: AILearningMemoryRecord | None = None,
     ) -> None:
-        if not self._allowed(context, permission):
+        if not self._allowed(context, permission, action=action):
             self._record_audit(
                 context,
                 action=action,
@@ -130,35 +136,46 @@ class AILearningMemoryApplicationService:
                 f"AI_LEARNING_PERMISSION_DENIED:{permission.value}"
             )
 
-    def retrieval_scope(self, context: AuthorizationContext) -> LearningRetrievalScope:
+    def retrieval_scope(
+        self,
+        context: AuthorizationContext,
+        *,
+        action: str = "list",
+    ) -> LearningRetrievalScope:
         """Build trusted repository filters from current authenticated grants."""
         self._validate_context(context)
-        project_read = self._allowed(context, Permission.PROJECT_READ)
+        project_read = self._allowed(
+            context, Permission.PROJECT_READ, action=action
+        )
         return LearningRetrievalScope(
             user_id=context.user_id,
             tenant_id=context.tenant_id,
             project_id=context.project_id,
             user_private_access_granted=(
-                project_read and self._allowed(context, Permission.AI_LEARNING_USER_READ)
+                project_read
+                and self._allowed(context, Permission.AI_LEARNING_USER_READ, action=action)
             ),
             project_private_access_granted=(
-                project_read and self._allowed(context, Permission.AI_LEARNING_PROJECT_READ)
+                project_read
+                and self._allowed(context, Permission.AI_LEARNING_PROJECT_READ, action=action)
             ),
             tenant_shared_access_granted=(
-                project_read and self._allowed(context, Permission.AI_LEARNING_TENANT_READ)
+                project_read
+                and self._allowed(context, Permission.AI_LEARNING_TENANT_READ, action=action)
             ),
             general_candidate_access_granted=self._allowed(
-                context, Permission.AI_LEARNING_GENERAL_VALIDATE
+                context, Permission.AI_LEARNING_GENERAL_VALIDATE, action=action
             ),
             general_published_access_granted=(
-                project_read and self._allowed(context, Permission.AI_LEARNING_GENERAL_READ)
+                project_read
+                and self._allowed(context, Permission.AI_LEARNING_GENERAL_READ, action=action)
             ),
         )
 
     def list_retrievable(
         self, context: AuthorizationContext
     ) -> tuple[AILearningMemoryRecord, ...]:
-        scope = self.retrieval_scope(context)
+        scope = self.retrieval_scope(context, action="list")
         if not any((
             scope.user_private_access_granted,
             scope.project_private_access_granted,
@@ -190,7 +207,7 @@ class AILearningMemoryApplicationService:
         record_version: int,
         context: AuthorizationContext,
     ) -> AILearningMemoryRecord | None:
-        scope = self.retrieval_scope(context)
+        scope = self.retrieval_scope(context, action="get")
         if not any((
             scope.user_private_access_granted,
             scope.project_private_access_granted,
