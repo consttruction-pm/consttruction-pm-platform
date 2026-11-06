@@ -1154,6 +1154,7 @@ def open_preview_runtime(
         Permission.AI_LEARNING_TENANT_WRITE,
         Permission.AI_LEARNING_GENERAL_READ,
         Permission.AI_LEARNING_GENERAL_CANDIDATE_CREATE,
+        Permission.AI_LEARNING_GENERAL_VALIDATE,
     })
     policy = RoleBasedAuthorizationPolicy({
         "viewer": base_policy.permissions_for_role("viewer"),
