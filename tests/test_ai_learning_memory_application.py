@@ -90,7 +90,13 @@ def test_default_project_roles_do_not_implicitly_grant_learning_memory_access():
     assert not scope.project_private_access_granted
     assert not scope.tenant_shared_access_granted
     assert not scope.general_published_access_granted
-    assert app.list_retrievable(ctx) == ()
+    with pytest.raises(
+        AILearningMemoryApplicationError, match="AI_LEARNING_READ_NOT_AUTHORIZED"
+    ):
+        app.list_retrievable(ctx)
+    audit = app.repository.list_audit_events(tenant_id="tenant-1", project_id="project-1")
+    assert audit[-1].action == "list"
+    assert audit[-1].outcome == "denied"
 
 
 def test_user_private_memory_is_read_and_written_only_for_authenticated_owner():
@@ -160,20 +166,35 @@ def test_tenant_shared_memory_requires_explicit_tenant_grant_and_exact_tenant():
     app, connection = service(permissions)
     item = memory_record(
         scope=LearningScope.TENANT_SHARED,
-        status=LearningStatus.VALIDATED,
+        status=LearningStatus.CANDIDATE,
         owner_user_id=None,
         tenant_id="tenant-1",
     )
     assert app.append(item, context(user_id="user-1")) == item
-    assert app.list_retrievable(context(user_id="user-2")) == (item,)
+    # Tenant-shared candidates cannot be consumed until the review workflow
+    # advances them to validated status.
+    assert app.list_retrievable(context(user_id="user-2")) == ()
     assert app.list_retrievable(
         context(user_id="user-2", tenant_id="tenant-other")
     ) == ()
 
+    unreviewed = memory_record(
+        record_id="unreviewed",
+        scope=LearningScope.TENANT_SHARED,
+        status=LearningStatus.VALIDATED,
+        owner_user_id=None,
+        tenant_id="tenant-1",
+    )
+    with pytest.raises(
+        AILearningMemoryApplicationError,
+        match="AI_LEARNING_STATUS_REQUIRES_REVIEW_WORKFLOW",
+    ):
+        app.append(unreviewed, context(user_id="user-1"))
+
     wrong_tenant = memory_record(
         record_id="wrong-tenant",
         scope=LearningScope.TENANT_SHARED,
-        status=LearningStatus.VALIDATED,
+        status=LearningStatus.CANDIDATE,
         owner_user_id=None,
         tenant_id="tenant-other",
     )
