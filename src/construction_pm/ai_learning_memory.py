@@ -43,13 +43,24 @@ class LearningRetrievalScope:
     user_id: str
     tenant_id: str | None = None
     project_id: str | None = None
+    user_private_access_granted: bool = True
+    project_private_access_granted: bool = True
     tenant_shared_access_granted: bool = False
+    general_published_access_granted: bool = True
 
     def __post_init__(self) -> None:
         if not isinstance(self.user_id, str) or not self.user_id.strip():
             raise AILearningMemoryError("AI_LEARNING_AUTHENTICATED_USER_REQUIRED")
         for name, value in (("tenant_id", self.tenant_id), ("project_id", self.project_id)):
             if value is not None and (not isinstance(value, str) or not value.strip()):
+                raise AILearningMemoryError(f"INVALID_AI_LEARNING_SCOPE_{name.upper()}")
+        for name, value in (
+            ("user_private_access_granted", self.user_private_access_granted),
+            ("project_private_access_granted", self.project_private_access_granted),
+            ("tenant_shared_access_granted", self.tenant_shared_access_granted),
+            ("general_published_access_granted", self.general_published_access_granted),
+        ):
+            if not isinstance(value, bool):
                 raise AILearningMemoryError(f"INVALID_AI_LEARNING_SCOPE_{name.upper()}")
 
 
@@ -183,14 +194,17 @@ class AILearningMemoryRecord:
         if not isinstance(scope, LearningRetrievalScope):
             raise AILearningMemoryError("TRUSTED_AI_LEARNING_RETRIEVAL_SCOPE_REQUIRED")
         if self.is_general_retrieval_eligible():
-            return True
+            return scope.general_published_access_granted
         if self.status in {LearningStatus.REJECTED, LearningStatus.RETIRED}:
             return False
         if self.scope is LearningScope.USER_PRIVATE:
-            return self.owner_user_id == scope.user_id
+            return scope.user_private_access_granted and self.owner_user_id == scope.user_id
         if self.scope is LearningScope.PROJECT_PRIVATE:
+            # owner_user_id records who captured the lesson; project membership
+            # controls retrieval. It must not make a valid project lesson invisible
+            # to another explicitly authorized member of that same project.
             return (
-                self.owner_user_id == scope.user_id
+                scope.project_private_access_granted
                 and self.tenant_id == scope.tenant_id
                 and self.project_id == scope.project_id
             )
