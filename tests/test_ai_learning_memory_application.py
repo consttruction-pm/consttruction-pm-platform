@@ -89,6 +89,7 @@ def test_default_project_roles_do_not_implicitly_grant_learning_memory_access():
     assert not scope.user_private_access_granted
     assert not scope.project_private_access_granted
     assert not scope.tenant_shared_access_granted
+    assert not scope.general_candidate_access_granted
     assert not scope.general_published_access_granted
     with pytest.raises(
         AILearningMemoryApplicationError, match="AI_LEARNING_READ_NOT_AUTHORIZED"
