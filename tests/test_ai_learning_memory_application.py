@@ -212,7 +212,10 @@ def test_general_candidates_require_separate_create_grant_and_never_enter_retrie
         owner_user_id=None,
     )
     assert app.append(candidate, context()) == candidate
-    assert app.list_retrievable(context()) == ()
+    with pytest.raises(
+        AILearningMemoryApplicationError, match="AI_LEARNING_READ_NOT_AUTHORIZED"
+    ):
+        app.list_retrievable(context())
     connection.close()
 
 
