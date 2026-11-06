@@ -486,6 +486,10 @@ class _RepositoryBase:
                 "(scope = 'project_private' AND tenant_id = " + p + " AND project_id = " + p + ")"
             )
             params.extend((scope.tenant_id, scope.project_id))
+        if scope.general_candidate_access_granted:
+            # Candidate rows are visible only to explicitly authorized reviewers.
+            # Include every version so rejected/retired versions suppress older ones.
+            predicates.append("(scope = 'general_candidate')")
         if scope.general_published_access_granted:
             # Include retired/superseding versions in the latest-version decision;
             # the record contract filters retired rows after version selection.
