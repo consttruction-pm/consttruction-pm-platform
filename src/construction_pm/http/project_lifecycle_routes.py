@@ -2669,6 +2669,13 @@ class ProjectLifecycleHttpRoutes:
                             "result_type": validation.get("result_type", {"data_type": None}),
                         })
                     result_data_type = validation.get("result_type", {}).get("data_type")
+                    inferred_unit = validation.get("result_type", {}).get("unit")
+                    if result_unit is not None and result_unit != inferred_unit:
+                        return self._json(422, {
+                            "contract_version": P6_FORMULA_DEFINITION_API_VERSION,
+                            "validation": {"valid": False, "error_code": "FORMULA_RESULT_UNIT_MISMATCH"},
+                            "result_type": {"data_type": result_data_type, "unit": inferred_unit},
+                        })
                     result_types = {
                         "string": FormulaType.TEXT,
                         "double": FormulaType.NUMBER,
@@ -2688,7 +2695,7 @@ class ProjectLifecycleHttpRoutes:
                         version=version.strip(),
                         expression=expression,
                         result_type=formula_type,
-                        result_unit=result_unit,
+                        result_unit=inferred_unit,
                         dependencies=tuple(dependencies),
                         metadata={
                             "subject_area": "Activity",
