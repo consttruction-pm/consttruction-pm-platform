@@ -977,16 +977,22 @@ class Page {
   }
 
   async rightClick(selector) {
-    const point = await this.evaluate(`(() => {
+    const dispatched = await this.evaluate(`(() => {
       const element = document.querySelector(${JSON.stringify(selector)});
-      if (!element) return null;
+      if (!element) return false;
       const rect = element.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return null;
-      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      if (rect.width === 0 || rect.height === 0) return false;
+      return element.dispatchEvent(new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        button: 2,
+        buttons: 2,
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2,
+      }));
     })()`);
-    assert(point, `right-click target not found or not visible: ${selector}`);
-    await this.cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "right", clickCount: 1 });
-    await this.cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "right", clickCount: 1 });
+    assert(dispatched, `right-click target not found or context menu event was not accepted: ${selector}`);
   }
 
   async setInput(selector, value) {
