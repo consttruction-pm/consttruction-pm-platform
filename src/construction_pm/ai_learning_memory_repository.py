@@ -515,10 +515,20 @@ class _RepositoryBase:
             raise AILearningMemoryPersistenceError("INVALID_AI_LEARNING_RECORD_ID")
         if isinstance(record_version, bool) or not isinstance(record_version, int) or record_version < 1:
             raise AILearningMemoryPersistenceError("INVALID_AI_LEARNING_RECORD_VERSION")
-        for record in self.list_retrievable(scope):
-            if record.record_id == record_id and record.record_version == record_version:
-                return record
-        return None
+        if not isinstance(scope, LearningRetrievalScope):
+            raise AILearningMemoryPersistenceError(
+                "TRUSTED_AI_LEARNING_RETRIEVAL_SCOPE_REQUIRED"
+            )
+        p = self.placeholder
+        row = self.connection.execute(
+            "SELECT payload_json FROM ai_learning_memory_records "
+            f"WHERE record_id={p} AND record_version={p}",
+            (record_id, record_version),
+        ).fetchone()
+        if row is None:
+            return None
+        record = _decode(row[0])
+        return record if record.is_retrievable_for(scope) else None
 
     def append_with_audit(
         self,
