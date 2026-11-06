@@ -79,6 +79,9 @@ class AILearningMemoryAuditEvent:
 class AILearningMemoryRepository(Protocol):
     def initialize(self) -> None: ...
     def append(self, record: AILearningMemoryRecord) -> AILearningMemoryRecord: ...
+    def append_with_audit(
+        self, record: AILearningMemoryRecord, event: AILearningMemoryAuditEvent
+    ) -> AILearningMemoryRecord: ...
     def get(self, record_id: str, record_version: int, scope: LearningRetrievalScope) -> AILearningMemoryRecord | None: ...
     def list_retrievable(self, scope: LearningRetrievalScope) -> tuple[AILearningMemoryRecord, ...]: ...
     def append_audit_event(self, event: AILearningMemoryAuditEvent) -> AILearningMemoryAuditEvent: ...
@@ -462,12 +465,20 @@ class _RepositoryBase:
         return [row[0] for row in rows]
 
     def list_retrievable(self, scope: LearningRetrievalScope) -> tuple[AILearningMemoryRecord, ...]:
-        records = tuple(
+        # A newer immutable version supersedes every earlier version, including
+        # when the newer version is rejected or retired. Never resurrect stale
+        # published/validated knowledge by filtering old versions independently.
+        latest: dict[str, AILearningMemoryRecord] = {}
+        for payload in self._read_payloads(scope):
+            record = _decode(payload)
+            current = latest.get(record.record_id)
+            if current is None or record.record_version > current.record_version:
+                latest[record.record_id] = record
+        return tuple(
             record
-            for record in (_decode(payload) for payload in self._read_payloads(scope))
+            for record in sorted(latest.values(), key=lambda item: item.record_id)
             if record.is_retrievable_for(scope)
         )
-        return records
 
     def get(
         self, record_id: str, record_version: int, scope: LearningRetrievalScope
@@ -480,6 +491,13 @@ class _RepositoryBase:
             if record.record_id == record_id and record.record_version == record_version:
                 return record
         return None
+
+    def append_with_audit(
+        self,
+        record: AILearningMemoryRecord,
+        event: AILearningMemoryAuditEvent,
+    ) -> AILearningMemoryRecord:
+        raise NotImplementedError
 
     def append_audit_event(
         self, event: AILearningMemoryAuditEvent
@@ -579,6 +597,34 @@ class SQLiteAILearningMemoryRepository(_RepositoryBase):
         for statement in _SQLITE_APPEND_ONLY_TRIGGERS:
             self.connection.execute(statement)
 
+    def append_with_audit(
+        self,
+        record: AILearningMemoryRecord,
+        event: AILearningMemoryAuditEvent,
+    ) -> AILearningMemoryRecord:
+        owns_transaction = not self.connection.in_transaction
+        savepoint = "cubi_ai_learning_memory_append_audit"
+        if owns_transaction:
+            self.connection.execute("BEGIN IMMEDIATE")
+        else:
+            self.connection.execute(f"SAVEPOINT {savepoint}")
+        try:
+            stored = self.append(record)
+            self.append_audit_event(event)
+        except Exception:
+            if owns_transaction:
+                self.connection.rollback()
+            else:
+                self.connection.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+                self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+            raise
+        else:
+            if owns_transaction:
+                self.connection.commit()
+            else:
+                self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+            return stored
+
     def initialize(self) -> None:
         # Atomic DDL + migration-history write. When a caller already owns a
         # transaction, a savepoint lets initialization roll back only its work.
@@ -638,6 +684,24 @@ class PostgresAILearningMemoryRepository(_RepositoryBase):
         self.connection.execute(_POSTGRES_APPEND_ONLY_FUNCTION)
         for statement in _POSTGRES_APPEND_ONLY_TRIGGERS:
             self.connection.execute(statement)
+
+    def append_with_audit(
+        self,
+        record: AILearningMemoryRecord,
+        event: AILearningMemoryAuditEvent,
+    ) -> AILearningMemoryRecord:
+        savepoint = "cubi_ai_learning_memory_append_audit"
+        self.connection.execute(f"SAVEPOINT {savepoint}")
+        try:
+            stored = self.append(record)
+            self.append_audit_event(event)
+        except Exception:
+            self.connection.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+            self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+            raise
+        else:
+            self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+            return stored
 
     def initialize(self) -> None:
         # Do not commit here: callers own PostgreSQL transaction boundaries.
