@@ -101,12 +101,11 @@ from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VE
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
 from ..p6_formula_definition_api import (
     P6FormulaDefinitionAPI,
-    P6FormulaDefinitionPersistenceError,
     P6_FORMULA_DEFINITION_API_VERSION,
     P6_FORMULA_SEMANTIC_REFERENCE,
     P6_FORMULA_SEMANTIC_VERSION,
 )
-from ..p6_formula_definition_repository import FormulaDefinitionCreateRequest
+from ..p6_formula_definition_repository import FormulaDefinitionCreateRequest, P6FormulaDefinitionPersistenceError
 from ..p6_formula_engine import FormulaType
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
