@@ -2012,6 +2012,16 @@ async function main() {
       assert(fullscreenStable.active && fullscreenStable.sameSurface && fullscreenStable.pressed === "true" &&
         fullscreenStable.label.includes("Return to normal view"),
         "fullscreen must remain active after the fullscreenchange event: " + JSON.stringify(fullscreenStable));
+      await deepLinkPage.click('.cp-vd-left-nav button[data-vd-window="wbs"]');
+      await deepLinkPage.waitFor(
+        `document.fullscreenElement === document.querySelector("[data-visual-demo]") && document.querySelector('[data-vd-window="wbs"].is-active')`,
+        "fullscreen surface identity survives workspace navigation redraw",
+      );
+      await deepLinkPage.click('.cp-vd-left-nav button[data-vd-window="activities"]');
+      await deepLinkPage.waitFor(
+        `document.fullscreenElement === document.querySelector("[data-visual-demo]") && document.querySelector('[data-vd-window="activities"].is-active')`,
+        "fullscreen remains active after returning to Activities",
+      );
       await deepLinkPage.realClick('[data-vd-fullscreen]');
       await deepLinkPage.waitFor(
         `document.fullscreenElement === null && document.querySelector("[data-vd-fullscreen]")?.getAttribute("aria-pressed") === "false"`,
