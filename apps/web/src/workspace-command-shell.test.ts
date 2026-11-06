@@ -3,14 +3,13 @@ import test from "node:test";
 
 import { renderWorkspaceCommandShell } from "./workspace-command-shell.js";
 
-test("visual command shell exposes all global menu families and toolbar groups", () => {
+test("visual command shell exposes one global menu bar and no duplicate grouped toolbar", () => {
   const html = renderWorkspaceCommandShell("en");
   for (const label of ["Workspace", "Edit", "View", "Project", "Organization", "Tools", "Administration", "Help"]) {
-    assert.ok(html.includes(`<summary>${label}</summary>`), `missing ${label} menu`);
+    assert.match(html, new RegExp(`<summary>${label}<span class="cubi-submenu-caret">›</span></summary>`), `missing ${label} menu`);
   }
-  for (const group of ["Standard", "Project", "Layout", "Schedule", "CUBI Tools"]) {
-    assert.ok(html.includes(`<strong>${group}</strong>`), `missing ${group} toolbar group`);
-  }
+  assert.match(html, /class="cubi-command-menubar" role="menubar"/);
+  assert.doesNotMatch(html, /class="cubi-toolbar"/, "the grouped command toolbar must not duplicate the primary icon toolbar");
   assert.match(html, /Show on Top/);
   assert.match(html, /Show on Bottom/);
   assert.match(html, /Group and Sort By/);
@@ -41,16 +40,17 @@ test("CUBI Form Builder is additive and exposes both governed libraries", () => 
   assert.match(html, /Form Versions/);
 });
 
-test("Persian command shell localizes menus, common commands and toolbar groups in RTL", () => {
+test("Persian command shell localizes the single menu bar in RTL", () => {
   const html = renderWorkspaceCommandShell("fa");
   assert.match(html, /dir="rtl"/);
-  assert.match(html, /<summary>محیط کار<\/summary>/);
-  assert.match(html, /<summary>ویرایش<\/summary>/);
-  assert.match(html, /<summary>نمایش<\/summary>/);
+  assert.match(html, /<summary>محیط کار<span class="cubi-submenu-caret">›<\/span><\/summary>/);
+  assert.match(html, /<summary>ویرایش<span class="cubi-submenu-caret">›<\/span><\/summary>/);
+  assert.match(html, /<summary>نمایش<span class="cubi-submenu-caret">›<\/span><\/summary>/);
   assert.match(html, /ذخیره/);
   assert.match(html, /افزودن/);
   assert.match(html, /فرم‌ساز/);
-  assert.match(html, /نوار ابزار اصلی/);
+  assert.match(html, /منوی اصلی/);
+  assert.doesNotMatch(html, /نوار ابزار اصلی/);
 });
 
 

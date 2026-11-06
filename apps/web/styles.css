@@ -4851,6 +4851,45 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 > #cp-ai-assistant-chat:not([open]),
 .cp-p6 > #cp-ai-action-panel:not([open]) { max-height: 40px; overflow: hidden; }
 
+/* Keep the persistent assistant entry inside the narrow command rail so it
+   never covers the Activities grid, Gantt, Details fields or status bar. */
+body:has(.cp-p6) .cubi-assistant-launcher {
+  inset-inline-end: 1px;
+  bottom: 60px;
+  gap: 0;
+}
+body:has(.cp-p6) .cubi-assistant-launcher-button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  max-width: 32px;
+  padding: 2px;
+  gap: 0;
+  border-radius: 5px;
+}
+body:has(.cp-p6) .cubi-assistant-launcher-button > span:last-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+body:has(.cp-p6) .cubi-assistant-launcher .cubi-assistant-avatar-slot {
+  flex-basis: 28px;
+  width: 28px;
+  height: 28px;
+}
+body:has(.cp-p6) .cubi-assistant-launcher .cubi-assistant-avatar-slot img,
+body:has(.cp-p6) .cubi-assistant-launcher .cubi-assistant-avatar-fallback {
+  width: 28px;
+  height: 28px;
+}
+
 /* Title, menu, toolbar and layout bars keep their reference heights. */
 .cp-p6 .cp-titlebar {
   height: 23px;
@@ -5165,6 +5204,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   grid-column: 2;
   grid-row: 1;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 18px minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
@@ -5212,7 +5252,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-main {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) !important;
-  grid-template-rows: minmax(0, 63.58fr) 10px minmax(0, 36.42fr) !important;
+  grid-template-rows: minmax(0, var(--cp-split-details, 70%)) 10px minmax(0, calc(100% - var(--cp-split-details, 70%) - 10px)) !important;
   align-items: stretch !important;
   gap: 0 !important;
   min-width: 0;
@@ -5230,7 +5270,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 }
 .cp-p6 .cp-p6-split {
   display: none !important;
-  grid-template-columns: minmax(0, var(--cp-split-table, 53.5%)) 4px minmax(0, calc(100% - var(--cp-split-table, 53.5%) - 4px));
+  grid-template-columns: minmax(0, var(--cp-split-table, 45%)) 4px minmax(0, calc(100% - var(--cp-split-table, 45%) - 4px));
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
@@ -5467,6 +5507,64 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-gantt-placeholder { display: grid; place-items: center; flex: 1 1 auto; color: #66788c; font-size: 10px; }
 
 /* Bottom details: 23px head, 23px tabs, remaining content height (225 at 808). */
+.cp-p6 .cp-p6-details-splitter {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 10px;
+  min-height: 10px;
+  background: #e3e8ee;
+  border-block: 1px solid #c3ccd8;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+}
+.cp-p6 .cp-p6-details-splitter span { display: block; width: 28px; height: 2px; background: #90a1b5; }
+.cp-p6 .cp-p6-details-splitter:hover,
+.cp-p6 .cp-p6-details-splitter:focus-visible { background: #cfe0f2; outline: 0; }
+.cp-p6 .cp-p6-details-splitter[hidden] { display: none !important; }
+
+.cp-p6 #cp-activity-grid thead th.cp-p6-column { position: sticky; }
+.cp-p6 .cp-column-resize-handle {
+  position: relative;
+  z-index: 8;
+  display: inline-block;
+  float: inline-end;
+  width: 8px;
+  min-width: 8px;
+  height: 24px;
+  min-height: 24px;
+  margin-block: -2px;
+  margin-inline-end: -4px;
+  vertical-align: middle;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.cp-p6 .cp-column-resize-handle::after {
+  content: "";
+  position: absolute;
+  inset-block: 3px;
+  inset-inline-start: 3px;
+  width: 1px;
+  background: transparent;
+}
+.cp-p6 .cp-column-resize-handle:hover::after,
+.cp-p6 .cp-column-resize-handle:focus-visible::after {
+  background: #1c66ad;
+  width: 2px;
+}
+.cp-p6 .cp-column-resize-handle:focus-visible { outline: 1px solid #1c66ad; outline-offset: -1px; }
+.cp-p6.is-resizing { user-select: none; }
+.cp-p6.is-resizing-table-gantt,
+.cp-p6.is-resizing-column,
+html.cubi-is-resizing:has(.cp-p6.is-resizing) { cursor: col-resize; }
+.cp-p6.is-resizing-details,
+html.cubi-is-resizing:has(.cp-p6.is-resizing) .cp-p6-details-splitter { cursor: row-resize; }
+
 .cp-p6 #cp-details {
   grid-column: 1 !important;
   grid-row: 3 !important;
@@ -6651,7 +6749,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   .cp-p6 .cp-comments-dock-rail.cp-context-command-rail { width: 32px; min-width: 32px; }
   .cp-p6 .cp-context-command-rail .cp-rail-button,
   .cp-p6 .cp-context-add-menu > summary { width: 27px; min-width: 27px; }
-  .cp-p6 .cp-p6-body { grid-template-rows: auto 28px 30px minmax(0, 1fr); }
+  .cp-p6 .cp-p6-body { grid-template-rows: 30px 32px minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .cp-p6 .cp-p6-shell { grid-template-columns: 36px minmax(0, 1fr) 30px; }
@@ -6663,7 +6761,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 }
 
 
-.cp-p6 .cp-p6-body { grid-template-rows: auto 28px 30px 32px minmax(0, 1fr); }
+.cp-p6 .cp-p6-body { grid-template-rows: 30px 32px minmax(0, 1fr); }
 .cp-p6 .cp-context-command-bar {
   display: flex;
   align-items: center;
@@ -6709,7 +6807,7 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   cursor: not-allowed;
 }
 @media (max-width: 900px) {
-  .cp-p6 .cp-p6-body { grid-template-rows: auto 28px 30px 32px minmax(0, 1fr); }
+  .cp-p6 .cp-p6-body { grid-template-rows: 30px 32px minmax(0, 1fr); }
   .cp-p6 .cp-context-command-bar { min-height: 32px; }
 }
 
@@ -7028,3 +7126,169 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
 .cp-p6 .cp-wbs-window-layout>section>h3{margin:0;padding:7px 9px;border-bottom:1px solid #d8e0e9;background:#f2f5f9;color:#244463;font-size:10px}
 .cp-p6 .cp-wbs-window-layout .cp-wbs-details{margin:0;border:0}
 @media(max-width:800px){.cp-p6 .cp-wbs-window-layout{grid-template-columns:minmax(0,1fr)}}
+
+/* Compact icon-first directory: the flyout overlays the workspace and never
+   changes the activity/Gantt grid or its time scale. Hover, keyboard focus,
+   and the explicit toggle reveal labels; the same rules apply in RTL. */
+.cp-p6 .cp-p6-shell {
+  grid-template-columns: 42px minmax(0, 1fr) 36px;
+}
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
+  position: relative;
+  z-index: 40;
+  width: 42px;
+  min-width: 42px;
+  align-items: center;
+  padding: 6px 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-shadow: none;
+  transition: width 160ms ease, box-shadow 160ms ease;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-tree-title {
+  justify-content: center;
+  width: 34px;
+  min-height: 30px;
+  padding: 0;
+  border-bottom: 0;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-tree-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 34px;
+  min-width: 34px;
+  min-height: 30px;
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #173d68;
+  cursor: pointer;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-tree-toggle:focus-visible {
+  outline: 2px solid #1c66ad;
+  outline-offset: 1px;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-tree-title-label,
+.cp-p6 .cp-navigation-tree .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree .cp-nav-tree-group > span,
+.cp-p6 .cp-navigation-tree .cp-rail-label {
+  display: none;
+}
+.cp-p6 .cp-navigation-tree .cp-nav-tree-group {
+  width: 34px;
+  padding: 4px 0;
+}
+.cp-p6 .cp-navigation-tree .cp-rail-button {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  width: 34px;
+  min-height: 30px;
+  padding: 5px 0;
+}
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:hover,
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:focus-within:not([data-expanded="false"]),
+.cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree[data-expanded="true"] {
+  width: 224px;
+  min-width: 224px;
+  max-width: 224px;
+  align-items: stretch;
+  padding: 6px 5px;
+  box-shadow: 0 0 18px rgba(15, 35, 58, .22);
+}
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-title,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-title,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-title {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 0 6px 6px;
+  border-bottom: 1px solid #cbd4df;
+}
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-toggle,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-toggle,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-toggle {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 4px 2px;
+}
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-title-label,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-title-label,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-title-label,
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-group > span,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-group > span,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-group > span,
+.cp-p6 .cp-navigation-tree:hover .cp-rail-label,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-rail-label,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-rail-label {
+  display: block;
+}
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-chevron,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-chevron {
+  margin-inline-start: auto;
+  transform: rotate(90deg);
+}
+.cp-p6 .cp-navigation-tree:hover .cp-nav-tree-group,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-nav-tree-group,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-nav-tree-group {
+  width: 100%;
+}
+.cp-p6 .cp-navigation-tree:hover .cp-rail-button,
+.cp-p6 .cp-navigation-tree:focus-within:not([data-expanded="false"]) .cp-rail-button,
+.cp-p6 .cp-navigation-tree[data-expanded="true"] .cp-rail-button {
+  grid-template-columns: 18px minmax(0, 1fr);
+  justify-items: start;
+  width: 100%;
+  padding: 3px 7px;
+}
+.cp-p6 .cp-p6-workspace[dir="rtl"] .cp-p6-shell {
+  grid-template-columns: 36px minmax(0, 1fr) 42px;
+}
+.cp-p6 .cp-p6-workspace[dir="rtl"] .cp-menu.cp-p6-rail.cp-navigation-tree {
+  grid-column: 3;
+  border-inline-start: 1px solid #b7c2d0;
+  border-inline-end: 0;
+}
+@media (max-width: 900px) {
+  .cp-p6 .cp-p6-shell {
+    grid-template-columns: 42px minmax(0, 1fr) 32px;
+  }
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
+    width: 42px;
+    min-width: 42px;
+  }
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:hover,
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:focus-within:not([data-expanded="false"]),
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree[data-expanded="true"] {
+    width: min(224px, calc(100vw - 76px));
+    min-width: min(224px, calc(100vw - 76px));
+    max-width: min(224px, calc(100vw - 76px));
+  }
+  .cp-p6 .cp-p6-workspace[dir="rtl"] .cp-p6-shell {
+    grid-template-columns: 32px minmax(0, 1fr) 42px;
+  }
+}
+@media (max-width: 640px) {
+  .cp-p6 .cp-p6-shell {
+    grid-template-columns: 36px minmax(0, 1fr) 30px;
+  }
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
+    width: 36px;
+    min-width: 36px;
+  }
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:hover,
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree:focus-within:not([data-expanded="false"]),
+  .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree[data-expanded="true"] {
+    width: min(210px, calc(100vw - 66px));
+    min-width: min(210px, calc(100vw - 66px));
+    max-width: min(210px, calc(100vw - 66px));
+  }
+  .cp-p6 .cp-p6-workspace[dir="rtl"] .cp-p6-shell {
+    grid-template-columns: 30px minmax(0, 1fr) 36px;
+  }
+}

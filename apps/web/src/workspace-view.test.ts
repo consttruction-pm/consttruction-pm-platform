@@ -408,28 +408,19 @@ test("Activities Details renders the complete Version 26 tab inventory without f
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
-test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
-  const listeners = new Map<string, (event: Event) => void>();
-  const closed: WorkspaceMenuKey[] = [];
+test("workspace renderer leaves the single persisted tab strip to desktop chrome", () => {
   const container = {
     innerHTML: "",
     querySelectorAll: () => [],
-    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
   };
   renderMainWorkspace(
     container as unknown as HTMLElement,
     createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
-    {
-      openWindows: ["project", "schedule"],
-      onWindowClose: (menu) => closed.push(menu),
-    },
+    { openWindows: ["project", "schedule"] },
   );
-  assert.match(container.innerHTML, /data-window-tab="project"/);
-  assert.match(container.innerHTML, /data-window-tab="schedule"/);
-  assert.match(container.innerHTML, /data-window-close="project"/);
-  const target = { dataset: { windowClose: "project" }, closest: () => target };
-  listeners.get("click")?.({ target } as unknown as Event);
-  assert.deepEqual(closed, ["project"]);
+  assert.doesNotMatch(container.innerHTML, /class="cp-window-tabs"/);
+  assert.doesNotMatch(container.innerHTML, /data-window-tab=/);
+  assert.doesNotMatch(container.innerHTML, /data-window-close=/);
 });
 
 test("View menu Timescale command opens the current window Layout Options dialog", () => {
@@ -587,7 +578,9 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["pointerdown", "input", "submit", "click", "keydown", "change"]);
+  // Pointer resizing is owned by the dedicated browser-only resize module;
+  // this DOM-light fixture exercises only the renderer's delegated commands.
+  assert.deepEqual(registrations, ["input", "submit", "click", "focusin", "keydown", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -1786,11 +1779,15 @@ test("desktop workbench renders a grouped navigation tree, window tabs and conte
   const navigationEnd = html.indexOf("</nav>", navigationStart);
   const navigationMarkup = html.slice(navigationStart, navigationEnd + 6);
   assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 18);
+  assert.match(navigationMarkup, /data-navigation-toggle/);
+  assert.match(navigationMarkup, /aria-expanded="false"/);
+  assert.match(navigationMarkup, /data-expand-label=/);
+  assert.match(navigationMarkup, /data-collapse-label=/);
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
   assert.match(html, /Resources &amp; cost/);
-  assert.match(html, /class="cp-window-tabs"/);
-  assert.match(html, /role="tab" data-window-tab="schedule" data-menu="schedule" aria-selected="true"/);
+  assert.doesNotMatch(html, /class="cp-window-tabs"/, "window tabs are rendered once by the desktop shell");
+  assert.doesNotMatch(html, /cubi-command-shell/, "the menu bar is owned by the desktop chrome");
   assert.match(html, /class="cp-context-command-bar"/);
   assert.match(html, /Current window commands/);
   assert.match(html, /class="[^"]*cp-context-command-rail/);

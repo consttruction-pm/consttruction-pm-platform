@@ -8,7 +8,7 @@ import { localizeWorkspaceLabel, translateWorkspaceText, translateWorkspaceUiTex
 import { SCHEDULING_REFERENCE_CATALOG } from "./scheduling-reference-catalog.generated.js";
 import { cubiPlatformLogoUrl } from "./cubi-brand-assets.js";
 import { workspaceIcon } from "./workspace-icons.js";
-import { renderWorkspaceCommandShell } from "./workspace-command-shell.js";
+import { bindWorkspaceResizeInteractions } from "./workspace-resizing.js";
 
 const labels = {
   en: {
@@ -161,27 +161,6 @@ function openWbsDrawer(container: HTMLElement): void {
 function bindWorkspaceEvents(container: HTMLElement): void {
   if (typeof container.addEventListener !== "function" || workspaceEventDelegation.has(container)) return;
   workspaceEventDelegation.add(container);
-  container.addEventListener("pointerdown", (event) => {
-    const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
-    if (!splitter) return;
-    const split = splitter.closest<HTMLElement>("[data-panel-split]");
-    if (!split) return;
-    event.preventDefault();
-    const move = (moveEvent: PointerEvent): void => {
-      const rect = split.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const percent = ((moveEvent.clientX - rect.left) / rect.width) * 100;
-      const clamped = Math.min(70, Math.max(30, percent));
-      split.style.setProperty("--cp-split-table", `${clamped.toFixed(2)}%`);
-      splitter.setAttribute("aria-valuenow", clamped.toFixed(0));
-    };
-    const stop = (): void => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", stop);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stop, { once: true });
-  });
   container.addEventListener("input", (event) => {
     const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
       ? event.target as HTMLElement
@@ -296,11 +275,24 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     }
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-navigation-toggle],[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-gantt-activity-id],[data-activity-id],[data-activity-edit],[data-activity-sort-direction]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
     const { state, options } = record;
+    if (target.dataset.navigationToggle !== undefined) {
+      const navigation = target.closest<HTMLElement>(".cp-navigation-tree");
+      if (!navigation) return;
+      const expanded = navigation.dataset.expanded !== "true";
+      navigation.dataset.expanded = String(expanded);
+      target.setAttribute("aria-expanded", String(expanded));
+      const nextLabel = expanded ? target.dataset.collapseLabel : target.dataset.expandLabel;
+      if (nextLabel) {
+        target.setAttribute("aria-label", nextLabel);
+        target.setAttribute("title", nextLabel);
+      }
+      return;
+    }
     if (target.dataset.registerTab) {
       const tab = target.dataset.registerTab;
       container.querySelectorAll<HTMLElement>("[data-register-tab]").forEach((button) => {
@@ -553,19 +545,16 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.ganttActivityId) return void options.onGanttActivitySelect?.(target.dataset.ganttActivityId);
     if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
   });
+  container.addEventListener("focusin", (event) => {
+    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function"
+      ? (event.target as HTMLElement).closest<HTMLElement>(".cp-navigation-tree")
+      : null;
+    // A deliberate click on the toggle can close the rail while its toggle
+    // retains focus. When focus later re-enters the directory, clear that
+    // one-shot closed state so keyboard navigation can reveal labels again.
+    if (target?.dataset.expanded === "false") target.removeAttribute("data-expanded");
+  });
   container.addEventListener("keydown", (event) => {
-    const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
-    if (splitter && splitter.dataset && "panelSplitter" in splitter.dataset) {
-      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-      const split = splitter.closest<HTMLElement>("[data-panel-split]");
-      if (!split) return;
-      event.preventDefault();
-      const current = Number.parseFloat(split.style.getPropertyValue("--cp-split-table")) || 53.5;
-      const next = Math.min(70, Math.max(30, current + (event.key === "ArrowRight" ? 2 : -2)));
-      split.style.setProperty("--cp-split-table", `${next}%`);
-      splitter.setAttribute("aria-valuenow", next.toFixed(0));
-      return;
-    }
     if (event.key !== "Enter" && event.key !== " ") return;
     const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-gantt-activity-id],[data-activity-id],[data-document-row]") : null;
     if (!target) return;
@@ -907,6 +896,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   const previous = workspaceRenderRecords.get(container);
   if (previous && applyIncrementalWorkspaceUpdate(container, previous.state, state, options)) {
     workspaceRenderRecords.set(container, { state, options });
+    bindWorkspaceResizeInteractions(container, state, options);
     return;
   }
   const t = getWorkspaceLabels(state.locale);
@@ -990,26 +980,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     settings: "settings",
   };
   const activityFilterLabel = state.activityFilter.trim() || uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
-  const windowTabs = ([
-    ["project", uiText(state.locale, "Projects", "پروژه‌ها")],
-    ["wbs", uiText(state.locale, "WBS", "ساختار شکست")],
-    ["schedule", uiText(state.locale, "Activities", "فعالیت‌ها")],
-    ["progress", uiText(state.locale, "Progress", "پیشرفت")],
-    ["resources", uiText(state.locale, "Resources", "منابع")],
-    ["assignments", uiText(state.locale, "Resource Assignments", "تخصیص منابع")],
-    ["roles", uiText(state.locale, "Roles", "نقش‌ها")],
-    ["calendars", uiText(state.locale, "Calendars", "تقویم‌ها")],
-    ["cost", uiText(state.locale, "Cost", "هزینه")],
-    ["expenses", uiText(state.locale, "Expenses", "هزینه‌ها")],
-    ["documents", uiText(state.locale, "Documents", "اسناد")],
-    ["reports", uiText(state.locale, "Reports", "گزارش‌ها")],
-    ["tracking", uiText(state.locale, "Tracking", "رهگیری")],
-    ["issues", uiText(state.locale, "Issues", "مسائل")],
-    ["risks", uiText(state.locale, "Risks", "ریسک‌ها")],
-    ["thresholds", uiText(state.locale, "Thresholds", "آستانه‌ها")],
-    ["control", uiText(state.locale, "Project Controls", "کنترل پروژه")],
-    ["settings", uiText(state.locale, "Settings", "تنظیمات")],
-  ] as const).filter(([key]) => (options.openWindows ?? [state.activeMenu]).includes(key));
+
   const contextCommands: Array<{ label: string; action?: "project-settings" | "wbs" | "tools"; disabled?: boolean }> = state.activeMenu === "project"
     ? [
       { label: uiText(state.locale, "Project properties", "مشخصات پروژه"), action: "project-settings" },
@@ -1017,13 +988,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       { label: uiText(state.locale, "Import / Export", "ورود و خروج اطلاعات"), disabled: true },
     ]
     : state.activeMenu === "schedule"
-      ? [
-        { label: uiText(state.locale, "Add activity", "افزودن فعالیت"), action: "tools" },
-        { label: uiText(state.locale, "WBS", "ساختار شکست"), action: "wbs" },
-        { label: uiText(state.locale, "Columns & fields", "ستون‌ها و فیلدها"), action: "tools" },
-        { label: uiText(state.locale, "Relationships", "روابط"), disabled: true },
-        { label: uiText(state.locale, "Timescale & bars", "مقیاس زمانی و میله‌ها"), disabled: true },
-      ]
+      ? []
       : [
         { label: uiText(state.locale, "Open tools", "بازکردن ابزارها"), action: "tools" },
         { label: uiText(state.locale, "Configure layout", "تنظیم چیدمان"), disabled: true },
@@ -1047,7 +1012,17 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
       </header>
       <div class="cp-p6-shell">
         <nav class="cp-menu cp-p6-rail cp-navigation-tree" aria-label="${escapeAttribute(t.mainMenu)}">
-          <div class="cp-nav-tree-title">${workspaceIcon("group")}<strong>${escapeHtml(rail.menu)}</strong></div>
+          <div class="cp-nav-tree-title">
+            <button type="button" class="cp-nav-tree-toggle" data-navigation-toggle aria-expanded="false"
+              data-expand-label="${escapeAttribute(uiText(state.locale, "Expand navigation", "بازکردن نوار ناوبری"))}"
+              data-collapse-label="${escapeAttribute(uiText(state.locale, "Collapse navigation", "بستن نوار ناوبری"))}"
+              aria-label="${escapeAttribute(uiText(state.locale, "Expand navigation", "بازکردن نوار ناوبری"))}"
+              title="${escapeAttribute(uiText(state.locale, "Expand navigation", "بازکردن نوار ناوبری"))}">
+              ${workspaceIcon("group")}
+              <span class="cp-nav-tree-title-label">${escapeHtml(rail.menu)}</span>
+              <span class="cp-nav-tree-chevron" aria-hidden="true">›</span>
+            </button>
+          </div>
           <div class="cp-nav-tree-group"><span>${escapeHtml(uiText(state.locale, "Project workspace", "محیط پروژه"))}</span>
             ${menuButton("project", t.project, state, railMenuIcons.project)}
             ${railActionButton("eps", rail.eps, "portfolio")}
@@ -1082,10 +1057,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
           </div>
         </nav>
         <div class="cp-p6-body">
-          ${renderWorkspaceCommandShell(state.locale, state.activeMenu)}
-          <nav class="cp-window-tabs" aria-label="${escapeAttribute(uiText(state.locale, "Workspace windows", "پنجره‌های محیط کار"))}" role="tablist">
-            ${windowTabs.map(([key, label]) => `<span class="cp-window-tab-item"><button type="button" role="tab" data-window-tab="${key}" data-menu="${key}" aria-selected="${key === state.activeMenu}" aria-current="${key === state.activeMenu ? "page" : "false"}" class="cp-window-tab${key === state.activeMenu ? " is-active" : ""}">${escapeHtml(label)}</button>${windowTabs.length > 1 ? `<button type="button" class="cp-window-tab-close" data-window-close="${key}" aria-label="${escapeAttribute(uiText(state.locale, `Close ${label}`, `بستن ${label}`))}" title="${escapeAttribute(uiText(state.locale, `Close ${label}`, `بستن ${label}`))}">×</button>` : ""}</span>`).join("")}
-          </nav>
           <header class="cp-p6-activity-header" data-activity-header>
             <span class="cp-p6-activity-heading">
               <strong>${escapeHtml(navigationLabel)}</strong>
@@ -1095,8 +1066,6 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             <span class="cp-p6-activity-meta">${escapeHtml(rail.dataDate)}: ${escapeHtml(rail.noDataDate)}</span>
             <span class="cp-p6-activity-meta">${escapeHtml(rail.filter)}: ${escapeHtml(activityFilterLabel)}</span>
             <span class="cp-p6-activity-spacer"></span>
-            <button type="button" class="cp-p6-chip" data-rail-action="wbs" title="${escapeAttribute(rail.wbs)}">${workspaceIcon("wbs")}<span>${escapeHtml(rail.wbs)}</span></button>
-            <button type="button" class="cp-p6-chip" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}<span>${escapeHtml(rail.columns)}</span></button>
             <button type="button" class="cp-p6-chip" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}<span>${escapeHtml(rail.comments)}</span></button>
           </header>
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
@@ -1109,21 +1078,17 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                 <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-grid-head">
                     <h2>${escapeHtml(t.activities)}</h2>
-                    <span class="cp-p6-grid-actions">
-                      <button type="button" data-rail-action="wbs" title="${escapeAttribute(rail.wbs)}">${workspaceIcon("wbs")}</button>
-                      <button type="button" data-tools-open title="${escapeAttribute(rail.columns)}">${workspaceIcon("columns")}</button>
-                      <button type="button" data-comments-toggle title="${escapeAttribute(rail.comments)}">${workspaceIcon("comment")}</button>
-                    </span>
+
                   </div>
                   ${renderActivityFilterSort(state, visibleActivities.length, t)}
                   <div class="cp-table-wrap">
                     <table role="grid" aria-label="${escapeAttribute(t.activities)}" aria-multiselectable="false" style="width:${activityTableWidth}px">
-                      <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}</th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
+                      <thead><tr role="row">${state.columns.map((column) => `<th role="columnheader" scope="col" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="width:${column.width}px;text-align:${column.alignment}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${escapeHtml(localizeWorkspaceLabel(state.locale, column.label))}${column.formula ? `<span aria-label="${escapeAttribute(t.formulaColumn)}">ƒx</span>` : ""}<span class="cp-column-resize-handle" data-resize-handle="column" data-column-resize="${escapeAttribute(column.id)}" role="separator" aria-orientation="vertical" tabindex="0" aria-valuenow="${column.width}" aria-valuemin="40" aria-valuemax="720" aria-label="${escapeAttribute(uiText(state.locale, `Resize ${column.label}`, `تغییر عرض ${column.label}`))}"></span></th>`).join("")}<th role="columnheader" scope="col" class="cp-logic-column">${escapeHtml(t.predecessorsColumn)}</th><th role="columnheader" scope="col" class="cp-actions-column"></th></tr></thead>
                       <tbody>${visibleActivities.length ? visibleActivities.map((activity) => renderActivityRow(activity, state, stickyOffsets)).join("") : `<tr role="row"><td role="gridcell" colspan="${Math.max(1, state.columns.length + 2)}">${escapeHtml(state.activities.length ? t.noMatchingActivities : t.noActivities)}</td></tr>`}</tbody>
                     </table>
                   </div>
                 </section>
-                <div class="cp-p6-splitter" data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0" aria-label="${escapeAttribute(uiText(state.locale, "Resize table and Gantt", "تغییر اندازهٔ جدول و گانت"))}"><span></span></div>
+                <div class="cp-p6-splitter" data-panel-splitter data-resize-handle="table-gantt" role="separator" aria-orientation="vertical" tabindex="0" aria-valuemin="30" aria-valuemax="70" aria-valuenow="45" aria-label="${escapeAttribute(uiText(state.locale, "Resize table and Gantt", "تغییر اندازهٔ جدول و گانت"))}"><span></span></div>
                 <section id="cp-gantt" class="cp-panel cp-gantt" ${!state.visiblePanels.gantt ? "hidden" : ""} data-workspace-menu="schedule">
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
@@ -1134,6 +1099,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
               </section>
               ${renderP6ModuleStage(container, state, t, options)}
             </div>
+            <div class="cp-p6-details-splitter" data-resize-handle="details" role="separator" aria-orientation="horizontal" tabindex="0" aria-valuemin="55" aria-valuemax="85" aria-valuenow="70" aria-label="${escapeAttribute(uiText(state.locale, "Resize activity and details panels", "تغییر اندازهٔ پنجرهٔ فعالیت‌ها و جزئیات"))}" ${!state.visiblePanels.details ? "hidden" : ""}><span></span></div>
             <aside id="cp-details" class="cp-panel cp-details" ${!state.visiblePanels.details ? "hidden" : ""} data-workspace-menu="project schedule progress resources cost documents reports control settings" aria-labelledby="cp-details-heading">${renderWindowDetailsPanel(state, t, container)}</aside>
           </main>
           <div class="cp-p6-drawer cp-p6-wbs-drawer" data-wbs-drawer hidden aria-label="${escapeAttribute(t.wbs)}">
@@ -1235,6 +1201,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 
   workspaceRenderRecords.set(container, { state, options });
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
+  bindWorkspaceResizeInteractions(container, state, options);
 }
 
 

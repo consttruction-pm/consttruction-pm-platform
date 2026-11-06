@@ -4,6 +4,7 @@ import {
   WINDOW_TITLES,
   getDesktopMenus,
   getDesktopToolbar,
+  renderDesktopShell,
   type DesktopShellCapabilities,
   type DesktopShellState,
 } from "./workspace-desktop-shell.js";
@@ -26,6 +27,69 @@ function shellState(patch: Partial<DesktopShellCapabilities> = {}, locale = "en"
     capabilities: { ...capable, ...patch },
   };
 }
+
+test("desktop chrome owns exactly one persisted window tab strip and dispatches close", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const closed: string[] = [];
+  const host = {
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    contains: () => true,
+  };
+  renderDesktopShell(host as unknown as HTMLElement, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: (window) => closed.push(window),
+    onCommand: () => {},
+  });
+  assert.equal((host.innerHTML.match(/class="cp-window-tabs"/g) ?? []).length, 1);
+  assert.match(host.innerHTML, /data-window-tab="project"/);
+  assert.match(host.innerHTML, /data-window-tab="schedule"/);
+  assert.match(host.innerHTML, /data-window-close="project"/);
+  const target = {
+    dataset: { windowClose: "project" },
+    closest: (selector: string) => selector === "[data-window-close]" ? target : null,
+  };
+  listeners.get("click")?.({ target, stopPropagation: () => {} } as unknown as Event);
+  assert.deepEqual(closed, ["project"]);
+});
+
+test("layout commands from the global menu open their owning desktop dialog", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  let opened = false;
+  let dispatched = "";
+  const dialog = { showModal: () => { opened = true; }, setAttribute: () => {} };
+  const host = {
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === '[data-desktop-dialog="timescale"]' ? dialog : null,
+    contains: () => true,
+  };
+  renderDesktopShell(host as unknown as HTMLElement, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: (command) => { dispatched = command; },
+  });
+  const target = {
+    dataset: { shellCommand: "Timescale" },
+    hasAttribute: () => false,
+    closest: (selector: string) => selector === "[data-shell-command]" ? target : null,
+  };
+  listeners.get("click")?.({ target, stopPropagation: () => {} } as unknown as Event);
+  assert.equal(opened, true);
+  assert.equal(dispatched, "");
+});
+
+test("the canonical workspace exposes no alternate visual-demo menu entry", () => {
+  const menus = getDesktopMenus(shellState());
+  const items = menus.flatMap((menu) => menu.items);
+  assert.doesNotMatch(JSON.stringify(items), /visual-demo|Visual workspace demo|نمایش بصری محیط کار/);
+  const help = menus.find((menu) => menu.id === "help");
+  assert.ok(help?.items.some((item) => item.id === "help.shortcuts"));
+  assert.ok(help?.items.some((item) => item.id === "help.about"));
+});
 
 test("the menu bar mirrors the eleven professional workspace menus in order", () => {
   const menus = getDesktopMenus(shellState());
@@ -115,6 +179,8 @@ test("toolbar commands are real and track layout history and selection", () => {
   assert.ok(toolbar.every((item) => !item.disabledReason));
   const group = toolbar.find((item) => item.id === "toolbar.group-wbs");
   assert.equal(group?.active, true);
+  assert.ok(toolbar.some((item) => item.id === "toolbar.bars" && item.command === "dialog.bars"));
+  assert.ok(toolbar.some((item) => item.id === "toolbar.font-row" && item.command === "dialog.font-row"));
 
   const limited = getDesktopToolbar(shellState({ canUndoLayout: false, hasSelectedActivity: false }));
   assert.ok(limited.find((item) => item.id === "toolbar.undo")?.disabledReason);

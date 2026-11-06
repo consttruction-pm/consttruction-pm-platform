@@ -976,6 +976,125 @@ class Page {
     });
   }
 
+  /** Native CDP mouse drag, producing genuine browser pointer events. */
+  async drag(selector, deltaX, deltaY) {
+    const point = await this.evaluate(`(() => {
+      const matches = Array.from(document.querySelectorAll(${JSON.stringify(selector)}));
+      const isVisible = (element) => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" &&
+          style.visibility !== "hidden" && element.getClientRects().length > 0;
+      };
+      const element = matches.find(isVisible) ?? null;
+      if (!element) {
+        const first = matches[0] ?? null;
+        const rect = first?.getBoundingClientRect();
+        const parentRect = first?.parentElement?.getBoundingClientRect();
+        return {
+          found: Boolean(first),
+          visible: false,
+          selector: ${JSON.stringify(selector)},
+          matches: matches.length,
+          firstRect: rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null,
+          firstParentRect: parentRect ? { width: parentRect.width, height: parentRect.height } : null,
+        };
+      }
+      element.scrollIntoView({ block: "center", inline: "nearest" });
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const parentRect = element.parentElement?.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      const ancestors = [];
+      for (let current = element; current && ancestors.length < 10; current = current.parentElement) {
+        const bounds = current.getBoundingClientRect();
+        const css = getComputedStyle(current);
+        ancestors.push({
+          tag: current.tagName,
+          id: current.id || null,
+          className: typeof current.className === "string" ? current.className : "",
+          hidden: current.hidden,
+          ariaHidden: current.getAttribute("aria-hidden"),
+          width: bounds.width,
+          height: bounds.height,
+          display: css.display,
+          visibility: css.visibility,
+          position: css.position,
+          overflowX: css.overflowX,
+          overflowY: css.overflowY,
+        });
+      }
+      const grid = document.querySelector("#cp-activity-grid");
+      const table = grid?.querySelector("table");
+      const gridRect = grid?.getBoundingClientRect();
+      const tableRect = table?.getBoundingClientRect();
+      return {
+        found: true,
+        selector: ${JSON.stringify(selector)},
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+        hitTag: hit?.tagName ?? null,
+        hitClass: hit && typeof hit.className === "string" ? hit.className : null,
+        hitResizeKind: hit instanceof Element ? hit.getAttribute("data-resize-handle") ?? hit.closest("[data-resize-handle]")?.getAttribute("data-resize-handle") ?? null : null,
+        hitIsTargetOrChild: Boolean(hit && (hit === element || element.contains(hit))),
+        pointerEvents: style.pointerEvents,
+        width: rect.width,
+        height: rect.height,
+        display: style.display,
+        position: style.position,
+        float: style.float,
+        cssWidth: style.width,
+        cssHeight: style.height,
+        visibility: style.visibility,
+        opacity: style.opacity,
+        parentWidth: parentRect?.width ?? null,
+        parentHeight: parentRect?.height ?? null,
+        parentPosition: element.parentElement ? getComputedStyle(element.parentElement).position : null,
+        gridHidden: grid?.hidden ?? null,
+        gridRect: gridRect ? { width: gridRect.width, height: gridRect.height } : null,
+        tableRect: tableRect ? { width: tableRect.width, height: tableRect.height } : null,
+        tableStyleWidth: table?.getAttribute("style") ?? null,
+        ancestors,
+      };
+    })()`);
+    assert(
+      point?.found && point.width > 0 && point.height > 0 &&
+        point.visibility !== "hidden" && point.display !== "none",
+      `drag target not found or not visible: ${selector}; metrics=${JSON.stringify(point)}`,
+    );
+    await this.cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x: point.x,
+      y: point.y,
+      button: "none",
+      buttons: 0,
+    });
+    await this.cdp.send("Input.dispatchMouseEvent", {
+      type: "mousePressed",
+      x: point.x,
+      y: point.y,
+      button: "left",
+      buttons: 1,
+      clickCount: 1,
+    });
+    await this.cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x: point.x + deltaX,
+      y: point.y + deltaY,
+      button: "left",
+      buttons: 1,
+    });
+    await this.cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseReleased",
+      x: point.x + deltaX,
+      y: point.y + deltaY,
+      button: "left",
+      buttons: 0,
+      clickCount: 1,
+    });
+    return { start: { x: point.x, y: point.y }, end: { x: point.x + deltaX, y: point.y + deltaY }, metrics: point };
+  }
+
   async setInput(selector, value) {
     const changed = await this.evaluate(`(() => {
       const element = document.querySelector(${JSON.stringify(selector)});
@@ -1172,7 +1291,7 @@ async function main() {
   const unauthenticatedApp = await fetch(`${baseUrl}/app`, { redirect: "manual" });
   assert(unauthenticatedApp.status === 302, "unauthenticated /app must redirect");
   assert(
-    unauthenticatedApp.headers.get("location") === "/preview/login?next=%2Fapp",
+    unauthenticatedApp.headers.get("location") === "/preview/login?next=%2Fapp%3Fview%3Dlive",
     "unauthenticated /app redirect target",
   );
   const unauthenticatedSession = await fetchJson(`${baseUrl}/api/session`);
@@ -1853,130 +1972,105 @@ async function main() {
       }))()`);
       assert(
         deepLinkLogin.pathname === "/preview/login" &&
-          deepLinkLogin.next === `/app?project=${PROJECT_ID}` &&
+          deepLinkLogin.next === `/app?project=${PROJECT_ID}&view=live` &&
           deepLinkLogin.project === null,
-        "login must preserve the requested project in its validated next path: " +
+        "login must preserve the requested project and canonical live mode: " +
           JSON.stringify(deepLinkLogin),
       );
       await deepLinkPage.click('button[name="role"][value="planner"]');
       await deepLinkPage.waitFor(
-        `location.pathname === "/app" && new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)}`,
-        "login returns to the requested project deep link",
+        `location.pathname === "/app" &&
+         new URLSearchParams(location.search).get("project") === ${JSON.stringify(PROJECT_ID)} &&
+         new URLSearchParams(location.search).get("view") === "live"`,
+        "login returns to the requested project in the canonical workspace",
       );
-      // The visual demo is bootstrapped after the session/project fetches settle.
-      // On a busy machine that can take longer than the default wait, so allow more
-      // time for the real render instead of weakening the assertion.
-      await deepLinkPage.waitForSelector("[data-visual-demo]", "canonical visual workspace preview", 60000);
+      await deepLinkPage.waitForSelector(".cp-workspace", "canonical authenticated workspace", 60000);
+      await deepLinkPage.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "live activity grid", 60000);
       const deepLinkWorkspace = await deepLinkPage.evaluate(`(async () => {
         const sessionResponse = await fetch("/api/session");
         const projectsResponse = await fetch("/api/projects");
         const projects = await projectsResponse.json();
         const project = (projects.projects || []).find((item) => item.project_id === ${JSON.stringify(PROJECT_ID)});
-        const demo = document.querySelector("[data-visual-demo]");
         return {
           pathname: location.pathname,
+          view: new URLSearchParams(location.search).get("view"),
           requested_project: new URLSearchParams(location.search).get("project"),
           project_found_in_session_list: Boolean(project),
           project_name: project?.name ?? null,
-          visual_demo_visible: Boolean(demo),
-          sample_data_label: document.querySelector(".cp-vd-demo-badge")?.textContent?.trim() ?? null,
-          live_grid_hidden: !document.querySelector("#cp-activity-grid"),
+          visual_demo_visible: Boolean(document.querySelector("[data-visual-demo]")),
+          live_grid_visible: Boolean(document.querySelector("#cp-activity-grid")),
+          activity_rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
+          gantt_rows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
           session_authenticated: sessionResponse.status === 200,
         };
       })()`, { awaitPromise: true });
       assert(
-        deepLinkWorkspace.requested_project === PROJECT_ID &&
+        deepLinkWorkspace.view === "live" &&
+          deepLinkWorkspace.requested_project === PROJECT_ID &&
           deepLinkWorkspace.project_found_in_session_list &&
-          deepLinkWorkspace.visual_demo_visible &&
-          deepLinkWorkspace.sample_data_label &&
-          deepLinkWorkspace.live_grid_hidden &&
+          !deepLinkWorkspace.visual_demo_visible &&
+          deepLinkWorkspace.live_grid_visible &&
+          deepLinkWorkspace.activity_rows === 14 &&
+          deepLinkWorkspace.gantt_rows === 14 &&
           deepLinkWorkspace.session_authenticated,
-        "the canonical preview link must open the visual shell while clearly labelling its sample data: " +
+        "the first post-login project link must open the one data-backed workspace: " +
           JSON.stringify(deepLinkWorkspace),
       );
-      record("first-visit project deep link opens the visual workspace preview after login", {
-        ...deepLinkWorkspace,
-      });
+      record("first-visit project deep link opens the canonical authenticated workspace", deepLinkWorkspace);
 
-      // Browser-level acceptance for the new engine shell: navigation opens
-      // the dedicated window, methods are shown in its Details pane, and
-      // actions remain disabled until real engine tools are connected.
-      await deepLinkPage.click(
-        '.cp-vd-left-nav button[data-vd-window="engineering-analysis"]',
+      // Legacy visual URLs must resolve to the same live shell; they may not
+      // mount or expose a second workspace application.
+      await deepLinkPage.navigate(
+        `${baseUrl}/app?project=${PROJECT_ID}&view=visual`,
+        ".cp-workspace",
+        "legacy visual URL resolves to canonical workspace",
       );
-      await deepLinkPage.waitForSelector(
-        '[data-engine-window="engineering-analysis"]',
-        "Engineering Analysis visual shell",
-      );
-      await deepLinkPage.click('[data-vd-engine-tab="methods"]');
-      await deepLinkPage.waitFor(
-        `document.querySelector('[data-vd-engine-tab="methods"]')?.getAttribute("aria-selected") === "true" &&
-         document.querySelector(".cp-vd-engine-detail-panel")?.textContent.includes("Forward and backward rule chaining")`,
-        "Engineering Analysis methods Details tab",
-      );
-      const engineShellEvidence = await deepLinkPage.evaluate(`(() => {
-        const shell = document.querySelector('[data-engine-window="engineering-analysis"]');
-        const commands = Array.from(shell?.querySelectorAll(".cp-vd-engine-toolbar button") ?? []);
-        return {
-          title: shell?.querySelector(".cp-vd-engine-title h2")?.textContent?.trim() ?? "",
-          methodTab: shell?.querySelector('[data-vd-engine-tab="methods"]')?.getAttribute("aria-selected") ?? "",
-          methodText: shell?.querySelector(".cp-vd-engine-detail-panel")?.textContent?.includes("Forward and backward rule chaining") ?? false,
-          disabledCommands: commands.length === 5 && commands.every((button) => button.disabled),
-          emptyState: shell?.querySelector(".cp-vd-engine-empty")?.textContent?.includes("No records to display") ?? false,
-        };
-      })()`);
+      const legacyRoute = await deepLinkPage.evaluate(`(() => ({
+        view: new URLSearchParams(location.search).get("view"),
+        visualDemo: Boolean(document.querySelector("[data-visual-demo]")),
+        liveGrid: Boolean(document.querySelector("#cp-activity-grid")),
+      }))()`);
       assert(
-        engineShellEvidence.title.includes("Engineering Analysis") &&
-          engineShellEvidence.methodTab === "true" &&
-          engineShellEvidence.methodText &&
-          engineShellEvidence.disabledCommands &&
-          engineShellEvidence.emptyState,
-        "engineering visual shell must expose its Details and remain non-executable: " +
-          JSON.stringify(engineShellEvidence),
+        legacyRoute.view === "live" && !legacyRoute.visualDemo && legacyRoute.liveGrid,
+        "legacy visual URLs must canonicalize to the single live workspace: " + JSON.stringify(legacyRoute),
       );
-      await deepLinkPage.screenshot("07-engineering-analysis-shell.png");
-      record("Engineering Analysis visual shell opens with Details and disabled actions", engineShellEvidence);
-      await deepLinkPage.click('.cp-vd-left-nav button[data-vd-window="activities"]');
-      await deepLinkPage.waitForSelector('[data-vd-window="activities"].is-active', "return to Activities window");
+      record("legacy visual URL is canonicalized without mounting another shell", legacyRoute);
 
-      await deepLinkPage.setSelect('select[data-vd-locale]', "fa");
+      await deepLinkPage.setSelect('select[data-workspace-language]', "fa");
       await deepLinkPage.waitFor(
         `document.documentElement.lang === "fa" && document.documentElement.dir === "rtl"`,
-        "visual workspace language switches to Persian",
+        "authenticated workspace language switches to Persian",
       );
       await deepLinkPage.navigate(
-        `${baseUrl}/app?project=${PROJECT_ID}`,
-        "[data-visual-demo]",
-        "visual workspace reload with saved language",
+        `${baseUrl}/app?project=${PROJECT_ID}&view=live`,
+        ".cp-workspace",
+        "authenticated workspace reload with saved language",
       );
       const savedLanguage = await deepLinkPage.evaluate(`(() => ({
         lang: document.documentElement.lang,
         dir: document.documentElement.dir,
-        selected: document.querySelector("select[data-vd-locale]")?.value ?? null,
+        selected: document.querySelector("select[data-workspace-language]")?.value ?? null,
       }))()`);
       assert(
         savedLanguage.lang === "fa" && savedLanguage.dir === "rtl" && savedLanguage.selected === "fa",
-        "visual workspace language must persist across refresh: " + JSON.stringify(savedLanguage),
+        "authenticated workspace language must persist across refresh: " + JSON.stringify(savedLanguage),
       );
-      record("visual workspace language preference persists across refresh", savedLanguage);
-      await deepLinkPage.setSelect('select[data-vd-locale]', "en");
+      record("authenticated workspace language preference persists across refresh", savedLanguage);
+      await deepLinkPage.setSelect('select[data-workspace-language]', "en");
 
-      await deepLinkPage.click(".cp-vd-exit");
-      await deepLinkPage.waitFor(
-        `location.pathname === "/"`,
-        "visual workspace sign out returns the user to the public home page",
-      );
-      const visualSignOutSession = await deepLinkPage.evaluate(
+      await deepLinkPage.click("#cubi-preview-banner button");
+      await deepLinkPage.waitFor(`location.pathname === "/"`, "sign out returns to public home");
+      const liveSignOutSession = await deepLinkPage.evaluate(
         `fetch("/api/session").then((response) => response.status)`,
         { awaitPromise: true },
       );
       assert(
-        visualSignOutSession === 401,
-        `the visual workspace sign-out control must revoke the preview session, got HTTP ${visualSignOutSession}`,
+        liveSignOutSession === 401,
+        `authenticated workspace sign-out must revoke the session and return Home, got HTTP ${liveSignOutSession}`,
       );
-      record("visual workspace sign out revokes the session and returns home", {
+      record("authenticated workspace sign out revokes the session and returns home", {
         pathname: "/",
-        session_status: visualSignOutSession,
+        session_status: liveSignOutSession,
       });
     } finally {
       if (deepLinkPage) deepLinkPage.cdp.close();
@@ -2004,9 +2098,8 @@ async function main() {
 
     await page.click('button[name="role"][value="planner"]');
     await page.waitFor(`location.pathname === "/app"`, "planner redirect to /app");
-    // The product default /app route is the visual preview shell. This legacy
-    // data-backed project-directory journey must explicitly request the live
-    // workspace so the test exercises the authenticated project picker.
+    // The canonical /app route is now always the authenticated workspace.
+    // The project picker is the first step when no project is in the URL.
     await page.navigate(
       `${baseUrl}/app?view=live`,
       ".cp-project-selection",
@@ -2377,6 +2470,65 @@ async function main() {
     );
     const scheduleSubmenus = await page.count(".cp-navigation-surface a.cp-submenu-item");
     assert(scheduleSubmenus === 13, "thirteen schedule submenu anchors expected");
+    const chromeStructure = await page.evaluate(`(() => {
+      const desktop = document.querySelector(".cp-desktop");
+      const visible = (element) => Boolean(element && getComputedStyle(element).display !== "none");
+      const order = Array.from(desktop?.children ?? []).map((element) =>
+        element.classList.contains("cp-titlebar") ? "titlebar" :
+        element.classList.contains("cubi-command-shell") ? "menu" :
+        element.classList.contains("cp-toolbar") ? "toolbar" :
+        element.classList.contains("cp-window-tabs") ? "tabs" : "other"
+      );
+      return {
+        order,
+        menuCount: Array.from(document.querySelectorAll(".cubi-command-menubar")).filter(visible).length,
+        toolbarCount: Array.from(document.querySelectorAll(".cp-toolbar")).filter(visible).length,
+        tabsCount: Array.from(document.querySelectorAll(".cp-window-tabs")).filter(visible).length,
+        groupedToolbarCount: document.querySelectorAll(".cubi-toolbar").length,
+        layoutbarCount: document.querySelectorAll(".cp-layoutbar").length,
+        barsButton: Boolean(document.querySelector('[data-toolbar-command="toolbar.bars"]')),
+        fontRowButton: Boolean(document.querySelector('[data-toolbar-command="toolbar.font-row"]')),
+        contextCommandCount: document.querySelectorAll(".cp-context-command-bar button:not(:disabled)").length,
+      };
+    })()`);
+    const titleIndex = chromeStructure.order.indexOf("titlebar");
+    const menuIndex = chromeStructure.order.indexOf("menu");
+    const toolbarIndex = chromeStructure.order.indexOf("toolbar");
+    const tabsIndex = chromeStructure.order.indexOf("tabs");
+    assert(
+      chromeStructure.menuCount === 1 && chromeStructure.toolbarCount === 1 && chromeStructure.tabsCount === 1 &&
+        chromeStructure.groupedToolbarCount === 0 && chromeStructure.layoutbarCount === 0 &&
+        titleIndex >= 0 && titleIndex < menuIndex && menuIndex < toolbarIndex && toolbarIndex < tabsIndex &&
+        chromeStructure.barsButton && chromeStructure.fontRowButton,
+      "workspace chrome must render one title/menu/icon-toolbar/tab sequence with promoted layout commands: " +
+        JSON.stringify(chromeStructure),
+    );
+
+    await page.evaluate(`(() => {
+      const summary = Array.from(document.querySelectorAll(".cubi-menu-root > details > summary"))
+        .find((element) => element.textContent.trim().startsWith("View"));
+      summary?.click();
+    })()`);
+    await page.click('[data-shell-command="Timescale"]');
+    await page.waitFor(
+      'document.querySelector(\'dialog[data-desktop-dialog="timescale"]\')?.open === true',
+      "View menu Timescale command opens the real dialog",
+    );
+    await page.click('dialog[data-desktop-dialog="timescale"] [data-dialog-cancel]');
+    await page.click('[data-toolbar-command="toolbar.bars"]');
+    await page.waitFor(
+      'document.querySelector(\'dialog[data-desktop-dialog="bars"]\')?.open === true',
+      "primary toolbar Bars command opens the real dialog",
+    );
+    await page.click('dialog[data-desktop-dialog="bars"] [data-dialog-cancel]');
+    await page.click('[data-toolbar-command="toolbar.font-row"]');
+    await page.waitFor(
+      'document.querySelector(\'dialog[data-desktop-dialog="font-row"]\')?.open === true',
+      "primary toolbar Font and Row command opens the real dialog",
+    );
+    await page.click('dialog[data-desktop-dialog="font-row"] [data-dialog-cancel]');
+    record("single desktop chrome sequence and promoted layout commands work", chromeStructure);
+
     const headerLabels = await page.evaluate(`(() =>
       Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
@@ -2651,6 +2803,23 @@ async function main() {
       },
     );
 
+    // Capacity is tested in the Resources window. Return to the Activities
+    // surface before checking header geometry or dragging its column handles;
+    // inactive workspace windows remain mounted but have zero layout bounds.
+    await page.click('[data-menu="schedule"]');
+    await page.waitFor(
+      `document.querySelector(".cp-navigation-surface strong")?.textContent.trim() === "Schedule"`,
+      "schedule surface before resize tests",
+    );
+    await page.waitFor(
+      `(() => {
+        const grid = document.querySelector("#cp-activity-grid");
+        const rect = grid?.getBoundingClientRect();
+        return Boolean(grid && !grid.hidden && rect && rect.width > 0 && rect.height > 0 &&
+          getComputedStyle(grid).display !== "none");
+      })()`,
+      "visible Activities grid before resize tests",
+    );
     await page.waitForSelector("[data-schedule-settings-form]", "schedule settings form");
     await page.waitForSelector("#cp-activity-grid tbody tr[data-activity-id]", "grid after menu renders");
     const initialHeaders = await page.evaluate(`(() =>
@@ -2730,6 +2899,88 @@ async function main() {
       return index >= 0 ? Number.parseFloat(ths[index].style.width) : null;
     })()`);
 
+    // Drag a real header resize handle. The revision-checked layout callback
+    // must persist the result through the same API used by the field chooser.
+    const columnDragLayoutBefore = await readLayoutFromPage(page);
+    const columnDragBefore = await page.evaluate(`(() => {
+      const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
+        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)} && item.getBoundingClientRect().width > 0);
+      return header ? Number.parseFloat(header.style.width) : null;
+    })()`);
+    const columnHandleSelector = `#cp-activity-grid th[data-column-id="${addTarget}"] [data-resize-handle="column"]`;
+    await page.drag(columnHandleSelector, 30, 0);
+    const columnDragAfterPointer = await page.evaluate(`(() => {
+      const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
+        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)} && item.getBoundingClientRect().width > 0);
+      return header ? Number.parseFloat(header.style.width) : null;
+    })()`);
+    const columnDragProbe = { missing: !Number.isFinite(columnDragAfterPointer), width: columnDragAfterPointer };
+    assert(
+      columnDragBefore > 0 && !columnDragProbe.missing && columnDragProbe.width > columnDragBefore,
+      `native mouse drag must resize the live grid column: before=${columnDragBefore}, after=${columnDragProbe.width}`,
+    );
+    let columnDragLayoutAfter = await readLayoutFromPage(page);
+    for (let attempt = 0; attempt < 30 && columnDragLayoutAfter.body.revision <= columnDragLayoutBefore.body.revision; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      columnDragLayoutAfter = await readLayoutFromPage(page);
+    }
+    const committedColumnWidth = columnDragLayoutAfter.body.columns.find((column) => column.field_id === addTarget)?.width;
+    assert(
+      columnDragLayoutAfter.body.revision > columnDragLayoutBefore.body.revision &&
+        committedColumnWidth >= columnDragProbe.width,
+      "dragging a column edge must append a revision with the new width",
+    );
+    // The API revision can become visible just before the save callback's
+    // render completes. Wait for the actual DOM to reflect the committed width
+    // rather than racing the independent API read against the UI re-render.
+    await page.waitFor(
+      `(() => {
+        const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
+          .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)} && item.getBoundingClientRect().width > 0);
+        return Boolean(header && Number.parseFloat(header.style.width) >= ${Number(committedColumnWidth)});
+      })()`,
+      "committed layout width must be reflected in the visible activity grid",
+    );
+    const columnDragAfter = await page.evaluate(`(() => {
+      const header = Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column"))
+        .find((item) => item.dataset.columnId === ${JSON.stringify(addTarget)} && item.getBoundingClientRect().width > 0);
+      return header ? Number.parseFloat(header.style.width) : null;
+    })()`);
+    assert(columnDragAfter >= committedColumnWidth, `the committed width must remain rendered: persisted=${committedColumnWidth}, rendered=${columnDragAfter}`);
+
+    const detailsDragResult = await page.drag('[data-resize-handle="details"]', 0, 36);
+    const tableDragResult = await page.drag('[data-resize-handle="table-gantt"]', 72, 0);
+    const paneDrag = await page.evaluate(`(() => {
+      const visible = (element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && getComputedStyle(element).display !== "none";
+      };
+      const detailsHandle = Array.from(document.querySelectorAll('[data-resize-handle="details"]')).find(visible);
+      const tableHandle = Array.from(document.querySelectorAll('[data-resize-handle="table-gantt"]')).find(visible);
+      const main = detailsHandle?.closest(".cp-main");
+      const split = tableHandle?.closest("[data-panel-split]");
+      return {
+        missing: !main || !split,
+        details: main?.style.getPropertyValue("--cp-split-details") ?? "",
+        table: split?.style.getPropertyValue("--cp-split-table") ?? "",
+        keys: Object.keys(localStorage).filter((key) => key.startsWith("cubi:workspace:split:")),
+        storage: Object.entries(localStorage).filter(([key]) => key.startsWith("cubi:workspace:split:")),
+        activeWindow: document.querySelector(".cp-p6-workspace")?.getAttribute("data-active-menu") ?? null,
+      };
+    })()`);
+    assert(
+      !paneDrag.missing && paneDrag.details && paneDrag.table,
+      "both live pane splitters must respond to native mouse drags: " + JSON.stringify({ paneDrag, detailsDragResult, tableDragResult }),
+    );
+    assert(
+      paneDrag.keys.some((key) => key.endsWith(":details")) &&
+        paneDrag.keys.some((key) => key.endsWith(":table-gantt")),
+      "pane splitter preferences must be stored per project and workspace window: " + JSON.stringify({ paneDrag, detailsDragResult, tableDragResult }),
+    );
+    record("Details and table/Gantt panes respond to mouse resizing and persist local layout preferences", paneDrag);
+    await page.screenshot("04f-resizable-pane-layout.png");
+    const splitPreferencesBeforeReload = paneDrag;
+
     await page.click(`[data-p6-field-pin="${addTarget}"]`);
     await page.waitFor(
       `(() => {
@@ -2763,6 +3014,26 @@ async function main() {
       `document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column").length === ${initialHeaders.length}`,
       "persisted column count after reload",
     );
+    const splitPreferencesAfterReload = await page.evaluate(`(() => {
+      const visible = (element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && getComputedStyle(element).display !== "none";
+      };
+      const detailsHandle = Array.from(document.querySelectorAll('[data-resize-handle="details"]')).find(visible);
+      const tableHandle = Array.from(document.querySelectorAll('[data-resize-handle="table-gantt"]')).find(visible);
+      const main = detailsHandle?.closest(".cp-main");
+      const split = tableHandle?.closest("[data-panel-split]");
+      return {
+        details: main?.style.getPropertyValue("--cp-split-details") ?? "",
+        table: split?.style.getPropertyValue("--cp-split-table") ?? "",
+        keys: Object.keys(localStorage).filter((key) => key.startsWith("cubi:workspace:split:")),
+      };
+    })()`);
+    assert(
+      splitPreferencesAfterReload.details === splitPreferencesBeforeReload.details &&
+        splitPreferencesAfterReload.table === splitPreferencesBeforeReload.table,
+      "Details and table/Gantt pane ratios must survive a full reload",
+    );
     const orderAfterReload = await page.evaluate(`(() =>
       Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
@@ -2786,7 +3057,7 @@ async function main() {
     })()`);
     assert(addedPresentation?.pinned === "true", "pinned state must survive reload");
     assert(addedPresentation?.frozen === "true", "frozen state must survive reload");
-    assert(addedPresentation.width === widthAfter, "width must survive reload");
+    assert(addedPresentation.width === committedColumnWidth, `dragged column width must survive reload: expected=${committedColumnWidth}, restored=${addedPresentation.width}, preDragWidth=${widthAfter}`);
     assert(
       !orderAfterReload.includes(hiddenLabel),
       "hidden column must remain hidden after reload",
@@ -2808,6 +3079,152 @@ async function main() {
       pinned: addedPresentation.pinned,
       frozen: addedPresentation.frozen,
     });
+
+    // Capture the canonical desktop workspace at the three customer reference
+    // sizes. Verify splitter geometry stays inside the body and remains the
+    // topmost pointer target at each viewport; restore the original viewport
+    // before continuing the rest of the workflow.
+    for (const viewport of [
+      { width: 1280, height: 720 },
+      { width: 1366, height: 768 },
+      { width: 1920, height: 1080 },
+    ]) {
+      await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+        width: viewport.width,
+        height: viewport.height,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      await page.waitFor(
+        `window.innerWidth === ${viewport.width} && window.innerHeight === ${viewport.height}`,
+        `workspace viewport ${viewport.width}x${viewport.height}`,
+        4000,
+      );
+      const geometry = await page.evaluate(`(() => {
+        const body = document.querySelector(".cp-p6-body");
+        const main = document.querySelector(".cp-main");
+        const details = document.querySelector('[data-resize-handle="details"]');
+        const table = document.querySelector('[data-resize-handle="table-gantt"]');
+        const launcher = document.querySelector("#cubi-global-assistant");
+        const rail = document.querySelector(".cp-p6 .cp-comments-dock-rail");
+        const rect = (element) => {
+          const value = element?.getBoundingClientRect();
+          return value ? { left: value.left, right: value.right, top: value.top, bottom: value.bottom, width: value.width, height: value.height } : null;
+        };
+        const bodyRect = body?.getBoundingClientRect();
+        const mainRect = main?.getBoundingClientRect();
+        const detailsRect = details?.getBoundingClientRect();
+        const tableRect = table?.getBoundingClientRect();
+        const launcherRect = launcher?.getBoundingClientRect();
+        const railRect = rail?.getBoundingClientRect();
+        const hit = (element, bounds) => {
+          if (!element || !bounds) return false;
+          const target = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+          return Boolean(target && (target === element || element.contains(target)));
+        };
+        return {
+          body: rect(body),
+          main: rect(main),
+          details: rect(details),
+          table: rect(table),
+          assistantLauncher: rect(launcher),
+          assistantRail: rect(rail),
+          assistantInsideRail: Boolean(launcherRect && railRect &&
+            launcherRect.left >= railRect.left - 1 && launcherRect.right <= railRect.right + 1 &&
+            launcherRect.top >= railRect.top - 1 && launcherRect.bottom <= railRect.bottom + 1),
+          assistantOutsideWorkspace: Boolean(launcherRect && bodyRect &&
+            (launcherRect.right <= bodyRect.left || launcherRect.left >= bodyRect.right ||
+              launcherRect.bottom <= bodyRect.top || launcherRect.top >= bodyRect.bottom)),
+          mainFits: Boolean(bodyRect && mainRect && mainRect.width <= bodyRect.width + 1),
+          detailsFits: Boolean(bodyRect && detailsRect && detailsRect.left >= bodyRect.left - 1 && detailsRect.right <= bodyRect.right + 1),
+          tableFits: Boolean(bodyRect && tableRect && tableRect.left >= bodyRect.left - 1 && tableRect.right <= bodyRect.right + 1),
+          detailsReceivesPointer: hit(details, detailsRect),
+          tableReceivesPointer: hit(table, tableRect),
+        };
+      })()`);
+      assert(
+        geometry.mainFits && geometry.detailsFits && geometry.tableFits &&
+          geometry.detailsReceivesPointer && geometry.tableReceivesPointer &&
+          geometry.assistantInsideRail && geometry.assistantOutsideWorkspace,
+        `workspace splitters must fit and receive pointer events at ${viewport.width}x${viewport.height}: ${JSON.stringify(geometry)}`,
+      );
+      await page.cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x: viewport.width / 2,
+        y: viewport.height / 2,
+      });
+      const navigationGeometry = await page.evaluate(`(() => {
+        const navigation = document.querySelector(".cp-navigation-tree");
+        const toggle = navigation?.querySelector("[data-navigation-toggle]");
+        const body = document.querySelector(".cp-p6-body");
+        const rect = (element) => {
+          const value = element?.getBoundingClientRect();
+          return value ? { left: value.left, right: value.right, width: value.width, top: value.top, height: value.height } : null;
+        };
+        if (!navigation || !toggle || !body) return { available: false };
+        document.activeElement?.blur?.();
+        const initialNavigation = rect(navigation);
+        const initialBody = rect(body);
+        toggle.focus();
+        const focusExpanded = rect(navigation);
+        toggle.click();
+        const explicitExpanded = rect(navigation);
+        const expandedBody = rect(body);
+        const overlayPoint = document.elementFromPoint(
+          explicitExpanded.left + Math.min(explicitExpanded.width - 4, 200),
+          explicitExpanded.top + Math.min(explicitExpanded.height - 4, 80),
+        );
+        const overlayOwnsHit = Boolean(overlayPoint && navigation.contains(overlayPoint));
+        const expandedState = toggle.getAttribute("aria-expanded");
+        toggle.click();
+        const finalNavigation = rect(navigation);
+        const finalBody = rect(body);
+        const bodyStable = Boolean(initialBody && expandedBody && finalBody &&
+          Math.abs(initialBody.left - expandedBody.left) <= 1 &&
+          Math.abs(initialBody.right - expandedBody.right) <= 1 &&
+          Math.abs(initialBody.width - expandedBody.width) <= 1 &&
+          Math.abs(initialBody.left - finalBody.left) <= 1 &&
+          Math.abs(initialBody.right - finalBody.right) <= 1 &&
+          Math.abs(initialBody.width - finalBody.width) <= 1);
+        return {
+          available: true,
+          initialWidth: initialNavigation?.width ?? null,
+          focusExpandedWidth: focusExpanded?.width ?? null,
+          explicitExpandedWidth: explicitExpanded?.width ?? null,
+          finalWidth: finalNavigation?.width ?? null,
+          ariaExpandedAfterOpen: expandedState,
+          ariaExpandedAfterClose: toggle.getAttribute("aria-expanded"),
+          bodyStable,
+          overlayOwnsHit,
+        };
+      })()`);
+      assert(
+        navigationGeometry.available &&
+          navigationGeometry.initialWidth <= 50 &&
+          navigationGeometry.focusExpandedWidth >= 190 &&
+          navigationGeometry.explicitExpandedWidth >= 190 &&
+          navigationGeometry.finalWidth <= 50 &&
+          navigationGeometry.ariaExpandedAfterOpen === "true" &&
+          navigationGeometry.ariaExpandedAfterClose === "false" &&
+          navigationGeometry.bodyStable &&
+          navigationGeometry.overlayOwnsHit,
+        `icon directory must expand as an overlay and collapse without changing workspace geometry at ${viewport.width}x${viewport.height}: ${JSON.stringify(navigationGeometry)}`,
+      );
+      geometry.navigation = navigationGeometry;
+      await page.screenshot(`05-workspace-${viewport.width}x${viewport.height}.png`);
+      record(`workspace and icon-directory geometry verified at ${viewport.width}x${viewport.height}`, geometry);
+    }
+    await page.cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await page.waitFor(
+      "window.innerWidth === 1440 && window.innerHeight === 900",
+      "restore desktop viewport after reference captures",
+      4000,
+    );
 
     const layoutBeforeUndo = await readLayoutFromPage(page);
     assert(layoutBeforeUndo.status === 200, "layout must be readable before undo");
@@ -4520,11 +4937,11 @@ async function main() {
     );
 
     await page.click("#cubi-preview-banner button");
-    await page.waitForSelector('form[action="/preview/login"]', "logout returns to login");
+    await page.waitFor(`location.pathname === "/"`, "logout returns to public home");
     await page.navigate(
       `${baseUrl}/app?view=live`,
       'form[action="/preview/login"]',
-      "guarded live /app",
+      "guarded live /app after sign out",
       `${baseUrl}/preview/login`,
     );
     assert(
@@ -4813,7 +5230,13 @@ async function main() {
       result_rows: viewerRunRows,
     });
     await page.click("#cubi-preview-banner button");
-    await page.waitForSelector('form[action="/preview/login"]', "final logout");
+    await page.waitFor(`location.pathname === "/"`, "final logout returns to public Home");
+    await page.navigate(
+      `${baseUrl}/app?view=live`,
+      'form[action="/preview/login"]',
+      "admin login after final sign out",
+      `${baseUrl}/preview/login`,
+    );
 
     await page.click('button[name="role"][value="admin"]');
     await page.waitFor(`location.pathname === "/app"`, "admin redirect to /app");
@@ -6277,7 +6700,13 @@ async function main() {
     // not a mocked state: the newcomer session, the empty project list and the
     // created project all go through the same preview API and SQLite store.
     await page.click("#cubi-preview-banner button");
-    await page.waitForSelector('form[action="/preview/login"]', "newcomer login");
+    await page.waitFor(`location.pathname === "/"`, "logout before newcomer login returns Home");
+    await page.navigate(
+      `${baseUrl}/app?view=live`,
+      'form[action="/preview/login"]',
+      "newcomer login after sign out",
+      `${baseUrl}/preview/login`,
+    );
     await page.click('button[name="role"][value="newcomer"]');
     await page.waitFor(`location.pathname === "/app"`, "newcomer redirect to /app");
     await page.navigate(

@@ -577,29 +577,29 @@ def test_preview_project_deep_link_survives_login_and_rejects_external_redirects
         )
         assert status == 302
         assert headers["location"] == (
-            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01"
+            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive"
         )
 
         status, _, body = _request(
             app,
             "GET",
-            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01",
+            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive",
         )
         assert status == 200
         assert (
             b'<input type="hidden" name="next" '
-            b'value="/app?project=preview-rps-01">'
+            b'value="/app?project=preview-rps-01&amp;view=live">'
         ) in body
 
         status, headers, _ = _request(
             app,
             "POST",
             "/preview/login",
-            body=b"role=viewer&next=%2Fapp%3Fproject%3Dpreview-rps-01",
+            body=b"role=viewer&next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive",
             content_type="application/x-www-form-urlencoded",
         )
         assert status == 303
-        assert headers["location"] == "/app?project=preview-rps-01"
+        assert headers["location"] == "/app?project=preview-rps-01&view=live"
 
         status, headers, _ = _request(
             app,
@@ -609,7 +609,7 @@ def test_preview_project_deep_link_survives_login_and_rejects_external_redirects
             content_type="application/x-www-form-urlencoded",
         )
         assert status == 303
-        assert headers["location"] == "/app"
+        assert headers["location"] == "/app?view=live"
     finally:
         runtime.close()
 
@@ -636,7 +636,7 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
 
         status, headers, _ = _request(app, "GET", "/app")
         assert status == 302
-        assert headers["location"] == "/preview/login?next=%2Fapp"
+        assert headers["location"] == "/preview/login?next=%2Fapp%3Fview%3Dlive"
 
         status, _, body = _request(app, "GET", "/preview/health")
         assert status == 200
@@ -653,7 +653,7 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
             content_type="application/x-www-form-urlencoded",
         )
         assert status == 303
-        assert headers["location"] == "/app"
+        assert headers["location"] == "/app?view=live"
         cookie = _session_cookie(headers)
 
         status, _, body = _request(app, "GET", "/app", cookie=cookie)
@@ -690,7 +690,7 @@ def test_preview_server_guards_login_banner_static_files_and_logout(
 
         status, headers, _ = _request(app, "POST", "/preview/logout", cookie=cookie)
         assert status == 303
-        assert headers["location"] == "/preview/login"
+        assert headers["location"] == "/"
 
         status, _, _ = _request(app, "GET", "/api/session", cookie=cookie)
         assert status == 401
@@ -1514,7 +1514,7 @@ def test_expired_preview_session_recovers_through_login_and_clears_stale_cookie(
         )
         assert status == 302
         assert headers["location"] == (
-            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01"
+            "/preview/login?next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive"
         )
         assert "Max-Age=0" in headers["set-cookie"]
 
@@ -1522,11 +1522,11 @@ def test_expired_preview_session_recovers_through_login_and_clears_stale_cookie(
             app,
             "POST",
             "/preview/login",
-            body=b"role=planner&next=%2Fapp%3Fproject%3Dpreview-rps-01",
+            body=b"role=planner&next=%2Fapp%3Fproject%3Dpreview-rps-01%26view%3Dlive",
             content_type="application/x-www-form-urlencoded",
         )
         assert status == 303
-        assert headers["location"] == "/app?project=preview-rps-01"
+        assert headers["location"] == "/app?project=preview-rps-01&view=live"
         refreshed_cookie = _session_cookie(headers)
 
         status, _, body = _request(

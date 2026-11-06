@@ -1,5 +1,6 @@
 import type { WorkspaceMenuKey } from "./workspace-model.js";
-import { renderLayoutBar, renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } from "./workspace-chrome.js";
+import { renderTitleBar, type ChromeLayoutState, type ChromeProjectContext } from "./workspace-chrome.js";
+import { renderWorkspaceCommandShell } from "./workspace-command-shell.js";
 import { defaultLayoutPatch, readLayoutPatch, renderLayoutDialogs, type DesktopLayoutPatch, type DesktopSortColumn } from "./workspace-dialogs.js";
 import { workspaceIcon } from "./workspace-icons.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
@@ -47,8 +48,7 @@ export type DesktopCommand =
   | "dialog.bars"
   | "dialog.font-row"
   | "help.shortcuts"
-  | "help.about"
-  | "help.visual-demo";
+  | "help.about";
 
 export type DesktopShellCapabilities = {
   canUndoLayout: boolean;
@@ -351,7 +351,6 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "tools.formula", label: { en: "Formula editor", fa: "ویرایشگر فرمول" }, command: "tools.formula" },
         { id: "tools.reference", label: { en: "Scheduling reference", fa: "مرجع زمان‌بندی" }, command: "tools.reference" },
         { id: "tools.help", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts" },
-        { id: "tools.demo", label: { en: "Visual workspace demo", fa: "نمایش بصری محیط کار" }, command: "help.visual-demo" },
       ],
     },
     {
@@ -381,7 +380,6 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
       label: { en: "Help", fa: "راهنما" },
       items: [
         { id: "help.shortcuts", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts", shortcut: "F1" },
-        { id: "help.visual-demo", label: { en: "Visual workspace demo", fa: "نمایش بصری محیط کار" }, command: "help.visual-demo" },
         { id: "help.about", label: { en: "About CUBI Workspace", fa: "دربارهٔ محیط کار CUBI" }, command: "help.about" },
       ],
     },
@@ -410,6 +408,8 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
     { id: "toolbar.zoom-out", label: { en: "Zoom Out", fa: "کوچک‌نمایی" }, title: { en: "Zoom out of the timescale", fa: "کوچک‌نمایی مقیاس زمانی" }, command: "view.zoom-out", icon: "left", group: "view" },
     { id: "toolbar.fit", label: { en: "Fit", fa: "تناسب" }, title: { en: "Fit the Gantt to the window", fa: "تناسب گانت با پنجره" }, command: "view.fit", icon: "bars", group: "view" },
     { id: "toolbar.timescale", label: { en: "Timescale", fa: "مقیاس زمانی" }, title: { en: "Timescale dialog", fa: "دیالوگ مقیاس زمانی" }, command: "dialog.timescale", icon: "clock", group: "view" },
+    { id: "toolbar.bars", label: { en: "Bars", fa: "میله‌ها" }, title: { en: "Gantt bar styles", fa: "تنظیم میله‌های گانت" }, command: "dialog.bars", icon: "bars", group: "layout" },
+    { id: "toolbar.font-row", label: { en: "Font & Row", fa: "قلم و ردیف" }, title: { en: "Table font and row settings", fa: "تنظیم قلم و ارتفاع ردیف جدول" }, command: "dialog.font-row", icon: "table", group: "layout" },
     { id: "toolbar.panels", label: { en: "Panels", fa: "پنل‌ها" }, title: { en: "Show or hide the details panel", fa: "نمایش یا پنهان‌کردن پنل جزئیات" }, command: "view.toggle-details", icon: "table", group: "view" },
     { id: "toolbar.fullscreen", label: { en: "Full Screen", fa: "تمام‌صفحه" }, title: { en: "Enter full screen", fa: "ورود به تمام‌صفحه" }, fullscreen: true, icon: "fullscreen", group: "view" },
 
@@ -589,9 +589,8 @@ export function renderDesktopShell(
   };
   host.innerHTML = `<section class="cp-desktop" data-desktop-shell>
     ${renderTitleBar(chrome)}
-    ${renderMenus(state)}
+    ${renderWorkspaceCommandShell(state.locale, state.activeWindow)}
     ${renderToolbar(state)}
-    ${renderLayoutBar(chrome)}
     ${renderTabs(state)}
   </section>
   ${renderLayoutDialogs({
@@ -740,6 +739,25 @@ function bindHost(host: HTMLElement): void {
     if (!target || typeof target.closest !== "function") return;
     const runtime = runtimeByHost.get(host);
     if (!runtime) return;
+
+    const shellCommand = target.closest<HTMLElement>("[data-shell-command]");
+    if (shellCommand) {
+      if (shellCommand.hasAttribute("disabled")) return;
+      const commands: Record<string, DesktopCommand> = {
+        Columns: "view.fields",
+        "Filter By": "edit.find",
+        "Group and Sort By": "dialog.group-sort",
+        Timescale: "dialog.timescale",
+        Bars: "dialog.bars",
+        "Bar Chart Options": "dialog.bars",
+      };
+      const command = commands[shellCommand.dataset.shellCommand ?? ""];
+      host.querySelectorAll<HTMLDetailsElement>(".cubi-command-menubar details[open]").forEach((item) => item.removeAttribute("open"));
+      const dialogName = command ? dialogNameForCommand(command) : null;
+      if (dialogName) openDialog(host, dialogName);
+      else if (command) runtime.handlers.onCommand(command);
+      return;
+    }
 
     const home = target.closest<HTMLElement>("[data-workspace-home]");
     if (home) {
