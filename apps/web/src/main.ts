@@ -1475,6 +1475,7 @@ function renderApp(
       renderApp(container, toggleActivitySortDirection(state), persistence);
     },
     onP6FieldAdd: (fieldId) => mutateLayout(() => addP6Field(state, fieldId)),
+    onP6FieldAddMany: (fieldIds) => mutateLayout(() => fieldIds.reduce((next, fieldId) => addP6Field(next, fieldId), state)),
     onP6FieldReorder: (orderedFieldIds) => mutateLayout(() => reorderP6Fields(state, orderedFieldIds)),
     onP6FieldWidthChange: (fieldId, width) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, { width })),
     onP6FieldPresentationChange: (fieldId, patch) => mutateLayout(() => updateP6FieldPresentation(state, fieldId, patch)),
