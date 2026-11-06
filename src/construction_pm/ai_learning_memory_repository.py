@@ -403,10 +403,47 @@ class _RepositoryBase:
             raise AILearningMemoryPersistenceError("INVALID_AI_LEARNING_RECORD")
         payload = _encode(record)
         p = self.placeholder
+
+        existing = self.connection.execute(
+            "SELECT payload_json FROM ai_learning_memory_records "
+            f"WHERE record_id={p} AND record_version={p}",
+            (record.record_id, record.record_version),
+        ).fetchone()
+        if existing is not None:
+            if str(existing[0]) != payload:
+                raise AILearningMemoryPersistenceError("AI_LEARNING_RECORD_VERSION_CONFLICT")
+            return record
+
+        latest = self.connection.execute(
+            "SELECT record_version, scope, owner_user_id, tenant_id, project_id "
+            f"FROM ai_learning_memory_records WHERE record_id={p} "
+            "ORDER BY record_version DESC LIMIT 1",
+            (record.record_id,),
+        ).fetchone()
+        if latest is None:
+            if record.record_version != 1:
+                raise AILearningMemoryPersistenceError(
+                    "AI_LEARNING_RECORD_VERSION_SEQUENCE_INVALID"
+                )
+        else:
+            if record.record_version != int(latest[0]) + 1:
+                raise AILearningMemoryPersistenceError(
+                    "AI_LEARNING_RECORD_VERSION_SEQUENCE_INVALID"
+                )
+            if (
+                record.scope.value != str(latest[1])
+                or record.owner_user_id != latest[2]
+                or record.tenant_id != latest[3]
+                or record.project_id != latest[4]
+            ):
+                raise AILearningMemoryPersistenceError(
+                    "AI_LEARNING_RECORD_SCOPE_IMMUTABLE"
+                )
+
         self.connection.execute(
             "INSERT INTO ai_learning_memory_records "
             "(record_id, record_version, scope, status, signal_kind, owner_user_id, tenant_id, project_id, payload_json) "
-            f"VALUES ({p},{p},{p},{p},{p},{p},{p},{p},{p}) ON CONFLICT (record_id, record_version) DO NOTHING",
+            f"VALUES ({p},{p},{p},{p},{p},{p},{p},{p},{p})",
             (
                 record.record_id,
                 record.record_version,
@@ -419,17 +456,6 @@ class _RepositoryBase:
                 payload,
             ),
         )
-        row = self.connection.execute(
-            "SELECT payload_json FROM ai_learning_memory_records WHERE record_id="
-            + p
-            + " AND record_version="
-            + p,
-            (record.record_id, record.record_version),
-        ).fetchone()
-        if row is None:
-            raise AILearningMemoryPersistenceError("AI_LEARNING_APPEND_NOT_PERSISTED")
-        if str(row[0]) != payload:
-            raise AILearningMemoryPersistenceError("AI_LEARNING_RECORD_VERSION_CONFLICT")
         return record
 
     def _read_payloads(self, scope: LearningRetrievalScope) -> list[object]:
