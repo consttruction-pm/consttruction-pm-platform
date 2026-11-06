@@ -164,6 +164,36 @@ _AUDIT_INDEX_SCHEMA = (
     f"ON {_AUDIT_TABLE} (tenant_id, project_id, occurred_at, event_id)"
 )
 
+_SQLITE_APPEND_ONLY_TRIGGERS = (
+    """CREATE TRIGGER IF NOT EXISTS cubi_ai_learning_records_no_update
+    BEFORE UPDATE ON ai_learning_memory_records
+    BEGIN SELECT RAISE(ABORT, 'AI_LEARNING_RECORDS_APPEND_ONLY'); END""",
+    """CREATE TRIGGER IF NOT EXISTS cubi_ai_learning_records_no_delete
+    BEFORE DELETE ON ai_learning_memory_records
+    BEGIN SELECT RAISE(ABORT, 'AI_LEARNING_RECORDS_APPEND_ONLY'); END""",
+    """CREATE TRIGGER IF NOT EXISTS cubi_ai_learning_audit_no_update
+    BEFORE UPDATE ON ai_learning_memory_audit_events
+    BEGIN SELECT RAISE(ABORT, 'AI_LEARNING_AUDIT_APPEND_ONLY'); END""",
+    """CREATE TRIGGER IF NOT EXISTS cubi_ai_learning_audit_no_delete
+    BEFORE DELETE ON ai_learning_memory_audit_events
+    BEGIN SELECT RAISE(ABORT, 'AI_LEARNING_AUDIT_APPEND_ONLY'); END""",
+)
+_POSTGRES_APPEND_ONLY_FUNCTION = """CREATE OR REPLACE FUNCTION cubi_reject_ai_learning_mutation()
+RETURNS trigger LANGUAGE plpgsql AS $
+BEGIN
+    RAISE EXCEPTION 'AI_LEARNING_ROWS_APPEND_ONLY' USING ERRCODE = '55000';
+END;
+$"""
+_POSTGRES_APPEND_ONLY_TRIGGERS = (
+    "DROP TRIGGER IF EXISTS cubi_ai_learning_records_no_update_delete ON ai_learning_memory_records",
+    "CREATE TRIGGER cubi_ai_learning_records_no_update_delete "
+    "BEFORE UPDATE OR DELETE ON ai_learning_memory_records "
+    "FOR EACH ROW EXECUTE FUNCTION cubi_reject_ai_learning_mutation()",
+    "DROP TRIGGER IF EXISTS cubi_ai_learning_audit_no_update_delete ON ai_learning_memory_audit_events",
+    "CREATE TRIGGER cubi_ai_learning_audit_no_update_delete "
+    "BEFORE UPDATE OR DELETE ON ai_learning_memory_audit_events "
+    "FOR EACH ROW EXECUTE FUNCTION cubi_reject_ai_learning_mutation()",
+)
 # Migration 1 is immutable. Do not edit its DDL or checksum after release.
 _MIGRATION_V1_NAME = "create_ai_learning_memory_records"
 _MIGRATION_V1_CHECKSUM = hashlib.sha256(
@@ -173,9 +203,18 @@ _MIGRATION_V2_NAME = "create_ai_learning_memory_audit_events"
 _MIGRATION_V2_CHECKSUM = hashlib.sha256(
     f"{_AUDIT_SCHEMA}\n{_AUDIT_INDEX_SCHEMA}".encode("utf-8")
 ).hexdigest()
+_MIGRATION_V3_NAME = "enforce_append_only_learning_memory_and_audit_rows"
+_MIGRATION_V3_CHECKSUM = hashlib.sha256(
+    "\\n".join((
+        *_SQLITE_APPEND_ONLY_TRIGGERS,
+        _POSTGRES_APPEND_ONLY_FUNCTION,
+        *_POSTGRES_APPEND_ONLY_TRIGGERS,
+    )).encode("utf-8")
+).hexdigest()
 _MIGRATIONS = (
     (1, _MIGRATION_V1_NAME, _MIGRATION_V1_CHECKSUM),
     (2, _MIGRATION_V2_NAME, _MIGRATION_V2_CHECKSUM),
+    (3, _MIGRATION_V3_NAME, _MIGRATION_V3_CHECKSUM),
 )
 
 _REQUIRED_RECORD_COLUMNS = {
@@ -200,6 +239,9 @@ class _RepositoryBase:
         raise NotImplementedError
 
     def _table_primary_key_columns(self, table_name: str) -> tuple[str, ...]:
+        raise NotImplementedError
+
+    def _ensure_append_only_guards(self) -> None:
         raise NotImplementedError
 
     def _require_primary_key(
@@ -301,6 +343,8 @@ class _RepositoryBase:
                         "AI_LEARNING_AUDIT_PRIMARY_KEY_INCOMPATIBLE",
                     )
                 self.connection.execute(_AUDIT_INDEX_SCHEMA)
+            elif version == 3:
+                self._ensure_append_only_guards()
             else:
                 raise AILearningMemoryPersistenceError(
                     "AI_LEARNING_SCHEMA_MIGRATION_IMPLEMENTATION_MISSING"
@@ -344,6 +388,8 @@ class _RepositoryBase:
             "AI_LEARNING_AUDIT_PRIMARY_KEY_INCOMPATIBLE",
         )
         self.connection.execute(_AUDIT_INDEX_SCHEMA)
+        # Recreate missing append-only guards on startup without changing rows.
+        self._ensure_append_only_guards()
 
     def initialize(self) -> None:
         """Backend-specific migration transaction ownership."""
@@ -529,6 +575,10 @@ class SQLiteAILearningMemoryRepository(_RepositoryBase):
         )
         return tuple(name for _, name in keyed)
 
+    def _ensure_append_only_guards(self) -> None:
+        for statement in _SQLITE_APPEND_ONLY_TRIGGERS:
+            self.connection.execute(statement)
+
     def initialize(self) -> None:
         # Atomic DDL + migration-history write. When a caller already owns a
         # transaction, a savepoint lets initialization roll back only its work.
@@ -583,6 +633,11 @@ class PostgresAILearningMemoryRepository(_RepositoryBase):
             (table_name,),
         ).fetchall()
         return tuple(str(row[0]) for row in rows)
+
+    def _ensure_append_only_guards(self) -> None:
+        self.connection.execute(_POSTGRES_APPEND_ONLY_FUNCTION)
+        for statement in _POSTGRES_APPEND_ONLY_TRIGGERS:
+            self.connection.execute(statement)
 
     def initialize(self) -> None:
         # Do not commit here: callers own PostgreSQL transaction boundaries.
