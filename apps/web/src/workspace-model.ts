@@ -9,6 +9,7 @@ import type { WorkspaceProcurementRecord } from "./workspace-procurement.js";
 import type { WorkspaceInspection, WorkspaceQualityRecord, WorkspaceSafetyObservation, WorkspacePunchItem } from "./workspace-field-assurance.js";
 import type { WorkspaceSmartGuide } from "./workspace-smart-guide.js";
 import type { FieldRegistry, LayoutDefinition } from "./p6-field-layout-foundation.js";
+import type { SavedActivityFilter } from "./p6-activity-filter-api.js";
 import { addField, removeField, reorderFields, updateFieldPresentation } from "./p6-field-layout-foundation.js";
 import { getWorkspaceLocaleDirection, localizeWorkspaceLabel, translateWorkspaceText } from "./workspace-localization.js";
 
@@ -178,6 +179,10 @@ export type WorkspaceState = {
   wbsNodes: readonly WorkspaceWbsNode[];
   relationships: readonly WorkspaceRelationshipRow[];
   activityFilter: string;
+  activityFilters: readonly SavedActivityFilter[];
+  selectedActivityFilterIds: readonly string[];
+  activityFilterCombination: "all" | "any";
+  activityFilterApplication: "replace" | "highlight";
   activityGroupBy: WorkspaceActivityGroupBy;
   activitySort: WorkspaceActivitySort | null;
   controlSummary: WorkspaceControlSummary | null;
@@ -256,6 +261,10 @@ export function createWorkspaceState(
     wbsNodes: [],
     relationships: [],
     activityFilter: "",
+    activityFilters: [],
+    selectedActivityFilterIds: [],
+    activityFilterCombination: "all",
+    activityFilterApplication: "replace",
     activityGroupBy: "wbs",
     activitySort: Object.freeze({ columnId: "wbs", direction: "asc" }),
     controlSummary: null,
@@ -302,6 +311,46 @@ export function setActivityFilter(state: WorkspaceState, filterText: string): Wo
   const normalized = filterText.slice(0, 200);
   if (normalized === state.activityFilter) return state;
   return { ...state, activityFilter: normalized };
+}
+
+export function setActivityFilterRegister(
+  state: WorkspaceState,
+  filters: readonly SavedActivityFilter[],
+): WorkspaceState {
+  const byId = new Map(filters.map((filter) => [filter.filter_id, filter]));
+  const selectedActivityFilterIds = state.selectedActivityFilterIds.filter((id) => byId.has(id));
+  return {
+    ...state,
+    activityFilters: filters.map((filter) => Object.freeze({
+      ...filter,
+      criteria: filter.criteria.map((criterion) => Object.freeze({ ...criterion })),
+    })),
+    selectedActivityFilterIds: Object.freeze(selectedActivityFilterIds),
+  };
+}
+
+export function setActivityFilterSelection(
+  state: WorkspaceState,
+  ids: readonly string[],
+  combination: "all" | "any" = state.activityFilterCombination,
+  application: "replace" | "highlight" = state.activityFilterApplication,
+): WorkspaceState {
+  const available = new Set(state.activityFilters.map((filter) => filter.filter_id));
+  const selected = [...new Set(ids)].filter((id) => available.has(id));
+  if (combination !== "all" && combination !== "any") throw new Error("INVALID_ACTIVITY_FILTER_COMBINATION");
+  if (application !== "replace" && application !== "highlight") throw new Error("INVALID_ACTIVITY_FILTER_APPLICATION");
+  if (
+    selected.length === state.selectedActivityFilterIds.length &&
+    selected.every((id, index) => id === state.selectedActivityFilterIds[index]) &&
+    combination === state.activityFilterCombination &&
+    application === state.activityFilterApplication
+  ) return state;
+  return {
+    ...state,
+    selectedActivityFilterIds: Object.freeze(selected),
+    activityFilterCombination: combination,
+    activityFilterApplication: application,
+  };
 }
 
 export function setActivitySort(
