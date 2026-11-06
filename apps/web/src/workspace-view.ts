@@ -255,11 +255,13 @@ export function renderActivityTraceLogic(state: WorkspaceState): string {
 }
 
 type WorkspaceContextMenuState =
-  | { kind: "activity"; activityId: string }
+  | { kind: "activity"; activityId: string; columnId?: string }
+  | { kind: "activity-column"; columnId: string }
   | { kind: "wbs"; wbsId: string }
   | { kind: "relationship"; relationshipId: string }
   | { kind: "grid" | "gantt" };
 const workspaceContextMenuState = new WeakMap<HTMLElement, WorkspaceContextMenuState>();
+const workspaceContextMenuReturnFocusByContainer = new WeakMap<HTMLElement, HTMLElement>();
 
 type ActivityWbsDisplayGroup = {
   wbsId: string;
@@ -570,26 +572,29 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       if (wbsId) void record.options.onWbsUpdate?.(wbsId, { code: readText("code"), name: readText("name"), sequenceNumber });
     }
   });
-  container.addEventListener("contextmenu", (event) => {
-    const source = event.target as HTMLElement | null;
-    if (!source || typeof source.closest !== "function") return;
+  const openWorkspaceContextMenu = (source: HTMLElement, clientX: number, clientY: number): boolean => {
+    if (typeof source.closest !== "function") return false;
+    const header = source.closest<HTMLElement>("#cp-activity-grid th[data-column-id]");
+    const cell = source.closest<HTMLElement>("#cp-activity-grid td[data-column-id]");
     const activity = source.closest<HTMLElement>("#cp-activity-grid tr[data-activity-id]");
     const ganttActivity = source.closest<HTMLElement>(".cp-gantt-row[data-gantt-activity-id]");
     const group = source.closest<HTMLElement>("[data-activity-group-band]");
+    const wbsTreeItem = source.closest<HTMLElement>("[data-wbs-id]");
     const link = source.closest<SVGPathElement>("path[data-gantt-link]");
     let context: WorkspaceContextMenuState | null = null;
     if (link?.dataset.ganttLink) context = { kind: "relationship", relationshipId: link.dataset.ganttLink };
     else if (group?.dataset.activityGroupBand) context = { kind: "wbs", wbsId: group.dataset.activityGroupBand };
-    else if (activity?.dataset.activityId) context = { kind: "activity", activityId: activity.dataset.activityId };
+    else if (header?.dataset.columnId) context = { kind: "activity-column", columnId: header.dataset.columnId };
+    else if (activity?.dataset.activityId) context = { kind: "activity", activityId: activity.dataset.activityId, columnId: cell?.dataset.columnId };
     else if (ganttActivity?.dataset.ganttActivityId) context = { kind: "activity", activityId: ganttActivity.dataset.ganttActivityId };
+    else if (wbsTreeItem?.dataset.wbsId) context = { kind: "wbs", wbsId: wbsTreeItem.dataset.wbsId };
     else if (source.closest("#cp-activity-grid")) context = { kind: "grid" };
     else if (source.closest("#cp-gantt")) context = { kind: "gantt" };
-    if (!context) return;
-    event.preventDefault();
+    if (!context) return false;
     workspaceContextMenuState.set(container, context);
     const host = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
     const record = workspaceRenderRecords.get(container);
-    if (!host || !record) return;
+    if (!host || !record) return false;
     const state = record.state;
     const item = (action: string, label: string): string => '<button type="button" role="menuitem" data-context-action="' + action + '">' + escapeHtml(label) + '</button>';
     const tx = (en: string, fa: string): string => uiText(state.locale, en, fa);
@@ -601,6 +606,11 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       item("successors", tx("Show Successors", "نمایش پس‌نیازها")),
       item("relationships", tx("Show Relationships", "نمایش روابط")),
       item("select-wbs", tx("Select WBS", "انتخاب WBS")),
+      ...(context.columnId ? [item("hide-column", tx("Hide This Column", "پنهان‌کردن این ستون"))] : []),
+    ];
+    else if (context.kind === "activity-column") items = [
+      item("hide-column", tx("Hide This Column", "پنهان‌کردن این ستون")),
+      item("columns", tx("Manage Columns & Fields", "مدیریت ستون‌ها و فیلدها")),
     ];
     else if (context.kind === "wbs") items = [
       item("toggle-wbs", tx("Expand / Collapse Branch", "بازکردن / جمع‌کردن شاخه")),
@@ -621,17 +631,29 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       item("toggle-links", tx("Show / Hide Relationships", "نمایش / پنهان‌کردن روابط")),
       item("columns", tx("Bar & Chart Options", "گزینه‌های میله و نمودار")),
     ];
-    host.innerHTML = '<div class="cp-workspace-context-menu" role="menu" aria-label="' + escapeAttribute(tx("Activity context menu", "منوی زمینه‌ای فعالیت")) + '">' + items.join("") + '</div>';
+    host.innerHTML = '<div class="cp-workspace-context-menu" data-workspace-context-menu role="menu" aria-label="' + escapeAttribute(tx("Activity context menu", "منوی زمینه‌ای فعالیت")) + '">' + items.join("") + '</div>';
     host.hidden = false;
     host.style.position = "fixed";
     const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
     const viewportHeight = typeof window === "undefined" ? 768 : window.innerHeight;
-    host.style.left = String(Math.max(8, Math.min(event.clientX, viewportWidth - 230))) + "px";
-    host.style.top = String(Math.max(8, Math.min(event.clientY, viewportHeight - 220))) + "px";
+    host.style.left = String(Math.max(8, Math.min(clientX, viewportWidth - 230))) + "px";
+    host.style.top = String(Math.max(8, Math.min(clientY, viewportHeight - 220))) + "px";
+    workspaceContextMenuReturnFocusByContainer.set(container, source);
     host.querySelector<HTMLButtonElement>("[data-context-action]")?.focus({ preventScroll: true });
+    return true;
+  };
+  container.addEventListener("contextmenu", (event) => {
+    const source = event.target as HTMLElement | null;
+    if (source && openWorkspaceContextMenu(source, event.clientX, event.clientY)) event.preventDefault();
   });
   container.addEventListener("click", (event) => {
-    const target = event.target && typeof (event.target as { closest?: unknown }).closest === "function" ? (event.target as HTMLElement).closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-workspace-appearance-open],[data-workspace-appearance-close],[data-workspace-appearance-apply],[data-workspace-appearance-reset],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-gantt-link],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-context-action]") : null;
+    const rawTarget = event.target as HTMLElement | null;
+    const menuHostForDismiss = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
+    if (menuHostForDismiss && rawTarget && !rawTarget.closest("[data-workspace-context-menu]")) {
+      menuHostForDismiss.hidden = true;
+      workspaceContextMenuState.delete(container);
+    }
+    const target = rawTarget && typeof rawTarget.closest === "function" ? rawTarget.closest<HTMLElement>("[data-project-settings],[data-register-tab],[data-calendar-editor-tab],[data-wbs-detail-tab],[data-project-detail-tab],[data-activity-details-options-open],[data-activity-details-options-close],[data-activity-details-apply],[data-activity-detail-tab],[data-window-close],[data-shell-command],[data-layout-options-open],[data-layout-options-close],[data-workspace-appearance-open],[data-workspace-appearance-close],[data-workspace-appearance-apply],[data-workspace-appearance-reset],[data-menu],[data-rail-action],[data-tools-open],[data-tools-close],[data-wbs-drawer-close],[data-wbs-view],[data-wbs-id],[data-wbs-delete],[data-document-row],[data-document-detail-tab],[data-relationship-delete],[data-p6-field-add],[data-p6-field-add-all],[data-p6-field-remove],[data-p6-field-visibility],[data-p6-field-width],[data-p6-field-alignment],[data-p6-field-pin],[data-p6-field-freeze],[data-p6-field-move],[data-p6-layout-undo],[data-p6-layout-redo],[data-p6-layout-restore],[data-gantt-scale],[data-gantt-relationships-toggle],[data-activity-wbs-group-toggle],[data-gantt-activity-id],[data-gantt-link],[data-activity-id],[data-activity-edit],[data-activity-sort-direction],[data-context-action]") : null;
     if (!target) return;
     const record = workspaceRenderRecords.get(container);
     if (!record) return;
@@ -642,8 +664,16 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       const host = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
       if (host) host.hidden = true;
       if (!context) return;
-      if (context.kind === "activity") {
+      if (context.kind === "activity-column") {
+        if (menuAction === "hide-column") options.onP6FieldVisibilityChange?.(context.columnId, false);
+        else if (menuAction === "columns") openToolsDrawer(container);
+      } else if (context.kind === "activity") {
         const activityId = context.activityId;
+        if (menuAction === "hide-column" && context.columnId) {
+          options.onP6FieldVisibilityChange?.(context.columnId, false);
+          workspaceContextMenuState.delete(container);
+          return;
+        }
         if (menuAction === "details" || menuAction === "predecessors" || menuAction === "successors" || menuAction === "relationships") {
           activityDetailsTabByContainer.set(container, menuAction === "details" ? "general" : menuAction);
           options.onActivitySelect?.(activityId);
@@ -920,6 +950,14 @@ function bindWorkspaceEvents(container: HTMLElement): void {
       return;
     }
     if (target.dataset.p6FieldAdd) return void options.onP6FieldAdd?.(target.dataset.p6FieldAdd);
+    if ("p6FieldAddAll" in target.dataset) {
+      const layoutFields = new Set(state.p6Layout?.columns.map((column) => column.field_id) ?? []);
+      const fieldIds = state.p6FieldRegistry?.fields
+        .filter((field) => !layoutFields.has(field.field_id))
+        .map((field) => field.field_id) ?? [];
+      if (fieldIds.length) options.onP6FieldAddMany?.(fieldIds);
+      return;
+    }
     if (target.dataset.p6FieldRemove) return void options.onP6FieldRemove?.(target.dataset.p6FieldRemove);
     if (target.dataset.p6FieldVisibility) return void options.onP6FieldVisibilityChange?.(target.dataset.p6FieldVisibility, target.dataset.p6FieldVisible === "true");
     if (target.dataset.p6FieldWidth) {
@@ -977,6 +1015,26 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     if (target.dataset.activityId) options.onActivitySelect?.(target.dataset.activityId);
   });
   container.addEventListener("keydown", (event) => {
+    const contextHost = container.querySelector<HTMLElement>("[data-workspace-context-menu-host]");
+    if (event.key === "Escape" && contextHost && !contextHost.hidden) {
+      contextHost.hidden = true;
+      workspaceContextMenuState.delete(container);
+      const returnFocus = workspaceContextMenuReturnFocusByContainer.get(container);
+      workspaceContextMenuReturnFocusByContainer.delete(container);
+      returnFocus?.focus({ preventScroll: true });
+      event.preventDefault();
+      return;
+    }
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+      const focused = event.target as HTMLElement | null;
+      const anchor = focused?.closest?.<HTMLElement>("#cp-activity-grid tr[data-activity-id], #cp-activity-grid th[data-column-id], #cp-activity-grid td[data-column-id], #cp-activity-grid tr[data-activity-group-band], [data-wbs-id], #cp-activity-grid, .cp-gantt-row[data-gantt-activity-id], .cp-gantt-group-row[data-activity-group-band], path[data-gantt-link], #cp-gantt");
+      if (!anchor) return;
+      const bounds = anchor.getBoundingClientRect();
+      const clientX = Math.max(8, bounds.left + Math.min(Math.max(bounds.width / 2, 24), 120));
+      const clientY = Math.max(8, bounds.top + Math.min(Math.max(bounds.height / 2, 16), 32));
+      if (openWorkspaceContextMenu(anchor, clientX, clientY)) event.preventDefault();
+      return;
+    }
     const splitter = (event.target as HTMLElement | null)?.closest?.<HTMLElement>("[data-panel-splitter]");
     if (splitter && splitter.dataset && "panelSplitter" in splitter.dataset) {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -1314,6 +1372,7 @@ export type WorkspaceRendererOptions = {
   onActivityGroupByChange?: (groupBy: "wbs" | "none") => void;
   onActivitySortDirectionToggle?: () => void;
   onP6FieldAdd?: (fieldId: string) => void;
+  onP6FieldAddMany?: (fieldIds: readonly string[]) => void;
   onP6FieldRemove?: (fieldId: string) => void;
   onP6FieldReorder?: (orderedFieldIds: readonly string[]) => void;
   onP6FieldWidthChange?: (fieldId: string, width: number) => void;
@@ -2761,6 +2820,7 @@ function renderP6FieldChooser(
         if (!field) return "";
         return `<span class="cp-p6-field-item is-hidden"><button type="button" data-p6-field-visibility="${escapeAttribute(field.field_id)}" data-p6-field-visible="true" title="${escapeAttribute(t.show + ": " + (column.label ?? field.display_name))}" aria-label="${escapeAttribute(t.show + ": " + (column.label ?? field.display_name))}">${escapeHtml(column.label ?? field.display_name)}</button><button type="button" data-p6-field-remove="${escapeAttribute(field.field_id)}" title="${escapeAttribute(t.remove + ": " + (column.label ?? field.display_name))}" aria-label="${escapeAttribute(t.remove + ": " + (column.label ?? field.display_name))}">${escapeHtml(t.remove)}</button></span>`;
       }).join("")}
+      ${available.length ? `<button type="button" data-p6-field-add-all="true" title="${escapeAttribute(uiText(state.locale, "Add all available fields", "افزودن همهٔ فیلدهای موجود"))}">${escapeHtml(uiText(state.locale, "Add All", "افزودن همه"))} (${available.length})</button>` : ""}
       ${available.map((field) => `<button type="button" data-p6-field-add="${escapeAttribute(field.field_id)}" title="${escapeAttribute(t.add)}">${escapeHtml(field.display_name)}</button>`).join("")}
     </div>
   </section>`;

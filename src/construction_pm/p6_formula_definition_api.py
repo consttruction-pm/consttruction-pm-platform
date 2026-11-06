@@ -15,6 +15,8 @@ from .p6_formula_definition_repository import (
 
 
 P6_FORMULA_DEFINITION_API_VERSION = "p6-formula-definition-api.v1"
+P6_FORMULA_SEMANTIC_VERSION = "p6-formula.v1"
+P6_FORMULA_SEMANTIC_REFERENCE = "shared-core:p6-formula"
 
 
 def _require_scope(scope: BackendScope, auth_context: AuthorizationContext) -> None:

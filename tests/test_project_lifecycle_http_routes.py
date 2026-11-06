@@ -14,7 +14,7 @@ from construction_pm.http.project_lifecycle_routes import ProjectLifecycleHttpRo
 from construction_pm.http.wsgi import ProjectLifecycleWsgiApp
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
-from construction_pm.p6_field_registry import get_field, P6FieldType
+from construction_pm.p6_field_registry import get_field, P6FieldType, P6FieldDefinition
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_field_registry_repository import P6FieldRegistryApplicationService, SQLiteP6FieldRegistryRepository
 from construction_pm.p6_user_defined_fields_repository import (
@@ -25,6 +25,11 @@ from construction_pm.p6_user_defined_fields_repository import (
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
 from construction_pm.p6_formula_authority_api import P6_FORMULA_AUTHORITY_API_VERSION
+from construction_pm.p6_formula_definition_api import P6FormulaDefinitionAPI, P6_FORMULA_DEFINITION_API_VERSION
+from construction_pm.p6_formula_definition_repository import P6FormulaDefinitionApplicationService, SQLiteP6FormulaDefinitionRepository
+from construction_pm.p6_formula_audit import SQLiteP6FormulaAuditRepository
+from construction_pm.p6_activity_filter_api import P6ActivityFilterAPI, P6_ACTIVITY_FILTER_API_VERSION
+from construction_pm.p6_activity_filter_repository import SQLiteP6ActivityFilterRepository
 from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
@@ -1095,6 +1100,17 @@ def p6_routes(roles=frozenset({"project_admin"})):
     )
     layout_api = P6LayoutDefinitionAPI(SQLiteP6LayoutRepository(connection), default_project_policy())
     formula_api = P6FormulaAuthorityAPI(field_api.field_service, default_project_policy())
+    activity_filter_api = P6ActivityFilterAPI(
+        SQLiteP6ActivityFilterRepository(connection), default_project_policy(), transaction_manager
+    )
+    formula_definition_api = P6FormulaDefinitionAPI(
+        P6FormulaDefinitionApplicationService(
+            SQLiteP6FormulaDefinitionRepository(connection),
+            transaction_manager,
+            SQLiteP6FormulaAuditRepository(connection),
+        ),
+        default_project_policy(),
+    )
     calendar_repository = SQLiteCalendarMasterRepository(connection)
     snapshot_repository = SQLiteCalendarSnapshotRepository(connection)
     calendar_api = P6CalendarReadAPI(calendar_repository, snapshot_repository, default_project_policy())
@@ -1119,6 +1135,8 @@ def p6_routes(roles=frozenset({"project_admin"})):
         p6_field_registry_api=field_api,
         p6_layout_definition_api=layout_api,
         p6_formula_authority_api=formula_api,
+        p6_formula_definition_api=formula_definition_api,
+        p6_activity_filter_api=activity_filter_api,
         p6_calendar_read_api=calendar_api,
         p6_baseline_api=baseline_api,
         p6_financial_period_api=financial_period_api,
@@ -2398,3 +2416,272 @@ def test_project_http_get_unknown_project_is_forbidden():
     )
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+def test_p6_activity_formula_definition_route_validates_persists_versions_and_audit():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.percent_complete"), auth_context=auth)
+    payload = {
+        "formula_id": "activity.formula.weighted_progress",
+        "version": "1.0",
+        "display_name": "Weighted Progress",
+        "description": "A user-defined Activity calculation",
+        "expression": "[activity.percent_complete] * 0.5",
+        "context_field_id": "activity.formula.weighted_progress",
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 201
+    created = json.loads(body)
+    assert created["contract_version"] == P6_FORMULA_DEFINITION_API_VERSION
+    assert created["formula"]["formula_id"] == payload["formula_id"]
+    assert created["formula"]["version"] == "1.0"
+    assert created["formula"]["result_type"] == "number"
+    assert created["formula"]["dependencies"] == ["activity.percent_complete"]
+    assert created["formula"]["metadata"]["subject_area"] == "Activity"
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/formula-definitions/activity.formula.weighted_progress",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    versions = json.loads(body)
+    assert versions["contract_version"] == P6_FORMULA_DEFINITION_API_VERSION
+    assert [item["formula"]["version"] for item in versions["formulas"]] == ["1.0"]
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/formula-definitions/activity.formula.weighted_progress/audit",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    audit = json.loads(body)["audit"]
+    assert len(audit) == 1
+    assert audit[0]["actor_id"] == "u1"
+    assert audit[0]["formula_version"] == "1.0"
+
+
+def test_p6_activity_formula_definition_route_rejects_invalid_formula_and_missing_session():
+    r, _, _ = p6_routes()
+    payload = {
+        "formula_id": "activity.formula.invalid",
+        "version": "1.0",
+        "display_name": "Invalid Formula",
+        "expression": "[activity.missing_field] + 1",
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 422
+    assert json.loads(body)["validation"]["valid"] is False
+    assert json.loads(body)["validation"]["error_code"]
+
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
+
+
+def test_p6_activity_formula_definition_route_requires_write_permission():
+    r, field_api, _ = p6_routes(roles=frozenset({"viewer"}))
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.percent_complete"), auth_context=auth)
+    payload = {
+        "formula_id": "activity.formula.viewer_denied",
+        "version": "1.0",
+        "display_name": "Viewer Denied",
+        "expression": "[activity.percent_complete] + 1",
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 403
+    assert json.loads(body)["code"]
+
+def test_p6_activity_formula_definition_route_checks_and_persists_inferred_unit():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(
+        scope,
+        "p6-field-registry.v1",
+        P6FieldDefinition(
+            field_id="activity.quantity",
+            subject_area="Activity",
+            p6_field="Quantity",
+            display_name="Quantity",
+            data_type=P6FieldType.DOUBLE,
+            writable=False,
+            computed=False,
+            unit="m",
+            disposition="implemented",
+        ),
+        auth_context=auth,
+    )
+    payload = {
+        "formula_id": "activity.formula.quantity_total",
+        "version": "1.0",
+        "display_name": "Quantity Total",
+        "expression": "[activity.quantity] * 2",
+        "result_unit": "m",
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 201
+    formula = json.loads(body)["formula"]
+    assert formula["result_unit"] == "m"
+
+    payload["formula_id"] = "activity.formula.quantity_total_mismatch"
+    payload["result_unit"] = "ft"
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 422
+    assert json.loads(body)["validation"]["error_code"] == "FORMULA_RESULT_UNIT_MISMATCH"
+
+
+def test_p6_activity_filter_routes_create_list_update_delete_and_keep_project_scope():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.activity_id"), auth_context=auth)
+    payload = {
+        "filter_id": "activity.filter.civil-package",
+        "name": "Civil package",
+        "category": "user-defined",
+        "expected_revision": 0,
+        "match_mode": "all",
+        "criteria": [
+            {"connector": "where", "field_id": "activity.activity_id", "operator": "contains", "value": "CIV"},
+            {"connector": "and", "field_id": "activity.activity_id", "operator": "starts-with", "value": "CIV-"},
+        ],
+    }
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/activity-filters",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 201
+    created = json.loads(body)
+    assert created["contract_version"] == P6_ACTIVITY_FILTER_API_VERSION
+    assert created["filter"]["revision"] == 1
+    assert created["filter"]["criteria"][1]["connector"] == "and"
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/activity-filters", cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    register = json.loads(body)
+    assert register["kind"] == "activity_filter_register"
+    assert [item["filter_id"] for item in register["filters"]] == ["activity.filter.civil-package"]
+
+    payload["name"] = "Civil package — active"
+    payload["expected_revision"] = 1
+    payload["criteria"] = [
+        {"connector": "where", "field_id": "activity.activity_id", "operator": "contains", "value": "CIV"},
+    ]
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/activity-filters",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 200
+    assert json.loads(body)["filter"]["revision"] == 2
+    assert json.loads(body)["filter"]["name"] == "Civil package — active"
+
+    status, _, body = r.handle(
+        "DELETE", "/api/projects/p1/p6/activity-filters/activity.filter.civil-package?expected_revision=2",
+        cookies={"cp_session": "s1"}, body=b"{}",
+    )
+    assert status == 200
+    assert json.loads(body)["deleted"] is True
+
+    status, _, body = r.handle(
+        "GET", "/api/projects/p1/p6/activity-filters", cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert json.loads(body)["filters"] == []
+
+
+def test_p6_activity_filter_routes_reject_unregistered_fields_and_stale_revisions():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.activity_id"), auth_context=auth)
+    payload = {
+        "filter_id": "activity.filter.invalid-field",
+        "name": "Invalid field",
+        "expected_revision": 0,
+        "match_mode": "all",
+        "criteria": [
+            {"connector": "where", "field_id": "activity.not-real", "operator": "equals", "value": "x"},
+        ],
+    }
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/activity-filters",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 422
+    assert json.loads(body)["code"] == "P6_ACTIVITY_FILTER_FIELD_NOT_FILTERABLE"
+
+    payload["filter_id"] = "activity.filter.revision-check"
+    payload["criteria"][0]["field_id"] = "activity.activity_id"
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/activity-filters",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 201
+    payload["name"] = "Stale save"
+    payload["expected_revision"] = 0
+    status, _, body = r.handle(
+        "POST", "/api/projects/p1/p6/activity-filters",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 409
+    assert json.loads(body)["code"] == "REVISION_CONFLICT"
+
+
+def test_p6_activity_filter_routes_require_authentication_and_write_permission():
+    viewer, _, _ = p6_routes(roles=frozenset({"viewer"}))
+    payload = {
+        "filter_id": "activity.filter.viewer-denied",
+        "name": "Viewer denied",
+        "expected_revision": 0,
+        "match_mode": "all",
+        "criteria": [
+            {"connector": "where", "field_id": "activity.activity_id", "operator": "equals", "value": "A-1"},
+        ],
+    }
+    status, _, body = viewer.handle(
+        "POST", "/api/projects/p1/p6/activity-filters",
+        cookies={"cp_session": "s1"}, body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 403
+    assert json.loads(body)["code"]
+
+    status, _, body = viewer.handle(
+        "GET", "/api/projects/p1/p6/activity-filters",
+    )
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"

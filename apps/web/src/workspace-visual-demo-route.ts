@@ -13,7 +13,10 @@ export function shouldRenderVisualWorkspaceDemo(
   const parameters = new URLSearchParams(search);
   if (parameters.get("view") === "live") return false;
   if (parameters.get("view") === "visual") return true;
-  if (pathname !== "/app") return false;
+  // Static hosting serves app.html as /app/ (and sometimes /app/index.html).
+  // Normalize equivalent workspace URLs before selecting the visual preview.
+  const normalizedPath = pathname.replace(/\\/+$/, "").replace(/\\/index\\.html$/, "") || "/";
+  if (normalizedPath !== "/app") return false;
 
   // The accepted entry flow is Home → Login → Visual Workspace. A direct
   // login with no project context must therefore land in the visual shell,

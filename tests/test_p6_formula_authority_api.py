@@ -47,7 +47,7 @@ def test_validate_returns_versioned_authoritative_contract() -> None:
         "contract_version": P6_FORMULA_AUTHORITY_API_VERSION,
         "validation": {"valid": True, "error_code": None, "message_key": None},
         "dependencies": {"field_ids": ["activity.percent_complete"]},
-        "result_type": {"data_type": "double"},
+        "result_type": {"data_type": "double", "unit": None},
     }
 
 

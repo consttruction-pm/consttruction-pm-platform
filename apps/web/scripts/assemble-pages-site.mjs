@@ -60,7 +60,7 @@ cpSync(join(root, "dist"), join(output, "dist"), { recursive: true, force: true 
 cpSync(join(root, "index.html"), join(output, "index.html"));
 cpSync(join(root, "styles.css"), join(output, "styles.css"));
 mkdirSync(join(output, "app"), { recursive: true });
-cpSync(join(root, "index.html"), join(output, "app/index.html"));
+cpSync(join(root, "app.html"), join(output, "app/index.html"));
 cpSync(join(root, "public/cubi-platform-logo-primary.svg"), join(output, "app/cubi-platform-logo-primary.svg"));
 
 // Fix the TypeScript build paths for the root and workspace entry points.
@@ -76,9 +76,8 @@ homepage = homepage.replaceAll('"url": "./"', '"url": "' + baseUrl + '/"');
 writeFileSync(join(output, "index.html"), homepage);
 
 let workspace = readFileSync(join(output, "app/index.html"), "utf8")
-  .replaceAll("./dist/landing-entry.bundle.js", "../dist/web/src/landing-entry.bundle.js")
-  .replaceAll("./dist/global-assistant-launcher.bundle.js", "../dist/web/src/global-assistant-launcher.bundle.js")
-  .replaceAll("./styles.css", "../styles.css")
+  .replaceAll("/dist/main.bundle.js", "/dist/web/src/main.bundle.js")
+  .replaceAll("/dist/global-assistant-launcher.bundle.js", "/dist/web/src/global-assistant-launcher.bundle.js")
   .replace(/<title>.*<\/title>/, "<title>CUBI Platform | Workspace</title>")
   .replace(/<meta name="description" content="[^"]*"\s*\/>/, '<meta name="description" content="CUBI Platform workspace." />')
   .replace(/<meta name="robots" content="[^"]*"\s*\/>/, '<meta name="robots" content="noindex,nofollow" />')
@@ -244,6 +243,8 @@ if (workspaceUrl) {
   assert(finalApp.includes('noindex,nofollow'), "workspace redirect must not be indexed");
 } else {
   assert(finalApp.includes('<meta name="robots" content="noindex,nofollow" />'), "workspace must be noindex");
+  assert(finalApp.includes('src="/dist/web/src/main.bundle.js"'), "workspace main entrypoint must target the compiled bundle");
+  assert(finalApp.includes('src="/dist/web/src/global-assistant-launcher.bundle.js"'), "workspace assistant entrypoint must target the compiled bundle");
   assert(!finalApp.includes('rel="canonical"'), "workspace must not carry marketing canonical");
   assert(!finalApp.includes("application/ld+json"), "workspace must not carry marketing structured data");
 }

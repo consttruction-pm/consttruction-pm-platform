@@ -2047,6 +2047,102 @@ test("Activity row right-click opens a target-aware context menu and Activity De
   assert.deepEqual(selected, ["A-1"]);
 });
 
+test("Activity column header context menu can hide only the targeted presentation column", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const header = { dataset: { columnId: "activity.name" } };
+  const source = { closest: (selector: string) => selector.includes("th[data-column-id]") ? header : null };
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = { innerHTML: "", hidden: true, style: {}, querySelector: () => ({ focus: () => {} }) };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const visibility: Array<[string, boolean]> = [];
+  renderMainWorkspace(container as unknown as HTMLElement, base, {
+    onP6FieldVisibilityChange: (fieldId, visible) => visibility.push([fieldId, visible]),
+  });
+  listeners.get("contextmenu")?.({ target: source, clientX: 100, clientY: 80, preventDefault: () => {} } as unknown as Event);
+  assert.match(host.innerHTML, /data-context-action="hide-column"/);
+  const menu = { closest: (selector: string) => selector.includes("[data-workspace-context-menu]") ? menu : null };
+  const action = { dataset: { contextAction: "hide-column" }, closest: (selector: string) => selector.includes("[data-context-action]") ? action : menu };
+  listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event);
+  assert.deepEqual(visibility, [["activity.name", false]]);
+  assert.equal(host.hidden, true);
+});
+
+test("WBS tree item context menu selects the addressed WBS node", () => {
+  const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const node = { dataset: { wbsId: "WBS-22" } };
+  const source = { closest: (selector: string) => selector.includes("[data-wbs-id]") ? node : null };
+  const listeners = new Map<string, (event: Event) => void>();
+  const host = { innerHTML: "", hidden: true, style: {}, querySelector: () => ({ focus: () => {} }) };
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const selected: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, base, { onWbsSelect: (id) => selected.push(id) });
+  listeners.get("contextmenu")?.({ target: source, clientX: 120, clientY: 90, preventDefault: () => {} } as unknown as Event);
+  assert.match(host.innerHTML, /data-context-action="select-wbs"/);
+  const menu = { closest: (selector: string) => selector.includes("[data-workspace-context-menu]") ? menu : null };
+  const action = { dataset: { contextAction: "select-wbs" }, closest: (selector: string) => selector.includes("[data-context-action]") ? action : menu };
+  listeners.get("click")?.({ target: action, preventDefault: () => {} } as unknown as Event);
+  assert.deepEqual(selected, ["WBS-22"]);
+});
+
+test("Activity context menu opens with ContextMenu or Shift+F10 and Escape restores focus", () => {
+  for (const [key, shiftKey] of [["ContextMenu", false], ["F10", true]] as const) {
+    const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+    const state = { ...base, activities: [{ id: "A-1", wbsId: "WBS-1", code: "A-1", name: "Excavate" }] };
+    const listeners = new Map<string, (event: Event) => void>();
+    let focused = false;
+    const row = {
+      dataset: { activityId: "A-1" },
+      closest: (selector: string) => selector.includes("#cp-activity-grid tr[data-activity-id]") ? row : null,
+      getBoundingClientRect: () => ({ left: 100, top: 40, width: 300, height: 28 }),
+      focus: () => { focused = true; },
+    };
+    const source = {
+      closest: (selector: string) => selector.includes("#cp-activity-grid tr[data-activity-id]") ? row : null,
+    };
+    const host = {
+      innerHTML: "",
+      hidden: true,
+      style: {} as Record<string, string>,
+      querySelector: () => ({ focus: () => {} }),
+    };
+    const container = {
+      innerHTML: "",
+      querySelectorAll: () => [],
+      querySelector: (selector: string) => selector === "[data-workspace-context-menu-host]" ? host : null,
+      addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    };
+    renderMainWorkspace(container as unknown as HTMLElement, state);
+    let prevented = false;
+    listeners.get("keydown")?.({
+      key,
+      shiftKey,
+      target: source,
+      preventDefault: () => { prevented = true; },
+    } as unknown as Event);
+    assert.equal(prevented, true, key);
+    assert.equal(host.hidden, false, key);
+    assert.match(host.innerHTML, /data-context-action="details"/);
+    listeners.get("keydown")?.({
+      key: "Escape",
+      shiftKey: false,
+      target: source,
+      preventDefault: () => {},
+    } as unknown as Event);
+    assert.equal(host.hidden, true, key);
+    assert.equal(focused, true, key);
+  }
+});
+
 test("Relationship context menu uses the persisted relationship identity and revision", () => {
   const base = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
   const state = {
@@ -2086,4 +2182,44 @@ test("Activity shell exposes saved light/dark appearance controls and independen
     assert.match(html, new RegExp(`data-appearance-color="${key}"`));
   }
   assert.match(html, /selection, status, critical bars and milestones retain their own semantic colours/i);
+});
+
+test("Activity Columns chooser adds all available fields in one layout mutation callback", () => {
+  const state = {
+    ...createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
+    p6FieldRegistry: {
+      registry_version: "p6-field-registry.v1",
+      reference_product: "internal",
+      reference_version: "26",
+      status: "active",
+      fields: [
+        { field_id: "activity.activity_id", subject_area: "activity", p6_field: "Activity ID", display_name: "Activity ID", data_type: "string", writable: false, computed: false, disposition: "supported" },
+        { field_id: "activity.activity_name", subject_area: "activity", p6_field: "Activity Name", display_name: "Activity Name", data_type: "string", writable: false, computed: false, disposition: "supported" },
+        { field_id: "activity.total_float", subject_area: "activity", p6_field: "Total Float", display_name: "Total Float", data_type: "double", writable: false, computed: true, disposition: "supported" },
+      ],
+    } as const,
+    p6Layout: {
+      schema_version: "p6-layout.v1",
+      scope: "project",
+      view_id: "activity-grid",
+      revision: 1,
+      columns: [{ field_id: "activity.activity_id", visible: true, order: 0, width: 120, alignment: "start", pinned: false, frozen: false }],
+    } as const,
+  };
+  let clickListener: ((event: Event) => void) | undefined;
+  const addAllButton = { dataset: { p6FieldAddAll: "true" }, closest: () => addAllButton };
+  const container = {
+    innerHTML: "",
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: (event: string, listener: (event: Event) => void) => { if (event === "click") clickListener = listener; },
+  };
+  const added: string[][] = [];
+
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    onP6FieldAddMany: (fieldIds) => added.push([...fieldIds]),
+  });
+  assert.match(container.innerHTML, /data-p6-field-add-all="true"/);
+  clickListener?.({ target: addAllButton } as unknown as Event);
+  assert.deepEqual(added, [["activity.activity_name", "activity.total_float"]]);
 });
