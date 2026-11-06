@@ -841,6 +841,11 @@ function renderApp(
         activateWindow("schedule");
         openWorkspaceDrawer(container, "[data-tools-drawer]");
         return;
+      case "tools.quality-audit":
+        pendingDesktopFocusSelector = "#cp-schedule-run [data-run-quality-audit]";
+        activateWindow("schedule");
+        openWorkspaceDrawer(container, "[data-tools-drawer]");
+        return;
       case "tools.formula":
         pendingDesktopFocusSelector = "#cp-formula-editor input, #cp-formula-editor select, #cp-formula-editor button";
         activateWindow("schedule");

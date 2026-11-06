@@ -49,11 +49,21 @@ class P6InterchangeAdapter:
         *,
         scope: BackendScope,
     ) -> tuple[P6InterchangeResult, ...]:
+        _rows, results = self.import_document_with_trace(payload, scope=scope)
+        return results
+
+    def import_document_with_trace(
+        self,
+        payload: Any,
+        *,
+        scope: BackendScope,
+    ) -> tuple[tuple[P6InterchangeRow, ...], tuple[P6InterchangeResult, ...]]:
+        """Return decoded source rows alongside mapped values for audit evidence."""
         scope.validate()
         self._validate_codec_format()
         rows = tuple(self.codec.decode(payload, scope))
         self._validate_rows(rows, scope)
-        return tuple(self.mapper.import_row(row) for row in rows)
+        return rows, tuple(self.mapper.import_row(row) for row in rows)
 
     def export_document(
         self,

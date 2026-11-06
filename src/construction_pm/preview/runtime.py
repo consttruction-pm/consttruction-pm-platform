@@ -50,6 +50,17 @@ from construction_pm.backend_p0.authoritative_schedule_facts import (
 from construction_pm.backend_p0.authoritative_schedule_query import (
     AuthoritativeScheduleQueryProvider,
 )
+from construction_pm.control_intelligence.quality_audit_context import (
+    ScheduleQualityAuditContextReader,
+)
+from construction_pm.control_intelligence.quality_audit_history import (
+    SQLiteScheduleQualityAuditHistoryRepository,
+)
+from construction_pm.control_intelligence.quality_policy_pack import (
+    SQLiteScheduleQualityPolicyRepository,
+)
+from construction_pm.control_intelligence.quality_policy_pack_api import ScheduleQualityPolicyAPI
+from construction_pm.p6_interchange_import_ledger import SQLiteP6InterchangeImportLedgerRepository
 from construction_pm.backend_p0.models import BackendScope
 from construction_pm.backend_p0.repository import InMemoryBackendP0Repository
 from construction_pm.backend_p0.transactions import SQLiteTransactionManager
@@ -135,6 +146,8 @@ from construction_pm.p6_current_activity_value_repository import (
     P6CurrentActivityApplicationService,
     SQLiteP6CurrentActivityRepository,
 )
+from construction_pm.p6_code_repository import SQLiteP6CodeRepository
+from construction_pm.p6_code_assignment_repository import SQLiteP6CodeAssignmentRepository
 from construction_pm.p6_field_registry import get_field
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_field_registry_repository import (
@@ -300,12 +313,16 @@ class PreviewRepositories:
     udf_service: P6UserDefinedFieldApplicationService
     mappings: SQLiteP6MappingRegistryRepository
     mapping_service: P6MappingRegistryApplicationService
+    quality_policies: SQLiteScheduleQualityPolicyRepository
+    interchange_import_ledger: SQLiteP6InterchangeImportLedgerRepository
     layouts: SQLiteP6LayoutRepository
     snapshots: SQLiteScheduleInputSnapshotRepository
     contexts: SQLiteCalculationContextRepository
     baselines: SQLiteP6BaselineRepository
     baseline_activities: SQLiteP6BaselineActivityRepository
     baseline_assignments: SQLiteP6BaselineRoleAssignmentRepository
+    code_definitions: SQLiteP6CodeRepository
+    code_assignments: SQLiteP6CodeAssignmentRepository
     current_activity_values: SQLiteP6CurrentActivityRepository
     current_activity_service: P6CurrentActivityApplicationService
     roles: SQLiteP6RoleRepository
@@ -355,12 +372,16 @@ class PreviewRepositories:
         mapping_service = P6MappingRegistryApplicationService(
             mappings, transaction_manager
         )
+        quality_policies = SQLiteScheduleQualityPolicyRepository(connection)
+        interchange_import_ledger = SQLiteP6InterchangeImportLedgerRepository(connection)
         layouts = SQLiteP6LayoutRepository(connection)
         snapshots = SQLiteScheduleInputSnapshotRepository(connection)
         contexts = SQLiteCalculationContextRepository(connection)
         baselines = SQLiteP6BaselineRepository(connection)
         baseline_activities = SQLiteP6BaselineActivityRepository(connection)
         baseline_assignments = SQLiteP6BaselineRoleAssignmentRepository(connection)
+        code_definitions = SQLiteP6CodeRepository(connection)
+        code_assignments = SQLiteP6CodeAssignmentRepository(connection)
         current_activity_values = SQLiteP6CurrentActivityRepository(connection)
         current_activity_service = P6CurrentActivityApplicationService(
             current_activity_values, transaction_manager
@@ -402,12 +423,16 @@ class PreviewRepositories:
             udf_service=udf_service,
             mappings=mappings,
             mapping_service=mapping_service,
+            quality_policies=quality_policies,
+            interchange_import_ledger=interchange_import_ledger,
             layouts=layouts,
             snapshots=snapshots,
             contexts=contexts,
             baselines=baselines,
             baseline_activities=baseline_activities,
             baseline_assignments=baseline_assignments,
+            code_definitions=code_definitions,
+            code_assignments=code_assignments,
             current_activity_values=current_activity_values,
             current_activity_service=current_activity_service,
             roles=roles,
@@ -1153,11 +1178,29 @@ def open_preview_runtime(
     )
     lifecycle_service = ProjectLifecycleService(sessions, project_repository, policy)
     lifecycle_api = ProjectLifecycleAPI(lifecycle_service)
+    quality_audit_history_repository = SQLiteScheduleQualityAuditHistoryRepository(connection)
 
+    quality_audit_context_reader = ScheduleQualityAuditContextReader(
+        authorization_policy=policy,
+        wbs_repository=repositories.wbs,
+        baseline_repository=repositories.baselines,
+        baseline_activity_repository=repositories.baseline_activities,
+        baseline_assignment_repository=repositories.baseline_assignments,
+        resource_assignment_repository=repositories.resource_assignments,
+        resource_period_repository=repositories.resource_periods,
+        code_definition_repository=repositories.code_definitions,
+        code_assignment_repository=repositories.code_assignments,
+        quality_policy_repository=repositories.quality_policies,
+        interchange_import_ledger_repository=repositories.interchange_import_ledger,
+        transaction_manager=repositories.transaction_manager,
+    )
     query_provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=repositories.snapshots,
         calendar_registry_factory=lambda: build_calendar_registry(connection),
         calculation_context_repository=repositories.contexts,
+        quality_audit_context_loader=quality_audit_context_reader.load,
+        quality_audit_history_repository=quality_audit_history_repository,
+        quality_audit_history_transaction_manager=repositories.transaction_manager,
     )
     facts_provider = PublishedScheduleFactsProvider(repositories.snapshots, query_provider)
     legacy_workspace_provider = PreviewWorkspaceReadProvider(
@@ -1374,6 +1417,8 @@ def open_preview_runtime(
             mapping_service=repositories.mapping_service,
             authorization_policy=policy,
             codecs={PREVIEW_INTERCHANGE_FORMAT: P6PrimaveraXmlCodec()},
+            import_ledger_repository=repositories.interchange_import_ledger,
+            import_ledger_transaction_manager=repositories.transaction_manager,
         ),
         p6_role_api=P6RoleAPI(repositories.roles, policy),
         p6_expense_api=P6ExpenseAPI(repositories.expense_service, policy),
@@ -1421,6 +1466,10 @@ def open_preview_runtime(
         ai_action_runtime=ai_action_runtime,
         ai_assistant_provider=ai_assistant_provider,
         form_builder_api=form_builder_api,
+        quality_audit_history_repository=quality_audit_history_repository,
+        quality_audit_history_transaction_manager=repositories.transaction_manager,
+        quality_policy_repository=repositories.quality_policies,
+        quality_policy_transaction_manager=repositories.transaction_manager,
     )
     return PreviewRuntime(
         database=database,

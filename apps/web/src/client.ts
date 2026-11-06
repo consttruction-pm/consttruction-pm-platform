@@ -33,6 +33,7 @@ export interface ApiTransport {
     body: string,
     contentType: string,
     context: ProjectContext,
+    idempotencyKey?: string,
   ): Promise<ApiResult<TResponse>>;
 }
 
@@ -85,12 +86,14 @@ export class FetchApiTransport implements ApiTransport {
     body: string,
     contentType: string,
     context: ProjectContext,
+    idempotencyKey?: string,
   ): Promise<ApiResult<TResponse>> {
     return this.request<TResponse>(path, {
       method: "POST",
       headers: {
         ...this.contextHeaders(context),
         "Content-Type": contentType,
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       },
       body,
     });

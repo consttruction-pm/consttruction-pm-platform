@@ -38,6 +38,7 @@ export type DesktopCommand =
   | "view.toggle-gantt"
   | "view.toggle-details"
   | "tools.run-schedule"
+  | "tools.quality-audit"
   | "tools.formula"
   | "tools.reference"
   | "admin.language"
@@ -348,6 +349,7 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "tools.search", label: { en: "Search activities", fa: "جست‌وجوی فعالیت‌ها" }, command: "edit.find", shortcut: "Ctrl+F" },
         { id: "tools.preferences", label: { en: "Preferences…", fa: "تنظیمات…" }, window: "settings" },
         { id: "tools.schedule", label: { en: "Schedule", fa: "زمان‌بندی" }, command: "tools.run-schedule" },
+        { id: "tools.engineering-quality-audit", label: { en: "Engineering Intelligence — Schedule quality audit", fa: "هوشمندی مهندسی — ممیزی کیفیت زمان‌بندی" }, command: "tools.quality-audit" },
         { id: "tools.formula", label: { en: "Formula editor", fa: "ویرایشگر فرمول" }, command: "tools.formula" },
         { id: "tools.reference", label: { en: "Scheduling reference", fa: "مرجع زمان‌بندی" }, command: "tools.reference" },
         { id: "tools.help", label: { en: "Keyboard shortcuts", fa: "کلیدهای میانبر" }, command: "help.shortcuts" },

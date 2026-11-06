@@ -103,3 +103,17 @@ test("unconnected engine shells disable the generic context action rail", () => 
   assert.ok(rail.includes("disabled"));
   assert.equal((rail.match(/disabled/g) ?? []).length, 5);
 });
+
+
+test("engineering shell groups commands and project filters into icon-bearing dropdown menus", () => {
+  const html = renderEngineeringShell("project-quality", "fa", "general");
+  assert.equal((html.match(/<details class="cp-vd-engine-menu/g) ?? []).length, 4);
+  assert.match(html, /cp-vd-engine-filter-menu/);
+  assert.match(html, /<svg viewBox="0 0 24 24" aria-hidden="true">/);
+  assert.match(html, /جست‌وجو در رکوردها/);
+  assert.match(html, /همه وضعیت‌ها/);
+  assert.match(html, /فیلترها/);
+  assert.match(html, /فیلترها پس از اتصال رکوردهای مجاز پروژه فعال می‌شوند/);
+  assert.match(html, /role="toolbar"/);
+  assert.match(html, /disabled title=/);
+});

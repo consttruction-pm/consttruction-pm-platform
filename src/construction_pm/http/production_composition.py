@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable
+from typing import Callable, Mapping
 
 from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
 from construction_pm.calendar_exception_repository import CalendarExceptionRepository
@@ -12,6 +12,22 @@ from construction_pm.application.project_lifecycle_api import ProjectLifecycleAP
 from construction_pm.ai_action_boundary import AIToolPermissionAdapter
 from construction_pm.ai_action_activity_tools import build_activity_create_runtime
 from construction_pm.backend_p0.api import BackendP0API
+from construction_pm.backend_p0.models import BackendScope
+from construction_pm.p6_code_repository import P6CodeRepository
+from construction_pm.p6_code_assignment_repository import P6CodeAssignmentRepository
+from construction_pm.control_intelligence.quality_audit_context import (
+    ScheduleQualityAuditContextReader,
+)
+from construction_pm.control_intelligence.quality_audit_history import (
+    ScheduleQualityAuditHistoryRepository,
+)
+from construction_pm.control_intelligence.quality_audit_history_api import (
+    ScheduleQualityAuditHistoryAPI,
+)
+from construction_pm.control_intelligence.quality_policy_pack import (
+    ScheduleQualityPolicyRepository,
+)
+from construction_pm.control_intelligence.quality_policy_pack_api import ScheduleQualityPolicyAPI
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
 from construction_pm.activity_master_repository import ActivityMasterRepository
@@ -27,6 +43,7 @@ from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadMode
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
 from construction_pm.p6_interchange_api import P6InterchangeAPI
+from construction_pm.p6_interchange_import_ledger import P6InterchangeImportLedgerRepository
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_persisted_resource_leveling_resolver import build_persisted_resource_leveling_input_resolver
 from construction_pm.p6_resource_capacity_read_api import P6ResourceCapacityReadAPI
@@ -101,6 +118,13 @@ def build_project_lifecycle_wsgi_app(
     ai_assistant_provider: AIChatProvider | None = None,
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None,
+    quality_audit_context_loader: Callable[[BackendScope, AuthorizationContext], Mapping[str, object]] | None = None,
+    quality_audit_history_repository: ScheduleQualityAuditHistoryRepository | None = None,
+    quality_audit_history_transaction_manager: object | None = None,
+    quality_policy_repository: ScheduleQualityPolicyRepository | None = None,
+    quality_policy_transaction_manager: object | None = None,
+    p6_code_repository: P6CodeRepository | None = None,
+    p6_code_assignment_repository: P6CodeAssignmentRepository | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
     resource_write_api: P6ResourceWriteAPI | None = None,
     p6_resource_capacity_read_api: P6ResourceCapacityReadAPI | None = None,
@@ -156,17 +180,113 @@ def build_project_lifecycle_wsgi_app(
             calendar_exception_repository=resource_calendar_exception_repository,
             calendar_work_hours_repository=resource_calendar_work_hours_repository,
         )
+    resolved_quality_audit_context_loader = quality_audit_context_loader
+    interchange_import_ledger_repository = (
+        None if p6_interchange_api is None else p6_interchange_api.import_ledger_repository
+    )
+    interchange_import_ledger_transaction_manager = (
+        None if p6_interchange_api is None else p6_interchange_api.import_ledger_transaction_manager
+    )
+    if resolved_quality_audit_context_loader is None:
+        baseline_service = None if p6_baseline_api is None else p6_baseline_api.service
+        baseline_update_service = (
+            None if p6_baseline_update_api is None else p6_baseline_update_api.service
+        )
+        baseline_assignment_service = (
+            None if p6_baseline_assignment_api is None else p6_baseline_assignment_api.service
+        )
+        quality_wbs_repository = wbs_master_repository
+        quality_baseline_repository = getattr(baseline_service, "repository", None)
+        quality_baseline_activity_repository = getattr(
+            baseline_update_service, "repository", None
+        )
+        quality_baseline_assignment_repository = getattr(
+            baseline_assignment_service, "repository", None
+        )
+        quality_resource_assignment_repository = (
+            None
+            if resource_read_api is None
+            else getattr(resource_read_api.assignment_service, "repository", None)
+        )
+        quality_resource_period_repository = (
+            None
+            if resource_read_api is None
+            else getattr(resource_read_api.period_service, "repository", None)
+        )
+        quality_transaction_manager = (
+            getattr(baseline_service, "transaction_manager", None)
+            or getattr(baseline_update_service, "transaction_manager", None)
+            or getattr(baseline_assignment_service, "transaction_manager", None)
+            or (
+                None
+                if resource_read_api is None
+                else getattr(resource_read_api.assignment_service, "transaction_manager", None)
+            )
+            or quality_policy_transaction_manager
+            or interchange_import_ledger_transaction_manager
+        )
+        if any(
+            repository is not None
+            for repository in (
+                quality_wbs_repository,
+                quality_baseline_repository,
+                quality_baseline_activity_repository,
+                quality_baseline_assignment_repository,
+                quality_resource_assignment_repository,
+                quality_resource_period_repository,
+                p6_code_repository,
+                p6_code_assignment_repository,
+                quality_policy_repository,
+                interchange_import_ledger_repository,
+            )
+        ):
+            resolved_quality_audit_context_loader = ScheduleQualityAuditContextReader(
+                authorization_policy=authorization_policy,
+                wbs_repository=quality_wbs_repository,
+                baseline_repository=quality_baseline_repository,
+                baseline_activity_repository=quality_baseline_activity_repository,
+                baseline_assignment_repository=quality_baseline_assignment_repository,
+                resource_assignment_repository=quality_resource_assignment_repository,
+                resource_period_repository=quality_resource_period_repository,
+                code_definition_repository=p6_code_repository,
+                code_assignment_repository=p6_code_assignment_repository,
+                quality_policy_repository=quality_policy_repository,
+                interchange_import_ledger_repository=interchange_import_ledger_repository,
+                transaction_manager=quality_transaction_manager,
+            ).load
+
+    if quality_audit_history_repository is not None and quality_audit_history_transaction_manager is None:
+        raise ValueError("SCHEDULE_QUALITY_AUDIT_HISTORY_TRANSACTION_MANAGER_REQUIRED")
     provider = AuthoritativeScheduleQueryProvider(
         snapshot_repository=snapshot_repository,
         calendar_registry_factory=calendar_registry_factory,
         calculation_context_repository=calculation_context_repository,
         leveling_input_resolver=leveling_input_resolver,
         cost_inputs_resolver=cost_inputs_resolver,
+        quality_audit_context_loader=resolved_quality_audit_context_loader,
+        quality_audit_history_repository=quality_audit_history_repository,
+        quality_audit_history_transaction_manager=quality_audit_history_transaction_manager,
     )
     schedule_query_api = ScheduleQueryAPI(
         ScheduleQueryApplicationService(
             provider=provider,
             authorization_policy=authorization_policy,
+        )
+    )
+    quality_audit_history_api = (
+        None
+        if quality_audit_history_repository is None
+        else ScheduleQualityAuditHistoryAPI(
+            quality_audit_history_repository, authorization_policy
+        )
+    )
+    if quality_policy_repository is not None and quality_policy_transaction_manager is None:
+        raise ValueError("SCHEDULE_QUALITY_POLICY_TRANSACTION_MANAGER_REQUIRED")
+    quality_policy_api = (
+        None
+        if quality_policy_repository is None
+        else ScheduleQualityPolicyAPI(
+            quality_policy_repository, authorization_policy, quality_policy_transaction_manager
         )
     )
     runtime_config_requested = (
@@ -262,6 +382,8 @@ def build_project_lifecycle_wsgi_app(
         p6_resource_rate_write_api=p6_resource_rate_write_api,
         backend_p0_api=backend_p0_api,
         schedule_query_api=schedule_query_api,
+        schedule_quality_audit_history_api=quality_audit_history_api,
+        schedule_quality_policy_api=quality_policy_api,
         ai_action_runtime=ai_action_runtime,
         ai_assistant_orchestrator=ai_assistant_orchestrator,
         form_builder_api=form_builder_api,

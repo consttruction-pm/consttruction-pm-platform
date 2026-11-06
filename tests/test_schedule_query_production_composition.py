@@ -9,7 +9,15 @@ import sqlite3
 from construction_pm.application.authorization import default_project_policy
 from construction_pm.application.project_lifecycle import AuthenticatedSession, ProjectSummary
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
+from construction_pm.control_intelligence.quality_audit_history import (
+    SQLiteScheduleQualityAuditHistoryRepository,
+)
+from construction_pm.control_intelligence.quality_policy_pack import (
+    SCORING_METHOD,
+    SQLiteScheduleQualityPolicyRepository,
+)
 from construction_pm.backend_p0.models import BackendScope
+from construction_pm.backend_p0.transactions import SQLiteTransactionManager
 from construction_pm.http.production_composition import build_project_lifecycle_wsgi_app
 from construction_pm.schedule_calculation_context_repository import SQLiteCalculationContextRepository, build_persisted_context
 from construction_pm.schedule_input_snapshot_repository import SQLiteScheduleInputSnapshotRepository, build_snapshot
@@ -358,3 +366,198 @@ def test_leveling_enabled_snapshot_without_immutable_leveling_input_returns_stru
     assert payload_out["error"]["retryable"] is False
     assert "data" not in payload_out
     conn.close()
+
+
+def test_production_composition_persists_and_reads_schedule_quality_audit_history():
+    conn = sqlite3.connect(":memory:")
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(conn)
+    context_repo = SQLiteCalculationContextRepository(conn)
+    history_repo = SQLiteScheduleQualityAuditHistoryRepository(conn)
+    now = datetime(2026, 11, 4, tzinfo=timezone.utc)
+    source = AuthoritativeScheduleInput(
+        snapshot_id="S-PROD-AUDIT",
+        tenant_id="T-1",
+        project_id="P-1",
+        project_revision=9,
+        mode=AuthoritativeScheduleMode.DATE_BASED,
+        project_calendar=CalendarReference("CAL-1", "1"),
+        activities=(Activity("A", 2),),
+        relationships=(),
+        activity_calendar_assignments=(),
+        project_start=date(2026, 11, 4),
+    )
+    context = CalculationContext(
+        project_id="P-1",
+        project_version=9,
+        calendar_id="CAL-1",
+        calendar_version="1",
+        rules_version="rules-1",
+        engine_version="engine-1",
+        timezone="UTC",
+        calculation_timestamp=now.isoformat(),
+        input_snapshot_id="S-PROD-AUDIT",
+        tenant_id="T-1",
+        actor_id="authoritative-actor",
+    )
+    snapshot_repo.save(build_snapshot(source, context, now))
+    context_repo.save(build_persisted_context(BackendScope("T-1", "P-1", 9), context))
+    registry = CalendarResolverRegistry(
+        day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+    )
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now),
+        snapshot_repository=snapshot_repo,
+        calendar_registry_factory=lambda: registry,
+        calculation_context_repository=context_repo,
+        authorization_policy=default_project_policy(),
+        quality_audit_history_repository=history_repo,
+        quality_audit_history_transaction_manager=SQLiteTransactionManager(conn),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+    )
+
+    request = {
+        "contract_version": "schedule-query.v1",
+        "query_id": "Q-PROD-AUDIT",
+        "scope": {"tenant_id": "T-1", "project_id": "P-1", "project_revision": 9},
+        "requested_by": "u1",
+        "query_text": "audit schedule quality",
+        "kind": "quality_audit",
+        "language": "en",
+        "constraints": {"snapshot_id": "S-PROD-AUDIT"},
+    }
+    body = json.dumps(request).encode()
+    response_status: list[str] = []
+    response_status: list[str] = []
+
+    chunks = app(
+        {
+            "REQUEST_METHOD": "POST",
+            "PATH_INFO": "/api/v1/schedule/query",
+            "HTTP_COOKIE": "cp_session=s1",
+            "CONTENT_LENGTH": str(len(body)),
+            "wsgi.input": BytesIO(body),
+        },
+        lambda status, headers: response_status.append(status),
+    )
+    response = json.loads(b"".join(chunks))
+    assert response_status[-1] == "200 OK"
+    audit = response["data"]["quality_audit"]
+    assert audit["audit_history"]["status"] == "persisted"
+    audit_id = audit["audit_history"]["audit_id"]
+
+    listing = app(
+        {
+            "REQUEST_METHOD": "GET",
+            "PATH_INFO": "/api/v1/schedule/quality-audits",
+            "QUERY_STRING": "project_id=P-1",
+            "HTTP_COOKIE": "cp_session=s1",
+            "CONTENT_LENGTH": "0",
+            "wsgi.input": BytesIO(b""),
+        },
+        lambda status, headers: response_status.append(status),
+    )
+    listing_payload = json.loads(b"".join(listing))
+    assert response_status[-1] == "200 OK"
+    assert len(listing_payload["audits"]) == 1
+    assert listing_payload["audits"][0]["audit_id"] == audit_id
+
+    detail = app(
+        {
+            "REQUEST_METHOD": "GET",
+            "PATH_INFO": f"/api/v1/schedule/quality-audits/{audit_id}",
+            "QUERY_STRING": "project_id=P-1",
+            "HTTP_COOKIE": "cp_session=s1",
+            "CONTENT_LENGTH": "0",
+            "wsgi.input": BytesIO(b""),
+        },
+        lambda status, headers: response_status.append(status),
+    )
+    detail_payload = json.loads(b"".join(detail))
+    assert response_status[-1] == "200 OK"
+    assert detail_payload["audit"]["report"]["snapshot"]["snapshot_hash"] == audit["snapshot"]["snapshot_hash"]
+    conn.close()
+
+
+def test_production_composition_exposes_authenticated_quality_policy_lifecycle_routes():
+    connection = sqlite3.connect(":memory:")
+    snapshot_repo = SQLiteScheduleInputSnapshotRepository(connection)
+    context_repo = SQLiteCalculationContextRepository(connection)
+    policy_repo = SQLiteScheduleQualityPolicyRepository(connection)
+    now = datetime(2026, 11, 4, 19, 0, tzinfo=timezone.utc)
+    app = build_project_lifecycle_wsgi_app(
+        lifecycle_api=_lifecycle_api(now),
+        snapshot_repository=snapshot_repo,
+        calendar_registry_factory=lambda: CalendarResolverRegistry(
+            day_resolvers={"CAL-1@1": WorkingTimeResolver(WorkingCalendar())}
+        ),
+        calculation_context_repository=context_repo,
+        authorization_policy=default_project_policy(),
+        quality_policy_repository=policy_repo,
+        quality_policy_transaction_manager=SQLiteTransactionManager(connection),
+        clock=type("Clock", (), {"now": lambda self: now})(),
+    )
+
+    def request(method: str, path: str, payload: dict[str, object] | None = None):
+        body = b"" if payload is None else json.dumps(payload).encode()
+        statuses: list[str] = []
+        chunks = app(
+            {
+                "REQUEST_METHOD": method,
+                "PATH_INFO": path,
+                "HTTP_COOKIE": "cp_session=s1",
+                "CONTENT_LENGTH": str(len(body)),
+                "wsgi.input": BytesIO(body),
+            },
+            lambda status, headers: statuses.append(status),
+        )
+        return statuses[-1], json.loads(b"".join(chunks))
+
+    policy_body = {
+        "policy_id": "schedule-quality",
+        "version": "1.0.0",
+        "name": "Project schedule policy",
+        "scoring_method": SCORING_METHOD,
+        "thresholds": {
+            "positive_lag": {
+                "date_based_max_working_days": 5,
+                "time_aware_max": {"working-day": "5", "working-hour": "40"},
+                "severity": "warning",
+            },
+            "activity_duration": {
+                "date_based_max_working_days": "60",
+                "time_aware_max": {"working-day": "60", "working-hour": "480"},
+                "severity": "critical",
+            },
+            "constraints_per_activity": {"maximum": 2, "severity": "warning"},
+        },
+        "weights": {
+            "positive_lag": "0.50",
+            "activity_duration": "0.30",
+            "constraints_per_activity": "0.20",
+        },
+    }
+    collection = "/api/projects/P-1/p6/quality-policy-packs"
+    status, created = request("POST", collection, policy_body)
+    assert status == "201 Created"
+    assert created["policy_pack"]["status"] == "draft"
+    assert created["policy_pack"]["created_by"] == "u1"
+
+    status, approved_before = request("GET", collection + "/approved")
+    assert status == "200 OK"
+    assert approved_before["policy_pack"] is None
+
+    status, approved = request("POST", collection + "/schedule-quality/1.0.0/approve")
+    assert status == "200 OK"
+    assert approved["policy_pack"]["status"] == "approved"
+    assert approved["policy_pack"]["approved_by"] == "u1"
+
+    status, listed = request("GET", collection)
+    assert status == "200 OK"
+    assert len(listed["policy_packs"]) == 1
+    assert listed["policy_packs"][0]["version"] == "1.0.0"
+
+    status, approved_after = request("GET", collection + "/approved")
+    assert status == "200 OK"
+    assert approved_after["policy_pack"]["policy_id"] == "schedule-quality"
+    assert approved_after["policy_pack"]["weights"]["positive_lag"] == "0.50"
+    connection.close()

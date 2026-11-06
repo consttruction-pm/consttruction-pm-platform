@@ -217,6 +217,43 @@ type ScheduleQueryResult = {
   data?: Record<string, unknown>;
   error?: { category?: string; code?: string; message?: string };
 };
+type ScheduleQualityAuditHistoryItem = {
+  audit_id: string;
+  created_at: string;
+  scope: { project_revision: number };
+  status?: string;
+  evaluation_status?: string;
+  summary?: { finding_count?: number; critical_count?: number; warning_count?: number; info_count?: number };
+};
+type ScheduleQualityAuditHistoryList = {
+  contract_version: string;
+  audits: ScheduleQualityAuditHistoryItem[];
+};
+type ScheduleQualityAuditHistoryDetail = {
+  contract_version: string;
+  audit: { report?: unknown };
+};
+type ScheduleQualityPolicyPackDTO = {
+  policy_id: string;
+  version: string;
+  name: string;
+  scoring_method: string;
+  thresholds: Record<string, unknown>;
+  weights: Record<string, string>;
+  created_by: string;
+  created_at: string;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  status: "draft" | "approved";
+};
+type ScheduleQualityPolicyList = {
+  contract_version: string;
+  policy_packs: ScheduleQualityPolicyPackDTO[];
+};
+type ScheduleQualityPolicyResponse = {
+  contract_version: string;
+  policy_pack: ScheduleQualityPolicyPackDTO;
+};
 
 const STATUS_LABELS: Record<ScheduleReferenceStatus, { en: string; fa: string }> = {
   mapped_unverified: { en: "Mapped — not verified", fa: "کد‌یابی‌شده؛ تأییدنشده" },
@@ -231,6 +268,14 @@ const LABELS = {
     options: "Calculation settings", run: "Run schedule", reference: "Scheduling code reference",
     intro: "Settings are saved to the project and consumed by the shared scheduling engine. The browser does not calculate dates.",
     runIntro: "Publish an immutable snapshot from saved project data, then request results from the authoritative schedule service.",
+    qualityAudit: "Run read-only quality audit", qualityAuditIntro: "Audit this exact project revision through the authenticated schedule service and Shared Core. No project data is changed.",
+    qualityAuditRunning: "Publishing the project snapshot and checking schedule quality…", qualityAuditFailed: "The schedule quality audit could not be completed.",
+    auditHistory: "Audit history", auditHistoryLoading: "Loading saved audit runs…", auditHistoryFailed: "Saved audit history could not be loaded.", auditHistoryEmpty: "No saved audit runs exist for this project.", auditHistoryOpen: "Open report", auditHistoryRevision: "Revision", auditHistoryCreated: "Run time", auditHistoryFindings: "Findings", auditHistoryStored: "Saved to project audit history", auditHistoryNotConfigured: "Persistent history is not configured",
+    qualityPolicy: "Quality policy", qualityPolicyIntro: "Project-specific, versioned thresholds and weights. A policy affects the score only after a project administrator approves it.", qualityPolicyLoading: "Loading project quality policies…", qualityPolicyFailed: "Project quality policies could not be loaded.", qualityPolicyEmpty: "No policy versions have been created for this project.", qualityPolicyAdminOnly: "Only project administrators can create or approve a quality policy.", qualityPolicyCreate: "Save policy draft", qualityPolicyCreating: "Saving draft…", qualityPolicyApprove: "Approve version", qualityPolicyApproving: "Approving…", qualityPolicyCreated: "Draft saved. It does not affect the audit score until approved.", qualityPolicyApproved: "Policy approved. New audits will use the latest approved version.", qualityPolicyId: "Policy ID", qualityPolicyVersion: "Version", qualityPolicyName: "Policy name", qualityPolicyPositiveLag: "Maximum positive relationship lag", qualityPolicyDuration: "Maximum activity duration", qualityPolicyConstraints: "Maximum constraints per activity", qualityPolicyDateLimit: "DATE_BASED maximum (working days)", qualityPolicyWorkingDayLimit: "TIME_AWARE maximum (working days)", qualityPolicyWorkingHourLimit: "TIME_AWARE maximum (working hours)", qualityPolicySeverity: "Severity", qualityPolicyWarning: "Warning", qualityPolicyCritical: "Critical", qualityPolicyWeights: "Scoring weights (must sum exactly to 1)", qualityPolicyWeightLag: "Positive lag weight", qualityPolicyWeightDuration: "Activity duration weight", qualityPolicyWeightConstraints: "Constraint count weight", qualityPolicyDraft: "Draft — not active", qualityPolicyStatusApproved: "Approved — active", qualityPolicyList: "Policy versions", qualityPolicyValidation: "Complete every field. All weights must sum exactly to 1.000000.", qualityPolicyNoAdmin: "Your role can read policies but cannot administer them.", qualityPolicyRefresh: "Refresh policies", qualityPolicyCreatedBy: "Created by", qualityPolicyApprovedBy: "Approved by",
+    auditFindings: "Findings", auditCoverage: "Coverage and limitations", auditNoFindings: "No findings were returned for the checks evaluated.",
+    auditSeverity: "Severity", auditRule: "Rule", auditObject: "Object", auditRelated: "Related objects", auditEvidence: "Evidence", auditMessageKey: "Message key",
+    auditCritical: "Critical", auditWarnings: "Warnings", auditInfo: "Information", auditSnapshot: "Snapshot", auditRevision: "Revision", auditHash: "SHA-256", auditQualityIndex: "Quality index", auditPolicyPackRequired: "Approved policy pack required",
+    auditFilters: "Filters", auditSearchFindings: "Search findings", auditAllSeverities: "All severities", auditAllObjectTypes: "All object types", auditResetFilters: "Clear filters", auditShowing: "Showing {visible} of {total} findings", auditNoFilterMatches: "No findings match these filters.", auditCoverageMenu: "Coverage & limitations", auditAuditStatus: "Audit status", auditFindingCount: "Total findings", auditShowingAll: "All findings",
     calendarId: "Project calendar ID", calendarVersion: "Calendar version", chooseCalendar: "Choose an existing project calendar", calendarLoadError: "Could not load project calendars; enter an existing calendar ID and version.", calendarSystem: "Calendar date system",
     start: "Project start", finish: "Project finish (optional)", mode: "Calculation mode", priority: "Project leveling priority",
     jalaliDateHint: "Type a Jalali date, for example ۱۴۰۵/۰۷/۱۵. It is stored as the canonical Gregorian date.",
@@ -258,6 +303,14 @@ const LABELS = {
     options: "تنظیمات محاسبه", run: "اجرای زمان‌بندی", reference: "مرجع کد زمان‌بندی",
     intro: "تنظیمات در پروژه ذخیره می‌شود و هستهٔ مشترک زمان‌بندی از آن استفاده می‌کند. مرورگر محاسبهٔ تاریخ‌ها را انجام نمی‌دهد.",
     runIntro: "از داده‌های ذخیره‌شده یک تصویر تغییرناپذیر ایجاد می‌شود و سپس نتیجه از سرویس اصلی زمان‌بندی دریافت می‌شود.",
+    qualityAudit: "اجرای ممیزی کیفیت", qualityAuditIntro: "همین نسخهٔ پروژه از مسیر احراز هویت‌شدهٔ زمان‌بندی و هستهٔ مشترک بررسی می‌شود؛ هیچ داده‌ای در پروژه تغییر نمی‌کند.",
+    qualityAuditRunning: "در حال انتشار تصویر پروژه و بررسی کیفیت زمان‌بندی…", qualityAuditFailed: "ممیزی کیفیت زمان‌بندی کامل نشد.",
+    auditHistory: "تاریخچهٔ ممیزی", auditHistoryLoading: "در حال خواندن اجراهای ذخیره‌شدهٔ ممیزی…", auditHistoryFailed: "خواندن تاریخچهٔ ممیزی ممکن نشد.", auditHistoryEmpty: "هنوز اجرای ذخیره‌شده‌ای برای ممیزی این پروژه وجود ندارد.", auditHistoryOpen: "بازکردن گزارش", auditHistoryRevision: "بازبینی", auditHistoryCreated: "زمان اجرا", auditHistoryFindings: "یافته‌ها", auditHistoryStored: "گزارش در تاریخچهٔ پروژه ذخیره شد", auditHistoryNotConfigured: "ذخیره‌سازی پایدار تاریخچه پیکربندی نشده است",
+    qualityPolicy: "سیاست کیفیت", qualityPolicyIntro: "آستانه‌ها و وزن‌های نسخه‌بندی‌شده و مختص پروژه. سیاست فقط پس از تأیید مدیر پروژه بر شاخص کیفیت اثر می‌گذارد.", qualityPolicyLoading: "در حال خواندن سیاست‌های کیفیت پروژه…", qualityPolicyFailed: "خواندن سیاست‌های کیفیت پروژه ممکن نشد.", qualityPolicyEmpty: "هنوز نسخه‌ای از سیاست کیفیت برای این پروژه ساخته نشده است.", qualityPolicyAdminOnly: "فقط مدیر پروژه می‌تواند سیاست کیفیت بسازد یا تأیید کند.", qualityPolicyCreate: "ذخیرهٔ پیش‌نویس سیاست", qualityPolicyCreating: "در حال ذخیرهٔ پیش‌نویس…", qualityPolicyApprove: "تأیید نسخه", qualityPolicyApproving: "در حال تأیید…", qualityPolicyCreated: "پیش‌نویس ذخیره شد؛ تا زمان تأیید بر شاخص ممیزی اثر ندارد.", qualityPolicyApproved: "سیاست تأیید شد؛ ممیزی‌های بعدی از آخرین نسخهٔ تأییدشده استفاده می‌کنند.", qualityPolicyId: "شناسهٔ سیاست", qualityPolicyVersion: "نسخه", qualityPolicyName: "نام سیاست", qualityPolicyPositiveLag: "حد بیشینهٔ وقفهٔ مثبت رابطه", qualityPolicyDuration: "حد بیشینهٔ مدت فعالیت", qualityPolicyConstraints: "حداکثر محدودیت برای هر فعالیت", qualityPolicyDateLimit: "حد بیشینه در DATE_BASED (روز کاری)", qualityPolicyWorkingDayLimit: "حد بیشینه در TIME_AWARE (روز کاری)", qualityPolicyWorkingHourLimit: "حد بیشینه در TIME_AWARE (ساعت کاری)", qualityPolicySeverity: "شدت", qualityPolicyWarning: "هشدار", qualityPolicyCritical: "بحرانی", qualityPolicyWeights: "وزن‌های امتیازدهی (مجموع دقیقاً ۱ باشد)", qualityPolicyWeightLag: "وزن وقفهٔ مثبت", qualityPolicyWeightDuration: "وزن مدت فعالیت", qualityPolicyWeightConstraints: "وزن تعداد محدودیت‌ها", qualityPolicyDraft: "پیش‌نویس — غیرفعال", qualityPolicyStatusApproved: "تأییدشده — فعال", qualityPolicyList: "نسخه‌های سیاست", qualityPolicyValidation: "همهٔ فیلدها را تکمیل کنید. مجموع وزن‌ها باید دقیقاً ۱٫۰۰۰۰۰۰ باشد.", qualityPolicyNoAdmin: "نقش شما اجازهٔ خواندن سیاست‌ها را دارد اما اجازهٔ مدیریت آن‌ها را ندارد.", qualityPolicyRefresh: "بازخوانی سیاست‌ها", qualityPolicyCreatedBy: "ایجادکننده", qualityPolicyApprovedBy: "تأییدکننده",
+    auditFindings: "یافته‌ها", auditCoverage: "دامنهٔ بررسی و محدودیت‌ها", auditNoFindings: "در کنترل‌های ارزیابی‌شده یافته‌ای بازگردانده نشد.",
+    auditSeverity: "شدت", auditRule: "قاعده", auditObject: "موضوع", auditRelated: "موضوعات مرتبط", auditEvidence: "شواهد", auditMessageKey: "کلید پیام",
+    auditCritical: "بحرانی", auditWarnings: "هشدارها", auditInfo: "اطلاعات", auditSnapshot: "تصویر مبنا", auditRevision: "بازبینی", auditHash: "SHA-256", auditQualityIndex: "شاخص کیفیت", auditPolicyPackRequired: "نیازمند بسته سیاست مصوب",
+    auditFilters: "فیلترها", auditSearchFindings: "جست‌وجو در یافته‌ها", auditAllSeverities: "همه شدت‌ها", auditAllObjectTypes: "همه انواع موضوع", auditResetFilters: "پاک‌کردن فیلترها", auditShowing: "نمایش {visible} از {total} یافته", auditNoFilterMatches: "یافته‌ای با این فیلترها مطابقت ندارد.", auditCoverageMenu: "دامنه پوشش و محدودیت‌ها", auditAuditStatus: "وضعیت ممیزی", auditFindingCount: "مجموع یافته‌ها", auditShowingAll: "نمایش همه یافته‌ها",
     calendarId: "شناسهٔ تقویم پروژه", calendarVersion: "نسخهٔ تقویم", chooseCalendar: "انتخاب تقویم ثبت‌شدهٔ پروژه", calendarLoadError: "فهرست تقویم‌ها دریافت نشد؛ شناسه و نسخهٔ موجود را وارد کنید.", calendarSystem: "سیستم تاریخ تقویم",
     start: "شروع پروژه", finish: "پایان پروژه (اختیاری)", mode: "روش محاسبه", priority: "اولویت تسطیح منابع پروژه",
     jalaliDateHint: "تاریخ شمسی را مانند ۱۴۰۵/۰۷/۱۵ وارد کنید؛ به‌صورت تاریخ میلادی استاندارد ذخیره می‌شود.",
@@ -363,6 +416,38 @@ function localDateTimeString(date: Date): string {
 function humanize(value: string): string {
   return value.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/^./, (character) => character.toUpperCase());
+}
+
+export type ScheduleAuditFinding = Readonly<Record<string, unknown>>;
+export type ScheduleAuditFindingFilters = Readonly<{
+  query?: string;
+  severity?: string;
+  objectType?: string;
+}>;
+
+export function filterScheduleAuditFindings(
+  findings: readonly ScheduleAuditFinding[],
+  filters: ScheduleAuditFindingFilters = {},
+): ScheduleAuditFinding[] {
+  const query = (filters.query ?? "").trim().toLocaleLowerCase();
+  const severity = (filters.severity ?? "").trim().toLocaleLowerCase();
+  const objectType = (filters.objectType ?? "").trim().toLocaleLowerCase();
+  return findings.filter((finding) => {
+    const findingSeverity = String(finding.severity ?? "").toLocaleLowerCase();
+    const findingObjectType = String(finding.object_type ?? "").toLocaleLowerCase();
+    const relatedIds = Array.isArray(finding.related_object_ids)
+      ? finding.related_object_ids.map(String).join(" ")
+      : "";
+    const evidence = finding.evidence && typeof finding.evidence === "object"
+      ? Object.entries(finding.evidence as Record<string, unknown>).flat().join(" ")
+      : String(finding.evidence ?? "");
+    const searchable = [
+      finding.rule_id, finding.object_type, finding.object_id, finding.message_key, relatedIds, evidence,
+    ].map((item) => String(item ?? "")).join(" ").toLocaleLowerCase();
+    return (!severity || findingSeverity === severity) &&
+      (!objectType || findingObjectType === objectType) &&
+      (!query || searchable.includes(query));
+  });
 }
 
 export function filterScheduleReferences(
@@ -865,10 +950,68 @@ function mountRunPanel(
 ): void {
   panel.innerHTML = `<p>${safe(labels.runIntro)}</p><p class="cp-muted">${safe(labels.mustSave)}</p>
     <button type="button" data-run-schedule>${safe(labels.calculate)}</button>
-    <p role="status" data-run-status></p><section data-run-results aria-live="polite"></section>`;
+    <p role="status" data-run-status></p><section data-run-results aria-live="polite"></section>
+    <div class="cp-schedule-quality-audit">
+      <h3>${safe(labels.qualityAudit)}</h3>
+      <p>${safe(labels.qualityAuditIntro)}</p>
+      <div class="cp-audit-actions">
+        <button type="button" data-run-quality-audit>${safe(labels.qualityAudit)}</button>
+        <button type="button" data-load-quality-audit-history>${safe(labels.auditHistory)}</button>
+      </div>
+      <details class="cp-audit-policy-admin" data-quality-policy-admin>
+        <summary>${safe(labels.qualityPolicy)}</summary>
+        <p class="cp-audit-policy-intro">${safe(labels.qualityPolicyIntro)}</p>
+        <p role="status" data-quality-policy-status></p>
+        <button type="button" data-quality-policy-refresh>${safe(labels.qualityPolicyRefresh)}</button>
+        <section data-quality-policy-list aria-live="polite"></section>
+        <form data-quality-policy-form hidden>
+          <div class="cp-audit-policy-grid">
+            <label><span>${safe(labels.qualityPolicyId)}</span><input name="policy_id" required maxlength="80" autocomplete="off"></label>
+            <label><span>${safe(labels.qualityPolicyVersion)}</span><input name="version" required maxlength="40" placeholder="1.0.0" autocomplete="off"></label>
+            <label class="is-wide"><span>${safe(labels.qualityPolicyName)}</span><input name="name" required maxlength="120" autocomplete="off"></label>
+          </div>
+          <fieldset><legend>${safe(labels.qualityPolicyPositiveLag)}</legend><div class="cp-audit-policy-grid">
+            <label><span>${safe(labels.qualityPolicyDateLimit)}</span><input name="lag_date" type="number" min="0" step="1" required></label>
+            <label><span>${safe(labels.qualityPolicyWorkingDayLimit)}</span><input name="lag_working_day" type="number" min="0" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicyWorkingHourLimit)}</span><input name="lag_working_hour" type="number" min="0" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicySeverity)}</span><select name="lag_severity" required><option value="">—</option><option value="warning">${safe(labels.qualityPolicyWarning)}</option><option value="critical">${safe(labels.qualityPolicyCritical)}</option></select></label>
+          </div></fieldset>
+          <fieldset><legend>${safe(labels.qualityPolicyDuration)}</legend><div class="cp-audit-policy-grid">
+            <label><span>${safe(labels.qualityPolicyDateLimit)}</span><input name="duration_date" type="number" min="0" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicyWorkingDayLimit)}</span><input name="duration_working_day" type="number" min="0" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicyWorkingHourLimit)}</span><input name="duration_working_hour" type="number" min="0" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicySeverity)}</span><select name="duration_severity" required><option value="">—</option><option value="warning">${safe(labels.qualityPolicyWarning)}</option><option value="critical">${safe(labels.qualityPolicyCritical)}</option></select></label>
+          </div></fieldset>
+          <fieldset><legend>${safe(labels.qualityPolicyConstraints)}</legend><div class="cp-audit-policy-grid">
+            <label><span>${safe(labels.qualityPolicyConstraints)}</span><input name="constraints_max" type="number" min="0" step="1" required></label>
+            <label><span>${safe(labels.qualityPolicySeverity)}</span><select name="constraints_severity" required><option value="">—</option><option value="warning">${safe(labels.qualityPolicyWarning)}</option><option value="critical">${safe(labels.qualityPolicyCritical)}</option></select></label>
+          </div></fieldset>
+          <fieldset><legend>${safe(labels.qualityPolicyWeights)}</legend><div class="cp-audit-policy-grid">
+            <label><span>${safe(labels.qualityPolicyWeightLag)}</span><input name="weight_lag" type="number" min="0.0000000001" max="1" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicyWeightDuration)}</span><input name="weight_duration" type="number" min="0.0000000001" max="1" step="any" required></label>
+            <label><span>${safe(labels.qualityPolicyWeightConstraints)}</span><input name="weight_constraints" type="number" min="0.0000000001" max="1" step="any" required></label>
+          </div></fieldset>
+          <p class="cp-audit-policy-hint">${safe(labels.qualityPolicyValidation)}</p>
+          <button type="submit" class="cp-audit-policy-save">${safe(labels.qualityPolicyCreate)}</button>
+        </form>
+      </details>
+      <p role="status" data-quality-audit-status></p>
+      <section data-quality-audit-history aria-live="polite"></section>
+      <section data-quality-audit-results aria-live="polite"></section>
+    </div>`;
   const button = panel.querySelector<HTMLButtonElement>("[data-run-schedule]");
   const status = panel.querySelector<HTMLElement>("[data-run-status]");
   const resultPanel = panel.querySelector<HTMLElement>("[data-run-results]");
+  const auditButton = panel.querySelector<HTMLButtonElement>("[data-run-quality-audit]");
+  const auditStatus = panel.querySelector<HTMLElement>("[data-quality-audit-status]");
+  const auditResults = panel.querySelector<HTMLElement>("[data-quality-audit-results]");
+  const auditHistoryButton = panel.querySelector<HTMLButtonElement>("[data-load-quality-audit-history]");
+  const auditHistoryPanel = panel.querySelector<HTMLElement>("[data-quality-audit-history]");
+  const policyDetails = panel.querySelector<HTMLDetailsElement>("[data-quality-policy-admin]");
+  const policyStatus = panel.querySelector<HTMLElement>("[data-quality-policy-status]");
+  const policyRefreshButton = panel.querySelector<HTMLButtonElement>("[data-quality-policy-refresh]");
+  const policyListPanel = panel.querySelector<HTMLElement>("[data-quality-policy-list]");
+  const policyForm = panel.querySelector<HTMLFormElement>("[data-quality-policy-form]");
   const cached = scheduleRunResults.get(scheduleRunCacheKey(context));
   if (cached && resultPanel) renderScheduleRunResult(resultPanel, cached, labels);
   button?.addEventListener("click", async () => {
@@ -915,6 +1058,464 @@ function mountRunPanel(
       resultPanel.innerHTML = "";
     } finally {
       button.disabled = false;
+    }
+  });
+
+  const renderQualityAudit = (value: unknown): void => {
+    if (!auditResults || !value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("SCHEDULE_QUALITY_AUDIT_RESULT_MISSING");
+    }
+    const report = value as Record<string, unknown>;
+    const summary = report.summary && typeof report.summary === "object"
+      ? report.summary as Record<string, unknown>
+      : {};
+    const snapshot = report.snapshot && typeof report.snapshot === "object"
+      ? report.snapshot as Record<string, unknown>
+      : {};
+    const qualityIndex = report.quality_index && typeof report.quality_index === "object"
+      ? report.quality_index as Record<string, unknown>
+      : {};
+    const history = report.audit_history && typeof report.audit_history === "object"
+      ? report.audit_history as Record<string, unknown>
+      : {};
+    const historyStatus = String(history.status ?? "not_configured");
+    const historyNotice = historyStatus === "persisted"
+      ? `<section class="cp-audit-history-note is-saved"><span aria-hidden="true">✓</span><div><strong>${safe(labels.auditHistoryStored)}</strong><code>${safe(history.audit_id ?? "—")}</code></div></section>`
+      : `<section class="cp-audit-history-note"><span aria-hidden="true">i</span><div><strong>${safe(labels.auditHistoryNotConfigured)}</strong></div></section>`;
+    const findings = Array.isArray(report.findings) ? report.findings : [];
+    const normalizedFindings = findings.filter(
+      (raw): raw is Record<string, unknown> => Boolean(raw) && typeof raw === "object" && !Array.isArray(raw),
+    );
+    const objectTypes = [...new Set(normalizedFindings.map((finding) => String(finding.object_type ?? "project")))]
+      .sort((left, right) => left.localeCompare(right));
+    const severityCount = (severity: string): number =>
+      normalizedFindings.filter((finding) => String(finding.severity ?? "").toLowerCase() === severity).length;
+    const criticalCount = Number(summary.critical_count ?? severityCount("critical"));
+    const warningCount = Number(summary.warning_count ?? severityCount("warning"));
+    const infoCount = severityCount("info");
+    const totalCount = Number(summary.finding_count ?? normalizedFindings.length);
+    const severityLabel = (severity: string): string => {
+      if (severity === "critical") return labels.auditCritical;
+      if (severity === "warning") return labels.auditWarnings;
+      if (severity === "info") return labels.auditInfo;
+      return severity || labels.auditInfo;
+    };
+    const rows = normalizedFindings.map((finding, index) => {
+      const severity = String(finding.severity ?? "info").toLowerCase();
+      const severityClass = severity.replace(/[^a-z0-9_-]/g, "-");
+      const objectType = String(finding.object_type ?? "project");
+      const related = Array.isArray(finding.related_object_ids)
+        ? finding.related_object_ids.map(String).join(", ")
+        : "";
+      const evidence = JSON.stringify(finding.evidence ?? {}, null, 2);
+      const searchable = [
+        finding.rule_id, finding.object_type, finding.object_id, finding.message_key, related, evidence,
+      ].map((item) => String(item ?? "")).join(" ");
+      return `<tr data-audit-finding-row data-audit-index="${index}"
+        data-audit-search="${safe(searchable)}"
+        data-audit-severity="${safe(severity)}"
+        data-audit-object-type="${safe(objectType)}">
+        <td><span class="cp-audit-severity is-${safe(severityClass)}"><span aria-hidden="true"></span>${safe(severityLabel(severity))}</span></td>
+        <td><code class="cp-audit-rule">${safe(finding.rule_id)}</code></td>
+        <td><strong>${safe(objectType)}</strong><span class="cp-audit-object-id">${safe(finding.object_id ?? "—")}</span></td>
+        <td>${related ? `<span class="cp-audit-related">${safe(related)}</span>` : '<span class="cp-audit-dash">—</span>'}</td>
+        <td><details class="cp-audit-evidence"><summary>${safe(labels.auditEvidence)}</summary><pre>${safe(evidence)}</pre></details></td>
+        <td><code class="cp-audit-message-key">${safe(finding.message_key ?? "—")}</code></td>
+      </tr>`;
+    }).join("");
+    const coverage = report.coverage && typeof report.coverage === "object"
+      ? Object.entries(report.coverage as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right))
+      : [];
+    const coverageRows = coverage.map(([key, status]) =>
+      `<li><code>${safe(key)}</code><span class="cp-audit-coverage-status">${safe(status)}</span></li>`
+    ).join("");
+    const filterIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6.2 7.1v5.1l-3.6 1.8v-6.9L4 5Z"/></svg>';
+    const coverageIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16"/><path d="M8 3v4M16 10v4M11 17v4"/></svg>';
+    const runIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>';
+    const coverageSummary = coverage.length
+      ? `<details class="cp-audit-dropdown cp-audit-coverage-menu">
+          <summary><span class="cp-audit-icon">${coverageIcon}</span><span>${safe(labels.auditCoverageMenu)}</span></summary>
+          <div class="cp-audit-dropdown-panel cp-audit-coverage-panel">
+            <ul class="cp-audit-coverage-list">${coverageRows}</ul>
+          </div>
+        </details>`
+      : "";
+    auditResults.innerHTML =
+      `<div class="cp-audit-overview">
+        <section class="cp-audit-stat-card is-total"><span class="cp-audit-stat-icon" aria-hidden="true">▤</span><span class="cp-audit-stat-label">${safe(labels.auditFindingCount)}</span><strong>${safe(totalCount)}</strong></section>
+        <section class="cp-audit-stat-card is-critical"><span class="cp-audit-stat-icon" aria-hidden="true">!</span><span class="cp-audit-stat-label">${safe(labels.auditCritical)}</span><strong>${safe(criticalCount)}</strong></section>
+        <section class="cp-audit-stat-card is-warning"><span class="cp-audit-stat-icon" aria-hidden="true">△</span><span class="cp-audit-stat-label">${safe(labels.auditWarnings)}</span><strong>${safe(warningCount)}</strong></section>
+        <section class="cp-audit-stat-card is-info"><span class="cp-audit-stat-icon" aria-hidden="true">i</span><span class="cp-audit-stat-label">${safe(labels.auditInfo)}</span><strong>${safe(infoCount)}</strong></section>
+      </div>
+      <section class="cp-audit-provenance">
+        <div class="cp-audit-section-heading"><span class="cp-audit-section-mark"></span><h4>${safe(labels.auditSnapshot)}</h4><span class="cp-audit-status-pill">${safe(report.evaluation_status ?? report.status ?? "unknown")}</span></div>
+        <div class="cp-audit-provenance-grid">
+          <div><span>${safe(labels.auditSnapshot)}</span><strong>${safe(snapshot.snapshot_id ?? "—")}</strong></div>
+          <div><span>${safe(labels.auditRevision)}</span><strong>${safe(snapshot.project_revision ?? "—")}</strong></div>
+          <div class="is-hash"><span>${safe(labels.auditHash)}</span><code>${safe(snapshot.snapshot_hash ?? "—")}</code></div>
+        </div>
+      </section>
+      <section class="cp-audit-quality-index">
+        <div><span class="cp-audit-section-mark is-copper"></span><strong>${safe(labels.auditQualityIndex)}</strong></div>
+        <span class="cp-audit-index-status">${safe(qualityIndex.status ?? "not_calculated")}</span>
+        <p>${safe(qualityIndex.reason ?? labels.auditPolicyPackRequired)}</p>
+      </section>
+      ${historyNotice}
+      <section class="cp-audit-findings">
+        <div class="cp-audit-findings-heading">
+          <div><span class="cp-audit-section-mark"></span><h4>${safe(labels.auditFindings)}</h4></div>
+          <div class="cp-audit-toolbar">
+            <details class="cp-audit-dropdown cp-audit-filter-menu">
+              <summary><span class="cp-audit-icon">${filterIcon}</span><span>${safe(labels.auditFilters)}</span><span class="cp-audit-filter-count" data-audit-active-filters>0</span></summary>
+              <div class="cp-audit-dropdown-panel cp-audit-filter-panel">
+                <label class="cp-audit-filter-field"><span>${safe(labels.auditSearchFindings)}</span><input type="search" data-audit-search placeholder="${safe(labels.auditSearchFindings)}" autocomplete="off"></label>
+                <label class="cp-audit-filter-field"><span>${safe(labels.auditSeverity)}</span><select data-audit-severity><option value="">${safe(labels.auditAllSeverities)}</option><option value="critical">${safe(labels.auditCritical)}</option><option value="warning">${safe(labels.auditWarnings)}</option><option value="info">${safe(labels.auditInfo)}</option></select></label>
+                <label class="cp-audit-filter-field"><span>${safe(labels.auditObject)}</span><select data-audit-object-type><option value="">${safe(labels.auditAllObjectTypes)}</option>${objectTypes.map((type) => `<option value="${safe(type)}">${safe(type)}</option>`).join("")}</select></label>
+                <button type="button" class="cp-audit-reset-button" data-audit-filter-reset>${safe(labels.auditResetFilters)}</button>
+              </div>
+            </details>
+            ${coverageSummary}
+          </div>
+        </div>
+        <div class="cp-audit-table-card">
+          <div class="cp-audit-table-meta"><span data-audit-visible-count></span><span>${safe(labels.auditShowingAll)}</span></div>
+          <div class="cp-register-table-wrap cp-audit-table-wrap">
+            <table class="cp-schedule-result-table cp-audit-table">
+              <thead><tr>
+                <th scope="col">${safe(labels.auditSeverity)}</th><th scope="col">${safe(labels.auditRule)}</th>
+                <th scope="col">${safe(labels.auditObject)}</th><th scope="col">${safe(labels.auditRelated)}</th>
+                <th scope="col">${safe(labels.auditEvidence)}</th><th scope="col">${safe(labels.auditMessageKey)}</th>
+              </tr></thead>
+              <tbody>${rows || `<tr><td colspan="6" class="cp-audit-empty-cell">${safe(labels.auditNoFindings)}</td></tr>`}</tbody>
+            </table>
+          </div>
+          <p class="cp-audit-filter-empty" data-audit-no-filter-results hidden>${safe(labels.auditNoFilterMatches)}</p>
+        </div>
+      </section>`;
+    const searchInput = auditResults.querySelector<HTMLInputElement>("[data-audit-search]");
+    const severitySelect = auditResults.querySelector<HTMLSelectElement>("[data-audit-severity]");
+    const objectTypeSelect = auditResults.querySelector<HTMLSelectElement>("[data-audit-object-type]");
+    const resetFiltersButton = auditResults.querySelector<HTMLButtonElement>("[data-audit-filter-reset]");
+    const visibleCount = auditResults.querySelector<HTMLElement>("[data-audit-visible-count]");
+    const activeFilterCount = auditResults.querySelector<HTMLElement>("[data-audit-active-filters]");
+    const noFilterResults = auditResults.querySelector<HTMLElement>("[data-audit-no-filter-results]");
+    const applyAuditFilters = (): void => {
+      const filters = {
+        query: searchInput?.value ?? "",
+        severity: severitySelect?.value ?? "",
+        objectType: objectTypeSelect?.value ?? "",
+      };
+      const visible = filterScheduleAuditFindings(normalizedFindings, filters);
+      const visibleSet = new Set(visible);
+      for (const row of auditResults?.querySelectorAll<HTMLElement>("[data-audit-finding-row]") ?? []) {
+        const index = Number(row.dataset.auditIndex);
+        const finding = normalizedFindings[index];
+        row.hidden = !finding || !visibleSet.has(finding);
+      }
+      const active = [filters.query.trim(), filters.severity, filters.objectType].filter(Boolean).length;
+      if (activeFilterCount) activeFilterCount.textContent = String(active);
+      if (visibleCount) visibleCount.textContent = labels.auditShowing
+        .replace("{visible}", String(visible.length))
+        .replace("{total}", String(normalizedFindings.length));
+      if (noFilterResults) noFilterResults.hidden = normalizedFindings.length === 0 || visible.length > 0;
+    };
+    searchInput?.addEventListener("input", applyAuditFilters);
+    severitySelect?.addEventListener("change", applyAuditFilters);
+    objectTypeSelect?.addEventListener("change", applyAuditFilters);
+    resetFiltersButton?.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      if (severitySelect) severitySelect.value = "";
+      if (objectTypeSelect) objectTypeSelect.value = "";
+      applyAuditFilters();
+    });
+    applyAuditFilters();
+  };
+
+  const qualityPolicyCollection = `/api/projects/${encodeURIComponent(context.project_id)}/p6/quality-policy-packs`;
+  let qualityPolicyLoaded = false;
+  const loadQualityPolicies = async (): Promise<void> => {
+    if (!policyStatus || !policyListPanel || !policyForm) return;
+    policyRefreshButton && (policyRefreshButton.disabled = true);
+    policyStatus.textContent = labels.qualityPolicyLoading;
+    policyListPanel.innerHTML = "";
+    try {
+      const sessionResult = await transport.get<SessionInfo>("/api/session", context);
+      if (!sessionResult.ok) throw new Error(sessionResult.error.code);
+      const isAdmin = sessionResult.data.roles.includes("project_admin");
+      policyForm.hidden = !isAdmin;
+      const policyResult = await transport.get<ScheduleQualityPolicyList>(
+        qualityPolicyCollection,
+        context,
+      );
+      if (!policyResult.ok) throw new Error(policyResult.error.code);
+      const packs = Array.isArray(policyResult.data.policy_packs)
+        ? policyResult.data.policy_packs
+        : [];
+      if (packs.length === 0) {
+        policyListPanel.innerHTML = `<p class="cp-audit-history-empty">${safe(labels.qualityPolicyEmpty)}</p>`;
+      } else {
+        const rows = packs.map((pack) => {
+          const approved = pack.status === "approved";
+          const statusText = approved ? labels.qualityPolicyStatusApproved : labels.qualityPolicyDraft;
+          const approveAction = !approved && isAdmin
+            ? `<button type="button" class="cp-audit-policy-approve" data-quality-policy-approve="${safe(pack.policy_id)}" data-quality-policy-version="${safe(pack.version)}">${safe(labels.qualityPolicyApprove)}</button>`
+            : "";
+          return `<tr>
+            <td><strong>${safe(pack.name)}</strong><code class="cp-audit-policy-identity">${safe(pack.policy_id)} · ${safe(pack.version)}</code></td>
+            <td><span class="cp-audit-status-pill ${approved ? "is-approved" : "is-draft"}">${safe(statusText)}</span></td>
+            <td>${safe(pack.created_by)}</td>
+            <td>${safe(pack.approved_by ?? "—")}</td>
+            <td>${approveAction}</td>
+          </tr>`;
+        }).join("");
+        policyListPanel.innerHTML = `<section class="cp-audit-policy-list-card">
+          <div class="cp-audit-section-heading"><span class="cp-audit-section-mark"></span><h4>${safe(labels.qualityPolicyList)}</h4><span class="cp-audit-filter-count">${safe(packs.length)}</span></div>
+          <div class="cp-register-table-wrap cp-audit-table-wrap"><table class="cp-schedule-result-table cp-audit-table">
+            <thead><tr><th>${safe(labels.qualityPolicyName)}</th><th>${safe(labels.auditAuditStatus)}</th><th>${safe(labels.qualityPolicyCreatedBy)}</th><th>${safe(labels.qualityPolicyApprovedBy)}</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table></div>
+        </section>`;
+        for (const approveButton of policyListPanel.querySelectorAll<HTMLButtonElement>("[data-quality-policy-approve]")) {
+          approveButton.addEventListener("click", async () => {
+            const policyId = approveButton.dataset.qualityPolicyApprove;
+            const version = approveButton.dataset.qualityPolicyVersion;
+            if (!policyId || !version) return;
+            approveButton.disabled = true;
+            if (policyStatus) policyStatus.textContent = labels.qualityPolicyApproving;
+            try {
+              const response = await transport.post<
+                Record<string, never>,
+                ScheduleQualityPolicyResponse
+              >(
+                `${qualityPolicyCollection}/${encodeURIComponent(policyId)}/${encodeURIComponent(version)}/approve`,
+                {},
+                context,
+                crypto.randomUUID(),
+              );
+              if (!response.ok) throw new Error(response.error.code);
+              if (policyStatus) policyStatus.textContent = labels.qualityPolicyApproved;
+              await loadQualityPolicies();
+            } catch (error) {
+              if (policyStatus) policyStatus.textContent = `${labels.qualityPolicyFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_POLICY_APPROVAL_FAILED"})`;
+            } finally {
+              approveButton.disabled = false;
+            }
+          });
+        }
+      }
+      if (!isAdmin && policyStatus) policyStatus.textContent = labels.qualityPolicyNoAdmin;
+      else if (policyStatus) policyStatus.textContent = "";
+      qualityPolicyLoaded = true;
+    } catch (error) {
+      if (policyStatus) policyStatus.textContent = `${labels.qualityPolicyFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_POLICY_LOAD_FAILED"})`;
+      policyListPanel.innerHTML = "";
+    } finally {
+      if (policyRefreshButton) policyRefreshButton.disabled = false;
+    }
+  };
+
+  policyDetails?.addEventListener("toggle", () => {
+    if (policyDetails.open && !qualityPolicyLoaded) void loadQualityPolicies();
+  });
+  policyRefreshButton?.addEventListener("click", () => {
+    qualityPolicyLoaded = false;
+    void loadQualityPolicies();
+  });
+  policyForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!policyForm || !policyStatus || !policyListPanel) return;
+    const value = (name: string): string =>
+      (policyForm.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null)?.value.trim() ?? "";
+    const required = [
+      "policy_id", "version", "name", "lag_date", "lag_working_day", "lag_working_hour",
+      "lag_severity", "duration_date", "duration_working_day", "duration_working_hour",
+      "duration_severity", "constraints_max", "constraints_severity",
+      "weight_lag", "weight_duration", "weight_constraints",
+    ];
+    if (required.some((name) => value(name) === "")) {
+      policyStatus.textContent = labels.qualityPolicyValidation;
+      return;
+    }
+    const dateLag = Number(value("lag_date"));
+    const maxConstraints = Number(value("constraints_max"));
+    if (!Number.isInteger(dateLag) || !Number.isInteger(maxConstraints)) {
+      policyStatus.textContent = labels.qualityPolicyValidation;
+      return;
+    }
+    const request = {
+      policy_id: value("policy_id"),
+      version: value("version"),
+      name: value("name"),
+      scoring_method: "weighted_pass_rate.v1",
+      thresholds: {
+        positive_lag: {
+          date_based_max_working_days: dateLag,
+          time_aware_max: {
+            "working-day": value("lag_working_day"),
+            "working-hour": value("lag_working_hour"),
+          },
+          severity: value("lag_severity"),
+        },
+        activity_duration: {
+          date_based_max_working_days: value("duration_date"),
+          time_aware_max: {
+            "working-day": value("duration_working_day"),
+            "working-hour": value("duration_working_hour"),
+          },
+          severity: value("duration_severity"),
+        },
+        constraints_per_activity: {
+          maximum: maxConstraints,
+          severity: value("constraints_severity"),
+        },
+      },
+      weights: {
+        positive_lag: value("weight_lag"),
+        activity_duration: value("weight_duration"),
+        constraints_per_activity: value("weight_constraints"),
+      },
+    };
+    const saveButton = policyForm.querySelector<HTMLButtonElement>("[type=submit]");
+    if (saveButton) saveButton.disabled = true;
+    policyStatus.textContent = labels.qualityPolicyCreating;
+    try {
+      const response = await transport.post<
+        typeof request,
+        ScheduleQualityPolicyResponse
+      >(qualityPolicyCollection, request, context, crypto.randomUUID());
+      if (!response.ok) throw new Error(response.error.code);
+      policyForm.reset();
+      policyStatus.textContent = labels.qualityPolicyCreated;
+      qualityPolicyLoaded = false;
+      await loadQualityPolicies();
+      if (policyStatus) policyStatus.textContent = labels.qualityPolicyCreated;
+    } catch (error) {
+      policyStatus.textContent = `${labels.qualityPolicyFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_POLICY_CREATE_FAILED"})`;
+    } finally {
+      if (saveButton) saveButton.disabled = false;
+    }
+  });
+
+  auditHistoryButton?.addEventListener("click", async () => {
+    if (!auditHistoryButton || !auditHistoryPanel || !auditStatus) return;
+    auditHistoryButton.disabled = true;
+    auditStatus.textContent = labels.auditHistoryLoading;
+    auditHistoryPanel.innerHTML = "";
+    try {
+      const response = await transport.get<ScheduleQualityAuditHistoryList>(
+        `/api/v1/schedule/quality-audits?project_id=${encodeURIComponent(context.project_id)}&limit=100`,
+        context,
+      );
+      if (!response.ok) throw new Error(response.error.code);
+      const audits = Array.isArray(response.data.audits) ? response.data.audits : [];
+      if (audits.length === 0) {
+        auditHistoryPanel.innerHTML = `<p class="cp-audit-history-empty">${safe(labels.auditHistoryEmpty)}</p>`;
+      } else {
+        const rows = audits.map((item) => {
+          const revision = Number(item.scope?.project_revision ?? 0);
+          const findings = Number(item.summary?.finding_count ?? 0);
+          return `<tr>
+            <td><code>${safe(item.audit_id)}</code></td>
+            <td>${safe(item.created_at)}</td>
+            <td>${safe(revision)}</td>
+            <td>${safe(findings)}</td>
+            <td><span class="cp-audit-status-pill">${safe(item.status ?? item.evaluation_status ?? "—")}</span></td>
+            <td><button type="button" class="cp-audit-history-open" data-audit-history-id="${safe(item.audit_id)}">${safe(labels.auditHistoryOpen)}</button></td>
+          </tr>`;
+        }).join("");
+        auditHistoryPanel.innerHTML = `<div class="cp-audit-history-card">
+          <div class="cp-audit-section-heading"><span class="cp-audit-section-mark"></span><h4>${safe(labels.auditHistory)}</h4><span class="cp-audit-filter-count">${safe(audits.length)}</span></div>
+          <div class="cp-register-table-wrap cp-audit-table-wrap"><table class="cp-schedule-result-table cp-audit-table">
+            <thead><tr><th>${safe(labels.auditHistory)}</th><th>${safe(labels.auditHistoryCreated)}</th><th>${safe(labels.auditHistoryRevision)}</th><th>${safe(labels.auditHistoryFindings)}</th><th>${safe(labels.auditAuditStatus)}</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table></div>
+        </div>`;
+        for (const openButton of auditHistoryPanel.querySelectorAll<HTMLButtonElement>("[data-audit-history-id]")) {
+          openButton.addEventListener("click", async () => {
+            const auditId = openButton.dataset.auditHistoryId;
+            if (!auditId) return;
+            openButton.disabled = true;
+            try {
+              const detail = await transport.get<ScheduleQualityAuditHistoryDetail>(
+                `/api/v1/schedule/quality-audits/${encodeURIComponent(auditId)}?project_id=${encodeURIComponent(context.project_id)}`,
+                context,
+              );
+              if (!detail.ok) throw new Error(detail.error.code);
+              if (!detail.data.audit?.report) throw new Error("SCHEDULE_QUALITY_AUDIT_HISTORY_REPORT_MISSING");
+              renderQualityAudit(detail.data.audit.report);
+              auditStatus.textContent = "";
+            } catch (error) {
+              auditStatus.textContent = `${labels.auditHistoryFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_AUDIT_HISTORY_FAILED"})`;
+            } finally {
+              openButton.disabled = false;
+            }
+          });
+        }
+      }
+      auditStatus.textContent = "";
+    } catch (error) {
+      auditStatus.textContent = `${labels.auditHistoryFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_AUDIT_HISTORY_FAILED"})`;
+      auditHistoryPanel.innerHTML = "";
+    } finally {
+      auditHistoryButton.disabled = false;
+    }
+  });
+
+  auditButton?.addEventListener("click", async () => {
+    if (!auditButton || !auditStatus || !auditResults) return;
+    auditButton.disabled = true;
+    auditStatus.textContent = labels.qualityAuditRunning;
+    auditResults.innerHTML = "";
+    try {
+      const sessionResult = await transport.get<SessionInfo>("/api/session", context);
+      if (!sessionResult.ok || !sessionResult.data.user_id) {
+        throw new Error(sessionResult.ok ? "SESSION_USER_REQUIRED" : sessionResult.error.code);
+      }
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      const snapshotResult = await transport.post<Record<string, string>, PublishedSnapshot>(
+        `/api/projects/${encodeURIComponent(context.project_id)}/p6/schedule/snapshots`,
+        { contract_version: "p6-schedule-snapshot-api.v1", timezone },
+        context,
+        crypto.randomUUID(),
+      );
+      if (!snapshotResult.ok) throw new Error(snapshotResult.error.code);
+      const queryPayload = {
+        contract_version: "schedule-query.v1",
+        query_id: crypto.randomUUID(),
+        scope: {
+          tenant_id: context.tenant_id,
+          project_id: context.project_id,
+          project_revision: context.revision,
+        },
+        requested_by: sessionResult.data.user_id,
+        query_text: "Run the read-only schedule quality audit on this saved project revision.",
+        kind: "quality_audit",
+        language: locale,
+        constraints: { snapshot_id: snapshotResult.data.snapshot_id },
+      };
+      const queryResult = await transport.post<typeof queryPayload, ScheduleQueryResult>(
+        "/api/v1/schedule/query",
+        queryPayload,
+        context,
+        crypto.randomUUID(),
+      );
+      if (!queryResult.ok) throw new Error(queryResult.error.code);
+      const queryData = queryResult.data;
+      if (queryData.error) {
+        throw new Error(queryData.error.code ?? queryData.error.message ?? "SCHEDULE_QUALITY_AUDIT_FAILED");
+      }
+      const data = queryData.answer?.data ?? queryData.data ?? queryData as unknown as Record<string, unknown>;
+      const report = data && typeof data === "object"
+        ? (data as Record<string, unknown>).quality_audit
+        : null;
+      if (!report) throw new Error("SCHEDULE_QUALITY_AUDIT_RESULT_MISSING");
+      renderQualityAudit(report);
+      auditStatus.textContent = "";
+    } catch (error) {
+      auditStatus.textContent = `${labels.qualityAuditFailed} (${error instanceof Error ? error.message : "SCHEDULE_QUALITY_AUDIT_FAILED"})`;
+      auditResults.innerHTML = "";
+    } finally {
+      auditButton.disabled = false;
     }
   });
 }

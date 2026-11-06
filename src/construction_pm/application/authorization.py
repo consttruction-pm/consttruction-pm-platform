@@ -14,6 +14,7 @@ class Permission(str, Enum):
     PROJECT_WRITE = "project.write"
     PROJECT_SCHEDULE = "project.schedule"
     PROJECT_ADMIN = "project.admin"
+    SCHEDULE_QUALITY_POLICY_ADMIN = "schedule.quality_policy.admin"
     # Form Builder capabilities are separate grants, not aliases of project write.
     FORM_READ = "form.read"
     FORM_CREATE = "form.create"
@@ -93,6 +94,7 @@ def default_project_policy() -> RoleBasedAuthorizationPolicy:
                     Permission.PROJECT_WRITE,
                     Permission.PROJECT_SCHEDULE,
                     Permission.PROJECT_ADMIN,
+                    Permission.SCHEDULE_QUALITY_POLICY_ADMIN,
                     Permission.FORM_READ,
                     Permission.FORM_CREATE,
                     Permission.FORM_DESIGN,

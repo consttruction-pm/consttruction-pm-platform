@@ -11,12 +11,17 @@ from typing import Callable, Mapping
 from construction_pm.backend_p0.schedule_query import ScheduleQueryApplicationService
 from construction_pm.backend_p0.errors import BackendApplicationError, ErrorCategory
 from construction_pm.backend_p0.models import BackendScope
-from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy
+from construction_pm.application.authorization import AuthorizationContext, AuthorizationPolicy, AuthorizationError
 
 from construction_pm.control_intelligence.contracts import SourceReference
 from construction_pm.control_intelligence.graph import ControlDomain
 from construction_pm.control_intelligence.scenario import ScenarioChange
 from construction_pm.control_intelligence.query import ScheduleQueryAnswer, ScheduleQueryKind, ScheduleQueryRequest
+from construction_pm.control_intelligence.quality_audit import build_schedule_quality_audit
+from construction_pm.control_intelligence.quality_audit_history import (
+    ScheduleQualityAuditHistoryRepository,
+    ScheduleQualityAuditHistoryRecord,
+)
 from construction_pm.schedule_evaluator import (
     ScheduleEvaluationError,
     ScheduleEvaluationResult,
@@ -47,6 +52,38 @@ class AuthoritativeScheduleQueryProvider:
     # snapshot enables post-leveling cost recalculation. The evaluator receives
     # them as immutable LevelingCostInputs and reads no repository itself.
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None
+    quality_audit_context_loader: Callable[[BackendScope, AuthorizationContext], Mapping[str, object]] | None = None
+    quality_audit_history_repository: ScheduleQualityAuditHistoryRepository | None = None
+    quality_audit_history_transaction_manager: object | None = None
+
+    def _persist_quality_audit(
+        self,
+        scope: BackendScope,
+        request: ScheduleQueryRequest,
+        report: dict[str, object],
+    ) -> None:
+        if self.quality_audit_history_repository is None:
+            report["audit_history"] = {"status": "not_configured", "audit_id": None}
+            return
+        try:
+            manager = self.quality_audit_history_transaction_manager
+            if manager is None:
+                raise RuntimeError("SCHEDULE_QUALITY_AUDIT_HISTORY_TRANSACTION_MANAGER_REQUIRED")
+            with manager.transaction():
+                record: ScheduleQualityAuditHistoryRecord = self.quality_audit_history_repository.record(
+                    scope, request.query_id, report
+                )
+        except Exception as exc:
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                "SCHEDULE_QUALITY_AUDIT_HISTORY_PERSISTENCE_FAILED",
+                "The audit report could not be durably recorded; no unpersisted report was returned as saved.",
+            ) from exc
+        report["audit_history"] = {
+            "status": "persisted",
+            "audit_id": record.audit_id,
+            "created_at": record.created_at.isoformat(),
+        }
 
     def execute(
         self,
@@ -64,6 +101,26 @@ class AuthoritativeScheduleQueryProvider:
         snapshot = self.snapshot_repository.get(scope, snapshot_id)
         if snapshot is None:
             raise ValueError("SCHEDULE_INPUT_SNAPSHOT_NOT_FOUND")
+
+        def load_quality_audit_context() -> Mapping[str, object] | None:
+            if request.kind is not ScheduleQueryKind.QUALITY_AUDIT:
+                return None
+            if self.quality_audit_context_loader is None:
+                return None
+            if auth_context is None:
+                raise BackendApplicationError(
+                    ErrorCategory.AUTHORIZATION,
+                    "SCHEDULE_AUDIT_AUTH_CONTEXT_REQUIRED",
+                    "The schedule quality audit requires an authorized project read context.",
+                )
+            try:
+                return self.quality_audit_context_loader(scope, auth_context)
+            except AuthorizationError as exc:
+                raise BackendApplicationError(
+                    ErrorCategory.AUTHORIZATION,
+                    "FORBIDDEN",
+                    "The schedule quality audit context is not authorized.",
+                ) from exc
 
         if self.calculation_context_repository is not None:
             persisted = self.calculation_context_repository.get(
@@ -149,6 +206,46 @@ class AuthoritativeScheduleQueryProvider:
                 leveling_input=leveling_input,
                 cost_inputs=cost_inputs,
             )
+        except ScheduleEvaluationError as exc:
+            # The evaluator preserves core rejection codes as
+            # SCHEDULE_INFEASIBLE:<CODE>. Only a proven network cycle is
+            # projected as an audit finding; all other calculation failures
+            # retain the normal fail-closed behavior.
+            error_code = (
+                str(exc).partition(":")[2]
+                if str(exc).startswith("SCHEDULE_INFEASIBLE:")
+                else str(exc)
+            )
+            if (
+                request.kind is ScheduleQueryKind.QUALITY_AUDIT
+                and error_code == "NETWORK_CYCLE"
+            ):
+                source = SourceReference(
+                    source_id=snapshot.snapshot_id,
+                    source_type="schedule-input-snapshot",
+                    locator=f"/schedule/input-snapshots/{snapshot.snapshot_id}",
+                    revision=request.scope.project_revision,
+                    content_hash=snapshot.snapshot_hash,
+                )
+                report = build_schedule_quality_audit(
+                    snapshot.canonical_payload,
+                    evaluation_status="blocked",
+                    audit_context=load_quality_audit_context(),
+                )
+                report["evaluation_error_code"] = error_code
+                self._persist_quality_audit(scope, request, report)
+                return ScheduleQueryAnswer(
+                    query_id=request.query_id,
+                    scope=request.scope,
+                    answer_key="schedule.query.quality_audit",
+                    data={"quality_audit": report},
+                    source_refs=(source,),
+                )
+            raise BackendApplicationError(
+                ErrorCategory.VALIDATION,
+                str(exc) or "SCHEDULE_EVALUATION_FAILED",
+                "Schedule evaluation could not be completed from the immutable inputs.",
+            ) from exc
         except ValueError as exc:
             # Keep fail-closed calculation behavior while translating a core
             # rejection into the stable Schedule Query validation contract.
@@ -167,7 +264,22 @@ class AuthoritativeScheduleQueryProvider:
             content_hash=result.calculation_run_identity,
         )
 
-        data = _project_result(request, result, source)
+        data = _project_result(
+            request,
+            result,
+            source,
+            snapshot,
+            audit_context=load_quality_audit_context(),
+        )
+        if request.kind is ScheduleQueryKind.QUALITY_AUDIT:
+            report = data.get("quality_audit")
+            if not isinstance(report, dict):
+                raise BackendApplicationError(
+                    ErrorCategory.VALIDATION,
+                    "INVALID_SCHEDULE_QUALITY_AUDIT_REPORT",
+                    "The schedule quality audit did not produce a persistable report.",
+                )
+            self._persist_quality_audit(scope, request, report)
         return ScheduleQueryAnswer(
             query_id=request.query_id,
             scope=request.scope,
@@ -344,9 +456,39 @@ def _project_result(
     request: ScheduleQueryRequest,
     result: ScheduleEvaluationResult | None,
     source: SourceReference,
+    snapshot: ScheduleInputSnapshot | None = None,
+    *,
+    audit_context: Mapping[str, object] | None = None,
 ) -> Mapping[str, object]:
     if request.kind is ScheduleQueryKind.SCENARIO:
         return _project_scenario_proposal(request, source)
+    if request.kind is ScheduleQueryKind.QUALITY_AUDIT:
+        if snapshot is None:
+            raise ValueError("SCHEDULE_AUDIT_SNAPSHOT_REQUIRED")
+        diagnostics = (
+            _diagnostic_payload(result)
+            if result is not None and result.date_result is not None
+            else ()
+        )
+        return {
+            "quality_audit": build_schedule_quality_audit(
+                snapshot.canonical_payload,
+                core_diagnostics=diagnostics,
+                evaluation_status="completed",
+                audit_context=audit_context,
+                core_schedule_facts=(
+                    {
+                        activity_id: {
+                            "start": activity.start.isoformat(),
+                            "finish": activity.finish.isoformat(),
+                        }
+                        for activity_id, activity in result.date_result.activities.items()
+                    }
+                    if result is not None and result.date_result is not None
+                    else None
+                ),
+            )
+        }
     if result is None:
         raise ValueError("SCHEDULE_EVALUATION_RESULT_REQUIRED")
     if result.date_result is not None:
