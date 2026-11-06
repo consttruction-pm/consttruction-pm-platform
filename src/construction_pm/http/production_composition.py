@@ -11,6 +11,8 @@ from construction_pm.calendar_work_hours_repository import CalendarWorkHourRepos
 from construction_pm.application.project_lifecycle_api import ProjectLifecycleAPI
 from construction_pm.ai_action_boundary import AIToolPermissionAdapter
 from construction_pm.ai_action_activity_tools import build_activity_create_runtime
+from construction_pm.ai_learning_memory_application import AILearningMemoryApplicationService
+from construction_pm.ai_learning_memory_repository import AILearningMemoryRepository
 from construction_pm.backend_p0.api import BackendP0API
 from construction_pm.backend_p0.authoritative_schedule_query import AuthoritativeScheduleQueryProvider
 from construction_pm.backend_p0.schedule_query import ScheduleQueryAPI, ScheduleQueryApplicationService
@@ -99,6 +101,7 @@ def build_project_lifecycle_wsgi_app(
     ai_action_permission_adapter: AIToolPermissionAdapter | None = None,
     ai_action_transaction_manager: AIActionTransactionManager | None = None,
     ai_assistant_provider: AIChatProvider | None = None,
+    ai_learning_memory_repository: AILearningMemoryRepository | None = None,
     leveling_input_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, CalendarResolverRegistry, AuthorizationContext], SchedulerLevelingInput | None] | None = None,
     cost_inputs_resolver: Callable[[ScheduleInputSnapshot, CalculationContext, AuthorizationContext], LevelingCostInputs | None] | None = None,
     resource_read_api: P6ResourceReadAPI | None = None,
@@ -190,6 +193,17 @@ def build_project_lifecycle_wsgi_app(
             clock=None if clock is None else clock.now,
         )
 
+    ai_learning_memory_service = None
+    if ai_learning_memory_repository is not None:
+        # Deployment owns the repository connection and its outer transaction.
+        # Initialization applies checked, append-only schema migrations without
+        # committing a caller-owned PostgreSQL transaction.
+        ai_learning_memory_repository.initialize()
+        ai_learning_memory_service = AILearningMemoryApplicationService(
+            repository=ai_learning_memory_repository,
+            authorization_policy=authorization_policy,
+        )
+
     ai_assistant_orchestrator = None
     if ai_assistant_provider is not None:
         if ai_action_runtime is None:
@@ -264,6 +278,7 @@ def build_project_lifecycle_wsgi_app(
         schedule_query_api=schedule_query_api,
         ai_action_runtime=ai_action_runtime,
         ai_assistant_orchestrator=ai_assistant_orchestrator,
+        ai_learning_memory_service=ai_learning_memory_service,
         form_builder_api=form_builder_api,
     )
     return ProjectLifecycleWsgiApp(routes)
