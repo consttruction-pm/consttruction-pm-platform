@@ -397,6 +397,7 @@ class CompiledFormula:
     ast: ExpressionNode
     inferred_type: FormulaType
     dependencies: tuple[str, ...]
+    inferred_unit: str | None = None
 
 
 @dataclass(frozen=True)
@@ -682,6 +683,7 @@ def compile_formula(
         ast=ast,
         inferred_type=inferred.type,
         dependencies=analyze_dependencies(ast),
+        inferred_unit=inferred.unit,
     )
 
 
