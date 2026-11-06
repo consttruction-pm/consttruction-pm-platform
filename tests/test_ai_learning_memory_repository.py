@@ -358,12 +358,16 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
         assert reader_repository.get(
             private_record.record_id,
             private_record.record_version,
-            LearningRetrievalScope(user_id=private_record.owner_user_id),
+            LearningRetrievalScope(
+                user_id=private_record.owner_user_id, user_private_access_granted=True
+            ),
         ) == private_record
         assert reader_repository.get(
             private_record.record_id,
             private_record.record_version,
-            LearningRetrievalScope(user_id=f"other-{suffix}"),
+            LearningRetrievalScope(
+                user_id=f"other-{suffix}", user_private_access_granted=True
+            ),
         ) is None
     finally:
         reader.rollback()
