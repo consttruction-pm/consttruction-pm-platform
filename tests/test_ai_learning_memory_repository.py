@@ -136,3 +136,229 @@ def test_caller_owned_transaction_is_not_committed_by_repository(tmp_path):
     assert reader_repo.get("lesson-1", 1, LearningRetrievalScope(user_id="user-1")) is None
     writer.close()
     reader.close()
+
+
+
+def test_sqlite_schema_migrations_are_versioned_idempotent_and_checksum_checked():
+    connection = sqlite3.connect(":memory:")
+    repo = SQLiteAILearningMemoryRepository(connection)
+
+    first = connection.execute(
+        "SELECT version, migration_name, checksum, applied_at "
+        "FROM ai_learning_memory_schema_migrations ORDER BY version"
+    ).fetchall()
+    assert len(first) == 1
+    assert first[0][0] == 1
+    assert first[0][1] == "create_ai_learning_memory_records"
+    assert len(first[0][2]) == 64
+    assert first[0][3]
+
+    repo.initialize()
+    repeated = connection.execute(
+        "SELECT version, migration_name, checksum, applied_at "
+        "FROM ai_learning_memory_schema_migrations ORDER BY version"
+    ).fetchall()
+    assert repeated == first
+
+    connection.execute(
+        "UPDATE ai_learning_memory_schema_migrations SET checksum=? WHERE version=1",
+        ("0" * 64,),
+    )
+    connection.commit()
+    with pytest.raises(
+        AILearningMemoryPersistenceError,
+        match="AI_LEARNING_SCHEMA_MIGRATION_CHECKSUM_MISMATCH",
+    ):
+        SQLiteAILearningMemoryRepository(connection)
+
+
+def test_sqlite_adopts_compatible_legacy_memory_table_without_rewriting_records():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE ai_learning_memory_records (
+            record_id TEXT NOT NULL,
+            record_version INTEGER NOT NULL,
+            scope TEXT NOT NULL,
+            status TEXT NOT NULL,
+            signal_kind TEXT NOT NULL,
+            owner_user_id TEXT,
+            tenant_id TEXT,
+            project_id TEXT,
+            payload_json TEXT NOT NULL,
+            PRIMARY KEY (record_id, record_version)
+        )"""
+    )
+    connection.execute(
+        """INSERT INTO ai_learning_memory_records
+        (record_id,record_version,scope,status,signal_kind,payload_json)
+        VALUES (?,?,?,?,?,?)""",
+        ("legacy-id", 1, "user_private", "candidate", "user_correction", "{}"),
+    )
+    connection.commit()
+
+    SQLiteAILearningMemoryRepository(connection)
+
+    stored = connection.execute(
+        "SELECT record_id, record_version, payload_json "
+        "FROM ai_learning_memory_records WHERE record_id=?",
+        ("legacy-id",),
+    ).fetchone()
+    assert stored == ("legacy-id", 1, "{}")
+    migration = connection.execute(
+        "SELECT version, migration_name FROM ai_learning_memory_schema_migrations"
+    ).fetchone()
+    assert migration == (1, "create_ai_learning_memory_records")
+
+
+def test_sqlite_incompatible_legacy_memory_schema_fails_closed():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        "CREATE TABLE ai_learning_memory_records (record_id TEXT PRIMARY KEY)"
+    )
+    connection.commit()
+
+    with pytest.raises(
+        AILearningMemoryPersistenceError,
+        match="AI_LEARNING_LEGACY_SCHEMA_INCOMPATIBLE",
+    ):
+        SQLiteAILearningMemoryRepository(connection)
+
+    # The rejected migration is atomic: no partial migration history is left.
+    assert connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name='ai_learning_memory_schema_migrations'"
+    ).fetchone() is None
+
+
+def test_sqlite_future_schema_version_fails_closed():
+    connection = sqlite3.connect(":memory:")
+    SQLiteAILearningMemoryRepository(connection)
+    connection.execute(
+        "INSERT INTO ai_learning_memory_schema_migrations "
+        "(version,migration_name,checksum,applied_at) VALUES (?,?,?,?)",
+        (99, "future-migration", "f" * 64, NOW.isoformat()),
+    )
+    connection.commit()
+
+    with pytest.raises(
+        AILearningMemoryPersistenceError,
+        match="AI_LEARNING_SCHEMA_VERSION_NEWER_THAN_CODE",
+    ):
+        SQLiteAILearningMemoryRepository(connection)
+
+
+def test_sqlite_schema_migration_preserves_caller_owned_transaction(tmp_path):
+    database = str(tmp_path / "migration-transaction.sqlite")
+    writer = sqlite3.connect(database)
+    reader = sqlite3.connect(database)
+    writer.execute("CREATE TABLE caller_work (value TEXT NOT NULL)")
+    writer.commit()
+
+    writer.execute("BEGIN")
+    writer.execute("INSERT INTO caller_work (value) VALUES (?)", ("uncommitted",))
+    SQLiteAILearningMemoryRepository(writer)
+
+    assert writer.in_transaction
+    assert reader.execute(
+        "SELECT value FROM caller_work"
+    ).fetchall() == []
+    assert reader.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name='ai_learning_memory_schema_migrations'"
+    ).fetchone() is None
+
+    writer.rollback()
+    assert reader.execute(
+        "SELECT value FROM caller_work"
+    ).fetchall() == []
+    assert reader.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name='ai_learning_memory_schema_migrations'"
+    ).fetchone() is None
+    writer.close()
+    reader.close()
+
+
+@pytest.fixture(scope="module")
+def postgres_dsn():
+    import os
+
+    dsn = os.getenv("P6_TEST_POSTGRES_DSN") or os.getenv("CONSTRUCTION_PM_POSTGRES_DSN")
+    if not dsn:
+        pytest.skip("PostgreSQL DSN is not configured")
+    return dsn
+
+
+@pytest.fixture()
+def postgres_connection(postgres_dsn):
+    psycopg = pytest.importorskip("psycopg")
+    connection = psycopg.connect(postgres_dsn)
+    try:
+        yield connection
+    finally:
+        connection.rollback()
+        connection.close()
+
+
+def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
+    postgres_connection, postgres_dsn
+):
+    import uuid
+    import psycopg
+
+    repository = __import__(
+        "construction_pm.ai_learning_memory_repository",
+        fromlist=["PostgresAILearningMemoryRepository"],
+    ).PostgresAILearningMemoryRepository(postgres_connection)
+    repository.initialize()
+    migration = postgres_connection.execute(
+        "SELECT version, migration_name, checksum FROM ai_learning_memory_schema_migrations "
+        "ORDER BY version"
+    ).fetchall()
+    assert len(migration) == 1
+    assert migration[0][0] == 1
+    assert migration[0][1] == "create_ai_learning_memory_records"
+    assert len(migration[0][2]) == 64
+
+    repository.initialize()
+    repeated = postgres_connection.execute(
+        "SELECT version, migration_name, checksum FROM ai_learning_memory_schema_migrations "
+        "ORDER BY version"
+    ).fetchall()
+    assert repeated == migration
+    postgres_connection.commit()
+
+    suffix = uuid.uuid4().hex
+    private_record = record(
+        record_id=f"postgres-private-{suffix}",
+        owner_user_id=f"user-{suffix}",
+        tenant_id=None,
+        project_id=None,
+    )
+    repository.append(private_record)
+    postgres_connection.commit()
+
+    reader = psycopg.connect(postgres_dsn)
+    try:
+        reader_repository = __import__(
+            "construction_pm.ai_learning_memory_repository",
+            fromlist=["PostgresAILearningMemoryRepository"],
+        ).PostgresAILearningMemoryRepository(reader)
+        assert reader_repository.get(
+            private_record.record_id,
+            private_record.record_version,
+            LearningRetrievalScope(user_id=private_record.owner_user_id),
+        ) == private_record
+        assert reader_repository.get(
+            private_record.record_id,
+            private_record.record_version,
+            LearningRetrievalScope(user_id=f"other-{suffix}"),
+        ) is None
+    finally:
+        reader.rollback()
+        reader.close()
+        postgres_connection.execute(
+            "DELETE FROM ai_learning_memory_records WHERE record_id = %s",
+            (private_record.record_id,),
+        )
+        postgres_connection.commit()
