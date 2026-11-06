@@ -121,12 +121,6 @@ def test_project_private_memory_is_visible_to_authorized_project_members_not_oth
         Permission.AI_LEARNING_PROJECT_WRITE,
     }
     app, connection = service(permissions)
-    item = memory_record(
-        scope=LearningScope.PROJECT_PRIVATE,
-        tenant_id="tenant-1",
-        project_id="project-1",
-        owner_user_id="creator-user",
-    )
     # Creator must be the authenticated member who is capturing this lesson.
     item = memory_record(
         scope=LearningScope.PROJECT_PRIVATE,
