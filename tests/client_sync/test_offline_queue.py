@@ -124,3 +124,34 @@ def test_sqlite_enqueue_commits_when_standalone():
     connection.execute("BEGIN")
     connection.rollback()
     assert q.peek() == [make_mutation()]
+
+
+
+def test_sqlite_queue_initialization_does_not_commit_a_caller_owned_transaction():
+    connection = sqlite3.connect(":memory:")
+    connection.execute("CREATE TABLE caller_state (value TEXT NOT NULL)")
+    connection.execute("BEGIN IMMEDIATE")
+    connection.execute("INSERT INTO caller_state(value) VALUES ('uncommitted')")
+
+    SQLiteOfflineMutationQueue(connection)
+
+    assert connection.in_transaction
+    connection.rollback()
+    assert connection.execute("SELECT value FROM caller_state").fetchall() == []
+
+
+def test_sqlite_domain_write_and_outbox_append_roll_back_together():
+    connection = sqlite3.connect(":memory:")
+    queue = SQLiteOfflineMutationQueue(connection)
+    connection.execute("CREATE TABLE local_domain_changes (change_id TEXT PRIMARY KEY)")
+    mutation = make_mutation()
+
+    connection.execute("BEGIN IMMEDIATE")
+    connection.execute("INSERT INTO local_domain_changes(change_id) VALUES ('change-1')")
+    queue.enqueue(mutation)
+    assert queue.peek() == [mutation]
+    connection.rollback()
+
+    assert connection.execute("SELECT change_id FROM local_domain_changes").fetchall() == []
+    assert queue.peek() == []
+    connection.close()
