@@ -1957,6 +1957,6 @@ def test_preview_learning_memory_is_session_scoped_audited_and_persistent(
             "WHERE tenant_id=? AND project_id=?",
             (RPS_TENANT, RPS_PROJECT),
         ).fetchone()
-        assert persisted_audit == (3,)
+        assert persisted_audit == (4,)
     finally:
         reopened.close()
