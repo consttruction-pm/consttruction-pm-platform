@@ -1828,8 +1828,12 @@ function bind(root: HTMLElement): void {
     const menu = document.createElement("div");
     menu.className = "cp-vd-context-menu"; menu.dataset.vdContextMenu = ""; menu.setAttribute("role", "menu");
     menu.innerHTML = entries.map(([action, title]) => `<button type="button" role="menuitem" data-vd-context-action="${action}" data-vd-context-value="${esc(value)}">${esc(title)}</button>`).join("");
-    menu.style.left = `${Math.max(8, x)}px`; menu.style.top = `${Math.max(8, y)}px`; root.append(menu);
+    menu.style.left = `${Math.max(8, x)}px`; menu.style.top = `${Math.max(8, y)}px`;
+    const surface = root.querySelector<HTMLElement>("[data-visual-demo]");
+    const host = surface && document.fullscreenElement === surface ? surface : root;
+    host.append(menu);
     const rect = menu.getBoundingClientRect();
+    menu.querySelector<HTMLButtonElement>("button")?.focus();
     if (rect.right > window.innerWidth - 8) menu.style.left = `${Math.max(8, window.innerWidth - rect.width - 8)}px`;
     if (rect.bottom > window.innerHeight - 8) menu.style.top = `${Math.max(8, window.innerHeight - rect.height - 8)}px`;
   };
