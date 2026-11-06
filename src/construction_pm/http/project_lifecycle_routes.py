@@ -99,6 +99,11 @@ from ..p6_field_registry import (
 )
 from ..p6_field_registry_api import P6FieldRegistryAPI, P6_FIELD_REGISTRY_API_VERSION
 from ..p6_formula_authority_api import P6FormulaAuthorityAPI
+from ..p6_formula_column import (
+    P6_FORMULA_COLUMN_API_VERSION,
+    P6FormulaColumnAPI,
+    P6FormulaColumnError,
+)
 from ..p6_financial_period_api import P6FinancialPeriodAPI, P6_FINANCIAL_PERIOD_API_VERSION
 from ..p6_expense_api import P6ExpenseAPI, P6_EXPENSE_API_VERSION
 from ..p6_cost_account_api import P6CostAccountAPI, P6_COST_ACCOUNT_API_VERSION
@@ -200,6 +205,7 @@ class ProjectLifecycleHttpRoutes:
         p6_field_registry_api: P6FieldRegistryAPI | None = None,
         p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
         p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
+        p6_formula_column_api: P6FormulaColumnAPI | None = None,
         p6_calendar_read_api: P6CalendarReadAPI | None = None,
         p6_calendar_api: P6CalendarAPI | None = None,
         p6_baseline_api: P6BaselineAPI | None = None,
@@ -241,6 +247,7 @@ class ProjectLifecycleHttpRoutes:
         self._p6_field_registry_api = p6_field_registry_api
         self._p6_layout_definition_api = p6_layout_definition_api
         self._p6_formula_authority_api = p6_formula_authority_api
+        self._p6_formula_column_api = p6_formula_column_api
         self._p6_calendar_read_api = p6_calendar_read_api
         self._p6_calendar_api = p6_calendar_api
         self._p6_baseline_api = p6_baseline_api
@@ -2573,6 +2580,57 @@ class ProjectLifecycleHttpRoutes:
                     "registry_version": registry_version,
                     "udfs": [item["udf"] for item in udfs],
                 })
+            if (
+                method in {"GET", "POST"}
+                and path.startswith("/api/projects/")
+                and path.endswith("/p6/formula-columns")
+            ):
+                if self._p6_formula_column_api is None:
+                    return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")
+                project_id = path[len("/api/projects/"):-len("/p6/formula-columns")]
+                if not project_id or "/" in project_id:
+                    return self._error(400, "P6_FORMULA_COLUMN_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    context = self._api.open_project(session_id, project_id, now=now).context
+                except ProjectLifecycleError as exc:
+                    if str(exc) == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED":
+                        return self._error(403, str(exc), "error.authorization.denied")
+                    raise
+                session = self._api.get_session(session_id, now=now)
+                auth = context.authorization_context(session.roles)
+                scope = BackendScope(context.tenant_id, context.project_id, context.revision)
+                if method == "GET":
+                    columns = self._p6_formula_column_api.list(scope, auth_context=auth)
+                    return self._json(200, {
+                        "contract_version": P6_FORMULA_COLUMN_API_VERSION,
+                        "kind": "formula_column_list",
+                        "scope": {
+                            "tenant_id": context.tenant_id,
+                            "project_id": context.project_id,
+                            "project_revision": context.revision,
+                        },
+                        "formula_columns": list(columns),
+                    })
+                payload = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(payload, dict):
+                    return self._error(400, "P6_FORMULA_COLUMN_REQUEST_INVALID", "error.request.invalid")
+                formula_id = payload.get("formula_id")
+                title = payload.get("title")
+                expression = payload.get("expression")
+                if not all(isinstance(item, str) for item in (formula_id, title, expression)):
+                    return self._error(400, "P6_FORMULA_COLUMN_REQUEST_INVALID", "error.request.invalid")
+                try:
+                    result = self._p6_formula_column_api.create(
+                        scope,
+                        formula_id=formula_id,
+                        title=title,
+                        expression=expression,
+                        auth_context=auth,
+                    )
+                except P6FormulaColumnError as exc:
+                    return self._error(400, str(exc) or "FORMULA_COLUMN_INVALID", "error.request.invalid")
+                return self._json(200, result)
+
             if method == "POST" and path.startswith("/api/projects/") and "/p6/formulas/" in path:
                 if self._p6_formula_authority_api is None:
                     return self._error(404, "ROUTE_NOT_FOUND", "error.route.not_found")

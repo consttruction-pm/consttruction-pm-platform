@@ -569,7 +569,9 @@ export function setP6Presentation(
         label: column.label ?? field.display_name,
         dataType: toWorkspaceColumnDataType(field.data_type),
         editable: field.writable && !field.computed,
-        formula: null,
+        // Computed formula columns carry the server-side expression; the grid
+        // only displays the evaluated cell that the workspace read returns.
+        formula: field.formula ?? null,
         width: column.width,
         alignment: column.alignment,
         pinned: column.pinned,

@@ -7659,3 +7659,17 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-gantt-summary-cap.is-start { left: -1px; border-width: 0 0 7px 6px; border-color: transparent transparent var(--cp-bar-border, #0b2b4d) transparent; }
 .cp-p6 .cp-gantt-summary-cap.is-finish { right: -1px; border-width: 0 6px 7px 0; border-color: transparent var(--cp-bar-border, #0b2b4d) transparent transparent; }
 .cp-p6[dir="rtl"] .cp-gantt-summary-bar { direction: ltr; }
+
+/* Formula columns: validation, persistence and the saved-column catalogue. */
+.cp-p6 .cp-formula-save-section,
+.cp-p6 .cp-formula-saved-list { margin-top: .85rem; border-top: 1px solid #d7e2ec; padding-top: .6rem; }
+.cp-p6 .cp-formula-save-section h4,
+.cp-p6 .cp-formula-saved-list h5 { margin: 0 0 .45rem; font-size: .82rem; color: var(--cp-navy, #17324d); }
+.cp-p6 .cp-formula-save-form { display: grid; gap: .45rem; }
+.cp-p6 .cp-formula-save-form label { display: grid; gap: .2rem; font-size: .76rem; }
+.cp-p6 .cp-formula-save-form input { border: 1px solid #b9cad8; border-radius: .3rem; padding: .35rem .45rem; font: inherit; }
+.cp-p6 .cp-formula-save-form button { justify-self: start; }
+.cp-p6 .cp-formula-saved-list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.cp-p6 .cp-formula-saved-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; font-size: .76rem; background: #f4f8fb; border: 1px solid #dbe6ef; border-radius: .35rem; padding: .35rem .5rem; }
+.cp-p6 .cp-formula-saved-list li code { font-size: .72rem; color: #38536b; }
+.cp-p6 .cp-formula-saved-list li.cp-empty { background: transparent; border-style: dashed; color: #5e7386; }

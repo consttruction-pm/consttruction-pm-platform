@@ -25,6 +25,11 @@ from construction_pm.p6_user_defined_fields_repository import (
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
 from construction_pm.p6_formula_authority_api import P6_FORMULA_AUTHORITY_API_VERSION
+from construction_pm.p6_formula_column import P6FormulaColumnAPI, P6FormulaColumnService
+from construction_pm.p6_formula_definition_repository import (
+    P6FormulaDefinitionApplicationService,
+    SQLiteP6FormulaDefinitionRepository,
+)
 from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
@@ -1088,13 +1093,27 @@ def p6_routes(roles=frozenset({"project_admin"})):
     )
     connection = sqlite3.connect(":memory:")
     transaction_manager = SQLiteTransactionManager(connection)
+    formula_column_service = P6FormulaColumnService(
+        P6FieldRegistryApplicationService(
+            SQLiteP6FieldRegistryRepository(connection), transaction_manager
+        ),
+        P6FormulaDefinitionApplicationService(
+            SQLiteP6FormulaDefinitionRepository(connection), transaction_manager
+        ),
+    )
     field_api = P6FieldRegistryAPI(
-        P6FieldRegistryApplicationService(SQLiteP6FieldRegistryRepository(connection), transaction_manager),
+        formula_column_service.field_service,
         P6UserDefinedFieldApplicationService(SQLiteP6UserDefinedFieldRepository(connection), transaction_manager),
         default_project_policy(),
+        formula_column_service,
     )
     layout_api = P6LayoutDefinitionAPI(SQLiteP6LayoutRepository(connection), default_project_policy())
-    formula_api = P6FormulaAuthorityAPI(field_api.field_service, default_project_policy())
+    formula_api = P6FormulaAuthorityAPI(
+        formula_column_service.field_service,
+        default_project_policy(),
+        formula_column_service,
+    )
+    formula_column_api = P6FormulaColumnAPI(formula_column_service, default_project_policy())
     calendar_repository = SQLiteCalendarMasterRepository(connection)
     snapshot_repository = SQLiteCalendarSnapshotRepository(connection)
     calendar_api = P6CalendarReadAPI(calendar_repository, snapshot_repository, default_project_policy())
@@ -1119,6 +1138,7 @@ def p6_routes(roles=frozenset({"project_admin"})):
         p6_field_registry_api=field_api,
         p6_layout_definition_api=layout_api,
         p6_formula_authority_api=formula_api,
+        p6_formula_column_api=formula_column_api,
         p6_calendar_read_api=calendar_api,
         p6_baseline_api=baseline_api,
         p6_financial_period_api=financial_period_api,
@@ -1366,6 +1386,101 @@ def test_p6_formula_route_preserves_structured_shared_core_validation_error():
     assert payload["contract_version"] == P6_FORMULA_AUTHORITY_API_VERSION
     assert payload["validation"]["valid"] is False
     assert payload["validation"]["error_code"]
+
+
+def test_p6_formula_column_route_creates_lists_and_projects_into_registry():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.percent_complete"), auth_context=auth)
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/formula-columns",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    assert json.loads(body)["formula_columns"] == []
+
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-columns",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "formula_id": "formula.double_progress",
+            "title": "Double Progress",
+            "expression": "[activity.percent_complete] * 2",
+        }).encode("utf-8"),
+    )
+    assert status == 200
+    created = json.loads(body)
+    assert created["contract_version"] == "p6-formula-column-api.v1"
+    assert created["kind"] == "formula_column"
+    assert created["formula"]["formula_id"] == "formula.double_progress"
+    assert created["formula"]["data_type"] == "double"
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/formula-columns",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    listed = json.loads(body)
+    assert listed["kind"] == "formula_column_list"
+    assert [item["formula"]["formula_id"] for item in listed["formula_columns"]] == [
+        "formula.double_progress"
+    ]
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/fields/p6-field-registry.v1",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    by_id = {item["field_id"]: item for item in json.loads(body)["fields"]}
+    assert by_id["formula.double_progress"]["computed"] is True
+    assert by_id["formula.double_progress"]["formula"] == "[activity.percent_complete] * 2"
+
+
+def test_p6_formula_column_route_rejects_invalid_payload_and_cross_project():
+    r, _, _ = p6_routes()
+
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-columns",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({"formula_id": "formula.x"}).encode("utf-8"),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "P6_FORMULA_COLUMN_REQUEST_INVALID"
+
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-columns",
+        cookies={"cp_session": "s1"},
+        body=json.dumps({
+            "formula_id": "plain_name",
+            "title": "Bad",
+            "expression": "1",
+        }).encode("utf-8"),
+    )
+    assert status == 400
+    assert json.loads(body)["code"] == "INVALID_FORMULA_COLUMN_ID"
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p2/p6/formula-columns",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 403
+    assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/formula-columns",
+    )
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
 
 
 def test_p6_layout_route_returns_persisted_layout():

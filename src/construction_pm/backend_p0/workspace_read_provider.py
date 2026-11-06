@@ -26,6 +26,8 @@ from construction_pm.p6_field_registry_repository import (
     P6FieldRegistryApplicationService,
     PersistedP6Field,
 )
+from construction_pm.p6_formula_column import P6FormulaColumnService
+from construction_pm.p6_formula_definition_repository import PersistedP6FormulaDefinition
 from construction_pm.p6_layout_definition_repository import (
     LayoutColumn,
     PersistedP6Layout,
@@ -134,6 +136,7 @@ class PersistedWorkspaceReadProvider:
     activity_repository: ActivityMasterRepository
     field_service: P6FieldRegistryApplicationService | None = None
     layout_repository: P6LayoutRepository | None = None
+    formula_column_service: P6FormulaColumnService | None = None
     schedule_facts_provider: WorkspaceScheduleFactsProvider | None = None
     wbs_repository: WBSMasterRepository | None = None
     relationship_repository: RelationshipMasterRepository | None = None
@@ -150,9 +153,10 @@ class PersistedWorkspaceReadProvider:
     ) -> Mapping[str, object] | None:
         scope.validate()
         activities = self.activity_repository.list(scope)
-        fields = self._fields(scope)
+        formula_records = self._formula_records(scope)
+        fields = self._fields(scope, formula_records)
         layout = self._layout(scope)
-        columns = _columns(fields, layout)
+        columns = _columns(fields, layout, {item.formula_id: item for item in formula_records})
         facts = self._facts(scope, auth_context)
         wbs_records = self._wbs_records(scope)
         canonical_wbs = self.wbs_repository is not None
@@ -178,6 +182,16 @@ class PersistedWorkspaceReadProvider:
                         "ACTIVITY_WBS_REFERENCE_INVALID",
                         "Activity WBS must resolve inside the requested project revision",
                     )
+        activity_payloads = [
+            _activity_payload(
+                activity,
+                facts,
+                self.wbs_by_activity,
+                wbs_by_id if canonical_wbs else None,
+            )
+            for activity in activities
+        ]
+        self._apply_formula_columns(scope, layout, activity_payloads, formula_records)
         workspace: dict[str, object] = {
             "contract_version": (
                 WORKSPACE_CONTROL_ROOM_V2_VERSION
@@ -186,15 +200,7 @@ class PersistedWorkspaceReadProvider:
             ),
             "context": _scope_payload(scope),
             "columns": columns,
-            "activities": [
-                _activity_payload(
-                    activity,
-                    facts,
-                    self.wbs_by_activity,
-                    wbs_by_id if canonical_wbs else None,
-                )
-                for activity in activities
-            ],
+            "activities": activity_payloads,
         }
         if canonical_wbs:
             workspace["wbs_nodes"] = [_wbs_node_payload(node) for node in wbs_records]
@@ -286,10 +292,61 @@ class PersistedWorkspaceReadProvider:
             payload.append(_relationship_payload(record))
         return payload
 
-    def _fields(self, scope: BackendScope) -> tuple[PersistedP6Field, ...]:
+    def _formula_records(self, scope: BackendScope) -> tuple[PersistedP6FormulaDefinition, ...]:
+        if self.formula_column_service is None:
+            return ()
+        return self.formula_column_service.list(scope)
+
+    def _fields(
+        self,
+        scope: BackendScope,
+        formula_records: tuple[PersistedP6FormulaDefinition, ...] = (),
+    ) -> tuple[PersistedP6Field, ...]:
         if self.field_service is None:
             return ()
-        return self.field_service.list_fields(scope, self.registry_version, "Activity")
+        fields = self.field_service.list_fields(scope, self.registry_version, "Activity")
+        if not formula_records:
+            return fields
+        existing = {record.field.field_id for record in fields}
+        extra = tuple(
+            record
+            for record in self.formula_column_service.field_records(scope)  # type: ignore[union-attr]
+            if record.field.field_id not in existing
+        )
+        return fields + extra
+
+    def _apply_formula_columns(
+        self,
+        scope: BackendScope,
+        layout: PersistedP6Layout | None,
+        activity_payloads: list[dict[str, object]],
+        formula_records: tuple[PersistedP6FormulaDefinition, ...],
+    ) -> None:
+        if self.formula_column_service is None or layout is None or not formula_records:
+            return
+        available = {record.formula_id for record in formula_records}
+        wanted = tuple(
+            column.field_id
+            for column in layout.columns
+            if column.visible and column.field_id in available
+        )
+        if not wanted:
+            return
+        cells_by_activity: dict[str, Mapping[str, object]] = {}
+        for payload in activity_payloads:
+            activity_id = payload.get("id")
+            cells = payload.get("cells")
+            if isinstance(activity_id, str) and isinstance(cells, Mapping):
+                cells_by_activity[activity_id] = cells
+        computed = self.formula_column_service.evaluate(scope, cells_by_activity, wanted)
+        for payload in activity_payloads:
+            activity_id = payload.get("id")
+            cells = payload.get("cells")
+            if not isinstance(activity_id, str) or not isinstance(cells, dict):
+                continue
+            values = computed.get(activity_id, {})
+            for field_id, value in values.items():
+                cells[field_id] = value
 
     def _layout(self, scope: BackendScope) -> PersistedP6Layout | None:
         if self.layout_repository is None:
@@ -322,10 +379,12 @@ def _scope_payload(scope: BackendScope) -> dict[str, object]:
 def _columns(
     fields: tuple[PersistedP6Field, ...],
     layout: PersistedP6Layout | None,
+    formulas: Mapping[str, PersistedP6FormulaDefinition] | None = None,
 ) -> list[dict[str, object]]:
     by_id = {item.field.field_id: item.field for item in fields}
+    formulas_by_id = formulas or {}
     if layout is not None and layout.columns:
-        return [_column_from_layout(column, by_id) for column in layout.columns]
+        return [_column_from_layout(column, by_id, formulas_by_id) for column in layout.columns]
     if by_id:
         identifiers = [field_id for field_id in _DEFAULT_FIELD_IDS if field_id in by_id]
         if not identifiers:
@@ -340,8 +399,10 @@ def _columns(
 def _column_from_layout(
     column: LayoutColumn,
     by_id: Mapping[str, object],
+    formulas: Mapping[str, PersistedP6FormulaDefinition] | None = None,
 ) -> dict[str, object]:
     definition = by_id.get(column.field_id)
+    formula_record = (formulas or {}).get(column.field_id)
     if definition is None:
         label = column.label or column.field_id
         data_type = "text"
@@ -355,7 +416,7 @@ def _column_from_layout(
         "label": label,
         "data_type": data_type,
         "editable": editable,
-        "formula": None,
+        "formula": None if formula_record is None else formula_record.definition.expression,
         "width": column.width,
     }
 
@@ -443,6 +504,7 @@ def _activity_payload(
         ("activity.remaining_start", _optional_iso(activity.remaining_start)),
         ("activity.expected_finish", _optional_iso(activity.expected_finish)),
         ("activity.planned_duration", _decimal_text(activity.duration_value)),
+        ("activity.percent_complete", activity.percent_complete),
         ("activity.duration_percent_complete", activity.percent_complete),
     ):
         if value is not None:

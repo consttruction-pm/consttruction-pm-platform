@@ -6,6 +6,7 @@ from typing import Any
 from .application.authorization import AuthorizationContext, AuthorizationError, AuthorizationPolicy, Permission
 from .backend_p0.models import BackendScope
 from .p6_field_registry_repository import P6FieldRegistryApplicationService, PersistedP6Field
+from .p6_formula_column import P6FormulaColumnService
 from .p6_formula_engine import FormulaDefinition, FormulaError, FormulaSchemaValue, FormulaType, analyze_dependencies, compile_formula, parse_formula
 from .p6_formula_field_adapter import P6FormulaFieldAdapter, P6FormulaFieldTypeError
 
@@ -71,6 +72,7 @@ class P6FormulaAuthorityAPI:
 
     field_service: P6FieldRegistryApplicationService
     authorization_policy: AuthorizationPolicy
+    formula_column_service: P6FormulaColumnService | None = None
 
     def validate(
         self,
@@ -86,6 +88,8 @@ class P6FormulaAuthorityAPI:
             raise AuthorizationError("authorization denied")
 
         fields = self.field_service.list_fields(scope, registry_version)
+        if self.formula_column_service is not None:
+            fields = fields + self.formula_column_service.field_records(scope)
         schema, unsupported = _formula_schema(fields)
         try:
             dependencies = analyze_dependencies(parse_formula(expression))

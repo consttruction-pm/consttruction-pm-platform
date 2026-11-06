@@ -1,5 +1,10 @@
 import { FetchApiTransport, type ProjectContext } from "./client.js";
-import { createP6LayoutPersistence, loadP6LayoutRevisions, loadP6Presentation } from "./p6-api.js";
+import {
+  createP6FieldRegistryProvider,
+  createP6LayoutPersistence,
+  loadP6LayoutRevisions,
+  loadP6Presentation,
+} from "./p6-api.js";
 import type { LayoutDefinition } from "./p6-field-layout-foundation.js";
 import { ProjectBootstrap, type ProjectBootstrapState } from "./project-bootstrap.js";
 import { FetchSessionApi, type ProjectSummary } from "./session-api.js";
@@ -1948,6 +1953,29 @@ function renderApp(
     state.context,
     state.locale,
     state.p6FieldRegistry?.fields ?? [],
+    {
+      onCreated: async (record) => {
+        // The registry route now projects the persisted formula as a computed
+        // Activity field. Add that field to the saved layout, then reload the
+        // workspace read so the grid shows server-evaluated cells.
+        const registry = await createP6FieldRegistryProvider(
+          aiTransport,
+          state.context,
+        ).getRegistry();
+        let next: WorkspaceState = { ...state, p6FieldRegistry: registry };
+        let layoutChanged = false;
+        try {
+          next = addP6Field(next, record.formula.formula_id);
+          layoutChanged = true;
+        } catch (error) {
+          if (!(error instanceof Error) || error.message !== "FIELD_ALREADY_IN_LAYOUT") {
+            throw error;
+          }
+        }
+        if (layoutChanged) await commitLayout(next);
+        await refreshWorkspaceAfterWbsMutation(state.selectedWbsId);
+      },
+    },
   );
   mountInterchangePanel(
     workspace,

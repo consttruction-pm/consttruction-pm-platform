@@ -32,6 +32,11 @@ from construction_pm.p6_layout_definition_repository import (
     PersistedP6Layout,
     SQLiteP6LayoutRepository,
 )
+from construction_pm.p6_formula_column import P6FormulaColumnService
+from construction_pm.p6_formula_definition_repository import (
+    P6FormulaDefinitionApplicationService,
+    SQLiteP6FormulaDefinitionRepository,
+)
 from construction_pm.schedule_calculation_context_repository import (
     SQLiteCalculationContextRepository,
     build_persisted_context,
@@ -380,5 +385,86 @@ def test_published_facts_provider_returns_none_when_no_snapshot_was_published() 
             ),
         )
         assert provider(SCOPE, AUTH) is None
+    finally:
+        connection.close()
+
+
+def test_provider_projects_formula_columns_from_persisted_cells() -> None:
+    connection = sqlite3.connect(":memory:")
+    try:
+        activity_repository, field_service, layout_repository = _fixture(connection)
+        field_service.save_field(
+            PersistedP6Field(SCOPE, "p6-field-registry.v1", get_field("activity.percent_complete"))
+        )
+        formula_service = P6FormulaColumnService(
+            field_service,
+            P6FormulaDefinitionApplicationService(
+                SQLiteP6FormulaDefinitionRepository(connection),
+                SQLiteTransactionManager(connection),
+            ),
+        )
+        formula_service.create(
+            SCOPE,
+            formula_id="formula.double_progress",
+            title="Double Progress",
+            expression="[activity.percent_complete] * 2",
+        )
+        layout_repository.upsert(
+            PersistedP6Layout(
+                SCOPE,
+                "project",
+                "activity",
+                2,
+                (
+                    LayoutColumn("activity.activity_name", True, 0, None, 260, "start", False, False),
+                    LayoutColumn("formula.double_progress", True, 1, None, 120, "end", False, False),
+                ),
+                {},
+            )
+        )
+
+        provider = PersistedWorkspaceReadProvider(
+            activity_repository=activity_repository,
+            field_service=field_service,
+            layout_repository=layout_repository,
+            formula_column_service=formula_service,
+        )
+        snapshot = provider.read(SCOPE, auth_context=AUTH)
+        assert snapshot is not None
+        workspace = snapshot["workspace"]
+        assert [column["id"] for column in workspace["columns"]] == [
+            "activity.activity_name",
+            "formula.double_progress",
+        ]
+        formula_column = workspace["columns"][1]
+        assert formula_column["label"] == "Double Progress"
+        assert formula_column["data_type"] == "double"
+        assert formula_column["formula"] == "[activity.percent_complete] * 2"
+        assert formula_column["editable"] is False
+
+        cells = {row["id"]: row["cells"] for row in workspace["activities"]}
+        # _fixture persists 25.0 percent complete on both activities.
+        assert cells["A-1"]["formula.double_progress"] == "50.0"
+        assert cells["A-2"]["formula.double_progress"] == "50.0"
+        assert cells["A-1"]["activity.percent_complete"] == 25.0
+
+        # A formula column that is not part of the saved layout is not
+        # evaluated or injected into the grid.
+        layout_repository.upsert(
+            PersistedP6Layout(
+                SCOPE,
+                "project",
+                "activity",
+                3,
+                (
+                    LayoutColumn("activity.activity_name", True, 0, None, 260, "start", False, False),
+                ),
+                {},
+            )
+        )
+        snapshot = provider.read(SCOPE, auth_context=AUTH)
+        assert snapshot is not None
+        cells = {row["id"]: row["cells"] for row in snapshot["workspace"]["activities"]}
+        assert "formula.double_progress" not in cells["A-1"]
     finally:
         connection.close()
