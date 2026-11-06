@@ -117,6 +117,11 @@ def test_general_candidate_never_enters_general_retrieval():
         user_id="other-user", tenant_id="other-tenant",
         general_published_access_granted=True,
     ))
+    assert item.is_retrievable_for(
+        LearningRetrievalScope(
+            user_id="reviewer", general_candidate_access_granted=True
+        )
+    )
 
 
 def test_published_general_learning_requires_privacy_consent_validation_and_admin_approval():
