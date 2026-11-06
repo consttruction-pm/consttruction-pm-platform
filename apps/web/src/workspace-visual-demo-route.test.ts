@@ -14,6 +14,9 @@ import {
 test("a direct post-login app entry defaults to the visual workspace", () => {
   assert.equal(shouldRenderVisualWorkspaceDemo("/app", ""), true);
   assert.equal(shouldRenderVisualWorkspaceDemo("/app", "?locale=fa"), true);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app/", ""), true);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app/index.html", ""), true);
+  assert.equal(shouldRenderVisualWorkspaceDemo("/app/?project=preview-rps-01", ""), true);
 });
 
 test("session recovery returns to the visual workspace unless another project was explicitly selected", () => {
