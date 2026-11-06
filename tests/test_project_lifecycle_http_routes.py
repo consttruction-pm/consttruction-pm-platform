@@ -25,6 +25,9 @@ from construction_pm.p6_user_defined_fields_repository import (
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
 from construction_pm.p6_formula_authority_api import P6_FORMULA_AUTHORITY_API_VERSION
+from construction_pm.p6_formula_definition_api import P6FormulaDefinitionAPI, P6_FORMULA_DEFINITION_API_VERSION
+from construction_pm.p6_formula_definition_repository import P6FormulaDefinitionApplicationService, SQLiteP6FormulaDefinitionRepository
+from construction_pm.p6_formula_audit import SQLiteP6FormulaAuditRepository
 from construction_pm.calendar_master_repository import CalendarMaster, SQLiteCalendarMasterRepository
 from construction_pm.calendar_snapshot_repository import SQLiteCalendarSnapshotRepository
 from construction_pm.p6_calendar_read_api import P6CalendarReadAPI, P6_CALENDAR_READ_API_VERSION
@@ -1095,6 +1098,14 @@ def p6_routes(roles=frozenset({"project_admin"})):
     )
     layout_api = P6LayoutDefinitionAPI(SQLiteP6LayoutRepository(connection), default_project_policy())
     formula_api = P6FormulaAuthorityAPI(field_api.field_service, default_project_policy())
+    formula_definition_api = P6FormulaDefinitionAPI(
+        P6FormulaDefinitionApplicationService(
+            SQLiteP6FormulaDefinitionRepository(connection),
+            transaction_manager,
+            SQLiteP6FormulaAuditRepository(connection),
+        ),
+        default_project_policy(),
+    )
     calendar_repository = SQLiteCalendarMasterRepository(connection)
     snapshot_repository = SQLiteCalendarSnapshotRepository(connection)
     calendar_api = P6CalendarReadAPI(calendar_repository, snapshot_repository, default_project_policy())
@@ -1119,6 +1130,7 @@ def p6_routes(roles=frozenset({"project_admin"})):
         p6_field_registry_api=field_api,
         p6_layout_definition_api=layout_api,
         p6_formula_authority_api=formula_api,
+        p6_formula_definition_api=formula_definition_api,
         p6_calendar_read_api=calendar_api,
         p6_baseline_api=baseline_api,
         p6_financial_period_api=financial_period_api,
@@ -2398,3 +2410,100 @@ def test_project_http_get_unknown_project_is_forbidden():
     )
     assert status == 403
     assert json.loads(body)["code"] == "PROJECT_NOT_FOUND_OR_NOT_AUTHORIZED"
+
+def test_p6_activity_formula_definition_route_validates_persists_versions_and_audit():
+    r, field_api, _ = p6_routes()
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.percent_complete"), auth_context=auth)
+    payload = {
+        "formula_id": "activity.formula.weighted_progress",
+        "version": "1.0",
+        "display_name": "Weighted Progress",
+        "description": "A user-defined Activity calculation",
+        "expression": "[activity.percent_complete] * 0.5",
+        "context_field_id": "activity.formula.weighted_progress",
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 201
+    created = json.loads(body)
+    assert created["contract_version"] == P6_FORMULA_DEFINITION_API_VERSION
+    assert created["formula"]["formula_id"] == payload["formula_id"]
+    assert created["formula"]["version"] == "1.0"
+    assert created["formula"]["result_type"] == "number"
+    assert created["formula"]["dependencies"] == ["activity.percent_complete"]
+    assert created["formula"]["metadata"]["subject_area"] == "Activity"
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/formula-definitions/activity.formula.weighted_progress",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    versions = json.loads(body)
+    assert versions["contract_version"] == P6_FORMULA_DEFINITION_API_VERSION
+    assert [item["formula"]["version"] for item in versions["formulas"]] == ["1.0"]
+
+    status, _, body = r.handle(
+        "GET",
+        "/api/projects/p1/p6/formula-definitions/activity.formula.weighted_progress/audit",
+        cookies={"cp_session": "s1"},
+    )
+    assert status == 200
+    audit = json.loads(body)["audit"]
+    assert len(audit) == 1
+    assert audit[0]["actor_id"] == "u1"
+    assert audit[0]["formula_version"] == "1.0"
+
+
+def test_p6_activity_formula_definition_route_rejects_invalid_formula_and_missing_session():
+    r, _, _ = p6_routes()
+    payload = {
+        "formula_id": "activity.formula.invalid",
+        "version": "1.0",
+        "display_name": "Invalid Formula",
+        "expression": "[activity.missing_field] + 1",
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 422
+    assert json.loads(body)["validation"]["valid"] is False
+    assert json.loads(body)["validation"]["error_code"]
+
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 401
+    assert json.loads(body)["code"] == "SESSION_REQUIRED"
+
+
+def test_p6_activity_formula_definition_route_requires_write_permission():
+    r, field_api, _ = p6_routes(roles=frozenset({"viewer"}))
+    scope = BackendScope("t1", "p1", 2)
+    auth = AuthorizationContext("t1", "p1", "u1", frozenset({"project_admin"}))
+    field_api.save_field(scope, "p6-field-registry.v1", get_field("activity.percent_complete"), auth_context=auth)
+    payload = {
+        "formula_id": "activity.formula.viewer_denied",
+        "version": "1.0",
+        "display_name": "Viewer Denied",
+        "expression": "[activity.percent_complete] + 1",
+    }
+    status, _, body = r.handle(
+        "POST",
+        "/api/projects/p1/p6/formula-definitions",
+        cookies={"cp_session": "s1"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+    assert status == 403
+    assert json.loads(body)["code"]
