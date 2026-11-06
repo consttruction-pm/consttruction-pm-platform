@@ -221,6 +221,41 @@ def test_general_candidates_require_separate_create_grant_and_never_enter_retrie
     connection.close()
 
 
+def test_general_candidate_records_are_readable_only_by_explicit_validators():
+    creator, connection = service({
+        Permission.AI_LEARNING_GENERAL_CANDIDATE_CREATE,
+    })
+    candidate = memory_record(
+        scope=LearningScope.GENERAL_CANDIDATE,
+        owner_user_id=None,
+        consent_for_generalization=True,
+    )
+    assert creator.append(candidate, context()) == candidate
+
+    reviewer_policy = RoleBasedAuthorizationPolicy({
+        "reviewer": frozenset({Permission.AI_LEARNING_GENERAL_VALIDATE})
+    })
+    reviewer = AILearningMemoryApplicationService(
+        creator.repository, reviewer_policy
+    )
+    assert reviewer.list_retrievable(
+        context(roles=("reviewer",))
+    ) == (candidate,)
+
+    # A reviewer grant is not a published-general read grant; ordinary users
+    # still cannot retrieve candidates through general assistant retrieval.
+    assistant_policy = RoleBasedAuthorizationPolicy({
+        "assistant": frozenset({Permission.AI_LEARNING_GENERAL_READ})
+    })
+    assistant = AILearningMemoryApplicationService(
+        creator.repository, assistant_policy
+    )
+    assert assistant.list_retrievable(
+        context(roles=("assistant",))
+    ) == ()
+    connection.close()
+
+
 def test_generic_memory_append_cannot_bypass_general_publication_review():
     permissions = {
         Permission.AI_LEARNING_GENERAL_CANDIDATE_CREATE,
