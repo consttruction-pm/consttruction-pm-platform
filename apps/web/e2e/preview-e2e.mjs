@@ -976,6 +976,26 @@ class Page {
     });
   }
 
+  async rightClick(selector) {
+    const dispatched = await this.evaluate(`(() => {
+      const element = document.querySelector(${JSON.stringify(selector)});
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return false;
+      element.dispatchEvent(new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        button: 2,
+        buttons: 2,
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2,
+      }));
+      return true;
+    })()`);
+    assert(dispatched, `right-click target not found or context menu event was not accepted: ${selector}`);
+  }
+
   async setInput(selector, value) {
     const changed = await this.evaluate(`(() => {
       const element = document.querySelector(${JSON.stringify(selector)});
@@ -1938,6 +1958,83 @@ async function main() {
       record("Engineering Analysis visual shell opens with Details and disabled actions", engineShellEvidence);
       await deepLinkPage.click('.cp-vd-left-nav button[data-vd-window="activities"]');
       await deepLinkPage.waitForSelector('[data-vd-window="activities"].is-active', "return to Activities window");
+
+      const activityHierarchy = await deepLinkPage.evaluate(`(() => {
+        const child = document.querySelector('[data-vd-activity="A1010"] .cp-vd-activity-name');
+        return {
+          childIndent: child?.style.paddingInlineStart ?? null,
+          phaseToggleCount: document.querySelectorAll('[data-vd-phase-toggle="Project Management"]').length,
+        };
+      })()`);
+      assert(activityHierarchy.childIndent === "18px" && activityHierarchy.phaseToggleCount === 2,
+        "Activity rows must indent from their WBS level and expose synchronized table/Gantt collapse controls: " + JSON.stringify(activityHierarchy));
+      await deepLinkPage.click('[data-vd-phase-toggle="Project Management"]');
+      await deepLinkPage.waitFor(
+        `!document.querySelector('[data-vd-activity="A1010"]') && !document.querySelector('[data-vd-activity="A1020"]') && document.querySelector('[data-vd-activity="A1110"]')`,
+        "collapsing a WBS phase hides only its activities in table and Gantt",
+      );
+      await deepLinkPage.click('[data-vd-phase-toggle="Project Management"]');
+      await deepLinkPage.waitForSelector('[data-vd-activity="A1010"]', "expanding WBS phase restores its activities");
+      record("Activity hierarchy indentation and synchronized phase collapse/expand", activityHierarchy);
+
+      await deepLinkPage.rightClick('[data-vd-activity="A1320"]');
+      await deepLinkPage.waitForSelector('[data-vd-context-menu] button[data-vd-context-action="activity-relationships"]', "Activity right-click context menu");
+      const activityContextMenu = await deepLinkPage.evaluate(`document.querySelector("[data-vd-context-menu]")?.textContent ?? ""`);
+      assert(activityContextMenu.includes("Activity details") && activityContextMenu.includes("Assign resources"),
+        "Activity context menu must expose row-specific actions: " + activityContextMenu);
+      await deepLinkPage.click('[data-vd-context-action="activity-relationships"]');
+      await deepLinkPage.waitFor(
+        `document.querySelector('[data-vd-activity-view="relationships"]')?.getAttribute("aria-pressed") === "true"`,
+        "Activity context menu relationship action",
+      );
+      await deepLinkPage.click('[data-vd-activity-view="schedule"]');
+
+      await deepLinkPage.click('.cp-vd-left-nav button[data-vd-window="wbs"]');
+      await deepLinkPage.waitForSelector('[data-vd-wbs="1.1"]', "WBS window for context menu check");
+      await deepLinkPage.rightClick('[data-vd-wbs="1.1"]');
+      await deepLinkPage.waitForSelector('[data-vd-context-menu] button[data-vd-context-action="wbs-toggle"]', "WBS right-click context menu");
+      await deepLinkPage.click('[data-vd-context-action="wbs-toggle"]');
+      await deepLinkPage.waitFor(
+        `!document.querySelector('[data-vd-wbs="1.1.1"]') && !document.querySelector('[data-vd-wbs="1.1.2"]')`,
+        "WBS context menu collapses the selected branch",
+      );
+      await deepLinkPage.rightClick('[data-vd-wbs="1.1"]');
+      await deepLinkPage.waitForSelector('[data-vd-context-menu] button[data-vd-context-action="wbs-toggle"]', "collapsed WBS branch context menu");
+      await deepLinkPage.click('[data-vd-context-action="wbs-toggle"]');
+      await deepLinkPage.waitForSelector('[data-vd-wbs="1.1.1"]', "WBS context menu expands the selected branch");
+      await deepLinkPage.click('.cp-vd-left-nav button[data-vd-window="activities"]');
+
+      await deepLinkPage.realClick('[data-vd-fullscreen]');
+      await deepLinkPage.waitFor(
+        `document.fullscreenElement === document.querySelector("[data-visual-demo]") && document.querySelector("[data-vd-fullscreen]")?.getAttribute("aria-pressed") === "true"`,
+        "fullscreen request keeps the visual workspace surface mounted",
+      );
+      await sleep(300);
+      const fullscreenStable = await deepLinkPage.evaluate(`(() => ({
+        active: Boolean(document.fullscreenElement),
+        sameSurface: document.fullscreenElement === document.querySelector("[data-visual-demo]"),
+        pressed: document.querySelector("[data-vd-fullscreen]")?.getAttribute("aria-pressed") ?? null,
+        label: document.querySelector("[data-vd-fullscreen]")?.textContent?.trim() ?? "",
+      }))()`);
+      assert(fullscreenStable.active && fullscreenStable.sameSurface && fullscreenStable.pressed === "true" &&
+        fullscreenStable.label.includes("Return to normal view"),
+        "fullscreen must remain active after the fullscreenchange event: " + JSON.stringify(fullscreenStable));
+      await deepLinkPage.click('.cp-vd-left-nav button[data-vd-window="wbs"]');
+      await deepLinkPage.waitFor(
+        `document.fullscreenElement === document.querySelector("[data-visual-demo]") && document.querySelector('[data-vd-window="wbs"].is-active')`,
+        "fullscreen surface identity survives workspace navigation redraw",
+      );
+      await deepLinkPage.click('.cp-vd-left-nav button[data-vd-window="activities"]');
+      await deepLinkPage.waitFor(
+        `document.fullscreenElement === document.querySelector("[data-visual-demo]") && document.querySelector('[data-vd-window="activities"].is-active')`,
+        "fullscreen remains active after returning to Activities",
+      );
+      await deepLinkPage.realClick('[data-vd-fullscreen]');
+      await deepLinkPage.waitFor(
+        `document.fullscreenElement === null && document.querySelector("[data-vd-fullscreen]")?.getAttribute("aria-pressed") === "false"`,
+        "fullscreen control returns to normal view",
+      );
+      record("Activity and WBS context menus and persistent fullscreen browser behavior", { activityContextMenu, fullscreenStable });
 
       await deepLinkPage.setSelect('select[data-vd-locale]', "fa");
       await deepLinkPage.waitFor(

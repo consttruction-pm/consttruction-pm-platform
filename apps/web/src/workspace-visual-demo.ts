@@ -257,6 +257,12 @@ function filterActivities(state: DemoState): DemoActivity[] {
   return ACTIVITIES.filter((row) => `${row.id} ${row.name} ${row.wbs} ${row.res}`.toLowerCase().includes(query));
 }
 
+function activityWbsDepth(row: DemoActivity): number {
+  const code = row.wbs.match(/^\d+(?:\.\d+)*/)?.[0];
+  return code ? code.split(".").length : 1;
+}
+function phaseCollapseKey(phase: string): string { return `phase:${phase}`; }
+
 function renderActivityTable(state: DemoState, columns: string[]): string {
   const rows = filterActivities(state);
   const phases = state.groupBy === "wbs" ? [...new Set(rows.map((row) => row.phase))] : [""];
@@ -267,10 +273,11 @@ function renderActivityTable(state: DemoState, columns: string[]): string {
   let index = 0;
   const body = phases.map((phase) => {
     const group = rows.filter((row) => row.phase === phase);
+    const collapsed = phase ? state.collapsedWbsCodes.includes(phaseCollapseKey(phase)) : false;
     const groupRow = phase
-      ? `<tr class="cp-vd-band"><td colspan="${columns.length + 1}">▾ ${esc(phase)} <span>${group.length} ${esc(t(state.locale, "activities", "فعالیت"))}</span></td></tr>`
+      ? `<tr class="cp-vd-band" data-vd-phase="${esc(phase)}"><td colspan="${columns.length + 1}"><button type="button" class="cp-vd-phase-toggle" data-vd-phase-toggle="${esc(phase)}" aria-expanded="${!collapsed}">${collapsed ? "+" : "−"}</button> ${esc(phase)} <span>${group.length} ${esc(t(state.locale, "activities", "فعالیت"))}</span></td></tr>`
       : "";
-    const dataRows = group.map((row, rowIndex) => {
+    const dataRows = (collapsed ? [] : group).map((row, rowIndex) => {
       index += 1;
       return `<tr class="cp-vd-row${row.id === state.activityId ? " is-selected" : ""}${row.critical ? " is-critical" : ""}" data-vd-activity="${esc(row.id)}">
         <td class="cp-vd-rownum">${index}</td>
@@ -280,7 +287,10 @@ function renderActivityTable(state: DemoState, columns: string[]): string {
           if (["start", "finish", "es", "ef", "ls", "lf"].includes(id)) value = fmtDate(String(value));
           if (id === "pct") value = `${value}%`;
           if (["budgetCost", "actualCost", "remainingCost"].includes(id)) value = Number(value) ? Number(value).toLocaleString("en-US") : "—";
-          return `<td class="${column.numeric ? "is-numeric" : ""}${id === "id" ? " is-id" : ""}${row.critical && id === "tf" ? " is-red" : ""}">${esc(value)}</td>`;
+          const cellValue = id === "name"
+            ? `<span class="cp-vd-activity-name" style="padding-inline-start:${Math.max(0, activityWbsDepth(row) - 1) * 18}px">${esc(value)}</span>`
+            : esc(value);
+          return `<td class="${column.numeric ? "is-numeric" : ""}${id === "id" ? " is-id" : ""}${row.critical && id === "tf" ? " is-red" : ""}">${cellValue}</td>`;
         }).join("")}
       </tr>`;
     }).join("");
@@ -413,11 +423,12 @@ function renderGantt(state: DemoState): string {
   let cursor = 0;
   const rowTop = new Map<string, number>();
   const body = groups.map((group) => {
+    const collapsed = group.phase ? state.collapsedWbsCodes.includes(phaseCollapseKey(group.phase)) : false;
     const band = group.phase
-      ? `<div class="cp-vd-gantt-row is-band"><div class="cp-vd-gantt-track"></div></div>`
+      ? `<div class="cp-vd-gantt-row is-band" data-vd-phase="${esc(group.phase)}"><div class="cp-vd-gantt-track"><button type="button" class="cp-vd-phase-toggle" data-vd-phase-toggle="${esc(group.phase)}" aria-expanded="${!collapsed}">${collapsed ? "+" : "−"} ${esc(group.phase)}</button></div></div>`
       : "";
     if (group.phase) cursor += 24;
-    const members = group.members.map((row) => {
+    const members = (collapsed ? [] : group.members).map((row) => {
       const position = barPosition(row.start, row.finish);
       const summary = row.type === "Hammock" || row.id === "A1000" || row.id === "A1100" || row.id === "A1200" || row.id === "A1300" || row.id === "A1400";
       const shape = row.milestone ? "is-milestone" : summary ? "is-summary" : row.critical ? "is-critical" : "is-normal";
@@ -1586,7 +1597,15 @@ export function renderVisualDemo(state: DemoState): string {
   .cp-vd-left-nav{min-width:0;overflow:auto;background:#e7edf5;border-inline-end:1px solid #c7d2df;padding:8px 6px}
   .cp-vd-nav-group{margin:0 0 3px}.cp-vd-nav-group-items[hidden]{display:none}
   .cp-vd-nav-heading{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:transparent;padding:10px 8px 5px;color:#718096;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;text-align:start;cursor:pointer}
-  .cp-vd-nav-heading i{font-style:normal;font-size:13px}.cp-vd-nav-link{display:flex;align-items:center;gap:8px;width:100%;border:0;border-radius:4px;background:transparent;color:#263c56;padding:7px 9px;text-align:start;font:12px Inter,Vazirmatn,sans-serif;cursor:pointer}
+  .cp-vd-nav-heading i{font-style:normal;font-size:13px}
+   .cp-vd-wbs-toggle,.cp-vd-phase-toggle{display:inline-grid;place-items:center;min-width:20px;min-height:20px;padding:0 4px;border:1px solid #9aabc0;border-radius:3px;background:#eaf1f8;color:#173d68;font:700 12px/1 Inter,Vazirmatn,sans-serif;cursor:pointer;pointer-events:auto;opacity:1}
+   .cp-vd-wbs-toggle:hover,.cp-vd-phase-toggle:hover,.cp-vd-wbs-toggle:focus-visible,.cp-vd-phase-toggle:focus-visible{background:#d6e5f5;border-color:#426f9f;color:#102f52;outline:2px solid #9bb8d7;outline-offset:1px}
+   .cp-vd-wbs-toggle:disabled,.cp-vd-phase-toggle:disabled{opacity:1;cursor:pointer}
+   .cp-vd-activity-name{display:inline-block;min-width:0}
+   .cp-vd-context-menu{position:fixed;z-index:100000;min-width:190px;padding:4px;border:1px solid #aebdce;border-radius:4px;background:#fff;box-shadow:0 8px 24px #14263b33;display:grid;gap:2px}
+   .cp-vd-context-menu button{width:100%;border:0;border-radius:3px;background:transparent;color:#263c56;padding:7px 10px;text-align:start;font:11px Inter,Vazirmatn,sans-serif;cursor:pointer}
+   .cp-vd-context-menu button:hover,.cp-vd-context-menu button:focus-visible{background:#e4edf7;color:#173d68;outline:0}
+   .cp-vd-nav-link{display:flex;align-items:center;gap:8px;width:100%;border:0;border-radius:4px;background:transparent;color:#263c56;padding:7px 9px;text-align:start;font:12px Inter,Vazirmatn,sans-serif;cursor:pointer}
   .cp-vd-nav-link:hover{background:#dce6f1}.cp-vd-nav-link.is-active{background:#d3e2f4;color:#123d70;font-weight:700;box-shadow:inset 3px 0 #c87935}
   .cp-vd-main{min-width:0;overflow:auto;background:#f7f9fc}
   .cp-vd-right-rail{display:flex;flex-direction:column;align-items:center;gap:7px;padding:8px 4px;background:#e8edf4;border-inline-start:1px solid #c7d2df}
@@ -1759,12 +1778,34 @@ function bind(root: HTMLElement): void {
   if (!runtime) return;
   const state = runtime.state;
   const draw = (): void => {
-    root.innerHTML = renderVisualDemo(state);
+    const currentSurface = root.querySelector<HTMLElement>("[data-visual-demo]");
+    const keepFullscreenSurface = Boolean(currentSurface && document.fullscreenElement === currentSurface);
+    if (keepFullscreenSurface && currentSurface) {
+      // Keep the browser's fullscreen element identity stable across ordinary
+      // workspace redraws (navigation, selection, tabs and dialogs).
+      const staging = document.createElement("div");
+      staging.innerHTML = renderVisualDemo(state);
+      const nextSurface = staging.querySelector<HTMLElement>("[data-visual-demo]");
+      if (nextSurface) {
+        currentSurface.replaceChildren(...Array.from(nextSurface.childNodes));
+        currentSurface.dir = nextSurface.dir;
+      } else {
+        root.innerHTML = renderVisualDemo(state);
+      }
+    } else {
+      root.innerHTML = renderVisualDemo(state);
+    }
     layoutConnectors(root);
   };
   document.addEventListener("fullscreenchange", () => {
     state.fullscreen = document.fullscreenElement === root.querySelector<HTMLElement>("[data-visual-demo]");
-    draw();
+    const button = root.querySelector<HTMLButtonElement>("[data-vd-fullscreen]");
+    if (button) {
+      button.setAttribute("aria-pressed", String(state.fullscreen));
+      button.textContent = state.fullscreen
+        ? t(state.locale, "Return to normal view", "بازگشت به نمای اصلی")
+        : t(state.locale, "Full screen", "تمام‌صفحه");
+    }
   });
   const openMenu = (id: string): void => {
     root.querySelectorAll<HTMLElement>("[data-vd-menu]").forEach((menu) => {
@@ -1776,6 +1817,26 @@ function bind(root: HTMLElement): void {
     });
   };
   const closeMenus = (): void => openMenu("");
+  const closeContextMenu = (): void => root.querySelector<HTMLElement>("[data-vd-context-menu]")?.remove();
+  const showContextMenu = (x: number, y: number, kind: "activity" | "wbs" | "phase", value: string): void => {
+    closeContextMenu();
+    const entries: Array<[string, string]> = kind === "activity"
+      ? [["activity-details", t(state.locale, "Activity details", "جزئیات فعالیت")], ["activity-edit", t(state.locale, "Edit activity…", "ویرایش فعالیت…")], ["activity-add", t(state.locale, "Add activity…", "افزودن فعالیت…")], ["activity-resources", t(state.locale, "Assign resources…", "تخصیص منابع…")], ["activity-relationships", t(state.locale, "Relationships", "روابط فعالیت")]]
+      : kind === "wbs"
+        ? [["wbs-add", t(state.locale, "Add WBS…", "افزودن WBS…")], ["wbs-toggle", state.collapsedWbsCodes.includes(value) ? t(state.locale, "Expand branch", "بازکردن شاخه") : t(state.locale, "Collapse branch", "بستن شاخه")]]
+        : [["phase-toggle", state.collapsedWbsCodes.includes(phaseCollapseKey(value)) ? t(state.locale, "Expand group", "بازکردن گروه") : t(state.locale, "Collapse group", "بستن گروه")]];
+    const menu = document.createElement("div");
+    menu.className = "cp-vd-context-menu"; menu.dataset.vdContextMenu = ""; menu.setAttribute("role", "menu");
+    menu.innerHTML = entries.map(([action, title]) => `<button type="button" role="menuitem" data-vd-context-action="${action}" data-vd-context-value="${esc(value)}">${esc(title)}</button>`).join("");
+    menu.style.left = `${Math.max(8, x)}px`; menu.style.top = `${Math.max(8, y)}px`;
+    const surface = root.querySelector<HTMLElement>("[data-visual-demo]");
+    const host = surface && document.fullscreenElement === surface ? surface : root;
+    host.append(menu);
+    const rect = menu.getBoundingClientRect();
+    menu.querySelector<HTMLButtonElement>("button")?.focus();
+    if (rect.right > window.innerWidth - 8) menu.style.left = `${Math.max(8, window.innerWidth - rect.width - 8)}px`;
+    if (rect.bottom > window.innerHeight - 8) menu.style.top = `${Math.max(8, window.innerHeight - rect.height - 8)}px`;
+  };
   const navigate = (id: DemoWindowId): void => {
     if (id === state.window) return;
     state.history.push(state.window);
@@ -1874,10 +1935,41 @@ function bind(root: HTMLElement): void {
     draw();
   });
 
+  root.addEventListener("contextmenu", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!target || typeof target.closest !== "function") return;
+    const activity = target.closest<HTMLElement>("[data-vd-activity]");
+    const wbs = target.closest<HTMLElement>("[data-vd-wbs]");
+    const phase = target.closest<HTMLElement>("[data-vd-phase]");
+    if (!activity && !wbs && !phase) return;
+    event.preventDefault();
+    if (activity?.dataset.vdActivity) { state.activityId = activity.dataset.vdActivity; draw(); showContextMenu(event.clientX, event.clientY, "activity", state.activityId); }
+    else if (wbs?.dataset.vdWbs) { state.selectedWbsCode = wbs.dataset.vdWbs; draw(); showContextMenu(event.clientX, event.clientY, "wbs", state.selectedWbsCode); }
+    else if (phase?.dataset.vdPhase) showContextMenu(event.clientX, event.clientY, "phase", phase.dataset.vdPhase);
+  });
+
   root.addEventListener("click", (event) => {
     const target = event.target as HTMLElement | null;
     if (!target || typeof target.closest !== "function") return;
-
+    const contextAction = target.closest<HTMLElement>("[data-vd-context-action]");
+    if (contextAction?.dataset.vdContextAction) {
+      const action = contextAction.dataset.vdContextAction, value = contextAction.dataset.vdContextValue ?? "";
+      closeContextMenu();
+      switch (action) {
+        case "activity-details": state.detailsOpen = true; state.detailTab = "general"; draw(); return;
+        case "activity-edit": case "activity-add": openDialog("add-activity"); return;
+        case "activity-resources": openDialog("assign-resources"); return;
+        case "activity-relationships": state.window = "activities"; state.activityView = "relationships"; draw(); return;
+        case "wbs-add": openDialog("new-wbs"); return;
+        case "wbs-toggle":
+          state.collapsedWbsCodes = state.collapsedWbsCodes.includes(value) ? state.collapsedWbsCodes.filter((item) => item !== value) : [...state.collapsedWbsCodes, value]; draw(); return;
+        case "phase-toggle": {
+          const key = phaseCollapseKey(value);
+          state.collapsedWbsCodes = state.collapsedWbsCodes.includes(key) ? state.collapsedWbsCodes.filter((item) => item !== key) : [...state.collapsedWbsCodes, key]; draw(); return;
+        }
+      }
+    }
+    if (!target.closest("[data-vd-context-menu]")) closeContextMenu();
     const trigger = target.closest<HTMLElement>(".cp-vd-menu-trigger");
     if (trigger) {
       event.stopPropagation();
@@ -1956,6 +2048,12 @@ function bind(root: HTMLElement): void {
     }
     const adminSection = target.closest<HTMLElement>("[data-vd-admin]");
     if (adminSection?.dataset.vdAdmin) { state.adminSection = adminSection.dataset.vdAdmin; draw(); return; }
+    const phaseToggle = target.closest<HTMLElement>("[data-vd-phase-toggle]");
+    if (phaseToggle?.dataset.vdPhaseToggle) {
+      const key = phaseCollapseKey(phaseToggle.dataset.vdPhaseToggle);
+      state.collapsedWbsCodes = state.collapsedWbsCodes.includes(key) ? state.collapsedWbsCodes.filter((item) => item !== key) : [...state.collapsedWbsCodes, key];
+      draw(); return;
+    }
     const wbsToggle = target.closest<HTMLElement>("[data-vd-wbs-toggle]");
     if (wbsToggle?.dataset.vdWbsToggle) {
       const code = wbsToggle.dataset.vdWbsToggle;
@@ -2121,6 +2219,10 @@ function bind(root: HTMLElement): void {
   }, true);
 
   root.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeMenus();
+    if (event.key === "Escape") { closeMenus(); closeContextMenu(); }
+  });
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Node) || root.contains(event.target)) return;
+    closeContextMenu();
   });
 }
