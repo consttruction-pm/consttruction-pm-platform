@@ -36,6 +36,8 @@ export type DesktopCommand =
   | "layout.save-as"
   | "view.fields"
   | "view.line-numbers"
+  | "view.expand-all"
+  | "view.collapse-all"
   | "view.zoom-in"
   | "view.zoom-out"
   | "view.fit"
@@ -198,6 +200,7 @@ const REASONS = {
   redo: { en: "No layout change to reapply", fa: "تغییری برای اعمال دوباره وجود ندارد" },
   singleWindow: { en: "The last open window cannot be closed", fa: "آخرین پنجرهٔ باز را نمی‌توان بست" },
   noWbs: { en: "Create a WBS element before adding activities", fa: "پیش از افزودن فعالیت، یک عنصر WBS بسازید" },
+  noWbsGroup: { en: "Group the activity table by WBS to use hierarchy commands", fa: "برای فرمان‌های سلسله‌مراتب، جدول فعالیت را بر اساس WBS گروه‌بندی کنید" },
   noSelection: { en: "Select an activity in the grid first", fa: "ابتدا یک فعالیت را در جدول انتخاب کنید" },
   noFields: { en: "No saved field layout is available for this project", fa: "چیدمان فیلد ذخیره‌شده‌ای برای این پروژه در دسترس نیست" },
   noLayout: { en: "This project has no saved layout to write", fa: "این پروژه چیدمان ذخیره‌شده‌ای برای نوشتن ندارد" },
@@ -283,6 +286,20 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "view.font-row", label: { en: "Table Font and Row…", fa: "قلم و ردیف جدول…" }, command: "dialog.font-row" },
         { id: "view.preferences", label: { en: "User Preferences…", fa: "ترجیحات کاربر…" }, command: "dialog.user-preferences" },
         { id: "view.line-numbers", label: { en: "Line Numbers", fa: "شمارهٔ ردیف" }, command: "view.line-numbers", checked: presentation.table.lineNumbers },
+        {
+          id: "view.expand-all",
+          label: { en: "Expand All", fa: "بازکردن همه" },
+          command: "view.expand-all",
+          shortcut: "Ctrl+Num +",
+          disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : unavailable(REASONS.noWbsGroup, locale),
+        },
+        {
+          id: "view.collapse-all",
+          label: { en: "Collapse All", fa: "بستن همه" },
+          command: "view.collapse-all",
+          shortcut: "Ctrl+Num -",
+          disabledReason: caps.hasWbs && caps.groupByWbs ? undefined : unavailable(REASONS.noWbsGroup, locale),
+        },
         { id: "view.zoom-in", label: { en: "Zoom in", fa: "بزرگ‌نمایی" }, command: "view.zoom-in" },
         { id: "view.zoom-out", label: { en: "Zoom out", fa: "کوچک‌نمایی" }, command: "view.zoom-out" },
         { id: "view.fit", label: { en: "Fit to window", fa: "تناسب با پنجره" }, command: "view.fit" },

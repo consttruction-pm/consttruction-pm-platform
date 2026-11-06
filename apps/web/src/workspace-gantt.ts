@@ -205,25 +205,31 @@ export function createGanttAxisTicks(
 export function createGanttLinkGeometry(
   relationships: readonly WorkspaceRelationshipRow[],
   bars: readonly GanttBarGeometry[],
+  /** Display-row index per activity, so WBS bands do not shift the link path. */
+  rowIndexByActivity?: ReadonlyMap<string, number>,
 ): readonly GanttLinkGeometry[] {
   if (!relationships.length || !bars.length) return [];
-  const rowByActivity = new Map<string, number>();
-  bars.forEach((bar, index) => rowByActivity.set(bar.activityId, index));
+  const barIndexByActivity = new Map<string, number>();
+  bars.forEach((bar, index) => barIndexByActivity.set(bar.activityId, index));
   const links: GanttLinkGeometry[] = [];
   for (const relationship of relationships) {
-    const fromIndex = rowByActivity.get(relationship.predecessorId);
-    const toIndex = rowByActivity.get(relationship.successorId);
-    if (fromIndex === undefined || toIndex === undefined) continue;
-    const from = bars[fromIndex];
-    const to = bars[toIndex];
+    const fromBarIndex = barIndexByActivity.get(relationship.predecessorId);
+    const toBarIndex = barIndexByActivity.get(relationship.successorId);
+    if (fromBarIndex === undefined || toBarIndex === undefined) continue;
+    const from = bars[fromBarIndex];
+    const to = bars[toBarIndex];
+    // Bar positions come from the bar list; vertical anchors come from the
+    // display rows so inserted WBS bands keep links attached to their rows.
+    const fromRow = rowIndexByActivity?.get(relationship.predecessorId) ?? fromBarIndex;
+    const toRow = rowIndexByActivity?.get(relationship.successorId) ?? toBarIndex;
     const path = relationshipPath(
       relationship.type,
       from.leftPercent,
       from.leftPercent + from.widthPercent,
       to.leftPercent,
       to.leftPercent + to.widthPercent,
-      fromIndex * 100 + 50,
-      toIndex * 100 + 50,
+      fromRow * 100 + 50,
+      toRow * 100 + 50,
     );
     links.push(Object.freeze({
       relationshipId: relationship.id,

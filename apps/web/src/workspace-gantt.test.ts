@@ -141,6 +141,25 @@ test("Gantt links keep the persisted FS and SS semantics without conversion", ()
   assert.match(ss?.path ?? "", /^M 0 50 H 0 V 150 H 33\.33$/);
 });
 
+test("Gantt links anchor to display rows when WBS bands shift the bar list", () => {
+  const scheduled = [
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Excavate", gantt: { start: "2026-09-02T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 0, critical: true } },
+    { id: "A-2", wbsId: "W-2", code: "02", name: "Concrete", gantt: { start: "2026-09-03T00:00:00Z", finish: "2026-09-05T00:00:00Z", progressPercent: 0, critical: true } },
+  ];
+  const scale = createGanttScale(scheduled);
+  assert.ok(scale);
+  const bars = scheduled
+    .map((activity) => createGanttBarGeometry(activity, scale))
+    .filter((bar): bar is NonNullable<typeof bar> => bar !== null);
+  const links = createGanttLinkGeometry([
+    { id: "R-FS", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+  ], bars, new Map([["A-1", 1], ["A-2", 4]]));
+  assert.equal(links.length, 1);
+  // Bar geometry stays keyed by the bar list while vertical anchors follow
+  // the display rows (1 and 4) that include the WBS band rows.
+  assert.equal(links[0].path, "M 33.33 150 H 34.83 V 450 H 33.33");
+});
+
 test("Gantt links skip relationships whose endpoints are filtered out", () => {
   const scale = createGanttScale(activities);
   assert.ok(scale);

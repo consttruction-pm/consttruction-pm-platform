@@ -2005,7 +2005,8 @@ async function main() {
           visual_demo_visible: Boolean(document.querySelector("[data-visual-demo]")),
           live_grid_visible: Boolean(document.querySelector("#cp-activity-grid")),
           activity_rows: document.querySelectorAll("#cp-activity-grid tbody tr[data-activity-id]").length,
-          gantt_rows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
+          gantt_rows: document.querySelectorAll("#cp-gantt [data-gantt-activity-id]").length,
+          wbs_bands: document.querySelectorAll("#cp-gantt .cp-gantt-group-row").length,
           session_authenticated: sessionResponse.status === 200,
         };
       })()`, { awaitPromise: true });
@@ -2240,8 +2241,8 @@ async function main() {
       "fourteen persisted activity rows",
     );
     await page.waitFor(
-      `document.querySelectorAll(".cp-gantt-row").length === 14`,
-      "fourteen Gantt rows",
+      `document.querySelectorAll("#cp-gantt [data-gantt-activity-id]").length === 14`,
+      "fourteen Gantt activity rows",
     );
     await page.waitForSelector("#cp-ai-assistant-chat .cp-ai-chat-avatar", "assistant chat avatar");
     await page.waitForSelector("#cp-ai-action-panel .cp-ai-action-avatar", "assistant action panel avatar");
@@ -2546,13 +2547,13 @@ async function main() {
     const criticalBars = await page.count(".cp-gantt-bar.is-critical");
     assert(criticalBars >= 1, "Shared Core critical path must reach the Gantt");
     const ganttAria = await page.evaluate(`(() =>
-      Array.from(document.querySelectorAll(".cp-gantt-row")).slice(0, 3).map((row) => ({
+      Array.from(document.querySelectorAll(".cp-gantt-row[data-gantt-activity-id]")).slice(0, 3).map((row) => ({
         id: row.dataset.ganttActivityId,
         label: row.getAttribute("aria-label"),
       }))
     )()`);
     assert(
-      ganttAria.every((row) => row.id && row.label === row.id),
+      ganttAria.every((row) => row.id && row.label?.startsWith(row.id)),
       "Gantt rows must expose real activity identities",
     );
     await page.screenshot("03-workspace-desktop.png");
@@ -3586,7 +3587,7 @@ async function main() {
       "restore civil filter",
     );
     assert(
-      (await page.count(".cp-gantt-row")) === 5,
+      (await page.count("#cp-gantt [data-gantt-activity-id]")) === 5,
       "Gantt must follow the filtered activity set",
     );
     await page.scrollTo("#cp-activity-grid");
@@ -5870,7 +5871,7 @@ async function main() {
         rows,
         ticks,
         gantt: {
-          rows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
+          rows: document.querySelectorAll("#cp-gantt [data-gantt-activity-id]").length,
           NEW_100: barLeft("NEW-100"),
           NEW_200: barLeft("NEW-200"),
           NEW_300: barLeft("NEW-300"),
@@ -6024,7 +6025,7 @@ async function main() {
         mode: document.querySelector("#cp-gantt [data-gantt-scale-mode]")?.getAttribute("data-gantt-scale-mode") ?? "",
         links,
         ticks,
-        rows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
+        rows: document.querySelectorAll("#cp-gantt [data-gantt-activity-id]").length,
       };
     })()`);
     const validTicks = (ticks) =>
@@ -6655,7 +6656,7 @@ async function main() {
         return {
           rows,
           aiRow: rows.find((row) => row[0] === "AI-100") ?? null,
-          ganttRows: document.querySelectorAll("#cp-gantt .cp-gantt-row").length,
+          ganttRows: document.querySelectorAll("#cp-gantt [data-gantt-activity-id]").length,
           ganttAi: Boolean(document.querySelector('[data-gantt-activity-id="AI-100"] .cp-gantt-bar')),
         };
       })()`);

@@ -26,7 +26,8 @@ import {
   type WorkspaceMenuKey,
   type WorkspaceState,
 } from "./workspace-model.js";
-import { renderMainWorkspace } from "./workspace-view.js";
+import { invalidateWorkspaceRender, renderMainWorkspace } from "./workspace-view.js";
+import { collapseAllWbsIds, setCollapsedWbsIds } from "./workspace-wbs-display.js";
 import { renderWorkspaceStartup } from "./workspace-startup.js";
 import {
   getBootstrapLabels,
@@ -925,6 +926,16 @@ function renderApp(
       case "view.fit":
         renderApp(container, setGanttScale(state, "month"), persistence);
         return;
+      case "view.expand-all":
+        setCollapsedWbsIds(state.context.project_id, []);
+        invalidateWorkspaceRender(container);
+        renderApp(container, state, persistence);
+        return;
+      case "view.collapse-all":
+        setCollapsedWbsIds(state.context.project_id, collapseAllWbsIds(state.activities, state.wbsNodes));
+        invalidateWorkspaceRender(container);
+        renderApp(container, state, persistence);
+        return;
       case "view.toggle-wbs":
         openWorkspaceDrawer(container, "[data-wbs-drawer]");
         return;
@@ -1328,6 +1339,38 @@ function renderApp(
     openWindows: getOpenWindows(),
     presentation: visualPreferences.presentation,
     onGanttCommand: (command) => openDesktopDialog(desktopHost, command),
+    onActivityContextCommand: (command) => {
+      switch (command) {
+        case "details":
+          if (!state.visiblePanels.details) {
+            activateWindow("schedule");
+            pendingDesktopFocusSelector = "#cp-details";
+            renderApp(container, { ...state, visiblePanels: { ...state.visiblePanels, details: true } }, persistence);
+          } else {
+            pendingDesktopFocusSelector = "#cp-details";
+            activateWindow("schedule");
+          }
+          return;
+        case "add":
+          runDesktopCommand("project.add-activity");
+          return;
+        case "link":
+          runDesktopCommand("activity.predecessors");
+          return;
+        case "columns":
+          runDesktopCommand("view.fields");
+          return;
+        case "line-numbers":
+          runDesktopCommand("view.line-numbers");
+          return;
+        case "font-row":
+          openDesktopDialog(desktopHost, "font-row");
+          return;
+        case "group-sort":
+          openDesktopDialog(desktopHost, "group-sort");
+          return;
+      }
+    },
     onWindowClose: (menu) => closeDesktopWindow(menu),
     onMenuSelect: (menu) => {
       rememberWorkspaceMenu(menu);

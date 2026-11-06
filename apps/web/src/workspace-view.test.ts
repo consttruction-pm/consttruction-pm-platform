@@ -7,6 +7,7 @@ import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 import { createWorkspaceState, setDocuments, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
 import { normalizePresentation } from "./workspace-presentation.js";
+import { setCollapsedWbsIds } from "./workspace-wbs-display.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -575,7 +576,7 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["scroll", "pointerdown", "input", "submit", "click", "keydown", "change"]);
+  assert.deepEqual(registrations, ["scroll", "pointerdown", "input", "submit", "click", "contextmenu", "dblclick", "keydown", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -2023,4 +2024,123 @@ test("Settings layout administration reads the persisted layout and dispatches h
   clickListener?.({ target: redoButton } as unknown as Event);
   clickListener?.({ target: restoreButton } as unknown as Event);
   assert.deepEqual(events, ["undo", "redo", "restore:2"]);
+});
+
+function wbsActivityState() {
+  let state = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  state = withWbsNodes(state, [
+    { id: "W-ROOT", parentKind: "project", parentWbsId: null, localCode: "1", name: "Project", sequenceNumber: 0, recordRevision: 1 },
+    { id: "W-A", parentKind: "wbs", parentWbsId: "W-ROOT", localCode: "1.1", name: "Civil", sequenceNumber: 10, recordRevision: 1 },
+    { id: "W-A1", parentKind: "wbs", parentWbsId: "W-A", localCode: "1.1.1", name: "Earthwork", sequenceNumber: 10, recordRevision: 1 },
+    { id: "W-B", parentKind: "wbs", parentWbsId: "W-ROOT", localCode: "1.2", name: "Structure", sequenceNumber: 20, recordRevision: 1 },
+  ]);
+  return withActivities(state, [
+    {
+      id: "A-1", wbsId: "W-A1", code: "A1", name: "Excavate",
+      cells: { duration: 2 },
+      gantt: { start: "2026-09-01T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 50, critical: true },
+    },
+    {
+      id: "A-2", wbsId: "W-A1", code: "A2", name: "Haul",
+      cells: { duration: 2 },
+      gantt: { start: "2026-09-03T00:00:00Z", finish: "2026-09-05T00:00:00Z", progressPercent: 100, critical: false },
+    },
+    {
+      id: "B-1", wbsId: "W-B", code: "B1", name: "Rebar",
+      cells: { duration: 2 },
+      gantt: { start: "2026-09-02T00:00:00Z", finish: "2026-09-04T00:00:00Z", progressPercent: 0, critical: false },
+    },
+  ]);
+}
+
+test("activity grid renders colored WBS bands with expand controls and matching Gantt summary rows", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, wbsActivityState());
+  const html = container.innerHTML;
+
+  assert.match(html, /<tr role="row" data-wbs-row="W-ROOT" data-wbs-level="1" data-wbs-depth="0" data-wbs-collapsed="false" tabindex="0" aria-label="1 Project" aria-expanded="true" class="cp-p6-wbs-band" style="--cp-wbs-band:#3b3bbf"/);
+  assert.match(html, /data-wbs-row="W-A1" data-wbs-level="3" data-wbs-depth="2"[^>]*style="--cp-wbs-band:#c6ffc6"/);
+  assert.match(html, /data-wbs-toggle="W-ROOT" aria-expanded="true"[^>]*>−</);
+  assert.match(html, /data-wbs-toggle="W-A1" aria-expanded="true"[^>]*>−</);
+  assert.match(html, /class="cp-p6-wbs-code">1\.1\.1</);
+  assert.match(html, /data-rollup="display" title="Derived for display from 2 persisted child activities"[^>]*>4<\/td>/);
+  assert.match(html, /data-activity-id="A-1"[^>]*data-wbs-depth="3"/);
+  assert.match(html, /class="cp-p6-indent" style="width:36px"/);
+  assert.match(html, /data-wbs-expand-all/);
+  assert.match(html, /data-wbs-collapse-all/);
+  assert.match(html, /data-wbs-collapse-to/);
+  assert.match(html, /class="cp-gantt-row cp-gantt-group-row" data-gantt-wbs-id="W-ROOT" data-gantt-depth="0"/);
+  assert.match(html, /class="cp-gantt-row cp-gantt-group-row" data-gantt-wbs-id="W-A1" data-gantt-depth="2"/);
+  assert.match(html, /data-gantt-summary="derived" data-gantt-wbs-id="W-ROOT"/);
+  assert.equal((html.match(/data-gantt-summary="derived"/g) ?? []).length, 4);
+});
+
+test("collapsing a WBS branch removes its table rows and Gantt bars together", () => {
+  let state = wbsActivityState();
+  setCollapsedWbsIds(state.context.project_id, ["W-A"]);
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const html = container.innerHTML;
+  assert.match(html, /data-wbs-row="W-A" data-wbs-level="2" data-wbs-depth="1" data-wbs-collapsed="true"/);
+  assert.match(html, /data-wbs-toggle="W-A" aria-expanded="false"[^>]*>\+</);
+  assert.doesNotMatch(html, /data-activity-id="A-1"/);
+  assert.doesNotMatch(html, /data-activity-id="A-2"/);
+  assert.doesNotMatch(html, /data-gantt-wbs-id="W-A1"/);
+  assert.doesNotMatch(html, /data-gantt-activity-id="A-1"/);
+  assert.match(html, /data-gantt-wbs-id="W-B"/);
+  assert.match(html, /data-activity-id="B-1"/);
+  setCollapsedWbsIds(state.context.project_id, []);
+});
+
+test("activity context menu exposes the reference commands, real ones enabled and unsupported ones disabled with a reason", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, {
+    ...wbsActivityState(),
+    selectedActivityId: "A-1",
+  });
+  const html = container.innerHTML;
+  const menu = html.match(/<div class="cp-context-menu"[^>]*>[\s\S]*?<\/div>\s*<\/div>$/)?.[0] ?? html;
+  assert.match(html, /data-activity-context-menu data-activity-menu-for="A-1" role="menu"/);
+  for (const command of [
+    "details", "cut", "copy", "paste", "fill-down", "add", "delete", "dissolve", "renumber",
+    "export-excel", "assign", "link", "columns", "line-numbers", "font-row", "filters",
+    "group-sort", "expand-all", "collapse-all", "collapse-to",
+  ]) {
+    assert.ok(menu.includes(`data-activity-menu-command="${command}"`), `missing context command ${command}`);
+  }
+  assert.match(html, /data-activity-menu-command="cut"[^>]*disabled aria-disabled="true" title="Cut needs the activity delete route/);
+  assert.match(html, /data-activity-menu-command="delete"[^>]*disabled aria-disabled="true"/);
+  assert.match(html, /data-activity-menu-command="export-excel"[^>]*disabled aria-disabled="true" title="Only XML interchange is available; no XLSX export route exists\."/);
+  assert.match(html, /data-activity-menu-command="assign"[^>]*disabled aria-disabled="true" title="Resource assignment write is not available/);
+  assert.doesNotMatch(html, /data-activity-menu-command="details"[^>]*disabled/);
+  assert.doesNotMatch(html, /data-activity-menu-command="link"[^>]*disabled/);
+  assert.match(html, /data-activity-context-menu[^>]* hidden>/);
+  assert.match(html, /data-collapse-to-dialog/);
+});
+
+test("right-click on an activity row selects it and requests the context menu", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const selected: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, wbsActivityState(), {
+    onActivitySelect: (activityId) => selected.push(activityId),
+  });
+  const row = { dataset: { activityId: "A-1" }, closest: () => row };
+  let prevented = 0;
+  listeners.get("contextmenu")?.({
+    target: row,
+    preventDefault: () => { prevented += 1; },
+    clientX: 40,
+    clientY: 30,
+  } as unknown as Event);
+  assert.equal(prevented, 1);
+  assert.deepEqual(selected, ["A-1"]);
 });
