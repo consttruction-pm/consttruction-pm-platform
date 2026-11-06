@@ -66,15 +66,15 @@ The application service derives the retrieval scope from the authenticated serve
 - User-private read/write.
 - Project-private read/write.
 - Tenant-shared read/write.
+- General-candidate creation and a separate candidate-review retrieval grant.
 - General published read.
-- General-candidate creation.
 - General validation, publication and retirement.
 
 These learning grants are not silently inherited from the default viewer, planner or project-admin roles. Deployments must explicitly configure them. The preview runtime uses a separate preview-only policy to grant its demo project administrator the candidate/retrieval permissions; it does not modify the default product policy.
 
 Project-private retrieval is constrained by the exact authenticated tenant and project. The record creator is provenance; authorized members of the same project can read it. Tenant-shared retrieval needs an explicit tenant grant and a validated/published state. General candidates are never retrievable as general knowledge. General-candidate creation requires explicit consent for generalization.
 
-The generic capture endpoint accepts only captured/candidate records. It cannot create validated or published knowledge. A separate reviewed administration workflow must perform validation, approval and publication.
+The generic capture endpoint accepts only captured/candidate records. It cannot create validated or published knowledge. A holder of the explicit general-validation grant can retrieve de-identified general candidates for review, but that grant does not make candidates visible to ordinary assistant retrieval and does not grant publication. A separate reviewed administration workflow must perform validation, approval and publication.
 
 ## 5. HTTP and deployment wiring
 
