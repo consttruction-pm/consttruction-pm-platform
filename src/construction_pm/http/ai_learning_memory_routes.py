@@ -106,7 +106,10 @@ class AILearningMemoryHttpRoutes:
             return self._error(403, str(exc) or "PROJECT_NOT_AUTHORIZED")
         except AILearningMemoryApplicationError as exc:
             code = str(exc)
-            if code == "AI_LEARNING_AUDIT_PERSISTENCE_FAILED":
+            if code in {
+                "AI_LEARNING_AUDIT_PERSISTENCE_FAILED",
+                "AI_LEARNING_PERSISTENCE_FAILED",
+            }:
                 return self._error(503, code)
             if "PERMISSION" in code or code.endswith("NOT_AUTHORIZED"):
                 return self._error(403, code)
