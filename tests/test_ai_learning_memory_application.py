@@ -245,7 +245,10 @@ def test_general_candidate_records_are_readable_only_by_explicit_validators():
     # A reviewer grant is not a published-general read grant; ordinary users
     # still cannot retrieve candidates through general assistant retrieval.
     assistant_policy = RoleBasedAuthorizationPolicy({
-        "assistant": frozenset({Permission.AI_LEARNING_GENERAL_READ})
+        "assistant": frozenset({
+            Permission.PROJECT_READ,
+            Permission.AI_LEARNING_GENERAL_READ,
+        })
     })
     assistant = AILearningMemoryApplicationService(
         creator.repository, assistant_policy
