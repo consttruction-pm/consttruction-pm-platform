@@ -69,10 +69,16 @@ class RoleBasedAuthorizationPolicy:
             for role, permissions in role_permissions.items()
         }
 
+    def permissions_for_role(self, role: str) -> FrozenSet[Permission]:
+        """Return a read-only role grant set for explicit environment composition."""
+        if not isinstance(role, str) or not role.strip():
+            raise AuthorizationError("INVALID_AUTHORIZATION_ROLE")
+        return self._role_permissions.get(role, frozenset())
+
     def is_allowed(self, context: AuthorizationContext, permission: Permission) -> bool:
         context.validate()
         return any(
-            permission in self._role_permissions.get(role, frozenset())
+            permission in self.permissions_for_role(role)
             for role in context.roles
         )
 
