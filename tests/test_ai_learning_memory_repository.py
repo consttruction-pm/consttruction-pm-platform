@@ -377,3 +377,51 @@ def test_postgres_schema_migrations_are_versioned_repeatable_and_scope_safe(
             (private_record.record_id,),
         )
         postgres_connection.commit()
+
+
+def test_sqlite_legacy_table_with_correct_columns_but_wrong_primary_key_fails_closed():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE ai_learning_memory_records (
+            record_id TEXT NOT NULL,
+            record_version INTEGER NOT NULL,
+            scope TEXT NOT NULL,
+            status TEXT NOT NULL,
+            signal_kind TEXT NOT NULL,
+            owner_user_id TEXT,
+            tenant_id TEXT,
+            project_id TEXT,
+            payload_json TEXT NOT NULL
+        )"""
+    )
+    connection.commit()
+
+    with pytest.raises(
+        AILearningMemoryPersistenceError,
+        match="AI_LEARNING_LEGACY_PRIMARY_KEY_INCOMPATIBLE",
+    ):
+        SQLiteAILearningMemoryRepository(connection)
+
+    assert connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name='ai_learning_memory_schema_migrations'"
+    ).fetchone() is None
+
+
+def test_sqlite_incompatible_migration_history_primary_key_fails_closed():
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """CREATE TABLE ai_learning_memory_schema_migrations (
+            version INTEGER NOT NULL,
+            migration_name TEXT NOT NULL,
+            checksum TEXT NOT NULL,
+            applied_at TEXT NOT NULL
+        )"""
+    )
+    connection.commit()
+
+    with pytest.raises(
+        AILearningMemoryPersistenceError,
+        match="AI_LEARNING_MIGRATION_HISTORY_PRIMARY_KEY_INCOMPATIBLE",
+    ):
+        SQLiteAILearningMemoryRepository(connection)
