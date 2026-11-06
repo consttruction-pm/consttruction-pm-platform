@@ -148,3 +148,90 @@ test("default layout patch keeps the professional compact defaults", () => {
   assert.equal(defaults.groupBy, "wbs");
   assert.equal(defaults.ganttScale, "day");
 });
+
+test("Filters dialog exposes predefined filters and a real criteria builder", () => {
+  const html = renderLayoutDialogs(dialogOptions());
+  assert.match(html, /data-desktop-dialog="filters"/);
+  assert.match(html, /name="filterActiveId"/);
+  assert.match(html, /value="builtin:in-progress"/);
+  assert.match(html, /value="builtin:completed"/);
+  assert.match(html, /value="builtin:critical"/);
+  assert.match(html, /name="filterName"/);
+  assert.match(html, /name="filterMatch"/);
+  for (let index = 0; index < 4; index += 1) {
+    assert.match(html, new RegExp(`name="filter\.field\.${index}"`));
+    assert.match(html, new RegExp(`name="filter\.operator\.${index}"`));
+    assert.match(html, new RegExp(`name="filter\.value\.${index}"`));
+  }
+});
+
+test("a custom filter is saved with the presentation and becomes active", () => {
+  const patch = readLayoutPatch(form({
+    filterActiveId: "",
+    filterName: "Civil open",
+    filterMatch: "all",
+    "filter.field.0": "wbs",
+    "filter.operator.0": "contains",
+    "filter.value.0": "Civil",
+    "filter.field.1": "activity_status",
+    "filter.operator.1": "not-equals",
+    "filter.value.1": "Completed",
+    "filter.field.2": "activity_name",
+    "filter.operator.2": "contains",
+    "filter.value.2": "",
+    "filter.field.3": "activity_name",
+    "filter.operator.3": "contains",
+    "filter.value.3": "",
+  }), DEFAULT_PRESENTATION);
+  assert.equal(patch.presentation?.filters.activeId, "custom:civil-open");
+  assert.equal(patch.presentation?.filters.saved.length, 1);
+  assert.equal(patch.presentation?.filters.saved[0].criteria.length, 2);
+});
+
+test("choosing a predefined filter applies it without creating a custom filter", () => {
+  const patch = readLayoutPatch(form({
+    filterActiveId: "builtin:completed",
+    filterName: "",
+    filterMatch: "all",
+    "filter.field.0": "wbs",
+    "filter.operator.0": "contains",
+    "filter.value.0": "",
+    "filter.field.1": "activity_name",
+    "filter.operator.1": "contains",
+    "filter.value.1": "",
+    "filter.field.2": "activity_name",
+    "filter.operator.2": "contains",
+    "filter.value.2": "",
+    "filter.field.3": "activity_name",
+    "filter.operator.3": "contains",
+    "filter.value.3": "",
+  }), DEFAULT_PRESENTATION);
+  assert.equal(patch.presentation?.filters.activeId, "builtin:completed");
+  assert.equal(patch.presentation?.filters.saved.length, 0);
+});
+
+test("the active saved filter can be deleted from the dialog", () => {
+  const saved = {
+    ...DEFAULT_PRESENTATION,
+    filters: {
+      saved: [{
+        id: "custom:civil-open",
+        name: "Civil open",
+        match: "all" as const,
+        criteria: [{ fieldId: "wbs" as const, operator: "contains" as const, value: "Civil" }],
+      }],
+      activeId: "custom:civil-open",
+    },
+  };
+  const patch = readLayoutPatch(form({
+    filterActiveId: "custom:civil-open",
+    filterName: "Civil open",
+    filterMatch: "all",
+    filterDelete: "on",
+    "filter.field.0": "wbs",
+    "filter.operator.0": "contains",
+    "filter.value.0": "Civil",
+  }), saved);
+  assert.equal(patch.presentation?.filters.activeId, null);
+  assert.equal(patch.presentation?.filters.saved.length, 0);
+});

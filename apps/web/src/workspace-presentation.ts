@@ -8,6 +8,11 @@
  * the same saved presentation.
  */
 import type { WorkspaceActivityRow } from "./workspace-model.js";
+import {
+  EMPTY_ACTIVITY_FILTERS,
+  normalizeActivityFilterState,
+  type ActivityFilterState,
+} from "./workspace-activity-filters.js";
 
 export const GANTT_BAR_KINDS = ["task", "critical", "summary", "milestone", "progress", "actual", "baseline"] as const;
 export type GanttBarKind = (typeof GANTT_BAR_KINDS)[number];
@@ -63,7 +68,12 @@ export type TablePresentation = {
 };
 
 export type GanttBarStyleSet = Record<GanttBarKind, GanttBarStyle>;
-export type WorkspacePresentation = { table: TablePresentation; bars: GanttBarStyleSet };
+export type WorkspacePresentation = {
+  table: TablePresentation;
+  bars: GanttBarStyleSet;
+  /** Saved activity filters and the currently applied filter. */
+  filters: ActivityFilterState;
+};
 
 export type GanttBarFacts = {
   critical: boolean;
@@ -107,6 +117,7 @@ function bar(style: Partial<GanttBarStyle> & Pick<GanttBarStyle, "bodyColor">): 
 
 export const DEFAULT_PRESENTATION: WorkspacePresentation = {
   table: { ...DEFAULT_TABLE },
+  filters: EMPTY_ACTIVITY_FILTERS,
   bars: {
     // The default palette follows the classic desktop scheduling worksurface:
     // light outlined work bars, a dark solid summary, a black milestone diamond
@@ -191,6 +202,7 @@ export function normalizePresentation(value: unknown): WorkspacePresentation {
       lineNumbers: boolean(tableInput.lineNumbers, DEFAULT_TABLE.lineNumbers),
     },
     bars,
+    filters: normalizeActivityFilterState(input.filters),
   };
 }
 

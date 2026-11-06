@@ -26,6 +26,20 @@ import {
   type WorkspacePresentation,
 } from "./workspace-presentation.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
+import {
+  ACTIVITY_FILTER_FIELDS,
+  ACTIVITY_FILTER_OPERATORS,
+  activityFilterFieldLabel,
+  activityFilterOperatorLabel,
+  deleteActivityFilter,
+  findActivityFilter,
+  getBuiltinActivityFilters,
+  normalizeActivityFilter,
+  setActiveActivityFilter,
+  upsertActivityFilter,
+  type ActivityFilterCriterion,
+  type ActivityFilterOperator,
+} from "./workspace-activity-filters.js";
 
 export type DesktopSortColumn = { id: string; label: string };
 
@@ -226,6 +240,84 @@ function barEditor(kind: GanttBarKind, style: GanttBarStyle, locale: string, ava
   </details>`;
 }
 
+function filterEditor(optionsInput: DialogOptions): string {
+  const { locale, presentation } = optionsInput;
+  const filters = presentation.filters;
+  const active = findActivityFilter(filters, filters.activeId);
+  const editingCustom = active && !active.builtin ? active : null;
+  const rows = Array.from({ length: 4 }, (_, index) => {
+    const criterion = editingCustom?.criteria[index];
+    const fieldId = criterion?.fieldId ?? "activity_name";
+    const operator = criterion?.operator ?? "contains";
+    const value = criterion?.value ?? "";
+    return `<div class="cp-filter-row" data-filter-row="${index}">
+      <select name="filter.field.${index}" aria-label="${esc(t(locale, "Filter field", "فیلد فیلتر"))}">
+        ${ACTIVITY_FILTER_FIELDS.map((id) => `<option value="${id}"${id === fieldId ? " selected" : ""}>${esc(activityFilterFieldLabel(id, locale))}</option>`).join("")}
+      </select>
+      <select name="filter.operator.${index}" aria-label="${esc(t(locale, "Filter operator", "عملگر فیلتر"))}">
+        ${ACTIVITY_FILTER_OPERATORS.map((id) => `<option value="${id}"${id === operator ? " selected" : ""}>${esc(activityFilterOperatorLabel(id, locale))}</option>`).join("")}
+      </select>
+      <input type="text" name="filter.value.${index}" value="${esc(value)}" aria-label="${esc(t(locale, "Filter value", "مقدار فیلتر"))}" autocomplete="off" spellcheck="false"${operator === "is-empty" || operator === "is-not-empty" ? " disabled" : ""}>
+    </div>`;
+  }).join("");
+  const builtin = getBuiltinActivityFilters();
+  const saved = filters.saved;
+  const groups = [
+    `<option value=""${filters.activeId ? "" : " selected"}>${esc(t(locale, "All activities", "همهٔ فعالیت‌ها"))}</option>`,
+    `<optgroup label="${esc(t(locale, "Predefined filters", "فیلترهای پیش‌فرض"))}">${builtin.map((filter) => `<option value="${esc(filter.id)}"${filters.activeId === filter.id ? " selected" : ""}>${esc(t(locale, filter.name, filter.name))}</option>`).join("")}</optgroup>`,
+    saved.length > 0 ? `<optgroup label="${esc(t(locale, "Saved filters", "فیلترهای ذخیره‌شده"))}">${saved.map((filter) => `<option value="${esc(filter.id)}"${filters.activeId === filter.id ? " selected" : ""}>${esc(filter.name)}</option>`).join("")}</optgroup>` : "",
+  ].join("");
+  return `<fieldset class="cp-dialog-group">
+      <legend>${esc(t(locale, "Apply a filter", "اعمال فیلتر"))}</legend>
+      <label class="cp-dialog-row"><span>${esc(t(locale, "Filter", "فیلتر"))}</span>
+        <select name="filterActiveId">${groups}</select>
+      </label>
+      <p class="cp-dialog-note">${esc(t(locale, "Predefined filters match the documented activity criteria. A filter only narrows the rows on screen; it never changes schedule data.", "فیلترهای پیش‌فرض با معیارهای مستند فعالیت مطابقت دارند. فیلتر فقط ردیف‌های روی صفحه را محدود می‌کند و داده‌های زمان‌بندی را تغییر نمی‌دهد."))}</p>
+    </fieldset>
+    <fieldset class="cp-dialog-group">
+      <legend>${esc(t(locale, "Create or edit a custom filter", "ساخت یا ویرایش فیلتر سفارشی"))}</legend>
+      <div class="cp-dialog-grid">
+        <label class="cp-dialog-row"><span>${esc(t(locale, "Filter name", "نام فیلتر"))}</span>
+          <input type="text" name="filterName" maxlength="60" value="${esc(editingCustom?.name ?? "")}" autocomplete="off">
+        </label>
+        <label class="cp-dialog-row"><span>${esc(t(locale, "Match", "تطبیق"))}</span>
+          <select name="filterMatch">
+            <option value="all"${editingCustom?.match !== "any" ? " selected" : ""}>${esc(t(locale, "All criteria (AND)", "همهٔ معیارها (و)"))}</option>
+            <option value="any"${editingCustom?.match === "any" ? " selected" : ""}>${esc(t(locale, "Any criterion (OR)", "هر یک از معیارها (یا)"))}</option>
+          </select>
+        </label>
+      </div>
+      <div class="cp-filter-criteria" role="group" aria-label="${esc(t(locale, "Filter criteria", "معیارهای فیلتر"))}">
+        <div class="cp-filter-head"><span>${esc(t(locale, "Field", "فیلد"))}</span><span>${esc(t(locale, "Is", "است"))}</span><span>${esc(t(locale, "Value", "مقدار"))}</span></div>
+        ${rows}
+      </div>
+      ${editingCustom ? `<label class="cp-dialog-check"><input type="checkbox" name="filterDelete"> ${esc(t(locale, "Delete this saved filter", "این فیلتر ذخیره‌شده حذف شود"))}</label>` : ""}
+    </fieldset>`;
+}
+
+/**
+ * Clears the custom-filter builder when the Apply selection changes. Choosing a
+ * predefined or saved entry then applies that selection instead of resaving the
+ * criteria still loaded in the form.
+ */
+export function resetFilterEditor(dialog: HTMLElement): void {
+  const name = dialog.querySelector<HTMLInputElement>('input[name="filterName"]');
+  if (name) name.value = "";
+  const match = dialog.querySelector<HTMLSelectElement>('select[name="filterMatch"]');
+  if (match) match.value = "all";
+  for (const select of dialog.querySelectorAll<HTMLSelectElement>('select[name^="filter.field."]')) {
+    if (select.querySelector('option[value="activity_name"]')) select.value = "activity_name";
+  }
+  for (const select of dialog.querySelectorAll<HTMLSelectElement>('select[name^="filter.operator."]')) {
+    select.value = "contains";
+  }
+  for (const input of dialog.querySelectorAll<HTMLInputElement>('input[name^="filter.value."]')) {
+    input.value = "";
+    input.disabled = false;
+  }
+  dialog.querySelector('input[name="filterDelete"]')?.closest("label")?.remove();
+}
+
 export function renderLayoutDialogs(optionsInput: DialogOptions): string {
   const { locale, layout } = optionsInput;
   const groupSort = `<fieldset class="cp-dialog-group">
@@ -272,6 +364,7 @@ export function renderLayoutDialogs(optionsInput: DialogOptions): string {
     </fieldset>`;
 
   return [
+    shell(locale, "filters", t(locale, "Filters", "فیلترها"), filterEditor(optionsInput), true),
     shell(locale, "group-sort", t(locale, "Group and Sort", "گروه‌بندی و ترتیب"), groupSort, true),
     shell(locale, "timescale", t(locale, "Timescale", "مقیاس زمانی"), timescale),
     shell(locale, "bars", t(locale, "Bar Styles", "سبک میله‌ها"), bars),
@@ -352,8 +445,7 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
   }
 
   const keys = Array.from(data.keys());
-  if (keys.some((key) => key.startsWith("bar."))) {
-    const bars = { ...presentation.bars };
+  if (keys.some((key) => key.startsWith("bar."))) {    const bars = { ...presentation.bars };
     for (const kind of GANTT_BAR_KINDS) {
       const prefix = `bar.${kind}.`;
       if (!keys.some((key) => key.startsWith(prefix))) continue;
@@ -379,6 +471,49 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
     }
     patch.bars = bars;
     presentation.bars = bars;
+    presentationChanged = true;
+  }
+
+  if (keys.some((key) => key.startsWith("filter.") || key.startsWith("filterActiveId") || key.startsWith("filterName"))) {
+    const previousFilters = presentation.filters;
+    const previousActive = findActivityFilter(previousFilters, previousFilters.activeId);
+    const selectedId = String(data.get("filterActiveId") ?? "");
+    const deleteRequested = data.get("filterDelete") === "on";
+    const criteria: ActivityFilterCriterion[] = [];
+    for (let index = 0; index < 4; index += 1) {
+      const fieldId = data.get(`filter.field.${index}`);
+      const operator = data.get(`filter.operator.${index}`);
+      if (typeof fieldId !== "string" || typeof operator !== "string") continue;
+      const value = String(data.get(`filter.value.${index}`) ?? "");
+      criteria.push({
+        fieldId: fieldId as ActivityFilterCriterion["fieldId"],
+        operator: operator as ActivityFilterOperator,
+        value,
+      });
+    }
+    const draft = normalizeActivityFilter({
+      name: String(data.get("filterName") ?? ""),
+      match: data.get("filterMatch"),
+      criteria,
+    });
+    let filters = previousFilters;
+    if (deleteRequested && selectedId.startsWith("custom:")) {
+      filters = deleteActivityFilter(filters, selectedId);
+    } else if (draft) {
+      const unchanged = previousActive
+        && !previousActive.builtin
+        && previousActive.id === draft.id
+        && previousActive.match === draft.match
+        && JSON.stringify(previousActive.criteria) === JSON.stringify(draft.criteria);
+      if (unchanged && selectedId && selectedId !== draft.id) {
+        filters = setActiveActivityFilter(filters, selectedId);
+      } else {
+        filters = upsertActivityFilter(filters, draft);
+      }
+    } else {
+      filters = setActiveActivityFilter(filters, selectedId || null);
+    }
+    presentation.filters = filters;
     presentationChanged = true;
   }
 

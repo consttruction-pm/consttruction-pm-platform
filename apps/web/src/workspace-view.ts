@@ -3,6 +3,11 @@ import type { WorkspaceDocument } from "./workspace-document.js";
 import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttScale, type GanttBarGeometry, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
+  describeActivityFilter,
+  filterActivitiesByDefinition,
+  getActiveActivityFilter,
+} from "./workspace-activity-filters.js";
+import {
   buildWorkspaceDisplayRows,
   collapseAllWbsIds,
   collapseToWbsIds,
@@ -1454,8 +1459,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     `--cp-p6-bg-color:${presentationColor(tablePresentation.backgroundColor)}`,
     `--cp-p6-row-height:${tablePresentation.rowHeight}px`,
   ].join(";");
+  const activeActivityFilter = getActiveActivityFilter(presentation.filters);
   const filteredActivities = filterAndSortActivities(
-    state.activities,
+    filterActivitiesByDefinition(state.activities, activeActivityFilter, state.wbsNodes),
     state.activityFilter,
     state.activitySort,
     state.activityGroupBy,
@@ -1463,7 +1469,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   );
   // An active filter always reveals matching descendants; collapse is a view
   // preference for browsing the unfiltered schedule, never a way to hide hits.
-  const collapsedWbsIds = state.activityFilter.trim()
+  const collapsedWbsIds = state.activityFilter.trim() || activeActivityFilter
     ? new Set<string>()
     : getCollapsedWbsIds(state.context.project_id);
   const displayRows = buildWorkspaceDisplayRows(
@@ -1557,7 +1563,15 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     control: "network",
     settings: "settings",
   };
-  const activityFilterLabel = state.activityFilter.trim() || uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
+  const activeFilterName = activeActivityFilter
+    ? state.activityFilter.trim()
+      ? `${activeActivityFilter.name} · ${state.activityFilter.trim()}`
+      : activeActivityFilter.name
+    : "";
+  const activityFilterLabel = activeFilterName || uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
+  const activeFilterTitle = activeActivityFilter
+    ? describeActivityFilter(activeActivityFilter, state.locale)
+    : "";
   const contextCommands: Array<{ label: string; action: "project-settings" | "wbs" | "tools" }> = state.activeMenu === "project"
     ? [
       { label: uiText(state.locale, "Project properties", "مشخصات پروژه"), action: "project-settings" },
@@ -1636,7 +1650,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             </span>
             <span class="cp-p6-activity-meta">${escapeHtml(t.project)}: ${escapeHtml(state.context.project_id)}</span>
             <span class="cp-p6-activity-meta">${escapeHtml(rail.dataDate)}: ${escapeHtml(rail.noDataDate)}</span>
-            <span class="cp-p6-activity-meta">${escapeHtml(rail.filter)}: ${escapeHtml(activityFilterLabel)}</span>
+            <span class="cp-p6-activity-meta" data-active-filter="${escapeAttribute(activeActivityFilter?.id ?? "")}" title="${escapeAttribute(activeFilterTitle)}">${escapeHtml(rail.filter)}: ${escapeHtml(activityFilterLabel)}</span>
             <span class="cp-p6-activity-spacer"></span>
           </header>
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
