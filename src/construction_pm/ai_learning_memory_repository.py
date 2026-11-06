@@ -182,11 +182,11 @@ _SQLITE_APPEND_ONLY_TRIGGERS = (
     BEGIN SELECT RAISE(ABORT, 'AI_LEARNING_AUDIT_APPEND_ONLY'); END""",
 )
 _POSTGRES_APPEND_ONLY_FUNCTION = """CREATE OR REPLACE FUNCTION cubi_reject_ai_learning_mutation()
-RETURNS trigger LANGUAGE plpgsql AS $
+RETURNS trigger LANGUAGE plpgsql AS $cubi$
 BEGIN
     RAISE EXCEPTION 'AI_LEARNING_ROWS_APPEND_ONLY' USING ERRCODE = '55000';
 END;
-$"""
+$cubi$"""
 _POSTGRES_APPEND_ONLY_TRIGGERS = (
     "DROP TRIGGER IF EXISTS cubi_ai_learning_records_no_update_delete ON ai_learning_memory_records",
     "CREATE TRIGGER cubi_ai_learning_records_no_update_delete "
@@ -451,9 +451,9 @@ class _RepositoryBase:
         if scope.general_published_access_granted:
             predicates.append("(scope = 'general_published' AND status = 'published')")
         if scope.tenant_shared_access_granted and scope.tenant_id:
-            predicates.append(
-                "(scope = 'tenant_shared' AND tenant_id = " + p + " AND status IN ('validated', 'published'))"
-            )
+            # Fetch all versions first; latest-version selection must see newer
+            # candidates/rejections so an older validated row cannot reappear.
+            predicates.append("(scope = 'tenant_shared' AND tenant_id = " + p + ")")
             params.append(scope.tenant_id)
         if not predicates:
             return []
