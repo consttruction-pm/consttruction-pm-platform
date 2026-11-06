@@ -39,7 +39,7 @@ def _invalid_result(code: str) -> dict[str, Any]:
             "message_key": "p6.formula.validation.error",
         },
         "dependencies": {"field_ids": []},
-        "result_type": {"data_type": None},
+        "result_type": {"data_type": None, "unit": None},
     }
 
 
@@ -108,7 +108,10 @@ class P6FormulaAuthorityAPI:
             "contract_version": P6_FORMULA_AUTHORITY_API_VERSION,
             "validation": {"valid": True, "error_code": None, "message_key": None},
             "dependencies": {"field_ids": list(compiled.dependencies)},
-            "result_type": {"data_type": _FORMULA_TO_P6_TYPE[compiled.inferred_type]},
+            "result_type": {
+                "data_type": _FORMULA_TO_P6_TYPE[compiled.inferred_type],
+                "unit": compiled.inferred_unit,
+            },
         }
 
 
