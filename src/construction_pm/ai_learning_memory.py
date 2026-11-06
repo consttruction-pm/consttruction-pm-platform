@@ -46,6 +46,7 @@ class LearningRetrievalScope:
     user_private_access_granted: bool = False
     project_private_access_granted: bool = False
     tenant_shared_access_granted: bool = False
+    general_candidate_access_granted: bool = False
     general_published_access_granted: bool = False
 
     def __post_init__(self) -> None:
@@ -58,6 +59,7 @@ class LearningRetrievalScope:
             ("user_private_access_granted", self.user_private_access_granted),
             ("project_private_access_granted", self.project_private_access_granted),
             ("tenant_shared_access_granted", self.tenant_shared_access_granted),
+            ("general_candidate_access_granted", self.general_candidate_access_granted),
             ("general_published_access_granted", self.general_published_access_granted),
         ):
             if not isinstance(value, bool):
@@ -219,5 +221,14 @@ class AILearningMemoryRecord:
                 and bool(scope.tenant_id)
                 and self.tenant_id == scope.tenant_id
                 and self.status in {LearningStatus.VALIDATED, LearningStatus.PUBLISHED}
+            )
+        if self.scope is LearningScope.GENERAL_CANDIDATE:
+            return (
+                scope.general_candidate_access_granted
+                and self.status in {
+                    LearningStatus.CAPTURED,
+                    LearningStatus.CANDIDATE,
+                    LearningStatus.VALIDATED,
+                }
             )
         return False
