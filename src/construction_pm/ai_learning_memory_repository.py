@@ -4,9 +4,10 @@ import hashlib
 import json
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Protocol
+from typing import ContextManager, Iterator, Protocol
 
 from .ai_learning_memory import (
     AILearningMemoryError,
@@ -77,6 +78,7 @@ class AILearningMemoryAuditEvent:
 
 
 class AILearningMemoryRepository(Protocol):
+    def transaction(self) -> ContextManager[None]: ...
     def initialize(self) -> None: ...
     def append(self, record: AILearningMemoryRecord) -> AILearningMemoryRecord: ...
     def append_with_audit(
@@ -400,8 +402,12 @@ class _RepositoryBase:
         # Recreate missing append-only guards on startup without changing rows.
         self._ensure_append_only_guards()
 
+    def transaction(self) -> ContextManager[None]:
+        """Use one repository operation transaction or preserve the caller's."""
+        raise NotImplementedError
+
     def initialize(self) -> None:
-        """Backend-specific migration transaction ownership."""
+        """Apply checked migrations within a caller-aware transaction."""
         raise NotImplementedError
 
     def append(self, record: AILearningMemoryRecord) -> AILearningMemoryRecord:
@@ -555,21 +561,24 @@ class _RepositoryBase:
             event.action, event.outcome, event.occurred_at.isoformat(), event.scope,
             event.record_id, event.record_version, event.reason_code, event.result_count,
         )
-        self.connection.execute(
-            f"INSERT INTO {_AUDIT_TABLE} "
-            "(event_id, actor_user_id, tenant_id, project_id, action, outcome, occurred_at, "
-            "scope, record_id, record_version, reason_code, result_count) "
-            f"VALUES ({','.join([p] * 12)}) ON CONFLICT (event_id) DO NOTHING",
-            values,
-        )
-        persisted = self.connection.execute(
-            f"SELECT event_id, actor_user_id, tenant_id, project_id, action, outcome, "
-            f"occurred_at, scope, record_id, record_version, reason_code, result_count "
-            f"FROM {_AUDIT_TABLE} WHERE event_id={p}",
-            (event.event_id,),
-        ).fetchone()
-        if persisted is None or tuple(persisted) != values:
-            raise AILearningMemoryPersistenceError("AI_LEARNING_AUDIT_EVENT_ID_CONFLICT")
+        with self.transaction():
+            self.connection.execute(
+                f"INSERT INTO {_AUDIT_TABLE} "
+                "(event_id, actor_user_id, tenant_id, project_id, action, outcome, occurred_at, "
+                "scope, record_id, record_version, reason_code, result_count) "
+                f"VALUES ({','.join([p] * 12)}) ON CONFLICT (event_id) DO NOTHING",
+                values,
+            )
+            persisted = self.connection.execute(
+                f"SELECT event_id, actor_user_id, tenant_id, project_id, action, outcome, "
+                f"occurred_at, scope, record_id, record_version, reason_code, result_count "
+                f"FROM {_AUDIT_TABLE} WHERE event_id={p}",
+                (event.event_id,),
+            ).fetchone()
+            if persisted is None or tuple(persisted) != values:
+                raise AILearningMemoryPersistenceError(
+                    "AI_LEARNING_AUDIT_EVENT_ID_CONFLICT"
+                )
         return event
 
     def list_audit_events(
@@ -641,57 +650,42 @@ class SQLiteAILearningMemoryRepository(_RepositoryBase):
         for statement in _SQLITE_APPEND_ONLY_TRIGGERS:
             self.connection.execute(statement)
 
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        owns_transaction = not self.connection.in_transaction
+        savepoint = f"cubi_ai_learning_memory_{uuid.uuid4().hex}"
+        if owns_transaction:
+            self.connection.execute("BEGIN IMMEDIATE")
+        else:
+            self.connection.execute(f"SAVEPOINT {savepoint}")
+        try:
+            yield
+        except BaseException:
+            if owns_transaction:
+                self.connection.rollback()
+            else:
+                self.connection.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+                self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+            raise
+        else:
+            if owns_transaction:
+                self.connection.commit()
+            else:
+                self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+
     def append_with_audit(
         self,
         record: AILearningMemoryRecord,
         event: AILearningMemoryAuditEvent,
     ) -> AILearningMemoryRecord:
-        owns_transaction = not self.connection.in_transaction
-        savepoint = "cubi_ai_learning_memory_append_audit"
-        if owns_transaction:
-            self.connection.execute("BEGIN IMMEDIATE")
-        else:
-            self.connection.execute(f"SAVEPOINT {savepoint}")
-        try:
+        with self.transaction():
             stored = self.append(record)
             self.append_audit_event(event)
-        except Exception:
-            if owns_transaction:
-                self.connection.rollback()
-            else:
-                self.connection.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
-                self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
-            raise
-        else:
-            if owns_transaction:
-                self.connection.commit()
-            else:
-                self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
-            return stored
+        return stored
 
     def initialize(self) -> None:
-        # Atomic DDL + migration-history write. When a caller already owns a
-        # transaction, a savepoint lets initialization roll back only its work.
-        owns_transaction = not self.connection.in_transaction
-        savepoint = "cubi_ai_learning_memory_migration"
-        if owns_transaction:
-            self.connection.execute("BEGIN IMMEDIATE")
-        else:
-            self.connection.execute(f"SAVEPOINT {savepoint}")
-        try:
+        with self.transaction():
             self._apply_schema_migrations()
-        except Exception:
-            if owns_transaction:
-                self.connection.rollback()
-            else:
-                self.connection.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
-                self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
-            raise
-        else:
-            if owns_transaction:
-                self.connection.commit()
-            else:
-                self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
 
 
 class PostgresAILearningMemoryRepository(_RepositoryBase):
@@ -740,27 +734,55 @@ class PostgresAILearningMemoryRepository(_RepositoryBase):
             if exists is None or not bool(exists[0]):
                 self.connection.execute(statement)
 
+    @staticmethod
+    def _has_active_transaction(connection: object) -> bool:
+        info = getattr(connection, "info", None)
+        status = getattr(info, "transaction_status", None)
+        status_name = getattr(status, "name", None)
+        if status_name is None:
+            raise AILearningMemoryPersistenceError(
+                "POSTGRES_TRANSACTION_STATE_UNAVAILABLE"
+            )
+        return status_name != "IDLE"
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        owns_transaction = not self._has_active_transaction(self.connection)
+        savepoint = f"cubi_ai_learning_memory_{uuid.uuid4().hex}"
+        if owns_transaction:
+            self.connection.execute("BEGIN")
+        else:
+            self.connection.execute(f"SAVEPOINT {savepoint}")
+        try:
+            yield
+        except BaseException:
+            if owns_transaction:
+                self.connection.rollback()
+            else:
+                self.connection.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+                self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+            raise
+        else:
+            if owns_transaction:
+                self.connection.commit()
+            else:
+                self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+
     def append_with_audit(
         self,
         record: AILearningMemoryRecord,
         event: AILearningMemoryAuditEvent,
     ) -> AILearningMemoryRecord:
-        savepoint = "cubi_ai_learning_memory_append_audit"
-        self.connection.execute(f"SAVEPOINT {savepoint}")
-        try:
+        with self.transaction():
             stored = self.append(record)
             self.append_audit_event(event)
-        except Exception:
-            self.connection.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
-            self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
-            raise
-        else:
-            self.connection.execute(f"RELEASE SAVEPOINT {savepoint}")
-            return stored
+        return stored
 
     def initialize(self) -> None:
-        # Do not commit here: callers own PostgreSQL transaction boundaries.
-        self._apply_schema_migrations()
+        # Commit only the transaction this repository starts; preserve a caller's
+        # pre-existing transaction with a savepoint.
+        with self.transaction():
+            self._apply_schema_migrations()
 
 
 __all__ = [
