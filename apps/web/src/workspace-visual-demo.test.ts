@@ -260,3 +260,31 @@ test("Resources and Roles have independent Primavera-style dictionaries and Pers
   assert.match(roleHtml, /ظرفیت/);
   assert.match(roleHtml, /نرخ و ظرفیت در این پیش‌نمایش هزینه پروژه یا تسطیح منابع را محاسبه نمی‌کنند/);
 });
+
+test("Activities table indents child activities by WBS depth and collapses matching table and Gantt groups together", () => {
+  const state = createVisualDemoState("en");
+  const html = renderVisualDemo(state);
+  assert.match(html, /cp-vd-activity-name[^>]*padding-inline-start:18px[^>]*>Kick-off and mobilisation/);
+  assert.match(html, /data-vd-phase-toggle="Project Management"/);
+  assert.match(html, /data-vd-phase-toggle="Engineering"/);
+
+  state.collapsedWbsCodes = ["phase:Project Management"];
+  const collapsed = renderVisualDemo(state);
+  assert.match(collapsed, /data-vd-phase-toggle="Project Management" aria-expanded="false"/);
+  assert.doesNotMatch(collapsed, /data-vd-activity="A1010"/);
+  assert.doesNotMatch(collapsed, /data-vd-activity="A1020"/);
+  assert.match(collapsed, /data-vd-activity="A1110"/);
+});
+
+test("Activity and WBS rows retain selectable right-click targets and fullscreen control state", () => {
+  const activities = createVisualDemoState("en");
+  const activityHtml = renderVisualDemo(activities);
+  assert.match(activityHtml, /data-vd-activity="A1320"/);
+  assert.match(activityHtml, /data-vd-fullscreen aria-pressed="false"/);
+
+  const wbs = createVisualDemoState("en");
+  wbs.window = "wbs";
+  const wbsHtml = renderVisualDemo(wbs);
+  assert.match(wbsHtml, /data-vd-wbs="1\\.2"/);
+  assert.match(wbsHtml, /data-vd-wbs-toggle="1"/);
+});
