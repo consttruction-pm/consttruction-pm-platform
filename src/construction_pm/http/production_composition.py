@@ -27,6 +27,7 @@ from construction_pm.p6_earned_value_read_model_api import P6EarnedValueReadMode
 from construction_pm.p6_field_registry_api import P6FieldRegistryAPI
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
 from construction_pm.p6_formula_definition_api import P6FormulaDefinitionAPI
+from construction_pm.p6_activity_filter_api import P6ActivityFilterAPI
 from construction_pm.p6_interchange_api import P6InterchangeAPI
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_persisted_resource_leveling_resolver import build_persisted_resource_leveling_input_resolver
@@ -84,6 +85,7 @@ def build_project_lifecycle_wsgi_app(
     p6_layout_definition_api: P6LayoutDefinitionAPI | None = None,
     p6_formula_authority_api: P6FormulaAuthorityAPI | None = None,
     p6_formula_definition_api: P6FormulaDefinitionAPI | None = None,
+    p6_activity_filter_api: P6ActivityFilterAPI | None = None,
     p6_calendar_read_api: P6CalendarReadAPI | None = None,
     p6_calendar_api: P6CalendarAPI | None = None,
     p6_baseline_api: P6BaselineAPI | None = None,
@@ -245,6 +247,7 @@ def build_project_lifecycle_wsgi_app(
         p6_layout_definition_api=p6_layout_definition_api,
         p6_formula_authority_api=p6_formula_authority_api,
         p6_formula_definition_api=p6_formula_definition_api,
+        p6_activity_filter_api=p6_activity_filter_api,
         p6_calendar_read_api=p6_calendar_read_api,
         p6_calendar_api=p6_calendar_api,
         p6_baseline_api=p6_baseline_api,
