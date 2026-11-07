@@ -32,7 +32,7 @@ APPEND_ONLY_TRIGGER_NAMES = (
     "cubi_ai_learning_audit_no_update_delete",
 )
 RESTORE_CONFIRMATION = "RESTORE_TO_EMPTY_DATABASE"
-_SCHEMA_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
+_SCHEMA_PATTERN = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 _ALLOWED_QUERY_OPTIONS = {
     "sslmode",
     "sslrootcert",
@@ -275,6 +275,8 @@ def create_learning_memory_backup(
     schema = _validate_schema(schema)
     if not isinstance(age_recipient, str) or not age_recipient.strip():
         raise _fail("AI_LEARNING_BACKUP_AGE_RECIPIENT_REQUIRED")
+    if not str(destination_directory).strip():
+        raise _fail("AI_LEARNING_BACKUP_DESTINATION_INVALID")
     env, source_fingerprint, _ = _postgres_environment(database_url)
     destination = Path(destination_directory).expanduser()
     try:
@@ -412,7 +414,9 @@ def _read_manifest(archive: Path) -> dict[str, Any]:
                 raise ValueError
         if isinstance(manifest["size_bytes"], bool) or not isinstance(manifest["size_bytes"], int) or manifest["size_bytes"] <= 0:
             raise ValueError
-        datetime.fromisoformat(manifest["created_at"])
+        created_at = datetime.fromisoformat(manifest["created_at"])
+        if created_at.tzinfo is None or created_at.utcoffset() is None:
+            raise ValueError
         return manifest
     except LearningMemoryBackupError:
         raise
@@ -426,7 +430,7 @@ def verify_learning_memory_backup(
     age_identity_file: str | Path,
 ) -> dict[str, Any]:
     """Verify the encrypted checksum and that age + pg_restore can read the archive."""
-    archive = Path(archive_path).expanduser().resolve()
+    archive = Path(os.path.abspath(Path(archive_path).expanduser()))
     identity = _identity_file(age_identity_file)
     manifest = _read_manifest(archive)
     digest, size = _hash_file(archive)
@@ -607,7 +611,7 @@ def restore_learning_memory_backup(
         raise _fail("AI_LEARNING_RESTORE_SOURCE_TARGET_MUST_DIFFER")
     schema = _validate_schema(manifest["schema"])
     _require_empty_restore_target(target_database_url, schema)
-    _restore_archive(Path(archive_path).expanduser().resolve(), _identity_file(age_identity_file), target_env)
+    _restore_archive(Path(os.path.abspath(Path(archive_path).expanduser())), _identity_file(age_identity_file), target_env)
     _validate_restored_target(target_database_url, schema)
     return manifest
 
