@@ -66,6 +66,7 @@ def test_restore_requires_explicit_confirmation_before_reading_any_backup(tmp_pa
         restore_learning_memory_backup(
             archive_path=tmp_path / "not-created.dump.age",
             age_identity_file=tmp_path / "no-identity",
+            signing_public_key_file=tmp_path / "no-signing-public-key",
             target_database_url="",
             confirmation="",
         )
