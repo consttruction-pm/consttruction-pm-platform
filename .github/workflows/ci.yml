@@ -41,8 +41,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install PostgreSQL and encrypted-backup utilities
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client age
+      - name: Install PostgreSQL 16 and encrypted-backup utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16 age
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
 
       - name: Verify PostgreSQL client major version
         run: |
