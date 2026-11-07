@@ -86,7 +86,11 @@ When an `AILearningMemoryRepository` is supplied to `build_project_lifecycle_wsg
 
 The routes require the existing opaque `cp_session` cookie. The current user, tenant, project and roles come from the authenticated project lifecycle/session services, not from request-body identity fields. There are no edit/delete or publish endpoints in this Phase A slice.
 
-The preview runtime passes its existing SQLite connection through the real composition path. A production deployment must supply a durable PostgreSQL repository connection and a policy configured with the intended per-scope grants. This PR establishes the composition seam; it does not claim that a hosted production database has already been provisioned or deployed.
+The preview runtime passes its existing SQLite connection through the real composition path. Production deployments can use `PostgresAILearningMemoryRuntime` from `construction_pm.ai_learning_memory_runtime` to establish a dedicated PostgreSQL connection, apply checked migrations, verify that the target database is writable, and inject `runtime.repository` into `build_project_lifecycle_wsgi_app`. Keep the runtime alive for the application lifetime and close it during graceful shutdown.
+
+The connection is opt-in and default-disabled. Set `CUBI_AI_LEARNING_MEMORY_DB_BACKEND=postgresql` and the server-only `CUBI_AI_LEARNING_MEMORY_DATABASE_URL`; remote PostgreSQL connections must specify `sslmode=require`, `verify-ca` or `verify-full`. The DSN is not included in runtime representations or public errors. When the backend setting is unset/disabled, no database is opened and there is no SQLite or provider fallback. The outer deployment must inject a current-grant `AuthorizationPolicy`; the default role policy does not implicitly grant memory access.
+
+The repository and runtime factory establish a tested deployment seam, not a provisioned hosted database. A production operator must still supply the durable PostgreSQL service, secret DSN, least-privilege database role, network/TLS rules, automated encrypted backups, restore drills and monitoring. The demo Preview service remains SQLite-backed and is not a production persistence target.
 
 ## 6. Non-goals of Phase A
 
