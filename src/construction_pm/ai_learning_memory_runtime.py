@@ -26,6 +26,21 @@ class PostgresAILearningMemoryConfig:
     database_url: str = field(repr=False)
     connect_timeout_seconds: int = 10
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.database_url, str) or not self.database_url.strip():
+            raise AILearningMemoryRuntimeError(
+                "AI_LEARNING_DATABASE_URL_REQUIRED"
+            )
+        _validate_postgres_dsn(self.database_url)
+        if (
+            isinstance(self.connect_timeout_seconds, bool)
+            or not isinstance(self.connect_timeout_seconds, int)
+            or not 1 <= self.connect_timeout_seconds <= 30
+        ):
+            raise AILearningMemoryRuntimeError(
+                "AI_LEARNING_DATABASE_CONNECT_TIMEOUT_INVALID"
+            )
+
     @classmethod
     def from_environment(
         cls,
