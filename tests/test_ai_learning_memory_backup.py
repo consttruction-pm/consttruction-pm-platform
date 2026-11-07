@@ -21,9 +21,8 @@ from construction_pm.ai_learning_memory_backup import (
 
 
 def test_backup_schema_names_are_strict_identifiers():
-    assert _validate_schema("public") == "public"
     assert _validate_schema("cubi_learning") == "cubi_learning"
-    for value in ("public;DROP SCHEMA public", "public.schema", '"public"', "", "x" * 64):
+    for value in ("public", "public;DROP SCHEMA public", "public.schema", '"public"', "", "x" * 64):
         with pytest.raises(LearningMemoryBackupError, match="SCHEMA_INVALID"):
             _validate_schema(value)
 
@@ -153,7 +152,9 @@ def test_encrypted_postgres_backup_verifies_and_restores_into_empty_database(tmp
         admin.close()
 
     source_dsn = _dsn_for_database_and_schema(base_dsn, urlsplit(base_dsn).path.lstrip("/"), schema)
-    target_dsn = _dsn_for_database_and_schema(base_dsn, target_database, schema)
+    # The dump includes the isolated schema itself; the restore target is a
+    # pristine database and must not contain that schema in advance.
+    target_dsn = _dsn_for_database_and_schema(base_dsn, target_database, "public")
     record_id = f"backup-lesson-{suffix}"
     user_id = f"backup-user-{suffix}"
     tenant_id = f"backup-tenant-{suffix}"
