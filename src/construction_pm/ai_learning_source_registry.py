@@ -144,6 +144,17 @@ def _require_string(value: object, field: str, *, max_length: int = 512) -> str:
     return value
 
 
+def _json_object_without_duplicate_keys(
+    pairs: list[tuple[str, object]],
+) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise SourceRegistryError(f"SOURCE_REGISTRY_JSON_DUPLICATE_KEY:{key}")
+        result[key] = value
+    return result
+
+
 def _freeze_json(value: object) -> object:
     if isinstance(value, dict):
         return MappingProxyType({
@@ -412,18 +423,19 @@ def load_source_registry(path: str | Path) -> SourceRegistry:
     """Read a bounded local JSON metadata file; performs no network or body ingestion."""
     registry_path = Path(path)
     try:
-        size = registry_path.stat().st_size
-        if size <= 0 or size > MAX_REGISTRY_BYTES:
-            raise SourceRegistryError("SOURCE_REGISTRY_FILE_SIZE_INVALID")
-        raw = registry_path.read_bytes()
-    except SourceRegistryError:
-        raise
+        with registry_path.open("rb") as stream:
+            raw = stream.read(MAX_REGISTRY_BYTES + 1)
     except OSError as exc:
         raise SourceRegistryError("SOURCE_REGISTRY_FILE_UNAVAILABLE") from exc
-    if len(raw) > MAX_REGISTRY_BYTES:
+    if not raw or len(raw) > MAX_REGISTRY_BYTES:
         raise SourceRegistryError("SOURCE_REGISTRY_FILE_SIZE_INVALID")
     try:
-        payload = json.loads(raw.decode("utf-8"))
+        payload = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_json_object_without_duplicate_keys,
+        )
+    except SourceRegistryError:
+        raise
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise SourceRegistryError("SOURCE_REGISTRY_JSON_INVALID") from exc
     return validate_source_registry(payload)
