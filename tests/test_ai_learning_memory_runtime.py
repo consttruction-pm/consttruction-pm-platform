@@ -63,10 +63,12 @@ def test_memory_runtime_configuration_fails_closed(environment, error):
 
 
 def test_memory_runtime_validates_postgres_url_timeout_and_hides_secrets():
-    dsn = "postgresql://cubi:very-secret@db.example.com:5432/cubi?sslmode=verify-full"
+    dsn = "postgresql://cubi_runtime:very-secret@db.example.com:5432/cubi?sslmode=verify-full"
+    migration_dsn = "postgresql://cubi_migrator:migration-secret@db.example.com:5432/cubi?sslmode=verify-full"
     config = PostgresAILearningMemoryConfig.from_environment({
         "CUBI_AI_LEARNING_MEMORY_DB_BACKEND": "postgres",
         "CUBI_AI_LEARNING_MEMORY_DATABASE_URL": dsn,
+        "CUBI_AI_LEARNING_MEMORY_MIGRATION_DATABASE_URL": migration_dsn,
         "CUBI_AI_LEARNING_MEMORY_CONNECT_TIMEOUT_SECONDS": "7",
     })
     assert config is not None
@@ -80,6 +82,7 @@ def test_memory_runtime_validates_postgres_url_timeout_and_hides_secrets():
         PostgresAILearningMemoryConfig.from_environment({
             "CUBI_AI_LEARNING_MEMORY_DB_BACKEND": "postgres",
             "CUBI_AI_LEARNING_MEMORY_DATABASE_URL": dsn,
+            "CUBI_AI_LEARNING_MEMORY_MIGRATION_DATABASE_URL": migration_dsn,
             "CUBI_AI_LEARNING_MEMORY_CONNECT_TIMEOUT_SECONDS": "99",
         })
 
@@ -99,6 +102,40 @@ def test_memory_runtime_rejects_malformed_or_ambiguous_database_urls(dsn):
         PostgresAILearningMemoryConfig.from_environment({
             "CUBI_AI_LEARNING_MEMORY_DB_BACKEND": "postgresql",
             "CUBI_AI_LEARNING_MEMORY_DATABASE_URL": dsn,
+        })
+
+
+def test_remote_postgres_runtime_requires_distinct_migration_role_and_same_database():
+    runtime_dsn = "postgresql://cubi_runtime:runtime@db.example.com:5432/cubi?sslmode=require"
+    with pytest.raises(
+        AILearningMemoryRuntimeError,
+        match="AI_LEARNING_MIGRATION_DATABASE_URL_REQUIRED",
+    ):
+        PostgresAILearningMemoryConfig.from_environment({
+            "CUBI_AI_LEARNING_MEMORY_DB_BACKEND": "postgresql",
+            "CUBI_AI_LEARNING_MEMORY_DATABASE_URL": runtime_dsn,
+        })
+
+    with pytest.raises(
+        AILearningMemoryRuntimeError,
+        match="AI_LEARNING_DATABASE_ROLE_SEPARATION_REQUIRED",
+    ):
+        PostgresAILearningMemoryConfig.from_environment({
+            "CUBI_AI_LEARNING_MEMORY_DB_BACKEND": "postgresql",
+            "CUBI_AI_LEARNING_MEMORY_DATABASE_URL": runtime_dsn,
+            "CUBI_AI_LEARNING_MEMORY_MIGRATION_DATABASE_URL":
+                "postgresql://cubi_runtime:other@db.example.com:5432/cubi?sslmode=require",
+        })
+
+    with pytest.raises(
+        AILearningMemoryRuntimeError,
+        match="AI_LEARNING_MIGRATION_DATABASE_TARGET_MISMATCH",
+    ):
+        PostgresAILearningMemoryConfig.from_environment({
+            "CUBI_AI_LEARNING_MEMORY_DB_BACKEND": "postgresql",
+            "CUBI_AI_LEARNING_MEMORY_DATABASE_URL": runtime_dsn,
+            "CUBI_AI_LEARNING_MEMORY_MIGRATION_DATABASE_URL":
+                "postgresql://cubi_migrator:migration@other-db.example.com:5432/cubi?sslmode=require",
         })
 
 
