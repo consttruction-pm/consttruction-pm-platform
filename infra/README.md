@@ -61,10 +61,13 @@ finally:
 
 Server-only configuration:
 - `CUBI_AI_LEARNING_MEMORY_DB_BACKEND=postgresql`
-- `CUBI_AI_LEARNING_MEMORY_DATABASE_URL=postgresql://...`
+- `CUBI_AI_LEARNING_MEMORY_DATABASE_URL=postgresql://...` (application role)
+- `CUBI_AI_LEARNING_MEMORY_MIGRATION_DATABASE_URL=postgresql://...` (migration role; required remotely)
 - Remote PostgreSQL URLs must carry `sslmode=require`, `verify-ca` or `verify-full`.
 - `CUBI_AI_LEARNING_MEMORY_CONNECT_TIMEOUT_SECONDS` is optional (1–30; default 10).
 
-When unset/disabled, the factory returns `None`; it never silently falls back to SQLite. Do not log the DSN. The runtime applies checked migrations, verifies the database is writable, then leaves the connection idle for application use. The deployment must close the runtime on graceful shutdown.
+For remote databases, both DSNs must target the same host/port/database but use different PostgreSQL usernames. The migration role creates tables/indexes/triggers. Grant the application role schema usage and SELECT/INSERT on `ai_learning_memory_records` and `ai_learning_memory_audit_events`; revoke UPDATE/DELETE. Runtime startup verifies these grants and refuses a remote runtime role with broader mutation rights. Local loopback integration tests may use one DSN for both roles.
 
-This repository configuration does not provision PostgreSQL or set provider backups. Production still requires a durable managed database, a least-privilege credential, encrypted automated backups, restore drills, monitoring and an explicit policy mapping for learning-memory grants.
+When unset/disabled, the factory returns `None`; it never silently falls back to SQLite. Do not log either DSN. The runtime applies checked migrations using the migration connection, then opens a separate least-privilege application connection and leaves it idle after its startup checks. The deployment must close the runtime on graceful shutdown.
+
+This repository configuration does not provision PostgreSQL or set provider backups. Production still requires a durable managed database, separate secret credentials, encrypted automated backups, restore drills, monitoring and an explicit policy mapping for learning-memory grants.
