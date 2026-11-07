@@ -19,11 +19,13 @@ class AILearningMemoryRuntimeError(RuntimeError):
 class PostgresAILearningMemoryConfig:
     """Explicit server-side PostgreSQL configuration for durable AI memory.
 
-    The DSN is intentionally excluded from repr and error messages. An unset or
-    disabled backend returns no runtime; it never silently falls back to SQLite.
+    Runtime and migration DSNs are excluded from repr and error messages. Remote
+    deployments must use different database roles for runtime DML and migrations.
+    An unset/disabled backend never silently falls back to SQLite.
     """
 
     database_url: str = field(repr=False)
+    migration_database_url: str | None = field(default=None, repr=False)
     connect_timeout_seconds: int = 10
 
     def __post_init__(self) -> None:
@@ -32,6 +34,38 @@ class PostgresAILearningMemoryConfig:
                 "AI_LEARNING_DATABASE_URL_REQUIRED"
             )
         _validate_postgres_dsn(self.database_url)
+        runtime_parts = urlsplit(self.database_url)
+        local_hosts = {"localhost", "127.0.0.1", "::1"}
+        is_remote = (runtime_parts.hostname or "").lower() not in local_hosts
+
+        if self.migration_database_url is not None:
+            if (
+                not isinstance(self.migration_database_url, str)
+                or not self.migration_database_url.strip()
+            ):
+                raise AILearningMemoryRuntimeError(
+                    "AI_LEARNING_MIGRATION_DATABASE_URL_INVALID"
+                )
+            _validate_postgres_dsn(self.migration_database_url)
+            migration_parts = urlsplit(self.migration_database_url)
+            same_target = (
+                runtime_parts.hostname == migration_parts.hostname
+                and runtime_parts.port == migration_parts.port
+                and runtime_parts.path == migration_parts.path
+            )
+            if not same_target:
+                raise AILearningMemoryRuntimeError(
+                    "AI_LEARNING_MIGRATION_DATABASE_TARGET_MISMATCH"
+                )
+            if runtime_parts.username == migration_parts.username:
+                raise AILearningMemoryRuntimeError(
+                    "AI_LEARNING_DATABASE_ROLE_SEPARATION_REQUIRED"
+                )
+        elif is_remote:
+            raise AILearningMemoryRuntimeError(
+                "AI_LEARNING_MIGRATION_DATABASE_URL_REQUIRED"
+            )
+
         if (
             isinstance(self.connect_timeout_seconds, bool)
             or not isinstance(self.connect_timeout_seconds, int)
@@ -61,7 +95,9 @@ class PostgresAILearningMemoryConfig:
             raise AILearningMemoryRuntimeError(
                 "AI_LEARNING_DATABASE_URL_REQUIRED"
             )
-        _validate_postgres_dsn(dsn)
+        migration_dsn = values.get(
+            "CUBI_AI_LEARNING_MEMORY_MIGRATION_DATABASE_URL", ""
+        ).strip() or None
 
         raw_timeout = values.get(
             "CUBI_AI_LEARNING_MEMORY_CONNECT_TIMEOUT_SECONDS", "10"
@@ -76,8 +112,11 @@ class PostgresAILearningMemoryConfig:
             raise AILearningMemoryRuntimeError(
                 "AI_LEARNING_DATABASE_CONNECT_TIMEOUT_INVALID"
             )
-        return cls(database_url=dsn, connect_timeout_seconds=timeout)
-
+        return cls(
+            database_url=dsn,
+            migration_database_url=migration_dsn,
+            connect_timeout_seconds=timeout,
+        )
 
 def _validate_postgres_dsn(dsn: str) -> None:
     try:
@@ -150,7 +189,40 @@ class PostgresAILearningMemoryRuntime:
             )
         try:
             import psycopg
+        except Exception as exc:
+            raise AILearningMemoryRuntimeError(
+                "AI_LEARNING_DATABASE_DRIVER_UNAVAILABLE"
+            ) from exc
 
+        migration_url = config.migration_database_url or config.database_url
+        migration_connection = None
+        try:
+            migration_connection = psycopg.connect(
+                migration_url,
+                connect_timeout=config.connect_timeout_seconds,
+                application_name="cubi-ai-learning-memory-migrations",
+                autocommit=False,
+            )
+            PostgresAILearningMemoryRepository(
+                migration_connection
+            ).initialize()
+            migration_connection.rollback()
+        except Exception as exc:
+            if migration_connection is not None:
+                try:
+                    migration_connection.rollback()
+                finally:
+                    migration_connection.close()
+            if isinstance(exc, AILearningMemoryRuntimeError):
+                raise
+            raise AILearningMemoryRuntimeError(
+                "AI_LEARNING_DATABASE_SCHEMA_INITIALIZATION_FAILED"
+            ) from exc
+        finally:
+            if migration_connection is not None and not migration_connection.closed:
+                migration_connection.close()
+
+        try:
             connection = psycopg.connect(
                 config.database_url,
                 connect_timeout=config.connect_timeout_seconds,
@@ -158,22 +230,42 @@ class PostgresAILearningMemoryRuntime:
                 autocommit=False,
             )
         except Exception as exc:
-            # Never include the DSN or driver error text in the public message.
             raise AILearningMemoryRuntimeError(
                 "AI_LEARNING_DATABASE_CONNECTION_FAILED"
             ) from exc
 
         repository = PostgresAILearningMemoryRepository(connection)
         try:
-            repository.initialize()
-            row = connection.execute(
-                "SELECT current_setting('transaction_read_only')"
+            permissions = connection.execute(
+                """
+                SELECT
+                    current_setting('transaction_read_only'),
+                    has_table_privilege(current_user, 'ai_learning_memory_records', 'SELECT'),
+                    has_table_privilege(current_user, 'ai_learning_memory_records', 'INSERT'),
+                    has_table_privilege(current_user, 'ai_learning_memory_records', 'UPDATE'),
+                    has_table_privilege(current_user, 'ai_learning_memory_records', 'DELETE'),
+                    has_table_privilege(current_user, 'ai_learning_memory_audit_events', 'SELECT'),
+                    has_table_privilege(current_user, 'ai_learning_memory_audit_events', 'INSERT'),
+                    has_table_privilege(current_user, 'ai_learning_memory_audit_events', 'UPDATE'),
+                    has_table_privilege(current_user, 'ai_learning_memory_audit_events', 'DELETE')
+                """
             ).fetchone()
-            if row is None or str(row[0]).lower() != "off":
+            if permissions is None or str(permissions[0]).lower() != "off":
                 raise AILearningMemoryRuntimeError(
                     "AI_LEARNING_DATABASE_MUST_BE_WRITABLE"
                 )
-            # Leave the long-lived connection idle after its startup probe.
+            if not all(bool(value) for value in (permissions[1], permissions[2], permissions[5], permissions[6])):
+                raise AILearningMemoryRuntimeError(
+                    "AI_LEARNING_DATABASE_RUNTIME_ROLE_PRIVILEGES_INCOMPLETE"
+                )
+            if (
+                config.migration_database_url is not None
+                and any(bool(value) for value in (permissions[3], permissions[4], permissions[7], permissions[8]))
+            ):
+                raise AILearningMemoryRuntimeError(
+                    "AI_LEARNING_DATABASE_RUNTIME_ROLE_PRIVILEGE_TOO_BROAD"
+                )
+            # Leave the long-lived application connection idle after its probe.
             connection.rollback()
         except Exception as exc:
             try:
@@ -182,15 +274,10 @@ class PostgresAILearningMemoryRuntime:
                 connection.close()
             if isinstance(exc, AILearningMemoryRuntimeError):
                 raise
-            if isinstance(exc, AILearningMemoryPersistenceError):
-                raise AILearningMemoryRuntimeError(
-                    "AI_LEARNING_DATABASE_SCHEMA_INITIALIZATION_FAILED"
-                ) from exc
             raise AILearningMemoryRuntimeError(
-                "AI_LEARNING_DATABASE_STARTUP_CHECK_FAILED"
+                "AI_LEARNING_DATABASE_RUNTIME_PRIVILEGE_CHECK_FAILED"
             ) from exc
         return cls(connection=connection, repository=repository)
-
     @classmethod
     def open_from_environment(
         cls,
