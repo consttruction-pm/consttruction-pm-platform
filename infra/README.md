@@ -71,3 +71,114 @@ For remote databases, both DSNs must target the same host/port/database but use 
 When unset/disabled, the factory returns `None`; it never silently falls back to SQLite. Do not log either DSN. The runtime applies checked migrations using the migration connection, then opens a separate least-privilege application connection and leaves it idle after its startup checks. The deployment must close the runtime on graceful shutdown.
 
 This repository configuration does not provision PostgreSQL or set provider backups. Production still requires a durable managed database, separate secret credentials, encrypted automated backups, restore drills, monitoring and an explicit policy mapping for learning-memory grants.
+
+
+## Encrypted learning-memory backup and restore
+
+The repository now includes an operational logical-backup tool at
+`python -m construction_pm.ai_learning_memory_backup`. It is deliberately
+separate from the Preview SQLite reset backup.
+
+### Backup contents and consistency
+
+The backup is a PostgreSQL custom-format archive encrypted directly to an
+`age` recipient. A plaintext SQL/custom dump is never written to disk. The
+exported repeatable-read snapshot is held open while `pg_dump` reads it, so the
+three learning-memory tables are taken from one consistent database snapshot:
+
+- `ai_learning_memory_records`
+- `ai_learning_memory_audit_events`
+- `ai_learning_memory_schema_migrations`
+- the `cubi_reject_ai_learning_mutation` trigger function and table triggers
+
+The tool refuses unknown schemas, incomplete memory schemas, migration versions
+other than 3, or missing append-only guards. It writes a mode-0600 encrypted
+archive and mode-0600 checksum manifest inside a mode-0700 destination
+directory. Connection credentials are passed to libpq through the child
+process environment, not command-line arguments, and tool failures never print
+the DSN or raw subprocess output.
+
+The backup DB account should be a dedicated read-only role with CONNECT, schema
+USAGE and SELECT on the three memory tables. Remote URLs should use
+`sslmode=verify-full` and the provider CA certificate where available. Use a
+dedicated persistent, access-controlled mount for the destination; an
+ephemeral application filesystem or the Preview `.preview` directory is not
+a backup target.
+
+### Server configuration
+
+Install the PostgreSQL client utilities and `age`, install the CUBI package in
+the deployment virtual environment, create a dedicated `cubi-backup` OS
+account, and mount durable backup storage at
+`/mnt/cubi-encrypted-backups`. Store the following in
+`/etc/cubi/learning-memory-backup.env` (owner-readable only, mode 0600):
+
+```sh
+CUBI_AI_LEARNING_MEMORY_BACKUP_DATABASE_URL=postgresql://backup_role:REDACTED@db.example/production?sslmode=verify-full&sslrootcert=/etc/cubi/db-ca.pem
+CUBI_AI_LEARNING_MEMORY_BACKUP_AGE_RECIPIENT=age1REPLACE_WITH_PUBLIC_RECIPIENT
+CUBI_AI_LEARNING_MEMORY_BACKUP_DIR=/mnt/cubi-encrypted-backups
+CUBI_AI_LEARNING_MEMORY_BACKUP_SCHEMA=public
+```
+
+The DSN and public recipient above are placeholders, not live credentials.
+Never store a database password or age private identity in Git. The backup
+service needs only the public age recipient; the private identity is required
+only by an authorized verification/restore operator.
+
+### Commands
+
+Create a backup:
+
+```sh
+python -m construction_pm.ai_learning_memory_backup backup
+```
+
+Verify the encrypted archive checksum, decryptability and PostgreSQL archive
+catalogue (set the private identity file outside the repository first):
+
+```sh
+export CUBI_AI_LEARNING_MEMORY_BACKUP_AGE_IDENTITY_FILE=/secure/path/age-identity.txt
+python -m construction_pm.ai_learning_memory_backup verify /mnt/cubi-encrypted-backups/FILE.dump.age
+```
+
+Restore is intentionally non-destructive. It requires a different target
+database, an existing empty target schema with the same schema name as the
+backup, a valid private identity file, and the exact explicit confirmation
+value. It refuses a source-equal target and a target schema containing
+relations, functions or user-defined types. Restore runs in one PostgreSQL
+transaction and then verifies migration level 3 and both append-only triggers.
+
+```sh
+export CUBI_AI_LEARNING_MEMORY_RESTORE_DATABASE_URL='postgresql://restore_role:REDACTED@db.example/restore_drill?sslmode=verify-full&sslrootcert=/etc/cubi/db-ca.pem'
+export CUBI_AI_LEARNING_MEMORY_RESTORE_CONFIRM=RESTORE_TO_EMPTY_DATABASE
+python -m construction_pm.ai_learning_memory_backup restore /mnt/cubi-encrypted-backups/FILE.dump.age
+```
+
+Run restore drills against a disposable database, never against the live
+application database. After restore, grant the application role only the
+required schema USAGE and table SELECT/INSERT privileges; do not grant
+UPDATE/DELETE. The restore role needs CREATE on the target schema.
+
+### Daily schedule template and limits
+
+Hardened systemd templates are provided at:
+
+- `infra/systemd/cubi-learning-memory-backup.service`
+- `infra/systemd/cubi-learning-memory-backup.timer`
+
+They run a daily encrypted logical backup at 02:15 UTC with a randomized delay.
+Before enabling them, create the OS account, install the service environment
+file, provision and mount the durable destination, and confirm that the
+backup role can read all three tables. The template is for a self-hosted
+systemd host; managed hosting platforms must use their own supported scheduler
+and persistent object/storage service.
+
+This tool provides **full logical snapshots of the learning-memory data**, not
+incremental/WAL backups. Configure provider-managed point-in-time recovery or
+WAL archiving separately for the required recovery-point objective. Retention,
+off-host replication, object-lock policy, alerting, backup-key rotation and
+automated restore drills still need explicit deployment policy and operational
+configuration. The repository templates do not provision storage, schedule a
+live service, or prove a production restore. Do not mark production backup
+acceptance complete until a real encrypted backup has been stored off-host and
+a restore drill has passed against a separate database.
