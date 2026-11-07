@@ -48,10 +48,13 @@ class PostgresAILearningMemoryConfig:
                 )
             _validate_postgres_dsn(self.migration_database_url)
             migration_parts = urlsplit(self.migration_database_url)
+            runtime_query = parse_qs(runtime_parts.query, keep_blank_values=True)
+            migration_query = parse_qs(migration_parts.query, keep_blank_values=True)
             same_target = (
                 runtime_parts.hostname == migration_parts.hostname
                 and runtime_parts.port == migration_parts.port
                 and runtime_parts.path == migration_parts.path
+                and runtime_query.get("options", []) == migration_query.get("options", [])
             )
             if not same_target:
                 raise AILearningMemoryRuntimeError(
