@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily CUBI encrypted AI learning-memory backup schedule
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 UTC
+RandomizedDelaySec=10m
+Persistent=true
+Unit=cubi-learning-memory-backup.service
+
+[Install]
+WantedBy=timers.target
