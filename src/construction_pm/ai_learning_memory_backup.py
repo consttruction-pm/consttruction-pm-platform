@@ -68,7 +68,11 @@ def _fail(code: str) -> LearningMemoryBackupError:
 
 
 def _validate_schema(schema: str) -> str:
-    if not isinstance(schema, str) or not _SCHEMA_PATTERN.fullmatch(schema):
+    if (
+        not isinstance(schema, str)
+        or not _SCHEMA_PATTERN.fullmatch(schema)
+        or schema == "public"
+    ):
         raise _fail("AI_LEARNING_BACKUP_SCHEMA_INVALID")
     return schema
 
@@ -167,13 +171,42 @@ def _snapshot_source(database_url: str, schema: str):
         if not namespace:
             raise _fail("AI_LEARNING_BACKUP_SCHEMA_NOT_FOUND")
 
-        for table in MEMORY_TABLES:
-            qualified = f"{schema}.{table}"
-            exists = connection.execute(
-                "SELECT to_regclass(%s) IS NOT NULL", (qualified,)
-            ).fetchone()[0]
-            if not exists:
-                raise _fail("AI_LEARNING_BACKUP_SCHEMA_INCOMPLETE")
+        relation_names = {
+            str(row[0])
+            for row in connection.execute(
+                """
+                SELECT relname
+                FROM pg_class
+                WHERE relnamespace = to_regnamespace(%s)
+                  AND relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
+                """,
+                (schema,),
+            ).fetchall()
+        }
+        if relation_names != set(MEMORY_TABLES):
+            raise _fail("AI_LEARNING_BACKUP_SCHEMA_MUST_CONTAIN_ONLY_MEMORY_TABLES")
+
+        function_names = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT proname FROM pg_proc WHERE pronamespace = to_regnamespace(%s)",
+                (schema,),
+            ).fetchall()
+        }
+        if function_names != {"cubi_reject_ai_learning_mutation"}:
+            raise _fail("AI_LEARNING_BACKUP_SCHEMA_MUST_CONTAIN_ONLY_MEMORY_FUNCTIONS")
+
+        custom_types = connection.execute(
+            """
+            SELECT COUNT(*)
+            FROM pg_type
+            WHERE typnamespace = to_regnamespace(%s)
+              AND typtype IN ('d', 'e', 'r')
+            """,
+            (schema,),
+        ).fetchone()[0]
+        if int(custom_types) != 0:
+            raise _fail("AI_LEARNING_BACKUP_SCHEMA_CONTAINS_UNEXPECTED_TYPES")
 
         migration_version = connection.execute(
             f'SELECT COALESCE(MAX(version), 0) FROM "{schema}".'
@@ -303,16 +336,19 @@ def create_learning_memory_backup(
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     archive = destination / f"cubi-learning-memory-{stamp}-{uuid.uuid4().hex[:10]}.dump.age"
     partial = archive.with_name(archive.name + ".partial")
+    # The schema has been proven to contain only the three memory tables
+    # and their single append-only trigger function. Dumping the isolated
+    # schema captures all dependent indexes, triggers and function DDL without
+    # touching any other application schema.
     dump_args = [
         "pg_dump",
         "--format=custom",
         "--no-owner",
         "--no-acl",
         f"--snapshot={snapshot_id}",
+        "--schema",
+        schema,
     ]
-    for table in MEMORY_TABLES:
-        dump_args.extend(["--table", f"{schema}.{table}"])
-    dump_args.extend(["--function", f"{schema}.cubi_reject_ai_learning_mutation"])
 
     dump_process = None
     encrypt_process = None
@@ -495,27 +531,34 @@ def _require_empty_restore_target(database_url: str, schema: str) -> None:
         exists = connection.execute(
             "SELECT to_regnamespace(%s) IS NOT NULL", (schema,)
         ).fetchone()[0]
-        if not exists:
-            raise _fail("AI_LEARNING_RESTORE_SCHEMA_NOT_FOUND")
+        if exists:
+            raise _fail("AI_LEARNING_RESTORE_SCHEMA_ALREADY_EXISTS")
         occupied = connection.execute(
             """
             SELECT
                 EXISTS (
-                    SELECT 1 FROM pg_class
-                    WHERE relnamespace = to_regnamespace(%s)
-                      AND relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
+                    SELECT 1 FROM pg_namespace
+                    WHERE nspname NOT IN ('pg_catalog', 'information_schema', 'public')
+                      AND nspname NOT LIKE 'pg_toast%'
                 )
                 OR EXISTS (
-                    SELECT 1 FROM pg_proc
-                    WHERE pronamespace = to_regnamespace(%s)
+                    SELECT 1 FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE n.nspname = 'public'
+                      AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
                 )
                 OR EXISTS (
-                    SELECT 1 FROM pg_type
-                    WHERE typnamespace = to_regnamespace(%s)
-                      AND typtype IN ('d', 'e', 'r')
+                    SELECT 1 FROM pg_proc p
+                    JOIN pg_namespace n ON n.oid = p.pronamespace
+                    WHERE n.nspname = 'public'
                 )
-            """,
-            (schema, schema, schema),
+                OR EXISTS (
+                    SELECT 1 FROM pg_type t
+                    JOIN pg_namespace n ON n.oid = t.typnamespace
+                    WHERE n.nspname = 'public'
+                      AND t.typtype IN ('d', 'e', 'r')
+                )
+            """
         ).fetchone()[0]
         if occupied:
             raise _fail("AI_LEARNING_RESTORE_TARGET_NOT_EMPTY")
@@ -652,7 +695,7 @@ def _main() -> int:
                 database_url=os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_DATABASE_URL", ""),
                 age_recipient=os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_AGE_RECIPIENT", ""),
                 destination_directory=os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_DIR", ""),
-                schema=os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_SCHEMA", "public"),
+                schema=os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_SCHEMA", "cubi_ai_memory"),
             )
             print(f"Encrypted learning-memory backup created: {archive.name}")
         elif args.command == "verify":
