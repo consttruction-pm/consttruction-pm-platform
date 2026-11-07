@@ -3,6 +3,7 @@ from __future__ import annotations
 import gzip
 import json
 import sqlite3
+import uuid
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
@@ -1960,3 +1961,79 @@ def test_preview_learning_memory_is_session_scoped_audited_and_persistent(
         assert persisted_audit == (4,)
     finally:
         reopened.close()
+
+def test_preview_learning_memory_uses_authenticated_grants_and_survives_runtime_restart(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "preview-learning.sqlite3"
+    runtime = open_preview_runtime(database)
+    record_id = f"preview-learning-{uuid.uuid4().hex}"
+    payload = {
+        "record_id": record_id,
+        "record_version": 1,
+        "scope": "user_private",
+        "status": "candidate",
+        "signal_kind": "user_correction",
+        "lesson": "Check the evidence basis before reusing a production rate.",
+        "conditions": "Planning before verified project productivity is available.",
+        "limitations": "Do not treat a generic rate as a project measurement.",
+        "evidence_refs": ["preview-test:evidence"],
+    }
+    try:
+        admin = runtime.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+        status, _, body = _request(
+            runtime.app,
+            "POST",
+            f"/api/projects/{RPS_PROJECT}/ai/learning-memory",
+            cookie=admin.session_id,
+            body=json.dumps(payload).encode("utf-8"),
+        )
+        assert status == 201
+        assert json.loads(body)["record"]["record_id"] == record_id
+
+        viewer = runtime.sessions.create(DEMO_USERS_BY_ROLE["viewer"])
+        status, _, body = _request(
+            runtime.app,
+            "GET",
+            f"/api/projects/{RPS_PROJECT}/ai/learning-memory",
+            cookie=viewer.session_id,
+        )
+        assert status == 403
+        assert json.loads(body)["code"] == "AI_LEARNING_READ_NOT_AUTHORIZED"
+
+        admin_audit = runtime.connection.execute(
+            "SELECT action, outcome FROM ai_learning_memory_audit_events "
+            "WHERE actor_user_id=? AND record_id=? ORDER BY occurred_at",
+            (admin.user_id, record_id),
+        ).fetchall()
+        assert admin_audit == [("append", "allowed")]
+
+        viewer_audit = runtime.connection.execute(
+            "SELECT action, outcome, reason_code FROM ai_learning_memory_audit_events "
+            "WHERE actor_user_id=? AND action='list'",
+            (viewer.user_id,),
+        ).fetchall()
+        assert viewer_audit == [
+            ("list", "denied", "AI_LEARNING_READ_PERMISSION_REQUIRED")
+        ]
+    finally:
+        runtime.close()
+
+    # Preview sessions are intentionally in-memory. A new authenticated session
+    # for the same stable user can retrieve the committed record after restart.
+    restarted = open_preview_runtime(database)
+    try:
+        admin_after_restart = restarted.sessions.create(DEMO_USERS_BY_ROLE["admin"])
+        status, _, body = _request(
+            restarted.app,
+            "GET",
+            f"/api/projects/{RPS_PROJECT}/ai/learning-memory",
+            cookie=admin_after_restart.session_id,
+        )
+        assert status == 200
+        assert [
+            item["record_id"] for item in json.loads(body)["records"]
+        ] == [record_id]
+    finally:
+        restarted.close()
+
