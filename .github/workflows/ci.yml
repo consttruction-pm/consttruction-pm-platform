@@ -47,4 +47,5 @@ jobs:
       - name: Run test suite
         env:
           P6_TEST_POSTGRES_DSN: postgresql://construction_pm:construction_pm@127.0.0.1:5432/construction_pm_test
+          CUBI_AI_LEARNING_MEMORY_ROLE_TESTS: "1"
         run: python -m pytest -q
