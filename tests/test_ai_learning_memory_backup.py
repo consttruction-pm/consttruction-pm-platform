@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -104,7 +105,7 @@ def _dsn_for_database_and_schema(base_dsn: str, database: str, schema: str) -> s
     reason="Real PostgreSQL + age backup/restore integration is enabled only in CI",
 )
 def test_encrypted_postgres_backup_verifies_and_restores_into_empty_database(tmp_path):
-    if not all(shutil.which(name) for name in ("pg_dump", "pg_restore", "age", "age-keygen")):
+    if not all(shutil.which(name) for name in ("pg_dump", "pg_restore", "age", "age-keygen", "openssl")):
         pytest.skip("PostgreSQL client and age utilities are not installed")
 
     import psycopg
@@ -143,6 +144,22 @@ def test_encrypted_postgres_backup_verifies_and_restores_into_empty_database(tmp
     match = re.search(r"^# public key: (age1[0-9a-z]+)$", key_text, re.MULTILINE)
     assert match is not None
     recipient = match.group(1)
+    signing_private = tmp_path / "backup-signing-ed25519.pem"
+    signing_public = tmp_path / "backup-signing-ed25519.pub"
+    subprocess.run(
+        ["openssl", "genpkey", "-algorithm", "ED25519", "-out", str(signing_private)],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["openssl", "pkey", "-in", str(signing_private), "-pubout", "-out", str(signing_public)],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if os.name != "nt":
+        signing_private.chmod(0o600)
 
     admin = psycopg.connect(base_dsn, autocommit=True)
     try:
@@ -203,11 +220,14 @@ def test_encrypted_postgres_backup_verifies_and_restores_into_empty_database(tmp
             age_recipient=recipient,
             destination_directory=tmp_path / "encrypted-backups",
             schema=schema,
+            signing_private_key_file=signing_private,
         )
         manifest = verify_learning_memory_backup(
             archive_path=archive,
             age_identity_file=identity,
+            signing_public_key_file=signing_public,
         )
+        assert Path(str(archive) + ".manifest.json.sig").is_file()
         assert archive.suffix == ".age"
         assert manifest["schema"] == schema
         assert manifest["schema_migration_version"] == 3
@@ -220,6 +240,7 @@ def test_encrypted_postgres_backup_verifies_and_restores_into_empty_database(tmp
         restored_manifest = restore_learning_memory_backup(
             archive_path=archive,
             age_identity_file=identity,
+            signing_public_key_file=signing_public,
             target_database_url=target_dsn,
             confirmation=RESTORE_CONFIRMATION,
         )
@@ -250,15 +271,36 @@ def test_encrypted_postgres_backup_verifies_and_restores_into_empty_database(tmp
         finally:
             restored.close()
 
+        # A changed manifest must fail its Ed25519 authenticity check even
+        # if the encrypted archive itself is unchanged.
+        manifest_path = Path(str(archive) + ".manifest.json")
+        original_manifest = manifest_path.read_bytes()
+        altered_manifest = json.loads(original_manifest)
+        altered_manifest["source_database_fingerprint"] = "0" * 64
+        manifest_path.write_text(
+            json.dumps(altered_manifest, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(LearningMemoryBackupError, match="MANIFEST_SIGNATURE_INVALID"):
+            verify_learning_memory_backup(
+                archive_path=archive,
+                age_identity_file=identity,
+                signing_public_key_file=signing_public,
+            )
+        manifest_path.write_bytes(original_manifest)
+
         # Tampering with the encrypted bytes must be detected before decryption.
         corrupted = tmp_path / ("corrupt-" + archive.name)
         corrupted.write_bytes(archive.read_bytes() + b"tamper")
         corrupted_manifest = Path(str(corrupted) + ".manifest.json")
-        corrupted_manifest.write_bytes(Path(str(archive) + ".manifest.json").read_bytes())
+        corrupted_manifest.write_bytes(manifest_path.read_bytes())
+        corrupted_signature = Path(str(corrupted_manifest) + ".sig")
+        corrupted_signature.write_bytes(Path(str(manifest_path) + ".sig").read_bytes())
         with pytest.raises(LearningMemoryBackupError, match="CHECKSUM_MISMATCH"):
             verify_learning_memory_backup(
                 archive_path=corrupted,
                 age_identity_file=identity,
+                signing_public_key_file=signing_public,
             )
     finally:
         admin = psycopg.connect(base_dsn, autocommit=True)
