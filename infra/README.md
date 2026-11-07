@@ -66,7 +66,7 @@ Server-only configuration:
 - Remote PostgreSQL URLs must carry `sslmode=require`, `verify-ca` or `verify-full`.
 - `CUBI_AI_LEARNING_MEMORY_CONNECT_TIMEOUT_SECONDS` is optional (1–30; default 10).
 
-For remote databases, both DSNs must target the same host/port/database but use different PostgreSQL usernames. The migration role creates tables/indexes/triggers. Grant the application role schema usage and SELECT/INSERT on `ai_learning_memory_records` and `ai_learning_memory_audit_events`; revoke UPDATE/DELETE. Runtime startup verifies these grants and refuses a remote runtime role with broader mutation rights. Local loopback integration tests may use one DSN for both roles.
+For remote databases, both DSNs must target the same host/port/database and the same `options=-csearch_path=cubi_ai_memory`, but use different PostgreSQL usernames. Create the non-public `cubi_ai_memory` schema owned by the migration role before startup. The migration role creates tables/indexes/triggers in that schema. Grant the application role schema USAGE and SELECT/INSERT on the two data tables; revoke UPDATE/DELETE. Runtime startup verifies these grants and refuses a remote runtime role with broader mutation rights. Local loopback integration tests may use one DSN for both roles.
 
 When unset/disabled, the factory returns `None`; it never silently falls back to SQLite. Do not log either DSN. The runtime applies checked migrations using the migration connection, then opens a separate least-privilege application connection and leaves it idle after its startup checks. The deployment must close the runtime on graceful shutdown.
 
@@ -91,10 +91,16 @@ three learning-memory tables are taken from one consistent database snapshot:
 - `ai_learning_memory_schema_migrations`
 - the `cubi_reject_ai_learning_mutation` trigger function and table triggers
 
-The tool refuses unknown schemas, incomplete memory schemas, migration versions
-other than 3, or missing append-only guards. It writes a mode-0600 encrypted
-archive and mode-0600 checksum manifest inside a mode-0700 destination
-directory. Connection credentials are passed to libpq through the child
+The tool requires a dedicated, non-public PostgreSQL schema and refuses it
+unless it contains exactly the three memory tables and the single append-only
+trigger function; indexes and triggers are included as schema dependencies.
+It also refuses migration versions other than 3 or missing append-only guards.
+The output is a mode-0600 encrypted archive plus a checksum manifest and an
+Ed25519 signature over that manifest, inside a mode-0700 destination directory.
+The signature binds the archive hash, schema name, migration version and
+source-database fingerprint. Thus an archive encrypted by an arbitrary party
+with the public age recipient still cannot be accepted without the trusted
+signing key. Connection credentials are passed to libpq through the child
 process environment, not command-line arguments, and tool failures never print
 the DSN or raw subprocess output.
 
@@ -110,9 +116,9 @@ a backup target.
 
 ### Server configuration
 
-Install the PostgreSQL client utilities and `age`, install the CUBI package in
-the deployment virtual environment, create a dedicated `cubi-backup` OS
-account, and mount durable backup storage at
+Install the PostgreSQL client utilities, `age` and OpenSSL; install the CUBI
+package in the deployment virtual environment; create a dedicated
+`cubi-backup` OS account; and mount durable backup storage at
 `/mnt/cubi-encrypted-backups`. Store the following in
 `/etc/cubi/learning-memory-backup.env` (owner-readable only, mode 0600):
 
@@ -121,12 +127,27 @@ CUBI_AI_LEARNING_MEMORY_BACKUP_DATABASE_URL=postgresql://backup_role:REDACTED@db
 CUBI_AI_LEARNING_MEMORY_BACKUP_AGE_RECIPIENT=age1REPLACE_WITH_PUBLIC_RECIPIENT
 CUBI_AI_LEARNING_MEMORY_BACKUP_DIR=/mnt/cubi-encrypted-backups
 CUBI_AI_LEARNING_MEMORY_BACKUP_SCHEMA=cubi_ai_memory
+CUBI_AI_LEARNING_MEMORY_BACKUP_SIGNING_PRIVATE_KEY_FILE=/etc/cubi/learning-memory-signing-key.pem
 ```
 
 The DSN and public recipient above are placeholders, not live credentials.
-Never store a database password or age private identity in Git. The backup
-service needs only the public age recipient; the private identity is required
-only by an authorized verification/restore operator.
+Generate an Ed25519 signing keypair on the protected backup host (or deliver it
+from a managed secret store); keep the private key readable only by
+`cubi-backup`, and distribute the public key to restore/verification operators:
+
+```sh
+openssl genpkey -algorithm ED25519 -out /etc/cubi/learning-memory-signing-key.pem
+chmod 0600 /etc/cubi/learning-memory-signing-key.pem
+openssl pkey -in /etc/cubi/learning-memory-signing-key.pem -pubout -out /etc/cubi/learning-memory-signing-key.pub.pem
+```
+
+Never store a database password, age private identity or signing private key in
+Git. The backup service needs the public age recipient and signing private key;
+authorized verification/restore operators need the age identity and signing
+public key. The optional
+`CUBI_AI_LEARNING_MEMORY_BACKUP_SIGNING_KEY_PASSPHRASE` environment variable
+unlocks a passphrase-protected PEM signing key. Supply it from the host's secret
+manager, not a checked-in file.
 
 ### Commands
 
@@ -141,17 +162,21 @@ catalogue (set the private identity file outside the repository first):
 
 ```sh
 export CUBI_AI_LEARNING_MEMORY_BACKUP_AGE_IDENTITY_FILE=/secure/path/age-identity.txt
+export CUBI_AI_LEARNING_MEMORY_BACKUP_SIGNING_PUBLIC_KEY_FILE=/secure/path/learning-memory-signing-key.pub.pem
 python -m construction_pm.ai_learning_memory_backup verify /mnt/cubi-encrypted-backups/FILE.dump.age
 ```
 
-Restore is intentionally non-destructive. It requires a different target
-database, an existing empty target schema with the same schema name as the
-backup, a valid private identity file, and the exact explicit confirmation
-value. It refuses a source-equal target and a target schema containing
-relations, functions or user-defined types. Restore runs in one PostgreSQL
-transaction and then verifies migration level 3 and both append-only triggers.
+Restore is intentionally non-destructive. It requires a different, pristine
+target database (only the standard catalogs and empty `public` schema may
+exist), a valid age identity, the trusted signing public key, and the exact
+explicit confirmation value. It refuses a source-equal target, an existing
+memory schema, or any unrelated user object. The archive recreates its
+dedicated schema. Restore runs in one PostgreSQL transaction and then verifies
+migration level 3, the three tables, the trigger function and both append-only
+triggers.
 
 ```sh
+export CUBI_AI_LEARNING_MEMORY_BACKUP_SIGNING_PUBLIC_KEY_FILE=/secure/path/learning-memory-signing-key.pub.pem
 export CUBI_AI_LEARNING_MEMORY_RESTORE_DATABASE_URL='postgresql://restore_role:REDACTED@db.example/restore_drill?sslmode=verify-full&sslrootcert=/etc/cubi/db-ca.pem'
 export CUBI_AI_LEARNING_MEMORY_RESTORE_CONFIRM=RESTORE_TO_EMPTY_DATABASE
 python -m construction_pm.ai_learning_memory_backup restore /mnt/cubi-encrypted-backups/FILE.dump.age
@@ -170,10 +195,11 @@ Hardened systemd templates are provided at:
 - `infra/systemd/cubi-learning-memory-backup.service`
 - `infra/systemd/cubi-learning-memory-backup.timer`
 
-They run a daily encrypted logical backup at 02:15 UTC with a randomized delay.
-Before enabling them, create the OS account, install the service environment
-file, provision and mount the durable destination, and confirm that the
-backup role can read all three tables. The template is for a self-hosted
+They run a daily encrypted and signed logical backup at 02:15 UTC with a
+randomized delay. Before enabling them, create the OS account, install the
+service environment file (including the signing private-key path), provision
+and mount the durable destination, and confirm that the backup role can read
+all three tables. The template is for a self-hosted
 systemd host; managed hosting platforms must use their own supported scheduler
 and persistent object/storage service.
 
