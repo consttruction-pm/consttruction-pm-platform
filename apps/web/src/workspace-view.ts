@@ -1,6 +1,6 @@
 import type { WorkspaceActivityRow, WorkspaceCalendarMode, WorkspaceCellValue, WorkspaceColumn, WorkspaceGanttScale, WorkspaceRelationshipRow, WorkspaceRelationshipType, WorkspaceState } from "./workspace-model.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
-import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttScale, type GanttBarGeometry, type GanttScale } from "./workspace-gantt.js";
+import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
   describeActivityFilter,
@@ -8,6 +8,7 @@ import {
   getActiveActivityFilter,
 } from "./workspace-activity-filters.js";
 import {
+  buildWbsTreeGuides,
   buildWorkspaceDisplayRows,
   collapseAllWbsIds,
   collapseToWbsIds,
@@ -16,6 +17,7 @@ import {
   setCollapsedWbsIds,
   toggleCollapsedWbs,
   wbsNodeDepths,
+  type WbsTreeGuide,
   type WorkspaceDisplayRow,
   type WorkspaceWbsGroupRow,
 } from "./workspace-wbs-display.js";
@@ -35,6 +37,7 @@ import {
   hasBaselineDates,
   presentationFontFamily,
   selectPrimaryBarKind,
+  wbsLevelColor,
   type GanttBarKind,
   type GanttBarStyle,
   type WorkspacePresentation,
@@ -429,7 +432,15 @@ function bindWorkspaceEvents(container: HTMLElement): void {
     const chart = container.querySelector<HTMLElement>("#cp-gantt .cp-gantt-chart");
     if (!table || !chart || !target || (target !== table && target !== chart)) return;
     const other = target === table ? chart : table;
-    if (other.scrollTop !== target.scrollTop) other.scrollTop = target.scrollTop;
+    // The table keeps its header and the chart keeps its timescale axis while
+    // scrolling. Their heights differ, so a one-to-one scrollTop copy would
+    // shift every bar by that difference; compensate for the header delta.
+    const axisHeight = chart.querySelector<HTMLElement>(".cp-gantt-axis")?.getBoundingClientRect().height ?? 0;
+    const headerHeight = table.querySelector<HTMLElement>("thead")?.getBoundingClientRect().height ?? 0;
+    const delta = target === table ? axisHeight - headerHeight : headerHeight - axisHeight;
+    const maxScroll = Math.max(0, other.scrollHeight - other.clientHeight);
+    const desired = Math.max(0, Math.min(maxScroll, target.scrollTop + delta));
+    if (Math.abs(other.scrollTop - desired) > 0.5) other.scrollTop = desired;
   }, true);
   container.addEventListener("pointerdown", (event) => {
     const target = event.target as HTMLElement | null;
@@ -1505,11 +1516,12 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   // the table and pushing the required columns out of the initial view.
   const activityTableWidth =
     state.columns.reduce((total, column) => total + column.width, 0) + 48 + 44 + (lineNumbers ? 40 : 0);
+  const treeGuides = buildWbsTreeGuides(displayRows);
   let activityLineNumber = 0;
-  const activityRowMarkup = displayRows.map((row) => {
-    if (row.kind === "wbs") return renderWbsGroupRow(row, state, stickyOffsets, presentation, t);
+  const activityRowMarkup = displayRows.map((row, index) => {
+    if (row.kind === "wbs") return renderWbsGroupRow(row, state, stickyOffsets, presentation, t, treeGuides[index]);
     activityLineNumber += 1;
-    return renderActivityRow(row.activity, state, stickyOffsets, presentation, activityLineNumber, row.depth, treeColumnId);
+    return renderActivityRow(row.activity, state, stickyOffsets, presentation, activityLineNumber, row.depth, treeColumnId, treeGuides[index]);
   }).join("");
 
   const navigationLabel = getWorkspaceNavigationLabel(getWorkspaceNavigation(state.activeMenu), state.locale);
@@ -1684,7 +1696,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
                   </div>
-                  ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale)}
+                  ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale, treeGuides)}
                 </section>`}
               </section>
               ${renderP6ModuleStage(container, state, t, options)}
@@ -2999,6 +3011,21 @@ function rerenderWorkspaceRows(container: HTMLElement): void {
   if (nextChart) nextChart.scrollTop = chartTop;
 }
 
+function treeCellMarkup(
+  guide: WbsTreeGuide,
+  wbs: WorkspacePresentation["wbs"],
+  content: string,
+  levelDepth: number,
+): string {
+  const rails = guide.rails.map((continues, level) =>
+    `<span class="cp-p6-tree-rail${continues ? " is-continued" : " is-ended"}" data-tree-level="${level + 1}" style="--cp-tree-color:${wbsLevelColor(wbs, level)}" aria-hidden="true"></span>`,
+  ).join("");
+  const elbow = guide.depth > 0
+    ? `<span class="cp-p6-tree-elbow${guide.lastChild ? " is-last" : " is-branch"}" style="--cp-tree-color:${wbsLevelColor(wbs, guide.depth - 1)}" aria-hidden="true"></span>`
+    : "";
+  return `<span class="cp-p6-tree-guides" data-tree-depth="${guide.depth}" style="--cp-wbs-level:${wbsLevelColor(wbs, levelDepth)}">${rails}${elbow}${content}</span>`;
+}
+
 function renderActivityRow(
   activity: WorkspaceActivityRow,
   state: WorkspaceState,
@@ -3007,6 +3034,7 @@ function renderActivityRow(
   rowNumber: number,
   indentDepth = 0,
   treeColumnId: string | null = null,
+  guide: WbsTreeGuide = { depth: indentDepth, rails: [], lastChild: true, hasChildren: false, collapsed: false },
 ): string {
   const selected = activity.id === state.selectedActivityId;
   const predecessors = predecessorSummary(activity.id, state);
@@ -3017,18 +3045,29 @@ function renderActivityRow(
   const rowIcon = showIcons ? activityTypeIcon(activity) : "";
   const cells = state.columns.map((column) => {
     const value = renderCell(column, activity, state.calendarMode);
-    const indent = column.id === treeColumnId && indentDepth > 0
-      ? `<span class="cp-p6-indent" style="width:${Math.min(120, indentDepth * 12)}px" aria-hidden="true"></span>`
-      : "";
-    const content = iconColumnId !== null && column.id === iconColumnId
-      ? `<span class="cp-p6-activity-cell">${indent}${rowIcon}${value}</span>`
-      : `${indent}${value}`;
-    return `<td role="gridcell" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="text-align:${column.alignment};width:${column.width}px${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${content}</td>`;
+    const isTree = column.id === treeColumnId;
+    const content = isTree
+      ? treeCellMarkup(
+        guide,
+        presentation.wbs,
+        iconColumnId !== null && column.id === iconColumnId
+          ? `<span class="cp-p6-activity-cell">${rowIcon}${value}</span>`
+          : value,
+        branchLevel(guide),
+      )
+      : value;
+    const treeColor = isTree ? `;--cp-wbs-level:${wbsLevelColor(presentation.wbs, branchLevel(guide))}` : "";
+    return `<td role="gridcell" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}" class="cp-p6-column${isTree ? " cp-p6-tree-cell" : ""}${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="text-align:${column.alignment};width:${column.width}px${treeColor}${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${content}</td>`;
   }).join("");
   const lineNumberCell = presentation.table.lineNumbers
     ? `<td role="gridcell" class="cp-p6-line-number">${rowNumber}</td>`
     : "";
-  return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" data-activity-kind="${activityTypeKind(activity)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" data-wbs-depth="${indentDepth}" class="${selected ? "is-selected" : ""}">${lineNumberCell}${cells}<td class="cp-logic-column" data-predecessors="${escapeAttribute(activity.id)}">${predecessors ? escapeHtml(predecessors) : "—"}</td><td class="cp-actions-column"><button type="button" data-activity-edit="${escapeAttribute(activity.id)}">${escapeHtml(getWorkspaceLabels(state.locale).activityEdit)}</button></td></tr>`;
+  return `<tr role="row" data-activity-id="${escapeAttribute(activity.id)}" data-activity-kind="${activityTypeKind(activity)}" tabindex="0" aria-selected="${selected ? "true" : "false"}" aria-label="${escapeAttribute(activity.id)}" data-wbs-depth="${indentDepth}" data-wbs-level="${Math.min(6, guide.depth + 1)}" class="${selected ? "is-selected" : ""}">${lineNumberCell}${cells}<td class="cp-logic-column" data-predecessors="${escapeAttribute(activity.id)}">${predecessors ? escapeHtml(predecessors) : "—"}</td><td class="cp-actions-column"><button type="button" data-activity-edit="${escapeAttribute(activity.id)}">${escapeHtml(getWorkspaceLabels(state.locale).activityEdit)}</button></td></tr>`;
+}
+
+/** A leaf activity belongs to the branch one level above its indent. */
+function branchLevel(guide: WbsTreeGuide): number {
+  return guide.depth > 0 ? guide.depth - 1 : 0;
 }
 
 function renderWbsGroupRow(
@@ -3037,6 +3076,7 @@ function renderWbsGroupRow(
   stickyOffsets: ReadonlyMap<string, number>,
   presentation: WorkspacePresentation,
   t: WorkspaceLabels,
+  guide: WbsTreeGuide,
 ): string {
   const treeColumnId = state.columns.find((column) => column.id === "activity_id" || column.id === "activity.id")?.id
     ?? state.columns.find((column) => column.id === "activity_name" || column.id === "activity.name")?.id
@@ -3057,8 +3097,14 @@ function renderWbsGroupRow(
     const isProgress = last === "progress" || last === "percent_complete" || last === "percentcomplete";
     let content = "";
     let derived = false;
-    if (column.id === treeColumnId) {
-      content = `<span class="cp-p6-wbs-cell"><span class="cp-p6-indent" style="width:${Math.min(120, row.depth * 12)}px" aria-hidden="true"></span><button type="button" class="cp-p6-wbs-toggle" data-wbs-toggle="${escapeAttribute(row.wbsId)}" aria-expanded="${row.collapsed ? "false" : "true"}" title="${escapeAttribute(row.collapsed ? uiText(state.locale, "Expand WBS branch", "بازکردن شاخهٔ ساختار شکست") : uiText(state.locale, "Collapse WBS branch", "بستن شاخهٔ ساختار شکست"))}">${row.collapsed ? "+" : "−"}</button><span class="cp-p6-wbs-icon">${workspaceIcon("wbs")}</span><span class="cp-p6-wbs-code">${escapeHtml(row.node.localCode)}</span></span>`;
+    const isTree = column.id === treeColumnId;
+    if (isTree) {
+      content = treeCellMarkup(
+        guide,
+        presentation.wbs,
+        `<span class="cp-p6-wbs-cell"><button type="button" class="cp-p6-wbs-toggle" data-wbs-toggle="${escapeAttribute(row.wbsId)}" aria-expanded="${row.collapsed ? "false" : "true"}" title="${escapeAttribute(row.collapsed ? uiText(state.locale, "Expand WBS branch", "بازکردن شاخهٔ ساختار شکست") : uiText(state.locale, "Collapse WBS branch", "بستن شاخهٔ ساختار شکست"))}">${row.collapsed ? "+" : "−"}</button><span class="cp-p6-wbs-icon">${workspaceIcon("wbs")}</span><span class="cp-p6-wbs-code">${escapeHtml(row.node.localCode)}</span></span>`,
+        guide.depth,
+      );
     } else if (column.id === "activity_name" || column.id === "activity.name") {
       content = `<span class="cp-p6-wbs-name">${escapeHtml(row.node.name)}</span>`;
     } else if (isStart && row.summary.startMs !== null) {
@@ -3074,11 +3120,11 @@ function renderWbsGroupRow(
       content = `${row.summary.progressPercent}%`;
       derived = true;
     }
-    return `<td role="gridcell" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}"${derived ? ` data-rollup="display" title="${escapeAttribute(rollupTitle)}"` : ""} class="cp-p6-column cp-p6-wbs-cell-td${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="text-align:${column.alignment};width:${column.width}px${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${content}</td>`;
+    return `<td role="gridcell" data-column-id="${escapeAttribute(column.id)}" data-column-type="${column.dataType}" data-column-alignment="${column.alignment}" data-column-pinned="${column.pinned}" data-column-frozen="${column.frozen}"${derived ? ` data-rollup="display" title="${escapeAttribute(rollupTitle)}"` : ""} class="cp-p6-column cp-p6-wbs-cell-td${isTree ? " cp-p6-tree-cell" : ""}${column.pinned ? " is-pinned" : ""}${column.frozen ? " is-frozen" : ""}" style="text-align:${column.alignment};width:${column.width}px${stickyOffsets.has(column.id) ? `;--cp-p6-sticky-offset:${stickyOffsets.get(column.id)}px` : ""}">${content}</td>`;
   }).join("");
   const lineNumberCell = presentation.table.lineNumbers ? `<td role="gridcell" class="cp-p6-line-number"></td>` : "";
-  const bandColor = WBS_LEVEL_COLORS[Math.min(WBS_LEVEL_COLORS.length - 1, row.depth)] ?? WBS_LEVEL_COLORS[0];
-  return `<tr role="row" data-wbs-row="${escapeAttribute(row.wbsId)}" data-wbs-level="${Math.min(6, row.depth + 1)}" data-wbs-depth="${row.depth}" data-wbs-collapsed="${row.collapsed}" tabindex="0" aria-label="${escapeAttribute(`${row.node.localCode} ${row.node.name}`)}" aria-expanded="${row.collapsed ? "false" : "true"}" class="cp-p6-wbs-band${row.collapsed ? " is-collapsed" : ""}" style="--cp-wbs-band:${bandColor}">${lineNumberCell}${cells}<td class="cp-logic-column"></td><td class="cp-actions-column"></td></tr>`;
+  const levelColor = wbsLevelColor(presentation.wbs, row.depth);
+  return `<tr role="row" data-wbs-row="${escapeAttribute(row.wbsId)}" data-wbs-level="${Math.min(6, row.depth + 1)}" data-wbs-depth="${row.depth}" data-wbs-collapsed="${row.collapsed}" tabindex="0" aria-label="${escapeAttribute(`${row.node.localCode} ${row.node.name}`)}" aria-expanded="${row.collapsed ? "false" : "true"}" class="cp-p6-wbs-band cp-p6-tree-band${row.collapsed ? " is-collapsed" : ""}" style="--cp-wbs-level:${levelColor}">${lineNumberCell}${cells}<td class="cp-logic-column"></td><td class="cp-actions-column"></td></tr>`;
 }
 
 function activityTypeKind(activity: WorkspaceActivityRow): "milestone" | "summary" | "loe" | "task" {
@@ -3174,6 +3220,36 @@ function ganttRound(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+// Zoom only changes the resolution of the shared timeline: finer scales make
+// the same date range wider, which is what creates horizontal scrolling.
+const GANTT_CONTENT_WIDTH: Record<WorkspaceGanttScale, number> = {
+  day: 1600,
+  week: 1100,
+  month: 800,
+  quarter: 640,
+  year: 520,
+};
+
+const GANTT_LAG_UNITS: Record<string, string> = {
+  "working-day": "d",
+  day: "d",
+  "working-week": "w",
+  week: "w",
+  "working-month": "mo",
+  month: "mo",
+  year: "y",
+  hour: "h",
+  minute: "m",
+  percent: "%",
+};
+
+/** Compact, persisted lag/lead marker; the value is never recomputed. */
+function ganttLagText(lag: { value: string; unit: string }): string {
+  const trimmed = lag.value.trim();
+  const sign = trimmed.startsWith("-") ? "−" : "+";
+  return `${sign}${trimmed.replace(/^[+-]/, "")}${GANTT_LAG_UNITS[lag.unit] ?? ""}`;
+}
+
 function renderGantt(
   rows: readonly WorkspaceDisplayRow[],
   relationships: readonly WorkspaceRelationshipRow[],
@@ -3185,6 +3261,7 @@ function renderGantt(
   showRelationships: boolean,
   presentation: WorkspacePresentation,
   locale: string,
+  treeGuides: readonly WbsTreeGuide[] = [],
 ): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
 
@@ -3198,7 +3275,9 @@ function renderGantt(
     return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
   }
 
-  const rowHeight = Math.max(18, Math.min(40, presentation.table.rowHeight));
+  const rowHeight = ganttRowPitch(presentation.table.rowHeight);
+  const rowsHeight = ganttRowsHeight(rows.length, rowHeight);
+  const contentWidth = GANTT_CONTENT_WIDTH[ganttScale];
   const activityById = new Map(activities.map((activity) => [activity.id, activity]));
   const barById = new Map(bars.map((bar) => [bar.activityId, bar]));
   const rowIndexByActivity = new Map<string, number>();
@@ -3206,7 +3285,7 @@ function renderGantt(
     if (row.kind === "activity") rowIndexByActivity.set(row.activity.id, index);
   });
   const ticks = createGanttAxisTicks(scale, ganttScale);
-  const links = createGanttLinkGeometry(relationships, bars, rowIndexByActivity);
+  const links = createGanttLinkGeometry(relationships, bars, rowIndexByActivity, { rowHeight, xUnits: 10 });
   const scaleModeLabels: Record<WorkspaceGanttScale, string> = {
     day: t.scaleDay,
     week: t.scaleWeek,
@@ -3220,22 +3299,92 @@ function renderGantt(
     ["user-preferences", uiText(locale, "User Preferences", "ترجیحات کاربر")],
   ].map(([command, label]) => `<button type="button" class="cp-gantt-command-button" data-gantt-command="${command}">${escapeHtml(label)}</button>`).join("");
   const toolbar = `<div class="cp-gantt-toolbar" aria-label="${escapeAttribute(uiText(locale, "Gantt commands", "فرمان‌های گانت"))}"><div class="cp-gantt-scale-controls" role="group" aria-label="${escapeAttribute(t.ganttScaleLabel)}">${(["day", "week", "month", "quarter", "year"] as const).map((mode) => `<button type="button" class="cp-gantt-scale-button${mode === ganttScale ? " is-active" : ""}" data-gantt-scale="${mode}" aria-pressed="${mode === ganttScale ? "true" : "false"}">${escapeHtml(scaleModeLabels[mode])}</button>`).join("")}</div><div class="cp-gantt-command-group" role="group" aria-label="${escapeAttribute(uiText(locale, "Gantt layout commands", "فرمان‌های چیدمان گانت"))}">${commandButtons}</div><button type="button" class="cp-gantt-relationships-toggle${showRelationships ? " is-active" : ""}" data-gantt-relationships-toggle="${showRelationships ? "false" : "true"}" aria-pressed="${showRelationships ? "true" : "false"}" title="${escapeAttribute(t.ganttLinksToggle)}"><span>${escapeHtml(t.ganttLinksToggle)}</span><strong>${escapeHtml(showRelationships ? t.ganttLinksOn : t.ganttLinksOff)}</strong></button></div>`;
-  const axis = `<div class="cp-gantt-axis" aria-hidden="true"><span class="cp-gantt-axis-label"></span><div class="cp-gantt-axis-track">${ticks.map((tick, index) => {
+  const axis = (() => {
+    const timescale = presentation.timescale;
+    const ordinalStartMs = timescale.ordinalStart
+      ? Date.parse(`${timescale.ordinalStart}T00:00:00Z`)
+      : scale.startMs;
+    const groupLabel = (unit: "year" | "quarter" | "month" | "week", group: GanttPeriodGroup): string => {
+      if (unit === "year") {
+        const formatted = formatWorkspaceCalendarDate(group.date, calendarMode);
+        return formatted.split(/[\/\-]/)[0] ?? formatted;
+      }
+      if (unit === "quarter") {
+        const year = formatWorkspaceCalendarDate(group.date, calendarMode).split(/[\/\-]/)[0] ?? "";
+        const month = Number(group.date.slice(5, 7));
+        return `Q${Math.floor((month - 1) / 3) + 1} ${year}`.trim();
+      }
+      if (unit === "month") {
+        const calendar = calendarMode === "jalali" ? "-u-ca-persian" : "";
+        const language = locale === "fa" ? "fa-IR" : "en-US";
+        try {
+          return new Intl.DateTimeFormat(`${language}${calendar}`, {
+            timeZone: "UTC", month: "long", year: "numeric",
+          }).format(new Date(`${group.date}T00:00:00Z`));
+        } catch {
+          return group.date.slice(0, 7);
+        }
+      }
+      return `W${isoWeekNumber(group.startMs)}`;
+    };
+    const majorUnit = timescaleMajorUnit(timescale.interval);
+    const groupUnits: ("year" | "quarter" | "month" | "week")[] = [];
+    if (timescale.dateFormat === "primary") {
+      if (timescale.lines === 3 && majorUnit !== "year") groupUnits.push("year");
+      groupUnits.push(majorUnit);
+    }
+    // When the zoom already labels a unit, repeating it in a period row would
+    // print the same text twice, so the duplicated row is omitted.
+    const renderedGroupUnits = groupUnits.filter((unit) => unit !== ganttScale);
+    const groupsByUnit = new Map(
+      renderedGroupUnits.map((unit) => [unit, createGanttPeriodGroups(scale, unit)]),
+    );
+    const axisHeight = Math.max(18, 14 + renderedGroupUnits.length * 16);
+    const groupRows = renderedGroupUnits.map((unit) => `<div class="cp-gantt-timescale-groups" data-timescale-group-unit="${unit}" style="height:16px">${
+      (groupsByUnit.get(unit) ?? []).map((group) => `<span class="cp-gantt-timescale-group" data-timescale-group="${escapeAttribute(group.date)}" title="${escapeAttribute(groupLabel(unit, group))}" style="left:${group.leftPercent}%;width:${group.widthPercent}%">${escapeHtml(groupLabel(unit, group))}</span>`).join("")
+    }</div>`).join("");
+    const tickMarkup = ticks.map((tick, index) => {
     const fullLabel = formatWorkspaceCalendarDate(tick.date, calendarMode);
     // At day resolution daily ticks are too close together for the full date,
     // so the DOM keeps the complete label (and tooltip) while CSS renders only
     // the day number through data-gantt-day.
     const dayLabel = fullLabel.split(/[\/\-]/).filter(Boolean).pop() ?? fullLabel;
-    const dayClass = ganttScale === "day" ? " is-day" : "";
-    const dayAttribute = ganttScale === "day" ? ` data-gantt-day="${escapeAttribute(dayLabel)}"` : "";
-    return `<span class="cp-gantt-axis-tick${index === 0 ? " is-first" : tick.leftPercent > 88 ? " is-last" : ""}${dayClass}" data-gantt-tick="${escapeAttribute(tick.date)}"${dayAttribute} title="${escapeAttribute(fullLabel)}" style="left:${tick.leftPercent}%">${escapeHtml(fullLabel)}</span>`;
-  }).join("")}</div></div>`;
+    const compactDay = presentation.timescale.dateFormat === "primary" && presentation.timescale.type !== "week-of-year" && ganttScale === "day";
+    const dayAttribute = compactDay ? ` data-gantt-day="${escapeAttribute(dayLabel)}"` : "";
+    const primary = timescale.dateFormat === "primary";
+    const label = !primary
+      ? String(ordinalNumberAt(tick.atMs, ordinalStartMs, timescale.ordinalInterval))
+      : timescale.type === "week-of-year"
+        ? `W${isoWeekNumber(tick.atMs)}`
+        : fullLabel;
+    return `<span class="cp-gantt-axis-tick${index === 0 ? " is-first" : tick.leftPercent > 88 ? " is-last" : ""}${compactDay ? " is-day" : ""}" data-gantt-tick="${escapeAttribute(tick.date)}"${dayAttribute} title="${escapeAttribute(fullLabel)}" style="left:${tick.leftPercent}%">${escapeHtml(label)}</span>`;
+    }).join("");
+    return `<div class="cp-gantt-axis" data-timescale-lines="${timescale.lines}" data-timescale-format="${timescale.dateFormat}" data-timescale-interval="${timescale.interval}" data-timescale-type="${timescale.type}" style="height:${axisHeight}px;--cp-timescale-height:${axisHeight}px;--cp-timescale-font-size:${timescale.fontSize}px;--cp-timescale-color:${timescale.textColor};--cp-timescale-bg:${timescale.backgroundColor}"><span class="cp-gantt-axis-label"></span><div class="cp-gantt-axis-track">${groupRows}<div class="cp-gantt-timescale-ticks">${tickMarkup}</div></div></div>`;
+  })();
   const linkSvg = showRelationships && links.length
-    ? `<svg class="cp-gantt-links" viewBox="0 0 100 ${rows.length * 100}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"></path>`).join("")}</svg>`
+    ? `<svg class="cp-gantt-links" viewBox="0 0 1000 ${rowsHeight}" preserveAspectRatio="none" role="img" aria-label="${escapeAttribute(t.ganttLinks)}" style="height:${rowsHeight}px"><defs><marker id="cp-gantt-arrow" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head" d="M 0 0 L 6 3 L 0 6 z"></path></marker><marker id="cp-gantt-arrow-critical" markerUnits="userSpaceOnUse" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path class="cp-gantt-arrow-head is-critical" d="M 0 0 L 6 3 L 0 6 z"></path></marker></defs>${links.map((link) => `<path class="cp-gantt-link${link.critical ? " is-critical" : ""}" data-gantt-link="${escapeAttribute(link.relationshipId)}" data-link-type="${link.type}" data-link-from="${escapeAttribute(link.predecessorId)}" data-link-to="${escapeAttribute(link.successorId)}" data-link-from-x="${link.fromX}" data-link-to-x="${link.toX}" data-link-lane-x="${link.laneX}" data-link-from-y="${link.fromY}" data-link-to-y="${link.toY}" d="${escapeAttribute(link.path)}" marker-end="url(#cp-gantt-arrow${link.critical ? "-critical" : ""})" vector-effect="non-scaling-stroke"><title>${escapeHtml(`${link.type} ${link.predecessorId} → ${link.successorId}${link.lag ? ` (${ganttLagText(link.lag)}${link.lag.unit === "percent" ? "" : " " + link.lag.unit})` : ""}`)}</title></path>`).join("")}</svg>`
     : "";
-  const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, selectedActivityId, t, locale, scale);
+  // Lag and lead badges sit on the routing lane in HTML space, so they stay
+  // upright and unscaled while the SVG stretches with the pane width.
+  const lagBadges = showRelationships && links.some((link) => link.lag)
+    ? `<div class="cp-gantt-lag-layer">${links.filter((link) => link.lag).map((link) => `<span class="cp-gantt-link-lag${link.lag && link.lag.value.trim().startsWith("-") ? " is-lead" : ""}" data-gantt-lag-for="${escapeAttribute(link.relationshipId)}" style="left:${link.laneX}%;top:${ganttRound((link.fromY + link.toY) / 2)}px" title="${escapeAttribute(`${link.type} ${link.predecessorId} → ${link.successorId}: ${ganttLagText(link.lag!)} ${link.lag!.unit}`)}">${escapeHtml(ganttLagText(link.lag!))}</span>`).join("")}</div>`
+    : "";
+  // Grid lines come from the same tick list as the axis; a CSS gradient cannot
+  // follow month lengths, so the DOM carries exact percentages.
+  const gridLines = ticks.map((tick) => `<span class="cp-gantt-grid-line" data-gantt-grid="${escapeAttribute(tick.date)}" style="left:${tick.leftPercent}%"></span>`).join("");
+  const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, selectedActivityId, t, locale, scale, treeGuides);
 
-  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" style="--cp-gantt-row-height:${rowHeight}px">${toolbar}${axis}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${rowsMarkup}${linkSvg}</div></div>`;
+  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px">${toolbar}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${gridLines ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}</div>` : ""}${rowsMarkup}${linkSvg}${lagBadges}</div></div></div>`;
+}
+
+function ganttTreeLabel(guide: WbsTreeGuide, wbs: WorkspacePresentation["wbs"], label: string, title: string): string {
+  const rails = guide.rails.map((continues, level) =>
+    `<span class="cp-gantt-tree-rail${continues ? " is-continued" : ""}" style="--cp-tree-color:${wbsLevelColor(wbs, level)}" aria-hidden="true"></span>`,
+  ).join("");
+  const elbow = guide.depth > 0
+    ? `<span class="cp-gantt-tree-rail is-elbow${guide.lastChild ? " is-last" : ""}" style="--cp-tree-color:${wbsLevelColor(wbs, guide.depth - 1)}" aria-hidden="true"></span>`
+    : "";
+  return `<span class="cp-gantt-label cp-gantt-tree-label" title="${escapeAttribute(title)}">${rails}${elbow}<span class="cp-gantt-label-text">${escapeHtml(label)}</span></span>`;
 }
 
 function renderGanttRows(
@@ -3248,14 +3397,15 @@ function renderGanttRows(
   t: WorkspaceLabels,
   locale: string,
   scale: GanttScale,
+  treeGuides: readonly WbsTreeGuide[] = [],
 ): string {
-  return rows.map((row) => row.kind === "wbs"
-    ? renderGanttWbsRow(row, presentation, t, locale, scale)
-    : renderGanttActivityRow(row.activity, barById.get(row.activity.id), activityById, presentation, rowHeight, selectedActivityId, t, locale, scale),
-  ).join("");
+  return rows.map((row, index) => {
+    const guide = treeGuides[index] ?? { depth: 0, rails: [], lastChild: true, hasChildren: row.kind === "wbs", collapsed: false };
+    return row.kind === "wbs"
+      ? renderGanttWbsRow(row, presentation, t, locale, scale, guide)
+      : renderGanttActivityRow(row.activity, barById.get(row.activity.id), activityById, presentation, rowHeight, selectedActivityId, t, locale, scale, guide);
+  }).join("");
 }
-
-const WBS_LEVEL_COLORS = ["#3b3bbf", "#ffff00", "#c6ffc6", "#ccf2ff", "#ffd9ec", "#eee0ff"] as const;
 
 function summaryLabelText(field: GanttBarStyle["labelField"], row: WorkspaceWbsGroupRow): string {
   switch (field) {
@@ -3273,6 +3423,7 @@ function renderGanttWbsRow(
   t: WorkspaceLabels,
   locale: string,
   scale: GanttScale,
+  guide: WbsTreeGuide,
 ): string {
   const style = presentation.bars.summary;
   const hasSpan = row.summary.startMs !== null && row.summary.finishMs !== null && row.summary.finishMs >= row.summary.startMs;
@@ -3299,8 +3450,8 @@ function renderGanttWbsRow(
   const bar = geometry
     ? `<div class="cp-gantt-summary-bar is-body-${style.bodyShape} is-pattern-${style.pattern}" data-gantt-summary="derived" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-bar-shape="${style.bodyShape}" data-gantt-bar-pattern="${style.pattern}" style="left:${ganttRound(geometry.leftPercent)}%;width:${ganttRound(geometry.widthPercent)}%;height:${height}px;--cp-bar-body:${style.bodyColor};--cp-bar-border:${style.borderColor}" title="${escapeAttribute(title)}">${caps}${label}</div>`
     : "";
-  const color = WBS_LEVEL_COLORS[Math.min(WBS_LEVEL_COLORS.length - 1, row.depth)] ?? WBS_LEVEL_COLORS[0];
-  return `<div class="cp-gantt-row cp-gantt-group-row" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-depth="${row.depth}" style="--cp-wbs-band:${color}" aria-label="${escapeAttribute(title)}"><span class="cp-gantt-label">${escapeHtml(row.node.localCode)}</span><div class="cp-gantt-track">${bar}</div></div>`;
+  const color = wbsLevelColor(presentation.wbs, row.depth);
+  return `<div class="cp-gantt-row cp-gantt-group-row" data-gantt-wbs-id="${escapeAttribute(row.wbsId)}" data-gantt-depth="${row.depth}" data-wbs-level="${Math.min(6, row.depth + 1)}" style="--cp-wbs-level:${color}" aria-label="${escapeAttribute(title)}">${ganttTreeLabel(guide, presentation.wbs, row.node.localCode, title)}<div class="cp-gantt-track">${bar}</div></div>`;
 }
 
 function renderGanttActivityRow(
@@ -3313,11 +3464,13 @@ function renderGanttActivityRow(
   t: WorkspaceLabels,
   locale: string,
   scale: GanttScale,
+  guide: WbsTreeGuide,
 ): string {
   const selected = activity.id === selectedActivityId;
   const rowTitle = `${activity.id}${activity.name ? " — " + activity.name : ""}`;
+  const label = ganttTreeLabel(guide, presentation.wbs, activity.id, rowTitle);
   if (!bar) {
-    return `<div class="cp-gantt-row cp-gantt-row-empty${selected ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-pressed="${selected ? "true" : "false"}" aria-label="${escapeAttribute(rowTitle)}"><span class="cp-gantt-label">${escapeHtml(activity.id)}</span><div class="cp-gantt-track"></div></div>`;
+    return `<div class="cp-gantt-row cp-gantt-row-empty${selected ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(activity.id)}" tabindex="0" aria-pressed="${selected ? "true" : "false"}" aria-label="${escapeAttribute(rowTitle)}">${label}<div class="cp-gantt-track"></div></div>`;
   }
   const resolved = activityById.get(bar.activityId) ?? activity;
   const facts = activityBarFacts(resolved, bar);
@@ -3372,7 +3525,7 @@ function renderGanttActivityRow(
     top += height + gap;
     return markup;
   }).join("");
-  return `<div class="cp-gantt-row${selected ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(bar.activityId)}" tabindex="0" aria-pressed="${selected ? "true" : "false"}" aria-label="${escapeAttribute(rowTitle)}"><span class="cp-gantt-label">${escapeHtml(bar.activityId)}</span><div class="cp-gantt-track">${layerMarkup}</div></div>`;
+  return `<div class="cp-gantt-row${selected ? " is-selected" : ""}" role="button" data-gantt-activity-id="${escapeAttribute(bar.activityId)}" tabindex="0" aria-pressed="${selected ? "true" : "false"}" aria-label="${escapeAttribute(rowTitle)}" data-wbs-level="${Math.min(6, guide.depth + 1)}">${label}<div class="cp-gantt-track">${layerMarkup}</div></div>`;
 }
 
 

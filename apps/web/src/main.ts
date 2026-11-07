@@ -1061,7 +1061,7 @@ function renderApp(
       if (patch.lineNumbers !== undefined) table.lineNumbers = patch.lineNumbers;
       rememberVisualPreferences({
         density: patch.density ?? visualPreferences.density,
-        presentation: normalizePresentation({ table, bars: patch.bars ?? base.bars }),
+        presentation: normalizePresentation({ ...base, table, bars: patch.bars ?? base.bars }),
       });
       presentationChanged = true;
     }

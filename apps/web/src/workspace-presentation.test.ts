@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   DEFAULT_PRESENTATION,
+  DEFAULT_WBS_LEVEL_COLORS,
   activityBarFacts,
   barKindMatchesFilter,
   barLabelText,
@@ -13,6 +14,7 @@ import {
   presentationDataAvailability,
   presentationFontFamily,
   selectPrimaryBarKind,
+  wbsLevelColor,
   type GanttBarFacts,
 } from "./workspace-presentation.js";
 import type { WorkspaceActivityRow } from "./workspace-model.js";
@@ -54,6 +56,38 @@ test("normalisation keeps valid presentation values and clamps invalid ones", ()
 test("a fully invalid presentation falls back to the documented defaults", () => {
   assert.deepEqual(normalizePresentation(null), DEFAULT_PRESENTATION);
   assert.deepEqual(normalizePresentation({ table: 4, bars: "x" }), DEFAULT_PRESENTATION);
+});
+
+test("timescale and WBS level colours normalise and persist with the layout", () => {
+  const normalized = normalizePresentation({
+    timescale: {
+      lines: 3,
+      dateFormat: "ordinal",
+      type: "week-of-year",
+      interval: "week-day",
+      ordinalStart: "2026-01-05",
+      ordinalInterval: "day",
+      fontSize: 99,
+      textColor: "#ABC",
+      backgroundColor: "not-a-colour",
+    },
+    wbs: { levelColors: ["#111111", "bad", "#333333"] },
+  });
+  assert.equal(normalized.timescale.lines, 3);
+  assert.equal(normalized.timescale.dateFormat, "ordinal");
+  assert.equal(normalized.timescale.type, "week-of-year");
+  assert.equal(normalized.timescale.interval, "week-day");
+  assert.equal(normalized.timescale.ordinalStart, "2026-01-05");
+  assert.equal(normalized.timescale.ordinalInterval, "day");
+  assert.equal(normalized.timescale.fontSize, 16);
+  assert.equal(normalized.timescale.textColor, "#aabbcc");
+  assert.equal(normalized.timescale.backgroundColor, DEFAULT_PRESENTATION.timescale.backgroundColor);
+  assert.equal(normalized.wbs.levelColors.length, 6);
+  assert.equal(normalized.wbs.levelColors[0], "#111111");
+  assert.equal(normalized.wbs.levelColors[1], DEFAULT_WBS_LEVEL_COLORS[1]);
+  assert.equal(normalized.wbs.levelColors[2], "#333333");
+  assert.equal(wbsLevelColor(normalized.wbs, 99), DEFAULT_WBS_LEVEL_COLORS[5]);
+  assert.equal(normalizePresentation({ timescale: { ordinalStart: "05/01/2026" } }).timescale.ordinalStart, null);
 });
 
 test("each bar style is independent and does not share mutable defaults", () => {
