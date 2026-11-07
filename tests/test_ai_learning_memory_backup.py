@@ -172,7 +172,7 @@ def test_encrypted_postgres_backup_verifies_and_restores_into_empty_database(tmp
     source_dsn = _dsn_for_database_and_schema(base_dsn, urlsplit(base_dsn).path.lstrip("/"), schema)
     # The dump includes the isolated schema itself; the restore target is a
     # pristine database and must not contain that schema in advance.
-    target_dsn = _dsn_for_database_and_schema(base_dsn, target_database, "public")
+    target_dsn = _dsn_for_database_and_schema(base_dsn, target_database, schema)
     record_id = f"backup-lesson-{suffix}"
     user_id = f"backup-user-{suffix}"
     tenant_id = f"backup-tenant-{suffix}"
