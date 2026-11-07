@@ -16,7 +16,7 @@ REGISTRY_VERSION = "1.0.0"
 EXPECTED_SOURCE_COUNT = 17
 MAX_REGISTRY_BYTES = 1_048_576
 _INGESTION_USE = "persistent_full_text_ingestion"
-_SOURCE_ID_PATTERN = re.compile(r"^[A-Z0-9]+(?:-[A-Z0-9]+)*$")
+_SOURCE_ID_PATTERN = re.compile(r"^[A-Z0-9]+(?:[.-][A-Z0-9]+)*$")
 _DOMAIN_LABEL_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 _FORBIDDEN_BODY_KEYS = {
     "body",
