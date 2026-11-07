@@ -594,7 +594,7 @@ def verify_learning_memory_backup(
         assert decrypt_process.stdout is not None
         try:
             listing_process = subprocess.Popen(
-                ["pg_restore", "--list", "-"],
+                ["pg_restore", "--list"],
                 stdin=decrypt_process.stdout,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
