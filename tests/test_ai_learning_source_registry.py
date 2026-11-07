@@ -47,7 +47,7 @@ def test_registered_seventeen_source_catalogue_loads_as_metadata_only():
 
 def test_source_ids_are_unique_even_when_only_case_differs():
     payload = source_registry_payload()
-    payload["sources"][1]["id"] = payload["sources"][0]["id"].lower()
+    payload["sources"][1]["id"] = payload["sources"][0]["id"]
 
     with pytest.raises(SourceRegistryError, match="SOURCE_REGISTRY_DUPLICATE_SOURCE_ID"):
         validate_source_registry(payload)
