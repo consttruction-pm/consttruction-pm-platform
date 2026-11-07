@@ -28,12 +28,28 @@ def test_planner_can_write_and_schedule_but_not_admin() -> None:
     assert not policy.is_allowed(planner, Permission.PROJECT_ADMIN)
 
 
-def test_project_admin_has_all_project_permissions() -> None:
+def test_project_admin_has_all_project_permissions_but_not_learning_grants() -> None:
     policy = default_project_policy()
     admin = AuthorizationContext("tenant-1", "project-1", "user-1", frozenset({"project_admin"}))
+    learning_permissions = {
+        Permission.AI_LEARNING_USER_READ,
+        Permission.AI_LEARNING_USER_WRITE,
+        Permission.AI_LEARNING_PROJECT_READ,
+        Permission.AI_LEARNING_PROJECT_WRITE,
+        Permission.AI_LEARNING_TENANT_READ,
+        Permission.AI_LEARNING_TENANT_WRITE,
+        Permission.AI_LEARNING_GENERAL_READ,
+        Permission.AI_LEARNING_GENERAL_CANDIDATE_CREATE,
+        Permission.AI_LEARNING_GENERAL_VALIDATE,
+        Permission.AI_LEARNING_GENERAL_PUBLISH,
+        Permission.AI_LEARNING_GENERAL_RETIRE,
+    }
 
     for permission in Permission:
-        assert policy.is_allowed(admin, permission)
+        if permission in learning_permissions:
+            assert not policy.is_allowed(admin, permission)
+        else:
+            assert policy.is_allowed(admin, permission)
 
 
 def test_denied_permission_has_stable_error_without_context_leakage() -> None:

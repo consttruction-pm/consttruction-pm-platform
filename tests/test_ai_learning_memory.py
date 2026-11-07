@@ -36,24 +36,49 @@ def record(**overrides):
 
 def test_user_private_learning_is_only_retrievable_by_same_user():
     item = record()
-    assert item.is_retrievable_for(LearningRetrievalScope(user_id="user-1"))
-    assert not item.is_retrievable_for(LearningRetrievalScope(user_id="user-2"))
+    assert item.is_retrievable_for(
+        LearningRetrievalScope(user_id="user-1", user_private_access_granted=True)
+    )
+    assert not item.is_retrievable_for(
+        LearningRetrievalScope(user_id="user-2", user_private_access_granted=True)
+    )
 
 
-def test_project_private_learning_requires_exact_user_tenant_and_project_scope():
+def test_project_private_learning_is_visible_to_authorized_members_in_exact_tenant_project():
     item = record(
         scope=LearningScope.PROJECT_PRIVATE,
         tenant_id="tenant-1",
         project_id="project-1",
     )
     assert item.is_retrievable_for(
-        LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", project_id="project-1")
+        LearningRetrievalScope(
+            user_id="user-1", tenant_id="tenant-1", project_id="project-1",
+            project_private_access_granted=True,
+        )
+    )
+    assert item.is_retrievable_for(
+        LearningRetrievalScope(
+            user_id="user-2", tenant_id="tenant-1", project_id="project-1",
+            project_private_access_granted=True,
+        )
     )
     assert not item.is_retrievable_for(
-        LearningRetrievalScope(user_id="user-1", tenant_id="tenant-1", project_id="project-2")
+        LearningRetrievalScope(
+            user_id="user-1", tenant_id="tenant-1", project_id="project-2",
+            project_private_access_granted=True,
+        )
     )
     assert not item.is_retrievable_for(
-        LearningRetrievalScope(user_id="user-2", tenant_id="tenant-1", project_id="project-1")
+        LearningRetrievalScope(
+            user_id="user-2", tenant_id="tenant-2", project_id="project-1",
+            project_private_access_granted=True,
+        )
+    )
+    assert not item.is_retrievable_for(
+        LearningRetrievalScope(
+            user_id="user-2", tenant_id="tenant-1", project_id="project-1",
+            project_private_access_granted=False,
+        )
     )
 
 
@@ -88,7 +113,15 @@ def test_general_candidate_never_enters_general_retrieval():
         owner_user_id=None,
     )
     assert not item.is_general_retrieval_eligible()
-    assert not item.is_retrievable_for(LearningRetrievalScope(user_id="other-user", tenant_id="other-tenant"))
+    assert not item.is_retrievable_for(LearningRetrievalScope(
+        user_id="other-user", tenant_id="other-tenant",
+        general_published_access_granted=True,
+    ))
+    assert item.is_retrievable_for(
+        LearningRetrievalScope(
+            user_id="reviewer", general_candidate_access_granted=True
+        )
+    )
 
 
 def test_published_general_learning_requires_privacy_consent_validation_and_admin_approval():
@@ -115,7 +148,15 @@ def test_published_general_learning_requires_privacy_consent_validation_and_admi
         approved_at=NOW,
     )
     assert published.is_general_retrieval_eligible()
-    assert published.is_retrievable_for(LearningRetrievalScope(user_id="other-user", tenant_id="other-tenant"))
+    assert published.is_retrievable_for(
+        LearningRetrievalScope(
+            user_id="other-user", tenant_id="other-tenant",
+            general_published_access_granted=True,
+        )
+    )
+    assert not published.is_retrievable_for(
+        LearningRetrievalScope(user_id="other-user", tenant_id="other-tenant")
+    )
 
 
 def test_general_learning_rejects_source_scope_identifiers_and_expertise_profile():
@@ -144,3 +185,25 @@ def test_invalid_naive_timestamp_and_missing_evidence_fail_closed():
         record(captured_at=datetime(2026, 10, 23, 12, 0))
     with pytest.raises(AILearningMemoryError, match="AI_LEARNING_EVIDENCE_REQUIRED"):
         record(evidence_refs=())
+
+
+def test_retrieval_scope_access_flags_must_be_explicit_booleans():
+    with pytest.raises(AILearningMemoryError, match="INVALID_AI_LEARNING_SCOPE_USER_PRIVATE_ACCESS_GRANTED"):
+        LearningRetrievalScope(user_id="user-1", user_private_access_granted="yes")
+    with pytest.raises(AILearningMemoryError, match="INVALID_AI_LEARNING_SCOPE_PROJECT_PRIVATE_ACCESS_GRANTED"):
+        LearningRetrievalScope(user_id="user-1", project_private_access_granted=1)
+    with pytest.raises(AILearningMemoryError, match="INVALID_AI_LEARNING_SCOPE_GENERAL_CANDIDATE_ACCESS_GRANTED"):
+        LearningRetrievalScope(user_id="user-1", general_candidate_access_granted=1)
+    with pytest.raises(AILearningMemoryError, match="INVALID_AI_LEARNING_SCOPE_GENERAL_PUBLISHED_ACCESS_GRANTED"):
+        LearningRetrievalScope(user_id="user-1", general_published_access_granted=None)
+
+
+def test_retrieval_scope_defaults_to_deny_for_every_knowledge_domain():
+    scope = LearningRetrievalScope(
+        user_id="user-1", tenant_id="tenant-1", project_id="project-1"
+    )
+    assert scope.user_private_access_granted is False
+    assert scope.project_private_access_granted is False
+    assert scope.tenant_shared_access_granted is False
+    assert scope.general_candidate_access_granted is False
+    assert scope.general_published_access_granted is False
