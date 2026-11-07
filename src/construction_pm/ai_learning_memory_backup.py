@@ -14,6 +14,7 @@ import re
 import stat
 import subprocess
 import sys
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -243,6 +244,22 @@ def _hash_file(path: Path) -> tuple[str, int]:
             size += len(chunk)
     return digest.hexdigest(), size
 
+def _tool_diagnostic(stream, database_url: str) -> str:
+    stream.seek(0)
+    detail = stream.read(4096).decode("utf-8", errors="replace").strip()
+    if not detail:
+        return "no diagnostic output"
+    detail = detail.replace(database_url, "[database URL redacted]")
+    parsed = urlsplit(database_url)
+    if parsed.password:
+        detail = detail.replace(unquote(parsed.password), "[password redacted]")
+    detail = re.sub(
+        r"(?i)(postgres(?:ql)?://[^:/\\s]+:)[^@/\\s]+@",
+        r"\\1[redacted]@",
+        detail,
+    )
+    return " ".join(detail.split())[:600]
+
 
 def _write_manifest(path: Path, payload: dict[str, Any]) -> None:
     temporary = path.with_name(path.name + f".tmp-{uuid.uuid4().hex}")
@@ -306,13 +323,17 @@ def create_learning_memory_backup(
     dump_process = None
     encrypt_process = None
     try:
-        with partial.open("xb") as encrypted_output:
+        with (
+            partial.open("xb") as encrypted_output,
+            tempfile.TemporaryFile() as dump_errors,
+            tempfile.TemporaryFile() as age_errors,
+        ):
             if os.name != "nt":
                 os.chmod(partial, 0o600)
             dump_process = subprocess.Popen(
                 dump_args,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
+                stderr=dump_errors,
                 env=env,
             )
             assert dump_process.stdout is not None
@@ -321,7 +342,7 @@ def create_learning_memory_backup(
                     ["age", "--recipient", age_recipient],
                     stdin=dump_process.stdout,
                     stdout=encrypted_output,
-                    stderr=subprocess.DEVNULL,
+                    stderr=age_errors,
                 )
             finally:
                 dump_process.stdout.close()
@@ -329,10 +350,12 @@ def create_learning_memory_backup(
             dump_status = dump_process.wait()
             encrypted_output.flush()
             os.fsync(encrypted_output.fileno())
-        if dump_status != 0:
-            raise _fail("AI_LEARNING_BACKUP_DATABASE_DUMP_FAILED")
-        if encryption_status != 0 or partial.stat().st_size == 0:
-            raise _fail("AI_LEARNING_BACKUP_ENCRYPTION_FAILED")
+            if dump_status != 0:
+                detail = _tool_diagnostic(dump_errors, database_url)
+                raise _fail(f"AI_LEARNING_BACKUP_DATABASE_DUMP_FAILED:{detail}")
+            if encryption_status != 0 or partial.stat().st_size == 0:
+                detail = _tool_diagnostic(age_errors, database_url)
+                raise _fail(f"AI_LEARNING_BACKUP_ENCRYPTION_FAILED:{detail}")
         os.replace(partial, archive)
         if os.name != "nt":
             os.chmod(archive, 0o600)
