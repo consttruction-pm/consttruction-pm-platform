@@ -187,3 +187,16 @@ def test_load_source_registry_rejects_malformed_and_oversized_files(tmp_path):
     oversized.write_bytes(b" " * (1_048_576 + 1))
     with pytest.raises(SourceRegistryError, match="SOURCE_REGISTRY_FILE_SIZE_INVALID"):
         load_source_registry(oversized)
+
+def test_load_source_registry_rejects_duplicate_json_object_keys(tmp_path):
+    duplicate = tmp_path / "duplicate.json"
+    duplicate.write_text(
+        '{"registry_id":"cubi.project_management.sources",'
+        '"registry_id":"attacker-controlled"}',
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        SourceRegistryError,
+        match="SOURCE_REGISTRY_JSON_DUPLICATE_KEY",
+    ):
+        load_source_registry(duplicate)
