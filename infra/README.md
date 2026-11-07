@@ -29,3 +29,42 @@ For date-based schedules that request resource leveling, the production composit
 The composition builds `build_persisted_resource_leveling_input_resolver` automatically when all five are present. Partial configuration is rejected. A custom `leveling_input_resolver` may be supplied instead, but it cannot be combined with the repository arguments. Missing resolver configuration does not silently disable leveling; a leveling-enabled query fails closed.
 
 The resolver reads the exact snapshot's tenant/project/revision through the authenticated resource read API, captures assignment and time-phased demand records, derives seed dates/floats through the Shared Scheduling Core, resolves each resource calendar by the exact ID+version including stored exceptions/work-hour rules, and returns a frozen input with snapshot, calculation, raw-facts, and calendar-manifest hashes. Those identities are included in the calculation run identity. Do not provide a permissive calendar-by-ID fallback.
+
+## Durable AI learning-memory PostgreSQL runtime
+
+The learning-memory repository has SQLite and PostgreSQL adapters. Production must inject a durable PostgreSQL adapter into the existing composition seam; do not use the Preview SQLite database for customer knowledge.
+
+Use `construction_pm.ai_learning_memory_runtime.PostgresAILearningMemoryRuntime` as the application-lifetime owner:
+
+```python
+from construction_pm.ai_learning_memory_runtime import (
+    PostgresAILearningMemoryRuntime,
+)
+from construction_pm.http.production_composition import (
+    build_project_lifecycle_wsgi_app,
+)
+
+memory_runtime = PostgresAILearningMemoryRuntime.open_from_environment()
+if memory_runtime is None:
+    raise RuntimeError("AI_LEARNING_MEMORY_DATABASE_NOT_CONFIGURED")
+
+try:
+    app = build_project_lifecycle_wsgi_app(
+        # existing authenticated lifecycle, schedule and policy dependencies
+        ai_learning_memory_repository=memory_runtime.repository,
+        # ...
+    )
+    # Serve the app with the existing production server.
+finally:
+    memory_runtime.close()
+```
+
+Server-only configuration:
+- `CUBI_AI_LEARNING_MEMORY_DB_BACKEND=postgresql`
+- `CUBI_AI_LEARNING_MEMORY_DATABASE_URL=postgresql://...`
+- Remote PostgreSQL URLs must carry `sslmode=require`, `verify-ca` or `verify-full`.
+- `CUBI_AI_LEARNING_MEMORY_CONNECT_TIMEOUT_SECONDS` is optional (1–30; default 10).
+
+When unset/disabled, the factory returns `None`; it never silently falls back to SQLite. Do not log the DSN. The runtime applies checked migrations, verifies the database is writable, then leaves the connection idle for application use. The deployment must close the runtime on graceful shutdown.
+
+This repository configuration does not provision PostgreSQL or set provider backups. Production still requires a durable managed database, a least-privilege credential, encrypted automated backups, restore drills, monitoring and an explicit policy mapping for learning-memory grants.
