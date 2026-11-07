@@ -98,8 +98,11 @@ directory. Connection credentials are passed to libpq through the child
 process environment, not command-line arguments, and tool failures never print
 the DSN or raw subprocess output.
 
-The backup DB account should be a dedicated read-only role with CONNECT, schema
-USAGE and SELECT on the three memory tables. Remote URLs should use
+Create the schema owned by the migration role, then grant the runtime and
+backup roles only the rights they need. The backup DB account should be a
+dedicated read-only role with CONNECT, schema USAGE and SELECT on the three
+memory tables. The restore account needs CREATE on a new empty target database;
+the dump recreates the isolated memory schema. Remote URLs should use
 `sslmode=verify-full` and the provider CA certificate where available. Use a
 dedicated persistent, access-controlled mount for the destination; an
 ephemeral application filesystem or the Preview `.preview` directory is not
@@ -114,10 +117,10 @@ account, and mount durable backup storage at
 `/etc/cubi/learning-memory-backup.env` (owner-readable only, mode 0600):
 
 ```sh
-CUBI_AI_LEARNING_MEMORY_BACKUP_DATABASE_URL=postgresql://backup_role:REDACTED@db.example/production?sslmode=verify-full&sslrootcert=/etc/cubi/db-ca.pem
+CUBI_AI_LEARNING_MEMORY_BACKUP_DATABASE_URL=postgresql://backup_role:REDACTED@db.example/production?sslmode=verify-full&sslrootcert=/etc/cubi/db-ca.pem&options=-csearch_path=cubi_ai_memory
 CUBI_AI_LEARNING_MEMORY_BACKUP_AGE_RECIPIENT=age1REPLACE_WITH_PUBLIC_RECIPIENT
 CUBI_AI_LEARNING_MEMORY_BACKUP_DIR=/mnt/cubi-encrypted-backups
-CUBI_AI_LEARNING_MEMORY_BACKUP_SCHEMA=public
+CUBI_AI_LEARNING_MEMORY_BACKUP_SCHEMA=cubi_ai_memory
 ```
 
 The DSN and public recipient above are placeholders, not live credentials.
@@ -157,7 +160,8 @@ python -m construction_pm.ai_learning_memory_backup restore /mnt/cubi-encrypted-
 Run restore drills against a disposable database, never against the live
 application database. After restore, grant the application role only the
 required schema USAGE and table SELECT/INSERT privileges; do not grant
-UPDATE/DELETE. The restore role needs CREATE on the target schema.
+UPDATE/DELETE. The restore role needs CREATE on the target database (the archive creates the
+dedicated schema).
 
 ### Daily schedule template and limits
 
