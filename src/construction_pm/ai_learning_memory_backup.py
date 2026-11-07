@@ -319,6 +319,8 @@ def _sign_manifest(manifest: Path, private_key_file: str | Path) -> None:
 def _verify_manifest_signature(manifest: Path, public_key_file: str | Path) -> None:
     public_key = _signing_key_file(public_key_file, private=False)
     signature = _signature_path(manifest)
+    if manifest.is_symlink() or not manifest.is_file() or manifest.stat().st_size > 16 * 1024:
+        raise _fail("AI_LEARNING_BACKUP_MANIFEST_INVALID")
     if signature.is_symlink() or not signature.is_file() or signature.stat().st_size > 4096:
         raise _fail("AI_LEARNING_BACKUP_MANIFEST_SIGNATURE_MISSING")
     try:
