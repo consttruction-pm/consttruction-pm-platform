@@ -175,7 +175,6 @@ def _snapshot_source(database_url: str, schema: str):
             if not exists:
                 raise _fail("AI_LEARNING_BACKUP_SCHEMA_INCOMPLETE")
 
-        migration_table = f"{schema}.ai_learning_memory_schema_migrations"
         migration_version = connection.execute(
             f'SELECT COALESCE(MAX(version), 0) FROM "{schema}".'
             '"ai_learning_memory_schema_migrations"'
@@ -253,11 +252,6 @@ def _tool_diagnostic(stream, database_url: str) -> str:
     parsed = urlsplit(database_url)
     if parsed.password:
         detail = detail.replace(unquote(parsed.password), "[password redacted]")
-    detail = re.sub(
-        r"(?i)(postgres(?:ql)?://[^:/\\s]+:)[^@/\\s]+@",
-        r"\\1[redacted]@",
-        detail,
-    )
     return " ".join(detail.split())[:600]
 
 
