@@ -666,35 +666,45 @@ def _restore_archive(
 ) -> None:
     decrypt_process = None
     restore_process = None
+    database_url = (
+        f"postgresql://{target_env.get('PGUSER', '')}:"
+        f"{target_env.get('PGPASSWORD', '')}@{target_env.get('PGHOST', '')}:"
+        f"{target_env.get('PGPORT', '')}/{target_env.get('PGDATABASE', '')}"
+    )
     try:
-        decrypt_process = subprocess.Popen(
-            ["age", "--decrypt", "--identity", str(identity), str(archive)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-        )
-        assert decrypt_process.stdout is not None
-        try:
-            restore_process = subprocess.Popen(
-                [
-                    "pg_restore",
-                    "--dbname",
-                    target_env["PGDATABASE"],
-                    "--single-transaction",
-                    "--exit-on-error",
-                    "--no-owner",
-                    "--no-acl",
-                ],
-                stdin=decrypt_process.stdout,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                env=target_env,
+        with tempfile.TemporaryFile() as decrypt_errors, tempfile.TemporaryFile() as restore_errors:
+            decrypt_process = subprocess.Popen(
+                ["age", "--decrypt", "--identity", str(identity), str(archive)],
+                stdout=subprocess.PIPE,
+                stderr=decrypt_errors,
             )
-        finally:
-            decrypt_process.stdout.close()
-        restore_status = restore_process.wait()
-        decrypt_status = decrypt_process.wait()
-        if decrypt_status != 0 or restore_status != 0:
-            raise _fail("AI_LEARNING_RESTORE_COMMAND_FAILED")
+            assert decrypt_process.stdout is not None
+            try:
+                restore_process = subprocess.Popen(
+                    [
+                        "pg_restore",
+                        "--dbname",
+                        target_env["PGDATABASE"],
+                        "--single-transaction",
+                        "--exit-on-error",
+                        "--no-owner",
+                        "--no-acl",
+                    ],
+                    stdin=decrypt_process.stdout,
+                    stdout=subprocess.DEVNULL,
+                    stderr=restore_errors,
+                    env=target_env,
+                )
+            finally:
+                decrypt_process.stdout.close()
+            restore_status = restore_process.wait()
+            decrypt_status = decrypt_process.wait()
+            if decrypt_status != 0:
+                detail = _tool_diagnostic(decrypt_errors, database_url)
+                raise _fail(f"AI_LEARNING_RESTORE_DECRYPT_FAILED:{detail}")
+            if restore_status != 0:
+                detail = _tool_diagnostic(restore_errors, database_url)
+                raise _fail(f"AI_LEARNING_RESTORE_DATABASE_FAILED:{detail}")
     except LearningMemoryBackupError:
         raise
     except (OSError, subprocess.SubprocessError):
