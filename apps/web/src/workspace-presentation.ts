@@ -68,48 +68,9 @@ export type TablePresentation = {
 };
 
 export type GanttBarStyleSet = Record<GanttBarKind, GanttBarStyle>;
-
-export const GANTT_TIMESCALE_LINES = [2, 3] as const;
-export type GanttTimescaleLines = (typeof GANTT_TIMESCALE_LINES)[number];
-
-export const GANTT_TIMESCALE_FORMATS = ["primary", "ordinal"] as const;
-export type GanttTimescaleFormat = (typeof GANTT_TIMESCALE_FORMATS)[number];
-
-export const GANTT_TIMESCALE_TYPES = ["calendar", "week-of-year"] as const;
-export type GanttTimescaleType = (typeof GANTT_TIMESCALE_TYPES)[number];
-
-/** Date intervals documented for the Timescale dialog that this runtime can render. */
-export const GANTT_TIMESCALE_INTERVALS = ["year-quarter", "year-month", "quarter-month", "month-week", "week-day"] as const;
-export type GanttTimescaleInterval = (typeof GANTT_TIMESCALE_INTERVALS)[number];
-
-export const GANTT_ORDINAL_INTERVALS = ["day", "week", "month", "quarter", "year"] as const;
-export type GanttOrdinalInterval = (typeof GANTT_ORDINAL_INTERVALS)[number];
-
-export type GanttTimescale = {
-  /** Number of header rows: two (period plus ticks) or three (year, period, ticks). */
-  lines: GanttTimescaleLines;
-  dateFormat: GanttTimescaleFormat;
-  type: GanttTimescaleType;
-  interval: GanttTimescaleInterval;
-  /** ISO date the ordinal numbering starts from; null uses the chart's first date. */
-  ordinalStart: string | null;
-  ordinalInterval: GanttOrdinalInterval;
-  /** Timescale header font size and colours; the grid itself is unchanged. */
-  fontSize: number;
-  textColor: string;
-  backgroundColor: string;
-};
-
-export type WbsPresentation = {
-  /** One colour per WBS depth, level 1 first. The last entry applies to deeper levels. */
-  levelColors: string[];
-};
-
 export type WorkspacePresentation = {
   table: TablePresentation;
   bars: GanttBarStyleSet;
-  timescale: GanttTimescale;
-  wbs: WbsPresentation;
   /** Saved activity filters and the currently applied filter. */
   filters: ActivityFilterState;
 };
@@ -135,34 +96,6 @@ const DEFAULT_TABLE: TablePresentation = {
   lineNumbers: false,
 };
 
-/**
- * Reference-derived WBS level palette. The hierarchy column uses these colours
- * for the vertical rails and a light tint; activity status, selection and
- * critical-path colours stay independent from them.
- */
-export const DEFAULT_WBS_LEVEL_COLORS = [
-  "#3b3bbf",
-  "#c9a227",
-  "#4f9b57",
-  "#2f8fae",
-  "#b0558a",
-  "#7a63bd",
-] as const;
-
-export const MAX_WBS_LEVELS = DEFAULT_WBS_LEVEL_COLORS.length;
-
-const DEFAULT_TIMESCALE: GanttTimescale = {
-  lines: 2,
-  dateFormat: "primary",
-  type: "calendar",
-  interval: "month-week",
-  ordinalStart: null,
-  ordinalInterval: "week",
-  fontSize: 11,
-  textColor: "#17324d",
-  backgroundColor: "#e3e9f0",
-};
-
 function bar(style: Partial<GanttBarStyle> & Pick<GanttBarStyle, "bodyColor">): GanttBarStyle {
   return {
     visible: true,
@@ -185,8 +118,6 @@ function bar(style: Partial<GanttBarStyle> & Pick<GanttBarStyle, "bodyColor">): 
 export const DEFAULT_PRESENTATION: WorkspacePresentation = {
   table: { ...DEFAULT_TABLE },
   filters: EMPTY_ACTIVITY_FILTERS,
-  timescale: { ...DEFAULT_TIMESCALE },
-  wbs: { levelColors: [...DEFAULT_WBS_LEVEL_COLORS] },
   bars: {
     // The default palette follows the classic desktop scheduling worksurface:
     // light outlined work bars, a dark solid summary, a black milestone diamond
@@ -251,43 +182,6 @@ export function normalizeBarStyle(value: unknown, fallback: GanttBarStyle): Gant
   };
 }
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-export function isIsoDate(value: unknown): value is string {
-  return typeof value === "string" && ISO_DATE.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`));
-}
-
-export function normalizeTimescale(value: unknown, fallback: GanttTimescale = DEFAULT_TIMESCALE): GanttTimescale {
-  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  return {
-    lines: input.lines === 3 ? 3 : fallback.lines,
-    dateFormat: oneOf(GANTT_TIMESCALE_FORMATS, input.dateFormat, fallback.dateFormat),
-    type: oneOf(GANTT_TIMESCALE_TYPES, input.type, fallback.type),
-    interval: oneOf(GANTT_TIMESCALE_INTERVALS, input.interval, fallback.interval),
-    ordinalStart: isIsoDate(input.ordinalStart) ? input.ordinalStart : null,
-    ordinalInterval: oneOf(GANTT_ORDINAL_INTERVALS, input.ordinalInterval, fallback.ordinalInterval),
-    fontSize: clampInteger(input.fontSize, 8, 16, fallback.fontSize),
-    textColor: color(input.textColor, fallback.textColor),
-    backgroundColor: color(input.backgroundColor, fallback.backgroundColor),
-  };
-}
-
-export function normalizeWbs(value: unknown, fallback: WbsPresentation = DEFAULT_PRESENTATION.wbs): WbsPresentation {
-  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const source = Array.isArray(input.levelColors) ? input.levelColors : [];
-  return {
-    levelColors: Array.from({ length: MAX_WBS_LEVELS }, (_, index) =>
-      color(source[index], fallback.levelColors[index] ?? DEFAULT_WBS_LEVEL_COLORS[Math.min(index, MAX_WBS_LEVELS - 1)]),
-    ),
-  };
-}
-
-/** Colour for a zero-based WBS depth; deeper levels reuse the last colour. */
-export function wbsLevelColor(wbs: WbsPresentation, depth: number): string {
-  const index = Math.max(0, Math.min(wbs.levelColors.length - 1, Math.round(depth)));
-  return wbs.levelColors[index] ?? DEFAULT_WBS_LEVEL_COLORS[MAX_WBS_LEVELS - 1];
-}
-
 export function normalizePresentation(value: unknown): WorkspacePresentation {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const tableInput = input.table && typeof input.table === "object" ? input.table as Record<string, unknown> : {};
@@ -308,8 +202,6 @@ export function normalizePresentation(value: unknown): WorkspacePresentation {
       lineNumbers: boolean(tableInput.lineNumbers, DEFAULT_TABLE.lineNumbers),
     },
     bars,
-    timescale: normalizeTimescale(input.timescale),
-    wbs: normalizeWbs(input.wbs),
     filters: normalizeActivityFilterState(input.filters),
   };
 }

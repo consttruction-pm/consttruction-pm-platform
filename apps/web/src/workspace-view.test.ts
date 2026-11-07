@@ -1185,7 +1185,7 @@ test("interactive Activity Grid exposes grid row selection semantics", () => {
   assert.match(container.innerHTML, /<thead><tr role="row">/);
   assert.match(container.innerHTML, /<th role="columnheader" scope="col"/);
   assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" data-activity-kind="task" tabindex="0" aria-selected="true" aria-label="A-1"/);
-  assert.match(container.innerHTML, /<td role="gridcell"[^>]*><span class="cp-p6-tree-guides"[^>]*><span class="cp-p6-activity-cell">.*A-1<\/span><\/span><\/td>/);
+  assert.match(container.innerHTML, /<td role="gridcell"[^>]*><span class="cp-p6-activity-cell">.*A-1<\/span><\/td>/);
 });
 
 
@@ -1305,7 +1305,7 @@ test("Activity Grid renders P6 alignment, pinned, and frozen presentation", () =
   assert.match(container.innerHTML, /data-column-pinned="true"/);
   assert.match(container.innerHTML, /data-column-frozen="true"/);
   assert.match(container.innerHTML, /class="cp-p6-column is-pinned is-frozen"/);
-  assert.match(container.innerHTML, /style="text-align:center;width:140px;--cp-wbs-level:#[0-9a-f]{6};--cp-p6-sticky-offset:0px"/);
+  assert.match(container.innerHTML, /style="text-align:center;width:140px;--cp-p6-sticky-offset:0px"/);
 });
 
 
@@ -1407,13 +1407,13 @@ test("activity grid date cells follow the selected display calendar without chan
     container as unknown as HTMLElement,
     { ...base, columns: [dateColumn], activities: [row] },
   );
-  assert.match(container.innerHTML, /data-column-id="start"[^>]*>(?:<span class="cp-p6-tree-guides"[^>]*>)?2026-10-07/);
+  assert.match(container.innerHTML, /data-column-id="start"[^>]*>2026-10-07<\/td>/);
 
   renderMainWorkspace(
     container as unknown as HTMLElement,
     { ...base, calendarMode: "jalali", columns: [dateColumn], activities: [row] },
   );
-  assert.match(container.innerHTML, /data-column-id="start"[^>]*>(?:<span class="cp-p6-tree-guides"[^>]*>)?۱۴۰۵\/۰۷\/۱۵/);
+  assert.match(container.innerHTML, /data-column-id="start"[^>]*>۱۴۰۵\/۰۷\/۱۵<\/td>/);
   assert.doesNotMatch(container.innerHTML, />2026-10-07<\/td>/);
 });
 
@@ -2090,19 +2090,14 @@ test("activity grid renders colored WBS bands with expand controls and matching 
   renderMainWorkspace(container as unknown as HTMLElement, wbsActivityState());
   const html = container.innerHTML;
 
-  assert.match(html, /<tr role="row" data-wbs-row="W-ROOT" data-wbs-level="1" data-wbs-depth="0" data-wbs-collapsed="false" tabindex="0" aria-label="1 Project" aria-expanded="true" class="cp-p6-wbs-band cp-p6-tree-band" style="--cp-wbs-level:#3b3bbf"/);
-  assert.match(html, /data-wbs-row="W-A1" data-wbs-level="3" data-wbs-depth="2"[^>]*style="--cp-wbs-level:#4f9b57"/);
+  assert.match(html, /<tr role="row" data-wbs-row="W-ROOT" data-wbs-level="1" data-wbs-depth="0" data-wbs-collapsed="false" tabindex="0" aria-label="1 Project" aria-expanded="true" class="cp-p6-wbs-band" style="--cp-wbs-band:#3b3bbf"/);
+  assert.match(html, /data-wbs-row="W-A1" data-wbs-level="3" data-wbs-depth="2"[^>]*style="--cp-wbs-band:#c6ffc6"/);
   assert.match(html, /data-wbs-toggle="W-ROOT" aria-expanded="true"[^>]*>−</);
   assert.match(html, /data-wbs-toggle="W-A1" aria-expanded="true"[^>]*>−</);
   assert.match(html, /class="cp-p6-wbs-code">1\.1\.1</);
   assert.match(html, /data-rollup="display" title="Derived for display from 2 persisted child activities"[^>]*>4<\/td>/);
   assert.match(html, /data-activity-id="A-1"[^>]*data-wbs-depth="3"/);
-  // The hierarchy is drawn as guide rails inside the WBS/Name cell; the level
-  // colour is confined to that cell instead of tinting the whole row.
-  assert.match(html, /class="cp-p6-tree-guides" data-tree-depth="3" style="--cp-wbs-level:#4f9b57"/);
-  assert.match(html, /class="cp-p6-tree-rail is-continued" data-tree-level="2" style="--cp-tree-color:#c9a227"/);
-  assert.match(html, /class="cp-p6-tree-elbow is-branch" style="--cp-tree-color:#4f9b57"/);
-  assert.match(html, /class="cp-p6-tree-elbow is-last" style="--cp-tree-color:#4f9b57"/);
+  assert.match(html, /class="cp-p6-indent" style="width:36px"/);
   assert.match(html, /data-wbs-expand-all/);
   assert.match(html, /data-wbs-collapse-all/);
   assert.match(html, /data-wbs-collapse-to/);

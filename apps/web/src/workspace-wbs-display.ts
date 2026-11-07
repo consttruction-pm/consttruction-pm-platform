@@ -47,54 +47,6 @@ export type WorkspaceActivityDisplayRow = {
 
 export type WorkspaceDisplayRow = WorkspaceWbsGroupRow | WorkspaceActivityDisplayRow;
 
-export type WbsTreeGuide = {
-  depth: number;
-  /**
-   * One entry per ancestor level. `true` means that ancestor still has a
-   * following sibling, so its vertical rail must continue through this row.
-   * `false` means the rail stops at the ancestor's last descendant.
-   */
-  rails: readonly boolean[];
-  /** This row is the last child of its parent in the visible tree. */
-  lastChild: boolean;
-  hasChildren: boolean;
-  collapsed: boolean;
-};
-
-/**
- * Derives tree drawing guides from the already ordered display rows. It only
- * describes parent/child/sibling relationships in the visible list; it never
- * changes row order or grouping.
- */
-export function buildWbsTreeGuides(rows: readonly WorkspaceDisplayRow[]): readonly WbsTreeGuide[] {
-  const depth = rows.map((row) => Math.max(0, Math.round(row.depth)));
-  const last = depth.map((rowDepth, index) => {
-    for (let next = index + 1; next < rows.length; next += 1) {
-      if (depth[next] < rowDepth) return true;
-      if (depth[next] === rowDepth) return false;
-    }
-    return true;
-  });
-  const lastAtDepth: number[] = [];
-  return rows.map((row, index) => {
-    const rowDepth = depth[index];
-    const rails: boolean[] = [];
-    for (let level = 0; level < rowDepth; level += 1) {
-      const ancestor = lastAtDepth[level];
-      rails.push(ancestor !== undefined && !last[ancestor]);
-    }
-    lastAtDepth.length = rowDepth + 1;
-    lastAtDepth[rowDepth] = index;
-    return Object.freeze({
-      depth: rowDepth,
-      rails: Object.freeze(rails),
-      lastChild: last[index],
-      hasChildren: row.kind === "wbs" ? row.hasChildren : false,
-      collapsed: row.kind === "wbs" ? row.collapsed : false,
-    });
-  });
-}
-
 const COLLAPSE_STORAGE_KEY = "cubi:workspace-wbs-collapse";
 let collapseStore: Record<string, string[]> | null = null;
 

@@ -26,17 +26,10 @@ test("startup, progress, and preview-only empty states have visible styling", ()
   assert.match(sourceCss, /prefers-reduced-motion:reduce\)\{\.cp-startup-progress span\{animation:none/);
 });
 
-test("WBS level colour stays in the hierarchy cell and its guide rails", () => {
-  const bandRule = /\.cp-p6 #cp-activity-grid tbody tr\.cp-p6-tree-band > td \{([^}]*)\}/.exec(sourceCss);
-  assert.ok(bandRule, "the WBS row rule must still cover every cell");
-  assert.match(bandRule[1], /background-color: #fff/);
-  assert.doesNotMatch(sourceCss, /--cp-wbs-band/);
-  const treeCellRule = /tr\.cp-p6-tree-band > td\.cp-p6-tree-cell \{([^}]*)\}/.exec(sourceCss);
-  assert.ok(treeCellRule, "the hierarchy cell must carry the level tint");
-  assert.match(treeCellRule[1], /color-mix\(in srgb, var\(--cp-wbs-level/);
-  assert.match(sourceCss, /\.cp-p6 \.cp-p6-tree-rail::before,[\s\S]*?background: var\(--cp-tree-color/);
-  assert.match(sourceCss, /\.cp-p6 \.cp-p6-tree-elbow::before \{ bottom: auto; height: 50%/);
-  assert.match(sourceCss, /\.cp-p6 \.cp-p6-tree-elbow\.is-branch::before/);
+test("WBS band fill reaches every cell including the logic and action columns", () => {
+  const bandRule = /\.cp-p6 #cp-activity-grid tbody tr\.cp-p6-wbs-band > td \{([^}]*)\}/.exec(sourceCss);
+  assert.ok(bandRule, "the WBS band rule must target every td in the band row");
+  assert.match(bandRule[1], /background-color: var\(--cp-wbs-band/);
   assert.doesNotMatch(sourceCss, /tr\.cp-p6-wbs-band > td\.cp-p6-wbs-cell-td/);
   assert.doesNotMatch(sourceCss, /tr\.cp-p6-wbs-band:hover > td\.cp-p6-wbs-cell-td/);
 });

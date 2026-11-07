@@ -88,56 +88,6 @@ test("Table Font and Row dialog exposes the real controls and persisted values",
   assert.doesNotMatch(html, /Primavera|Oracle|P6/);
 });
 
-test("Timescale dialog persists the header format and derives the tick scale", () => {
-  const patch = readLayoutPatch(form({
-    "timescale.interval": "week-day",
-    "timescale.lines": "3",
-    "timescale.dateFormat": "ordinal",
-    "timescale.type": "week-of-year",
-    "timescale.ordinalStart": "2026-01-05",
-    "timescale.ordinalInterval": "day",
-    "timescale.fontSize": "13",
-    "timescale.textColor": "#102030",
-    "timescale.backgroundColor": "#e0e6ee",
-  }), DEFAULT_PRESENTATION);
-  assert.equal(patch.ganttScale, "day");
-  const timescale = patch.presentation?.timescale;
-  assert.equal(timescale?.interval, "week-day");
-  assert.equal(timescale?.lines, 3);
-  assert.equal(timescale?.dateFormat, "ordinal");
-  assert.equal(timescale?.type, "week-of-year");
-  assert.equal(timescale?.ordinalStart, "2026-01-05");
-  assert.equal(timescale?.ordinalInterval, "day");
-  assert.equal(timescale?.fontSize, 13);
-  assert.equal(timescale?.textColor, "#102030");
-  assert.equal(timescale?.backgroundColor, "#e0e6ee");
-});
-
-test("WBS level colours are read per level and kept independent", () => {
-  const patch = readLayoutPatch(form({
-    "wbs.color.0": "#112233",
-    "wbs.color.2": "#445566",
-  }), DEFAULT_PRESENTATION);
-  const colors = patch.presentation?.wbs.levelColors ?? [];
-  assert.equal(colors[0], "#112233");
-  assert.equal(colors[1], DEFAULT_PRESENTATION.wbs.levelColors[1]);
-  assert.equal(colors[2], "#445566");
-  assert.equal(patch.presentation?.table.rowHeight, DEFAULT_PRESENTATION.table.rowHeight);
-});
-
-test("Timescale and User Preferences dialogs expose the persisted controls", () => {
-  const html = renderLayoutDialogs(dialogOptions());
-  assert.match(html, /name="timescale.interval"[\s\S]*?value="month-week" selected/);
-  assert.match(html, /name="timescale.lines"/);
-  assert.match(html, /name="timescale.dateFormat"/);
-  assert.match(html, /name="timescale.ordinalInterval"/);
-  assert.match(html, /name="timescale.textColor" value="#17324d"/);
-  assert.match(html, /name="wbs.color.0" value="#3b3bbf"/);
-  assert.match(html, /name="wbs.color.5" value="#7a63bd"/);
-  assert.match(html, /Fiscal year, shift and hour intervals are not rendered/);
-});
-
-
 test("Bar Styles exposes an independent editor for every bar kind", () => {
   const html = renderLayoutDialogs(dialogOptions());
   for (const kind of ["task", "critical", "summary", "milestone", "progress", "actual", "baseline"]) {

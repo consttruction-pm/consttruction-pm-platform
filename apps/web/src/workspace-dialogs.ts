@@ -14,24 +14,17 @@ import {
   GANTT_BAR_SHAPES,
   GANTT_LABEL_FIELDS,
   GANTT_LABEL_POSITIONS,
-  GANTT_ORDINAL_INTERVALS,
-  GANTT_TIMESCALE_INTERVALS,
   TABLE_FONT_FAMILIES,
   isHexColor,
-  isIsoDate,
   normalizeBarStyle,
   normalizePresentation,
-  normalizeTimescale,
-  normalizeWbs,
   type GanttBarKind,
   type GanttBarStyle,
   type GanttBarStyleSet,
-  type GanttTimescale,
   type TableFontFamily,
   type TablePresentation,
   type WorkspacePresentation,
 } from "./workspace-presentation.js";
-import { timescaleTickScale } from "./workspace-gantt.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
 import {
   ACTIVITY_FILTER_FIELDS,
@@ -368,7 +361,6 @@ export function renderLayoutDialogs(optionsInput: DialogOptions): string {
       ${sortRows}
     </fieldset>`;
 
-  const timescaleState = optionsInput.presentation.timescale;
   const timescale = `<fieldset class="cp-dialog-group">
       <legend>${esc(t(locale, "Timescale format", "قالب مقیاس زمانی"))}</legend>
       <label class="cp-dialog-row"><span>${esc(t(locale, "Scale", "مقیاس"))}</span>
@@ -376,74 +368,14 @@ export function renderLayoutDialogs(optionsInput: DialogOptions): string {
           ${(["year", "quarter", "month", "week", "day"] as const).map((scale) => `<option value="${scale}"${layout.ganttScale === scale ? " selected" : ""}>${esc(t(locale, scale[0].toUpperCase() + scale.slice(1), { year: "سال", quarter: "فصل", month: "ماه", week: "هفته", day: "روز" }[scale]))}</option>`).join("")}
         </select>
       </label>
-      <div class="cp-dialog-grid">
-        <label class="cp-dialog-row"><span>${esc(t(locale, "Date interval", "فاصلهٔ تاریخ"))}</span>
-          <select name="timescale.interval">
-            ${GANTT_TIMESCALE_INTERVALS.map((interval) => `<option value="${interval}"${timescaleState.interval === interval ? " selected" : ""}>${esc(t(locale, {
-              "year-quarter": "Year / Quarter",
-              "year-month": "Year / Month",
-              "quarter-month": "Quarter / Month",
-              "month-week": "Month / Week",
-              "week-day": "Week / Day",
-            }[interval], {
-              "year-quarter": "سال / فصل",
-              "year-month": "سال / ماه",
-              "quarter-month": "فصل / ماه",
-              "month-week": "ماه / هفته",
-              "week-day": "هفته / روز",
-            }[interval]))}</option>`).join("")}
-          </select>
-        </label>
-        <label class="cp-dialog-row"><span>${esc(t(locale, "Header rows", "ردیف‌های سربرگ"))}</span>
-          <select name="timescale.lines">
-            <option value="2"${timescaleState.lines === 2 ? " selected" : ""}>2</option>
-            <option value="3"${timescaleState.lines === 3 ? " selected" : ""}>3</option>
-          </select>
-        </label>
-        <label class="cp-dialog-row"><span>${esc(t(locale, "Date format", "قالب تاریخ"))}</span>
-          <select name="timescale.dateFormat">
-            <option value="primary"${timescaleState.dateFormat === "primary" ? " selected" : ""}>${esc(t(locale, "Calendar date", "تاریخ تقویمی"))}</option>
-            <option value="ordinal"${timescaleState.dateFormat === "ordinal" ? " selected" : ""}>${esc(t(locale, "Ordinal number", "شمارهٔ ترتیبی"))}</option>
-          </select>
-        </label>
-        <label class="cp-dialog-row"><span>${esc(t(locale, "Date type", "نوع تاریخ"))}</span>
-          <select name="timescale.type">
-            <option value="calendar"${timescaleState.type === "calendar" ? " selected" : ""}>${esc(t(locale, "Calendar", "تقویمی"))}</option>
-            <option value="week-of-year"${timescaleState.type === "week-of-year" ? " selected" : ""}>${esc(t(locale, "Week of year", "هفتهٔ سال"))}</option>
-          </select>
-        </label>
-        <label class="cp-dialog-row"><span>${esc(t(locale, "Ordinal start", "شروع ترتیبی"))}</span>
-          <input type="date" name="timescale.ordinalStart" value="${esc(timescaleState.ordinalStart ?? "")}" aria-label="${esc(t(locale, "Ordinal start date", "تاریخ شروع شمارهٔ ترتیبی"))}">
-        </label>
-        <label class="cp-dialog-row"><span>${esc(t(locale, "Ordinal interval", "فاصلهٔ ترتیبی"))}</span>
-          <select name="timescale.ordinalInterval">
-            ${GANTT_ORDINAL_INTERVALS.map((unit) => `<option value="${unit}"${timescaleState.ordinalInterval === unit ? " selected" : ""}>${esc(t(locale, unit[0].toUpperCase() + unit.slice(1), { day: "روز", week: "هفته", month: "ماه", quarter: "فصل", year: "سال" }[unit]))}</option>`).join("")}
-          </select>
-        </label>
-        <label class="cp-dialog-row"><span>${esc(t(locale, "Header font size", "اندازهٔ قلم سربرگ"))}</span>
-          <input type="number" name="timescale.fontSize" min="8" max="16" step="1" value="${timescaleState.fontSize}" aria-label="${esc(t(locale, "Header font size", "اندازهٔ قلم سربرگ"))}">
-        </label>
-        <label class="cp-dialog-row"><span>${esc(t(locale, "Header text", "متن سربرگ"))}</span>
-          <input type="color" name="timescale.textColor" value="${esc(timescaleState.textColor)}" aria-label="${esc(t(locale, "Header text colour", "رنگ متن سربرگ"))}">
-        </label>
-        <label class="cp-dialog-row"><span>${esc(t(locale, "Header background", "پس‌زمینهٔ سربرگ"))}</span>
-          <input type="color" name="timescale.backgroundColor" value="${esc(timescaleState.backgroundColor)}" aria-label="${esc(t(locale, "Header background colour", "رنگ پس‌زمینهٔ سربرگ"))}">
-        </label>
-      </div>
       <label class="cp-dialog-check"><input type="checkbox" name="showRelationships"${layout.showRelationships ? " checked" : ""}> ${esc(t(locale, "Show relationship lines", "نمایش خطوط روابط"))}</label>
-      <p class="cp-dialog-note">${esc(t(locale, "Fiscal year, shift and hour intervals are not rendered by this runtime, so they are not offered here.", "فاصله‌های سال مالی، شیفت و ساعت در این محیط رندر نمی‌شوند و به همین دلیل ارائه نشده‌اند."))}</p>
     </fieldset>`;
 
   const bars = `<p class="cp-dialog-note">${esc(t(locale, "Each bar type has independent shape, colour, pattern, filter, row and label settings. Bar geometry still comes from the saved schedule dates.", "هر نوع میله شکل، رنگ، الگو، فیلتر، ردیف و برچسب مستقل دارد. هندسهٔ میله همچنان از تاریخ‌های ذخیره‌شدهٔ زمان‌بندی می‌آید."))}</p>
     <div class="cp-bar-style-list">${GANTT_BAR_KINDS.map((kind) => barEditor(kind, optionsInput.presentation.bars[kind], locale, optionsInput.dataAvailability)).join("")}</div>`;
 
   const fontRow = tableEditor(optionsInput, false);
-  const wbsColors = `<fieldset class="cp-dialog-group">
-      <legend>${esc(t(locale, "WBS level colours", "رنگ سطوح WBS"))}</legend>
-      <p class="cp-dialog-note">${esc(t(locale, "Each level colour is painted on the hierarchy cell, its guide rails and the level icon. It never fills the whole activity row, so selection and critical-path colours stay independent.", "رنگ هر سطح فقط در ستون سلسله‌مراتب، خطوط راهنمای آن و نماد سطح اعمال می‌شود و کل ردیف فعالیت را پر نمی‌کند؛ بنابراین رنگ انتخاب و مسیر بحرانی مستقل باقی می‌ماند."))}</p>
-      <div class="cp-wbs-color-grid">${optionsInput.presentation.wbs.levelColors.map((color, index) => `<label class="cp-dialog-row"><span>${esc(t(locale, `Level ${index + 1}`, `سطح ${index + 1}`))}</span><input type="color" name="wbs.color.${index}" value="${esc(color)}" aria-label="${esc(t(locale, `WBS level ${index + 1} colour`, `رنگ سطح ${index + 1} WBS`))}"></label>`).join("")}</div>
-    </fieldset>`;
-  const preferences = `${tableEditor(optionsInput, true)}${wbsColors}
+  const preferences = `${tableEditor(optionsInput, true)}
     <fieldset class="cp-dialog-group">
       <legend>${esc(t(locale, "Display", "نمایش"))}</legend>
       <p class="cp-dialog-note">${esc(t(locale, "Preferences are stored with the saved layout for this project. They do not change schedule data.", "تنظیمات به‌همراه چیدمان ذخیره‌شدهٔ این پروژه نگهداری می‌شود و داده‌های زمان‌بندی را تغییر نمی‌دهد."))}</p>
@@ -542,40 +474,6 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
   }
 
   const keys = Array.from(data.keys());
-
-  if (keys.some((key) => key.startsWith("timescale."))) {
-    const nextTimescale = normalizeTimescale({
-      lines: Number(data.get("timescale.lines")),
-      dateFormat: data.get("timescale.dateFormat"),
-      type: data.get("timescale.type"),
-      interval: data.get("timescale.interval"),
-      ordinalStart: String(data.get("timescale.ordinalStart") ?? "").trim() || null,
-      ordinalInterval: data.get("timescale.ordinalInterval"),
-      fontSize: Number(data.get("timescale.fontSize")),
-      textColor: data.get("timescale.textColor"),
-      backgroundColor: data.get("timescale.backgroundColor"),
-    }, presentation.timescale);
-    presentation.timescale = nextTimescale;
-    // The tick density follows the chosen interval so header groups, ticks and
-    // bar geometry stay on the same date range.
-    patch.ganttScale = timescaleTickScale(nextTimescale.interval);
-    presentationChanged = true;
-  }
-
-  const wbsColorKeys = keys
-    .filter((key) => /^wbs\.color\.\d+$/.test(key))
-    .sort((a, b) => Number(a.slice("wbs.color.".length)) - Number(b.slice("wbs.color.".length)));
-  if (wbsColorKeys.length) {
-    // Keep the submitted colour at its level index; a partial form must not
-    // shift level 3 into level 2.
-    const levelColors: unknown[] = [];
-    for (const key of wbsColorKeys) {
-      levelColors[Number(key.slice("wbs.color.".length))] = data.get(key);
-    }
-    presentation.wbs = normalizeWbs({ levelColors }, presentation.wbs);
-    presentationChanged = true;
-  }
-
   if (keys.some((key) => key.startsWith("bar."))) {    const bars = { ...presentation.bars };
     for (const kind of GANTT_BAR_KINDS) {
       const prefix = `bar.${kind}.`;
