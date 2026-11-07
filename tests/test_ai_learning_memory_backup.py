@@ -290,15 +290,11 @@ def test_encrypted_postgres_backup_verifies_and_restores_into_empty_database(tmp
         manifest_path.write_bytes(original_manifest)
 
         # Tampering with the encrypted bytes must be detected before decryption.
-        corrupted = tmp_path / ("corrupt-" + archive.name)
-        corrupted.write_bytes(archive.read_bytes() + b"tamper")
-        corrupted_manifest = Path(str(corrupted) + ".manifest.json")
-        corrupted_manifest.write_bytes(manifest_path.read_bytes())
-        corrupted_signature = Path(str(corrupted_manifest) + ".sig")
-        corrupted_signature.write_bytes(Path(str(manifest_path) + ".sig").read_bytes())
+        with archive.open("ab") as stream:
+            stream.write(b"tamper")
         with pytest.raises(LearningMemoryBackupError, match="CHECKSUM_MISMATCH"):
             verify_learning_memory_backup(
-                archive_path=corrupted,
+                archive_path=archive,
                 age_identity_file=identity,
                 signing_public_key_file=signing_public,
             )
