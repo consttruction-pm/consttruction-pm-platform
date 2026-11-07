@@ -262,6 +262,85 @@ def _identity_file(path: str | Path) -> Path:
         raise _fail("AI_LEARNING_BACKUP_IDENTITY_FILE_INVALID") from None
     return identity.resolve()
 
+def _signing_key_file(path: str | Path, *, private: bool) -> Path:
+    key = Path(path).expanduser()
+    if key.is_symlink() or not key.is_file():
+        raise _fail("AI_LEARNING_BACKUP_SIGNING_KEY_FILE_INVALID")
+    try:
+        if key.stat().st_size > 64 * 1024:
+            raise _fail("AI_LEARNING_BACKUP_SIGNING_KEY_FILE_INVALID")
+        if private and os.name != "nt" and stat.S_IMODE(key.stat().st_mode) & 0o077:
+            raise _fail("AI_LEARNING_BACKUP_SIGNING_PRIVATE_KEY_PERMISSIONS_INVALID")
+    except OSError:
+        raise _fail("AI_LEARNING_BACKUP_SIGNING_KEY_FILE_INVALID") from None
+    return key.resolve()
+
+
+def _signature_path(manifest: Path) -> Path:
+    return manifest.with_name(manifest.name + ".sig")
+
+
+def _sign_manifest(manifest: Path, private_key_file: str | Path) -> None:
+    private_key = _signing_key_file(private_key_file, private=True)
+    signature = _signature_path(manifest)
+    temporary = signature.with_name(signature.name + f".tmp-{uuid.uuid4().hex}")
+    args = [
+        "openssl", "pkeyutl", "-sign",
+        "-inkey", str(private_key),
+        "-rawin",
+        "-in", str(manifest),
+        "-out", str(temporary),
+    ]
+    if os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_SIGNING_KEY_PASSPHRASE"):
+        args[2:2] = [
+            "-passin",
+            "env:CUBI_AI_LEARNING_MEMORY_BACKUP_SIGNING_KEY_PASSPHRASE",
+        ]
+    try:
+        result = subprocess.run(
+            args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False
+        )
+        if result.returncode != 0 or not temporary.is_file() or temporary.stat().st_size == 0:
+            raise _fail("AI_LEARNING_BACKUP_MANIFEST_SIGNING_FAILED")
+        if os.name != "nt":
+            os.chmod(temporary, 0o600)
+        os.replace(temporary, signature)
+    except LearningMemoryBackupError:
+        raise
+    except (OSError, subprocess.SubprocessError):
+        raise _fail("AI_LEARNING_BACKUP_SIGNING_TOOL_FAILED") from None
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _verify_manifest_signature(manifest: Path, public_key_file: str | Path) -> None:
+    public_key = _signing_key_file(public_key_file, private=False)
+    signature = _signature_path(manifest)
+    if signature.is_symlink() or not signature.is_file() or signature.stat().st_size > 4096:
+        raise _fail("AI_LEARNING_BACKUP_MANIFEST_SIGNATURE_MISSING")
+    try:
+        result = subprocess.run(
+            [
+                "openssl", "pkeyutl", "-verify", "-pubin",
+                "-inkey", str(public_key),
+                "-rawin",
+                "-in", str(manifest),
+                "-sigfile", str(signature),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise _fail("AI_LEARNING_BACKUP_MANIFEST_SIGNATURE_INVALID")
+    except LearningMemoryBackupError:
+        raise
+    except (OSError, subprocess.SubprocessError):
+        raise _fail("AI_LEARNING_BACKUP_SIGNATURE_VERIFY_TOOL_FAILED") from None
+
 
 def _manifest_path(archive: Path) -> Path:
     return archive.with_name(archive.name + _MANIFEST_SUFFIX)
@@ -313,7 +392,8 @@ def create_learning_memory_backup(
     database_url: str,
     age_recipient: str,
     destination_directory: str | Path,
-    schema: str = "public",
+    schema: str = "cubi_ai_memory",
+    signing_private_key_file: str | Path = "",
 ) -> Path:
     """Create an encrypted, snapshot-consistent logical backup."""
     schema = _validate_schema(schema)
@@ -321,6 +401,9 @@ def create_learning_memory_backup(
         raise _fail("AI_LEARNING_BACKUP_AGE_RECIPIENT_REQUIRED")
     if not str(destination_directory).strip():
         raise _fail("AI_LEARNING_BACKUP_DESTINATION_INVALID")
+    if not str(signing_private_key_file).strip():
+        raise _fail("AI_LEARNING_BACKUP_SIGNING_PRIVATE_KEY_REQUIRED")
+    private_signing_key = _signing_key_file(signing_private_key_file, private=True)
     env, source_fingerprint, _ = _postgres_environment(database_url)
     destination = Path(destination_directory).expanduser()
     try:
@@ -352,6 +435,7 @@ def create_learning_memory_backup(
 
     dump_process = None
     encrypt_process = None
+    backup_complete = False
     try:
         with (
             partial.open("xb") as encrypted_output,
@@ -401,7 +485,10 @@ def create_learning_memory_backup(
             "schema_migration_version": LATEST_MEMORY_MIGRATION,
             "source_database_fingerprint": source_fingerprint,
         }
-        _write_manifest(_manifest_path(archive), manifest)
+        manifest_path = _manifest_path(archive)
+        _write_manifest(manifest_path, manifest)
+        _sign_manifest(manifest_path, private_signing_key)
+        backup_complete = True
         return archive
     except LearningMemoryBackupError:
         raise
@@ -421,17 +508,21 @@ def create_learning_memory_backup(
                 candidate.unlink()
             except FileNotFoundError:
                 pass
-        if not archive.exists():
-            try:
-                _manifest_path(archive).unlink()
-            except FileNotFoundError:
-                pass
+        if not backup_complete:
+            for candidate in (archive, _manifest_path(archive), _signature_path(_manifest_path(archive))):
+                try:
+                    candidate.unlink()
+                except FileNotFoundError:
+                    pass
 
 
-def _read_manifest(archive: Path) -> dict[str, Any]:
+def _read_manifest(
+    archive: Path, signing_public_key_file: str | Path
+) -> dict[str, Any]:
     if archive.is_symlink() or not archive.is_file():
         raise _fail("AI_LEARNING_BACKUP_ARCHIVE_NOT_FOUND")
     manifest_path = _manifest_path(archive)
+    _verify_manifest_signature(manifest_path, signing_public_key_file)
     try:
         if manifest_path.is_symlink() or manifest_path.stat().st_size > 16 * 1024:
             raise ValueError
@@ -483,11 +574,12 @@ def verify_learning_memory_backup(
     *,
     archive_path: str | Path,
     age_identity_file: str | Path,
+    signing_public_key_file: str | Path,
 ) -> dict[str, Any]:
-    """Verify the encrypted checksum and that age + pg_restore can read the archive."""
+    """Verify the signed manifest, encrypted checksum and PostgreSQL archive catalogue."""
     archive = Path(os.path.abspath(Path(archive_path).expanduser()))
     identity = _identity_file(age_identity_file)
-    manifest = _read_manifest(archive)
+    manifest = _read_manifest(archive, signing_public_key_file)
     digest, size = _hash_file(archive)
     if digest != manifest["sha256"] or size != manifest["size_bytes"]:
         raise _fail("AI_LEARNING_BACKUP_CHECKSUM_MISMATCH")
@@ -658,6 +750,7 @@ def restore_learning_memory_backup(
     *,
     archive_path: str | Path,
     age_identity_file: str | Path,
+    signing_public_key_file: str | Path,
     target_database_url: str,
     confirmation: str,
 ) -> dict[str, Any]:
@@ -667,6 +760,7 @@ def restore_learning_memory_backup(
     manifest = verify_learning_memory_backup(
         archive_path=archive_path,
         age_identity_file=age_identity_file,
+        signing_public_key_file=signing_public_key_file,
     )
     target_env, target_fingerprint, _ = _postgres_environment(target_database_url)
     if target_fingerprint == manifest["source_database_fingerprint"]:
@@ -696,12 +790,18 @@ def _main() -> int:
                 age_recipient=os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_AGE_RECIPIENT", ""),
                 destination_directory=os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_DIR", ""),
                 schema=os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_SCHEMA", "cubi_ai_memory"),
+                signing_private_key_file=os.environ.get(
+                    "CUBI_AI_LEARNING_MEMORY_BACKUP_SIGNING_PRIVATE_KEY_FILE", ""
+                ),
             )
             print(f"Encrypted learning-memory backup created: {archive.name}")
         elif args.command == "verify":
             manifest = verify_learning_memory_backup(
                 archive_path=args.archive,
                 age_identity_file=os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_AGE_IDENTITY_FILE", ""),
+                signing_public_key_file=os.environ.get(
+                    "CUBI_AI_LEARNING_MEMORY_BACKUP_SIGNING_PUBLIC_KEY_FILE", ""
+                ),
             )
             print(
                 "Backup verified: "
@@ -712,6 +812,9 @@ def _main() -> int:
             manifest = restore_learning_memory_backup(
                 archive_path=args.archive,
                 age_identity_file=os.environ.get("CUBI_AI_LEARNING_MEMORY_BACKUP_AGE_IDENTITY_FILE", ""),
+                signing_public_key_file=os.environ.get(
+                    "CUBI_AI_LEARNING_MEMORY_BACKUP_SIGNING_PUBLIC_KEY_FILE", ""
+                ),
                 target_database_url=os.environ.get("CUBI_AI_LEARNING_MEMORY_RESTORE_DATABASE_URL", ""),
                 confirmation=os.environ.get("CUBI_AI_LEARNING_MEMORY_RESTORE_CONFIRM", ""),
             )
