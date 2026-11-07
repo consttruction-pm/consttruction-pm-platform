@@ -329,8 +329,10 @@ def create_learning_memory_backup(
             dump_status = dump_process.wait()
             encrypted_output.flush()
             os.fsync(encrypted_output.fileno())
-        if dump_status != 0 or encryption_status != 0 or partial.stat().st_size == 0:
-            raise _fail("AI_LEARNING_BACKUP_COMMAND_FAILED")
+        if dump_status != 0:
+            raise _fail("AI_LEARNING_BACKUP_DATABASE_DUMP_FAILED")
+        if encryption_status != 0 or partial.stat().st_size == 0:
+            raise _fail("AI_LEARNING_BACKUP_ENCRYPTION_FAILED")
         os.replace(partial, archive)
         if os.name != "nt":
             os.chmod(archive, 0o600)
