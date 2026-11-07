@@ -116,9 +116,10 @@ a backup target.
 
 ### Server configuration
 
-Install the PostgreSQL client utilities, `age` and OpenSSL; install the CUBI
-package in the deployment virtual environment; create a dedicated
-`cubi-backup` OS account; and mount durable backup storage at
+Install `pg_dump` and `pg_restore` from the same PostgreSQL major version as
+the source database (and use a compatible client when restoring), plus `age`
+and OpenSSL. Install the CUBI package in the deployment virtual environment;
+create a dedicated `cubi-backup` OS account; and mount durable backup storage at
 `/mnt/cubi-encrypted-backups`. Store the following in
 `/etc/cubi/learning-memory-backup.env` (owner-readable only, mode 0600):
 
