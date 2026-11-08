@@ -6,11 +6,22 @@ Reference product: Oracle Primavera P6 Professional, version 26, desktop help an
 
 This index records which official pages were reviewed, what each page contributed, and which gaps remain. It is a source register, not a copy of Oracle documentation. Oracle and Primavera names are recorded here for traceability only; the CUBI interface must use its own vocabulary (see `../architecture/p6-to-cubi-mapping-matrix.md`).
 
+
+## Mandatory authoritative reference for all future work
+
+The authoritative reference for the CUBI desktop-style workspace is the official **P6 Professional Help Version 26** (the complete desktop HTML Help, not an older user guide or screenshot):
+
+- **Complete Version 26 HTML Help:** https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm
+- **Version 26 Professional User Guide (HTML, supporting reference):** https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html
+- **Version 26 documentation landing page:** https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/user.html
+
+Every Qoder implementation/review instruction must carry the complete HTML Help URL above. The product owner attaches the supplied 815-page Version 26 PDF when sending each Qoder instruction; Qoder must read both forms and cite the exact topics/pages inspected. The Version 26 Help controls the acceptance criteria. A Version 22 screenshot or any older reference may be retained only as supplementary visual evidence and must never determine behavior when Version 26 documentation differs. Missing PDF evidence must be marked **MISSING / VERIFY**, not treated as completed parity.
+
 ## Sources reviewed
 
 | Area | Official page | Contribution |
 | --- | --- | --- |
-| Help TOC | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm | Complete section map: workspace basics, toolbars/menus, projects, EPS, WBS, calendars, resources/roles, activities, relationships, scheduling, leveling, layouts, Gantt, network, trace logic, tracking, reporting, administration |
+| Complete desktop Help Version 26 (HTML TOC) | https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm | Complete section map: workspace basics, toolbars/menus, projects, EPS, WBS, calendars, resources/roles, activities, relationships, scheduling, leveling, layouts, Gantt, network, trace logic, tracking, reporting, administration |
 | User guide TOC | https://docs.oracle.com/cd/G48902_01/English/User_Guides/p6_pro_user/toc.htm | User-guide task structure |
 | User guide (HTML) | https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html | Same task structure in web form |
 | Admin guide | https://docs.oracle.com/cd/G48902_01/English/admin/p6_pro_admin/toc.htm | Administrative preferences/categories, security, financial periods, currencies, UDF/code dictionaries |
