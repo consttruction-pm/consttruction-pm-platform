@@ -2537,7 +2537,21 @@ async function main() {
     const headerLabels = await page.evaluate(`(() =>
       Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
-    assert(headerLabels.length === 10, "ten visible persisted columns expected");
+    assert(
+      JSON.stringify(headerLabels) ===
+        JSON.stringify([
+          "Activity ID",
+          "Activity Name",
+          "Original Duration",
+          "Remaining Duration",
+          "Schedule % Complete",
+          "Start",
+          "Finish",
+          "Total Float",
+        ]),
+      "the visible persisted columns must be the canonical reference set ending at Total Float: " +
+        JSON.stringify(headerLabels),
+    );
     const predecessorsHeader = await page.text("#cp-activity-grid thead th.cp-logic-column");
     assert(predecessorsHeader === "Predecessors", "the persisted logic column must be labelled: " + predecessorsHeader);
     assert(
@@ -2830,7 +2844,7 @@ async function main() {
     const initialHeaders = await page.evaluate(`(() =>
       Array.from(document.querySelectorAll("#cp-activity-grid thead th.cp-p6-column")).map((th) => th.textContent.replace("ƒx", "").trim())
     )()`);
-    assert(initialHeaders.length === 10, "initial visible column count before layout edits");
+    assert(initialHeaders.length === 8, "initial visible column count before layout edits");
     const hiddenTarget = await page.evaluate(`(() => {
       const button = document.querySelector('[data-p6-field-visibility]:not([data-p6-field-visible])');
       return button ? button.dataset.p6FieldVisibility : null;
@@ -4574,16 +4588,34 @@ async function main() {
     );
     await page.click('[data-detail-tab="general"]');
     const firstDetails = await readDetails();
+    // Status is intentionally not one of the eight visible reference columns,
+    // so the details panel is checked against the authoritative Activity
+    // Master record rather than a grid cell that no longer renders.
+    const firstActivityApi = await page.evaluate(
+      `(async () => {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/activities/" + encodeURIComponent(${JSON.stringify(activityIds[0])}), {
+          headers: {
+            "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
+            "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
+            "X-Project-Revision": ${JSON.stringify(String(PROJECT_REVISION))},
+          },
+        });
+        const body = await response.json().catch(() => null);
+        return { status: response.status, activity: body?.activity ?? null };
+      })()`,
+      { awaitPromise: true },
+    );
     const wbsName = (firstDetails.cells["activity.wbs"] ?? "").replace(/^\S+\s+/, "");
     assert(
       firstDetails.id === activityIds[0] &&
         firstDetails.detailsId === activityIds[0] &&
         firstDetails.fields["Activity ID"] === firstDetails.cells["activity.id"] &&
         firstDetails.fields["Activity name"] === firstDetails.cells["activity.name"] &&
-        firstDetails.fields["Status"] === firstDetails.cells["activity.status"] &&
+        firstActivityApi.status === 200 &&
+        firstDetails.fields["Status"] === firstActivityApi.activity?.status &&
         firstDetails.fields["Project"] === PROJECT_ID &&
         (wbsName.length === 0 || (firstDetails.fields.WBS ?? "").includes(wbsName)),
-      "general details must show the selected row's persisted facts: " + JSON.stringify(firstDetails),
+      "general details must show the selected row's persisted facts: " + JSON.stringify({ firstDetails, firstActivityApi }),
     );
     await page.click(`#cp-activity-grid tbody tr[data-activity-id="${activityIds[1]}"]`);
     await page.waitFor(
@@ -5316,7 +5348,7 @@ async function main() {
       "the newly created project must be opened in the workspace",
     );
     assert(createdProject.rows === 0, "a new project must show an explicit empty activity grid");
-    assert(createdProject.columns === 10, "a new project must receive the persisted curated layout");
+    assert(createdProject.columns === 8, "a new project must receive the persisted curated layout");
     assert(
       createdProject.calendar_toggle === "jalali",
       "the created empty workspace must still expose the calendar display toggle",
@@ -5537,7 +5569,7 @@ async function main() {
         renderedAfterWrites.rows.length === 1 &&
         renderedAfterWrites.rows[0].id === "NEW-100" &&
         renderedAfterWrites.rows[0].text.includes("E2E linked activity") &&
-        renderedAfterWrites.columns === 10,
+        renderedAfterWrites.columns === 8,
       "the browser must render the server's persisted WBS tree and linked activity: " +
         JSON.stringify(renderedAfterWrites),
     );
@@ -5848,10 +5880,29 @@ async function main() {
       "persisted project schedule settings",
       30000,
     );
+    // The Gantt toolbar (and its scale control) only renders once the run has
+    // produced dated bars, and re-rendering it clears the result panel. So the
+    // first run establishes the chart, the real Day control selects a tick per
+    // dated boundary, and a second run repopulates the results on that axis.
     await page.click("[data-run-schedule]");
     await page.waitFor(
       `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 4`,
       "authoritative rows for the persisted project",
+      60000,
+    );
+    await page.click('[data-gantt-scale="day"]');
+    await page.waitFor(
+      `document.querySelector("#cp-gantt [data-gantt-scale-mode=\\"day\\"]") !== null`,
+      "day timescale selected",
+    );
+    // The module stage remounts asynchronously after the re-render, so wait
+    // for the run control before starting the results on the day axis.
+    await page.waitForSelector("[data-run-schedule]", "run control after timescale change");
+    await page.click("[data-run-schedule]");
+    await page.waitFor(
+      `document.querySelectorAll("[data-run-results] .cp-schedule-result-table tbody tr").length === 4 &&
+        document.querySelectorAll("#cp-gantt [data-gantt-tick]").length >= 4`,
+      "authoritative rows on the day timescale",
       60000,
     );
     const readRunFacts = () => page.evaluate(`(() => {
