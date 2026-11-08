@@ -582,6 +582,45 @@ test("P6 registry and persisted layout drive real workspace columns", () => {
   assert.equal(state.columns[0]?.frozen, false);
 });
 
+test("P6 registry projects persisted formula columns as computed metadata", () => {
+  const registry = {
+    registry_version: "p6-field-registry.v1" as const,
+    reference_product: "Oracle Primavera P6 Professional" as const,
+    reference_version: "26",
+    status: "active",
+    fields: [
+      {
+        field_id: "formula.double_progress",
+        subject_area: "Activity",
+        p6_field: "formula.double_progress",
+        display_name: "Double Progress",
+        data_type: "double" as const,
+        writable: false,
+        computed: true,
+        disposition: "implemented",
+        formula: "[activity.percent_complete] * 2",
+      },
+    ],
+  };
+  const layout = {
+    schema_version: "p6-layout.v1" as const,
+    scope: "project" as const,
+    view_id: "activity",
+    revision: 1,
+    columns: [
+      { field_id: "formula.double_progress", visible: true, order: 0, width: 140, alignment: "end" as const, pinned: false, frozen: false },
+    ],
+  };
+  const state = setP6Presentation(createWorkspaceState(context), registry, layout);
+
+  const column = state.columns[0];
+  assert.equal(column.id, "formula.double_progress");
+  assert.equal(column.label, "Double Progress");
+  assert.equal(column.formula, "[activity.percent_complete] * 2");
+  assert.equal(column.editable, false);
+  assert.equal(column.dataType, "double");
+});
+
 test("P6 layout mutations remain authoritative for reorder and presentation", () => {
   const registry = {
     registry_version: "p6-field-registry.v1" as const,
@@ -672,7 +711,7 @@ test("persisted relationships attach only when both endpoints are loaded activit
 
 test("Gantt scale is presentation state with validated day/week/month/quarter/year choices", () => {
   const state = createWorkspaceState(context, "en");
-  assert.equal(state.ganttScale, "day");
+  assert.equal(state.ganttScale, "month");
 
   const weekly = setGanttScale(state, "week");
   assert.equal(weekly.ganttScale, "week");

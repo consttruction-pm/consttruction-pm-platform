@@ -5,6 +5,7 @@ import type { P6Field } from "./p6-field-layout-foundation.js";
 import {
   getFormulaPanelLabels,
   renderFormulaAuthoritativeResult,
+  renderFormulaColumnList,
   renderFormulaEditorForm,
 } from "./p6-formula-panel.js";
 
@@ -84,4 +85,69 @@ test("invalid formula results show the authoritative error code and no invented 
   assert.match(html, /Expression is not valid/);
   assert.match(html, /FORMULA_SELF_REFERENCE/);
   assert.doesNotMatch(html, /Result type/);
+});
+
+test("formula panel exposes the persistence form and an honest empty catalogue", () => {
+  const html = renderFormulaEditorForm(
+    [field("activity.planned_duration", "Planned Duration")],
+    getFormulaPanelLabels("en"),
+  );
+  assert.match(html, /data-formula-save-form/);
+  assert.match(html, /data-formula-title/);
+  assert.match(html, /data-formula-id/);
+  assert.match(html, /formula\.my_column/);
+  assert.match(html, /No formula columns are saved/);
+});
+
+test("saved formula columns render title, id, result type and expression", () => {
+  const html = renderFormulaColumnList(
+    [
+      {
+        contract_version: "p6-formula-column-api.v1",
+        kind: "formula_column",
+        scope: { tenant_id: "t1", project_id: "p1", project_revision: 1 },
+        formula: {
+          formula_id: "formula.double_progress",
+          version: "1",
+          title: "Double Progress",
+          expression: "[activity.percent_complete] * 2",
+          result_type: "number",
+          data_type: "double",
+          result_unit: null,
+          dependencies: ["activity.percent_complete"],
+        },
+      },
+    ],
+    getFormulaPanelLabels("en"),
+  );
+  assert.match(html, /data-formula-column="formula.double_progress"/);
+  assert.match(html, /Double Progress/);
+  assert.match(html, /\[activity\.percent_complete\] \* 2/);
+  assert.match(html, /double/);
+  assert.doesNotMatch(html, /Oracle|Primavera/i);
+});
+
+test("formula catalogue escapes stored values", () => {
+  const html = renderFormulaColumnList(
+    [
+      {
+        contract_version: "p6-formula-column-api.v1",
+        kind: "formula_column",
+        scope: { tenant_id: "t1", project_id: "p1", project_revision: 1 },
+        formula: {
+          formula_id: "formula.bad",
+          version: "1",
+          title: "<script>alert(1)</script>",
+          expression: "\"><img src=x>",
+          result_type: "text",
+          data_type: "string",
+          result_unit: null,
+          dependencies: [],
+        },
+      },
+    ],
+    getFormulaPanelLabels("en"),
+  );
+  assert.doesNotMatch(html, /<script>/);
+  assert.doesNotMatch(html, /<img/);
 });

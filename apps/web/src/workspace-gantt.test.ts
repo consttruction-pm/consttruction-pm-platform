@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttScale } from "./workspace-gantt.js";
+import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttScale, ganttRowCenter, ganttRowPitch, ganttRowsHeight } from "./workspace-gantt.js";
 
 const activities = [
   {
@@ -136,13 +136,62 @@ test("Gantt links keep the persisted FS and SS semantics without conversion", ()
   assert.equal(fs?.successorId, "A-2");
   assert.equal(fs?.critical, true);
   // A-1 finishes at 33.33%, A-2 starts at 33.33% of the shared 3-day scale.
-  assert.match(fs?.path ?? "", /^M 33\.33 50 H 34\.83 V 150 H 33\.33$/);
-  // SS departs from the predecessor start (0%) and enters the successor start (33.33%).
-  assert.match(ss?.path ?? "", /^M 0 50 H 0 V 150 H 33\.33$/);
+  // Y anchors are pixel row centres (11 and 33 for the default 22px pitch).
+  assert.match(fs?.path ?? "", /^M 33\.33 11 H 34\.83 V 33 H 33\.33$/);
+  // SS departs from the predecessor start (0%) and enters the successor start
+  // (33.33%) from its left.
+  assert.match(ss?.path ?? "", /^M 0 11 H 0\.2 V 33 H 33\.33$/);
 });
 
-test("Gantt links skip relationships whose endpoints are filtered out", () => {
-  const scale = createGanttScale(activities);
+test("Gantt links anchor to display rows when WBS bands shift the bar list", () => {
+  const scheduled = [
+    { id: "A-1", wbsId: "W-1", code: "01", name: "Excavate", gantt: { start: "2026-09-02T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 0, critical: true } },
+    { id: "A-2", wbsId: "W-2", code: "02", name: "Concrete", gantt: { start: "2026-09-03T00:00:00Z", finish: "2026-09-05T00:00:00Z", progressPercent: 0, critical: true } },
+  ];
+  const scale = createGanttScale(scheduled);
+  assert.ok(scale);
+  const bars = scheduled
+    .map((activity) => createGanttBarGeometry(activity, scale))
+    .filter((bar): bar is NonNullable<typeof bar> => bar !== null);
+  const links = createGanttLinkGeometry([
+    { id: "R-FS", predecessorId: "A-1", successorId: "A-2", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+  ], bars, new Map([["A-1", 1], ["A-2", 4]]));
+  assert.equal(links.length, 1);
+  // Bar geometry stays keyed by the bar list while vertical anchors follow
+  // the display rows (1 and 4) that include the WBS band rows.
+  assert.equal(links[0].path, "M 33.33 33 H 34.83 V 99 H 33.33");
+});
+
+test("Gantt geometry pins FS, SS, FF and SF links to the configured row pitch", () => {
+  const bars = [
+    { activityId: "P", leftPercent: 10, widthPercent: 20, progressPercent: 0, critical: true, milestone: false },
+    { activityId: "S", leftPercent: 60, widthPercent: 20, progressPercent: 0, critical: true, milestone: false },
+    { activityId: "M", leftPercent: 40, widthPercent: 1, progressPercent: 0, critical: false, milestone: true },
+  ];
+  const links = createGanttLinkGeometry([
+    { id: "FS", predecessorId: "P", successorId: "S", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+    { id: "SS", predecessorId: "P", successorId: "S", type: "SS", lagValue: "2", lagUnit: "working-day", recordRevision: 1 },
+    { id: "FF", predecessorId: "P", successorId: "S", type: "FF", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+    { id: "SF", predecessorId: "P", successorId: "S", type: "SF", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+    { id: "MFS", predecessorId: "M", successorId: "S", type: "FS", lagValue: "0", lagUnit: "working-day", recordRevision: 1 },
+  ], bars, new Map([["P", 0], ["S", 1], ["M", 2]]), { rowHeight: 30, xUnits: 10 });
+
+  assert.equal(ganttRowPitch(30), 30);
+  assert.equal(ganttRowCenter(1, 30), 45);
+  assert.equal(ganttRowsHeight(3, 30), 90);
+  const byId = new Map(links.map((link) => [link.relationshipId, link]));
+  assert.equal(byId.get("FS")?.path, "M 300 15 H 315 V 45 H 600");
+  assert.equal(byId.get("SS")?.path, "M 100 15 H 77 V 45 H 600");
+  assert.equal(byId.get("FF")?.path, "M 300 15 H 831 V 45 H 800");
+  assert.equal(byId.get("SF")?.path, "M 100 15 H 839 V 45 H 800");
+  // A milestone is a point, so its outgoing link leaves the marker centre.
+  assert.equal(byId.get("MFS")?.path, "M 400 75 H 415 V 45 H 600");
+  assert.equal(byId.get("FS")?.lag, null);
+  assert.deepEqual(byId.get("SS")?.lag, { value: "2", unit: "working-day" });
+  assert.equal(byId.get("FS")?.critical, true);
+});
+
+test("Gantt links skip relationships whose endpoints are filtered out", () => {  const scale = createGanttScale(activities);
   assert.ok(scale);
   const bars = [createGanttBarGeometry(activities[0], scale)].filter((bar) => bar !== null);
   const links = createGanttLinkGeometry([

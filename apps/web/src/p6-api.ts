@@ -140,6 +140,30 @@ export async function loadP6LayoutRevisions(
   return body.revisions.map(assertLayout);
 }
 
+/**
+ * Read the canonical default column set for a view.
+ *
+ * The server owns this definition so the Columns dialog's Default action does
+ * not keep a second copy of the default layout in the browser. A view without
+ * a canonical definition returns ``null`` instead of a fabricated set.
+ */
+export async function loadP6DefaultLayout(
+  transport: ApiTransport,
+  context: ProjectContext,
+  scope: LayoutDefinition["scope"] = "project",
+  viewId = "activity",
+): Promise<LayoutDefinition | null> {
+  const result = await transport.get<LayoutDefinition>(
+    `${layoutPath(context, scope, viewId)}/default`,
+    context,
+  );
+  if (!result.ok) {
+    if (result.error.code === "P6_LAYOUT_DEFAULT_NOT_DEFINED") return null;
+    throw new Error(result.error.code);
+  }
+  return assertLayout(result.data);
+}
+
 export async function loadP6Presentation(
   state: import("./workspace-model.js").WorkspaceState,
   transport: ApiTransport,

@@ -15,6 +15,7 @@ from .p6_field_registry_repository import (
     P6FieldRegistryApplicationService,
     PersistedP6Field,
 )
+from .p6_formula_column import P6FormulaColumnService
 from .p6_user_defined_fields_repository import (
     P6UserDefinedFieldApplicationService,
     P6UserDefinedFieldDefinition,
@@ -45,6 +46,7 @@ class P6FieldRegistryAPI:
     field_service: P6FieldRegistryApplicationService
     udf_service: P6UserDefinedFieldApplicationService
     authorization_policy: AuthorizationPolicy
+    formula_column_service: P6FormulaColumnService | None = None
 
     def save_field(
         self,
@@ -84,10 +86,18 @@ class P6FieldRegistryAPI:
     ) -> tuple[dict[str, Any], ...]:
         _require_scope(scope, auth_context)
         _require_permission(self.authorization_policy, auth_context, Permission.PROJECT_READ)
-        return tuple(
+        fields = tuple(
             _field_dto(item)
             for item in self.field_service.list_fields(scope, registry_version, subject_area)
         )
+        if self.formula_column_service is None or subject_area not in (None, "Activity"):
+            return fields
+        formula_fields = []
+        for record in self.formula_column_service.list(scope):
+            dto = _field_dto(self.formula_column_service.field_record(scope, record))
+            dto["field"]["formula"] = record.definition.expression
+            formula_fields.append(dto)
+        return fields + tuple(formula_fields)
 
     def save_udf(
         self,

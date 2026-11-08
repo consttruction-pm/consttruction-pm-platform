@@ -6,6 +6,8 @@ import type { WorkspaceMenuKey } from "./workspace-model.js";
 import type { WorkspaceDocument } from "./workspace-document.js";
 import type { WorkspaceControlSummary } from "./workspace-control-intelligence.js";
 import { createWorkspaceState, setDocuments, setP6Presentation, withActivities, withRelationships, withWbsNodes } from "./workspace-model.js";
+import { normalizePresentation } from "./workspace-presentation.js";
+import { setCollapsedWbsIds } from "./workspace-wbs-display.js";
 
 type RenderContainer = {
   innerHTML: string;
@@ -408,28 +410,15 @@ test("Activities Details renders the complete Version 26 tab inventory without f
   }
   assert.match(html, /Select an activity in the table or Gantt chart/);
 });
-test("workspace tabs reflect persisted open windows and dispatch close for the selected window", () => {
-  const listeners = new Map<string, (event: Event) => void>();
-  const closed: WorkspaceMenuKey[] = [];
-  const container = {
-    innerHTML: "",
-    querySelectorAll: () => [],
-    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
-  };
-  renderMainWorkspace(
-    container as unknown as HTMLElement,
-    createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en"),
-    {
-      openWindows: ["project", "schedule"],
-      onWindowClose: (menu) => closed.push(menu),
-    },
-  );
-  assert.match(container.innerHTML, /data-window-tab="project"/);
-  assert.match(container.innerHTML, /data-window-tab="schedule"/);
-  assert.match(container.innerHTML, /data-window-close="project"/);
-  const target = { dataset: { windowClose: "project" }, closest: () => target };
-  listeners.get("click")?.({ target } as unknown as Event);
-  assert.deepEqual(closed, ["project"]);
+test("workspace view leaves window tabs to the single desktop tab bar instead of duplicating them", () => {
+  const state = createWorkspaceState({ tenant_id: "tenant-1", project_id: "project-1", revision: 3 }, "en");
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state, {
+    openWindows: ["project", "schedule"],
+  });
+  assert.doesNotMatch(container.innerHTML, /class="cp-window-tabs"/);
+  assert.doesNotMatch(container.innerHTML, /data-window-tab=/);
+  assert.doesNotMatch(container.innerHTML, /class="cp-window-tab/);
 });
 
 test("View menu Timescale command opens the current window Layout Options dialog", () => {
@@ -587,7 +576,7 @@ test("full rerenders do not accumulate delegated workspace listeners", () => {
   renderMainWorkspace(container as unknown as HTMLElement, base);
   renderMainWorkspace(container as unknown as HTMLElement, { ...base, locale: "fa", direction: "rtl" });
 
-  assert.deepEqual(registrations, ["pointerdown", "input", "submit", "click", "keydown", "change"]);
+  assert.deepEqual(registrations, ["scroll", "pointerdown", "input", "submit", "click", "contextmenu", "dblclick", "keydown", "change"]);
 });
 
 test("delegated activity events use the latest render callbacks after incremental updates", () => {
@@ -1173,7 +1162,7 @@ test("interactive Gantt rows expose button selection semantics", () => {
   };
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  assert.match(container.innerHTML, /class="cp-gantt-row is-selected" role="button" data-gantt-activity-id="A-1" tabindex="0" aria-pressed="true" aria-label="A-1"/);
+  assert.match(container.innerHTML, /class="cp-gantt-row is-selected is-group-end" role="button" data-gantt-activity-id="A-1" tabindex="0" aria-pressed="true" aria-label="A-1 — Foundation"/);
   assert.doesNotMatch(container.innerHTML, /cp-gantt-row[^>]*aria-selected=/);
 });
 
@@ -1195,8 +1184,8 @@ test("interactive Activity Grid exposes grid row selection semantics", () => {
   assert.match(container.innerHTML, /<table role="grid" aria-label="Activity Grid" aria-multiselectable="false"[^>]*>/);
   assert.match(container.innerHTML, /<thead><tr role="row">/);
   assert.match(container.innerHTML, /<th role="columnheader" scope="col"/);
-  assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" tabindex="0" aria-selected="true" aria-label="A-1"/);
-  assert.match(container.innerHTML, /<td role="gridcell"[^>]*>A-1<\/td>/);
+  assert.match(container.innerHTML, /<tr role="row" data-activity-id="A-1" data-activity-kind="task" tabindex="0" aria-selected="true" aria-label="A-1"/);
+  assert.match(container.innerHTML, /<td role="gridcell"[^>]*><span class="cp-p6-tree-guides"[^>]*><span class="cp-p6-activity-cell">.*A-1<\/span><\/span><\/td>/);
 });
 
 
@@ -1316,7 +1305,7 @@ test("Activity Grid renders P6 alignment, pinned, and frozen presentation", () =
   assert.match(container.innerHTML, /data-column-pinned="true"/);
   assert.match(container.innerHTML, /data-column-frozen="true"/);
   assert.match(container.innerHTML, /class="cp-p6-column is-pinned is-frozen"/);
-  assert.match(container.innerHTML, /style="text-align:center;width:140px;--cp-p6-sticky-offset:0px"/);
+  assert.match(container.innerHTML, /style="text-align:center;width:140px;--cp-wbs-level:#[0-9a-f]{6};--cp-p6-sticky-offset:0px"/);
 });
 
 
@@ -1418,13 +1407,13 @@ test("activity grid date cells follow the selected display calendar without chan
     container as unknown as HTMLElement,
     { ...base, columns: [dateColumn], activities: [row] },
   );
-  assert.match(container.innerHTML, /data-column-id="start"[^>]*>2026-10-07<\/td>/);
+  assert.match(container.innerHTML, /data-column-id="start"[^>]*>(?:<span class="cp-p6-tree-guides"[^>]*>)?2026-10-07/);
 
   renderMainWorkspace(
     container as unknown as HTMLElement,
     { ...base, calendarMode: "jalali", columns: [dateColumn], activities: [row] },
   );
-  assert.match(container.innerHTML, /data-column-id="start"[^>]*>۱۴۰۵\/۰۷\/۱۵<\/td>/);
+  assert.match(container.innerHTML, /data-column-id="start"[^>]*>(?:<span class="cp-p6-tree-guides"[^>]*>)?۱۴۰۵\/۰۷\/۱۵/);
   assert.doesNotMatch(container.innerHTML, />2026-10-07<\/td>/);
 });
 
@@ -1589,17 +1578,27 @@ test("Gantt renders persisted dependency arrows, a dated axis and milestone mark
   assert.match(container.innerHTML, /class="cp-gantt-link is-critical"[^>]*data-gantt-link="R-FS"/);
   assert.match(container.innerHTML, /marker-end="url\(#cp-gantt-arrow-critical\)"/);
   assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"/);
-  assert.match(container.innerHTML, />2026-09-02</);
-  assert.match(container.innerHTML, /data-gantt-scale-mode="day"/);
-  assert.match(container.innerHTML, /data-gantt-scale="day" aria-pressed="true"/);
-  assert.match(container.innerHTML, /data-gantt-scale="week" aria-pressed="false"/);
-  assert.match(container.innerHTML, /class="cp-gantt-bar is-critical is-milestone"/);
+  // The default month timescale prints the month over its period, like the
+  // desktop reference, while the tick keeps the canonical ISO date.
+  assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"[^>]*>Sep</);
+  assert.match(container.innerHTML, /data-gantt-grid="2026-09-01"/);
+  assert.match(container.innerHTML, /data-gantt-scale-mode="month"/);
+  assert.match(container.innerHTML, /data-gantt-scale="month" aria-pressed="true"/);
+  assert.match(container.innerHTML, /data-gantt-scale="day" aria-pressed="false"/);
+  assert.match(container.innerHTML, /data-gantt-bar-kind="critical" data-gantt-bar-row="1"/);
+  assert.match(container.innerHTML, /data-gantt-bar-kind="milestone" data-gantt-bar-row="1" data-gantt-bar-shape="triangle-down"/);
+  assert.equal((container.innerHTML.match(/class="cp-gantt-row/g) ?? []).length, 3);
+  assert.match(container.innerHTML, /data-gantt-command="bars"/);
+  assert.match(container.innerHTML, /data-gantt-command="font-row"/);
+  assert.match(container.innerHTML, /data-gantt-command="user-preferences"/);
 });
 
 test("Gantt axis shows the Jalali display date while keeping canonical tick dates", () => {
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState("fa", "jalali"));
-  assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"[^>]*>۱۴۰۵/);
+  // The canonical ISO date stays on the tick, while the visible month label and
+  // the tooltip use the Jalali display date.
+  assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"[^>]*title="۱۴۰۵\/۰۶\/۱۰"[^>]*>شهریور</);
 });
 
 test("Gantt scale buttons dispatch day/week/month/quarter/year and reject unknown modes", () => {
@@ -1648,6 +1647,126 @@ test("Gantt dependency line visibility is an accessible selectable presentation 
   });
   assert.match(hiddenContainer.innerHTML, /data-gantt-relationships-toggle="true" aria-pressed="false"/);
   assert.doesNotMatch(hiddenContainer.innerHTML, /class="cp-gantt-links"/);
+});
+
+test("the saved table presentation styles the real grid, rows, icons and line numbers", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const presentation = normalizePresentation({
+    table: {
+      fontFamily: "cairo",
+      fontSize: 14,
+      textColor: "#102030",
+      backgroundColor: "#eef4f9",
+      rowHeight: 30,
+      rowHeightMode: "content",
+      showIcons: true,
+      lineNumbers: true,
+    },
+  });
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState(), { presentation });
+  assert.match(container.innerHTML, /data-table-row-mode="content"/);
+  assert.match(container.innerHTML, /data-show-icons="true"/);
+  assert.match(container.innerHTML, /data-line-numbers="true"/);
+  assert.match(container.innerHTML, /--cp-p6-row-height:30px/);
+  assert.match(container.innerHTML, /--cp-p6-font-size:14px/);
+  assert.match(container.innerHTML, /--cp-p6-text-color:#102030/);
+  assert.match(container.innerHTML, /--cp-p6-bg-color:#eef4f9/);
+  assert.match(container.innerHTML, /class="cp-p6-line-number">#</);
+  assert.match(container.innerHTML, /class="cp-p6-line-number">1</);
+  assert.match(container.innerHTML, /class="cp-p6-activity-icon is-task"/);
+  assert.match(container.innerHTML, /class="cp-gantt-row[^"]*" role="button" data-gantt-activity-id="A-1"/);
+});
+
+test("bar styles change the real bar layers while the schedule facts stay untouched", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const presentation = normalizePresentation({
+    bars: {
+      task: { bodyColor: "#123456", borderColor: "#0a0b0c", height: 8, pattern: "hatched", labelField: "activity-name", labelPosition: "right" },
+      critical: { visible: false },
+      milestone: { visible: false },
+      progress: { visible: false },
+    },
+  });
+  const state = scheduledGanttState();
+  renderMainWorkspace(container as unknown as HTMLElement, state, { presentation });
+  assert.match(container.innerHTML, /data-gantt-bar-kind="task"[^>]*data-gantt-bar-shape="bar"[^>]*data-gantt-bar-pattern="hatched"/);
+  assert.match(container.innerHTML, /--cp-bar-body:#123456/);
+  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-right">Excavate</);
+  assert.doesNotMatch(container.innerHTML, /data-gantt-bar-kind="milestone"/);
+  // The three activity rows and their persisted dependency links are unchanged.
+  assert.equal((container.innerHTML.match(/class="cp-gantt-row/g) ?? []).length, 3);
+  assert.match(container.innerHTML, /data-gantt-link="R-FS"/);
+});
+
+test("summary bars consume the configured summary style", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const presentation = normalizePresentation({
+    bars: {
+      summary: {
+        bodyColor: "#0b5fa5",
+        borderColor: "#063b69",
+        height: 16,
+        pattern: "hatched",
+        startShape: "diamond",
+        finishShape: "diamond",
+        labelField: "activity-name",
+        labelPosition: "right",
+      },
+    },
+  });
+  const state = withWbsNodes(scheduledGanttState(), [
+    { id: "W-1", parentKind: "project", parentWbsId: null, localCode: "1", name: "Civil works", sequenceNumber: 1, recordRevision: 1 },
+  ]);
+  renderMainWorkspace(container as unknown as HTMLElement, state, { presentation });
+  assert.match(container.innerHTML, /class="cp-gantt-summary-bar is-body-bar is-pattern-hatched"/);
+  assert.match(container.innerHTML, /data-gantt-bar-pattern="hatched"/);
+  assert.match(container.innerHTML, /height:16px/);
+  assert.match(container.innerHTML, /--cp-bar-body:#0b5fa5/);
+  assert.match(container.innerHTML, /cp-gantt-endpoint is-start is-diamond/);
+  assert.match(container.innerHTML, /cp-gantt-endpoint is-finish is-diamond/);
+  assert.match(container.innerHTML, /class="cp-gantt-bar-label is-right">Civil works</);
+});
+
+test("actual and baseline bars are drawn only from persisted date facts", () => {
+  const planned: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(planned as unknown as HTMLElement, scheduledGanttState());
+  assert.doesNotMatch(planned.innerHTML, /data-gantt-bar-kind="actual"/);
+  assert.doesNotMatch(planned.innerHTML, /data-gantt-bar-kind="baseline"/);
+
+  let state = createWorkspaceState({ tenant_id: "t", project_id: "p", revision: 1 });
+  state = withActivities(state, [{
+    id: "A-1", wbsId: "W-1", code: "01", name: "Excavate",
+    gantt: { start: "2026-09-02T00:00:00Z", finish: "2026-09-04T00:00:00Z", progressPercent: 50, critical: false },
+    cells: {
+      "activity.actual_start": "2026-09-02T00:00:00Z",
+      "activity.actual_finish": "2026-09-03T00:00:00Z",
+      "activity.baseline_start": "2026-09-01T00:00:00Z",
+      "activity.baseline_finish": "2026-09-04T00:00:00Z",
+    },
+  }]);
+  const progressed: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(progressed as unknown as HTMLElement, state);
+  assert.match(progressed.innerHTML, /data-gantt-bar-kind="actual" data-gantt-bar-row="2"/);
+  assert.match(progressed.innerHTML, /data-gantt-bar-kind="baseline" data-gantt-bar-row="3"/);
+  assert.match(progressed.innerHTML, /class="cp-gantt-progress"/);
+});
+
+test("Gantt command buttons open the owning layout dialogs", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const commands: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState(), {
+    onGanttCommand: (command) => commands.push(command),
+  });
+  for (const command of ["bars", "font-row", "user-preferences", "unknown"]) {
+    const button = { dataset: { ganttCommand: command }, closest: () => button };
+    listeners.get("click")?.({ target: button } as unknown as Event);
+  }
+  assert.deepEqual(commands, ["bars", "font-row", "user-preferences"]);
 });
 
 test("project settings button dispatches a single open request", () => {
@@ -1779,33 +1898,45 @@ test("empty and preview-only modules show an explicit truthful surface", () => {
 });
 
 
-test("desktop workbench renders a grouped navigation tree, window tabs and contextual command rail", () => {
+test("desktop workbench renders one compact navigation rail, a full menu flyout and a single contextual command bar", () => {
   const html = render("en", "schedule");
   assert.match(html, /class="[^"]*cp-navigation-tree/);
   const navigationStart = html.indexOf('class="cp-menu cp-p6-rail cp-navigation-tree"');
   const navigationEnd = html.indexOf("</nav>", navigationStart);
   const navigationMarkup = html.slice(navigationStart, navigationEnd + 6);
   assert.equal((navigationMarkup.match(/data-menu=/g) ?? []).length, 18);
+  assert.match(html, /data-rail-action="navigation" data-nav-flyout-toggle aria-expanded="false" aria-haspopup="true"/);
+  const flyoutStart = html.indexOf('<div class="cp-p6-flyout" data-nav-flyout hidden>');
+  assert.ok(flyoutStart > -1, "the full navigation flyout must be rendered");
+  const flyoutEnd = html.indexOf('<div class="cp-p6-drawer', flyoutStart);
+  const flyoutMarkup = html.slice(flyoutStart, flyoutEnd);
+  assert.equal((flyoutMarkup.match(/data-menu=/g) ?? []).length, 18);
+  assert.match(flyoutMarkup, /class="cp-p6-flyout-tree"/);
   assert.match(html, /Project workspace/);
   assert.match(html, /Planning &amp; execution/);
   assert.match(html, /Resources &amp; cost/);
-  assert.match(html, /class="cp-window-tabs"/);
-  assert.match(html, /role="tab" data-window-tab="schedule" data-menu="schedule" aria-selected="true"/);
-  assert.match(html, /class="cp-context-command-bar"/);
+  assert.equal((html.match(/class="cp-context-command-bar"/g) ?? []).length, 1);
   assert.match(html, /Current window commands/);
-  assert.match(html, /class="[^"]*cp-context-command-rail/);
-  assert.match(html, /class="cp-context-add-menu"/);
+  assert.doesNotMatch(html, /class="cp-window-tabs"/);
+  assert.doesNotMatch(html, /class="cp-context-add-menu"/);
+  assert.doesNotMatch(html, /class="cp-window-tab\b/);
   assert.match(html, /Calendars/);
   assert.match(html, /Roles/);
   assert.match(html, /Tracking/);
   assert.match(html, /Thresholds/);
-  assert.match(html, /Add to current window/);
 });
 
-test("desktop workbench keeps contextual Add actions visibly unavailable until workflows exist", () => {
+test("desktop workbench exposes real keyboard-operable resize separators and reset commands instead of disabled placeholders", () => {
   const html = render("en", "schedule");
-  assert.match(html, /role="menuitem" disabled/);
-  assert.match(html, /create workflow is not connected yet/);
+  assert.match(html, /data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0"[^>]*aria-valuemin="25"[^>]*aria-valuemax="75"[^>]*aria-valuenow="50"/);
+  assert.match(html, /data-details-splitter[^>]*role="separator" aria-orientation="horizontal" tabindex="0"[^>]*aria-valuemin="40"[^>]*aria-valuemax="80"[^>]*aria-valuenow="70"/);
+  assert.match(html, /data-column-resize="[^"]+" role="separator" aria-orientation="vertical"[^>]*aria-valuemin="48"[^>]*aria-valuemax="640"[^>]*aria-valuenow="\d+"/);
+  assert.match(html, /data-layout-options-open/);
+  assert.match(html, /data-reset-table-split/);
+  assert.match(html, /data-reset-details-split/);
+  assert.match(html, /data-reset-column-widths/);
+  assert.doesNotMatch(html, /role="menuitem" disabled/);
+  assert.doesNotMatch(html, /create workflow is not connected yet/);
 });
 
 test("Settings layout administration states honestly when no layout is loaded", () => {
@@ -1927,4 +2058,138 @@ test("Settings layout administration reads the persisted layout and dispatches h
   clickListener?.({ target: redoButton } as unknown as Event);
   clickListener?.({ target: restoreButton } as unknown as Event);
   assert.deepEqual(events, ["undo", "redo", "restore:2"]);
+});
+
+function wbsActivityState() {
+  let state = createWorkspaceState(
+    { tenant_id: "tenant-1", project_id: "project-1", revision: 3 },
+    "en",
+  );
+  state = withWbsNodes(state, [
+    { id: "W-ROOT", parentKind: "project", parentWbsId: null, localCode: "1", name: "Project", sequenceNumber: 0, recordRevision: 1 },
+    { id: "W-A", parentKind: "wbs", parentWbsId: "W-ROOT", localCode: "1.1", name: "Civil", sequenceNumber: 10, recordRevision: 1 },
+    { id: "W-A1", parentKind: "wbs", parentWbsId: "W-A", localCode: "1.1.1", name: "Earthwork", sequenceNumber: 10, recordRevision: 1 },
+    { id: "W-B", parentKind: "wbs", parentWbsId: "W-ROOT", localCode: "1.2", name: "Structure", sequenceNumber: 20, recordRevision: 1 },
+  ]);
+  return withActivities(state, [
+    {
+      id: "A-1", wbsId: "W-A1", code: "A1", name: "Excavate",
+      cells: { duration: 2 },
+      gantt: { start: "2026-09-01T00:00:00Z", finish: "2026-09-03T00:00:00Z", progressPercent: 50, critical: true },
+    },
+    {
+      id: "A-2", wbsId: "W-A1", code: "A2", name: "Haul",
+      cells: { duration: 2 },
+      gantt: { start: "2026-09-03T00:00:00Z", finish: "2026-09-05T00:00:00Z", progressPercent: 100, critical: false },
+    },
+    {
+      id: "B-1", wbsId: "W-B", code: "B1", name: "Rebar",
+      cells: { duration: 2 },
+      gantt: { start: "2026-09-02T00:00:00Z", finish: "2026-09-04T00:00:00Z", progressPercent: 0, critical: false },
+    },
+  ]);
+}
+
+test("activity grid renders colored WBS bands with expand controls and matching Gantt summary rows", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, wbsActivityState());
+  const html = container.innerHTML;
+
+  assert.match(html, /<tr role="row" data-wbs-row="W-ROOT" data-wbs-level="1" data-wbs-depth="0" data-wbs-collapsed="false" tabindex="0" aria-label="1 Project" aria-expanded="true" class="cp-p6-wbs-band cp-p6-tree-band" style="--cp-wbs-level:#0000ff;--cp-wbs-ink:#ffff00"/);
+  assert.match(html, /data-wbs-row="W-A" data-wbs-level="2" data-wbs-depth="1"[^>]*style="--cp-wbs-level:#80ff80;--cp-wbs-ink:#000000"/);
+  assert.match(html, /data-wbs-row="W-A1" data-wbs-level="3" data-wbs-depth="2"[^>]*style="--cp-wbs-level:#ffff00;--cp-wbs-ink:#0000ff"/);
+  assert.match(html, /data-wbs-toggle="W-ROOT" aria-expanded="true"[^>]*>−</);
+  assert.match(html, /data-wbs-toggle="W-A1" aria-expanded="true"[^>]*>−</);
+  assert.match(html, /class="cp-p6-wbs-code">1\.1\.1</);
+  assert.match(html, /data-rollup="display" title="Derived for display from 2 persisted child activities"[^>]*>4<\/td>/);
+  assert.match(html, /data-activity-id="A-1"[^>]*data-wbs-depth="3"/);
+  // Each level draws a solid vertical spine inside the tree cell, so the
+  // parent/child extent is visible even on leaf rows.
+  assert.match(html, /class="cp-p6-tree-guides" data-tree-depth="3" style="--cp-wbs-level:#ffff00"><span class="cp-p6-wbs-spine" data-spine-level="1" style="--cp-spine:#0000ff" aria-hidden="true"><\/span><span class="cp-p6-wbs-spine" data-spine-level="2" style="--cp-spine:#80ff80" aria-hidden="true"><\/span><span class="cp-p6-wbs-spine" data-spine-level="3" style="--cp-spine:#ffff00" aria-hidden="true"><\/span>/);
+  // The reference chart has no frozen label pane: rows are bars only, and the
+  // table already carries the hierarchy.
+  assert.doesNotMatch(html, /cp-gantt-label/);
+  assert.match(html, /class="cp-gantt-row cp-gantt-group-row" data-gantt-wbs-id="W-ROOT"[^>]*><div class="cp-gantt-track">/);
+  // A dashed rule closes each WBS branch instead of ruling every row.
+  assert.match(html, /class="cp-gantt-row is-group-end" role="button" data-gantt-activity-id="A-2"/);
+  assert.equal((html.match(/is-group-end/g) ?? []).length, 2);
+  // Summary bars use the classic black bar with downward triangle caps and the
+  // reference "Finish, Activity ID  Activity Name" label.
+  assert.match(html, /class="cp-gantt-summary-bar[^"]*"[^>]*--cp-bar-body:#000000[^>]*><span class="cp-gantt-endpoint is-start is-triangle-down"/);
+  assert.match(html, />05-Sep-26, 1  Project</);
+  assert.match(html, />03-Sep-26, A-1  Excavate</);
+  assert.match(html, /data-wbs-expand-all/);
+  assert.match(html, /data-wbs-collapse-all/);
+  assert.match(html, /data-wbs-collapse-to/);
+  assert.match(html, /class="cp-gantt-row cp-gantt-group-row" data-gantt-wbs-id="W-ROOT" data-gantt-depth="0"/);
+  assert.match(html, /class="cp-gantt-row cp-gantt-group-row" data-gantt-wbs-id="W-A1" data-gantt-depth="2"/);
+  assert.match(html, /data-gantt-summary="derived" data-gantt-wbs-id="W-ROOT"/);
+  assert.equal((html.match(/data-gantt-summary="derived"/g) ?? []).length, 4);
+});
+
+test("collapsing a WBS branch removes its table rows and Gantt bars together", () => {
+  let state = wbsActivityState();
+  setCollapsedWbsIds(state.context.project_id, ["W-A"]);
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, state);
+  const html = container.innerHTML;
+  assert.match(html, /data-wbs-row="W-A" data-wbs-level="2" data-wbs-depth="1" data-wbs-collapsed="true"/);
+  assert.match(html, /data-wbs-toggle="W-A" aria-expanded="false"[^>]*>\+</);
+  assert.doesNotMatch(html, /data-activity-id="A-1"/);
+  assert.doesNotMatch(html, /data-activity-id="A-2"/);
+  assert.doesNotMatch(html, /data-gantt-wbs-id="W-A1"/);
+  assert.doesNotMatch(html, /data-gantt-activity-id="A-1"/);
+  assert.match(html, /data-gantt-wbs-id="W-B"/);
+  assert.match(html, /data-activity-id="B-1"/);
+  setCollapsedWbsIds(state.context.project_id, []);
+});
+
+test("activity context menu exposes the reference commands, real ones enabled and unsupported ones disabled with a reason", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  renderMainWorkspace(container as unknown as HTMLElement, {
+    ...wbsActivityState(),
+    selectedActivityId: "A-1",
+  });
+  const html = container.innerHTML;
+  const menu = html.match(/<div class="cp-context-menu"[^>]*>[\s\S]*?<\/div>\s*<\/div>$/)?.[0] ?? html;
+  assert.match(html, /data-activity-context-menu data-activity-menu-for="A-1" role="menu"/);
+  for (const command of [
+    "details", "cut", "copy", "paste", "fill-down", "add", "delete", "dissolve", "renumber",
+    "export-excel", "assign", "link", "columns", "line-numbers", "font-row", "filters",
+    "group-sort", "expand-all", "collapse-all", "collapse-to",
+  ]) {
+    assert.ok(menu.includes(`data-activity-menu-command="${command}"`), `missing context command ${command}`);
+  }
+  assert.match(html, /data-activity-menu-command="cut"[^>]*disabled aria-disabled="true" title="Cut needs the activity delete route/);
+  assert.match(html, /data-activity-menu-command="delete"[^>]*disabled aria-disabled="true"/);
+  assert.match(html, /data-activity-menu-command="export-excel"[^>]*disabled aria-disabled="true" title="Only XML interchange is available; no XLSX export route exists\."/);
+  assert.match(html, /data-activity-menu-command="assign"[^>]*disabled aria-disabled="true" title="Resource assignment write is not available/);
+  assert.doesNotMatch(html, /data-activity-menu-command="details"[^>]*disabled/);
+  assert.doesNotMatch(html, /data-activity-menu-command="link"[^>]*disabled/);
+  assert.match(html, /data-activity-context-menu[^>]* hidden>/);
+  assert.match(html, /data-collapse-to-dialog/);
+});
+
+test("right-click on an activity row selects it and requests the context menu", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const container = {
+    innerHTML: "",
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+  };
+  const selected: string[] = [];
+  renderMainWorkspace(container as unknown as HTMLElement, wbsActivityState(), {
+    onActivitySelect: (activityId) => selected.push(activityId),
+  });
+  const row = { dataset: { activityId: "A-1" }, closest: () => row };
+  let prevented = 0;
+  listeners.get("contextmenu")?.({
+    target: row,
+    preventDefault: () => { prevented += 1; },
+    clientX: 40,
+    clientY: 30,
+  } as unknown as Event);
+  assert.equal(prevented, 1);
+  assert.deepEqual(selected, ["A-1"]);
 });

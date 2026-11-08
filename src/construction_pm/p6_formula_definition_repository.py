@@ -62,6 +62,7 @@ class P6FormulaDefinitionRepository(Protocol):
     def upsert(self, record: PersistedP6FormulaDefinition) -> PersistedP6FormulaDefinition: ...
     def get(self, scope: BackendScope, formula_id: str, version: str) -> PersistedP6FormulaDefinition | None: ...
     def list_versions(self, scope: BackendScope, formula_id: str) -> tuple[PersistedP6FormulaDefinition, ...]: ...
+    def list_all(self, scope: BackendScope) -> tuple[PersistedP6FormulaDefinition, ...]: ...
 
 
 @dataclass(frozen=True)
@@ -201,6 +202,31 @@ class SQLiteP6FormulaDefinitionRepository:
         ).fetchall()
         return tuple(_record_from_row(scope, formula_id, str(row[1]), (row[0], *row[2:])) for row in rows)
 
+    def list_all(self, scope: BackendScope) -> tuple[PersistedP6FormulaDefinition, ...]:
+        """Return every formula definition in one project revision.
+
+        Formula columns are project-revision scoped presentation metadata: the
+        workspace registry needs the full set to expose them as computed
+        fields, so the read path must not require a formula id up front.
+        """
+
+        scope.validate()
+        rows = self.connection.execute(
+            """
+            SELECT project_revision, formula_id, formula_version, expression, result_type,
+                   result_unit, semantic_version, semantic_reference,
+                   dependencies_json, metadata_json
+            FROM p6_formula_definitions
+            WHERE tenant_id=? AND project_id=? AND project_revision=?
+            ORDER BY formula_id, formula_version
+            """,
+            (scope.tenant_id, scope.project_id, scope.project_revision),
+        ).fetchall()
+        return tuple(
+            _record_from_row(scope, str(row[1]), str(row[2]), (row[0], *row[3:]))
+            for row in rows
+        )
+
 
 @dataclass(frozen=True)
 class P6FormulaDefinitionApplicationService:
@@ -242,6 +268,10 @@ class P6FormulaDefinitionApplicationService:
         with self.transaction_manager.transaction():
             records = self.repository.list_versions(scope, formula_id)
         return FormulaDefinitionListResponse(records)
+
+    def list_all(self, scope: BackendScope) -> tuple[PersistedP6FormulaDefinition, ...]:
+        with self.transaction_manager.transaction():
+            return self.repository.list_all(scope)
 
     def list_audit(
         self,
@@ -330,6 +360,21 @@ class PostgresP6FormulaDefinitionRepository:
             (scope.tenant_id, scope.project_id, formula_id, scope.project_revision),
         ).fetchall()
         return tuple(_record_from_row(scope, formula_id, str(row[1]), (row[0], *row[2:])) for row in rows)
+
+    def list_all(self, scope: BackendScope) -> tuple[PersistedP6FormulaDefinition, ...]:
+        scope.validate()
+        rows = self.connection.execute(
+            "SELECT project_revision, formula_id, formula_version, expression, result_type, result_unit, "
+            "semantic_version, semantic_reference, dependencies_json, metadata_json "
+            "FROM p6_formula_definitions "
+            "WHERE tenant_id=%s AND project_id=%s AND project_revision=%s "
+            "ORDER BY formula_id, formula_version",
+            (scope.tenant_id, scope.project_id, scope.project_revision),
+        ).fetchall()
+        return tuple(
+            _record_from_row(scope, str(row[1]), str(row[2]), (row[0], *row[3:]))
+            for row in rows
+        )
 
 
 def _validate_lookup(scope: BackendScope, formula_id: str, version: str) -> None:

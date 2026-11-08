@@ -24,6 +24,12 @@ export type P6Field = {
   orderable?: boolean | null;
   nullable?: boolean | null;
   allowed_values?: readonly string[] | null;
+  /**
+   * Expression of a computed formula column. Present only for fields the
+   * registry projects from a persisted formula definition; the client displays
+   * the server-evaluated value and never evaluates the expression itself.
+   */
+  formula?: string | null;
 };
 
 export type FieldRegistry = {
@@ -135,6 +141,10 @@ function validateField(field: P6Field): void {
     if (!Array.isArray(field.allowed_values) || field.allowed_values.some((value) => typeof value !== "string")) {
       throw new Error("INVALID_P6_FIELD_ALLOWED_VALUES");
     }
+  }
+  if (field.formula !== undefined && field.formula !== null) {
+    requireNonEmpty(field.formula, "INVALID_P6_FIELD_FORMULA");
+    if (!field.computed) throw new Error("P6_FIELD_FORMULA_NOT_COMPUTED");
   }
 }
 

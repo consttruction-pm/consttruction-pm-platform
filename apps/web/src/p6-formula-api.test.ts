@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ApiResult, ApiTransport, ProjectContext } from "./client.js";
-import { createP6FormulaAuthority } from "./p6-formula-api.js";
+import { createP6FormulaAuthority, createP6FormulaColumnClient } from "./p6-formula-api.js";
 
 const CONTEXT: ProjectContext = {
   tenant_id: "t1",
@@ -120,4 +120,113 @@ test("formula authority rejects a malformed authoritative response", async () =>
   );
 
   await assert.rejects(authority.validate("1 + 1"), /INVALID_P6_FORMULA_RESULT_TYPE/);
+});
+
+function columnTransport(result: ApiResult<unknown>, calls: Call[] = []): ApiTransport {
+  return {
+    async get(path, context) {
+      calls.push({ path, request: null, context });
+      return result as ApiResult<never>;
+    },
+    async post(path, request, context) {
+      calls.push({ path, request, context });
+      return result as ApiResult<never>;
+    },
+  };
+}
+
+const COLUMN_RECORD = {
+  contract_version: "p6-formula-column-api.v1",
+  kind: "formula_column",
+  scope: { tenant_id: "t1", project_id: "preview-rps-01", project_revision: 7 },
+  formula: {
+    formula_id: "formula.double_progress",
+    version: "1",
+    title: "Double Progress",
+    expression: "[activity.percent_complete] * 2",
+    result_type: "number",
+    data_type: "double",
+    result_unit: null,
+    dependencies: ["activity.percent_complete"],
+  },
+} as const;
+
+test("formula column client lists persisted columns from the project route", async () => {
+  const calls: Call[] = [];
+  const client = createP6FormulaColumnClient(
+    columnTransport(
+      {
+        ok: true,
+        data: {
+          contract_version: "p6-formula-column-api.v1",
+          kind: "formula_column_list",
+          formula_columns: [COLUMN_RECORD],
+        },
+      },
+      calls,
+    ),
+    CONTEXT,
+  );
+
+  const columns = await client.list();
+  assert.equal(calls[0].path, "/api/projects/preview-rps-01/p6/formula-columns");
+  assert.equal(columns.length, 1);
+  assert.equal(columns[0].formula.formula_id, "formula.double_progress");
+  assert.equal(columns[0].formula.data_type, "double");
+});
+
+test("formula column client posts title, id and expression without evaluating locally", async () => {
+  const calls: Call[] = [];
+  const client = createP6FormulaColumnClient(columnTransport({ ok: true, data: COLUMN_RECORD }, calls), CONTEXT);
+
+  const record = await client.create({
+    formula_id: "formula.double_progress",
+    title: "Double Progress",
+    expression: "[activity.percent_complete] * 2",
+  });
+
+  assert.equal(calls[0].path, "/api/projects/preview-rps-01/p6/formula-columns");
+  assert.deepEqual(calls[0].request, {
+    formula_id: "formula.double_progress",
+    title: "Double Progress",
+    expression: "[activity.percent_complete] * 2",
+  });
+  assert.equal(record.formula.title, "Double Progress");
+});
+
+test("formula column client surfaces server validation errors unchanged", async () => {
+  const client = createP6FormulaColumnClient(
+    columnTransport({
+      ok: false,
+      error: {
+        code: "INVALID_FORMULA_COLUMN_ID",
+        retryable: false,
+        message_key: "error.request.invalid",
+        available_actions: [],
+      },
+    }),
+    CONTEXT,
+  );
+
+  await assert.rejects(
+    client.create({ formula_id: "plain", title: "Plain", expression: "1" }),
+    /INVALID_FORMULA_COLUMN_ID/,
+  );
+});
+
+test("formula column client rejects a malformed record instead of showing it", async () => {
+  const client = createP6FormulaColumnClient(
+    columnTransport({
+      ok: true,
+      data: {
+        contract_version: "p6-formula-column-api.v1",
+        kind: "formula_column",
+        scope: {},
+        formula: { formula_id: "plain", title: "Plain", expression: "1", dependencies: [] },
+      },
+    }),
+    CONTEXT,
+  );
+
+  await assert.rejects(client.create({ formula_id: "plain", title: "Plain", expression: "1" }), /INVALID_P6_FORMULA_COLUMN_ID/);
 });

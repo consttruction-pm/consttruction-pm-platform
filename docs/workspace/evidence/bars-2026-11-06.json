@@ -1,0 +1,195 @@
+{
+  "baseUrl": "http://127.0.0.1:4174",
+  "gitHead": "1bdcc5f2a0c12dbfd5f1d3dc00aafb96bc1c532d",
+  "capturedAt": "2026-11-06T05:30:46.937Z",
+  "screenshots": {
+    "baseline": "bars-live/bars-baseline-1280x720.png",
+    "dialog": "bars-live/bars-dialog-1280x720.png",
+    "dialogZoom": "bars-live/bars-dialog-zoom.png",
+    "customized": "bars-live/bars-customized-1280x720.png",
+    "restored": "bars-live/bars-restored-1280x720.png"
+  },
+  "baseline": {
+    "task": {
+      "className": "cp-gantt-bar cp-gantt-bar-task is-body-bar is-pattern-solid",
+      "shape": "bar",
+      "pattern": "solid",
+      "height": "13px",
+      "background": "rgb(238, 243, 248)",
+      "backgroundImage": "none",
+      "label": "A110",
+      "labelClass": "cp-gantt-bar-label is-right",
+      "startMarker": null,
+      "finishMarker": null
+    },
+    "critical": {
+      "className": "cp-gantt-bar cp-gantt-bar-critical is-critical is-body-bar is-pattern-solid",
+      "shape": "bar",
+      "pattern": "solid",
+      "height": "14px",
+      "background": "rgb(246, 220, 215)",
+      "backgroundImage": "none",
+      "label": "A210",
+      "labelClass": "cp-gantt-bar-label is-right",
+      "startMarker": null,
+      "finishMarker": null
+    },
+    "summary": {
+      "className": "cp-gantt-summary-bar is-body-bar is-pattern-solid",
+      "shape": "bar",
+      "pattern": "solid",
+      "height": "10px",
+      "background": "rgb(23, 50, 77)",
+      "backgroundImage": "none",
+      "label": null,
+      "labelClass": null,
+      "startMarker": "cp-gantt-endpoint is-start is-triangle-down",
+      "finishMarker": "cp-gantt-endpoint is-finish is-triangle-down"
+    },
+    "taskCount": 6,
+    "criticalCount": 7,
+    "summaryCount": 7
+  },
+  "dialog": {
+    "open": true,
+    "sections": [
+      "task",
+      "critical",
+      "summary",
+      "milestone",
+      "progress",
+      "actual",
+      "baseline"
+    ],
+    "taskHeight": "14",
+    "taskPattern": "solid",
+    "taskLabel": "activity-id",
+    "summaryLabel": "none",
+    "width": 780,
+    "height": 619,
+    "fitsViewport": true
+  },
+  "customized": {
+    "task": {
+      "className": "cp-gantt-bar cp-gantt-bar-task is-body-diamond is-pattern-striped",
+      "shape": "diamond",
+      "pattern": "striped",
+      "height": "14px",
+      "background": "rgb(192, 57, 43)",
+      "backgroundImage": "repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.34) 0px, rgba(255, 255, 255, 0.34) 2px, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0) 5px)",
+      "label": "Mobilization",
+      "labelClass": "cp-gantt-bar-label is-inside-center",
+      "startMarker": "cp-gantt-endpoint is-start is-circle",
+      "finishMarker": "cp-gantt-endpoint is-finish is-triangle-up"
+    },
+    "critical": {
+      "className": "cp-gantt-bar cp-gantt-bar-critical is-critical is-body-bar is-pattern-solid",
+      "shape": "bar",
+      "pattern": "solid",
+      "height": "14px",
+      "background": "rgb(246, 220, 215)",
+      "backgroundImage": "none",
+      "label": "A210",
+      "labelClass": "cp-gantt-bar-label is-right",
+      "startMarker": null,
+      "finishMarker": null
+    },
+    "summary": {
+      "className": "cp-gantt-summary-bar is-body-bar is-pattern-hatched",
+      "shape": "bar",
+      "pattern": "hatched",
+      "height": "16px",
+      "background": "rgb(11, 95, 165)",
+      "backgroundImage": "repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0px, rgba(255, 255, 255, 0.4) 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 4px)",
+      "label": "Riverside Pump Station Upgrade",
+      "labelClass": "cp-gantt-bar-label is-right",
+      "startMarker": "cp-gantt-endpoint is-start is-diamond",
+      "finishMarker": "cp-gantt-endpoint is-finish is-diamond"
+    },
+    "taskCount": 6,
+    "criticalCount": 7,
+    "summaryCount": 7
+  },
+  "restored": {
+    "task": {
+      "className": "cp-gantt-bar cp-gantt-bar-task is-body-bar is-pattern-solid",
+      "shape": "bar",
+      "pattern": "solid",
+      "height": "13px",
+      "background": "rgb(238, 243, 248)",
+      "backgroundImage": "none",
+      "label": "A110",
+      "labelClass": "cp-gantt-bar-label is-right",
+      "startMarker": null,
+      "finishMarker": null
+    },
+    "critical": {
+      "className": "cp-gantt-bar cp-gantt-bar-critical is-critical is-body-bar is-pattern-solid",
+      "shape": "bar",
+      "pattern": "solid",
+      "height": "14px",
+      "background": "rgb(246, 220, 215)",
+      "backgroundImage": "none",
+      "label": "A210",
+      "labelClass": "cp-gantt-bar-label is-right",
+      "startMarker": null,
+      "finishMarker": null
+    },
+    "summary": {
+      "className": "cp-gantt-summary-bar is-body-bar is-pattern-solid",
+      "shape": "bar",
+      "pattern": "solid",
+      "height": "10px",
+      "background": "rgb(23, 50, 77)",
+      "backgroundImage": "none",
+      "label": null,
+      "labelClass": null,
+      "startMarker": "cp-gantt-endpoint is-start is-triangle-down",
+      "finishMarker": "cp-gantt-endpoint is-finish is-triangle-down"
+    },
+    "taskCount": 6,
+    "criticalCount": 7,
+    "summaryCount": 7
+  },
+  "afterReload": {
+    "task": {
+      "className": "cp-gantt-bar cp-gantt-bar-task is-body-diamond is-pattern-striped",
+      "shape": "diamond",
+      "pattern": "striped",
+      "height": "14px",
+      "background": "rgb(192, 57, 43)",
+      "backgroundImage": "repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.34) 0px, rgba(255, 255, 255, 0.34) 2px, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0) 5px)",
+      "label": "Mobilization",
+      "labelClass": "cp-gantt-bar-label is-inside-center",
+      "startMarker": "cp-gantt-endpoint is-start is-circle",
+      "finishMarker": "cp-gantt-endpoint is-finish is-triangle-up"
+    },
+    "critical": {
+      "className": "cp-gantt-bar cp-gantt-bar-critical is-critical is-body-bar is-pattern-solid",
+      "shape": "bar",
+      "pattern": "solid",
+      "height": "14px",
+      "background": "rgb(246, 220, 215)",
+      "backgroundImage": "none",
+      "label": "A210",
+      "labelClass": "cp-gantt-bar-label is-right",
+      "startMarker": null,
+      "finishMarker": null
+    },
+    "summary": {
+      "className": "cp-gantt-summary-bar is-body-bar is-pattern-hatched",
+      "shape": "bar",
+      "pattern": "hatched",
+      "height": "16px",
+      "background": "rgb(11, 95, 165)",
+      "backgroundImage": "repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0px, rgba(255, 255, 255, 0.4) 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 4px)",
+      "label": "Riverside Pump Station Upgrade",
+      "labelClass": "cp-gantt-bar-label is-right",
+      "startMarker": "cp-gantt-endpoint is-start is-diamond",
+      "finishMarker": "cp-gantt-endpoint is-finish is-diamond"
+    },
+    "taskCount": 6,
+    "criticalCount": 7,
+    "summaryCount": 7
+  }
+}

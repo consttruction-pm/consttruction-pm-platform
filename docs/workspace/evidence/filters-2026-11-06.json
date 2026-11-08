@@ -1,0 +1,344 @@
+{
+  "baseUrl": "http://127.0.0.1:4174",
+  "gitHead": "59a6a42d3f53f7f24816601e094efbebde786adf",
+  "capturedAt": "2026-11-06T05:20:58.481Z",
+  "screenshots": {
+    "dialog": "filters-live/filters-dialog-1280x720.png",
+    "dialogZoom": "filters-live/filters-dialog-zoom.png",
+    "predefined": "filters-live/filters-in-progress-1280x720.png",
+    "customAnd": "filters-live/filters-custom-and-1280x720.png",
+    "customOr": "filters-live/filters-custom-or-1280x720.png",
+    "savedDialog": "filters-live/filters-saved-list-1280x720.png",
+    "cleared": "filters-live/filters-cleared-1280x720.png"
+  },
+  "baseline": {
+    "label": "Filter: All Activities",
+    "activeFilterId": "",
+    "tableIds": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "ganttIds": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "tableCount": 14,
+    "ganttCount": 14,
+    "bands": 7
+  },
+  "dialog": {
+    "open": true,
+    "activeId": "",
+    "groups": [
+      {
+        "label": "Predefined filters",
+        "options": [
+          {
+            "value": "builtin:in-progress",
+            "label": "In Progress"
+          },
+          {
+            "value": "builtin:not-started",
+            "label": "Not Started"
+          },
+          {
+            "value": "builtin:completed",
+            "label": "Completed"
+          },
+          {
+            "value": "builtin:critical",
+            "label": "Critical"
+          },
+          {
+            "value": "builtin:non-critical",
+            "label": "Non Critical"
+          },
+          {
+            "value": "builtin:negative-float",
+            "label": "Negative Float"
+          },
+          {
+            "value": "builtin:milestones",
+            "label": "Milestone"
+          }
+        ]
+      },
+      {
+        "label": "Saved filters",
+        "options": [
+          {
+            "value": "custom:civil-or-procurement",
+            "label": "Civil or procurement"
+          },
+          {
+            "value": "custom:civil-open",
+            "label": "Civil open"
+          }
+        ]
+      }
+    ],
+    "rowCount": 4,
+    "rows": [
+      {
+        "field": "activity_name",
+        "operator": "contains",
+        "value": ""
+      },
+      {
+        "field": "activity_name",
+        "operator": "contains",
+        "value": ""
+      },
+      {
+        "field": "activity_name",
+        "operator": "contains",
+        "value": ""
+      },
+      {
+        "field": "activity_name",
+        "operator": "contains",
+        "value": ""
+      }
+    ],
+    "name": "",
+    "match": "all",
+    "rect": {
+      "width": 640,
+      "height": 457,
+      "top": 131
+    },
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "fitsViewport": true
+  },
+  "predefined": {
+    "label": "Filter: In Progress",
+    "activeFilterId": "builtin:in-progress",
+    "tableIds": [
+      "A130"
+    ],
+    "ganttIds": [
+      "A130"
+    ],
+    "tableCount": 1,
+    "ganttCount": 1,
+    "bands": 2
+  },
+  "customAnd": {
+    "label": "Filter: Civil open",
+    "activeFilterId": "custom:civil-open",
+    "tableIds": [
+      "A130",
+      "A140",
+      "A145",
+      "A160"
+    ],
+    "ganttIds": [
+      "A130",
+      "A140",
+      "A145",
+      "A160"
+    ],
+    "tableCount": 4,
+    "ganttCount": 4,
+    "bands": 2
+  },
+  "customOr": {
+    "label": "Filter: Civil or procurement",
+    "activeFilterId": "custom:civil-or-procurement",
+    "tableIds": [
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150"
+    ],
+    "ganttIds": [
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150"
+    ],
+    "tableCount": 6,
+    "ganttCount": 6,
+    "bands": 3
+  },
+  "savedDialog": {
+    "open": true,
+    "activeId": "custom:civil-or-procurement",
+    "groups": [
+      {
+        "label": "Predefined filters",
+        "options": [
+          {
+            "value": "builtin:in-progress",
+            "label": "In Progress"
+          },
+          {
+            "value": "builtin:not-started",
+            "label": "Not Started"
+          },
+          {
+            "value": "builtin:completed",
+            "label": "Completed"
+          },
+          {
+            "value": "builtin:critical",
+            "label": "Critical"
+          },
+          {
+            "value": "builtin:non-critical",
+            "label": "Non Critical"
+          },
+          {
+            "value": "builtin:negative-float",
+            "label": "Negative Float"
+          },
+          {
+            "value": "builtin:milestones",
+            "label": "Milestone"
+          }
+        ]
+      },
+      {
+        "label": "Saved filters",
+        "options": [
+          {
+            "value": "custom:civil-or-procurement",
+            "label": "Civil or procurement"
+          },
+          {
+            "value": "custom:civil-open",
+            "label": "Civil open"
+          }
+        ]
+      }
+    ],
+    "rowCount": 4,
+    "rows": [
+      {
+        "field": "wbs",
+        "operator": "contains",
+        "value": "Civil"
+      },
+      {
+        "field": "wbs",
+        "operator": "contains",
+        "value": "Procurement"
+      },
+      {
+        "field": "activity_name",
+        "operator": "contains",
+        "value": ""
+      },
+      {
+        "field": "activity_name",
+        "operator": "contains",
+        "value": ""
+      }
+    ],
+    "name": "Civil or procurement",
+    "match": "any",
+    "rect": {
+      "width": 640,
+      "height": 484,
+      "top": 118
+    },
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "fitsViewport": true
+  },
+  "afterReload": {
+    "label": "Filter: Civil or procurement",
+    "activeFilterId": "custom:civil-or-procurement",
+    "tableIds": [
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150"
+    ],
+    "ganttIds": [
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150"
+    ],
+    "tableCount": 6,
+    "ganttCount": 6,
+    "bands": 3
+  },
+  "cleared": {
+    "label": "Filter: All Activities",
+    "activeFilterId": "",
+    "tableIds": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "ganttIds": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "tableCount": 14,
+    "ganttCount": 14,
+    "bands": 7
+  }
+}

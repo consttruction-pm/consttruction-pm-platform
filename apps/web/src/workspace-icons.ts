@@ -52,6 +52,19 @@ const PATHS: Record<string, string> = {
   home: "M2 7l6-5 6 5 M4 6v7h8V6 M6.5 13V9h3v4",
   language:
     "M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2z M2 8h12 M8 2c1.8 1.7 2.7 3.7 2.7 6S9.8 12.3 8 14C6.2 12.3 5.3 10.3 5.3 8S6.2 3.7 8 2z",
+  cut: "M4 3l8 10 M12 3L4 13 M3.5 6.5a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4z M3.5 13.9a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4z",
+  copy: "M5 5h8v9H5z M3 3h8v2 M3 3v9h2",
+  paste: "M5 3h6v2H5z M4 5h8v9H4z M6 2h4v2H6z",
+  fill: "M3 8l5-5 4 4-5 5H3z M9 2v3 M2 14h12",
+  delete: "M4 5h8 M6 5V3h4v2 M5 5l1 9h4l1-9",
+  dissolve: "M2 4h12 M4 8h8 M6 12h4",
+  renumber: "M2 4h4 M2 8h4 M2 12h4 M11 4v7 M9 9l2 2 2-2",
+  excel: "M3 2h10v12H3z M6 6l4 5 M10 6l-4 5",
+  expand: "M2 3h3 M2 7h3 M2 11h3 M12 3v7 M9 6l3 3 3-3",
+  collapse: "M2 3h3 M2 7h3 M2 11h3 M9 6h6 M12 3v6",
+  collapseTo: "M2 3h12 M5 7h6 M6 11h4",
+  lineNumbers: "M3 3h1 M3 8h1 M3 13h1 M6 3h7 M6 8h7 M6 13h7",
+  font: "M4 13l4-10 4 10 M5.5 9h5",
 };
 
 export function workspaceIcon(name: string): string {

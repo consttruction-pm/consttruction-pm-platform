@@ -1,0 +1,2024 @@
+{
+  "baseUrl": "http://127.0.0.1:4174",
+  "gitHead": "4dad08ddb19e3b2fba855e4421968aa04f9f1d6e",
+  "capturedAt": "2026-11-06T04:45:40.528Z",
+  "screenshots": {
+    "expanded-1280x720": "wbs-live/expanded-1280x720.png",
+    "expanded-1440x900": "wbs-live/expanded-1440x900.png",
+    "expanded-1920x1080": "wbs-live/expanded-1920x1080.png",
+    "expanded-last-columns-1280x720": "wbs-live/expanded-last-columns-1280x720.png",
+    "collapsed": "wbs-live/collapsed-1280x720.png",
+    "contextMenuZoom": "wbs-live/context-menu-zoom.png",
+    "contextMenu": "wbs-live/context-menu-1280x720.png",
+    "contextMenuRtl": "wbs-live/context-menu-rtl-1280x720.png"
+  },
+  "expanded": {
+    "locale": "en",
+    "direction": "ltr",
+    "bands": [
+      {
+        "wbsId": "WBS-RPS-ROOT",
+        "level": 1,
+        "depth": 0,
+        "collapsed": false,
+        "bandColor": "#3b3bbf",
+        "cellBackground": "rgb(59, 59, 191)",
+        "cellBackgrounds": [
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(59, 59, 191) 3px 0px 0px 0px inset",
+        "label": "1 Riverside Pump Station Upgrade",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 246,
+          "left": 55
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-PM",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "1 Project management",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 268,
+          "left": 67
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-CIVIL",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "2 Civil works",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 356,
+          "left": 67
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-PROC",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "3 Procurement",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 488,
+          "left": 67
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-ENV",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "4 Envelope works",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 532,
+          "left": 67
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-MEP",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "5 MEP works",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 598,
+          "left": 67
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-COM",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "6 Commissioning and handover",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 664,
+          "left": 67
+        }
+      }
+    ],
+    "activities": [
+      {
+        "id": "A100",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A110",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A210",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A120",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A130",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A140",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A145",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A160",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A150",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A155",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A180",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A170",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A190",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A200",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      }
+    ],
+    "ganttGroups": [
+      {
+        "wbsId": "WBS-RPS-ROOT",
+        "depth": 0,
+        "background": "rgb(59, 59, 191)"
+      },
+      {
+        "wbsId": "WBS-RPS-PM",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-CIVIL",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-PROC",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-ENV",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-MEP",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-COM",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      }
+    ],
+    "ganttActivities": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "summaryBars": [
+      {
+        "wbsId": "WBS-RPS-ROOT",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 653
+      },
+      {
+        "wbsId": "WBS-RPS-PM",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 653
+      },
+      {
+        "wbsId": "WBS-RPS-CIVIL",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 438
+      },
+      {
+        "wbsId": "WBS-RPS-PROC",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 143
+      },
+      {
+        "wbsId": "WBS-RPS-ENV",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 250
+      },
+      {
+        "wbsId": "WBS-RPS-MEP",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 277
+      },
+      {
+        "wbsId": "WBS-RPS-COM",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 36
+      }
+    ],
+    "taskBar": {
+      "background": "rgb(238, 243, 248)",
+      "border": "rgb(31, 59, 87)",
+      "width": 18
+    },
+    "menu": {
+      "hidden": true,
+      "rect": {
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "left": 0
+      },
+      "workspaceRect": {
+        "width": 1280,
+        "height": 609,
+        "top": 97,
+        "left": 0
+      },
+      "fullyVisible": false,
+      "lastItem": {
+        "command": "collapse-to",
+        "rect": {
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "left": 0
+        }
+      },
+      "items": [
+        {
+          "command": "details",
+          "label": "Activity Details",
+          "shortcut": "",
+          "disabled": true,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "cut",
+          "label": "Cut",
+          "shortcut": "Ctrl+X",
+          "disabled": true,
+          "reason": "Cut needs the activity delete route, which this runtime does not expose.",
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "copy",
+          "label": "Copy",
+          "shortcut": "Ctrl+C",
+          "disabled": true,
+          "reason": "Activity duplication is not implemented by the project service.",
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "paste",
+          "label": "Paste",
+          "shortcut": "Ctrl+V",
+          "disabled": true,
+          "reason": "There is no activity clipboard or bulk-create route.",
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "fill-down",
+          "label": "Fill Down",
+          "shortcut": "Ctrl+E",
+          "disabled": true,
+          "reason": "Bulk cell updates are not exposed by the activity API.",
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "add",
+          "label": "Add",
+          "shortcut": "Ins",
+          "disabled": false,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "delete",
+          "label": "Delete",
+          "shortcut": "Del",
+          "disabled": true,
+          "reason": "The activity delete route is not exposed by this runtime.",
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "dissolve",
+          "label": "Dissolve",
+          "shortcut": "",
+          "disabled": true,
+          "reason": "Dissolving a group has no server-side contract.",
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "renumber",
+          "label": "Renumber Activity IDs",
+          "shortcut": "",
+          "disabled": true,
+          "reason": "Activity ID renumbering is not implemented.",
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "export-excel",
+          "label": "Export to Excel",
+          "shortcut": "",
+          "disabled": true,
+          "reason": "Only XML interchange is available; no XLSX export route exists.",
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "assign",
+          "label": "Assign",
+          "shortcut": "›",
+          "disabled": true,
+          "reason": "Resource assignment write is not available; capacity is read-only.",
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "link",
+          "label": "Link Activities",
+          "shortcut": "",
+          "disabled": true,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "columns",
+          "label": "Columns…",
+          "shortcut": "",
+          "disabled": true,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "line-numbers",
+          "label": "Line Numbers",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "font-row",
+          "label": "Table Font and Row…",
+          "shortcut": "",
+          "disabled": true,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "filters",
+          "label": "Filters…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "group-sort",
+          "label": "Group and Sort…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "expand-all",
+          "label": "Expand All",
+          "shortcut": "Ctrl+Num +",
+          "disabled": false,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "collapse-all",
+          "label": "Collapse All",
+          "shortcut": "Ctrl+Num -",
+          "disabled": false,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "collapse-to",
+          "label": "Collapse To…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 0,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        }
+      ]
+    }
+  },
+  "collapsed": {
+    "wbsId": "WBS-RPS-PM",
+    "depth": 1,
+    "childActivities": [
+      "A100",
+      "A110",
+      "A210"
+    ],
+    "nestedWbs": [],
+    "beforeCounts": {
+      "bands": 7,
+      "activities": 14,
+      "ganttRows": 14,
+      "summaryBars": 7
+    },
+    "afterCounts": {
+      "bands": 7,
+      "activities": 11,
+      "ganttRows": 11,
+      "summaryBars": 7
+    },
+    "tableChildrenRemoved": true,
+    "ganttChildrenRemoved": true,
+    "collapsedBand": {
+      "wbsId": "WBS-RPS-PM",
+      "level": 2,
+      "depth": 1,
+      "collapsed": true,
+      "bandColor": "#ffff00",
+      "cellBackground": "rgb(255, 255, 0)",
+      "cellBackgrounds": [
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)",
+        "rgb(255, 255, 0)"
+      ],
+      "uncoloredCells": 0,
+      "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+      "label": "1 Project management",
+      "toggle": "+",
+      "toggleSize": {
+        "width": 14,
+        "height": 14,
+        "top": 268,
+        "left": 67
+      }
+    },
+    "unrelatedActivitiesStillVisible": true
+  },
+  "contextMenu": {
+    "locale": "en",
+    "direction": "ltr",
+    "bands": [
+      {
+        "wbsId": "WBS-RPS-ROOT",
+        "level": 1,
+        "depth": 0,
+        "collapsed": false,
+        "bandColor": "#3b3bbf",
+        "cellBackground": "rgb(59, 59, 191)",
+        "cellBackgrounds": [
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(59, 59, 191) 3px 0px 0px 0px inset",
+        "label": "1 Riverside Pump Station Upgrade",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 246,
+          "left": 55
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-PM",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "1 Project management",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 268,
+          "left": 67
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-CIVIL",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "2 Civil works",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 356,
+          "left": 67
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-PROC",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "3 Procurement",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 488,
+          "left": 67
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-ENV",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "4 Envelope works",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 532,
+          "left": 67
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-MEP",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "5 MEP works",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 598,
+          "left": 67
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-COM",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "6 Commissioning and handover",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 664,
+          "left": 67
+        }
+      }
+    ],
+    "activities": [
+      {
+        "id": "A100",
+        "depth": 2,
+        "indent": 24,
+        "selected": true
+      },
+      {
+        "id": "A110",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A210",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A120",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A130",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A140",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A145",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A160",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A150",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A155",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A180",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A170",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A190",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A200",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      }
+    ],
+    "ganttGroups": [
+      {
+        "wbsId": "WBS-RPS-ROOT",
+        "depth": 0,
+        "background": "rgb(59, 59, 191)"
+      },
+      {
+        "wbsId": "WBS-RPS-PM",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-CIVIL",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-PROC",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-ENV",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-MEP",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-COM",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      }
+    ],
+    "ganttActivities": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "summaryBars": [
+      {
+        "wbsId": "WBS-RPS-ROOT",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 653
+      },
+      {
+        "wbsId": "WBS-RPS-PM",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 653
+      },
+      {
+        "wbsId": "WBS-RPS-CIVIL",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 438
+      },
+      {
+        "wbsId": "WBS-RPS-PROC",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 143
+      },
+      {
+        "wbsId": "WBS-RPS-ENV",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 250
+      },
+      {
+        "wbsId": "WBS-RPS-MEP",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 277
+      },
+      {
+        "wbsId": "WBS-RPS-COM",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 36
+      }
+    ],
+    "taskBar": {
+      "background": "rgb(238, 243, 248)",
+      "border": "rgb(31, 59, 87)",
+      "width": 18
+    },
+    "menu": {
+      "hidden": false,
+      "rect": {
+        "width": 244,
+        "height": 474,
+        "top": 228,
+        "left": 267
+      },
+      "workspaceRect": {
+        "width": 1280,
+        "height": 609,
+        "top": 97,
+        "left": 0
+      },
+      "fullyVisible": true,
+      "lastItem": {
+        "command": "collapse-to",
+        "rect": {
+          "width": 238,
+          "height": 22,
+          "top": 677,
+          "left": 270
+        }
+      },
+      "items": [
+        {
+          "command": "details",
+          "label": "Activity Details",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "cut",
+          "label": "Cut",
+          "shortcut": "Ctrl+X",
+          "disabled": true,
+          "reason": "Cut needs the activity delete route, which this runtime does not expose.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "copy",
+          "label": "Copy",
+          "shortcut": "Ctrl+C",
+          "disabled": true,
+          "reason": "Activity duplication is not implemented by the project service.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "paste",
+          "label": "Paste",
+          "shortcut": "Ctrl+V",
+          "disabled": true,
+          "reason": "There is no activity clipboard or bulk-create route.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "fill-down",
+          "label": "Fill Down",
+          "shortcut": "Ctrl+E",
+          "disabled": true,
+          "reason": "Bulk cell updates are not exposed by the activity API.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "add",
+          "label": "Add",
+          "shortcut": "Ins",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "delete",
+          "label": "Delete",
+          "shortcut": "Del",
+          "disabled": true,
+          "reason": "The activity delete route is not exposed by this runtime.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "dissolve",
+          "label": "Dissolve",
+          "shortcut": "",
+          "disabled": true,
+          "reason": "Dissolving a group has no server-side contract.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "renumber",
+          "label": "Renumber Activity IDs",
+          "shortcut": "",
+          "disabled": true,
+          "reason": "Activity ID renumbering is not implemented.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "export-excel",
+          "label": "Export to Excel",
+          "shortcut": "",
+          "disabled": true,
+          "reason": "Only XML interchange is available; no XLSX export route exists.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "assign",
+          "label": "Assign",
+          "shortcut": "›",
+          "disabled": true,
+          "reason": "Resource assignment write is not available; capacity is read-only.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "link",
+          "label": "Link Activities",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "columns",
+          "label": "Columns…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "line-numbers",
+          "label": "Line Numbers",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "font-row",
+          "label": "Table Font and Row…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "filters",
+          "label": "Filters…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "group-sort",
+          "label": "Group and Sort…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "expand-all",
+          "label": "Expand All",
+          "shortcut": "Ctrl+Num +",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "collapse-all",
+          "label": "Collapse All",
+          "shortcut": "Ctrl+Num -",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "collapse-to",
+          "label": "Collapse To…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        }
+      ]
+    },
+    "closedByEscape": true
+  },
+  "rtl": {
+    "locale": "fa",
+    "direction": "rtl",
+    "bands": [
+      {
+        "wbsId": "WBS-RPS-ROOT",
+        "level": 1,
+        "depth": 0,
+        "collapsed": false,
+        "bandColor": "#3b3bbf",
+        "cellBackground": "rgb(59, 59, 191)",
+        "cellBackgrounds": [
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)",
+          "rgb(59, 59, 191)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(59, 59, 191) 3px 0px 0px 0px inset",
+        "label": "1 Riverside Pump Station Upgrade",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 246,
+          "left": 1211
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-PM",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "1 Project management",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 268,
+          "left": 1199
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-CIVIL",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "2 Civil works",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 356,
+          "left": 1199
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-PROC",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "3 Procurement",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 488,
+          "left": 1199
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-ENV",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "4 Envelope works",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 532,
+          "left": 1199
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-MEP",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "5 MEP works",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 598,
+          "left": 1199
+        }
+      },
+      {
+        "wbsId": "WBS-RPS-COM",
+        "level": 2,
+        "depth": 1,
+        "collapsed": false,
+        "bandColor": "#ffff00",
+        "cellBackground": "rgb(255, 255, 0)",
+        "cellBackgrounds": [
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)",
+          "rgb(255, 255, 0)"
+        ],
+        "uncoloredCells": 0,
+        "firstCellShadow": "rgb(255, 255, 0) 3px 0px 0px 0px inset",
+        "label": "6 Commissioning and handover",
+        "toggle": "−",
+        "toggleSize": {
+          "width": 14,
+          "height": 14,
+          "top": 664,
+          "left": 1199
+        }
+      }
+    ],
+    "activities": [
+      {
+        "id": "A100",
+        "depth": 2,
+        "indent": 24,
+        "selected": true
+      },
+      {
+        "id": "A110",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A210",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A120",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A130",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A140",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A145",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A160",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A150",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A155",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A180",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A170",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A190",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      },
+      {
+        "id": "A200",
+        "depth": 2,
+        "indent": 24,
+        "selected": false
+      }
+    ],
+    "ganttGroups": [
+      {
+        "wbsId": "WBS-RPS-ROOT",
+        "depth": 0,
+        "background": "rgb(59, 59, 191)"
+      },
+      {
+        "wbsId": "WBS-RPS-PM",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-CIVIL",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-PROC",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-ENV",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-MEP",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      },
+      {
+        "wbsId": "WBS-RPS-COM",
+        "depth": 1,
+        "background": "rgb(255, 255, 0)"
+      }
+    ],
+    "ganttActivities": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "summaryBars": [
+      {
+        "wbsId": "WBS-RPS-ROOT",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 653
+      },
+      {
+        "wbsId": "WBS-RPS-PM",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 653
+      },
+      {
+        "wbsId": "WBS-RPS-CIVIL",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 438
+      },
+      {
+        "wbsId": "WBS-RPS-PROC",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 143
+      },
+      {
+        "wbsId": "WBS-RPS-ENV",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 250
+      },
+      {
+        "wbsId": "WBS-RPS-MEP",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 277
+      },
+      {
+        "wbsId": "WBS-RPS-COM",
+        "background": "rgb(23, 50, 77)",
+        "border": "rgb(15, 42, 68)",
+        "width": 36
+      }
+    ],
+    "taskBar": {
+      "background": "rgb(238, 243, 248)",
+      "border": "rgb(31, 59, 87)",
+      "width": 18
+    },
+    "menu": {
+      "hidden": false,
+      "rect": {
+        "width": 244,
+        "height": 474,
+        "top": 228,
+        "left": 677
+      },
+      "workspaceRect": {
+        "width": 1280,
+        "height": 609,
+        "top": 97,
+        "left": 0
+      },
+      "fullyVisible": true,
+      "lastItem": {
+        "command": "collapse-to",
+        "rect": {
+          "width": 238,
+          "height": 22,
+          "top": 677,
+          "left": 680
+        }
+      },
+      "items": [
+        {
+          "command": "details",
+          "label": "جزئیات فعالیت",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "cut",
+          "label": "برش",
+          "shortcut": "Ctrl+X",
+          "disabled": true,
+          "reason": "برش به مسیر حذف فعالیت نیاز دارد که این محیط اجرا ارائه نمی‌کند.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "copy",
+          "label": "رونوشت",
+          "shortcut": "Ctrl+C",
+          "disabled": true,
+          "reason": "تکثیر فعالیت در سرویس پروژه پیاده‌سازی نشده است.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "paste",
+          "label": "چسباندن",
+          "shortcut": "Ctrl+V",
+          "disabled": true,
+          "reason": "کلیپ‌بورد فعالیت یا مسیر ساخت گروهی وجود ندارد.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "fill-down",
+          "label": "پرکردن به پایین",
+          "shortcut": "Ctrl+E",
+          "disabled": true,
+          "reason": "به‌روزرسانی گروهی سلول‌ها در API فعالیت ارائه نشده است.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "add",
+          "label": "افزودن",
+          "shortcut": "Ins",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "delete",
+          "label": "حذف",
+          "shortcut": "Del",
+          "disabled": true,
+          "reason": "مسیر حذف فعالیت در این محیط اجرا ارائه نشده است.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "dissolve",
+          "label": "انحلال",
+          "shortcut": "",
+          "disabled": true,
+          "reason": "انحلال گروه قرارداد سمت سرور ندارد.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "renumber",
+          "label": "شماره‌گذاری دوبارهٔ شناسه‌ها",
+          "shortcut": "",
+          "disabled": true,
+          "reason": "شماره‌گذاری دوبارهٔ شناسهٔ فعالیت پیاده‌سازی نشده است.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "export-excel",
+          "label": "خروجی اکسل",
+          "shortcut": "",
+          "disabled": true,
+          "reason": "تنها تبادل XML در دسترس است؛ مسیر خروجی XLSX وجود ندارد.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "assign",
+          "label": "تخصیص",
+          "shortcut": "›",
+          "disabled": true,
+          "reason": "نوشتن تخصیص منبع در دسترس نیست؛ ظرفیت فقط خواندنی است.",
+          "height": 22,
+          "color": "rgb(154, 154, 154)",
+          "opacity": "1"
+        },
+        {
+          "command": "link",
+          "label": "پیوند فعالیت‌ها",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "columns",
+          "label": "ستون‌ها…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "line-numbers",
+          "label": "شمارهٔ ردیف",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "font-row",
+          "label": "قلم و ردیف جدول…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "filters",
+          "label": "پالایه‌ها…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "group-sort",
+          "label": "گروه‌بندی و ترتیب…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "expand-all",
+          "label": "بازکردن همه",
+          "shortcut": "Ctrl+Num +",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "collapse-all",
+          "label": "بستن همه",
+          "shortcut": "Ctrl+Num -",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        },
+        {
+          "command": "collapse-to",
+          "label": "بستن تا…",
+          "shortcut": "",
+          "disabled": false,
+          "reason": null,
+          "height": 22,
+          "color": "rgb(17, 17, 17)",
+          "opacity": "1"
+        }
+      ]
+    }
+  },
+  "lastColumns": {
+    "cellCount": 12,
+    "bandColor": "#3b3bbf",
+    "last": [
+      {
+        "className": "cp-logic-column",
+        "background": "rgb(59, 59, 191)",
+        "visibleInsideTable": true
+      },
+      {
+        "className": "cp-actions-column",
+        "background": "rgb(59, 59, 191)",
+        "visibleInsideTable": true
+      }
+    ]
+  }
+}

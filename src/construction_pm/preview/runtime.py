@@ -143,6 +143,11 @@ from construction_pm.p6_field_registry_repository import (
     SQLiteP6FieldRegistryRepository,
 )
 from construction_pm.p6_formula_authority_api import P6FormulaAuthorityAPI
+from construction_pm.p6_formula_column import P6FormulaColumnAPI, P6FormulaColumnService
+from construction_pm.p6_formula_definition_repository import (
+    P6FormulaDefinitionApplicationService,
+    SQLiteP6FormulaDefinitionRepository,
+)
 from construction_pm.p6_interchange_api import P6InterchangeAPI
 from construction_pm.p6_layout_definition_api import P6LayoutDefinitionAPI
 from construction_pm.p6_layout_definition_repository import (
@@ -296,6 +301,9 @@ class PreviewRepositories:
     settings: SQLiteProjectScheduleSettingsRepository
     fields: SQLiteP6FieldRegistryRepository
     field_service: P6FieldRegistryApplicationService
+    formula_definitions: SQLiteP6FormulaDefinitionRepository
+    formula_definition_service: P6FormulaDefinitionApplicationService
+    formula_column_service: P6FormulaColumnService
     udfs: SQLiteP6UserDefinedFieldRepository
     udf_service: P6UserDefinedFieldApplicationService
     mappings: SQLiteP6MappingRegistryRepository
@@ -349,6 +357,13 @@ class PreviewRepositories:
         settings = SQLiteProjectScheduleSettingsRepository(connection)
         fields = SQLiteP6FieldRegistryRepository(connection)
         field_service = P6FieldRegistryApplicationService(fields, transaction_manager)
+        formula_definitions = SQLiteP6FormulaDefinitionRepository(connection)
+        formula_definition_service = P6FormulaDefinitionApplicationService(
+            formula_definitions, transaction_manager
+        )
+        formula_column_service = P6FormulaColumnService(
+            field_service, formula_definition_service
+        )
         udfs = SQLiteP6UserDefinedFieldRepository(connection)
         udf_service = P6UserDefinedFieldApplicationService(udfs, transaction_manager)
         mappings = SQLiteP6MappingRegistryRepository(connection)
@@ -398,6 +413,9 @@ class PreviewRepositories:
             settings=settings,
             fields=fields,
             field_service=field_service,
+            formula_definitions=formula_definitions,
+            formula_definition_service=formula_definition_service,
+            formula_column_service=formula_column_service,
             udfs=udfs,
             udf_service=udf_service,
             mappings=mappings,
@@ -968,6 +986,7 @@ class PreviewWorkspaceReadProvider:
     layout_repository: object
     schedule_facts_provider: WorkspaceScheduleFactsProvider
     store: PreviewStore
+    formula_column_service: object | None = None
     wbs_repository: object | None = None
     relationship_repository: object | None = None
 
@@ -993,6 +1012,7 @@ class PreviewWorkspaceReadProvider:
                 activity_repository=self.activity_repository,  # type: ignore[arg-type]
                 field_service=self.field_service,
                 layout_repository=self.layout_repository,
+                formula_column_service=self.formula_column_service,  # type: ignore[arg-type]
                 schedule_facts_provider=self.schedule_facts_provider,
                 wbs_repository=self.wbs_repository,  # type: ignore[arg-type]
                 relationship_repository=self.relationship_repository,  # type: ignore[arg-type]
@@ -1002,6 +1022,7 @@ class PreviewWorkspaceReadProvider:
             activity_repository=self.activity_repository,  # type: ignore[arg-type]
             field_service=self.field_service,
             layout_repository=self.layout_repository,
+            formula_column_service=self.formula_column_service,  # type: ignore[arg-type]
             schedule_facts_provider=self.schedule_facts_provider,
             wbs_by_activity=self.store.wbs_for(scope.tenant_id, scope.project_id),
         )
@@ -1164,6 +1185,7 @@ def open_preview_runtime(
         activity_repository=repositories.activities,
         field_service=repositories.field_service,
         layout_repository=repositories.layouts,
+        formula_column_service=repositories.formula_column_service,
         schedule_facts_provider=facts_provider,
         store=store,
     )
@@ -1174,6 +1196,7 @@ def open_preview_runtime(
         activity_repository=repositories.activities,
         field_service=repositories.field_service,
         layout_repository=repositories.layouts,
+        formula_column_service=repositories.formula_column_service,
         schedule_facts_provider=facts_provider,
         store=store,
         wbs_repository=repositories.wbs,
@@ -1346,10 +1369,16 @@ def open_preview_runtime(
             repositories.field_service,
             repositories.udf_service,
             policy,
+            repositories.formula_column_service,
         ),
         p6_layout_definition_api=P6LayoutDefinitionAPI(repositories.layouts, policy),
         p6_formula_authority_api=P6FormulaAuthorityAPI(
             repositories.field_service,
+            policy,
+            repositories.formula_column_service,
+        ),
+        p6_formula_column_api=P6FormulaColumnAPI(
+            repositories.formula_column_service,
             policy,
         ),
         p6_calendar_read_api=P6CalendarReadAPI(

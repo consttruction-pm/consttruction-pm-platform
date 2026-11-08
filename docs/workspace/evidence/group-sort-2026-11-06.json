@@ -1,0 +1,1207 @@
+{
+  "baseUrl": "http://127.0.0.1:4174",
+  "gitHead": "4af7b8803cd244423bac860f5d44002684705e27",
+  "capturedAt": "2026-11-06T05:50:48.662Z",
+  "screenshots": {
+    "dialog": "group-sort-live/group-sort-dialog-1280x720.png",
+    "dialogZoom": "group-sort-live/group-sort-dialog-zoom.png",
+    "multiLevel": "group-sort-live/group-sort-multilevel-1280x720.png",
+    "restored": "group-sort-live/group-sort-restored-1280x720.png"
+  },
+  "baseline": {
+    "header": [
+      "Activity ID",
+      "Activity Name",
+      "Original Duration",
+      "Remaining Duration",
+      "Schedule % Complete",
+      "Start",
+      "Finish",
+      "Status",
+      "WBS",
+      "Total Float",
+      "Predecessors",
+      ""
+    ],
+    "sequence": [
+      {
+        "kind": "band",
+        "label": "−1 Riverside Pump Station Upgrade"
+      },
+      {
+        "kind": "band",
+        "label": "−1 Project management"
+      },
+      {
+        "kind": "activity",
+        "id": "A100",
+        "cells": [
+          "A100",
+          "Project kickoff",
+          "1",
+          "0",
+          "100",
+          "2026-09-21",
+          "2026-09-21",
+          "Completed",
+          "1 Project management",
+          "12",
+          "—",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A110",
+        "cells": [
+          "A110",
+          "Mobilization",
+          "3",
+          "0",
+          "100",
+          "2026-09-22",
+          "2026-09-24",
+          "Completed",
+          "1 Project management",
+          "10",
+          "A100 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A210",
+        "cells": [
+          "A210",
+          "Project closeout",
+          "2",
+          "—",
+          "—",
+          "2026-12-02",
+          "2026-12-03",
+          "Not Started",
+          "1 Project management",
+          "0",
+          "A200 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−2 Civil works"
+      },
+      {
+        "kind": "activity",
+        "id": "A120",
+        "cells": [
+          "A120",
+          "Site survey and geotechnical investigation",
+          "4",
+          "0",
+          "100",
+          "2026-09-25",
+          "2026-09-30",
+          "Completed",
+          "2 Civil works",
+          "7",
+          "A110 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A130",
+        "cells": [
+          "A130",
+          "Earthworks",
+          "8",
+          "5",
+          "37.5",
+          "2026-10-07",
+          "2026-10-16",
+          "In Progress",
+          "2 Civil works",
+          "0",
+          "A120 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A140",
+        "cells": [
+          "A140",
+          "Piling and foundations",
+          "10",
+          "—",
+          "—",
+          "2026-10-19",
+          "2026-11-02",
+          "Not Started",
+          "2 Civil works",
+          "2",
+          "A130 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A145",
+        "cells": [
+          "A145",
+          "Site utilities diversion",
+          "4",
+          "—",
+          "—",
+          "2026-10-19",
+          "2026-10-22",
+          "Not Started",
+          "2 Civil works",
+          "12",
+          "A130 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A160",
+        "cells": [
+          "A160",
+          "Steel erection",
+          "7",
+          "—",
+          "—",
+          "2026-11-05",
+          "2026-11-13",
+          "Not Started",
+          "2 Civil works",
+          "0",
+          "A140 FS, A150 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−3 Procurement"
+      },
+      {
+        "kind": "activity",
+        "id": "A150",
+        "cells": [
+          "A150",
+          "Structural steel procurement",
+          "12",
+          "—",
+          "—",
+          "2026-10-19",
+          "2026-11-04",
+          "Not Started",
+          "3 Procurement",
+          "0",
+          "A130 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−4 Envelope works"
+      },
+      {
+        "kind": "activity",
+        "id": "A155",
+        "cells": [
+          "A155",
+          "Envelope mock-up approval",
+          "3",
+          "—",
+          "—",
+          "2026-10-23",
+          "2026-10-27",
+          "Not Started",
+          "4 Envelope works",
+          "12",
+          "A145 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A180",
+        "cells": [
+          "A180",
+          "Facade and envelope",
+          "5",
+          "—",
+          "—",
+          "2026-11-16",
+          "2026-11-20",
+          "Not Started",
+          "4 Envelope works",
+          "0",
+          "A160 FS, A155 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−5 MEP works"
+      },
+      {
+        "kind": "activity",
+        "id": "A170",
+        "cells": [
+          "A170",
+          "MEP first fix",
+          "6",
+          "—",
+          "—",
+          "2026-10-26",
+          "2026-11-03",
+          "Not Started",
+          "5 MEP works",
+          "22",
+          "A140 SS+5d",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A190",
+        "cells": [
+          "A190",
+          "Commissioning",
+          "4",
+          "—",
+          "—",
+          "2026-11-23",
+          "2026-11-26",
+          "Not Started",
+          "5 MEP works",
+          "0",
+          "A180 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−6 Commissioning and handover"
+      },
+      {
+        "kind": "activity",
+        "id": "A200",
+        "cells": [
+          "A200",
+          "QA/QC and handover",
+          "3",
+          "—",
+          "—",
+          "2026-11-27",
+          "2026-12-01",
+          "Not Started",
+          "6 Commissioning and handover",
+          "0",
+          "A190 FS",
+          "Edit activity"
+        ]
+      }
+    ],
+    "ids": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "ganttIds": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "counts": {
+      "table": 14,
+      "gantt": 14
+    }
+  },
+  "dialog": {
+    "open": true,
+    "group": "wbs",
+    "rows": [
+      {
+        "field": "wbs",
+        "direction": "asc",
+        "options": [
+          {
+            "value": "",
+            "label": "No field"
+          },
+          {
+            "value": "wbs",
+            "label": "WBS"
+          },
+          {
+            "value": "activity.id",
+            "label": "Activity ID"
+          },
+          {
+            "value": "activity.name",
+            "label": "Activity Name"
+          },
+          {
+            "value": "activity.planned_duration",
+            "label": "Original Duration"
+          },
+          {
+            "value": "activity.remaining_duration",
+            "label": "Remaining Duration"
+          },
+          {
+            "value": "activity.duration_percent_complete",
+            "label": "Schedule % Complete"
+          },
+          {
+            "value": "activity.early_start",
+            "label": "Start"
+          },
+          {
+            "value": "activity.early_finish",
+            "label": "Finish"
+          },
+          {
+            "value": "activity.status",
+            "label": "Status"
+          },
+          {
+            "value": "activity.wbs",
+            "label": "WBS"
+          },
+          {
+            "value": "activity.total_float",
+            "label": "Total Float"
+          }
+        ],
+        "label": "Sort 1"
+      },
+      {
+        "field": "",
+        "direction": "asc",
+        "options": [
+          {
+            "value": "",
+            "label": "No field"
+          },
+          {
+            "value": "wbs",
+            "label": "WBS"
+          },
+          {
+            "value": "activity.id",
+            "label": "Activity ID"
+          },
+          {
+            "value": "activity.name",
+            "label": "Activity Name"
+          },
+          {
+            "value": "activity.planned_duration",
+            "label": "Original Duration"
+          },
+          {
+            "value": "activity.remaining_duration",
+            "label": "Remaining Duration"
+          },
+          {
+            "value": "activity.duration_percent_complete",
+            "label": "Schedule % Complete"
+          },
+          {
+            "value": "activity.early_start",
+            "label": "Start"
+          },
+          {
+            "value": "activity.early_finish",
+            "label": "Finish"
+          },
+          {
+            "value": "activity.status",
+            "label": "Status"
+          },
+          {
+            "value": "activity.wbs",
+            "label": "WBS"
+          },
+          {
+            "value": "activity.total_float",
+            "label": "Total Float"
+          }
+        ],
+        "label": "Sort 2"
+      },
+      {
+        "field": "",
+        "direction": "asc",
+        "options": [
+          {
+            "value": "",
+            "label": "No field"
+          },
+          {
+            "value": "wbs",
+            "label": "WBS"
+          },
+          {
+            "value": "activity.id",
+            "label": "Activity ID"
+          },
+          {
+            "value": "activity.name",
+            "label": "Activity Name"
+          },
+          {
+            "value": "activity.planned_duration",
+            "label": "Original Duration"
+          },
+          {
+            "value": "activity.remaining_duration",
+            "label": "Remaining Duration"
+          },
+          {
+            "value": "activity.duration_percent_complete",
+            "label": "Schedule % Complete"
+          },
+          {
+            "value": "activity.early_start",
+            "label": "Start"
+          },
+          {
+            "value": "activity.early_finish",
+            "label": "Finish"
+          },
+          {
+            "value": "activity.status",
+            "label": "Status"
+          },
+          {
+            "value": "activity.wbs",
+            "label": "WBS"
+          },
+          {
+            "value": "activity.total_float",
+            "label": "Total Float"
+          }
+        ],
+        "label": "Sort 3"
+      }
+    ],
+    "rowCount": 3,
+    "rect": {
+      "width": 520,
+      "height": 465,
+      "top": 128
+    },
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "fitsViewport": true
+  },
+  "multiLevel": {
+    "header": [
+      "Activity ID",
+      "Activity Name",
+      "Original Duration",
+      "Remaining Duration",
+      "Schedule % Complete",
+      "Start",
+      "Finish",
+      "Status",
+      "WBS",
+      "Total Float",
+      "Predecessors",
+      ""
+    ],
+    "sequence": [
+      {
+        "kind": "band",
+        "label": "−1 Riverside Pump Station Upgrade"
+      },
+      {
+        "kind": "band",
+        "label": "−1 Project management"
+      },
+      {
+        "kind": "activity",
+        "id": "A210",
+        "cells": [
+          "A210",
+          "Project closeout",
+          "2",
+          "—",
+          "—",
+          "2026-12-02",
+          "2026-12-03",
+          "Not Started",
+          "1 Project management",
+          "0",
+          "A200 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A110",
+        "cells": [
+          "A110",
+          "Mobilization",
+          "3",
+          "0",
+          "100",
+          "2026-09-22",
+          "2026-09-24",
+          "Completed",
+          "1 Project management",
+          "10",
+          "A100 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A100",
+        "cells": [
+          "A100",
+          "Project kickoff",
+          "1",
+          "0",
+          "100",
+          "2026-09-21",
+          "2026-09-21",
+          "Completed",
+          "1 Project management",
+          "12",
+          "—",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−2 Civil works"
+      },
+      {
+        "kind": "activity",
+        "id": "A140",
+        "cells": [
+          "A140",
+          "Piling and foundations",
+          "10",
+          "—",
+          "—",
+          "2026-10-19",
+          "2026-11-02",
+          "Not Started",
+          "2 Civil works",
+          "2",
+          "A130 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A145",
+        "cells": [
+          "A145",
+          "Site utilities diversion",
+          "4",
+          "—",
+          "—",
+          "2026-10-19",
+          "2026-10-22",
+          "Not Started",
+          "2 Civil works",
+          "12",
+          "A130 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A160",
+        "cells": [
+          "A160",
+          "Steel erection",
+          "7",
+          "—",
+          "—",
+          "2026-11-05",
+          "2026-11-13",
+          "Not Started",
+          "2 Civil works",
+          "0",
+          "A140 FS, A150 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A130",
+        "cells": [
+          "A130",
+          "Earthworks",
+          "8",
+          "5",
+          "37.5",
+          "2026-10-07",
+          "2026-10-16",
+          "In Progress",
+          "2 Civil works",
+          "0",
+          "A120 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A120",
+        "cells": [
+          "A120",
+          "Site survey and geotechnical investigation",
+          "4",
+          "0",
+          "100",
+          "2026-09-25",
+          "2026-09-30",
+          "Completed",
+          "2 Civil works",
+          "7",
+          "A110 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−3 Procurement"
+      },
+      {
+        "kind": "activity",
+        "id": "A150",
+        "cells": [
+          "A150",
+          "Structural steel procurement",
+          "12",
+          "—",
+          "—",
+          "2026-10-19",
+          "2026-11-04",
+          "Not Started",
+          "3 Procurement",
+          "0",
+          "A130 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−4 Envelope works"
+      },
+      {
+        "kind": "activity",
+        "id": "A155",
+        "cells": [
+          "A155",
+          "Envelope mock-up approval",
+          "3",
+          "—",
+          "—",
+          "2026-10-23",
+          "2026-10-27",
+          "Not Started",
+          "4 Envelope works",
+          "12",
+          "A145 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A180",
+        "cells": [
+          "A180",
+          "Facade and envelope",
+          "5",
+          "—",
+          "—",
+          "2026-11-16",
+          "2026-11-20",
+          "Not Started",
+          "4 Envelope works",
+          "0",
+          "A160 FS, A155 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−5 MEP works"
+      },
+      {
+        "kind": "activity",
+        "id": "A190",
+        "cells": [
+          "A190",
+          "Commissioning",
+          "4",
+          "—",
+          "—",
+          "2026-11-23",
+          "2026-11-26",
+          "Not Started",
+          "5 MEP works",
+          "0",
+          "A180 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A170",
+        "cells": [
+          "A170",
+          "MEP first fix",
+          "6",
+          "—",
+          "—",
+          "2026-10-26",
+          "2026-11-03",
+          "Not Started",
+          "5 MEP works",
+          "22",
+          "A140 SS+5d",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−6 Commissioning and handover"
+      },
+      {
+        "kind": "activity",
+        "id": "A200",
+        "cells": [
+          "A200",
+          "QA/QC and handover",
+          "3",
+          "—",
+          "—",
+          "2026-11-27",
+          "2026-12-01",
+          "Not Started",
+          "6 Commissioning and handover",
+          "0",
+          "A190 FS",
+          "Edit activity"
+        ]
+      }
+    ],
+    "ids": [
+      "A210",
+      "A110",
+      "A100",
+      "A140",
+      "A145",
+      "A160",
+      "A130",
+      "A120",
+      "A150",
+      "A155",
+      "A180",
+      "A190",
+      "A170",
+      "A200"
+    ],
+    "ganttIds": [
+      "A210",
+      "A110",
+      "A100",
+      "A140",
+      "A145",
+      "A160",
+      "A130",
+      "A120",
+      "A150",
+      "A155",
+      "A180",
+      "A190",
+      "A170",
+      "A200"
+    ],
+    "counts": {
+      "table": 14,
+      "gantt": 14
+    },
+    "plan": [
+      {
+        "field": "activity.status",
+        "label": "Status",
+        "direction": "desc"
+      },
+      {
+        "field": "activity.name",
+        "label": "Activity Name",
+        "direction": "asc"
+      }
+    ]
+  },
+  "restored": {
+    "header": [
+      "Activity ID",
+      "Activity Name",
+      "Original Duration",
+      "Remaining Duration",
+      "Schedule % Complete",
+      "Start",
+      "Finish",
+      "Status",
+      "WBS",
+      "Total Float",
+      "Predecessors",
+      ""
+    ],
+    "sequence": [
+      {
+        "kind": "band",
+        "label": "−1 Riverside Pump Station Upgrade"
+      },
+      {
+        "kind": "band",
+        "label": "−1 Project management"
+      },
+      {
+        "kind": "activity",
+        "id": "A100",
+        "cells": [
+          "A100",
+          "Project kickoff",
+          "1",
+          "0",
+          "100",
+          "2026-09-21",
+          "2026-09-21",
+          "Completed",
+          "1 Project management",
+          "12",
+          "—",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A110",
+        "cells": [
+          "A110",
+          "Mobilization",
+          "3",
+          "0",
+          "100",
+          "2026-09-22",
+          "2026-09-24",
+          "Completed",
+          "1 Project management",
+          "10",
+          "A100 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A210",
+        "cells": [
+          "A210",
+          "Project closeout",
+          "2",
+          "—",
+          "—",
+          "2026-12-02",
+          "2026-12-03",
+          "Not Started",
+          "1 Project management",
+          "0",
+          "A200 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−2 Civil works"
+      },
+      {
+        "kind": "activity",
+        "id": "A120",
+        "cells": [
+          "A120",
+          "Site survey and geotechnical investigation",
+          "4",
+          "0",
+          "100",
+          "2026-09-25",
+          "2026-09-30",
+          "Completed",
+          "2 Civil works",
+          "7",
+          "A110 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A130",
+        "cells": [
+          "A130",
+          "Earthworks",
+          "8",
+          "5",
+          "37.5",
+          "2026-10-07",
+          "2026-10-16",
+          "In Progress",
+          "2 Civil works",
+          "0",
+          "A120 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A140",
+        "cells": [
+          "A140",
+          "Piling and foundations",
+          "10",
+          "—",
+          "—",
+          "2026-10-19",
+          "2026-11-02",
+          "Not Started",
+          "2 Civil works",
+          "2",
+          "A130 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A145",
+        "cells": [
+          "A145",
+          "Site utilities diversion",
+          "4",
+          "—",
+          "—",
+          "2026-10-19",
+          "2026-10-22",
+          "Not Started",
+          "2 Civil works",
+          "12",
+          "A130 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A160",
+        "cells": [
+          "A160",
+          "Steel erection",
+          "7",
+          "—",
+          "—",
+          "2026-11-05",
+          "2026-11-13",
+          "Not Started",
+          "2 Civil works",
+          "0",
+          "A140 FS, A150 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−3 Procurement"
+      },
+      {
+        "kind": "activity",
+        "id": "A150",
+        "cells": [
+          "A150",
+          "Structural steel procurement",
+          "12",
+          "—",
+          "—",
+          "2026-10-19",
+          "2026-11-04",
+          "Not Started",
+          "3 Procurement",
+          "0",
+          "A130 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−4 Envelope works"
+      },
+      {
+        "kind": "activity",
+        "id": "A155",
+        "cells": [
+          "A155",
+          "Envelope mock-up approval",
+          "3",
+          "—",
+          "—",
+          "2026-10-23",
+          "2026-10-27",
+          "Not Started",
+          "4 Envelope works",
+          "12",
+          "A145 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A180",
+        "cells": [
+          "A180",
+          "Facade and envelope",
+          "5",
+          "—",
+          "—",
+          "2026-11-16",
+          "2026-11-20",
+          "Not Started",
+          "4 Envelope works",
+          "0",
+          "A160 FS, A155 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−5 MEP works"
+      },
+      {
+        "kind": "activity",
+        "id": "A170",
+        "cells": [
+          "A170",
+          "MEP first fix",
+          "6",
+          "—",
+          "—",
+          "2026-10-26",
+          "2026-11-03",
+          "Not Started",
+          "5 MEP works",
+          "22",
+          "A140 SS+5d",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "activity",
+        "id": "A190",
+        "cells": [
+          "A190",
+          "Commissioning",
+          "4",
+          "—",
+          "—",
+          "2026-11-23",
+          "2026-11-26",
+          "Not Started",
+          "5 MEP works",
+          "0",
+          "A180 FS",
+          "Edit activity"
+        ]
+      },
+      {
+        "kind": "band",
+        "label": "−6 Commissioning and handover"
+      },
+      {
+        "kind": "activity",
+        "id": "A200",
+        "cells": [
+          "A200",
+          "QA/QC and handover",
+          "3",
+          "—",
+          "—",
+          "2026-11-27",
+          "2026-12-01",
+          "Not Started",
+          "6 Commissioning and handover",
+          "0",
+          "A190 FS",
+          "Edit activity"
+        ]
+      }
+    ],
+    "ids": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "ganttIds": [
+      "A100",
+      "A110",
+      "A210",
+      "A120",
+      "A130",
+      "A140",
+      "A145",
+      "A160",
+      "A150",
+      "A155",
+      "A180",
+      "A170",
+      "A190",
+      "A200"
+    ],
+    "counts": {
+      "table": 14,
+      "gantt": 14
+    }
+  }
+}

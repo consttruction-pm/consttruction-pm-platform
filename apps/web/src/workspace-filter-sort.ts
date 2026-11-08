@@ -39,6 +39,7 @@ export function filterAndSortActivities(
   sort: WorkspaceActivitySort | null,
   groupBy: WorkspaceActivityGroupBy = "none",
   wbsNodes: readonly WorkspaceWbsNode[] = [],
+  sortLevels: readonly WorkspaceActivitySort[] = [],
 ): readonly WorkspaceActivityRow[] {
   const tokens = filterText
     .trim()
@@ -54,6 +55,7 @@ export function filterAndSortActivities(
     });
   }
 
+  const levels = sortLevels.length > 0 ? sortLevels : sort ? [sort] : [];
   const wbsOrder = buildWbsOrder(wbsNodes);
   const wbsRanks = new Map(wbsOrder.map((id, index) => [id, index] as const));
 
@@ -69,17 +71,32 @@ export function filterAndSortActivities(
     );
     return orderedGroups.flatMap((wbsId) => {
       const members = groups.get(wbsId) ?? [];
-      // WBS is the primary grouping key. If no secondary field was chosen, or
-      // the secondary field is WBS itself, preserve source order within a group.
-      if (!sort || sort.columnId === "wbs") return members;
+      // WBS is the primary grouping key, so it is removed from the in-group
+      // sort plan. Remaining levels apply in the documented order.
+      const memberLevels = levels.filter((level) => level.columnId !== "wbs");
+      if (memberLevels.length === 0) return members;
       return [...members].sort((left, right) =>
-        compareRows(left, right, sort, wbsRanks),
+        compareRowsByLevels(left, right, memberLevels, wbsRanks),
       );
     });
   }
 
-  if (!sort) return rows;
-  return [...rows].sort((left, right) => compareRows(left, right, sort, wbsRanks));
+  if (levels.length === 0) return rows;
+  return [...rows].sort((left, right) => compareRowsByLevels(left, right, levels, wbsRanks));
+}
+
+function compareRowsByLevels(
+  left: WorkspaceActivityRow,
+  right: WorkspaceActivityRow,
+  levels: readonly WorkspaceActivitySort[],
+  wbsRanks: ReadonlyMap<string, number>,
+): number {
+  for (const level of levels) {
+    const result = compareRows(left, right, level, wbsRanks);
+    if (result !== 0) return result;
+  }
+  // A stable, deterministic tie-break only after every requested level.
+  return naturalCompare(left.id, right.id);
 }
 
 function buildWbsOrder(nodes: readonly WorkspaceWbsNode[]): string[] {
@@ -143,35 +160,28 @@ function compareRows(
 ): number {
   const direction = sort.direction === "desc" ? -1 : 1;
   if (sort.columnId === "wbs") {
-    return direction * (
-      compareWbsIds(left.wbsId, right.wbsId, wbsRanks)
-      || naturalCompare(left.id, right.id)
-    );
+    return direction * compareWbsIds(left.wbsId, right.wbsId, wbsRanks);
   }
   const a = cellValue(left, sort.columnId);
   const b = cellValue(right, sort.columnId);
   const aMissing = a === null || a === undefined || a === "";
   const bMissing = b === null || b === undefined || b === "";
   if (aMissing || bMissing) {
-    if (aMissing && bMissing) return naturalCompare(left.id, right.id);
+    if (aMissing && bMissing) return 0;
+    // Blank values stay at the end regardless of the sort direction.
     return aMissing ? 1 : -1;
   }
-  return direction * compareValues(a, b, left.id, right.id);
+  return direction * compareValues(a, b);
 }
 
-function compareValues(
-  a: WorkspaceCellValue,
-  b: WorkspaceCellValue,
-  leftId: string,
-  rightId: string,
-): number {
+function compareValues(a: WorkspaceCellValue, b: WorkspaceCellValue): number {
   if (typeof a === "number" && typeof b === "number") {
-    return a === b ? naturalCompare(leftId, rightId) : a < b ? -1 : 1;
+    return a === b ? 0 : a < b ? -1 : 1;
   }
   if (typeof a === "boolean" && typeof b === "boolean") {
-    return a === b ? naturalCompare(leftId, rightId) : a ? -1 : 1;
+    return a === b ? 0 : a ? -1 : 1;
   }
-  return naturalCompare(String(a), String(b)) || naturalCompare(leftId, rightId);
+  return naturalCompare(String(a), String(b));
 }
 
 function naturalCompare(left: string, right: string): number {

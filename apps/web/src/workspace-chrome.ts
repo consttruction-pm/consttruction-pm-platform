@@ -7,6 +7,7 @@ import { workspaceIcon } from "./workspace-icons.js";
 import {
   getAvailableWorkspaceLocales,
   getWorkspaceLocaleDisplayName,
+  hasWorkspaceUiTranslations,
   translateWorkspaceUiText,
 } from "./workspace-localization.js";
 
@@ -88,7 +89,13 @@ export function renderTitleBar(state: ChromeState): string {
       <span class="cp-titlebar-language-mark" aria-hidden="true">${workspaceIcon("language")}</span>
       <span class="cp-titlebar-language-name">${esc(languageLabel)}</span>
       <select data-workspace-language aria-label="${esc(pick(L.languageTitle, locale))}">
-        ${languages.map((candidate) => `<option value="${esc(candidate)}"${candidate === locale ? " selected" : ""}>${esc(getWorkspaceLocaleDisplayName(candidate))}</option>`).join("")}
+        ${languages.map((candidate) => {
+          const name = getWorkspaceLocaleDisplayName(candidate);
+          // Do not present a registered target as a translated locale until a
+          // language pack actually supplies UI strings.
+          const fallback = hasWorkspaceUiTranslations(candidate) ? "" : ` — ${translateWorkspaceUiText(locale, "English UI until a language pack is installed", "رابط انگلیسی تا نصب بستهٔ زبان")}`;
+          return `<option value="${esc(candidate)}"${candidate === locale ? " selected" : ""}>${esc(name + fallback)}</option>`;
+        }).join("")}
       </select>
     </label>
     <span class="cp-titlebar-session" data-titlebar-session>${esc(projectName || "—")}</span>

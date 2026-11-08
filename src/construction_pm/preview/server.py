@@ -79,33 +79,38 @@ def _html(status: int, document: str) -> tuple[int, dict[str, str], bytes]:
 
 
 def _safe_next(raw: object) -> str:
-    """Allow only the workspace route and its single, validated project selector."""
+    """Allow only a validated project selector and canonical live workspace mode."""
     value = str(raw or "").strip()
     try:
         parsed = urlsplit(value)
     except ValueError:
-        return "/app"
+        return "/app?view=live"
     if (
         parsed.scheme
         or parsed.netloc
         or parsed.fragment
         or parsed.path not in {"/app", "/app/"}
     ):
-        return "/app"
-    if not parsed.query:
-        return "/app"
+        return "/app?view=live"
     query = parse_qs(parsed.query, keep_blank_values=True)
+    if set(query) - {"project", "view"}:
+        return "/app?view=live"
     project_values = query.get("project", [])
-    if set(query) != {"project"} or len(project_values) != 1:
-        return "/app"
-    project_id = project_values[0].strip()
-    if (
+    if len(project_values) > 1:
+        return "/app?view=live"
+    project_id = project_values[0].strip() if project_values else ""
+    if project_values and (
         not project_id
         or len(project_id) > 200
         or any(ord(char) < 0x20 for char in project_id)
     ):
-        return "/app"
-    return "/app?" + urlencode({"project": project_id})
+        return "/app?view=live"
+    view_values = query.get("view", [])
+    if len(view_values) > 1 or (view_values and view_values[0] not in {"live", "visual"}):
+        return "/app?view=live"
+    if project_id:
+        return "/app?" + urlencode({"project": project_id, "view": "live"})
+    return "/app?view=live"
 
 
 def _cookie_header(
@@ -506,7 +511,7 @@ class PreviewApplication:
             self.runtime.sessions.revoke(session.session_id)
         headers = {
             "Content-Type": "text/html; charset=utf-8",
-            "Location": LOGIN_PATH,
+            "Location": "/",
             "Set-Cookie": _clear_cookie_header()[1],
         }
         return 303, headers, b""
@@ -544,6 +549,10 @@ class PreviewApplication:
         if session is None:
             path = urlsplit(str(environ.get("PATH_INFO", "/"))).path
             query = str(environ.get("QUERY_STRING", "") or "")
+            if path == "/app":
+                parameters = parse_qs(query, keep_blank_values=True)
+                parameters["view"] = ["live"]
+                query = urlencode(parameters, doseq=True)
             requested_next = path + ("?" + query if query else "")
             next_path = _safe_next(requested_next)
             headers = {
@@ -702,19 +711,20 @@ class PreviewApplication:
         return f"""<style>
   #cubi-preview-banner {{
     position: fixed; inset: auto 0 0 0; z-index: 2147483000;
-    display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
-    padding: 7px 14px; background: #12263f; color: #f7fbff;
-    font: 12px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
-    box-shadow: 0 -1px 0 rgba(255,255,255,.18);
+    display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+    padding: 4px 12px; background: #f0f0f0; color: #111;
+    font: 11px/1.5 "Segoe UI", Tahoma, system-ui, sans-serif;
+    border-top: 1px solid #9a9a9a;
   }}
-  #cubi-preview-banner strong {{ color: #ffd166; letter-spacing: .04em; }}
+  #cubi-preview-banner strong {{ color: #a12a1f; letter-spacing: .04em; }}
   #cubi-preview-banner .fa {{ direction: rtl; unicode-bidi: isolate; }}
   #cubi-preview-banner .grow {{ flex: 1 1 auto; }}
   #cubi-preview-banner form {{ margin: 0; }}
   #cubi-preview-banner button {{
-    border: 1px solid rgba(255,255,255,.5); background: transparent; color: inherit;
-    border-radius: 4px; padding: 2px 9px; cursor: pointer; font: inherit;
+    border: 1px solid #7f9db9; background: linear-gradient(180deg, #fdfdfd, #e6e6e6); color: #111;
+    border-radius: 0; padding: 1px 9px; cursor: pointer; font: inherit;
   }}
+  #cubi-preview-banner button:hover {{ background: #e6f0fb; }}
 </style>
 <div id="cubi-preview-banner" role="status">
   <strong>{banner_title}</strong>

@@ -155,6 +155,9 @@ export type WorkspaceActivitySort = {
   readonly direction: "asc" | "desc";
 };
 
+/** One ordered sort level; the first level is the toolbar's primary field. */
+export type WorkspaceActivitySortLevel = WorkspaceActivitySort;
+
 /** Activity-table grouping; WBS is the professional default for schedule views. */
 export type WorkspaceActivityGroupBy = "wbs" | "none";
 
@@ -180,6 +183,8 @@ export type WorkspaceState = {
   activityFilter: string;
   activityGroupBy: WorkspaceActivityGroupBy;
   activitySort: WorkspaceActivitySort | null;
+  /** Ordered multi-level sort from the Group and Sort dialog (max three). */
+  activitySortLevels: readonly WorkspaceActivitySortLevel[];
   controlSummary: WorkspaceControlSummary | null;
   smartGuide: WorkspaceSmartGuide | null;
   siteDailyLogs: readonly WorkspaceSiteDailyLog[];
@@ -240,7 +245,7 @@ export function createWorkspaceState(
     direction: getWorkspaceLocaleDirection(locale),
     calendarMode,
     calendarCatalog: { status: "not-loaded", calendars: [], errorCode: null },
-    ganttScale: "day",
+    ganttScale: "month",
     showGanttRelationships: true,
     activeMenu: "schedule",
     visiblePanels: {
@@ -258,6 +263,7 @@ export function createWorkspaceState(
     activityFilter: "",
     activityGroupBy: "wbs",
     activitySort: Object.freeze({ columnId: "wbs", direction: "asc" }),
+    activitySortLevels: Object.freeze([Object.freeze({ columnId: "wbs", direction: "asc" })]),
     controlSummary: null,
     smartGuide: null,
     siteDailyLogs: [],
@@ -310,20 +316,55 @@ export function setActivitySort(
   direction: "asc" | "desc" = "asc",
 ): WorkspaceState {
   if (columnId === null) {
-    return state.activitySort === null ? state : { ...state, activitySort: null };
+    if (state.activitySort === null && state.activitySortLevels.length === 0) return state;
+    return { ...state, activitySort: null, activitySortLevels: Object.freeze([]) };
   }
   // WBS is a grouping/sorting key even when the WBS field is not a visible table column.
   if (columnId !== "wbs" && !state.columns.some((column) => column.id === columnId)) {
     throw new Error("SORT_COLUMN_NOT_FOUND");
   }
   const next = Object.freeze({ columnId, direction });
-  if (
-    state.activitySort?.columnId === next.columnId &&
-    state.activitySort.direction === next.direction
-  ) {
-    return state;
+  if (sameSortLevels(state.activitySortLevels, [next])) return state;
+  return { ...state, activitySort: next, activitySortLevels: Object.freeze([next]) };
+}
+
+/**
+ * Replaces the ordered sort plan from the Group and Sort dialog. Up to three
+ * levels are accepted; duplicate fields collapse to their first position so a
+ * field can never be compared twice. The first level stays the toolbar value.
+ */
+export function setActivitySortLevels(
+  state: WorkspaceState,
+  levels: readonly WorkspaceActivitySortLevel[],
+): WorkspaceState {
+  const seen = new Set<string>();
+  const normalized: WorkspaceActivitySortLevel[] = [];
+  for (const level of levels) {
+    if (normalized.length >= 3) break;
+    if (seen.has(level.columnId)) continue;
+    if (level.columnId !== "wbs" && !state.columns.some((column) => column.id === level.columnId)) continue;
+    seen.add(level.columnId);
+    normalized.push(Object.freeze({
+      columnId: level.columnId,
+      direction: level.direction === "desc" ? "desc" : "asc",
+    }));
   }
-  return { ...state, activitySort: next };
+  if (sameSortLevels(state.activitySortLevels, normalized)) return state;
+  return {
+    ...state,
+    activitySort: normalized[0] ?? null,
+    activitySortLevels: Object.freeze(normalized),
+  };
+}
+
+function sameSortLevels(
+  left: readonly WorkspaceActivitySortLevel[],
+  right: readonly WorkspaceActivitySortLevel[],
+): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((level, index) =>
+    level.columnId === right[index]?.columnId && level.direction === right[index]?.direction,
+  );
 }
 
 export function setActivityGroupBy(
@@ -337,12 +378,15 @@ export function setActivityGroupBy(
 
 export function toggleActivitySortDirection(state: WorkspaceState): WorkspaceState {
   if (!state.activitySort) return state;
+  const direction = state.activitySort.direction === "asc" ? "desc" : "asc";
+  const levels = state.activitySortLevels.length > 1
+    ? state.activitySortLevels.map((level, index) =>
+      index === 0 ? Object.freeze({ ...level, direction }) : level)
+    : Object.freeze([Object.freeze({ columnId: state.activitySort!.columnId, direction })]);
   return {
     ...state,
-    activitySort: Object.freeze({
-      columnId: state.activitySort.columnId,
-      direction: state.activitySort.direction === "asc" ? "desc" : "asc",
-    }),
+    activitySort: Object.freeze({ columnId: state.activitySort.columnId, direction }),
+    activitySortLevels: Object.freeze(levels),
   };
 }
 
@@ -525,7 +569,9 @@ export function setP6Presentation(
         label: column.label ?? field.display_name,
         dataType: toWorkspaceColumnDataType(field.data_type),
         editable: field.writable && !field.computed,
-        formula: null,
+        // Computed formula columns carry the server-side expression; the grid
+        // only displays the evaluated cell that the workspace read returns.
+        formula: field.formula ?? null,
         width: column.width,
         alignment: column.alignment,
         pinned: column.pinned,

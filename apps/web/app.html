@@ -8,7 +8,17 @@
     <link rel="icon" href="/cubi-platform-logo-primary.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!-- The workspace must never wait on a third-party font host: scripts are
+         module-deferred behind style sheets, so a stalled CDN would leave the
+         authenticated shell blank. Request Vazirmatn only after the app boots. -->
+    <script>
+      window.addEventListener("load", function () {
+        var font = document.createElement("link");
+        font.rel = "stylesheet";
+        font.href = "https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap";
+        document.head.appendChild(font);
+      });
+    </script>
     <link rel="stylesheet" href="/styles.css" />
     <title>CUBI Workspace</title>
   </head>
