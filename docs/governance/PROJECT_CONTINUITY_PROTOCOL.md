@@ -16,6 +16,16 @@ Before doing work, inspect the current `main` tree and exact commit first, then 
 
 If a required artifact is missing or unreadable, record **MISSING / VERIFY** and repair the continuity entrypoint. Do not silently proceed as if the artifact existed.
 
+## 1.1 Mandatory Version 26 Help package for every Qoder instruction
+
+- The authoritative desktop-workspace reference is the **official P6 Professional Help, Version 26**. Its complete HTML Help table of contents is: https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm
+- The supporting Version 26 Professional User Guide (HTML) is: https://docs.oracle.com/en/industries/construction-engineering/primavera-p6-professional/26/pro-user/index.html
+- **Every Qoder instruction prepared for CUBI workspace, Activity, WBS, Gantt, menus, dialogs, layouts or scheduling UI must include the complete HTML Help URL above** (and the supporting User Guide URL when useful). Do not send a task instruction with an implicit or unspecified reference version.
+- When the instruction is sent to Qoder, the product owner will attach the supplied **815-page Version 26 PDF**. The instruction must explicitly tell Qoder to read both the HTML Help and the attached PDF, inspect the relevant topics in detail, and record the exact topic/page evidence used.
+- Version 26 Help governs behavior, menu structure, controls, options, terminology mapping, and acceptance. Older manuals or screenshots (including Version 22 captures) are supplementary visual evidence only; they must not override or define Version 26 behavior. Resolve differences in favor of Version 26 and record the discrepancy.
+- If the 815-page PDF is not attached or cannot be read, record **MISSING / VERIFY** for that evidence and do not claim Version 26 parity or close the related acceptance gate.
+- Preserve CUBI branding in customer-facing UI. Third-party source names and links belong only in internal engineering traceability records.
+
 ## 2. Baseline and evidence
 
 - `main` is the only source of truth for completed implementation. A branch, open PR, issue, design, generated workbook, passing stale run or documentation-only commit is not merged-product completion.
