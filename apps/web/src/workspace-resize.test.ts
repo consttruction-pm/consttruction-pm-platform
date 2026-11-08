@@ -272,7 +272,7 @@ test("table and Gantt splitter drags adjust the width split, clamp, and persist 
   assert.equal(attributes.get("aria-valuenow"), "75");
 });
 
-test("reset commands restore the default 70/30 and 45/55 splits and the default column widths", () => {
+test("reset commands restore the default 70/30 and 50/50 splits and the default column widths", () => {
   const { container, listeners } = captureContainer();
   const resets: Array<Readonly<Record<string, number>>> = [];
   renderMainWorkspace(container as unknown as HTMLElement, resizeLayoutState(), {
@@ -309,8 +309,8 @@ test("reset commands restore the default 70/30 and 45/55 splits and the default 
   assert.equal(attributes.get("aria-valuenow"), "70");
 
   click({ resetTableSplit: "" });
-  assert.equal(properties.get("--cp-split-table"), "45%");
-  assert.equal(attributes.get("aria-valuenow"), "45");
+  assert.equal(properties.get("--cp-split-table"), "50%");
+  assert.equal(attributes.get("aria-valuenow"), "50");
 
   click({ resetColumnWidths: "" });
   assert.deepEqual(resets, [{ code: 48 }]);

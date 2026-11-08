@@ -1162,7 +1162,7 @@ test("interactive Gantt rows expose button selection semantics", () => {
   };
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, state);
-  assert.match(container.innerHTML, /class="cp-gantt-row is-selected" role="button" data-gantt-activity-id="A-1" tabindex="0" aria-pressed="true" aria-label="A-1 — Foundation"/);
+  assert.match(container.innerHTML, /class="cp-gantt-row is-selected is-group-end" role="button" data-gantt-activity-id="A-1" tabindex="0" aria-pressed="true" aria-label="A-1 — Foundation"/);
   assert.doesNotMatch(container.innerHTML, /cp-gantt-row[^>]*aria-selected=/);
 });
 
@@ -1578,12 +1578,15 @@ test("Gantt renders persisted dependency arrows, a dated axis and milestone mark
   assert.match(container.innerHTML, /class="cp-gantt-link is-critical"[^>]*data-gantt-link="R-FS"/);
   assert.match(container.innerHTML, /marker-end="url\(#cp-gantt-arrow-critical\)"/);
   assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"/);
-  assert.match(container.innerHTML, />2026-09-02</);
-  assert.match(container.innerHTML, /data-gantt-scale-mode="day"/);
-  assert.match(container.innerHTML, /data-gantt-scale="day" aria-pressed="true"/);
-  assert.match(container.innerHTML, /data-gantt-scale="week" aria-pressed="false"/);
+  // The default month timescale prints the month over its period, like the
+  // desktop reference, while the tick keeps the canonical ISO date.
+  assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"[^>]*>Sep</);
+  assert.match(container.innerHTML, /data-gantt-grid="2026-09-01"/);
+  assert.match(container.innerHTML, /data-gantt-scale-mode="month"/);
+  assert.match(container.innerHTML, /data-gantt-scale="month" aria-pressed="true"/);
+  assert.match(container.innerHTML, /data-gantt-scale="day" aria-pressed="false"/);
   assert.match(container.innerHTML, /data-gantt-bar-kind="critical" data-gantt-bar-row="1"/);
-  assert.match(container.innerHTML, /data-gantt-bar-kind="milestone" data-gantt-bar-row="1" data-gantt-bar-shape="diamond"/);
+  assert.match(container.innerHTML, /data-gantt-bar-kind="milestone" data-gantt-bar-row="1" data-gantt-bar-shape="triangle-down"/);
   assert.equal((container.innerHTML.match(/class="cp-gantt-row/g) ?? []).length, 3);
   assert.match(container.innerHTML, /data-gantt-command="bars"/);
   assert.match(container.innerHTML, /data-gantt-command="font-row"/);
@@ -1593,7 +1596,9 @@ test("Gantt renders persisted dependency arrows, a dated axis and milestone mark
 test("Gantt axis shows the Jalali display date while keeping canonical tick dates", () => {
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState("fa", "jalali"));
-  assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"[^>]*>۱۴۰۵/);
+  // The canonical ISO date stays on the tick, while the visible month label and
+  // the tooltip use the Jalali display date.
+  assert.match(container.innerHTML, /data-gantt-tick="2026-09-01"[^>]*title="۱۴۰۵\/۰۶\/۱۰"[^>]*>شهریور</);
 });
 
 test("Gantt scale buttons dispatch day/week/month/quarter/year and reject unknown modes", () => {
@@ -1923,7 +1928,7 @@ test("desktop workbench renders one compact navigation rail, a full menu flyout 
 
 test("desktop workbench exposes real keyboard-operable resize separators and reset commands instead of disabled placeholders", () => {
   const html = render("en", "schedule");
-  assert.match(html, /data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0"[^>]*aria-valuemin="25"[^>]*aria-valuemax="75"[^>]*aria-valuenow="45"/);
+  assert.match(html, /data-panel-splitter role="separator" aria-orientation="vertical" tabindex="0"[^>]*aria-valuemin="25"[^>]*aria-valuemax="75"[^>]*aria-valuenow="50"/);
   assert.match(html, /data-details-splitter[^>]*role="separator" aria-orientation="horizontal" tabindex="0"[^>]*aria-valuemin="40"[^>]*aria-valuemax="80"[^>]*aria-valuenow="70"/);
   assert.match(html, /data-column-resize="[^"]+" role="separator" aria-orientation="vertical"[^>]*aria-valuemin="48"[^>]*aria-valuemax="640"[^>]*aria-valuenow="\d+"/);
   assert.match(html, /data-layout-options-open/);
@@ -2090,19 +2095,29 @@ test("activity grid renders colored WBS bands with expand controls and matching 
   renderMainWorkspace(container as unknown as HTMLElement, wbsActivityState());
   const html = container.innerHTML;
 
-  assert.match(html, /<tr role="row" data-wbs-row="W-ROOT" data-wbs-level="1" data-wbs-depth="0" data-wbs-collapsed="false" tabindex="0" aria-label="1 Project" aria-expanded="true" class="cp-p6-wbs-band cp-p6-tree-band" style="--cp-wbs-level:#3b3bbf"/);
-  assert.match(html, /data-wbs-row="W-A1" data-wbs-level="3" data-wbs-depth="2"[^>]*style="--cp-wbs-level:#4f9b57"/);
+  assert.match(html, /<tr role="row" data-wbs-row="W-ROOT" data-wbs-level="1" data-wbs-depth="0" data-wbs-collapsed="false" tabindex="0" aria-label="1 Project" aria-expanded="true" class="cp-p6-wbs-band cp-p6-tree-band" style="--cp-wbs-level:#0000ff;--cp-wbs-ink:#ffff00"/);
+  assert.match(html, /data-wbs-row="W-A" data-wbs-level="2" data-wbs-depth="1"[^>]*style="--cp-wbs-level:#80ff80;--cp-wbs-ink:#000000"/);
+  assert.match(html, /data-wbs-row="W-A1" data-wbs-level="3" data-wbs-depth="2"[^>]*style="--cp-wbs-level:#ffff00;--cp-wbs-ink:#0000ff"/);
   assert.match(html, /data-wbs-toggle="W-ROOT" aria-expanded="true"[^>]*>−</);
   assert.match(html, /data-wbs-toggle="W-A1" aria-expanded="true"[^>]*>−</);
   assert.match(html, /class="cp-p6-wbs-code">1\.1\.1</);
   assert.match(html, /data-rollup="display" title="Derived for display from 2 persisted child activities"[^>]*>4<\/td>/);
   assert.match(html, /data-activity-id="A-1"[^>]*data-wbs-depth="3"/);
-  // The hierarchy is drawn as guide rails inside the WBS/Name cell; the level
-  // colour is confined to that cell instead of tinting the whole row.
-  assert.match(html, /class="cp-p6-tree-guides" data-tree-depth="3" style="--cp-wbs-level:#4f9b57"/);
-  assert.match(html, /class="cp-p6-tree-rail is-continued" data-tree-level="2" style="--cp-tree-color:#c9a227"/);
-  assert.match(html, /class="cp-p6-tree-elbow is-branch" style="--cp-tree-color:#4f9b57"/);
-  assert.match(html, /class="cp-p6-tree-elbow is-last" style="--cp-tree-color:#4f9b57"/);
+  // Each level draws a solid vertical spine inside the tree cell, so the
+  // parent/child extent is visible even on leaf rows.
+  assert.match(html, /class="cp-p6-tree-guides" data-tree-depth="3" style="--cp-wbs-level:#ffff00"><span class="cp-p6-wbs-spine" data-spine-level="1" style="--cp-spine:#0000ff" aria-hidden="true"><\/span><span class="cp-p6-wbs-spine" data-spine-level="2" style="--cp-spine:#80ff80" aria-hidden="true"><\/span><span class="cp-p6-wbs-spine" data-spine-level="3" style="--cp-spine:#ffff00" aria-hidden="true"><\/span>/);
+  // The reference chart has no frozen label pane: rows are bars only, and the
+  // table already carries the hierarchy.
+  assert.doesNotMatch(html, /cp-gantt-label/);
+  assert.match(html, /class="cp-gantt-row cp-gantt-group-row" data-gantt-wbs-id="W-ROOT"[^>]*><div class="cp-gantt-track">/);
+  // A dashed rule closes each WBS branch instead of ruling every row.
+  assert.match(html, /class="cp-gantt-row is-group-end" role="button" data-gantt-activity-id="A-2"/);
+  assert.equal((html.match(/is-group-end/g) ?? []).length, 2);
+  // Summary bars use the classic black bar with downward triangle caps and the
+  // reference "Finish, Activity ID  Activity Name" label.
+  assert.match(html, /class="cp-gantt-summary-bar[^"]*"[^>]*--cp-bar-body:#000000[^>]*><span class="cp-gantt-endpoint is-start is-triangle-down"/);
+  assert.match(html, />05-Sep-26, 1  Project</);
+  assert.match(html, />03-Sep-26, A-1  Excavate</);
   assert.match(html, /data-wbs-expand-all/);
   assert.match(html, /data-wbs-collapse-all/);
   assert.match(html, /data-wbs-collapse-to/);

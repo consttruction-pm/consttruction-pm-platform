@@ -74,7 +74,7 @@ test("invalid colours are ignored instead of replacing the saved appearance", ()
 test("Table Font and Row dialog exposes the real controls and persisted values", () => {
   const html = renderLayoutDialogs(dialogOptions());
 
-  assert.match(html, /name="rowHeight" min="18" max="40"[^>]*value="22"/);
+  assert.match(html, /name="rowHeight" min="18" max="40"[^>]*value="18"/);
   assert.match(html, /name="fontSize"/);
   assert.match(html, /<option value="11" selected>11 px<\/option>/);
   assert.match(html, /name="fontFamily"/);
@@ -127,13 +127,13 @@ test("WBS level colours are read per level and kept independent", () => {
 
 test("Timescale and User Preferences dialogs expose the persisted controls", () => {
   const html = renderLayoutDialogs(dialogOptions());
-  assert.match(html, /name="timescale.interval"[\s\S]*?value="month-week" selected/);
+  assert.match(html, /name="timescale.interval"[\s\S]*?value="quarter-month" selected/);
   assert.match(html, /name="timescale.lines"/);
   assert.match(html, /name="timescale.dateFormat"/);
   assert.match(html, /name="timescale.ordinalInterval"/);
-  assert.match(html, /name="timescale.textColor" value="#17324d"/);
-  assert.match(html, /name="wbs.color.0" value="#3b3bbf"/);
-  assert.match(html, /name="wbs.color.5" value="#7a63bd"/);
+  assert.match(html, /name="timescale.textColor" value="#000000"/);
+  assert.match(html, /name="wbs.color.0" value="#0000ff"/);
+  assert.match(html, /name="wbs.color.5" value="#d9b3ff"/);
   assert.match(html, /Fiscal year, shift and hour intervals are not rendered/);
 });
 
@@ -220,14 +220,14 @@ test("Group and Sort exposes three ordered sort levels and reads them in order",
 
 test("default layout patch keeps the professional compact defaults", () => {
   const defaults = defaultLayoutPatch();
-  assert.equal(defaults.rowHeight, 22);
+  assert.equal(defaults.rowHeight, 18);
   assert.equal(defaults.fontSize, 11);
   assert.equal(defaults.rowHeightMode, "fixed");
   assert.equal(defaults.showIcons, true);
   assert.equal(defaults.lineNumbers, false);
   assert.deepEqual(defaults.presentation, DEFAULT_PRESENTATION);
   assert.equal(defaults.groupBy, "wbs");
-  assert.equal(defaults.ganttScale, "day");
+  assert.equal(defaults.ganttScale, "month");
 });
 
 test("Filters dialog exposes predefined filters and a real criteria builder", () => {

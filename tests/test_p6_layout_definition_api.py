@@ -96,6 +96,14 @@ def test_layout_api_default_returns_canonical_columns_without_persisting() -> No
     assert ids[0] == "activity.id"
     assert "activity.early_start" in ids
     assert len(ids) == len(set(ids))
+    # The reference Classic Schedule Layout shows Total Float as the eighth
+    # visible column; Status stays available in the registry but is hidden.
+    assert ids[-1] == "activity.total_float"
+    assert "activity.status" not in ids
+    by_id = {column["field_id"]: column for column in default["layout"]["columns"]}
+    assert by_id["activity.name"]["width"] == 172.0
+    assert by_id["activity.total_float"]["width"] == 56.0
+    assert by_id["activity.total_float"]["alignment"] == "end"
     # Reading defaults must not create a stored revision.
     assert api.get(
         BackendScope("tenant-a", "project-a", 2),

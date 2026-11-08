@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { WorkspaceActivityRow, WorkspaceWbsNode } from "./workspace-model.js";
 import {
+  buildWbsTreeGuides,
   buildWorkspaceDisplayRows,
   collapseAllWbsIds,
   collapseToWbsIds,
@@ -78,7 +79,47 @@ test("collapsing one branch hides only that subtree and keeps child ids intact w
   assert.deepEqual(rowKeys(), ["wbs:W-ROOT", "wbs:W-A", "wbs:W-A1", "act:A-1", "act:A-2", "wbs:W-B", "act:B-1"]);
 });
 
-test("without WBS grouping the grid stays a flat activity list", () => {
+test("tree guides draw one gutter per visible ancestor and stop at the last sibling", () => {
+  const rows = buildWorkspaceDisplayRows(activities, nodes, "wbs");
+  const guides = buildWbsTreeGuides(rows);
+  const guideFor = (key: string) => {
+    const index = rows.findIndex((row) => row.kind === "wbs" ? `wbs:${row.wbsId}` === key : `act:${row.activity.id}` === key);
+    assert.notEqual(index, -1, `missing display row ${key}`);
+    return guides[index];
+  };
+
+  // A first-level node is reached by its own elbow only; it never draws a
+  // rail for the project band above it.
+  assert.deepEqual(guideFor("wbs:W-A").rails, []);
+  assert.equal(guideFor("wbs:W-A").lastChild, false);
+  // W-A still has the W-B sibling below, so its children keep the left spine.
+  assert.deepEqual(guideFor("wbs:W-A1").rails, [true]);
+  // W-A1 is the last child of W-A, so its elbow closes the branch.
+  assert.equal(guideFor("wbs:W-A1").lastChild, true);
+  // A third-level row keeps the W-A spine and leaves the closed W-A1 column
+  // empty before drawing its own elbow.
+  assert.deepEqual(guideFor("act:A-1").rails, [true, false]);
+  assert.equal(guideFor("act:A-1").lastChild, false);
+  assert.equal(guideFor("act:A-2").lastChild, true);
+  // W-B is the last sibling, so its descendant has no ancestor rail at all.
+  assert.deepEqual(guideFor("act:B-1").rails, [false]);
+  assert.equal(guideFor("act:B-1").lastChild, true);
+});
+
+test("collapsing a branch rebuilds guides for the reduced visible depth", () => {
+  const rows = buildWorkspaceDisplayRows(activities, nodes, "wbs", new Set(["W-A"]));
+  const guides = buildWbsTreeGuides(rows);
+  const wb = rows.findIndex((row) => row.kind === "wbs" && row.wbsId === "W-B");
+  assert.ok(wb >= 0);
+  assert.deepEqual(guides[wb].rails, []);
+  const b1 = rows.findIndex((row) => row.kind === "activity" && row.activity.id === "B-1");
+  assert.ok(b1 >= 0);
+  assert.equal(guides[b1].depth, 2);
+  assert.deepEqual(guides[b1].rails, [false]);
+});
+
+
+test("without WBS grouping the table stays a flat activity list", () => {
   const rows = buildWorkspaceDisplayRows(activities, nodes, "none");
   assert.deepEqual(rows.map((row) => row.kind), ["activity", "activity", "activity"]);
   assert.deepEqual(rows.map((row) => row.kind === "activity" ? row.depth : -1), [0, 0, 0]);

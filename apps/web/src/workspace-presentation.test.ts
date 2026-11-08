@@ -169,6 +169,11 @@ test("labels read only the persisted display facts", () => {
   assert.equal(barLabelText("duration", { activityId: "A1000", progressPercent: 20 }, row), "5");
   assert.equal(barLabelText("progress", { activityId: "A1000", progressPercent: 20 }, row), "20%");
   assert.equal(barLabelText("none", { activityId: "A1000", progressPercent: 20 }, row), "");
+  // The reference prints "Finish, Activity ID  Activity Name" beside the bar.
+  const dated = activity({ name: "Excavate", gantt: { start: "2026-09-01T00:00:00Z", finish: "2026-09-05T00:00:00Z", progressPercent: 0, critical: false } });
+  assert.equal(barLabelText("finish-id-name", { activityId: "A1000", progressPercent: 0 }, dated), "05-Sep-26, A1000  Excavate");
+  // Without a persisted finish the label still carries the real identity only.
+  assert.equal(barLabelText("finish-id-name", { activityId: "A1000", progressPercent: 0 }, row), "A1000  Excavate");
 });
 
 test("font families resolve to concrete stacks without third-party product names", () => {

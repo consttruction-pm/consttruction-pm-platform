@@ -7,7 +7,7 @@
  * metadata the field layout uses so a reload and another browser session show
  * the same saved presentation.
  */
-import type { WorkspaceActivityRow } from "./workspace-model.js";
+import type { WorkspaceActivityRow, WorkspaceCalendarMode } from "./workspace-model.js";
 import {
   EMPTY_ACTIVITY_FILTERS,
   normalizeActivityFilterState,
@@ -28,7 +28,7 @@ export type GanttBarRow = 1 | 2 | 3;
 export const GANTT_BAR_FILTERS = ["all", "task", "critical", "noncritical", "milestone", "summary", "in-progress", "completed", "not-started"] as const;
 export type GanttBarFilter = (typeof GANTT_BAR_FILTERS)[number];
 
-export const GANTT_LABEL_FIELDS = ["none", "activity-id", "activity-name", "duration", "progress"] as const;
+export const GANTT_LABEL_FIELDS = ["none", "activity-id", "activity-name", "finish-id-name", "duration", "progress"] as const;
 export type GanttBarLabelField = (typeof GANTT_LABEL_FIELDS)[number];
 
 export const GANTT_LABEL_POSITIONS = ["inside-left", "inside-center", "inside-right", "above", "below", "right"] as const;
@@ -129,24 +129,37 @@ const DEFAULT_TABLE: TablePresentation = {
   fontSize: 11,
   textColor: "#000000",
   backgroundColor: "#ffffff",
-  rowHeight: 22,
+  // The reference activity grid uses 18px leaf rows; WBS bands stay legible
+  // through their bold level ink rather than a taller uniform row.
+  rowHeight: 18,
   rowHeightMode: "fixed",
   showIcons: true,
   lineNumbers: false,
 };
 
 /**
- * Reference-derived WBS level palette. The hierarchy column uses these colours
- * for the vertical rails and a light tint; activity status, selection and
- * critical-path colours stay independent from them.
+ * WBS band palette taken from the reference desktop schedule: saturated blue,
+ * light green and yellow for the first three levels, then light tints that keep
+ * black text readable. The band fills every column of the row and the same
+ * colour draws the level spine in the hierarchy gutter.
  */
 export const DEFAULT_WBS_LEVEL_COLORS = [
-  "#3b3bbf",
-  "#c9a227",
-  "#4f9b57",
-  "#2f8fae",
-  "#b0558a",
-  "#7a63bd",
+  "#0000ff",
+  "#80ff80",
+  "#ffff00",
+  "#ffb3b3",
+  "#b3d9ff",
+  "#d9b3ff",
+] as const;
+
+/** Per-level text ink matching the reference (yellow on blue, black, blue). */
+export const DEFAULT_WBS_LEVEL_INKS = [
+  "#ffff00",
+  "#000000",
+  "#0000ff",
+  "#000000",
+  "#000000",
+  "#000000",
 ] as const;
 
 export const MAX_WBS_LEVELS = DEFAULT_WBS_LEVEL_COLORS.length;
@@ -155,12 +168,12 @@ const DEFAULT_TIMESCALE: GanttTimescale = {
   lines: 2,
   dateFormat: "primary",
   type: "calendar",
-  interval: "month-week",
+  interval: "quarter-month",
   ordinalStart: null,
   ordinalInterval: "week",
   fontSize: 11,
-  textColor: "#17324d",
-  backgroundColor: "#e3e9f0",
+  textColor: "#000000",
+  backgroundColor: "#f0f0f0",
 };
 
 function bar(style: Partial<GanttBarStyle> & Pick<GanttBarStyle, "bodyColor">): GanttBarStyle {
@@ -188,16 +201,18 @@ export const DEFAULT_PRESENTATION: WorkspacePresentation = {
   timescale: { ...DEFAULT_TIMESCALE },
   wbs: { levelColors: [...DEFAULT_WBS_LEVEL_COLORS] },
   bars: {
-    // The default palette follows the classic desktop scheduling worksurface:
-    // light outlined work bars, a dark solid summary, a black milestone diamond
-    // and green actual bars, with the activity id printed beside each bar.
-    task: bar({ bodyColor: "#eef3f8", borderColor: "#1f3b57", filter: "task", labelField: "activity-id" }),
-    critical: bar({ bodyColor: "#f6dcd7", borderColor: "#9e2b25", filter: "critical", labelField: "activity-id" }),
-    summary: bar({ bodyColor: "#17324d", borderColor: "#0f2a44", filter: "summary", height: 10, startShape: "triangle-down", finishShape: "triangle-down", labelField: "none" }),
-    milestone: bar({ bodyColor: "#1f2933", borderColor: "#111827", filter: "milestone", bodyShape: "diamond", height: 14 }),
-    progress: bar({ bodyColor: "#1f3b57", borderColor: "#1f3b57", filter: "all", height: 6 }),
-    actual: bar({ bodyColor: "#2e7d5b", borderColor: "#246448", filter: "all", row: 2, height: 6 }),
-    baseline: bar({ bodyColor: "#6b7785", borderColor: "#6b7785", filter: "all", row: 3, height: 4, bodyShape: "line" }),
+    // P6 desktop defaults: blue task bars, red critical bars, black summary and
+    // milestone markers, green actuals and a grey baseline line. Every bar uses
+    // a square 1px black border so the timetable keeps the reference outline.
+    // The reference prints "Finish, Activity ID, Activity Name" to the right of
+    // every bar, and draws the milestone as a black down triangle.
+    task: bar({ bodyColor: "#0000ff", borderColor: "#000000", filter: "task", height: 9, labelField: "finish-id-name" }),
+    critical: bar({ bodyColor: "#ff0000", borderColor: "#000000", filter: "critical", height: 9, labelField: "finish-id-name" }),
+    summary: bar({ bodyColor: "#000000", borderColor: "#000000", filter: "summary", height: 5, startShape: "triangle-down", finishShape: "triangle-down", labelField: "finish-id-name" }),
+    milestone: bar({ bodyColor: "#000000", borderColor: "#000000", filter: "milestone", bodyShape: "triangle-down", height: 9, labelField: "finish-id-name" }),
+    progress: bar({ bodyColor: "#17365d", borderColor: "#17365d", filter: "all", height: 4 }),
+    actual: bar({ bodyColor: "#008000", borderColor: "#004d00", filter: "all", row: 2, height: 4 }),
+    baseline: bar({ bodyColor: "#808080", borderColor: "#808080", filter: "all", row: 3, height: 3, bodyShape: "line" }),
   },
 };
 
@@ -286,6 +301,37 @@ export function normalizeWbs(value: unknown, fallback: WbsPresentation = DEFAULT
 export function wbsLevelColor(wbs: WbsPresentation, depth: number): string {
   const index = Math.max(0, Math.min(wbs.levelColors.length - 1, Math.round(depth)));
   return wbs.levelColors[index] ?? DEFAULT_WBS_LEVEL_COLORS[MAX_WBS_LEVELS - 1];
+}
+
+function channelLuminance(value: number): number {
+  const channel = value / 255;
+  return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function colorLuminance(hex: string): number {
+  const value = Number.parseInt(hex.slice(1), 16);
+  return 0.2126 * channelLuminance((value >> 16) & 255)
+    + 0.7152 * channelLuminance((value >> 8) & 255)
+    + 0.0722 * channelLuminance(value & 255);
+}
+
+function contrastRatio(left: string, right: string): number {
+  const a = colorLuminance(left);
+  const b = colorLuminance(right);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+/**
+ * Text ink for a WBS band. The reference uses yellow on blue, black on green
+ * and blue on yellow; a custom palette falls back to black or white when that
+ * pairing would drop below a readable contrast.
+ */
+export function wbsLevelInk(wbs: WbsPresentation, depth: number): string {
+  const index = Math.max(0, Math.min(MAX_WBS_LEVELS - 1, Math.round(depth)));
+  const background = wbsLevelColor(wbs, depth);
+  const preferred = DEFAULT_WBS_LEVEL_INKS[index] ?? "#000000";
+  if (contrastRatio(background, preferred) >= 3) return preferred;
+  return colorLuminance(background) > 0.45 ? "#000000" : "#ffffff";
 }
 
 export function normalizePresentation(value: unknown): WorkspacePresentation {
@@ -395,10 +441,56 @@ export function activityBarFacts(activity: WorkspaceActivityRow, bar: { critical
   };
 }
 
-export function barLabelText(field: GanttBarLabelField, bar: { activityId: string; progressPercent: number }, activity: WorkspaceActivityRow | undefined): string {
+export type GanttLabelFormat = {
+  calendarMode?: WorkspaceCalendarMode;
+  locale?: string;
+};
+
+/**
+ * Bar labels print the desktop reference's short date (`16-Aug-26`), not the
+ * ISO value the date columns keep for sorting and comparison. The parts are
+ * assembled by hand because locale short-date order and spellings differ.
+ */
+export function formatGanttLabelDate(value: string, format: GanttLabelFormat = {}): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return value;
+  const date = new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  if (format.calendarMode !== "jalali") {
+    const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(match[2]) - 1];
+    return month ? `${match[3]}-${month}-${match[1].slice(2)}` : value;
+  }
+  try {
+    const parts = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+      timeZone: "UTC", day: "2-digit", month: "short", year: "2-digit",
+    }).formatToParts(date);
+    const part = (type: string): string => parts.find((item) => item.type === type)?.value ?? "";
+    const day = part("day");
+    const month = part("month");
+    const year = part("year");
+    return day && month && year ? `${day}-${month}-${year}` : value;
+  } catch {
+    return value;
+  }
+}
+
+/** `Finish, Activity ID  Activity Name`, exactly as the reference labels bars. */
+export function ganttFinishIdName(finish: string | undefined, activityId: string, name: string, format: GanttLabelFormat = {}): string {
+  const date = finish ? formatGanttLabelDate(finish, format) : "";
+  const identity = name ? `${activityId}  ${name}` : activityId;
+  return date ? `${date}, ${identity}` : identity;
+}
+
+export function barLabelText(
+  field: GanttBarLabelField,
+  bar: { activityId: string; progressPercent: number },
+  activity: WorkspaceActivityRow | undefined,
+  format: GanttLabelFormat = {},
+): string {
   switch (field) {
     case "activity-id": return bar.activityId;
     case "activity-name": return activity?.name ?? "";
+    case "finish-id-name": return ganttFinishIdName(activity?.gantt?.finish, bar.activityId, activity?.name ?? "", format);
     case "duration": {
       const value = activity?.cells?.duration;
       return value === undefined || value === null ? "" : String(value);

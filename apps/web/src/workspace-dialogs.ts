@@ -141,6 +141,7 @@ const LABEL_FIELD_LABELS: Record<string, Label> = {
   none: ["No label", "بدون برچسب"],
   "activity-id": ["Activity ID", "شناسه فعالیت"],
   "activity-name": ["Activity name", "نام فعالیت"],
+  "finish-id-name": ["Finish, ID, Name", "پایان، شناسه، نام"],
   duration: ["Duration", "مدت"],
   progress: ["Progress %", "درصد پیشرفت"],
 };
@@ -658,7 +659,9 @@ export function defaultLayoutPatch(): DesktopLayoutPatch {
     sortColumnId: "wbs",
     sortDirection: "asc",
     sortLevels: [{ columnId: "wbs", direction: "asc" }],
-    ganttScale: "day",
+    // The axis density must follow the default timescale, otherwise Restore
+    // Defaults leaves a default header over day-density ticks.
+    ganttScale: timescaleTickScale(DEFAULT_PRESENTATION.timescale.interval),
     showRelationships: true,
     density: "compact",
     rowHeight: DEFAULT_PRESENTATION.table.rowHeight,

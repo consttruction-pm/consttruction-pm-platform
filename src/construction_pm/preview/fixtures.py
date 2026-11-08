@@ -68,21 +68,21 @@ class LayoutColumnFixture:
 
 # Column order is persisted with the project layout. The visible subset follows
 # the P6 Professional activity table order (Id, Name, Original/Remaining
-# Duration, Schedule %, Start, Finish, Status, WBS, Total Float) and is sized to
-# fit the fixed 53.5% table region at the 1100x808 reference viewport. Hidden
+# Duration, Schedule %, Start, Finish, Total Float) and is sized to
+# fit the even 50% table region at the 1280x720 reference viewport. Hidden
 # columns remain addable from the persisted field registry without inventing
 # fields in the browser.
 LAYOUT_COLUMNS: tuple[LayoutColumnFixture, ...] = (
-    LayoutColumnFixture("activity.id", True, 48, "start", "Activity ID"),
-    LayoutColumnFixture("activity.name", True, 130, "start", "Activity Name"),
-    LayoutColumnFixture("activity.planned_duration", True, 50, "end", "Original Duration"),
-    LayoutColumnFixture("activity.remaining_duration", True, 50, "end", "Remaining Duration"),
-    LayoutColumnFixture("activity.duration_percent_complete", True, 50, "end", "Schedule % Complete"),
-    LayoutColumnFixture("activity.early_start", True, 68, "center", "Start"),
-    LayoutColumnFixture("activity.early_finish", True, 68, "center", "Finish"),
-    LayoutColumnFixture("activity.status", True, 70, "start", "Status"),
-    LayoutColumnFixture("activity.wbs", True, 100, "start", "WBS"),
-    LayoutColumnFixture("activity.total_float", True, 50, "end", "Total Float"),
+    LayoutColumnFixture("activity.id", True, 56, "start", "Activity ID"),
+    LayoutColumnFixture("activity.name", True, 172, "start", "Activity Name"),
+    LayoutColumnFixture("activity.planned_duration", True, 58, "end", "Original Duration"),
+    LayoutColumnFixture("activity.remaining_duration", True, 58, "end", "Remaining Duration"),
+    LayoutColumnFixture("activity.duration_percent_complete", True, 58, "end", "Schedule % Complete"),
+    LayoutColumnFixture("activity.early_start", True, 64, "center", "Start"),
+    LayoutColumnFixture("activity.early_finish", True, 64, "center", "Finish"),
+    LayoutColumnFixture("activity.status", False, 70, "start", "Status"),
+    LayoutColumnFixture("activity.wbs", False, 100, "start", "WBS"),
+    LayoutColumnFixture("activity.total_float", True, 56, "end", "Total Float"),
     LayoutColumnFixture("activity.is_critical", False, 55, "center"),
     LayoutColumnFixture("activity.type", False, 130, "start"),
     LayoutColumnFixture("activity.leveling_priority", False, 120, "start"),

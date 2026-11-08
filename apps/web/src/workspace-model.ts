@@ -245,7 +245,7 @@ export function createWorkspaceState(
     direction: getWorkspaceLocaleDirection(locale),
     calendarMode,
     calendarCatalog: { status: "not-loaded", calendars: [], errorCode: null },
-    ganttScale: "day",
+    ganttScale: "month",
     showGanttRelationships: true,
     activeMenu: "schedule",
     visiblePanels: {

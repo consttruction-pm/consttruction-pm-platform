@@ -79,8 +79,11 @@ export function buildWbsTreeGuides(rows: readonly WorkspaceDisplayRow[]): readon
   return rows.map((row, index) => {
     const rowDepth = depth[index];
     const rails: boolean[] = [];
-    for (let level = 0; level < rowDepth; level += 1) {
-      const ancestor = lastAtDepth[level];
+    // The column immediately before a node is the node's own elbow. Every
+    // further-left column belongs to an ancestor two or more levels up; it
+    // continues only while that ancestor still has a following sibling.
+    for (let level = 0; level < Math.max(0, rowDepth - 1); level += 1) {
+      const ancestor = lastAtDepth[level + 1];
       rails.push(ancestor !== undefined && !last[ancestor]);
     }
     lastAtDepth.length = rowDepth + 1;

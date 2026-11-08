@@ -15,14 +15,14 @@ DEFAULT_ACTIVITY_LAYOUT_ID = "activity"
 P6_LAYOUT_DEFAULTS_VERSION = "p6-layout-defaults.v1"
 
 _DEFAULT_ACTIVITY_COLUMNS: tuple[LayoutColumn, ...] = (
-    LayoutColumn("activity.id", True, 0, "Activity ID", 120.0, "start", False, False),
-    LayoutColumn("activity.name", True, 1, "Activity Name", 260.0, "start", False, False),
-    LayoutColumn("activity.planned_duration", True, 2, "Original Duration", 110.0, "end", False, False),
-    LayoutColumn("activity.remaining_duration", True, 3, "Remaining Duration", 110.0, "end", False, False),
-    LayoutColumn("activity.duration_percent_complete", True, 4, "Schedule % Complete", 120.0, "end", False, False),
-    LayoutColumn("activity.early_start", True, 5, "Start", 120.0, "center", False, False),
-    LayoutColumn("activity.early_finish", True, 6, "Finish", 120.0, "center", False, False),
-    LayoutColumn("activity.status", True, 7, "Status", 100.0, "start", False, False),
+    LayoutColumn("activity.id", True, 0, "Activity ID", 56.0, "start", False, False),
+    LayoutColumn("activity.name", True, 1, "Activity Name", 172.0, "start", False, False),
+    LayoutColumn("activity.planned_duration", True, 2, "Original Duration", 58.0, "end", False, False),
+    LayoutColumn("activity.remaining_duration", True, 3, "Remaining Duration", 58.0, "end", False, False),
+    LayoutColumn("activity.duration_percent_complete", True, 4, "Schedule % Complete", 58.0, "end", False, False),
+    LayoutColumn("activity.early_start", True, 5, "Start", 64.0, "center", False, False),
+    LayoutColumn("activity.early_finish", True, 6, "Finish", 64.0, "center", False, False),
+    LayoutColumn("activity.total_float", True, 7, "Total Float", 56.0, "end", False, False),
 )
 
 

@@ -711,7 +711,7 @@ test("persisted relationships attach only when both endpoints are loaded activit
 
 test("Gantt scale is presentation state with validated day/week/month/quarter/year choices", () => {
   const state = createWorkspaceState(context, "en");
-  assert.equal(state.ganttScale, "day");
+  assert.equal(state.ganttScale, "month");
 
   const weekly = setGanttScale(state, "week");
   assert.equal(weekly.ganttScale, "week");
