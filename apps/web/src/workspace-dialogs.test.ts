@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { defaultLayoutPatch, readLayoutPatch, renderLayoutDialogs, type DialogOptions } from "./workspace-dialogs.js";
-import { DEFAULT_PRESENTATION } from "./workspace-presentation.js";
+import { DEFAULT_PRESENTATION, normalizePresentation } from "./workspace-presentation.js";
 
-function form(entries: Record<string, string>): FormData {
+function form(entries: Record<string, string | string[]>): FormData {
   const data = new FormData();
-  for (const [key, value] of Object.entries(entries)) data.append(key, value);
+  for (const [key, value] of Object.entries(entries)) {
+    if (Array.isArray(value)) for (const item of value) data.append(key, item);
+    else data.append(key, value);
+  }
   return data;
 }
 
@@ -178,6 +181,95 @@ test("a hidden bar remains hidden when its editor row is absent from the form", 
   assert.equal(patch.presentation?.bars.task.visible, false);
 });
 
+test("Bar Settings reads the calendar nonwork necking toggle per bar", () => {
+  const off = readLayoutPatch(form({ "bar.task.filter": "task" }), DEFAULT_PRESENTATION);
+  assert.equal(off.presentation?.bars.task.necking, false);
+  const on = readLayoutPatch(form({ "bar.critical.filter": "critical", "bar.critical.necking": "on" }), DEFAULT_PRESENTATION);
+  assert.equal(on.presentation?.bars.critical.necking, true);
+});
+
+test("Gantt chart options persist labels, legend, sight lines and lines", () => {
+  const patch = readLayoutPatch(form({
+    "gantt.showBarLabels": "on",
+    "gantt.labelFontSize": "13",
+    "gantt.labelColor": "#223344",
+    "gantt.legend.visible": "on",
+    "gantt.legend.position": "top",
+    "gantt.sightLines.beforeSummaries": "on",
+    "gantt.sightLines.rowInterval": "4",
+    "gantt.sightLines.minorVertical": "on",
+    "gantt.dataDateLine.visible": "on",
+    "gantt.dataDateLine.style": "dashed",
+    "gantt.dataDateLine.thickness": "3",
+    "gantt.dataDateLine.color": "#00aa55",
+    "gantt.progressLine.visible": "on",
+    "gantt.progressLine.thickness": "2",
+    "gantt.progressLine.color": "#ff8800",
+  }), DEFAULT_PRESENTATION);
+  const gantt = patch.presentation?.gantt;
+  assert.equal(gantt?.showBarLabels, true);
+  assert.equal(gantt?.labelFontSize, 13);
+  assert.equal(gantt?.labelColor, "#223344");
+  assert.deepEqual(gantt?.legend, { visible: true, position: "top" });
+  assert.deepEqual(gantt?.sightLines, { beforeSummaries: true, rowInterval: 4, minorVertical: true });
+  assert.deepEqual(gantt?.dataDateLine, { visible: true, style: "dashed", thickness: 3, color: "#00aa55" });
+  assert.deepEqual(gantt?.progressLine, { visible: true, thickness: 2, color: "#ff8800" });
+});
+
+test("a disabled Data Date fieldset keeps the saved line settings", () => {
+  const previous = normalizePresentation({
+    gantt: { dataDateLine: { visible: true, style: "dotted", thickness: 2, color: "#112233" } },
+  });
+  const patch = readLayoutPatch(form({
+    "gantt.legend.visible": "on",
+    "gantt.legend.position": "bottom",
+    "gantt.progressLine.thickness": "1",
+    "gantt.progressLine.color": "#7030a0",
+  }), previous);
+  assert.deepEqual(patch.presentation?.gantt.dataDateLine, previous.gantt.dataDateLine);
+  assert.equal(patch.presentation?.gantt.legend.visible, true);
+});
+
+test("Gantt chart options clamp out-of-range values and reject invalid colours", () => {
+  const patch = readLayoutPatch(form({
+    "gantt.labelFontSize": "40",
+    "gantt.labelColor": "purple",
+    "gantt.sightLines.rowInterval": "99",
+    "gantt.dataDateLine.style": "dashed",
+    "gantt.dataDateLine.thickness": "0",
+    "gantt.progressLine.thickness": "0",
+  }), DEFAULT_PRESENTATION);
+  const gantt = patch.presentation?.gantt;
+  assert.equal(gantt?.labelFontSize, 16);
+  assert.equal(gantt?.labelColor, DEFAULT_PRESENTATION.gantt.labelColor);
+  assert.equal(gantt?.sightLines.rowInterval, 10);
+  assert.equal(gantt?.dataDateLine.thickness, 1);
+  assert.equal(gantt?.progressLine.thickness, 1);
+});
+
+test("Gantt chart options render with an honest Data Date state", () => {
+  const withoutDate = renderLayoutDialogs(dialogOptions());
+  assert.match(withoutDate, /data-gantt-options/);
+  assert.match(withoutDate, /name="gantt\.showBarLabels"/);
+  assert.match(withoutDate, /name="gantt\.legend\.position"/);
+  assert.match(withoutDate, /name="gantt\.sightLines\.rowInterval"/);
+  assert.match(withoutDate, /name="gantt\.progressLine\.color"/);
+  assert.match(withoutDate, /This project&#39;s read model exposes no Data Date/);
+  assert.match(withoutDate, /<fieldset class="cp-dialog-group" disabled>\s*<legend>Data Date line/);
+
+  const withDate = renderLayoutDialogs(dialogOptions({ dataDate: "2026-09-03" }));
+  assert.match(withDate, /The Data Date line marks the project data date/);
+  assert.match(withDate, /<fieldset class="cp-dialog-group">\s*<legend>Data Date line/);
+  assert.match(withDate, /name="gantt\.dataDateLine\.style"/);
+});
+
+test("every bar editor exposes the necking checkbox", () => {
+  const html = renderLayoutDialogs(dialogOptions());
+  for (const kind of ["task", "critical", "summary", "milestone", "progress", "actual", "baseline"]) {
+    assert.match(html, new RegExp(`name="bar\\.${kind}\\.necking"`));
+  }
+});
+
 test("a dialog without numeric fields does not reset visual preferences", () => {
   const patch = readLayoutPatch(form({ groupBy: "wbs", sortColumnId: "name", sortDirection: "asc" }));
   assert.equal(patch.groupBy, "wbs");
@@ -230,26 +322,78 @@ test("default layout patch keeps the professional compact defaults", () => {
   assert.equal(defaults.ganttScale, "month");
 });
 
-test("Filters dialog exposes predefined filters and a real criteria builder", () => {
+test("Filters dialog exposes the version 26 list, scope categories and actions", () => {
   const html = renderLayoutDialogs(dialogOptions());
   assert.match(html, /data-desktop-dialog="filters"/);
-  assert.match(html, /name="filterActiveId"/);
-  assert.match(html, /value="builtin:in-progress"/);
-  assert.match(html, /value="builtin:completed"/);
-  assert.match(html, /value="builtin:critical"/);
+  assert.match(html, /name="filterAllActivities"/);
+  assert.match(html, /name="filterCombine" value="all"/);
+  assert.match(html, /name="filterCombine" value="any"/);
+  assert.match(html, /name="filterApplyMode" value="replace"/);
+  assert.match(html, /name="filterApplyMode" value="highlight"/);
+  assert.match(html, /name="filterSelected" value="builtin:in-progress"/);
+  assert.match(html, /name="filterSelected" value="builtin:completed"/);
+  assert.match(html, /name="filterSelected" value="builtin:critical"/);
+  assert.match(html, /data-filter-group="default"/);
+  assert.match(html, /data-filter-group="global"/);
+  assert.match(html, /data-filter-group="layout"/);
+  assert.match(html, /data-filter-group="user"/);
+  assert.match(html, /data-filter-new/);
+  assert.match(html, /data-filter-modify/);
+  for (const action of ["apply", "delete", "copy", "paste", "make-global", "copy-as-layout"]) {
+    assert.match(html, new RegExp(`name="filterAction" value="${action}"`));
+  }
   assert.match(html, /name="filterName"/);
+  assert.match(html, /name="filterScope"/);
   assert.match(html, /name="filterMatch"/);
+  assert.match(html, /name="filterEditingId"/);
   for (let index = 0; index < 4; index += 1) {
-    assert.match(html, new RegExp(`name="filter\.field\.${index}"`));
-    assert.match(html, new RegExp(`name="filter\.operator\.${index}"`));
-    assert.match(html, new RegExp(`name="filter\.value\.${index}"`));
+    assert.match(html, new RegExp(`name="filter\\.field\\.${index}"`));
+    assert.match(html, new RegExp(`name="filter\\.operator\\.${index}"`));
+    assert.match(html, new RegExp(`name="filter\\.value\\.${index}"`));
   }
 });
 
-test("a custom filter is saved with the presentation and becomes active", () => {
+test("checking predefined filters applies every checked filter", () => {
   const patch = readLayoutPatch(form({
-    filterActiveId: "",
+    filterList: "v26",
+    filterSelected: ["builtin:completed", "builtin:critical"],
+    filterCombine: "any",
+    filterApplyMode: "highlight",
+  }), DEFAULT_PRESENTATION);
+  const filters = patch.presentation?.filters;
+  assert.deepEqual(filters?.selectedIds, ["builtin:completed", "builtin:critical"]);
+  assert.equal(filters?.activeId, "builtin:completed");
+  assert.equal(filters?.combine, "any");
+  assert.equal(filters?.applyMode, "highlight");
+  assert.equal(filters?.allActivities, false);
+  assert.equal(filters?.saved.length, 0);
+});
+
+test("All Activities clears the visible selection without deleting filters", () => {
+  const previous = {
+    ...DEFAULT_PRESENTATION,
+    filters: {
+      saved: [{
+        id: "custom:civil-open",
+        name: "Civil open",
+        match: "all" as const,
+        scope: "layout" as const,
+        criteria: [{ fieldId: "wbs" as const, operator: "contains" as const, value: "Civil" }],
+      }],
+      activeId: "custom:civil-open",
+      selectedIds: ["custom:civil-open"],
+    },
+  };
+  const patch = readLayoutPatch(form({ filterList: "v26", filterAllActivities: "on" }), previous);
+  assert.equal(patch.presentation?.filters.allActivities, true);
+  assert.deepEqual(patch.presentation?.filters.selectedIds, ["custom:civil-open"]);
+});
+
+test("a custom filter is saved with its category and becomes selected", () => {
+  const patch = readLayoutPatch(form({
+    filterList: "v26",
     filterName: "Civil open",
+    filterScope: "global",
     filterMatch: "all",
     "filter.field.0": "wbs",
     "filter.operator.0": "contains",
@@ -257,19 +401,48 @@ test("a custom filter is saved with the presentation and becomes active", () => 
     "filter.field.1": "activity_status",
     "filter.operator.1": "not-equals",
     "filter.value.1": "Completed",
-    "filter.field.2": "activity_name",
-    "filter.operator.2": "contains",
-    "filter.value.2": "",
-    "filter.field.3": "activity_name",
-    "filter.operator.3": "contains",
-    "filter.value.3": "",
   }), DEFAULT_PRESENTATION);
-  assert.equal(patch.presentation?.filters.activeId, "custom:civil-open");
-  assert.equal(patch.presentation?.filters.saved.length, 1);
-  assert.equal(patch.presentation?.filters.saved[0].criteria.length, 2);
+  const filters = patch.presentation?.filters;
+  assert.equal(filters?.activeId, "custom:civil-open");
+  assert.equal(filters?.saved.length, 1);
+  assert.equal(filters?.saved[0].scope, "global");
+  assert.equal(filters?.saved[0].criteria.length, 2);
+  assert.deepEqual(filters?.selectedIds, ["custom:civil-open"]);
 });
 
-test("choosing a predefined filter applies it without creating a custom filter", () => {
+test("Modify keeps the saved filter id instead of creating a duplicate", () => {
+  const previous = {
+    ...DEFAULT_PRESENTATION,
+    filters: {
+      saved: [{
+        id: "custom:civil-open",
+        name: "Civil open",
+        match: "all" as const,
+        scope: "layout" as const,
+        criteria: [{ fieldId: "wbs" as const, operator: "contains" as const, value: "Civil" }],
+      }],
+      activeId: "custom:civil-open",
+      selectedIds: ["custom:civil-open"],
+    },
+  };
+  const patch = readLayoutPatch(form({
+    filterList: "v26",
+    filterSelected: "custom:civil-open",
+    filterEditingId: "custom:civil-open",
+    filterName: "Civil open",
+    filterScope: "layout",
+    filterMatch: "all",
+    "filter.field.0": "wbs",
+    "filter.operator.0": "contains",
+    "filter.value.0": "Civil works",
+  }), previous);
+  const filters = patch.presentation?.filters;
+  assert.equal(filters?.saved.length, 1);
+  assert.equal(filters?.saved[0].id, "custom:civil-open");
+  assert.equal(filters?.saved[0].criteria[0].value, "Civil works");
+});
+
+test("choosing a predefined filter applies it without creating a custom filter (legacy payload)", () => {
   const patch = readLayoutPatch(form({
     filterActiveId: "builtin:completed",
     filterName: "",
@@ -277,15 +450,6 @@ test("choosing a predefined filter applies it without creating a custom filter",
     "filter.field.0": "wbs",
     "filter.operator.0": "contains",
     "filter.value.0": "",
-    "filter.field.1": "activity_name",
-    "filter.operator.1": "contains",
-    "filter.value.1": "",
-    "filter.field.2": "activity_name",
-    "filter.operator.2": "contains",
-    "filter.value.2": "",
-    "filter.field.3": "activity_name",
-    "filter.operator.3": "contains",
-    "filter.value.3": "",
   }), DEFAULT_PRESENTATION);
   assert.equal(patch.presentation?.filters.activeId, "builtin:completed");
   assert.equal(patch.presentation?.filters.saved.length, 0);
@@ -299,20 +463,96 @@ test("the active saved filter can be deleted from the dialog", () => {
         id: "custom:civil-open",
         name: "Civil open",
         match: "all" as const,
+        scope: "layout" as const,
         criteria: [{ fieldId: "wbs" as const, operator: "contains" as const, value: "Civil" }],
       }],
       activeId: "custom:civil-open",
     },
   };
   const patch = readLayoutPatch(form({
-    filterActiveId: "custom:civil-open",
-    filterName: "Civil open",
-    filterMatch: "all",
-    filterDelete: "on",
-    "filter.field.0": "wbs",
-    "filter.operator.0": "contains",
-    "filter.value.0": "Civil",
+    filterList: "v26",
+    filterSelected: "custom:civil-open",
+    filterAction: "delete",
   }), saved);
   assert.equal(patch.presentation?.filters.activeId, null);
   assert.equal(patch.presentation?.filters.saved.length, 0);
+});
+
+test("Delete refuses default filters", () => {
+  const patch = readLayoutPatch(form({
+    filterList: "v26",
+    filterSelected: "builtin:critical",
+    filterAction: "delete",
+  }), DEFAULT_PRESENTATION);
+  // The selection still applies; the default filter itself is never removed.
+  assert.equal(patch.presentation?.filters.selectedIds?.[0], "builtin:critical");
+  assert.equal(patch.presentation?.filters.saved.length, 0);
+});
+
+test("Make Global converts a layout filter and Copy as Layout adds a layout copy", () => {
+  const layoutFilter = {
+    ...DEFAULT_PRESENTATION,
+    filters: {
+      saved: [{
+        id: "custom:civil-open",
+        name: "Civil open",
+        match: "all" as const,
+        scope: "layout" as const,
+        criteria: [{ fieldId: "wbs" as const, operator: "contains" as const, value: "Civil" }],
+      }],
+      activeId: "custom:civil-open",
+      selectedIds: ["custom:civil-open"],
+    },
+  };
+  const global = readLayoutPatch(form({
+    filterList: "v26",
+    filterSelected: "custom:civil-open",
+    filterAction: "make-global",
+  }), layoutFilter).presentation?.filters;
+  assert.equal(global?.saved[0].scope, "global");
+
+  const copy = readLayoutPatch(form({
+    filterList: "v26",
+    filterSelected: "builtin:critical",
+    filterAction: "copy-as-layout",
+  }), DEFAULT_PRESENTATION).presentation?.filters;
+  assert.equal(copy?.saved.length, 1);
+  assert.equal(copy?.saved[0].scope, "layout");
+  assert.equal(copy?.saved[0].criteria[0].fieldId, "is_critical");
+  assert.deepEqual(copy?.selectedIds, [copy?.saved[0].id]);
+});
+
+test("Copy and Paste move a filter into the chosen category", () => {
+  const previous = {
+    ...DEFAULT_PRESENTATION,
+    filters: {
+      saved: [{
+        id: "custom:civil-open",
+        name: "Civil open",
+        match: "all" as const,
+        scope: "layout" as const,
+        criteria: [{ fieldId: "wbs" as const, operator: "contains" as const, value: "Civil" }],
+      }],
+      activeId: "custom:civil-open",
+      selectedIds: ["custom:civil-open"],
+    },
+  };
+  const copied = readLayoutPatch(form({
+    filterList: "v26",
+    filterSelected: "custom:civil-open",
+    filterAction: "copy",
+  }), previous);
+  // Copy alone only fills the clipboard, so the layout is unchanged.
+  assert.equal(copied.presentation, undefined);
+  const pasted = readLayoutPatch(form({
+    filterList: "v26",
+    filterSelected: "custom:civil-open",
+    filterAction: "paste",
+    filterScope: "global",
+  }), previous);
+  const filters = pasted.presentation?.filters;
+  assert.equal(filters?.saved.length, 2);
+  assert.equal(filters?.saved[0].scope, "global");
+  assert.equal(filters?.saved[0].name, "Civil open");
+  assert.deepEqual(filters?.selectedIds, [filters?.saved[0].id]);
 });

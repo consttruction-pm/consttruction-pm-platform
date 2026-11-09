@@ -3,17 +3,26 @@ import test from "node:test";
 
 import {
   activityMatchesFilter,
+  applyActivityFilterState,
+  copyActivityFilterAsLayout,
   deleteActivityFilter,
   describeActivityFilter,
   EMPTY_ACTIVITY_FILTERS,
   filterActivitiesByDefinition,
   findActivityFilter,
   getBuiltinActivityFilters,
+  makeGlobalActivityFilter,
   normalizeActivityFilter,
   normalizeActivityFilterState,
+  pasteActivityFilter,
+  selectActivityFilter,
   setActiveActivityFilter,
+  setActivityFilterAllActivities,
+  setActivityFilterApplyMode,
+  setActivityFilterCombine,
   upsertActivityFilter,
   type ActivityFilterDefinition,
+  type ActivityFilterState,
 } from "./workspace-activity-filters.js";
 import { normalizePresentation, DEFAULT_PRESENTATION } from "./workspace-presentation.js";
 import type { WorkspaceActivityRow } from "./workspace-model.js";
@@ -225,4 +234,78 @@ test("WBS criteria match the displayed code and name, not the internal node id",
   });
   assert.ok(internalId);
   assert.deepEqual(ids(filterActivitiesByDefinition(internal, internalId, nodes)), []);
+});
+
+test("applyActivityFilterState handles All Activities, All/Any and highlight mode", () => {
+  const state: ActivityFilterState = {
+    ...EMPTY_ACTIVITY_FILTERS,
+    selectedIds: ["builtin:completed", "builtin:critical"],
+  };
+  const all = applyActivityFilterState(rows, state);
+  assert.deepEqual(ids(all.activities), ["A100"]);
+  assert.deepEqual([...all.matchedIds], ["A100"]);
+  assert.equal(all.highlight, false);
+
+  const any = applyActivityFilterState(rows, setActivityFilterCombine(state, "any"));
+  assert.deepEqual(ids(any.activities), ["A100", "A130"]);
+
+  const highlighted = applyActivityFilterState(rows, setActivityFilterApplyMode(setActivityFilterCombine(state, "any"), "highlight"));
+  assert.equal(highlighted.activities.length, rows.length);
+  assert.deepEqual([...highlighted.matchedIds], ["A100", "A130"]);
+  assert.equal(highlighted.highlight, true);
+
+  const bypass = applyActivityFilterState(rows, setActivityFilterAllActivities(state, true));
+  assert.equal(bypass.activities.length, rows.length);
+  assert.deepEqual([...bypass.matchedIds], ["A100", "A130", "A140", "A150"]);
+  assert.deepEqual(bypass.filters, []);
+});
+
+test("filter categories gate editing and support Make Global, Copy as Layout and Paste", () => {
+  const layout = normalizeActivityFilter({
+    name: "Civil open",
+    match: "all",
+    scope: "layout",
+    criteria: [{ fieldId: "wbs", operator: "contains", value: "Civil" }],
+  });
+  assert.ok(layout);
+  assert.equal(layout.scope, "layout");
+  assert.equal(layout.id, "custom:civil-open");
+
+  let state = upsertActivityFilter(EMPTY_ACTIVITY_FILTERS, layout);
+  assert.deepEqual(state.selectedIds, ["custom:civil-open"]);
+
+  state = makeGlobalActivityFilter(state, "custom:civil-open");
+  assert.equal(state.saved[0].scope, "global");
+
+  state = copyActivityFilterAsLayout(state, "builtin:completed");
+  assert.equal(state.saved.length, 2);
+  assert.equal(state.saved[0].scope, "layout");
+  assert.equal(state.saved[0].name, "Completed");
+
+  state = pasteActivityFilter(state, findActivityFilter(state, "custom:civil-open")!, "global");
+  assert.equal(state.saved.length, 3);
+  assert.equal(state.saved[0].scope, "global");
+  assert.notEqual(state.saved[0].id, "custom:civil-open");
+
+  // Built-ins are read-only: they cannot be deleted from the layout.
+  assert.equal(deleteActivityFilter(state, "builtin:critical"), state);
+});
+
+test("selectActivityFilter keeps the checked ids and repairs a legacy activeId", () => {
+  const state = selectActivityFilter(EMPTY_ACTIVITY_FILTERS, "builtin:in-progress", true);
+  assert.deepEqual(state.selectedIds, ["builtin:in-progress"]);
+  const both = selectActivityFilter(state, "builtin:completed", true);
+  assert.deepEqual(both.selectedIds, ["builtin:in-progress", "builtin:completed"]);
+  const removed = selectActivityFilter(both, "builtin:in-progress", false);
+  assert.deepEqual(removed.selectedIds, ["builtin:completed"]);
+  assert.equal(removed.activeId, "builtin:completed");
+
+  const legacy = normalizeActivityFilterState({
+    saved: [{ name: "Civil", match: "all", criteria: [{ fieldId: "wbs", operator: "contains", value: "Civil" }] }],
+    activeId: "custom:civil",
+  });
+  assert.deepEqual(legacy.selectedIds, ["custom:civil"]);
+  assert.equal(legacy.combine, "all");
+  assert.equal(legacy.applyMode, "replace");
+  assert.equal(legacy.allActivities, false);
 });

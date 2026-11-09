@@ -90,6 +90,59 @@ test("layout commands from the global menu open their owning desktop dialog", ()
   assert.equal(dispatched, "");
 });
 
+test("Ctrl+Numpad plus and minus dispatch the documented expand and collapse commands", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const dispatched: string[] = [];
+  const host = {
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    contains: () => true,
+  };
+  renderDesktopShell(host as unknown as HTMLElement, shellState(), {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: (command) => { dispatched.push(command); },
+  });
+  const press = (code: string) => listeners.get("keydown")?.({
+    ctrlKey: true,
+    key: code === "NumpadAdd" ? "+" : "-",
+    code,
+    target: null,
+    preventDefault: () => {},
+  } as unknown as Event);
+  press("NumpadAdd");
+  press("NumpadSubtract");
+  press("Equal");
+  assert.deepEqual(dispatched, ["view.expand-all", "view.collapse-all"]);
+});
+
+test("Ctrl+Numpad expand and collapse stay inert without a WBS grouping", () => {
+  const listeners = new Map<string, (event: Event) => void>();
+  const dispatched: string[] = [];
+  const host = {
+    innerHTML: "",
+    addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+    querySelectorAll: () => [],
+    querySelector: () => null,
+    contains: () => true,
+  };
+  renderDesktopShell(host as unknown as HTMLElement, shellState({ hasWbs: false, groupByWbs: false }), {
+    onWindowOpen: () => {},
+    onWindowClose: () => {},
+    onCommand: (command) => { dispatched.push(command); },
+  });
+  listeners.get("keydown")?.({
+    ctrlKey: true,
+    key: "+",
+    code: "NumpadAdd",
+    target: null,
+    preventDefault: () => {},
+  } as unknown as Event);
+  assert.deepEqual(dispatched, []);
+});
+
 test("the canonical workspace exposes no alternate visual-demo menu entry", () => {
   const menus = getDesktopMenus(shellState());
   const items = menus.flatMap((menu) => menu.items);
@@ -107,6 +160,19 @@ test("the menu bar mirrors the eight professional workspace menus in order", () 
   );
   for (const menu of menus) {
     assert.ok(menu.items.length > 0, `${menu.id} must not be empty`);
+  }
+});
+
+test("window shortcuts only advertise the Alt+1…9 keys the keydown handler claims", () => {
+  const byId = new Map(getDesktopMenus(shellState()).flatMap((menu) => menu.items.map((item) => [item.id, item])));
+  assert.equal(byId.get("window.project")?.shortcut, "Alt+1");
+  assert.equal(byId.get("window.schedule")?.shortcut, "Alt+3");
+  // WINDOW_ORDER keeps more windows, but only nine single-digit Alt chords
+  // exist; later windows must not show a shortcut that would do nothing.
+  for (const [id, item] of byId) {
+    if (!id.startsWith("window.")) continue;
+    if (item.shortcut === undefined) continue;
+    assert.match(item.shortcut, /^Alt\+[1-9]$/, `${id} advertises ${item.shortcut}`);
   }
 });
 

@@ -1698,6 +1698,52 @@ test("bar styles change the real bar layers while the schedule facts stay untouc
   assert.match(container.innerHTML, /data-gantt-link="R-FS"/);
 });
 
+test("Gantt chart options drive labels, legend, sight lines and the progress line", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const state = {
+    ...withWbsNodes(scheduledGanttState(), [
+      { id: "W-1", parentKind: "project" as const, parentWbsId: null, localCode: "1", name: "Civil", sequenceNumber: 1, recordRevision: 1 },
+    ]),
+    // Day zoom exposes more than one tick, so the minor vertical sight lines exist.
+    ganttScale: "day" as const,
+  };
+  const presentation = normalizePresentation({
+    bars: { milestone: { visible: false }, progress: { visible: false } },
+    gantt: {
+      showBarLabels: false,
+      labelFontSize: 13,
+      labelColor: "#223344",
+      sightLines: { beforeSummaries: true, rowInterval: 2, minorVertical: true },
+      legend: { visible: true, position: "top" },
+      progressLine: { visible: true, color: "#ff8800", thickness: 3 },
+    },
+  });
+  renderMainWorkspace(container as unknown as HTMLElement, state, { presentation });
+  assert.match(container.innerHTML, /data-bar-labels="false"/);
+  assert.match(container.innerHTML, /--cp-bar-label-size:13px/);
+  assert.match(container.innerHTML, /--cp-bar-label-color:#223344/);
+  assert.match(container.innerHTML, /data-gantt-legend="top"/);
+  assert.match(container.innerHTML, /cp-gantt-legend-item" data-gantt-legend-kind="task"/);
+  assert.match(container.innerHTML, /class="cp-gantt-sight-line is-horizontal is-major"/);
+  assert.match(container.innerHTML, /class="cp-gantt-sight-line is-horizontal is-minor"/);
+  assert.match(container.innerHTML, /data-gantt-grid-minor=/);
+  assert.match(container.innerHTML, /data-gantt-progress-line="\d+"/);
+  assert.match(container.innerHTML, /--cp-progress-color:#ff8800/);
+  // The read model exposes no Data Date, so no fabricated line is drawn.
+  assert.doesNotMatch(container.innerHTML, /data-gantt-data-date=/);
+});
+
+test("an authoritative Data Date draws the line with the saved style", () => {
+  const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
+  const presentation = normalizePresentation({
+    gantt: { dataDateLine: { visible: true, style: "dashed", thickness: 2, color: "#00aa55" } },
+  });
+  renderMainWorkspace(container as unknown as HTMLElement, scheduledGanttState(), { presentation, dataDate: "2026-09-03" });
+  assert.match(container.innerHTML, /data-gantt-data-date="2026-09-03"/);
+  assert.match(container.innerHTML, /cp-gantt-data-date is-dashed/);
+  assert.match(container.innerHTML, /--cp-data-date-color:#00aa55/);
+});
+
 test("summary bars consume the configured summary style", () => {
   const container: RenderContainer = { innerHTML: "", querySelectorAll: () => [] };
   const presentation = normalizePresentation({

@@ -26,6 +26,42 @@ If a required artifact is missing or unreadable, record **MISSING / VERIFY** and
 - If the 815-page PDF is not attached or cannot be read, record **MISSING / VERIFY** for that evidence and do not claim Version 26 parity or close the related acceptance gate.
 - Preserve CUBI branding in customer-facing UI. Third-party source names and links belong only in internal engineering traceability records.
 
+## 1.2 CUBI – Complete Visual and Functional Parity Standard
+
+This standard is binding for the Activities workspace and for every statement of
+parity across the CUBI workspace programme.
+
+1. **Reference.** Version 26 official Help
+   (https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm) plus the
+   supplied 815-page Version 26 PDF govern behavior, controls, order, wording and
+   acceptance. Older screenshots may inform appearance only.
+2. **Real services only.** A capability that has no authoritative service must
+   be shown as unavailable with a stated reason. Fabricated records, invented
+   dates, fake progress, placeholder charts and enabled-looking controls without
+   effect are prohibited.
+3. **No premature completion claim.** Until the compliance matrix is complete and
+   the 18 mandatory browser scenarios have real screenshots from the built
+   preview, the phrases “the shell is complete” and “it matches version 26” must
+   not be used.
+4. **Status vocabulary (exact).** Every matrix row uses exactly one of:
+   **مطابق و تأییدشده**، **پیاده‌سازی‌شده ولی آزمون‌نشده**، **ناقص**،
+   **غایب**، **محدودیت مستند و مشخص**.
+5. **Change control.** No destructive change, no branch deletion, no force-push
+   and no merge to `main` or Production before the tests and visual review are
+   approved. Deliver the corrected version in Preview first.
+6. **Evidence.** Exact-head CI on the final SHA, real-runtime browser
+   verification and before/after screenshots are required. Documentation alone
+   earns no implementation credit.
+7. **Scope.** Only the Activities window and its direct dependencies: activity
+   table, linked Gantt, Activity Details, filters, columns, grouping/sorting,
+   timescale, layout options, and the menus/toolbars/context menus/shortcuts
+   those surfaces need. Do not change the API, scheduling/CPM core, data model,
+   other windows, the main shell or the entry route; do not change Timeline Size
+   without documented necessity and approval.
+8. **Recording points.** This standard is mirrored in
+   `docs/workspace/reference/oracle-p6-reference-index.md` and the master window
+   catalogue `docs/workspace/CANONICAL_VISUAL_WORKSPACE_MIGRATION_LEDGER.md`.
+
 ## 2. Baseline and evidence
 
 - `main` is the only source of truth for completed implementation. A branch, open PR, issue, design, generated workbook, passing stale run or documentation-only commit is not merged-product completion.

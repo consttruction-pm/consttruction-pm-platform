@@ -20,6 +20,7 @@ import {
   isHexColor,
   isIsoDate,
   normalizeBarStyle,
+  normalizeGanttSettings,
   normalizePresentation,
   normalizeTimescale,
   normalizeWbs,
@@ -36,16 +37,28 @@ import { translateWorkspaceUiText } from "./workspace-localization.js";
 import {
   ACTIVITY_FILTER_FIELDS,
   ACTIVITY_FILTER_OPERATORS,
+  ACTIVITY_FILTER_SCOPES,
   activityFilterFieldLabel,
   activityFilterOperatorLabel,
+  copyActivityFilterAsLayout,
   deleteActivityFilter,
+  filterScopeLabel,
   findActivityFilter,
   getBuiltinActivityFilters,
+  makeGlobalActivityFilter,
   normalizeActivityFilter,
+  pasteActivityFilter,
+  selectActivityFilter,
   setActiveActivityFilter,
+  setActivityFilterAllActivities,
+  setActivityFilterApplyMode,
+  setActivityFilterCombine,
   upsertActivityFilter,
   type ActivityFilterCriterion,
+  type ActivityFilterDefinition,
   type ActivityFilterOperator,
+  type ActivityFilterScope,
+  type ActivityFilterState,
 } from "./workspace-activity-filters.js";
 
 export type DesktopSortColumn = { id: string; label: string };
@@ -86,6 +99,8 @@ export type DialogOptions = {
   barTone: DesktopLayoutPatch["barTone"];
   presentation: WorkspacePresentation;
   dataAvailability: { actual: boolean; baseline: boolean };
+  /** Authoritative project Data Date; null when the read model exposes none. */
+  dataDate?: string | null;
 };
 
 function t(locale: string, en: string, persian: string): string {
@@ -177,12 +192,12 @@ function buttons(locale: string, includeDefault = false): string {
   </div>`;
 }
 
-function shell(locale: string, id: string, title: string, body: string, includeDefault = false): string {
+function shell(locale: string, id: string, title: string, body: string, includeDefault = false, footer?: string): string {
   return `<dialog class="cp-desktop-dialog cp-option-dialog" data-desktop-dialog="${id}" aria-labelledby="cp-dialog-${id}-heading">
     <form method="dialog" data-dialog-form="${id}">
       <h2 id="cp-dialog-${id}-heading">${esc(title)}</h2>
       <div class="cp-dialog-body">${body}</div>
-      ${buttons(locale, includeDefault)}
+      ${footer ?? buttons(locale, includeDefault)}
     </form>
   </dialog>`;
 }
@@ -247,54 +262,115 @@ function barEditor(kind: GanttBarKind, style: GanttBarStyle, locale: string, ava
         <label class="cp-dialog-row"><span>${esc(t(locale, "Label", "برچسب"))}</span><select name="bar.${kind}.labelField">${selectOptions(GANTT_LABEL_FIELDS, LABEL_FIELD_LABELS, style.labelField, locale)}</select></label>
         <label class="cp-dialog-row"><span>${esc(t(locale, "Label position", "جای برچسب"))}</span><select name="bar.${kind}.labelPosition">${selectOptions(GANTT_LABEL_POSITIONS, LABEL_POSITION_LABELS, style.labelPosition, locale)}</select></label>
       </div>
+      <label class="cp-dialog-check"><input type="checkbox" name="bar.${kind}.necking"${style.necking ? " checked" : ""}> ${esc(t(locale, "Calendar nonwork time (neck the bar)", "زمان غیرکاری تقویم (باریک‌شدن میله)"))}</label>
     </fieldset>
   </details>`;
 }
 
-function filterEditor(optionsInput: DialogOptions): string {
-  const { locale, presentation } = optionsInput;
-  const filters = presentation.filters;
-  const active = findActivityFilter(filters, filters.activeId);
-  const editingCustom = active && !active.builtin ? active : null;
-  const rows = Array.from({ length: 4 }, (_, index) => {
-    const criterion = editingCustom?.criteria[index];
-    const fieldId = criterion?.fieldId ?? "activity_name";
-    const operator = criterion?.operator ?? "contains";
-    const value = criterion?.value ?? "";
-    return `<div class="cp-filter-row" data-filter-row="${index}">
+const BUILTIN_FILTER_NAMES_FA: Record<string, string> = {
+  "In Progress": "در جریان",
+  "Not Started": "شروع‌نشده",
+  Completed: "تکمیل‌شده",
+  Critical: "بحرانی",
+  "Non Critical": "غیربحرانی",
+  "Negative Float": "شناوری منفی",
+  Milestone: "نقطه عطف",
+};
+
+function filterDisplayName(filter: ActivityFilterDefinition, locale: string): string {
+  return filter.builtin ? t(locale, filter.name, BUILTIN_FILTER_NAMES_FA[filter.name] ?? filter.name) : filter.name;
+}
+
+/**
+ * One row of the version 26 Filter list. The category is carried by the tbody
+ * header, so the row only needs the name in the Filter column and the checkbox
+ * in the Select column.
+ */
+function filterListRow(filter: ActivityFilterDefinition, locale: string, selected: boolean, current: boolean, disableList: boolean): string {
+  const scope = filter.scope ?? "layout";
+  const name = filterDisplayName(filter, locale);
+  return `<tr data-filter-id="${esc(filter.id)}" data-filter-name="${esc(name.toLocaleLowerCase())}" data-filter-scope="${esc(scope)}"${filter.builtin ? ' data-filter-builtin="true"' : ""}${current ? ' class="is-current"' : ""}>
+      <td class="cp-filter-name"><button type="button" data-filter-row-select="${esc(filter.id)}" aria-pressed="${current}">${esc(name)}</button></td>
+      <td class="cp-filter-select"><input type="checkbox" name="filterSelected" value="${esc(filter.id)}" aria-label="${esc(t(locale, `Select ${name}`, `انتخاب ${name}`))}"${selected ? " checked" : ""}${disableList ? " disabled" : ""}></td>
+    </tr>`;
+}
+
+function filterList(state: DialogOptions["presentation"]["filters"], locale: string): string {
+  const selected = new Set(state.selectedIds?.length ? state.selectedIds : state.activeId ? [state.activeId] : []);
+  const currentId = state.selectedIds?.[0] ?? state.activeId ?? null;
+  const saved = state.saved;
+  const list = getBuiltinActivityFilters();
+  const header = `<div class="cp-dialog-row cp-dialog-check">
+      <label><input type="checkbox" name="filterAllActivities"${state.allActivities ? " checked" : ""}> ${esc(t(locale, "All Activities", "همهٔ فعالیت‌ها"))}</label>
+    </div>`;
+  const groups = ACTIVITY_FILTER_SCOPES.map((scope) => {
+    const items = scope === "default"
+      ? list
+      : saved.filter((filter) => (filter.scope ?? "layout") === scope);
+    const rows = items.map((filter) => filterListRow(filter, locale, selected.has(filter.id), filter.id === currentId, Boolean(state.allActivities))).join("");
+    const empty = scope === "user"
+      ? `<tr class="cp-filter-empty"><td colspan="2">${esc(t(locale, "User-defined filters are stored per user in the project database; this runtime keeps its saved filters with the layout.", "فیلترهای کاربر در پایگاه دادهٔ پروژه برای هر کاربر نگهداری می‌شوند؛ این محیط فیلترهای ذخیره‌شده را همراه چیدمان نگه می‌دارد."))}</td></tr>`
+      : items.length === 0
+        ? `<tr class="cp-filter-empty"><td colspan="2">${esc(t(locale, "No filters in this category", "فیلتری در این دسته نیست"))}</td></tr>`
+        : "";
+    return `<tbody data-filter-group="${scope}">
+        <tr class="cp-filter-group"><th colspan="2">${esc(filterScopeLabel(scope, locale))}</th></tr>
+        ${rows}${empty}
+      </tbody>`;
+  }).join("");
+  return `<fieldset class="cp-dialog-group">
+      <legend>${esc(t(locale, "Filters", "فیلترها"))}</legend>
+      ${header}
+      <div class="cp-dialog-radios" role="radiogroup" aria-label="${esc(t(locale, "Show activities that match", "نمایش فعالیت‌هایی که مطابق‌اند با"))}">
+        <span>${esc(t(locale, "Show activities that match", "نمایش فعالیت‌هایی که مطابق‌اند با"))}</span>
+        <label><input type="radio" name="filterCombine" value="all"${state.combine !== "any" ? " checked" : ""}> ${esc(t(locale, "All selected filters", "همهٔ فیلترهای انتخاب‌شده"))}</label>
+        <label><input type="radio" name="filterCombine" value="any"${state.combine === "any" ? " checked" : ""}> ${esc(t(locale, "Any selected filter", "هر یک از فیلترهای انتخاب‌شده"))}</label>
+      </div>
+      <input type="hidden" name="filterList" value="v26">
+      <input type="hidden" name="filterRowId" value="${esc(currentId ?? "")}">
+      <table class="cp-filter-list">
+        <thead><tr>
+          <th scope="col"><button type="button" data-filter-sort="name">${esc(t(locale, "Filter", "فیلتر"))}</button></th>
+          <th scope="col"><button type="button" data-filter-sort="select">${esc(t(locale, "Select", "انتخاب"))}</button></th>
+        </tr></thead>
+        ${groups}
+      </table>
+      <div class="cp-dialog-radios" role="radiogroup" aria-label="${esc(t(locale, "When applying the selected filter(s)", "هنگام اعمال فیلترهای انتخاب‌شده"))}">
+        <label><input type="radio" name="filterApplyMode" value="replace"${state.applyMode !== "highlight" ? " checked" : ""}> ${esc(t(locale, "Replace activities shown in current layout", "فعالیت‌های نمایش‌داده‌شده در چیدمان جاری جایگزین شوند"))}</label>
+        <label><input type="radio" name="filterApplyMode" value="highlight"${state.applyMode === "highlight" ? " checked" : ""}> ${esc(t(locale, "Highlight activities in current layout which match criteria", "فعالیت‌های مطابق در چیدمان جاری برجسته شوند"))}</label>
+      </div>
+    </fieldset>`;
+}
+
+function filterBuilder(locale: string): string {
+  const rows = Array.from({ length: 4 }, (_, index) => `<div class="cp-filter-row" data-filter-row="${index}">
       <select name="filter.field.${index}" aria-label="${esc(t(locale, "Filter field", "فیلد فیلتر"))}">
-        ${ACTIVITY_FILTER_FIELDS.map((id) => `<option value="${id}"${id === fieldId ? " selected" : ""}>${esc(activityFilterFieldLabel(id, locale))}</option>`).join("")}
+        ${ACTIVITY_FILTER_FIELDS.map((id) => `<option value="${id}"${id === "activity_name" ? " selected" : ""}>${esc(activityFilterFieldLabel(id, locale))}</option>`).join("")}
       </select>
       <select name="filter.operator.${index}" aria-label="${esc(t(locale, "Filter operator", "عملگر فیلتر"))}">
-        ${ACTIVITY_FILTER_OPERATORS.map((id) => `<option value="${id}"${id === operator ? " selected" : ""}>${esc(activityFilterOperatorLabel(id, locale))}</option>`).join("")}
+        ${ACTIVITY_FILTER_OPERATORS.map((id) => `<option value="${id}"${id === "contains" ? " selected" : ""}>${esc(activityFilterOperatorLabel(id, locale))}</option>`).join("")}
       </select>
-      <input type="text" name="filter.value.${index}" value="${esc(value)}" aria-label="${esc(t(locale, "Filter value", "مقدار فیلتر"))}" autocomplete="off" spellcheck="false"${operator === "is-empty" || operator === "is-not-empty" ? " disabled" : ""}>
-    </div>`;
-  }).join("");
-  const builtin = getBuiltinActivityFilters();
-  const saved = filters.saved;
-  const groups = [
-    `<option value=""${filters.activeId ? "" : " selected"}>${esc(t(locale, "All activities", "همهٔ فعالیت‌ها"))}</option>`,
-    `<optgroup label="${esc(t(locale, "Predefined filters", "فیلترهای پیش‌فرض"))}">${builtin.map((filter) => `<option value="${esc(filter.id)}"${filters.activeId === filter.id ? " selected" : ""}>${esc(t(locale, filter.name, filter.name))}</option>`).join("")}</optgroup>`,
-    saved.length > 0 ? `<optgroup label="${esc(t(locale, "Saved filters", "فیلترهای ذخیره‌شده"))}">${saved.map((filter) => `<option value="${esc(filter.id)}"${filters.activeId === filter.id ? " selected" : ""}>${esc(filter.name)}</option>`).join("")}</optgroup>` : "",
-  ].join("");
+      <input type="text" name="filter.value.${index}" value="" aria-label="${esc(t(locale, "Filter value", "مقدار فیلتر"))}" autocomplete="off" spellcheck="false">
+    </div>`).join("");
   return `<fieldset class="cp-dialog-group">
-      <legend>${esc(t(locale, "Apply a filter", "اعمال فیلتر"))}</legend>
-      <label class="cp-dialog-row"><span>${esc(t(locale, "Filter", "فیلتر"))}</span>
-        <select name="filterActiveId">${groups}</select>
-      </label>
-      <p class="cp-dialog-note">${esc(t(locale, "Predefined filters match the documented activity criteria. A filter only narrows the rows on screen; it never changes schedule data.", "فیلترهای پیش‌فرض با معیارهای مستند فعالیت مطابقت دارند. فیلتر فقط ردیف‌های روی صفحه را محدود می‌کند و داده‌های زمان‌بندی را تغییر نمی‌دهد."))}</p>
-    </fieldset>
-    <fieldset class="cp-dialog-group">
-      <legend>${esc(t(locale, "Create or edit a custom filter", "ساخت یا ویرایش فیلتر سفارشی"))}</legend>
+      <legend>${esc(t(locale, "Filter details", "جزئیات فیلتر"))}</legend>
+      <p class="cp-dialog-note">${esc(t(locale, "New starts a global filter; Modify loads a saved filter for editing. Default filters cannot be modified. A filter only narrows or highlights rows on screen; it never changes schedule data.", "New یک فیلتر سراسری آغاز می‌کند و Modify یک فیلتر ذخیره‌شده را برای ویرایش بار می‌کند. فیلترهای پیش‌فرض قابل ویرایش نیستند. فیلتر فقط ردیف‌های روی صفحه را محدود یا برجسته می‌کند و داده‌های زمان‌بندی را تغییر نمی‌دهد."))}</p>
+      <input type="hidden" name="filterEditingId" value="">
       <div class="cp-dialog-grid">
         <label class="cp-dialog-row"><span>${esc(t(locale, "Filter name", "نام فیلتر"))}</span>
-          <input type="text" name="filterName" maxlength="60" value="${esc(editingCustom?.name ?? "")}" autocomplete="off">
+          <input type="text" name="filterName" maxlength="60" value="" autocomplete="off">
+        </label>
+        <label class="cp-dialog-row"><span>${esc(t(locale, "Category", "دسته"))}</span>
+          <select name="filterScope">
+            <option value="layout" selected>${esc(filterScopeLabel("layout", locale))}</option>
+            <option value="global">${esc(filterScopeLabel("global", locale))}</option>
+            <option value="user">${esc(filterScopeLabel("user", locale))}</option>
+          </select>
         </label>
         <label class="cp-dialog-row"><span>${esc(t(locale, "Match", "تطبیق"))}</span>
           <select name="filterMatch">
-            <option value="all"${editingCustom?.match !== "any" ? " selected" : ""}>${esc(t(locale, "All criteria (AND)", "همهٔ معیارها (و)"))}</option>
-            <option value="any"${editingCustom?.match === "any" ? " selected" : ""}>${esc(t(locale, "Any criterion (OR)", "هر یک از معیارها (یا)"))}</option>
+            <option value="all" selected>${esc(t(locale, "All criteria (AND)", "همهٔ معیارها (و)"))}</option>
+            <option value="any">${esc(t(locale, "Any criterion (OR)", "هر یک از معیارها (یا)"))}</option>
           </select>
         </label>
       </div>
@@ -302,20 +378,53 @@ function filterEditor(optionsInput: DialogOptions): string {
         <div class="cp-filter-head"><span>${esc(t(locale, "Field", "فیلد"))}</span><span>${esc(t(locale, "Is", "است"))}</span><span>${esc(t(locale, "Value", "مقدار"))}</span></div>
         ${rows}
       </div>
-      ${editingCustom ? `<label class="cp-dialog-check"><input type="checkbox" name="filterDelete"> ${esc(t(locale, "Delete this saved filter", "این فیلتر ذخیره‌شده حذف شود"))}</label>` : ""}
     </fieldset>`;
 }
 
+function filterFooter(locale: string): string {
+  const button = (en: string, fa: string, attrs: string): string => `<button ${attrs}>${esc(t(locale, en, fa))}</button>`;
+  return `<div class="cp-dialog-buttons cp-filter-buttons">
+    ${button("Apply", "اعمال", 'type="submit" data-dialog-apply name="filterAction" value="apply"')}
+    ${button("New", "جدید", 'type="button" data-filter-new')}
+    ${button("Delete", "حذف", 'type="submit" data-dialog-apply name="filterAction" value="delete"')}
+    ${button("Copy", "کپی", 'type="submit" data-dialog-apply name="filterAction" value="copy"')}
+    ${button("Paste", "جای‌گذاری", 'type="submit" data-dialog-apply name="filterAction" value="paste"')}
+    ${button("Modify", "ویرایش", 'type="button" data-filter-modify')}
+    ${button("Make Global", "سراسری کن", 'type="submit" data-dialog-apply name="filterAction" value="make-global"')}
+    ${button("Copy as Layout", "کپی به چیدمان", 'type="submit" data-dialog-apply name="filterAction" value="copy-as-layout"')}
+    <span class="cp-dialog-buttons-spacer" aria-hidden="true"></span>
+    ${button("OK", "تأیید", 'type="submit" class="cp-dialog-primary" data-dialog-ok')}
+    ${button("Cancel", "لغو", 'type="button" data-dialog-cancel')}
+    ${button("Default", "پیش‌فرض", 'type="button" data-dialog-default')}
+    ${button("Help", "راهنما", 'type="button" data-dialog-help')}
+  </div>`;
+}
+
+function filterEditor(optionsInput: DialogOptions): string {
+  const { locale, presentation } = optionsInput;
+  return `${filterList(presentation.filters, locale)}${filterBuilder(locale)}`;
+}
+
+/** Enables or disables the Select column when All Activities is checked. */
+export function setFilterListEnabled(dialog: HTMLElement, enabled: boolean): void {
+  for (const input of dialog.querySelectorAll<HTMLInputElement>('input[name="filterSelected"]')) {
+    input.disabled = !enabled;
+  }
+}
+
 /**
- * Clears the custom-filter builder when the Apply selection changes. Choosing a
- * predefined or saved entry then applies that selection instead of resaving the
- * criteria still loaded in the form.
+ * Clears the filter builder. Version 26's New button creates a global filter,
+ * so the scope defaults to the requested category and the name starts empty.
  */
-export function resetFilterEditor(dialog: HTMLElement): void {
+export function resetFilterEditor(dialog: HTMLElement, scope: ActivityFilterScope = "layout"): void {
   const name = dialog.querySelector<HTMLInputElement>('input[name="filterName"]');
   if (name) name.value = "";
   const match = dialog.querySelector<HTMLSelectElement>('select[name="filterMatch"]');
   if (match) match.value = "all";
+  const scopeSelect = dialog.querySelector<HTMLSelectElement>('select[name="filterScope"]');
+  if (scopeSelect) scopeSelect.value = scope === "default" ? "layout" : scope;
+  const editing = dialog.querySelector<HTMLInputElement>('input[name="filterEditingId"]');
+  if (editing) editing.value = "";
   for (const select of dialog.querySelectorAll<HTMLSelectElement>('select[name^="filter.field."]')) {
     if (select.querySelector('option[value="activity_name"]')) select.value = "activity_name";
   }
@@ -327,6 +436,149 @@ export function resetFilterEditor(dialog: HTMLElement): void {
     input.disabled = false;
   }
   dialog.querySelector('input[name="filterDelete"]')?.closest("label")?.remove();
+}
+
+/** Loads a saved filter into the builder for the Modify action. */
+export function loadFilterEditor(dialog: HTMLElement, filter: ActivityFilterDefinition): void {
+  resetFilterEditor(dialog, filter.scope ?? "layout");
+  const name = dialog.querySelector<HTMLInputElement>('input[name="filterName"]');
+  if (name) name.value = filter.name;
+  const match = dialog.querySelector<HTMLSelectElement>('select[name="filterMatch"]');
+  if (match) match.value = filter.match;
+  const editing = dialog.querySelector<HTMLInputElement>('input[name="filterEditingId"]');
+  if (editing) editing.value = filter.builtin ? "" : filter.id;
+  const scopeSelect = dialog.querySelector<HTMLSelectElement>('select[name="filterScope"]');
+  if (scopeSelect) scopeSelect.value = filter.scope === "global" || filter.scope === "user" ? filter.scope : "layout";
+  for (let index = 0; index < 4; index += 1) {
+    const criterion = filter.criteria[index];
+    const field = dialog.querySelector<HTMLSelectElement>(`select[name="filter.field.${index}"]`);
+    const operator = dialog.querySelector<HTMLSelectElement>(`select[name="filter.operator.${index}"]`);
+    const value = dialog.querySelector<HTMLInputElement>(`input[name="filter.value.${index}"]`);
+    if (field) field.value = criterion?.fieldId ?? "activity_name";
+    if (operator) {
+      operator.value = criterion?.operator ?? "contains";
+      if (value) {
+        value.disabled = operator.value === "is-empty" || operator.value === "is-not-empty";
+        value.value = criterion?.value ?? "";
+      }
+    }
+  }
+}
+
+/** Keeps the value box in step with the chosen operator. */
+export function syncFilterOperator(select: HTMLSelectElement): void {
+  const row = select.closest(".cp-filter-row");
+  const input = row?.querySelector<HTMLInputElement>('input[name^="filter.value."]');
+  if (!input) return;
+  input.disabled = select.value === "is-empty" || select.value === "is-not-empty";
+  if (input.disabled) input.value = "";
+}
+
+/** Sorts one Filter list category in place; used by the column headers. */
+export function sortFilterList(dialog: HTMLElement, column: "name" | "select", descending: boolean): void {
+  for (const body of dialog.querySelectorAll<HTMLTableSectionElement>("tbody[data-filter-group]")) {
+    const rows = Array.from(body.querySelectorAll<HTMLTableRowElement>("tr[data-filter-id]"));
+    rows.sort((a, b) => {
+      const left = column === "select"
+        ? (a.querySelector<HTMLInputElement>('input[name="filterSelected"]')?.checked ? 0 : 1)
+        : a.dataset.filterName ?? "";
+      const right = column === "select"
+        ? (b.querySelector<HTMLInputElement>('input[name="filterSelected"]')?.checked ? 0 : 1)
+        : b.dataset.filterName ?? "";
+      const order = typeof left === "number" && typeof right === "number"
+        ? left - right
+        : String(left).localeCompare(String(right), undefined, { sensitivity: "base" });
+      return descending ? -order : order;
+    });
+    const empty = body.querySelector("tr.cp-filter-empty");
+    for (const row of rows) body.insertBefore(row, empty);
+  }
+}
+
+/**
+ * Gantt chart options shared by every bar style: labels, legend, sight lines,
+ * the Data Date line and the progress-point line. Version 26 keeps these on the
+ * Bars dialog's Bar Settings / Bar Labels tabs and in the Sight Lines and Data
+ * Date options; here they group into one fieldset so each control is reachable.
+ */
+function ganttChartEditor(optionsInput: DialogOptions): string {
+  const locale = optionsInput.locale;
+  const gantt = optionsInput.presentation.gantt;
+  const dataDate = optionsInput.dataDate ?? null;
+  const dataDateNote = dataDate
+    ? `<p class="cp-dialog-note">${esc(t(locale, "The Data Date line marks the project data date on the chart.", "خط تاریخ داده، تاریخ دادهٔ پروژه را روی نمودار نشان می‌دهد."))}</p>`
+    : `<p class="cp-dialog-note">${esc(t(locale, "This project's read model exposes no Data Date, so the line is not drawn. The saved line settings will apply as soon as an authoritative date exists.", "مدل خواندنی این پروژه تاریخ داده ارائه نمی‌کند؛ بنابراین خط رسم نمی‌شود. تنظیمات ذخیره‌شده به‌محض وجود تاریخ معتبر اعمال خواهد شد."))}</p>`;
+  const dataDateDisabled = dataDate ? "" : " disabled";
+  return `<fieldset class="cp-dialog-group" data-gantt-options>
+      <legend>${esc(t(locale, "Gantt chart options", "تنظیمات نمودار گانت"))}</legend>
+      <p class="cp-dialog-note">${esc(t(locale, "These options change drawing only. Bar geometry still comes from the saved schedule dates.", "این تنظیمات فقط رسم نمودار را تغییر می‌دهد و هندسهٔ میله همچنان از تاریخ‌های ذخیره‌شدهٔ زمان‌بندی می‌آید."))}</p>
+      <div class="cp-dialog-grid">
+        <label class="cp-dialog-check"><input type="checkbox" name="gantt.showBarLabels"${gantt.showBarLabels ? " checked" : ""}> ${esc(t(locale, "Show bar labels", "نمایش برچسب میله‌ها"))}</label>
+        <label class="cp-dialog-row"><span>${esc(t(locale, "Label font size", "اندازهٔ قلم برچسب"))}</span>
+          <input type="number" name="gantt.labelFontSize" min="8" max="16" step="1" value="${gantt.labelFontSize}" aria-label="${esc(t(locale, "Bar label font size", "اندازهٔ قلم برچسب میله"))}">
+        </label>
+        <label class="cp-dialog-row"><span>${esc(t(locale, "Label colour", "رنگ برچسب"))}</span>
+          <input type="color" name="gantt.labelColor" value="${esc(gantt.labelColor)}" aria-label="${esc(t(locale, "Bar label colour", "رنگ برچسب میله"))}">
+        </label>
+      </div>
+      <fieldset class="cp-dialog-group">
+        <legend>${esc(t(locale, "Legend", "راهنما"))}</legend>
+        <div class="cp-dialog-grid">
+          <label class="cp-dialog-check"><input type="checkbox" name="gantt.legend.visible"${gantt.legend.visible ? " checked" : ""}> ${esc(t(locale, "Show legend", "نمایش راهنما"))}</label>
+          <label class="cp-dialog-row"><span>${esc(t(locale, "Position", "موقعیت"))}</span>
+            <select name="gantt.legend.position">
+              <option value="bottom"${gantt.legend.position === "bottom" ? " selected" : ""}>${esc(t(locale, "Below the chart", "زیر نمودار"))}</option>
+              <option value="top"${gantt.legend.position === "top" ? " selected" : ""}>${esc(t(locale, "Above the chart", "بالای نمودار"))}</option>
+            </select>
+          </label>
+        </div>
+        <p class="cp-dialog-note">${esc(t(locale, "Only bar styles that are currently shown appear in the legend.", "فقط سبک‌های میله‌ای که اکنون نمایش داده می‌شوند در راهنما می‌آیند."))}</p>
+      </fieldset>
+      <fieldset class="cp-dialog-group">
+        <legend>${esc(t(locale, "Sight lines", "خطوط راهنمای دید"))}</legend>
+        <label class="cp-dialog-check"><input type="checkbox" name="gantt.sightLines.beforeSummaries"${gantt.sightLines.beforeSummaries ? " checked" : ""}> ${esc(t(locale, "Major horizontal line above every summary", "خط افقی اصلی بالای هر خلاصه"))}</label>
+        <div class="cp-dialog-grid">
+          <label class="cp-dialog-row"><span>${esc(t(locale, "Minor horizontal line interval (rows, 0 = off)", "فاصلهٔ خط افقی فرعی (ردیف، ۰ = خاموش)"))}</span>
+            <input type="number" name="gantt.sightLines.rowInterval" min="0" max="10" step="1" value="${gantt.sightLines.rowInterval}" aria-label="${esc(t(locale, "Minor horizontal line interval", "فاصلهٔ خط افقی فرعی"))}">
+          </label>
+          <label class="cp-dialog-check"><input type="checkbox" name="gantt.sightLines.minorVertical"${gantt.sightLines.minorVertical ? " checked" : ""}> ${esc(t(locale, "Minor vertical line at every timescale tick", "خط عمودی فرعی در هر نشانهٔ مقیاس زمانی"))}</label>
+        </div>
+      </fieldset>
+      <fieldset class="cp-dialog-group"${dataDateDisabled}>
+        <legend>${esc(t(locale, "Data Date line", "خط تاریخ داده"))}</legend>
+        ${dataDateNote}
+        <div class="cp-dialog-grid">
+          <label class="cp-dialog-check"><input type="checkbox" name="gantt.dataDateLine.visible"${gantt.dataDateLine.visible ? " checked" : ""}> ${esc(t(locale, "Show Data Date line", "نمایش خط تاریخ داده"))}</label>
+          <label class="cp-dialog-row"><span>${esc(t(locale, "Style", "سبک"))}</span>
+            <select name="gantt.dataDateLine.style">
+              <option value="solid"${gantt.dataDateLine.style === "solid" ? " selected" : ""}>${esc(t(locale, "Solid", "توپر"))}</option>
+              <option value="dashed"${gantt.dataDateLine.style === "dashed" ? " selected" : ""}>${esc(t(locale, "Dashed", "خط‌چین"))}</option>
+              <option value="dotted"${gantt.dataDateLine.style === "dotted" ? " selected" : ""}>${esc(t(locale, "Dotted", "نقطه‌چین"))}</option>
+            </select>
+          </label>
+          <label class="cp-dialog-row"><span>${esc(t(locale, "Thickness", "ضخامت"))}</span>
+            <input type="number" name="gantt.dataDateLine.thickness" min="1" max="10" step="1" value="${gantt.dataDateLine.thickness}" aria-label="${esc(t(locale, "Data Date line thickness", "ضخامت خط تاریخ داده"))}">
+          </label>
+          <label class="cp-dialog-row"><span>${esc(t(locale, "Colour", "رنگ"))}</span>
+            <input type="color" name="gantt.dataDateLine.color" value="${esc(gantt.dataDateLine.color)}" aria-label="${esc(t(locale, "Data Date line colour", "رنگ خط تاریخ داده"))}">
+          </label>
+        </div>
+        <p class="cp-dialog-note">${esc(t(locale, "A thickness above 1 is painted as a solid line; dashed and dotted lines stay 1 pixel wide.", "ضخامت بیش از ۱ به‌صورت خط توپر رسم می‌شود؛ خطوط خط‌چین و نقطه‌چین با ضخامت ۱ می‌مانند."))}</p>
+      </fieldset>
+      <fieldset class="cp-dialog-group">
+        <legend>${esc(t(locale, "Progress point line", "خط نقاط پیشرفت"))}</legend>
+        <div class="cp-dialog-grid">
+          <label class="cp-dialog-check"><input type="checkbox" name="gantt.progressLine.visible"${gantt.progressLine.visible ? " checked" : ""}> ${esc(t(locale, "Show progress point line", "نمایش خط نقاط پیشرفت"))}</label>
+          <label class="cp-dialog-row"><span>${esc(t(locale, "Thickness", "ضخامت"))}</span>
+            <input type="number" name="gantt.progressLine.thickness" min="1" max="10" step="1" value="${gantt.progressLine.thickness}" aria-label="${esc(t(locale, "Progress line thickness", "ضخامت خط پیشرفت"))}">
+          </label>
+          <label class="cp-dialog-row"><span>${esc(t(locale, "Colour", "رنگ"))}</span>
+            <input type="color" name="gantt.progressLine.color" value="${esc(gantt.progressLine.color)}" aria-label="${esc(t(locale, "Progress line colour", "رنگ خط پیشرفت"))}">
+          </label>
+        </div>
+        <p class="cp-dialog-note">${esc(t(locale, "Joins the saved progress point of each drawn activity. Ahead/behind colouring is not offered because it needs the project Data Date, which this read model does not expose.", "نقاط پیشرفت ذخیره‌شدهٔ هر فعالیت رسم‌شده را به هم وصل می‌کند. رنگ‌بندی جلو/عقب ارائه نشده است زیرا به تاریخ دادهٔ پروژه نیاز دارد و مدل خواندنی فعلی آن را ارائه نمی‌کند."))}</p>
+      </fieldset>
+    </fieldset>`;
 }
 
 export function renderLayoutDialogs(optionsInput: DialogOptions): string {
@@ -436,7 +688,8 @@ export function renderLayoutDialogs(optionsInput: DialogOptions): string {
     </fieldset>`;
 
   const bars = `<p class="cp-dialog-note">${esc(t(locale, "Each bar type has independent shape, colour, pattern, filter, row and label settings. Bar geometry still comes from the saved schedule dates.", "هر نوع میله شکل، رنگ، الگو، فیلتر، ردیف و برچسب مستقل دارد. هندسهٔ میله همچنان از تاریخ‌های ذخیره‌شدهٔ زمان‌بندی می‌آید."))}</p>
-    <div class="cp-bar-style-list">${GANTT_BAR_KINDS.map((kind) => barEditor(kind, optionsInput.presentation.bars[kind], locale, optionsInput.dataAvailability)).join("")}</div>`;
+    <div class="cp-bar-style-list">${GANTT_BAR_KINDS.map((kind) => barEditor(kind, optionsInput.presentation.bars[kind], locale, optionsInput.dataAvailability)).join("")}</div>
+    ${ganttChartEditor(optionsInput)}`;
 
   const fontRow = tableEditor(optionsInput, false);
   const wbsColors = `<fieldset class="cp-dialog-group">
@@ -451,13 +704,53 @@ export function renderLayoutDialogs(optionsInput: DialogOptions): string {
     </fieldset>`;
 
   return [
-    shell(locale, "filters", t(locale, "Filters", "فیلترها"), filterEditor(optionsInput), true),
+    shell(locale, "filters", t(locale, "Filters", "فیلترها"), filterEditor(optionsInput), true, filterFooter(locale)),
     shell(locale, "group-sort", t(locale, "Group and Sort", "گروه‌بندی و ترتیب"), groupSort, true),
     shell(locale, "timescale", t(locale, "Timescale", "مقیاس زمانی"), timescale),
     shell(locale, "bars", t(locale, "Bar Styles", "سبک میله‌ها"), bars),
     shell(locale, "font-row", t(locale, "Table Font and Row", "قلم و ردیف جدول"), fontRow),
     shell(locale, "user-preferences", t(locale, "User Preferences", "ترجیحات کاربر"), preferences, true),
   ].join("");
+}
+
+/** Copied filter criteria; Version 26 Copy/Paste stays inside this session. */
+let filterClipboard: ActivityFilterDefinition | null = null;
+
+function selectManyActivityFilters(state: ActivityFilterState, ids: readonly string[]): ActivityFilterState {
+  const known = ids.filter((id) => findActivityFilter(state, id) !== null);
+  const current = state.selectedIds ?? (state.activeId ? [state.activeId] : []);
+  if (known.length === current.length && known.every((id, index) => id === current[index])) return state;
+  return { ...state, selectedIds: known, activeId: known[0] ?? null };
+}
+
+/** Selects the entry that paste/copy-as-layout just pushed to the front. */
+function selectNewestActivityFilter(state: ActivityFilterState): ActivityFilterState {
+  const newest = state.saved[0];
+  if (!newest) return state;
+  return { ...state, selectedIds: [newest.id], activeId: newest.id, allActivities: false };
+}
+
+function buildFilterDraft(data: FormData, editingId: string, scope: ActivityFilterScope): ActivityFilterDefinition | null {
+  const name = String(data.get("filterName") ?? "").trim();
+  if (!name) return null;
+  const criteria: ActivityFilterCriterion[] = [];
+  for (let index = 0; index < 4; index += 1) {
+    const fieldId = data.get(`filter.field.${index}`);
+    const operator = data.get(`filter.operator.${index}`);
+    if (typeof fieldId !== "string" || typeof operator !== "string") continue;
+    criteria.push({
+      fieldId: fieldId as ActivityFilterCriterion["fieldId"],
+      operator: operator as ActivityFilterOperator,
+      value: String(data.get(`filter.value.${index}`) ?? ""),
+    });
+  }
+  return normalizeActivityFilter({
+    id: /^custom:/.test(editingId) ? editingId : undefined,
+    name,
+    match: data.get("filterMatch"),
+    scope,
+    criteria,
+  });
 }
 
 export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: WorkspacePresentation): DesktopLayoutPatch {
@@ -577,6 +870,40 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
     presentationChanged = true;
   }
 
+  if (keys.some((key) => key.startsWith("gantt."))) {
+    const current = presentation.gantt;
+    presentation.gantt = normalizeGanttSettings({
+      showBarLabels: data.get("gantt.showBarLabels") === "on",
+      labelFontSize: data.get("gantt.labelFontSize"),
+      labelColor: data.get("gantt.labelColor"),
+      legend: {
+        visible: data.get("gantt.legend.visible") === "on",
+        position: data.get("gantt.legend.position"),
+      },
+      sightLines: {
+        beforeSummaries: data.get("gantt.sightLines.beforeSummaries") === "on",
+        rowInterval: data.get("gantt.sightLines.rowInterval"),
+        minorVertical: data.get("gantt.sightLines.minorVertical") === "on",
+      },
+      // A disabled Data Date fieldset submits nothing; keep the saved line
+      // settings rather than resetting them to the fallback.
+      dataDateLine: data.has("gantt.dataDateLine.style")
+        ? {
+            visible: data.get("gantt.dataDateLine.visible") === "on",
+            style: data.get("gantt.dataDateLine.style"),
+            thickness: data.get("gantt.dataDateLine.thickness"),
+            color: data.get("gantt.dataDateLine.color"),
+          }
+        : current.dataDateLine,
+      progressLine: {
+        visible: data.get("gantt.progressLine.visible") === "on",
+        thickness: data.get("gantt.progressLine.thickness"),
+        color: data.get("gantt.progressLine.color"),
+      },
+    }, current);
+    presentationChanged = true;
+  }
+
   if (keys.some((key) => key.startsWith("bar."))) {    const bars = { ...presentation.bars };
     for (const kind of GANTT_BAR_KINDS) {
       const prefix = `bar.${kind}.`;
@@ -596,6 +923,7 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
         borderColor: data.get(`${prefix}borderColor`),
         labelField: data.get(`${prefix}labelField`),
         labelPosition: data.get(`${prefix}labelPosition`),
+        necking: data.get(`${prefix}necking`) === "on",
       }, bars[kind]);
       // A disabled Actual/Baseline fieldset never reaches FormData. Keep its
       // saved appearance, but never draw a bar without authoritative dates.
@@ -606,47 +934,71 @@ export function readLayoutPatch(form: HTMLFormElement | FormData, previous?: Wor
     presentationChanged = true;
   }
 
-  if (keys.some((key) => key.startsWith("filter.") || key.startsWith("filterActiveId") || key.startsWith("filterName"))) {
+  if (keys.some((key) => key.startsWith("filter"))) {
     const previousFilters = presentation.filters;
-    const previousActive = findActivityFilter(previousFilters, previousFilters.activeId);
-    const selectedId = String(data.get("filterActiveId") ?? "");
-    const deleteRequested = data.get("filterDelete") === "on";
-    const criteria: ActivityFilterCriterion[] = [];
-    for (let index = 0; index < 4; index += 1) {
-      const fieldId = data.get(`filter.field.${index}`);
-      const operator = data.get(`filter.operator.${index}`);
-      if (typeof fieldId !== "string" || typeof operator !== "string") continue;
-      const value = String(data.get(`filter.value.${index}`) ?? "");
-      criteria.push({
-        fieldId: fieldId as ActivityFilterCriterion["fieldId"],
-        operator: operator as ActivityFilterOperator,
-        value,
-      });
-    }
-    const draft = normalizeActivityFilter({
-      name: String(data.get("filterName") ?? ""),
-      match: data.get("filterMatch"),
-      criteria,
-    });
     let filters = previousFilters;
-    if (deleteRequested && selectedId.startsWith("custom:")) {
-      filters = deleteActivityFilter(filters, selectedId);
-    } else if (draft) {
-      const unchanged = previousActive
-        && !previousActive.builtin
-        && previousActive.id === draft.id
-        && previousActive.match === draft.match
-        && JSON.stringify(previousActive.criteria) === JSON.stringify(draft.criteria);
-      if (unchanged && selectedId && selectedId !== draft.id) {
-        filters = setActiveActivityFilter(filters, selectedId);
-      } else {
-        filters = upsertActivityFilter(filters, draft);
-      }
-    } else {
-      filters = setActiveActivityFilter(filters, selectedId || null);
+    // The version 26 form carries the list marker; older payloads only have
+    // filterActiveId and keep the single-selection behaviour.
+    const v26 = data.get("filterList") === "v26";
+    const action = String(data.get("filterAction") ?? "");
+    const selectedIds = data.getAll("filterSelected").map((value) => String(value)).filter(Boolean);
+    const allActivities = data.get("filterAllActivities") === "on";
+    const scopeRaw = data.get("filterScope");
+    const scope: ActivityFilterScope = scopeRaw === "global" || scopeRaw === "user" ? scopeRaw : "layout";
+    const editingId = String(data.get("filterEditingId") ?? "");
+    const rowId = String(data.get("filterRowId") ?? "");
+    // List actions apply to the highlighted row; the builder only owns edits.
+    const targetId = rowId || editingId || selectedIds[0] || "";
+
+    if (v26) {
+      filters = setActivityFilterAllActivities(filters, allActivities);
+      // Disabled Select checkboxes are absent from FormData; keep the saved
+      // selection while All Activities is checked instead of clearing it.
+      if (!allActivities) filters = selectManyActivityFilters(filters, selectedIds);
+      filters = setActivityFilterCombine(filters, data.get("filterCombine") === "any" ? "any" : "all");
+      filters = setActivityFilterApplyMode(filters, data.get("filterApplyMode") === "highlight" ? "highlight" : "replace");
     }
-    presentation.filters = filters;
-    presentationChanged = true;
+
+    if (!v26) {
+      const selectedId = String(data.get("filterActiveId") ?? "");
+      const deleteRequested = data.get("filterDelete") === "on";
+      if (deleteRequested) {
+        filters = deleteActivityFilter(filters, selectedId);
+      } else {
+        const draft = buildFilterDraft(data, "", scope);
+        filters = draft ? upsertActivityFilter(filters, draft) : setActiveActivityFilter(filters, selectedId || null);
+      }
+    } else if (action === "delete") {
+      filters = deleteActivityFilter(filters, targetId);
+    } else if (action === "copy") {
+      const source = findActivityFilter(filters, targetId);
+      if (source) filterClipboard = source;
+    } else if (action === "paste") {
+      if (filterClipboard) {
+        filters = pasteActivityFilter(filters, filterClipboard, scope);
+        filters = selectNewestActivityFilter(filters);
+      }
+    } else if (action === "make-global") {
+      filters = makeGlobalActivityFilter(filters, targetId);
+    } else if (action === "copy-as-layout") {
+      filters = copyActivityFilterAsLayout(filters, targetId);
+      filters = selectNewestActivityFilter(filters);
+    } else {
+      const draft = buildFilterDraft(data, editingId, scope);
+      if (draft) filters = upsertActivityFilter(filters, draft);
+    }
+
+    const signature = (state: typeof filters): string => JSON.stringify({
+      saved: state.saved,
+      selectedIds: state.selectedIds ?? (state.activeId ? [state.activeId] : []),
+      combine: state.combine ?? "all",
+      allActivities: Boolean(state.allActivities),
+      applyMode: state.applyMode ?? "replace",
+    });
+    if (signature(filters) !== signature(previousFilters)) {
+      presentation.filters = filters;
+      presentationChanged = true;
+    }
   }
 
   if (presentationChanged) patch.presentation = presentation;

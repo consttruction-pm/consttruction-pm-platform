@@ -22,6 +22,33 @@ No separate dashboard, static preview application, visual-demo route, or alterna
 
 **Do not remove the current visual-demo boot path yet.** The authenticated shell currently has fewer windows than the approved visual catalogue. First migrate and verify the approved window inventory into the authenticated shell, using project-scoped read/write services or a truthful unavailable state. Only after acceptance may the separate demo bootstrap be retired.
 
+## 1.1 CUBI – Complete Visual and Functional Parity Standard
+
+This catalogue and every window comparison in it follow the binding parity
+standard:
+
+1. **Authority.** The Version 26 official HTML Help
+   (https://docs.oracle.com/cd/G48902_01/client_help/en_US/toc.htm) and the
+   supplied 815-page Version 26 PDF govern control order, options, terminology
+   and acceptance. Older screenshots inform appearance only.
+2. **No fabrication.** A window capability without an authoritative service is
+   presented as unavailable with a reason. No invented records, dates, progress
+   or enabled-looking dead controls.
+3. **No premature completion claim.** “The shell is complete” and “matches
+   version 26” are prohibited until the compliance matrix is complete and the 18
+   mandatory browser scenarios carry real screenshots from the built preview.
+4. **Exact status vocabulary.** **مطابق و تأییدشده**،
+   **پیاده‌سازی‌شده ولی آزمون‌نشده**، **ناقص**، **غایب**،
+   **محدودیت مستند و مشخص**.
+5. **Change control.** No destructive change, no branch deletion, no force-push,
+   no merge to `main` or Production before tests and visual review; Preview
+   first.
+6. **Scope.** Activities and its direct dependencies only; the API, scheduling
+   core, data model, other windows, main shell and entry route stay unchanged.
+7. **Mirrors.** Also recorded in
+   `docs/governance/PROJECT_CONTINUITY_PROTOCOL.md` and
+   `docs/workspace/reference/oracle-p6-reference-index.md`.
+
 ## 2. Protected invariants
 
 The following are change-control constraints for every migration slice:

@@ -3,9 +3,9 @@ import type { WorkspaceDocument } from "./workspace-document.js";
 import { createGanttAxisTicks, createGanttBarGeometry, createGanttLinkGeometry, createGanttPeriodGroups, createGanttScale, ganttRowCenter, ganttRowsHeight, ganttRowPitch, isoWeekNumber, ordinalNumberAt, timescaleMajorUnit, type GanttBarGeometry, type GanttPeriodGroup, type GanttScale } from "./workspace-gantt.js";
 import { filterAndSortActivities } from "./workspace-filter-sort.js";
 import {
+  applyActivityFilterState,
   describeActivityFilter,
-  filterActivitiesByDefinition,
-  getActiveActivityFilter,
+  type ActivityFilterApplication,
 } from "./workspace-activity-filters.js";
 import {
   buildWbsTreeGuides,
@@ -30,6 +30,7 @@ import { workspaceIcon } from "./workspace-icons.js";
 import { renderActivityNetwork } from "./workspace-network.js";
 import {
   DEFAULT_PRESENTATION,
+  GANTT_BAR_KINDS,
   activityBarFacts,
   barKindMatchesFilter,
   barLabelText,
@@ -1452,6 +1453,8 @@ export type WorkspaceRendererOptions = {
   };
   onRailAction?: (action: string) => void;
   presentation?: WorkspacePresentation;
+  /** Authoritative project Data Date; null when the read model exposes none. */
+  dataDate?: string | null;
 };
 
 export function renderMainWorkspace(container: HTMLElement, state: WorkspaceState, options: WorkspaceRendererOptions = {}): void {
@@ -1475,9 +1478,9 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     `--cp-p6-bg-color:${presentationColor(tablePresentation.backgroundColor)}`,
     `--cp-p6-row-height:${tablePresentation.rowHeight}px`,
   ].join(";");
-  const activeActivityFilter = getActiveActivityFilter(presentation.filters);
+  const filterApplication = applyActivityFilterState(state.activities, presentation.filters, state.wbsNodes);
   const filteredActivities = filterAndSortActivities(
-    filterActivitiesByDefinition(state.activities, activeActivityFilter, state.wbsNodes),
+    filterApplication.activities,
     state.activityFilter,
     state.activitySort,
     state.activityGroupBy,
@@ -1486,7 +1489,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
   );
   // An active filter always reveals matching descendants; collapse is a view
   // preference for browsing the unfiltered schedule, never a way to hide hits.
-  const collapsedWbsIds = state.activityFilter.trim() || activeActivityFilter
+  const collapsedWbsIds = state.activityFilter.trim() || filterApplication.filters.length
     ? new Set<string>()
     : getCollapsedWbsIds(state.context.project_id);
   const displayRows = buildWorkspaceDisplayRows(
@@ -1583,15 +1586,21 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
     control: "network",
     settings: "settings",
   };
-  const activeFilterName = activeActivityFilter
+  const appliedFilterName = filterApplication.filters.map((filter) => filter.name).join(" + ");
+  const activeFilterName = appliedFilterName
     ? state.activityFilter.trim()
-      ? `${activeActivityFilter.name} · ${state.activityFilter.trim()}`
-      : activeActivityFilter.name
+      ? `${appliedFilterName} · ${state.activityFilter.trim()}`
+      : appliedFilterName
     : "";
-  const activityFilterLabel = activeFilterName || uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
-  const activeFilterTitle = activeActivityFilter
-    ? describeActivityFilter(activeActivityFilter, state.locale)
-    : "";
+  const highlightOnly = filterApplication.highlight;
+  const activityFilterLabel = activeFilterName
+    ? highlightOnly
+      ? uiText(state.locale, `${activeFilterName} (highlighted)`, `${activeFilterName} (برجسته‌شده)`)
+      : activeFilterName
+    : uiText(state.locale, "All Activities", "همهٔ فعالیت‌ها");
+  const activeFilterTitle = filterApplication.filters
+    .map((filter) => describeActivityFilter(filter, state.locale))
+    .join(" | ");
   const contextCommands: Array<{ label: string; action: "project-settings" | "wbs" | "tools" }> = state.activeMenu === "project"
     ? [
       { label: uiText(state.locale, "Project properties", "مشخصات پروژه"), action: "project-settings" },
@@ -1670,7 +1679,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
             </span>
             <span class="cp-p6-activity-meta">${escapeHtml(t.project)}: ${escapeHtml(state.context.project_id)}</span>
             <span class="cp-p6-activity-meta">${escapeHtml(rail.dataDate)}: ${escapeHtml(rail.noDataDate)}</span>
-            <span class="cp-p6-activity-meta" data-active-filter="${escapeAttribute(activeActivityFilter?.id ?? "")}" title="${escapeAttribute(activeFilterTitle)}">${escapeHtml(rail.filter)}: ${escapeHtml(activityFilterLabel)}</span>
+            <span class="cp-p6-activity-meta" data-active-filter="${escapeAttribute(filterApplication.filters.map((filter) => filter.id).join(","))}" data-filter-mode="${filterApplication.highlight ? "highlight" : "replace"}" title="${escapeAttribute(activeFilterTitle)}">${escapeHtml(rail.filter)}: ${escapeHtml(activityFilterLabel)}</span>
             <span class="cp-p6-activity-spacer"></span>
           </header>
           <div class="cp-context-command-bar" role="toolbar" aria-label="${escapeAttribute(uiText(state.locale, "Current window commands", "فرمان‌های پنجره جاری"))}">
@@ -1703,7 +1712,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
                   <div class="cp-p6-gantt-head">
                     <h2>${escapeHtml(t.gantt)}</h2>
                   </div>
-                  ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale)}
+                  ${renderGantt(displayRows, state.relationships, state.ganttScale, state.calendarMode, scale, t, state.selectedActivityId, state.showGanttRelationships, presentation, state.locale, options.dataDate ?? null)}
                 </section>`}
               </section>
               ${renderP6ModuleStage(container, state, t, options)}
@@ -1804,6 +1813,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
 
   workspaceRenderRecords.set(container, { state, options });
   if (!workspaceEventDelegation.has(container)) bindWorkspaceEvents(container);
+  markFilterHighlights(container, filterApplication);
   alignGanttRows(container);
   showActivityContextMenu(container);
 }
@@ -3033,6 +3043,16 @@ function treeCellMarkup(
   return `<span class="cp-p6-tree-guides" data-tree-depth="${guide.depth}" style="--cp-wbs-level:${wbsLevelColor(wbs, levelDepth)}">${spines}${content}</span>`;
 }
 
+/** Highlight mode keeps every row on screen and tints the matching ones. */
+function markFilterHighlights(container: HTMLElement, application: ActivityFilterApplication): void {
+  if (!application.highlight) return;
+  const mark = (element: HTMLElement, id: string | undefined): void => {
+    element.classList.toggle("is-filter-match", Boolean(id && application.matchedIds.has(id)));
+  };
+  container.querySelectorAll<HTMLElement>("tr[data-activity-id]").forEach((row) => mark(row, row.dataset.activityId));
+  container.querySelectorAll<HTMLElement>("[data-gantt-activity-id]").forEach((row) => mark(row, row.dataset.ganttActivityId));
+}
+
 function renderActivityRow(
   activity: WorkspaceActivityRow,
   state: WorkspaceState,
@@ -3274,6 +3294,7 @@ function renderGantt(
   showRelationships: boolean,
   presentation: WorkspacePresentation,
   locale: string,
+  dataDate: string | null = null,
 ): string {
   if (!scale) return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
 
@@ -3287,6 +3308,7 @@ function renderGantt(
     return `<div class="cp-gantt-placeholder" role="img" aria-label="${escapeAttribute(t.gantt)}">${escapeHtml(t.noSchedule)}</div>`;
   }
 
+  const gantt = presentation.gantt;
   const rowHeight = ganttRowPitch(presentation.table.rowHeight);
   const rowsHeight = ganttRowsHeight(rows.length, rowHeight);
   const contentWidth = GANTT_CONTENT_WIDTH[ganttScale];
@@ -3405,9 +3427,63 @@ function renderGantt(
   const gridLines = createGanttAxisTicks(scale, ganttScale === "year" ? "year" : "month")
     .map((tick) => `<span class="cp-gantt-grid-line" data-gantt-grid="${escapeAttribute(tick.date)}" style="left:${tick.leftPercent}%"></span>`)
     .join("");
+  // Sight Lines tab: minor vertical lines follow the visible tick resolution.
+  const minorVertical = gantt.sightLines.minorVertical
+    ? ticks
+      .filter((tick) => tick.leftPercent > 0.2)
+      .map((tick) => `<span class="cp-gantt-grid-line is-minor" data-gantt-grid-minor="${escapeAttribute(tick.date)}" style="left:${tick.leftPercent}%"></span>`)
+      .join("")
+    : "";
+  // Horizontal sight lines: one before every summary band, plus the documented
+  // row interval. They live in the body layer so they scroll with the chart.
+  const horizontalSight: string[] = [];
+  if (gantt.sightLines.beforeSummaries) {
+    rows.forEach((row, index) => {
+      if (row.kind === "wbs") horizontalSight.push(`<span class="cp-gantt-sight-line is-horizontal is-major" style="top:${index * rowHeight}px"></span>`);
+    });
+  }
+  if (gantt.sightLines.rowInterval > 0) {
+    for (let index = gantt.sightLines.rowInterval; index < rows.length; index += gantt.sightLines.rowInterval) {
+      horizontalSight.push(`<span class="cp-gantt-sight-line is-horizontal is-minor" style="top:${index * rowHeight}px"></span>`);
+    }
+  }
+  // Completion-percentage point line over the persisted progress of every bar.
+  // Ahead/behind wording needs the Data Date, which is a separate line and is
+  // only drawn when the project exposes an authoritative date.
+  const progressPoints = gantt.progressLine.visible
+    ? rows
+      .map((row, index) => {
+        if (row.kind !== "activity") return null;
+        const bar = barById.get(row.activity.id);
+        if (!bar) return null;
+        const share = Math.min(100, Math.max(0, bar.progressPercent)) / 100;
+        return { x: bar.leftPercent + bar.widthPercent * share, y: index * rowHeight + rowHeight / 2 };
+      })
+      .filter((point): point is { x: number; y: number } => point !== null)
+    : [];
+  const progressLine = progressPoints.length > 1
+    ? `<svg class="cp-gantt-progress-line-layer" viewBox="0 0 1000 ${rowsHeight}" preserveAspectRatio="none" style="height:${rowsHeight}px;--cp-progress-color:${gantt.progressLine.color};--cp-progress-width:${gantt.progressLine.thickness}px" aria-hidden="true"><path class="cp-gantt-progress-line" data-gantt-progress-line="${progressPoints.length}" d="${progressPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${ganttRound(point.x * 10)} ${ganttRound(point.y)}`).join(" ")}"/></svg>`
+    : "";
+  const dataDateMs = dataDate ? Date.parse(`${dataDate.slice(0, 10)}T00:00:00Z`) : Number.NaN;
+  const dataDatePercent = Number.isFinite(dataDateMs)
+    ? ((dataDateMs - scale.startMs) / scale.rangeMs) * 100
+    : Number.NaN;
+  const dataDateLine = gantt.dataDateLine.visible && Number.isFinite(dataDatePercent) && dataDatePercent >= 0 && dataDatePercent <= 100
+    ? `<span class="cp-gantt-data-date is-${gantt.dataDateLine.style}" data-gantt-data-date="${escapeAttribute(dataDate!.slice(0, 10))}" style="left:${ganttRound(dataDatePercent)}%;--cp-data-date-color:${gantt.dataDateLine.color};--cp-data-date-width:${gantt.dataDateLine.thickness}px"><span class="cp-gantt-data-date-label">${escapeHtml(uiText(locale, "Data Date", "تاریخ داده"))}</span></span>`
+    : "";
+  // Legend follows the General tab: only bar types that are actually displayed.
+  const legendKinds = GANTT_BAR_KINDS.filter((kind) => presentation.bars[kind].visible);
+  const legend = gantt.legend.visible && legendKinds.length
+    ? `<div class="cp-gantt-legend is-${gantt.legend.position}" data-gantt-legend="${gantt.legend.position}" aria-label="${escapeAttribute(uiText(locale, "Gantt legend", "راهنمای گانت"))}">${legendKinds.map((kind) => {
+      const style = presentation.bars[kind];
+      return `<span class="cp-gantt-legend-item" data-gantt-legend-kind="${kind}"><span class="cp-gantt-legend-swatch is-${style.bodyShape} is-pattern-${style.pattern}" style="--cp-legend-color:${style.bodyColor};--cp-legend-border:${style.borderColor}"></span>${escapeHtml(translateWorkspaceUiText(locale, ...GANTT_KIND_LABELS[kind]))}</span>`;
+    }).join("")}</div>`
+    : "";
+  const legendTop = gantt.legend.visible && gantt.legend.position === "top" ? legend : "";
+  const legendBottom = gantt.legend.visible && gantt.legend.position === "bottom" ? legend : "";
   const rowsMarkup = renderGanttRows(rows, barById, activityById, presentation, rowHeight, selectedActivityId, t, locale, scale, calendarMode);
 
-  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px">${toolbar}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${gridLines ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}</div>` : ""}${rowsMarkup}${linkSvg}${lagBadges}</div></div></div>`;
+  return `<div class="cp-gantt-board" role="region" aria-label="${escapeAttribute(t.gantt)}" data-gantt-scale-mode="${ganttScale}" data-bar-labels="${gantt.showBarLabels}" style="--cp-gantt-row-height:${rowHeight}px;--cp-gantt-rows-height:${rowsHeight}px;--cp-gantt-content-width:${contentWidth}px;--cp-bar-label-size:${gantt.labelFontSize}px;--cp-bar-label-color:${gantt.labelColor}">${toolbar}${legendTop}<div class="cp-gantt-chart" style="--cp-gantt-rows:${rows.length}" data-gantt-rows="${rows.length}">${axis}<div class="cp-gantt-body" data-gantt-body="${rows.length}" style="height:${rowsHeight}px">${gridLines || minorVertical ? `<div class="cp-gantt-grid" aria-hidden="true">${gridLines}${minorVertical}</div>` : ""}${horizontalSight.length ? `<div class="cp-gantt-sight-lines" aria-hidden="true">${horizontalSight.join("")}</div>` : ""}${rowsMarkup}${progressLine}${dataDateLine}${linkSvg}${lagBadges}</div>${legendBottom}</div></div>`;
 }
 
 function renderGanttRows(
@@ -3563,7 +3639,7 @@ function renderGanttActivityRow(
 
   const layerMarkup = layers.map((layer, index) => {
     const height = heights[index];
-    const markup = renderGanttBar(layer, top, height, layer.kind === primaryKind ? overlay : "", resolved, bar, t, locale, { calendarMode, locale }, layer.kind === primaryKind ? weekDividers : []);
+    const markup = renderGanttBar(layer, top, height, layer.kind === primaryKind ? overlay : "", resolved, bar, t, locale, { calendarMode, locale }, layer.kind === primaryKind && layer.style.necking ? weekDividers : []);
     top += height + gap;
     return markup;
   }).join("");

@@ -11,6 +11,7 @@ import {
   hasBaselineDates,
   normalizeBarStyle,
   normalizePresentation,
+  normalizeTimescale,
   presentationDataAvailability,
   presentationFontFamily,
   selectPrimaryBarKind,
@@ -74,6 +75,8 @@ test("timescale and WBS level colours normalise and persist with the layout", ()
     wbs: { levelColors: ["#111111", "bad", "#333333"] },
   });
   assert.equal(normalized.timescale.lines, 3);
+  // The dialog must be able to switch back from three header rows to two.
+  assert.equal(normalizeTimescale({ lines: 2 }, normalized.timescale).lines, 2);
   assert.equal(normalized.timescale.dateFormat, "ordinal");
   assert.equal(normalized.timescale.type, "week-of-year");
   assert.equal(normalized.timescale.interval, "week-day");

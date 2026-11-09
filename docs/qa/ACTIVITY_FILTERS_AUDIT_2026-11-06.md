@@ -66,9 +66,45 @@ with four criteria rows and both filter groups. The header shows
 - `53-filters-saved-list-en-1280.png` — both saved filters listed, criteria reloaded.
 - `54-filters-cleared-en-1280.png` — all activities restored.
 
+## Filter list increment (2026-11-08)
+
+The Version 26 Filter dialog is a list of filters grouped by category, separate
+from the filter-details builder. This increment rebuilds the dialog around that
+list and wires every documented list action.
+
+| Reference capability | Status | Implementation / evidence |
+| --- | --- | --- |
+| Filter list grouped by Default / Global / Layout / User | Implemented | Four `tbody` groups in the documented order. Default filters are read-only. Global and layout filters come from the saved layout. The User group states that this runtime keeps per-user filters with the layout rather than in the project database |
+| Select several filters with checkboxes | Implemented | `filterSelected` is a multi-valued selection; the highlighted row drives Modify/Delete/Copy/Make Global |
+| All Activities toggle | Implemented | Checking it disables the list and shows every activity; the previous selection is retained and returns when unchecked |
+| All selected filters / Any selected filter | Implemented | `combine` is stored with the layout and applied when more than one filter is selected |
+| Replace vs Highlight | Implemented | Replace narrows the table and Gantt; Highlight adds `is-filter-match` to the matching rows in both views without removing others |
+| New / Modify / Delete | Implemented | New clears the builder and starts a global filter; Modify loads the highlighted saved filter; Delete removes the targeted row and, when it was the one loaded in the builder, clears the builder. Default filters cannot be modified or deleted |
+| Copy / Paste | Implemented | Copy keeps one definition in this session; Paste inserts it in the selected category and selects the new copy. The clipboard is session-only, matching the documented in-session copy |
+| Make Global | Implemented | Moves the targeted saved filter to the Global group and keeps it selected |
+| Copy as Layout | Implemented | Creates a layout-scoped copy, selects it, and keeps the fresh selection after the dialog re-renders |
+| Apply / OK / Cancel / Default | Implemented | Apply submits without closing; OK applies and closes; Cancel restores the dialog snapshot; Default restores the documented layout defaults |
+
+Live verification (2026-11-08, `http://127.0.0.1:4174`): Modify loaded a saved
+filter and Delete cleared it; Copy as Layout created and selected a new row; Make
+Global changed the category while keeping the selection; Paste inserted a
+layout-scoped copy (seven rows); New opened an empty builder focused on the name
+field with the Global category; the All Activities toggle and both apply modes
+acted on the real table and Gantt. These followed the filter-dialog regression
+tests for selection round-trip, delete targeting and Copy-as-Layout selection.
+
+**Still not claimed:** the four criteria rows are a fixed limit; “Is within
+range of” is not offered; predefined filters remain the seven that can be
+computed from the current row model; there is no separate filter manager
+window; Copy/Paste does not cross sessions; User-defined filters are not stored
+in the project database.
+
 ## Not claimed
 
-- No constraint-based, Level of Effort, Longest Path, New Feedback, Non What-If or Normal predefined filters yet.
-- No multi-filter combination, global filter publishing, or date/numeric “within range” operators.
-- No filter manager window, filter columns in the layout definition, or filter application on non-Activity windows.
+- No constraint-based, Level of Effort, Longest Path, New Feedback, Non What-If
+  or Normal predefined filters yet.
+- Multi-filter combination and Make Global are implemented as of 2026-11-08
+  (see above); date/numeric “within range” operators remain absent.
+- No filter manager window, filter columns in the layout definition, or filter
+  application on non-Activity windows.
 - No merge to `main`, no Production deployment, no change to PR #1716.
