@@ -45,6 +45,8 @@ export type DesktopCommand =
   | "view.toggle-wbs"
   | "view.toggle-gantt"
   | "view.toggle-details"
+  | "view.theme-classic"
+  | "view.theme-modern"
   | "tools.run-schedule"
   | "tools.formula"
   | "tools.reference"
@@ -131,6 +133,10 @@ export type DesktopShellState = {
   sortDirection?: "asc" | "desc";
   sortLevels?: readonly { columnId: string; direction: "asc" | "desc" }[];
   presentation?: WorkspacePresentation;
+  /** Bottom Details pane visibility; drives the View command label and state. */
+  detailsVisible?: boolean;
+  /** Active workspace skin token set. */
+  theme?: "classic" | "modern";
   dataAvailability?: { actual: boolean; baseline: boolean };
   /** Authoritative project Data Date; null when the read model exposes none. */
   dataDate?: string | null;
@@ -310,7 +316,26 @@ export function getDesktopMenus(state: DesktopShellState): DesktopMenu[] {
         { id: "view.fit", label: { en: "Fit to window", fa: "تناسب با پنجره" }, command: "view.fit" },
         { id: "view.toggle-wbs", label: { en: "Show project WBS", fa: "نمایش WBS پروژه" }, command: "view.toggle-wbs" },
         { id: "view.toggle-gantt", label: { en: "Show Gantt Chart", fa: "نمایش گانت" }, command: "view.toggle-gantt" },
-        { id: "view.toggle-details", label: { en: "Show Details", fa: "نمایش جزئیات" }, command: "view.toggle-details" },
+        {
+          id: "view.toggle-details",
+          label: state.detailsVisible === false
+            ? { en: "Show Details", fa: "نمایش جزئیات" }
+            : { en: "Hide Details", fa: "پنهان کردن جزئیات" },
+          command: "view.toggle-details",
+          checked: state.detailsVisible !== false,
+        },
+        {
+          id: "view.theme-classic",
+          label: { en: "CUBI Classic — Version 26 Reference", fa: "CUBI کلاسیک — مرجع نسخه ۲۶" },
+          command: "view.theme-classic",
+          checked: (state.theme ?? "classic") === "classic",
+        },
+        {
+          id: "view.theme-modern",
+          label: { en: "CUBI Modern 3D", fa: "CUBI مدرن سه‌بعدی" },
+          command: "view.theme-modern",
+          checked: state.theme === "modern",
+        },
         { id: "view.calendar", label: { en: "Switch calendar display", fa: "تغییر تقویم نمایش" }, command: "admin.calendar" },
       ],
     },
@@ -425,7 +450,7 @@ export function getDesktopToolbar(state: DesktopShellState): DesktopToolbarItem[
     { id: "toolbar.bars", label: { en: "Bars", fa: "میله‌ها" }, title: { en: "Bar chart options", fa: "تنظیمات نمودار میله‌ای" }, command: "dialog.bars", icon: "bars", group: "view" },
     { id: "toolbar.font-row", label: { en: "Font & Row", fa: "قلم و ردیف" }, title: { en: "Table font, colours and row height", fa: "قلم، رنگ و ارتفاع ردیف جدول" }, command: "dialog.font-row", icon: "table", group: "view" },
     { id: "toolbar.line-numbers", label: { en: "Line Numbers", fa: "شمارهٔ ردیف" }, title: { en: "Show or hide row numbers in the activity table", fa: "نمایش یا پنهان‌کردن شمارهٔ ردیف در جدول فعالیت‌ها" }, command: "view.line-numbers", active: presentation.table.lineNumbers, icon: "table", group: "view" },
-    { id: "toolbar.panels", label: { en: "Panels", fa: "پنل‌ها" }, title: { en: "Show or hide the details panel", fa: "نمایش یا پنهان‌کردن پنل جزئیات" }, command: "view.toggle-details", icon: "table", group: "view" },
+    { id: "toolbar.panels", label: { en: "Panels", fa: "پنل‌ها" }, title: { en: "Show or hide the details panel", fa: "نمایش یا پنهان‌کردن پنل جزئیات" }, command: "view.toggle-details", active: state.detailsVisible !== false, icon: "table", group: "view" },
     { id: "toolbar.fullscreen", label: { en: "Full Screen", fa: "تمام‌صفحه" }, title: { en: "Enter full screen", fa: "ورود به تمام‌صفحه" }, fullscreen: true, icon: "fullscreen", group: "view" },
 
     { id: "toolbar.schedule", label: { en: "Schedule", fa: "زمان‌بندی" }, title: { en: "Schedule activities", fa: "زمان‌بندی فعالیت‌ها" }, command: "tools.run-schedule", shortcut: "F9", icon: "calendar", group: "project" },
@@ -481,7 +506,7 @@ function renderMenuItem(item: DesktopMenuItem, locale: string): string {
     : item.command
       ? ` data-desktop-command="${escapeHtml(item.command)}"`
       : "";
-  return `<button type="button" role="menuitem" class="cp-menubar-item${disabled ? " is-disabled" : ""}"${target}${disabled ? ' disabled aria-disabled="true"' : ""}${item.checked ? ' aria-checked="true"' : ""}${reason ? ` title="${escapeHtml(reason)}"` : ""}>
+  return `<button type="button" role="menuitem" class="cp-menubar-item${disabled ? " is-disabled" : ""}" data-desktop-item="${escapeHtml(item.id)}"${target}${disabled ? ' disabled aria-disabled="true"' : ""}${item.checked ? ' aria-checked="true"' : ""}${reason ? ` title="${escapeHtml(reason)}"` : ""}>
     <span class="cp-menubar-item-label">${escapeHtml(pick(item.label, locale))}</span>
     ${reason ? `<span class="cp-menubar-item-reason">${escapeHtml(reason)}</span>` : item.shortcut ? `<span class="cp-menubar-item-shortcut">${escapeHtml(item.shortcut)}</span>` : ""}
   </button>`;

@@ -119,12 +119,13 @@ test("language-pack UI translations require the versioned schema before activati
 });
 
 
-test("Arabic, French, Japanese and Korean are registered as selectable workspace locales", () => {
+test("Arabic, French, Japanese, Korean and Russian are registered as selectable workspace locales", () => {
   const expected = [
     ["ar", "العربية", "rtl"],
     ["fr", "Français", "ltr"],
     ["ja", "日本語", "ltr"],
     ["ko", "한국어", "ltr"],
+    ["ru", "Русский", "ltr"],
   ] as const;
   for (const [locale, displayName, direction] of expected) {
     assert.ok(getAvailableWorkspaceLocales().includes(locale));
@@ -134,6 +135,38 @@ test("Arabic, French, Japanese and Korean are registered as selectable workspace
     assert.equal(state.locale, locale);
     assert.equal(state.direction, direction);
   }
+});
+
+
+test("baseline catalogs translate the command surface for Arabic, French, Japanese, Korean and Russian", async () => {
+  const { hasWorkspaceUiTranslations, translateWorkspaceUiText } = await import("./workspace-localization.js");
+  const { catalogSize } = await import("./workspace-locale-catalogs.js");
+  const { translateColumnLabel } = await import("./workspace-ui-translations.js");
+  const chrome = [
+    "File", "Edit", "View", "Project", "Enterprise", "Tools", "Window", "Help",
+    "Show Details", "Hide Details", "Workspace theme", "Language", "Panels", "Details",
+    "CUBI Classic — Version 26 Reference", "CUBI Modern 3D",
+    "OK", "Cancel", "Close", "Activity Details", "Project Details",
+  ];
+  const columns = ["Activity ID", "Activity Name", "Start", "Finish", "Duration", "Status"];
+  for (const locale of ["ar", "fr", "ja", "ko", "ru"]) {
+    assert.equal(hasWorkspaceUiTranslations(locale), true, `${locale} must advertise translations`);
+    assert.ok(catalogSize(locale) >= 150, `${locale} catalog covers fewer than 150 strings`);
+    for (const english of chrome) {
+      const translated = translateWorkspaceUiText(locale, english, "persian-fallback");
+      assert.notEqual(translated, "persian-fallback", `${locale} fell back to Persian for "${english}"`);
+      assert.ok(translated.trim().length > 0);
+      // "OK" is legitimately identical in French and English; every other key must change.
+      if (english !== "OK") {
+        assert.notEqual(translated, english, `${locale} is missing a translation for "${english}"`);
+      }
+    }
+    for (const label of columns) {
+      assert.notEqual(translateColumnLabel(locale, label), label, `${locale} column ${label} is untranslated`);
+    }
+  }
+  assert.equal(getWorkspaceLocaleDirection("ar"), "rtl");
+  assert.equal(getWorkspaceLocaleDirection("ru"), "ltr");
 });
 
 

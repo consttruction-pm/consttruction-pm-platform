@@ -2,6 +2,7 @@ import type { WorkspaceLocale } from "./workspace-model.js";
 import type { LanguagePackManifest } from "../../client-sync/src/language-pack-manifest.js";
 import type { LanguagePackResource } from "../../client-sync/src/language-pack-resource-validation.js";
 import { translateUiString, translateColumnLabel } from "./workspace-ui-translations.js";
+import { catalogSize, translateCatalogString } from "./workspace-locale-catalogs.js";
 
 export type WorkspaceTextDirection = "ltr" | "rtl";
 export type WorkspaceLocaleDefinition = {
@@ -20,6 +21,7 @@ const localeDefinitions = new Map<string, WorkspaceLocaleDefinition>([
   ["fr", { locale: "fr", displayName: "Français", direction: "ltr", translations: {} }],
   ["ja", { locale: "ja", displayName: "日本語", direction: "ltr", translations: {} }],
   ["ko", { locale: "ko", displayName: "한국어", direction: "ltr", translations: {} }],
+  ["ru", { locale: "ru", displayName: "Русский", direction: "ltr", translations: {} }],
 ]);
 
 /** Register translations from a verified, activated language pack. Keys are stable IDs, not English labels. */
@@ -110,18 +112,19 @@ export function getAvailableWorkspaceLocales(): readonly WorkspaceLocale[] {
 }
 
 /**
- * True only when selecting this locale actually changes UI text. Arabic,
- * French, Japanese and Korean are registered as selectable targets for signed
- * language packs, but no pack is installed by default, so their interface
- * remains English. The switcher labels that fallback instead of presenting an
- * untranslated locale as complete.
+ * True only when selecting this locale actually changes UI text. English and
+ * Persian are built in; German and Chinese use the shared dictionary; Arabic,
+ * French, Japanese, Korean and Russian ship baseline interface catalogs. A
+ * locale only becomes selectable once one of those sources exists, so the
+ * selector never presents an untranslated locale as complete.
  */
 export function hasWorkspaceUiTranslations(locale: WorkspaceLocale): boolean {
   const definition = localeDefinitions.get(locale);
   if (!definition) return false;
   if (Object.keys(definition.translations).length > 0) return true;
   const base = locale.split("-")[0].toLowerCase();
-  return base === "en" || base === "fa" || base === "de" || base === "zh";
+  if (base === "en" || base === "fa" || base === "de" || base === "zh") return true;
+  return catalogSize(locale) > 0;
 }
 
 export function translateWorkspaceText(locale: WorkspaceLocale, key: string, fallback: string): string {
@@ -130,8 +133,10 @@ export function translateWorkspaceText(locale: WorkspaceLocale, key: string, fal
 
 /**
  * Translate a UI sentence that already carries an English and Persian form.
- * German and Chinese use the shared dictionary; an untranslated sentence falls
- * back to its English source so no raw key ever reaches the screen.
+ * A verified language pack wins, then the built-in Persian text, then the
+ * shared German/Chinese dictionary and the baseline interface catalogs; an
+ * untranslated sentence falls back to its English source so no raw key ever
+ * reaches the screen.
  */
 export function translateWorkspaceUiText(locale: WorkspaceLocale, english: string, persian: string): string {
   const packed = translateWorkspaceText(locale, `ui.${english}`, "");
@@ -139,7 +144,7 @@ export function translateWorkspaceUiText(locale: WorkspaceLocale, english: strin
   const base = locale.split("-")[0].toLowerCase();
   if (base === "fa") return persian;
   if (base === "de" || base === "zh") return translateUiString(locale, english) ?? english;
-  return english;
+  return translateCatalogString(locale, english) ?? english;
 }
 
 /** Translate a persisted English presentation label for the active locale. */

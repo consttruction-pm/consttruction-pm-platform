@@ -88,6 +88,18 @@ import {
   readWorkspaceWindows,
   rememberWorkspaceWindows,
 } from "./workspace-windows.js";
+import {
+  readWorkspaceDetailsVisible,
+  rememberWorkspaceDetailsVisible,
+} from "./workspace-details-preference.js";
+import {
+  applyWorkspaceTheme,
+  isWorkspaceTheme,
+  readWorkspaceTheme,
+  rememberWorkspaceTheme,
+  workspaceThemeLabels,
+  type WorkspaceTheme,
+} from "./workspace-theme.js";
 import { liveWorkspaceProjectHref, workspaceLoginNextPath } from "./workspace-visual-demo-route.js";
 
 type LayoutHistoryNotice = "undone" | "redone" | "restored" | "empty" | "failed" | "conflict";
@@ -107,6 +119,10 @@ let currentWorkspaceState: WorkspaceState | null = null;
 let currentBootstrap: ProjectBootstrap | null = null;
 /** Open windows and deferred focus are browser-local shell state, not project data. */
 let openWindowKeys: WorkspaceMenuKey[] | null = null;
+/** Signed-in user for browser-local preferences that must not leak between profiles. */
+let activeWorkspaceUserId = "";
+/** Active presentation skin; token-only, never part of project state. */
+let activeWorkspaceTheme: WorkspaceTheme = readWorkspaceTheme();
 let pendingDesktopFocusSelector: string | null = null;
 let pendingDesktopAction: (() => void) | null = null;
 /** Progress edits re-render the workspace; keep the edited activity selected. */
@@ -670,7 +686,19 @@ function renderApp(
   p6Persistence?: ReturnType<typeof createP6LayoutPersistence>,
   preserveLayoutNotice = false,
 ): void {
+  // The bottom Details pane keeps its own per-user, per-window visibility
+  // preference. Applying it before the first paint keeps the layout from
+  // flashing a pane the user previously hid (and the reverse on restore).
+  if (activeWorkspaceUserId) {
+    const storedDetailsVisible = readWorkspaceDetailsVisible(state, activeWorkspaceUserId);
+    if (storedDetailsVisible !== null && storedDetailsVisible !== state.visiblePanels.details) {
+      state = { ...state, visiblePanels: { ...state.visiblePanels, details: storedDetailsVisible } };
+    }
+  }
   currentWorkspaceState = state;
+  // The skin is a token set on the document root; applying it before paint
+  // avoids a flash of the other theme and keeps both themes on one DOM.
+  applyWorkspaceTheme(activeWorkspaceTheme);
   // Apply saved layout presentation before the chrome and grid read it.
   hydratePresentationFromLayout(state);
   // The workspace language belongs to the document, not only to the panels:
@@ -711,6 +739,29 @@ function renderApp(
     renderAppPreservingDrafts(container, setLocale(state, nextLocale), persistence);
   };
 
+  const setDetailsVisible = (visible: boolean): void => {
+    if (activeWorkspaceUserId) rememberWorkspaceDetailsVisible(state, activeWorkspaceUserId, visible);
+    renderApp(
+      container,
+      { ...state, visiblePanels: { ...state.visiblePanels, details: visible } },
+      persistence,
+    );
+  };
+
+  // Switching skins only changes the central token set. It does not re-render
+  // the project, so the active window, selection, columns, filters, Gantt
+  // viewport and Details state stay exactly as they were.
+  const setTheme = (theme: WorkspaceTheme): void => {
+    activeWorkspaceTheme = theme;
+    rememberWorkspaceTheme(theme);
+    applyWorkspaceTheme(theme);
+    const select = status?.querySelector<HTMLSelectElement>("[data-workspace-theme]");
+    if (select) select.value = theme;
+    container.querySelectorAll<HTMLElement>("[data-desktop-item^='view.theme-']").forEach((item) => {
+      item.setAttribute("aria-checked", String(item.dataset.desktopItem === `view.theme-${theme}`));
+    });
+  };
+
   const nextCalendarMode = state.calendarMode === "jalali" ? "gregorian" : "jalali";
   const calendarButton = document.createElement("button");
   calendarButton.type = "button";
@@ -725,8 +776,45 @@ function renderApp(
     renderApp(container, setCalendarMode(state, nextCalendarMode), persistence);
   };
   calendarButton.onclick = toggleCalendar;
+  // The bottom bar owns the global Details switch. It shares the exact state
+  // and command as View > Show/Hide Details, so both entry points agree and
+  // the toggle survives navigation through the per-user window preference.
+  const detailsVisible = state.visiblePanels.details;
+  const detailsButton = document.createElement("button");
+  detailsButton.type = "button";
+  detailsButton.className = `cp-details-toggle${detailsVisible ? " is-active" : ""}`;
+  detailsButton.dataset.detailsToggle = "true";
+  detailsButton.dataset.detailsVisible = String(detailsVisible);
+  detailsButton.setAttribute("aria-pressed", String(detailsVisible));
+  const detailsLabel = translateWorkspaceUiText(
+    state.locale,
+    detailsVisible ? "Hide Details" : "Show Details",
+    detailsVisible ? "پنهان کردن جزئیات" : "نمایش جزئیات",
+  );
+  detailsButton.setAttribute("aria-label", detailsLabel);
+  detailsButton.setAttribute("title", detailsLabel);
+  detailsButton.innerHTML = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><rect x="1.5" y="1.5" width="13" height="13" rx="1" fill="none" stroke="currentColor"/><rect x="3" y="10.25" width="10" height="2.75" fill="currentColor"/></svg>';
+  detailsButton.onclick = () => setDetailsVisible(!detailsVisible);
+  const themeLabels = workspaceThemeLabels(state.locale);
+  const themeSelect = document.createElement("select");
+  themeSelect.className = "cp-workspace-theme";
+  themeSelect.dataset.workspaceTheme = "true";
+  const themeLabel = translateWorkspaceUiText(state.locale, "Workspace theme", "پوستهٔ محیط کار");
+  themeSelect.setAttribute("aria-label", themeLabel);
+  themeSelect.setAttribute("title", themeLabel);
+  for (const theme of ["classic", "modern"] as const) {
+    const option = document.createElement("option");
+    option.value = theme;
+    option.textContent = themeLabels[theme];
+    option.selected = activeWorkspaceTheme === theme;
+    themeSelect.append(option);
+  }
+  themeSelect.value = activeWorkspaceTheme;
+  themeSelect.onchange = () => {
+    if (isWorkspaceTheme(themeSelect.value)) setTheme(themeSelect.value);
+  };
   const languageSelect = createWorkspaceLanguageSelect(state.locale, changeLocale);
-  status.replaceChildren(document.createTextNode(shellLabels.status), languageSelect, calendarButton);
+  status.replaceChildren(document.createTextNode(shellLabels.status), languageSelect, calendarButton, detailsButton, themeSelect);
   const aiTransport = new FetchApiTransport(window.location.origin);
   const reportWbsMutationError = (error: unknown): void => {
     console.error("WBS mutation failed", error);
@@ -949,7 +1037,13 @@ function renderApp(
         renderApp(container, { ...state, visiblePanels: { ...state.visiblePanels, gantt: !state.visiblePanels.gantt } }, persistence);
         return;
       case "view.toggle-details":
-        renderApp(container, { ...state, visiblePanels: { ...state.visiblePanels, details: !state.visiblePanels.details } }, persistence);
+        setDetailsVisible(!state.visiblePanels.details);
+        return;
+      case "view.theme-classic":
+        setTheme("classic");
+        return;
+      case "view.theme-modern":
+        setTheme("modern");
         return;
       case "tools.run-schedule":
         pendingDesktopFocusSelector = "#cp-schedule-run input, #cp-schedule-run select, #cp-schedule-run button";
@@ -1136,6 +1230,8 @@ function renderApp(
       sortDirection: state.activitySort?.direction ?? "asc",
       sortLevels: state.activitySortLevels,
       presentation: visualPreferences.presentation,
+      detailsVisible: state.visiblePanels.details,
+      theme: activeWorkspaceTheme,
       dataAvailability: presentationDataAvailability(state.activities),
       dataDate: chromeProject.dataDate === "—" ? null : chromeProject.dataDate,
     },
@@ -1388,7 +1484,7 @@ function renderApp(
           if (!state.visiblePanels.details) {
             activateWindow("schedule");
             pendingDesktopFocusSelector = "#cp-details";
-            renderApp(container, { ...state, visiblePanels: { ...state.visiblePanels, details: true } }, persistence);
+            setDetailsVisible(true);
           } else {
             pendingDesktopFocusSelector = "#cp-details";
             activateWindow("schedule");
@@ -2045,6 +2141,7 @@ function renderBootstrapState(
     // The server confirmed this context, so it is safe to remember it and to
     // reopen the same project and menu after a refresh.
     currentBootstrap = bootstrap;
+    activeWorkspaceUserId = state.userId;
     rememberOpenedProject(state.userId, state.context.project_id);
     renderApp(container, applyRememberedMenu(state.workspace));
     return;
@@ -2466,9 +2563,11 @@ function getInitialLocale(): WorkspaceLocale {
             ? "ja"
             : language.startsWith("ko")
               ? "ko"
-              : language.startsWith("zh")
-                ? "zh"
-                : "en";
+              : language.startsWith("ru")
+                ? "ru"
+                : language.startsWith("zh")
+                  ? "zh"
+                  : "en";
   return available.includes(detected) ? detected : "en";
 }
 

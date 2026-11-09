@@ -2046,7 +2046,7 @@ export function renderMainWorkspace(container: HTMLElement, state: WorkspaceStat
         </nav>
         <div class="cp-p6-body">
           ${state.activeMenu === "schedule" ? renderLayoutOptionsDialog(state, t) : ""}
-          <main class="cp-main" data-details-split style="--cp-split-primary:${detailsSplit.toFixed(2)}%;--cp-split-details:${detailsSplit.toFixed(2)}%">
+          <main class="cp-main" data-details-split data-details-collapsed="${state.visiblePanels.details ? "false" : "true"}" style="--cp-split-primary:${detailsSplit.toFixed(2)}%;--cp-split-details:${detailsSplit.toFixed(2)}%">
             <div class="cp-p6-primary">
               <section class="cp-p6-split" data-panel-split data-split-key="${escapeAttribute(tableSplitKey)}" data-workspace-menu="schedule" style="--cp-split-table:${tableSplit.toFixed(2)}%">
                 <section id="cp-activity-grid" class="cp-panel cp-grid" ${!state.visiblePanels.activity_grid ? "hidden" : ""} data-workspace-menu="schedule">
