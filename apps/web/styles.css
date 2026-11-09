@@ -4800,6 +4800,12 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   background: var(--cp-ui-window);
   font-size: 11px;
 }
+/* The preview runtime appends a fixed banner at the viewport bottom. Reserve
+   its height so the lowest workspace bar (language, calendar, Details toggle
+   and theme) stays visible and clickable instead of sliding under the banner. */
+body:has(#cubi-preview-banner) .cp-p6 {
+  height: calc(100vh - 46px);
+}
 .cp-p6 > .cp-desktop-host {
   order: 1;
   flex: 0 0 auto;
@@ -4857,6 +4863,27 @@ body:has(.cp-vd) .cubi-assistant-launcher { display: none; }
   cursor: pointer;
 }
 .cp-p6 > .cp-app-status button:hover { border-color: var(--cubi-copper-orange, #f28c28); }
+.cp-p6 > .cp-app-status .cp-details-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 4px;
+}
+.cp-p6 > .cp-app-status .cp-details-toggle svg { display: block; }
+.cp-p6 > .cp-app-status .cp-details-toggle.is-active {
+  background: #dbe6f2;
+  border-color: #7fa3c8;
+  color: #103a63;
+}
+.cp-p6 > .cp-app-status .cp-details-toggle[aria-pressed="false"] {
+  background: #eef1f5;
+  color: #5f6b7a;
+}
+.cp-p6 > .cp-app-status .cp-details-toggle:focus-visible {
+  outline: 1px solid #1e5fa8;
+  outline-offset: 1px;
+}
 
 /* Existing assistant panels are docked over the workspace instead of taking
    flow height from the fixed P6 frame. */
@@ -5277,6 +5304,21 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+/* A hidden Details pane leaves the layout flow completely. The explicit
+   three-row template above would otherwise keep the splitter row and the
+   details row reserved, leaving an empty strip under the Gantt. The collapsed
+   state switches to a single row so the table and Gantt fill all available
+   height. The stored split percentage is never written here, so showing the
+   pane again restores the exact height the user chose. */
+.cp-p6 .cp-main[data-details-collapsed="true"] {
+  grid-template-rows: minmax(0, 1fr) !important;
+}
+.cp-p6 .cp-main[data-details-collapsed="true"] > .cp-details-splitter {
+  display: none !important;
+}
+.cp-p6 .cp-main[data-details-collapsed="true"] > #cp-details {
+  display: none !important;
 }
 .cp-p6 .cp-details-splitter {
   grid-column: 1;
@@ -7822,4 +7864,427 @@ body:has(.cp-app-shell.cp-p6) .cubi-assistant-launcher-button .cubi-assistant-av
 .cp-p6 .cp-gantt-row {
   height: calc(var(--cp-p6-row-height, 18px) + 1px);
   min-height: calc(var(--cp-p6-row-height, 18px) + 1px);
+}
+
+/* ====================================================================== */
+/* CUBI workspace presentation skins                                      */
+/* One DOM, one command registry, two centralized token sets. Classic     */
+/* mirrors the documented workstation appearance; Modern 3D applies a     */
+/* Windows 11 inspired Fluent surface treatment with the CUBI palette     */
+/* (Deep Navy, Engineering Blue, Copper Orange, Brushed Titanium). Every  */
+/* rule below is presentation only: no layout track, command, permission, */
+/* filter, calculation or persisted value changes with the skin.          */
+/* ====================================================================== */
+:root,
+html[data-cubi-theme="classic"] {
+  --skin-bg: #eef1f5;
+  --skin-surface: #ffffff;
+  --skin-sunken: #f7f9fb;
+  --skin-chrome: #e9edf3;
+  --skin-header: #e6ebf2;
+  --skin-text: #1f2d3d;
+  --skin-muted: #5b6b7c;
+  --skin-border: #c3ccd8;
+  --skin-divider: #dbe2ea;
+  --skin-accent: #1e5fa8;
+  --skin-accent-strong: #0e3f74;
+  --skin-selection: #dbe9f8;
+  --skin-hover: #eef5ff;
+  --skin-focus: #b97400;
+  --skin-titlebar: linear-gradient(180deg, #1c4f8f, #14365f);
+  --skin-grid-head: #e9edf3;
+  --skin-radius-card: 0px;
+  --skin-radius-control: 2px;
+  --skin-radius-menu: 6px;
+  --skin-shadow-card: none;
+  --skin-shadow-menu: 0 14px 34px rgba(8, 26, 47, .18);
+  --skin-shadow-raised: 0 1px 2px rgba(8, 26, 47, .08);
+  --skin-statusbar: #e9edf3;
+}
+
+html[data-cubi-theme="modern"] {
+  --skin-bg: #eef2f7;
+  --skin-surface: #ffffff;
+  --skin-sunken: #f4f7fb;
+  --skin-chrome: #f7f9fc;
+  --skin-header: #f2f6fb;
+  --skin-text: #172033;
+  --skin-muted: #5c677c;
+  --skin-border: rgba(15, 39, 71, .16);
+  --skin-divider: rgba(15, 39, 71, .10);
+  --skin-accent: #1976d2;
+  --skin-accent-strong: #0f4c92;
+  --skin-selection: #e3f0ff;
+  --skin-hover: #edf5ff;
+  --skin-focus: #1976d2;
+  --skin-titlebar: linear-gradient(180deg, #1b4473, #0f2747);
+  --skin-grid-head: linear-gradient(180deg, #f8fbfe, #edf3fa);
+  --skin-radius-card: 10px;
+  --skin-radius-control: 6px;
+  --skin-radius-menu: 9px;
+  --skin-shadow-card: 0 1px 2px rgba(15, 39, 71, .06), 0 10px 26px rgba(15, 39, 71, .08);
+  --skin-shadow-menu: 0 18px 42px rgba(15, 39, 71, .22), 0 2px 6px rgba(15, 39, 71, .12);
+  --skin-shadow-raised: 0 1px 2px rgba(15, 39, 71, .10), 0 4px 12px rgba(15, 39, 71, .08);
+  --skin-statusbar: rgba(248, 250, 253, .94);
+}
+
+/* The theme selector sits beside the calendar control in the lowest bar. */
+.cp-p6 > .cp-app-status .cp-workspace-theme {
+  flex: 0 0 auto;
+  min-height: 12px;
+  height: 12px;
+  max-width: 15.5rem;
+  padding: 0 3px;
+  border: 1px solid #b7c2d0;
+  border-radius: 2px;
+  background: #f7f9fc;
+  color: #1f2d3d;
+  font: inherit;
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cp-p6 > .cp-app-status .cp-workspace-theme:focus-visible {
+  outline: 1px solid var(--skin-focus);
+  outline-offset: 1px;
+}
+
+html[data-cubi-theme="modern"] { color-scheme: light; }
+html[data-cubi-theme="modern"] body {
+  /* CUBI Modern 3D typography: Inter for Latin, Vazirmatn for Persian/Arabic. */
+  font-family: "Inter", "Vazirmatn", "Segoe UI Variable Text", system-ui, sans-serif;
+  background:
+    radial-gradient(1100px 520px at 12% -12%, #e4effb 0%, transparent 58%),
+    radial-gradient(900px 460px at 105% 0%, #f3ecff 0%, transparent 52%),
+    var(--skin-bg);
+}
+html[data-cubi-theme="modern"][dir="rtl"] body {
+  font-family: "Vazirmatn", "Inter", "Segoe UI Variable Text", system-ui, sans-serif;
+}
+html[data-cubi-theme="modern"] .cp-p6 { background: transparent; }
+html[data-cubi-theme="modern"] #workspace { background: transparent; }
+
+/* Application chrome: layered acrylic-like bars and elevated surfaces. */
+html[data-cubi-theme="modern"] .cp-desktop-host { padding-top: 8px; }
+html[data-cubi-theme="modern"] .cp-desktop {
+  border: 1px solid var(--skin-border);
+  border-radius: 14px 14px 0 0;
+  background: var(--skin-surface);
+  box-shadow: var(--skin-shadow-card);
+}
+html[data-cubi-theme="modern"] .cp-titlebar {
+  border-bottom: 2px solid var(--cubi-copper-orange, #f28c28);
+  border-radius: 14px 14px 0 0;
+  background: var(--skin-titlebar);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+html[data-cubi-theme="modern"] .cp-titlebar-mark {
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+html[data-cubi-theme="modern"] .cp-menubar {
+  border-bottom: 1px solid var(--skin-divider);
+  border-radius: 0;
+  background: var(--skin-chrome);
+}
+html[data-cubi-theme="modern"] .cp-menubar-trigger {
+  border-radius: var(--skin-radius-control);
+  color: var(--skin-text);
+  font-weight: 600;
+  transition: background .14s ease, box-shadow .14s ease, color .14s ease;
+}
+html[data-cubi-theme="modern"] .cp-menubar-trigger:hover,
+html[data-cubi-theme="modern"] .cp-menubar-trigger[aria-expanded="true"] {
+  border-color: var(--skin-border);
+  background: var(--skin-surface);
+  box-shadow: var(--skin-shadow-raised);
+  color: var(--skin-accent-strong);
+}
+html[data-cubi-theme="modern"] .cp-menubar-popup {
+  border: 1px solid var(--skin-border);
+  border-radius: var(--skin-radius-menu);
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(22px) saturate(1.25);
+  box-shadow: var(--skin-shadow-menu);
+}
+html[data-cubi-theme="modern"] .cp-menubar-item {
+  border-radius: 6px;
+  color: var(--skin-text);
+  transition: background .12s ease, color .12s ease;
+}
+html[data-cubi-theme="modern"] .cp-menubar-item:hover:not(:disabled) { background: var(--skin-hover); }
+html[data-cubi-theme="modern"] .cp-menubar-item[aria-checked="true"] .cp-menubar-item-label::before {
+  color: var(--skin-accent);
+}
+html[data-cubi-theme="modern"] .cp-toolbar {
+  border-bottom: 1px solid var(--skin-divider);
+  background: var(--skin-chrome);
+}
+html[data-cubi-theme="modern"] .cp-toolbar-button {
+  border-color: transparent;
+  border-radius: var(--skin-radius-control);
+  background: transparent;
+  color: var(--skin-text);
+  transition: background .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+html[data-cubi-theme="modern"] .cp-toolbar-button:hover:not(:disabled) {
+  border-color: var(--skin-border);
+  background: var(--skin-surface);
+  box-shadow: var(--skin-shadow-raised);
+}
+html[data-cubi-theme="modern"] .cp-toolbar-button[aria-pressed="true"] {
+  border-color: rgba(25, 118, 210, .38);
+  background: var(--skin-selection);
+  color: var(--skin-accent-strong);
+}
+html[data-cubi-theme="modern"] .cp-window-tabs {
+  background: var(--skin-chrome);
+}
+html[data-cubi-theme="modern"] .cp-window-tab { border-radius: 8px 8px 0 0; }
+html[data-cubi-theme="modern"] .cp-window-tab.is-active {
+  border-color: var(--skin-border);
+  background: var(--skin-surface);
+  box-shadow: inset 0 2px 0 var(--skin-accent), 0 -1px 0 rgba(255, 255, 255, .6);
+}
+html[data-cubi-theme="modern"] .cp-statusbar {
+  border-color: var(--skin-border);
+  border-radius: 0 0 12px 12px;
+  background: var(--skin-chrome);
+  color: var(--skin-text);
+}
+html[data-cubi-theme="modern"] .cp-statusbar-cell { border-inline-end-color: var(--skin-divider); }
+
+/* Navigation rail and work area. */
+html[data-cubi-theme="modern"] .cp-p6 .cp-menu.cp-p6-rail.cp-navigation-tree {
+  background: linear-gradient(180deg, #f5f8fc, #eaf0f8);
+  border-inline-end: 1px solid var(--skin-divider);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-navigation-tree .cp-rail-button {
+  border-radius: 7px;
+  color: var(--skin-muted);
+  transition: background .14s ease, color .14s ease, box-shadow .14s ease;
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-navigation-tree .cp-rail-button:hover {
+  background: var(--skin-surface);
+  color: var(--skin-accent-strong);
+  box-shadow: var(--skin-shadow-raised);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-navigation-tree .cp-rail-button[aria-current="page"] {
+  background: var(--skin-selection);
+  color: var(--skin-accent-strong);
+  box-shadow: inset 0 0 0 1px rgba(25, 118, 210, .22), var(--skin-shadow-raised);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-workspace { background: transparent; }
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-body { background: transparent; }
+html[data-cubi-theme="modern"] .cp-p6 .cp-main {
+  margin: 6px;
+  border: 1px solid var(--skin-border);
+  border-radius: var(--skin-radius-card);
+  background: var(--skin-surface);
+  box-shadow: var(--skin-shadow-card);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-primary { border-radius: var(--skin-radius-card); }
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-grid-head,
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-gantt-head {
+  border-bottom: 1px solid var(--skin-divider);
+  background: var(--skin-grid-head);
+  color: var(--skin-text);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-grid-actions button,
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-gantt-head button {
+  border-radius: 4px;
+  color: var(--skin-muted);
+  transition: background .12s ease, color .12s ease;
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-grid-actions button:hover,
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-gantt-head button:hover {
+  border-color: var(--skin-border);
+  background: var(--skin-surface);
+  color: var(--skin-accent-strong);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-activity-toolbar {
+  border-bottom: 1px solid var(--skin-divider);
+  background: var(--skin-chrome);
+  color: var(--skin-muted);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-chip {
+  border-color: var(--skin-border);
+  border-radius: 999px;
+  background: var(--skin-surface);
+  color: var(--skin-text);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-chip:hover {
+  border-color: rgba(25, 118, 210, .45);
+  background: var(--skin-hover);
+}
+
+/* Activity table, WBS bands and Gantt. */
+html[data-cubi-theme="modern"] .cp-p6 .cp-table-wrap { background: var(--skin-surface); }
+html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid thead th {
+  border-bottom: 1px solid var(--skin-border);
+  border-inline-end: 1px solid var(--skin-divider);
+  background: var(--skin-grid-head);
+  color: #24354f;
+  font-weight: 700;
+}
+html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody td {
+  border-bottom: 1px solid rgba(15, 39, 71, .08);
+  color: var(--skin-text);
+}
+html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--cp-p6-bg-color, #ffffff) 97%, #1976d2 3%);
+}
+html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr:hover td {
+  background: color-mix(in srgb, var(--cp-p6-bg-color, #ffffff) 90%, #1976d2 10%);
+}
+html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr.is-selected td {
+  background: color-mix(in srgb, var(--cp-p6-bg-color, #ffffff) 80%, #1976d2 20%);
+  color: #10243f;
+}
+html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr:focus-visible {
+  outline: 2px solid var(--skin-focus);
+  outline-offset: -2px;
+}
+html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr.is-filter-match td { background: #fff4c9; }
+html[data-cubi-theme="modern"] .cp-p6 #cp-activity-grid tbody tr.is-filter-match.is-selected td { background: #ffe58f; }
+html[data-cubi-theme="modern"] .cp-p6 .cp-gantt-row.is-selected { background: rgba(25, 118, 210, .14); }
+html[data-cubi-theme="modern"] .cp-p6 .cp-network-node-surface {
+  fill: var(--skin-surface);
+  stroke: #8fb4da;
+  filter: drop-shadow(0 2px 4px rgba(15, 39, 71, .14));
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-network-node.is-selected .cp-network-node-surface {
+  stroke: var(--skin-accent);
+  fill: var(--skin-selection);
+}
+
+/* Splitters read as slim rounded handles with a blue hover. */
+html[data-cubi-theme="modern"] .cp-p6 .cp-details-splitter {
+  background: transparent;
+  border-block: 1px solid var(--skin-divider);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-details-splitter span {
+  width: 30px;
+  height: 2px;
+  border-radius: 999px;
+  background: #a9b7c8;
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-details-splitter:hover,
+html[data-cubi-theme="modern"] .cp-p6 .cp-details-splitter:focus-visible {
+  background: var(--skin-hover);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-p6-splitter span { background: #a9b7c8; }
+
+/* Bottom Details pane and its tabs. */
+html[data-cubi-theme="modern"] .cp-p6 #cp-details {
+  border-top: 1px solid var(--skin-border);
+  background: linear-gradient(180deg, #fbfdff, var(--skin-surface) 22%);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-details-head,
+html[data-cubi-theme="modern"] .cp-p6 .cp-activity-details-heading,
+html[data-cubi-theme="modern"] .cp-p6 .cp-activity-detail-tabs,
+html[data-cubi-theme="modern"] .cp-p6 .cp-details-tabs {
+  border-bottom: 1px solid var(--skin-divider);
+  background: var(--skin-chrome);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-activity-detail-tabs button,
+html[data-cubi-theme="modern"] .cp-p6 .cp-details-tabs button {
+  border-radius: 6px 6px 0 0;
+  color: var(--skin-muted);
+  transition: background .12s ease, color .12s ease;
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-activity-detail-tabs button:hover,
+html[data-cubi-theme="modern"] .cp-p6 .cp-details-tabs button:hover {
+  background: var(--skin-hover);
+  color: var(--skin-accent-strong);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-activity-detail-tabs button.is-active,
+html[data-cubi-theme="modern"] .cp-p6 .cp-details-tabs button.is-active {
+  background: var(--skin-surface);
+  color: var(--skin-accent-strong);
+  box-shadow: inset 0 2px 0 var(--skin-accent);
+}
+html[data-cubi-theme="modern"] .cp-p6 .cp-details-id {
+  border-color: var(--skin-border);
+  border-radius: 5px;
+  background: var(--skin-selection);
+  color: var(--skin-accent-strong);
+}
+
+/* Dialogs and option surfaces. */
+html[data-cubi-theme="modern"] .cp-desktop-dialog,
+html[data-cubi-theme="modern"] dialog.cp-option-dialog,
+html[data-cubi-theme="modern"] dialog[data-p6-columns-dialog],
+html[data-cubi-theme="modern"] dialog[data-details-customize-dialog],
+html[data-cubi-theme="modern"] dialog[data-layout-options-dialog] {
+  border: 1px solid var(--skin-border);
+  border-radius: 12px;
+  background: var(--skin-surface);
+  box-shadow: 0 26px 60px rgba(15, 39, 71, .28), 0 4px 12px rgba(15, 39, 71, .14);
+}
+html[data-cubi-theme="modern"] .cp-desktop-dialog::backdrop {
+  background: rgba(15, 39, 71, .42);
+  backdrop-filter: blur(3px);
+}
+html[data-cubi-theme="modern"] .cp-desktop-dialog th,
+html[data-cubi-theme="modern"] .cp-desktop-dialog td {
+  border-bottom-color: var(--skin-divider);
+}
+html[data-cubi-theme="modern"] .cp-dialog-group {
+  border-color: var(--skin-border);
+  border-radius: 8px;
+  background: var(--skin-sunken);
+}
+html[data-cubi-theme="modern"] .cp-desktop-dialog input,
+html[data-cubi-theme="modern"] .cp-desktop-dialog select,
+html[data-cubi-theme="modern"] .cp-desktop-dialog textarea,
+html[data-cubi-theme="modern"] .cp-option-dialog input,
+html[data-cubi-theme="modern"] .cp-option-dialog select {
+  border-color: var(--skin-border);
+  border-radius: 5px;
+  background: var(--skin-surface);
+  color: var(--skin-text);
+}
+html[data-cubi-theme="modern"] .cp-desktop-dialog button,
+html[data-cubi-theme="modern"] .cp-option-dialog button {
+  border-radius: 6px;
+}
+
+/* Bottom application bar and its global switches. */
+html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status {
+  border-top: 1px solid var(--skin-border);
+  background: var(--skin-statusbar);
+  backdrop-filter: blur(18px) saturate(1.3);
+  color: var(--skin-text);
+}
+html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status button,
+html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status .cp-workspace-theme {
+  border-color: var(--skin-border);
+  border-radius: 5px;
+  background: var(--skin-surface);
+  color: var(--skin-text);
+}
+html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status button:hover {
+  border-color: rgba(25, 118, 210, .5);
+  background: var(--skin-hover);
+}
+html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status .cp-details-toggle.is-active {
+  border-color: rgba(25, 118, 210, .45);
+  background: var(--skin-selection);
+  color: var(--skin-accent-strong);
+}
+html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status .cp-details-toggle[aria-pressed="false"] {
+  background: #f1f4f9;
+  color: var(--skin-muted);
+}
+html[data-cubi-theme="modern"] .cp-p6 > .cp-app-status .cp-workspace-language {
+  border-color: var(--skin-border);
+  border-radius: 5px;
+  background: var(--skin-surface);
+  color: var(--skin-text);
+}
+
+/* Shared focus ring for both skins; the modern skin narrows it to the accent. */
+html[data-cubi-theme="modern"] :focus-visible {
+  outline-color: var(--skin-focus);
 }

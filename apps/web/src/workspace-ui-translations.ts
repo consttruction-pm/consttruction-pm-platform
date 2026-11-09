@@ -3,8 +3,11 @@
  * details and module pages. English is the source key: a missing entry falls
  * back to the English text instead of showing a raw key. Persian keeps its
  * dedicated `fa` field on every label, so this table only covers the two added
- * locales.
+ * locales. Arabic, French, Japanese, Korean and Russian column labels live in
+ * `workspace-locale-catalogs.ts` and are consulted by `translateColumnLabel`.
  */
+import { translateCatalogString } from "./workspace-locale-catalogs.js";
+
 export type UiTranslation = readonly [german: string, chinese: string];
 
 export const UI_TRANSLATIONS: Readonly<Record<string, UiTranslation>> = {
@@ -634,9 +637,10 @@ export const COLUMN_LABEL_TRANSLATIONS: Readonly<Record<string, { fa: string; de
 export function translateColumnLabel(locale: string, label: string): string {
   const base = locale.split("-")[0].toLowerCase();
   const entry = COLUMN_LABEL_TRANSLATIONS[label];
-  if (!entry) return label;
-  if (base === "fa") return entry.fa;
-  if (base === "de") return entry.de;
-  if (base === "zh") return entry.zh;
-  return label;
+  if (entry) {
+    if (base === "fa") return entry.fa;
+    if (base === "de") return entry.de;
+    if (base === "zh") return entry.zh;
+  }
+  return translateCatalogString(locale, label) ?? label;
 }
