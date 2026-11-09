@@ -380,7 +380,7 @@ function activityTabBody(tab: ActivityDetailsTabId, input: ActivityDetailsInput)
           ${field(locale, t(locale, "Original or Planned", "اصلی یا برنامه‌ای"), item("planned_duration", "original_duration"))}
           ${field(locale, t(locale, "Actual", "واقعی"), item("actual_duration"))}
           ${field(locale, t(locale, "Remaining", "باقی‌مانده"), item("remaining_duration"))}
-          ${field(locale, t(locale, "At Complete", "در پایان"), item("at_complete_duration", "duration", "scheduled_duration"))}
+          ${field(locale, t(locale, "At Complete", "در پایان"), item("at_complete_duration", "at_completion_duration"))}
           ${field(locale, t(locale, "Total Float", "شناوری کل"), item("total_float"))}
           ${field(locale, t(locale, "Free Float", "شناوری آزاد"), item("free_float"))}
         </div>`)}

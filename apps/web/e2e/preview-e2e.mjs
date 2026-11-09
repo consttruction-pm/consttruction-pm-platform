@@ -2274,6 +2274,12 @@ async function main() {
       avatars: workspaceAvatarState,
     });
 
+    // Presentation, layout history and assistant proposals can each finish in a
+    // background render after the first row paint. Let those settle before
+    // stamping the routed chat node; otherwise the stamp can be lost to a render
+    // that was already in flight, which is not what this assertion is about.
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
     // Inside the workspace the floating entry must route to the real assistant
     // panel, stay a single instance and never spawn a second independent panel.
     const workspaceLauncherRouting = await page.evaluate(`(() => {
@@ -4579,7 +4585,16 @@ async function main() {
         field.querySelector(".cp-detail-label")?.textContent.trim(),
         field.querySelector(".cp-detail-value")?.textContent.trim(),
       ]));
-      return { id: row?.dataset.activityId ?? null, cells, fields, detailsId: document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() ?? null };
+      // Version 26 carries the activity ID and name in the details identity
+      // header, not inside the General tab body.
+      const identity = Object.fromEntries(Array.from(document.querySelectorAll("#cp-details .cp-detail-identity-field")).map((field) => [
+        field.querySelector(".cp-detail-label")?.textContent.trim(),
+        field.querySelector(".cp-detail-value")?.textContent.trim(),
+      ]));
+      let band = row?.previousElementSibling ?? null;
+      while (band && !band.matches("[data-wbs-row]")) band = band.previousElementSibling;
+      const bandLabel = band ? band.getAttribute("aria-label") ?? "" : "";
+      return { id: row?.dataset.activityId ?? null, cells, fields, identity, bandLabel, detailsId: document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() ?? null };
     })()`);
     await page.click(`#cp-activity-grid tbody tr[data-activity-id="${activityIds[0]}"]`);
     await page.waitFor(
@@ -4588,12 +4603,13 @@ async function main() {
     );
     await page.click('[data-detail-tab="general"]');
     const firstDetails = await readDetails();
-    // Status is intentionally not one of the eight visible reference columns,
-    // so the details panel is checked against the authoritative Activity
-    // Master record rather than a grid cell that no longer renders.
-    const firstActivityApi = await page.evaluate(
+    // Version 26 keeps status out of the General tab and in the Status tab,
+    // and carries the activity identity in the details header. Each assertion
+    // below therefore reads the authoritative Activity Master record or the
+    // WBS band that produced the selected row.
+    const readActivityApi = async (id) => page.evaluate(
       `(async () => {
-        const response = await fetch("/api/projects/${PROJECT_ID}/p6/activities/" + encodeURIComponent(${JSON.stringify(activityIds[0])}), {
+        const response = await fetch("/api/projects/${PROJECT_ID}/p6/activities/" + encodeURIComponent(${JSON.stringify(id)}), {
           headers: {
             "X-Tenant-Id": ${JSON.stringify(TENANT_ID)},
             "X-Project-Id": ${JSON.stringify(PROJECT_ID)},
@@ -4605,17 +4621,18 @@ async function main() {
       })()`,
       { awaitPromise: true },
     );
-    const wbsName = (firstDetails.cells["activity.wbs"] ?? "").replace(/^\S+\s+/, "");
+    const firstActivityApi = await readActivityApi(activityIds[0]);
+    const bandName = firstDetails.bandLabel.replace(/^\S+\s+/, "").trim();
     assert(
       firstDetails.id === activityIds[0] &&
         firstDetails.detailsId === activityIds[0] &&
-        firstDetails.fields["Activity ID"] === firstDetails.cells["activity.id"] &&
-        firstDetails.fields["Activity name"] === firstDetails.cells["activity.name"] &&
+        firstDetails.identity.Activity === firstDetails.cells["activity.id"] &&
+        firstDetails.identity["Activity Name"] === firstDetails.cells["activity.name"] &&
         firstActivityApi.status === 200 &&
-        firstDetails.fields["Status"] === firstActivityApi.activity?.status &&
-        firstDetails.fields["Project"] === PROJECT_ID &&
-        (wbsName.length === 0 || (firstDetails.fields.WBS ?? "").includes(wbsName)),
-      "general details must show the selected row's persisted facts: " + JSON.stringify({ firstDetails, firstActivityApi }),
+        firstDetails.fields["Activity Type"] === firstActivityApi.activity?.activity_type &&
+        firstDetails.fields.WBS !== "Not available" &&
+        (bandName.length === 0 || (firstDetails.fields.WBS ?? "").includes(bandName)),
+      "general details must show the selected activity's persisted facts: " + JSON.stringify({ firstDetails, firstActivityApi }),
     );
     await page.click(`#cp-activity-grid tbody tr[data-activity-id="${activityIds[1]}"]`);
     await page.waitFor(
@@ -4625,27 +4642,30 @@ async function main() {
     const secondDetails = await readDetails();
     assert(
       secondDetails.id === activityIds[1] &&
-        secondDetails.fields["Activity ID"] === secondDetails.cells["activity.id"] &&
-        secondDetails.fields["Activity name"] === secondDetails.cells["activity.name"] &&
-        secondDetails.fields["Activity name"] !== firstDetails.fields["Activity name"],
+        secondDetails.detailsId === activityIds[1] &&
+        secondDetails.identity.Activity === secondDetails.cells["activity.id"] &&
+        secondDetails.identity["Activity Name"] === secondDetails.cells["activity.name"] &&
+        secondDetails.identity["Activity Name"] !== firstDetails.identity["Activity Name"],
       "activity details must not leak the previous activity: " + JSON.stringify({ first: firstDetails, second: secondDetails }),
     );
+    const secondActivityApi = await readActivityApi(activityIds[1]);
     await page.click('[data-detail-tab="status"]');
     const statusDetails = await readDetails();
     assert(
-      statusDetails.fields["Schedule % complete"] === secondDetails.cells["activity.duration_percent_complete"] &&
-        statusDetails.fields.Start === secondDetails.cells["activity.early_start"] &&
-        statusDetails.fields.Finish === secondDetails.cells["activity.early_finish"],
-      "status details must reflect the same authoritative cells as the grid: " + JSON.stringify(statusDetails),
+      secondActivityApi.status === 200 &&
+        statusDetails.fields["Percent Complete"] === secondDetails.cells["activity.duration_percent_complete"] &&
+        statusDetails.fields["Actual Start"] === (secondActivityApi.activity?.actual_start ?? "Not available") &&
+        statusDetails.fields["Actual Finish"] === (secondActivityApi.activity?.actual_finish ?? "Not available"),
+      "status details must reflect the same authoritative cells as the grid: " + JSON.stringify({ statusDetails, secondActivityApi }),
     );
     await page.screenshot("09d-activity-details.png");
     record("activity details bind real selected facts without leaking between rows", {
       first: firstDetails.id,
       second: secondDetails.id,
       status_fields: {
-        schedule_percent: statusDetails.fields["Schedule % complete"],
-        start: statusDetails.fields.Start,
-        finish: statusDetails.fields.Finish,
+        percent_complete: statusDetails.fields["Percent Complete"],
+        actual_start: statusDetails.fields["Actual Start"],
+        actual_finish: statusDetails.fields["Actual Finish"],
       },
     });
     await page.click('[data-detail-tab="general"]');

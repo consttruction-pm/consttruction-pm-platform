@@ -559,6 +559,20 @@ async function main() {
       await openDialog(page, "dialog.filters");
       await setCheckbox(page, '[data-desktop-dialog="filters"] input[name="filterAllActivities"]', true);
       await submitDialog(page, "filters");
+      // Screenshots of the details tabs must show a real activity, not a WBS
+      // band row whose identity and fields are correctly "Not available".
+      const focus = await page.evaluate(`(() => {
+        const row = document.querySelector("#cp-activity-grid tbody tr[data-activity-id]");
+        if (!row) return null;
+        row.click();
+        return row.dataset.activityId;
+      })()`);
+      assert(focus, "no activity row is available for the details tab sweep");
+      await page.waitFor(
+        `document.querySelector("#cp-details .cp-detail-selected")?.textContent.trim() === ${JSON.stringify(focus)}`,
+        "details identity follows the row selected for the tab sweep",
+      );
+      await sleep(300);
       const tabs = await page.evaluate(`(() => [...document.querySelectorAll("[data-detail-tab]")].map((tab) => tab.dataset.detailTab))()`);
       const official = tabs.filter((id) => id !== "calendar");
       assert(official.length === 17, `expected the 17 official Activity Details tabs, saw ${official.length} of ${tabs.length}`);

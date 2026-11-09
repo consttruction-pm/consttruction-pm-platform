@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { createWorkspaceState, type WorkspaceActivityRow } from "./workspace-model.js";
 import {
+  ACTIVITY_DETAILS_STORAGE_KEY,
   ACTIVITY_DETAILS_TABS,
   ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY,
   readActivityDetailsVisibleTabs,
@@ -97,6 +98,36 @@ test("stored tab display sets migrate earlier documents ids and reject unknown i
   assert.deepEqual(readActivityDetailsVisibleTabs(storage), ["general", "wps-docs"]);
   store.set(ACTIVITY_DETAILS_VISIBLE_TABS_STORAGE_KEY, "{not json");
   assert.equal(readActivityDetailsVisibleTabs(storage).length, ACTIVITY_DETAILS_TABS.length);
+});
+
+test("status At Complete is never replaced by the scheduled-duration grid fact", () => {
+  // The active-tab reader falls back to general without storage; provide the
+  // same storage contract a browser has so the Status tab renders.
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { localStorage: { getItem: (key: string) => (key === ACTIVITY_DETAILS_STORAGE_KEY ? "status" : null) } },
+  });
+  try {
+    const renderWith = (cells: Record<string, string | number>): string => renderActivityDetailsPanel({
+      locale: "en",
+      activities: [{ id: "act-1", wbsId: "wbs-1", code: "A100", name: "Kickoff", cells }],
+      selectedActivityId: "act-1",
+      relationships: [],
+      projectName: "Shared Core",
+      dataDate: "2026-10-07",
+      calendarMode: "gregorian",
+    });
+    assert.match(
+      renderWith({ at_complete_duration: 4, duration: 0 }),
+      /At Complete<\/span><span class="cp-detail-value"[^>]*>4</,
+    );
+    assert.match(
+      renderWith({ duration: 0, planned_duration: 1, remaining_duration: 0 }),
+      /At Complete<\/span><span class="cp-detail-value is-empty"[^>]*>Not available</,
+    );
+  } finally {
+    Reflect.deleteProperty(globalThis, "window");
+  }
 });
 
 test("WPS & Docs reads real linked project documents", () => {
