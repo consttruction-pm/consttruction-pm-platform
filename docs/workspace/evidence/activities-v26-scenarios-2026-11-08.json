@@ -1,14 +1,14 @@
 {
   "contract": "cubi-activities-v26-scenarios.v1",
   "baseUrl": "http://127.0.0.1:4174",
-  "gitHead": "a00cd5713f84b3ce499360980d62d50411a2670d",
-  "capturedAt": "2026-11-09T02:34:31.357Z",
+  "gitHead": "35a23ae302edae584cb8602825cac6afc21a5c2b",
+  "capturedAt": "2026-11-09T03:12:55.943Z",
   "scenarios": [
     {
       "id": "01",
       "name": "بازکردن پنجره Activities",
       "status": "pass",
-      "at": "2026-11-09T02:34:37.291Z",
+      "at": "2026-11-09T03:13:02.428Z",
       "rowIds": [
         "A100",
         "A110",
@@ -52,7 +52,7 @@
       "id": "02",
       "name": "انتخاب فعالیت و بررسی هماهنگی جدول، Gantt و Details",
       "status": "pass",
-      "at": "2026-11-09T02:34:38.410Z",
+      "at": "2026-11-09T03:13:03.681Z",
       "selectedRow": "A130",
       "selectedGantt": "A130",
       "detailsText": "A130"
@@ -61,7 +61,7 @@
       "id": "03",
       "name": "باز و بسته کردن Activity Details",
       "status": "pass",
-      "at": "2026-11-09T02:34:41.505Z",
+      "at": "2026-11-09T03:13:06.839Z",
       "before": true,
       "closed": false,
       "reopened": true
@@ -70,7 +70,7 @@
       "id": "04",
       "name": "تغییر ارتفاع و عرض نواحی",
       "status": "pass",
-      "at": "2026-11-09T02:34:43.079Z",
+      "at": "2026-11-09T03:13:08.542Z",
       "before": {
         "table": "50.00%",
         "details": "70.00%"
@@ -94,7 +94,7 @@
       "id": "05",
       "name": "Refresh و بررسی پایداری Layout",
       "status": "pass",
-      "at": "2026-11-09T02:34:45.701Z",
+      "at": "2026-11-09T03:13:11.466Z",
       "table": "60.18%",
       "details": "75.30%",
       "selected": null
@@ -103,27 +103,27 @@
       "id": "06",
       "name": "تغییر عرض ستون‌ها و جابه‌جایی ستون‌ها",
       "status": "pass",
-      "at": "2026-11-09T02:34:51.692Z",
+      "at": "2026-11-09T03:13:17.738Z",
       "moved": {
-        "id": "activity.name",
-        "title": "Activity Name (Name)\n      Activity\n      ◌"
+        "id": "activity.id",
+        "title": "Activity ID (Id)\n      Activity\n      ◌"
       },
       "before": [
-        "Activity ID",
         "Activity Name",
+        "Activity ID",
         "Original Duration",
         "Remaining Duration"
       ],
       "after": [
-        "Activity Name",
         "Activity ID",
+        "Activity Name",
         "Original Duration",
         "Remaining Duration"
       ],
       "width": 210,
       "persisted": [
-        "Activity Name",
         "Activity ID",
+        "Activity Name",
         "Original Duration",
         "Remaining Duration"
       ]
@@ -132,7 +132,7 @@
       "id": "07",
       "name": "اعمال فیلتر و ترکیب چند فیلتر",
       "status": "pass",
-      "at": "2026-11-09T02:34:56.532Z",
+      "at": "2026-11-09T03:13:22.963Z",
       "inProgress": [
         "A130"
       ],
@@ -161,7 +161,7 @@
       "id": "08",
       "name": "ایجاد و ویرایش فیلتر",
       "status": "pass",
-      "at": "2026-11-09T02:35:00.954Z",
+      "at": "2026-11-09T03:13:27.492Z",
       "created": [
         "A130",
         "A140",
@@ -179,7 +179,7 @@
       "id": "09",
       "name": "Group و Sort",
       "status": "pass",
-      "at": "2026-11-09T02:35:05.116Z",
+      "at": "2026-11-09T03:13:31.726Z",
       "group": "wbs",
       "statusField": "activity.name",
       "bands": 2,
@@ -189,7 +189,7 @@
       "id": "10",
       "name": "بازکردن تمام ۱۷ تب Activity Details",
       "status": "pass",
-      "at": "2026-11-09T02:35:12.533Z",
+      "at": "2026-11-09T03:13:39.501Z",
       "tabs": [
         "general",
         "status",
@@ -214,11 +214,11 @@
       "rendered": [
         {
           "id": "general",
-          "text": "Activity TypeNot available Duration TypeNot available % Complete TypeNot available Activity CalendarNot available WBSNot available Responsible ManagerNot available Primary Resource"
+          "text": "Activity TypeTask Dependent Duration TypeNot available % Complete TypeNot available Activity CalendarNot available WBS1 — Project management Responsible ManagerNot available Primar"
         },
         {
           "id": "status",
-          "text": "Duration Original or PlannedNot available ActualNot available RemainingNot available At CompleteNot available Total FloatNot available Free FloatNot available Status StartedNot ava"
+          "text": "Duration Original or Planned1 ActualNot available Remaining0 At CompleteNot available Total Float12 Free Float1 Status StartedYes Actual Start2026-09-21 FinishedYes Actual Finish20"
         },
         {
           "id": "resources",
@@ -230,11 +230,11 @@
         },
         {
           "id": "successors",
-          "text": "Project ID WBS Activity ID Activity Name Relationship Type Lag Activity Status Primary Resource Action No relationships are loaded for this activity. AssignRemove"
+          "text": "Project ID WBS Activity ID Activity Name Relationship Type Lag Activity Status Primary Resource Action preview-rps-01 1 A110 Mobilization FS 0 d Completed — Go To AssignRemove"
         },
         {
           "id": "codes",
-          "text": "Activity IDNot available WBS codeNot available Project codepreview-rps-01 Activity CodeCode ValueDescriptionNo activity code assignments are returned by the project read model. Ass"
+          "text": "Activity IDA100 WBS code1 — Project management Project codepreview-rps-01 Activity CodeCode ValueDescriptionNo activity code assignments are returned by the project read model. Ass"
         },
         {
           "id": "tasks",
@@ -266,7 +266,7 @@
         },
         {
           "id": "summary",
-          "text": "Display Units Display Cost Display Dates ValueBudgeted or PlannedActualRemaining% CompleteAt CompletionComplete VarianceLabor——————Nonlabor——————Material——————Duration—————— ValueB"
+          "text": "Display Units Display Cost Display Dates ValueBudgeted or PlannedActualRemaining% CompleteAt CompletionComplete VarianceLabor——————Nonlabor——————Material——————Duration———100—— Valu"
         },
         {
           "id": "relationships",
@@ -290,7 +290,7 @@
       "id": "11",
       "name": "راست‌کلیک در تمام نواحی",
       "status": "pass",
-      "at": "2026-11-09T02:35:20.189Z",
+      "at": "2026-11-09T03:13:47.096Z",
       "areas": [
         {
           "label": "activity row",
@@ -461,7 +461,7 @@
       "id": "12",
       "name": "آزمون میانبرهای تأییدشده",
       "status": "pass",
-      "at": "2026-11-09T02:35:24.904Z",
+      "at": "2026-11-09T03:13:54.505Z",
       "focusInside": true,
       "shortcutsOpen": true,
       "shortcutRows": [
@@ -498,7 +498,7 @@
       "id": "13",
       "name": "نمایش و مخفی‌سازی Data Date Line و Progress Line",
       "status": "pass",
-      "at": "2026-11-09T02:35:28.562Z",
+      "at": "2026-11-09T03:13:59.303Z",
       "dataDate": {
         "disabled": true,
         "note": "This project's read model exposes no Data Date, so the line is not drawn. The saved line settings will apply as soon as an authoritative date exists. A thickness above 1 is painted as a solid line; dashed and dotted lines stay 1 pixel wide.",
@@ -519,7 +519,7 @@
       "id": "14",
       "name": "بررسی هر چهار نوع رابطه FS/SS/FF/SF",
       "status": "pass",
-      "at": "2026-11-09T02:35:33.598Z",
+      "at": "2026-11-09T03:14:05.896Z",
       "before": {
         "FS": 14,
         "SS": 1
@@ -563,7 +563,7 @@
       "id": "15",
       "name": "Zoom و Scroll در Gantt",
       "status": "pass",
-      "at": "2026-11-09T02:35:37.692Z",
+      "at": "2026-11-09T03:14:09.624Z",
       "before": "month",
       "zoomedIn": "week",
       "zoomedOut": "month",
@@ -583,7 +583,7 @@
       "id": "16",
       "name": "تغییر اندازه Splitterها در چند اندازه صفحه",
       "status": "pass",
-      "at": "2026-11-09T02:35:49.484Z",
+      "at": "2026-11-09T03:14:17.030Z",
       "results": [
         {
           "width": 1024,
@@ -663,7 +663,7 @@
       "id": "17",
       "name": "بررسی حالت RTL و LTR",
       "status": "pass",
-      "at": "2026-11-09T02:35:52.457Z",
+      "at": "2026-11-09T03:14:19.983Z",
       "rtl": {
         "dir": "rtl",
         "lang": "fa",
@@ -678,7 +678,7 @@
       "id": "18",
       "name": "بررسی عدم وجود خطای Console و Runtime",
       "status": "pass",
-      "at": "2026-11-09T02:35:55.254Z",
+      "at": "2026-11-09T03:14:22.700Z",
       "exceptions": 0,
       "consoleErrors": 0,
       "apiFailures": 0,
@@ -722,5 +722,5 @@
   "exceptions": [],
   "consoleErrors": [],
   "apiFailures": [],
-  "finishedAt": "2026-11-09T02:35:55.254Z"
+  "finishedAt": "2026-11-09T03:14:22.700Z"
 }
