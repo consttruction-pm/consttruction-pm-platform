@@ -442,7 +442,7 @@
       "ok": true,
       "detail": {
         "drawer": true,
-        "focused": null
+        "focused": "activity_id"
       }
     },
     {
@@ -2196,11 +2196,11 @@
     }
   ],
   "build": {
-    "git_head": "001b3473e7bc69b81d5c08e03377c5ec3190aead",
+    "git_head": "ecc4f463ad72567a27ef54683605a066ea54901b",
     "base_url": "http://127.0.0.1:4174"
   },
   "screenshots": [],
   "failed": 0,
   "passed": 84,
-  "finished_at": "2026-11-09T05:58:22.081Z"
+  "finished_at": "2026-11-09T06:09:12.803Z"
 }
