@@ -2500,7 +2500,7 @@ async function main() {
         layoutbarCount: document.querySelectorAll(".cp-layoutbar").length,
         barsButton: Boolean(document.querySelector('[data-toolbar-command="toolbar.bars"]')),
         fontRowButton: Boolean(document.querySelector('[data-toolbar-command="toolbar.font-row"]')),
-        contextCommandCount: document.querySelectorAll(".cp-context-command-bar button:not(:disabled)").length,
+        commandStripCount: document.querySelectorAll(".cp-context-command-bar, .cp-p6-activity-header").length,
       };
     })()`);
     const titleIndex = chromeStructure.order.indexOf("titlebar");
@@ -2511,7 +2511,7 @@ async function main() {
       chromeStructure.menuCount === 1 && chromeStructure.toolbarCount === 1 && chromeStructure.tabsCount === 1 &&
         chromeStructure.groupedToolbarCount === 0 && chromeStructure.layoutbarCount === 0 &&
         titleIndex >= 0 && titleIndex < menuIndex && menuIndex < toolbarIndex && toolbarIndex < tabsIndex &&
-        chromeStructure.barsButton && chromeStructure.fontRowButton,
+        chromeStructure.barsButton && chromeStructure.fontRowButton && chromeStructure.commandStripCount === 0,
       "workspace chrome must render one title/menu/icon-toolbar/tab sequence with promoted layout commands: " +
         JSON.stringify(chromeStructure),
     );
@@ -4533,8 +4533,13 @@ async function main() {
 
     // The tools drawer is a floating overlay too; the table and Gantt keep
     // their widths while it is open and its close control restores the view.
+    // The command strip is gone, so the drawer opens from its real left-rail
+    // Tools action.
     await page.evaluate("window.scrollTo(0, 0)");
-    await page.click("[data-tools-open]");
+    await page.evaluate(`(() => {
+      const drawer = document.querySelector("[data-tools-drawer]");
+      if (drawer && drawer.hidden) document.querySelector('[data-rail-action="tools"]')?.click();
+    })()`);
     await page.waitFor(
       `!document.querySelector("[data-tools-drawer]")?.hidden`,
       "tools drawer opens",

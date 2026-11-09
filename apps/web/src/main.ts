@@ -1724,6 +1724,9 @@ function renderApp(
         : "asc";
       renderApp(container, setActivitySort(state, columnId, direction), persistence);
     },
+    onActivitySortSet: (columnId, direction) => {
+      renderApp(container, setActivitySort(state, columnId, direction), persistence);
+    },
     onActivitySortDirectionToggle: () => {
       renderApp(container, toggleActivitySortDirection(state), persistence);
     },

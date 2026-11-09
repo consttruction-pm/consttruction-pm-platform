@@ -672,13 +672,23 @@ async function main() {
       const gridMenu = await openAt("#cp-activity-grid", "empty grid area");
       assert(gridMenu && gridMenu.visible, "empty grid area did not open the activity menu");
       await dispatchKey(page, "Escape", "Escape", 27);
-      // The live details pane is #cp-details; the workspace context handler
-      // intentionally covers only the table, chart and WBS bands, so this
-      // probe records the real outcome instead of assuming a menu exists.
+      // Right-clicking the details pane opens its own Customize Activity
+      // Details menu, never the activity command menu.
       const detailsMenu = await openAt("#cp-details", "details pane");
       const detailsVisible = Boolean(detailsMenu && detailsMenu.visible);
-      assert(!detailsVisible, "the details pane unexpectedly opened an activity context menu");
-      return { areas, tableItems: tableMenu.items.length, gridMenu: gridMenu.visible, detailsVisible };
+      assert(detailsVisible, "the details pane did not open its customize menu");
+      assert(detailsMenu.items.includes("customize-details"),
+        `details menu is missing Customize Activity Details: ${JSON.stringify(detailsMenu.items)}`);
+      assert(!detailsMenu.items.includes("delete") && !detailsMenu.items.includes("cut"),
+        "the details pane exposed activity-only commands");
+      await dispatchKey(page, "Escape", "Escape", 27);
+      return {
+        areas,
+        tableItems: tableMenu.items.length,
+        gridMenu: gridMenu.visible,
+        detailsVisible,
+        detailsItems: detailsMenu.items,
+      };
     });
 
     await scenario("12", "آزمون میانبرهای تأییدشده", async () => {

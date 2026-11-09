@@ -19,6 +19,7 @@ import type {
   WorkspaceWbsNode,
 } from "./workspace-model.js";
 import { translateWorkspaceUiText } from "./workspace-localization.js";
+import { anchorPoint, openContextMenu } from "./workspace-context-menu.js";
 
 export const ACTIVITY_DETAILS_STORAGE_KEY = "cubi:activity-details-tab";
 
@@ -988,6 +989,8 @@ function customizeDialogBody(locale: string, state: CustomizeState): string {
       <div class="cp-detail-column-actions" role="group" aria-label="${esc(t(locale, "Move tabs", "جابه‌جایی زبانه‌ها"))}">
         <button type="button" class="cp-detail-action" data-customize-add ${state.selectedAvailable ? "" : "disabled"}>${esc(t(locale, "Add >", "افزودن >"))}</button>
         <button type="button" class="cp-detail-action" data-customize-remove ${state.selectedDisplay && state.display.length > 1 ? "" : "disabled"}>&lt; ${esc(t(locale, "Remove", "حذف"))}</button>
+        <button type="button" class="cp-detail-action" data-customize-add-all ${available.length ? "" : "disabled"}>${esc(t(locale, "Add All >>", "افزودن همه >>"))}</button>
+        <button type="button" class="cp-detail-action" data-customize-remove-all ${state.display.length > 1 ? "" : "disabled"}>&lt;&lt; ${esc(t(locale, "Remove All", "حذف همه"))}</button>
         <button type="button" class="cp-detail-action" data-customize-up ${state.selectedDisplay ? "" : "disabled"}>${esc(t(locale, "Move Up", "بالا"))}</button>
         <button type="button" class="cp-detail-action" data-customize-down ${state.selectedDisplay ? "" : "disabled"}>${esc(t(locale, "Move Down", "پایین"))}</button>
       </div>
@@ -1007,7 +1010,7 @@ function customizeDialogBody(locale: string, state: CustomizeState): string {
 }
 
 function renderCustomizeDialog(locale: string, display: readonly ActivityDetailsTabId[]): string {
-  return `<dialog class="cp-activity-details-options cp-details-customize" data-details-customize-dialog aria-labelledby="cp-details-customize-title">${customizeDialogBody(locale, {
+  return `<dialog class="cp-activity-details-options cp-details-customize" data-details-customize-dialog aria-labelledby="cp-details-customize-title" dir="${locale === "fa" ? "rtl" : "ltr"}">${customizeDialogBody(locale, {
     display: [...display],
     selectedAvailable: null,
     selectedDisplay: null,
@@ -1232,6 +1235,22 @@ export function enhanceActivityDetails(
     }
     if (target.closest("[data-customize-up]")) { moveDisplay(-1); return; }
     if (target.closest("[data-customize-down]")) { moveDisplay(1); return; }
+    if (target.closest("[data-customize-add-all]")) {
+      const state = customize();
+      const shown = new Set(state.display);
+      state.display = [...state.display, ...allActivityTabIds().filter((id) => !shown.has(id))];
+      state.selectedAvailable = null;
+      state.selectedDisplay = null;
+      redrawDialog();
+      return;
+    }
+    if (target.closest("[data-customize-remove-all]")) {
+      const state = customize();
+      state.display = state.display.slice(0, 1);
+      state.selectedDisplay = null;
+      redrawDialog();
+      return;
+    }
     if (target.closest("[data-customize-default]")) {
       customizeRuntime.set(host, {
         display: [...allActivityTabIds()],
@@ -1248,5 +1267,52 @@ export function enhanceActivityDetails(
       closeDialog();
       return;
     }
+  });
+
+  const openDetailsContextMenu = (x: number, y: number, anchor: HTMLElement | null, focusFirst = true): void => {
+    const runtime = detailsRuntime.get(host);
+    if (!runtime) return;
+    const locale = runtime.input.locale;
+    openContextMenu({
+      x,
+      y,
+      anchor,
+      focusFirst,
+      kind: "activity-details",
+      label: t(locale, "Activity Details", "جزئیات فعالیت"),
+      direction: locale === "fa" ? "rtl" : "ltr",
+      items: [
+        {
+          command: "customize-details",
+          label: t(locale, "Customize Activity Details…", "تنظیم جزئیات فعالیت…"),
+          icon: "settings",
+        },
+      ],
+      onCommand: (command) => {
+        if (command === "customize-details") openDialog();
+      },
+    });
+  };
+
+  // Version 26 documents right-clicking the Activity Details tab area to open
+  // Customize Activity Details. The menu is a viewport portal so it appears at
+  // the pointer even though this pane clips its children.
+  host.addEventListener("contextmenu", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!target || typeof target.closest !== "function") return;
+    if (target.closest("[data-details-customize-dialog]")) return;
+    event.preventDefault();
+    openDetailsContextMenu(event.clientX, event.clientY, target.closest<HTMLElement>("[data-detail-tab]") ?? host, false);
+  });
+
+  host.addEventListener("keydown", (event) => {
+    if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+    const target = event.target as HTMLElement | null;
+    if (!target || typeof target.closest !== "function") return;
+    if (target.closest("[data-details-customize-dialog]")) return;
+    event.preventDefault();
+    const anchor = target.closest<HTMLElement>("[data-detail-tab], .cp-details-head") ?? host;
+    const point = anchorPoint(anchor);
+    openDetailsContextMenu(point.x, point.y, anchor);
   });
 }
